@@ -130,23 +130,23 @@ namespace parts
 
 		parts::ParticleDiffusionOperatorDG* _parDiffOp;
 
-		unsigned int* nBound() CADET_NOEXCEPT { return _parDiffOp->_nBound; }; //!< Array with number of bound states for each component
+		unsigned int* nBound() CADET_NOEXCEPT { return _parDiffOp->nBound(); }; //!< Array with number of bound states for each component
 		inline IBindingModel* getBinding() const CADET_NOEXCEPT { return _binding; }
 		inline bool singleBinding() const CADET_NOEXCEPT { return _singleBinding; }
 		inline IDynamicReactionModel* getReaction() const CADET_NOEXCEPT { return _dynReaction; }
 		inline bool singleReaction() const CADET_NOEXCEPT { return _singleDynReaction; }
 
-		inline active& getPorosity() const CADET_NOEXCEPT { return _parDiffOp->_parPorosity; }
-		inline active* getPoreAccessfactor() const CADET_NOEXCEPT { return &_parDiffOp->_poreAccessFactor[0]; }
-		inline IParameterStateDependence* getParDepSurfDiffusion() const CADET_NOEXCEPT { return _parDiffOp->_parDepSurfDiffusion; }
-		inline bool singleParDepSurfDiffusion() const CADET_NOEXCEPT { return _parDiffOp->_singleParDepSurfDiffusion; }
-		inline MultiplexMode parDiffMode() const CADET_NOEXCEPT { return _parDiffOp->_parDiffusionMode; }
-		inline MultiplexMode parSurfDiffMode() const CADET_NOEXCEPT { return _parDiffOp->_parSurfDiffusionMode; }
+		inline const active& getPorosity() const CADET_NOEXCEPT { return _parDiffOp->getPorosity(); }
+		inline const active* getPoreAccessfactor() const CADET_NOEXCEPT { return _parDiffOp->getPoreAccessfactor(); }
+		inline IParameterStateDependence* getParDepSurfDiffusion() const CADET_NOEXCEPT { return _parDiffOp->getParDepSurfDiffusion(); }
+		inline bool singleParDepSurfDiffusion() const CADET_NOEXCEPT { return _parDiffOp->singleParDepSurfDiffusion(); }
+		inline MultiplexMode parDiffMode() const CADET_NOEXCEPT { return _parDiffOp->parDiffMode(); }
+		inline MultiplexMode parSurfDiffMode() const CADET_NOEXCEPT { return _parDiffOp->parSurfDiffMode(); }
 
 		/**
 		 * @brief array with offsets to the first bound state of each component in the solid phase
 		 */
-		inline unsigned int* offsetBoundComp() const CADET_NOEXCEPT { return _parDiffOp->_boundOffset; };
+		inline unsigned int* offsetBoundComp() const CADET_NOEXCEPT { return _parDiffOp->offsetBoundComp(); };
 		/**
 		 * @brief offset to the first bound state
 		 */
@@ -154,11 +154,11 @@ namespace parts
 		/**
 		 * @brief total number of bound states
 		 */
-		inline unsigned int strideBound() const CADET_NOEXCEPT { return _parDiffOp->_strideBound; };
+		inline unsigned int strideBound() const CADET_NOEXCEPT { return _parDiffOp->strideBound(); };
 		/**
 		 * @brief total number discrete points per particle
 		 */
-		inline int nDiscPoints() const CADET_NOEXCEPT { return _parDiffOp->_nParPoints; }
+		inline int nDiscPoints() const CADET_NOEXCEPT { return _parDiffOp->nDiscPoints(); }
 		/**
 		 * @brief stride over all components in the liquid phase
 		 */

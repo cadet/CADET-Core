@@ -99,11 +99,50 @@ namespace parts
 		virtual bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor) = 0;
 
 		virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac, bool outliersOnly = false) = 0;
+		virtual int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac) = 0;
 
 		/**
 		 * @brief calculates and returns the physical particle coordinates according to the discretization
 		 */
 		virtual int getParticleCoordinates(double* coords) const = 0;
+
+		virtual unsigned int calcParDiffNNZ() = 0;
+		
+		virtual bool setParameter(const ParameterId& pId, double value);
+		virtual bool setParameter(const ParameterId& pId, int value);
+		virtual bool setParameter(const ParameterId& pId, bool value);
+		virtual bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
+		virtual bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value);
+
+		/**
+		 * @brief array with number of bound states for each component
+		 */
+		unsigned int* nBound() CADET_NOEXCEPT { return _nBound; };
+		/**
+		 * @brief array with offsets to the first bound state of each component in the solid phase
+		 */
+		inline unsigned int* offsetBoundComp() const CADET_NOEXCEPT { return _boundOffset; };
+		/**
+		 * @brief offset to the first bound state
+		 */
+		inline unsigned int offsetBoundComp(ComponentIndex comp) const CADET_NOEXCEPT { return offsetBoundComp()[comp.value]; }
+		/**
+		 * @brief total number of bound states
+		 */
+		inline unsigned int strideBound() const CADET_NOEXCEPT { return _strideBound; };
+		/**
+		 * @brief total number discrete points per particle
+		 */
+		inline int nDiscPoints() const CADET_NOEXCEPT { return _nParPoints; }
+
+		inline const active& getPorosity() const CADET_NOEXCEPT { return _parPorosity; }
+		inline const active* getPoreAccessfactor() const CADET_NOEXCEPT { return &_poreAccessFactor[0]; }
+		inline IParameterStateDependence* getParDepSurfDiffusion() const CADET_NOEXCEPT { return _parDepSurfDiffusion; }
+		inline bool singleParDepSurfDiffusion() const CADET_NOEXCEPT { return _singleParDepSurfDiffusion; }
+		inline MultiplexMode parDiffMode() const CADET_NOEXCEPT { return _parDiffusionMode; }
+		inline MultiplexMode parSurfDiffMode() const CADET_NOEXCEPT { return _parSurfDiffusionMode; }
+
+	protected:
 
 		/* component system */
 		unsigned int _nComp; //!< Number of components
@@ -142,6 +181,13 @@ namespace parts
 		int _strideBulkComp; //!< Component stride in bulk state vector
 		unsigned int* _boundOffset; //!< Array with offset to the first bound state of each component in the solid phase
 		unsigned int _strideBound; //!< Total number of bound states
+		unsigned int _nParPoints; //!< Total number of discrete points per particle
+		inline int strideBulkComp() const CADET_NOEXCEPT { return _strideBulkComp; }
+		inline int strideParComp() const CADET_NOEXCEPT { return 1; }
+		inline int strideParLiquid() const CADET_NOEXCEPT { return static_cast<int>(_nComp); }
+		inline int strideParBound() const CADET_NOEXCEPT { return static_cast<int>(_strideBound); }
+		inline int strideParPoint() const CADET_NOEXCEPT { return strideParLiquid() + strideParBound(); }
+		inline int strideParBlock() const CADET_NOEXCEPT { return static_cast<int>(_nParPoints) * strideParPoint(); }
 
 	};
 

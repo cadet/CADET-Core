@@ -150,48 +150,6 @@ namespace parts
 			return _parGeomSurfToVol / static_cast<ParamType>(_parRadius);
 		}
 
-		inline int strideBulkComp() const CADET_NOEXCEPT { return _strideBulkComp; }
-		inline int strideParComp() const CADET_NOEXCEPT { return 1; }
-		inline int strideParLiquid() const CADET_NOEXCEPT { return static_cast<int>(_nComp); }
-		inline int strideParBound() const CADET_NOEXCEPT { return static_cast<int>(_strideBound); }
-		inline int strideParNode() const CADET_NOEXCEPT { return strideParLiquid() + strideParBound(); }
-		inline int strideParElem() const CADET_NOEXCEPT { return strideParNode() * _nParNode; }
-		inline int strideParBlock() const CADET_NOEXCEPT { return static_cast<int>(_nParPoints) * strideParNode(); }
-		inline int offsetBoundComp(ComponentIndex comp) const CADET_NOEXCEPT { return _boundOffset[comp.value]; }
-
-		ParticleDiscretizationMode _parDiscMode; //!< Particle discretization mode
-
-		std::vector<double> _parDiscVector; //!< Particle discretization element boundary coodinates
-
-		unsigned int _nParElem; //!< Array with number of radial elements
-		unsigned int _parPolyDeg; //!< polynomial degree of particle elements
-		unsigned int _nParNode; //!< Array with number of radial nodes per element
-		unsigned int _nParPoints; //!< Array with number of radial nodes per element
-		bool _parGSM; //!< specifies whether (single element) Galerkin spectral method should be used in particles
-
-		std::vector<active> _parElementSize; //!< Particle element size
-		std::vector<active> _parCenterRadius; //!< Particle node-centered position for each particle node
-
-		/* DG specific operators */
-
-		active* _deltaR; //!< equidistant particle element spacing
-		Eigen::VectorXd _parNodes; //!< Array with positions of nodes in radial reference element for each particle
-		Eigen::MatrixXd _parPolyDerM; //!< Array with polynomial derivative Matrix for each particle
-		Eigen::MatrixXd* _minus_InvMM_ST; //!< equals minus inverse mass matrix times transposed stiffness matrix.
-		Eigen::VectorXd _parInvWeights; //!< Array with weights for LGL quadrature of size nNodes for each particle
-		Eigen::MatrixXd* _parInvMM; //!< dense inverse mass matrix for exact integration of integrals with metrics, for each particle
-		Eigen::MatrixXd _parInvMM_Leg; //!< dense inverse mass matrix (Legendre) for exact integration of integral without metric, for each particle
-		Eigen::MatrixXd _secondOrderStiffnessM; //!< specific second order stiffness matrix
-		Eigen::MatrixXd _minus_parInvMM_Ar; //!< inverse mass matrix times specific second order stiffness matrix
-		Eigen::Vector<active, Dynamic>* _Ir; //!< metric part for each element
-
-		Eigen::MatrixXd* _DGjacParDispBlocks; //!< particle dispersion blocks of DG jacobian
-
-		Eigen::Vector<active, Dynamic> _g_p; //!< auxiliary variable g = dc_p / dr
-		Eigen::Vector<active, Dynamic> _g_pSum; //!< auxiliary variable g = sum_{k \in p, s_i} dc_k / dr
-		Eigen::Vector<active, Dynamic> _surfaceFluxParticle; //!< stores the surface flux values for each particle
-		active* _localFlux; //!< stores the local (at respective particle) film diffusion flux
-
 		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly = false);
 
 		int getParticleCoordinates(double* coords) const;
@@ -206,12 +164,6 @@ namespace parts
 
 		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
 
-		bool setParameter(const ParameterId& pId, double value);
-		bool setParameter(const ParameterId& pId, int value);
-		bool setParameter(const ParameterId& pId, bool value);
-		bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
-		bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value);
-		
 	protected:
 
 		void initializeDG();
@@ -240,8 +192,6 @@ namespace parts
 		template<typename StateType>
 		void solve_auxiliary_DG(Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<>>& conc, unsigned int strideCell, unsigned int strideNode, int comp);
 
-		/*		DG particle Jacobian		*/
-
 		Eigen::MatrixXd DGjacobianParDispBlock(unsigned int elemIdx,double parGeomSurfToVol);
 		Eigen::MatrixXd GSMjacobianParDispBlock(double parGeomSurfToVol);
 		Eigen::MatrixXd getParBMatrix(int element, double parGeomSurfToVol);
@@ -250,6 +200,41 @@ namespace parts
 
 		void insertParJacBlock(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, const active* const parDiff, const active* const surfDiff, const active* const beta_p, const int* nonKinetic, unsigned int nBlocks, int offRowToCol);
 		void addDiagonalSolidJacobianEntries(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, const int* const reqBinding, const active* const surfDiffPtr);
+
+		inline int strideParNode() const CADET_NOEXCEPT { return strideParPoint(); }
+		inline int strideParElem() const CADET_NOEXCEPT { return strideParNode() * _nParNode; }
+
+		ParticleDiscretizationMode _parDiscMode; //!< Particle discretization mode
+
+		std::vector<double> _parDiscVector; //!< Particle discretization element boundary coodinates
+
+		unsigned int _nParElem; //!< Number of elements per particle
+		unsigned int _parPolyDeg; //!< Polynomial degree of particle elements
+		unsigned int _nParNode; //!< Number of nodes per particle element
+		bool _parGSM; //!< specifies whether (single element) Galerkin spectral method should be used in particles
+
+		std::vector<active> _parElementSize; //!< Particle element size
+		std::vector<active> _parCenterRadius; //!< Particle node-centered position for each particle node
+
+		/* DG specific operators */
+
+		active* _deltaR; //!< equidistant particle element spacing
+		Eigen::VectorXd _parNodes; //!< Array with positions of nodes in radial reference element for each particle
+		Eigen::MatrixXd _parPolyDerM; //!< Array with polynomial derivative Matrix for each particle
+		Eigen::MatrixXd* _minus_InvMM_ST; //!< equals minus inverse mass matrix times transposed stiffness matrix.
+		Eigen::VectorXd _parInvWeights; //!< Array with weights for LGL quadrature of size nNodes for each particle
+		Eigen::MatrixXd* _parInvMM; //!< dense inverse mass matrix for exact integration of integrals with metrics, for each particle
+		Eigen::MatrixXd _parInvMM_Leg; //!< dense inverse mass matrix (Legendre) for exact integration of integral without metric, for each particle
+		Eigen::MatrixXd _secondOrderStiffnessM; //!< specific second order stiffness matrix
+		Eigen::MatrixXd _minus_parInvMM_Ar; //!< inverse mass matrix times specific second order stiffness matrix
+		Eigen::Vector<active, Dynamic>* _Ir; //!< metric part for each element
+
+		Eigen::MatrixXd* _DGjacParDispBlocks; //!< particle dispersion blocks of DG jacobian
+
+		Eigen::Vector<active, Dynamic> _g_p; //!< auxiliary variable g = dc_p / dr
+		Eigen::Vector<active, Dynamic> _g_pSum; //!< auxiliary variable g = sum_{k \in p, s_i} dc_k / dr
+		Eigen::Vector<active, Dynamic> _surfaceFluxParticle; //!< stores the surface flux values for each particle
+		active* _localFlux; //!< stores the local (at respective particle) film diffusion flux
 
 	};
 
