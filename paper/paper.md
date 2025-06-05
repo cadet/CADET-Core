@@ -90,6 +90,12 @@ CADET-Core is the central module within the broader [CADET](https://github.com/c
 
 CADET-Core is readily accessible through the [Conda-Forge package manager](https://anaconda.org/conda-forge/cadet). The CADET team is committed to sustainable research software engineering practices and encourages external contributions to further expand the platform. Through reliable, high-quality software and an ever-growing [community](https://forum.cadet-web.de/), CADET has become a widely adopted tool, driving research and innovation in both academia and industry.
 
+# State of the Field
+
+Several commercial tools, including [Aspen Chromatography](https://www.aspentech.com/en/products/engineering/aspen-adsorption-and-aspen-chromatography), [GoSilico](https://www.cytivalifesciences.com/en/us/shop/chromatography/chromatography-modeling/gosilico-chromatography-modeling-software-p-28023) by Cytiva, and [Ypso-Ionic](https://www.ypsofacto.com/proxima-ionic) by YpsoFacto, offer user-friendly platforms for chromatographic simulation. Designed primarily for experimentalists or process engineers without a background in programming or numerical modeling, these tools emphasize accessibility through graphical user interfaces. However, they constrain users to predefined workflows and models, without access to the underlying implementation. This limits flexibility for non-standard process configurations and detailed mechanistic extensions.
+ 
+In contrast, CADET-Core is a freely available open-source tool, featuring a domain-specific numerical solver tailored for the in silico development of complex biotechnological processes. It enables efficient mechanistic modeling, is highly extensible, and integrates smoothly into diverse engineering workflows. Transparency, sustainable development practices, and an active user community further distinguish CADET-Core as a versatile platform for both research and operational applications.
+
 # Use Examples
 
 To date, CADET has been mentioned in more than 250 articles as highlighted in the [Helmholtz Software Directory](https://helmholtz.software/software/cadet). These studies demonstrate the relevance of CADET-Core as a versatile tool for biotechnology process modeling and optimization across a wide range of applications. Most recent examples include:
