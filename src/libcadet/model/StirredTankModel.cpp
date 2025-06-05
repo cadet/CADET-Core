@@ -1552,7 +1552,7 @@ namespace cadet
 			std::unique_ptr<ResidualType[]> temp1 = std::make_unique<ResidualType[]>(_nComp);
 			Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> qsFlux(temp1.get(), _dynReactionBulk->numReactionsLiquid());
 			qsFlux.setZero();
-			_dynReactionBulk->computeQuasiStationaryReactionFlux(t, secIdx, colPos, c, qsFlux, subAlloc);
+			//_dynReactionBulk->computeQuasiStationaryReactionFlux(t, secIdx, colPos, c, qsFlux, subAlloc);
 
 			// buffer memory for transformed residual
 			std::unique_ptr<ResidualType[]> temp = std::make_unique<ResidualType[]>(_nComp);
@@ -1578,7 +1578,7 @@ namespace cadet
 				EigenMatrixTimesDenseMatrix(_dynReactionBulk->matrixMoietiesBulk(), _jac);
 				for (int state : _dynReactionBulk->algIdx())
 				{
-					_dynReactionBulk->analyticJacobianQuasiStationaryReaction(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, rIdx, _jac.row(state), subAlloc);
+					//_dynReactionBulk->analyticJacobianQuasiStationaryReaction(t, secIdx, colPos, reinterpret_cast<double const*>(c), state, rIdx, _jac.row(state), subAlloc);
 					_jac.native(state, _nComp + _totalBound) = 0.0; // dF_{ci}/dvliquid = 0
 				}
 			}

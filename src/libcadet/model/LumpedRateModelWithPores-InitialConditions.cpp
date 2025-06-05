@@ -593,7 +593,6 @@ void LumpedRateModelWithPores<ConvDispOperator>::consistentInitialState(const Si
 	}
 
 	// Step 1b: Compute fluxes j_f
-
 	// Reset j_f to 0.0
 	double* const jf = vecStateY + idxr.offsetJf();
 	std::fill(jf, jf + _disc.nComp * _disc.nCol * _disc.nParType, 0.0);

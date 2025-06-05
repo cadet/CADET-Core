@@ -133,6 +133,7 @@ int LumpedRateModelWithPores<ConvDispOperator>::linearSolve(double t, double alp
 		{
 			// Assemble and factorize discretized bulk Jacobian
 			const bool result = _convDispOp.assembleAndFactorizeDiscretizedJacobian(alpha);
+			
 			if (cadet_unlikely(!result))
 			{
 				LOG(Error) << "Factorize() failed for bulk block";

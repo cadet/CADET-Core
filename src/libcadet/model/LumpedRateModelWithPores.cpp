@@ -355,6 +355,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 
 		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
 			paramProvider.popScope();
+		
 	}
 
 	clearDynamicReactionModels();
@@ -563,6 +564,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configure(IParameterProvider& p
 	{
 		paramProvider.pushScope("reaction_bulk");
 		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
+		_convDispOp.setDynamicReactionBulk(_dynReactionBulk);
 		paramProvider.popScope();
 	}
 
