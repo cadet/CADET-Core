@@ -208,7 +208,6 @@ namespace cadet
 				Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> fluxes, LinearBufferAllocator workSpace){return 0;}
 
 			virtual int const* reactionQuasiStationarity() const CADET_NOEXCEPT { return nullptr; }
-			virtual void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dReacDt, LinearBufferAllocator workSpace){ }
 			virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 			{
 				readScalarParameterOrArray(_bins, paramProvider, "CRY_BINS", 1);

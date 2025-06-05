@@ -162,7 +162,6 @@ public:
 	template <typename RowIterator>
 	void jacobianSingleFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int state, int reaction, const RowIterator& jac, LinearBufferAllocator workSpace) const { }
 	
-	virtual void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dReacDt, LinearBufferAllocator workSpace) { }
 	template<typename StateType, typename ResidualType>
 	int quasiStationaryFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
 		Eigen::Map<Eigen::Vector<ResidualType, Eigen::Dynamic>> fluxes, LinearBufferAllocator workSpace) {return 0;}

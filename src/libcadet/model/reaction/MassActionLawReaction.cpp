@@ -323,7 +323,7 @@ namespace cadet
 			}
 
 			virtual int const* reactionQuasiStationarity() const CADET_NOEXCEPT { return _reactionQuasiStationarity.data(); }
-			virtual bool hasQuasiStationaryReactionsBulk() const CADET_NOEXCEPT
+			auto  hasQuasiStationaryReactionsBulk() const CADET_NOEXCEPT -> bool
 			{
 				return std::any_of(_reactionQuasiStationarity.begin(), _reactionQuasiStationarity.end(), [](int i) -> bool { return i; });
 			}
@@ -432,7 +432,7 @@ namespace cadet
 			virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometryBulk.columns(); }
 			virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return _stoichiometryLiquid.columns() + _stoichiometrySolid.columns(); }
 
-			virtual unsigned int numReactionQuasiStationary() const
+			auto numReactionQuasiStationary() const -> unsigned int  override
 			{
 				return  std::count(_reactionQuasiStationarity.begin(), _reactionQuasiStationarity.end(), true);
 			}
@@ -1031,7 +1031,7 @@ namespace cadet
 				return 0;
 			}
 
-			void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dY, LinearBufferAllocator workSpace) const
+			void timeDerivativeQuasiStationaryReaction(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dY, LinearBufferAllocator workSpace) const override
 			{
 				if (!this->hasQuasiStationaryReactionsBulk())
 					return;
@@ -1181,6 +1181,7 @@ namespace cadet
 				if (numQuasiStationaryReactions == 0)
 				{
 					_nConservedQuants = 0;
+					return;
 				}
 				// Create quasiStationaryStoichiometry matrix with stoichiometry of quasi-stationary reactions
 				Eigen::MatrixXd quasiStationaryStoichiometry(_stoichiometryBulk.rows(), numQuasiStationaryReactions);
@@ -1263,8 +1264,8 @@ namespace cadet
 				// acording to componentsInQssReactions: 0 -> not conserved 1-> conserved (either dynamic or not)
 				int mIdx = 0;
 				int nonActiveIdx = 0;
-				_MconvMoityBulk = Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic>::Zero(_nComp , _nComp); //todo so groß wie der ganze state vector vielleicht als einheintsmatrix anlegen?
-				for (int i = 0; i < _nComp; ++i) //todo den ganzen state vector entlang
+				_MconvMoityBulk = Eigen::Matrix<active, Eigen::Dynamic, Eigen::Dynamic>::Zero(_nComp , _nComp);
+				for (int i = 0; i < _nComp; ++i)
 				{
 					if (_quasiStationaryComponentBulkMap[i] == 0) // dynamic but not active
 					{
