@@ -386,7 +386,7 @@ void GeneralRateModelDG::consistentInitialState(const SimulationTime& simTime, d
 				active* const localAdY = adJac.adY ? adJac.adY + localOffsetToParticle + localOffsetInParticle : nullptr;
 
 				// r (particle) coordinate of current node
-				const double r = _parDiffOp[type].relativeCoordinate(node);
+				const double r = _particle[type].relativeCoordinate(node);
 				const ColumnPosition colPos{ z, 0.0, r };
 
 				// Determine whether nonlinear solver is required
@@ -397,8 +397,8 @@ void GeneralRateModelDG::consistentInitialState(const SimulationTime& simTime, d
 				linalg::selectVectorSubset(qShell - _disc.nComp, mask, solution);
 
 				// Save values of conserved moieties
-				const double epsQ = 1.0 - static_cast<double>(_parDiffOp[type]._parPorosity);
-				linalg::conservedMoietiesFromPartitionedMask(mask, _disc.nBound + type * _disc.nComp, _disc.nComp, qShell - _disc.nComp, conservedQuants, static_cast<double>(_parDiffOp[type]._parPorosity), epsQ);
+				const double epsQ = 1.0 - static_cast<double>(_particle[type].getPorosity());
+				linalg::conservedMoietiesFromPartitionedMask(mask, _disc.nBound + type * _disc.nComp, _disc.nComp, qShell - _disc.nComp, conservedQuants, static_cast<double>(_particle[type].getPorosity()), epsQ);
 
 				std::function<bool(double const* const, linalg::detail::DenseMatrixBase&)> jacFunc;
 
@@ -477,7 +477,7 @@ void GeneralRateModelDG::consistentInitialState(const SimulationTime& simTime, d
 								continue;
 							}
 
-							mat.native(rIdx, rIdx) = static_cast<double>(_parDiffOp[type]._parPorosity);
+							mat.native(rIdx, rIdx) = static_cast<double>(_particle[type].getPorosity());
 
 							for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++bndIdx)
 							{
@@ -525,7 +525,7 @@ void GeneralRateModelDG::consistentInitialState(const SimulationTime& simTime, d
 								continue;
 							}
 
-							mat.native(rIdx, rIdx) = static_cast<double>(_parDiffOp[type]._parPorosity);
+							mat.native(rIdx, rIdx) = static_cast<double>(_particle[type].getPorosity());
 
 							for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++bndIdx)
 							{
@@ -572,7 +572,7 @@ void GeneralRateModelDG::consistentInitialState(const SimulationTime& simTime, d
 								continue;
 							}
 
-							r[rIdx] = static_cast<double>(_parDiffOp[type]._parPorosity) * x[rIdx] - conservedQuants[rIdx];
+							r[rIdx] = static_cast<double>(_particle[type].getPorosity()) * x[rIdx] - conservedQuants[rIdx];
 
 							for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++bndIdx)
 							{
@@ -713,7 +713,7 @@ void GeneralRateModelDG::consistentInitialTimeDerivative(const SimulationTime& s
 			if (_binding[type]->dependsOnTime())
 			{
 				// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
-				const double r = _parDiffOp[type].relativeCoordinate(j);
+				const double r = _particle[type].relativeCoordinate(j);
 
 				_binding[type]->timeDerivativeQuasiStationaryFluxes(simTime.t, simTime.secIdx,
 					ColumnPosition{ z, 0.0, r },
@@ -799,7 +799,7 @@ void GeneralRateModelDG::leanConsistentInitialState(const SimulationTime& simTim
 {
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		if (isSectionDependent(_parDiffOp[parType]._parDiffusionMode) || isSectionDependent(_parDiffOp[parType]._parSurfDiffusionMode))
+		if (isSectionDependent(_particle[parType].parDiffMode()) || isSectionDependent(_particle[parType].parSurfDiffMode()))
 			LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";
 
 		BENCH_SCOPE(_timerConsistentInit);
@@ -833,7 +833,7 @@ void GeneralRateModelDG::leanConsistentInitialState(const SimulationTime& simTim
 					const int localOffsetInParticle = static_cast<int>(shell) * idxr.strideParNode(type) + idxr.strideParLiquid();
 					double* const qShell = vecStateY + localOffsetToParticle + localOffsetInParticle;
 					// r (particle) coordinate of current node
-					const double r = _parDiffOp[type].relativeCoordinate(shell);
+					const double r = _particle[type].relativeCoordinate(shell);
 					const ColumnPosition colPos{ z, 0.0, r};
 
 					// Perform consistent initialization that does not require a full fledged nonlinear solver (that may fail or damage the current state vector)
@@ -890,7 +890,7 @@ void GeneralRateModelDG::leanConsistentInitialTimeDerivative(double t, double co
 {
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		if (isSectionDependent(_parDiffOp[parType]._parDiffusionMode) || isSectionDependent(_parDiffOp[parType]._parSurfDiffusionMode))
+		if (isSectionDependent(_particle[parType].parDiffMode()) || isSectionDependent(_particle[parType].parSurfDiffMode()))
 			LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";
 
 		BENCH_SCOPE(_timerConsistentInit);
@@ -1278,7 +1278,7 @@ void GeneralRateModelDG::leanConsistentInitialSensitivity(const SimulationTime& 
 {
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		if (isSectionDependent(_parDiffOp[parType]._parDiffusionMode) || isSectionDependent(_parDiffOp[parType]._parSurfDiffusionMode))
+		if (isSectionDependent(_particle[parType].parDiffMode()) || isSectionDependent(_particle[parType].parSurfDiffMode()))
 			LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";
 
 		BENCH_SCOPE(_timerConsistentInit);
