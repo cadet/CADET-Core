@@ -156,9 +156,7 @@ namespace parts
 
 		typedef Eigen::Triplet<double> T;
 
-		void calcParticleJacobianPattern(std::vector<T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx);
-		void parTimeDerJacPattern_GRM(std::vector<T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx);
-		void parBindingPattern_GRM(std::vector<T>& tripletList, const int offset, const unsigned int colNode);
+		void setParticleJacobianPattern(std::vector<T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx);
 
 		unsigned int calcParDiffNNZ();
 

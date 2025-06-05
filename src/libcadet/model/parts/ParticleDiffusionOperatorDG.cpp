@@ -929,8 +929,10 @@ namespace parts
 	 * @brief calculates the particle dispersion jacobian Pattern, including entries for the dependence of particle entries on bulk entries through film diffusion boundary condition
 	 * @detail Does NOT add film diffusion entries for the dependence of bulk conc. on particle conc.
 	*/
-	void ParticleDiffusionOperatorDG::calcParticleJacobianPattern(std::vector<ParticleDiffusionOperatorDG::T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx)
+	void ParticleDiffusionOperatorDG::setParticleJacobianPattern(std::vector<ParticleDiffusionOperatorDG::T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx)
 	{
+		ParticleDiffusionOperatorBase::setParticleJacobianPattern(tripletList, offsetPar, offsetBulk, colNode, secIdx);
+
 		// Ordering of particle surface diffusion:
 		// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
 		active const* const _parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
@@ -1246,48 +1248,6 @@ namespace parts
 	unsigned int ParticleDiffusionOperatorDG::calcParDiffNNZ()
 	{
 		return _nComp * ((3u * _nParElem - 2u) * _nParNode * _nParNode + (2u * _nParElem - 3u) * _nParNode);
-	}
-
-	/**
-	 *@brief adds the time derivative entries from particle equations
-	 *@detail since the main diagonal entries are already set, we actually only set the solid phase time derivative entries for the discretized particle mass balance equations
-	 */
-	void ParticleDiffusionOperatorDG::parTimeDerJacPattern_GRM(std::vector<ParticleDiffusionOperatorDG::T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx)
-	{
-		active const* const _parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
-
-		for (unsigned int parNode = 0; parNode < _nParPoints; parNode++)
-		{
-			for (unsigned int comp = 0; comp < _nComp; comp++)
-			{
-				for (unsigned int bnd = 0; bnd < _nBound[comp]; bnd++) {
-					// row: jump over previous nodes add current component offset
-					// col: jump over previous nodes, liquid phase and previous bound states
-					tripletList.push_back(T(offset + parNode * strideParNode() + comp,
-						offset + parNode * strideParNode() + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd,
-						0.0));
-				}
-			}
-		}
-	}
-	/**
-	 * @brief sets the sparsity pattern of the binding Jacobian
-	 */
-	void ParticleDiffusionOperatorDG::parBindingPattern_GRM(std::vector<ParticleDiffusionOperatorDG::T>& tripletList, const int offset, const unsigned int colNode)
-	{
-		// every bound state might depend on every bound and liquid state
-		for (int parNode = 0; parNode < _nParPoints; parNode++)
-		{
-			for (int bnd = 0; bnd < _strideBound; bnd++)
-			{
-				for (int conc = 0; conc < strideParNode(); conc++) {
-					// row: jump over previous nodes and liquid states and add current bound state offset
-					// col: jump over previous nodes and add current concentration offset (liquid and bound)
-					tripletList.push_back(T(offset + parNode * strideParNode() + strideParLiquid() + bnd,
-						offset + parNode * strideParNode() + conc, 0.0));
-				}
-			}
-		}
 	}
 	/**
 	 * @brief calculates the DG Jacobian auxiliary block

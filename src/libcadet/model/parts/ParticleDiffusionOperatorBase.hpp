@@ -89,6 +89,11 @@ namespace parts
 		virtual bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding, const bool hasDynamicReactions) = 0;
 
 		/**
+		 * @brief updates radial discretization operators based on configured parameters
+		 */
+		virtual void updateRadialDisc() = 0;
+
+		/**
 		 * @brief Notifies the operator that a discontinuous section transition is in progress
 		 * @param [in] t Current time point
 		 * @param [in] secIdx Index of the new section that is about to be integrated
@@ -100,11 +105,21 @@ namespace parts
 
 		virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac, bool outliersOnly = false) = 0;
 		virtual int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac) = 0;
+		
+		typedef Eigen::Triplet<double> T;
+		/**
+		 *@brief adds the solid time derivative and binding pattern to the list
+		 */
+		virtual void setParticleJacobianPattern(std::vector<T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx);
 
 		/**
 		 * @brief calculates and returns the physical particle coordinates according to the discretization
 		 */
 		virtual int getParticleCoordinates(double* coords) const = 0;
+		/**
+		 * @brief calculates and returns the relative particle coordinate in [0, 1] for the given node index
+		 */
+		virtual double relativeCoordinate(const unsigned int nodeIdx) const = 0;
 
 		virtual unsigned int calcParDiffNNZ() = 0;
 		
@@ -143,6 +158,15 @@ namespace parts
 		inline MultiplexMode parSurfDiffMode() const CADET_NOEXCEPT { return _parSurfDiffusionMode; }
 
 	protected:
+
+		/**
+		 *@brief sets the sparsity pattern of the solid phase time derivative Jacobian
+		 */
+		virtual void parSolidTimeDerJacPattern(std::vector<T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx);
+		/**
+		 * @brief sets the sparsity pattern of the binding Jacobian
+		 */
+		virtual void parBindingPattern(std::vector<T>& tripletList, const int offset, const unsigned int colNode);
 
 		/* component system */
 		unsigned int _nComp; //!< Number of components

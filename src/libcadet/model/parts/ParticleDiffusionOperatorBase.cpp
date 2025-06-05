@@ -339,6 +339,48 @@ namespace parts
 		return true;
 	}
 
+	void ParticleDiffusionOperatorBase::parSolidTimeDerJacPattern(std::vector<ParticleDiffusionOperatorBase::T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx)
+	{
+		active const* const _parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
+
+		for (unsigned int parNode = 0; parNode < _nParPoints; parNode++)
+		{
+			for (unsigned int comp = 0; comp < _nComp; comp++)
+			{
+				for (unsigned int bnd = 0; bnd < _nBound[comp]; bnd++) {
+					// row: jump over previous nodes add current component offset
+					// col: jump over previous nodes, liquid phase and previous bound states
+					tripletList.push_back(T(offset + parNode * strideParPoint() + comp,
+						offset + parNode * strideParPoint() + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd,
+						0.0));
+				}
+			}
+		}
+	}
+
+	void ParticleDiffusionOperatorBase::parBindingPattern(std::vector<ParticleDiffusionOperatorBase::T>& tripletList, const int offset, const unsigned int colNode)
+	{
+		// every bound state might depend on every bound and liquid state
+		for (int parNode = 0; parNode < _nParPoints; parNode++)
+		{
+			for (int bnd = 0; bnd < _strideBound; bnd++)
+			{
+				for (int conc = 0; conc < strideParPoint(); conc++) {
+					// row: jump over previous nodes and liquid states and add current bound state offset
+					// col: jump over previous nodes and add current concentration offset (liquid and bound)
+					tripletList.push_back(T(offset + parNode * strideParPoint() + strideParLiquid() + bnd,
+						offset + parNode * strideParPoint() + conc, 0.0));
+				}
+			}
+		}
+	}
+
+	void ParticleDiffusionOperatorBase::setParticleJacobianPattern(std::vector<T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx)
+	{
+		parSolidTimeDerJacPattern(tripletList, offsetPar, colNode, secIdx);
+		parBindingPattern(tripletList, offsetPar, colNode);
+	}
+
 	bool ParticleDiffusionOperatorBase::setParameter(const ParameterId& pId, double value)
 	{
 		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _nComp, _parTypeIdx, value, nullptr))

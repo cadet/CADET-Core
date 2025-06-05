@@ -181,11 +181,7 @@ namespace parts
 		 */
 		void setParJacPattern(std::vector<T>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx)
 		{
-			_parDiffOp->calcParticleJacobianPattern(tripletList, offsetPar, offsetBulk, colNode, secIdx);
-
-			_parDiffOp->parTimeDerJacPattern_GRM(tripletList, offsetPar, colNode, secIdx);
-
-			_parDiffOp->parBindingPattern_GRM(tripletList, offsetPar, colNode);
+			_parDiffOp->setParticleJacobianPattern(tripletList, offsetPar, offsetBulk, colNode, secIdx);
 		}
 
 		unsigned int calcParDiffNNZ();
