@@ -12,22 +12,12 @@
 
 #include "model/parts/ParticleDiffusionOperatorDG.hpp"
 #include "cadet/Exceptions.hpp"
-
-#include "BindingModelFactory.hpp"
-#include "ReactionModelFactory.hpp"
 #include "ParamReaderHelper.hpp"
 #include "ParamReaderScopes.hpp"
 #include "AdUtils.hpp"
 #include "SimulationTypes.hpp"
 #include "model/ParameterDependence.hpp"
-#include "model/parts/BindingCellKernel.hpp"
 #include "SensParamUtil.hpp"
-#include "ConfigurationHelper.hpp"
-#include "model/BindingModel.hpp"
-#include "model/ReactionModel.hpp"
-
-#include "LoggingUtils.hpp"
-#include "Logging.hpp"
 
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
@@ -45,51 +35,23 @@ namespace parts
 	/**
 	 * @brief Creates a ParticleDiffusionOperatorDG
 	 */
-	ParticleDiffusionOperatorDG::ParticleDiffusionOperatorDG() : _binding(nullptr), _boundOffset(nullptr), _nBound(nullptr), _localFlux(nullptr), _deltaR(nullptr), _Ir(nullptr), _DGjacParDispBlocks(nullptr), _minus_InvMM_ST(nullptr), _parInvMM(nullptr), _parDepSurfDiffusion(nullptr)
+	ParticleDiffusionOperatorDG::ParticleDiffusionOperatorDG() : _localFlux(nullptr), _deltaR(nullptr), _Ir(nullptr), _DGjacParDispBlocks(nullptr), _minus_InvMM_ST(nullptr), _parInvMM(nullptr)
 	{
 	}
 
 	ParticleDiffusionOperatorDG::~ParticleDiffusionOperatorDG() CADET_NOEXCEPT
 	{
-		delete _binding;
-		delete _dynReaction;
-		delete[] _boundOffset;
-		delete[] _nBound;
 		delete[] _localFlux;
 		delete[] _deltaR;
 		delete[] _Ir;
 		delete[] _DGjacParDispBlocks;
 		delete[] _minus_InvMM_ST;
 		delete[] _parInvMM;
-		delete[] _parDepSurfDiffusion;
 	}
 
 	bool ParticleDiffusionOperatorDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp)
 	{
-		_strideBulkComp = strideBulkComp;
-
-		_parTypeIdx = parTypeIdx;
-		_nComp = nComp;
-
-		_filmDiffusion.resize(_nComp); // filled in notifyDiscontinuousSectionTransition
-		_poreAccessFactor.resize(_nComp); // filled in notifyDiscontinuousSectionTransition
-		_invBetaP.resize(_nComp); // filled in notifyDiscontinuousSectionTransition
-		
-		std::vector<int> nBound;
-		const bool newNBoundInterface = paramProvider.exists("NBOUND");
-
-		paramProvider.pushScope("discretization");
-
-		if (!newNBoundInterface && paramProvider.exists("NBOUND")) // done here and in this order for backwards compatibility
-			nBound = paramProvider.getIntArray("NBOUND");
-		else
-		{
-			paramProvider.popScope();
-			nBound = paramProvider.getIntArray("NBOUND");
-			paramProvider.pushScope("discretization");
-		}
-		if (nBound.size() < _nComp)
-			throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_nComp) + " required)");
+		const bool baseConfigSuccess = ParticleDiffusionOperatorBase::configureModelDiscretization(paramProvider, helper, nComp, parTypeIdx, nParType, strideBulkComp);
 
 		std::vector<int> parPolyDegs(nParType);
 		std::vector<int> parNelements(nParType);
@@ -160,50 +122,6 @@ namespace parts
 
 		initializeDG();
 
-		std::vector<int> stridesParTypeBound(nParType + 1);
-		std::vector<int> nBoundBeforeType(nParType);
-		if (!_nBound)
-			_nBound = new unsigned int[_nComp];
-
-		if (nBound.size() < _nComp * nParType)
-		{
-			std::copy_n(nBound.begin(), _nComp, _nBound);
-
-			stridesParTypeBound[0] = std::accumulate(nBound.begin(), nBound.begin() + _nComp, 0);
-			nBoundBeforeType[0] = 0;
-
-			for (int type = 1; type < nParType; type++)
-			{
-				stridesParTypeBound[type] = stridesParTypeBound[0];
-				nBoundBeforeType[type] += nBoundBeforeType[type - 1] + _nBound[type - 1];
-			}
-		}
-		else
-		{
-			std::copy_n(nBound.begin() + _parTypeIdx * _nComp, _nComp, _nBound);
-
-			stridesParTypeBound[0] = std::accumulate(nBound.begin(), nBound.begin() + _nComp, 0);
-			nBoundBeforeType[0] = 0;
-
-			for (int type = 1; type < nParType; type++)
-			{
-				stridesParTypeBound[type] = std::accumulate(nBound.begin() + type * _nComp, nBound.begin() + (type + 1) * _nComp, 0);
-				nBoundBeforeType[type] += nBoundBeforeType[type - 1] + nBound[type - 1];
-			}
-		}
-
-		// Precompute offsets and total number of bound states (DOFs in solid phase)
-		if (!_boundOffset)
-			_boundOffset = new unsigned int[_nComp];
-
-		_boundOffset[0] = 0.0;
-		_strideBound = std::accumulate(_nBound, _nBound + _nComp, 0u);
-
-		for (unsigned int i = 1; i < _nComp; ++i)
-		{
-			_boundOffset[i] = _boundOffset[i - 1] + _nBound[i - 1];
-		}
-
 		// Configure particle discretization
 		_parElementSize.resize(_nParElem);
 		_parCenterRadius.resize(_nParElem);
@@ -226,31 +144,6 @@ namespace parts
 		else if (pdt[_parTypeIdx] == "USER_DEFINED_PAR")
 			_parDiscMode = ParticleDiscretizationMode::UserDefined;
 
-		// Read particle geometry and default to "SPHERICAL"
-		paramProvider.popScope();
-		_parGeomSurfToVol = _SurfVolRatioSphere;
-		if (paramProvider.exists("PAR_GEOM"))
-		{
-			std::vector<std::string> pg = paramProvider.getStringArray("PAR_GEOM");
-			if ((pg.size() == 1) && (nParType > 1))
-			{
-				// Multiplex using first value
-				pg.resize(nParType, pg[0]);
-			}
-			else if (pg.size() < nParType)
-				throw InvalidParameterException("Field PAR_GEOM contains too few elements (" + std::to_string(nParType) + " required)");
-
-			if (pg[_parTypeIdx] == "SPHERE")
-				_parGeomSurfToVol = _SurfVolRatioSphere;
-			else if (pg[_parTypeIdx] == "CYLINDER")
-				_parGeomSurfToVol = _SurfVolRatioCylinder;
-			else if (pg[_parTypeIdx] == "SLAB")
-				_parGeomSurfToVol = _SurfVolRatioSlab;
-			else
-				throw InvalidParameterException("Unknown particle geometry type \"" + pg[_parTypeIdx] + "\" at index " + std::to_string(_parTypeIdx) + " of field PAR_GEOM");
-		}
-		paramProvider.pushScope("discretization");
-
 		if (paramProvider.exists("PAR_DISC_VECTOR"))
 		{
 			std::vector<double> pdv = paramProvider.getDoubleArray("PAR_DISC_VECTOR");
@@ -260,372 +153,19 @@ namespace parts
 
 		paramProvider.popScope();
 
-		// ==== Construct and configure parameter dependencies
-		delete _parDepSurfDiffusion;
-		bool parSurfDiffDepConfSuccess = true;
-		if (paramProvider.exists("PAR_SURFDIFFUSION_DEP"))
-		{
-			const std::vector<std::string> psdDepNames = paramProvider.getStringArray("PAR_SURFDIFFUSION_DEP");
-			if ((psdDepNames.size() == 1) || (nParType == 1))
-				_singleParDepSurfDiffusion = true;
-
-			if (!_singleParDepSurfDiffusion && (psdDepNames.size() < nParType))
-				throw InvalidParameterException("Field PAR_SURFDIFFUSION_DEP contains too few elements (" + std::to_string(nParType) + " required)");
-			else if (_singleParDepSurfDiffusion && (psdDepNames.size() != 1))
-				throw InvalidParameterException("Field PAR_SURFDIFFUSION_DEP requires (only) 1 element");
-
-			if (_singleParDepSurfDiffusion)
-			{
-				if ((psdDepNames[0] == "") || (psdDepNames[0] == "NONE") || (psdDepNames[0] == "DUMMY"))
-				{
-					_hasParDepSurfDiffusion = false;
-					_singleParDepSurfDiffusion = true;
-					_parDepSurfDiffusion = nullptr;
-				}
-				else
-				{
-					_parDepSurfDiffusion = helper.createParameterStateDependence(psdDepNames[0]);
-					if (!_parDepSurfDiffusion)
-						throw InvalidParameterException("Unknown parameter dependence " + psdDepNames[0]);
-
-					parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset);
-					_hasParDepSurfDiffusion = true;
-				}
-			}
-			else
-			{
-				if (!(psdDepNames[0] == "") || (psdDepNames[0] == "NONE") || (psdDepNames[0] == "DUMMY"))
-				{
-					_parDepSurfDiffusion = helper.createParameterStateDependence(psdDepNames[_parTypeIdx]);
-					if (!_parDepSurfDiffusion)
-						throw InvalidParameterException("Unknown parameter dependence " + psdDepNames[parTypeIdx]);
-
-					parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset) && parSurfDiffDepConfSuccess;
-				}
-
-				_hasParDepSurfDiffusion = _parDepSurfDiffusion;
-			}
-		}
-		else
-		{
-			_hasParDepSurfDiffusion = false;
-			_singleParDepSurfDiffusion = true;
-			_parDepSurfDiffusion = nullptr;
-		}
-
-		// Check whether surface diffusion is present
-		_hasSurfaceDiffusion = false;
-		if (paramProvider.exists("PAR_SURFDIFFUSION"))
-		{
-			const std::vector<double> surfDiff = paramProvider.getDoubleArray("PAR_SURFDIFFUSION");
-			// Assume particle surface diffusion if a parameter dependence is present
-			if (_parDepSurfDiffusion)
-			{
-				_hasSurfaceDiffusion = true;
-			}
-			else
-			{
-				double const* const lsd = surfDiff.data() + nBoundBeforeType[_parTypeIdx];
-
-				// Check surface diffusion coefficients
-				for (unsigned int j = 0; j < stridesParTypeBound[_parTypeIdx]; ++j)
-				{
-					if (lsd[j] != 0.0)
-					{
-						_hasSurfaceDiffusion = true;
-						break;
-					}
-				}
-			}
-		}
-
-		// ==== Construct and configure binding model
-		_binding = nullptr;
-		std::vector<std::string> bindModelNames = { "NONE" };
-		if (paramProvider.exists("ADSORPTION_MODEL"))
-			bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
-
-		if (paramProvider.exists("ADSORPTION_MODEL_MULTIPLEX"))
-			_singleBinding = (paramProvider.getInt("ADSORPTION_MODEL_MULTIPLEX") == 1);
-		else
-		{
-			// Infer multiplex mode
-			_singleBinding = (bindModelNames.size() == 1);
-		}
-
-		if (!_singleBinding && (bindModelNames.size() < nParType))
-			throw InvalidParameterException("Field ADSORPTION_MODEL contains too few elements (" + std::to_string(nParType) + " required)");
-		else if (_singleBinding && (bindModelNames.size() != 1))
-			throw InvalidParameterException("Field ADSORPTION_MODEL requires (only) 1 element");
-
-		bool bindingConfSuccess = true;
-
-		_binding = helper.createBindingModel(bindModelNames[_singleBinding ? 0 : _parTypeIdx]);
-		if (!_binding)
-			throw InvalidParameterException("Unknown binding model " + bindModelNames[_singleBinding ? 0 : _parTypeIdx]);
-
-		MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _singleBinding, _parTypeIdx, nParType == 1, _binding->usesParamProviderInDiscretizationConfig());
-		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset);
-
-		// ==== Construct and configure dynamic reaction model
-		bool reactionConfSuccess = true;
-
-		_dynReaction = nullptr;
-
-		if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
-		{
-			const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL_PARTICLES");
-
-			if (paramProvider.exists("REACTION_MODEL_PARTICLES_MULTIPLEX"))
-				_singleDynReaction = (paramProvider.getInt("REACTION_MODEL_PARTICLES_MULTIPLEX") == 1);
-			else
-			{
-				// Infer multiplex mode
-				_singleDynReaction = (dynReactModelNames.size() == 1);
-			}
-
-			if (!_singleDynReaction && (dynReactModelNames.size() < nParType))
-				throw InvalidParameterException("Field REACTION_MODEL_PARTICLES contains too few elements (" + std::to_string(nParType) + " required)");
-			else if (_singleDynReaction && (dynReactModelNames.size() != 1))
-				throw InvalidParameterException("Field REACTION_MODEL_PARTICLES requires (only) 1 element");
-
-			_dynReaction = helper.createDynamicReactionModel(dynReactModelNames[_singleDynReaction ? 0 : _parTypeIdx]);
-
-			if (!_dynReaction)
-				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[_singleDynReaction ? 0 : _parTypeIdx]);
-
-			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _singleDynReaction, _parTypeIdx, nParType == 1, _dynReaction->usesParamProviderInDiscretizationConfig());
-			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset) && reactionConfSuccess;
-		}
-
-		return parSurfDiffDepConfSuccess && bindingConfSuccess && reactionConfSuccess;
+		return baseConfigSuccess;
 	}
 
-	bool ParticleDiffusionOperatorDG::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound)
+	bool ParticleDiffusionOperatorDG::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding, const bool hasDynamicReactions)
 	{
-		// Read geometry parameters
-		std::vector<double> parRadii(nParType);
-		_singleParRadius = readScalarParameterOrArray(parRadii, paramProvider, "PAR_RADIUS", nParType);
-		
-		if (_singleParRadius)
-		{
-			_parRadius = parRadii[0];
-			if (_parTypeIdx == 0)
-				parameters[makeParamId(hashStringRuntime("PAR_RADIUS"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parRadius;
-		}
-		else
-		{
-			_parRadius = parRadii[_parTypeIdx];
-			parameters[makeParamId(hashStringRuntime("PAR_RADIUS"), unitOpIdx, CompIndep, _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parRadius;
-		}
+		const bool baseConfigSuccess = ParticleDiffusionOperatorBase::configure(unitOpIdx, paramProvider, parameters, nParType, nBoundBeforeType, nTotalBound, reqBinding, hasDynamicReactions);
 
-		std::vector<double> parPorosities(nParType);
-		_singleParPorosity = readScalarParameterOrArray(parPorosities, paramProvider, "PAR_POROSITY", nParType);
-		if (_singleParPorosity)
-		{
-			_parPorosity = parPorosities[0];
-			if (_parTypeIdx == 0)
-				parameters[makeParamId(hashStringRuntime("PAR_POROSITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
-		}
-		else
-		{
-			_parPorosity = parPorosities[_parTypeIdx];
-			parameters[makeParamId(hashStringRuntime("PAR_POROSITY"), unitOpIdx, CompIndep, _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
-		}
-		// Let PAR_CORERADIUS default to 0.0 for backwards compatibility
-		if (paramProvider.exists("PAR_CORERADIUS"))
-		{
-			std::vector<double> parCoreRadii(nParType);
-			_singleParCoreRadius = readScalarParameterOrArray(parCoreRadii, paramProvider, "PAR_CORERADIUS", nParType);
-			if (_singleParCoreRadius)
-			{
-				_parCoreRadius = parCoreRadii[0];
-				if (_parTypeIdx == 0)
-					parameters[makeParamId(hashStringRuntime("PAR_CORERADIUS"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parCoreRadius;
-			}
-			else
-			{
-				_parCoreRadius = parCoreRadii[_parTypeIdx];
-				parameters[makeParamId(hashStringRuntime("PAR_CORERADIUS"), unitOpIdx, CompIndep, _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parCoreRadius;
-			}
-		}
-		else
-		{
-			_singleParCoreRadius = true;
-			_parCoreRadius = 0.0;
-		}
-
-		// Check whether PAR_TYPE_VOLFRAC is required or not
-		if ((nParType > 1) && !paramProvider.exists("PAR_TYPE_VOLFRAC"))
-			throw InvalidParameterException("The required parameter \"PAR_TYPE_VOLFRAC\" was not found");
-
-		// todo: PAR_TYPE_VOLFRAC remains parameter of the unit, not the particles?
-		//// Let PAR_TYPE_VOLFRAC default to 1.0 for backwards compatibility
-		//if (paramProvider.exists("PAR_TYPE_VOLFRAC"))
-		//{
-		//	readScalarParameterOrArray(_parTypeVolFrac, paramProvider, "PAR_TYPE_VOLFRAC", 1);
-		//	if (_parTypeVolFrac.size() == _nParType)
-		//	{
-		//		_axiallyConstantParTypeVolFrac = true;
-
-		//		// Expand to all axial elements
-		//		_parTypeVolFrac.resize(nPoints * _nParType, 1.0);
-		//		for (unsigned int i = 1; i < nPoints; ++i)
-		//			std::copy(_parTypeVolFrac.begin(), _parTypeVolFrac.begin() + _nParType, _parTypeVolFrac.begin() + _nParType * i);
-		//	}
-		//	else
-		//		_axiallyConstantParTypeVolFrac = false;
-		//}
-		//else
-		//{
-		//	_parTypeVolFrac.resize(nPoints, 1.0);
-		//	_axiallyConstantParTypeVolFrac = false;
-		//}
-
-		//// Check that particle volume fractions sum to 1.0
-		//for (unsigned int i = 0; i < nPoints; ++i)
-		//{
-		//	const double volFracSum = std::accumulate(_parTypeVolFrac.begin() + i * _nParType, _parTypeVolFrac.begin() + (i + 1) * _nParType, 0.0,
-		//		[](double a, const active& b) -> double { return a + static_cast<double>(b); });
-		//	if (std::abs(1.0 - volFracSum) > 1e-10)
-		//		throw InvalidParameterException("Sum of field PAR_TYPE_VOLFRAC differs from 1.0 (is " + std::to_string(volFracSum) + ") in axial elem " + std::to_string(i));
-		//}
-
-		// Read vectorial parameters (which may also be section dependent; transport)
-		//_filmDiffusionMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", _nParType, nComp, unitOpIdx); // todo film diffusion remains unit operation parameter?
-
-		_parDiffusionMode = readAndRegisterSingleTypeMultiplexCompTypeSecParam(paramProvider, parameters, _parDiffusion, "PAR_DIFFUSION", nParType, _nComp, _parTypeIdx, unitOpIdx);
-
-		if (paramProvider.exists("PAR_SURFDIFFUSION"))
-			_parSurfDiffusionMode = readAndRegisterSingleTypeMultiplexBndCompTypeSecParam(paramProvider, parameters, _parSurfDiffusion, "PAR_SURFDIFFUSION", nTotalBound, _nComp, _strideBound, _nBound, nBoundBeforeType, _parTypeIdx, unitOpIdx);
-		else
-		{
-			_parSurfDiffusionMode = MultiplexMode::Component;
-			_parSurfDiffusion.resize(_strideBound, 0.0);
-		}
-
-		bool parSurfDiffDepConfSuccess = true;
-		if (_hasParDepSurfDiffusion)
-		{
-			if (_singleParDepSurfDiffusion && _parDepSurfDiffusion)
-			{
-				parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configure(paramProvider, unitOpIdx, ParTypeIndep, "PAR_SURFDIFFUSION");
-			}
-			else if (!_singleParDepSurfDiffusion && _parDepSurfDiffusion)
-			{
-				parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configure(paramProvider, unitOpIdx, _parTypeIdx, "PAR_SURFDIFFUSION") && parSurfDiffDepConfSuccess;
-			}
-		}
-
-		//if ((_filmDiffusion.size() < nComp * _nParType) || (_filmDiffusion.size() % (nComp * _nParType) != 0))
-		//	throw InvalidParameterException("Number of elements in field FILM_DIFFUSION is not a positive multiple of NCOMP * _nParType (" + std::to_string(nComp * _nParType) + ")");
-		if ((_parDiffusion.size() < _nComp) || (_parDiffusion.size() % (_nComp) != 0))
-			throw InvalidParameterException("Number of elements in field PAR_DIFFUSION is not a positive multiple of NCOMP * NPARTYPE (" + std::to_string(_nComp * nParType) + ")");
-		if ((_parSurfDiffusion.size() < _strideBound) || ((nTotalBound > 0) && (_parSurfDiffusion.size() % _strideBound != 0)))
-			throw InvalidParameterException("Number of elements in field PAR_SURFDIFFUSION is not a positive multiple of NTOTALBND (" + std::to_string(nTotalBound) + ")");
-
-		//if (paramProvider.exists("PORE_ACCESSIBILITY"))
-		//	_poreAccessFactorMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _nParType, nComp, unitOpIdx);
-		//else
-		//{
-		//	_poreAccessFactorMode = MultiplexMode::ComponentType;
-		//	_poreAccessFactor = std::vector<cadet::active>(nComp * _nParType, 1.0);
-		//}
-
-		//if (nComp * _nParType != _poreAccessFactor.size())
-		//	throw InvalidParameterException("Number of elements in field PORE_ACCESSIBILITY differs from NCOMP * _nParType (" + std::to_string(nComp * _nParType) + ")");
-
-		//// Add parameters to map
-		//parameters[makeParamId(hashString("COL_POROSITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colPorosity;
-
-		//if (_axiallyConstantParTypeVolFrac)
-		//{
-		//	// Register only the first _nParType items
-		//	for (unsigned int i = 0; i < _nParType; ++i)
-		//		parameters[makeParamId(hashString("PAR_TYPE_VOLFRAC"), unitOpIdx, CompIndep, i, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parTypeVolFrac[i];
-		//}
-		//else
-		//	registerParam2DArray(parameters, _parTypeVolFrac, [=](bool multi, unsigned elem, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, elem); }, _nParType);
-
-		// Calculate the particle radial discretization variables (_parElementSize, _parCenterRadius, etc.)
+		// Compute particle metrics
 		if (_deltaR == nullptr)
 			_deltaR = new active[_nParElem];
 		updateRadialDisc();
 
-		//// Register initial conditions parameters
-		//registerParam1DArray(parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
-
-		//if (_singleBinding)
-		//{
-		//	for (unsigned int c = 0; c < nComp; ++c)
-		//		parameters[makeParamId(hashString("INIT_CP"), unitOpIdx, c, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_initCp[c];
-		//}
-		//else
-		//	registerParam2DArray(parameters, _initCp, [=](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, nComp);
-
-
-		//if (!_binding.empty())
-		//{
-		//	const unsigned int maxBoundStates = *std::max_element(_strideBound, _strideBound + _nParType);
-		//	std::vector<ParameterId> initParams(maxBoundStates);
-
-		//	if (_singleBinding)
-		//	{
-		//		_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), unitOpIdx, ParTypeIndep);
-
-		//		active* const iq = _initQ.data() + _nBoundBeforeType[0];
-		//		for (unsigned int i = 0; i < _strideBound[0]; ++i)
-		//			parameters[initParams[i]] = iq + i;
-		//	}
-		//	else
-		//	{
-		//		for (unsigned int type = 0; type < _nParType; ++type)
-		//		{
-		//			_binding[type]->fillBoundPhaseInitialParameters(initParams.data(), unitOpIdx, type);
-
-		//			active* const iq = _initQ.data() + _nBoundBeforeType[type];
-		//			for (unsigned int i = 0; i < _strideBound[type]; ++i)
-		//				parameters[initParams[i]] = iq + i;
-		//		}
-		//	}
-		//}
-
-		// Reconfigure binding model
-		bool bindingConfSuccess = true;
-		if (_binding)
-		{
-			if (_binding->requiresConfiguration())
-			{
-				if (_singleBinding)
-				{
-					MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", true);
-					bindingConfSuccess = _binding->configure(paramProvider, unitOpIdx, ParTypeIndep);
-				}
-				else
-				{
-					MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _parTypeIdx, nParType == 1, true);
-					bindingConfSuccess = _binding->configure(paramProvider, unitOpIdx, _parTypeIdx);
-				}
-			}
-		}
-
-		// Reconfigure reaction model
-		bool dynReactionConfSuccess = true;
-		if (_dynReaction && _dynReaction->requiresConfiguration())
-		{
-			if (_singleDynReaction)
-			{
-				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", true);
-				dynReactionConfSuccess = _dynReaction->configure(paramProvider, unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
-			}
-			else
-			{
-				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _parTypeIdx, nParType == 1, true);
-				dynReactionConfSuccess = _dynReaction->configure(paramProvider, unitOpIdx, _parTypeIdx) && dynReactionConfSuccess;
-			}
-		}
-
-		return parSurfDiffDepConfSuccess && bindingConfSuccess && dynReactionConfSuccess;
+		return baseConfigSuccess;
 	}
 
 	void ParticleDiffusionOperatorDG::setEquidistantRadialDisc()
@@ -978,29 +518,13 @@ namespace parts
 	}
 
 
-	/**
-	 * @brief Notifies the operator that a discontinuous section transition is in progress
-	 * @param [in] t Current time point
-	 * @param [in] secIdx Index of the new section that is about to be integrated
-	 * @return @c true if flow direction has changed, otherwise @c false
-	 */
 	bool ParticleDiffusionOperatorDG::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor)
 	{
-			for (int comp = 0; comp < _nComp; comp++)
-			{
-				_filmDiffusion[comp] = filmDiff[_parTypeIdx * _nComp + comp];
-				_poreAccessFactor[comp] = poreAccessFactor[_parTypeIdx * _nComp + comp];
-				_invBetaP[comp] = (1.0 - _parPorosity) / (_poreAccessFactor[comp] * _parPorosity);
-			}
-
-		//_curSection = secIdx;
-		//_newStaticJac = true;
-
-		// todo update operators
+		const bool success = ParticleDiffusionOperatorBase::notifyDiscontinuousSectionTransition(t, secIdx, filmDiff, poreAccessFactor);
 
 		initializeDGjac(_parGeomSurfToVol);
 
-		return true;
+		return true && success;
 	}
 	/**
 	 * @brief calculates the physical radial/particle coordinates of the DG discretization with double! interface nodes
@@ -1020,56 +544,7 @@ namespace parts
 
 		return _nParPoints;
 	}
-	/**
-	 * @brief Computes the residual of the transport equations
-	 * @param [in] model Model that owns the operator
-	 * @param [in] t Current time point
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] yPar Pointer to particle phase entry in unit state vector
-	 * @param [in] yBulk Pointer to corresponding bulk phase entry in unit state vector
-	 * @param [in] yDotPar Pointer to particle phase derivative entry in unit state vector
-	 * @param [out] resPar Pointer Pointer to particle phase entry in unit residual vector
-	 * @param [out] colPos column position of the particle (particle coordinate zero)
-	 * @param [in] jacIt Matrix iterator pointing to the particle phase entry in the unit Jacobian
-	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
-	 */
-	template<bool wantJac, bool wantRes>
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
-	{
-		return residualImpl<double, double, double, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
-	}
-
-	template<bool wantJac, bool wantRes>
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
-	{
-		return residualImpl<active, active, double, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
-	}
-
-	template<bool wantJac, bool wantRes>
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
-	{
-		return residualImpl<double, active, active, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
-	}
-
-	template<bool wantJac, bool wantRes>
-	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
-	{
-		return residualImpl<active, active, active, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
-	}
-
-	template int ParticleDiffusionOperatorDG::residual<true, true>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
-	template int ParticleDiffusionOperatorDG::residual<false, true>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
-	template int ParticleDiffusionOperatorDG::residual<true, false>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
-
-	template int ParticleDiffusionOperatorDG::residual<true, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
-	template int ParticleDiffusionOperatorDG::residual<false, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
-
-	template int ParticleDiffusionOperatorDG::residual<true, true>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
-	template int ParticleDiffusionOperatorDG::residual<false, true>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
-
-	template int ParticleDiffusionOperatorDG::residual<true, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
-	template int ParticleDiffusionOperatorDG::residual<false, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
-
+	
 	/**
 	 * @brief promotes doubles to actives
 	 * @detail promotes consecutive doubles to consecutive actives (with zero gradients) based on input double pointer
@@ -1089,29 +564,49 @@ namespace parts
 		}
 	}
 
-	cell::CellParameters ParticleDiffusionOperatorDG::makeCellResidualParams(int const* qsReaction) const
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity)
 	{
-		return cell::CellParameters
+		if (resPar)
 		{
-			_nComp,
-			_nBound,
-			_boundOffset,
-			_strideBound,
-			qsReaction,
-			_parPorosity,
-			_poreAccessFactor.data(),
-			_binding,
-			(_dynReaction && (_dynReaction->numReactionsCombined() > 0)) ? _dynReaction : nullptr
-		};
+			if (jacIt.data())
+				return residualImpl<double, double, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacIt);
+			else
+				return residualImpl<double, double, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacIt);
+		}
+		else if (jacIt.data())
+			return residualImpl<double, double, double, true, false>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacIt);
+		else
+			return -1;
+	}
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity)
+	{
+		 if (jacIt.data())
+			return residualImpl<double, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacIt);
+		else
+			 return residualImpl<double, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacIt);
+	}
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity)
+	{
+		if (jacIt.data())
+			return residualImpl<active, active, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacIt);
+		else
+			return residualImpl<active, active, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacIt);
+	}
+	int ParticleDiffusionOperatorDG::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity)
+	{
+		if (jacIt.data())
+			return residualImpl<active, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacIt);
+		else
+			return residualImpl<active, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacIt);
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-	int ParticleDiffusionOperatorDG::particleDiffusionImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, const int* const qsBinding, const bool hasDynamicReactions, linalg::BandedEigenSparseRowIterator& jacBase)
+	int ParticleDiffusionOperatorDG::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, linalg::BandedEigenSparseRowIterator& jacBase)
 	{
 		// Add the DG discretized solid entries of the jacobian that get overwritten by the binding kernel.
 		// These entries only exist for the GRM with surface diffusion
-		if (wantJac && hasDynamicReactions && _hasSurfaceDiffusion)
-			addSolidDGentries(secIdx, jacBase, qsBinding);
+		if (wantJac && _hasDynamicReactions && _hasSurfaceDiffusion)
+			addSolidDGentries(secIdx, jacBase, _reqBinding);
 
 		if (!wantRes)
 			return 0;
@@ -1159,7 +654,7 @@ namespace parts
 
 						/* For kinetic bindings with surface diffusion: add the additional DG-discretized particle mass balance equations to residual */
 
-						if (!qsBinding[bnd])
+						if (!_reqBinding[bnd])
 						{
 							// Eigen access to current bound state residual
 							Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> resCs(resPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd,
@@ -1228,7 +723,7 @@ namespace parts
 
 							/* For kinetic bindings with surface diffusion: add the additional DG-discretized particle mass balance equations to residual */
 
-							if (!qsBinding[bnd])
+							if (!_reqBinding[bnd])
 							{
 								// Eigen access to current bound state residual
 								Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> resCs(resPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd,
@@ -1286,45 +781,6 @@ namespace parts
 
 			}
 		}
-
-		return true;
-	}
-
-
-	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-	int ParticleDiffusionOperatorDG::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
-	{
-		int const* const qsBinding = _binding->reactionQuasiStationarity();
-		const cell::CellParameters cellResParams = makeCellResidualParams(qsBinding);
-
-		linalg::BandedEigenSparseRowIterator jacBase = jacIt;
-
-		// Handle time derivatives, binding, dynamic reactions: residualKernel computes discrete point wise,
-		// so we loop over each discrete particle point
-		for (unsigned int par = 0; par < _nParPoints; ++par)
-		{
-			// local pointers to current particle node, needed in residualKernel
-			StateType const* local_y = yPar + par * strideParNode();
-			double const* local_yDot = yDotPar ? yDotPar + par * strideParNode() : nullptr;
-			ResidualType* local_res = resPar ? resPar + par * strideParNode() : nullptr;
-
-			// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
-			colPos.particle = relativeCoordinate(par);
-
-			if (wantRes)
-				cell::residualKernel<StateType, ResidualType, ParamType, cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
-					t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
-				);
-			else
-				cell::residualKernel<StateType, ResidualType, ParamType, cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
-					t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
-				);
-
-			// Move rowiterator to next particle node
-			jacIt += strideParNode();
-		}
-
-		particleDiffusionImpl<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, qsBinding, _binding->hasDynamicReactions(), jacBase);
 
 		return true;
 	}
@@ -1496,15 +952,16 @@ namespace parts
 	// ==========================================================================================================================================================  //
 
 	/**
-	 * @brief calculates the particle dispersion jacobian Pattern of the DG scheme for the given particle type and bead
+	 * @brief calculates the particle dispersion jacobian Pattern, including entries for the dependence of particle entries on bulk entries through film diffusion boundary condition
+	 * @detail Does NOT add film diffusion entries for the dependence of bulk conc. on particle conc.
 	*/
-	void ParticleDiffusionOperatorDG::calcParticleJacobianPattern(std::vector<ParticleDiffusionOperatorDG::T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx)
+	void ParticleDiffusionOperatorDG::setParticleJacobianPattern(std::vector<ParticleDiffusionOperatorDG::T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx)
 	{
+		ParticleDiffusionOperatorBase::setParticleJacobianPattern(tripletList, offsetPar, offsetBulk, colNode, secIdx);
+
 		// Ordering of particle surface diffusion:
 		// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
 		active const* const _parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
-
-		int const* const qsBinding = _binding->reactionQuasiStationarity();
 
 		// (global) strides
 		unsigned int selem = _nParNode * strideParNode();
@@ -1522,8 +979,8 @@ namespace parts
 						// handle liquid state
 						// row: add component offset and go node strides from there for each dispersion block entry
 						// col: add component offset and go node strides from there for each dispersion block entry
-						tripletList.push_back(T(offset + comp * sComp + i * sNode,
-							offset + comp * sComp + j * sNode, 0.0));
+						tripletList.push_back(T(offsetPar + comp * sComp + i * sNode,
+							offsetPar + comp * sComp + j * sNode, 0.0));
 
 						// handle surface diffusion of bound states.
 						if (_hasSurfaceDiffusion) {
@@ -1532,15 +989,15 @@ namespace parts
 								if (_parSurfDiff[_boundOffset[comp] + bnd] != 0.0) {
 									// row: add current component offset and go node strides from there for each dispersion block entry
 									// col: jump oover liquid states, add current bound state offset and go node strides from there for each dispersion block entry
-									tripletList.push_back(T(offset + comp * sComp + i * sNode,
-										offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode, 0.0));
+									tripletList.push_back(T(offsetPar + comp * sComp + i * sNode,
+										offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode, 0.0));
 
 									/* add surface diffusion dispersion block to solid */
-									if (!qsBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
+									if (!_reqBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
 										// row: jump over liquid states, add current bound state offset and go node strides from there for each dispersion block entry
 										// col: jump over liquid states, add current bound state offset and go node strides from there for each dispersion block entry
-										tripletList.push_back(T(offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
-											offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode, 0.0));
+										tripletList.push_back(T(offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
+											offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode, 0.0));
 
 									}
 								}
@@ -1563,8 +1020,8 @@ namespace parts
 						// handle liquid state
 						// row: add component offset and go node strides from there for each dispersion block entry
 						// col: add component offset and go node strides from there for each dispersion block entry. adjust for j start
-						tripletList.push_back(T(offset + comp * sComp + i * sNode,
-							offset + comp * sComp + j * sNode - (nNodes + 1) * sNode,
+						tripletList.push_back(T(offsetPar + comp * sComp + i * sNode,
+							offsetPar + comp * sComp + j * sNode - (nNodes + 1) * sNode,
 							0.0));
 
 						// handle surface diffusion of bound states. binding is handled in residualKernel().
@@ -1574,16 +1031,16 @@ namespace parts
 								if (_parSurfDiff[_boundOffset[comp] + bnd] != 0.0) {
 									// row: add current component offset and go node strides from there for each dispersion block entry
 									// col: jump over liquid states, add current bound state offset and go node strides from there for each dispersion block entry. adjust for j start
-									tripletList.push_back(T(offset + comp * sComp + i * sNode,
-										offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - (nNodes + 1) * sNode,
+									tripletList.push_back(T(offsetPar + comp * sComp + i * sNode,
+										offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - (nNodes + 1) * sNode,
 										0.0));
 
 									/* add surface diffusion dispersion block to solid */
-									if (!qsBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
+									if (!_reqBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
 										// row: jump over liquid states, add current bound state offset and go node strides from there for each dispersion block entry
 										// col: jump over liquid states, add current bound state offset and go node strides from there for each dispersion block entry. adjust for j start
-										tripletList.push_back(T(offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
-											offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - (nNodes + 1) * sNode,
+										tripletList.push_back(T(offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
+											offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - (nNodes + 1) * sNode,
 											0.0));
 
 									}
@@ -1604,8 +1061,8 @@ namespace parts
 						// handle liquid state
 						// row: add component offset and jump over previous elements. Go node strides from there for each dispersion block entry
 						// col: add component offset and jump over previous elements. Go back one elem (and node or adjust for start) and go node strides from there for each dispersion block entry.
-						tripletList.push_back(T(offset + comp * sComp + (_nParElem - 1) * selem + i * sNode,
-							offset + comp * sComp + (_nParElem - 1) * selem - selem - sNode + j * sNode,
+						tripletList.push_back(T(offsetPar + comp * sComp + (_nParElem - 1) * selem + i * sNode,
+							offsetPar + comp * sComp + (_nParElem - 1) * selem - selem - sNode + j * sNode,
 							0.0));
 
 						// handle surface diffusion of bound states. binding is handled in residualKernel().
@@ -1615,16 +1072,16 @@ namespace parts
 								if (_parSurfDiff[_boundOffset[comp] + bnd] != 0.0) {
 									// row: add component offset and jump over previous elements. Go node strides from there for each dispersion block entry
 									// col: jump over liquid states, add current bound state offset and jump over previous elements. Go back one elem (and node or adjust for start) and go node strides from there for each dispersion block entry.
-									tripletList.push_back(T(offset + comp * sComp + (_nParElem - 1) * selem + i * sNode,
-										offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + (_nParElem - 2) * selem - sNode + j * sNode,
+									tripletList.push_back(T(offsetPar + comp * sComp + (_nParElem - 1) * selem + i * sNode,
+										offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + (_nParElem - 2) * selem - sNode + j * sNode,
 										0.0));
 
 									/* add surface diffusion dispersion block to solid */
-									if (!qsBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
+									if (!_reqBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
 										// row: jump over previous elements and over liquid states, add current bound state offset. go node strides from there for each dispersion block entry
 										// col: jump over previous elements and over liquid states, add current bound state offset. go back one elem (and node or adjust for start) and go node strides from there for each dispersion block entry.
-										tripletList.push_back(T(offset + (_nParElem - 1) * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
-											offset + (_nParElem - 2) * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) - sNode + bnd + j * sNode,
+										tripletList.push_back(T(offsetPar + (_nParElem - 1) * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
+											offsetPar + (_nParElem - 2) * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) - sNode + bnd + j * sNode,
 											0.0));
 									}
 								}
@@ -1640,8 +1097,8 @@ namespace parts
 							// handle liquid state
 							// row: add component offset and jump over previous elem. Go node strides from there for each dispersion block entry
 							// col: add component offset. Go node strides from there for each dispersion block entry. adjust for j start
-							tripletList.push_back(T(offset + comp * sComp + selem + i * sNode,
-								offset + comp * sComp + j * sNode - sNode,
+							tripletList.push_back(T(offsetPar + comp * sComp + selem + i * sNode,
+								offsetPar + comp * sComp + j * sNode - sNode,
 								0.0));
 
 							// handle surface diffusion of bound states. binding is handled in residualKernel().
@@ -1651,16 +1108,16 @@ namespace parts
 									if (_parSurfDiff[_boundOffset[comp] + bnd] != 0.0) {
 										// row: add component offset and jump over previous elements. Go node strides from there for each dispersion block entry
 										// col: jump over liquid states, add current bound state offset and jump over previous elem. go back one elem and go node strides from there for each dispersion block entry. adjust for j start
-										tripletList.push_back(T(offset + comp * sComp + selem + i * sNode,
-											offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - sNode,
+										tripletList.push_back(T(offsetPar + comp * sComp + selem + i * sNode,
+											offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - sNode,
 											0.0));
 
 										/* add surface diffusion dispersion block to solid */
-										if (!qsBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
+										if (!_reqBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
 											// row: jump over previous elements and over liquid states, add current bound state offset. go node strides from there for each dispersion block entry
 											// col: jump over liquid states, add current bound state offset and jump over previous elem. go node strides from there for each dispersion block entry. adjust for j start
-											tripletList.push_back(T(offset + selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
-												offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - sNode,
+											tripletList.push_back(T(offsetPar + selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
+												offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - sNode,
 												0.0));
 
 										}
@@ -1681,8 +1138,8 @@ namespace parts
 							// handle liquid state
 							// row: add component offset and jump over previous elem. Go node strides from there for each dispersion block entry
 							// col: add component offset. Go node strides from there for each dispersion block entry. adjust for j start
-							tripletList.push_back(T(offset + comp * sComp + selem + i * sNode,
-								offset + comp * sComp + j * sNode - sNode,
+							tripletList.push_back(T(offsetPar + comp * sComp + selem + i * sNode,
+								offsetPar + comp * sComp + j * sNode - sNode,
 								0.0));
 
 							// handle surface diffusion of bound states. binding is handled in residualKernel().
@@ -1692,16 +1149,16 @@ namespace parts
 									if (_parSurfDiff[_boundOffset[comp] + bnd] != 0.0) {
 										// row: add component offset and jump over previous elements. Go node strides from there for each dispersion block entry
 										// col: jump over liquid states, add current bound state offset and jump over previous elements. Go back one elem and go node strides from there for each dispersion block entry. adjust for j start
-										tripletList.push_back(T(offset + comp * sComp + selem + i * sNode,
-											offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - sNode,
+										tripletList.push_back(T(offsetPar + comp * sComp + selem + i * sNode,
+											offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - sNode,
 											0.0));
 
 										/* add surface diffusion dispersion block to solid */
-										if (!qsBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
+										if (!_reqBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
 											// row: jump over previous elements and over liquid states, add current bound state offset. go node strides from there for each dispersion block entry
 											// col: jump over previous elements and over liquid states, add current bound state offset. go back one elem and go node strides from there for each dispersion block entry. adjust for j start
-											tripletList.push_back(T(offset + selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
-												offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - sNode,
+											tripletList.push_back(T(offsetPar + selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
+												offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + j * sNode - sNode,
 												0.0));
 
 										}
@@ -1719,8 +1176,8 @@ namespace parts
 							// handle liquid state
 							// row: add component offset and jump over previous elements. Go node strides from there for each dispersion block entry
 							// col: add component offset and jump over previous elements. Go back one elem and node. Go node strides from there for each dispersion block entry.
-							tripletList.push_back(T(offset + comp * sComp + (_nParElem - 2) * selem + i * sNode,
-								offset + comp * sComp + (_nParElem - 2) * selem - selem - sNode + j * sNode,
+							tripletList.push_back(T(offsetPar + comp * sComp + (_nParElem - 2) * selem + i * sNode,
+								offsetPar + comp * sComp + (_nParElem - 2) * selem - selem - sNode + j * sNode,
 								0.0));
 
 							// handle surface diffusion of bound states. binding is handled in residualKernel().
@@ -1730,16 +1187,16 @@ namespace parts
 									if (_parSurfDiff[_boundOffset[comp] + bnd] != 0.0) {
 										// row: add component offset and jump over previous elements. Go node strides from there for each dispersion block entry
 										// col: jump over liquid states, add current bound state offset and jump over previous elements. Go back one elem and node and go node strides from there for each dispersion block entry
-										tripletList.push_back(T(offset + comp * sComp + (_nParElem - 2) * selem + i * sNode,
-											offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + (_nParElem - 2) * selem - selem - sNode + j * sNode,
+										tripletList.push_back(T(offsetPar + comp * sComp + (_nParElem - 2) * selem + i * sNode,
+											offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + (_nParElem - 2) * selem - selem - sNode + j * sNode,
 											0.0));
 
 										/* add surface diffusion dispersion block to solid */
-										if (!qsBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
+										if (!_reqBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
 											// row: jump over previous elements and over liquid states, add current bound state offset. go node strides from there for each dispersion block entry
 											// col: jump over previous elements and over liquid states, add current bound state offset. go back one elem and node and go node strides from there for each dispersion block entry
-											tripletList.push_back(T(offset + (_nParElem - 2) * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
-												offset + (_nParElem - 2) * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) - selem - sNode + bnd + j * sNode,
+											tripletList.push_back(T(offsetPar + (_nParElem - 2) * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
+												offsetPar + (_nParElem - 2) * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) - selem - sNode + bnd + j * sNode,
 												0.0));
 
 										}
@@ -1763,8 +1220,8 @@ namespace parts
 								// handle liquid state
 								// row: add component offset and jump over previous elements. Go node strides from there for each dispersion block entry
 								// col: add component offset and jump over previous elements. Go back one elem and node. Go node strides from there for each dispersion block entry.
-								tripletList.push_back(T(offset + comp * sComp + elem * selem + i * sNode,
-									offset + comp * sComp + elem * selem - selem - sNode + j * sNode,
+								tripletList.push_back(T(offsetPar + comp * sComp + elem * selem + i * sNode,
+									offsetPar + comp * sComp + elem * selem - selem - sNode + j * sNode,
 									0.0));
 
 								// handle surface diffusion of bound states. binding is handled in residualKernel().
@@ -1774,16 +1231,16 @@ namespace parts
 										if (_parSurfDiff[_boundOffset[comp] + bnd] != 0.0) {
 											// row: add component offset and jump over previous elements. Go node strides from there for each dispersion block entry
 											// col: jump over liquid states, add current bound state offset and jump over previous elements. Go back one elem and node and go node strides from there for each dispersion block entry
-											tripletList.push_back(T(offset + comp * sComp + elem * selem + i * sNode,
-												offset + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + elem * selem - selem - sNode + j * sNode,
+											tripletList.push_back(T(offsetPar + comp * sComp + elem * selem + i * sNode,
+												offsetPar + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + elem * selem - selem - sNode + j * sNode,
 												0.0));
 
 											/* add surface diffusion dispersion block to solid */
-											if (!qsBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
+											if (!_reqBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
 												// row: jump over previous elements and over liquid states, add current bound state offset. go node strides from there for each dispersion block entry
 												// col: jump over previous elements and over liquid states, add current bound state offset. go back one elem and node and go node strides from there for each dispersion block entry
-												tripletList.push_back(T(offset + elem * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
-													offset + elem * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd - selem - sNode + j * sNode,
+												tripletList.push_back(T(offsetPar + elem * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd + i * sNode,
+													offsetPar + elem * selem + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd - selem - sNode + j * sNode,
 													0.0));
 
 											}
@@ -1798,53 +1255,25 @@ namespace parts
 			}
 
 		} // if nelements > 1
+
+		/* Flux Jacobian: dependence of particle entries on bulk entries through BC */
+
+		for (unsigned int comp = 0; comp < _nComp; comp++)
+		{
+			for (unsigned int node = 0; node < _nParNode; node++) {
+				// row: add particle offset to current parType and particle, go to last cell and current node and add component offset
+				// col: add flux offset to current component, jump over previous nodes and components
+				tripletList.push_back(T(offsetPar + (_nParElem - 1) * _nParNode * strideParNode() + node * strideParNode() + comp * strideParComp(),
+					offsetBulk + comp,
+					0.0));
+			}
+		}
+
 	}
 	
-	unsigned int ParticleDiffusionOperatorDG::calcParDispNNZ()
+	unsigned int ParticleDiffusionOperatorDG::calcParDiffNNZ()
 	{
 		return _nComp * ((3u * _nParElem - 2u) * _nParNode * _nParNode + (2u * _nParElem - 3u) * _nParNode);
-	}
-
-	/**
-	 *@brief adds the time derivative entries from particle equations
-	 *@detail since the main diagonal entries are already set, we actually only set the solid phase time derivative entries for the discretized particle mass balance equations
-	 */
-	void ParticleDiffusionOperatorDG::parTimeDerJacPattern_GRM(std::vector<ParticleDiffusionOperatorDG::T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx)
-	{
-		active const* const _parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
-
-		for (unsigned int parNode = 0; parNode < _nParPoints; parNode++)
-		{
-			for (unsigned int comp = 0; comp < _nComp; comp++)
-			{
-				for (unsigned int bnd = 0; bnd < _nBound[comp]; bnd++) {
-					// row: jump over previous nodes add current component offset
-					// col: jump over previous nodes, liquid phase and previous bound states
-					tripletList.push_back(T(offset + parNode * strideParNode() + comp,
-						offset + parNode * strideParNode() + strideParLiquid() + offsetBoundComp(ComponentIndex{ comp }) + bnd,
-						0.0));
-				}
-			}
-		}
-	}
-	/**
-	 * @brief sets the sparsity pattern of the binding Jacobian
-	 */
-	void ParticleDiffusionOperatorDG::parBindingPattern_GRM(std::vector<ParticleDiffusionOperatorDG::T>& tripletList, const int offset, const unsigned int colNode)
-	{
-		// every bound state might depend on every bound and liquid state
-		for (int parNode = 0; parNode < _nParPoints; parNode++)
-		{
-			for (int bnd = 0; bnd < _strideBound; bnd++)
-			{
-				for (int conc = 0; conc < strideParNode(); conc++) {
-					// row: jump over previous nodes and liquid states and add current bound state offset
-					// col: jump over previous nodes and add current concentration offset (liquid and bound)
-					tripletList.push_back(T(offset + parNode * strideParNode() + strideParLiquid() + bnd,
-						offset + parNode * strideParNode() + conc, 0.0));
-				}
-			}
-		}
 	}
 	/**
 	 * @brief calculates the DG Jacobian auxiliary block
@@ -2026,7 +1455,7 @@ namespace parts
 				{
 
 					if (static_cast<double>(surfDiffPtr[offsetBoundComp(ComponentIndex{ comp }) + bnd]) != 0.0
-						&& !reqBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
+						&& !_reqBinding[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
 						// row, col: at current node and bound state
 						jac[0] += block(i, i)
 							* static_cast<double>(surfDiffPtr[offsetBoundComp(ComponentIndex{ comp }) + bnd]);
@@ -2103,8 +1532,6 @@ namespace parts
 
 		const active* const invBetaP = &_invBetaP[0];
 
-		const int* const reqBinding = _binding->reactionQuasiStationarity();
-
 		// (global) strides
 		unsigned int selem = _nParNode * strideParNode();
 		unsigned int sNode = strideParNode();
@@ -2116,7 +1543,7 @@ namespace parts
 
 			linalg::BandedEigenSparseRowIterator jacIt(globalJac, offsetLocalCp); // row iterator starting at first elem, first component
 
-			insertParJacBlock(_DGjacParDispBlocks[0].block(0, nNodes + 1, nNodes, nNodes), jacIt, parDiff, parSurfDiff, invBetaP, reqBinding, 1u, 0);
+			insertParJacBlock(_DGjacParDispBlocks[0].block(0, nNodes + 1, nNodes, nNodes), jacIt, parDiff, parSurfDiff, invBetaP, _reqBinding, 1u, 0);
 			return 1;
 		}
 
@@ -2125,9 +1552,9 @@ namespace parts
 
 			linalg::BandedEigenSparseRowIterator jacIt(globalJac, offsetLocalCp); // row iterator starting at first elem, first component
 
-			insertParJacBlock(_DGjacParDispBlocks[0].block(0, nNodes + 1, nNodes, 2 * nNodes), jacIt, parDiff, parSurfDiff, invBetaP, reqBinding, 1u, 0);
+			insertParJacBlock(_DGjacParDispBlocks[0].block(0, nNodes + 1, nNodes, 2 * nNodes), jacIt, parDiff, parSurfDiff, invBetaP, _reqBinding, 1u, 0);
 			// right Bacobian block, iterator is already moved to second elem
-			insertParJacBlock(_DGjacParDispBlocks[1].block(0, 1, nNodes, 2 * nNodes), jacIt, parDiff, parSurfDiff, invBetaP, reqBinding, 1u, -strideParElem());
+			insertParJacBlock(_DGjacParDispBlocks[1].block(0, 1, nNodes, 2 * nNodes), jacIt, parDiff, parSurfDiff, invBetaP, _reqBinding, 1u, -strideParElem());
 			return 1;
 		}
 
@@ -2136,7 +1563,7 @@ namespace parts
 
 			linalg::BandedEigenSparseRowIterator jacIt(globalJac, offsetLocalCp + strideParElem()); // row iterator starting at first elem, first component
 
-			insertParJacBlock(_DGjacParDispBlocks[1].block(0, 1, nNodes, 3 * nNodes), jacIt, parDiff, parSurfDiff, invBetaP, reqBinding, 1u, -strideParElem());
+			insertParJacBlock(_DGjacParDispBlocks[1].block(0, 1, nNodes, 3 * nNodes), jacIt, parDiff, parSurfDiff, invBetaP, _reqBinding, 1u, -strideParElem());
 		}
 
 		/* Inner elements (exist only if nelements >= 5) */
@@ -2146,7 +1573,7 @@ namespace parts
 
 			// insert all (nElem - 4) inner elem blocks
 			for (unsigned int elem = 2; elem < _nParElem - 2; elem++)
-				insertParJacBlock(_DGjacParDispBlocks[elem], jacIt, parDiff, parSurfDiff, invBetaP, reqBinding, 1u, -(strideParElem() + strideParNode()));
+				insertParJacBlock(_DGjacParDispBlocks[elem], jacIt, parDiff, parSurfDiff, invBetaP, _reqBinding, 1u, -(strideParElem() + strideParNode()));
 		}
 
 		/*	boundary elem neighbours (exist only if nelements >= 4)	*/
@@ -2154,10 +1581,10 @@ namespace parts
 
 			linalg::BandedEigenSparseRowIterator jacIt(globalJac, offsetLocalCp + strideParElem()); // row iterator starting at second elem, first component
 
-			insertParJacBlock(_DGjacParDispBlocks[1].block(0, 1, nNodes, 3 * nNodes + 1), jacIt, parDiff, parSurfDiff, invBetaP, reqBinding, 1u, -strideParElem());
+			insertParJacBlock(_DGjacParDispBlocks[1].block(0, 1, nNodes, 3 * nNodes + 1), jacIt, parDiff, parSurfDiff, invBetaP, _reqBinding, 1u, -strideParElem());
 
 			jacIt += (_nParElem - 4) * strideParElem(); // move iterator to preultimate elem (already at third elem)
-			insertParJacBlock(_DGjacParDispBlocks[_nParElem - 2u].block(0, 0, nNodes, 3 * nNodes + 1), jacIt, parDiff, parSurfDiff, invBetaP, reqBinding, 1u, -(strideParElem() + strideParNode()));
+			insertParJacBlock(_DGjacParDispBlocks[_nParElem - 2u].block(0, 0, nNodes, 3 * nNodes + 1), jacIt, parDiff, parSurfDiff, invBetaP, _reqBinding, 1u, -(strideParElem() + strideParNode()));
 		}
 
 		/*			boundary elements (exist only if nelements >= 3)			*/
@@ -2165,10 +1592,10 @@ namespace parts
 
 			linalg::BandedEigenSparseRowIterator jacIt(globalJac, offsetLocalCp); // row iterator starting at first elem, first component
 
-			insertParJacBlock(_DGjacParDispBlocks[0].block(0, nNodes + 1, nNodes, 2 * nNodes + 1), jacIt, parDiff, parSurfDiff, invBetaP, reqBinding, 1u, 0);
+			insertParJacBlock(_DGjacParDispBlocks[0].block(0, nNodes + 1, nNodes, 2 * nNodes + 1), jacIt, parDiff, parSurfDiff, invBetaP, _reqBinding, 1u, 0);
 
 			jacIt += (_nParElem - 2) * strideParElem(); // move iterator to last elem (already at second elem)
-			insertParJacBlock(_DGjacParDispBlocks[_nParElem - 1u].block(0, 0, nNodes, 2 * nNodes + 1), jacIt, parDiff, parSurfDiff, invBetaP, reqBinding, 1u, -(strideParElem() + strideParNode()));
+			insertParJacBlock(_DGjacParDispBlocks[_nParElem - 1u].block(0, 0, nNodes, 2 * nNodes + 1), jacIt, parDiff, parSurfDiff, invBetaP, _reqBinding, 1u, -(strideParElem() + strideParNode()));
 		}
 
 		return true;
@@ -2228,107 +1655,6 @@ namespace parts
 
 		return 1;
 	}
-
-	bool ParticleDiffusionOperatorDG::setParameter(const ParameterId& pId, double value)
-	{
-		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _nComp, _parTypeIdx, value, nullptr))
-			return true;
-		if (singleTypeMultiplexBndCompTypeSecParameterValue(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nComp, _strideBound, _boundOffset, _parTypeIdx, value, nullptr))
-			return true;
-
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _singleParRadius, _parRadius, _parTypeIdx, value, nullptr))
-			return true;
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius, _parTypeIdx, value, nullptr))
-			return true;
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, _parTypeIdx, value, nullptr))
-			return true;
-
-		if (_singleParDepSurfDiffusion)
-			if (_parDepSurfDiffusion && _parDepSurfDiffusion->setParameter(pId, value))
-				return true;
-
-		return false;
-	}
-
-	bool ParticleDiffusionOperatorDG::setParameter(const ParameterId& pId, int value)
-	{
-		if (_singleParDepSurfDiffusion)
-			if (_parDepSurfDiffusion && _parDepSurfDiffusion->setParameter(pId, value))
-				return true;
-
-		return false;
-	}
-
-	bool ParticleDiffusionOperatorDG::setParameter(const ParameterId& pId, bool value)
-	{
-		if (_singleParDepSurfDiffusion)
-			if (_parDepSurfDiffusion && _parDepSurfDiffusion->setParameter(pId, value))
-				return true;
-
-		return false;
-	}
-
-	bool ParticleDiffusionOperatorDG::setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value)
-	{
-		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _nComp, _parTypeIdx, value, &sensParams))
-			return true;
-		if (singleTypeMultiplexBndCompTypeSecParameterValue(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nComp, _strideBound, _boundOffset, _parTypeIdx, value, &sensParams))
-			return true;
-
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _singleParRadius, _parRadius, _parTypeIdx, value, &sensParams))
-			return true;
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius, _parTypeIdx, value, &sensParams))
-			return true;
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, _parTypeIdx, value, &sensParams))
-			return true;
-
-		if (model::setSensitiveParameterValue(pId, value, sensParams, std::vector< IParameterStateDependence*>(1, _parDepSurfDiffusion), _singleParDepSurfDiffusion))
-			return true;
-
-		return false;
-	}
-
-	bool ParticleDiffusionOperatorDG::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
-	{
-		if (singleTypeMultiplexCompTypeSecParameterAD(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _nComp, _parTypeIdx, adDirection, adValue, sensParams))
-		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
-		}
-
-		if (singleTypeMultiplexBndCompTypeSecParameterAD(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nComp, _strideBound, _boundOffset, _parTypeIdx, adDirection, adValue, sensParams))
-		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
-		}
-
-		if (model::setSensitiveParameter(pId, adDirection, adValue, sensParams, std::vector< IParameterStateDependence*>(1, _parDepSurfDiffusion), _singleParDepSurfDiffusion))
-		{
-			LOG(Debug) << "Found parameter " << pId << " in surface diffusion parameter dependence: Dir " << adDirection << " is set to " << adValue;
-			return true;
-		}
-
-		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_RADIUS"), _singleParRadius, _parRadius, _parTypeIdx, adDirection, adValue, sensParams))
-		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
-		}
-
-		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius, _parTypeIdx, adDirection, adValue, sensParams))
-		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
-		}
-
-		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, _parTypeIdx, adDirection, adValue, sensParams))
-		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
-		}
-
-		return false;
-	}
-
 
 }  // namespace parts
 
