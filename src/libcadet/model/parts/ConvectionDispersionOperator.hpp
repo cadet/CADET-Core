@@ -44,6 +44,7 @@ namespace model
 {
 
 class IParameterParameterDependence;
+class IDynamicReactionModel;
 
 namespace parts
 {
@@ -115,6 +116,8 @@ public:
 	bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
 	bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& id, double value);
 
+	inline void setDynamicReactionBulk(IDynamicReactionModel* dynReactionBulk) CADET_NOEXCEPT;
+
 protected:
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes = true>
@@ -142,6 +145,8 @@ protected:
 
 	IParameterParameterDependence* _dispersionDep;
 
+	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
+	bool _hasQuasiStationaryReactions;
 	// Indexer functionality
 
 	// Strides
@@ -336,6 +341,9 @@ public:
 	{
 		return _baseOp.setSensitiveParameterValue(sensParams, id, value);
 	}
+
+	inline void setDynamicReactionBulk(IDynamicReactionModel* dynReactionBulk) CADET_NOEXCEPT {};
+
 
 protected:
 

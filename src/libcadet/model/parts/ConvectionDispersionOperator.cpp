@@ -24,6 +24,7 @@
 #include "model/ParameterDependence.hpp"
 #include "SensParamUtil.hpp"
 #include "ConfigurationHelper.hpp"
+#include "model/ReactionModel.hpp"
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -43,7 +44,7 @@ namespace parts
 /**
  * @brief Creates an AxialConvectionDispersionOperatorBase
  */
-AxialConvectionDispersionOperatorBase::AxialConvectionDispersionOperatorBase() : _reconstrDerivatives(nullptr), _weno(nullptr), _koren(nullptr), _dispersionDep(nullptr)
+AxialConvectionDispersionOperatorBase::AxialConvectionDispersionOperatorBase() : _reconstrDerivatives(nullptr), _weno(nullptr), _koren(nullptr), _dispersionDep(nullptr), _dynReactionBulk(nullptr)
 {
 }
 
@@ -181,6 +182,7 @@ bool AxialConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IPara
 		_dispersionCompIndep = ((_colDispersion.size() % _nComp) != 0);
 	}
 
+
 	// Expand _colDispersion to make it component dependent
 	if (_dispersionCompIndep)
 	{
@@ -219,6 +221,8 @@ bool AxialConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IPara
 	}
 	else
 		registerParam2DArray(parameters, _colDispersion, [=](bool multi, unsigned int sec, unsigned int comp) { return makeParamId(hashString("COL_DISPERSION"), unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _nComp);
+	
+	_hasQuasiStationaryReactions = false;
 
 	registerScalarSectionDependentParam(hashString("VELOCITY"), parameters, _velocity, unitOpIdx, ParTypeIndep);
 	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
@@ -431,12 +435,36 @@ void AxialConvectionDispersionOperatorBase::addTimeDerivativeToJacobian(double a
 {
 	const int gapCell = strideColCell() - static_cast<int>(_nComp) * strideColComp();
 	linalg::FactorizableBandMatrix::RowIterator jac = jacDisc.row(0);
+	
 	for (unsigned int i = 0; i < _nCol; ++i, jac += gapCell)
 	{
 		for (unsigned int j = 0; j < _nComp; ++j, ++jac)
 		{
 			// Add time derivative to main diagonal
 			jac[0] += alpha;
+		}
+	}
+	
+	if (_hasQuasiStationaryReactions)
+	{
+		// prepare dres/ddy for eigen operations
+		double* const matData = jacDisc.data();
+		const std::vector<int>& qsCompMap = _dynReactionBulk->quasiStationaryComponentMap();
+
+		Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>
+			dresddy(matData, _nCol, _nComp);
+
+		std::vector<int> qsCompMapInv(_nComp);
+		std::transform(qsCompMap.begin(), qsCompMap.end(), qsCompMapInv.begin(),
+			[](int val) { return (val == 0) ? 1 : 0; });
+
+		Eigen::Map<const Eigen::VectorXi> qsMapInv(qsCompMapInv.data(), _nComp);
+
+		const auto& matMoities = _dynReactionBulk->matrixMoietiesBulk();
+
+		for (int i : _dynReactionBulk->consMoityIdx())
+		{
+			dresddy.block(i, 0, 1, _nComp) += alpha * matMoities.row(i).cast<double>();
 		}
 	}
 }
@@ -623,8 +651,11 @@ bool AxialConvectionDispersionOperatorBase::setSensitiveParameter(std::unordered
 	return true;
 }
 
-
-
+void AxialConvectionDispersionOperatorBase::setDynamicReactionBulk(IDynamicReactionModel* dynReactionBulk) CADET_NOEXCEPT
+{
+	_dynReactionBulk = dynReactionBulk;
+	_hasQuasiStationaryReactions = _dynReactionBulk->hasQuasiStationaryReactionsBulk();
+}
 
 /**
  * @brief Creates a RadialConvectionDispersionOperatorBase
