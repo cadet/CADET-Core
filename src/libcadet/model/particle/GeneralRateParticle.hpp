@@ -18,7 +18,7 @@
 #ifndef LIBCADET_GENERALRATEPARTICLE_HPP_
 #define LIBCADET_GENERALRATEPARTICLE_HPP_
 
-#include "model/parts/ParticleDiffusionOperatorDG.hpp"
+#include "model/parts/ParticleDiffusionOperatorBase.hpp"
 #include "model/BindingModel.hpp"
 #include "cadet/StrongTypes.hpp"
 #include "ParamIdUtil.hpp"
@@ -128,7 +128,7 @@ namespace parts
 			return _parDiffOp->surfaceToVolumeRatio<ParamType>();
 		}
 
-		parts::ParticleDiffusionOperatorDG* _parDiffOp;
+		parts::ParticleDiffusionOperatorBase* _parDiffOp;
 
 		unsigned int* nBound() CADET_NOEXCEPT { return _parDiffOp->nBound(); }; //!< Array with number of bound states for each component
 		inline IBindingModel* getBinding() const CADET_NOEXCEPT { return _binding; }

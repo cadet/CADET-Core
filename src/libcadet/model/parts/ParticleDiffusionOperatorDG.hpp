@@ -97,21 +97,10 @@ namespace parts
 
 		bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor);
 
-		/**
-		 * @brief Computes the residual of the transport equations
-		 * @param [in] model Model that owns the operator
-		 * @param [in] t Current time point
-		 * @param [in] secIdx Index of the current section
-		 * @param [in] yPar Pointer to particle phase entry in unit state vector
-		 * @param [in] yBulk Pointer to corresponding bulk phase entry in unit state vector
-		 * @param [in] yDotPar Pointer to particle phase derivative entry in unit state vector
-		 * @param [out] resPar Pointer Pointer to particle phase entry in unit residual vector
-		 * @param [out] colPos column position of the particle (particle coordinate zero)
-		 * @param [in] jacIt Matrix iterator pointing to the particle phase entry in the unit Jacobian
-		 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
-		 */
-		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, linalg::BandedEigenSparseRowIterator& jacBase);
+		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity);
+		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity);
+		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity);
+		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity);
 
 		std::vector<active> _parOuterSurfAreaPerVolume; //!< Particle element outer sphere surface to volume ratio
 		std::vector<active> _parInnerSurfAreaPerVolume; //!< Particle element inner sphere surface to volume ratio
@@ -144,12 +133,6 @@ namespace parts
 			return static_cast<double>((_deltaR[element] * element + 0.5 * _deltaR[element] * (1 + _parNodes[node])) / (_parRadius - _parCoreRadius));
 		}
 
-		template<typename ParamType>
-		ParamType surfaceToVolumeRatio() const CADET_NOEXCEPT
-		{
-			return _parGeomSurfToVol / static_cast<ParamType>(_parRadius);
-		}
-
 		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly = false);
 
 		int getParticleCoordinates(double* coords) const;
@@ -163,6 +146,9 @@ namespace parts
 		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
 
 	protected:
+
+		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
+		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, linalg::BandedEigenSparseRowIterator& jacBase);
 
 		void initializeDG();
 

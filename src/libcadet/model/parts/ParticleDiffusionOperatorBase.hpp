@@ -26,6 +26,7 @@
 #include "SimulationTypes.hpp"
 #include "ParamReaderHelper.hpp"
 #include "model/ParameterMultiplexing.hpp"
+#include "linalg/BandedEigenSparseRowIterator.hpp"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -103,6 +104,26 @@ namespace parts
 		 */
 		virtual bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor) = 0;
 
+		/**
+		 * @brief Computes the residual of the transport equations
+		 * @param [in] model Model that owns the operator
+		 * @param [in] t Current time point
+		 * @param [in] secIdx Index of the current section
+		 * @param [in] yPar Pointer to particle phase entry in unit state vector
+		 * @param [in] yBulk Pointer to corresponding bulk phase entry in unit state vector
+		 * @param [in] yDotPar Pointer to particle phase derivative entry in unit state vector
+		 * @param [out] resPar Pointer Pointer to particle phase entry in unit residual vector, nullptr if no residual shall be computed
+		 * @param [out] colPos column position of the particle (particle coordinate zero)
+		 * @param [in] jacIt Row iterator pointing to the particle phase entry in the unit Jacobian, uninitialized if no Jacobian shall be computed
+		 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
+		 */
+		virtual int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity) = 0;
+		virtual int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity) = 0;
+		virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity) = 0;
+		virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity) = 0;
+
+		//virtual residualImpl<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacBase) = 0;
+
 		virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac, bool outliersOnly = false) = 0;
 		virtual int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac) = 0;
 		
@@ -120,6 +141,12 @@ namespace parts
 		 * @brief calculates and returns the relative particle coordinate in [0, 1] for the given node index
 		 */
 		virtual double relativeCoordinate(const unsigned int nodeIdx) const = 0;
+
+		template<typename ParamType>
+		ParamType surfaceToVolumeRatio() const CADET_NOEXCEPT
+		{
+			return _parGeomSurfToVol / static_cast<ParamType>(_parRadius);
+		}
 
 		virtual unsigned int calcParDiffNNZ() = 0;
 		

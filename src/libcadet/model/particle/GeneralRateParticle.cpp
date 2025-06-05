@@ -11,8 +11,9 @@
 // =============================================================================
 
 #include "model/particle/GeneralRateParticle.hpp"
-#include "cadet/Exceptions.hpp"
+#include "model/parts/ParticleDiffusionOperatorDG.hpp"
 
+#include "cadet/Exceptions.hpp"
 #include "BindingModelFactory.hpp"
 #include "ReactionModelFactory.hpp"
 #include "ParamReaderHelper.hpp"
@@ -61,7 +62,20 @@ namespace model
 
 		// ==== Construct and configure particle transport and discretization
 
-		_parDiffOp = new parts::ParticleDiffusionOperatorDG();
+		paramProvider.pushScope("discretization");
+
+		if(paramProvider.exists("PAR_SPATIAL_METHOD"))
+		{
+			const std::string parSpatialMethod = paramProvider.getString("PAR_SPATIAL_METHOD");
+			if (parSpatialMethod != "DG")
+				throw InvalidParameterException("Unsupported PAR_SPATIAL_METHOD '" + parSpatialMethod + "' for GeneralRateParticle. Only 'DG' is supported.");
+
+			_parDiffOp = new parts::ParticleDiffusionOperatorDG();
+		}
+		else
+			_parDiffOp = new parts::ParticleDiffusionOperatorDG();
+
+		paramProvider.popScope();
 
 		const bool particleTransportConfigSuccess = _parDiffOp->configureModelDiscretization(paramProvider, helper, nComp, parTypeIdx, nParType, strideBulkComp);
 
@@ -324,7 +338,9 @@ namespace model
 			jacIt += stridePoint();
 		}
 
-		return _parDiffOp->residualImpl<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacBase);
+		ResidualType* wantResPtr = wantRes ? resPar : nullptr;
+		linalg::BandedEigenSparseRowIterator jacJojo = wantJac ? jacBase : linalg::BandedEigenSparseRowIterator{};
+		return _parDiffOp->residual(t, secIdx, yPar, yBulk, yDotPar, wantResPtr, jacJojo, typename ParamSens<ParamType>::enabled());
 	}
 
 	unsigned int GeneralRateParticle::calcParDiffNNZ()
