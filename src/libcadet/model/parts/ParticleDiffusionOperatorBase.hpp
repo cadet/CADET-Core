@@ -99,11 +99,20 @@ namespace parts
 		virtual bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor) = 0;
 
 		virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac, bool outliersOnly = false) = 0;
+		virtual int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac) = 0;
 
 		/**
 		 * @brief calculates and returns the physical particle coordinates according to the discretization
 		 */
 		virtual int getParticleCoordinates(double* coords) const = 0;
+
+		virtual unsigned int calcParDiffNNZ() = 0;
+		
+		virtual bool setParameter(const ParameterId& pId, double value) = 0;
+		virtual bool setParameter(const ParameterId& pId, int value) = 0;
+		virtual bool setParameter(const ParameterId& pId, bool value) = 0;
+		virtual bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue) = 0;
+		virtual bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value) = 0;
 
 		/* component system */
 		unsigned int _nComp; //!< Number of components
