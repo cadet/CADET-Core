@@ -220,7 +220,7 @@ void GeneralRateModelDG::assembleDiscretizedGlobalJacobian(double alpha, Indexer
  */
 void GeneralRateModelDG::addTimeDerivativeToJacobianParticleShell(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, unsigned int parType)
 {
-	parts::cell::addTimeDerivativeToJacobianParticleShell<linalg::BandedEigenSparseRowIterator, true>(jac, alpha, static_cast<double>(_parDiffOp[parType]._parPorosity), _disc.nComp, _disc.nBound + _disc.nComp * parType,
+	parts::cell::addTimeDerivativeToJacobianParticleShell<linalg::BandedEigenSparseRowIterator, true>(jac, alpha, static_cast<double>(_particle[parType].getPorosity()), _disc.nComp, _disc.nBound + _disc.nComp * parType,
 		_poreAccessFactor.data() + _disc.nComp * parType, _disc.strideBound[parType], _disc.boundOffset + _disc.nComp * parType, _binding[parType]->reactionQuasiStationarity());
 }
 
