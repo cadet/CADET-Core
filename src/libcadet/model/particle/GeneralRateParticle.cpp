@@ -387,6 +387,29 @@ namespace model
 		return _parDiffOp->setSensitiveParameter(sensParams, pId, adDirection, adValue);
 	}
 
+	std::unordered_map<ParameterId, double> GeneralRateParticle::getAllParameterValues(std::unordered_map<ParameterId, double>& data) const
+	{
+		model::getAllParameterValues(data, std::vector<IParameterStateDependence*>{getParDepSurfDiffusion()}, singleParDepSurfDiffusion());
+
+		return data;
+	}
+
+	double GeneralRateParticle::getParameterDouble(const ParameterId& pId) const
+	{
+		double val = 0.0;
+
+		if (model::getParameterDouble(pId, std::vector<IParameterStateDependence*>{getParDepSurfDiffusion()}, singleParDepSurfDiffusion(), val))
+			return val;
+		else
+			return static_cast<double>(false);
+	}
+
+	bool GeneralRateParticle::hasParameter(const ParameterId& pId) const
+	{
+		if (model::hasParameter(pId, std::vector<IParameterStateDependence*>{getParDepSurfDiffusion()}, singleParDepSurfDiffusion()))
+			return true;
+	}
+
 }  // namespace model
 
 }  // namespace cadet

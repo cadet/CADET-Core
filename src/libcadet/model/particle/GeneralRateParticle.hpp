@@ -138,8 +138,6 @@ namespace parts
 
 		inline const active& getPorosity() const CADET_NOEXCEPT { return _parDiffOp->getPorosity(); }
 		inline const active* getPoreAccessfactor() const CADET_NOEXCEPT { return _parDiffOp->getPoreAccessfactor(); }
-		inline IParameterStateDependence* getParDepSurfDiffusion() const CADET_NOEXCEPT { return _parDiffOp->getParDepSurfDiffusion(); }
-		inline bool singleParDepSurfDiffusion() const CADET_NOEXCEPT { return _parDiffOp->singleParDepSurfDiffusion(); }
 		inline MultiplexMode parDiffMode() const CADET_NOEXCEPT { return _parDiffOp->parDiffMode(); }
 		inline MultiplexMode parSurfDiffMode() const CADET_NOEXCEPT { return _parDiffOp->parSurfDiffMode(); }
 
@@ -194,7 +192,14 @@ namespace parts
 		bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
 		bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value);
 
+		bool hasParameter(const ParameterId& pId) const;
+		double getParameterDouble(const ParameterId& pId) const;
+		std::unordered_map<ParameterId, double> getAllParameterValues(std::unordered_map<ParameterId, double>& data) const;
+
 	protected:
+
+		inline IParameterStateDependence* getParDepSurfDiffusion() const CADET_NOEXCEPT { return _parDiffOp->getParDepSurfDiffusion(); }
+		inline bool singleParDepSurfDiffusion() const CADET_NOEXCEPT { return _parDiffOp->singleParDepSurfDiffusion(); }
 
 		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc);
