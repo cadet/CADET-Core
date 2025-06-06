@@ -209,9 +209,9 @@ Example
 	model.root.input.model.unit_000.reaction_bulk.asm3_inxi = 0.04
 	model.root.input.model.unit_000.reaction_bulk.asm3_inxs = 0.03
 	model.root.input.model.unit_000.reaction_bulk.asm3_inbm = 0.07
-	model.root.input.model.unit_000.reaction_bulk.asm3_ivss_xi = 0.751879699 # not used
-	model.root.input.model.unit_000.reaction_bulk.asm3_ivss_xs = 0.555555556 # not used
-	model.root.input.model.unit_000.reaction_bulk.asm3_ivss_sto = 0.6 # not used
+	model.root.input.model.unit_000.reaction_bulk.asm3_ivss_xi = 0.751879699
+	model.root.input.model.unit_000.reaction_bulk.asm3_ivss_xs = 0.555555556
+	model.root.input.model.unit_000.reaction_bulk.asm3_ivss_sto = 0.6
 	model.root.input.model.unit_000.reaction_bulk.asm3_ivss_bm = 0.704225352 
 	model.root.input.model.unit_000.reaction_bulk.asm3_itss_vss_bm = 1.086956522
 
