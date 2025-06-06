@@ -194,3 +194,58 @@ Saturation/inhibition coefficients
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
+
+Example
+-------
+
+.. python::
+
+	# Example of setting up an ASM3 reaction model in a unit operation with bulk reaction
+
+	# Setup ASM3 reaction for unit 000 with example values
+	model.root.input.model.unit_000.reaction_model = 'ACTIVATED_SLUDGE_MODEL3'
+	model.root.input.model.unit_000.reaction_bulk.asm3_insi = 0.01
+	model.root.input.model.unit_000.reaction_bulk.asm3_inss = 0.03
+	model.root.input.model.unit_000.reaction_bulk.asm3_inxi = 0.04
+	model.root.input.model.unit_000.reaction_bulk.asm3_inxs = 0.03
+	model.root.input.model.unit_000.reaction_bulk.asm3_inbm = 0.07
+	model.root.input.model.unit_000.reaction_bulk.asm3_ivss_xi = 0.751879699 # not used
+	model.root.input.model.unit_000.reaction_bulk.asm3_ivss_xs = 0.555555556 # not used
+	model.root.input.model.unit_000.reaction_bulk.asm3_ivss_sto = 0.6 # not used
+	model.root.input.model.unit_000.reaction_bulk.asm3_ivss_bm = 0.704225352 
+	model.root.input.model.unit_000.reaction_bulk.asm3_itss_vss_bm = 1.086956522
+
+
+	model.root.input.model.unit_000.reaction_bulk.asm3_fiss_bm_prod = 1
+	model.root.input.model.unit_000.reaction_bulk.asm3_fsi = 0
+	model.root.input.model.unit_000.reaction_bulk.asm3_yh_aer = 0.8
+	model.root.input.model.unit_000.reaction_bulk.asm3_yh_anox = 0.65
+
+	model.root.input.model.unit_000.reaction_bulk.asm3_ysto_aer = 0.8375
+	model.root.input.model.unit_000.reaction_bulk.asm3_ysto_anox = 0.7
+	model.root.input.model.unit_000.reaction_bulk.asm3_fxi = 0.2
+	model.root.input.model.unit_000.reaction_bulk.asm3_ya = 0.24
+	model.root.input.model.unit_000.reaction_bulk.asm3_kh20 = 9
+	model.root.input.model.unit_000.reaction_bulk.asm3_kx = 1
+	model.root.input.model.unit_000.reaction_bulk.asm3_ksto20 = 12
+	model.root.input.model.unit_000.reaction_bulk.asm3_mu_h20 = 3
+	model.root.input.model.unit_000.reaction_bulk.asm3_bh20 = 0.33
+	model.root.input.model.unit_000.reaction_bulk.asm3_eta_hno3 = 0.5
+	model.root.input.model.unit_000.reaction_bulk.asm3_khO2 = 0.2
+	model.root.input.model.unit_000.reaction_bulk.asm3_khss = 10
+	model.root.input.model.unit_000.reaction_bulk.asm3_khno3 = 0.5
+	model.root.input.model.unit_000.reaction_bulk.asm3_khnh4 = 0.01
+	model.root.input.model.unit_000.reaction_bulk.asm3_khalk = 0.1
+	model.root.input.model.unit_000.reaction_bulk.asm3_khsto = 0.1
+	model.root.input.model.unit_000.reaction_bulk.asm3_mu_aut20 = 1.12
+	model.root.input.model.unit_000.reaction_bulk.asm3_baut20 = 0.18
+	model.root.input.model.unit_000.reaction_bulk.asm3_etah_end = 0.5
+	model.root.input.model.unit_000.reaction_bulk.asm3_etan_end = 0.5
+	model.root.input.model.unit_000.reaction_bulk.asm3_kno2 = 0.5
+	model.root.input.model.unit_000.reaction_bulk.asm3_knnh4 = 0.7
+	model.root.input.model.unit_000.reaction_bulk.asm3_knalk = 0.5
+	model.root.input.model.unit_000.reaction_bulk.asm3_t = 12
+
+
+	model.root.input.model.unit_000.reaction_bulk.asm3_v = 1000.0
+	model.root.input.model.unit_000.reaction_bulk.asm3_io2 = 0.0
