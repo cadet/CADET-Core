@@ -141,7 +141,7 @@ namespace parts
 
 		void setParticleJacobianPattern(std::vector<T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx);
 
-		unsigned int calcParDiffNNZ();
+		unsigned int jacobianNNZperParticle();
 
 		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
 

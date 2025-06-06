@@ -148,7 +148,11 @@ namespace parts
 			return _parGeomSurfToVol / static_cast<ParamType>(_parRadius);
 		}
 
-		virtual unsigned int calcParDiffNNZ() = 0;
+		/**
+		 * @brief Number of non-zero Jacobian entries occuring from a single particle of this type
+		 * @detail includes intra-particle entries and film diffusion entries
+		 */
+		virtual unsigned int jacobianNNZperParticle() = 0;
 		
 		virtual bool setParameter(const ParameterId& pId, double value);
 		virtual bool setParameter(const ParameterId& pId, int value);

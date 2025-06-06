@@ -1271,9 +1271,10 @@ namespace parts
 
 	}
 	
-	unsigned int ParticleDiffusionOperatorDG::calcParDiffNNZ()
+	unsigned int ParticleDiffusionOperatorDG::jacobianNNZperParticle()
 	{
-		return _nComp * ((3u * _nParElem - 2u) * _nParNode * _nParNode + (2u * _nParElem - 3u) * _nParNode);
+		// particle Jacobian entries + 4 * nComp entries for film diffusion flux entries (4 for possible interdependence of Cl and Cp)
+		return _nComp * ((3u * _nParElem - 2u) * _nParNode * _nParNode + (2u * _nParElem - 3u) * _nParNode) + 4 * _nComp;
 	}
 	/**
 	 * @brief calculates the DG Jacobian auxiliary block

@@ -31,6 +31,9 @@
 #include "model/parts/DGToolbox.hpp"
 #include "model/ParameterMultiplexing.hpp"
 
+#include "LoggingUtils.hpp"
+#include "Logging.hpp"
+
 #include <unordered_map>
 #include <unordered_set>
 #include <Eigen/Dense>
@@ -58,10 +61,6 @@ namespace parts
 		struct CellParameters;
 	}
 }
-	//constexpr double _SurfVolRatioSphere = 3.0; //!< Surface to volume ratio for a spherical particle
-	//constexpr double _SurfVolRatioCylinder = 2.0; //!< Surface to volume ratio for a cylindrical particle
-	//constexpr double _SurfVolRatioSlab = 1.0; //!< Surface to volume ratio for a slab-shaped particle
-
 	/**
 	 * @brief Particle dispersion transport operator
 	 * @details Implements the equation
@@ -130,7 +129,6 @@ namespace parts
 
 		parts::ParticleDiffusionOperatorBase* _parDiffOp;
 
-		unsigned int* nBound() CADET_NOEXCEPT { return _parDiffOp->nBound(); }; //!< Array with number of bound states for each component
 		inline IBindingModel* getBinding() const CADET_NOEXCEPT { return _binding; }
 		inline bool singleBinding() const CADET_NOEXCEPT { return _singleBinding; }
 		inline IDynamicReactionModel* getReaction() const CADET_NOEXCEPT { return _dynReaction; }
@@ -138,33 +136,11 @@ namespace parts
 
 		inline const active& getPorosity() const CADET_NOEXCEPT { return _parDiffOp->getPorosity(); }
 		inline const active* getPoreAccessfactor() const CADET_NOEXCEPT { return _parDiffOp->getPoreAccessfactor(); }
-		inline MultiplexMode parDiffMode() const CADET_NOEXCEPT { return _parDiffOp->parDiffMode(); }
-		inline MultiplexMode parSurfDiffMode() const CADET_NOEXCEPT { return _parDiffOp->parSurfDiffMode(); }
 
-		/**
-		 * @brief array with offsets to the first bound state of each component in the solid phase
-		 */
-		inline unsigned int* offsetBoundComp() const CADET_NOEXCEPT { return _parDiffOp->offsetBoundComp(); };
-		/**
-		 * @brief offset to the first bound state
-		 */
-		inline unsigned int offsetBoundComp(ComponentIndex comp) const CADET_NOEXCEPT { return offsetBoundComp()[comp.value]; }
-		/**
-		 * @brief total number of bound states
-		 */
-		inline unsigned int strideBound() const CADET_NOEXCEPT { return _parDiffOp->strideBound(); };
 		/**
 		 * @brief total number discrete points per particle
 		 */
 		inline int nDiscPoints() const CADET_NOEXCEPT { return _parDiffOp->nDiscPoints(); }
-		/**
-		 * @brief stride over all components in the liquid phase
-		 */
-		inline int strideLiquid() const CADET_NOEXCEPT { return static_cast<int>(_nComp); }
-		/**
-		 * @brief stride over one discrete point
-		 */
-		inline int stridePoint() const CADET_NOEXCEPT { return strideLiquid() + strideBound(); }
 		/**
 		 * @brief stride over one particle
 		 */
@@ -182,7 +158,7 @@ namespace parts
 			_parDiffOp->setParticleJacobianPattern(tripletList, offsetPar, offsetBulk, colNode, secIdx);
 		}
 
-		unsigned int calcParDiffNNZ();
+		unsigned int jacobianNNZperParticle();
 		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
 		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly = false);
 
@@ -196,10 +172,34 @@ namespace parts
 		double getParameterDouble(const ParameterId& pId) const;
 		std::unordered_map<ParameterId, double> getAllParameterValues(std::unordered_map<ParameterId, double>& data) const;
 
+		bool leanConsistentInitialStateValidity() const
+		{
+			if (isSectionDependent(_parDiffOp->parDiffMode()) || isSectionDependent(_parDiffOp->parSurfDiffMode()))
+			{
+				LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion in particle type " + std::to_string(_parTypeIdx);
+				return false;
+			}
+			else
+				return true;
+		}
+
+		bool leanConsistentInitialTimeDerivativeValidity() const
+		{
+			if (isSectionDependent(_parDiffOp->parDiffMode()) || isSectionDependent(_parDiffOp->parSurfDiffMode()))
+			{
+				LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion in particle type " + std::to_string(_parTypeIdx);
+				return false;
+			}
+			else
+				return true;
+		}
+
 	protected:
 
-		inline IParameterStateDependence* getParDepSurfDiffusion() const CADET_NOEXCEPT { return _parDiffOp->getParDepSurfDiffusion(); }
-		inline bool singleParDepSurfDiffusion() const CADET_NOEXCEPT { return _parDiffOp->singleParDepSurfDiffusion(); }
+		/**
+		 * @brief stride over one discrete point
+		 */
+		inline int stridePoint() const CADET_NOEXCEPT { return static_cast<int>(_nComp) + _parDiffOp->strideBound(); }
 
 		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc);

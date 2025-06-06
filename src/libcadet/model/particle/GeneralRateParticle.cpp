@@ -105,7 +105,7 @@ namespace model
 			throw InvalidParameterException("Unknown binding model " + bindModelNames[_singleBinding ? 0 : _parTypeIdx]);
 
 		MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _singleBinding, _parTypeIdx, nParType == 1, _binding->usesParamProviderInDiscretizationConfig());
-		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, nBound(), offsetBoundComp());
+		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _parDiffOp->nBound(), _parDiffOp->offsetBoundComp());
 
 		// ==== Construct and configure dynamic reaction model
 		bool reactionConfSuccess = true;
@@ -135,7 +135,7 @@ namespace model
 				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[_singleDynReaction ? 0 : _parTypeIdx]);
 
 			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _singleDynReaction, _parTypeIdx, nParType == 1, _dynReaction->usesParamProviderInDiscretizationConfig());
-			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, nBound(), offsetBoundComp()) && reactionConfSuccess;
+			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _parDiffOp->nBound(), _parDiffOp->offsetBoundComp()) && reactionConfSuccess;
 		}
 
 		return particleTransportConfigSuccess && bindingConfSuccess && reactionConfSuccess;
@@ -295,8 +295,8 @@ namespace model
 		{
 			_nComp,
 			nBound,
-			offsetBoundComp(),
-			strideBound(),
+			_parDiffOp->offsetBoundComp(),
+			_parDiffOp->strideBound(),
 			qsReaction,
 			getPorosity(),
 			getPoreAccessfactor(),
@@ -309,7 +309,7 @@ namespace model
 	int GeneralRateParticle::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
 	{
 		int const* const qsBinding = _binding->reactionQuasiStationarity();
-		const parts::cell::CellParameters cellResParams = makeCellResidualParams(qsBinding, nBound());
+		const parts::cell::CellParameters cellResParams = makeCellResidualParams(qsBinding, _parDiffOp->nBound());
 
 		linalg::BandedEigenSparseRowIterator jacBase = jacIt;
 
@@ -343,9 +343,9 @@ namespace model
 		return _parDiffOp->residual(t, secIdx, yPar, yBulk, yDotPar, wantResPtr, jacJojo, typename ParamSens<ParamType>::enabled());
 	}
 
-	unsigned int GeneralRateParticle::calcParDiffNNZ()
+	unsigned int GeneralRateParticle::jacobianNNZperParticle()
 	{
-		return _parDiffOp->calcParDiffNNZ();
+		return _parDiffOp->jacobianNNZperParticle();
 	}
 
 	/**
@@ -389,7 +389,7 @@ namespace model
 
 	std::unordered_map<ParameterId, double> GeneralRateParticle::getAllParameterValues(std::unordered_map<ParameterId, double>& data) const
 	{
-		model::getAllParameterValues(data, std::vector<IParameterStateDependence*>{getParDepSurfDiffusion()}, singleParDepSurfDiffusion());
+		model::getAllParameterValues(data, std::vector<IParameterStateDependence*>{_parDiffOp->getParDepSurfDiffusion()}, _parDiffOp->singleParDepSurfDiffusion());
 
 		return data;
 	}
@@ -398,7 +398,7 @@ namespace model
 	{
 		double val = 0.0;
 
-		if (model::getParameterDouble(pId, std::vector<IParameterStateDependence*>{getParDepSurfDiffusion()}, singleParDepSurfDiffusion(), val))
+		if (model::getParameterDouble(pId, std::vector<IParameterStateDependence*>{_parDiffOp->getParDepSurfDiffusion()}, _parDiffOp->singleParDepSurfDiffusion(), val))
 			return val;
 		else
 			return static_cast<double>(false);
@@ -406,7 +406,7 @@ namespace model
 
 	bool GeneralRateParticle::hasParameter(const ParameterId& pId) const
 	{
-		if (model::hasParameter(pId, std::vector<IParameterStateDependence*>{getParDepSurfDiffusion()}, singleParDepSurfDiffusion()))
+		if (model::hasParameter(pId, std::vector<IParameterStateDependence*>{_parDiffOp->getParDepSurfDiffusion()}, _parDiffOp->singleParDepSurfDiffusion()))
 			return true;
 	}
 
