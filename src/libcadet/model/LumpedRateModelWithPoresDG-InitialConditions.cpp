@@ -374,7 +374,7 @@ namespace cadet
 						_disc.boundOffset + _disc.nComp * type,
 						_disc.strideBound[type],
 						_binding[type]->reactionQuasiStationarity(),
-						_parPorosity[type],
+						_particle[type].getPorosity(),
 						_poreAccessFactor.data() + _disc.nComp * type,
 						_binding[type],
 						(_dynReaction[type] && (_dynReaction[type]->numReactionsCombined() > 0)) ? _dynReaction[type] : nullptr
@@ -388,7 +388,7 @@ namespace cadet
 					active* const localAdRes = adJac.adRes ? adJac.adRes + localOffsetToParticle : nullptr;
 					active* const localAdY = adJac.adY ? adJac.adY + localOffsetToParticle : nullptr;
 
-					const ColumnPosition colPos{ z, 0.0, static_cast<double>(_parRadius[type]) * 0.5 };
+					const ColumnPosition colPos{ z, 0.0, _particle[type].relativeCoordinate(0) };
 
 					// Determine whether nonlinear solver is required
 					if (!_binding[type]->preConsistentInitialState(simTime.t, simTime.secIdx, colPos, qShell, qShell - idxr.strideParLiquid(), tlmAlloc))
@@ -398,8 +398,8 @@ namespace cadet
 					linalg::selectVectorSubset(qShell - _disc.nComp, mask, solution);
 
 					// Save values of conserved moieties
-					const double epsQ = 1.0 - static_cast<double>(_parPorosity[type]);
-					linalg::conservedMoietiesFromPartitionedMask(mask, _disc.nBound + type * _disc.nComp, _disc.nComp, qShell - _disc.nComp, conservedQuants, static_cast<double>(_parPorosity[type]), epsQ);
+					const double epsQ = 1.0 - static_cast<double>(_particle[type].getPorosity());
+					linalg::conservedMoietiesFromPartitionedMask(mask, _disc.nBound + type * _disc.nComp, _disc.nComp, qShell - _disc.nComp, conservedQuants, static_cast<double>(_particle[type].getPorosity()), epsQ);
 
 					std::function<bool(double const* const, linalg::detail::DenseMatrixBase&)> jacFunc;
 					if (localAdY && localAdRes) // todo fix AD consistent initialization with req. binding
@@ -477,7 +477,7 @@ namespace cadet
 									continue;
 								}
 
-								mat.native(rIdx, rIdx) = static_cast<double>(_parPorosity[type]);
+								mat.native(rIdx, rIdx) = static_cast<double>(_particle[type].getPorosity());
 
 								for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++bndIdx)
 								{
@@ -525,7 +525,7 @@ namespace cadet
 									continue;
 								}
 
-								mat.native(rIdx, rIdx) = static_cast<double>(_parPorosity[type]);
+								mat.native(rIdx, rIdx) = static_cast<double>(_particle[type].getPorosity());
 
 								for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++bndIdx)
 								{
@@ -572,7 +572,7 @@ namespace cadet
 									continue;
 								}
 
-								r[rIdx] = static_cast<double>(_parPorosity[type]) * x[rIdx] - conservedQuants[rIdx];
+								r[rIdx] = static_cast<double>(_particle[type].getPorosity()) * x[rIdx] - conservedQuants[rIdx];
 
 								for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++bndIdx)
 								{
@@ -600,7 +600,7 @@ namespace cadet
 			}
 
 			// reset jacobian pattern //@todo can this be avoided?
-			setGlobalJacPattern(_globalJacDisc, _dynReactionBulk);
+			setGlobalJacPattern(_globalJacDisc, _dynReactionBulk, simTime.secIdx);
 		}
 
 		/**
@@ -710,7 +710,7 @@ namespace cadet
 					if (_binding[type]->dependsOnTime())
 					{
 						_binding[type]->timeDerivativeQuasiStationaryFluxes(simTime.t, simTime.secIdx,
-							ColumnPosition{ z, 0.0, static_cast<double>(_parRadius[type]) * 0.5 },
+							ColumnPosition{ z, 0.0, _particle[type].relativeCoordinate(0) },
 							qShellDot - _disc.nComp, qShellDot, dFluxDt, tlmAlloc);
 					}
 
