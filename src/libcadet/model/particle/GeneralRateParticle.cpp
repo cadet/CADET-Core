@@ -225,9 +225,9 @@ namespace model
 		return _parDiffOp->notifyDiscontinuousSectionTransition(t, secIdx, filmDiff, poreAccessFactor);
 	}
 
-	int GeneralRateParticle::getParticleCoordinates(double* coords) const
+	int GeneralRateParticle::writeParticleCoordinates(double* coords) const
 	{
-		return _parDiffOp->getParticleCoordinates(coords);
+		return _parDiffOp->writeParticleCoordinates(coords);
 	}
 
 	parts::cell::CellParameters GeneralRateParticle::makeCellResidualParams(int const* qsReaction, unsigned int const* nBound) const
@@ -282,7 +282,7 @@ namespace model
 			return residualImpl<active, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
 	}
 
-	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
+	template <typename StateType, typename ResidualType, typename ParamType, bool wantNonLinJac, bool wantRes>
 	int GeneralRateParticle::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
 	{
 		int const* const qsBinding = _binding->reactionQuasiStationarity();
@@ -303,11 +303,11 @@ namespace model
 			colPos.particle = relativeCoordinate(par);
 
 			if (wantRes)
-				parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
+				parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantNonLinJac, true>(
 					t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
 				);
 			else
-				parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
+				parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantNonLinJac, false, false>(
 					t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
 				);
 
@@ -316,8 +316,8 @@ namespace model
 		}
 
 		ResidualType* wantResPtr = wantRes ? resPar : nullptr;
-		linalg::BandedEigenSparseRowIterator jacJojo = wantJac ? jacBase : linalg::BandedEigenSparseRowIterator{};
-		return _parDiffOp->residual(t, secIdx, yPar, yBulk, yDotPar, wantResPtr, jacJojo, typename ParamSens<ParamType>::enabled());
+		linalg::BandedEigenSparseRowIterator jacSafe = wantNonLinJac ? jacBase : linalg::BandedEigenSparseRowIterator{};
+		return _parDiffOp->residual(t, secIdx, yPar, yBulk, yDotPar, wantResPtr, jacSafe, typename ParamSens<ParamType>::enabled());
 	}
 
 	unsigned int GeneralRateParticle::jacobianNNZperParticle() const
@@ -381,6 +381,8 @@ namespace model
 	{
 		if (model::hasParameter(pId, std::vector<IParameterStateDependence*>{_parDiffOp->getParDepSurfDiffusion()}, _parDiffOp->singleParDepSurfDiffusion()))
 			return true;
+
+		return false;
 	}
 
 }  // namespace model
