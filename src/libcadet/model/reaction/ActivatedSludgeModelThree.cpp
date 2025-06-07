@@ -195,10 +195,16 @@ protected:
 		const double fXI = paramProvider.getDouble("ASM3_FXI");
 
 		const double YH_aer = paramProvider.getDouble("ASM3_YH_AER");
+		if (YH_aer < 1e-16)
+			throw InvalidParameterException("ASM3 configuration: YH_aer must be bigger than zero");
 		const double YH_anox = paramProvider.getDouble("ASM3_YH_ANOX");
 		const double YSTO_aer = paramProvider.getDouble("ASM3_YSTO_AER");
+		if (YSTO_aer < 1e-16)
+			throw InvalidParameterException("ASM3 configuration: YSTO_aer must be bigger than zero");
 		const double YSTO_anox = paramProvider.getDouble("ASM3_YSTO_ANOX");
 		const double YA = paramProvider.getDouble("ASM3_YA");
+		if (YA < 1e-16)
+			throw InvalidParameterException("ASM3 configuration: YA must be bigger than zero");
 
 		const double fiSS_BM_prod = paramProvider.getDouble("ASM3_FISS_BM_PROD");
 		const double iVSS_BM = paramProvider.getDouble("ASM3_IVSS_BM");
@@ -464,6 +470,7 @@ protected:
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
+		//parameters
 		const double kh20		= static_cast<double>(p->kh20);
 		const double T			= static_cast<double>(p->T);
 		const double io2		= static_cast<double>(p->io2);
@@ -487,7 +494,6 @@ protected:
 		const double baut20		= static_cast<double>(p->baut20);
 		const double etanend	= static_cast<double>(p->etanend);
 
-		// derived parameters
 		// derived parameters
 		const double ft04 = exp(-0.04 * (20.0 - static_cast<double>(T)));
 		const double ft07 = exp(-0.06952 * (20.0 - static_cast<double>(T)));
@@ -530,7 +536,6 @@ protected:
         double d[13][13] = {};
         
 		// p1: Hydrolysis: kh20 * ft04 * XS/XH_S / (XS/XH_S + kx) * XH;
-// Jacobian:
 		d[0][idxXS] = kh20 * ft04
 			* XH / ((XS + XH * kx)
 			* (XS + XH * kx)) * XH;
@@ -770,11 +775,14 @@ protected:
 		
 		
 		RowIterator curJac = jac;
-		for (size_t rIdx = 0; rIdx < 13; rIdx++) {
+		for (size_t rIdx = 0; rIdx < 13; rIdx++) 
+		{
 			RowIterator curJac = jac;
-			for (int row = 0; row < _stoichiometry.rows(); ++row, ++curJac) {
+			for (int row = 0; row < _stoichiometry.rows(); ++row, ++curJac) 
+			{
 				const double colFactor = static_cast<double>(_stoichiometry.native(row, rIdx));
-				for (size_t compIdx = 0; compIdx < _stoichiometry.rows(); compIdx++) {
+				for (size_t compIdx = 0; compIdx < _stoichiometry.rows(); compIdx++) 
+				{
 
 					curJac[compIdx - static_cast<int>(row)] += colFactor * d[rIdx][compIdx];
 				}
