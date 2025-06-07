@@ -139,14 +139,12 @@ namespace cadet
 			/**
 			 * @brief computes the physical particle coordinates for every spatial point
 			 */
-			virtual int getParticleCoordinates(double* coords) const = 0;
-
-			typedef Eigen::Triplet<double> T;
+			virtual int writeParticleCoordinates(double* coords) const = 0;
 
 			/**
 			 * @brief sets the particle sparsity pattern wrt the global Jacobian
 			 */
-			virtual void setParJacPattern(std::vector<T>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx) const = 0;
+			virtual void setParJacPattern(std::vector<Eigen::Triplet<double>>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx) const = 0;
 
 			virtual unsigned int jacobianNNZperParticle() const = 0;
 			/**
