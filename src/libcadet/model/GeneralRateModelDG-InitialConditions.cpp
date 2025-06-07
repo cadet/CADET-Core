@@ -797,13 +797,10 @@ void GeneralRateModelDG::consistentInitialTimeDerivative(const SimulationTime& s
  */
 void GeneralRateModelDG::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 {
-	for (int parType = 0; parType < _disc.nParType; parType++)
-	{
-		if (isSectionDependent(_particle[parType].parDiffMode()) || isSectionDependent(_particle[parType].parSurfDiffMode()))
-			LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";
+	BENCH_SCOPE(_timerConsistentInit);
 
-		BENCH_SCOPE(_timerConsistentInit);
-	}
+	for (int parType = 0; parType < _disc.nParType; parType++)
+		_particle[parType].leanConsistentInitialStateValidity();
 
 	Indexer idxr(_disc);
 
@@ -888,15 +885,10 @@ void GeneralRateModelDG::leanConsistentInitialState(const SimulationTime& simTim
  */
 void GeneralRateModelDG::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
-	for (int parType = 0; parType < _disc.nParType; parType++)
-	{
-		if (isSectionDependent(_particle[parType].parDiffMode()) || isSectionDependent(_particle[parType].parSurfDiffMode()))
-			LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";
-
-		BENCH_SCOPE(_timerConsistentInit);
-	}
-
 	BENCH_SCOPE(_timerConsistentInit);
+
+	for (int parType = 0; parType < _disc.nParType; parType++)
+		_particle[parType].leanConsistentInitialTimeDerivativeValidity();
 
 	Indexer idxr(_disc);
 
@@ -1276,15 +1268,10 @@ void GeneralRateModelDG::solveBulkTimeDerivativeSystem(const SimulationTime& sim
 void GeneralRateModelDG::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
-	for (int parType = 0; parType < _disc.nParType; parType++)
-	{
-		if (isSectionDependent(_particle[parType].parDiffMode()) || isSectionDependent(_particle[parType].parSurfDiffMode()))
-			LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion";
-
-		BENCH_SCOPE(_timerConsistentInit);
-	}
-
 	BENCH_SCOPE(_timerConsistentInit);
+
+	for (int parType = 0; parType < _disc.nParType; parType++)
+		_particle[parType].leanConsistentInitialStateValidity();
 
 	Indexer idxr(_disc);
 
