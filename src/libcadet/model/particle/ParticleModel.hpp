@@ -89,7 +89,7 @@ namespace cadet
 			virtual bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor) = 0;
 
 			/**
-			 * @brief Computes the residual of the particle equations
+			 * @brief Computes the residual of the particle equations and updates nonlinear Jacobian entries
 			 * @param [in] model Model that owns the operator
 			 * @param [in] t Current time point
 			 * @param [in] secIdx Index of the current section
@@ -98,7 +98,7 @@ namespace cadet
 			 * @param [in] yDotPar Pointer to particle phase derivative entry in unit state vector
 			 * @param [out] resPar Pointer Pointer to particle phase entry in unit residual vector, nullptr if no residual shall be computed
 			 * @param [out] colPos column position of the particle (particle coordinate zero)
-			 * @param [in] jacIt Row iterator pointing to the particle phase entry in the unit Jacobian, uninitialized if no Jacobian shall be computed
+			 * @param [in] jacIt Row iterator pointing to the particle phase entry in the unit Jacobian, uninitialized if no Jacobian shall be computed, otherwise only non-linear Jacobian entries will be added
 			 * @param [in] tlmAlloc memory allocator
 			 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 			 */
@@ -139,14 +139,12 @@ namespace cadet
 			/**
 			 * @brief computes the physical particle coordinates for every spatial point
 			 */
-			virtual int getParticleCoordinates(double* coords) const = 0;
-
-			typedef Eigen::Triplet<double> T;
+			virtual int writeParticleCoordinates(double* coords) const = 0;
 
 			/**
 			 * @brief sets the particle sparsity pattern wrt the global Jacobian
 			 */
-			virtual void setParJacPattern(std::vector<T>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx) const = 0;
+			virtual void setParJacPattern(std::vector<Eigen::Triplet<double>>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx) const = 0;
 
 			virtual unsigned int jacobianNNZperParticle() const = 0;
 			/**
@@ -154,7 +152,7 @@ namespace cadet
 			 * @return 1 if jacobain calculation fits the predefined pattern of the jacobian, 0 if not.
 			 */
 			virtual int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac) = 0;
-			virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly = false) = 0;
+			virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool crossDepsOnly = false) = 0;
 
 			virtual bool setParameter(const ParameterId& pId, double value) = 0;
 			virtual bool setParameter(const ParameterId& pId, int value) = 0;

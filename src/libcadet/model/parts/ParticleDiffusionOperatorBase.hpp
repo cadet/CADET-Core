@@ -124,16 +124,15 @@ namespace parts
 		virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac, bool outliersOnly = false) = 0;
 		virtual int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac) = 0;
 		
-		typedef Eigen::Triplet<double> T;
 		/**
 		 *@brief adds the solid time derivative and binding pattern to the list
 		 */
-		virtual void setParticleJacobianPattern(std::vector<T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx);
+		virtual void setParticleJacobianPattern(std::vector<Eigen::Triplet<double>>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx);
 
 		/**
 		 * @brief calculates and returns the physical particle coordinates according to the discretization
 		 */
-		virtual int getParticleCoordinates(double* coords) const = 0;
+		virtual int writeParticleCoordinates(double* coords) const = 0;
 		/**
 		 * @brief calculates and returns the relative particle coordinate in [0, 1] for the given node index
 		 */
@@ -189,11 +188,11 @@ namespace parts
 		/**
 		 *@brief sets the sparsity pattern of the solid phase time derivative Jacobian
 		 */
-		virtual void parSolidTimeDerJacPattern(std::vector<T>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx);
+		virtual void parSolidTimeDerJacPattern(std::vector<Eigen::Triplet<double>>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx);
 		/**
 		 * @brief sets the sparsity pattern of the binding Jacobian
 		 */
-		virtual void parBindingPattern(std::vector<T>& tripletList, const int offset, const unsigned int colNode);
+		virtual void parBindingPattern(std::vector<Eigen::Triplet<double>>& tripletList, const int offset, const unsigned int colNode);
 
 		/* component system */
 		unsigned int _nComp; //!< Number of components
@@ -208,12 +207,10 @@ namespace parts
 		active _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
 		bool _singleParPorosity;
 		std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
-		//MultiplexMode _poreAccessFactorMode;
 		std::vector<active> _invBetaP; //!< Ratio of solid to liquid particle volume
 
 		/* diffusion rates */
 		std::vector<active> _filmDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
-		//MultiplexMode _filmDiffusionMode;
 		std::vector<active> _parDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
 		MultiplexMode _parDiffusionMode;
 		std::vector<active> _parSurfDiffusion; //!< Particle surface diffusion coefficient \f$ D_s \f$
