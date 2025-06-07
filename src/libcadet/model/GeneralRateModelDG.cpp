@@ -55,7 +55,7 @@ constexpr double SurfVolRatioSlab = 1.0;
 
 
 GeneralRateModelDG::GeneralRateModelDG(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_globalJac(), _globalJacDisc(), _jacInlet(), _dynReactionBulk(nullptr),
+	_globalJac(), _globalJacDisc(), _jacInlet(), _particle(nullptr), _dynReactionBulk(nullptr),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _initCp(0), _initQ(0), _initState(0), _initStateDot(0)
 {
@@ -168,6 +168,9 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 	}
 	else // Infer number of particle types
 		_disc.nParType = nBound.size() / _disc.nComp;
+	
+	if (_disc.nParType < 1)
+		throw InvalidParameterException("Number of particle types in GRM must be at least 1!");
 
 	paramProvider.popScope();
 	Indexer idxr(_disc);
@@ -885,7 +888,7 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 		linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
 		ColumnPosition colPos{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }; // Relative position of current node - needed in externally dependent adsorption kinetic
 
-		_particle[parType].residual<wantJac, wantRes>(t, secIdx,
+		_particle[parType].residual(t, secIdx,
 			y + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
 			y + idxr.offsetC() + colNode * idxr.strideColNode(),
 			yDot ? yDot + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
@@ -984,7 +987,7 @@ int GeneralRateModelDG::residualFlux(double t, unsigned int secIdx, StateType co
 		// sec1type0comp0, sec1type0comp1, sec1type0comp2, sec1type1comp0, sec1type1comp1, sec1type1comp2, ...
 		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
 
-		const ParamType surfaceToVolumeRatio = _particle[type].surfaceToVolumeRatio<ParamType>();
+		const ParamType surfaceToVolumeRatio = static_cast<ParamType>(_particle[type].surfaceToVolumeRatio());
 
 		const ParamType jacCF_val = invBetaC * surfaceToVolumeRatio;
 		const ParamType jacPF_val = -1.0 / epsP;
@@ -1443,63 +1446,31 @@ std::unordered_map<ParameterId, double> GeneralRateModelDG::getAllParameterValue
 {
 	std::unordered_map<ParameterId, double> data = UnitOperationBase::getAllParameterValues();
 
-	std::vector<IParameterStateDependence*> parDepSurfDiffusion(_disc.nParType, nullptr);
-	bool singleParDepSurfDiffusion = false;
-
-	for (int type = 0; type < _disc.nParType; type++)
+	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		parDepSurfDiffusion[type] = _particle[type].getParDepSurfDiffusion();
-		singleParDepSurfDiffusion = _particle[0].singleParDepSurfDiffusion();
-		if (_particle[type].singleParDepSurfDiffusion() != singleParDepSurfDiffusion)
-			throw InvalidParameterException("Something went wrong configuring the surface diffusion parameter dependence");
+		_particle[parType].getAllParameterValues(data);
 	}
-
-	model::getAllParameterValues(data, parDepSurfDiffusion, singleParDepSurfDiffusion);
 
 	return data;
 }
 
 double GeneralRateModelDG::getParameterDouble(const ParameterId& pId) const
 {
-	double val = 0.0;
-
-	std::vector<IParameterStateDependence*> parDepSurfDiffusion(_disc.nParType, nullptr);
-	bool singleParDepSurfDiffusion = false;
-
-	for (int type = 0; type < _disc.nParType; type++)
-	{
-		parDepSurfDiffusion[type] = _particle[type].getParDepSurfDiffusion();
-		singleParDepSurfDiffusion = _particle[0].singleParDepSurfDiffusion();
-		if (_particle[type].singleParDepSurfDiffusion() != singleParDepSurfDiffusion)
-			throw InvalidParameterException("Something went wrong configuring the surface diffusion parameter dependence");
-	}
-
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		if (model::getParameterDouble(pId, parDepSurfDiffusion, singleParDepSurfDiffusion, val))
+		double val = _particle[parType].getParameterDouble(pId);
+		if (val)
 			return val;
 	}
 
-	// Not found
 	return UnitOperationBase::getParameterDouble(pId);
 }
 
 bool GeneralRateModelDG::hasParameter(const ParameterId& pId) const
 {
-	std::vector<IParameterStateDependence*> parDepSurfDiffusion(_disc.nParType, nullptr);
-	bool singleParDepSurfDiffusion = false;
-
-	for (int type = 0; type < _disc.nParType; type++)
-	{
-		parDepSurfDiffusion[type] = _particle[type].getParDepSurfDiffusion();
-		singleParDepSurfDiffusion = _particle[0].singleParDepSurfDiffusion();
-		if (_particle[type].singleParDepSurfDiffusion() != singleParDepSurfDiffusion)
-			throw InvalidParameterException("Something went wrong configuring the surface diffusion parameter dependence");
-	}
-
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		if (model::hasParameter(pId, parDepSurfDiffusion, singleParDepSurfDiffusion))
+		if (_particle[parType].hasParameter(pId))
 			return true;
 	}
 
