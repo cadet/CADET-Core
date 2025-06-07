@@ -457,7 +457,7 @@ protected:
 		*/
 		virtual int writeParticleCoordinates(unsigned int parType, double* coords) const
 		{
-			return _model._particle[parType].getParticleCoordinates(coords);
+			return _model._particle[parType].writeParticleCoordinates(coords);
 		}
 
 	protected:
