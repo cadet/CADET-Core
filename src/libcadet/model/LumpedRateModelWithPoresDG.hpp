@@ -25,6 +25,7 @@
 #include "cadet/StrongTypes.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "model/parts/ConvectionDispersionOperatorDG.hpp"
+#include "model/particle/HomogeneousParticle.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/BandedEigenSparseRowIterator.hpp"
 #include "linalg/EigenSolverWrapper.hpp"
@@ -55,11 +56,8 @@ class IDynamicReactionModel;
  *
  * @f[\begin{align}
 	\frac{\partial c_i}{\partial t} &= - u \frac{\partial c_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c_i}{\partial z^2} - \frac{1 - \varepsilon_c}{\varepsilon_c} \frac{3 k_{f,i}}{r_p} j_{f,i} \\
-	\frac{\partial c_{p,i}}{\partial t} + \frac{1 - \varepsilon_p}{\varepsilon_p} \frac{\partial q_{i}}{\partial t} &= \frac{3 k_{f,i}}{\varepsilon_p r_p} j_{f,i} \\
+	\frac{\partial c_{p,i}}{\partial t} + \frac{1 - \varepsilon_p}{\varepsilon_p} \frac{\partial q_{i}}{\partial t} &= \frac{3 k_{f,i}}{\varepsilon_p r_p} (c_i - c_{p,i}) \\
 	a \frac{\partial q_i}{\partial t} &= f_{\text{iso}}(c_p, q)
-\end{align} @f]
-@f[ \begin{align}
-	j_{f,i} = c_i - c_{p,i}
 \end{align} @f]
  * Danckwerts boundary conditions (see @cite Danckwerts1953)
 @f[ \begin{align}
@@ -431,6 +429,8 @@ protected:
 		const LumpedRateModelWithPoresDG& _model;
 		double const* const _data;
 	};
+
+	HomogeneousParticle* _particle; //!< Particle dispersion operator
 
 	// ==========================================================================================================================================================  //
 	// ========================================						DG Jacobian							=========================================================  //

@@ -12,11 +12,11 @@
 
 /**
  * @file
- * Defines the general rate particle model as e.g. used in the classical General Rate Model of chromatography
+ * Defines the homogeneous particle model as e.g. used in the Lumped Rate Model with Pores
  */
 
-#ifndef LIBCADET_GENERALRATEPARTICLE_HPP_
-#define LIBCADET_GENERALRATEPARTICLE_HPP_
+#ifndef LIBCADET_HOMOGENEOUSPARTICLE_HPP_
+#define LIBCADET_HOMOGENEOUSPARTICLE_HPP_
 
 #include "model/particle/ParticleModel.hpp"
 #include "model/parts/ParticleDiffusionOperatorBase.hpp"
@@ -63,32 +63,25 @@ namespace parts
 	}
 }
 	/**
-	 * @brief General Rate Particle Model
-	 * @details Implements the equation
-	 *
+	 * @brief Homogeneous Particle Model
 	 @f[ \begin{align}
-	 - \left. \left( \varepsilon^{\mathrm{p}} D^{\mathrm{p}}_{i} \frac{\partial c^{\mathrm{p}}_{i}}{\partial r} + (1 - \varepsilon^{\mathrm{p}}) D^{\mathrm{s}}_{i} \frac{\partial c^{\mathrm{s}}_{i}}{\partial r} \right) \right|_{r=0}
-	 &= 0, \\
-	 \varepsilon^{\mathrm{p}} \left. \left( \varepsilon^{\mathrm{p}}  D^{\mathrm{p}}_{i} \frac{\partial c^{\mathrm{p}}_{i}}{\partial r} + (1 - \varepsilon^{\mathrm{p}} ) D^{\mathrm{s}}_{i} \frac{\partial c^{\mathrm{s}}_{i}}{\partial r} \right)\right|_{r = R^{\mathrm{p}}_{}}
-	 &= k^{\mathrm{f}}_{i} \left. \left( c^{\mathrm{b}}_i - c^{\mathrm{p}}_{i} \right|_{r = R^{\mathrm{p}}_{}} \right)
+	 \frac{\partial c_i}{\partial t} &= - u \frac{\partial c_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c_i}{\partial z^2} - \frac{1 - \varepsilon_c}{\varepsilon_c} \frac{3 k_{f,i}}{r_p} j_{f,i} \\
+	 \frac{\partial c_{p,i}}{\partial t} + \frac{1 - \varepsilon_p}{\varepsilon_p} \frac{\partial q_{i}}{\partial t} &= \frac{3 k_{f,i}}{\varepsilon_p r_p} (c_i - c_{p,i}) \\
+	 a \frac{\partial q_i}{\partial t} &= f_{\text{iso}}(c_p, q)
 	 \end{align} @f]
 	 * Additionally implements the variants for cylindrical and slab-shaped particles
-	 * Methods are described in @cite Breuer2023
-	 *
-	 * This class does not store the Jacobian. It only fills existing matrices given to its residual() functions.
-	 * It assumes that there is no offset to the particle entries in the local state vector
 	 */
-	class GeneralRateParticle : public IParticleModel
+	class HomogeneousParticle : public IParticleModel
 	{
 	public:
 
-		GeneralRateParticle();
-		~GeneralRateParticle() CADET_NOEXCEPT;
+		HomogeneousParticle();
+		~HomogeneousParticle() CADET_NOEXCEPT;
 
 		bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp) override;
 		bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound) override;
 
-		void updateRadialDisc() { _parDiffOp->updateRadialDisc(); }
+		void updateRadialDisc() { }
 
 		parts::cell::CellParameters makeCellResidualParams(int const* qsReaction, unsigned int const* nBound) const override;
 
@@ -99,27 +92,22 @@ namespace parts
 		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity) override;
 		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity) override;
 
-		double relativeCoordinate(const unsigned int nodeIdx) const CADET_NOEXCEPT  override { return _parDiffOp->relativeCoordinate(nodeIdx); }
+		double relativeCoordinate(const unsigned int nodeIdx) const CADET_NOEXCEPT  override { return 0.5; }
 
 		active surfaceToVolumeRatio() const CADET_NOEXCEPT override
 		{
-			return _parDiffOp->surfaceToVolumeRatio();
+			return _parGeomSurfToVol / _parRadius;
 		}
 
-		parts::ParticleDiffusionOperatorBase* _parDiffOp;
+		inline const active& getPorosity() const CADET_NOEXCEPT  override { return _parPorosity; }
+		inline const active* getPoreAccessfactor() const CADET_NOEXCEPT  override { return &_poreAccessFactor[0]; }
 
-		inline const active& getPorosity() const CADET_NOEXCEPT  override { return _parDiffOp->getPorosity(); }
-		inline const active* getPoreAccessfactor() const CADET_NOEXCEPT  override { return _parDiffOp->getPoreAccessfactor(); }
-
-		inline int nDiscPoints() const CADET_NOEXCEPT  override { return _parDiffOp->nDiscPoints(); }
+		inline int nDiscPoints() const CADET_NOEXCEPT  override { return 1; }
 		inline int strideParBlock() const CADET_NOEXCEPT  override { return nDiscPoints() * stridePoint(); }
 
 		int writeParticleCoordinates(double* coords) const override;
 
-		void setParJacPattern(std::vector<Eigen::Triplet<double>>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx) const override
-		{
-			_parDiffOp->setParticleJacobianPattern(tripletList, offsetPar, offsetBulk, colNode, secIdx);
-		}
+		void setParJacPattern(std::vector<Eigen::Triplet<double>>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx) const override;
 
 		unsigned int jacobianNNZperParticle() const override;
 		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac) override;
@@ -135,35 +123,39 @@ namespace parts
 		double getParameterDouble(const ParameterId& pId) const override;
 		std::unordered_map<ParameterId, double> getAllParameterValues(std::unordered_map<ParameterId, double>& data) const override;
 
-		bool leanConsistentInitialStateValidity() const override
-		{
-			if (isSectionDependent(_parDiffOp->parDiffMode()) || isSectionDependent(_parDiffOp->parSurfDiffMode()))
-			{
-				LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion in particle type " + std::to_string(_parTypeIdx);
-				return false;
-			}
-			else
-				return true;
-		}
-
-		bool leanConsistentInitialTimeDerivativeValidity() const override
-		{
-			if (isSectionDependent(_parDiffOp->parDiffMode()) || isSectionDependent(_parDiffOp->parSurfDiffMode()))
-			{
-				LOG(Warning) << "Lean consistent initialization is not appropriate for section-dependent pore and surface diffusion in particle type " + std::to_string(_parTypeIdx);
-				return false;
-			}
-			else
-				return true;
-		}
+		bool leanConsistentInitialStateValidity() const override { return true; }
+		bool leanConsistentInitialTimeDerivativeValidity() const override { return true; }
 
 	protected:
 
+		/* component system */
+		unsigned int* _nBound; //!< Array with number of bound states for each component
+
+		/* diffusion */
+		std::vector<active> _filmDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
+		std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
+		std::vector<active> _invBetaP; //!< Ratio of solid to liquid particle volume
+
+		/* geometry */
+		double _SurfVolRatioSphere = 3.0; //!< Surface to volume ratio for a spherical particle
+		double _SurfVolRatioCylinder = 2.0; //!< Surface to volume ratio for a cylindrical particle
+		double _SurfVolRatioSlab = 1.0; //!< Surface to volume ratio for a slab-shaped particle
+		double _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)
+		active _parRadius; //!< Particle radius \f$ r_p \f$
+		bool _singleParRadius;
+		active _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
+		bool _singleParPorosity;
+
+		/* strides and offsets */
+		int _strideBulkComp; //!< Component stride in bulk state vector
+		unsigned int* _boundOffset; //!< Array with offset to the first bound state of each component in the solid phase
+		unsigned int _strideBound; //!< Total number of bound states
 		/**
 		 * @brief stride over one discrete point
 		 */
-		inline int stridePoint() const CADET_NOEXCEPT { return static_cast<int>(_nComp) + _parDiffOp->strideBound(); }
+		inline int stridePoint() const CADET_NOEXCEPT { return static_cast<int>(_nComp) + _strideBound; }
 
+		/* residual implementation */
 		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc);
 	};
@@ -171,4 +163,4 @@ namespace parts
 } // namespace model
 } // namespace cadet
 
-#endif  // LIBCADET_GENERALRATEPARTICLE_HPP_
+#endif  // LIBCADET_HOMOGENEOUSPARTICLE_HPP_

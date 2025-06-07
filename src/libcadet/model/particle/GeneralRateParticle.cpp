@@ -225,9 +225,9 @@ namespace model
 		return _parDiffOp->notifyDiscontinuousSectionTransition(t, secIdx, filmDiff, poreAccessFactor);
 	}
 
-	int GeneralRateParticle::getParticleCoordinates(double* coords) const
+	int GeneralRateParticle::writeParticleCoordinates(double* coords) const
 	{
-		return _parDiffOp->getParticleCoordinates(coords);
+		return _parDiffOp->writeParticleCoordinates(coords);
 	}
 
 	parts::cell::CellParameters GeneralRateParticle::makeCellResidualParams(int const* qsReaction, unsigned int const* nBound) const
@@ -381,6 +381,8 @@ namespace model
 	{
 		if (model::hasParameter(pId, std::vector<IParameterStateDependence*>{_parDiffOp->getParDepSurfDiffusion()}, _parDiffOp->singleParDepSurfDiffusion()))
 			return true;
+
+		return false;
 	}
 
 }  // namespace model
