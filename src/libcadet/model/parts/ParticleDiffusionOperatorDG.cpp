@@ -529,7 +529,7 @@ namespace parts
 	/**
 	 * @brief calculates the physical radial/particle coordinates of the DG discretization with double! interface nodes
 	 */
-	int ParticleDiffusionOperatorDG::getParticleCoordinates(double* coords) const
+	int ParticleDiffusionOperatorDG::writeParticleCoordinates(double* coords) const
 	{
 		active const* const pcr = _parCenterRadius.data();
 
