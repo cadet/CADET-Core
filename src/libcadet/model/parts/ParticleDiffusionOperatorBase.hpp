@@ -113,7 +113,6 @@ namespace parts
 		 * @param [in] yBulk Pointer to corresponding bulk phase entry in unit state vector
 		 * @param [in] yDotPar Pointer to particle phase derivative entry in unit state vector
 		 * @param [out] resPar Pointer Pointer to particle phase entry in unit residual vector, nullptr if no residual shall be computed
-		 * @param [out] colPos column position of the particle (particle coordinate zero)
 		 * @param [in] jacIt Row iterator pointing to the particle phase entry in the unit Jacobian, uninitialized if no Jacobian shall be computed
 		 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 		 */
@@ -121,8 +120,6 @@ namespace parts
 		virtual int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity) = 0;
 		virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity) = 0;
 		virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity) = 0;
-
-		//virtual residualImpl<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacBase) = 0;
 
 		virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac, bool outliersOnly = false) = 0;
 		virtual int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac) = 0;
@@ -142,17 +139,16 @@ namespace parts
 		 */
 		virtual double relativeCoordinate(const unsigned int nodeIdx) const = 0;
 
-		template<typename ParamType>
-		ParamType surfaceToVolumeRatio() const CADET_NOEXCEPT
+		active surfaceToVolumeRatio() const CADET_NOEXCEPT
 		{
-			return _parGeomSurfToVol / static_cast<ParamType>(_parRadius);
+			return _parGeomSurfToVol / _parRadius;
 		}
 
 		/**
 		 * @brief Number of non-zero Jacobian entries occuring from a single particle of this type
 		 * @detail includes intra-particle entries and film diffusion entries
 		 */
-		virtual unsigned int jacobianNNZperParticle() = 0;
+		virtual unsigned int jacobianNNZperParticle() const = 0;
 		
 		virtual bool setParameter(const ParameterId& pId, double value);
 		virtual bool setParameter(const ParameterId& pId, int value);

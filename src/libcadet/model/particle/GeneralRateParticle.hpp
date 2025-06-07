@@ -12,12 +12,13 @@
 
 /**
  * @file
- * Defines the particle dispersion transport operator according to the discontinuous Galerkin discretization.
+ * Defines the general rate particle model as e.g. used in the classical General Rate Model of chromatography
  */
 
 #ifndef LIBCADET_GENERALRATEPARTICLE_HPP_
 #define LIBCADET_GENERALRATEPARTICLE_HPP_
 
+#include "model/particle/ParticleModel.hpp"
 #include "model/parts/ParticleDiffusionOperatorBase.hpp"
 #include "model/BindingModel.hpp"
 #include "cadet/StrongTypes.hpp"
@@ -83,96 +84,64 @@ namespace parts
 	 * This class does not store the Jacobian. It only fills existing matrices given to its residual() functions.
 	 * It assumes that there is no offset to the particle entries in the local state vector
 	 */
-	class GeneralRateParticle
+	class GeneralRateParticle : public IParticleModel
 	{
 	public:
 
 		GeneralRateParticle();
 		~GeneralRateParticle() CADET_NOEXCEPT;
 
-		bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp);
-		bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound);
+		bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp) override;
+		bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound) override;
 
 		void updateRadialDisc() { _parDiffOp->updateRadialDisc(); }
 
-		parts::cell::CellParameters makeCellResidualParams(int const* qsReaction, unsigned int const* nBound) const;
+		parts::cell::CellParameters makeCellResidualParams(int const* qsReaction, unsigned int const* nBound) const override;
 
-		//void clearParDepSurfDiffusion();
+		bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor) override;
 
-		bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor);
+		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity) override;
+		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity) override;
+		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity) override;
+		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity) override;
 
-		template<bool wantJac, bool wantRes>
-		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
-		template<bool wantJac, bool wantRes>
-		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
-		template<bool wantJac, bool wantRes>
-		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
-		template<bool wantJac, bool wantRes>
-		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
+		double relativeCoordinate(const unsigned int nodeIdx) const CADET_NOEXCEPT  override { return _parDiffOp->relativeCoordinate(nodeIdx); }
 
-		unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)
-
-		unsigned int _nComp; //!< Number of components
-
-		IBindingModel* _binding; //!< Binding model
-		bool _singleBinding; //!< Determines whether only a single binding model is present in the whole unit
-		IDynamicReactionModel* _dynReaction; //!< Dynamic reaction model
-		bool _singleDynReaction; //!< Determines whether only a single particle reaction model is present in the whole unit
-
-		double relativeCoordinate(const unsigned int nodeIdx) const CADET_NOEXCEPT { return _parDiffOp->relativeCoordinate(nodeIdx); }
-
-		template<typename ParamType>
-		ParamType surfaceToVolumeRatio() const CADET_NOEXCEPT
+		active surfaceToVolumeRatio() const CADET_NOEXCEPT override
 		{
-			return _parDiffOp->surfaceToVolumeRatio<ParamType>();
+			return _parDiffOp->surfaceToVolumeRatio();
 		}
 
 		parts::ParticleDiffusionOperatorBase* _parDiffOp;
 
-		inline IBindingModel* getBinding() const CADET_NOEXCEPT { return _binding; }
-		inline bool singleBinding() const CADET_NOEXCEPT { return _singleBinding; }
-		inline IDynamicReactionModel* getReaction() const CADET_NOEXCEPT { return _dynReaction; }
-		inline bool singleReaction() const CADET_NOEXCEPT { return _singleDynReaction; }
+		inline const active& getPorosity() const CADET_NOEXCEPT  override { return _parDiffOp->getPorosity(); }
+		inline const active* getPoreAccessfactor() const CADET_NOEXCEPT  override { return _parDiffOp->getPoreAccessfactor(); }
 
-		inline const active& getPorosity() const CADET_NOEXCEPT { return _parDiffOp->getPorosity(); }
-		inline const active* getPoreAccessfactor() const CADET_NOEXCEPT { return _parDiffOp->getPoreAccessfactor(); }
+		inline int nDiscPoints() const CADET_NOEXCEPT  override { return _parDiffOp->nDiscPoints(); }
+		inline int strideParBlock() const CADET_NOEXCEPT  override { return nDiscPoints() * stridePoint(); }
 
-		/**
-		 * @brief total number discrete points per particle
-		 */
-		inline int nDiscPoints() const CADET_NOEXCEPT { return _parDiffOp->nDiscPoints(); }
-		/**
-		 * @brief stride over one particle
-		 */
-		inline int strideParBlock() const CADET_NOEXCEPT { return nDiscPoints() * stridePoint(); }
+		int getParticleCoordinates(double* coords) const override;
 
-		int getParticleCoordinates(double* coords) const;
-
-		typedef Eigen::Triplet<double> T;
-
-		/**
-		 * @brief sets the particle sparsity pattern wrt the global Jacobian
-		 */
-		void setParJacPattern(std::vector<T>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx)
+		void setParJacPattern(std::vector<T>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx) const override
 		{
 			_parDiffOp->setParticleJacobianPattern(tripletList, offsetPar, offsetBulk, colNode, secIdx);
 		}
 
-		unsigned int jacobianNNZperParticle();
-		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
-		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly = false);
+		unsigned int jacobianNNZperParticle() const override;
+		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac) override;
+		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly = false) override;
 
-		bool setParameter(const ParameterId& pId, double value);
-		bool setParameter(const ParameterId& pId, int value);
-		bool setParameter(const ParameterId& pId, bool value);
-		bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
-		bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value);
+		bool setParameter(const ParameterId& pId, double value) override;
+		bool setParameter(const ParameterId& pId, int value) override;
+		bool setParameter(const ParameterId& pId, bool value) override;
+		bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue) override;
+		bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value) override;
 
-		bool hasParameter(const ParameterId& pId) const;
-		double getParameterDouble(const ParameterId& pId) const;
-		std::unordered_map<ParameterId, double> getAllParameterValues(std::unordered_map<ParameterId, double>& data) const;
+		bool hasParameter(const ParameterId& pId) const override;
+		double getParameterDouble(const ParameterId& pId) const override;
+		std::unordered_map<ParameterId, double> getAllParameterValues(std::unordered_map<ParameterId, double>& data) const override;
 
-		bool leanConsistentInitialStateValidity() const
+		bool leanConsistentInitialStateValidity() const override
 		{
 			if (isSectionDependent(_parDiffOp->parDiffMode()) || isSectionDependent(_parDiffOp->parSurfDiffMode()))
 			{
@@ -183,7 +152,7 @@ namespace parts
 				return true;
 		}
 
-		bool leanConsistentInitialTimeDerivativeValidity() const
+		bool leanConsistentInitialTimeDerivativeValidity() const override
 		{
 			if (isSectionDependent(_parDiffOp->parDiffMode()) || isSectionDependent(_parDiffOp->parSurfDiffMode()))
 			{

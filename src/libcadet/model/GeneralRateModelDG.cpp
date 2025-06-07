@@ -888,7 +888,7 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 		linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
 		ColumnPosition colPos{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }; // Relative position of current node - needed in externally dependent adsorption kinetic
 
-		_particle[parType].residual<wantJac, wantRes>(t, secIdx,
+		_particle[parType].residual(t, secIdx,
 			y + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
 			y + idxr.offsetC() + colNode * idxr.strideColNode(),
 			yDot ? yDot + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
@@ -987,7 +987,7 @@ int GeneralRateModelDG::residualFlux(double t, unsigned int secIdx, StateType co
 		// sec1type0comp0, sec1type0comp1, sec1type0comp2, sec1type1comp0, sec1type1comp1, sec1type1comp2, ...
 		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
 
-		const ParamType surfaceToVolumeRatio = _particle[type].surfaceToVolumeRatio<ParamType>();
+		const ParamType surfaceToVolumeRatio = static_cast<ParamType>(_particle[type].surfaceToVolumeRatio());
 
 		const ParamType jacCF_val = invBetaC * surfaceToVolumeRatio;
 		const ParamType jacPF_val = -1.0 / epsP;

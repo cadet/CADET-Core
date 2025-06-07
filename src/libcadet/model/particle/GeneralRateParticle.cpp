@@ -44,14 +44,12 @@ namespace model
 	/**
 	 * @brief Creates a GeneralRateParticle
 	 */
-	GeneralRateParticle::GeneralRateParticle() : _binding(nullptr), _dynReaction(nullptr)
+	GeneralRateParticle::GeneralRateParticle() : _parDiffOp(nullptr)
 	{
 	}
 
 	GeneralRateParticle::~GeneralRateParticle() CADET_NOEXCEPT
 	{
-		delete _binding;
-		delete _dynReaction;
 		delete _parDiffOp;
 	}
 
@@ -222,72 +220,15 @@ namespace model
 		return parTransportConfigSuccess && bindingConfSuccess && dynReactionConfSuccess;
 	}
 
-	/**
-	 * @brief Notifies the operator that a discontinuous section transition is in progress
-	 * @param [in] t Current time point
-	 * @param [in] secIdx Index of the new section that is about to be integrated
-	 * @return @c true if flow direction has changed, otherwise @c false
-	 */
 	bool GeneralRateParticle::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor)
 	{
 		return _parDiffOp->notifyDiscontinuousSectionTransition(t, secIdx, filmDiff, poreAccessFactor);
 	}
-	/**
-	 * @brief calculates the physical radial/particle coordinates of the DG discretization with double! interface nodes
-	 */
+
 	int GeneralRateParticle::getParticleCoordinates(double* coords) const
 	{
 		return _parDiffOp->getParticleCoordinates(coords);
 	}
-	/**
-	 * @brief Computes the residual of the transport equations
-	 * @param [in] model Model that owns the operator
-	 * @param [in] t Current time point
-	 * @param [in] secIdx Index of the current section
-	 * @param [in] yPar Pointer to particle phase entry in unit state vector
-	 * @param [in] yBulk Pointer to corresponding bulk phase entry in unit state vector
-	 * @param [in] yDotPar Pointer to particle phase derivative entry in unit state vector
-	 * @param [out] resPar Pointer Pointer to particle phase entry in unit residual vector
-	 * @param [out] colPos column position of the particle (particle coordinate zero)
-	 * @param [in] jacIt Matrix iterator pointing to the particle phase entry in the unit Jacobian
-	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
-	 */
-	template<bool wantJac, bool wantRes>
-	int GeneralRateParticle::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
-	{
-		return residualImpl<double, double, double, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
-	}
-
-	template<bool wantJac, bool wantRes>
-	int GeneralRateParticle::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
-	{
-		return residualImpl<active, active, double, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
-	}
-
-	template<bool wantJac, bool wantRes>
-	int GeneralRateParticle::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
-	{
-		return residualImpl<double, active, active, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
-	}
-
-	template<bool wantJac, bool wantRes>
-	int GeneralRateParticle::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
-	{
-		return residualImpl<active, active, active, wantJac, wantRes>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
-	}
-
-	template int GeneralRateParticle::residual<true, true>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
-	template int GeneralRateParticle::residual<false, true>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
-	template int GeneralRateParticle::residual<true, false>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
-
-	template int GeneralRateParticle::residual<true, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
-	template int GeneralRateParticle::residual<false, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity);
-
-	template int GeneralRateParticle::residual<true, true>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
-	template int GeneralRateParticle::residual<false, true>(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
-
-	template int GeneralRateParticle::residual<true, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
-	template int GeneralRateParticle::residual<false, true>(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity);
 
 	parts::cell::CellParameters GeneralRateParticle::makeCellResidualParams(int const* qsReaction, unsigned int const* nBound) const
 	{
@@ -303,6 +244,42 @@ namespace model
 			_binding,
 			(_dynReaction && (_dynReaction->numReactionsCombined() > 0)) ? _dynReaction : nullptr
 		};
+	}
+
+	int GeneralRateParticle::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
+	{
+		if (resPar)
+		{
+			if (jacIt.data())
+				return residualImpl<double, double, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			else
+				return residualImpl<double, double, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+		}
+		else if (jacIt.data())
+			return residualImpl<double, double, double, true, false>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+		else
+			return -1;
+	}
+	int GeneralRateParticle::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
+	{
+		if (jacIt.data())
+			return residualImpl<double, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+		else
+			return residualImpl<double, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+	}
+	int GeneralRateParticle::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
+	{
+		if (jacIt.data())
+			return residualImpl<active, active, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+		else
+			return residualImpl<active, active, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+	}
+	int GeneralRateParticle::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
+	{
+		if (jacIt.data())
+			return residualImpl<active, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+		else
+			return residualImpl<active, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
@@ -343,15 +320,11 @@ namespace model
 		return _parDiffOp->residual(t, secIdx, yPar, yBulk, yDotPar, wantResPtr, jacJojo, typename ParamSens<ParamType>::enabled());
 	}
 
-	unsigned int GeneralRateParticle::jacobianNNZperParticle()
+	unsigned int GeneralRateParticle::jacobianNNZperParticle() const
 	{
 		return _parDiffOp->jacobianNNZperParticle();
 	}
 
-	/**
-	 * @brief analytically calculates the static (per section) particle diffusion Jacobian
-	 * @return 1 if jacobain calculation fits the predefined pattern of the jacobian, 0 if not.
-	 */
 	int GeneralRateParticle::calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
 	{
 		return _parDiffOp->calcStaticAnaParticleDiffJacobian(secIdx, colNode, offsetLocalCp, globalJac);
