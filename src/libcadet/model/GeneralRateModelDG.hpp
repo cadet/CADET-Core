@@ -488,12 +488,10 @@ protected:
 		for (int type = 0; type < _disc.nParType; type++) {
 			isothermNNZ = (idxr.strideParNode(type)) * _disc.nParPoints[type] * _disc.strideBound[type]; // every bound satte might depend on every bound and liquid state
 			addTimeDer = _disc.nParPoints[type] * _disc.strideBound[type];
-			particleEntries += _particle[type].calcParDiffNNZ() + addTimeDer + isothermNNZ;
+			particleEntries += _disc.nPoints * _particle[type].jacobianNNZperParticle() + addTimeDer + isothermNNZ;
 		}
 
-		int fluxEntries = 4 * _disc.nParType * _disc.nPoints * _disc.nComp;
-
-		tripletList.reserve(fluxEntries + bulkEntries + particleEntries);
+		tripletList.reserve(bulkEntries + particleEntries);
 
 		// NOTE: inlet and jacF flux jacobian are set in calc jacobian function (identity matrices)
 		// Note: flux jacobian (identity matrix) is handled in calc jacobian function
