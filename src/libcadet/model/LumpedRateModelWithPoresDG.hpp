@@ -25,6 +25,7 @@
 #include "cadet/StrongTypes.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "model/parts/ConvectionDispersionOperatorDG.hpp"
+#include "model/particle/HomogeneousParticle.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/BandedEigenSparseRowIterator.hpp"
 #include "linalg/EigenSolverWrapper.hpp"
@@ -55,11 +56,8 @@ class IDynamicReactionModel;
  *
  * @f[\begin{align}
 	\frac{\partial c_i}{\partial t} &= - u \frac{\partial c_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c_i}{\partial z^2} - \frac{1 - \varepsilon_c}{\varepsilon_c} \frac{3 k_{f,i}}{r_p} j_{f,i} \\
-	\frac{\partial c_{p,i}}{\partial t} + \frac{1 - \varepsilon_p}{\varepsilon_p} \frac{\partial q_{i}}{\partial t} &= \frac{3 k_{f,i}}{\varepsilon_p r_p} j_{f,i} \\
+	\frac{\partial c_{p,i}}{\partial t} + \frac{1 - \varepsilon_p}{\varepsilon_p} \frac{\partial q_{i}}{\partial t} &= \frac{3 k_{f,i}}{\varepsilon_p r_p} (c_i - c_{p,i}) \\
 	a \frac{\partial q_i}{\partial t} &= f_{\text{iso}}(c_p, q)
-\end{align} @f]
-@f[ \begin{align}
-	j_{f,i} = c_i - c_{p,i}
 \end{align} @f]
  * Danckwerts boundary conditions (see @cite Danckwerts1953)
 @f[ \begin{align}
@@ -280,11 +278,6 @@ protected:
 	//Eigen::MatrixXd _FDjac; //!< test purpose FD jacobian
 
 	active _colPorosity; //!< Column porosity (external porosity) \f$ \varepsilon_c \f$
-	std::vector<double> _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)
-	std::vector<active> _parRadius; //!< Particle radius \f$ r_p \f$
-	bool _singleParRadius;
-	std::vector<active> _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
-	bool _singleParPorosity;
 	std::vector<active> _parTypeVolFrac; //!< Volume fraction of each particle type
 
 	// Vectorial parameters
@@ -421,8 +414,7 @@ protected:
 		virtual int writeSecondaryCoordinates(double* coords) const { return 0; }
 		virtual int writeParticleCoordinates(unsigned int parType, double* coords) const
 		{
-			coords[0] = static_cast<double>(_model._parRadius[parType]) * 0.5;
-			return 1;
+			return _model._particle[parType].writeParticleCoordinates(coords);
 		}
 
 	protected:
@@ -431,6 +423,8 @@ protected:
 		const LumpedRateModelWithPoresDG& _model;
 		double const* const _data;
 	};
+
+	HomogeneousParticle* _particle; //!< Particle dispersion operator
 
 	// ==========================================================================================================================================================  //
 	// ========================================						DG Jacobian							=========================================================  //
@@ -441,7 +435,7 @@ protected:
 	/**
 	* @brief sets the sparsity pattern of the convection dispersion Jacobian
 	*/
-	void setGlobalJacPattern(Eigen::SparseMatrix<double, RowMajor>& mat, const bool hasBulkReaction) {
+	void setGlobalJacPattern(Eigen::SparseMatrix<double, RowMajor>& mat, const bool hasBulkReaction, unsigned int secIdx) {
 
 		std::vector<T> tripletList;
 
@@ -452,9 +446,7 @@ protected:
 		if (hasBulkReaction)
 			bulkReactionPattern(tripletList);
 
-		particlePattern(tripletList);
-
-		fluxPattern(tripletList);
+		fluxPattern(tripletList, secIdx);
 
 		mat.setFromTriplets(tripletList.begin(), tripletList.end());
 
@@ -478,48 +470,21 @@ protected:
 		return 1;
 	}
 	/**
-	 * @brief sets the sparsity pattern of the particle Jacobian pattern (isotherm, reaction pattern)
-	 */
-	int particlePattern(std::vector<T>& tripletList) {
-
-		Indexer idxr(_disc);
-
-		for (unsigned int parType = 0; parType < _disc.nParType; parType++) {
-			for (unsigned int nElem = 0; nElem < _disc.nPoints; nElem++) {
-
-				int offset = idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ nElem }) - idxr.offsetC(); // inlet DOFs not included in Jacobian
-
-				// add dense nComp * nBound blocks, since all solid and liquid entries can be coupled through binding.
-				for (unsigned int parState = 0; parState < _disc.nComp + _disc.strideBound[parType]; parState++) {
-					for (unsigned int toParState = 0; toParState < _disc.nComp + _disc.strideBound[parType]; toParState++) {
-						tripletList.push_back(T(offset + parState, offset + toParState, 0.0));
-					}
-				}
-			}
-		}
-		return 1;
-	}
-
-	/**
 	 * @brief sets the sparsity pattern of the flux Jacobian pattern
 	 */
-	int fluxPattern(std::vector<T>& tripletList) {
-		
+	int fluxPattern(std::vector<T>& tripletList, unsigned int secIdx)
+	{
 		Indexer idxr(_disc);
 
-		for (unsigned int parType = 0; parType < _disc.nParType; parType++) {
-			
+		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
+		{
 			int offC = 0; // inlet DOFs not included in Jacobian
 			int offP = idxr.offsetCp(ParticleTypeIndex{ parType }) - idxr.offsetC(); // inlet DOFs not included in Jacobian
 
 			// add dependency of c^b, c^p and flux on another
-			for (unsigned int nElem = 0; nElem < _disc.nPoints; nElem++) {
-				for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
-					// c^b on c^b entry already set
-					tripletList.push_back(T(offC + nElem * _disc.nComp + comp, offP + nElem * idxr.strideParBlock(parType) + comp, 0.0)); // c^b on c^p
-					// c^p on c^p entry already set
-					tripletList.push_back(T(offP + nElem * idxr.strideParBlock(parType) + comp, offC + nElem * _disc.nComp + comp, 0.0)); // c^p on c^b
-				}
+			for (unsigned int colNode = 0; colNode < _disc.nPoints; colNode++)
+			{
+				_particle[parType].setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{ parType }), idxr.offsetC(), colNode, secIdx);
 			}
 		}
 		return 1;
@@ -531,59 +496,20 @@ protected:
 	int calcStaticAnaGlobalJacobian(const unsigned int secIdx) {
 		
 		bool success = _convDispOp.calcStaticAnaJacobian(_globalJac, _jacInlet);
-		success = success && calcFluxJacobians(secIdx);
+		success = success && calcFluxJacobians(secIdx, false);
 
 		return success;
 	}
 
-	int calcFluxJacobians(const unsigned int secIdx, const bool crossDepsOnly = false) {
+	int calcFluxJacobians(const unsigned int secIdx, const bool crossDepsOnly) {
 
 		Indexer idxr(_disc);
 
-		const double invBetaC = 1.0 / static_cast<double>(_colPorosity) - 1.0;
-
-		for (unsigned int type = 0; type < _disc.nParType; type++) {
-
-			const double epsP = static_cast<double>(_parPorosity[type]);
-			const double radius = static_cast<double>(_parRadius[type]);
-			const double jacCF_val = invBetaC * _parGeomSurfToVol[type] / radius;
-			const double jacPF_val = -_parGeomSurfToVol[type] / (radius * epsP);
-
-			// Ordering of diffusion:
-			// sec0type0comp0, sec0type0comp1, sec0type0comp2, sec0type1comp0, sec0type1comp1, sec0type1comp2,
-			// sec1type0comp0, sec1type0comp1, sec1type0comp2, sec1type1comp0, sec1type1comp1, sec1type1comp2, ...
-			active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
-			active const* const poreAccFactor = _poreAccessFactor.data() + type * _disc.nComp;
-
-			linalg::BandedEigenSparseRowIterator jacC(_globalJac, 0);
-			linalg::BandedEigenSparseRowIterator jacP(_globalJac, idxr.offsetCp(ParticleTypeIndex{ type }) - idxr.offsetC());
-
-			for (unsigned int colNode = 0; colNode < _disc.nPoints; colNode++, jacP += _disc.strideBound[type])
-			{
-				for (unsigned int comp = 0; comp < _disc.nComp; comp++, ++jacC, ++jacP) {
-
-					// add Cl on Cl entries (added since already set in bulk jacobian)
-					// row: already at bulk phase. already at current node and component.
-					// col: already at bulk phase. already at current node and component.
-					if(!crossDepsOnly)
-						jacC[0] += jacCF_val * static_cast<double>(filmDiff[comp]) * static_cast<double>(_parTypeVolFrac[type + _disc.nParType * colNode]);
-					// add Cl on Cp entries
-					// row: already at bulk phase. already at current node and component.
-					// col: jump to particle phase
-					jacC[jacP.row() - jacC.row()] = -jacCF_val * static_cast<double>(filmDiff[comp]) * static_cast<double>(_parTypeVolFrac[type + _disc.nParType * colNode]);
-
-					// add Cp on Cp entries
-					// row: already at particle. already at current node and liquid state.
-					// col: already at particle. already at current node and liquid state.
-					if (!crossDepsOnly)
-						jacP[0] = -jacPF_val / static_cast<double>(poreAccFactor[comp]) * static_cast<double>(filmDiff[comp]);
-					// add Cp on Cl entries
-					// row: already at particle. already at current node and liquid state.
-					// col: go to flux of current parType and adjust for offsetC. jump over previous colNodes and add component offset
-					jacP[jacC.row() - jacP.row()] = jacPF_val / static_cast<double>(poreAccFactor[comp]) * static_cast<double>(filmDiff[comp]);
-				}
-			}
+		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
+		{
+			_particle[parType].calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], _globalJac, crossDepsOnly);
 		}
+
 		return 1;
 	}
 	/**
@@ -600,9 +526,9 @@ protected:
 		if (hasBulkReaction)
 			nEntries += _disc.nPoints * _disc.nComp * _disc.nComp; // add nComp entries for every component at each discrete bulk point
 
-		// Particle binding and reaction entries
+		// Particle binding, reaction and film diffusion entries
 		for (unsigned int type = 0; type < _disc.nParType; type++)
-			nEntries += _disc.nComp + _disc.nBoundBeforeType[type];
+			nEntries += _disc.nPoints * _particle[type].jacobianNNZperParticle();
 
 		return nEntries;
 	}
