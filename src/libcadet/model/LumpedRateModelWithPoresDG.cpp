@@ -50,7 +50,7 @@ constexpr double SurfVolRatioSlab = 1.0;
 
 
 LumpedRateModelWithPoresDG::LumpedRateModelWithPoresDG(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-_dynReactionBulk(nullptr), _globalJac(), _jacInlet(), _analyticJac(true),
+_dynReactionBulk(nullptr), _particle(nullptr), _globalJac(), _jacInlet(), _analyticJac(true),
 _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr), _initC(0), _initCp(0), _initQ(0),
 _initState(0), _initStateDot(0)
 {
@@ -60,6 +60,7 @@ LumpedRateModelWithPoresDG::~LumpedRateModelWithPoresDG() CADET_NOEXCEPT
 {
 	delete[] _tempState;
 
+	delete[] _particle;
 	delete _dynReactionBulk;
 
 	delete _linearSolver;
@@ -251,6 +252,17 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 		_disc.parTypeOffset[j] = _disc.parTypeOffset[j - 1] + (_disc.nComp + _disc.strideBound[j - 1]) * _disc.nPoints;
 	}
 
+	// Configure particle models
+	paramProvider.popScope();
+	Indexer idxr(_disc);
+	_particle = new HomogeneousParticle[_disc.nParType];
+	bool particleConfSuccess = true;
+	for (int parType = 0; parType < _disc.nParType; parType++)
+	{
+		particleConfSuccess = particleConfSuccess && _particle[parType].configureModelDiscretization(paramProvider, helper, _disc.nComp, parType, _disc.nParType, idxr.strideColComp());
+	}
+	paramProvider.pushScope("discretization");
+
 	// Determine whether analytic Jacobian should be used but don't set it right now.
 	// We need to setup Jacobian matrices first.
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
@@ -301,8 +313,6 @@ bool LumpedRateModelWithPoresDG::configureModelDiscretization(IParameterProvider
 	_disc.curSection = -1;
 
 	// Allocate memory
-	Indexer idxr(_disc);
-
 	// Set whether analytic Jacobian is used
 	useAnalyticJacobian(analyticJac);
 
@@ -574,6 +584,13 @@ bool LumpedRateModelWithPoresDG::configure(IParameterProvider& paramProvider)
 		}
 	}
 
+	// Reconfigure particle model
+	bool particleConfSuccess = true;
+	for (int parType = 0; parType < _disc.nParType; parType++)
+	{
+		particleConfSuccess = particleConfSuccess && _particle[parType].configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType]);
+	}
+
 	// Reconfigure reaction model
 	bool dynReactionConfSuccess = true;
 	if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
@@ -603,7 +620,7 @@ bool LumpedRateModelWithPoresDG::configure(IParameterProvider& paramProvider)
 		}
 	}
 
-	return transportSuccess && bindingConfSuccess && dynReactionConfSuccess;
+	return transportSuccess && particleConfSuccess && dynReactionConfSuccess;
 }
 
 unsigned int LumpedRateModelWithPoresDG::threadLocalMemorySize() const CADET_NOEXCEPT
@@ -684,6 +701,9 @@ void LumpedRateModelWithPoresDG::notifyDiscontinuousSectionTransition(double t, 
 	_disc.newStaticJac = true;
 
 	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
+
+	for (int parType = 0; parType < _disc.nParType; parType++)
+		_particle[parType].notifyDiscontinuousSectionTransition(t, secIdx, &_filmDiffusion[0], &_poreAccessFactor[0]);
 }
 
 void LumpedRateModelWithPoresDG::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
