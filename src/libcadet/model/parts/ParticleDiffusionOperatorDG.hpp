@@ -135,7 +135,7 @@ namespace parts
 
 		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly = false);
 
-		int getParticleCoordinates(double* coords) const;
+		int writeParticleCoordinates(double* coords) const;
 
 		typedef Eigen::Triplet<double> T;
 
