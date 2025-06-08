@@ -323,19 +323,35 @@ public:
 				pp.pushScope(oss.str());
 
 				const std::vector<std::string> sensName = pp.getStringArray("SENS_NAME");
-				const std::vector<int> sensUnit = pp.getIntArray("SENS_UNIT");
-				const std::vector<int> sensComp = pp.getIntArray("SENS_COMP");
-				const std::vector<int> sensReaction = pp.getIntArray("SENS_REACTION");
-				const std::vector<int> sensSection = pp.getIntArray("SENS_SECTION");
-				const std::vector<int> sensBoundState = pp.getIntArray("SENS_BOUNDPHASE");
-				const std::vector<int> sensParType = pp.getIntArray("SENS_PARTYPE");
 
 				// Convert to ParameterIds
 				std::vector<cadet::ParameterId> sensParams;
 				sensParams.reserve(sensName.size());
 				for (std::size_t i = 0; i < sensName.size(); ++i)
-					sensParams.push_back(cadet::makeParamId(sensName[i], sensUnit[i], sensComp[i], sensParType[i], sensBoundState[i], sensReaction[i], sensSection[i]));
+				{
+					const int sensUnit = pp.getInt("SENS_UNIT");
+					const std::vector<int> sensComp = pp.getIntArray("SENS_COMP");
+					const int sensReaction = pp.getInt("SENS_REACTION");
+					const int sensSection = pp.getInt("SENS_SECTION");
+					const int sensBoundState = pp.getInt("SENS_BOUNDPHASE");
+					const int sensParType = pp.getInt("SENS_PARTYPE");
 
+					// Temp solution: if sens_comp is two elements long, we pretent that is "boundState" dependent
+					// This way we enable the parameter sensitivity for reaction parameter of sice numreac x numcomp x numcomp
+					// See for example meachelis menten and parameter type ReactionDependentComponentMatrixDependentParameter
+					if (sensComp.size() == 2)
+					{
+						const auto sensComp1 = sensComp[0];
+						const auto sensComp2 = sensComp[1];
+						sensParams.push_back(cadet::makeParamId(sensName[i], sensUnit, sensComp1, sensParType, sensComp2, sensReaction, sensSection));
+					}
+					else if (sensComp.size() == 1)
+					{
+						sensParams.push_back(cadet::makeParamId(sensName[i], sensUnit, sensComp[0], sensParType, sensBoundState, sensReaction, sensSection));
+					}
+					else
+						throw InvalidParameterException("Driver: The number for component sensitivity dependencies is only supported for sizes one and two.");
+				}
 				double sensTol = 1e-05;
 				if (pp.exists("SENS_ABSTOL"))
 					sensTol = pp.getDouble("SENS_ABSTOL");

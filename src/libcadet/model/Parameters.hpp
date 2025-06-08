@@ -373,8 +373,9 @@ public:
 
 	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, unsigned int nComp, unsigned int nReac)
 	{
+		//Warning! Hacki style: bound state is taking over the roal of the inner dimension
 		const StringHash nameHash = hashStringRuntime(varName);
-		registerParam3DArray(parameters, *_p, [=](bool multi, unsigned r, unsigned int cmid, unsigned int cin) { return makeParamId(nameHash, unitOpIdx, CompUtil::dual(cmid,cin), parTypeIdx, BoundStateIndep, r, SectionIndep); }, nReac, nComp);
+		registerParam3DArray(parameters, *_p, [=](bool multi, unsigned r, unsigned int cmid, unsigned int cin) { return makeParamId(nameHash, unitOpIdx, cmid, parTypeIdx, cin, r, SectionIndep); }, nComp, nComp);
 	}
 
 	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int nReac)
@@ -1218,16 +1219,16 @@ public:
 	inline void registerParam(const std::string& varName, std::unordered_map<ParameterId, active*>& parameters, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, unsigned int nComp, unsigned int nReac)
 	{
 		const StringHash hashConst = hashStringRuntime("EXT_" + varName);
-		registerParam3DArray(parameters, _base, [=](bool multi, unsigned r, unsigned int cmid, unsigned int cin) { return makeParamId(hashConst, unitOpIdx, CompUtil::dual(cmid, cin), parTypeIdx, BoundStateIndep, r, SectionIndep); }, nReac, nComp);
+		registerParam3DArray(parameters, _base, [=](bool multi, unsigned r, unsigned int cmid, unsigned int cin) { return makeParamId(hashConst, unitOpIdx, cmid, parTypeIdx, cin, r, SectionIndep); }, nReac, nComp);
 		
 		const StringHash hashLinear = hashStringRuntime("EXT_" + varName + "_T");
-		registerParam3DArray(parameters, _linear, [=](bool multi, unsigned r, unsigned int cmid, unsigned int cin) { return makeParamId(hashLinear, unitOpIdx, CompUtil::dual(cmid, cin), parTypeIdx, BoundStateIndep, r, SectionIndep); }, nReac, nComp);
+		registerParam3DArray(parameters, _linear, [=](bool multi, unsigned r, unsigned int cmid, unsigned int cin) { return makeParamId(hashLinear, unitOpIdx, cmid, parTypeIdx, cin, r, SectionIndep); }, nReac, nComp);
 		
 		const StringHash hashQuad = hashStringRuntime("EXT_" + varName + "_TT");
-		registerParam3DArray(parameters, _quad, [=](bool multi, unsigned r, unsigned int cmid, unsigned int cin) { return makeParamId(hashQuad, unitOpIdx, CompUtil::dual(cmid, cin), parTypeIdx, BoundStateIndep, r, SectionIndep); }, nReac, nComp);
+		registerParam3DArray(parameters, _quad, [=](bool multi, unsigned r, unsigned int cmid, unsigned int cin) { return makeParamId(hashQuad, unitOpIdx, cmid, parTypeIdx, cin, r, SectionIndep); }, nReac, nComp);
 		
 		const StringHash hashCube = hashStringRuntime("EXT_" + varName + "_TTT");
-		registerParam3DArray(parameters, _cube, [=](bool multi, unsigned r, unsigned int cmid, unsigned int cin) { return makeParamId(hashCube, unitOpIdx, CompUtil::dual(cmid, cin), parTypeIdx, BoundStateIndep, r, SectionIndep); }, nReac, nComp);
+		registerParam3DArray(parameters, _cube, [=](bool multi, unsigned r, unsigned int cmid, unsigned int cin) { return makeParamId(hashCube, unitOpIdx, cmid, parTypeIdx, cin, r, SectionIndep); }, nReac, nComp);
 
 	}
 
