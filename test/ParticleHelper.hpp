@@ -40,7 +40,7 @@ namespace particle
 	 * @param [in] nTypes Total number of particle types
 	 * @param [in] volFrac Array with volume fractions of particle types
 	 */
-	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, unsigned int nTypes, double const* const volFrac);
+	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, unsigned int nTypes, double const* const volFrac, const bool newInterface = false);
 
 	/**
 	 * @brief Extends a model to multiple particle types by replicating the first type
@@ -48,19 +48,19 @@ namespace particle
 	 * @param [in] nTypes Total number of particle types
 	 * @param [in] volFrac Array with volume fractions of particle types
 	 */
-	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, unsigned int nTypes, double const* const volFrac);
+	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, unsigned int nTypes, double const* const volFrac, const bool newInterface = false);
 
 	/**
 	 * @brief Extends a model to multiple particle types by replicating the first type
 	 * @details Modifies the double-valued parameters of the replicated particle types by a factor given in @p paramFactors.
-	            The source particle type retains a factor of @c 1.0 that is not included in @p paramFactors, which has length @c nTypes-1.
+				The source particle type retains a factor of @c 1.0 that is not included in @p paramFactors, which has length @c nTypes-1.
 	 * @param [in,out] jpp ParameterProvider to extend
 	 * @param [in] unit Index of unit operation
 	 * @param [in] nTypes Total number of particle types
 	 * @param [in] paramFactors Array with factors for replicated double-valued parameters
 	 * @param [in] volFrac Array with volume fractions of particle types
 	 */
-	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, unsigned int nTypes, double const* const paramFactors, double const* const volFrac);
+	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, unsigned int nTypes, double const* const paramFactors, double const* const volFrac, const bool newInterface = false);
 
 	/**
 	 * @brief Extends a model to multiple particle types by replicating the first type
@@ -71,7 +71,7 @@ namespace particle
 	 * @param [in] paramFactors Array with factors for replicated double-valued parameters
 	 * @param [in] volFrac Array with volume fractions of particle types
 	 */
-	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, unsigned int nTypes, double const* const paramFactors, double const* const volFrac);
+	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, unsigned int nTypes, double const* const paramFactors, double const* const volFrac, const bool newInterface = false);
 
 	/**
 	 * @brief Sets the volume fractions of the particle types
@@ -172,7 +172,7 @@ namespace particle
 	 * @param [in] jpp Unit operation configuration
 	 * @param [in] absTolFDpattern absolute tolerance when comparing the sign in the FD Jacobian pattern
 	 */
-	void testJacobianMixedParticleTypes(cadet::JsonParameterProvider& jpp, const double absTolFDpattern = 0.0);
+	void testJacobianMixedParticleTypes(cadet::JsonParameterProvider& jpp, const double absTolFDpattern = 0.0, const bool newInterface=false);
 
 	/**
 	 * @brief Checks whether a linear binding model with multiple identical particle types produces the same as result as a single type model
@@ -193,14 +193,14 @@ namespace particle
 	 * @param [in] uoType Unit operation type
 	 * @param [in] absTolFDpattern absolute tolerance when comparing the sign in the FD Jacobian pattern
 	 */
-	void testJacobianMixedParticleTypes(const std::string& uoType, const std::string& spatialMethod, const double absTolFDpattern = 0.0);
+	void testJacobianMixedParticleTypes(const std::string& uoType, const std::string& spatialMethod, const double absTolFDpattern = 0.0, const bool newInterface=false);
 
 	/**
 	 * @brief Checks the full analytic Jacobian against AD for a model with multiple particle types and spatial dependence of volume fractions
 	 * @param [in] uoType Unit operation type
 	 * @param [in] absTolFDpattern absolute tolerance when comparing the sign in the FD Jacobian pattern
 	 */
-	void testJacobianSpatiallyMixedParticleTypes(const std::string& uoType, const std::string& spatialMethod, const double absTolFDpattern = 0.0);
+	void testJacobianSpatiallyMixedParticleTypes(const std::string& uoType, const std::string& spatialMethod, const double absTolFDpattern = 0.0, const bool newInterface=false);
 
 	/**
 	 * @brief Checks the (analytic) time derivative Jacobian against FD for a model with multiple particle types
@@ -210,7 +210,7 @@ namespace particle
 	 * @param [in] absTol Absolute error tolerance
 	 * @param [in] relTol Relative error tolerance
 	 */
-	void testTimeDerivativeJacobianMixedParticleTypesFD(cadet::JsonParameterProvider& jpp, double h, double absTol, double relTol);
+	void testTimeDerivativeJacobianMixedParticleTypesFD(cadet::JsonParameterProvider& jpp, double h, double absTol, double relTol, const bool newInterface=false);
 
 	/**
 	 * @brief Checks the (analytic) time derivative Jacobian against FD for a model with multiple particle types
@@ -220,7 +220,7 @@ namespace particle
 	 * @param [in] absTol Absolute error tolerance
 	 * @param [in] relTol Relative error tolerance
 	 */
-	void testTimeDerivativeJacobianMixedParticleTypesFD(const std::string& uoType, const std::string& spatialMethod, double h, double absTol, double relTol);
+	void testTimeDerivativeJacobianMixedParticleTypesFD(const std::string& uoType, const std::string& spatialMethod, double h, double absTol, double relTol, const bool newInterface = false);
 
 	/**
 	 * @brief Checks the bottom macro row and right macro column of the Jacobian against FD for a model with multiple particle types
