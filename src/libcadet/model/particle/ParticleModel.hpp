@@ -58,6 +58,14 @@ namespace cadet
 				struct CellParameters;
 			}
 		}
+
+		struct columnPackingParameters
+		{
+			const active& parTypeVolFrac;
+			const active& colPorosity;
+			ColumnPosition colPos;
+		};
+
 		/**
 		 * @brief Implements the particle model interface
 		 */
@@ -86,7 +94,7 @@ namespace cadet
 			 * @param [in] secIdx Index of the new section that is about to be integrated
 			 * @return @c true if flow direction has changed, otherwise @c false
 			 */
-			virtual bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor) = 0;
+			virtual bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx) = 0;
 
 			/**
 			 * @brief Computes the residual of the particle equations and updates nonlinear Jacobian entries
@@ -97,15 +105,15 @@ namespace cadet
 			 * @param [in] yBulk Pointer to corresponding bulk phase entry in unit state vector
 			 * @param [in] yDotPar Pointer to particle phase derivative entry in unit state vector
 			 * @param [out] resPar Pointer Pointer to particle phase entry in unit residual vector, nullptr if no residual shall be computed
-			 * @param [out] colPos column position of the particle (particle coordinate zero)
+			 * @param [out] packing column packing parameters
 			 * @param [in] jacIt Row iterator pointing to the particle phase entry in the unit Jacobian, uninitialized if no Jacobian shall be computed, otherwise only non-linear Jacobian entries will be added
 			 * @param [in] tlmAlloc memory allocator
 			 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 			 */
-			virtual int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity) = 0;
-			virtual int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity) = 0;
-			virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity) = 0;
-			virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity) = 0;
+			virtual int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, double* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity) = 0;
+			virtual int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity) = 0;
+			virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity) = 0;
+			virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity) = 0;
 
 			unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)
 
@@ -127,6 +135,7 @@ namespace cadet
 
 			virtual inline const active& getPorosity() const CADET_NOEXCEPT = 0;
 			virtual inline const active* getPoreAccessfactor() const CADET_NOEXCEPT = 0;
+			virtual inline const active* getFilmDiffusion(const unsigned int secIdx) const CADET_NOEXCEPT = 0;
 
 			/**
 			 * @brief total number discrete points per particle

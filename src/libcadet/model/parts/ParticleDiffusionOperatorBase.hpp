@@ -102,7 +102,7 @@ namespace parts
 		 * @param [in] poreAccessFactor pointer to pore access factor parameter of unit operation
 		 * @return @c true if flow direction has changed, otherwise @c false
 		 */
-		virtual bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor) = 0;
+		virtual bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx) = 0;
 
 		/**
 		 * @brief Computes the residual of the transport equations
@@ -178,6 +178,7 @@ namespace parts
 
 		inline const active& getPorosity() const CADET_NOEXCEPT { return _parPorosity; }
 		inline const active* getPoreAccessfactor() const CADET_NOEXCEPT { return &_poreAccessFactor[0]; }
+		inline const active* getFilmDiffusion(const unsigned int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_filmDiffusion, _nComp, secIdx); }
 		inline IParameterStateDependence* getParDepSurfDiffusion() const CADET_NOEXCEPT { return _parDepSurfDiffusion; }
 		inline bool singleParDepSurfDiffusion() const CADET_NOEXCEPT { return _singleParDepSurfDiffusion; }
 		inline MultiplexMode parDiffMode() const CADET_NOEXCEPT { return _parDiffusionMode; }
@@ -207,10 +208,12 @@ namespace parts
 		active _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
 		bool _singleParPorosity;
 		std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
+		MultiplexMode _poreAccessFactorMode;
 		std::vector<active> _invBetaP; //!< Ratio of solid to liquid particle volume
 
 		/* diffusion rates */
-		std::vector<active> _filmDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
+		std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$
+		MultiplexMode _filmDiffusionMode;
 		std::vector<active> _parDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
 		MultiplexMode _parDiffusionMode;
 		std::vector<active> _parSurfDiffusion; //!< Particle surface diffusion coefficient \f$ D_s \f$
