@@ -44,10 +44,6 @@ namespace parts
 		_parTypeIdx = parTypeIdx;
 		_nComp = nComp;
 
-		_filmDiffusion.resize(_nComp); // filled in notifyDiscontinuousSectionTransition
-		_poreAccessFactor.resize(_nComp); // filled in notifyDiscontinuousSectionTransition
-		_invBetaP.resize(_nComp); // filled in notifyDiscontinuousSectionTransition
-
 		// Read particle geometry and default to "SPHERICAL"
 		_parGeomSurfToVol = _SurfVolRatioSphere;
 		if (paramProvider.exists("PAR_GEOM"))
@@ -274,13 +270,19 @@ namespace parts
 			_parCoreRadius = 0.0;
 		}
 
-		// Check whether PAR_TYPE_VOLFRAC is required or not
-		if ((nParType > 1) && !paramProvider.exists("PAR_TYPE_VOLFRAC"))
-			throw InvalidParameterException("The required parameter \"PAR_TYPE_VOLFRAC\" was not found");
+		_filmDiffusionMode = readAndRegisterSingleTypeMultiplexCompTypeSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", nParType, _nComp, _parTypeIdx, unitOpIdx);
 
-		// For now, film diffusion remains parameter of the unit, not the particles
-		// Read vectorial parameters (which may also be section dependent; transport)
-		//_filmDiffusionMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", _nParType, nComp, unitOpIdx); // todo film diffusion remains unit operation parameter?
+		if (paramProvider.exists("PORE_ACCESSIBILITY"))
+			_poreAccessFactorMode = readAndRegisterSingleTypeMultiplexCompTypeSecParam(paramProvider, parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", nParType, _nComp, _parTypeIdx, unitOpIdx);
+		else
+		{
+			_poreAccessFactorMode = MultiplexMode::ComponentType;
+			_poreAccessFactor = std::vector<cadet::active>(_nComp, 1.0);
+		}
+
+		_invBetaP.resize(_nComp);
+		for (int comp = 0; comp < _nComp; comp++)
+			_invBetaP[comp] = (1.0 - _parPorosity) / (_poreAccessFactor[comp] * _parPorosity);
 
 		_parDiffusionMode = readAndRegisterSingleTypeMultiplexCompTypeSecParam(paramProvider, parameters, _parDiffusion, "PAR_DIFFUSION", nParType, _nComp, _parTypeIdx, unitOpIdx);
 
@@ -305,37 +307,11 @@ namespace parts
 			}
 		}
 
-		//if ((_filmDiffusion.size() < nComp * _nParType) || (_filmDiffusion.size() % (nComp * _nParType) != 0))
-		//	throw InvalidParameterException("Number of elements in field FILM_DIFFUSION is not a positive multiple of NCOMP * _nParType (" + std::to_string(nComp * _nParType) + ")");
-		if ((_parDiffusion.size() < _nComp) || (_parDiffusion.size() % (_nComp) != 0))
-			throw InvalidParameterException("Number of elements in field PAR_DIFFUSION is not a positive multiple of NCOMP * NPARTYPE (" + std::to_string(_nComp * nParType) + ")");
-		if ((_parSurfDiffusion.size() < _strideBound) || ((nTotalBound > 0) && (_parSurfDiffusion.size() % _strideBound != 0)))
-			throw InvalidParameterException("Number of elements in field PAR_SURFDIFFUSION is not a positive multiple of NTOTALBND (" + std::to_string(nTotalBound) + ")");
-
-		// For now, pore access factor remains parameter of the unit, not the particles
-		//if (paramProvider.exists("PORE_ACCESSIBILITY"))
-		//	_poreAccessFactorMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _nParType, nComp, unitOpIdx);
-		//else
-		//{
-		//	_poreAccessFactorMode = MultiplexMode::ComponentType;
-		//	_poreAccessFactor = std::vector<cadet::active>(nComp * _nParType, 1.0);
-		//}
-
-		//if (nComp * _nParType != _poreAccessFactor.size())
-		//	throw InvalidParameterException("Number of elements in field PORE_ACCESSIBILITY differs from NCOMP * _nParType (" + std::to_string(nComp * _nParType) + ")");
-
 		return true;
 	}
 
-	bool ParticleDiffusionOperatorBase::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor)
+	bool ParticleDiffusionOperatorBase::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 	{
-		for (int comp = 0; comp < _nComp; comp++)
-		{
-			_filmDiffusion[comp] = filmDiff[_parTypeIdx * _nComp + comp];
-			_poreAccessFactor[comp] = poreAccessFactor[_parTypeIdx * _nComp + comp];
-			_invBetaP[comp] = (1.0 - _parPorosity) / (_poreAccessFactor[comp] * _parPorosity);
-		}
-
 		return true;
 	}
 
@@ -394,6 +370,10 @@ namespace parts
 			return true;
 		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, _parTypeIdx, value, nullptr))
 			return true;
+		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _nComp, _parTypeIdx, value, nullptr))
+			return true;
+		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _nComp, _parTypeIdx, value, nullptr))
+			return true;
 
 		if (_singleParDepSurfDiffusion)
 			if (_parDepSurfDiffusion && _parDepSurfDiffusion->setParameter(pId, value))
@@ -432,6 +412,11 @@ namespace parts
 		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius, _parTypeIdx, value, &sensParams))
 			return true;
 		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, _parTypeIdx, value, &sensParams))
+			return true;
+
+		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _nComp, _parTypeIdx, value, &sensParams))
+			return true;
+		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _nComp, _parTypeIdx, value, &sensParams))
 			return true;
 
 		if (model::setSensitiveParameterValue(pId, value, sensParams, std::vector< IParameterStateDependence*>(1, _parDepSurfDiffusion), _singleParDepSurfDiffusion))
@@ -473,6 +458,18 @@ namespace parts
 		}
 
 		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, _parTypeIdx, adDirection, adValue, sensParams))
+		{
+			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+			return true;
+		}
+
+		if (singleTypeMultiplexCompTypeSecParameterAD(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _nComp, _parTypeIdx, adDirection, adValue, sensParams))
+		{
+			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+			return true;
+		}
+
+		if (singleTypeMultiplexCompTypeSecParameterAD(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _nComp, _parTypeIdx, adDirection, adValue, sensParams))
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;
