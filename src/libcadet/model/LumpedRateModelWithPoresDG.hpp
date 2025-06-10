@@ -280,12 +280,6 @@ protected:
 	active _colPorosity; //!< Column porosity (external porosity) \f$ \varepsilon_c \f$
 	std::vector<active> _parTypeVolFrac; //!< Volume fraction of each particle type
 
-	// Vectorial parameters
-	std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$
-	MultiplexMode _filmDiffusionMode;
-	std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
-	MultiplexMode _poreAccessFactorMode;
-
 	bool _axiallyConstantParTypeVolFrac; //!< Determines whether particle type volume fraction is homogeneous across axial coordinate
 	bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used
 	unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation
