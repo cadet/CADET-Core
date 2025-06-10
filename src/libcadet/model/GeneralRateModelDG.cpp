@@ -886,14 +886,20 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 		const unsigned int colNode = pblk % _disc.nPoints;
 
 		linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
-		ColumnPosition colPos{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }; // Relative position of current node - needed in externally dependent adsorption kinetic
+		model::columnPackingParameters packing
+		{
+			&_parTypeVolFrac[parType] + _disc.nParType * colNode,
+			_colPorosity,
+			ColumnPosition{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }
+		};
 
 		_particle[parType].residual(t, secIdx,
 			y + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
 			y + idxr.offsetC() + colNode * idxr.strideColNode(),
 			yDot ? yDot + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
 			res ? res + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
-			colPos, jacIt, tlmAlloc,
+			res ? res + idxr.offsetC() + colNode * idxr.strideColNode() : nullptr,
+			packing, jacIt, tlmAlloc,
 			typename cadet::ParamSens<ParamType>::enabled()
 		);
 	}
@@ -902,8 +908,6 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 		return 0;
 
 	BENCH_STOP(_timerResidualPar);
-
-	residualFlux<StateType, ResidualType, ParamType>(t, secIdx, y, yDot, res);
 
 	// Handle inlet DOFs, which are simply copied to the residual
 	for (unsigned int i = 0; i < _disc.nComp; ++i)
@@ -959,51 +963,6 @@ int GeneralRateModelDG::residualBulk(double t, unsigned int secIdx, StateType co
 				_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, jac, tlmAlloc);
 			}
 		}
-	}
-
-	return 0;
-}
-
-template <typename StateType, typename ResidualType, typename ParamType>
-int GeneralRateModelDG::residualFlux(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase)
-{
-	Indexer idxr(_disc);
-
-	const ParamType invBetaC = 1.0 / static_cast<ParamType>(_colPorosity) - 1.0;
-
-	// Get offsets
-	ResidualType* const resCol = resBase + idxr.offsetC();
-	StateType const* const yCol = yBase + idxr.offsetC();
-
-	for (unsigned int type = 0; type < _disc.nParType; ++type)
-	{
-		ResidualType* const resParType = resBase + idxr.offsetCp(ParticleTypeIndex{type});
-		StateType const* const yParType = yBase + idxr.offsetCp(ParticleTypeIndex{type});
-
-		const ParamType epsP = static_cast<ParamType>(_particle[type].getPorosity());
-
-		// Ordering of diffusion:
-		// sec0type0comp0, sec0type0comp1, sec0type0comp2, sec0type1comp0, sec0type1comp1, sec0type1comp2,
-		// sec1type0comp0, sec1type0comp1, sec1type0comp2, sec1type1comp0, sec1type1comp1, sec1type1comp2, ...
-		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
-
-		const ParamType surfaceToVolumeRatio = static_cast<ParamType>(_particle[type].surfaceToVolumeRatio());
-
-		const ParamType jacCF_val = invBetaC * surfaceToVolumeRatio;
-		const ParamType jacPF_val = -1.0 / epsP;
-
-		// Add flux to column void / bulk volume
-		for (unsigned int i = 0; i < _disc.nPoints * _disc.nComp; ++i)
-		{
-			const unsigned int colNode = i / _disc.nComp;
-			const unsigned int comp = i - colNode * _disc.nComp;
-			// + 1/Beta_c * (surfaceToVolumeRatio_{p,j}) * d_j * (k_f * [c_l - c_p])
-			resCol[i] += static_cast<ParamType>(filmDiff[comp]) * jacCF_val * static_cast<ParamType>(_parTypeVolFrac[type + colNode * _disc.nParType])
-				        * (yCol[i] - yParType[colNode * idxr.strideParBlock(type) + (_disc.nParPoints[type] - 1) * idxr.strideParNode(type) + comp]);
-		}
-
-		//  Bead boundary condition is computed in particle residual.
-
 	}
 
 	return 0;

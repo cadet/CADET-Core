@@ -178,6 +178,7 @@ namespace parts
 
 		inline const active& getPorosity() const CADET_NOEXCEPT { return _parPorosity; }
 		inline const active* getPoreAccessfactor() const CADET_NOEXCEPT { return &_poreAccessFactor[0]; }
+		inline const active* getFilmDiffusion(const unsigned int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_filmDiffusion, _nComp, secIdx); }
 		inline IParameterStateDependence* getParDepSurfDiffusion() const CADET_NOEXCEPT { return _parDepSurfDiffusion; }
 		inline bool singleParDepSurfDiffusion() const CADET_NOEXCEPT { return _singleParDepSurfDiffusion; }
 		inline MultiplexMode parDiffMode() const CADET_NOEXCEPT { return _parDiffusionMode; }

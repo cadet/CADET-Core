@@ -960,9 +960,16 @@ int LumpedRateModelWithPoresDG::residualImpl(double t, unsigned int secIdx, Stat
 
 	for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 	{
+
 		for (unsigned int colNode = 0; colNode < _disc.nPoints; colNode++)
 		{
-			const double z = _convDispOp.relativeCoordinate(colNode);
+			model::columnPackingParameters packing
+			{
+				&_parTypeVolFrac[parType] + _disc.nParType * colNode,
+				_colPorosity,
+				ColumnPosition{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }
+			};
+
 			linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) - idxr.offsetC());
 
 			_particle[parType].residual(t, secIdx,
@@ -970,7 +977,8 @@ int LumpedRateModelWithPoresDG::residualImpl(double t, unsigned int secIdx, Stat
 				y + idxr.offsetC() + colNode * idxr.strideColNode(),
 				yDot ? yDot + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
 				res ? res + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
-				ColumnPosition{ z, 0.0, 0.0 }, jacIt, tlmAlloc,
+				res ? res + idxr.offsetC() + colNode * idxr.strideColNode() : nullptr,
+				packing, jacIt, tlmAlloc,
 				typename cadet::ParamSens<ParamType>::enabled()
 			);
 		}
@@ -980,8 +988,6 @@ int LumpedRateModelWithPoresDG::residualImpl(double t, unsigned int secIdx, Stat
 
 	if (!wantRes)
 		return 0;
-
-	residualFlux<StateType, ResidualType, ParamType>(t, secIdx, y, yDot, res);
 
 	// Handle inlet DOFs, which are simply copied to res
 	for (unsigned int i = 0; i < _disc.nComp; ++i)
@@ -1031,40 +1037,6 @@ int LumpedRateModelWithPoresDG::residualBulk(double t, unsigned int secIdx, Stat
 			linalg::BandedEigenSparseRowIterator jac(_globalJac, col * idxr.strideColNode());
 			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
 			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, jac, tlmAlloc);
-		}
-	}
-
-	return 0;
-}
-
-template <typename StateType, typename ResidualType, typename ParamType>
-int LumpedRateModelWithPoresDG::residualFlux(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase)
-{
-	Indexer idxr(_disc);
-
-	const ParamType invBetaC = 1.0 / static_cast<ParamType>(_colPorosity) - 1.0;
-
-	// Get offsets
-	ResidualType* const resCol = resBase + idxr.offsetC();
-	StateType const* const yCol = yBase + idxr.offsetC();
-
-	for (unsigned int type = 0; type < _disc.nParType; ++type)
-	{
-		ResidualType* const resParType = resBase + idxr.offsetCp(ParticleTypeIndex{ type });
-		StateType const* const yParType = yBase + idxr.offsetCp(ParticleTypeIndex{ type });
-
-		const ParamType surfToVolRatio = static_cast<ParamType>(_particle[type].surfaceToVolumeRatio());
-		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
-		active const* const poreAccFactor = _poreAccessFactor.data() + type * _disc.nComp;
-
-		const ParamType jacCF_val = invBetaC * surfToVolRatio;
-
-		// Add flux to column void / bulk volume equations
-		for (unsigned int i = 0; i < _disc.nPoints * _disc.nComp; ++i)
-		{
-			const unsigned int colNode = i / _disc.nComp;
-			const unsigned int comp = i % _disc.nComp;
-			resCol[i] += jacCF_val * static_cast<ParamType>(filmDiff[comp]) * static_cast<ParamType>(_parTypeVolFrac[type + _disc.nParType * colNode]) * (yCol[i] - yParType[colNode * idxr.strideParBlock(type) + comp]);
 		}
 	}
 

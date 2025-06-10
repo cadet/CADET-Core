@@ -246,44 +246,44 @@ namespace model
 		};
 	}
 
-	int GeneralRateParticle::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
+	int GeneralRateParticle::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, double* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
 	{
 		if (resPar)
 		{
 			if (jacIt.data())
-				return residualImpl<double, double, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+				return residualImpl<double, double, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 			else
-				return residualImpl<double, double, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+				return residualImpl<double, double, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 		}
 		else if (jacIt.data())
-			return residualImpl<double, double, double, true, false>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<double, double, double, true, false>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 		else
 			return -1;
 	}
-	int GeneralRateParticle::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
+	int GeneralRateParticle::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
 	{
 		if (jacIt.data())
-			return residualImpl<double, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<double, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 		else
-			return residualImpl<double, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<double, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 	}
-	int GeneralRateParticle::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
+	int GeneralRateParticle::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
 	{
 		if (jacIt.data())
-			return residualImpl<active, active, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<active, active, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 		else
-			return residualImpl<active, active, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<active, active, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 	}
-	int GeneralRateParticle::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
+	int GeneralRateParticle::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
 	{
 		if (jacIt.data())
-			return residualImpl<active, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<active, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 		else
-			return residualImpl<active, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<active, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantNonLinJac, bool wantRes>
-	int GeneralRateParticle::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
+	int GeneralRateParticle::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ResidualType* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
 	{
 		int const* const qsBinding = _binding->reactionQuasiStationarity();
 		const parts::cell::CellParameters cellResParams = makeCellResidualParams(qsBinding, _parDiffOp->nBound());
@@ -300,24 +300,43 @@ namespace model
 			ResidualType* local_res = resPar ? resPar + par * stridePoint() : nullptr;
 
 			// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
-			colPos.particle = relativeCoordinate(par);
+			packing.colPos.particle = relativeCoordinate(par);
 
 			if (wantRes)
 				parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantNonLinJac, true>(
-					t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
+					t, secIdx, packing.colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
 				);
 			else
 				parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantNonLinJac, false, false>(
-					t, secIdx, colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
+					t, secIdx, packing.colPos, local_y, local_yDot, local_res, jacIt, cellResParams, tlmAlloc
 				);
 
 			// Move rowiterator to next particle node
 			jacIt += stridePoint();
 		}
 
+		// particle diffusion, including film diffusion boundary condition
 		ResidualType* wantResPtr = wantRes ? resPar : nullptr;
 		linalg::BandedEigenSparseRowIterator jacSafe = wantNonLinJac ? jacBase : linalg::BandedEigenSparseRowIterator{};
-		return _parDiffOp->residual(t, secIdx, yPar, yBulk, yDotPar, wantResPtr, jacSafe, typename ParamSens<ParamType>::enabled());
+		_parDiffOp->residual(t, secIdx, yPar, yBulk, yDotPar, wantResPtr, jacSafe, typename ParamSens<ParamType>::enabled());
+
+		if (wantRes)
+		{
+			// film diffusion bulk eq. term
+			active const* const filmDiff = _parDiffOp->getFilmDiffusion(secIdx);
+			const ParamType invBetaC = 1.0 / static_cast<ParamType>(packing.colPorosity) - 1.0;
+			const ParamType jacCF_val = invBetaC * static_cast<ParamType>(surfaceToVolumeRatio());
+			const ParamType jacPF_val = -1.0 / static_cast<ParamType>(getPorosity());
+
+			// Add flux to column void / bulk volume
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
+			{
+				// + 1/Beta_c * (surfaceToVolumeRatio_{p,j}) * d_j * (k_f * [c_l - c_p])
+				resBulk[comp] += static_cast<ParamType>(filmDiff[comp]) * jacCF_val * static_cast<ParamType>(packing.parTypeVolFrac[0]) * (yBulk[comp] - yPar[(nDiscPoints() - 1) * stridePoint() + comp]);
+			}
+		}
+
+		return 0;
 	}
 
 	unsigned int GeneralRateParticle::jacobianNNZperParticle() const

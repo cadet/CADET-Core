@@ -365,44 +365,44 @@ namespace model
 		};
 	}
 
-	int HomogeneousParticle::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
+	int HomogeneousParticle::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, double* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
 	{
 		if (resPar)
 		{
 			if (jacIt.data())
-				return residualImpl<double, double, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+				return residualImpl<double, double, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 			else
-				return residualImpl<double, double, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+				return residualImpl<double, double, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 		}
 		else if (jacIt.data())
-			return residualImpl<double, double, double, true, false>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<double, double, double, true, false>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 		else
 			return -1;
 	}
-	int HomogeneousParticle::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
+	int HomogeneousParticle::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
 	{
 		if (jacIt.data())
-			return residualImpl<double, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<double, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 		else
-			return residualImpl<double, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<double, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 	}
-	int HomogeneousParticle::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
+	int HomogeneousParticle::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
 	{
 		if (jacIt.data())
-			return residualImpl<active, active, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<active, active, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 		else
-			return residualImpl<active, active, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<active, active, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 	}
-	int HomogeneousParticle::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
+	int HomogeneousParticle::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
 	{
 		if (jacIt.data())
-			return residualImpl<active, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<active, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 		else
-			return residualImpl<active, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<active, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantNonLinJac, bool wantRes>
-	int HomogeneousParticle::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
+	int HomogeneousParticle::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ResidualType* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
 	{
 		int const* const qsBinding = _binding->reactionQuasiStationarity();
 		const parts::cell::CellParameters cellResParams = makeCellResidualParams(qsBinding, _nBound);
@@ -412,24 +412,31 @@ namespace model
 		// Handle time derivatives, binding, dynamic reactions
 
 		// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
-		colPos.particle = relativeCoordinate(0);
+		packing.colPos.particle = relativeCoordinate(0);
 
 		if (wantRes)
 			parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantNonLinJac, true>(
-				t, secIdx, colPos, yPar, yDotPar ? yDotPar : nullptr, resPar ? resPar : nullptr, jacIt, cellResParams, tlmAlloc
+				t, secIdx, packing.colPos, yPar, yDotPar ? yDotPar : nullptr, resPar ? resPar : nullptr, jacIt, cellResParams, tlmAlloc
 			);
 		else
 			parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantNonLinJac, false, false>(
-				t, secIdx, colPos, yPar, yDotPar ? yDotPar : nullptr, resPar ? resPar : nullptr, jacIt, cellResParams, tlmAlloc
+				t, secIdx, packing.colPos, yPar, yDotPar ? yDotPar : nullptr, resPar ? resPar : nullptr, jacIt, cellResParams, tlmAlloc
 			);
 
 		const ParamType jacPF_val = -static_cast<ParamType>(surfaceToVolumeRatio()) / static_cast<ParamType>(_parPorosity);
+		const ParamType invBetaC = 1.0 / static_cast<ParamType>(packing.colPorosity) - 1.0;
+		const ParamType jacCF_val = invBetaC * static_cast<ParamType>(surfaceToVolumeRatio());
 
 		// Film diffusion flux
 		if (wantRes)
 		{
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
+			{
+				// flux into particle
 				resPar[comp] += jacPF_val / static_cast<ParamType>(_poreAccessFactor[comp]) * static_cast<ParamType>(_filmDiffusion[comp]) * (yBulk[comp * _strideBulkComp] - yPar[comp]);
+				// flux into bulk
+				resBulk[comp] += jacCF_val * static_cast<ParamType>(_filmDiffusion[comp]) * static_cast<ParamType>(packing.parTypeVolFrac[0]) * (yBulk[comp] - yPar[comp]);
+			}
 		}
 
 		return true;
