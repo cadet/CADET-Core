@@ -198,8 +198,8 @@ namespace cadet
 				/**
 				 * @brief calculates the convection part of the DG jacobian
 				 */
-				Eigen::MatrixXd DGjacobianConvBlock() {
-
+				Eigen::MatrixXd DGjacobianConvBlock()
+				{
 					// Convection block [ d RHS_conv / d c ], additionally depends on upwind flux part from corresponding neighbour element
 					Eigen::MatrixXd convBlock = Eigen::MatrixXd::Zero(_nNodes, _nNodes + 1);
 
@@ -237,8 +237,8 @@ namespace cadet
 				 * @param [in] exInt true if exact integration DG scheme
 				 * @param [in] elementIdx element index
 				 */
-				Eigen::MatrixXd getGBlock(unsigned int elementIdx) {
-
+				Eigen::MatrixXd getGBlock(unsigned int elementIdx)
+				{
 					// Auxiliary Block [ d g(c) / d c ], additionally depends on boundary entries of neighbouring elements
 					Eigen::MatrixXd gBlock = Eigen::MatrixXd::Zero(_nNodes, _nNodes + 2);
 					gBlock.block(0, 1, _nNodes, _nNodes) = _polyDerM;
@@ -299,8 +299,8 @@ namespace cadet
 				 * @param [in] middleG neighbour auxiliary block
 				 * @param [in] rightG neighbour auxiliary block
 				 */
-				Eigen::MatrixXd auxBlockGstar(unsigned int elementIdx, Eigen::MatrixXd leftG, Eigen::MatrixXd middleG, Eigen::MatrixXd rightG) {
-
+				Eigen::MatrixXd auxBlockGstar(unsigned int elementIdx, Eigen::MatrixXd leftG, Eigen::MatrixXd middleG, Eigen::MatrixXd rightG)
+				{
 					// auxiliary block [ d g^* / d c ], depends on whole previous and subsequent element plus first entries of subsubsequent elements
 					Eigen::MatrixXd gStarDC = Eigen::MatrixXd::Zero(_nNodes, 3 * _nNodes + 2);
 					// NOTE: N = polyDeg
@@ -334,8 +334,8 @@ namespace cadet
 				 * @param [in] exInt true if exact integration DG scheme
 				 * @param [in] elementIdx element index
 				 */
-				Eigen::MatrixXd DGjacobianDispBlock(unsigned int elementIdx) {
-
+				Eigen::MatrixXd DGjacobianDispBlock(unsigned int elementIdx)
+				{
 					int offC = 0; // inlet DOFs not included in Jacobian
 
 					Eigen::MatrixXd dispBlock;
@@ -973,14 +973,14 @@ namespace cadet
 					MatrixXd convBlock = _DGjacAxConvBlock;
 					linalg::BandedEigenSparseRowIterator jacIt(jacobian, offC); // row iterator starting at first element and component
 
-					if (_curVelocity >= 0.0) { // forward flow upwind convection
+					if (_curVelocity > 0.0) { // forward flow upwind convection
 						// special inlet DOF treatment for first element (inlet boundary element)
 						jacInlet(0, 0) = static_cast<double>(_curVelocity) * convBlock(0, 0); // only first node depends on inlet concentration
 						for (unsigned int i = 0; i < convBlock.rows(); i++, jacIt += strideColBound) {
 							for (unsigned int comp = 0; comp < _nComp; comp++, ++jacIt) {
 								//jacIt[0] = -convBlock(i, 0); // dependency on inlet DOFs is handled in _jacInlet
 								for (unsigned int j = 1; j < convBlock.cols(); j++) {
-									jacIt[((j - 1) - i) * strideColNode()] += static_cast<double>(_curVelocity) * convBlock(i, j);
+									jacIt[(j - 1 - i) * strideColNode()] += static_cast<double>(_curVelocity) * convBlock(i, j);
 								}
 							}
 						}
@@ -991,7 +991,7 @@ namespace cadet
 									for (unsigned int j = 0; j < convBlock.cols(); j++) {
 										// row: iterator is at current element and component
 										// col: start at previous elements last node and go to node j.
-										jacIt[-strideColNode() + (j - i) * strideColNode()] += static_cast<double>(_curVelocity) * convBlock(i, j);
+										jacIt[(j - 1 - i) * strideColNode()] += static_cast<double>(_curVelocity) * convBlock(i, j);
 									}
 								}
 							}
@@ -1132,7 +1132,7 @@ namespace cadet
 
 					linalg::BandedEigenSparseRowIterator jac(jacobian, offC);
 
-					if (_curVelocity >= 0.0) { // Forward flow
+					if (_curVelocity > 0.0) { // Forward flow
 						// special inlet DOF treatment for inlet (first) element
 						jacInlet = static_cast<double>(_curVelocity) * _DGjacAxConvBlock.col(0); // only first element depends on inlet concentration
 						addLiquidJacBlock(static_cast<double>(_curVelocity) * _DGjacAxConvBlock.block(0, 1, _nNodes, _nNodes), jac, 0, 1);
@@ -1193,7 +1193,6 @@ namespace cadet
 
 			//// todo radial flow DG
 			//class RadialConvectionDispersionOperatorBaseDG { };
-
 
 			/**
 			 * @brief Convection dispersion transport operator

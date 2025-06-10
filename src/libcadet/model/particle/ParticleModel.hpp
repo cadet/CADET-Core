@@ -82,6 +82,8 @@ namespace cadet
 
 			virtual bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp) = 0;
 			virtual bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound) = 0;
+			virtual bool configureModelDiscretization_old(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp) = 0;
+			virtual bool configure_old(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound) = 0;
 
 			virtual void updateRadialDisc() = 0;
 
@@ -113,23 +115,14 @@ namespace cadet
 			virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity) = 0;
 			virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity) = 0;
 
-			unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)
-
-			unsigned int _nComp; //!< Number of components
-
-			IBindingModel* _binding; //!< Binding model
-			bool _singleBinding; //!< Determines whether only a single binding model is present in the whole unit
-			IDynamicReactionModel* _dynReaction; //!< Dynamic reaction model
-			bool _singleDynReaction; //!< Determines whether only a single particle reaction model is present in the whole unit
-
 			virtual double relativeCoordinate(const unsigned int nodeIdx) const CADET_NOEXCEPT = 0;
 
 			virtual active surfaceToVolumeRatio() const CADET_NOEXCEPT = 0;
 
 			inline IBindingModel* getBinding() const CADET_NOEXCEPT { return _binding; }
-			inline bool singleBinding() const CADET_NOEXCEPT { return _singleBinding; }
+			inline bool bindingParDep() const CADET_NOEXCEPT { return _bindingParDep; }
 			inline IDynamicReactionModel* getReaction() const CADET_NOEXCEPT { return _dynReaction; }
-			inline bool singleReaction() const CADET_NOEXCEPT { return _singleDynReaction; }
+			inline bool reactionParDep() const CADET_NOEXCEPT { return _reactionParDep; }
 
 			virtual inline const active& getPorosity() const CADET_NOEXCEPT = 0;
 			virtual inline const active* getPoreAccessfactor() const CADET_NOEXCEPT = 0;
@@ -159,6 +152,11 @@ namespace cadet
 			 * @return 1 if jacobain calculation fits the predefined pattern of the jacobian, 0 if not.
 			 */
 			virtual int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac) = 0;
+			/**
+			 * @brief calculates the film diffusion Jacobian
+			 * @return 1 if jacobain calculation fits the predefined pattern of the jacobian, 0 if not
+			 * @param [in] parTypeVolFrac pointer to the particle type volume fractions in column-position-major order
+			 */
 			virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac, bool crossDepsOnly = false) = 0;
 
 			virtual bool setParameter(const ParameterId& pId, double value) = 0;
@@ -175,6 +173,18 @@ namespace cadet
 
 			virtual bool leanConsistentInitialTimeDerivativeValidity() const = 0;
 
+			unsigned int* nBound() CADET_NOEXCEPT { return _nBound.get(); }
+
+			protected:
+
+				unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)
+				unsigned int _nComp; //!< Number of components
+
+				IBindingModel* _binding; //!< Binding model
+				std::shared_ptr<unsigned int[]> _nBound; //!< Array with number of bound states for each component
+				bool _bindingParDep; //!< Whether the binding model parameters depend on the particle type
+				IDynamicReactionModel* _dynReaction; //!< Dynamic reaction model
+				bool _reactionParDep; //!< Whether the binding model parameters depend on the particle type
 		};
 
 	} // namespace model
