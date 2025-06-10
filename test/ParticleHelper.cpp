@@ -95,59 +95,71 @@ namespace
 	}
 
 	template <typename factor_t>
-	void extendModelToManyParticleTypesImpl(cadet::JsonParameterProvider& jpp, const factor_t& factors, unsigned int nTypes, double const* const volFrac)
+	void extendModelToManyParticleTypesImpl(cadet::JsonParameterProvider& jpp, const factor_t& factors, unsigned int nTypes, double const* const volFrac, const bool newInterface = false)
 	{
-		{
-			auto ds = cadet::test::util::makeOptionalGroupScope(jpp, "discretization");
-
-			if(jpp.exists("SPATIAL_METHOD"))
-				if (jpp.getString("SPATIAL_METHOD") == "DG")
-				{
-					replicateFieldDataInt(jpp, "PAR_POLYDEG", nTypes);
-					replicateFieldDataInt(jpp, "PAR_NELEM", nTypes);
-				}
-				else
-					replicateFieldDataInt(jpp, "NPAR", nTypes);
-			else
-				replicateFieldDataInt(jpp, "NPAR", nTypes);
-
-			replicateFieldDataString(jpp, "PAR_DISC_TYPE", nTypes);
-			replicateFieldDataDouble(jpp, "PAR_DISC_VECTOR", nTypes);
-		}
-
-		replicateFieldDataDouble(jpp, "FILM_DIFFUSION", factors);
-		replicateFieldDataDouble(jpp, "PAR_DIFFUSION", factors);
-		replicateFieldDataDouble(jpp, "PAR_SURFDIFFUSION", factors);
-		replicateFieldDataDouble(jpp, "PAR_GEOM", factors);
-		replicateFieldDataDouble(jpp, "PAR_RADIUS", factors);
-		replicateFieldDataDouble(jpp, "PAR_CORERADIUS", factors);
-		replicateFieldDataDouble(jpp, "PAR_POROSITY", factors);
-		replicateFieldDataDouble(jpp, "PORE_ACCESSIBILITY", factors);
-
-		replicateFieldDataDouble(jpp, "INIT_CP", nTypes);
-		replicateFieldDataDouble(jpp, "INIT_Q", nTypes);
-
-		replicateFieldDataString(jpp, "ADSORPTION_MODEL", nTypes);
-		replicateFieldDataInt(jpp, "NBOUND", nTypes);
-
-		// Move group "adsorption" to "adsorption_000"
-		if (jpp.exists("adsorption"))
-		{
-			jpp.copy("adsorption", "adsorption_000");
-			jpp.remove("adsorption");
-		}
-
-		// Replicate "adsorption_000"
-		std::ostringstream ss;
-		for (unsigned int i = 1; i < nTypes; ++i)
-		{
-			ss.str("");
-			ss << "adsorption_" << std::setfill('0') << std::setw(3) << i;
-			jpp.copy("adsorption_000", ss.str());
-		}
+		jpp.set("NPARTYPE", static_cast<int>(nTypes));
 
 		if (volFrac)
 			jpp.set("PAR_TYPE_VOLFRAC", std::vector<double>(volFrac, volFrac + nTypes));
+
+		if (newInterface)
+		{
+			for (int i = 1; i < nTypes; i++)
+			{
+				jpp.copy("particle_type_000", "particle_type_" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i));
+			}
+		}
+		else
+		{
+			{
+				auto ds = cadet::test::util::makeOptionalGroupScope(jpp, "discretization");
+
+				if (jpp.exists("SPATIAL_METHOD"))
+					if (jpp.getString("SPATIAL_METHOD") == "DG")
+					{
+						replicateFieldDataInt(jpp, "PAR_POLYDEG", nTypes);
+						replicateFieldDataInt(jpp, "PAR_NELEM", nTypes);
+					}
+					else
+						replicateFieldDataInt(jpp, "NPAR", nTypes);
+				else
+					replicateFieldDataInt(jpp, "NPAR", nTypes);
+
+				replicateFieldDataString(jpp, "PAR_DISC_TYPE", nTypes);
+				replicateFieldDataDouble(jpp, "PAR_DISC_VECTOR", nTypes);
+			}
+
+			replicateFieldDataDouble(jpp, "FILM_DIFFUSION", factors);
+			replicateFieldDataDouble(jpp, "PAR_DIFFUSION", factors);
+			replicateFieldDataDouble(jpp, "PAR_SURFDIFFUSION", factors);
+			replicateFieldDataDouble(jpp, "PAR_GEOM", factors);
+			replicateFieldDataDouble(jpp, "PAR_RADIUS", factors);
+			replicateFieldDataDouble(jpp, "PAR_CORERADIUS", factors);
+			replicateFieldDataDouble(jpp, "PAR_POROSITY", factors);
+			replicateFieldDataDouble(jpp, "PORE_ACCESSIBILITY", factors);
+
+			replicateFieldDataDouble(jpp, "INIT_CP", nTypes);
+			replicateFieldDataDouble(jpp, "INIT_Q", nTypes);
+
+			replicateFieldDataString(jpp, "ADSORPTION_MODEL", nTypes);
+			replicateFieldDataInt(jpp, "NBOUND", nTypes);
+
+			// Move group "adsorption" to "adsorption_000"
+			if (jpp.exists("adsorption"))
+			{
+				jpp.copy("adsorption", "adsorption_000");
+				jpp.remove("adsorption");
+			}
+
+			// Replicate "adsorption_000"
+			std::ostringstream ss;
+			for (unsigned int i = 1; i < nTypes; ++i)
+			{
+				ss.str("");
+				ss << "adsorption_" << std::setfill('0') << std::setw(3) << i;
+				jpp.copy("adsorption_000", ss.str());
+			}
+		}
 	}
 }
 
@@ -159,31 +171,34 @@ namespace test
 
 namespace particle
 {
-	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, unsigned int nTypes, double const* const volFrac)
+	//extendModelToManyParticleTypes_newInterface
+
+
+	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, unsigned int nTypes, double const* const volFrac, const bool newInterface)
 	{
-		extendModelToManyParticleTypesImpl(jpp, nTypes, nTypes, volFrac);
+		extendModelToManyParticleTypesImpl(jpp, nTypes, nTypes, volFrac, newInterface);
 	}
 
-	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, unsigned int nTypes, double const* const volFrac)
+	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, unsigned int nTypes, double const* const volFrac, const bool newInterface)
 	{
 		auto ms = util::makeModelGroupScope(jpp, unit);
-		extendModelToManyParticleTypes(jpp, nTypes, volFrac);
+		extendModelToManyParticleTypes(jpp, nTypes, volFrac, newInterface);
 	}
 
-	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, const std::vector<double>& factors, double const* const volFrac)
+	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, const std::vector<double>& factors, double const* const volFrac, const bool newInterface)
 	{
-		extendModelToManyParticleTypesImpl(jpp, factors, factors.size() + 1, volFrac);
+		extendModelToManyParticleTypesImpl(jpp, factors, factors.size() + 1, volFrac, newInterface);
 	}
 
-	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, unsigned int nTypes, double const* const paramFactors, double const* const volFrac)
+	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, unsigned int nTypes, double const* const paramFactors, double const* const volFrac, const bool newInterface)
 	{
-		extendModelToManyParticleTypes(jpp, std::vector<double>(paramFactors, paramFactors + nTypes - 1), volFrac);
+		extendModelToManyParticleTypes(jpp, std::vector<double>(paramFactors, paramFactors + nTypes - 1), volFrac, newInterface);
 	}
 
-	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, unsigned int nTypes, double const* const paramFactors, double const* const volFrac)
+	void extendModelToManyParticleTypes(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, unsigned int nTypes, double const* const paramFactors, double const* const volFrac, const bool newInterface)
 	{
 		auto ms = util::makeModelGroupScope(jpp, unit);
-		extendModelToManyParticleTypes(jpp, std::vector<double>(paramFactors, paramFactors + nTypes - 1), volFrac);
+		extendModelToManyParticleTypes(jpp, std::vector<double>(paramFactors, paramFactors + nTypes - 1), volFrac, newInterface);
 	}
 
 	void setParticleTypeVolumeFractions(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, const std::vector<double>& volFrac)
@@ -255,7 +270,17 @@ namespace particle
 
 		// Extend to two particle types
 		const double volFrac[] = {1.0, 0.0};
-		extendModelToManyParticleTypes(jpp, 0, 2, volFrac);
+		
+		std::string uoType = "";
+		{
+			auto ms = util::makeModelGroupScope(jpp, 0);
+			uoType = jpp.getString("UNIT_TYPE");
+		}
+
+		if (uoType == "COLUMN_MODEL_1D")
+			extendModelToManyParticleTypes(jpp, 0, 2, volFrac, true);
+		else
+			extendModelToManyParticleTypes(jpp, 0, 2, volFrac);
 
 		// Simulate with first particle type only
 		cadet::Driver drvP1;
@@ -287,7 +312,16 @@ namespace particle
 	{
 		// Extend to two particle types
 		const double volFrac[] = {1.0, 0.0};
-		extendModelToManyParticleTypes(jpp, 0, 2, volFrac);
+		std::string uoType = "";
+		{
+			auto ms = util::makeModelGroupScope(jpp, 0);
+			uoType = jpp.getString("UNIT_TYPE");
+		}
+
+		if (uoType == "COLUMN_MODEL_1D")
+			extendModelToManyParticleTypes(jpp, 0, 2, volFrac, true);
+		else
+			extendModelToManyParticleTypes(jpp, 0, 2, volFrac);
 
 		// Simulate with first particle type only
 		cadet::Driver drvP1;
@@ -345,7 +379,16 @@ namespace particle
 				// Extend to multiple particle types (such that we have a total of 3 types)
 				const double volFrac[] = {0.3, 0.6, 0.1};
 
-				extendModelToManyParticleTypes(jpp, 0, 3, volFrac);
+				std::string uoType = "";
+				{
+					auto ms = util::makeModelGroupScope(jpp, 0);
+					uoType = jpp.getString("UNIT_TYPE");
+				}
+
+				if (uoType == "COLUMN_MODEL_1D")
+					extendModelToManyParticleTypes(jpp, 0, 3, volFrac, true);
+				else
+					extendModelToManyParticleTypes(jpp, 0, 3, volFrac);
 
 				modify(jpp);
 
@@ -400,27 +443,27 @@ namespace particle
 		testLinearMixedParticleTypesImpl(jpp, absTol, relTol, [](cadet::JsonParameterProvider& jpp) { scrambleParticleTypeFractionsSpatially(jpp, 3); });
 	}
 
-	void testJacobianMixedParticleTypes(const std::string& uoType, const std::string& spatialMethod, const double absTolFDpattern)
+	void testJacobianMixedParticleTypes(const std::string& uoType, const std::string& spatialMethod, const double absTolFDpattern, const bool newInterface)
 	{
 		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
-		testJacobianMixedParticleTypes(jpp, absTolFDpattern);
+		testJacobianMixedParticleTypes(jpp, absTolFDpattern, newInterface);
 	}
 
-	void testJacobianMixedParticleTypes(cadet::JsonParameterProvider& jpp, const double absTolFDpattern)
+	void testJacobianMixedParticleTypes(cadet::JsonParameterProvider& jpp, const double absTolFDpattern, const bool newInterface)
 	{
 		// Add more particle types (such that we have a total of 3 types)
 		const double volFrac[] = {0.3, 0.6, 0.1};
-		extendModelToManyParticleTypes(jpp, {0.9, 0.8}, volFrac);
+		extendModelToManyParticleTypes(jpp, {0.9, 0.8}, volFrac, newInterface);
 
 		unitoperation::testJacobianAD(jpp, absTolFDpattern);
 	}
 
-	void testJacobianSpatiallyMixedParticleTypes(const std::string& uoType, const std::string& spatialMethod, const double absTolFDpattern)
+	void testJacobianSpatiallyMixedParticleTypes(const std::string& uoType, const std::string& spatialMethod, const double absTolFDpattern, const bool newInterface)
 	{
 		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
 
 		// Add more particle types (such that we have a total of 3 types)
-		extendModelToManyParticleTypes(jpp, {0.9, 0.8}, nullptr);
+		extendModelToManyParticleTypes(jpp, {0.9, 0.8}, nullptr, newInterface);
 
 		// Spatially inhomogeneous
 		scrambleParticleTypeFractionsSpatially(jpp, 3);
@@ -428,17 +471,17 @@ namespace particle
 		unitoperation::testJacobianAD(jpp, absTolFDpattern);
 	}
 
-	void testTimeDerivativeJacobianMixedParticleTypesFD(const std::string& uoType, const std::string& spatialMethod, double h, double absTol, double relTol)
+	void testTimeDerivativeJacobianMixedParticleTypesFD(const std::string& uoType, const std::string& spatialMethod, double h, double absTol, double relTol, const bool newInterface)
 	{
 		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
-		testTimeDerivativeJacobianMixedParticleTypesFD(jpp, h, absTol, relTol);
+		testTimeDerivativeJacobianMixedParticleTypesFD(jpp, h, absTol, relTol, newInterface);
 	}
 
-	void testTimeDerivativeJacobianMixedParticleTypesFD(cadet::JsonParameterProvider& jpp, double h, double absTol, double relTol)
+	void testTimeDerivativeJacobianMixedParticleTypesFD(cadet::JsonParameterProvider& jpp, double h, double absTol, double relTol, const bool newInterface)
 	{
 		// Add more particle types (such that we have a total of 3 types)
 		const double volFrac[] = {0.3, 0.6, 0.1};
-		extendModelToManyParticleTypes(jpp, {0.9, 0.8}, volFrac);
+		extendModelToManyParticleTypes(jpp, {0.9, 0.8}, volFrac, newInterface);
 		unitoperation::testTimeDerivativeJacobianFD(jpp, h, absTol, relTol);
 	}
 
@@ -447,7 +490,7 @@ namespace particle
 		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, "FV");
 
 		// Add more particle types (such that we have a total of 3 types)
-		extendModelToManyParticleTypes(jpp, {0.9, 0.8}, nullptr);
+		extendModelToManyParticleTypes(jpp, {0.9, 0.8}, nullptr, false);
 
 		// Spatially inhomogeneous
 		scrambleParticleTypeFractionsSpatially(jpp, 3);

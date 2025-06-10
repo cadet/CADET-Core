@@ -82,6 +82,8 @@ namespace parts
 
 		bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp) override;
 		bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound) override;
+		bool configureModelDiscretization_old(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp) override;
+		bool configure_old(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound) override;
 
 		void updateRadialDisc() { }
 
@@ -131,9 +133,6 @@ namespace parts
 
 	protected:
 
-		/* component system */
-		unsigned int* _nBound; //!< Array with number of bound states for each component
-
 		/* diffusion */
 		std::vector<active> _filmDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
 		MultiplexMode _filmDiffusionMode;
@@ -146,9 +145,9 @@ namespace parts
 		double _SurfVolRatioSlab = 1.0; //!< Surface to volume ratio for a slab-shaped particle
 		double _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)
 		active _parRadius; //!< Particle radius \f$ r_p \f$
-		bool _singleParRadius;
+		bool _parRadiusParTypeDep; //!< Determines whether or not the radius is particle type dependent / specific. Used in parameter sensitivities
 		active _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
-		bool _singleParPorosity;
+		bool _parPorosityParTypeDep; //!< Determines whether or not the porosity is particle type dependent / specific. Used in parameter sensitivities
 
 		/* strides and offsets */
 		int _strideBulkComp; //!< Component stride in bulk state vector

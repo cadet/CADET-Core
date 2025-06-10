@@ -49,9 +49,9 @@ namespace parts
 		delete[] _parInvMM;
 	}
 
-	bool ParticleDiffusionOperatorDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp)
+	bool ParticleDiffusionOperatorDG::configureModelDiscretization_old(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp)
 	{
-		const bool baseConfigSuccess = ParticleDiffusionOperatorBase::configureModelDiscretization(paramProvider, helper, nComp, parTypeIdx, nParType, strideBulkComp);
+		const bool baseConfigSuccess = ParticleDiffusionOperatorBase::configureModelDiscretization_old(paramProvider, helper, nComp, parTypeIdx, nParType, strideBulkComp);
 
 		std::vector<int> parPolyDegs(nParType);
 		std::vector<int> parNelements(nParType);
@@ -152,6 +152,85 @@ namespace parts
 		}
 
 		paramProvider.popScope();
+
+		return baseConfigSuccess;
+	}
+
+	bool ParticleDiffusionOperatorDG::configure_old(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding, const bool hasDynamicReactions)
+	{
+		const bool baseConfigSuccess = ParticleDiffusionOperatorBase::configure_old(unitOpIdx, paramProvider, parameters, nParType, nBoundBeforeType, nTotalBound, reqBinding, hasDynamicReactions);
+
+		// Compute particle metrics
+		if (_deltaR == nullptr)
+			_deltaR = new active[_nParElem];
+		updateRadialDisc();
+
+		return baseConfigSuccess;
+	}
+
+	bool ParticleDiffusionOperatorDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp)
+	{
+		const bool baseConfigSuccess = ParticleDiffusionOperatorBase::configureModelDiscretization(paramProvider, helper, nComp, parTypeIdx, nParType, strideBulkComp);
+
+		paramProvider.pushScope("discretization");
+
+		if (paramProvider.exists("PAR_POLYDEG"))
+		{
+			_parPolyDeg = paramProvider.getInt("PAR_POLYDEG");
+
+			if (_parPolyDeg < 1)
+				throw InvalidParameterException("Particle polynomial degree (PAR_POLYDEG) must be at least 1, but was specified as " + std::to_string(_nParElem) + " for particle type " + std::to_string(_parTypeIdx));
+
+			_nParElem = paramProvider.getInt("PAR_NELEM");
+
+			if (_nParElem < 1)
+				throw InvalidParameterException("Particle number of elements (PAR_NELEM) must be at least 1, but was specified as " + std::to_string(_nParElem) + " for particle type " + std::to_string(_parTypeIdx));
+		}
+		else if (paramProvider.exists("NPAR"))
+		{
+			const int nParPoints = paramProvider.getInt("NPAR");
+			if (nParPoints < 1)
+				throw InvalidParameterException("Particle number of discrete points (NPAR) must be at least 1, but was specified as " + std::to_string(nParPoints) + " for particle type " + std::to_string(_parTypeIdx));
+		}
+		else
+			throw InvalidParameterException("Specify field PAR_POLYDEG (or NPAR)");
+
+		if (paramProvider.exists("PAR_GSM"))
+		{
+			_parGSM = paramProvider.getBool("PAR_GSM");
+			if (_parGSM && _nParElem != 1)
+				throw InvalidParameterException("Field PAR_NELEM must equal one to use a GSM discretization in the corresponding particle type");
+		}
+		else // Use GSM as default for particle discretizations with one element
+		{
+			_parGSM = (_nParElem == 1);
+		}
+
+		initializeDG();
+
+		// Configure particle discretization
+		_parElementSize.resize(_nParElem);
+		_parCenterRadius.resize(_nParElem);
+		_parOuterSurfAreaPerVolume.resize(_nParElem);
+		_parInnerSurfAreaPerVolume.resize(_nParElem);
+
+		// Read particle discretization mode and default to "EQUIDISTANT_PAR"
+		_parDiscMode = ParticleDiscretizationMode::Equidistant;
+		std::string pdt = paramProvider.getString("PAR_DISC_TYPE");
+
+		if (pdt == "EQUIVOLUME_PAR")
+			_parDiscMode = ParticleDiscretizationMode::Equivolume;
+		else if (pdt == "USER_DEFINED_PAR")
+			_parDiscMode = ParticleDiscretizationMode::UserDefined;
+
+		if (paramProvider.exists("PAR_DISC_VECTOR"))
+		{
+			_parDiscVector = paramProvider.getDoubleArray("PAR_DISC_VECTOR");
+			if (_parDiscVector.size() < _nParPoints)
+				throw InvalidParameterException("Field PAR_DISC_VECTOR contains too few elements (" + std::to_string(_nParPoints) + " required)");
+		}
+
+		paramProvider.popScope(); // discretization
 
 		return baseConfigSuccess;
 	}
@@ -1266,6 +1345,9 @@ namespace parts
 				// col: add flux offset to current component, jump over previous nodes and components
 				tripletList.push_back(T(offsetPar + (_nParElem - 1) * _nParNode * strideParNode() + node * strideParNode() + comp * strideParComp(),
 					offsetBulk + comp,
+					0.0));
+				tripletList.push_back(T(offsetBulk + comp,
+					offsetPar + (_nParElem - 1) * _nParNode * strideParNode() + node * strideParNode() + comp * strideParComp(),
 					0.0));
 			}
 		}

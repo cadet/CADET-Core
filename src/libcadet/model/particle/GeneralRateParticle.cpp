@@ -53,7 +53,7 @@ namespace model
 		delete _parDiffOp;
 	}
 
-	bool GeneralRateParticle::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp)
+	bool GeneralRateParticle::configureModelDiscretization_old(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp)
 	{
 		_parTypeIdx = parTypeIdx;
 		_nComp = nComp;
@@ -62,7 +62,7 @@ namespace model
 
 		paramProvider.pushScope("discretization");
 
-		if(paramProvider.exists("PAR_SPATIAL_METHOD"))
+		if (paramProvider.exists("PAR_SPATIAL_METHOD"))
 		{
 			const std::string parSpatialMethod = paramProvider.getString("PAR_SPATIAL_METHOD");
 			if (parSpatialMethod != "DG")
@@ -75,7 +75,9 @@ namespace model
 
 		paramProvider.popScope();
 
-		const bool particleTransportConfigSuccess = _parDiffOp->configureModelDiscretization(paramProvider, helper, nComp, parTypeIdx, nParType, strideBulkComp);
+		const bool particleTransportConfigSuccess = _parDiffOp->configureModelDiscretization_old(paramProvider, helper, nComp, parTypeIdx, nParType, strideBulkComp);
+
+		_nBound = _parDiffOp->nBound();
 
 		// ==== Construct and configure binding model
 		_binding = nullptr;
@@ -84,26 +86,26 @@ namespace model
 			bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
 
 		if (paramProvider.exists("ADSORPTION_MODEL_MULTIPLEX"))
-			_singleBinding = (paramProvider.getInt("ADSORPTION_MODEL_MULTIPLEX") == 1);
+			_bindingParDep = (paramProvider.getInt("ADSORPTION_MODEL_MULTIPLEX") == 1);
 		else
 		{
 			// Infer multiplex mode
-			_singleBinding = (bindModelNames.size() == 1);
+			_bindingParDep = (bindModelNames.size() == 1);
 		}
 
-		if (!_singleBinding && (bindModelNames.size() < nParType))
+		if (!_bindingParDep && (bindModelNames.size() < nParType))
 			throw InvalidParameterException("Field ADSORPTION_MODEL contains too few elements (" + std::to_string(nParType) + " required)");
-		else if (_singleBinding && (bindModelNames.size() != 1))
+		else if (_bindingParDep && (bindModelNames.size() != 1))
 			throw InvalidParameterException("Field ADSORPTION_MODEL requires (only) 1 element");
 
 		bool bindingConfSuccess = true;
 
-		_binding = helper.createBindingModel(bindModelNames[_singleBinding ? 0 : _parTypeIdx]);
+		_binding = helper.createBindingModel(bindModelNames[_bindingParDep ? 0 : _parTypeIdx]);
 		if (!_binding)
-			throw InvalidParameterException("Unknown binding model " + bindModelNames[_singleBinding ? 0 : _parTypeIdx]);
+			throw InvalidParameterException("Unknown binding model " + bindModelNames[_bindingParDep ? 0 : _parTypeIdx]);
 
-		MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _singleBinding, _parTypeIdx, nParType == 1, _binding->usesParamProviderInDiscretizationConfig());
-		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _parDiffOp->nBound(), _parDiffOp->offsetBoundComp());
+		MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _bindingParDep, _parTypeIdx, nParType == 1, _binding->usesParamProviderInDiscretizationConfig());
+		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _parDiffOp->offsetBoundComp());
 
 		// ==== Construct and configure dynamic reaction model
 		bool reactionConfSuccess = true;
@@ -115,77 +117,39 @@ namespace model
 			const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL_PARTICLES");
 
 			if (paramProvider.exists("REACTION_MODEL_PARTICLES_MULTIPLEX"))
-				_singleDynReaction = (paramProvider.getInt("REACTION_MODEL_PARTICLES_MULTIPLEX") == 1);
+				_reactionParDep = (paramProvider.getInt("REACTION_MODEL_PARTICLES_MULTIPLEX") == 1);
 			else
 			{
 				// Infer multiplex mode
-				_singleDynReaction = (dynReactModelNames.size() == 1);
+				_reactionParDep = (dynReactModelNames.size() == 1);
 			}
 
-			if (!_singleDynReaction && (dynReactModelNames.size() < nParType))
+			if (!_reactionParDep && (dynReactModelNames.size() < nParType))
 				throw InvalidParameterException("Field REACTION_MODEL_PARTICLES contains too few elements (" + std::to_string(nParType) + " required)");
-			else if (_singleDynReaction && (dynReactModelNames.size() != 1))
+			else if (_reactionParDep && (dynReactModelNames.size() != 1))
 				throw InvalidParameterException("Field REACTION_MODEL_PARTICLES requires (only) 1 element");
 
-			_dynReaction = helper.createDynamicReactionModel(dynReactModelNames[_singleDynReaction ? 0 : _parTypeIdx]);
+			_dynReaction = helper.createDynamicReactionModel(dynReactModelNames[_reactionParDep ? 0 : _parTypeIdx]);
 
 			if (!_dynReaction)
-				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[_singleDynReaction ? 0 : _parTypeIdx]);
+				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[_reactionParDep ? 0 : _parTypeIdx]);
 
-			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _singleDynReaction, _parTypeIdx, nParType == 1, _dynReaction->usesParamProviderInDiscretizationConfig());
-			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _parDiffOp->nBound(), _parDiffOp->offsetBoundComp()) && reactionConfSuccess;
+			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _reactionParDep, _parTypeIdx, nParType == 1, _dynReaction->usesParamProviderInDiscretizationConfig());
+			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _parDiffOp->offsetBoundComp()) && reactionConfSuccess;
 		}
 
 		return particleTransportConfigSuccess && bindingConfSuccess && reactionConfSuccess;
 	}
 
-	bool GeneralRateParticle::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound)
+	bool GeneralRateParticle::configure_old(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound)
 	{
-		//// Done in the unit operation: Register initial conditions parameters
-		//registerParam1DArray(parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
-
-		//if (_singleBinding)
-		//{
-		//	for (unsigned int c = 0; c < nComp; ++c)
-		//		parameters[makeParamId(hashString("INIT_CP"), unitOpIdx, c, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_initCp[c];
-		//}
-		//else
-		//	registerParam2DArray(parameters, _initCp, [=](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, nComp);
-
-
-		//if (!_binding.empty())
-		//{
-		//	const unsigned int maxBoundStates = *std::max_element(_strideBound, _strideBound + _nParType);
-		//	std::vector<ParameterId> initParams(maxBoundStates);
-
-		//	if (_singleBinding)
-		//	{
-		//		_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), unitOpIdx, ParTypeIndep);
-
-		//		active* const iq = _initQ.data() + _nBoundBeforeType[0];
-		//		for (unsigned int i = 0; i < _strideBound[0]; ++i)
-		//			parameters[initParams[i]] = iq + i;
-		//	}
-		//	else
-		//	{
-		//		for (unsigned int type = 0; type < _nParType; ++type)
-		//		{
-		//			_binding[type]->fillBoundPhaseInitialParameters(initParams.data(), unitOpIdx, type);
-
-		//			active* const iq = _initQ.data() + _nBoundBeforeType[type];
-		//			for (unsigned int i = 0; i < _strideBound[type]; ++i)
-		//				parameters[initParams[i]] = iq + i;
-		//		}
-		//	}
-		//}
-
 		// Reconfigure binding model
 		bool bindingConfSuccess = true;
 		if (_binding)
 		{
 			if (_binding->requiresConfiguration())
 			{
-				if (_singleBinding)
+				if (_bindingParDep)
 				{
 					MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", true);
 					bindingConfSuccess = _binding->configure(paramProvider, unitOpIdx, ParTypeIndep);
@@ -202,7 +166,7 @@ namespace model
 		bool dynReactionConfSuccess = true;
 		if (_dynReaction && _dynReaction->requiresConfiguration())
 		{
-			if (_singleDynReaction)
+			if (_reactionParDep)
 			{
 				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", true);
 				dynReactionConfSuccess = _dynReaction->configure(paramProvider, unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
@@ -215,9 +179,175 @@ namespace model
 		}
 
 		// Reconfigure particle transport and discretization
-		const bool parTransportConfigSuccess = _parDiffOp->configure(unitOpIdx, paramProvider, parameters, nParType, nBoundBeforeType, nTotalBound, _binding->reactionQuasiStationarity(), _binding->hasDynamicReactions());
+		const bool parTransportConfigSuccess = _parDiffOp->configure_old(unitOpIdx, paramProvider, parameters, nParType, nBoundBeforeType, nTotalBound, _binding->reactionQuasiStationarity(), _binding->hasDynamicReactions());
 
 		return parTransportConfigSuccess && bindingConfSuccess && dynReactionConfSuccess;
+	}
+
+	bool GeneralRateParticle::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp)
+	{
+		_parTypeIdx = parTypeIdx;
+		_nComp = nComp;
+
+		std::ostringstream parTypeIdxString;
+		parTypeIdxString << std::setfill('0') << std::setw(3) << std::setprecision(0) << _parTypeIdx;
+		paramProvider.pushScope("particle_type_" + parTypeIdxString.str());
+
+		// ==== Construct binding model
+
+		_binding = nullptr;
+		std::vector<std::string> bindModelNames = { "NONE" };
+		bool bindingConfSuccess = true;
+
+		if (paramProvider.exists("ADSORPTION_MODEL"))
+		{
+			bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
+
+			if (_bindingParDep && (bindModelNames.size() != 1))
+				throw InvalidParameterException("Field ADSORPTION_MODEL requires (only) 1 element");
+
+			if (paramProvider.exists("adsorption"))
+			{
+				paramProvider.pushScope("adsorption");
+				_bindingParDep = paramProvider.exists("BINDING_PARTYPE_DEPENDENT") ? paramProvider.getInt("BINDING_PARTYPE_DEPENDENT") : true;
+				paramProvider.popScope();
+			}
+		}
+
+		_binding = helper.createBindingModel(bindModelNames[0]);
+		if (!_binding)
+			throw InvalidParameterException("Unknown binding model " + bindModelNames[0]);
+
+		std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
+		if (nBound.size() != _nComp)
+			throw InvalidParameterException("Field NBOUND does not contain NCOMP = " + std::to_string(_nComp) + " entries for particle type " + std::to_string(_parTypeIdx));
+
+		if (!_nBound)
+			_nBound = std::make_shared<unsigned int[]>(_nComp);
+		std::copy_n(nBound.begin(), _nComp, _nBound.get());
+
+		_bindingParDep = true;
+
+		if (_binding->usesParamProviderInDiscretizationConfig())
+		{
+			paramProvider.pushScope("adsorption");
+
+			if (paramProvider.exists("BINDING_PARTYPE_DEPENDENT"))
+				_bindingParDep = paramProvider.getBool("BINDING_PARTYPE_DEPENDENT");
+
+			paramProvider.popScope();
+		}
+		else if (bindModelNames[0] == "NONE")
+			_nBound = std::make_shared<unsigned int[]>(_nComp, 0);
+		else
+			throw InvalidParameterException("Binding model " + bindModelNames[0] + " was specified, but group \"adsorption\" is missing for particle type " + std::to_string(_parTypeIdx));
+
+		// ==== Construct and configure particle transport and discretization
+
+		paramProvider.pushScope("discretization");
+
+		if (paramProvider.exists("SPATIAL_METHOD"))
+		{
+			const std::string parSpatialMethod = paramProvider.getString("SPATIAL_METHOD");
+			if (parSpatialMethod != "DG")
+				throw InvalidParameterException("Unsupported SPATIAL_METHOD '" + parSpatialMethod + "' for GeneralRateParticle. Only 'DG' is supported for now.");
+
+			_parDiffOp = new parts::ParticleDiffusionOperatorDG();
+		}
+		else
+			_parDiffOp = new parts::ParticleDiffusionOperatorDG();
+
+		paramProvider.popScope();
+
+		_parDiffOp->setNBound(_nBound);
+
+		const bool particleTransportConfigSuccess = _parDiffOp->configureModelDiscretization(paramProvider, helper, nComp, parTypeIdx, nParType, strideBulkComp);
+
+		// ==== Configure binding model
+
+		if (_binding->usesParamProviderInDiscretizationConfig())
+			paramProvider.pushScope("adsorption");
+
+		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _parDiffOp->offsetBoundComp());
+
+		if (_binding->usesParamProviderInDiscretizationConfig())
+			paramProvider.popScope();
+
+		// ==== Construct and configure dynamic reaction model
+
+		_dynReaction = nullptr;
+		_reactionParDep = true;
+		bool reactionConfSuccess = true;
+
+		if (paramProvider.exists("REACTION_MODEL"))
+		{
+			const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL");
+
+			if (dynReactModelNames.size() != 1)
+				throw InvalidParameterException("Field REACTION_MODEL_PARTICLES requires (only) 1 element");
+
+			_dynReaction = helper.createDynamicReactionModel(dynReactModelNames[0]);
+
+			if (!_dynReaction)
+				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[0]);
+
+			if (paramProvider.exists("reaction"))
+			{
+				paramProvider.pushScope("reaction");
+				_reactionParDep = paramProvider.exists("REACTION_PARTYPE_DEPENDENT") ? paramProvider.getInt("REACTION_PARTYPE_DEPENDENT") : true;
+				paramProvider.popScope();
+			}
+
+			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _parDiffOp->offsetBoundComp()) && reactionConfSuccess;
+		}
+
+		paramProvider.popScope(); // particle_type_{:03}
+
+		return particleTransportConfigSuccess && bindingConfSuccess && reactionConfSuccess;
+	}
+
+	bool GeneralRateParticle::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound)
+	{
+		std::ostringstream parTypeIdxString;
+		parTypeIdxString << std::setfill('0') << std::setw(3) << std::setprecision(0) << _parTypeIdx;
+		paramProvider.pushScope("particle_type_" + parTypeIdxString.str());
+
+		// Reconfigure binding model
+		bool bindingConfSuccess = true;
+		if (_binding)
+		{
+			if (_binding->requiresConfiguration())
+			{
+				paramProvider.pushScope("adsorption");
+				bindingConfSuccess = _binding->configure(paramProvider, unitOpIdx, ParTypeIndep);
+				paramProvider.popScope(); // adsorption
+			}
+		}
+
+		// Reconfigure reaction model
+		bool dynReactionConfSuccess = true;
+		if (_dynReaction && _dynReaction->requiresConfiguration())
+		{
+			if (paramProvider.exists("reaction_particle"))
+			{
+				paramProvider.pushScope("reaction_particle");
+				dynReactionConfSuccess = _dynReaction->configure(paramProvider, unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
+			}
+			else
+			{
+				std::ostringstream parTypeIdxString;
+				parTypeIdxString << std::setfill('0') << std::setw(3) << std::setprecision(0) << _parTypeIdx;
+				paramProvider.pushScope("particle_type_" + parTypeIdxString.str());
+				dynReactionConfSuccess = _dynReaction->configure(paramProvider, unitOpIdx, _parTypeIdx) && dynReactionConfSuccess;
+			}
+		}
+
+		// Reconfigure particle transport and discretization
+		const bool parTransportConfigSuccess = _parDiffOp->configure(unitOpIdx, paramProvider, parameters, nParType, nBoundBeforeType, nTotalBound, _binding->reactionQuasiStationarity(), _binding->hasDynamicReactions());
+		
+		paramProvider.popScope(); // particle_type_{:03}
+
+		return parTransportConfigSuccess&& bindingConfSuccess&& dynReactionConfSuccess;
 	}
 
 	bool GeneralRateParticle::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
@@ -286,7 +416,7 @@ namespace model
 	int GeneralRateParticle::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ResidualType* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
 	{
 		int const* const qsBinding = _binding->reactionQuasiStationarity();
-		const parts::cell::CellParameters cellResParams = makeCellResidualParams(qsBinding, _parDiffOp->nBound());
+		const parts::cell::CellParameters cellResParams = makeCellResidualParams(qsBinding, _nBound.get());
 
 		linalg::BandedEigenSparseRowIterator jacBase = jacIt;
 
@@ -381,8 +511,8 @@ namespace model
 
 	std::unordered_map<ParameterId, double> GeneralRateParticle::getAllParameterValues(std::unordered_map<ParameterId, double>& data) const
 	{
-		model::getAllParameterValues(data, std::vector<IParameterStateDependence*>{_parDiffOp->getParDepSurfDiffusion()}, _parDiffOp->singleParDepSurfDiffusion());
-
+		model::getAllParameterValues(data, std::vector<IParameterStateDependence*>{_parDiffOp->getParDepSurfDiffusion()}, _parDiffOp->paramDepSurfDiffParTypeIndep());
+		
 		return data;
 	}
 
@@ -390,7 +520,7 @@ namespace model
 	{
 		double val = 0.0;
 
-		if (model::getParameterDouble(pId, std::vector<IParameterStateDependence*>{_parDiffOp->getParDepSurfDiffusion()}, _parDiffOp->singleParDepSurfDiffusion(), val))
+		if (model::getParameterDouble(pId, std::vector<IParameterStateDependence*>{_parDiffOp->getParDepSurfDiffusion()}, _parDiffOp->paramDepSurfDiffParTypeIndep(), val))
 			return val;
 		else
 			return static_cast<double>(false);
@@ -398,7 +528,7 @@ namespace model
 
 	bool GeneralRateParticle::hasParameter(const ParameterId& pId) const
 	{
-		if (model::hasParameter(pId, std::vector<IParameterStateDependence*>{_parDiffOp->getParDepSurfDiffusion()}, _parDiffOp->singleParDepSurfDiffusion()))
+		if (model::hasParameter(pId, std::vector<IParameterStateDependence*>{_parDiffOp->getParDepSurfDiffusion()}, _parDiffOp->paramDepSurfDiffParTypeIndep()))
 			return true;
 
 		return false;

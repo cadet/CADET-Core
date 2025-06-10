@@ -201,9 +201,24 @@ namespace test
 		auto ms = util::makeOptionalGroupScope(jpp, "model");
 		auto us = util::makeOptionalGroupScope(jpp, "unit_000");
 
-		jpp.pushScope("adsorption");
-		jpp.set("IS_KINETIC", isKinetic);
-		jpp.popScope();
+		if (!jpp.exists("adsorption"))
+		{
+			const int nParType = jpp.getInt("NPARTYPE");
+			for (int i = 0; i < nParType; ++i)
+			{
+				jpp.pushScope("particle_type_" + std::string(3 - (i + 1), '0') + std::to_string(i));
+				jpp.pushScope("adsorption");
+				jpp.set("IS_KINETIC", isKinetic);
+				jpp.popScope();
+				jpp.popScope();
+			}
+		}
+		else
+		{
+			jpp.pushScope("adsorption");
+			jpp.set("IS_KINETIC", isKinetic);
+			jpp.popScope();
+		}
 	}
 
 	void addSensitivity(cadet::JsonParameterProvider& jpp, const std::string& name, const ParameterId& id, double absTol)
