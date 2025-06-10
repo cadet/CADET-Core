@@ -28,6 +28,8 @@
 #include <algorithm>
 #include <iterator>
 #include <tuple>
+#include <memory>
+
 
 namespace cadet
 {
@@ -51,6 +53,35 @@ public:
 	virtual const char* name() const CADET_NOEXCEPT { return "LINEAR"; }
 	virtual bool requiresConfiguration() const CADET_NOEXCEPT { return true; }
 	virtual bool usesParamProviderInDiscretizationConfig() const CADET_NOEXCEPT { return true; }
+
+	virtual bool hasQuasiStationary() const 
+	{
+		return std::any_of(_exchangeMatrix.begin(), _exchangeMatrix.end(),
+			[](const active& val) { return static_cast<double>(val) == -1.0; });
+	}
+
+	virtual void quasiStationarityMap(std::vector<std::pair<unsigned int, unsigned int>>& quasiStationaryMap, int comp) const
+	{
+		std::vector<std::pair<unsigned int, unsigned int>> rapidEqChannels;
+		
+		for (unsigned int orig = 0; orig < _nChannel; ++orig)
+		{
+			for (unsigned int dest = 0; dest < _nChannel; ++dest)
+			{
+				if (orig == dest)
+					continue;
+
+				size_t ex_bw = orig * _nChannel * _nComp + dest * _nComp + comp;
+				size_t ex_fw = dest * _nChannel * _nComp + orig * _nComp + comp;
+
+				if (static_cast<double>(_exchangeMatrix[ex_bw]) == -1.0 ||
+					static_cast<double>(_exchangeMatrix[ex_fw]) == -1.0)
+				{
+					rapidEqChannels.emplace_back(orig, dest);
+				}
+			}
+		}
+	}
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nChannel, unsigned int nCol)
 	{
@@ -164,8 +195,8 @@ public:
 
 protected:
 	int _nComp; //!< Number of components
-	unsigned int _nChannel; //!< Total number of bound states
-	unsigned int _nCol; //!< Number of columns
+	int _nChannel; //!< Total number of bound states
+	int _nCol; //!< Number of columns
 	std::vector<int> _reactionQuasistationarity; //!< Determines whether each bound state is quasi-stationary (@c true) or not (@c false)
 
 	std::vector<active> _exchangeMatrix; //!< Matrix of exchange coeffs for the linear inter-channel transport
@@ -179,6 +210,7 @@ protected:
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 	int residualImpl(StateType const* y, ResidualType* res, linalg::BandedSparseRowIterator jacBegin) const
 	{	
+		std::unordered_map<unsigned int, std::vector<std::array<unsigned int, 2>>> rapidEquilibriumMap;
 
 		const unsigned int offsetC = _nChannel * _nComp;
 		for (unsigned int col = 0; col < _nCol; ++col)
@@ -211,13 +243,29 @@ protected:
 						ResidualType* const resCur_orig = resColRadOrigBlock + comp;
 						ResidualType* const resCur_dest = resColRadDestBlock + comp;
 
+						// Todo: Here Drei Fälle: 
+						//1. derivative
+						//2. algebraisch
+						//3. conserved moities
 						const ParamType exchange_orig_dest_comp = static_cast<ParamType>(_exchangeMatrix[rad_orig * _nChannel * _nComp + rad_dest * _nComp + comp]);
-						if (cadet_likely(exchange_orig_dest_comp > 0.0))
+
+						if (exchange_orig_dest_comp == -1 || exchange_orig_dest_comp > 1e10)
+						{
+							// check if the symetric entry is also -1
+							if (_exchangeMatrix[rad_dest * _nChannel * _nComp + rad_orig * _nComp + comp] != -1 || exchange_orig_dest_comp > 1e10 )
+								throw InvalidParameterException("Linear Exchange: For exchange in rapid equilibrium it is nessasary e_ij = e_ji = -1. Please check your exchange matirx entrys for symmetry");
+							
+							// save rapid equilibrium orginal and dest (only once) 
+							if (rad_orig > rad_dest)
+								rapidEquilibriumMap[comp].push_back({ rad_orig, rad_dest });
+						}
+						else if (cadet_likely(exchange_orig_dest_comp > 0.0))
 						{
 							*resCur_orig += exchange_orig_dest_comp * yCur_orig[0];
 							*resCur_dest -= exchange_orig_dest_comp * yCur_orig[0] * static_cast<ParamType>(_crossSections[rad_orig]) / static_cast<ParamType>(_crossSections[rad_dest]);
 
-							if (wantJac) {
+							if (wantJac) 
+							{
 
 								linalg::BandedSparseRowIterator jacorig;
 								jacorig = jacBegin + offsetCur_orig;
@@ -228,15 +276,57 @@ protected:
 								jacdest[static_cast<int>(offsetCur_orig) - static_cast<int>(offsetCur_dest)] -= static_cast<double>(exchange_orig_dest_comp);
 
 							}
-
-
 						}
+					}
+				}
+			}
+		}
 
+		// handle conserved moities
+		for (auto col = 0; col < _nCol; ++col)
+		{
+			const unsigned int offsetColBlock = col * _nChannel * _nComp;
+			ResidualType* const resColBlock = res + offsetC + offsetColBlock;
+			StateType const* const yColBlock = y + offsetC + offsetColBlock;
+
+			for (const auto& rapidEqRates : rapidEquilibriumMap)
+			{
+				const auto comp = rapidEqRates.first;
+				for (auto rates = 0; rates < rapidEqRates.second.size(); rates++)
+				{
+					const auto rad_orig = rapidEqRates.second[comp][0];
+					const auto rad_dest = rapidEqRates.second[comp][1];
+					
+					const unsigned int offsetToRadOrigBlock = rad_orig * _nComp;
+					const unsigned int offsetColRadOrigBlock = offsetColBlock + offsetToRadOrigBlock;
+					ResidualType* const resColRadOrigBlock = resColBlock + offsetToRadOrigBlock;
+					
+					const unsigned int offsetToRadDestBlock = rad_dest * _nComp;
+					const unsigned int offsetColRadDestBlock = offsetColBlock + offsetToRadDestBlock;
+					ResidualType* const resColRadDestBlock = resColBlock + offsetToRadDestBlock;
+					
+					const unsigned int offsetCur_orig = offsetColRadOrigBlock + comp;
+					const unsigned int offsetCur_dest = offsetColRadDestBlock + comp;
+
+					ResidualType* const resCur_orig = resColRadOrigBlock + comp;
+					ResidualType* const resCur_dest = resColRadDestBlock + comp;
+
+					const ParamType exchange_orig_dest_comp = static_cast<ParamType>(_exchangeMatrix[rad_orig * _nChannel * _nComp + rad_dest * _nComp + comp]);
+
+					// conserved moities 
+					*resCur_orig *=  static_cast<ParamType>(_crossSections[rad_orig]) / static_cast<ParamType>(_crossSections[rad_dest]) + *resCur_dest;
+					
+					// algebraic equation
+					*resCur_dest = exchange_orig_dest_comp* yCur_orig[0] - exchange_orig_dest_comp * yCur_orig[0] * static_cast<ParamType>(_crossSections[rad_orig]) / static_cast<ParamType>(_crossSections[rad_dest]);
+
+					if (wantJac) {
+
+						linalg::BandedSparseRowIterator jacdest;
+						jacdest = jacBegin + offsetCur_dest;
+						jacdest[static_cast<int>(offsetCur_orig) - static_cast<int>(offsetCur_dest)] -= static_cast<double>(exchange_orig_dest_comp);
 
 					}
-
 				}
-
 			}
 		}
 		return 0;
