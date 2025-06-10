@@ -434,7 +434,7 @@ namespace model
 				// flux into particle
 				resPar[comp] += jacPF_val / static_cast<ParamType>(_poreAccessFactor[comp]) * static_cast<ParamType>(_filmDiffusion[comp]) * (yBulk[comp * _strideBulkComp] - yPar[comp]);
 				// flux into bulk
-				resBulk[comp] += jacCF_val * static_cast<ParamType>(_filmDiffusion[comp]) * static_cast<ParamType>(packing.parTypeVolFrac[comp]) * (yBulk[comp] - yPar[comp]);
+				resBulk[comp] += jacCF_val * static_cast<ParamType>(_filmDiffusion[comp]) * static_cast<ParamType>(packing.parTypeVolFrac) * (yBulk[comp] - yPar[comp]);
 			}
 		}
 

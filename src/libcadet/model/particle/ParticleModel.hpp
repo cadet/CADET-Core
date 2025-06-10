@@ -61,7 +61,7 @@ namespace cadet
 
 		struct columnPackingParameters
 		{
-			const active* parTypeVolFrac;
+			const active& parTypeVolFrac;
 			const active& colPorosity;
 			ColumnPosition colPos;
 		};

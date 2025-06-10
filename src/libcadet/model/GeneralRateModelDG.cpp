@@ -872,7 +872,7 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 		linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
 		model::columnPackingParameters packing
 		{
-			&_parTypeVolFrac[parType] + _disc.nParType * colNode,
+			_parTypeVolFrac[parType + _disc.nParType * colNode],
 			_colPorosity,
 			ColumnPosition{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }
 		};
@@ -1180,7 +1180,12 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, double value)
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
 			if (_particle[parType].setParameter(pId, value))
-				return true;
+			{	// continue loop for particle type independent parameters to set the respective parameter sensitivity in all particle types
+				if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
+				{
+					return true;
+				}
+			}
 		}
 
 		if (_convDispOp.setParameter(pId, value))
@@ -1212,7 +1217,12 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, int value)
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
 		if (_particle[parType].setParameter(pId, value))
-			return true;
+		{	// continue loop for particle type independent parameters to set the respective parameter sensitivity in all particle types
+			if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
+			{
+				return true;
+			}
+		}
 	}
 
 	if (pId.unitOperation == _unitOpIdx)
@@ -1232,7 +1242,12 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, bool value)
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
 		if (_particle[parType].setParameter(pId, value))
-			return true;
+		{	// continue loop for particle type independent parameters to set the respective parameter sensitivity in all particle types
+			if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
+			{
+				return true;
+			}
+		}
 	}
 
 	if (pId.unitOperation == _unitOpIdx)
@@ -1271,7 +1286,12 @@ void GeneralRateModelDG::setSensitiveParameterValue(const ParameterId& pId, doub
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
 			if (_particle[parType].setSensitiveParameterValue(_sensParams, pId, value))
-				return;
+			{	// continue loop for particle type independent parameters to set the respective parameter sensitivity in all particle types
+				if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
+				{
+					return;
+				}
+			}
 		}
 
 		if (_convDispOp.setSensitiveParameterValue(_sensParams, pId, value))
@@ -1328,6 +1348,7 @@ bool GeneralRateModelDG::setSensitiveParameter(const ParameterId& pId, unsigned 
 		{
 			if (_particle[parType].setSensitiveParameter(_sensParams, pId, adDirection, adValue))
 			{
+				// continue loop for particle type independent parameters to set the respective parameter sensitivity in all particle types
 				if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
 				{
 					LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;

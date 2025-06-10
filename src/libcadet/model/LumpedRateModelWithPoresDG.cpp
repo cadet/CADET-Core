@@ -949,7 +949,7 @@ int LumpedRateModelWithPoresDG::residualImpl(double t, unsigned int secIdx, Stat
 		{
 			model::columnPackingParameters packing
 			{
-				&_parTypeVolFrac[parType] + _disc.nParType * colNode,
+				_parTypeVolFrac[parType + _disc.nParType * colNode],
 				_colPorosity,
 				ColumnPosition{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }
 			};
