@@ -716,10 +716,6 @@ MultiplexMode readAndRegisterSingleTypeMultiplexCompTypeSecParam(IParameterProvi
 	{
 	case MultiplexMode::Component:
 	{
-		std::vector<active> p(nComp);
-		std::copy(values.begin(), values.end(), p.begin());
-		values = std::move(p);
-
 		if (parTypeIdx == 0)
 		{
 			for (unsigned int s = 0; s < nComp; ++s)

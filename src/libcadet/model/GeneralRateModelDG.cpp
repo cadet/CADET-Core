@@ -375,22 +375,6 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 	}
 
 	// Read vectorial parameters (which may also be section dependent; transport)
-	_filmDiffusionMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, _parameters, _filmDiffusion, "FILM_DIFFUSION", _disc.nParType, _disc.nComp, _unitOpIdx);
-
-	if ((_filmDiffusion.size() < _disc.nComp * _disc.nParType) || (_filmDiffusion.size() % (_disc.nComp * _disc.nParType) != 0))
-		throw InvalidParameterException("Number of elements in field FILM_DIFFUSION is not a positive multiple of NCOMP * NPARTYPE (" + std::to_string(_disc.nComp * _disc.nParType) + ")");
-
-	if (paramProvider.exists("PORE_ACCESSIBILITY"))
-		_poreAccessFactorMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, _parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _disc.nParType, _disc.nComp, _unitOpIdx);
-	else
-	{
-		_poreAccessFactorMode = MultiplexMode::ComponentType;
-		_poreAccessFactor = std::vector<cadet::active>(_disc.nComp * _disc.nParType, 1.0);
-	}
-
-	if (_disc.nComp * _disc.nParType != _poreAccessFactor.size())
-		throw InvalidParameterException("Number of elements in field PORE_ACCESSIBILITY differs from NCOMP * NPARTYPE (" + std::to_string(_disc.nComp * _disc.nParType) + ")");
-
 	// Add parameters to map
 	_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colPorosity;
 
@@ -552,7 +536,7 @@ void GeneralRateModelDG::notifyDiscontinuousSectionTransition(double t, unsigned
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		_particle[parType].notifyDiscontinuousSectionTransition(t, secIdx, getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx), &_poreAccessFactor[0]);
+		_particle[parType].notifyDiscontinuousSectionTransition(t, secIdx);
 	}
 
 	_disc.curSection = secIdx;
@@ -886,14 +870,20 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 		const unsigned int colNode = pblk % _disc.nPoints;
 
 		linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
-		ColumnPosition colPos{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }; // Relative position of current node - needed in externally dependent adsorption kinetic
+		model::columnPackingParameters packing
+		{
+			_parTypeVolFrac[parType + _disc.nParType * colNode],
+			_colPorosity,
+			ColumnPosition{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }
+		};
 
 		_particle[parType].residual(t, secIdx,
 			y + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
 			y + idxr.offsetC() + colNode * idxr.strideColNode(),
 			yDot ? yDot + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
 			res ? res + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
-			colPos, jacIt, tlmAlloc,
+			res ? res + idxr.offsetC() + colNode * idxr.strideColNode() : nullptr,
+			packing, jacIt, tlmAlloc,
 			typename cadet::ParamSens<ParamType>::enabled()
 		);
 	}
@@ -902,8 +892,6 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 		return 0;
 
 	BENCH_STOP(_timerResidualPar);
-
-	residualFlux<StateType, ResidualType, ParamType>(t, secIdx, y, yDot, res);
 
 	// Handle inlet DOFs, which are simply copied to the residual
 	for (unsigned int i = 0; i < _disc.nComp; ++i)
@@ -964,51 +952,6 @@ int GeneralRateModelDG::residualBulk(double t, unsigned int secIdx, StateType co
 	return 0;
 }
 
-template <typename StateType, typename ResidualType, typename ParamType>
-int GeneralRateModelDG::residualFlux(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase)
-{
-	Indexer idxr(_disc);
-
-	const ParamType invBetaC = 1.0 / static_cast<ParamType>(_colPorosity) - 1.0;
-
-	// Get offsets
-	ResidualType* const resCol = resBase + idxr.offsetC();
-	StateType const* const yCol = yBase + idxr.offsetC();
-
-	for (unsigned int type = 0; type < _disc.nParType; ++type)
-	{
-		ResidualType* const resParType = resBase + idxr.offsetCp(ParticleTypeIndex{type});
-		StateType const* const yParType = yBase + idxr.offsetCp(ParticleTypeIndex{type});
-
-		const ParamType epsP = static_cast<ParamType>(_particle[type].getPorosity());
-
-		// Ordering of diffusion:
-		// sec0type0comp0, sec0type0comp1, sec0type0comp2, sec0type1comp0, sec0type1comp1, sec0type1comp2,
-		// sec1type0comp0, sec1type0comp1, sec1type0comp2, sec1type1comp0, sec1type1comp1, sec1type1comp2, ...
-		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
-
-		const ParamType surfaceToVolumeRatio = static_cast<ParamType>(_particle[type].surfaceToVolumeRatio());
-
-		const ParamType jacCF_val = invBetaC * surfaceToVolumeRatio;
-		const ParamType jacPF_val = -1.0 / epsP;
-
-		// Add flux to column void / bulk volume
-		for (unsigned int i = 0; i < _disc.nPoints * _disc.nComp; ++i)
-		{
-			const unsigned int colNode = i / _disc.nComp;
-			const unsigned int comp = i - colNode * _disc.nComp;
-			// + 1/Beta_c * (surfaceToVolumeRatio_{p,j}) * d_j * (k_f * [c_l - c_p])
-			resCol[i] += static_cast<ParamType>(filmDiff[comp]) * jacCF_val * static_cast<ParamType>(_parTypeVolFrac[type + colNode * _disc.nParType])
-				        * (yCol[i] - yParType[colNode * idxr.strideParBlock(type) + (_disc.nParPoints[type] - 1) * idxr.strideParNode(type) + comp]);
-		}
-
-		//  Bead boundary condition is computed in particle residual.
-
-	}
-
-	return 0;
-}
-
 parts::cell::CellParameters GeneralRateModelDG::makeCellResidualParams(unsigned int parType, int const* qsReaction) const
 {
 	return parts::cell::CellParameters
@@ -1019,7 +962,7 @@ parts::cell::CellParameters GeneralRateModelDG::makeCellResidualParams(unsigned 
 			_disc.strideBound[parType],
 			qsReaction,
 			_particle[parType].getPorosity(),
-			_poreAccessFactor.data() + _disc.nComp * parType,
+			_particle[parType].getPoreAccessfactor(),
 			_binding[parType],
 			(_dynReaction[parType] && (_dynReaction[parType]->numReactionsCombined() > 0)) ? _dynReaction[parType] : nullptr
 		};
@@ -1214,10 +1157,6 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (multiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nParType, _disc.nComp, value, nullptr))
-			return true;
-		if (multiplexCompTypeSecParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _disc.nParType, _disc.nComp, value, nullptr))
-			return true;
 		const int mpIc = multiplexInitialConditions(pId, value, false);
 		if (mpIc > 0)
 			return true;
@@ -1241,7 +1180,12 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, double value)
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
 			if (_particle[parType].setParameter(pId, value))
-				return true;
+			{	// continue loop for particle type independent parameters to set the respective parameter sensitivity in all particle types
+				if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
+				{
+					return true;
+				}
+			}
 		}
 
 		if (_convDispOp.setParameter(pId, value))
@@ -1273,7 +1217,12 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, int value)
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
 		if (_particle[parType].setParameter(pId, value))
-			return true;
+		{	// continue loop for particle type independent parameters to set the respective parameter sensitivity in all particle types
+			if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
+			{
+				return true;
+			}
+		}
 	}
 
 	if (pId.unitOperation == _unitOpIdx)
@@ -1293,7 +1242,12 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, bool value)
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
 		if (_particle[parType].setParameter(pId, value))
-			return true;
+		{	// continue loop for particle type independent parameters to set the respective parameter sensitivity in all particle types
+			if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
+			{
+				return true;
+			}
+		}
 	}
 
 	if (pId.unitOperation == _unitOpIdx)
@@ -1309,10 +1263,6 @@ void GeneralRateModelDG::setSensitiveParameterValue(const ParameterId& pId, doub
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (multiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nParType, _disc.nComp, value, &_sensParams))
-			return;
-		if (multiplexCompTypeSecParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _disc.nParType, _disc.nComp, value, &_sensParams))
-			return;
 		if (multiplexInitialConditions(pId, value, true) != 0)
 			return;
 
@@ -1336,7 +1286,12 @@ void GeneralRateModelDG::setSensitiveParameterValue(const ParameterId& pId, doub
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
 			if (_particle[parType].setSensitiveParameterValue(_sensParams, pId, value))
-				return;
+			{	// continue loop for particle type independent parameters to set the respective parameter sensitivity in all particle types
+				if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
+				{
+					return;
+				}
+			}
 		}
 
 		if (_convDispOp.setSensitiveParameterValue(_sensParams, pId, value))
@@ -1362,18 +1317,6 @@ bool GeneralRateModelDG::setSensitiveParameter(const ParameterId& pId, unsigned 
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (multiplexCompTypeSecParameterAD(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nParType, _disc.nComp, adDirection, adValue, _sensParams))
-		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
-		}
-
-		if (multiplexCompTypeSecParameterAD(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _disc.nParType, _disc.nComp, adDirection, adValue, _sensParams))
-		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
-		}
-
 		const int mpIc = multiplexInitialConditions(pId, adDirection, adValue);
 		if (mpIc > 0)
 		{
@@ -1405,6 +1348,7 @@ bool GeneralRateModelDG::setSensitiveParameter(const ParameterId& pId, unsigned 
 		{
 			if (_particle[parType].setSensitiveParameter(_sensParams, pId, adDirection, adValue))
 			{
+				// continue loop for particle type independent parameters to set the respective parameter sensitivity in all particle types
 				if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
 				{
 					LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;

@@ -61,10 +61,6 @@ namespace model
 		_parTypeIdx = parTypeIdx;
 		_nComp = nComp;
 
-		_filmDiffusion.resize(_nComp); // filled in notifyDiscontinuousSectionTransition
-		_poreAccessFactor.resize(_nComp); // filled in notifyDiscontinuousSectionTransition
-		_invBetaP.resize(_nComp); // filled in notifyDiscontinuousSectionTransition
-
 		// Read particle geometry and default to "SPHERICAL"
 		_parGeomSurfToVol = _SurfVolRatioSphere;
 		if (paramProvider.exists("PAR_GEOM"))
@@ -254,6 +250,20 @@ namespace model
 		if (_parPorosity <= 0.0 || _parPorosity > 1.0)
 			throw InvalidParameterException("Particle porosity is not within (0, 1] for particle type " + std::to_string(_parTypeIdx));
 
+		// Read and register film diffusion, poreAccesFactor
+		_filmDiffusionMode = readAndRegisterSingleTypeMultiplexCompTypeSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", nParType, _nComp, _parTypeIdx, unitOpIdx);
+
+		if (paramProvider.exists("PORE_ACCESSIBILITY"))
+			_poreAccessFactorMode = readAndRegisterSingleTypeMultiplexCompTypeSecParam(paramProvider, parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", nParType, _nComp, _parTypeIdx, unitOpIdx);
+		else
+		{
+			_poreAccessFactorMode = MultiplexMode::ComponentType;
+			_poreAccessFactor = std::vector<cadet::active>(_nComp, 1.0);
+		}
+		if (_poreAccessFactorMode == MultiplexMode::ComponentSectionType || _poreAccessFactorMode == MultiplexMode::ComponentSection)
+		{
+			throw InvalidParameterException("Section dependence not supported for PORE_ACCESSIBILITY");
+		}
 
 		//// Done in the unit operation: Register initial conditions parameters
 		//registerParam1DArray(parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
@@ -331,15 +341,8 @@ namespace model
 		return bindingConfSuccess && dynReactionConfSuccess;
 	}
 
-	bool HomogeneousParticle::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor)
+	bool HomogeneousParticle::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 	{
-		for (int comp = 0; comp < _nComp; comp++)
-		{
-			_filmDiffusion[comp] = filmDiff[_parTypeIdx * _nComp + comp];
-			_poreAccessFactor[comp] = poreAccessFactor[_parTypeIdx * _nComp + comp];
-			_invBetaP[comp] = (1.0 - _parPorosity) / (_poreAccessFactor[comp] * _parPorosity);
-		}
-
 		return true;
 	}
 
@@ -365,44 +368,44 @@ namespace model
 		};
 	}
 
-	int HomogeneousParticle::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
+	int HomogeneousParticle::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, double* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
 	{
 		if (resPar)
 		{
 			if (jacIt.data())
-				return residualImpl<double, double, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+				return residualImpl<double, double, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 			else
-				return residualImpl<double, double, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+				return residualImpl<double, double, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 		}
 		else if (jacIt.data())
-			return residualImpl<double, double, double, true, false>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<double, double, double, true, false>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 		else
 			return -1;
 	}
-	int HomogeneousParticle::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
+	int HomogeneousParticle::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
 	{
 		if (jacIt.data())
-			return residualImpl<double, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<double, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 		else
-			return residualImpl<double, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<double, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 	}
-	int HomogeneousParticle::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
+	int HomogeneousParticle::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity)
 	{
 		if (jacIt.data())
-			return residualImpl<active, active, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<active, active, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 		else
-			return residualImpl<active, active, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<active, active, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 	}
-	int HomogeneousParticle::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
+	int HomogeneousParticle::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity)
 	{
 		if (jacIt.data())
-			return residualImpl<active, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<active, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 		else
-			return residualImpl<active, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, jacIt, tlmAlloc);
+			return residualImpl<active, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantNonLinJac, bool wantRes>
-	int HomogeneousParticle::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ColumnPosition colPos, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
+	int HomogeneousParticle::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ResidualType* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
 	{
 		int const* const qsBinding = _binding->reactionQuasiStationarity();
 		const parts::cell::CellParameters cellResParams = makeCellResidualParams(qsBinding, _nBound);
@@ -412,24 +415,33 @@ namespace model
 		// Handle time derivatives, binding, dynamic reactions
 
 		// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
-		colPos.particle = relativeCoordinate(0);
+		packing.colPos.particle = relativeCoordinate(0);
 
 		if (wantRes)
 			parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantNonLinJac, true>(
-				t, secIdx, colPos, yPar, yDotPar ? yDotPar : nullptr, resPar ? resPar : nullptr, jacIt, cellResParams, tlmAlloc
+				t, secIdx, packing.colPos, yPar, yDotPar ? yDotPar : nullptr, resPar ? resPar : nullptr, jacIt, cellResParams, tlmAlloc
 			);
 		else
 			parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantNonLinJac, false, false>(
-				t, secIdx, colPos, yPar, yDotPar ? yDotPar : nullptr, resPar ? resPar : nullptr, jacIt, cellResParams, tlmAlloc
+				t, secIdx, packing.colPos, yPar, yDotPar ? yDotPar : nullptr, resPar ? resPar : nullptr, jacIt, cellResParams, tlmAlloc
 			);
 
 		const ParamType jacPF_val = -static_cast<ParamType>(surfaceToVolumeRatio()) / static_cast<ParamType>(_parPorosity);
+		const ParamType invBetaC = 1.0 / static_cast<ParamType>(packing.colPorosity) - 1.0;
+		const ParamType jacCF_val = invBetaC * static_cast<ParamType>(surfaceToVolumeRatio());
 
 		// Film diffusion flux
 		if (wantRes)
 		{
+			const active* const filmDiff = getSectionDependentSlice(_filmDiffusion, _nComp, secIdx);
+
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
-				resPar[comp] += jacPF_val / static_cast<ParamType>(_poreAccessFactor[comp]) * static_cast<ParamType>(_filmDiffusion[comp]) * (yBulk[comp * _strideBulkComp] - yPar[comp]);
+			{
+				// flux into particle
+				resPar[comp] += jacPF_val / static_cast<ParamType>(_poreAccessFactor[comp]) * static_cast<ParamType>(filmDiff[comp]) * (yBulk[comp * _strideBulkComp] - yPar[comp]);
+				// flux into bulk
+				resBulk[comp] += jacCF_val * static_cast<ParamType>(filmDiff[comp]) * static_cast<ParamType>(packing.parTypeVolFrac) * (yBulk[comp] - yPar[comp]);
+			}
 		}
 
 		return true;
@@ -517,6 +529,10 @@ namespace model
 			return true;
 		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, _parTypeIdx, value, nullptr))
 			return true;
+		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _nComp, _parTypeIdx, value, nullptr))
+			return true;
+		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _nComp, _parTypeIdx, value, nullptr))
+			return true;
 
 		return false;
 	}
@@ -539,6 +555,12 @@ namespace model
 		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, _parTypeIdx, value, &sensParams))
 			return true;
 
+		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _nComp, _parTypeIdx, value, &sensParams))
+			return true;
+
+		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _nComp, _parTypeIdx, value, &sensParams))
+			return true;
+
 		return false;
 	}
 
@@ -551,6 +573,18 @@ namespace model
 		}
 
 		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, _parTypeIdx, adDirection, adValue, sensParams))
+		{
+			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+			return true;
+		}
+
+		if (singleTypeMultiplexCompTypeSecParameterAD(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _nComp, _parTypeIdx, adDirection, adValue, sensParams))
+		{
+			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+			return true;
+		}
+
+		if (singleTypeMultiplexCompTypeSecParameterAD(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _nComp, _parTypeIdx, adDirection, adValue, sensParams))
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;

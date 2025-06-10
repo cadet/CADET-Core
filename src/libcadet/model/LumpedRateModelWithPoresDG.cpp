@@ -359,17 +359,6 @@ bool LumpedRateModelWithPoresDG::configure(IParameterProvider& paramProvider)
 	// Read geometry parameters
 	_colPorosity = paramProvider.getDouble("COL_POROSITY");
 
-	// Read vectorial parameters (which may also be section dependent; transport)
-	_filmDiffusionMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, _parameters, _filmDiffusion, "FILM_DIFFUSION", _disc.nParType, _disc.nComp, _unitOpIdx);
-
-	if (paramProvider.exists("PORE_ACCESSIBILITY"))
-		_poreAccessFactorMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, _parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _disc.nParType, _disc.nComp, _unitOpIdx);
-	else
-	{
-		_poreAccessFactorMode = MultiplexMode::ComponentType;
-		_poreAccessFactor = std::vector<cadet::active>(_disc.nComp * _disc.nParType, 1.0);
-	}
-
 	// Check whether PAR_TYPE_VOLFRAC is required or not
 	if ((_disc.nParType > 1) && !paramProvider.exists("PAR_TYPE_VOLFRAC"))
 		throw InvalidParameterException("The required parameter \"PAR_TYPE_VOLFRAC\" was not found");
@@ -399,11 +388,6 @@ bool LumpedRateModelWithPoresDG::configure(IParameterProvider& paramProvider)
 	// Check whether all sizes are matched
 	if (_disc.nParType * _disc.nPoints != _parTypeVolFrac.size())
 		throw InvalidParameterException("Number of elements in field PAR_TYPE_VOLFRAC does not match number of particle types");
-
-	if ((_filmDiffusion.size() < _disc.nComp * _disc.nParType) || (_filmDiffusion.size() % (_disc.nComp * _disc.nParType) != 0))
-		throw InvalidParameterException("Number of elements in field FILM_DIFFUSION is not a positive multiple of NCOMP * NPARTYPE (" + std::to_string(_disc.nComp * _disc.nParType) + ")");
-	if (_disc.nComp * _disc.nParType != _poreAccessFactor.size())
-		throw InvalidParameterException("Number of elements in field PORE_ACCESSIBILITY differs from NCOMP * NPARTYPE (" + std::to_string(_disc.nComp * _disc.nParType) + ")");
 
 	// Check that particle volume fractions sum to 1.0
 	for (unsigned int i = 0; i < _disc.nPoints; ++i)
@@ -611,7 +595,7 @@ void LumpedRateModelWithPoresDG::notifyDiscontinuousSectionTransition(double t, 
 	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
-		_particle[parType].notifyDiscontinuousSectionTransition(t, secIdx, &_filmDiffusion[0], &_poreAccessFactor[0]);
+		_particle[parType].notifyDiscontinuousSectionTransition(t, secIdx);
 }
 
 void LumpedRateModelWithPoresDG::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
@@ -960,9 +944,16 @@ int LumpedRateModelWithPoresDG::residualImpl(double t, unsigned int secIdx, Stat
 
 	for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 	{
+
 		for (unsigned int colNode = 0; colNode < _disc.nPoints; colNode++)
 		{
-			const double z = _convDispOp.relativeCoordinate(colNode);
+			model::columnPackingParameters packing
+			{
+				_parTypeVolFrac[parType + _disc.nParType * colNode],
+				_colPorosity,
+				ColumnPosition{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }
+			};
+
 			linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) - idxr.offsetC());
 
 			_particle[parType].residual(t, secIdx,
@@ -970,7 +961,8 @@ int LumpedRateModelWithPoresDG::residualImpl(double t, unsigned int secIdx, Stat
 				y + idxr.offsetC() + colNode * idxr.strideColNode(),
 				yDot ? yDot + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
 				res ? res + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
-				ColumnPosition{ z, 0.0, 0.0 }, jacIt, tlmAlloc,
+				res ? res + idxr.offsetC() + colNode * idxr.strideColNode() : nullptr,
+				packing, jacIt, tlmAlloc,
 				typename cadet::ParamSens<ParamType>::enabled()
 			);
 		}
@@ -980,8 +972,6 @@ int LumpedRateModelWithPoresDG::residualImpl(double t, unsigned int secIdx, Stat
 
 	if (!wantRes)
 		return 0;
-
-	residualFlux<StateType, ResidualType, ParamType>(t, secIdx, y, yDot, res);
 
 	// Handle inlet DOFs, which are simply copied to res
 	for (unsigned int i = 0; i < _disc.nComp; ++i)
@@ -1031,40 +1021,6 @@ int LumpedRateModelWithPoresDG::residualBulk(double t, unsigned int secIdx, Stat
 			linalg::BandedEigenSparseRowIterator jac(_globalJac, col * idxr.strideColNode());
 			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
 			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, jac, tlmAlloc);
-		}
-	}
-
-	return 0;
-}
-
-template <typename StateType, typename ResidualType, typename ParamType>
-int LumpedRateModelWithPoresDG::residualFlux(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase)
-{
-	Indexer idxr(_disc);
-
-	const ParamType invBetaC = 1.0 / static_cast<ParamType>(_colPorosity) - 1.0;
-
-	// Get offsets
-	ResidualType* const resCol = resBase + idxr.offsetC();
-	StateType const* const yCol = yBase + idxr.offsetC();
-
-	for (unsigned int type = 0; type < _disc.nParType; ++type)
-	{
-		ResidualType* const resParType = resBase + idxr.offsetCp(ParticleTypeIndex{ type });
-		StateType const* const yParType = yBase + idxr.offsetCp(ParticleTypeIndex{ type });
-
-		const ParamType surfToVolRatio = static_cast<ParamType>(_particle[type].surfaceToVolumeRatio());
-		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
-		active const* const poreAccFactor = _poreAccessFactor.data() + type * _disc.nComp;
-
-		const ParamType jacCF_val = invBetaC * surfToVolRatio;
-
-		// Add flux to column void / bulk volume equations
-		for (unsigned int i = 0; i < _disc.nPoints * _disc.nComp; ++i)
-		{
-			const unsigned int colNode = i / _disc.nComp;
-			const unsigned int comp = i % _disc.nComp;
-			resCol[i] += jacCF_val * static_cast<ParamType>(filmDiff[comp]) * static_cast<ParamType>(_parTypeVolFrac[type + _disc.nParType * colNode]) * (yCol[i] - yParType[colNode * idxr.strideParBlock(type) + comp]);
 		}
 	}
 
@@ -1213,7 +1169,7 @@ void LumpedRateModelWithPoresDG::multiplyWithDerivativeJacobian(const Simulation
 				// Add derivative with respect to dc_p / dt to Jacobian
 				localRet[comp] = localSdot[comp];
 
-				const double invBetaP = (1.0 - static_cast<double>(_particle[type].getPorosity())) / (static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]) * static_cast<double>(_particle[type].getPorosity()));
+				const double invBetaP = (1.0 - static_cast<double>(_particle[type].getPorosity())) / (static_cast<double>(_particle[type].getPoreAccessfactor()[comp]) * static_cast<double>(_particle[type].getPorosity()));
 
 				// Add derivative with respect to dq / dt to Jacobian (normal equations)
 				for (unsigned int i = 0; i < nBound[comp]; ++i)
@@ -1303,10 +1259,6 @@ bool LumpedRateModelWithPoresDG::setParameter(const ParameterId& pId, double val
 
 			return true;
 		}
-		if (multiplexCompTypeSecParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _disc.nParType, _disc.nComp, value, nullptr))
-			return true;
-		if (multiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nParType, _disc.nComp, value, nullptr))
-			return true;
 
 		const int mpIc = multiplexInitialConditions(pId, value, false);
 		if (mpIc > 0)
@@ -1372,12 +1324,6 @@ void LumpedRateModelWithPoresDG::setSensitiveParameterValue(const ParameterId& p
 
 			return;
 		}
-		if (multiplexCompTypeSecParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _disc.nParType, _disc.nComp, value, &_sensParams))
-			return;
-		if (multiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nParType, _disc.nComp, value, &_sensParams))
-			return;
-		if (multiplexInitialConditions(pId, value, true) != 0)
-			return;
 
 		if (_convDispOp.setSensitiveParameterValue(_sensParams, pId, value))
 			return;
@@ -1412,18 +1358,6 @@ bool LumpedRateModelWithPoresDG::setSensitiveParameter(const ParameterId& pId, u
 			for (unsigned int i = 0; i < _disc.nPoints; ++i)
 				_parTypeVolFrac[i * _disc.nParType + pId.particleType].setADValue(adDirection, adValue);
 
-			return true;
-		}
-
-		if (multiplexCompTypeSecParameterAD(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _disc.nParType, _disc.nComp, adDirection, adValue, _sensParams))
-		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
-		}
-
-		if (multiplexCompTypeSecParameterAD(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nParType, _disc.nComp, adDirection, adValue, _sensParams))
-		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;
 		}
 
