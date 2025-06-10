@@ -603,6 +603,8 @@ namespace parts
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 	int ParticleDiffusionOperatorDG::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, linalg::BandedEigenSparseRowIterator& jacBase)
 	{
+		const active* const filmDiff = getSectionDependentSlice(_filmDiffusion, _nComp, secIdx);
+
 		// Add the DG discretized solid entries of the jacobian that get overwritten by the binding kernel.
 		// These entries only exist for the GRM with surface diffusion
 		if (wantJac && _hasDynamicReactions && _hasSurfaceDiffusion)
@@ -615,7 +617,7 @@ namespace parts
 
 		// Get film diffusion flux at current node to compute boundary condition
 		for (unsigned int comp = 0; comp < _nComp; comp++) {
-			_localFlux[comp] = _filmDiffusion[comp] * (yBulk[comp * _strideBulkComp] - yPar[(_nParPoints - 1) * strideParNode() + comp]);
+			_localFlux[comp] = filmDiff[comp] * (yBulk[comp * _strideBulkComp] - yPar[(_nParPoints - 1) * strideParNode() + comp]);
 		}
 
 		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _nComp, secIdx);

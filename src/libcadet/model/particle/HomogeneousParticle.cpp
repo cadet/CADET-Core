@@ -260,6 +260,10 @@ namespace model
 			_poreAccessFactorMode = MultiplexMode::ComponentType;
 			_poreAccessFactor = std::vector<cadet::active>(_nComp, 1.0);
 		}
+		if (_poreAccessFactorMode == MultiplexMode::ComponentSectionType || _poreAccessFactorMode == MultiplexMode::ComponentSection)
+		{
+			throw InvalidParameterException("Section dependence not supported for PORE_ACCESSIBILITY");
+		}
 
 		//// Done in the unit operation: Register initial conditions parameters
 		//registerParam1DArray(parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
@@ -429,12 +433,14 @@ namespace model
 		// Film diffusion flux
 		if (wantRes)
 		{
+			const active* const filmDiff = getSectionDependentSlice(_filmDiffusion, _nComp, secIdx);
+
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
 				// flux into particle
-				resPar[comp] += jacPF_val / static_cast<ParamType>(_poreAccessFactor[comp]) * static_cast<ParamType>(_filmDiffusion[comp]) * (yBulk[comp * _strideBulkComp] - yPar[comp]);
+				resPar[comp] += jacPF_val / static_cast<ParamType>(_poreAccessFactor[comp]) * static_cast<ParamType>(filmDiff[comp]) * (yBulk[comp * _strideBulkComp] - yPar[comp]);
 				// flux into bulk
-				resBulk[comp] += jacCF_val * static_cast<ParamType>(_filmDiffusion[comp]) * static_cast<ParamType>(packing.parTypeVolFrac) * (yBulk[comp] - yPar[comp]);
+				resBulk[comp] += jacCF_val * static_cast<ParamType>(filmDiff[comp]) * static_cast<ParamType>(packing.parTypeVolFrac) * (yBulk[comp] - yPar[comp]);
 			}
 		}
 
