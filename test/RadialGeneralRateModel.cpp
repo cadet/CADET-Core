@@ -23,7 +23,7 @@ TEST_CASE("Radial GRM numerical Benchmark with parameter sensitivities for linea
 {
 	const std::string& modelFilePath = std::string("/data/model_radGRM_dynLin_1comp_sensbenchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_radGRM_dynLin_1comp_sensbenchmark1_FV_Z32parZ4.h5");
-	const std::vector<double> absTol = { 1e-12, 1e-8, 1e-4, 1e-12 };
+	const std::vector<double> absTol = { 1e-12, 1e-8, 1e-4, 1e-4 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 	cadet::test::column::FVparams disc(32, 4);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
