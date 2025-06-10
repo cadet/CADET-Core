@@ -94,7 +94,7 @@ namespace cadet
 			 * @param [in] secIdx Index of the new section that is about to be integrated
 			 * @return @c true if flow direction has changed, otherwise @c false
 			 */
-			virtual bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor) = 0;
+			virtual bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx) = 0;
 
 			/**
 			 * @brief Computes the residual of the particle equations and updates nonlinear Jacobian entries
@@ -135,6 +135,7 @@ namespace cadet
 
 			virtual inline const active& getPorosity() const CADET_NOEXCEPT = 0;
 			virtual inline const active* getPoreAccessfactor() const CADET_NOEXCEPT = 0;
+			virtual inline const active* getFilmDiffusion(const unsigned int secIdx) const CADET_NOEXCEPT = 0;
 
 			/**
 			 * @brief total number discrete points per particle

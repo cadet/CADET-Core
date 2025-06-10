@@ -375,22 +375,6 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 	}
 
 	// Read vectorial parameters (which may also be section dependent; transport)
-	_filmDiffusionMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, _parameters, _filmDiffusion, "FILM_DIFFUSION", _disc.nParType, _disc.nComp, _unitOpIdx);
-
-	if ((_filmDiffusion.size() < _disc.nComp * _disc.nParType) || (_filmDiffusion.size() % (_disc.nComp * _disc.nParType) != 0))
-		throw InvalidParameterException("Number of elements in field FILM_DIFFUSION is not a positive multiple of NCOMP * NPARTYPE (" + std::to_string(_disc.nComp * _disc.nParType) + ")");
-
-	if (paramProvider.exists("PORE_ACCESSIBILITY"))
-		_poreAccessFactorMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, _parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _disc.nParType, _disc.nComp, _unitOpIdx);
-	else
-	{
-		_poreAccessFactorMode = MultiplexMode::ComponentType;
-		_poreAccessFactor = std::vector<cadet::active>(_disc.nComp * _disc.nParType, 1.0);
-	}
-
-	if (_disc.nComp * _disc.nParType != _poreAccessFactor.size())
-		throw InvalidParameterException("Number of elements in field PORE_ACCESSIBILITY differs from NCOMP * NPARTYPE (" + std::to_string(_disc.nComp * _disc.nParType) + ")");
-
 	// Add parameters to map
 	_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colPorosity;
 
@@ -552,7 +536,7 @@ void GeneralRateModelDG::notifyDiscontinuousSectionTransition(double t, unsigned
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		_particle[parType].notifyDiscontinuousSectionTransition(t, secIdx, getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx), &_poreAccessFactor[0]);
+		_particle[parType].notifyDiscontinuousSectionTransition(t, secIdx);
 	}
 
 	_disc.curSection = secIdx;
@@ -978,7 +962,7 @@ parts::cell::CellParameters GeneralRateModelDG::makeCellResidualParams(unsigned 
 			_disc.strideBound[parType],
 			qsReaction,
 			_particle[parType].getPorosity(),
-			_poreAccessFactor.data() + _disc.nComp * parType,
+			_particle[parType].getPoreAccessfactor(),
 			_binding[parType],
 			(_dynReaction[parType] && (_dynReaction[parType]->numReactionsCombined() > 0)) ? _dynReaction[parType] : nullptr
 		};
@@ -1173,10 +1157,6 @@ bool GeneralRateModelDG::setParameter(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (multiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nParType, _disc.nComp, value, nullptr))
-			return true;
-		if (multiplexCompTypeSecParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _disc.nParType, _disc.nComp, value, nullptr))
-			return true;
 		const int mpIc = multiplexInitialConditions(pId, value, false);
 		if (mpIc > 0)
 			return true;
@@ -1268,10 +1248,6 @@ void GeneralRateModelDG::setSensitiveParameterValue(const ParameterId& pId, doub
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (multiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nParType, _disc.nComp, value, &_sensParams))
-			return;
-		if (multiplexCompTypeSecParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _disc.nParType, _disc.nComp, value, &_sensParams))
-			return;
 		if (multiplexInitialConditions(pId, value, true) != 0)
 			return;
 
@@ -1321,18 +1297,6 @@ bool GeneralRateModelDG::setSensitiveParameter(const ParameterId& pId, unsigned 
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (multiplexCompTypeSecParameterAD(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nParType, _disc.nComp, adDirection, adValue, _sensParams))
-		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
-		}
-
-		if (multiplexCompTypeSecParameterAD(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _disc.nParType, _disc.nComp, adDirection, adValue, _sensParams))
-		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
-		}
-
 		const int mpIc = multiplexInitialConditions(pId, adDirection, adValue);
 		if (mpIc > 0)
 		{

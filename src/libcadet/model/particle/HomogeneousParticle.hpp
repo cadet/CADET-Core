@@ -85,7 +85,7 @@ namespace parts
 
 		parts::cell::CellParameters makeCellResidualParams(int const* qsReaction, unsigned int const* nBound) const override;
 
-		bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor) override;
+		bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx) override;
 
 		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, double* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity) override;
 		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity) override;
@@ -101,6 +101,7 @@ namespace parts
 
 		inline const active& getPorosity() const CADET_NOEXCEPT  override { return _parPorosity; }
 		inline const active* getPoreAccessfactor() const CADET_NOEXCEPT  override { return &_poreAccessFactor[0]; }
+		inline const active* getFilmDiffusion(const unsigned int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_filmDiffusion, _nComp, secIdx); }
 
 		inline int nDiscPoints() const CADET_NOEXCEPT  override { return 1; }
 		inline int strideParBlock() const CADET_NOEXCEPT  override { return nDiscPoints() * stridePoint(); }
@@ -133,8 +134,9 @@ namespace parts
 
 		/* diffusion */
 		std::vector<active> _filmDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
+		MultiplexMode _filmDiffusionMode;
 		std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
-		std::vector<active> _invBetaP; //!< Ratio of solid to liquid particle volume
+		MultiplexMode _poreAccessFactorMode;
 
 		/* geometry */
 		double _SurfVolRatioSphere = 3.0; //!< Surface to volume ratio for a spherical particle

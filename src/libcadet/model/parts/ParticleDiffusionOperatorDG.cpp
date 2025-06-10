@@ -518,9 +518,9 @@ namespace parts
 	}
 
 
-	bool ParticleDiffusionOperatorDG::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor)
+	bool ParticleDiffusionOperatorDG::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 	{
-		const bool success = ParticleDiffusionOperatorBase::notifyDiscontinuousSectionTransition(t, secIdx, filmDiff, poreAccessFactor);
+		const bool success = ParticleDiffusionOperatorBase::notifyDiscontinuousSectionTransition(t, secIdx);
 
 		initializeDGjac(_parGeomSurfToVol);
 

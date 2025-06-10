@@ -61,10 +61,6 @@ namespace model
 		_parTypeIdx = parTypeIdx;
 		_nComp = nComp;
 
-		_filmDiffusion.resize(_nComp); // filled in notifyDiscontinuousSectionTransition
-		_poreAccessFactor.resize(_nComp); // filled in notifyDiscontinuousSectionTransition
-		_invBetaP.resize(_nComp); // filled in notifyDiscontinuousSectionTransition
-
 		// Read particle geometry and default to "SPHERICAL"
 		_parGeomSurfToVol = _SurfVolRatioSphere;
 		if (paramProvider.exists("PAR_GEOM"))
@@ -254,6 +250,16 @@ namespace model
 		if (_parPorosity <= 0.0 || _parPorosity > 1.0)
 			throw InvalidParameterException("Particle porosity is not within (0, 1] for particle type " + std::to_string(_parTypeIdx));
 
+		// Read and register film diffusion, poreAccesFactor
+		_filmDiffusionMode = readAndRegisterSingleTypeMultiplexCompTypeSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", nParType, _nComp, _parTypeIdx, unitOpIdx);
+
+		if (paramProvider.exists("PORE_ACCESSIBILITY"))
+			_poreAccessFactorMode = readAndRegisterSingleTypeMultiplexCompTypeSecParam(paramProvider, parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", nParType, _nComp, _parTypeIdx, unitOpIdx);
+		else
+		{
+			_poreAccessFactorMode = MultiplexMode::ComponentType;
+			_poreAccessFactor = std::vector<cadet::active>(_nComp, 1.0);
+		}
 
 		//// Done in the unit operation: Register initial conditions parameters
 		//registerParam1DArray(parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
@@ -331,15 +337,8 @@ namespace model
 		return bindingConfSuccess && dynReactionConfSuccess;
 	}
 
-	bool HomogeneousParticle::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor)
+	bool HomogeneousParticle::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 	{
-		for (int comp = 0; comp < _nComp; comp++)
-		{
-			_filmDiffusion[comp] = filmDiff[_parTypeIdx * _nComp + comp];
-			_poreAccessFactor[comp] = poreAccessFactor[_parTypeIdx * _nComp + comp];
-			_invBetaP[comp] = (1.0 - _parPorosity) / (_poreAccessFactor[comp] * _parPorosity);
-		}
-
 		return true;
 	}
 
@@ -435,7 +434,7 @@ namespace model
 				// flux into particle
 				resPar[comp] += jacPF_val / static_cast<ParamType>(_poreAccessFactor[comp]) * static_cast<ParamType>(_filmDiffusion[comp]) * (yBulk[comp * _strideBulkComp] - yPar[comp]);
 				// flux into bulk
-				resBulk[comp] += jacCF_val * static_cast<ParamType>(_filmDiffusion[comp]) * static_cast<ParamType>(packing.parTypeVolFrac[0]) * (yBulk[comp] - yPar[comp]);
+				resBulk[comp] += jacCF_val * static_cast<ParamType>(_filmDiffusion[comp]) * static_cast<ParamType>(packing.parTypeVolFrac[comp]) * (yBulk[comp] - yPar[comp]);
 			}
 		}
 
@@ -524,6 +523,10 @@ namespace model
 			return true;
 		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, _parTypeIdx, value, nullptr))
 			return true;
+		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _nComp, _parTypeIdx, value, nullptr))
+			return true;
+		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _nComp, _parTypeIdx, value, nullptr))
+			return true;
 
 		return false;
 	}
@@ -546,6 +549,12 @@ namespace model
 		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, _parTypeIdx, value, &sensParams))
 			return true;
 
+		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _nComp, _parTypeIdx, value, &sensParams))
+			return true;
+
+		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _nComp, _parTypeIdx, value, &sensParams))
+			return true;
+
 		return false;
 	}
 
@@ -558,6 +567,18 @@ namespace model
 		}
 
 		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, _parTypeIdx, adDirection, adValue, sensParams))
+		{
+			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+			return true;
+		}
+
+		if (singleTypeMultiplexCompTypeSecParameterAD(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _nComp, _parTypeIdx, adDirection, adValue, sensParams))
+		{
+			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+			return true;
+		}
+
+		if (singleTypeMultiplexCompTypeSecParameterAD(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _nComp, _parTypeIdx, adDirection, adValue, sensParams))
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;

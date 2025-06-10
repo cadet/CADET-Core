@@ -220,9 +220,9 @@ namespace model
 		return parTransportConfigSuccess && bindingConfSuccess && dynReactionConfSuccess;
 	}
 
-	bool GeneralRateParticle::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, active const* const filmDiff, active const* const poreAccessFactor)
+	bool GeneralRateParticle::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 	{
-		return _parDiffOp->notifyDiscontinuousSectionTransition(t, secIdx, filmDiff, poreAccessFactor);
+		return _parDiffOp->notifyDiscontinuousSectionTransition(t, secIdx);
 	}
 
 	int GeneralRateParticle::writeParticleCoordinates(double* coords) const
