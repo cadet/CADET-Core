@@ -79,6 +79,7 @@ jobs:
           ${BUILD_DIR}/test/testRunner [CI_sens14]
           ${BUILD_DIR}/test/testRunner [CI_sens15]
           ${BUILD_DIR}/test/testRunner [CI_sens16]
+          ${BUILD_DIR}/test/testRunner [CI_sens17]
       - name: Run CI test set III - crystallization
         run: |
           ${BUILD_DIR}/test/testRunner [CI_cry1]
