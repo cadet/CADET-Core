@@ -37,7 +37,7 @@ namespace parts
 	}
 	
 
-	bool ParticleDiffusionOperatorBase::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp)
+	bool ParticleDiffusionOperatorBase::configureModelDiscretization_old(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp)
 	{
 		_strideBulkComp = strideBulkComp;
 
@@ -136,19 +136,19 @@ namespace parts
 		{
 			const std::vector<std::string> psdDepNames = paramProvider.getStringArray("PAR_SURFDIFFUSION_DEP");
 			if ((psdDepNames.size() == 1) || (nParType == 1))
-				_singleParDepSurfDiffusion = true;
+				_parDepSurfDiffParTypeIndep = true;
 
-			if (!_singleParDepSurfDiffusion && (psdDepNames.size() < nParType))
+			if (!_parDepSurfDiffParTypeIndep && (psdDepNames.size() < nParType))
 				throw InvalidParameterException("Field PAR_SURFDIFFUSION_DEP contains too few elements (" + std::to_string(nParType) + " required)");
-			else if (_singleParDepSurfDiffusion && (psdDepNames.size() != 1))
+			else if (_parDepSurfDiffParTypeIndep && (psdDepNames.size() != 1))
 				throw InvalidParameterException("Field PAR_SURFDIFFUSION_DEP requires (only) 1 element");
 
-			if (_singleParDepSurfDiffusion)
+			if (_parDepSurfDiffParTypeIndep)
 			{
 				if ((psdDepNames[0] == "") || (psdDepNames[0] == "NONE") || (psdDepNames[0] == "DUMMY"))
 				{
 					_hasParDepSurfDiffusion = false;
-					_singleParDepSurfDiffusion = true;
+					_parDepSurfDiffParTypeIndep = true;
 					_parDepSurfDiffusion = nullptr;
 				}
 				else
@@ -178,7 +178,7 @@ namespace parts
 		else
 		{
 			_hasParDepSurfDiffusion = false;
-			_singleParDepSurfDiffusion = true;
+			_parDepSurfDiffParTypeIndep = true;
 			_parDepSurfDiffusion = nullptr;
 		}
 
@@ -213,16 +213,16 @@ namespace parts
 		return parSurfDiffDepConfSuccess;
 	}
 
-	bool ParticleDiffusionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding, const bool hasDynamicReactions)
+	bool ParticleDiffusionOperatorBase::configure_old(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding, const bool hasDynamicReactions)
 	{
 		_reqBinding = reqBinding;
 		_hasDynamicReactions = hasDynamicReactions;
 
 		// Read geometry parameters
 		std::vector<double> parRadii(nParType);
-		_singleParRadius = readScalarParameterOrArray(parRadii, paramProvider, "PAR_RADIUS", nParType);
+		_parRadiusParTypeIndep = readScalarParameterOrArray(parRadii, paramProvider, "PAR_RADIUS", nParType);
 
-		if (_singleParRadius)
+		if (_parRadiusParTypeIndep)
 		{
 			_parRadius = parRadii[0];
 			if (_parTypeIdx == 0)
@@ -235,8 +235,8 @@ namespace parts
 		}
 
 		std::vector<double> parPorosities(nParType);
-		_singleParPorosity = readScalarParameterOrArray(parPorosities, paramProvider, "PAR_POROSITY", nParType);
-		if (_singleParPorosity)
+		_parPorosityParTypeIndep = readScalarParameterOrArray(parPorosities, paramProvider, "PAR_POROSITY", nParType);
+		if (_parPorosityParTypeIndep)
 		{
 			_parPorosity = parPorosities[0];
 			if (_parTypeIdx == 0)
@@ -251,8 +251,8 @@ namespace parts
 		if (paramProvider.exists("PAR_CORERADIUS"))
 		{
 			std::vector<double> parCoreRadii(nParType);
-			_singleParCoreRadius = readScalarParameterOrArray(parCoreRadii, paramProvider, "PAR_CORERADIUS", nParType);
-			if (_singleParCoreRadius)
+			_parCoreRadiusParTypeIndep = readScalarParameterOrArray(parCoreRadii, paramProvider, "PAR_CORERADIUS", nParType);
+			if (_parCoreRadiusParTypeIndep)
 			{
 				_parCoreRadius = parCoreRadii[0];
 				if (_parTypeIdx == 0)
@@ -266,7 +266,7 @@ namespace parts
 		}
 		else
 		{
-			_singleParCoreRadius = true;
+			_parCoreRadiusParTypeIndep = true;
 			_parCoreRadius = 0.0;
 		}
 
@@ -297,17 +297,208 @@ namespace parts
 		bool parSurfDiffDepConfSuccess = true;
 		if (_hasParDepSurfDiffusion)
 		{
-			if (_singleParDepSurfDiffusion && _parDepSurfDiffusion)
+			if (_parDepSurfDiffParTypeIndep && _parDepSurfDiffusion)
 			{
 				parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configure(paramProvider, unitOpIdx, ParTypeIndep, "PAR_SURFDIFFUSION");
 			}
-			else if (!_singleParDepSurfDiffusion && _parDepSurfDiffusion)
+			else if (!_parDepSurfDiffParTypeIndep && _parDepSurfDiffusion)
 			{
 				parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configure(paramProvider, unitOpIdx, _parTypeIdx, "PAR_SURFDIFFUSION") && parSurfDiffDepConfSuccess;
 			}
 		}
 
 		return true;
+	}
+
+	bool ParticleDiffusionOperatorBase::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp)
+	{
+		_strideBulkComp = strideBulkComp;
+
+		_parTypeIdx = parTypeIdx;
+		_nComp = nComp;
+
+		// Read particle geometry and default to "SPHERICAL"
+		_parGeomSurfToVol = _SurfVolRatioSphere;
+		if (paramProvider.exists("PAR_GEOM"))
+		{
+			std::string pg = paramProvider.getString("PAR_GEOM");
+
+			if (pg == "SPHERE")
+				_parGeomSurfToVol = _SurfVolRatioSphere;
+			else if (pg == "CYLINDER")
+				_parGeomSurfToVol = _SurfVolRatioCylinder;
+			else if (pg == "SLAB")
+				_parGeomSurfToVol = _SurfVolRatioSlab;
+			else
+				throw InvalidParameterException("Unknown particle geometry in field PAR_GEOM \"" + pg + "\" for particle type " + std::to_string(_parTypeIdx));
+		}
+
+		std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
+		if (nBound.size() < _nComp)
+			throw InvalidParameterException("Field NBOUND contains too few elements for particle type " + std::to_string(_parTypeIdx) + "(NCOMP = " + std::to_string(_nComp) + " required)");
+		else if (nBound.size() > _nComp)
+			throw InvalidParameterException("Field NBOUND contains too many elements for particle type " + std::to_string(_parTypeIdx) + "(NCOMP = " + std::to_string(_nComp) + " required)");
+
+		if (!_nBound)
+			_nBound = new unsigned int[_nComp];
+		for (int comp = 0; comp < _nComp; comp++)
+			_nBound[comp] = nBound[comp];
+
+		// Precompute offsets and total number of bound states (DOFs in solid phase)
+		if (!_boundOffset)
+			_boundOffset = new unsigned int[_nComp];
+
+		_boundOffset[0] = 0.0;
+		_strideBound = std::accumulate(_nBound, _nBound + _nComp, 0u);
+
+		for (unsigned int i = 1; i < _nComp; ++i)
+		{
+			_boundOffset[i] = _boundOffset[i - 1] + _nBound[i - 1];
+		}
+
+		// ==== Construct and configure parameter dependencies
+
+		delete _parDepSurfDiffusion;
+		bool parSurfDiffDepConfSuccess = true;
+		if (paramProvider.exists("PAR_SURFDIFFUSION_DEP"))
+		{
+			const std::string psdDepName = paramProvider.getString("PAR_SURFDIFFUSION_DEP");
+			_parDepSurfDiffParTypeIndep = true;
+
+			if ((psdDepName == "") || (psdDepName == "NONE") || (psdDepName == "DUMMY"))
+			{
+				_hasParDepSurfDiffusion = false;
+				_parDepSurfDiffParTypeIndep = true;
+				_parDepSurfDiffusion = nullptr;
+			}
+			else
+			{
+				_parDepSurfDiffusion = helper.createParameterStateDependence(psdDepName);
+				if (!_parDepSurfDiffusion)
+					throw InvalidParameterException("Unknown parameter dependence " + psdDepName);
+
+				parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset);
+				_hasParDepSurfDiffusion = true;
+			}
+		}
+		else
+		{
+			_hasParDepSurfDiffusion = false;
+			_parDepSurfDiffParTypeIndep = true;
+			_parDepSurfDiffusion = nullptr;
+		}
+
+		// Check whether surface diffusion is present
+		_hasSurfaceDiffusion = false;
+		if (paramProvider.exists("PAR_SURFDIFFUSION"))
+		{
+			const std::vector<double> surfDiff = paramProvider.getDoubleArray("PAR_SURFDIFFUSION");
+			// Assume particle surface diffusion if a parameter dependence is present
+			if (_parDepSurfDiffusion)
+			{
+				_hasSurfaceDiffusion = true;
+			}
+			else
+			{
+				double const* const lsd = surfDiff.data();
+
+				// Check surface diffusion coefficients
+				for (unsigned int j = 0; j < _strideBound; ++j)
+				{
+					if (lsd[j] != 0.0)
+					{
+						_hasSurfaceDiffusion = true;
+						break;
+					}
+				}
+			}
+		}
+
+		paramProvider.pushScope("discretization");
+
+		return parSurfDiffDepConfSuccess;
+	}
+
+	bool ParticleDiffusionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding, const bool hasDynamicReactions)
+	{
+		_reqBinding = reqBinding;
+		_hasDynamicReactions = hasDynamicReactions;
+
+		// Read geometry parameters
+		_parRadius = paramProvider.getDouble("PAR_RADIUS");
+		_parRadiusParTypeIndep = false;
+		if (paramProvider.exists("PAR_RADIUS_PARTYPE_DEPENDENT"))
+		{
+			_parRadiusParTypeIndep = (paramProvider.getBool("PAR_RADIUS_PARTYPE_DEPENDENT"));
+		}
+
+		parameters[makeParamId(hashStringRuntime("PAR_RADIUS"), unitOpIdx, CompIndep, _parRadiusParTypeIndep ? ParTypeIndep : _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parRadius;
+
+		_parPorosity = paramProvider.getDouble("PAR_POROSITY");
+		_parPorosityParTypeIndep = false;
+		if (paramProvider.exists("PAR_POROSITY_PARTYPE_DEPENDENT"))
+		{
+			_parPorosityParTypeIndep = (paramProvider.getBool("PAR_POROSITY_PARTYPE_DEPENDENT"));
+		}
+
+		parameters[makeParamId(hashStringRuntime("PAR_POROSITY"), unitOpIdx, CompIndep, _parPorosityParTypeIndep ? ParTypeIndep : _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
+
+		// Let PAR_CORERADIUS default to 0.0 for backwards compatibility
+		if (paramProvider.exists("PAR_CORERADIUS"))
+		{
+			_parCoreRadius = paramProvider.getDouble("PAR_CORERADIUS");
+			_parCoreRadiusParTypeIndep = false;
+			if (paramProvider.exists("PAR_CORERADIUS_PARTYPE_DEPENDENT"))
+			{
+				_parCoreRadiusParTypeIndep = (paramProvider.getBool("PAR_CORERADIUS_PARTYPE_DEPENDENT"));
+			}
+
+			parameters[makeParamId(hashStringRuntime("PAR_CORERADIUS"), unitOpIdx, CompIndep, _parCoreRadiusParTypeIndep ? ParTypeIndep : _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parCoreRadius;
+		}
+		else
+		{
+			_parCoreRadiusParTypeIndep = true;
+			_parCoreRadius = 0.0;
+		}
+
+		_filmDiffusionMode = readAndRegisterSingleTypeMultiplexCompTypeSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", nParType, _nComp, _parTypeIdx, unitOpIdx);
+
+		if (paramProvider.exists("PORE_ACCESSIBILITY"))
+			_poreAccessFactorMode = readAndRegisterSingleTypeMultiplexCompTypeSecParam(paramProvider, parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", nParType, _nComp, _parTypeIdx, unitOpIdx);
+		else
+		{
+			_poreAccessFactorMode = MultiplexMode::ComponentType;
+			_poreAccessFactor = std::vector<cadet::active>(_nComp, 1.0);
+		}
+
+		_invBetaP.resize(_nComp);
+		for (int comp = 0; comp < _nComp; comp++)
+			_invBetaP[comp] = (1.0 - _parPorosity) / (_poreAccessFactor[comp] * _parPorosity);
+
+		_parDiffusionMode = readAndRegisterSingleTypeMultiplexCompTypeSecParam(paramProvider, parameters, _parDiffusion, "PAR_DIFFUSION", nParType, _nComp, _parTypeIdx, unitOpIdx);
+
+		if (paramProvider.exists("PAR_SURFDIFFUSION"))
+			_parSurfDiffusionMode = readAndRegisterSingleTypeMultiplexBndCompTypeSecParam(paramProvider, parameters, _parSurfDiffusion, "PAR_SURFDIFFUSION", nTotalBound, _nComp, _strideBound, _nBound, nBoundBeforeType, _parTypeIdx, unitOpIdx);
+		else
+		{
+			_parSurfDiffusionMode = MultiplexMode::Component;
+			_parSurfDiffusion.resize(_strideBound, 0.0);
+		}
+
+		bool parSurfDiffDepConfSuccess = true;
+		if (_hasParDepSurfDiffusion)
+		{
+			if (_parDepSurfDiffParTypeIndep && _parDepSurfDiffusion)
+			{
+				parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configure(paramProvider, unitOpIdx, ParTypeIndep, "PAR_SURFDIFFUSION");
+			}
+			else if (!_parDepSurfDiffParTypeIndep && _parDepSurfDiffusion)
+			{
+				parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configure(paramProvider, unitOpIdx, _parTypeIdx, "PAR_SURFDIFFUSION") && parSurfDiffDepConfSuccess;
+			}
+		}
+
+		return parSurfDiffDepConfSuccess;
 	}
 
 	bool ParticleDiffusionOperatorBase::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
@@ -364,18 +555,18 @@ namespace parts
 		if (singleTypeMultiplexBndCompTypeSecParameterValue(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nComp, _strideBound, _boundOffset, _parTypeIdx, value, nullptr))
 			return true;
 
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _singleParRadius, _parRadius, _parTypeIdx, value, nullptr))
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _parRadiusParTypeIndep, _parRadius, _parTypeIdx, value, nullptr))
 			return true;
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius, _parTypeIdx, value, nullptr))
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), _parCoreRadiusParTypeIndep, _parCoreRadius, _parTypeIdx, value, nullptr))
 			return true;
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, _parTypeIdx, value, nullptr))
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _parPorosityParTypeIndep, _parPorosity, _parTypeIdx, value, nullptr))
 			return true;
 		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _nComp, _parTypeIdx, value, nullptr))
 			return true;
 		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _nComp, _parTypeIdx, value, nullptr))
 			return true;
 
-		if (_singleParDepSurfDiffusion)
+		if (_parDepSurfDiffParTypeIndep)
 			if (_parDepSurfDiffusion && _parDepSurfDiffusion->setParameter(pId, value))
 				return true;
 
@@ -384,7 +575,7 @@ namespace parts
 
 	bool ParticleDiffusionOperatorBase::setParameter(const ParameterId& pId, int value)
 	{
-		if (_singleParDepSurfDiffusion)
+		if (_parDepSurfDiffParTypeIndep)
 			if (_parDepSurfDiffusion && _parDepSurfDiffusion->setParameter(pId, value))
 				return true;
 
@@ -393,7 +584,7 @@ namespace parts
 
 	bool ParticleDiffusionOperatorBase::setParameter(const ParameterId& pId, bool value)
 	{
-		if (_singleParDepSurfDiffusion)
+		if (_parDepSurfDiffParTypeIndep)
 			if (_parDepSurfDiffusion && _parDepSurfDiffusion->setParameter(pId, value))
 				return true;
 
@@ -407,11 +598,11 @@ namespace parts
 		if (singleTypeMultiplexBndCompTypeSecParameterValue(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nComp, _strideBound, _boundOffset, _parTypeIdx, value, &sensParams))
 			return true;
 
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _singleParRadius, _parRadius, _parTypeIdx, value, &sensParams))
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _parRadiusParTypeIndep, _parRadius, _parTypeIdx, value, &sensParams))
 			return true;
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius, _parTypeIdx, value, &sensParams))
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), _parCoreRadiusParTypeIndep, _parCoreRadius, _parTypeIdx, value, &sensParams))
 			return true;
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, _parTypeIdx, value, &sensParams))
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _parPorosityParTypeIndep, _parPorosity, _parTypeIdx, value, &sensParams))
 			return true;
 
 		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _nComp, _parTypeIdx, value, &sensParams))
@@ -419,7 +610,7 @@ namespace parts
 		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _nComp, _parTypeIdx, value, &sensParams))
 			return true;
 
-		if (model::setSensitiveParameterValue(pId, value, sensParams, std::vector< IParameterStateDependence*>(1, _parDepSurfDiffusion), _singleParDepSurfDiffusion))
+		if (model::setSensitiveParameterValue(pId, value, sensParams, std::vector< IParameterStateDependence*>(1, _parDepSurfDiffusion), _parDepSurfDiffParTypeIndep))
 			return true;
 
 		return false;
@@ -439,25 +630,25 @@ namespace parts
 			return true;
 		}
 
-		if (model::setSensitiveParameter(pId, adDirection, adValue, sensParams, std::vector< IParameterStateDependence*>(1, _parDepSurfDiffusion), _singleParDepSurfDiffusion))
+		if (model::setSensitiveParameter(pId, adDirection, adValue, sensParams, std::vector< IParameterStateDependence*>(1, _parDepSurfDiffusion), _parDepSurfDiffParTypeIndep))
 		{
 			LOG(Debug) << "Found parameter " << pId << " in surface diffusion parameter dependence: Dir " << adDirection << " is set to " << adValue;
 			return true;
 		}
 
-		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_RADIUS"), _singleParRadius, _parRadius, _parTypeIdx, adDirection, adValue, sensParams))
+		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_RADIUS"), _parRadiusParTypeIndep, _parRadius, _parTypeIdx, adDirection, adValue, sensParams))
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;
 		}
 
-		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius, _parTypeIdx, adDirection, adValue, sensParams))
+		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_CORERADIUS"), _parCoreRadiusParTypeIndep, _parCoreRadius, _parTypeIdx, adDirection, adValue, sensParams))
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;
 		}
 
-		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, _parTypeIdx, adDirection, adValue, sensParams))
+		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_POROSITY"), _parPorosityParTypeIndep, _parPorosity, _parTypeIdx, adDirection, adValue, sensParams))
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;

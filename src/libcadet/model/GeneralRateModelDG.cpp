@@ -178,7 +178,7 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 	bool particleConfSuccess = true;
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		particleConfSuccess = particleConfSuccess && _particle[parType].configureModelDiscretization(paramProvider, helper, _disc.nComp, parType, _disc.nParType, idxr.strideColComp());
+		particleConfSuccess = particleConfSuccess && _particle[parType].configureModelDiscretization_old(paramProvider, helper, _disc.nComp, parType, _disc.nParType, idxr.strideColComp());
 	}
 	paramProvider.pushScope("discretization");
 
@@ -296,13 +296,13 @@ bool GeneralRateModelDG::configureModelDiscretization(IParameterProvider& paramP
 	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
 	{
 		_binding[parType] = _particle[parType].getBinding();
-		_singleBinding = _particle[parType].singleBinding();
-		if (parType > 0 && _singleBinding != _particle[parType].singleBinding())
+		_singleBinding = _particle[parType].bindingParDep();
+		if (parType > 0 && _singleBinding != _particle[parType].bindingParDep())
 			throw InvalidParameterException("Configuration of binding went wrong");
 
 		_dynReaction[parType] = _particle[parType].getReaction();
-		_singleDynReaction = _particle[parType].singleReaction();
-		if (parType > 0 && _singleDynReaction != _particle[parType].singleReaction())
+		_singleDynReaction = _particle[parType].reactionParDep();
+		if (parType > 0 && _singleDynReaction != _particle[parType].reactionParDep())
 			throw InvalidParameterException("Configuration of particle reaction went wrong");
 	}
 
@@ -429,7 +429,7 @@ bool GeneralRateModelDG::configure(IParameterProvider& paramProvider)
 	bool particleConfSuccess = true;
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		particleConfSuccess = particleConfSuccess && _particle[parType].configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType]);
+		particleConfSuccess = particleConfSuccess && _particle[parType].configure_old(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType]);
 	}
 
 	// Reconfigure reaction model

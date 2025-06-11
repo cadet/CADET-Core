@@ -72,6 +72,7 @@ namespace parts
 		 * @param [in] boundOffset Array of size @p nComp with offsets to the first bound state of each component beginning from the solid phase
 		 */
 		virtual bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp) = 0;
+		virtual bool configureModelDiscretization_old(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp) = 0;
 
 		/**
 		 * @brief Configures the model by extracting all non-structural parameters (e.g., model parameters) from the given @p paramProvider
@@ -88,6 +89,7 @@ namespace parts
 		 * @return @c true if the configuration was successful, otherwise @c false
 		 */
 		virtual bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding, const bool hasDynamicReactions) = 0;
+		virtual bool configure_old(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding, const bool hasDynamicReactions) = 0;
 
 		/**
 		 * @brief updates radial discretization operators based on configured parameters
@@ -180,7 +182,7 @@ namespace parts
 		inline const active* getPoreAccessfactor() const CADET_NOEXCEPT { return &_poreAccessFactor[0]; }
 		inline const active* getFilmDiffusion(const unsigned int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_filmDiffusion, _nComp, secIdx); }
 		inline IParameterStateDependence* getParDepSurfDiffusion() const CADET_NOEXCEPT { return _parDepSurfDiffusion; }
-		inline bool singleParDepSurfDiffusion() const CADET_NOEXCEPT { return _singleParDepSurfDiffusion; }
+		inline bool parDepSurfDiffParTypeIndep() const CADET_NOEXCEPT { return _parDepSurfDiffParTypeIndep; }
 		inline MultiplexMode parDiffMode() const CADET_NOEXCEPT { return _parDiffusionMode; }
 		inline MultiplexMode parSurfDiffMode() const CADET_NOEXCEPT { return _parSurfDiffusionMode; }
 
@@ -202,24 +204,24 @@ namespace parts
 		/* geometry */
 		double _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)
 		active _parRadius; //!< Particle radius \f$ r_p \f$
-		bool _singleParRadius;
+		bool _parRadiusParTypeIndep; //!< Determines whether radius is particle type dependent, needed for sensitivitites
 		active _parCoreRadius; //!< Particle core radius \f$ r_c \f$
-		bool _singleParCoreRadius;
+		bool _parCoreRadiusParTypeIndep; //!< Determines whether core radius is particle type dependent, needed for sensitivitites
 		active _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
-		bool _singleParPorosity;
+		bool _parPorosityParTypeIndep; //!< Determines whether porosity is particle type dependent, needed for sensitivitites
 		std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
-		MultiplexMode _poreAccessFactorMode;
+		MultiplexMode _poreAccessFactorMode; //!< Determines the multiplex of the pore access factor, needed for sensitivitites
 		std::vector<active> _invBetaP; //!< Ratio of solid to liquid particle volume
 
 		/* diffusion rates */
 		std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$
-		MultiplexMode _filmDiffusionMode;
+		MultiplexMode _filmDiffusionMode; //!< Determines the multiplex of film diffusion, needed for sensitivitites
 		std::vector<active> _parDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
-		MultiplexMode _parDiffusionMode;
+		MultiplexMode _parDiffusionMode; //!< Determines the multiplex of particle diffusion, needed for sensitivitites
 		std::vector<active> _parSurfDiffusion; //!< Particle surface diffusion coefficient \f$ D_s \f$
-		MultiplexMode _parSurfDiffusionMode;
-		IParameterStateDependence* _parDepSurfDiffusion; //!< Parameter dependencies for particle surface diffusion
-		bool _singleParDepSurfDiffusion; //!< Determines whether a single parameter dependence for particle surface diffusion is used
+		MultiplexMode _parSurfDiffusionMode; //!< Determines the multiplex of surface diffusion, needed for sensitivitites
+		IParameterStateDependence* _parDepSurfDiffusion; //!< Parameter dependence of surface diffusion
+		bool _parDepSurfDiffParTypeIndep; //!< Determines whether parameter dependence of surface diffusion is particle type dependent
 		bool _hasParDepSurfDiffusion; //!< Determines whether particle surface diffusion parameter dependencies are present
 		bool _hasSurfaceDiffusion; //!< Determines whether surface diffusion is present
 
