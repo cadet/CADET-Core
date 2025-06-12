@@ -146,9 +146,9 @@ namespace parts
 		double _SurfVolRatioSlab = 1.0; //!< Surface to volume ratio for a slab-shaped particle
 		double _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)
 		active _parRadius; //!< Particle radius \f$ r_p \f$
-		bool _singleParRadius;
+		bool _parRadiusParTypeIndep; //!< Determines whether or not the radius is particle type dependent / specific. Used in parameter sensitivities
 		active _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
-		bool _singleParPorosity;
+		bool _parPorosityParTypeIndep; //!< Determines whether or not the porosity is particle type dependent / specific. Used in parameter sensitivities
 
 		/* strides and offsets */
 		int _strideBulkComp; //!< Component stride in bulk state vector

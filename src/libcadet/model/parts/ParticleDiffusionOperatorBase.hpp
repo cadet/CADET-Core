@@ -204,11 +204,11 @@ namespace parts
 		/* geometry */
 		double _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)
 		active _parRadius; //!< Particle radius \f$ r_p \f$
-		bool _parRadiusParTypeIndep; //!< Determines whether radius is particle type dependent, needed for sensitivitites
+		bool _parRadiusParTypeDep; //!< Determines whether radius is particle type dependent, needed for sensitivitites
 		active _parCoreRadius; //!< Particle core radius \f$ r_c \f$
-		bool _parCoreRadiusParTypeIndep; //!< Determines whether core radius is particle type dependent, needed for sensitivitites
+		bool _parCoreRadiusParTypeDep; //!< Determines whether core radius is particle type dependent, needed for sensitivitites
 		active _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
-		bool _parPorosityParTypeIndep; //!< Determines whether porosity is particle type dependent, needed for sensitivitites
+		bool _parPorosityParTypeDep; //!< Determines whether porosity is particle type dependent, needed for sensitivitites
 		std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
 		MultiplexMode _poreAccessFactorMode; //!< Determines the multiplex of the pore access factor, needed for sensitivitites
 		std::vector<active> _invBetaP; //!< Ratio of solid to liquid particle volume

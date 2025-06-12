@@ -317,20 +317,23 @@ namespace parts
 		_parTypeIdx = parTypeIdx;
 		_nComp = nComp;
 
-		// Read particle geometry and default to "SPHERICAL"
+		// Read particle geometry and default to Sphere
 		_parGeomSurfToVol = _SurfVolRatioSphere;
 		if (paramProvider.exists("PAR_GEOM"))
 		{
-			std::string pg = paramProvider.getString("PAR_GEOM");
-
-			if (pg == "SPHERE")
-				_parGeomSurfToVol = _SurfVolRatioSphere;
-			else if (pg == "CYLINDER")
-				_parGeomSurfToVol = _SurfVolRatioCylinder;
-			else if (pg == "SLAB")
-				_parGeomSurfToVol = _SurfVolRatioSlab;
+			std::vector<std::string> pg = paramProvider.getStringArray("PAR_GEOM");
+			if (pg.size() > 1)
+				throw InvalidParameterException("Only one geometry must be specified, multiple are given for particle type " + std::to_string(_parTypeIdx));
 			else
-				throw InvalidParameterException("Unknown particle geometry in field PAR_GEOM \"" + pg + "\" for particle type " + std::to_string(_parTypeIdx));
+
+				if (pg[0] == "SPHERE")
+					_parGeomSurfToVol = _SurfVolRatioSphere;
+				else if (pg[0] == "CYLINDER")
+					_parGeomSurfToVol = _SurfVolRatioCylinder;
+				else if (pg[0] == "SLAB")
+					_parGeomSurfToVol = _SurfVolRatioSlab;
+				else
+					throw InvalidParameterException("Unknown particle geometry type \"" + pg[0] + "\" for particle type " + std::to_string(_parTypeIdx));
 		}
 
 		std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
@@ -426,40 +429,72 @@ namespace parts
 
 		// Read geometry parameters
 		_parRadius = paramProvider.getDouble("PAR_RADIUS");
-		_parRadiusParTypeIndep = false;
-		if (paramProvider.exists("PAR_RADIUS_PARTYPE_DEPENDENT"))
-		{
-			_parRadiusParTypeIndep = (paramProvider.getBool("PAR_RADIUS_PARTYPE_DEPENDENT"));
-		}
 
-		parameters[makeParamId(hashStringRuntime("PAR_RADIUS"), unitOpIdx, CompIndep, _parRadiusParTypeIndep ? ParTypeIndep : _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parRadius;
+		_parRadiusParTypeDep = true;
+		if (paramProvider.exists("PAR_RADIUS_PARTYPE_DEPENDENT"))
+			_parRadiusParTypeDep = paramProvider.getBool("PAR_RADIUS_PARTYPE_DEPENDENT");
+
+		if (!_parRadiusParTypeDep && _parTypeIdx == 0)
+			parameters[makeParamId(hashStringRuntime("PAR_RADIUS"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parRadius;
+		else if (_parRadiusParTypeDep)
+			parameters[makeParamId(hashStringRuntime("PAR_RADIUS"), unitOpIdx, CompIndep, _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parRadius;
+
+		if (_parRadius <= 0.0)
+			throw InvalidParameterException("Particle radius is not bigger than zero for particle type " + std::to_string(_parTypeIdx));
 
 		_parPorosity = paramProvider.getDouble("PAR_POROSITY");
-		_parPorosityParTypeIndep = false;
+
+		_parPorosityParTypeDep = true;
 		if (paramProvider.exists("PAR_POROSITY_PARTYPE_DEPENDENT"))
-		{
-			_parPorosityParTypeIndep = (paramProvider.getBool("PAR_POROSITY_PARTYPE_DEPENDENT"));
-		}
+			_parRadiusParTypeDep = paramProvider.getBool("PAR_POROSITY_PARTYPE_DEPENDENT");
 
-		parameters[makeParamId(hashStringRuntime("PAR_POROSITY"), unitOpIdx, CompIndep, _parPorosityParTypeIndep ? ParTypeIndep : _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
+		if (!_parRadiusParTypeDep && _parTypeIdx == 0)
+			parameters[makeParamId(hashStringRuntime("PAR_POROSITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
+		else if (_parRadiusParTypeDep)
+			parameters[makeParamId(hashStringRuntime("PAR_POROSITY"), unitOpIdx, CompIndep, _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
 
-		// Let PAR_CORERADIUS default to 0.0 for backwards compatibility
+		if (_parPorosity <= 0.0 || _parPorosity > 1.0)
+			throw InvalidParameterException("Particle porosity is not within (0, 1] for particle type " + std::to_string(_parTypeIdx));
+
 		if (paramProvider.exists("PAR_CORERADIUS"))
 		{
 			_parCoreRadius = paramProvider.getDouble("PAR_CORERADIUS");
-			_parCoreRadiusParTypeIndep = false;
-			if (paramProvider.exists("PAR_CORERADIUS_PARTYPE_DEPENDENT"))
-			{
-				_parCoreRadiusParTypeIndep = (paramProvider.getBool("PAR_CORERADIUS_PARTYPE_DEPENDENT"));
-			}
 
-			parameters[makeParamId(hashStringRuntime("PAR_CORERADIUS"), unitOpIdx, CompIndep, _parCoreRadiusParTypeIndep ? ParTypeIndep : _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parCoreRadius;
+			_parCoreRadiusParTypeDep = true;
+			if (paramProvider.exists("PAR_CORERADIUS_PARTYPE_DEPENDENT"))
+				_parCoreRadiusParTypeDep = paramProvider.getBool("PAR_CORERADIUS_PARTYPE_DEPENDENT");
+
+			if (!_parRadiusParTypeDep && _parTypeIdx == 0)
+				parameters[makeParamId(hashStringRuntime("PAR_CORERADIUS"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parCoreRadius;
+			else if (_parCoreRadiusParTypeDep)
+				parameters[makeParamId(hashStringRuntime("PAR_CORERADIUS"), unitOpIdx, CompIndep, _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parCoreRadius;
+
+			if (_parRadius <= 0.0)
+				throw InvalidParameterException("Particle radius is not bigger than zero for particle type " + std::to_string(_parTypeIdx));
+
 		}
 		else
 		{
-			_parCoreRadiusParTypeIndep = true;
+			_parCoreRadiusParTypeDep = true;
 			_parCoreRadius = 0.0;
 		}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 		_filmDiffusionMode = readAndRegisterSingleTypeMultiplexCompTypeSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", nParType, _nComp, _parTypeIdx, unitOpIdx);
 

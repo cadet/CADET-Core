@@ -199,7 +199,7 @@ namespace model
 		{
 			const std::string parSpatialMethod = paramProvider.getString("SPATIAL_METHOD");
 			if (parSpatialMethod != "DG")
-				throw InvalidParameterException("Unsupported SPATIAL_METHOD '" + parSpatialMethod + "' for GeneralRateParticle. Only 'DG' is supported.");
+				throw InvalidParameterException("Unsupported SPATIAL_METHOD '" + parSpatialMethod + "' for GeneralRateParticle. Only 'DG' is supported for now.");
 
 			_parDiffOp = new parts::ParticleDiffusionOperatorDG();
 		}
