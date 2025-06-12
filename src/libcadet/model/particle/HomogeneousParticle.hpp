@@ -131,9 +131,6 @@ namespace parts
 
 	protected:
 
-		/* component system */
-		unsigned int* _nBound; //!< Array with number of bound states for each component
-
 		/* diffusion */
 		std::vector<active> _filmDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
 		MultiplexMode _filmDiffusionMode;

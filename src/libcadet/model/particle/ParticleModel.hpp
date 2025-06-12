@@ -117,15 +117,6 @@ namespace cadet
 			virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity) = 0;
 			virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity) = 0;
 
-			unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)
-
-			unsigned int _nComp; //!< Number of components
-
-			IBindingModel* _binding; //!< Binding model
-			bool _bindingParDep; //!< Whether the binding model parameters depend on the particle type
-			IDynamicReactionModel* _dynReaction; //!< Dynamic reaction model
-			bool _reactionParDep; //!< Whether the binding model parameters depend on the particle type
-
 			virtual double relativeCoordinate(const unsigned int nodeIdx) const CADET_NOEXCEPT = 0;
 
 			virtual active surfaceToVolumeRatio() const CADET_NOEXCEPT = 0;
@@ -179,6 +170,16 @@ namespace cadet
 
 			virtual bool leanConsistentInitialTimeDerivativeValidity() const = 0;
 
+			protected:
+
+				unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)
+				unsigned int _nComp; //!< Number of components
+
+				IBindingModel* _binding; //!< Binding model
+				std::shared_ptr<unsigned int[]> _nBound; //!< Array with number of bound states for each component
+				bool _bindingParDep; //!< Whether the binding model parameters depend on the particle type
+				IDynamicReactionModel* _dynReaction; //!< Dynamic reaction model
+				bool _reactionParDep; //!< Whether the binding model parameters depend on the particle type
 		};
 
 	} // namespace model

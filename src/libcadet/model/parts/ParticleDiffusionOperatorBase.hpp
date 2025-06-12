@@ -160,7 +160,7 @@ namespace parts
 		/**
 		 * @brief array with number of bound states for each component
 		 */
-		unsigned int* nBound() CADET_NOEXCEPT { return _nBound; };
+		std::shared_ptr<unsigned int[]> nBound() CADET_NOEXCEPT { return _nBound; };
 		/**
 		 * @brief array with offsets to the first bound state of each component in the solid phase
 		 */
@@ -199,7 +199,7 @@ namespace parts
 
 		/* component system */
 		unsigned int _nComp; //!< Number of components
-		unsigned int* _nBound; //!< Array with number of bound states for each component
+		std::shared_ptr<unsigned int[]> _nBound; //!< Array with number of bound states for each component
 
 		/* geometry */
 		double _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)

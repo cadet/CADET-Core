@@ -25,14 +25,13 @@ namespace model
 
 namespace parts
 {
-	ParticleDiffusionOperatorBase::ParticleDiffusionOperatorBase() : _boundOffset(nullptr), _nBound(nullptr), _reqBinding(nullptr), _parDepSurfDiffusion(nullptr)
+	ParticleDiffusionOperatorBase::ParticleDiffusionOperatorBase() : _boundOffset(nullptr), _reqBinding(nullptr), _parDepSurfDiffusion(nullptr)
 	{
 	}
 
 	ParticleDiffusionOperatorBase::~ParticleDiffusionOperatorBase() CADET_NOEXCEPT
 	{
 		delete[] _boundOffset;
-		delete[] _nBound;
 		delete[] _parDepSurfDiffusion;
 	}
 	
@@ -86,11 +85,11 @@ namespace parts
 		std::vector<int> stridesParTypeBound(nParType + 1);
 		std::vector<int> nBoundBeforeType(nParType);
 		if (!_nBound)
-			_nBound = new unsigned int[_nComp];
+			_nBound = std::make_shared<unsigned int []>(_nComp);
 
 		if (nBound.size() < _nComp * nParType)
 		{
-			std::copy_n(nBound.begin(), _nComp, _nBound);
+			std::copy_n(nBound.begin(), _nComp, _nBound.get());
 
 			stridesParTypeBound[0] = std::accumulate(nBound.begin(), nBound.begin() + _nComp, 0);
 			nBoundBeforeType[0] = 0;
@@ -103,7 +102,7 @@ namespace parts
 		}
 		else
 		{
-			std::copy_n(nBound.begin() + _parTypeIdx * _nComp, _nComp, _nBound);
+			std::copy_n(nBound.begin() + _parTypeIdx * _nComp, _nComp, _nBound.get());
 
 			stridesParTypeBound[0] = std::accumulate(nBound.begin(), nBound.begin() + _nComp, 0);
 			nBoundBeforeType[0] = 0;
@@ -120,7 +119,7 @@ namespace parts
 			_boundOffset = new unsigned int[_nComp];
 
 		_boundOffset[0] = 0.0;
-		_strideBound = std::accumulate(_nBound, _nBound + _nComp, 0u);
+		_strideBound = std::accumulate(_nBound.get(), _nBound.get() + _nComp, 0u);
 
 		for (unsigned int i = 1; i < _nComp; ++i)
 		{
@@ -157,7 +156,7 @@ namespace parts
 					if (!_parDepSurfDiffusion)
 						throw InvalidParameterException("Unknown parameter dependence " + psdDepNames[0]);
 
-					parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset);
+					parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _boundOffset);
 					_hasParDepSurfDiffusion = true;
 				}
 			}
@@ -169,7 +168,7 @@ namespace parts
 					if (!_parDepSurfDiffusion)
 						throw InvalidParameterException("Unknown parameter dependence " + psdDepNames[parTypeIdx]);
 
-					parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset) && parSurfDiffDepConfSuccess;
+					parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _boundOffset) && parSurfDiffDepConfSuccess;
 				}
 
 				_hasParDepSurfDiffusion = _parDepSurfDiffusion;
@@ -287,7 +286,7 @@ namespace parts
 		_parDiffusionMode = readAndRegisterSingleTypeMultiplexCompTypeSecParam(paramProvider, parameters, _parDiffusion, "PAR_DIFFUSION", nParType, _nComp, _parTypeIdx, unitOpIdx);
 
 		if (paramProvider.exists("PAR_SURFDIFFUSION"))
-			_parSurfDiffusionMode = readAndRegisterSingleTypeMultiplexBndCompTypeSecParam(paramProvider, parameters, _parSurfDiffusion, "PAR_SURFDIFFUSION", nTotalBound, _nComp, _strideBound, _nBound, nBoundBeforeType, _parTypeIdx, unitOpIdx);
+			_parSurfDiffusionMode = readAndRegisterSingleTypeMultiplexBndCompTypeSecParam(paramProvider, parameters, _parSurfDiffusion, "PAR_SURFDIFFUSION", nTotalBound, _nComp, _strideBound, _nBound.get(), nBoundBeforeType, _parTypeIdx, unitOpIdx);
 		else
 		{
 			_parSurfDiffusionMode = MultiplexMode::Component;
@@ -337,22 +336,19 @@ namespace parts
 		}
 
 		std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
-		if (nBound.size() < _nComp)
-			throw InvalidParameterException("Field NBOUND contains too few elements for particle type " + std::to_string(_parTypeIdx) + "(NCOMP = " + std::to_string(_nComp) + " required)");
-		else if (nBound.size() > _nComp)
-			throw InvalidParameterException("Field NBOUND contains too many elements for particle type " + std::to_string(_parTypeIdx) + "(NCOMP = " + std::to_string(_nComp) + " required)");
+		if (nBound.size() != _nComp)
+			throw InvalidParameterException("Field NBOUND does not contain NCOMP = " + std::to_string(_nComp) + " entries for particle type " + std::to_string(_parTypeIdx));
 
 		if (!_nBound)
-			_nBound = new unsigned int[_nComp];
-		for (int comp = 0; comp < _nComp; comp++)
-			_nBound[comp] = nBound[comp];
+			_nBound = std::make_shared<unsigned int[]>(_nComp);
+		std::copy_n(nBound.begin(), _nComp, _nBound.get());
 
 		// Precompute offsets and total number of bound states (DOFs in solid phase)
 		if (!_boundOffset)
 			_boundOffset = new unsigned int[_nComp];
 
 		_boundOffset[0] = 0.0;
-		_strideBound = std::accumulate(_nBound, _nBound + _nComp, 0u);
+		_strideBound = std::accumulate(_nBound.get(), _nBound.get() + _nComp, 0u);
 
 		for (unsigned int i = 1; i < _nComp; ++i)
 		{
@@ -380,7 +376,7 @@ namespace parts
 				if (!_parDepSurfDiffusion)
 					throw InvalidParameterException("Unknown parameter dependence " + psdDepName);
 
-				parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset);
+				parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _boundOffset);
 				_hasParDepSurfDiffusion = true;
 			}
 		}
@@ -503,7 +499,7 @@ namespace parts
 		if (paramProvider.exists("PAR_SURFDIFFUSION"))
 		{
 			bool parSurfDiffParTypeDep = paramProvider.exists("PAR_SURFDIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getBool("PAR_SURFDIFFUSION_PARTYPE_DEPENDENT") : true;
-			_parDiffusionMode = newIF_readAndRegisterMultiplexBndCompSecParam(paramProvider, parameters, _parSurfDiffusion, "PAR_SURFDIFFUSION", nTotalBound, _nComp, _strideBound, _nBound, _parTypeIdx, parSurfDiffParTypeDep, unitOpIdx);
+			_parDiffusionMode = newIF_readAndRegisterMultiplexBndCompSecParam(paramProvider, parameters, _parSurfDiffusion, "PAR_SURFDIFFUSION", nTotalBound, _nComp, _strideBound, _nBound.get(), _parTypeIdx, parSurfDiffParTypeDep, unitOpIdx);
 
 		}
 		else

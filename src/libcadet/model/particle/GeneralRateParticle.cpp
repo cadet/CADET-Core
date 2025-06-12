@@ -77,6 +77,8 @@ namespace model
 
 		const bool particleTransportConfigSuccess = _parDiffOp->configureModelDiscretization_old(paramProvider, helper, nComp, parTypeIdx, nParType, strideBulkComp);
 
+		_nBound = _parDiffOp->nBound();
+
 		// ==== Construct and configure binding model
 		_binding = nullptr;
 		std::vector<std::string> bindModelNames = { "NONE" };
@@ -103,7 +105,7 @@ namespace model
 			throw InvalidParameterException("Unknown binding model " + bindModelNames[_bindingParDep ? 0 : _parTypeIdx]);
 
 		MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _bindingParDep, _parTypeIdx, nParType == 1, _binding->usesParamProviderInDiscretizationConfig());
-		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _parDiffOp->nBound(), _parDiffOp->offsetBoundComp());
+		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _parDiffOp->offsetBoundComp());
 
 		// ==== Construct and configure dynamic reaction model
 		bool reactionConfSuccess = true;
@@ -133,7 +135,7 @@ namespace model
 				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[_reactionParDep ? 0 : _parTypeIdx]);
 
 			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _reactionParDep, _parTypeIdx, nParType == 1, _dynReaction->usesParamProviderInDiscretizationConfig());
-			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _parDiffOp->nBound(), _parDiffOp->offsetBoundComp()) && reactionConfSuccess;
+			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _parDiffOp->offsetBoundComp()) && reactionConfSuccess;
 		}
 
 		return particleTransportConfigSuccess && bindingConfSuccess && reactionConfSuccess;
@@ -230,7 +232,7 @@ namespace model
 		if (paramProvider.exists("BINDING_PARTYPE_DEPENDENT"))
 			_bindingParDep = paramProvider.getBool("BINDING_PARTYPE_DEPENDENT");
 
-		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _parDiffOp->nBound(), _parDiffOp->offsetBoundComp());
+		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _parDiffOp->offsetBoundComp());
 
 		// ==== Construct and configure dynamic reaction model
 		bool reactionConfSuccess = true;
@@ -254,7 +256,7 @@ namespace model
 			if (paramProvider.exists("REACTION_PARTYPE_DEPENDENT"))
 				_reactionParDep = paramProvider.getBool("REACTIN_PARTYPE_DEPENDENT");
 
-			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _parDiffOp->nBound(), _parDiffOp->offsetBoundComp()) && reactionConfSuccess;
+			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _parDiffOp->offsetBoundComp()) && reactionConfSuccess;
 		}
 
 		paramProvider.popScope(); // particle_type_{:03}
@@ -419,7 +421,7 @@ namespace model
 	int GeneralRateParticle::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ResidualType* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
 	{
 		int const* const qsBinding = _binding->reactionQuasiStationarity();
-		const parts::cell::CellParameters cellResParams = makeCellResidualParams(qsBinding, _parDiffOp->nBound());
+		const parts::cell::CellParameters cellResParams = makeCellResidualParams(qsBinding, _nBound.get());
 
 		linalg::BandedEigenSparseRowIterator jacBase = jacIt;
 

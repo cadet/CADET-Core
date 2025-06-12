@@ -44,13 +44,12 @@ namespace model
 	/**
 	 * @brief Creates a HomogeneousParticle
 	 */
-	HomogeneousParticle::HomogeneousParticle() : _nBound(nullptr), _boundOffset(nullptr)
+	HomogeneousParticle::HomogeneousParticle() : _boundOffset(nullptr)
 	{
 	}
 
 	HomogeneousParticle::~HomogeneousParticle() CADET_NOEXCEPT
 	{
-		delete[] _nBound;
 		delete[] _boundOffset;
 	}
 
@@ -105,11 +104,11 @@ namespace model
 		std::vector<int> stridesParTypeBound(nParType + 1);
 		std::vector<int> nBoundBeforeType(nParType);
 		if (!_nBound)
-			_nBound = new unsigned int[_nComp];
+			_nBound = std::make_shared<unsigned int[]>(_nComp);
 
 		if (nBound.size() < _nComp * nParType)
 		{
-			std::copy_n(nBound.begin(), _nComp, _nBound);
+			std::copy_n(nBound.begin(), _nComp, _nBound.get());
 
 			stridesParTypeBound[0] = std::accumulate(nBound.begin(), nBound.begin() + _nComp, 0);
 			nBoundBeforeType[0] = 0;
@@ -122,7 +121,7 @@ namespace model
 		}
 		else
 		{
-			std::copy_n(nBound.begin() + _parTypeIdx * _nComp, _nComp, _nBound);
+			std::copy_n(nBound.begin() + _parTypeIdx * _nComp, _nComp, _nBound.get());
 
 			stridesParTypeBound[0] = std::accumulate(nBound.begin(), nBound.begin() + _nComp, 0);
 			nBoundBeforeType[0] = 0;
@@ -139,7 +138,7 @@ namespace model
 			_boundOffset = new unsigned int[_nComp];
 
 		_boundOffset[0] = 0.0;
-		_strideBound = std::accumulate(_nBound, _nBound + _nComp, 0u);
+		_strideBound = std::accumulate(_nBound.get(), _nBound.get() + _nComp, 0u);
 
 		for (unsigned int i = 1; i < _nComp; ++i)
 		{
@@ -172,7 +171,7 @@ namespace model
 			throw InvalidParameterException("Unknown binding model " + bindModelNames[_bindingParDep ? 0 : _parTypeIdx]);
 
 		MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _bindingParDep, _parTypeIdx, nParType == 1, _binding->usesParamProviderInDiscretizationConfig());
-		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset);
+		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _boundOffset);
 
 		// ==== Construct and configure dynamic reaction model
 		bool reactionConfSuccess = true;
@@ -202,7 +201,7 @@ namespace model
 				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[_reactionParDep ? 0 : _parTypeIdx]);
 
 			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _reactionParDep, _parTypeIdx, nParType == 1, _dynReaction->usesParamProviderInDiscretizationConfig());
-			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset) && reactionConfSuccess;
+			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _boundOffset) && reactionConfSuccess;
 		}
 
 		return bindingConfSuccess && reactionConfSuccess;
@@ -368,22 +367,19 @@ namespace model
 		}
 
 		std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
-		if (nBound.size() < _nComp)
-			throw InvalidParameterException("Field NBOUND contains too few elements for particle type " + std::to_string(_parTypeIdx) + "(NCOMP = " + std::to_string(_nComp) + " required)");
-		else if (nBound.size() > _nComp)
-			throw InvalidParameterException("Field NBOUND contains too many elements for particle type " + std::to_string(_parTypeIdx) + "(NCOMP = " + std::to_string(_nComp) + " required)");
+		if (nBound.size() != _nComp)
+			throw InvalidParameterException("Field NBOUND does not contain NCOMP = " + std::to_string(_nComp) + " entries for particle type " + std::to_string(_parTypeIdx));
 
 		if (!_nBound)
-			_nBound = new unsigned int[_nComp];
-		for (int comp = 0; comp < _nComp; comp++)
-			_nBound[comp] = nBound[comp];
+			_nBound = std::make_shared<unsigned int[]>(_nComp);
+		std::copy_n(nBound.begin(), _nComp, _nBound.get());
 
 		// Precompute offsets and total number of bound states (DOFs in solid phase)
 		if (!_boundOffset)
 			_boundOffset = new unsigned int[_nComp];
 
 		_boundOffset[0] = 0.0;
-		_strideBound = std::accumulate(_nBound, _nBound + _nComp, 0u);
+		_strideBound = std::accumulate(_nBound.get(), _nBound.get() + _nComp, 0u);
 
 		for (unsigned int i = 1; i < _nComp; ++i)
 		{
@@ -410,7 +406,7 @@ namespace model
 		if (paramProvider.exists("BINDING_PARTYPE_DEPENDENT"))
 			_bindingParDep = paramProvider.getBool("BINDING_PARTYPE_DEPENDENT");
 
-		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset);
+		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _boundOffset);
 
 		// ==== Construct and configure dynamic reaction model
 		bool reactionConfSuccess = true;
@@ -434,7 +430,7 @@ namespace model
 			if (paramProvider.exists("REACTION_PARTYPE_DEPENDENT"))
 				_reactionParDep = paramProvider.getBool("REACTIN_PARTYPE_DEPENDENT");
 
-			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _nBound, _boundOffset) && reactionConfSuccess;
+			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _boundOffset) && reactionConfSuccess;
 		}
 
 		paramProvider.popScope(); // particle_type_{:03}
@@ -637,7 +633,7 @@ namespace model
 	int HomogeneousParticle::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ResidualType* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
 	{
 		int const* const qsBinding = _binding->reactionQuasiStationarity();
-		const parts::cell::CellParameters cellResParams = makeCellResidualParams(qsBinding, _nBound);
+		const parts::cell::CellParameters cellResParams = makeCellResidualParams(qsBinding, _nBound.get());
 
 		linalg::BandedEigenSparseRowIterator jacBase = jacIt;
 
