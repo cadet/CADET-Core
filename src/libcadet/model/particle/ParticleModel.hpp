@@ -84,6 +84,8 @@ namespace cadet
 
 			virtual bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp) = 0;
 			virtual bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound) = 0;
+			virtual bool configureModelDiscretization_old(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp) = 0;
+			virtual bool configure_old(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound) = 0;
 
 			virtual void updateRadialDisc() = 0;
 
@@ -120,18 +122,18 @@ namespace cadet
 			unsigned int _nComp; //!< Number of components
 
 			IBindingModel* _binding; //!< Binding model
-			bool _singleBinding; //!< Determines whether only a single binding model is present in the whole unit
+			bool _bindingParDep; //!< Whether the binding model parameters depend on the particle type
 			IDynamicReactionModel* _dynReaction; //!< Dynamic reaction model
-			bool _singleDynReaction; //!< Determines whether only a single particle reaction model is present in the whole unit
+			bool _reactionParDep; //!< Whether the binding model parameters depend on the particle type
 
 			virtual double relativeCoordinate(const unsigned int nodeIdx) const CADET_NOEXCEPT = 0;
 
 			virtual active surfaceToVolumeRatio() const CADET_NOEXCEPT = 0;
 
 			inline IBindingModel* getBinding() const CADET_NOEXCEPT { return _binding; }
-			inline bool singleBinding() const CADET_NOEXCEPT { return _singleBinding; }
+			inline bool bindingParDep() const CADET_NOEXCEPT { return _bindingParDep; }
 			inline IDynamicReactionModel* getReaction() const CADET_NOEXCEPT { return _dynReaction; }
-			inline bool singleReaction() const CADET_NOEXCEPT { return _singleDynReaction; }
+			inline bool reactionParDep() const CADET_NOEXCEPT { return _reactionParDep; }
 
 			virtual inline const active& getPorosity() const CADET_NOEXCEPT = 0;
 			virtual inline const active* getPoreAccessfactor() const CADET_NOEXCEPT = 0;

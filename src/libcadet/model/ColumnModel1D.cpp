@@ -296,13 +296,13 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
 	{
 		_binding[parType] = _particle[parType].getBinding();
-		_singleBinding = _particle[parType].singleBinding();
-		if (parType > 0 && _singleBinding != _particle[parType].singleBinding())
+		_singleBinding = _particle[parType].bindingParDep();
+		if (parType > 0 && _singleBinding != _particle[parType].bindingParDep())
 			throw InvalidParameterException("Configuration of binding went wrong");
 
 		_dynReaction[parType] = _particle[parType].getReaction();
-		_singleDynReaction = _particle[parType].singleReaction();
-		if (parType > 0 && _singleDynReaction != _particle[parType].singleReaction())
+		_singleDynReaction = _particle[parType].reactionParDep();
+		if (parType > 0 && _singleDynReaction != _particle[parType].reactionParDep())
 			throw InvalidParameterException("Configuration of particle reaction went wrong");
 	}
 
@@ -1177,10 +1177,18 @@ bool ColumnModel1D::setParameter(const ParameterId& pId, double value)
 			return true;
 		}
 
+		// Parameters with particle type independence will be set for all particle types that have this parameter.
+		// E.g. for a parameter type independent surface diffusion, the value is set for all particle types that have this parameter.
+		bool paramExists = false;
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
-			if (_particle[parType].setParameter(pId, value))
-			{	// continue loop for particle type independent parameters to set the respective parameter sensitivity in all particle types
+			paramExists = paramExists || _particle[parType].setParameter(pId, value);
+			if (paramExists)
+			{
+				// Check whether particle radius or core radius has changed and update radial discretization if necessary
+				if ((pId.name == hashString("PAR_RADIUS")) || (pId.name == hashString("PAR_CORERADIUS")))
+					_particle[parType].updateRadialDisc();
+
 				if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
 				{
 					return true;
@@ -1195,18 +1203,7 @@ bool ColumnModel1D::setParameter(const ParameterId& pId, double value)
 			return true;
 	}
 
-	const bool result = UnitOperationBase::setParameter(pId, value);
-
-	// Check whether particle radius or core radius has changed and update radial discretization if necessary
-	if (result && ((pId.name == hashString("PAR_RADIUS")) || (pId.name == hashString("PAR_CORERADIUS"))))
-	{
-		for (int parType = 0; parType < _disc.nParType; parType++)
-		{
-			_particle[parType].updateRadialDisc();
-		}
-	}
-
-	return result;
+	return UnitOperationBase::setParameter(pId, value);
 }
 
 bool ColumnModel1D::setParameter(const ParameterId& pId, int value)
@@ -1214,10 +1211,14 @@ bool ColumnModel1D::setParameter(const ParameterId& pId, int value)
 	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
 		return false;
 
+	// Parameters with particle type independence will be set for all particle types that have this parameter.
+	// E.g. for a parameter type independent surface diffusion, the value is set for all particle types that have this parameter.
+	bool paramExists = false;
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		if (_particle[parType].setParameter(pId, value))
-		{	// continue loop for particle type independent parameters to set the respective parameter sensitivity in all particle types
+		paramExists = paramExists || _particle[parType].setParameter(pId, value);
+		if (paramExists)
+		{
 			if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
 			{
 				return true;
@@ -1239,10 +1240,14 @@ bool ColumnModel1D::setParameter(const ParameterId& pId, bool value)
 	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
 		return false;
 
+	// Parameters with particle type independence will be set for all particle types that have this parameter.
+	// E.g. for a parameter type independent surface diffusion, the value is set for all particle types that have this parameter.
+	bool paramExists = false;
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		if (_particle[parType].setParameter(pId, value))
-		{	// continue loop for particle type independent parameters to set the respective parameter sensitivity in all particle types
+		paramExists = paramExists || _particle[parType].setParameter(pId, value);
+		if (paramExists)
+		{
 			if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
 			{
 				return true;
@@ -1283,10 +1288,18 @@ void ColumnModel1D::setSensitiveParameterValue(const ParameterId& pId, double va
 			return;
 		}
 
+		// Parameters with particle type independence will be set for all particle types that have this parameter.
+		// E.g. for a parameter type independent surface diffusion, the AD value is set for all particle types that have this parameter.
+		bool paramExists = false;
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
-			if (_particle[parType].setSensitiveParameterValue(_sensParams, pId, value))
-			{	// continue loop for particle type independent parameters to set the respective parameter sensitivity in all particle types
+			paramExists = paramExists || _particle[parType].setSensitiveParameterValue(_sensParams, pId, value);
+			if (paramExists)
+			{
+				// Check whether particle radius or core radius has changed and update radial discretization if necessary
+				if ((pId.name == hashString("PAR_RADIUS")) || (pId.name == hashString("PAR_CORERADIUS")))
+					_particle[parType].updateRadialDisc();
+
 				if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
 				{
 					return;
@@ -1301,16 +1314,7 @@ void ColumnModel1D::setSensitiveParameterValue(const ParameterId& pId, double va
 			return;
 	}
 
-	UnitOperationBase::setSensitiveParameterValue(pId, value);
-
-	// Check whether particle radius or core radius has changed and update radial discretization if necessary
-	if ((pId.name == hashString("PAR_RADIUS")) || (pId.name == hashString("PAR_CORERADIUS")))
-	{
-		for (int parType = 0; parType < _disc.nParType; parType++)
-		{
-			_particle[parType].updateRadialDisc();
-		}
-	}
+	return UnitOperationBase::setSensitiveParameterValue(pId, value);
 }
 
 bool ColumnModel1D::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
@@ -1344,10 +1348,22 @@ bool ColumnModel1D::setSensitiveParameter(const ParameterId& pId, unsigned int a
 			return true;
 		}
 
+		// Parameter sensitivities with particle type independence will be set for all particle types that have this parameter.
+		// E.g. for a parameter type independent surface diffusion sensitivity, the sensitivity is set for all particle types that have this parameter.
+		bool paramExists = false;
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
-			if (_particle[parType].setSensitiveParameter(_sensParams, pId, adDirection, adValue))
+			paramExists = paramExists || _particle[parType].setSensitiveParameter(_sensParams, pId, adDirection, adValue);
+			if (paramExists)
 			{
+				// Check whether particle radius or core radius has been set active and update radial discretization if necessary
+				// Note that we need to recompute the radial discretization variables (_parCellSize, _parCenterRadius, _parOuterSurfAreaPerVolume, _parInnerSurfAreaPerVolume)
+				// because their gradient has changed (although their nominal value has not changed).
+				if ((pId.name == hashString("PAR_RADIUS")) || (pId.name == hashString("PAR_CORERADIUS")))
+				{
+					_particle[parType].updateRadialDisc();
+				}
+
 				// continue loop for particle type independent parameters to set the respective parameter sensitivity in all particle types
 				if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
 				{
@@ -1370,20 +1386,7 @@ bool ColumnModel1D::setSensitiveParameter(const ParameterId& pId, unsigned int a
 		}
 	}
 
-	const bool result = UnitOperationBase::setSensitiveParameter(pId, adDirection, adValue);
-
-	// Check whether particle radius or core radius has been set active and update radial discretization if necessary
-	// Note that we need to recompute the radial discretization variables (_parCellSize, _parCenterRadius, _parOuterSurfAreaPerVolume, _parInnerSurfAreaPerVolume)
-	// because their gradient has changed (although their nominal value has not changed).
-	if ((pId.name == hashString("PAR_RADIUS")) || (pId.name == hashString("PAR_CORERADIUS")))
-	{
-		for (int parType = 0; parType < _disc.nParType; parType++)
-		{
-			_particle[parType].updateRadialDisc();
-		}
-	}
-
-	return result;
+	return UnitOperationBase::setSensitiveParameter(pId, adDirection, adValue);
 }
 
 std::unordered_map<ParameterId, double> ColumnModel1D::getAllParameterValues() const
