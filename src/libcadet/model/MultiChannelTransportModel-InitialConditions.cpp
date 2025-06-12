@@ -207,34 +207,38 @@ void MultiChannelTransportModel::readInitialCondition(IParameterProvider& paramP
  * @param [in] errorTol Error tolerance for algebraic equations
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void MultiChannelTransportModel::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, cadet::util::ThreadLocalStorage& threadLocalMem)
+void MultiChannelTransportModel::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
 	Indexer idxr(_disc);
 
 	// Step 1: Solve algebraic equations
-
 	// Step 1a: Compute quasi-stationary exchange model state
 	if (!_exchange[0]->hasQuasiStationary())
 		return;
 
 	// Copy quasi-stationary binding mask to a local array that also includes the mobile phase
-
     std::vector<int> qsMask(_disc.nChannel * _disc.nComp,0);
-    std::vector<std::pair<unsigned int, unsigned int>> qsOrgDestMask; 
+	std::map<int, std::pair<unsigned int, unsigned int>> qsOrgDestMask;
+	std::vector<int> ActiveComp(_disc.nComp,0);
+
     _exchange[0]->quasiStationarityMap(qsOrgDestMask);
 
-    for (const auto& pair : qsOrgDestMask) {
-        unsigned int destination = pair.second;
+    for (const auto& orgDestPair : qsOrgDestMask) 
+	{
+		unsigned int destination = orgDestPair.second.second;
+		unsigned int source = orgDestPair.second.first;
+		auto comp = orgDestPair.first;
         if (destination < _disc.nChannel) 
 		{
             qsMask[destination] = 1;
+			qsMask[source] = 1;
+			ActiveComp[comp] = 1;
         }
     }
 	const linalg::ConstMaskArray mask{ qsMask.data(), static_cast<int>(_disc.nComp * _disc.nChannel) };
 	const int probSize = linalg::numMaskActive(mask);
-	std::vector<int> ActiveComp;
 	//Problem capturing variables here
 #ifdef CADET_PARALLELIZE
 	BENCH_SCOPE(_timerConsistentInitPar);
@@ -266,7 +270,7 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 
 		//todo richtige jacobian
 		BufferedArray<double> jacobianMemBuffer = tlmAlloc.array<double>(probSize * probSize);
-		linalg::DenseMatrixView jacobianMatrix(static_cast<double*>(jacobianMemBuffer), nullptr, probSize, probSize);
+		linalg::DenseMatrixView jacobianMatrix(static_cast<double*>(jacobianMemBuffer), _convDispOp.factorizeJacobian().pivot(), probSize, probSize);
 
 		// Get pointer to c variables in the channels
 		double* const cShell = vecStateY;
@@ -282,7 +286,8 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 		linalg::selectVectorSubset(cShell, mask, solution);
 
 		// Save values of conserved moieties
-		std::vector<double> conservedQuants(_disc.nComp);
+		// moieties: The total amound of every component in qs must be constant all aloung the channels
+		std::vector<double> conservedQuants;
 		for(auto comp = 0; comp < _disc.nComp; comp++)
 		{	
 			if (!ActiveComp[comp])
@@ -295,18 +300,6 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 			}
 			conservedQuants.push_back(consQuan);
 		}
-		const parts::cell::CellParameters cellResParams
-		{
-			_disc.nComp,
-			nullptr,
-			nullptr,
-			0,
-			nullptr,
-			0,
-			nullptr,
-			nullptr,
-			nullptr
-		};
 		std::function<bool(double const* const, linalg::detail::DenseMatrixBase&)> jacFunc;
 		if (localAdY && localAdRes)
 		{
@@ -394,24 +387,23 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 					linalg::applyVectorSubset(x, mask, fullX);
 
 					// Call residual function
-					parts::cell::residualKernel<double, double, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, true, true>(
-						simTime.t, simTime.secIdx, colPos, fullX, nullptr, fullResidual, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
-					);
-
+					residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, threadLocalMem);
+					
 					// Extract Jacobian from full Jacobian
 					mat.setAll(0.0);
 					linalg::copyMatrixSubset(fullJacobianMatrix, mask, mask, mat);
 
 					// Replace upper part with conservation relations
-					mat.submatrixSetAll(0.0, 0, 0, 1, probSize);
+					mat.submatrixSetAll(0.0, 0, 0, ActiveComp.size(), probSize);
 					unsigned int sIdx = 0;
-					for (auto channel = 0; channel < _disc.nChannel; channel++)
+					for (auto comp = 0; comp < _disc.nComp; comp++)
 					{
-						for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+						if (!ActiveComp[comp])
+							continue;
+						for (auto channel = 0; channel < _disc.nChannel; channel++)
 						{
-							if (!ActiveComp[comp])
-								continue;
-							mat.native(sIdx, sIdx) = 1.0;
+							int channelOffSet = channel * _disc.nComp;
+							mat.native(channelOffSet + comp, channelOffSet + comp) = 1.0;
 						}
 						sIdx++;
 					}
@@ -428,28 +420,26 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 				linalg::applyVectorSubset(x, mask, fullX);
 
 				// Call residual function
-				parts::cell::residualKernel<double, double, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, false, true>(
-					simTime.t, simTime.secIdx, colPos, fullX, nullptr, fullResidual, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
-				);
-
+				residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, threadLocalMem);
+				
 				// Extract values from residual
 				linalg::selectVectorSubset(fullResidual, mask, r);
 
 				// Calculate residual of conserved moieties
 				std::fill_n(r, ActiveComp.size(), 0.0);
 				int rIdx = 0;
-				for (auto channel = 0; channel < _disc.nChannel; channel++)
+				for (auto comp = 0; comp < _disc.nComp; comp++)
 				{
-					r[rIdx] = -conservedQuants[channel];
-					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+					if (!ActiveComp[comp])
+						continue;
+					r[rIdx] = conservedQuants[comp];
+					for (auto channel = 0; channel < _disc.nChannel; channel++)
 					{
-						if (!ActiveComp[comp])
-							continue;
-						r[rIdx] += x[comp];
+						int channelOffSet = channel * _disc.nComp;
+						r[rIdx] -= x[channelOffSet+ comp];
 					}
 					rIdx++;
 				}
-
 				return true;
 			},
 			jacFunc, errorTol, solution, nonlinMem, jacobianMatrix, probSize);
@@ -461,7 +451,6 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 		//todo _binding[type]->postConsistentInitialState(simTime.t, simTime.secIdx, colPos, qShell, qShell - idxr.strideParLiquid(), tlmAlloc);
 
 	}
-
 
 	// Step 1b: Compute fluxes j_f
 	// Reset j_f to 0.0
@@ -523,7 +512,7 @@ void MultiChannelTransportModel::consistentInitialTimeDerivative(const Simulatio
 	BENCH_SCOPE(_timerConsistentInit);
 
 	Indexer idxr(_disc);
-
+	//todo
 	// Step 2: Compute the correct time derivative of the state vector
 
 	// Step 2a: Assemble, factorize, and solve diagonal blocks of linear system

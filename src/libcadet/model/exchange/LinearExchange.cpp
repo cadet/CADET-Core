@@ -60,24 +60,25 @@ public:
 			[](const active& val) { return static_cast<double>(val) == -1.0; });
 	}
 
-	virtual void quasiStationarityMap(std::vector<std::pair<unsigned int, unsigned int>>& quasiStationaryMap, int comp) const
+	virtual void quasiStationarityMap(std::map<int, std::pair<unsigned int, unsigned int>>& quasiStationaryMap) const
 	{
-		std::vector<std::pair<unsigned int, unsigned int>> rapidEqChannels;
-		
-		for (unsigned int orig = 0; orig < _nChannel; ++orig)
+		for (auto comp = 0; comp < _nComp; comp++)
 		{
-			for (unsigned int dest = 0; dest < _nChannel; ++dest)
+			for (unsigned int orig = 0; orig < _nChannel; ++orig)
 			{
-				if (orig == dest)
-					continue;
-
-				size_t ex_bw = orig * _nChannel * _nComp + dest * _nComp + comp;
-				size_t ex_fw = dest * _nChannel * _nComp + orig * _nComp + comp;
-
-				if (static_cast<double>(_exchangeMatrix[ex_bw]) == -1.0 ||
-					static_cast<double>(_exchangeMatrix[ex_fw]) == -1.0)
+				for (unsigned int dest = 0; dest < _nChannel; ++dest)
 				{
-					rapidEqChannels.emplace_back(orig, dest);
+					if (orig == dest)
+						continue;
+
+					size_t ex_bw = orig * _nChannel * _nComp + dest * _nComp + comp;
+					size_t ex_fw = dest * _nChannel * _nComp + orig * _nComp + comp;
+
+					if (static_cast<double>(_exchangeMatrix[ex_bw]) == -1.0 ||
+						static_cast<double>(_exchangeMatrix[ex_fw]) == -1.0)
+					{
+						quasiStationaryMap[comp] = std::make_pair(orig, dest);
+					}
 				}
 			}
 		}
@@ -243,10 +244,6 @@ protected:
 						ResidualType* const resCur_orig = resColRadOrigBlock + comp;
 						ResidualType* const resCur_dest = resColRadDestBlock + comp;
 
-						// Todo: Here Drei Fälle: 
-						//1. derivative
-						//2. algebraisch
-						//3. conserved moities
 						const ParamType exchange_orig_dest_comp = static_cast<ParamType>(_exchangeMatrix[rad_orig * _nChannel * _nComp + rad_dest * _nComp + comp]);
 
 						if (exchange_orig_dest_comp == -1 || exchange_orig_dest_comp > 1e10)
@@ -256,10 +253,10 @@ protected:
 								throw InvalidParameterException("Linear Exchange: For exchange in rapid equilibrium it is nessasary e_ij = e_ji = -1. Please check your exchange matirx entrys for symmetry");
 							
 							// save rapid equilibrium orginal and dest (only once) 
-							if (rad_orig > rad_dest)
+							if (rad_orig < rad_dest)
 								rapidEquilibriumMap[comp].push_back({ rad_orig, rad_dest });
 						}
-						else if (cadet_likely(exchange_orig_dest_comp > 0.0))
+						if (cadet_likely(exchange_orig_dest_comp > 0.0))
 						{
 							*resCur_orig += exchange_orig_dest_comp * yCur_orig[0];
 							*resCur_dest -= exchange_orig_dest_comp * yCur_orig[0] * static_cast<ParamType>(_crossSections[rad_orig]) / static_cast<ParamType>(_crossSections[rad_dest]);
@@ -299,32 +296,33 @@ protected:
 					
 					const unsigned int offsetToRadOrigBlock = rad_orig * _nComp;
 					const unsigned int offsetColRadOrigBlock = offsetColBlock + offsetToRadOrigBlock;
+					StateType const* const yColRadOrigBlock = yColBlock + offsetToRadOrigBlock;
 					ResidualType* const resColRadOrigBlock = resColBlock + offsetToRadOrigBlock;
-					
+
 					const unsigned int offsetToRadDestBlock = rad_dest * _nComp;
 					const unsigned int offsetColRadDestBlock = offsetColBlock + offsetToRadDestBlock;
 					ResidualType* const resColRadDestBlock = resColBlock + offsetToRadDestBlock;
-					
+
 					const unsigned int offsetCur_orig = offsetColRadOrigBlock + comp;
 					const unsigned int offsetCur_dest = offsetColRadDestBlock + comp;
-
+					
+					StateType const* const yCur_orig = yColRadOrigBlock + comp;
 					ResidualType* const resCur_orig = resColRadOrigBlock + comp;
 					ResidualType* const resCur_dest = resColRadDestBlock + comp;
 
 					const ParamType exchange_orig_dest_comp = static_cast<ParamType>(_exchangeMatrix[rad_orig * _nChannel * _nComp + rad_dest * _nComp + comp]);
 
 					// conserved moities 
-					*resCur_orig *=  static_cast<ParamType>(_crossSections[rad_orig]) / static_cast<ParamType>(_crossSections[rad_dest]) + *resCur_dest;
+					*resCur_orig =  static_cast<ParamType>(_crossSections[rad_dest]) / static_cast<ParamType>(_crossSections[rad_orig]) * *resCur_orig +  *resCur_dest;
 					
 					// algebraic equation
 					*resCur_dest = exchange_orig_dest_comp* yCur_orig[0] - exchange_orig_dest_comp * yCur_orig[0] * static_cast<ParamType>(_crossSections[rad_orig]) / static_cast<ParamType>(_crossSections[rad_dest]);
 
-					if (wantJac) {
-
+					if (wantJac) 
+					{
 						linalg::BandedSparseRowIterator jacdest;
 						jacdest = jacBegin + offsetCur_dest;
 						jacdest[static_cast<int>(offsetCur_orig) - static_cast<int>(offsetCur_dest)] -= static_cast<double>(exchange_orig_dest_comp);
-
 					}
 				}
 			}

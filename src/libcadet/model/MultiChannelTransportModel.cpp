@@ -467,6 +467,19 @@ unsigned int MultiChannelTransportModel::threadLocalMemorySize() const CADET_NOE
 {
 	LinearMemorySizer lms;
 
+	const std::size_t resImplSize = lms.bufferSize();
+
+	// Memory for consistentInitialState()
+	lms.add<double>(_nonlinearSolver->workspaceSize(_disc.nComp * _disc.nChannel) * sizeof(double));
+	lms.add<double>(_disc.nComp * _disc.nChannel);
+	lms.add<double>(_disc.nComp * _disc.nChannel);
+	lms.add<double>(_disc.nComp * _disc.nChannel);
+	lms.add<double>((_disc.nComp * _disc.nChannel) * (_disc.nComp * _disc.nChannel));
+	lms.add<double>(_disc.nComp);
+
+	lms.addBlock(resImplSize);
+	lms.commit();
+
 	// Memory for residualImpl()
 	if (_dynReactionBulk && _dynReactionBulk->requiresWorkspace())
 		lms.fitBlock(_dynReactionBulk->workspaceSize(_disc.nComp, 0, nullptr));

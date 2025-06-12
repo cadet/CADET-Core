@@ -105,6 +105,8 @@ public:
 	inline linalg::CompressedSparseMatrix& jacobian() CADET_NOEXCEPT { return _jacC; }
 	inline const linalg::CompressedSparseMatrix& jacobian() const CADET_NOEXCEPT { return _jacC; }
 
+	inline linalg::FactorizableBandMatrix& factorizeJacobian() CADET_NOEXCEPT { return _jacCdisc; }
+	inline const linalg::FactorizableBandMatrix& factorizeJacobian() const CADET_NOEXCEPT { return _jacCdisc; }
 protected:
 
 	class LinearSolver;
@@ -172,6 +174,7 @@ protected:
 	double _wenoEpsilon; //!< The @f$ \varepsilon @f$ of the WENO scheme (prevents division by zero)
 
 	linalg::CompressedSparseMatrix _jacC; //!< Jacobian
+	linalg::FactorizableBandMatrix _jacCdisc; //Jacobian discrtizes
 	LinearSolver* _linearSolver; //!< Solves linear system with time discretized Jacobian
 };
 
