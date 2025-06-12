@@ -23,7 +23,7 @@
 #include "Utils.hpp"
 #include "common/Driver.hpp"
 
-TEST_CASE("Column_Model_1D LWE forward vs backward flow", "[Column_1D],[DG],[DG1D],[Simulation],[todo_CI]")
+TEST_CASE("Column_Model_1D LWE forward vs backward flow", "[Column_1D],[DG],[DG1D],[Simulation],[CI]")
 {
 	cadet::test::column::DGparams disc;
 
@@ -31,7 +31,7 @@ TEST_CASE("Column_Model_1D LWE forward vs backward flow", "[Column_1D],[DG],[DG1
 	for (int i = 0; i <= 1; i++)
 	{
 		disc.setIntegrationMode(i);
-		cadet::test::column::testForwardBackward("GENERAL_RATE_MODEL", disc, 1e-9, 2e-4);
+		cadet::test::column::testForwardBackward("COLUMN_MODEL_1D", disc, 1e-9, 2e-4);
 	}
 }
 
