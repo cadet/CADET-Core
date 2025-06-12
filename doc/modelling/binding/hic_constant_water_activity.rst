@@ -2,7 +2,7 @@
 
 HIC Constant Water Activity
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-This model implemments the HIC isotherm assuming a constant water activity as described by Jäpel and Buyel :cite:`Jaepel2022`.
+This model implements the HIC isotherm assuming a constant water activity as described by Jäpel and Buyel :cite:`Jaepel2022`.
 
 .. math::
     \begin{align}
