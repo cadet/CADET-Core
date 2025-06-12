@@ -262,18 +262,18 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 		BufferedArray<double> solutionBuffer = tlmAlloc.array<double>(probSize);
 		double* const solution = static_cast<double*>(solutionBuffer);
 
-		BufferedArray<double> fullResidualBuffer = tlmAlloc.array<double>(mask.len);
+		BufferedArray<double> fullResidualBuffer = tlmAlloc.array<double>(numDofs());
 		double* const fullResidual = static_cast<double*>(fullResidualBuffer);
 
-		BufferedArray<double> fullXBuffer = tlmAlloc.array<double>(mask.len);
+		BufferedArray<double> fullXBuffer = tlmAlloc.array<double>(numDofs());
 		double* const fullX = static_cast<double*>(fullXBuffer);
 
-		//todo richtige jacobian
 		BufferedArray<double> jacobianMemBuffer = tlmAlloc.array<double>(probSize * probSize);
-		linalg::DenseMatrixView jacobianMatrix(static_cast<double*>(jacobianMemBuffer), _convDispOp.factorizeJacobian().pivot(), probSize, probSize);
+		linalg::DenseMatrixView jacobianMatrix(static_cast<double*>(jacobianMemBuffer), new lapackInt_t[probSize], probSize, probSize);
 
 		// Get pointer to c variables in the channels
-		double* const cShell = vecStateY;
+		auto cShellOfset = _disc.nComp * _disc.nChannel * (pblk + 1);
+		double* const cShell = vecStateY + cShellOfset;
 		active* const localAdRes = adJac.adRes ? adJac.adRes : nullptr;
 		active* const localAdY = adJac.adY ? adJac.adY  : nullptr;
 
@@ -383,8 +383,8 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 			jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
 				{
 					// Prepare input vector by overwriting masked items
-					std::copy_n(cShell, mask.len, fullX);
-					linalg::applyVectorSubset(x, mask, fullX);
+					std::copy_n(cShell, mask.len, fullX + cShellOfset);
+					linalg::applyVectorSubset(x, mask, fullX + cShellOfset);
 
 					// Call residual function
 					residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, threadLocalMem);
@@ -403,27 +403,27 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 						for (auto channel = 0; channel < _disc.nChannel; channel++)
 						{
 							int channelOffSet = channel * _disc.nComp;
-							mat.native(channelOffSet + comp, channelOffSet + comp) = 1.0;
+							mat.native(0, channelOffSet + comp) -= 1.0;
 						}
 						sIdx++;
 					}
 					return true;
 				};
 		}
-
+		std::copy_n(vecStateY, numDofs(), fullX);
 		// Apply nonlinear solver
 		_nonlinearSolver->solve(
 			[&](double const* const x, double* const r)
 			{
 				// Prepare input vector by overwriting masked items
-				std::copy_n(cShell, mask.len, fullX);
-				linalg::applyVectorSubset(x, mask, fullX);
+				std::copy_n(cShell , mask.len, fullX + cShellOfset);
+				linalg::applyVectorSubset(x, mask, fullX + cShellOfset);
 
 				// Call residual function
 				residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, threadLocalMem);
 				
 				// Extract values from residual
-				linalg::selectVectorSubset(fullResidual, mask, r);
+				linalg::selectVectorSubset(fullResidual + cShellOfset, mask, r);
 
 				// Calculate residual of conserved moieties
 				std::fill_n(r, ActiveComp.size(), 0.0);
@@ -436,7 +436,7 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 					for (auto channel = 0; channel < _disc.nChannel; channel++)
 					{
 						int channelOffSet = channel * _disc.nComp;
-						r[rIdx] -= x[channelOffSet+ comp];
+						r[rIdx] -= x[channelOffSet + comp];
 					}
 					rIdx++;
 				}
@@ -446,9 +446,6 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 
 		// Apply solution
 		linalg::applyVectorSubset(solution, mask, cShell);
-
-		// Refine / correct solution
-		//todo _binding[type]->postConsistentInitialState(simTime.t, simTime.secIdx, colPos, qShell, qShell - idxr.strideParLiquid(), tlmAlloc);
 
 	}
 
