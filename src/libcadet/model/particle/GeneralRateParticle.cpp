@@ -208,28 +208,29 @@ namespace model
 		if (!_binding)
 			throw InvalidParameterException("Unknown binding model " + bindModelNames[0]);
 
-		if (paramProvider.exists("adsorption"))
+		std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
+		if (nBound.size() != _nComp)
+			throw InvalidParameterException("Field NBOUND does not contain NCOMP = " + std::to_string(_nComp) + " entries for particle type " + std::to_string(_parTypeIdx));
+
+		if (!_nBound)
+			_nBound = std::make_shared<unsigned int[]>(_nComp);
+		std::copy_n(nBound.begin(), _nComp, _nBound.get());
+
+		_bindingParDep = true;
+
+		if (_binding->usesParamProviderInDiscretizationConfig())
 		{
 			paramProvider.pushScope("adsorption");
 
-			std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
-			if (nBound.size() != _nComp)
-				throw InvalidParameterException("Field NBOUND does not contain NCOMP = " + std::to_string(_nComp) + " entries for particle type " + std::to_string(_parTypeIdx));
-
-			if (!_nBound)
-				_nBound = std::make_shared<unsigned int[]>(_nComp);
-			std::copy_n(nBound.begin(), _nComp, _nBound.get());
-
-			_bindingParDep = nParType == 1;
 			if (paramProvider.exists("BINDING_PARTYPE_DEPENDENT"))
 				_bindingParDep = paramProvider.getBool("BINDING_PARTYPE_DEPENDENT");
+
+			paramProvider.popScope();
 		}
 		else if (bindModelNames[0] == "NONE")
 			_nBound = std::make_shared<unsigned int[]>(_nComp, 0);
 		else
-			throw InvalidParameterException("Binding model " + bindModelNames[0] + "was specified, but group \"adsorption\" is missing for particle type " + std::to_string(_parTypeIdx));
-
-		paramProvider.popScope(); // adsorption
+			throw InvalidParameterException("Binding model " + bindModelNames[0] + " was specified, but group \"adsorption\" is missing for particle type " + std::to_string(_parTypeIdx));
 
 		// ==== Construct and configure particle transport and discretization
 
@@ -253,12 +254,15 @@ namespace model
 		const bool particleTransportConfigSuccess = _parDiffOp->configureModelDiscretization(paramProvider, helper, nComp, parTypeIdx, nParType, strideBulkComp);
 
 		// ==== Configure binding model
+
 		if (_binding->usesParamProviderInDiscretizationConfig())
-		{
 			paramProvider.pushScope("adsorption");
-			bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _parDiffOp->offsetBoundComp());
-			paramProvider.popScope(); // adsorption
-		}
+
+		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _parDiffOp->offsetBoundComp());
+
+		if (_binding->usesParamProviderInDiscretizationConfig())
+			paramProvider.popScope();
+
 		// ==== Construct and configure dynamic reaction model
 
 		bool reactionConfSuccess = true;
@@ -278,7 +282,7 @@ namespace model
 				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[0]);
 
 			paramProvider.pushScope("reaction");
-			_reactionParDep = nParType == 1;
+			_reactionParDep = true;
 			if (paramProvider.exists("REACTION_PARTYPE_DEPENDENT"))
 				_reactionParDep = paramProvider.getBool("REACTIN_PARTYPE_DEPENDENT");
 
