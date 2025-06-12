@@ -67,6 +67,9 @@ namespace cadet
 		model::registerLumpedRateModelWithPores(_modelCreators);
 		model::registerLumpedRateModelWithoutPores(_modelCreators);
 		model::registerCSTRModel(_modelCreators);
+#ifdef ENABLE_DG
+		model::registerColumnModel1D(_modelCreators);
+#endif
 
 #ifdef ENABLE_2D_MODELS
 		model::registerGeneralRateModel2D(_modelCreators);
