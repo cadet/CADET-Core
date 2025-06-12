@@ -170,12 +170,9 @@ namespace parts
 
 	bool ParticleDiffusionOperatorDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp)
 	{
-		std::ostringstream parTypeIdxString;
-		parTypeIdxString << std::setfill('0') << std::setw(3) << std::setprecision(0) << _parTypeIdx;
-		paramProvider.pushScope("particle_type_" + parTypeIdxString.str());
-		paramProvider.pushScope("discretization");
-
 		const bool baseConfigSuccess = ParticleDiffusionOperatorBase::configureModelDiscretization(paramProvider, helper, nComp, parTypeIdx, nParType, strideBulkComp);
+
+		paramProvider.pushScope("discretization");
 
 		if (paramProvider.exists("PAR_POLYDEG"))
 		{
@@ -235,25 +232,17 @@ namespace parts
 
 		paramProvider.popScope(); // discretization
 
-		paramProvider.popScope(); // particle_type_{:03}
-
 		return baseConfigSuccess;
 	}
 
 	bool ParticleDiffusionOperatorDG::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding, const bool hasDynamicReactions)
 	{
-		std::ostringstream parTypeIdxString;
-		parTypeIdxString << std::setfill('0') << std::setw(3) << std::setprecision(0) << _parTypeIdx;
-		paramProvider.pushScope("particle_type_" + parTypeIdxString.str());
-
 		const bool baseConfigSuccess = ParticleDiffusionOperatorBase::configure(unitOpIdx, paramProvider, parameters, nParType, nBoundBeforeType, nTotalBound, reqBinding, hasDynamicReactions);
 
 		// Compute particle metrics
 		if (_deltaR == nullptr)
 			_deltaR = new active[_nParElem];
 		updateRadialDisc();
-
-		paramProvider.popScope(); // particle_type_{:03}
 
 		return baseConfigSuccess;
 	}

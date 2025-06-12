@@ -170,6 +170,8 @@ namespace cadet
 
 			virtual bool leanConsistentInitialTimeDerivativeValidity() const = 0;
 
+			unsigned int* nBound() CADET_NOEXCEPT { return _nBound.get(); }
+
 			protected:
 
 				unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)

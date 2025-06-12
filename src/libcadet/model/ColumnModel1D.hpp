@@ -278,7 +278,7 @@ protected:
 		// parameter
 		int curSection; //!< current time section index
 
-		Discretization() : nParPoints(nullptr), parTypeOffset(nullptr), nBound(nullptr), boundOffset(nullptr),
+		Discretization() : nParPoints(nullptr), parTypeOffset(nullptr), boundOffset(nullptr),
 			strideBound(nullptr), nBoundBeforeType(nullptr)
 		{
 		}
@@ -287,7 +287,6 @@ protected:
 		{
 			delete[] nParPoints;
 			delete[] parTypeOffset;
-			delete[] nBound;
 			delete[] boundOffset;
 			delete[] strideBound;
 			delete[] nBoundBeforeType;

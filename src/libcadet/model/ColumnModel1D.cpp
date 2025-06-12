@@ -108,9 +108,9 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
-	std::vector<int> nBound;
-	const bool newNBoundInterface = paramProvider.exists("NBOUND");
-	const bool newNPartypeInterface = paramProvider.exists("NPARTYPE");
+	_disc.nParType = paramProvider.exists("NPARTYPE") ? paramProvider.getInt("NPARTYPE") : 1;
+	if (_disc.nParType < 1)
+		throw InvalidParameterException("Number of particle types in GRM must be at least 1!");
 
 	paramProvider.pushScope("discretization");
 
@@ -118,17 +118,6 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 
 	if (firstConfigCall)
 		_linearSolver = cadet::linalg::setLinearSolver(paramProvider.exists("LINEAR_SOLVER") ? paramProvider.getString("LINEAR_SOLVER") : "SparseLU");
-
-	if (!newNBoundInterface && paramProvider.exists("NBOUND")) // done here and in this order for backwards compatibility
-		nBound = paramProvider.getIntArray("NBOUND");
-	else
-	{
-		paramProvider.popScope();
-		nBound = paramProvider.getIntArray("NBOUND");
-		paramProvider.pushScope("discretization");
-	}
-	if (nBound.size() < _disc.nComp)
-		throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
 
 	if (paramProvider.exists("POLYDEG"))
 		_disc.polyDeg = paramProvider.getInt("POLYDEG");
@@ -157,24 +146,12 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 	if (paramProvider.exists("EXACT_INTEGRATION"))
 		polynomial_integration_mode = paramProvider.getInt("EXACT_INTEGRATION");
 	_disc.exactInt = static_cast<bool>(polynomial_integration_mode); // only integration mode 0 applies the inexact collocated diagonal LGL mass matrix
-	
-	if (!newNPartypeInterface && paramProvider.exists("NPARTYPE")) // done here and in this order for backwards compatibility
-		_disc.nParType = paramProvider.getInt("NPARTYPE");
-	else if (newNPartypeInterface)
-	{
-		paramProvider.popScope();
-		_disc.nParType = paramProvider.getInt("NPARTYPE");
-		paramProvider.pushScope("discretization");
-	}
-	else // Infer number of particle types
-		_disc.nParType = nBound.size() / _disc.nComp;
-	
-	if (_disc.nParType < 1)
-		throw InvalidParameterException("Number of particle types in GRM must be at least 1!");
 
 	paramProvider.popScope();
+
 	Indexer idxr(_disc);
 	_particle = new GeneralRateParticle[_disc.nParType];
+
 	bool particleConfSuccess = true;
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
@@ -193,16 +170,10 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 
 	_disc.newStaticJac = true;
 
-	if (firstConfigCall)
-		_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
-	if (nBound.size() < _disc.nComp * _disc.nParType)
-	{
-		// Multiplex number of bound states to all particle types
-		for (unsigned int i = 0; i < _disc.nParType; ++i)
-			std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound + i * _disc.nComp);
-	}
-	else
-		std::copy_n(nBound.begin(), _disc.nComp * _disc.nParType, _disc.nBound);
+	_disc.nBound = new unsigned int[_disc.nParType * _disc.nComp];
+	for (int parType = 0; parType < _disc.nParType; parType++)
+		for (int comp = 0; comp < _disc.nComp; comp++)
+			_disc.nBound[parType * _disc.nComp + comp] = _particle[parType].nBound()[comp];
 
 	const unsigned int nTotalBound = std::accumulate(_disc.nBound, _disc.nBound + _disc.nComp * _disc.nParType, 0u);
 

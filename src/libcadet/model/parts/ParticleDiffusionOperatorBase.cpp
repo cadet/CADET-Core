@@ -335,14 +335,6 @@ namespace parts
 					throw InvalidParameterException("Unknown particle geometry type \"" + pg[0] + "\" for particle type " + std::to_string(_parTypeIdx));
 		}
 
-		std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
-		if (nBound.size() != _nComp)
-			throw InvalidParameterException("Field NBOUND does not contain NCOMP = " + std::to_string(_nComp) + " entries for particle type " + std::to_string(_parTypeIdx));
-
-		if (!_nBound)
-			_nBound = std::make_shared<unsigned int[]>(_nComp);
-		std::copy_n(nBound.begin(), _nComp, _nBound.get());
-
 		// Precompute offsets and total number of bound states (DOFs in solid phase)
 		if (!_boundOffset)
 			_boundOffset = new unsigned int[_nComp];
@@ -412,8 +404,6 @@ namespace parts
 				}
 			}
 		}
-
-		paramProvider.pushScope("discretization");
 
 		return parSurfDiffDepConfSuccess;
 	}

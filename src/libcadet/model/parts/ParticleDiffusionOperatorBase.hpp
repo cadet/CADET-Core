@@ -161,6 +161,7 @@ namespace parts
 		 * @brief array with number of bound states for each component
 		 */
 		std::shared_ptr<unsigned int[]> nBound() CADET_NOEXCEPT { return _nBound; };
+		void setNBound(std::shared_ptr<unsigned int[]> nBound) CADET_NOEXCEPT { _nBound = nBound; };
 		/**
 		 * @brief array with offsets to the first bound state of each component in the solid phase
 		 */
