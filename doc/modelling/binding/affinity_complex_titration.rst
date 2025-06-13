@@ -3,7 +3,7 @@
 Affinity Complex Titration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The affinity complex titration (ACT) isotherm is a modified Langmuir isotherm where both the binding capacity and equilibrium constant are dependent on pH via a Hill-type relationship :cite:`TODO`. 
+The affinity complex titration (ACT) isotherm is a modified Langmuir isotherm where both the binding capacity and equilibrium constant are dependent on pH via a Hill-type relationship :cite:`Zhang2025ACT`. 
 pH, rather than the proton concentration, is treated as a mobile phase modulator with a concentration. 
 The current implementation requires the first component to be pH and non-binding. Although the original derivation and the equation shown below is based on pH, the mobile phase modulator can also be any type of salt. 
 The ACT isotherm reads:
@@ -24,6 +24,6 @@ The modification factors are defined by:
     \end{aligned}
 
 where :math:`\eta_{A, i}` and :math:`\eta_{G, i}` denote the Hill-type coefficients that control the slope of the :math:`q_{max, i}` and :math:`K_{eq, i}` responses as a function of the pH, respectively,
-while :math:`\mathrm{p}Ka_{A, i}` and :math:`\mathrm{p}Ka_{G, i}` denote the center of their responses. respectively. For more details and interpretations on these parameters, please refer to :cite:`TODO`. 
+while :math:`\mathrm{p}Ka_{A, i}` and :math:`\mathrm{p}Ka_{G, i}` denote the center of their responses. respectively. For more details and interpretations on these parameters, please refer to :cite:`Zhang2025ACT`. 
 
 For more information on model parameters required to define in CADET file format, see :ref:`affinity_complex_titration_config`.
