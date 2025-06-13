@@ -328,17 +328,18 @@ protected:
 					exchange_orig_dest_comp *= -1;
 				}
 				// conserved moities 
-				*resCur_orig =  static_cast<ParamType>(_crossSections[rad_dest]) / static_cast<ParamType>(_crossSections[rad_orig]) * *resCur_orig +  *resCur_dest;
+				*resCur_dest =  static_cast<ParamType>(_crossSections[rad_dest]) / static_cast<ParamType>(_crossSections[rad_orig]) * *resCur_orig +  *resCur_dest;
 					
 				// algebraic equation
-				*resCur_dest = exchange_orig_dest_comp* yCur_dest[0] - exchange_orig_dest_comp * yCur_orig[0] * static_cast<ParamType>(_crossSections[rad_orig]) / static_cast<ParamType>(_crossSections[rad_dest]);
-
+				*resCur_orig = exchange_orig_dest_comp* yCur_orig[0] - exchange_orig_dest_comp * yCur_dest[0] * static_cast<ParamType>(_crossSections[rad_orig]) / static_cast<ParamType>(_crossSections[rad_dest]);
+				
 				if (wantJac) 
 				{
 					linalg::BandedSparseRowIterator jacorig;
-					jacorig = jacBegin + offsetCur_dest;
-					jacorig[0] -= static_cast<double>(exchange_orig_dest_comp);
-					jacorig[-static_cast<int>(offsetCur_orig)]+= static_cast<double>(exchange_orig_dest_comp);
+					jacorig = jacBegin + offsetCur_orig;
+					jacorig[0] = static_cast<double>(exchange_orig_dest_comp);
+					jacorig[static_cast<int>(offsetCur_dest) - static_cast<int>(offsetCur_orig)] =- static_cast<double>(exchange_orig_dest_comp);
+
 
 				}
 

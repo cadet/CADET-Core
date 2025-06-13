@@ -470,11 +470,11 @@ unsigned int MultiChannelTransportModel::threadLocalMemorySize() const CADET_NOE
 	const std::size_t resImplSize = lms.bufferSize();
 
 	// Memory for consistentInitialState()
-	lms.add<double>(_nonlinearSolver->workspaceSize(_disc.nComp * _disc.nChannel) * sizeof(double));
-	lms.add<double>(_disc.nComp * _disc.nChannel);
-	lms.add<double>(_disc.nComp * _disc.nChannel);
-	lms.add<double>(_disc.nComp * _disc.nChannel);
-	lms.add<double>((_disc.nComp * _disc.nChannel) * (_disc.nComp * _disc.nChannel));
+	lms.add<double>(_nonlinearSolver->workspaceSize(_disc.nComp * _disc.nChannel * _disc.nCol) * sizeof(double));
+	lms.add<double>(_disc.nComp * _disc.nChannel * _disc.nCol);
+	lms.add<double>(_disc.nComp * _disc.nChannel * _disc.nCol);
+	lms.add<double>(_disc.nComp * _disc.nChannel * _disc.nCol);
+	lms.add<double>((_disc.nComp * _disc.nChannel * _disc.nCol) * (_disc.nComp * _disc.nChannel * _disc.nCol));
 	lms.add<double>(_disc.nComp);
 
 	lms.addBlock(resImplSize);

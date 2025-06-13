@@ -272,7 +272,7 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 		linalg::DenseMatrixView jacobianMatrix(static_cast<double*>(jacobianMemBuffer), new lapackInt_t[probSize], probSize, probSize);
 
 		// Get pointer to c variables in the channels
-		auto cShellOfset = _disc.nComp * _disc.nChannel * (pblk + 1);
+		auto cShellOfset = _disc.nComp * _disc.nChannel * (1 + pblk);
 		double* const cShell = vecStateY + cShellOfset;
 		active* const localAdRes = adJac.adRes ? adJac.adRes : nullptr;
 		active* const localAdY = adJac.adY ? adJac.adY  : nullptr;
@@ -394,8 +394,8 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 					linalg::copyMatrixSubset(fullJacobianMatrix, mask, mask, mat);
 
 					// Replace upper part with conservation relations
-					mat.submatrixSetAll(0.0, 0, 0, ActiveComp.size(), probSize);
-					unsigned int sIdx = 0;
+					mat.submatrixSetAll(0.0, 1, 0, ActiveComp.size(), probSize);
+					unsigned int sIdx = 1;
 					for (auto comp = 0; comp < _disc.nComp; comp++)
 					{
 						if (!ActiveComp[comp])
@@ -403,9 +403,8 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 						for (auto channel = 0; channel < _disc.nChannel; channel++)
 						{
 							int channelOffSet = channel * _disc.nComp;
-							mat.native(0, channelOffSet + comp) -= 1.0;
+							mat.native(1, channelOffSet + comp) -= 1.0;
 						}
-						sIdx++;
 					}
 					return true;
 				};
@@ -426,8 +425,8 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 				linalg::selectVectorSubset(fullResidual + cShellOfset, mask, r);
 
 				// Calculate residual of conserved moieties
-				std::fill_n(r, ActiveComp.size(), 0.0);
-				int rIdx = 0;
+				std::fill_n(r + 1, ActiveComp.size(), 0.0);
+				int rIdx = 1;
 				for (auto comp = 0; comp < _disc.nComp; comp++)
 				{
 					if (!ActiveComp[comp])
@@ -438,7 +437,6 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 						int channelOffSet = channel * _disc.nComp;
 						r[rIdx] -= x[channelOffSet + comp];
 					}
-					rIdx++;
 				}
 				return true;
 			},
