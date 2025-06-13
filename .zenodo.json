@@ -1,5 +1,5 @@
 {
-  "title": "CADET-Core: Version 5.0.3",
+  "title": "CADET-Core: Version 5.0.4",
   "upload_type": "software",
   "creators": [
     { 
@@ -62,7 +62,7 @@
   "keywords": [
    "modeling","simulation", "biotechnology", "process", "chromatography", "CADET", "general rate model", "C++"
   ],
-  "version": "5.0.3",
+  "version": "5.0.4",
   "access_right": "open",
   "communities": [
     { "identifier": "open-source" }
