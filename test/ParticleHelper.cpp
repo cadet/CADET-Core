@@ -130,6 +130,8 @@ namespace
 		replicateFieldDataString(jpp, "ADSORPTION_MODEL", nTypes);
 		replicateFieldDataInt(jpp, "NBOUND", nTypes);
 
+		jpp.set("NPARTYPE", static_cast<int>(nTypes));
+
 		// Move group "adsorption" to "adsorption_000"
 		if (jpp.exists("adsorption"))
 		{
