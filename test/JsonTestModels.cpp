@@ -20,13 +20,19 @@ using json = nlohmann::json;
 json createColumnWithSMAJson(const std::string& uoType, const std::string& spatialMethod)
 {
 	json config;
+	json particle;
+
 	config["UNIT_TYPE"] = uoType;
 	config["NCOMP"] = 4;
+	config["NPARTYPE"] = 1;
 	config["COL_DISPERSION"] = 5.75e-8;
 	config["COL_DISPERSION_RADIAL"] = 1e-6;
-	config["FILM_DIFFUSION"] = {6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6};
-	config["PAR_DIFFUSION"] = {7e-10, 6.07e-11, 6.07e-11, 6.07e-11};
-	config["PAR_SURFDIFFUSION"] = {0.0, 0.0, 0.0, 0.0};
+
+	particle["FILM_DIFFUSION"] = { 6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6 };
+	particle["PAR_DIFFUSION"] = { 7e-10, 6.07e-11, 6.07e-11, 6.07e-11 };
+	particle["PAR_SURFDIFFUSION"] = { 0.0, 0.0, 0.0, 0.0 };
+	particle["PAR_RADIUS"] = 4.5e-5;
+	particle["PAR_POROSITY"] = 0.75;
 
 	if (uoType == "MULTI_CHANNEL_TRANSPORT")
 		config["NCHANNEL"] = 1;
@@ -44,9 +50,7 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 		config["COL_RADIUS"] = 0.01;
 		config["VELOCITY"] = 5.75e-4;
 	}
-	config["PAR_RADIUS"] = 4.5e-5;
 	config["COL_POROSITY"] = 0.37;
-	config["PAR_POROSITY"] = 0.75;
 	config["TOTAL_POROSITY"] = 0.37 + (1.0 - 0.37) * 0.75;
 
 	if (uoType == "MULTI_CHANNEL_TRANSPORT")
@@ -61,8 +65,9 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 	config["INIT_Q"] = {1.2e3, 0.0, 0.0, 0.0};
 
 	// Adsorption
-	config["ADSORPTION_MODEL"] = std::string("STERIC_MASS_ACTION");
-	config["NBOUND"] = { 1, 1, 1, 1 };
+	particle["ADSORPTION_MODEL"] = std::string("STERIC_MASS_ACTION");
+	if (uoType != "COLUMN_MODEL_1D")
+		particle["NBOUND"] = { 1, 1, 1, 1 };
 	{
 		json ads;
 		ads["IS_KINETIC"] = 1;
@@ -71,18 +76,22 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 		ads["SMA_KD"] = {0.0, 1000.0, 1000.0, 1000.0};
 		ads["SMA_NU"] = {0.0, 4.7, 5.29, 3.7};
 		ads["SMA_SIGMA"] = {0.0, 11.83, 10.6, 10.0};
-		config["adsorption"] = ads;
+		if (uoType == "COLUMN_MODEL_1D")
+			ads["NBOUND"] = { 1, 1, 1, 1 };
+		particle["adsorption"] = ads;
 	}
 
 	// Discretization
 	{
 		json disc;
+		json discPar;
 		disc["SPATIAL_METHOD"] = spatialMethod;
+		discPar["SPATIAL_METHOD"] = spatialMethod;
 
 		if (spatialMethod == "FV")
 		{
 			disc["NCOL"] = 16;
-			disc["NPAR"] = 4;
+			discPar["NPAR"] = 4;
 			disc["MAX_KRYLOV"] = 0;
 			disc["GS_TYPE"] = 1;
 			disc["MAX_RESTARTS"] = 10;
@@ -99,13 +108,13 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 			{
 				disc["NCOL"] = 8;
 				disc["NRAD"] = 3;
-				disc["NPAR"] = 3;
+				discPar["NPAR"] = 3;
 				disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
 			}
 		}
 		else if (spatialMethod == "DG")
 		{
-			disc["PAR_EXACT_INTEGRATION"] = 1;
+			discPar["PAR_EXACT_INTEGRATION"] = 1;
 
 			if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
 			{
@@ -113,8 +122,8 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 				disc["AX_NELEM"] = 2;
 				disc["RAD_POLYDEG"] = 2;
 				disc["RAD_NELEM"] = 1;
-				disc["PAR_POLYDEG"] = 1;
-				disc["PAR_NELEM"] = 1;
+				discPar["PAR_POLYDEG"] = 1;
+				discPar["PAR_NELEM"] = 1;
 				disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
 			}
 			else
@@ -122,8 +131,8 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 				disc["EXACT_INTEGRATION"] = 0;
 				disc["POLYDEG"] = 4;
 				disc["NELEM"] = 2;
-				disc["PAR_POLYDEG"] = 3;
-				disc["PAR_NELEM"] = 1;
+				discPar["PAR_POLYDEG"] = 3;
+				discPar["PAR_NELEM"] = 1;
 			}
 		}
 
@@ -132,11 +141,23 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 			disc["NCOL"] = 16;
 		}
 
-		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
+		discPar["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
 
 		disc["USE_ANALYTIC_JACOBIAN"] = true;
 
+		if (uoType == "COLUMN_MODEL_1D")
+		{
+			particle["discretization"] = discPar;
+			config["particle_type_000"] = particle;
+		}
+		else
+		{
+			config.update(particle);
+			disc.update(discPar);
+		}
+
 		config["discretization"] = disc;
+
 	}
 
 	return config;
