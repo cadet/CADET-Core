@@ -62,7 +62,7 @@ namespace
 
 
 CSTRModel::CSTRModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx), _nComp(0), _nParType(0), _nBound(nullptr), _boundOffset(nullptr), _strideBound(nullptr), _offsetParType(nullptr),
-	_totalBound(0), _analyticJac(true), _jac(), _jacFact(), _factorizeJac(false), _initConditions(0), _initConditionsDot(0), _dynReactionBulk(nullptr)
+    _totalBound(0), _analyticJac(true), _jac(), _jacFact(), _factorizeJac(false), _initConditions(0), _initConditionsDot(0), _dynReactionBulk{nullptr}
 {
 	// Mutliplexed binding and reaction models make no sense in CSTR
 	_singleBinding = false;
@@ -76,7 +76,7 @@ CSTRModel::~CSTRModel() CADET_NOEXCEPT
 	delete[] _strideBound;
 	delete[] _offsetParType;
 
-	delete _dynReactionBulk;
+	delete _dynReactionBulk[0];
 }
 
 unsigned int CSTRModel::numDofs() const CADET_NOEXCEPT
@@ -220,20 +220,89 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 	clearDynamicReactionModels();
 	bool reactionConfSuccess = true;
 
-	_dynReactionBulk = nullptr;
+	_dynReactionBulk[0] = nullptr;
 	if (paramProvider.exists("REACTION_MODEL"))
 	{
 		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
-		_dynReactionBulk = helper.createDynamicReactionModel(dynReactName);
-		if (!_dynReactionBulk)
+		_dynReactionBulk[0] = helper.createDynamicReactionModel(dynReactName);
+		if (!_dynReactionBulk[0])
 			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
 
-		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
+		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
 			paramProvider.pushScope("reaction_bulk");
 
-		reactionConfSuccess = _dynReactionBulk->configureModelDiscretization(paramProvider, _nComp, nullptr, nullptr);
+		reactionConfSuccess = _dynReactionBulk[0]->configureModelDiscretization(paramProvider, _nComp, nullptr, nullptr);
 
-		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
+		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
+			paramProvider.popScope();
+	}
+	else
+	{
+		paramProvider.pushScope("reaction_bulk");
+		
+		if (paramProvider.exists("nreac")) 
+		{
+			int nReactions = paramProvider.getInt("nreac");
+
+			if (nReactions <= 0)
+			{
+				paramProvider.popScope();
+				throw InvalidParameterException("CSTR-Configuration: number of reaction must be positive, please check your configuration");
+			}
+			_dynReactionBulk.resize(nReactions);
+
+			for (int i = 0; i < nReactions; ++i) {
+
+				char reactionKey[32];
+				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
+
+				std::string reactionType = paramProvider.getString(reactionKey);
+				_dynReactionBulk[i] = helper.createDynamicReactionModel(reactionType);
+
+				if (!_dynReactionBulk[i]) {
+					paramProvider.popScope();
+					throw InvalidParameterException("Unknown dynamic reaction model " + reactionType +
+						" for " + reactionKey);
+				}
+
+				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
+					paramProvider.pushScope(reactionKey);
+
+				reactionConfSuccess = _dynReactionBulk[i]->configureModelDiscretization(paramProvider, _nComp, nullptr, nullptr);
+
+				if (!reactionConfSuccess) {
+					if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
+						paramProvider.popScope();
+					paramProvider.popScope();
+					throw InvalidParameterException("Failed to configure reaction model " + reactionType +
+						" for " + reactionKey);
+				}
+
+				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
+					paramProvider.popScope();
+			}
+
+			paramProvider.popScope();
+		}
+	}
+
+
+
+	if (paramProvider.exists("REACTION_MODEL"))
+	{	
+
+
+		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
+		_dynReactionBulk[0] = helper.createDynamicReactionModel(dynReactName);
+		if (!_dynReactionBulk[0])
+			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
+
+		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
+			paramProvider.pushScope("reaction_bulk");
+
+		reactionConfSuccess = _dynReactionBulk[0]->configureModelDiscretization(paramProvider, _nComp, nullptr, nullptr);
+
+		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
 			paramProvider.popScope();
 	}
 
@@ -351,10 +420,10 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 
 	// Reconfigure reaction model
 	bool dynReactionConfSuccess = true;
-	if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
+	if (_dynReactionBulk[0] && _dynReactionBulk[0]->requiresConfiguration())
 	{
 		paramProvider.pushScope("reaction_bulk");
-		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
+		dynReactionConfSuccess = _dynReactionBulk[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep);
 		paramProvider.popScope();
 	}
 
@@ -383,8 +452,8 @@ unsigned int CSTRModel::threadLocalMemorySize() const CADET_NOEXCEPT
 			lms.fitBlock(_dynReaction[i]->workspaceSize(_nComp, _strideBound[i], _nBound + i * _nComp));
 	}
 
-	if (_dynReactionBulk && _dynReactionBulk->requiresWorkspace())
-		lms.fitBlock(_dynReactionBulk->workspaceSize(_nComp, 0, nullptr));
+	if (_dynReactionBulk[0] && _dynReactionBulk[0]->requiresWorkspace())
+		lms.fitBlock(_dynReactionBulk[0]->workspaceSize(_nComp, 0, nullptr));
 
 	const unsigned int maxStrideBound = _strideBound ? *std::max_element(_strideBound, _strideBound + _nParType) : 0;
 	lms.add<active>(_nComp + maxStrideBound);
@@ -1312,13 +1381,13 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 	// Reactions in liquid phase
 	const ColumnPosition colPos{0.0, 0.0, 0.0};
 
-	if (_dynReactionBulk && (_dynReactionBulk->numReactionsLiquid() > 0))
+	if (_dynReactionBulk[0] && (_dynReactionBulk[0]->numReactionsLiquid() > 0))
 	{
 		LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
 		BufferedArray<ResidualType> flux = subAlloc.array<ResidualType>(_nComp);
 
 		std::fill_n(static_cast<ResidualType*>(flux), _nComp, 0.0);
-		_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
+		_dynReactionBulk[0]->residualLiquidAdd(t, secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
 
 		for (unsigned int comp = 0; comp < _nComp; ++comp)
 			resC[comp] += v * flux[comp];
@@ -1328,7 +1397,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 				_jac.native(comp, _nComp + _totalBound) += static_cast<double>(flux[comp]); // dF/dvliquid = flux
 
-			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
+			_dynReactionBulk[0]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
 		}
 	}
 
@@ -1914,7 +1983,7 @@ bool CSTRModel::setParameter(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk[0] }, true))
 			return true;
 	}
 
@@ -1925,7 +1994,7 @@ bool CSTRModel::setParameter(const ParameterId& pId, int value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk[0] }, true))
 			return true;
 	}
 
@@ -1936,7 +2005,7 @@ bool CSTRModel::setParameter(const ParameterId& pId, bool value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk[0] }, true))
 			return true;
 	}
 
@@ -1947,7 +2016,7 @@ void CSTRModel::setSensitiveParameterValue(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setSensitiveParameterValue(pId, value, _sensParams, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setSensitiveParameterValue(pId, value, _sensParams, std::vector<IDynamicReactionModel*>{ _dynReactionBulk[0] }, true))
 			return;
 	}
 
@@ -1956,7 +2025,7 @@ void CSTRModel::setSensitiveParameterValue(const ParameterId& pId, double value)
 
 bool CSTRModel::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
 {
-	if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+	if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, std::vector<IDynamicReactionModel*>{ _dynReactionBulk[0] }, true))
 	{
 		LOG(Debug) << "Found parameter " << pId << " in DynamicBulkReactionModel: Dir " << adDirection << " is set to " << adValue;
 		return true;
