@@ -88,6 +88,8 @@ CADET-Core is the central module within the broader [CADET](https://github.com/c
 
 ![CADET-Core is the central module within the broader CADET framework (adapted from Figure 1 in @Leweke:2018).\label{fig:CADET-Core}](CADET_Figure.jpg) 
 
+\
+
 CADET-Core is readily accessible through the [Conda-Forge package manager](https://anaconda.org/conda-forge/cadet). The CADET team is committed to sustainable research software engineering practices and encourages external contributions to further expand the platform. Through reliable, high-quality software and an ever-growing [community](https://forum.cadet-web.de/), CADET has become a widely adopted tool, driving research and innovation in both academia and industry.
 
 # State of the Field
