@@ -41,7 +41,7 @@ authors:
     affiliation: 1
   - name:
       given-names: "Eric"
-      surname: "von Lieres"
+      surname: "von&#160;Lieres"
     corresponding: true # (This is how to denote the corresponding author)
     orcid: 0000-0002-0309-8408
     affiliation: "1, 2" 
