@@ -220,22 +220,26 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 
 	// Copy quasi-stationary binding mask to a local array that also includes the mobile phase
     std::vector<int> qsMask(_disc.nChannel * _disc.nComp,0);
-	std::map<int, std::pair<unsigned int, unsigned int>> qsOrgDestMask;
+	std::map<int, std::vector<std::pair<unsigned int, unsigned int>>> qsOrgDestMask;
 	std::vector<int> ActiveComp(_disc.nComp,0);
 
     _exchange[0]->quasiStationarityMap(qsOrgDestMask);
 
-    for (const auto& orgDestPair : qsOrgDestMask) 
-	{
-		unsigned int destination = orgDestPair.second.second;
-		unsigned int source = orgDestPair.second.first;
-		auto comp = orgDestPair.first;
-        if (destination < _disc.nChannel) 
+    for (const auto& eqComp : qsOrgDestMask)
+	{	
+		const auto comp = eqComp.first;
+		
+		for (auto odIdx = 0; odIdx < eqComp.second.size(); odIdx++)
 		{
-            qsMask[destination] = 1;
-			qsMask[source] = 1;
-			ActiveComp[comp] = 1;
-        }
+			const auto source = eqComp.second[odIdx].first;
+			const auto destination = eqComp.second[odIdx].second;
+			if (destination < _disc.nChannel)
+			{
+				qsMask[destination] = 1;
+				qsMask[source] = 1;
+				ActiveComp[comp] = 1;
+			}
+		}
     }
 	const linalg::ConstMaskArray mask{ qsMask.data(), static_cast<int>(_disc.nComp * _disc.nChannel) };
 	const int probSize = linalg::numMaskActive(mask);
@@ -288,17 +292,21 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 		// Save values of conserved moieties
 		// moieties: The total amound of every component in qs must be constant all aloung the channels
 		std::vector<double> conservedQuants;
-		for(auto comp = 0; comp < _disc.nComp; comp++)
-		{	
-			if (!ActiveComp[comp])
-				continue;
+		for (const auto& eqComp : qsOrgDestMask)
+		{
 			double consQuan = 0;
-			for (auto channel = 0; channel < _disc.nChannel; channel++)
-			{
-				int channelOffSet = channel * _disc.nComp;
-				consQuan += cShell[channelOffSet + comp];
+			for (auto odIdx = 0; odIdx < eqComp.second.size(); odIdx++) {
+
+				const unsigned int comp = eqComp.first;
+
+				const auto source = eqComp.second[odIdx].first;
+				const auto destination = eqComp.second[odIdx].second;
+				
+				consQuan += cShell[source];
+				consQuan += cShell[destination];
 			}
 			conservedQuants.push_back(consQuan);
+
 		}
 		std::function<bool(double const* const, linalg::detail::DenseMatrixBase&)> jacFunc;
 		if (localAdY && localAdRes)
@@ -396,14 +404,14 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 					// Replace upper part with conservation relations
 					mat.submatrixSetAll(0.0, 1, 0, ActiveComp.size(), probSize);
 					unsigned int sIdx = 1;
-					for (auto comp = 0; comp < _disc.nComp; comp++)
+					for (const auto& eqComp : qsOrgDestMask)
 					{
-						if (!ActiveComp[comp])
-							continue;
-						for (auto channel = 0; channel < _disc.nChannel; channel++)
+						const unsigned int comp = eqComp.first;
+
+						for (auto i = 0; i < probSize; i++)
 						{
-							int channelOffSet = channel * _disc.nComp;
-							mat.native(1, channelOffSet + comp) -= 1.0;
+
+							mat.native(sIdx, i) -= 1.0;
 						}
 					}
 					return true;
@@ -427,16 +435,18 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 				// Calculate residual of conserved moieties
 				std::fill_n(r + 1, ActiveComp.size(), 0.0);
 				int rIdx = 1;
-				for (auto comp = 0; comp < _disc.nComp; comp++)
+				for (const auto& eqComp : qsOrgDestMask)
 				{
-					if (!ActiveComp[comp])
-						continue;
+					const unsigned int comp = eqComp.first;
 					r[rIdx] = conservedQuants[comp];
-					for (auto channel = 0; channel < _disc.nChannel; channel++)
+					for (auto odIdx = 0; odIdx < eqComp.second.size(); odIdx++) 
 					{
-						int channelOffSet = channel * _disc.nComp;
-						r[rIdx] -= x[channelOffSet + comp];
+						const auto source = eqComp.second[odIdx].first;
+						const auto destination = eqComp.second[odIdx].second;
+						r[rIdx] -= 1.0;
+						r[rIdx] -= 0.0;
 					}
+
 				}
 				return true;
 			},

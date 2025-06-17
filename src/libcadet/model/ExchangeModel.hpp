@@ -61,7 +61,7 @@ public:
 
 	virtual bool hasQuasiStationary() const{ return false;}
 	
-	virtual void quasiStationarityMap(std::map<int, std::pair<unsigned int, unsigned int>>& quasiStationaryMap) const {}
+	virtual void quasiStationarityMap(std::map<int, std::vector<std::pair<unsigned int, unsigned int>>>& quasiStationaryMap) const {}
 
 	virtual int residual(active const* y, active* res, WithParamSensitivity, bool wantJac, linalg::BandedSparseRowIterator jacBegin) const = 0;
 	virtual int residual(active const* y, active* res, WithoutParamSensitivity, bool wantJac, linalg::BandedSparseRowIterator jacBegin) const = 0;
