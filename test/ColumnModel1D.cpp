@@ -35,20 +35,20 @@ TEST_CASE("Column_Model_1D LWE forward vs backward flow", "[Column_1D],[DG],[DG1
 	}
 }
 
-TEST_CASE("Column_Model_1D linear pulse vs analytic solution", "[Column_1D],[DG],[DG1D],[Simulation],[Analytic],[todo_CI]")
+TEST_CASE("Column_Model_1D linear pulse vs analytic solution", "[Column_1D],[DG],[DG1D],[Simulation],[Analytic],[CI]")
 {
 	cadet::test::column::DGparams disc;
-	cadet::test::column::testAnalyticBenchmark("GENERAL_RATE_MODEL", "/data/grm-pulseBenchmark.data", true, true, disc, 6e-5, 1e-7);
-	cadet::test::column::testAnalyticBenchmark("GENERAL_RATE_MODEL", "/data/grm-pulseBenchmark.data", true, false, disc, 6e-5, 1e-7);
-	cadet::test::column::testAnalyticBenchmark("GENERAL_RATE_MODEL", "/data/grm-pulseBenchmark.data", false, true, disc, 6e-5, 1e-7);
-	cadet::test::column::testAnalyticBenchmark("GENERAL_RATE_MODEL", "/data/grm-pulseBenchmark.data", false, false, disc, 6e-5, 1e-7);
+	cadet::test::column::testAnalyticBenchmark("COLUMN_MODEL_1D", "/data/grm-pulseBenchmark.data", true, true, disc, 6e-5, 1e-7);
+	cadet::test::column::testAnalyticBenchmark("COLUMN_MODEL_1D", "/data/grm-pulseBenchmark.data", true, false, disc, 6e-5, 1e-7);
+	cadet::test::column::testAnalyticBenchmark("COLUMN_MODEL_1D", "/data/grm-pulseBenchmark.data", false, true, disc, 6e-5, 1e-7);
+	cadet::test::column::testAnalyticBenchmark("COLUMN_MODEL_1D", "/data/grm-pulseBenchmark.data", false, false, disc, 6e-5, 1e-7);
 }
 
-TEST_CASE("Column_Model_1D non-binding linear pulse vs analytic solution", "[Column_1D],[DG],[DG1D],[Simulation],[Analytic],[NonBinding],[todo_CI]")
+TEST_CASE("Column_Model_1D non-binding linear pulse vs analytic solution", "[Column_1D],[DG],[DG1D],[Simulation],[Analytic],[NonBinding],[todo_CI],[testHere]")
 {
 	cadet::test::column::DGparams disc;
-	cadet::test::column::testAnalyticNonBindingBenchmark("GENERAL_RATE_MODEL", "/data/grm-nonBinding.data", true, disc, 6e-5, 1e-7);
-	cadet::test::column::testAnalyticNonBindingBenchmark("GENERAL_RATE_MODEL", "/data/grm-nonBinding.data", false, disc, 6e-5, 1e-7);
+	cadet::test::column::testAnalyticNonBindingBenchmark("COLUMN_MODEL_1D", "/data/grm-nonBinding.data", true, disc, 6e-5, 1e-7);
+	cadet::test::column::testAnalyticNonBindingBenchmark("COLUMN_MODEL_1D", "/data/grm-nonBinding.data", false, disc, 6e-5, 1e-7);
 }
 
 // todo FIX (scheitert bei backward flow jacobian vs AD)
@@ -104,7 +104,7 @@ TEST_CASE("Column_Model_1D numerical Benchmark with parameter sensitivities for 
 
 TEST_CASE("Column_Model_1D LWE DGSEM and GSM particle discretization yields similar accuracy", "[Column_1D],[DG],[DG1D],[Simulation],[todo_CI]")
 {
-	cadet::JsonParameterProvider jpp = createLWE("GENERAL_RATE_MODEL", "DG");
+	cadet::JsonParameterProvider jpp = createLWE("Column_Model_1D", "DG");
 	cadet::test::column::DGparams disc(0, 4, 2, 3, 1); // Note that we want to employ only a single particle element
 	disc.setDisc(jpp);
 

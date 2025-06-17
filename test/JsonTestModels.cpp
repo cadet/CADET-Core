@@ -849,14 +849,15 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const std::string& uoType, const std::string& spatialMethod)
 {
 	json grm;
+	json particle;
 	grm["UNIT_TYPE"] = uoType;
 	grm["NCOMP"] = 1;
 	grm["COL_DISPERSION"] = 0.002 / (100.0 * 100.0 * 60.0);
 	grm["COL_DISPERSION_MULTIPLEX"] = 0;
 	grm["COL_DISPERSION_RADIAL"] = 1e-6;
-	grm["FILM_DIFFUSION"] = { 0.01 / (100.0 * 60.0) };
-	grm["PAR_DIFFUSION"] = { 3.003e-6 };
-	grm["PAR_SURFDIFFUSION"] = { 0.0 };
+	particle["FILM_DIFFUSION"] = { 0.01 / (100.0 * 60.0) };
+	particle["PAR_DIFFUSION"] = { 3.003e-6 };
+	particle["PAR_SURFDIFFUSION"] = { 0.0 };
 	if (uoType == "MULTI_CHANNEL_TRANSPORT")
 		grm["NCHANNEL"] = 3;
 
@@ -873,9 +874,9 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 		grm["COL_RADIUS"] = 0.01;
 		grm["VELOCITY"] = 0.5 / (100.0 * 60.0);
 	}
-	grm["PAR_RADIUS"] = 4e-5;
+	particle["PAR_RADIUS"] = 4e-5;
 	grm["COL_POROSITY"] = 0.4;
-	grm["PAR_POROSITY"] = 0.333;
+	particle["PAR_POROSITY"] = 0.333;
 	grm["TOTAL_POROSITY"] = 0.4 + (1.0 - 0.4) * 0.333;
 
 	if (uoType == "MULTI_CHANNEL_TRANSPORT")
@@ -890,27 +891,36 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 	grm["INIT_Q"] = { 0.0 };
 
 	// Adsorption
+	particle["ADSORPTION_MODEL"] = nonBinding ? std::string("NONE") : std::string("LINEAR");
+	json ads;
+	//if (uoType == "COLUMN_MODEL_1D")
+	//	ads["NBOUND"] = nonBinding ? 0 : 1;
+	//else
+	//	particle["NBOUND"] = nonBinding ? 0 : 1;
 	if (nonBinding)
 	{
-		grm["ADSORPTION_MODEL"] = std::string("NONE");
-		grm["NBOUND"] = { 0 };
+		if (uoType == "COLUMN_MODEL_1D")
+			ads["NBOUND"] = { 0 };
+		else
+			particle["NBOUND"] = { 0 };
 	}
 	else
 	{
-		grm["ADSORPTION_MODEL"] = std::string("LINEAR");
-		grm["NBOUND"] = { 1 };
-
-		json ads;
-		ads["IS_KINETIC"] = (dynamicBinding ? 1 : 0);
-		ads["LIN_KA"] = { 2.5 };
-		ads["LIN_KD"] = { 1.0 };
-		grm["adsorption"] = ads;
+		if (uoType == "COLUMN_MODEL_1D")
+			ads["NBOUND"] = { 1 };
+		else
+			particle["NBOUND"] = { 1 };
 	}
+	ads["IS_KINETIC"] = (dynamicBinding ? 1 : 0);
+	ads["LIN_KA"] = { 2.5 };
+	ads["LIN_KD"] = { 1.0 };
+	particle["adsorption"] = ads;
 
 	// Discretization
 	{
 		const bool model2D = uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos;
 		json disc;
+		json parDisc;
 		disc["SPATIAL_METHOD"] = spatialMethod;
 		if (model2D)
 			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
@@ -918,7 +928,7 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 		if (spatialMethod == "FV")
 		{
 			disc["NCOL"] = 512;
-			disc["NPAR"] = 4;
+			parDisc["NPAR"] = 4;
 			if (model2D)
 				disc["NRAD"] = 3;
 				
@@ -949,15 +959,25 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 				disc["POLYDEG"] = 5;
 				disc["NELEM"] = 15;
 			}
-			disc["PAR_EXACT_INTEGRATION"] = 1;
-			disc["PAR_POLYDEG"] = 3;
-			disc["PAR_NELEM"] = 1;
+			parDisc["PAR_EXACT_INTEGRATION"] = 1;
+			parDisc["PAR_POLYDEG"] = 3;
+			parDisc["PAR_NELEM"] = 1;
 		}
 
-		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
+		parDisc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
 
 		disc["USE_ANALYTIC_JACOBIAN"] = true;
 
+		if (uoType == "COLUMN_MODEL_1D")
+		{
+			particle["discretization"] = parDisc;
+			grm["particle_type_000"] = particle;
+		}
+		else
+		{
+			disc.update(parDisc);
+			grm.update(particle);
+		}
 		grm["discretization"] = disc;
 	}
 
