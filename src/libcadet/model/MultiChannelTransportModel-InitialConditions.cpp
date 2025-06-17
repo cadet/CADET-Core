@@ -255,6 +255,7 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 
 		// Reuse memory of band matrix for dense matrix
 		linalg::DenseMatrixView fullJacobianMatrix(_convDispOp.jacobian().data(), nullptr, mask.len, mask.len);
+		linalg::CompressedSparseMatrix& testJac = _convDispOp.jacobian();
 
 		// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
 		const double z = (0.5 + static_cast<double>(pblk)) / static_cast<double>(_disc.nCol);
@@ -399,7 +400,25 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 					
 					// Extract Jacobian from full Jacobian
 					mat.setAll(0.0);
-					linalg::copyMatrixSubset(fullJacobianMatrix, mask, mask, mat);
+					// manully copy from fullJaconianMatrix into mat
+					int r = 0;
+					for (auto i = 0; i < fullJacobianMatrix.rows(); i++)
+					{
+						if (!mask.mask[i])
+							continue;
+						int c = 0;
+						double const* const vals = testJac.valuesOfRow(i);
+						const int nnz = testJac.numNonZerosInRow(i);
+						int const* colIdx = testJac.columnIndicesOfRow(i);
+						for (auto j = 0; j < nnz; j++)
+						{	
+							if ( !mask.mask[colIdx[j]] || colIdx[j] > mask.len )
+								continue;
+							mat.native(r, c) = vals[c];
+							c++;
+						}
+						r++;
+					}
 
 					// Replace upper part with conservation relations
 					mat.submatrixSetAll(0.0, 1, 0, ActiveComp.size(), probSize);
