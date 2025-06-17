@@ -245,7 +245,7 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 		
 		if (paramProvider.exists("NREAC")) 
 		{
-			int nReactions = paramProvider.getInt("nreac");
+			int nReactions = paramProvider.getInt("NREAC");
 
 			if (nReactions <= 0)
 			{
@@ -422,7 +422,13 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 		if (_dynReactionBulk[i] && _dynReactionBulk[i]->requiresConfiguration())
 		{
 			paramProvider.pushScope("reaction_bulk");
+			
+			char reactionKey[32];
+			snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
+			paramProvider.pushScope(reactionKey);
+			
 			dynReactionConfSuccess = _dynReactionBulk[i]->configure(paramProvider, _unitOpIdx, ParTypeIndep);
+			paramProvider.popScope();
 			paramProvider.popScope();
 		}
 	}
