@@ -176,7 +176,8 @@ protected:
 	std::vector<double> _initConditionsDot; //!< Initial conditions for time derivative
 
 	//todo vector of Models
-	std::vector < IDynamicReactionModel* > _dynReactionBulk; //!< Dynamic reactions in the bulk volume 
+	std::vector < IDynamicReactionModel* > _dynReactionBulk; //!< Dynamic reactions in the bulk volume
+	bool _old_interface; // 
 
 	class Exporter : public ISolutionExporter
 	{

@@ -222,10 +222,11 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 	// ==== Construct and configure dynamic reaction model
 	clearDynamicReactionModels();
 	bool reactionConfSuccess = true;
-
+	_old_interface = false;
 	_dynReactionBulk[0] = nullptr;
 	if (paramProvider.exists("REACTION_MODEL"))
 	{
+		_old_interface = true;
 		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
 		_dynReactionBulk[0] = helper.createDynamicReactionModel(dynReactName);
 		if (!_dynReactionBulk[0])
@@ -422,14 +423,17 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 		if (_dynReactionBulk[i] && _dynReactionBulk[i]->requiresConfiguration())
 		{
 			paramProvider.pushScope("reaction_bulk");
-			
-			char reactionKey[32];
-			snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
-			paramProvider.pushScope(reactionKey);
-			
+			if (!_old_interface)
+			{
+				char reactionKey[32];
+				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
+				paramProvider.pushScope(reactionKey);
+			}
 			dynReactionConfSuccess = _dynReactionBulk[i]->configure(paramProvider, _unitOpIdx, ParTypeIndep);
 			paramProvider.popScope();
-			paramProvider.popScope();
+			
+			if(!_old_interface)
+				paramProvider.popScope();
 		}
 	}
 
