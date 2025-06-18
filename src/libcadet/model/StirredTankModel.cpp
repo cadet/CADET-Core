@@ -240,7 +240,7 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
 			paramProvider.popScope();
 	}
-	else
+	else if (paramProvider.exists("reaction_bulk"))
 	{
 		paramProvider.pushScope("reaction_bulk");
 		
