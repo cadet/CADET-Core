@@ -145,6 +145,8 @@ namespace parts
 
 		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac);
 
+		bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
+
 	protected:
 
 		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
