@@ -261,6 +261,11 @@ namespace cadet
 		return nullptr;		
 	}
 
+	model::IParticleModel* ModelBuilder::createParticleModel(const std::string& name) const
+	{
+		return _particleModels.create(name);
+	}
+
 	model::IBindingModel* ModelBuilder::createBindingModel(const std::string& name) const
 	{
 		return _bindingModels.create(name);
@@ -269,6 +274,11 @@ namespace cadet
 	model::IExchangeModel* ModelBuilder::createExchangeModel(const std::string& name) const
 	{
 		return _exchangeModels.create(name);
+	}
+
+	bool ModelBuilder::isValidParticleModel(const std::string& name) const
+	{
+		return _particleModels.exists(name);
 	}
 
 	bool ModelBuilder::isValidBindingModel(const std::string& name) const

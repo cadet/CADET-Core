@@ -386,7 +386,7 @@ void ColumnModel1D::consistentInitialState(const SimulationTime& simTime, double
 				active* const localAdY = adJac.adY ? adJac.adY + localOffsetToParticle + localOffsetInParticle : nullptr;
 
 				// r (particle) coordinate of current node
-				const double r = _particle[type].relativeCoordinate(node);
+				const double r = _particles[type]->relativeCoordinate(node);
 				const ColumnPosition colPos{ z, 0.0, r };
 
 				// Determine whether nonlinear solver is required
@@ -397,8 +397,8 @@ void ColumnModel1D::consistentInitialState(const SimulationTime& simTime, double
 				linalg::selectVectorSubset(qShell - _disc.nComp, mask, solution);
 
 				// Save values of conserved moieties
-				const double epsQ = 1.0 - static_cast<double>(_particle[type].getPorosity());
-				linalg::conservedMoietiesFromPartitionedMask(mask, _disc.nBound + type * _disc.nComp, _disc.nComp, qShell - _disc.nComp, conservedQuants, static_cast<double>(_particle[type].getPorosity()), epsQ);
+				const double epsQ = 1.0 - static_cast<double>(_particles[type]->getPorosity());
+				linalg::conservedMoietiesFromPartitionedMask(mask, _disc.nBound + type * _disc.nComp, _disc.nComp, qShell - _disc.nComp, conservedQuants, static_cast<double>(_particles[type]->getPorosity()), epsQ);
 
 				std::function<bool(double const* const, linalg::detail::DenseMatrixBase&)> jacFunc;
 
@@ -477,7 +477,7 @@ void ColumnModel1D::consistentInitialState(const SimulationTime& simTime, double
 								continue;
 							}
 
-							mat.native(rIdx, rIdx) = static_cast<double>(_particle[type].getPorosity());
+							mat.native(rIdx, rIdx) = static_cast<double>(_particles[type]->getPorosity());
 
 							for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++bndIdx)
 							{
@@ -525,7 +525,7 @@ void ColumnModel1D::consistentInitialState(const SimulationTime& simTime, double
 								continue;
 							}
 
-							mat.native(rIdx, rIdx) = static_cast<double>(_particle[type].getPorosity());
+							mat.native(rIdx, rIdx) = static_cast<double>(_particles[type]->getPorosity());
 
 							for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++bndIdx)
 							{
@@ -572,7 +572,7 @@ void ColumnModel1D::consistentInitialState(const SimulationTime& simTime, double
 								continue;
 							}
 
-							r[rIdx] = static_cast<double>(_particle[type].getPorosity()) * x[rIdx] - conservedQuants[rIdx];
+							r[rIdx] = static_cast<double>(_particles[type]->getPorosity()) * x[rIdx] - conservedQuants[rIdx];
 
 							for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++bndIdx)
 							{
@@ -713,7 +713,7 @@ void ColumnModel1D::consistentInitialTimeDerivative(const SimulationTime& simTim
 			if (_binding[type]->dependsOnTime())
 			{
 				// r (particle) coordinate of current node (particle radius normed to 1) - needed in externally dependent adsorption kinetic
-				const double r = _particle[type].relativeCoordinate(j);
+				const double r = _particles[type]->relativeCoordinate(j);
 
 				_binding[type]->timeDerivativeQuasiStationaryFluxes(simTime.t, simTime.secIdx,
 					ColumnPosition{ z, 0.0, r },
@@ -800,7 +800,7 @@ void ColumnModel1D::leanConsistentInitialState(const SimulationTime& simTime, do
 	BENCH_SCOPE(_timerConsistentInit);
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
-		_particle[parType].leanConsistentInitialStateValidity();
+		_particles[parType]->leanConsistentInitialStateValidity();
 
 	Indexer idxr(_disc);
 
@@ -830,7 +830,7 @@ void ColumnModel1D::leanConsistentInitialState(const SimulationTime& simTime, do
 					const int localOffsetInParticle = static_cast<int>(shell) * idxr.strideParNode(type) + idxr.strideParLiquid();
 					double* const qShell = vecStateY + localOffsetToParticle + localOffsetInParticle;
 					// r (particle) coordinate of current node
-					const double r = _particle[type].relativeCoordinate(shell);
+					const double r = _particles[type]->relativeCoordinate(shell);
 					const ColumnPosition colPos{ z, 0.0, r};
 
 					// Perform consistent initialization that does not require a full fledged nonlinear solver (that may fail or damage the current state vector)
@@ -888,7 +888,7 @@ void ColumnModel1D::leanConsistentInitialTimeDerivative(double t, double const* 
 	BENCH_SCOPE(_timerConsistentInit);
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
-		_particle[parType].leanConsistentInitialTimeDerivativeValidity();
+		_particles[parType]->leanConsistentInitialTimeDerivativeValidity();
 
 	Indexer idxr(_disc);
 
@@ -1271,7 +1271,7 @@ void ColumnModel1D::leanConsistentInitialSensitivity(const SimulationTime& simTi
 	BENCH_SCOPE(_timerConsistentInit);
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
-		_particle[parType].leanConsistentInitialStateValidity();
+		_particles[parType]->leanConsistentInitialStateValidity();
 
 	Indexer idxr(_disc);
 

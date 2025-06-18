@@ -41,6 +41,7 @@
       "UNIT_TYPE": "COLUMN_MODEL_1D",
       "VELOCITY": 0.000575,
       "particle_type_000": {
+        "PARTICLE_TYPE": "GENERAL_RATE_PARTICLE",
         "FILM_DIFFUSION": [
           6.9e-06,
           6.9e-06,
@@ -63,7 +64,7 @@
           0.0
         ],
         "ADSORPTION_MODEL": "STERIC_MASS_ACTION",
-        "NBOUND": [1, 1, 1, 1],
+        "NBOUND": [ 1, 1, 1, 1 ],
         "adsorption": {
           "IS_KINETIC": 0,
           "SMA_KA": [

@@ -77,6 +77,7 @@
       "UNIT_TYPE": "COLUMN_MODEL_1D",
       "VELOCITY": 0.000575,
       "particle_type_000": {
+        "PARTICLE_TYPE": "GENERAL_RATE_PARTICLE",
         "ADSORPTION_MODEL": "LINEAR",
         "ADSORPTION_MODEL_MULTIPLEX": 1,
         "NBOUND": [

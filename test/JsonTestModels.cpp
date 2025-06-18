@@ -142,6 +142,7 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 
 		if (uoType == "COLUMN_MODEL_1D")
 		{
+			particle["PARTICLE_TYPE"] = "GENERAL_RATE_PARTICLE";
 			particle["discretization"] = discPar;
 			config["particle_type_000"] = particle;
 		}
@@ -335,7 +336,10 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 	}
 
 	if (uoType == "COLUMN_MODEL_1D")
+	{
+		particle["PARTICLE_TYPE"] = "GENERAL_RATE_PARTICLE";
 		config["particle_type_000"] = particle;
+	}
 	else
 		config.update(particle);
 
@@ -688,7 +692,10 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 			}
 
 			if (uoType == "COLUMN_MODEL_1D")
+			{
+				particle["PARTICLE_TYPE"] = "GENERAL_RATE_PARTICLE";
 				grm["particle_type_000"] = particle;
+			}
 			else
 				grm.update(particle);
 			model["unit_000"] = grm;
@@ -972,6 +979,7 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 
 		if (uoType == "COLUMN_MODEL_1D")
 		{
+			particle["PARTICLE_TYPE"] = "GENERAL_RATE_PARTICLE";
 			particle["discretization"] = parDisc;
 			grm["particle_type_000"] = particle;
 		}

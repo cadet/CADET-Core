@@ -93,6 +93,7 @@
         "UNIT_TYPE": "COLUMN_MODEL_1D",
         "VELOCITY": 0.000575,
         "particle_type_000": {
+          "PARTICLE_TYPE":  "GENERAL_RATE_PARTICLE",
           "FILM_DIFFUSION": [
             6.9e-06,
             2e-06,
@@ -150,6 +151,7 @@
           }
         },
         "particle_type_001": {
+          "PARTICLE_TYPE": "GENERAL_RATE_PARTICLE",
           "FILM_DIFFUSION": [
             6.9e-06,
             2e-06,

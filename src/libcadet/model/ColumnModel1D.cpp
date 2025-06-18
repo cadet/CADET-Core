@@ -13,6 +13,7 @@
 #include "model/ColumnModel1D.hpp"
 #include "BindingModelFactory.hpp"
 #include "ReactionModelFactory.hpp"
+#include "ParticleModelFactory.hpp"
 #include "ParamReaderHelper.hpp"
 #include "ParamReaderScopes.hpp"
 #include "cadet/Exceptions.hpp"
@@ -55,7 +56,7 @@ constexpr double SurfVolRatioSlab = 1.0;
 
 
 ColumnModel1D::ColumnModel1D(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_globalJac(), _globalJacDisc(), _jacInlet(), _particle(nullptr), _dynReactionBulk(nullptr),
+	_globalJac(), _globalJacDisc(), _jacInlet(), _dynReactionBulk(nullptr),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _initCp(0), _initQ(0), _initState(0), _initStateDot(0)
 {
@@ -65,9 +66,13 @@ ColumnModel1D::~ColumnModel1D() CADET_NOEXCEPT
 {
 	delete[] _tempState;
 
+	for (IParticleModel* pm : _particles)
+		delete pm;
+
+	_particles.clear();
+
 	_binding.clear(); // binding models are deleted in the respective particle model
 	_dynReaction.clear(); // particle reaction models are deleted in the respective particle model
-	delete[] _particle;
 
 	delete _dynReactionBulk;
 
@@ -150,12 +155,24 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 	paramProvider.popScope();
 
 	Indexer idxr(_disc);
-	_particle = new GeneralRateParticle[_disc.nParType];
+	_particles = std::vector<IParticleModel*>(_disc.nParType, nullptr);
+
+	for (int parType = 0; parType < _disc.nParType; parType++)
+	{
+		paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
+		std::string particleModelName = paramProvider.getString("PARTICLE_TYPE");
+
+		_particles[parType] = helper.createParticleModel(particleModelName);
+		if (!_particles[parType])
+			throw InvalidParameterException("Unknown particle model " + particleModelName);
+
+		paramProvider.popScope();
+	}
 
 	bool particleConfSuccess = true;
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		particleConfSuccess = particleConfSuccess && _particle[parType].configureModelDiscretization(paramProvider, helper, _disc.nComp, parType, _disc.nParType, idxr.strideColComp());
+		particleConfSuccess = particleConfSuccess && _particles[parType]->configureModelDiscretization(paramProvider, helper, _disc.nComp, parType, _disc.nParType, idxr.strideColComp());
 	}
 	paramProvider.pushScope("discretization");
 
@@ -164,7 +181,7 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 		_disc.nParPoints = new unsigned int[_disc.nParType];
 		for (int type = 0; type < _disc.nParType; type++)
 		{
-			_disc.nParPoints[type] = _particle[type].nDiscPoints();
+			_disc.nParPoints[type] = _particles[type]->nDiscPoints();
 		}
 	}
 
@@ -173,7 +190,7 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 	_disc.nBound = new unsigned int[_disc.nParType * _disc.nComp];
 	for (int parType = 0; parType < _disc.nParType; parType++)
 		for (int comp = 0; comp < _disc.nComp; comp++)
-			_disc.nBound[parType * _disc.nComp + comp] = _particle[parType].nBound()[comp];
+			_disc.nBound[parType * _disc.nComp + comp] = _particles[parType]->nBound()[comp];
 
 	const unsigned int nTotalBound = std::accumulate(_disc.nBound, _disc.nBound + _disc.nComp * _disc.nParType, 0u);
 
@@ -266,14 +283,14 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 
 	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
 	{
-		_binding[parType] = _particle[parType].getBinding();
-		_singleBinding = _particle[parType].bindingParDep();
-		if (parType > 0 && _singleBinding != _particle[parType].bindingParDep())
+		_binding[parType] = _particles[parType]->getBinding();
+		_singleBinding = _particles[parType]->bindingParDep();
+		if (parType > 0 && _singleBinding != _particles[parType]->bindingParDep())
 			throw InvalidParameterException("Configuration of binding went wrong");
 
-		_dynReaction[parType] = _particle[parType].getReaction();
-		_singleDynReaction = _particle[parType].reactionParDep();
-		if (parType > 0 && _singleDynReaction != _particle[parType].reactionParDep())
+		_dynReaction[parType] = _particles[parType]->getReaction();
+		_singleDynReaction = _particles[parType]->reactionParDep();
+		if (parType > 0 && _singleDynReaction != _particles[parType]->reactionParDep())
 			throw InvalidParameterException("Configuration of particle reaction went wrong");
 	}
 
@@ -400,7 +417,7 @@ bool ColumnModel1D::configure(IParameterProvider& paramProvider)
 	bool particleConfSuccess = true;
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		particleConfSuccess = particleConfSuccess && _particle[parType].configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType]);
+		particleConfSuccess = particleConfSuccess && _particles[parType]->configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType]);
 	}
 
 	// Reconfigure reaction model
@@ -507,7 +524,7 @@ void ColumnModel1D::notifyDiscontinuousSectionTransition(double t, unsigned int 
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		_particle[parType].notifyDiscontinuousSectionTransition(t, secIdx);
+		_particles[parType]->notifyDiscontinuousSectionTransition(t, secIdx);
 	}
 
 	_disc.curSection = secIdx;
@@ -637,7 +654,7 @@ void ColumnModel1D::extractJacobianFromAD(active const* const adRes, unsigned in
 	// todo extract these entries instead of analytical calculation?
 	for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 	{
-		_particle[parType].calcFilmDiffJacobian(_disc.curSection, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(parType)}), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], _globalJac, true);
+		_particles[parType]->calcFilmDiffJacobian(_disc.curSection, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(parType)}), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], _globalJac, true);
 	}
 }
 
@@ -848,7 +865,7 @@ int ColumnModel1D::residualImpl(double t, unsigned int secIdx, StateType const* 
 			ColumnPosition{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }
 		};
 
-		_particle[parType].residual(t, secIdx,
+		_particles[parType]->residual(t, secIdx,
 			y + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
 			y + idxr.offsetC() + colNode * idxr.strideColNode(),
 			yDot ? yDot + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
@@ -932,8 +949,8 @@ parts::cell::CellParameters ColumnModel1D::makeCellResidualParams(unsigned int p
 			_disc.boundOffset + _disc.nComp * parType,
 			_disc.strideBound[parType],
 			qsReaction,
-			_particle[parType].getPorosity(),
-			_particle[parType].getPoreAccessfactor(),
+			_particles[parType]->getPorosity(),
+			_particles[parType]->getPoreAccessfactor(),
 			_binding[parType],
 			(_dynReaction[parType] && (_dynReaction[parType]->numReactionsCombined() > 0)) ? _dynReaction[parType] : nullptr
 		};
@@ -1061,7 +1078,7 @@ void ColumnModel1D::multiplyWithDerivativeJacobian(const SimulationTime& simTime
 			const unsigned int pblk = idxParLoop % _disc.nPoints;
 			const unsigned int type = idxParLoop / _disc.nPoints;
 
-			const double invBetaP = (1.0 / static_cast<double>(_particle[type].getPorosity()) - 1.0);
+			const double invBetaP = (1.0 / static_cast<double>(_particles[type]->getPorosity()) - 1.0);
 			unsigned int const* const nBound = _disc.nBound + type * _disc.nComp;
 			unsigned int const* const boundOffset = _disc.boundOffset + type * _disc.nComp;
 			int const* const qsReaction = _binding[type]->reactionQuasiStationarity();
@@ -1153,14 +1170,14 @@ bool ColumnModel1D::setParameter(const ParameterId& pId, double value)
 		bool paramExists = false;
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
-			const bool paramExistsNow = _particle[parType].setParameter(pId, value);
+			const bool paramExistsNow = _particles[parType]->setParameter(pId, value);
 			paramExists = paramExists || paramExistsNow;
 
 			if (paramExists)
 			{
 				// Check whether particle radius or core radius has changed and update radial discretization if necessary
 				if ((pId.name == hashString("PAR_RADIUS")) || (pId.name == hashString("PAR_CORERADIUS")))
-					_particle[parType].updateRadialDisc();
+					_particles[parType]->updateRadialDisc();
 
 				if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
 				{
@@ -1189,7 +1206,7 @@ bool ColumnModel1D::setParameter(const ParameterId& pId, int value)
 	bool paramExists = false;
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		const bool paramExistsNow = _particle[parType].setParameter(pId, value);
+		const bool paramExistsNow = _particles[parType]->setParameter(pId, value);
 		paramExists = paramExists || paramExistsNow;
 
 		if (paramExists)
@@ -1220,7 +1237,7 @@ bool ColumnModel1D::setParameter(const ParameterId& pId, bool value)
 	bool paramExists = false;
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		const bool paramExistsNow = _particle[parType].setParameter(pId, value);
+		const bool paramExistsNow = _particles[parType]->setParameter(pId, value);
 		paramExists = paramExists || paramExistsNow;
 
 		if (paramExists)
@@ -1270,14 +1287,14 @@ void ColumnModel1D::setSensitiveParameterValue(const ParameterId& pId, double va
 		bool paramExists = false;
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
-			const bool paramExistsNow = _particle[parType].setSensitiveParameterValue(_sensParams, pId, value);
+			const bool paramExistsNow = _particles[parType]->setSensitiveParameterValue(_sensParams, pId, value);
 			paramExists = paramExists || paramExistsNow;
 
 			if (paramExists)
 			{
 				// Check whether particle radius or core radius has changed and update radial discretization if necessary
 				if ((pId.name == hashString("PAR_RADIUS")) || (pId.name == hashString("PAR_CORERADIUS")))
-					_particle[parType].updateRadialDisc();
+					_particles[parType]->updateRadialDisc();
 
 				if ((pId.particleType != ParTypeIndep && parType == pId.particleType) || (pId.particleType == ParTypeIndep && parType == _disc.nParType - 1))
 				{
@@ -1332,7 +1349,7 @@ bool ColumnModel1D::setSensitiveParameter(const ParameterId& pId, unsigned int a
 		bool paramExists = false;
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
-			const bool paramExistsNow = _particle[parType].setSensitiveParameter(_sensParams, pId, adDirection, adValue);
+			const bool paramExistsNow = _particles[parType]->setSensitiveParameter(_sensParams, pId, adDirection, adValue);
 			paramExists = paramExists || paramExistsNow;
 
 			if (paramExists)
@@ -1342,7 +1359,7 @@ bool ColumnModel1D::setSensitiveParameter(const ParameterId& pId, unsigned int a
 				// because their gradient has changed (although their nominal value has not changed).
 				if ((pId.name == hashString("PAR_RADIUS")) || (pId.name == hashString("PAR_CORERADIUS")))
 				{
-					_particle[parType].updateRadialDisc();
+					_particles[parType]->updateRadialDisc();
 				}
 
 				// continue loop for particle type independent parameters to set the respective parameter sensitivity in all particle types
@@ -1376,7 +1393,7 @@ std::unordered_map<ParameterId, double> ColumnModel1D::getAllParameterValues() c
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		_particle[parType].getAllParameterValues(data);
+		_particles[parType]->getAllParameterValues(data);
 	}
 
 	return data;
@@ -1386,7 +1403,7 @@ double ColumnModel1D::getParameterDouble(const ParameterId& pId) const
 {
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		double val = _particle[parType].getParameterDouble(pId);
+		double val = _particles[parType]->getParameterDouble(pId);
 		if (val)
 			return val;
 	}
@@ -1398,7 +1415,7 @@ bool ColumnModel1D::hasParameter(const ParameterId& pId) const
 {
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		if (_particle[parType].hasParameter(pId))
+		if (_particles[parType]->hasParameter(pId))
 			return true;
 	}
 

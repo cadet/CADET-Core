@@ -70,6 +70,7 @@
       "NCOMP": 1,
       "NPARTYPE": 1,
       "particle_type_000": {
+        "PARTICLE_TYPE": "GENERAL_RATE_PARTICLE",
         "ADSORPTION_MODEL": "LINEAR",
         "NBOUND": [ 1 ],
         "FILM_DIFFUSION": 6.9e-06,
