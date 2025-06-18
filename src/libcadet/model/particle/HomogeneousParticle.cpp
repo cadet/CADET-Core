@@ -608,6 +608,11 @@ namespace model
 		return false;
 	}
 
+	void registerHomogeneousParticleModel(std::unordered_map<std::string, std::function<model::IParticleModel* ()>>& particles)
+	{
+		particles[HomogeneousParticle::identifier()] = []() { return new HomogeneousParticle(); };
+	}
+
 }  // namespace model
 
 }  // namespace cadet
