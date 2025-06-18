@@ -404,6 +404,11 @@ namespace model
 		return false;
 	}
 
+	void registerGeneralRateParticleModel(std::unordered_map<std::string, std::function<model::IParticleModel* ()>>& particles)
+	{
+		particles[GeneralRateParticle::identifier()] = []() { return new GeneralRateParticle(); };
+	}
+
 }  // namespace model
 
 }  // namespace cadet

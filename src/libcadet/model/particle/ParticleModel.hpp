@@ -38,8 +38,6 @@
 #include <array>
 #include <vector>
 
-using namespace Eigen;
-
 namespace cadet
 {
 
@@ -160,8 +158,8 @@ namespace cadet
 			 * @brief analytically calculates the static (per section) particle diffusion Jacobian
 			 * @return 1 if jacobain calculation fits the predefined pattern of the jacobian, 0 if not.
 			 */
-			virtual int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac) = 0;
-			virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool crossDepsOnly = false) = 0;
+			virtual int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac) = 0;
+			virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac, bool crossDepsOnly = false) = 0;
 
 			virtual bool setParameter(const ParameterId& pId, double value) = 0;
 			virtual bool setParameter(const ParameterId& pId, int value) = 0;

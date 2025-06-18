@@ -78,6 +78,8 @@ namespace parts
 		HomogeneousParticle();
 		~HomogeneousParticle() CADET_NOEXCEPT;
 
+		static inline const char* identifier() CADET_NOEXCEPT { return "HOMOGENEOUS_PARTICLE"; }
+
 		bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp) override;
 		bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound) override;
 
