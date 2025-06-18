@@ -1658,6 +1658,14 @@ namespace parts
 		return 1;
 	}
 
+	bool ParticleDiffusionOperatorDG::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
+	{
+		if (pId.name == hashString("PAR_RADIUS") || pId.name == hashString("PAR_CORERADIUS"))
+			throw InvalidParameterException("Sensitivities are not available for PAR_RADIUS and PAR_CORERADIUS when using a DG discretized General Rate Particle Model. Switch to FV discretization.");
+
+		return ParticleDiffusionOperatorBase::setSensitiveParameter(sensParams, pId, adDirection, adValue);
+	}
+
 }  // namespace parts
 
 }  // namespace model
