@@ -298,9 +298,8 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
 					paramProvider.popScope();
 			}
-
-			paramProvider.popScope();
 		}
+		paramProvider.popScope();
 	}
 
 
