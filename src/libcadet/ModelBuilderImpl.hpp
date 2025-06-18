@@ -19,6 +19,7 @@
 #define LIBCADET_MODELBUILDER_IMPL_HPP_
 
 #include "cadet/ModelBuilder.hpp"
+#include "ParticleModelFactory.hpp"
 #include "BindingModelFactory.hpp"
 #include "ExchangeModelFactory.hpp"
 #include "ReactionModelFactory.hpp"
@@ -60,8 +61,10 @@ public:
 	virtual void registerExternalFunctionType(const std::string& name, std::function<IExternalFunction*(void)> factory);
 
 	virtual IInletProfile* createInletProfile(const std::string& type) const;
+	virtual model::IParticleModel* createParticleModel(const std::string& name) const;
 	virtual model::IBindingModel* createBindingModel(const std::string& name) const;
 	virtual model::IExchangeModel* createExchangeModel(const std::string& name) const;
+	virtual bool isValidParticleModel(const std::string& name) const;
 	virtual bool isValidBindingModel(const std::string& name) const;
 	virtual model::IDynamicReactionModel* createDynamicReactionModel(const std::string& name) const;
 	virtual bool isValidDynamicReactionModel(const std::string& name) const;
@@ -89,6 +92,7 @@ protected:
 	template <class UnitOpModel_t>
 	void registerModel();
 
+	ParticleModelFactory _particleModels; //!< Factory for IParticleModel implementations
 	BindingModelFactory _bindingModels; //!< Factory for IBindingModel implementations
 	ExchangeModelFactory _exchangeModels; //!< Factory for IExchangeModel implementations
 	ReactionModelFactory _reactionModels; //!< Factory for IDynamicReactionModel implementations
