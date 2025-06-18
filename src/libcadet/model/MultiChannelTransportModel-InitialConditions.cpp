@@ -222,7 +222,6 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
     std::vector<int> qsMask(_disc.nChannel * _disc.nComp,0);
 	std::map<int, std::vector<std::pair<unsigned int, unsigned int>>> qsOrgDestMask;
 	std::vector<int> ActiveComp(_disc.nComp,0);
-
     _exchange[0]->quasiStationarityMap(qsOrgDestMask);
 
     for (const auto& eqComp : qsOrgDestMask)
@@ -243,6 +242,7 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
     }
 	const linalg::ConstMaskArray mask{ qsMask.data(), static_cast<int>(_disc.nComp * _disc.nChannel) };
 	const int probSize = linalg::numMaskActive(mask);
+	unsigned int numActiveComp = std::count(ActiveComp.begin(), ActiveComp.end(), 1);
 	//Problem capturing variables here
 #ifdef CADET_PARALLELIZE
 	BENCH_SCOPE(_timerConsistentInitPar);
@@ -400,6 +400,7 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 					
 					// Extract Jacobian from full Jacobian
 					mat.setAll(0.0);
+
 					// manully copy from fullJaconianMatrix into mat
 					int r = 0;
 					for (auto i = 0; i < fullJacobianMatrix.rows(); i++)
@@ -421,7 +422,7 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 					}
 
 					// Replace upper part with conservation relations
-					mat.submatrixSetAll(0.0, 1, 0, ActiveComp.size(), probSize);
+					mat.submatrixSetAll(0.0, 1, 0, numActiveComp, probSize);
 					unsigned int sIdx = 1;
 					for (const auto& eqComp : qsOrgDestMask)
 					{
@@ -429,7 +430,6 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 
 						for (auto i = 0; i < probSize; i++)
 						{
-
 							mat.native(sIdx, i) -= 1.0;
 						}
 					}
@@ -452,7 +452,7 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 				linalg::selectVectorSubset(fullResidual + cShellOfset, mask, r);
 
 				// Calculate residual of conserved moieties
-				std::fill_n(r + 1, ActiveComp.size(), 0.0);
+				std::fill_n(r + 1, numActiveComp, 0.0);
 				int rIdx = 1;
 				for (const auto& eqComp : qsOrgDestMask)
 				{
