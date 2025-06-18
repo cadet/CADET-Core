@@ -129,6 +129,7 @@ set(LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/AutoDiff.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/AdUtils.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/Weno.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/ParticleModelFactory.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/BindingModelFactory.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/ExchangeModelFactory.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/ReactionModelFactory.cpp
