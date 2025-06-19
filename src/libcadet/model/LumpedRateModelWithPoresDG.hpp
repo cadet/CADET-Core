@@ -440,7 +440,7 @@ protected:
 		if (hasBulkReaction)
 			bulkReactionPattern(tripletList);
 
-		fluxPattern(tripletList, secIdx);
+		particlePattern(tripletList, secIdx);
 
 		mat.setFromTriplets(tripletList.begin(), tripletList.end());
 
@@ -464,21 +464,18 @@ protected:
 		return 1;
 	}
 	/**
-	 * @brief sets the sparsity pattern of the flux Jacobian pattern
+	 * @brief sets the sparsity pattern of the particle Jacobian pattern, including film diffusion
 	 */
-	int fluxPattern(std::vector<T>& tripletList, unsigned int secIdx)
+	int particlePattern(std::vector<T>& tripletList, unsigned int secIdx)
 	{
 		Indexer idxr(_disc);
 
 		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 		{
-			int offC = 0; // inlet DOFs not included in Jacobian
-			int offP = idxr.offsetCp(ParticleTypeIndex{ parType }) - idxr.offsetC(); // inlet DOFs not included in Jacobian
-
 			// add dependency of c^b, c^p and flux on another
 			for (unsigned int colNode = 0; colNode < _disc.nPoints; colNode++)
 			{
-				_particle[parType].setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{ parType }), idxr.offsetC(), colNode, secIdx);
+				_particle[parType].setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) - idxr.offsetC(), colNode * idxr.strideColNode(), colNode, secIdx);
 			}
 		}
 		return 1;
@@ -501,7 +498,7 @@ protected:
 
 		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 		{
-			_particle[parType].calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], _globalJac, crossDepsOnly);
+			_particle[parType].calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ parType }) - idxr.offsetC(), 0, _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], _globalJac, crossDepsOnly);
 		}
 
 		return 1;

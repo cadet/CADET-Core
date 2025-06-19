@@ -347,6 +347,10 @@ namespace model
 		_parTypeIdx = parTypeIdx;
 		_nComp = nComp;
 
+		std::ostringstream parTypeIdxString;
+		parTypeIdxString << std::setfill('0') << std::setw(3) << std::setprecision(0) << _parTypeIdx;
+		paramProvider.pushScope("particle_type_" + parTypeIdxString.str());
+
 		// Read particle geometry and default to Sphere
 		_parGeomSurfToVol = _SurfVolRatioSphere;
 		if (paramProvider.exists("PAR_GEOM"))
@@ -401,25 +405,32 @@ namespace model
 		if (!_binding)
 			throw InvalidParameterException("Unknown binding model " + bindModelNames[0]);
 
-		_bindingParDep = nParType == 1;
+		_bindingParDep = true;
 
 		if (_binding->usesParamProviderInDiscretizationConfig())
 		{
 			paramProvider.pushScope("adsorption");
+
 			if (paramProvider.exists("BINDING_PARTYPE_DEPENDENT"))
 				_bindingParDep = paramProvider.getBool("BINDING_PARTYPE_DEPENDENT");
+
+			paramProvider.popScope();
 		}
 		else if (bindModelNames[0] == "NONE")
 			_nBound = std::make_shared<unsigned int[]>(_nComp, 0);
 		else
 			throw InvalidParameterException("Binding model " + bindModelNames[0] + " was specified, but group \"adsorption\" is missing for particle type " + std::to_string(_parTypeIdx));
 
+		if (_binding->usesParamProviderInDiscretizationConfig())
+			paramProvider.pushScope("adsorption");
+
 		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _boundOffset);
 
 		if (_binding->usesParamProviderInDiscretizationConfig())
-			paramProvider.popScope(); // adsorption
+			paramProvider.popScope();
 
 		// ==== Construct and configure dynamic reaction model
+
 		bool reactionConfSuccess = true;
 
 		_dynReaction = nullptr;
@@ -437,7 +448,7 @@ namespace model
 				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[0]);
 
 			paramProvider.pushScope("reaction");
-			_reactionParDep = nParType == 1;
+			_reactionParDep = true;
 			if (paramProvider.exists("REACTION_PARTYPE_DEPENDENT"))
 				_reactionParDep = paramProvider.getBool("REACTIN_PARTYPE_DEPENDENT");
 
@@ -685,21 +696,19 @@ namespace model
 
 	void HomogeneousParticle::setParJacPattern(std::vector<Eigen::Triplet<double>>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx) const
 	{
-		const int offP = offsetPar - offsetBulk;
-		const int offsetPBlock = offP + colNode * strideParBlock();
-
 		// add dense nComp * nBound blocks, since all solid and liquid entries can be coupled through binding.
 		for (unsigned int parState = 0; parState < _nComp + _strideBound; parState++) {
 			for (unsigned int toParState = 0; toParState < _nComp + _strideBound; toParState++) {
-				tripletList.push_back(Eigen::Triplet<double>(offsetPBlock + parState, offsetPBlock + toParState, 0.0));
+				tripletList.push_back(Eigen::Triplet<double>(offsetPar + parState, offsetPar + toParState, 0.0));
 			}
 		}
 
-		// add interdependency of c^b, c^p
+		/* Flux Jacobian: dependence of particle entries on bulk entries through BC */
+
 		for (unsigned int comp = 0; comp < _nComp; comp++)
 		{
-			tripletList.push_back(Eigen::Triplet<double>(colNode * _nComp + comp, offsetPBlock + comp, 0.0)); // c^b on c^p
-			tripletList.push_back(Eigen::Triplet<double>(offsetPBlock + comp, colNode * _nComp + comp, 0.0)); // c^p on c^b
+			tripletList.push_back(Eigen::Triplet<double>(offsetPar + comp, offsetBulk + comp, 0.0));
+			tripletList.push_back(Eigen::Triplet<double>(offsetBulk + comp, offsetPar + comp, 0.0));
 		}
 	}
 
@@ -727,8 +736,8 @@ namespace model
 		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _nComp, secIdx);
 		active const* const poreAccFactor = _poreAccessFactor.data();
 
-		linalg::BandedEigenSparseRowIterator jacC(globalJac, 0);
-		linalg::BandedEigenSparseRowIterator jacP(globalJac, offsetCp - offsetC);
+		linalg::BandedEigenSparseRowIterator jacC(globalJac, offsetC);
+		linalg::BandedEigenSparseRowIterator jacP(globalJac, offsetCp);
 
 		for (unsigned int colNode = 0; colNode < nBulkPoints; colNode++, jacP += _strideBound)
 		{
