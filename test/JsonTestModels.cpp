@@ -874,7 +874,6 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 {
 	json grm;
 	json particle;
-	grm["UNIT_TYPE"] = uoType;
 	grm["NCOMP"] = 1;
 	grm["COL_DISPERSION"] = 0.002 / (100.0 * 100.0 * 60.0);
 	grm["COL_DISPERSION_MULTIPLEX"] = 0;
@@ -977,9 +976,13 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 
 		disc["USE_ANALYTIC_JACOBIAN"] = true;
 
-		if (uoType == "COLUMN_MODEL_1D")
+		if (uoType == "COLUMN_1D_GRM" || uoType == "COLUMN_1D_LRMP")
 		{
-			particle["PARTICLE_TYPE"] = "GENERAL_RATE_PARTICLE";
+			grm["UNIT_TYPE"] = "COLUMN_MODEL_1D";
+			if (uoType == "COLUMN_1D_GRM")
+				particle["PARTICLE_TYPE"] = "GENERAL_RATE_PARTICLE";
+			else if (uoType == "COLUMN_1D_LRMP")
+				particle["PARTICLE_TYPE"] = "HOMOGENEOUS_PARTICLE";
 			particle["discretization"] = parDisc;
 			grm["particle_type_000"] = particle;
 		}
@@ -987,6 +990,7 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 		{
 			disc.update(parDisc);
 			grm.update(particle);
+			grm["UNIT_TYPE"] = uoType;
 		}
 		grm["discretization"] = disc;
 	}
