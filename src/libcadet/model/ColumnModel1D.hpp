@@ -486,8 +486,6 @@ protected:
 
 		tripletList.reserve(bulkEntries + particleEntries);
 
-		// NOTE: inlet and jacF flux jacobian are set in calc jacobian function (identity matrices)
-		// Note: flux jacobian (identity matrix) is handled in calc jacobian function
 		unsigned int bulkOffset = idxr.offsetC();
 		_convDispOp.convDispJacPattern(tripletList, bulkOffset);
 
@@ -504,25 +502,10 @@ protected:
 			}
 		}
 
-		// particle jacobian (including isotherm and time derivative)
+		// particle jacobian (including film diffusion, isotherm and time derivative)
 		for (int colNode = 0; colNode < _disc.nPoints; colNode++) {
 			for (int type = 0; type < _disc.nParType; type++) {
 				_particles[type]->setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}, ParticleIndex{static_cast<unsigned int>(colNode)}), idxr.offsetC() + colNode * idxr.strideColNode(), colNode, secIdx);
-			}
-		}
-
-		// flux jacobians
-		for (unsigned int type = 0; type < _disc.nParType; type++) {
-			for (unsigned int colNode = 0; colNode < _disc.nPoints; colNode++) {
-				for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
-					// add Cl on Cp entries
-					// row: add bulk offset, jump over previous nodes and components
-					// col: add flux offset to current parType, jump over previous nodes and components
-					tripletList.push_back(T(idxr.offsetC() + colNode * idxr.strideColNode() + comp * idxr.strideColComp(),
-						idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ colNode }) + (_disc.nParPoints[type] - 1) * idxr.strideParNode(type) + comp * idxr.strideParComp(), 0.0));
-
-					// Note: Cp on Cl entries are handled by particle model setParJacPattern()
-				}
 			}
 		}
 

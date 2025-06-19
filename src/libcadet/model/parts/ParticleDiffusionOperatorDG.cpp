@@ -1346,6 +1346,9 @@ namespace parts
 				tripletList.push_back(T(offsetPar + (_nParElem - 1) * _nParNode * strideParNode() + node * strideParNode() + comp * strideParComp(),
 					offsetBulk + comp,
 					0.0));
+				tripletList.push_back(T(offsetBulk + comp,
+					offsetPar + (_nParElem - 1) * _nParNode * strideParNode() + node * strideParNode() + comp * strideParComp(),
+					0.0));
 			}
 		}
 
