@@ -265,12 +265,12 @@ TEST_CASE("Column_Model_1D as GRM consistent sensitivity initialization with lin
 
 TEST_CASE("Column_Model_1D as GRM inlet DOF Jacobian", "[Column_1D],[DG],[DG1D],[UnitOp],[Jacobian],[Inlet],[CI]")
 {
-	cadet::test::column::testInletDofJacobian("COLUMN_MODEL_1D", "DG");
+	cadet::test::column::testInletDofJacobian("COLUMN_1D_GRM", "DG");
 }
 
 TEST_CASE("Column_Model_1D as GRM transport Jacobian", "[Column_1D],[DG],[DG1D],[UnitOp],[Jacobian],[CI]")
 {
-	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "COLUMN_MODEL_1D", "DG");
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "COLUMN_1D_GRM", "DG");
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
