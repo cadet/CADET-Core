@@ -129,6 +129,7 @@ set(LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/AutoDiff.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/AdUtils.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/Weno.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/ParticleModelFactory.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/BindingModelFactory.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/ExchangeModelFactory.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/ReactionModelFactory.cpp
@@ -221,6 +222,7 @@ if (ENABLE_DG)
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithPoresDG.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithoutPoresDG.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModelDG.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/ColumnModel1D.cpp
 	)
 	if (ENABLE_2D_MODELS)
 		list (APPEND LIBCADET_SOURCES

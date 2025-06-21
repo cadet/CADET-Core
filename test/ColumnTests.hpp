@@ -105,6 +105,33 @@ namespace column
 		void setDisc(JsonParameterProvider& jpp, const std::string unitID = "000") const override;
 	};
 
+	struct DGParamsNewIF : public DiscParams {
+		int exactIntegration;
+		int polyDeg;
+		int nElem;
+		int parPolyDeg;
+		int parNelem;
+		int radPolyDeg;
+		int radNelem;
+
+		DGParamsNewIF() : exactIntegration(-1), polyDeg(0), nElem(0), parPolyDeg(0), parNelem(0), radPolyDeg(0), radNelem(0) {}
+		DGParamsNewIF(int exact, int poly, int elem)
+			: exactIntegration(exact), polyDeg(poly), nElem(elem), parPolyDeg(0), parNelem(0), radPolyDeg(0), radNelem(0) {
+		}
+		DGParamsNewIF(int exact, int poly, int elem, int parPolyDeg, int parNelem)
+			: exactIntegration(exact), polyDeg(poly), nElem(elem), parPolyDeg(parPolyDeg), parNelem(parNelem), radPolyDeg(0), radNelem(0) {
+		}
+		DGParamsNewIF(int exact, int poly, int elem, int parPolyDeg, int parNelem, int radPolyDeg, int radNelem)
+			: exactIntegration(exact), polyDeg(poly), nElem(elem), parPolyDeg(parPolyDeg), parNelem(parNelem), radPolyDeg(radPolyDeg), radNelem(radNelem) {
+		}
+
+		int getNAxCells() const override { return nElem; }
+		int getNParCells() const override { return parNelem; }
+		void setIntegrationMode(int integrationMode) { exactIntegration = integrationMode; }
+		int getIntegrationMode() { return exactIntegration; }
+		void setDisc(JsonParameterProvider& jpp, const std::string unitID = "000") const override;
+	};
+
 	/**
 	 * @brief Sets the number of axial cells in a configuration of a column-like unit operation
 	 * @details Overwrites the NCOL field in the discretization group of the given ParameterProvider.
