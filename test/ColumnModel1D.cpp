@@ -322,6 +322,12 @@ TEST_CASE("Column_1D LRMP consistent sensitivity initialization with linear bind
 //	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_1D_GRM", "DG", y.data(), yDot.data(), false, 1e-9);
 //}
 
+TEST_CASE("Column_1D Jacobian for 2ParType with general rate and homogeneous particle with two component linear binding", "[Column_1D],[DG],[DG1D],[UnitOp],[Jacobian],[CI],[testHere]")
+{
+	cadet::JsonParameterProvider jpp = createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson("COLUMN_MODEL_1D", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
 TEST_CASE("Column_1D as GRM inlet DOF Jacobian", "[Column_1D],[DG],[DG1D],[UnitOp],[Jacobian],[Inlet],[CI]")
 {
 	cadet::test::column::testInletDofJacobian("COLUMN_1D_GRM", "DG");
