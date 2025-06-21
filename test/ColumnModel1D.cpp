@@ -44,13 +44,6 @@ TEST_CASE("Column_Model_1D as GRM linear pulse vs analytic solution", "[Column_1
 	cadet::test::column::testAnalyticBenchmark("COLUMN_1D_GRM", "/data/grm-pulseBenchmark.data", false, false, disc, 6e-5, 1e-7);
 }
 
-TEST_CASE("Column_Model_1D as GRM non-binding linear pulse vs analytic solution", "[Column_1D],[DG],[DG1D],[Simulation],[Analytic],[NonBinding],[CI]")
-{
-	cadet::test::column::DGparams disc;
-	cadet::test::column::testAnalyticNonBindingBenchmark("COLUMN_1D_GRM", "/data/grm-nonBinding.data", true, disc, 6e-5, 1e-7);
-	cadet::test::column::testAnalyticNonBindingBenchmark("COLUMN_1D_GRM", "/data/grm-nonBinding.data", false, disc, 6e-5, 1e-7);
-}
-
 TEST_CASE("Column_Model_1D as LRMP linear pulse vs analytic solution", "[Column_1D],[DG],[DG1D],[Simulation],[Analytic],[CI]")
 {
 	cadet::test::column::DGparams disc;
@@ -58,6 +51,13 @@ TEST_CASE("Column_Model_1D as LRMP linear pulse vs analytic solution", "[Column_
 	cadet::test::column::testAnalyticBenchmark("COLUMN_1D_LRMP", "/data/lrmp-pulseBenchmark.data", true, false, disc, 6e-5, 1e-7);
 	cadet::test::column::testAnalyticBenchmark("COLUMN_1D_LRMP", "/data/lrmp-pulseBenchmark.data", false, true, disc, 6e-5, 1e-7);
 	cadet::test::column::testAnalyticBenchmark("COLUMN_1D_LRMP", "/data/lrmp-pulseBenchmark.data", false, false, disc, 6e-5, 1e-7);
+}
+
+TEST_CASE("Column_Model_1D as GRM non-binding linear pulse vs analytic solution", "[Column_1D],[DG],[DG1D],[Simulation],[Analytic],[NonBinding],[CI]")
+{
+	cadet::test::column::DGparams disc;
+	cadet::test::column::testAnalyticNonBindingBenchmark("COLUMN_1D_GRM", "/data/grm-nonBinding.data", true, disc, 6e-5, 1e-7);
+	cadet::test::column::testAnalyticNonBindingBenchmark("COLUMN_1D_GRM", "/data/grm-nonBinding.data", false, disc, 6e-5, 1e-7);
 }
 
 TEST_CASE("Column_Model_1D as LRMP non-binding linear pulse vs analytic solution", "[Column_1D],[DG],[DG1D],[Simulation],[Analytic],[NonBinding],[CI]")
@@ -76,7 +76,7 @@ TEST_CASE("Column_Model_1D as GRM Jacobian forward vs backward flow", "[Column_1
 
 TEST_CASE("Column_Model_1D as GRM numerical Benchmark1 with parameter sensitivities for linear case", "[Column_1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens18]")
 {
-	std::string modelFilePath = std::string("/data/model_COL1D_dynLin_1comp_benchmark1.json");
+	std::string modelFilePath = std::string("/data/model_COL1D_GRM_dynLin_1comp_benchmark1.json");
 	std::string refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark1_cDG_P3Z8_GSM_parP3parZ1.h5");
 	const std::vector<double> absTol = { 1e-12, 1e-6, 1e-6, 1e-12 };
 	const std::vector<double> relTol = { 1e-4, 1e-3, 1e-4, 1e-4 };
@@ -85,9 +85,20 @@ TEST_CASE("Column_Model_1D as GRM numerical Benchmark1 with parameter sensitivit
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
+TEST_CASE("Column_Model_1D as LRMP numerical Benchmark with parameter sensitivities for linear case", "[Column_1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens22]")
+{
+	const std::string& modelFilePath = std::string("/data/model_COL1D_LRMP_dynLin_1comp_benchmark1.json");
+	const std::string& refFilePath = std::string("/data/ref_LRMP_dynLin_1comp_sensbenchmark1_DG_P3Z8.h5");
+	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
+	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
+
+	cadet::test::column::DGparams disc(0, 3, 8);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
+}
+
 TEST_CASE("Column_Model_1D as GRM numerical Benchmark2 with parameter sensitivities for linear case", "[Column_1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens18]")
 {
-	std::string modelFilePath = std::string("/data/model_COL1D_dynLin_1comp_sensbenchmark2.json");
+	std::string modelFilePath = std::string("/data/model_COL1D_GRM_dynLin_1comp_sensbenchmark2.json");
 	std::string refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark2_cDG_P3Z8_GSM_parP3parZ1.h5");
 	const std::vector<double> absTol = { 1e-12, 1e-6, 1e-6, 1e-12 };
 	const std::vector<double> relTol = { 1e-4, 1e-3, 1e-4, 1e-4 };
@@ -98,7 +109,7 @@ TEST_CASE("Column_Model_1D as GRM numerical Benchmark2 with parameter sensitivit
 
 TEST_CASE("Column_Model_1D as GRM numerical Benchmark with parameter sensitivities and multiplexing for 2parType 2comp linear case", "[Column_1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens19]")
 {
-	const std::string modelFilePath = std::string("/data/model_COL1DparType2_dynLin_2comp_sensbenchmark1.json");
+	const std::string modelFilePath = std::string("/data/model_COL1DparType2_GRM_dynLin_2comp_sensbenchmark1.json");
 	const std::string refFilePath = std::string("/data/ref_GRMparType2_dynLin_2comp_sensbenchmark1_cDG_P3Z4_DGexInt_parP3parZ2.h5");
 	const std::vector<double> absTol = { 1e-12, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6 };
 	const std::vector<double> relTol = { 1e-4, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1 };
@@ -109,12 +120,23 @@ TEST_CASE("Column_Model_1D as GRM numerical Benchmark with parameter sensitiviti
 
 TEST_CASE("Column_Model_1D as GRM numerical Benchmark with parameter sensitivities for SMA LWE case", "[Column_1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens20]")
 {
-	const std::string modelFilePath = std::string("/data/model_COL1D_reqSMA_4comp_benchmark1.json");
+	const std::string modelFilePath = std::string("/data/model_COL1D_GRM_reqSMA_4comp_benchmark1.json");
 	const std::string refFilePath = std::string("/data/ref_GRM_reqSMA_4comp_sensbenchmark1_cDG_P3Z8_GSM_parP3parZ1.h5");
 	const std::vector<double> absTol = { 1e-12, 1e-6, 1e-6, 1e-12 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 
 	cadet::test::column::DGParamsNewIF disc(0, 3, 8, 3, 1);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
+}
+
+TEST_CASE("Column_model_1D as LRMP numerical Benchmark with parameter sensitivities for SMA LWE case", "[LRMP],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens23]")
+{
+	const std::string& modelFilePath = std::string("/data/model_COL1D_LRMP_reqSMA_4comp_benchmark1.json");
+	const std::string& refFilePath = std::string("/data/ref_LRMP_reqSMA_4comp_sensbenchmark1_DG_P3Z8.h5");
+	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
+	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
+
+	cadet::test::column::DGparams disc(0, 3, 8);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 
