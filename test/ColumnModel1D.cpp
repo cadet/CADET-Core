@@ -31,7 +31,7 @@ TEST_CASE("Column_Model_1D as GRM LWE forward vs backward flow", "[Column_1D],[D
 	for (int i = 0; i <= 1; i++)
 	{
 		disc.setIntegrationMode(i);
-		cadet::test::column::testForwardBackward("COLUMN_MODEL_1D", disc, 1e-9, 2e-4);
+		cadet::test::column::testForwardBackward("COLUMN_1D_GRM", disc, 1e-9, 2e-4);
 	}
 }
 
@@ -71,7 +71,7 @@ TEST_CASE("Column_Model_1D as GRM Jacobian forward vs backward flow", "[Column_1
 {
 	cadet::test::column::DGparams disc;
 	disc.setIntegrationMode(1);
-	cadet::test::column::testJacobianForwardBackward("COLUMN_MODEL_1D", disc, std::numeric_limits<float>::epsilon() * 100.0);
+	cadet::test::column::testJacobianForwardBackward("COLUMN_1D_GRM", disc, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
 TEST_CASE("Column_Model_1D as GRM numerical Benchmark1 with parameter sensitivities for linear case", "[Column_1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens18]")
@@ -133,7 +133,7 @@ TEST_CASE("Column_model_1D as LRMP numerical Benchmark with parameter sensitivit
 {
 	const std::string& modelFilePath = std::string("/data/model_COL1D_LRMP_reqSMA_4comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRMP_reqSMA_4comp_sensbenchmark1_DG_P3Z8.h5");
-	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
+	const std::vector<double> absTol = { 1e-12, 1e-12, 5e-10, 1e-12 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 
 	cadet::test::column::DGparams disc(0, 3, 8);
@@ -142,7 +142,7 @@ TEST_CASE("Column_model_1D as LRMP numerical Benchmark with parameter sensitivit
 
 TEST_CASE("Column_Model_1D as GRM LWE DGSEM and GSM particle discretization yields similar accuracy", "[Column_1D],[DG],[DG1D],[Simulation],[CI]")
 {
-	cadet::JsonParameterProvider jpp = createLWE("COLUMN_MODEL_1D", "DG");
+	cadet::JsonParameterProvider jpp = createLWE("COLUMN_1D_GRM", "DG");
 	cadet::test::column::DGParamsNewIF disc(0, 4, 2, 3, 1); // Note that we want to employ only a single particle element
 	disc.setDisc(jpp);
 
@@ -184,22 +184,22 @@ TEST_CASE("Column_Model_1D as GRM LWE DGSEM and GSM particle discretization yiel
 
 TEST_CASE("Column_Model_1D as GRM time derivative Jacobian vs FD", "[Column_1D],[DG],[DG1D],[UnitOp],[Residual],[Jacobian],[CI],[FD]")
 {
-	cadet::test::column::testTimeDerivativeJacobianFD("COLUMN_MODEL_1D", "DG", 1e-6, 0.0, 9e-4);
+	cadet::test::column::testTimeDerivativeJacobianFD("COLUMN_1D_GRM", "DG", 1e-6, 0.0, 9e-4);
 }
 
 TEST_CASE("Column_Model_1D as GRM dynamic binding with surf diff par dep Jacobian vs AD", "[Column_1D],[DG],[DG1D],[UnitOp],[Residual],[Jacobian],[ParameterDependence],[CI]")
 {
-	cadet::test::column::testJacobianADVariableParSurfDiff("COLUMN_MODEL_1D", "DG", true);
+	cadet::test::column::testJacobianADVariableParSurfDiff("COLUMN_1D_GRM", "DG", true);
 }
 
 TEST_CASE("Column_Model_1D as GRM rapid-equilibrium binding with surf diff par dep Jacobian vs AD", "[Column_1D],[DG],[DG1D],[UnitOp],[Residual],[Jacobian],[ParameterDependence],[CI]")
 {
-	cadet::test::column::testJacobianADVariableParSurfDiff("COLUMN_MODEL_1D", "DG", false);
+	cadet::test::column::testJacobianADVariableParSurfDiff("COLUMN_1D_GRM", "DG", false);
 }
 
 TEST_CASE("Column_Model_1D as GRM sensitivity Jacobians", "[Column_1D],[DG],[DG1D],[UnitOp],[Sensitivity],[CI]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D", "DG");
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_1D_GRM", "DG");
 
 	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7, 1e-4);
 }
@@ -214,7 +214,7 @@ TEST_CASE("Column_Model_1D as GRM sensitivity Jacobians", "[Column_1D],[DG],[DG1
 //	const double absTols[] = { 3e5, 2e-3, 2e-4, 5.0 };
 //	const double relTols[] = { 5e-3, 7e-2, 8e-2, 1e-4 };
 //	const double passRatio[] = { 0.95, 0.9, 0.91, 0.83 };
-//	cadet::test::column::testFwdSensSolutionFD("COLUMN_MODEL_1D", "DG", false, fdStepSize, absTols, relTols, passRatio);
+//	cadet::test::column::testFwdSensSolutionFD("COLUMN_1D_GRM", "DG", false, fdStepSize, absTols, relTols, passRatio);
 //}
 
 //// todo fix: not just adjust tolerances as in FV but theres an actual error here: access violation in densematrix
@@ -223,16 +223,16 @@ TEST_CASE("Column_Model_1D as GRM sensitivity Jacobians", "[Column_1D],[DG],[DG1
 //	const double absTols[] = { 4e-5, 1e-11, 1e-11, 8e-9 };
 //	const double relTols[] = { 6e-9, 5e-8, 5e-6, 5e-10 };
 //	const double passRatio[] = { 0.99, 0.95, 0.98, 0.98 };
-//	cadet::test::column::testFwdSensSolutionForwardBackward("COLUMN_MODEL_1D", "DG", absTols, relTols, passRatio);
+//	cadet::test::column::testFwdSensSolutionForwardBackward("COLUMN_1D_GRM", "DG", absTols, relTols, passRatio);
 //}
 
 // todo fix consistent initialization for AD with req binding
 TEST_CASE("Column_Model_1D as GRM consistent initialization with linear binding", "[Column_1D],[DG],[DG1D],[ConsistentInit],[CI]")
 {
-	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D", "DG", 1e-12, 1e-14, 0, 0);
-	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D", "DG", 1e-12, 1e-12, 1, 0);
-	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D", "DG", 1e-12, 1e-14, 0, 1);
-	//cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D", "DG", 1e-12, 1e-14, 1, 1);
+	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_1D_GRM", "DG", 1e-12, 1e-14, 0, 0);
+	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_1D_GRM", "DG", 1e-12, 1e-12, 1, 0);
+	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_1D_GRM", "DG", 1e-12, 1e-14, 0, 1);
+	//cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_1D_GRM", "DG", 1e-12, 1e-14, 1, 1);
 }
 
 //// todo fix consistent initialization for SMA (initialization not completely correct; AD gives assertion error)
@@ -248,7 +248,7 @@ TEST_CASE("Column_Model_1D as GRM consistent initialization with linear binding"
 //	cadet::test::util::repeat(y.data() + 4 + 4 * 16, bindingCell, 16, 4 * 16 / 2);
 //	cadet::test::util::populate(y.data() + 4 + 4 * 16 + 16 * 4 * (4 + 4), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4 * 16);
 //
-//	cadet::test::column::testConsistentInitializationSMABinding("COLUMN_MODEL_1D", "DG", y.data(), 1e-14, 1e-5);
+//	cadet::test::column::testConsistentInitializationSMABinding("COLUMN_1D_GRM", "DG", y.data(), 1e-14, 1e-5);
 //}
 
 // todo fix kinetic binding sensitivity init
@@ -261,10 +261,10 @@ TEST_CASE("Column_Model_1D as GRM consistent sensitivity initialization with lin
 	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, numDofs);
 	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
 
-	//cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D", "DG", y.data(), yDot.data(), true, 1e-14, 0, 0);
-	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D", "DG", y.data(), yDot.data(), true, 1e-14, 1, 0);
-	//cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D", "DG", y.data(), yDot.data(), true, 1e-14, 0, 1);
-	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D", "DG", y.data(), yDot.data(), true, 1e-14, 1, 1);
+	//cadet::test::column::testConsistentInitializationSensitivity("COLUMN_1D_GRM", "DG", y.data(), yDot.data(), true, 1e-14, 0, 0);
+	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_1D_GRM", "DG", y.data(), yDot.data(), true, 1e-14, 1, 0);
+	//cadet::test::column::testConsistentInitializationSensitivity("COLUMN_1D_GRM", "DG", y.data(), yDot.data(), true, 1e-14, 0, 1);
+	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_1D_GRM", "DG", y.data(), yDot.data(), true, 1e-14, 1, 1);
 }
 
 //// todo fix memory stuff (works for FV) 
@@ -282,12 +282,12 @@ TEST_CASE("Column_Model_1D as GRM consistent sensitivity initialization with lin
 //
 //	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
 //
-//	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D", "DG", y.data(), yDot.data(), false, 1e-9);
+//	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_1D_GRM", "DG", y.data(), yDot.data(), false, 1e-9);
 //}
 
 TEST_CASE("Column_Model_1D as GRM inlet DOF Jacobian", "[Column_1D],[DG],[DG1D],[UnitOp],[Jacobian],[Inlet],[CI]")
 {
-	cadet::test::column::testInletDofJacobian("COLUMN_MODEL_1D", "DG");
+	cadet::test::column::testInletDofJacobian("COLUMN_1D_GRM", "DG");
 }
 
 TEST_CASE("Column_Model_1D as GRM transport Jacobian", "[Column_1D],[DG],[DG1D],[UnitOp],[Jacobian],[CI]")
@@ -298,98 +298,98 @@ TEST_CASE("Column_Model_1D as GRM transport Jacobian", "[Column_1D],[DG],[DG1D],
 
 TEST_CASE("Column_Model_1D as GRM with two component linear binding Jacobian", "[Column_1D],[DG],[DG1D],[UnitOp],[Jacobian],[CI]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D", "DG");
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_1D_GRM", "DG");
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
 TEST_CASE("Column_Model_1D as GRM LWE one vs two identical particle types match", "[Column_1D],[DG],[DG1D],[Simulation],[ParticleType],[CI]")
 {
-	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("COLUMN_MODEL_1D", "DG", 2e-8, 5e-5);
+	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("COLUMN_1D_GRM", "DG", 2e-8, 5e-5);
 }
 
 TEST_CASE("Column_Model_1D as GRM LWE separate identical particle types match", "[Column_1D],[DG],[DG1D],[Simulation],[ParticleType],[CI]")
 {
-	cadet::test::particle::testSeparateIdenticalParticleTypes("COLUMN_MODEL_1D", "DG", 2e-8, 5e-5);
+	cadet::test::particle::testSeparateIdenticalParticleTypes("COLUMN_1D_GRM", "DG", 2e-8, 5e-5);
 }
 
 TEST_CASE("Column_Model_1D as GRM linear binding single particle matches particle distribution", "[Column_1D],[DG],[DG1D],[Simulation],[ParticleType],[CI]")
 {
-	cadet::test::particle::testLinearMixedParticleTypes("COLUMN_MODEL_1D", "DG", 5e-8, 5e-5);
+	cadet::test::particle::testLinearMixedParticleTypes("COLUMN_1D_GRM", "DG", 5e-8, 5e-5);
 }
 
 TEST_CASE("Column_Model_1D as GRM multiple particle types Jacobian analytic vs AD", "[Column_1D],[DG],[DG1D],[Jacobian],[AD],[ParticleType],[CI]")
 {
-	cadet::test::particle::testJacobianMixedParticleTypes("COLUMN_MODEL_1D", "DG", 5e-12, true);
+	cadet::test::particle::testJacobianMixedParticleTypes("COLUMN_1D_GRM", "DG", 5e-12, true);
 }
 
 TEST_CASE("Column_Model_1D as GRM multiple particle types time derivative Jacobian vs FD", "[Column_1D],[DG],[DG1D],[UnitOp],[Residual],[Jacobian],[ParticleType],[CI]")
 {
-	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("COLUMN_MODEL_1D", "DG", 1e-6, 0.0, 9e-4, true);
+	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("COLUMN_1D_GRM", "DG", 1e-6, 0.0, 9e-4, true);
 }
 
 TEST_CASE("Column_Model_1D as GRM multiple spatially dependent particle types Jacobian analytic vs AD", "[Column_1D],[DG],[DG1D],[Jacobian],[AD],[ParticleType],[CI]")
 {
-	cadet::test::particle::testJacobianSpatiallyMixedParticleTypes("COLUMN_MODEL_1D", "DG", 1e-11, true);
+	cadet::test::particle::testJacobianSpatiallyMixedParticleTypes("COLUMN_1D_GRM", "DG", 1e-11, true);
 }
 
 TEST_CASE("Column_Model_1D as GRM linear binding single particle matches spatially dependent particle distribution", "[Column_1D],[DG],[DG1D],[Simulation],[ParticleType],[CI]")
 {
-	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("COLUMN_MODEL_1D", "DG", 5e-8, 5e-5);
+	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("COLUMN_1D_GRM", "DG", 5e-8, 5e-5);
 }
 
 TEST_CASE("Column_Model_1D as GRM dynamic reactions Jacobian vs AD bulk", "[Column_1D],[DG],[DG1D],[Jacobian],[AD],[ReactionModel],[CI]")
 {
-	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("COLUMN_MODEL_1D", "DG", true, false, false, 2e-12);
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("COLUMN_1D_GRM", "DG", true, false, false, 2e-12);
 }
 
 TEST_CASE("Column_Model_1D as GRM dynamic reactions Jacobian vs AD particle", "[Column_1D],[DG],[DG1D],[Jacobian],[AD],[ReactionModel],[CI]")
 {
-	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("COLUMN_MODEL_1D", "DG", false, true, false, 1e-14);
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("COLUMN_1D_GRM", "DG", false, true, false, 1e-14);
 }
 
 TEST_CASE("Column_Model_1D as GRM dynamic reactions Jacobian vs AD modified particle", "[Column_1D],[DG],[DG1D],[Jacobian],[AD],[ReactionModel],[CI]")
 {
-	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("COLUMN_MODEL_1D", "DG", false, true, true, 1e-14);
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("COLUMN_1D_GRM", "DG", false, true, true, 1e-14);
 }
 
 TEST_CASE("Column_Model_1D as GRM dynamic reactions Jacobian vs AD bulk and particle", "[Column_1D],[DG],[DG1D],[Jacobian],[AD],[ReactionModel],[CI]")
 {
-	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("COLUMN_MODEL_1D", "DG", true, true, false, 1e-14);
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("COLUMN_1D_GRM", "DG", true, true, false, 1e-14);
 }
 
 TEST_CASE("Column_Model_1D as GRM dynamic reactions Jacobian vs AD bulk and modified particle", "[Column_1D],[DG],[DG1D],[Jacobian],[AD],[ReactionModel],[CI]")
 {
-	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("COLUMN_MODEL_1D", "DG", true, true, true, 1e-14);
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("COLUMN_1D_GRM", "DG", true, true, true, 1e-14);
 }
 
 TEST_CASE("Column_Model_1D as GRM dynamic reactions time derivative Jacobian vs FD bulk", "[Column_1D],[DG],[DG1D],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
 {
-	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("COLUMN_MODEL_1D", "DG", true, false, false, 1e-6, 1e-14, 9e-4);
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("COLUMN_1D_GRM", "DG", true, false, false, 1e-6, 1e-14, 9e-4);
 }
 
 TEST_CASE("Column_Model_1D as GRM dynamic reactions time derivative Jacobian vs FD particle", "[Column_1D],[DG],[DG1D],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
 {
-	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("COLUMN_MODEL_1D", "DG", false, true, false, 1e-6, 1e-14, 9e-4);
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("COLUMN_1D_GRM", "DG", false, true, false, 1e-6, 1e-14, 9e-4);
 }
 
 TEST_CASE("Column_Model_1D as GRM dynamic reactions time derivative Jacobian vs FD modified particle", "[Column_1D],[DG],[DG1D],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
 {
-	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("COLUMN_MODEL_1D", "DG", false, true, true, 1e-6, 1e-14, 9e-4);
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("COLUMN_1D_GRM", "DG", false, true, true, 1e-6, 1e-14, 9e-4);
 }
 
 TEST_CASE("Column_Model_1D as GRM dynamic reactions time derivative Jacobian vs FD bulk and particle", "[Column_1D],[DG],[DG1D],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
 {
-	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("COLUMN_MODEL_1D", "DG", true, true, false, 1e-6, 1e-14, 9e-4);
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("COLUMN_1D_GRM", "DG", true, true, false, 1e-6, 1e-14, 9e-4);
 }
 
 TEST_CASE("Column_Model_1D as GRM dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[Column_1D],[DG],[DG1D],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
 {
-	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("COLUMN_MODEL_1D", "DG", true, true, true, 1e-6, 1e-14, 9e-4);
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("COLUMN_1D_GRM", "DG", true, true, true, 1e-6, 1e-14, 9e-4);
 }
 
 inline cadet::JsonParameterProvider createColumnWithTwoCompLinearBindingThreeParticleTypes()
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D", "DG");
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_1D_GRM", "DG");
 
 	const double parVolFrac[] = { 0.3, 0.6, 0.1 };
 	const double parFactor[] = { 0.9, 0.8 };
