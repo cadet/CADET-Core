@@ -166,6 +166,20 @@ protected:
 	ParamHandler_t _paramHandler; //!< Handles parameters and their dependence on external functions
 
 	linalg::ActiveDenseMatrix _stoichiometry;
+
+	unsigned int _idxSO; //!< SO component index, default 0
+	unsigned int _idxSS; //!< SS component index, default 1
+	unsigned int _idxSNH; //!< SNH component index, default 2
+	unsigned int _idxSNO; //!< SNO component index, default 3
+	unsigned int _idxSN2; //!< SN2 component index, default 4
+	unsigned int _idxSALK; //!< SALK component index, default 5
+	unsigned int _idxSI; //!< SI component index, default 6
+	unsigned int _idxXI; //!< XI component index, default 7
+	unsigned int _idxXS; //!< XS component index, default 8
+	unsigned int _idxXH; //!< XH component index, default 9
+	unsigned int _idxXSTO; //!< XSTO component index, default 10
+	unsigned int _idxXA; //!< XA component index, default 11
+	unsigned int _idxXMI; //!< XMI component index, default 12
 	
 
 
@@ -183,6 +197,41 @@ protected:
 		
 		_stoichiometry.resize(_nComp, 13);
 		_stoichiometry.setAll(0);
+
+		const std::vector<uint64_t> compIdx = paramProvider.getUint64Array("ASM3_COMP_IDX");
+		if (compIdx.size() == 0) {
+			LOG(Debug) << "ASM3_COMP_IDX not set, using defaults";
+			_idxSO = 0;
+			_idxSS = 1;
+			_idxSNH = 2;
+			_idxSNO = 3;
+			_idxSN2 = 4;
+			_idxSALK = 5;
+			_idxSI = 6;
+			_idxXI = 7;
+			_idxXS = 8;
+			_idxXH = 9;
+			_idxXSTO = 10;
+			_idxXA = 11;
+			_idxXMI = 12;
+		} else if (compIdx.size() != 13) {
+			throw InvalidParameterException("ASM3 configuration: ASM3_COMP_IDX must have 13 elements");
+		} else {
+			LOG(Debug) << "ASM3_COMP_IDX set: " << compIdx;
+			_idxSO = compIdx[0];
+			_idxSS = compIdx[1];
+			_idxSNH = compIdx[2];
+			_idxSNO = compIdx[3];
+			_idxSN2 = compIdx[4];
+			_idxSALK = compIdx[5];
+			_idxSI = compIdx[6];
+			_idxXI = compIdx[7];
+			_idxXS = compIdx[8];
+			_idxXH = compIdx[9];
+			_idxXSTO = compIdx[10];
+			_idxXA = compIdx[11];
+			_idxXMI = compIdx[12];
+		}
 
 		// parameter set ASM3h
 		const double iNSI = paramProvider.getDouble("ASM3_INSI");
@@ -383,19 +432,19 @@ protected:
 		const double muAUT = static_cast<double>(muAUT20) * ft105;
 		const double bAUT = static_cast<double>(baut20) * ft105;
 
-		StateType SO = y[0];
-		StateType SS = y[1];
-		StateType SNH = y[2];
-		StateType SNO = y[3];
-		StateType SN2 = y[4];
-		StateType SALK = y[5];
-		// StateType SI = y[6]; // unused
-		// StateType XI = y[7]; // unused
-		StateType XS = y[8];
-		StateType XH = y[9];
-		StateType XSTO = y[10];
-		StateType XA = y[11];
-		// StateType XMI = y[12]; // unused
+		StateType SO = y[_idxSO];
+		StateType SS = y[_idxSS];
+		StateType SNH = y[_idxSNH];
+		StateType SNO = y[_idxSNO];
+		StateType SN2 = y[_idxSN2];
+		StateType SALK = y[_idxSALK];
+		// StateType SI = y[_idxSI]; // unused
+		// StateType XI = y[_idxXI]; // unused
+		StateType XS = y[_idxXS];
+		StateType XH = y[_idxXH];
+		StateType XSTO = y[_idxXSTO];
+		StateType XA = y[_idxXA];
+		// StateType XMI = y[_idxXMI]; // unused
 
 		
 		// p1: Hydrolysis of organic structures
