@@ -198,8 +198,27 @@ protected:
 		_stoichiometry.resize(_nComp, 13);
 		_stoichiometry.setAll(0);
 
-		const std::vector<uint64_t> compIdx = paramProvider.getUint64Array("ASM3_COMP_IDX");
-		if (compIdx.size() == 0) {
+		if (paramProvider.exists("ASM3_COMP_IDX")) {
+			const std::vector<uint64_t> compIdx = paramProvider.getUint64Array("ASM3_COMP_IDX");
+			if (compIdx.size() != 13) {
+				throw InvalidParameterException("ASM3 configuration: ASM3_COMP_IDX must have 13 elements");
+			} else {
+				LOG(Debug) << "ASM3_COMP_IDX set: " << compIdx;
+				_idxSO = compIdx[0];
+				_idxSS = compIdx[1];
+				_idxSNH = compIdx[2];
+				_idxSNO = compIdx[3];
+				_idxSN2 = compIdx[4];
+				_idxSALK = compIdx[5];
+				_idxSI = compIdx[6];
+				_idxXI = compIdx[7];
+				_idxXS = compIdx[8];
+				_idxXH = compIdx[9];
+				_idxXSTO = compIdx[10];
+				_idxXA = compIdx[11];
+				_idxXMI = compIdx[12];
+			}
+		} else {
 			LOG(Debug) << "ASM3_COMP_IDX not set, using defaults";
 			_idxSO = 0;
 			_idxSS = 1;
@@ -214,23 +233,6 @@ protected:
 			_idxXSTO = 10;
 			_idxXA = 11;
 			_idxXMI = 12;
-		} else if (compIdx.size() != 13) {
-			throw InvalidParameterException("ASM3 configuration: ASM3_COMP_IDX must have 13 elements");
-		} else {
-			LOG(Debug) << "ASM3_COMP_IDX set: " << compIdx;
-			_idxSO = compIdx[0];
-			_idxSS = compIdx[1];
-			_idxSNH = compIdx[2];
-			_idxSNO = compIdx[3];
-			_idxSN2 = compIdx[4];
-			_idxSALK = compIdx[5];
-			_idxSI = compIdx[6];
-			_idxXI = compIdx[7];
-			_idxXS = compIdx[8];
-			_idxXH = compIdx[9];
-			_idxXSTO = compIdx[10];
-			_idxXA = compIdx[11];
-			_idxXMI = compIdx[12];
 		}
 
 		// parameter set ASM3h
