@@ -7,8 +7,37 @@ Activated Sludge Model (ASM3h)
 
 For information on model equations, refer to :ref:`activated_sludge_model`.
 
-Environment/process parameters
-----
+**Component configuration**
+
+``ASM3_COMP_IDX``
+
+   Optional component indexes. Set this in case the relevant components start at a certain offset or are provided
+   in a different order than listed below:
+
+   =============  =========
+   **Component**  **Index**
+   =============  =========
+   SO             0
+   SS             1
+   SNH            2
+   SNO            3
+   SN2            4
+   SALK           5
+   SI             6
+   XI             7
+   XS             8
+   XH             9
+   XSTO           10
+   XA             11
+   XMI            12
+   =============  =========
+
+
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`\mathbb{N}`  **Length:** 13
+   ================  =============================  ========================================================
+
+**Environment/process parameters**
 
 ``ASM3_T``
 
@@ -34,8 +63,7 @@ Environment/process parameters
    **Type:** double  **Range:** :math:`\ge 0`       **Length:** 1
    ================  =============================  ========================================================
 
-Maximum rates
-----
+**Maximum rates**
 
 ``ASM3_KH20``
 
@@ -85,8 +113,7 @@ Maximum rates
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
 
-Anoxic reduction factors
-----
+**Anoxic reduction factors**
 
 ``ASM3_ETA_HNO3``
 
@@ -112,8 +139,7 @@ Anoxic reduction factors
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
 
-Saturation/inhibition coefficients
-----
+**Saturation/inhibition coefficients**
 
 ``ASM3_KX``
 
@@ -195,8 +221,7 @@ Saturation/inhibition coefficients
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
 
-Example
--------
+**Example**
 
 .. python::
 
