@@ -167,19 +167,19 @@ protected:
 
 	linalg::ActiveDenseMatrix _stoichiometry;
 
-	unsigned int _idxSO; //!< SO component index, default 0
-	unsigned int _idxSS; //!< SS component index, default 1
-	unsigned int _idxSNH; //!< SNH component index, default 2
-	unsigned int _idxSNO; //!< SNO component index, default 3
-	unsigned int _idxSN2; //!< SN2 component index, default 4
-	unsigned int _idxSALK; //!< SALK component index, default 5
-	unsigned int _idxSI; //!< SI component index, default 6
-	unsigned int _idxXI; //!< XI component index, default 7
-	unsigned int _idxXS; //!< XS component index, default 8
-	unsigned int _idxXH; //!< XH component index, default 9
-	unsigned int _idxXSTO; //!< XSTO component index, default 10
-	unsigned int _idxXA; //!< XA component index, default 11
-	unsigned int _idxXMI; //!< XMI component index, default 12
+	unsigned int _idxSO = 0; //!< SO component index, default 0
+	unsigned int _idxSS = 1; //!< SS component index, default 1
+	unsigned int _idxSNH = 2; //!< SNH component index, default 2
+	unsigned int _idxSNO = 3; //!< SNO component index, default 3
+	unsigned int _idxSN2 = 4; //!< SN2 component index, default 4
+	unsigned int _idxSALK = 5; //!< SALK component index, default 5
+	unsigned int _idxSI = 6; //!< SI component index, default 6
+	unsigned int _idxXI = 7; //!< XI component index, default 7
+	unsigned int _idxXS = 8; //!< XS component index, default 8
+	unsigned int _idxXH = 9; //!< XH component index, default 9
+	unsigned int _idxXSTO = 10; //!< XSTO component index, default 10
+	unsigned int _idxXA = 11; //!< XA component index, default 11
+	unsigned int _idxXMI = 12; //!< XMI component index, default 12
 	
 
 
@@ -220,19 +220,6 @@ protected:
 			}
 		} else {
 			LOG(Debug) << "ASM3_COMP_IDX not set, using defaults";
-			_idxSO = 0;
-			_idxSS = 1;
-			_idxSNH = 2;
-			_idxSNO = 3;
-			_idxSN2 = 4;
-			_idxSALK = 5;
-			_idxSI = 6;
-			_idxXI = 7;
-			_idxXS = 8;
-			_idxXH = 9;
-			_idxXSTO = 10;
-			_idxXA = 11;
-			_idxXMI = 12;
 		}
 
 		// parameter set ASM3h
@@ -292,95 +279,95 @@ protected:
 		const double c12a = (c12n - c12no) / 14.0;
 
 		// SO
-		_stoichiometry.native(0, 1) = YSTO_aer - 1;
-		_stoichiometry.native(0, 3) = 1 - 1 / YH_aer;
-		_stoichiometry.native(0, 5) = -1 * (1 - fXI);
-		_stoichiometry.native(0, 7) = -1;
-		_stoichiometry.native(0, 9) = -(64.0/14.0) * 1/YA + 1;
-		_stoichiometry.native(0, 10) = -1 * (1 - fXI);
-		_stoichiometry.native(0, 12) = 1;
+		_stoichiometry.native(_idxSO, 1) = YSTO_aer - 1;
+		_stoichiometry.native(_idxSO, 3) = 1 - 1 / YH_aer;
+		_stoichiometry.native(_idxSO, 5) = -1 * (1 - fXI);
+		_stoichiometry.native(_idxSO, 7) = -1;
+		_stoichiometry.native(_idxSO, 9) = -(64.0/14.0) * 1/YA + 1;
+		_stoichiometry.native(_idxSO, 10) = -1 * (1 - fXI);
+		_stoichiometry.native(_idxSO, 12) = 1;
 
 		// SS
-		_stoichiometry.native(1, 0) = 1 - fSI;
-		_stoichiometry.native(1, 1) = -1;
-		_stoichiometry.native(1, 2) = -1;
+		_stoichiometry.native(_idxSS, 0) = 1 - fSI;
+		_stoichiometry.native(_idxSS, 1) = -1;
+		_stoichiometry.native(_idxSS, 2) = -1;
 
 		// SNH
-		_stoichiometry.native(2, 0) = c1n;
-		_stoichiometry.native(2, 1) = c2n;
-		_stoichiometry.native(2, 2) = c3n;
-		_stoichiometry.native(2, 3) = c4n;
-		_stoichiometry.native(2, 4) = c5n;
-		_stoichiometry.native(2, 5) = c6n;
-		_stoichiometry.native(2, 6) = c7n;
-		_stoichiometry.native(2, 9) = c10n;
-		_stoichiometry.native(2, 10) = c11n;
-		_stoichiometry.native(2, 11) = c12n;
+		_stoichiometry.native(_idxSNH, 0) = c1n;
+		_stoichiometry.native(_idxSNH, 1) = c2n;
+		_stoichiometry.native(_idxSNH, 2) = c3n;
+		_stoichiometry.native(_idxSNH, 3) = c4n;
+		_stoichiometry.native(_idxSNH, 4) = c5n;
+		_stoichiometry.native(_idxSNH, 5) = c6n;
+		_stoichiometry.native(_idxSNH, 6) = c7n;
+		_stoichiometry.native(_idxSNH, 9) = c10n;
+		_stoichiometry.native(_idxSNH, 10) = c11n;
+		_stoichiometry.native(_idxSNH, 11) = c12n;
 
 		// SNO
-		_stoichiometry.native(3, 2) = c3no;
-		_stoichiometry.native(3, 4) = c5no;
-		_stoichiometry.native(3, 6) = c7no;
-		_stoichiometry.native(3, 8) = c9no;
-		_stoichiometry.native(3, 9) = c10no;
-		_stoichiometry.native(3, 11) = c12no;
+		_stoichiometry.native(_idxSNO, 2) = c3no;
+		_stoichiometry.native(_idxSNO, 4) = c5no;
+		_stoichiometry.native(_idxSNO, 6) = c7no;
+		_stoichiometry.native(_idxSNO, 8) = c9no;
+		_stoichiometry.native(_idxSNO, 9) = c10no;
+		_stoichiometry.native(_idxSNO, 11) = c12no;
 
 		// SN2
-		_stoichiometry.native(4, 2) = -c3no;
-		_stoichiometry.native(4, 4) = -c5no;
-		_stoichiometry.native(4, 6) = -c7no;
-		_stoichiometry.native(4, 8) = -c9no;
-		_stoichiometry.native(4, 11) = -c12no;
+		_stoichiometry.native(_idxSN2, 2) = -c3no;
+		_stoichiometry.native(_idxSN2, 4) = -c5no;
+		_stoichiometry.native(_idxSN2, 6) = -c7no;
+		_stoichiometry.native(_idxSN2, 8) = -c9no;
+		_stoichiometry.native(_idxSN2, 11) = -c12no;
 
 		// SALK
-		_stoichiometry.native(5, 0) = c1a;
-		_stoichiometry.native(5, 1) = c2a;
-		_stoichiometry.native(5, 2) = c3a;
-		_stoichiometry.native(5, 3) = c4a;
-		_stoichiometry.native(5, 4) = c5a;
-		_stoichiometry.native(5, 5) = c6a;
-		_stoichiometry.native(5, 6) = c7a;
-		_stoichiometry.native(5, 8) = c9a;
-		_stoichiometry.native(5, 9) = c10a;
-		_stoichiometry.native(5, 10) = c11a;
-		_stoichiometry.native(5, 11) = c12a;
+		_stoichiometry.native(_idxSALK, 0) = c1a;
+		_stoichiometry.native(_idxSALK, 1) = c2a;
+		_stoichiometry.native(_idxSALK, 2) = c3a;
+		_stoichiometry.native(_idxSALK, 3) = c4a;
+		_stoichiometry.native(_idxSALK, 4) = c5a;
+		_stoichiometry.native(_idxSALK, 5) = c6a;
+		_stoichiometry.native(_idxSALK, 6) = c7a;
+		_stoichiometry.native(_idxSALK, 8) = c9a;
+		_stoichiometry.native(_idxSALK, 9) = c10a;
+		_stoichiometry.native(_idxSALK, 10) = c11a;
+		_stoichiometry.native(_idxSALK, 11) = c12a;
 
 		// SI
-		_stoichiometry.native(6, 0) = fSI;
+		_stoichiometry.native(_idxSI, 0) = fSI;
 
 		// XI
-		_stoichiometry.native(7, 5) = fXI;
-		_stoichiometry.native(7, 6) = fXI;
-		_stoichiometry.native(7, 10) = fXI;
-		_stoichiometry.native(7, 11) = fXI;
+		_stoichiometry.native(_idxXI, 5) = fXI;
+		_stoichiometry.native(_idxXI, 6) = fXI;
+		_stoichiometry.native(_idxXI, 10) = fXI;
+		_stoichiometry.native(_idxXI, 11) = fXI;
 
 		// XS
-		_stoichiometry.native(8, 0) = -1;
+		_stoichiometry.native(_idxXS, 0) = -1;
 
 		// XH
-		_stoichiometry.native(9, 3) = 1;
-		_stoichiometry.native(9, 4) = 1;
-		_stoichiometry.native(9, 5) = -1;
-		_stoichiometry.native(9, 6) = -1;
+		_stoichiometry.native(_idxXH, 3) = 1;
+		_stoichiometry.native(_idxXH, 4) = 1;
+		_stoichiometry.native(_idxXH, 5) = -1;
+		_stoichiometry.native(_idxXH, 6) = -1;
 
 		// XSTO
-		_stoichiometry.native(10, 1) = YSTO_aer;
-		_stoichiometry.native(10, 2) = YSTO_anox;
-		_stoichiometry.native(10, 3) = -1 / YH_aer;
-		_stoichiometry.native(10, 4) = -1 / YH_anox;
-		_stoichiometry.native(10, 7) = -1;
-		_stoichiometry.native(10, 8) = -1;
+		_stoichiometry.native(_idxXSTO, 1) = YSTO_aer;
+		_stoichiometry.native(_idxXSTO, 2) = YSTO_anox;
+		_stoichiometry.native(_idxXSTO, 3) = -1 / YH_aer;
+		_stoichiometry.native(_idxXSTO, 4) = -1 / YH_anox;
+		_stoichiometry.native(_idxXSTO, 7) = -1;
+		_stoichiometry.native(_idxXSTO, 8) = -1;
 
 		// XA
-		_stoichiometry.native(11, 9) = 1;
-		_stoichiometry.native(11, 10) = -1;
-		_stoichiometry.native(11, 11) = -1;
+		_stoichiometry.native(_idxXA, 9) = 1;
+		_stoichiometry.native(_idxXA, 10) = -1;
+		_stoichiometry.native(_idxXA, 11) = -1;
 
 		// XMI
-		_stoichiometry.native(12, 5) = fXMI_BM;
-		_stoichiometry.native(12, 6) = fXMI_BM;
-		_stoichiometry.native(12, 10) = fXMI_BM;
-		_stoichiometry.native(12, 11) = fXMI_BM;
+		_stoichiometry.native(_idxXMI, 5) = fXMI_BM;
+		_stoichiometry.native(_idxXMI, 6) = fXMI_BM;
+		_stoichiometry.native(_idxXMI, 10) = fXMI_BM;
+		_stoichiometry.native(_idxXMI, 11) = fXMI_BM;
 
 
 
@@ -571,20 +558,20 @@ protected:
 		//XH_S = max(XH, 0.1)
 
 		const size_t idxSO = 0;
-        const size_t idxSS = 1;
-        const size_t idxSNH = 2;
-        const size_t idxSNO = 3;
-        const size_t idxSN2 = 4;
-        const size_t idxSALK = 5;
-        const size_t idxSI = 6;
-        const size_t idxXI = 7;
-        const size_t idxXS = 8;
-        const size_t idxXH = 9;
-        const size_t idxXSTO = 10;
-        const size_t idxXA = 11;
-        const size_t idxXMI = 12;
+		const size_t idxSS = 1;
+		const size_t idxSNH = 2;
+		const size_t idxSNO = 3;
+		const size_t idxSN2 = 4;
+		const size_t idxSALK = 5;
+		const size_t idxSI = 6;
+		const size_t idxXI = 7;
+		const size_t idxXS = 8;
+		const size_t idxXH = 9;
+		const size_t idxXSTO = 10;
+		const size_t idxXA = 11;
+		const size_t idxXMI = 12;
 
-        double d[13][13] = {};
+		double d[13][13] = {};
         
 		// p1: Hydrolysis: kh20 * ft04 * XS/XH_S / (XS/XH_S + kx) * XH;
 		d[0][idxXS] = kh20 * ft04
