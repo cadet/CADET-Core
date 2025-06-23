@@ -10,11 +10,6 @@
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
 
-// we have the following tests:
-// fixGRM2D: test that does not work and is not based on FD
-// CIgrm2d: test that works and is not based on FD
-// FDtestGRM2D: Test based on FD that works on my machine
-// failedFDtestGRM2D: Test based on FD that does not work on my machine
 
 #include <catch.hpp>
 
@@ -65,7 +60,7 @@ TEST_CASE("GRM2D dynamic binding flux Jacobian vs FD", "[GRM2D],[UnitOp],[Residu
 	cadet::test::column::testArrowHeadJacobianFD("GENERAL_RATE_MODEL_2D", true, 1e-6, 2e-9);
 }
 
-TEST_CASE("GRM2D sensitivity Jacobians", "[GRM2D],[UnitOp],[Sensitivity],[CIgrm2d]")
+TEST_CASE("GRM2D sensitivity Jacobians", "[GRM2D],[UnitOp],[Sensitivity],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("GENERAL_RATE_MODEL_2D", "FV");
 
@@ -92,7 +87,7 @@ TEST_CASE("GRM2D forward sensitivity forward vs backward flow", "[GRM2D],[Sensit
 	cadet::test::column::testFwdSensSolutionForwardBackward("GENERAL_RATE_MODEL_2D", "FV", absTols, relTols, passRatio);
 }
 
-TEST_CASE("GRM2D consistent initialization with linear binding", "[GRM2D],[ConsistentInit],[CIgrm2d]")
+TEST_CASE("GRM2D consistent initialization with linear binding", "[GRM2D],[ConsistentInit],[CI]")
 {
 	cadet::test::column::testConsistentInitializationLinearBinding("GENERAL_RATE_MODEL_2D", "FV", 1e-12, 1e-12);
 }
@@ -112,7 +107,7 @@ TEST_CASE("GRM2D consistent initialization with SMA binding", "[GRM2D],[Consiste
 	cadet::test::column::testConsistentInitializationSMABinding("GENERAL_RATE_MODEL_2D", "FV", y.data(), 1e-14, 1e-5);
 }
 
-TEST_CASE("GRM2D consistent sensitivity initialization with linear binding", "[GRM2D],[ConsistentInit],[Sensitivity],[CIgrm2d]")
+TEST_CASE("GRM2D consistent sensitivity initialization with linear binding", "[GRM2D],[ConsistentInit],[Sensitivity],[CI]")
 {
 	// Fill state vector with given initial values
 	const unsigned int numDofs = 2 * 3 + 2 * 8 * 3 + 8 * 3 * 3 * (2 + 2) + 2 * 8 * 3;
@@ -124,7 +119,7 @@ TEST_CASE("GRM2D consistent sensitivity initialization with linear binding", "[G
 	cadet::test::column::testConsistentInitializationSensitivity("GENERAL_RATE_MODEL_2D", "FV", y.data(), yDot.data(), true, 1e-14);
 }
 
-TEST_CASE("GRM2D consistent sensitivity initialization with SMA binding", "[GRM2D],[ConsistentInit],[Sensitivity],[CIgrm2d]")
+TEST_CASE("GRM2D consistent sensitivity initialization with SMA binding", "[GRM2D],[ConsistentInit],[Sensitivity],[CI]")
 {
 	// Fill state vector with given initial values
 	const unsigned int numDofs = 4 * 3 + 4 * 8 * 3 + 8 * 3 * 3 * (4 + 4) + 4 * 8 * 3;
@@ -141,22 +136,22 @@ TEST_CASE("GRM2D consistent sensitivity initialization with SMA binding", "[GRM2
 	cadet::test::column::testConsistentInitializationSensitivity("GENERAL_RATE_MODEL_2D", "FV", y.data(), yDot.data(), false, 1e-9);
 }
 
-TEST_CASE("GRM2D inlet DOF Jacobian", "[GRM2D],[UnitOp],[Jacobian],[Inlet],[CIgrm2d]")
+TEST_CASE("GRM2D inlet DOF Jacobian", "[GRM2D],[UnitOp],[Jacobian],[Inlet],[CI]")
 {
 	cadet::test::column::testInletDofJacobian("GENERAL_RATE_MODEL_2D", "FV");
 }
 
-TEST_CASE("GRM2D LWE one vs two identical particle types match", "[GRM2D],[Simulation],[ParticleType],[CIgrm2d]")
+TEST_CASE("GRM2D LWE one vs two identical particle types match", "[GRM2D],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("GENERAL_RATE_MODEL_2D", "FV", 1e-7, 5e-5);
 }
 
-TEST_CASE("GRM2D LWE separate identical particle types match", "[GRM2D],[Simulation],[ParticleType],[CIgrm2d]")
+TEST_CASE("GRM2D LWE separate identical particle types match", "[GRM2D],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testSeparateIdenticalParticleTypes("GENERAL_RATE_MODEL_2D", "FV", 1e-15, 1e-15);
 }
 
-TEST_CASE("GRM2D linear binding single particle matches particle distribution", "[GRM2D],[Simulation],[ParticleType],[CIgrm2d]")
+TEST_CASE("GRM2D linear binding single particle matches particle distribution", "[GRM2D],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testLinearMixedParticleTypes("GENERAL_RATE_MODEL_2D", "FV", 5e-8, 5e-5);
 }
@@ -171,7 +166,7 @@ TEST_CASE("GRM2D multiple particle types time derivative Jacobian vs FD", "[GRM2
 	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("GENERAL_RATE_MODEL_2D", "FV", 1e-6, 0.0, 5e-3);
 }
 
-TEST_CASE("GRM2D linear binding single particle matches spatially dependent particle distribution", "[GRM2D],[Simulation],[ParticleType],[CIgrm2d]")
+TEST_CASE("GRM2D linear binding single particle matches spatially dependent particle distribution", "[GRM2D],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("GENERAL_RATE_MODEL_2D", "FV", 5e-8, 5e-5);
 }
@@ -247,7 +242,7 @@ TEST_CASE("GRM2D multi particle types dynamic reactions time derivative Jacobian
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("GRM2D with 1 radial zone matches GRM", "[GRM],[GRM2D],[UnitOp],[Jacobian],[CIgrm2d]")
+TEST_CASE("GRM2D with 1 radial zone matches GRM", "[GRM],[GRM2D],[UnitOp],[Jacobian],[CI]")
 {
 	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 	REQUIRE(nullptr != mb);

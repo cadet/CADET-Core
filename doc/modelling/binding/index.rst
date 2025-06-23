@@ -207,6 +207,11 @@ The models also differ in whether a mobile phase modifier (e.g., salt) is suppor
      - ×
      - ✓
      - ✓
+   * - :ref:`affinity_complex_titration`
+     - ✓
+     - ×
+     - ✓
+     - ×
    * - :ref:`multi_component_bi_langmuir_ldf_model`
      - ✓
      - ×
@@ -273,6 +278,11 @@ The models also differ in whether a mobile phase modifier (e.g., salt) is suppor
      - ✓
      - x
    * - :ref:`hic_constant_water_activity_model`
+     - ✓
+     - x
+     - ✓
+     - x
+   * - :ref:`hic_unified_model`
      - ✓
      - x
      - ✓

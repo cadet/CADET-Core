@@ -123,6 +123,12 @@ public:
 
 	virtual unsigned int threadLocalMemorySize() const CADET_NOEXCEPT;
 
+	virtual bool setParameter(const ParameterId& pId, double value);
+	virtual bool setParameter(const ParameterId& pId, int value);
+	virtual bool setParameter(const ParameterId& pId, bool value);
+	virtual void setSensitiveParameterValue(const ParameterId& pId, double value);
+	virtual bool setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue);
+
 #ifdef CADET_BENCHMARK_MODE
 	virtual std::vector<double> benchmarkTimings() const { return std::vector<double>(0); }
 	virtual char const* const* benchmarkDescriptions() const { return nullptr; }

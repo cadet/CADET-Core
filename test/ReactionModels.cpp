@@ -78,6 +78,17 @@ TEST_CASE("MassActionLaw kinetic analytic Jacobian vs AD", "[MassActionLaw],[Rea
 	);
 }
 
+TEST_CASE("CSTR with MAL reaction numerical Benchmark with parameter sensitivities", "[CSTR],[MassActionLaw],[ReactionModel],[Simulation],[Reference],[Sensitivity],[CI_sens16]")
+{
+	std::string modelFilePath = std::string("/data/model_CSTR_reacMAL_2comp_sensbenchmark1.json");
+	std::string refFilePath = std::string("/data/ref_CSTR_reacMAL_2comp_sensbenchmark1.h5");
+	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12 };
+	const std::vector<double> relTol = { 1e-6, 1e-6, 1e-6 };
+
+	cadet::test::column::Dummyparams disc;
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
+}
+
 TEST_CASE("MichaelisMenten kinetic and specific mass action law micro-kinetics yield same result", "[MichaelisMenten],[ReactionModel],[Simulation],[CI]")
 {
 	const std::string& configFilePath1 = std::string("/data/model_CSTR_MichaelisMenten_benchmark1.json");
