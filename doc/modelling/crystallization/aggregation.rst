@@ -6,11 +6,15 @@ Aggregation Models
 
 For detailed information on the crystallization models implemented in CADET, including aggregation, please refer to :cite:`Zhang2025`.
 
-The aggregation model considered here can be combined with :ref:`pbm_model` and / or :ref:`fragmentation_model`.
-Further, it can be applied in any of the unit operations, specifically in a tank or DPFR.
+The aggregation model can be combined with :ref:`pbm_model` and/or :ref:`fragmentation_model`.
+Further, it can be applied in any of the unit operations, specifically in a STR or DPFR.
 
-The aggregation crystallization model describes the evolution of the particle number density :math:`n` driven by particle aggregation.
+The aggregation is governed by the Smoluchowski coagulation equation and describes the evolution of the particle number density :math:`n` changes due to agglomeration/aggregation.
 Here, we consider binary particle aggregation based on particle size :math:`x`, which is called internal coordinate.
+
+.. figure:: Aggregation_concept.png
+
+   Particle agglomeration/aggregation considered in the Smoluchowski coagulation equation. 
 
 The size-based aggregation equation roots in the classical volume based Smoluchowski coagulation equation, which we transform to a size-based equation using the identity
 
@@ -24,7 +28,7 @@ The size-based aggregation equation roots in the classical volume based Smolucho
 which identifies the change of particle count within a volume interval :math:`[k_vx^3, k_vx^3+d(k_vx^3)]` with the change of particle count within a size interval :math:`[x,x+dx]`.
 
 
-Size-based binary aggregation is governed by the integro-differential equation
+Size-based binary aggregation is governed by the Smoluchowski coagulation equation
 
 .. math::
     :label: AggregationSizeBased
@@ -37,8 +41,9 @@ Size-based binary aggregation is governed by the integro-differential equation
     \end{aligned}
 
 
-Here, :math:`[x_{c}, x_{\mathrm{end}}]` is the considered particle size interval, :math:`\beta(x,\lambda)` is the aggregation kernel specific to the underlying aggregation mechanism.
-The aggregation kernels considered here are based on a aggregation rate constant :math:`\beta_0 > 1`:
+Here, :math:`[x_{c}, x_{\mathrm{end}}]` is the considered particle size interval, :math:`\beta(x,\lambda)` is the aggregation kernel specific to the underlying aggregation mechanism of your system.
+
+Five kernels are already implemented in CADET. They include:
 
 Constant kernel
     .. math::
@@ -64,6 +69,6 @@ Differential force kernel
     .. math::
 
         \beta(x, \lambda) = \beta_0 (x + \lambda)^2 (x^2 - \lambda^2)
-
+where :math:`\beta_0 > 0` is the aggregation rate constant. Please reach out to us for customized aggregation kernels. 
 
 For information on model parameters and how to specify the model interface, see :ref:`pbm_config`.

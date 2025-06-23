@@ -9,13 +9,13 @@ The external coordinate can be a characteristic dimension of the reactor itself,
 The PBM in CADET is implemented so that it can be used in any unit operation that supports reactions.
 Typical applications consider crystallization in a CSTR or, to model continuous processes, in a Dispersive Plug-Flow Reactor (DPFR), which is described by the LRM without solid phase.
 
-In the following, we give a brief overview on the PBM modelling equations for growth, nucleation, growth rate dispersion.
-These equations can be combined with :ref:`aggregation_model` and / or :ref:`fragmentation_model`.
-For more information on the PBM as implemented in CADET, please refer to :cite:`Zhang2024` and :cite:`Zhang2025`.
+In the following, we give a brief overview on the PBM equations for growth, nucleation, growth rate dispersion.
+These equations can be combined with :ref:`aggregation_model` and/or :ref:`fragmentation_model`.
+For more information on the PBM implemented in CADET, please refer to :cite:`Zhang2024` and :cite:`Zhang2025`.
 
 .. figure:: PBM_Part_I.png
 
-   Nucleation, growth and growth rate dispersion in PBM. Note that dispersion is used to model (random) variance in growth speed, not the reduction of particle size, which is feasible for a convection dominated process.
+   Nucleation, growth and growth rate dispersion in PBM. Note that dispersion is used to model (random) variance in growth speed, not the reduction of particle size.
 
 Population Balance Model in a CSTR
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -153,7 +153,7 @@ An empirical power-law expression is used for the secondary nucleation:
         B_s=k_bs^bM^k,
     \end{aligned}
 
-where :math:`k_b\in\mathbb{R}^+` is the secondary nucleation rate constant, :math:`b\in\mathbb{R}^+` and :math:`k\in\mathbb{R}^+` are system-related parameters and :math:`M\in\mathbb{R}^+` is the suspension density defined as
+where :math:`k_b\in\mathbb{R}^+` is the secondary nucleation rate constant, :math:`b\in\mathbb{R}^+` and :math:`k\in\mathbb{R}^+` (usually set to :math:`1`) are system-related parameters and :math:`M\in\mathbb{R}^+` is the suspension density defined as
 
 .. math::
 

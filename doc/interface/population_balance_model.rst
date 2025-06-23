@@ -14,7 +14,7 @@ Note that any of these models can be used in any unit operation that supports re
    By setting the ``NCOMP`` field, you specify the number of FV cells for the internal coordinate:
    If the PBM is considered, we have two components that account for the solute :math:`c` and solubility :math:`c_\text{eq}`.
    Note that the first component must be solute :math:`c` and the last component must be the solubility :math:`c_\text{eq}`.
-   Additionally, we discretize the particle size domain (internal coordinate) by some customary FV methods, giving us a finite set of particle sizes under consideration :math:`\{x_1, \dots, x_{N_x}\}`.
+   Additionally, we discretize the particle size domain (internal coordinate) using FV methods, giving us a finite set of particle sizes under consideration :math:`\{x_1, \dots, x_{N_x}\}`.
    Every particle size considered is treated as an individual component of the unit operation and the field ``NCOMP`` of that unit operation in which the crystallization happens, must be specified accordingly as :math:`N_x` or :math:`N_x + 2` if the model includes the PBM.
 
 Example code for configuring the crystallization models is available in `CADET-Verification <https://github.com/cadet/CADET-Verification/>`_ .
@@ -34,9 +34,9 @@ Group /input/model/unit_XXX
 
    The crystallization code is implemented as a reaction module, which is why crystallization needs to be specified here
 
-   ================  ==============================================  =============
-   **Type:** String  **Range:** :math:`\texttt{ CRYSTALLIZATION \}`  **Length:** 1
-   ================  ==============================================  =============
+   ================  =============================================  =============
+   **Type:** String  **Range:** :math:`\texttt{ CRYSTALLIZATION }`  **Length:** 1
+   ================  =============================================  =============
 
 Group /input/model/unit_XXX/reaction_bulk - REACTION_MODEL = CRYSTALLIZATION - UNIT_TYPE = CSTR
 -----------------------------------------------------------------------------------------------
@@ -48,9 +48,9 @@ Group /input/model/unit_XXX/reaction_bulk - REACTION_MODEL = CRYSTALLIZATION - U
    Crystallization mode, which determines the exact model equation to be employed.
 
   1. Pure PBM, as described in :ref:`pbm_model`.
-  2. Pure aggregation, as described in
+  2. Pure aggregation, as described in :ref:`aggregation_model`.
   3. Combined PBM and aggregation.
-  4. Pure fragmentation, as described in
+  4. Pure fragmentation, as described in :ref:`fragmentation_model`.
   5. Combined PBM and fragmentation.
   6. Combined aggregation and fragmentation.
   7. Combined PBM, aggregation, and fragmentation.
@@ -67,8 +67,8 @@ Group /input/model/unit_XXX/reaction_bulk - REACTION_MODEL = CRYSTALLIZATION - U
    **Type:** double  **Range:** :math:`\geq 1`   **Length:** :math:`\mathrm{N_x} + 1`
    ================  =========================  =====================================
 
-Population Mass Balance input parameters
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Population and Mass Balance input parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ``CRY_NUCLEI_MASS_DENSITY``
 
@@ -168,7 +168,7 @@ Population Mass Balance input parameters
 
 ``CRY_K``
 
-   Defines constant :math:`k` used to determine the secondary nucleation
+   Defines constant :math:`k` used to determine the secondary nucleation, usually set to :math:`\geq 1`
 
    ================  =========================  =============
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
