@@ -12,9 +12,12 @@ Typical applications consider crystallization in a CSTR or, to model continuous 
 For detailed information on the PBM implemented in CADET-Core, please refer to :cite:`Zhang2024` and :cite:`Zhang2025`.
 A concise overview of the models is provided in the following sections:
 
- - :ref:`primary_particle_formation`
- - :ref:`aggregation`
- - :ref:`fragmentation`
+ .. toctree::
+    :maxdepth: 1
+
+    primary_particle_formation
+    aggregation
+    fragmentation
 
  Additionally, any combination of these models is also supported.
  Further, any of these crystallization \ precipitation models can be combined with any of the transport models listed among the :ref:`unit_operation_models`.

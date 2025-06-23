@@ -1,7 +1,7 @@
 .. _primary_particle_formation:
 
-Primary Particle Formation Models
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Primary Particle Formation
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In the following, we give a brief overview on the PBM equations for primary particle formation through growth, nucleation, growth rate dispersion.
 These equations can be combined with :ref:`aggregation` and/or :ref:`fragmentation`.
@@ -166,9 +166,3 @@ The following expression for the growth rate is implemented:
 where :math:`k_g\in\mathbb{R}^+` is the growth rate constant, :math:`\gamma\in\mathbb{R}^+` quantifies the size dependence, and :math:`g, a, p\in\mathbb{R}^+` are system-related constants.
 
 For information on model parameters and how to specify the model interface, see :ref:`pbm_config`.
-
-.. toctree::
-    :hidden:
-    :glob:
-
-    *
