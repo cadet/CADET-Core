@@ -1,21 +1,15 @@
-.. _pbm_model:
+.. _primary_particle_formation:
 
-Population Balance Models
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Primary Particle Formation
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The population balance model (PBM) is given by a particle-number continuity equation which describes the evolution of the number density :math:`n` of the particles over time :math:`t` and with respect to size, the so-called internal coordinate :math:`x`, and external coordinate :math:`z`.
-The external coordinate can be a characteristic dimension of the reactor itself, including its axial length.
-
-The PBM in CADET is implemented so that it can be used in any unit operation that supports reactions.
-Typical applications consider crystallization in a CSTR or, to model continuous processes, in a Dispersive Plug-Flow Reactor (DPFR), which is described by the LRM without solid phase.
-
-In the following, we give a brief overview on the PBM modelling equations for growth, nucleation, growth rate dispersion.
-These equations can be combined with :ref:`aggregation_model` and / or :ref:`fragmentation_model`.
-For more information on the PBM as implemented in CADET, please refer to :cite:`Zhang2024` and :cite:`Zhang2025`.
+In the following, we give a brief overview on the PBM equations for primary particle formation through growth, nucleation, growth rate dispersion.
+These equations can be combined with :ref:`aggregation` and/or :ref:`fragmentation`.
+For more information on the PBM implemented in CADET, please refer to :cite:`Zhang2024` and :cite:`Zhang2025`.
 
 .. figure:: PBM_Part_I.png
 
-   Nucleation, growth and growth rate dispersion in PBM. Note that dispersion is used to model (random) variance in growth speed, not the reduction of particle size, which is feasible for a convection dominated process.
+   Nucleation, growth and growth rate dispersion in PBM. Note that dispersion is used to model (random) variance in growth speed, not the reduction of particle size.
 
 Population Balance Model in a CSTR
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -153,7 +147,7 @@ An empirical power-law expression is used for the secondary nucleation:
         B_s=k_bs^bM^k,
     \end{aligned}
 
-where :math:`k_b\in\mathbb{R}^+` is the secondary nucleation rate constant, :math:`b\in\mathbb{R}^+` and :math:`k\in\mathbb{R}^+` are system-related parameters and :math:`M\in\mathbb{R}^+` is the suspension density defined as
+where :math:`k_b\in\mathbb{R}^+` is the secondary nucleation rate constant, :math:`b\in\mathbb{R}^+` and :math:`k\in\mathbb{R}^+` (usually set to :math:`1`) are system-related parameters and :math:`M\in\mathbb{R}^+` is the suspension density defined as
 
 .. math::
 
@@ -172,9 +166,3 @@ The following expression for the growth rate is implemented:
 where :math:`k_g\in\mathbb{R}^+` is the growth rate constant, :math:`\gamma\in\mathbb{R}^+` quantifies the size dependence, and :math:`g, a, p\in\mathbb{R}^+` are system-related constants.
 
 For information on model parameters and how to specify the model interface, see :ref:`pbm_config`.
-
-.. toctree::
-    :hidden:
-    :glob:
-
-    *
