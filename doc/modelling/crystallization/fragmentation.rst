@@ -1,17 +1,21 @@
-.. _fragmentation_model:
+.. _fragmentation:
 
 Fragmentation Models
 ~~~~~~~~~~~~~~~~~~~~
 
 For detailed information on the crystallization models implemented in CADET, including aggregation, please refer to :cite:`Zhang2025`.
 
-The fragmentation/breakage model considered here can be combined with :ref:`pbm_model` and / or :ref:`aggregation_model`.
-Further, it can be applied in any of the unit operations, specifically in a tank or DPFR.
+The fragmentation/breakage model considered here can be combined with :ref:`primary_particle_formation` and/or :ref:`aggregation`.
+Further, it can be applied in any of the unit operations, specifically in a STR or DPFR.
 
-The fragmentation/breakage crystallization model describes the evolution of the particle number density :math:`n` driven by particle fragmentation.
+The fragmentation/breakage is governed by the fragmentation equation and describes the evolution of the particle number density :math:`n` changes due to fragmentation/breakage. 
 Here, we consider multiple fragmentation, i.e. the general breakage of a particle into a particle size distribution, based on particle size :math:`x`, which is called internal coordinate.
 
-Size-based fragmentation is governed by the integro-differential equation
+.. figure:: Fragmentation_concept.png
+
+   Particle fragmentation/breakage considered in the fragmentation equation. 
+
+Size-based fragmentation is governed by 
 
 .. math::
     :label: FragmentationSizeBased
@@ -22,7 +26,7 @@ Size-based fragmentation is governed by the integro-differential equation
     \end{aligned}
 
 
-Here, :math:`x_{\mathrm{end}}` is the maximal considered particle size, :math:`b(x | \lambda)` is the probability density function for the generation of a particle of size :math`:`x` from breakage of a particle of size :math:`\lambda`,
+Here, :math:`x_{\mathrm{end}}` is the maximal considered particle size, :math:`b(x | \lambda)` is the probability density function for the generation of a particle of size :math:`x` from breakage of a particle of size :math:`\lambda`,
 and :math:`S` is the selection function which determines the rate of fragmentation.
 
 
