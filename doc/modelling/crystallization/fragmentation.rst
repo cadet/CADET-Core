@@ -1,11 +1,11 @@
-.. _fragmentation_model:
+.. _fragmentation:
 
 Fragmentation Models
 ~~~~~~~~~~~~~~~~~~~~
 
 For detailed information on the crystallization models implemented in CADET, including aggregation, please refer to :cite:`Zhang2025`.
 
-The fragmentation/breakage model considered here can be combined with :ref:`pbm_model` and/or :ref:`aggregation_model`.
+The fragmentation/breakage model considered here can be combined with :ref:`primary_particle_formation` and/or :ref:`aggregation`.
 Further, it can be applied in any of the unit operations, specifically in a STR or DPFR.
 
 The fragmentation/breakage is governed by the fragmentation equation and describes the evolution of the particle number density :math:`n` changes due to fragmentation/breakage. 

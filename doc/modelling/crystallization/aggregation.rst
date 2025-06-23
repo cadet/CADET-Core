@@ -1,4 +1,4 @@
-.. _aggregation_model:
+.. _aggregation:
 
 Aggregation Models
 ~~~~~~~~~~~~~~~~~~
@@ -6,7 +6,7 @@ Aggregation Models
 
 For detailed information on the crystallization models implemented in CADET, including aggregation, please refer to :cite:`Zhang2025`.
 
-The aggregation model can be combined with :ref:`pbm_model` and/or :ref:`fragmentation_model`.
+The aggregation model can be combined with :ref:`primary_particle_formation` and/or :ref:`fragmentation`.
 Further, it can be applied in any of the unit operations, specifically in a STR or DPFR.
 
 The aggregation is governed by the Smoluchowski coagulation equation and describes the evolution of the particle number density :math:`n` changes due to agglomeration/aggregation.
