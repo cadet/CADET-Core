@@ -329,6 +329,12 @@ ColumnModel2D::ColumnModel2D(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx)
 ColumnModel2D::~ColumnModel2D() CADET_NOEXCEPT
 {
 	delete[] _tempState;
+
+	for (IParticleModel* pm : _particles)
+		delete pm;
+
+	_particles.clear();
+
 	delete _dynReactionBulk;
 
 	delete[] _disc.parTypeOffset;
@@ -454,6 +460,8 @@ bool ColumnModel2D::configureModelDiscretization(IParameterProvider& paramProvid
 	configureNonlinearSolver(paramProvider);
 
 	paramProvider.popScope();
+
+	_particles = std::vector<IParticleModel*>(_disc.nParType, nullptr);
 
 	const unsigned int strideRadNode = _disc.nComp;
 	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, strideRadNode);
