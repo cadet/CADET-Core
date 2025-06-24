@@ -100,11 +100,11 @@ TEST_CASE("GRM_DG numerical Benchmark with parameter sensitivities and multiplex
 TEST_CASE("GRM_DG numerical Benchmark with parameter sensitivities for SMA LWE case", "[GRM],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens4]")
 {
 	const std::string modelFilePath = std::string("/data/model_GRM_reqSMA_4comp_benchmark1.json");
-	const std::string refFilePath = std::string("/data/ref_GRM_reqSMA_4comp_sensbenchmark1_cDG_P3Z8_GSM_parP3parZ1.h5");
+	const std::string refFilePath = std::string("/data/ref_GRM_reqSMA_4comp_sensbenchmark1_exIntDG_P3Z8_GSM_parP3parZ1.h5");
 	const std::vector<double> absTol = { 1e-12, 1e-6, 1e-6, 1e-12 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 
-	cadet::test::column::DGparams disc(0, 3, 8, 3, 1);
+	cadet::test::column::DGparams disc(1, 3, 8, 3, 1);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 

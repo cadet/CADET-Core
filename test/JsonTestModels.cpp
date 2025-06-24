@@ -62,7 +62,7 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 
 	// Initial conditions
 	config["INIT_C"] = {50.0, 0.0, 0.0, 0.0};
-	if (uoType.find("COLUMN_1D") == std::string::npos)
+	if (uoType.find("COLUMN_") == std::string::npos)
 		config["INIT_Q"] = {1.2e3, 0.0, 0.0, 0.0};
 
 	// Adsorption
@@ -141,13 +141,13 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 
 		disc["USE_ANALYTIC_JACOBIAN"] = true;
 
-		if (uoType.find("COLUMN_1D") != std::string::npos)
+		if (uoType.find("COLUMN_") != std::string::npos)
 		{
-			config["UNIT_TYPE"] = "COLUMN_MODEL_1D";
+			config["UNIT_TYPE"] = uoType.find("_1D") != std::string::npos ? "COLUMN_MODEL_1D" : "COLUMN_MODEL_2D";
 			particle["INIT_CS"] = { 1.2e3, 0.0, 0.0, 0.0 };
-			if (uoType == "COLUMN_1D_GRM")
+			if (uoType.find("GRM") != std::string::npos)
 				particle["PARTICLE_TYPE"] = "GENERAL_RATE_PARTICLE";
-			else if (uoType == "COLUMN_1D_LRMP")
+			else if (uoType.find("LRMP") != std::string::npos)
 				particle["PARTICLE_TYPE"] = "HOMOGENEOUS_PARTICLE";
 			particle["discretization"] = discPar;
 			config["particle_type_000"] = particle;
@@ -333,7 +333,7 @@ json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(cons
 		config["discretization"] = disc;
 	}
 
-	config["UNIT_TYPE"] = "COLUMN_MODEL_1D";
+	config["UNIT_TYPE"] = uoType.find("_1D") != std::string::npos ? "COLUMN_MODEL_1D" : "COLUMN_MODEL_2D";
 	particle["PARTICLE_TYPE"] = "GENERAL_RATE_PARTICLE";
 	config["particle_type_000"] = particle;
 	particle["PARTICLE_TYPE"] = "HOMOGENEOUS_PARTICLE";
@@ -387,7 +387,7 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 
 	// Initial conditions
 	config["INIT_C"] = {1.0, 2.0, 3.0};
-	if (uoType.find("COLUMN_1D") == std::string::npos)
+	if (uoType.find("COLUMN_") == std::string::npos)
 		config["INIT_Q"] = {5.0, 6.0, 7.0};
 
 	// Adsorption
@@ -462,20 +462,20 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 
 		disc["USE_ANALYTIC_JACOBIAN"] = true;
 
-		if (uoType.find("COLUMN_1D") != std::string::npos)
+		if (uoType.find("COLUMN_") != std::string::npos)
 			particle["discretization"] = parDisc;
 		else
 			disc.update(parDisc);
 		config["discretization"] = disc;
 	}
 
-	if (uoType.find("COLUMN_1D") != std::string::npos)
+	if (uoType.find("COLUMN_") != std::string::npos)
 	{
 		particle["INIT_CS"] = { 5.0, 6.0, 7.0 };
-		config["UNIT_TYPE"] = "COLUMN_MODEL_1D";
-		if (uoType == "COLUMN_1D_GRM")
+		config["UNIT_TYPE"] = uoType.find("_1D") != std::string::npos ? "COLUMN_MODEL_1D" : "COLUMN_MODEL_2D";
+		if (uoType.find("GRM") != std::string::npos)
 			particle["PARTICLE_TYPE"] = "GENERAL_RATE_PARTICLE";
-		else if (uoType == "COLUMN_1D_LRMP")
+		else if (uoType.find("LRMP") != std::string::npos)
 			particle["PARTICLE_TYPE"] = "HOMOGENEOUS_PARTICLE";
 		config["particle_type_000"] = particle;
 	}
@@ -756,7 +756,7 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 
 			// Initial conditions
 			grm["INIT_C"] = {0.0};
-			if (uoType.find("COLUMN_1D") == std::string::npos)
+			if (uoType.find("COLUMN_") == std::string::npos)
 				grm["INIT_Q"] = {0.0};
 
 			// Adsorption
@@ -824,20 +824,20 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 
 				disc["USE_ANALYTIC_JACOBIAN"] = true;
 
-				if (uoType.find("COLUMN_1D") != std::string::npos)
+				if (uoType.find("COLUMN_") != std::string::npos)
 					particle["discretization"] = parDisc;
 				else
 					disc.update(parDisc);
 				grm["discretization"] = disc;
 			}
 
-			if (uoType.find("COLUMN_1D") != std::string::npos)
+			if (uoType.find("COLUMN_") != std::string::npos)
 			{
 				particle["INIT_CS"] = { 0.0 };
-				grm["UNIT_TYPE"] = "COLUMN_MODEL_1D";
-				if (uoType == "COLUMN_1D_GRM")
+				grm["UNIT_TYPE"] = uoType.find("_1D") != std::string::npos ? "COLUMN_MODEL_1D" : "COLUMN_MODEL_2D";
+				if (uoType.find("GRM") != std::string::npos)
 					particle["PARTICLE_TYPE"] = "GENERAL_RATE_PARTICLE";
-				else if (uoType == "COLUMN_1D_LRMP")
+				else if (uoType.find("LRMP") != std::string::npos)
 					particle["PARTICLE_TYPE"] = "HOMOGENEOUS_PARTICLE";
 				grm["particle_type_000"] = particle;
 			}
@@ -1057,7 +1057,7 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 
 	// Initial conditions
 	grm["INIT_C"] = { 0.0 };
-	if (uoType.find("COLUMN_1D") == std::string::npos)
+	if (uoType.find("COLUMN_") == std::string::npos)
 		grm["INIT_Q"] = { 0.0 };
 
 	// Adsorption
@@ -1123,13 +1123,13 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 
 		disc["USE_ANALYTIC_JACOBIAN"] = true;
 
-		if (uoType.find("COLUMN_1D") != std::string::npos)
+		if (uoType.find("COLUMN_") != std::string::npos)
 		{
 			particle["INIT_CS"] = { 0.0 };
-			grm["UNIT_TYPE"] = "COLUMN_MODEL_1D";
-			if (uoType == "COLUMN_1D_GRM")
+			grm["UNIT_TYPE"] = uoType.find("_1D") != std::string::npos ? "COLUMN_MODEL_1D" : "COLUMN_MODEL_2D";
+			if (uoType.find("GRM") != std::string::npos)
 				particle["PARTICLE_TYPE"] = "GENERAL_RATE_PARTICLE";
-			else if (uoType == "COLUMN_1D_LRMP")
+			else if (uoType.find("LRMP") != std::string::npos)
 				particle["PARTICLE_TYPE"] = "HOMOGENEOUS_PARTICLE";
 			particle["discretization"] = parDisc;
 			grm["particle_type_000"] = particle;

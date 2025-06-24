@@ -277,7 +277,7 @@ namespace particle
 			uoType = jpp.getString("UNIT_TYPE");
 		}
 
-		if (uoType == "COLUMN_MODEL_1D")
+		if (uoType.find("COLUMN_") != std::string::npos)
 			extendModelToManyParticleTypes(jpp, 0, 2, volFrac, true);
 		else
 			extendModelToManyParticleTypes(jpp, 0, 2, volFrac);
@@ -318,7 +318,7 @@ namespace particle
 			uoType = jpp.getString("UNIT_TYPE");
 		}
 
-		if (uoType == "COLUMN_MODEL_1D")
+		if (uoType.find("COLUMN_") != std::string::npos)
 			extendModelToManyParticleTypes(jpp, 0, 2, volFrac, true);
 		else
 			extendModelToManyParticleTypes(jpp, 0, 2, volFrac);
@@ -385,7 +385,7 @@ namespace particle
 					uoType = jpp.getString("UNIT_TYPE");
 				}
 
-				if (uoType == "COLUMN_MODEL_1D")
+				if (uoType.find("COLUMN_") != std::string::npos)
 					extendModelToManyParticleTypes(jpp, 0, 3, volFrac, true);
 				else
 					extendModelToManyParticleTypes(jpp, 0, 3, volFrac);
