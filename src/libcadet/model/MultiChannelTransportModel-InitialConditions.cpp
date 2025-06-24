@@ -23,10 +23,12 @@
 
 #include <algorithm>
 #include <functional>
+#include <set>
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
 #include "ParallelSupport.hpp"
+#include "iostream"
 
 namespace cadet
 {
@@ -222,8 +224,13 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
     std::vector<int> qsMask(_disc.nChannel * _disc.nComp,0);
 	std::map<int, std::vector<std::pair<unsigned int, unsigned int>>> qsOrgDestMask;
 	std::vector<int> ActiveComp(_disc.nComp,0);
-    _exchange[0]->quasiStationarityMap(qsOrgDestMask);
+	std::vector<int> consIdx(_disc.nChannel * _disc.nComp, 0);
 
+
+    _exchange[0]->quasiStationarityMap(qsOrgDestMask);
+	//_exchange[0]->conservedIndex(conservedIdx);
+
+	// eigene funktion
     for (const auto& eqComp : qsOrgDestMask)
 	{	
 		const auto comp = eqComp.first;
@@ -232,14 +239,30 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 		{
 			const auto source = eqComp.second[odIdx].first;
 			const auto destination = eqComp.second[odIdx].second;
-			if (destination < _disc.nChannel)
+			if (source < _disc.nChannel)
 			{
-				qsMask[destination] = 1;
-				qsMask[source] = 1;
+				qsMask[destination * _disc.nComp + comp] = 1;
+				qsMask[source * _disc.nComp + comp] = 1;
+				consIdx[source * _disc.nComp + comp] = 1;
 				ActiveComp[comp] = 1;
 			}
 		}
     }
+
+	// eigene funktion
+	std::vector<int> numActiveChannel(_disc.nComp, 0);
+	for (const auto& [comp, transfers] : qsOrgDestMask) 
+	{
+		std::set<unsigned int> uniqueSources;
+		for (const auto& [source, dest] : transfers) 
+		{
+			uniqueSources.insert(source);
+			uniqueSources.insert(dest);
+		}
+		numActiveChannel[comp] = uniqueSources.size();
+		
+	}
+
 	const linalg::ConstMaskArray mask{ qsMask.data(), static_cast<int>(_disc.nComp * _disc.nChannel) };
 	const int probSize = linalg::numMaskActive(mask);
 	unsigned int numActiveComp = std::count(ActiveComp.begin(), ActiveComp.end(), 1);
@@ -292,21 +315,35 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 
 		// Save values of conserved moieties
 		// moieties: The total amound of every component in qs must be constant all aloung the channels
+		// own funktion
 		std::vector<double> conservedQuants;
 		for (const auto& eqComp : qsOrgDestMask)
 		{
 			double consQuan = 0;
+			const unsigned int comp = eqComp.first;
+			
+			std::set<unsigned int> activeChannelsComp;
+
 			for (auto odIdx = 0; odIdx < eqComp.second.size(); odIdx++) {
 
 				const unsigned int comp = eqComp.first;
 
-				const auto source = eqComp.second[odIdx].first;
-				const auto destination = eqComp.second[odIdx].second;
+				auto source = eqComp.second[odIdx].first;
+				auto destination = eqComp.second[odIdx].second;
 				
-				consQuan += cShell[source];
-				consQuan += cShell[destination];
+				if (!activeChannelsComp.contains(source))
+				{
+					consQuan += cShell[source * _disc.nComp + comp];
+					activeChannelsComp.insert(source);
+				}
+				if (!activeChannelsComp.contains(destination)) 
+				{
+					consQuan += cShell[destination * _disc.nComp + comp];
+					activeChannelsComp.insert(destination);
+				}
 			}
 			conservedQuants.push_back(consQuan);
+			
 
 		}
 		std::function<bool(double const* const, linalg::detail::DenseMatrixBase&)> jacFunc;
@@ -401,38 +438,58 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 					// Extract Jacobian from full Jacobian
 					mat.setAll(0.0);
 
-					// manully copy from fullJaconianMatrix into mat
+					// manully copy from fullJaconianMatrix into the first cols from mat
 					int r = 0;
 					for (auto i = 0; i < fullJacobianMatrix.rows(); i++)
 					{
-						if (!mask.mask[i])
+						if (!consIdx[i])
 							continue;
-						int c = 0;
+						// number of active channels 
+
+						// non zero values in row i
 						double const* const vals = testJac.valuesOfRow(i);
 						const int nnz = testJac.numNonZerosInRow(i);
 						int const* colIdx = testJac.columnIndicesOfRow(i);
+						// get component
+						auto comp = i % _disc.nComp;
+						auto offset = numActiveChannel[i % _disc.nChannel];
+
+						auto c = 0;
 						for (auto j = 0; j < nnz; j++)
 						{	
-							if ( !mask.mask[colIdx[j]] || colIdx[j] > mask.len )
+							if ( !mask.mask[colIdx[j]] || j > probSize)
 								continue;
-							mat.native(r, c) = vals[c];
+							
+							mat.native(r, c) = vals[j];
 							c++;
 						}
-						r++;
+						r ++;
 					}
 
-					// Replace upper part with conservation relations
-					mat.submatrixSetAll(0.0, 1, 0, numActiveComp, probSize);
-					unsigned int sIdx = 1;
+					// Replace lower part with conservation relations
+					unsigned int sIdx = probSize - conservedQuants.size();
+					mat.submatrixSetAll(0.0, sIdx, 0, numActiveComp, probSize);
+					auto compIdx = 0;
 					for (const auto& eqComp : qsOrgDestMask)
 					{
 						const unsigned int comp = eqComp.first;
-
-						for (auto i = 0; i < probSize; i++)
+						for (auto i = 0; i < numActiveChannel[comp]; i++)
 						{
-							mat.native(sIdx, i) -= 1.0;
+							const auto compOffset = _disc.nComp * compIdx;
+							mat.native(sIdx, i + compOffset) -= 1.0;
 						}
+						sIdx ++;
+						compIdx++;
 					}
+
+					for (auto i = 0; i < mat.rows(); i++)
+					{
+						for (auto j = 0; j < mat.columns(); j++)
+						{
+							std::cout << i << j << ": " << mat.native(i, j) << std::endl;
+						}
+					}	
+
 					return true;
 				};
 		}
@@ -452,20 +509,21 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 				linalg::selectVectorSubset(fullResidual + cShellOfset, mask, r);
 
 				// Calculate residual of conserved moieties
-				std::fill_n(r + 1, numActiveComp, 0.0);
-				int rIdx = 1;
+				// lower entry is conserved
+				unsigned int rIdx = probSize - conservedQuants.size();
+				std::fill_n(r + rIdx, numActiveComp, 0.0);
+				int cIdx = 0;
 				for (const auto& eqComp : qsOrgDestMask)
 				{
 					const unsigned int comp = eqComp.first;
-					r[rIdx] = conservedQuants[comp];
-					for (auto odIdx = 0; odIdx < eqComp.second.size(); odIdx++) 
+					
+					r[rIdx] = conservedQuants[cIdx];
+					for (auto i = 0; i < numActiveChannel[comp]; i++)
 					{
-						const auto source = eqComp.second[odIdx].first;
-						const auto destination = eqComp.second[odIdx].second;
-						r[rIdx] -= 1.0;
-						r[rIdx] -= 0.0;
+						r[rIdx] -= x[i];
 					}
-
+					rIdx++;
+					cIdx++;
 				}
 				return true;
 			},
