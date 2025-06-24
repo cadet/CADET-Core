@@ -15,10 +15,11 @@
 * Defines the 2D LRMP model as a unit operation.
  */
 
-#ifndef LIBCADET_LUMPEDRATEMODELWITHPORESDG2D_HPP_
-#define LIBCADET_LUMPEDRATEMODELWITHPORESDG2D_HPP_
+#ifndef LIBCADET_COLUMNMODEL2D_HPP_
+#define LIBCADET_COLUMNMODEL2D_HPP_
 
 #include "model/UnitOperationBase.hpp"
+#include "model/particle/ParticleModel.hpp"
 #include "cadet/StrongTypes.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "model/parts/TwoDimensionalConvectionDispersionOperatorDG.hpp"
@@ -46,7 +47,7 @@ namespace model
 class IDynamicReactionModel;
 
 /**
- * @brief Lumped rate model of liquid column chromatography with pores and 2D bulk volume (radially symmetric), spatially discretized by a DG scheme
+ * @brief Chromatography column with 2D spatial resolution (axial and radial)
  * @details For the 2D flow equations, refer to the 2D General rate model @cite Guiochon2006, @cite Gu1995, @cite Felinger2004
  * 
  * @f[\begin{align}
@@ -64,12 +65,12 @@ u c_{\text{in},i}(t) &= u c_i^b(t,0,.) - D_{\text{ax},i} \frac{\partial c_i^b}{\
 \end{align} @f]
  * Methods are described in @cite @TODO (2D DG paper), @cite Puttmann2013 @cite Puttmann2016 (forward sensitivities, AD, band compression)
  */
-class LumpedRateModelWithPoresDG2D : public UnitOperationBase
+class ColumnModel2D : public UnitOperationBase
 {
 public:
 
-	LumpedRateModelWithPoresDG2D(UnitOpIdx unitOpIdx);
-	virtual ~LumpedRateModelWithPoresDG2D() CADET_NOEXCEPT;
+	ColumnModel2D(UnitOpIdx unitOpIdx);
+	virtual ~ColumnModel2D() CADET_NOEXCEPT;
 
 	virtual unsigned int numDofs() const CADET_NOEXCEPT;
 	virtual unsigned int numPureDofs() const CADET_NOEXCEPT;
@@ -363,8 +364,8 @@ protected:
 	{
 	public:
 
-		Exporter(const Discretization& disc, const LumpedRateModelWithPoresDG2D& model, double const* data) : _disc(disc), _idx(disc), _model(model), _data(data) { }
-		Exporter(const Discretization&& disc, const LumpedRateModelWithPoresDG2D& model, double const* data) = delete;
+		Exporter(const Discretization& disc, const ColumnModel2D& model, double const* data) : _disc(disc), _idx(disc), _model(model), _data(data) { }
+		Exporter(const Discretization&& disc, const ColumnModel2D& model, double const* data) = delete;
 
 		virtual bool hasParticleFlux() const CADET_NOEXCEPT { return true; }
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return true; }
@@ -432,7 +433,7 @@ protected:
 	protected:
 		const Discretization& _disc;
 		const Indexer _idx;
-		const LumpedRateModelWithPoresDG2D& _model;
+		const ColumnModel2D& _model;
 		double const* const _data;
 	};
 
@@ -506,4 +507,4 @@ protected:
 } // namespace model
 } // namespace cadet
 
-#endif  // LIBCADET_LUMPEDRATEMODELWITHPORESDG2D_HPP_
+#endif  // LIBCADET_COLUMNMODEL2D_HPP_

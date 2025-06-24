@@ -10,7 +10,7 @@
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
 
-#include "model/LumpedRateModelWithPoresDG2D.hpp"
+#include "model/ColumnModel2D.hpp"
 #include "BindingModelFactory.hpp"
 #include "ParamReaderHelper.hpp"
 #include "ParamReaderScopes.hpp"
@@ -320,16 +320,15 @@ constexpr double SurfVolRatioSphere = 3.0;
 constexpr double SurfVolRatioCylinder = 2.0;
 constexpr double SurfVolRatioSlab = 1.0;
 
-LumpedRateModelWithPoresDG2D::LumpedRateModelWithPoresDG2D(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
+ColumnModel2D::ColumnModel2D(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
 	_dynReactionBulk(nullptr), _jacInlet(),	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _singleRadiusInitC(true), _initCp(0), _singleRadiusInitCp(true), _initQ(0), _singleRadiusInitQ(true), _initState(0), _initStateDot(0)
 {
 }
 
-LumpedRateModelWithPoresDG2D::~LumpedRateModelWithPoresDG2D() CADET_NOEXCEPT
+ColumnModel2D::~ColumnModel2D() CADET_NOEXCEPT
 {
 	delete[] _tempState;
-
 	delete _dynReactionBulk;
 
 	delete[] _disc.parTypeOffset;
@@ -341,7 +340,7 @@ LumpedRateModelWithPoresDG2D::~LumpedRateModelWithPoresDG2D() CADET_NOEXCEPT
 	delete _linearSolver;
 }
 
-unsigned int LumpedRateModelWithPoresDG2D::numDofs() const CADET_NOEXCEPT
+unsigned int ColumnModel2D::numDofs() const CADET_NOEXCEPT
 {
 	// Column bulk DOFs: axNPoints * radNPoints * nComp
 	// Particle DOFs: axNPoints * radNPoints * nParType particles each having nComp (liquid phase) + sum boundStates (solid phase) DOFs
@@ -349,7 +348,7 @@ unsigned int LumpedRateModelWithPoresDG2D::numDofs() const CADET_NOEXCEPT
 	return _disc.axNPoints * _disc.radNPoints * _disc.nComp + _disc.parTypeOffset[_disc.nParType] + _disc.nComp * _disc.radNPoints;
 }
 
-unsigned int LumpedRateModelWithPoresDG2D::numPureDofs() const CADET_NOEXCEPT
+unsigned int ColumnModel2D::numPureDofs() const CADET_NOEXCEPT
 {
 	// Column bulk DOFs: axNPoints * radNPoints * nComp
 	// Particle DOFs: axNPoints * radNPoints * nParType particles each having nComp (liquid phase) + sum boundStates (solid phase) DOFs
@@ -357,7 +356,7 @@ unsigned int LumpedRateModelWithPoresDG2D::numPureDofs() const CADET_NOEXCEPT
 }
 
 
-bool LumpedRateModelWithPoresDG2D::usesAD() const CADET_NOEXCEPT
+bool ColumnModel2D::usesAD() const CADET_NOEXCEPT
 {
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	// We always need AD if we want to check the analytical Jacobian
@@ -368,7 +367,7 @@ bool LumpedRateModelWithPoresDG2D::usesAD() const CADET_NOEXCEPT
 #endif
 }
 
-bool LumpedRateModelWithPoresDG2D::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
+bool ColumnModel2D::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
 	const bool firstConfig = _tempState == nullptr; // used to avoid multiply allocation
 
@@ -597,7 +596,7 @@ bool LumpedRateModelWithPoresDG2D::configureModelDiscretization(IParameterProvid
 	return transportSuccess && bindingConfSuccess && reactionConfSuccess;
 }
 
-bool LumpedRateModelWithPoresDG2D::configure(IParameterProvider& paramProvider)
+bool ColumnModel2D::configure(IParameterProvider& paramProvider)
 {
 	_parameters.clear();
 
@@ -841,7 +840,7 @@ bool LumpedRateModelWithPoresDG2D::configure(IParameterProvider& paramProvider)
 }
 
 
-unsigned int LumpedRateModelWithPoresDG2D::threadLocalMemorySize() const CADET_NOEXCEPT
+unsigned int ColumnModel2D::threadLocalMemorySize() const CADET_NOEXCEPT
 {
 	LinearMemorySizer lms;
 
@@ -884,13 +883,13 @@ unsigned int LumpedRateModelWithPoresDG2D::threadLocalMemorySize() const CADET_N
 	return lms.bufferSize();
 }
 
-unsigned int LumpedRateModelWithPoresDG2D::numAdDirsForJacobian() const CADET_NOEXCEPT
+unsigned int ColumnModel2D::numAdDirsForJacobian() const CADET_NOEXCEPT
 {
 	// todo compressed/seeded AD
 	return numDofs();
 }
 
-void LumpedRateModelWithPoresDG2D::useAnalyticJacobian(const bool analyticJac)
+void ColumnModel2D::useAnalyticJacobian(const bool analyticJac)
 {
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 	_analyticJac = analyticJac;
@@ -905,7 +904,7 @@ void LumpedRateModelWithPoresDG2D::useAnalyticJacobian(const bool analyticJac)
 #endif
 }
 
-void LumpedRateModelWithPoresDG2D::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
+void ColumnModel2D::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
 	Indexer idxr(_disc);
 
@@ -918,26 +917,26 @@ void LumpedRateModelWithPoresDG2D::notifyDiscontinuousSectionTransition(double t
 	// todo backwards flow
 }
 
-void LumpedRateModelWithPoresDG2D::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
+void ColumnModel2D::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 {
 	_convDispOp.setFlowRates(in, out);
 }
 
-void LumpedRateModelWithPoresDG2D::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
+void ColumnModel2D::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
 {
 	Exporter expr(_disc, *this, solution);
 	recorder.beginUnitOperation(_unitOpIdx, *this, expr);
 	recorder.endUnitOperation();
 }
 
-void LumpedRateModelWithPoresDG2D::reportSolutionStructure(ISolutionRecorder& recorder) const
+void ColumnModel2D::reportSolutionStructure(ISolutionRecorder& recorder) const
 {
 	Exporter expr(_disc, *this, nullptr);
 	recorder.unitOperationStructure(_unitOpIdx, *this, expr);
 }
 
 
-unsigned int LumpedRateModelWithPoresDG2D::requiredADdirs() const CADET_NOEXCEPT
+unsigned int ColumnModel2D::requiredADdirs() const CADET_NOEXCEPT
 {
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 	return _jacobianAdDirs;
@@ -947,7 +946,7 @@ unsigned int LumpedRateModelWithPoresDG2D::requiredADdirs() const CADET_NOEXCEPT
 #endif
 }
 
-void LumpedRateModelWithPoresDG2D::prepareADvectors(const AdJacobianParams& adJac) const
+void ColumnModel2D::prepareADvectors(const AdJacobianParams& adJac) const
 {
 	// Early out if AD is disabled
 	if (!adJac.adY)
@@ -974,7 +973,7 @@ void LumpedRateModelWithPoresDG2D::prepareADvectors(const AdJacobianParams& adJa
  * @param [in] adRes Residual vector of AD datatypes with AD seed vectors
  * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
  */
-void LumpedRateModelWithPoresDG2D::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
+void ColumnModel2D::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
 {
 	Indexer idxr(_disc);
 
@@ -1005,7 +1004,7 @@ void LumpedRateModelWithPoresDG2D::extractJacobianFromAD(active const* const adR
  * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
  * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
  */
-void LumpedRateModelWithPoresDG2D::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
+void ColumnModel2D::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
 {
 	// todo implement this function?
 	//Indexer idxr(_disc);
@@ -1028,7 +1027,7 @@ void LumpedRateModelWithPoresDG2D::checkAnalyticJacobianAgainstAd(active const* 
 
 #endif
 
-int LumpedRateModelWithPoresDG2D::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int ColumnModel2D::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -1040,7 +1039,7 @@ int LumpedRateModelWithPoresDG2D::jacobian(const SimulationTime& simTime, const 
 		return residualWithJacobian(simTime, ConstSimulationState{ simState.vecStateY, nullptr }, nullptr, adJac, threadLocalMem);
 }
 
-int LumpedRateModelWithPoresDG2D::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
+int ColumnModel2D::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -1048,7 +1047,7 @@ int LumpedRateModelWithPoresDG2D::residual(const SimulationTime& simTime, const 
 	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 }
 
-int LumpedRateModelWithPoresDG2D::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int ColumnModel2D::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -1056,7 +1055,7 @@ int LumpedRateModelWithPoresDG2D::residualWithJacobian(const SimulationTime& sim
 	return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
 }
 
-int LumpedRateModelWithPoresDG2D::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
+int ColumnModel2D::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
 	const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity)
 {
 	if (updateJacobian)
@@ -1159,7 +1158,7 @@ int LumpedRateModelWithPoresDG2D::residual(const SimulationTime& simTime, const 
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-int LumpedRateModelWithPoresDG2D::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
+int ColumnModel2D::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	// reset Jacobian
 	if (_disc.newStaticJac) // also reset pattern
@@ -1207,7 +1206,7 @@ int LumpedRateModelWithPoresDG2D::residualImpl(double t, unsigned int secIdx, St
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-int LumpedRateModelWithPoresDG2D::residualBulk(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
+int ColumnModel2D::residualBulk(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
 	if (wantRes)
 		_convDispOp.residual(*this, t, secIdx, yBase, yDotBase, resBase, wantJac, typename ParamSens<ParamType>::enabled());
@@ -1246,7 +1245,7 @@ int LumpedRateModelWithPoresDG2D::residualBulk(double t, unsigned int secIdx, St
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-int LumpedRateModelWithPoresDG2D::residualParticle(double t, unsigned int parType, unsigned int colNode, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
+int ColumnModel2D::residualParticle(double t, unsigned int parType, unsigned int colNode, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
 	Indexer idxr(_disc);
 
@@ -1300,7 +1299,7 @@ int LumpedRateModelWithPoresDG2D::residualParticle(double t, unsigned int parTyp
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-int LumpedRateModelWithPoresDG2D::residualFlux(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase)
+int ColumnModel2D::residualFlux(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase)
 {
 	Indexer idxr(_disc);
 
@@ -1372,7 +1371,7 @@ int LumpedRateModelWithPoresDG2D::residualFlux(double t, unsigned int secIdx, St
 	return 0;
 }
 
-int LumpedRateModelWithPoresDG2D::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int ColumnModel2D::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
@@ -1381,7 +1380,7 @@ int LumpedRateModelWithPoresDG2D::residualSensFwdWithJacobian(const SimulationTi
 	return residual(simTime, simState, nullptr, adJac, threadLocalMem, true, true);
 }
 
-int LumpedRateModelWithPoresDG2D::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
+int ColumnModel2D::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
@@ -1389,7 +1388,7 @@ int LumpedRateModelWithPoresDG2D::residualSensFwdAdOnly(const SimulationTime& si
 	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem);
 }
 
-int LumpedRateModelWithPoresDG2D::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
+int ColumnModel2D::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
@@ -1443,7 +1442,7 @@ int LumpedRateModelWithPoresDG2D::residualSensFwdCombine(const SimulationTime& s
  * @param [in] beta Factor @f$ \beta @f$ in front of @f$ z @f$
  * @param [in,out] ret Vector @f$ z @f$ which stores the result of the operation
  */
-void LumpedRateModelWithPoresDG2D::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
+void ColumnModel2D::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
 {
 	Indexer idxr(_disc);
 
@@ -1474,7 +1473,7 @@ void LumpedRateModelWithPoresDG2D::multiplyWithJacobian(const SimulationTime& si
  * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
  * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
  */
-void LumpedRateModelWithPoresDG2D::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
+void ColumnModel2D::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
 {
 	Indexer idxr(_disc);
 	std::fill_n(ret, numDofs(), 0.0);
@@ -1541,7 +1540,7 @@ void LumpedRateModelWithPoresDG2D::multiplyWithDerivativeJacobian(const Simulati
 	std::fill_n(ret, _disc.nComp, 0.0);
 }
 
-void LumpedRateModelWithPoresDG2D::setExternalFunctions(IExternalFunction** extFuns, unsigned int size)
+void ColumnModel2D::setExternalFunctions(IExternalFunction** extFuns, unsigned int size)
 {
 	for (IBindingModel* bm : _binding)
 	{
@@ -1550,7 +1549,7 @@ void LumpedRateModelWithPoresDG2D::setExternalFunctions(IExternalFunction** extF
 	}
 }
 
-unsigned int LumpedRateModelWithPoresDG2D::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
+unsigned int ColumnModel2D::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 {
 	const int radZone = std::floor(port / _disc.radNNodes);
 
@@ -1563,28 +1562,28 @@ unsigned int LumpedRateModelWithPoresDG2D::localOutletComponentIndex(unsigned in
 		return _disc.nComp * _disc.radNPoints + _disc.nComp * port;
 }
 
-unsigned int LumpedRateModelWithPoresDG2D::localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT
+unsigned int ColumnModel2D::localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 {
 	// Always 0 due to dedicated inlet DOFs
 	return _disc.nComp * port;
 }
 
-unsigned int LumpedRateModelWithPoresDG2D::localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT
+unsigned int ColumnModel2D::localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT
 {
 	return 1;
 }
 
-unsigned int LumpedRateModelWithPoresDG2D::localInletComponentStride(unsigned int port) const CADET_NOEXCEPT
+unsigned int ColumnModel2D::localInletComponentStride(unsigned int port) const CADET_NOEXCEPT
 {
 	return 1;
 }
 
-void LumpedRateModelWithPoresDG2D::expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut)
+void ColumnModel2D::expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut)
 {
 	// @todo Write this function
 }
 
-bool LumpedRateModelWithPoresDG2D::setParameter(const ParameterId& pId, double value)
+bool ColumnModel2D::setParameter(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
@@ -1617,7 +1616,7 @@ bool LumpedRateModelWithPoresDG2D::setParameter(const ParameterId& pId, double v
 	return result;
 }
 
-bool LumpedRateModelWithPoresDG2D::setParameter(const ParameterId& pId, int value)
+bool ColumnModel2D::setParameter(const ParameterId& pId, int value)
 {
 	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
 		return false;
@@ -1631,7 +1630,7 @@ bool LumpedRateModelWithPoresDG2D::setParameter(const ParameterId& pId, int valu
 	return UnitOperationBase::setParameter(pId, value);
 }
 
-bool LumpedRateModelWithPoresDG2D::setParameter(const ParameterId& pId, bool value)
+bool ColumnModel2D::setParameter(const ParameterId& pId, bool value)
 {
 	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
 		return false;
@@ -1645,7 +1644,7 @@ bool LumpedRateModelWithPoresDG2D::setParameter(const ParameterId& pId, bool val
 	return UnitOperationBase::setParameter(pId, value);
 }
 
-void LumpedRateModelWithPoresDG2D::setSensitiveParameterValue(const ParameterId& pId, double value)
+void ColumnModel2D::setSensitiveParameterValue(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
@@ -1673,7 +1672,7 @@ void LumpedRateModelWithPoresDG2D::setSensitiveParameterValue(const ParameterId&
 	UnitOperationBase::setSensitiveParameterValue(pId, value);
 }
 
-bool LumpedRateModelWithPoresDG2D::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
+bool ColumnModel2D::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
@@ -1735,14 +1734,14 @@ bool LumpedRateModelWithPoresDG2D::setSensitiveParameter(const ParameterId& pId,
 }
 
 
-int LumpedRateModelWithPoresDG2D::Exporter::writeMobilePhase(double* buffer) const
+int ColumnModel2D::Exporter::writeMobilePhase(double* buffer) const
 {
 	const int blockSize = numMobilePhaseDofs();
 	std::copy_n(_idx.c(_data), blockSize, buffer);
 	return blockSize;
 }
 
-int LumpedRateModelWithPoresDG2D::Exporter::writeSolidPhase(double* buffer) const
+int ColumnModel2D::Exporter::writeSolidPhase(double* buffer) const
 {
 	int numWritten = 0;
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
@@ -1754,7 +1753,7 @@ int LumpedRateModelWithPoresDG2D::Exporter::writeSolidPhase(double* buffer) cons
 	return numWritten;
 }
 
-int LumpedRateModelWithPoresDG2D::Exporter::writeParticleMobilePhase(double* buffer) const
+int ColumnModel2D::Exporter::writeParticleMobilePhase(double* buffer) const
 {
 	int numWritten = 0;
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
@@ -1766,7 +1765,7 @@ int LumpedRateModelWithPoresDG2D::Exporter::writeParticleMobilePhase(double* buf
 	return numWritten;
 }
 
-int LumpedRateModelWithPoresDG2D::Exporter::writeSolidPhase(unsigned int parType, double* buffer) const
+int ColumnModel2D::Exporter::writeSolidPhase(unsigned int parType, double* buffer) const
 {
 	cadet_assert(parType < _disc.nParType);
 
@@ -1781,7 +1780,7 @@ int LumpedRateModelWithPoresDG2D::Exporter::writeSolidPhase(unsigned int parType
 	return _disc.nBulkPoints * _disc.strideBound[parType];
 }
 
-int LumpedRateModelWithPoresDG2D::Exporter::writeParticleMobilePhase(unsigned int parType, double* buffer) const
+int ColumnModel2D::Exporter::writeParticleMobilePhase(unsigned int parType, double* buffer) const
 {
 	cadet_assert(parType < _disc.nParType);
 
@@ -1796,20 +1795,20 @@ int LumpedRateModelWithPoresDG2D::Exporter::writeParticleMobilePhase(unsigned in
 	return _disc.nBulkPoints * _disc.nComp;
 }
 
-int LumpedRateModelWithPoresDG2D::Exporter::writeInlet(unsigned int port, double* buffer) const
+int ColumnModel2D::Exporter::writeInlet(unsigned int port, double* buffer) const
 {
 	cadet_assert(port < _disc.radNPoints);
 	std::copy_n(_data + port * _disc.nComp, _disc.nComp, buffer);
 	return _disc.nComp;
 }
 
-int LumpedRateModelWithPoresDG2D::Exporter::writeInlet(double* buffer) const
+int ColumnModel2D::Exporter::writeInlet(double* buffer) const
 {
 	std::copy_n(_data, _disc.nComp * _disc.radNPoints, buffer);
 	return _disc.nComp * _disc.radNPoints;
 }
 
-int LumpedRateModelWithPoresDG2D::Exporter::writeOutlet(unsigned int port, double* buffer) const
+int ColumnModel2D::Exporter::writeOutlet(unsigned int port, double* buffer) const
 {
 	cadet_assert(port < _disc.radNPoints);
 
@@ -1823,7 +1822,7 @@ int LumpedRateModelWithPoresDG2D::Exporter::writeOutlet(unsigned int port, doubl
 	return _disc.nComp;
 }
 
-int LumpedRateModelWithPoresDG2D::Exporter::writeOutlet(double* buffer) const
+int ColumnModel2D::Exporter::writeOutlet(double* buffer) const
 {
 	for (int i = 0; i < _disc.radNPoints; ++i)
 	{
@@ -1834,10 +1833,10 @@ int LumpedRateModelWithPoresDG2D::Exporter::writeOutlet(double* buffer) const
 }
 
 
-void registerLumpedRateModelWithPoresDG2D(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models)
+void registerColumnModel2D(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models)
 {
-	models[LumpedRateModelWithPoresDG2D::identifier()] = [](UnitOpIdx uoId, IParameterProvider&) { return new LumpedRateModelWithPoresDG2D(uoId); };
-	models["LRMPDG2D"] = [](UnitOpIdx uoId, IParameterProvider&) { return new LumpedRateModelWithPoresDG2D(uoId); };
+	models[ColumnModel2D::identifier()] = [](UnitOpIdx uoId, IParameterProvider&) { return new ColumnModel2D(uoId); };
+	models["LRMPDG2D"] = [](UnitOpIdx uoId, IParameterProvider&) { return new ColumnModel2D(uoId); };
 }
 
 }  // namespace model
