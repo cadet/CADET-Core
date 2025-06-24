@@ -15,10 +15,11 @@
 * Defines the 2D LRMP model as a unit operation.
  */
 
-#ifndef LIBCADET_LUMPEDRATEMODELWITHPORESDG2D_HPP_
-#define LIBCADET_LUMPEDRATEMODELWITHPORESDG2D_HPP_
+#ifndef LIBCADET_COLUMNMODEL2D_HPP_
+#define LIBCADET_COLUMNMODEL2D_HPP_
 
 #include "model/UnitOperationBase.hpp"
+#include "model/particle/ParticleModel.hpp"
 #include "cadet/StrongTypes.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "model/parts/TwoDimensionalConvectionDispersionOperatorDG.hpp"
@@ -46,7 +47,7 @@ namespace model
 class IDynamicReactionModel;
 
 /**
- * @brief Lumped rate model of liquid column chromatography with pores and 2D bulk volume (radially symmetric), spatially discretized by a DG scheme
+ * @brief Chromatography column with 2D spatial resolution (axial and radial)
  * @details For the 2D flow equations, refer to the 2D General rate model @cite Guiochon2006, @cite Gu1995, @cite Felinger2004
  * 
  * @f[\begin{align}
@@ -64,12 +65,12 @@ u c_{\text{in},i}(t) &= u c_i^b(t,0,.) - D_{\text{ax},i} \frac{\partial c_i^b}{\
 \end{align} @f]
  * Methods are described in @cite @TODO (2D DG paper), @cite Puttmann2013 @cite Puttmann2016 (forward sensitivities, AD, band compression)
  */
-class LumpedRateModelWithPoresDG2D : public UnitOperationBase
+class ColumnModel2D : public UnitOperationBase
 {
 public:
 
-	LumpedRateModelWithPoresDG2D(UnitOpIdx unitOpIdx);
-	virtual ~LumpedRateModelWithPoresDG2D() CADET_NOEXCEPT;
+	ColumnModel2D(UnitOpIdx unitOpIdx);
+	virtual ~ColumnModel2D() CADET_NOEXCEPT;
 
 	virtual unsigned int numDofs() const CADET_NOEXCEPT;
 	virtual unsigned int numPureDofs() const CADET_NOEXCEPT;
@@ -83,7 +84,7 @@ public:
 	virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return _disc.radNPoints; }
 	virtual bool canAccumulate() const CADET_NOEXCEPT { return false; }
 
-	static const char* identifier() { return "LUMPED_RATE_MODEL_WITH_PORES_2D"; }
+	static const char* identifier() { return "COLUMN_MODEL_2D"; }
 	virtual const char* unitOperationName() const CADET_NOEXCEPT { return identifier(); }
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper);
@@ -200,6 +201,37 @@ protected:
 	class Indexer;
 
 	int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity);
+	
+	int calcTransportJacobian(unsigned int secIdx)
+	{
+		Indexer idxr(_disc);
+		// inlet and bulk jacobian
+		_convDispOp.assembleConvDispJacobian(_globalJac, _jacInlet, true, 0);
+
+		// particle transport diffusion Jacobian (without isotherm, which is handled in residualKernel)
+		for (int colNode = 0; colNode < _disc.nBulkPoints; colNode++)
+		{
+			for (int parType = 0; parType < _disc.nParType; parType++)
+			{
+				_particles[parType]->calcParticleDiffJacobian(secIdx, colNode, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }) - idxr.offsetC(), _globalJac);
+			}
+		}
+
+		// film diffusion Jacobian
+		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
+		{
+			for (unsigned int z = 0; z < _disc.axNPoints; z++)
+			{
+				for (unsigned int r = 0; r < _disc.radNElem; r++)
+				{
+					const unsigned int colNode = z * _disc.radNPoints + r * _disc.radNNodes;
+					_particles[parType]->calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }) - idxr.offsetC(), colNode * idxr.strideColRadialNode(), _disc.radNNodes, _disc.nParType, static_cast<double>(_convDispOp.columnPorosity(r)), &_parTypeVolFrac[colNode * _disc.nParType], _globalJac);
+				}
+			}
+		}
+
+		return _globalJac.isCompressed(); // check if the jacobian estimation fits the pattern
+	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes = true>
 	int residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem);
@@ -217,7 +249,7 @@ protected:
 
 	void assembleDiscretizedGlobalJacobian(double alpha, Indexer idxr);
 
-	void addTimeDerivativeToJacobianParticleBlock(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, unsigned int parType);
+	void addTimeDerivativeToJacobianParticleShell(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, unsigned int parType);
 
 	unsigned int numAdDirsForJacobian() const CADET_NOEXCEPT;
 
@@ -237,6 +269,7 @@ protected:
 		unsigned int radNNodes; //!< Number of radial DG nodes per element
 		unsigned int nBulkPoints; //!< Number of total bulk discrete points
 		unsigned int nParType; //!< Number of particle types
+		unsigned int* nParPoints; //!< Array with number of discrete points for each particle type
 		unsigned int* parTypeOffset; //!< Array with offsets (in particle block) to particle type, additional last element contains total number of particle DOFs
 		unsigned int* nBound; //!< Array with number of bound states for each component and particle type (particle type major ordering)
 		unsigned int* boundOffset; //!< Array with offset to the first bound state of each component in the solid phase (particle type major ordering)
@@ -267,6 +300,8 @@ protected:
 	Discretization _disc; //!< Discretization info
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
+	std::vector<IParticleModel*> _particles; //!< Particle dispersion operator
+
 	parts::TwoDimensionalConvectionDispersionOperatorDG _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 
@@ -278,19 +313,8 @@ protected:
 	Eigen::SparseMatrix<double, Eigen::RowMajor> _globalJac; //!< global Jacobian
 	Eigen::SparseMatrix<double, Eigen::RowMajor> _globalJacDisc; //!< global Jacobian with time derivative from BDF method
 
-	std::vector<active> _parRadius; //!< Particle radius \f$ r_p \f$
-	bool _singleParRadius;
-	std::vector<active> _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
-	bool _singleParPorosity;
 	std::vector<active> _parTypeVolFrac; //!< Volume fraction of each particle type
 	MultiplexMode _parTypeVolFracMode; //!< Multiplexing mode of particle volume fractions
-	std::vector<double> _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)
-
-	// Vectorial parameters
-	std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$
-	MultiplexMode _filmDiffusionMode;
-	std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
-	MultiplexMode _poreAccessFactorMode;
 
 	bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used
 	unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation
@@ -302,8 +326,8 @@ protected:
 	bool _singleRadiusInitC;
 	std::vector<active> _initCp; //!< Liquid particle phase initial conditions
 	bool _singleRadiusInitCp;
-	std::vector<active> _initQ; //!< Solid phase initial conditions
-	bool _singleRadiusInitQ;
+	std::vector<active> _initCs; //!< Solid phase initial conditions
+	bool _singleRadiusInitCs;
 	std::vector<double> _initState; //!< Initial conditions for state vector if given
 	std::vector<double> _initStateDot; //!< Initial conditions for time derivative
 
@@ -327,12 +351,14 @@ protected:
 		// Strides
 		inline int strideColAxialNode() const CADET_NOEXCEPT { return strideColRadialNode() * static_cast<int>(_disc.radNPoints); }
 		inline int strideColRadialNode() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
+		inline int strideColRadialZone() const CADET_NOEXCEPT { return static_cast<int>(_disc.radNNodes * strideColRadialNode()); }
 		inline int strideColComp() const CADET_NOEXCEPT { return 1; }
 
 		inline int strideParComp() const CADET_NOEXCEPT { return 1; }
 		inline int strideParLiquid() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
 		inline int strideParBound(int parType) const CADET_NOEXCEPT { return static_cast<int>(_disc.strideBound[parType]); }
-		inline int strideParBlock(int parType) const CADET_NOEXCEPT { return strideParLiquid() + strideParBound(parType); }
+		inline int strideParNode(int parType) const CADET_NOEXCEPT { return strideParLiquid() + strideParBound(parType); }
+		inline int strideParBlock(int parType) const CADET_NOEXCEPT { return static_cast<int>(_disc.nParPoints[parType]) * strideParNode(parType); }
 
 		// Offsets
 		inline int offsetC() const CADET_NOEXCEPT { return _disc.nComp * _disc.radNPoints; }
@@ -363,36 +389,33 @@ protected:
 	{
 	public:
 
-		Exporter(const Discretization& disc, const LumpedRateModelWithPoresDG2D& model, double const* data) : _disc(disc), _idx(disc), _model(model), _data(data) { }
-		Exporter(const Discretization&& disc, const LumpedRateModelWithPoresDG2D& model, double const* data) = delete;
+		Exporter(const Discretization& disc, const ColumnModel2D& model, double const* data) : _disc(disc), _idx(disc), _model(model), _data(data) { }
+		Exporter(const Discretization&& disc, const ColumnModel2D& model, double const* data) = delete;
 
 		virtual bool hasParticleFlux() const CADET_NOEXCEPT { return true; }
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return true; }
 		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound[_disc.nParType] > 0; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
-		virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return true; }
+		virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return _model._particles[parType]->isParticleLumped(); }
 		virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return true; }
 		virtual bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
 
-		virtual unsigned int primaryPolynomialDegree() const CADET_NOEXCEPT { return 0; }
-		virtual unsigned int secondaryPolynomialDegree() const CADET_NOEXCEPT { return 0; }
-		virtual unsigned int particlePolynomialDegree(unsigned int parType) const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
 		virtual unsigned int numPrimaryCoordinates() const CADET_NOEXCEPT { return _disc.axNPoints; }
 		virtual unsigned int numSecondaryCoordinates() const CADET_NOEXCEPT { return _disc.radNPoints; }
 		virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return _disc.radNPoints; }
 		virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return _disc.radNPoints; }
 		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return _disc.nParType; }
-		virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return 1; }
+		virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return _disc.nParPoints[parType]; }
 		virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound[parType]; }
-		virtual unsigned int numMobilePhaseDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.axNPoints * _disc.radNPoints; }
-		virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _disc.nComp * _disc.nBulkPoints; }
-		virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nBulkPoints * _disc.nParType; }
-		virtual unsigned int numSolidPhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound[parType] * _disc.nBulkPoints; }
+		virtual unsigned int numMobilePhaseDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nBulkPoints; }
+		virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _disc.nComp * _disc.nBulkPoints * _disc.nParPoints[parType]; }
+		virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nBulkPoints * std::accumulate(&_disc.nParPoints[0], &_disc.nParPoints[_disc.nParType], 0); }
+		virtual unsigned int numSolidPhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound[parType] * _disc.nParPoints[parType] * _disc.nBulkPoints; }
 		virtual unsigned int numSolidPhaseDofs() const CADET_NOEXCEPT {
 			unsigned int nDofPerParType = 0;
 			for (unsigned int i = 0; i < _disc.nParType; ++i)
-				nDofPerParType += _disc.strideBound[i];
+				nDofPerParType += _disc.nParPoints[i] * _disc.strideBound[i];
 			return _disc.nBulkPoints * nDofPerParType;
 		}
 		virtual unsigned int numParticleFluxDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.axNPoints * _disc.radNPoints * _disc.nParType; }
@@ -425,79 +448,63 @@ protected:
 		}
 		virtual int writeParticleCoordinates(unsigned int parType, double* coords) const
 		{
-			coords[0] = static_cast<double>(_model._parRadius[parType]) * 0.5;
-			return 1;
+			return _model._particles[parType]->writeParticleCoordinates(coords);
 		}
 
 	protected:
 		const Discretization& _disc;
 		const Indexer _idx;
-		const LumpedRateModelWithPoresDG2D& _model;
+		const ColumnModel2D& _model;
 		double const* const _data;
 	};
 
 	typedef Eigen::Triplet<double> T;
 
-	void setFilmDiffFluxPattern(std::vector<T>& tripletList)
-	{
-		Indexer idxr(_disc);
-
-		for (unsigned int parType = 0; parType < _disc.nParType; parType++) {
-
-			int offC = 0; // inlet DOFs not included in Jacobian
-			int offP = idxr.offsetCp(ParticleTypeIndex{ parType }) - idxr.offsetC(); // inlet DOFs not included in Jacobian
-
-			// add dependency of c^b, c^p and flux on another
-			for (unsigned int node = 0; node < _disc.nBulkPoints; node++) {
-				for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
-					// c^b on c^b entry already set
-					tripletList.push_back(T(offC + node * _disc.nComp + comp, offP + node * idxr.strideParBlock(parType) + comp, 0.0)); // c^b on c^p
-					// c^p on c^p entry already set
-					tripletList.push_back(T(offP + node * idxr.strideParBlock(parType) + comp, offC + node * _disc.nComp + comp, 0.0)); // c^p on c^b
-				}
-			}
-		}
-	}
-
-	void setParticlePattern(std::vector<T>& tripletList, Indexer& idxr)
-	{
-		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
-		{
-			for (unsigned int par = 0; par < _disc.nBulkPoints; par++)
-			{
-				const int offPar = idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ par }) - idxr.offsetC();
-
-				for (unsigned int conc = 0; conc < idxr.strideParLiquid() + idxr.strideParBound(parType); conc++)
-				{
-					for (unsigned int concDep = 0; concDep < idxr.strideParLiquid() + idxr.strideParBound(parType); concDep++)
-						tripletList.push_back(T(offPar + conc, offPar + concDep, 0.0));
-				}
-			}
-		}
-	}
-
 	/**
 	* @brief sets the sparsity pattern of the convection dispersion Jacobian
 	*/
-	void setGlobalJacPattern(Eigen::SparseMatrix<double, Eigen::RowMajor>& mat)
+	void setJacobianPattern(Eigen::SparseMatrix<double, Eigen::RowMajor>& mat, const int secIdx, bool hasBulkReaction)
 	{
+		Indexer idxr(_disc);
 		std::vector<T> tripletList;
 
-		Indexer idxr(_disc);
+		int nBulkEntries = _convDispOp.nJacEntries();
+		if (hasBulkReaction)
+			nBulkEntries += _disc.nBulkPoints * _disc.nComp * _disc.nComp; // add nComp entries for every component at each discrete bulk point
 
-		int nJacEntries = _convDispOp.nJacEntries() + _disc.nBulkPoints * _disc.nComp + 2 * numPureDofs(); // bulkTransportPattern: convDispOp; bulkReactionPattern: nComp * nBulkPoints; flux pattern: 2*pDOF; particlePattern: nBulkPoints * (nComp+nBound)
-		for (int parType = 0; parType < _disc.nParType; parType++)
-			nJacEntries += _disc.nBulkPoints * (_disc.nComp + _disc.nBound[parType]);
+		// particle
+		int nParEntries = 0;
+		for (int type = 0; type < _disc.nParType; type++)
+		{
+			nParEntries += _disc.nBulkPoints * _particles[type]->jacobianNNZperParticle();
+		}
 
-		tripletList.reserve(nJacEntries);
+		tripletList.reserve(nBulkEntries + nParEntries);
 
 		_convDispOp.convDispJacPattern(tripletList);
 
-		// note: bulk reaction pattern already set in convDispJacPattern
+		// bulk reaction jacobian
+		if (hasBulkReaction)
+		{
+			for (unsigned int colNode = 0; colNode < _disc.nBulkPoints; colNode++)
+			{
+				for (unsigned int comp = 0; comp < _disc.nComp; comp++)
+				{
+					for (unsigned int toComp = 0; toComp < _disc.nComp; toComp++)
+					{
+						tripletList.push_back(T(colNode * idxr.strideColRadialNode() + comp * idxr.strideColComp(),
+							colNode * idxr.strideColRadialNode() + toComp * idxr.strideColComp(),
+							0.0));
+					}
+				}
+			}
+		}
 
-		setParticlePattern(tripletList, idxr);
-
-		setFilmDiffFluxPattern(tripletList);
+		for (int parType = 0; parType < _disc.nParType; parType++)
+		{
+			for (int colNode = 0; colNode < _disc.nBulkPoints; colNode++)
+				_particles[parType]->setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }) - idxr.offsetC(), colNode * idxr.strideColRadialNode(), colNode, secIdx);
+		}
 
 		mat.setFromTriplets(tripletList.begin(), tripletList.end());
 	}
@@ -506,4 +513,4 @@ protected:
 } // namespace model
 } // namespace cadet
 
-#endif  // LIBCADET_LUMPEDRATEMODELWITHPORESDG2D_HPP_
+#endif  // LIBCADET_COLUMNMODEL2D_HPP_
