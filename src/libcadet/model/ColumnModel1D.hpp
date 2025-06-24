@@ -265,7 +265,7 @@ protected:
 		unsigned int nPoints; //!< Number of discrete column Points
 		bool exactInt;	//!< 1 for exact integration, 0 for inexact LGL quadrature
 		unsigned int nParType; //!< Number of particle types
-		unsigned int* nParPoints; //!< Array with number of radial nodes per cell in each particle type
+		unsigned int* nParPoints; //!< Array with number of discrete points for each particle type
 		unsigned int* parTypeOffset; //!< Array with offsets (in particle block) to particle type, additional last element contains total number of particle DOFs
 		unsigned int* nBound; //!< Array with number of bound states for each component and particle type (particle type major ordering)
 		unsigned int* boundOffset; //!< Array with offset to the first bound state of each component in the solid phase (particle type major ordering)

@@ -250,7 +250,7 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 
 	paramProvider.popScope();
 
-	// ==== Construct and configure parameter dependencies
+	// ==== Construct and configure convection dispersion operator
 
 	unsigned int strideColNode = _disc.nComp;
 	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, polynomial_integration_mode, _disc.nElem, _disc.polyDeg, strideColNode);
@@ -358,7 +358,6 @@ bool ColumnModel1D::configure(IParameterProvider& paramProvider)
 		else
 			_axiallyConstantParTypeVolFrac = false;
 
-		// Check whether all sizes are matched
 		if (_disc.nParType * _disc.nPoints != _parTypeVolFrac.size())
 			throw InvalidParameterException("Number of elements in field PAR_TYPE_VOLFRAC does not match number of particle types times number of axial cells");
 
@@ -842,32 +841,39 @@ int ColumnModel1D::residualImpl(double t, unsigned int secIdx, StateType const* 
 		resi.setZero();
 	}
 
-	if (wantJac)
-	{
-		if (!wantRes || _disc.newStaticJac)
-		{
-			// estimate new static (per section) jacobian
-			bool success = calcStaticAnaJacobian_GRM(secIdx);
-
-			_disc.newStaticJac = false;
-
-			if (cadet_unlikely(!success)) {
-				LOG(Error) << "Jacobian pattern did not fit the Jacobian estimation";
-			}
-		}
-	}
-
-	residualBulk<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, y, yDot, res, threadLocalMem);
-
-	BENCH_START(_timerResidualPar);
-
 	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 	Indexer idxr(_disc);
 
-	for (unsigned int pblk = 0; pblk < _disc.nPoints * _disc.nParType; ++pblk)
+#ifdef CADET_PARALLELIZE
+	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nPoints * _disc.nParType + 1), [&](std::size_t pblk)
+#else
+	for (unsigned int pblk = 0; pblk < _disc.nPoints * _disc.nParType + 1; ++pblk)
+#endif
 	{
-		const unsigned int parType = pblk / _disc.nPoints;
-		const unsigned int colNode = pblk % _disc.nPoints;
+		if (cadet_unlikely(pblk == 0))
+		{
+			if (wantJac)
+			{
+				if (!wantRes || _disc.newStaticJac)
+				{
+					// estimate new static (per section) jacobian
+					bool success = calcStaticAnaJacobian_GRM(secIdx);
+
+					_disc.newStaticJac = false;
+
+					if (cadet_unlikely(!success)) {
+						LOG(Error) << "Jacobian pattern did not fit the Jacobian estimation";
+					}
+				}
+			}
+
+			residualBulk<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, y, yDot, res, threadLocalMem);
+
+			continue;
+		}
+
+		const unsigned int parType = (pblk - 1) / _disc.nPoints;
+		const unsigned int colNode = (pblk - 1) % _disc.nPoints;
 
 		linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
 		model::columnPackingParameters packing
