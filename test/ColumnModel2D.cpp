@@ -77,17 +77,17 @@ void test2DLRMPJacobian(const std::string relModelFilePath, const int maxAxElem,
 	}
 }
 
-TEST_CASE("LRMP2D inlet DOF Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[Inlet],[CI]")
+TEST_CASE("Column_2D as LRMP inlet DOF Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[Inlet],[CI]")
 {
 	cadet::test::column::testInletDofJacobian("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG");
 }
 
-TEST_CASE("LRMP2D time derivative Jacobian vs FD", "[LRMP2D],[DG],[DG2D],[UnitOp],[Residual],[Jacobian],[CI],[FD]")
+TEST_CASE("Column_2D as LRMP time derivative Jacobian vs FD", "[Column_2D],[DG],[DG2D],[UnitOp],[Residual],[Jacobian],[CI],[FD]")
 {
 	cadet::test::column::testTimeDerivativeJacobianFD("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-6, 0.0, 9e-4);
 }
 
-TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Column_2D as LRMP transport Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
 {
 	const std::string relModelFilePath = std::string("/data/model_LRMP2D_bulkTransport_1comp.json");
 
@@ -97,7 +97,7 @@ TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian]
 	test2DLRMPJacobian(relModelFilePath, 4, 4, 1, 1);
 }
 
-TEST_CASE("LRMP2D transport Jacobian with radially constant parameters", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[AD_dirs]")
+TEST_CASE("Column_2D as LRMP transport Jacobian with radially constant parameters", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[ReleaseCI]")
 {
 	const std::string relModelFilePath = std::string("/data/model_LRMP2D_bulkTransport_1comp.json");
 
@@ -107,7 +107,7 @@ TEST_CASE("LRMP2D transport Jacobian with radially constant parameters", "[LRMP2
 	test2DLRMPJacobian(relModelFilePath, 7, 7, 2, 1);
 }
 
-TEST_CASE("LRMP2D transport Jacobian with radially variable parameters", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Column_2D as LRMP transport Jacobian with radially variable parameters", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
 {
 	const std::string relModelFilePath = std::string("/data/model_LRMP2D_bulkTransportRadVar_1comp.json");
 
@@ -117,7 +117,7 @@ TEST_CASE("LRMP2D transport Jacobian with radially variable parameters", "[LRMP2
 	test2DLRMPJacobian(relModelFilePath, 4, 4, 1, 1, 4, 4);
 }
 
-TEST_CASE("LRMP2D transport Jacobian with radially variable parameters including particle type volume fraction", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Column_2D as LRMP transport Jacobian with radially variable parameters including particle type volume fraction", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
 {
 	const std::string relModelFilePath = std::string("/data/model_LRMP2D2parType_bulkTransportRadVar_1comp.json");
 
@@ -127,7 +127,7 @@ TEST_CASE("LRMP2D transport Jacobian with radially variable parameters including
 	test2DLRMPJacobian(relModelFilePath, 3, 4, 1, 1, 3, 4);
 }
 
-TEST_CASE("LRMP2D with two component linear binding Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Column_2D as LRMP with two component linear binding Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
 {
 	const std::string relModelFilePath = std::string("/data/model_LRMP2D_dynLin_2comp.json");
 
@@ -137,7 +137,7 @@ TEST_CASE("LRMP2D with two component linear binding Jacobian", "[LRMP2D],[DG],[D
 	test2DLRMPJacobian(relModelFilePath, 2, 3, 1, 1);
 }
 
-TEST_CASE("LRMP2D numerical Benchmark for a pure bulk transport case with three radial zones", "[LRMP2D],[DG],[DG2D],[Simulation],[Reference],[CI]")
+TEST_CASE("Column_2D as LRMP numerical Benchmark for a pure bulk transport case with three radial zones", "[Column_2D],[DG],[DG2D],[Simulation],[Reference],[CI]")
 {
 	const std::string& modelFilePath = std::string("/data/model_2DLRMP3Zone_noFilmDiff_1Comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_2DLRMP3Zone_noFilmDiff_1Comp_benchmark1.h5");
@@ -150,14 +150,14 @@ TEST_CASE("LRMP2D numerical Benchmark for a pure bulk transport case with three 
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
 }
 
-TEST_CASE("LRMP2D sensitivity Jacobians", "[LRMP2D],[UnitOp],[Sensitivity],[CI]")
+TEST_CASE("Column_2D as LRMP sensitivity Jacobians", "[Column_2D],[UnitOp],[Sensitivity],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG");
 
 	cadet::test::column::testFwdSensJacobians(jpp, 1e-6, 5e-4, 1e-3);
 }
 
-TEST_CASE("LRMP2D consistent initialization with linear binding", "[LRMP2D],[ConsistentInit],[CI]")
+TEST_CASE("Column_2D as LRMP consistent initialization with linear binding", "[Column_2D],[ConsistentInit],[CI]")
 {
 	cadet::test::column::testConsistentInitializationLinearBinding("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-12, 1e-12, 0, 0);
 	cadet::test::column::testConsistentInitializationLinearBinding("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-12, 1e-12, 1, 0);
@@ -165,7 +165,7 @@ TEST_CASE("LRMP2D consistent initialization with linear binding", "[LRMP2D],[Con
 	//cadet::test::column::testConsistentInitializationLinearBinding("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-12, 1e-12, 1, 1); // @todo AD with req binding does not work
 }
 
-//TEST_CASE("LRMP2D consistent initialization with SMA binding", "[LRMP2D],[ConsistentInit],[todo]")  // todo fix (also doesnt work for other models)
+//TEST_CASE("Column_2D as LRMP consistent initialization with SMA binding", "[Column_2D],[ConsistentInit],[todo]")  // todo fix (also doesnt work for other models)
 //{
 //	std::vector<double> y(4 * 3 + 4 * 8 * 3 + 8 * 3 * 3 * (4 + 4) + 4 * 8 * 3, 0.0);
 //	// Optimal values:
@@ -183,7 +183,7 @@ TEST_CASE("LRMP2D consistent initialization with linear binding", "[LRMP2D],[Con
 //	//cadet::test::column::testConsistentInitializationSMABinding("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", y.data(), 1e-14, 1e-5, 1, 1);
 //}
 
-TEST_CASE("LRMP2D consistent sensitivity initialization with linear binding", "[LRMP2D],[ConsistentInit],[Sensitivity],[CI]")
+TEST_CASE("Column_2D as LRMP consistent sensitivity initialization with linear binding", "[Column_2D],[ConsistentInit],[Sensitivity],[CI]")
 {
 	// Fill state vector with given initial values
 	const unsigned int numDofs = 2 * 3 + 2 * 8 * 3 + 8 * 3 * 3 * (2 + 2) + 2 * 8 * 3;
@@ -199,7 +199,7 @@ TEST_CASE("LRMP2D consistent sensitivity initialization with linear binding", "[
 	cadet::test::column::testConsistentInitializationSensitivity("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", y.data(), yDot.data(), true, 1e-14, 1, 1);
 }
 
-TEST_CASE("LRMP2D consistent sensitivity initialization with SMA binding", "[LRMP2D],[ConsistentInit],[Sensitivity],[CI]")
+TEST_CASE("Column_2D as LRMP consistent sensitivity initialization with SMA binding", "[Column_2D],[ConsistentInit],[Sensitivity],[CI]")
 {
 	// Fill state vector with given initial values
 	const unsigned int numDofs = 4 * 3 + 4 * 8 * 3 + 8 * 3 * 3 * (4 + 4) + 4 * 8 * 3;
@@ -220,57 +220,57 @@ TEST_CASE("LRMP2D consistent sensitivity initialization with SMA binding", "[LRM
 	cadet::test::column::testConsistentInitializationSensitivity("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", y.data(), yDot.data(), false, 1e-9, 1, 1);
 }
 
-TEST_CASE("LRMP2D LWE one vs two identical particle types match", "[LRMP2D],[Simulation],[ParticleType],[CI]")
+TEST_CASE("Column_2D as LRMP LWE one vs two identical particle types match", "[Column_2D],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-7, 5e-5);
 }
 
-TEST_CASE("LRMP2D LWE separate identical particle types match", "[LRMP2D],[Simulation],[ParticleType],[CI]")
+TEST_CASE("Column_2D as LRMP LWE separate identical particle types match", "[Column_2D],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testSeparateIdenticalParticleTypes("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-7, 5e-5);
 }
 
-TEST_CASE("LRMP2D linear binding single particle matches particle distribution", "[LRMP2D],[Simulation],[ParticleType],[CI]")
+TEST_CASE("Column_2D as LRMP linear binding single particle matches particle distribution", "[Column_2D],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testLinearMixedParticleTypes("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 5e-8, 5e-5);
 }
 
-TEST_CASE("LRMP2D multiple particle types Jacobian analytic vs AD", "[LRMP2D],[Jacobian],[AD],[ParticleType],[ReleaseCI]")
+TEST_CASE("Column_2D as LRMP multiple particle types Jacobian analytic vs AD", "[Column_2D],[Jacobian],[AD],[ParticleType],[ReleaseCI]")
 {
 	cadet::test::particle::testJacobianMixedParticleTypes("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e10); // @todo figure out why FD Jacobian pattern comparison doesnt work but AD Jacobian comparison does
 }
 
-TEST_CASE("LRMP2D multiple particle types time derivative Jacobian vs FD", "[LRMP2D],[UnitOp],[Residual],[Jacobian],[ParticleType],[CI]")
+TEST_CASE("Column_2D as LRMP multiple particle types time derivative Jacobian vs FD", "[Column_2D],[UnitOp],[Residual],[Jacobian],[ParticleType],[CI]")
 {
 	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-6, 0.0, 5e-3);
 }
 
-TEST_CASE("LRMP2D linear binding single particle matches spatially dependent particle distribution", "[LRMP2D],[Simulation],[ParticleType],[CI]")
+TEST_CASE("Column_2D as LRMP linear binding single particle matches spatially dependent particle distribution", "[Column_2D],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 5e-8, 5e-5);
 }
 
-TEST_CASE("LRMP2D dynamic reactions time derivative Jacobian vs FD bulk", "[LRMP2D],[Jacobian],[Residual],[ReactionModel],[CI]")
+TEST_CASE("Column_2D as LRMP dynamic reactions time derivative Jacobian vs FD bulk", "[Column_2D],[Jacobian],[Residual],[ReactionModel],[CI]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", true, false, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRMP2D dynamic reactions time derivative Jacobian vs FD particle", "[LRMP2D],[Jacobian],[Residual],[ReactionModel],[CI]")
+TEST_CASE("Column_2D as LRMP dynamic reactions time derivative Jacobian vs FD particle", "[Column_2D],[Jacobian],[Residual],[ReactionModel],[CI]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", false, true, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRMP2D dynamic reactions time derivative Jacobian vs FD modified particle", "[LRMP2D],[Jacobian],[Residual],[ReactionModel],[CI]")
+TEST_CASE("Column_2D as LRMP dynamic reactions time derivative Jacobian vs FD modified particle", "[Column_2D],[Jacobian],[Residual],[ReactionModel],[CI]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", false, true, true, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRMP2D dynamic reactions time derivative Jacobian vs FD bulk and particle", "[LRMP2D],[Jacobian],[Residual],[ReactionModel],[CI]")
+TEST_CASE("Column_2D as LRMP dynamic reactions time derivative Jacobian vs FD bulk and particle", "[Column_2D],[Jacobian],[Residual],[ReactionModel],[CI]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", true, true, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRMP2D dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[LRMP2D],[Jacobian],[Residual],[ReactionModel],[CI]")
+TEST_CASE("Column_2D as LRMP dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[Column_2D],[Jacobian],[Residual],[ReactionModel],[CI]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", true, true, true, 1e-6, 1e-14, 8e-4);
 }
@@ -286,31 +286,31 @@ inline cadet::JsonParameterProvider createColumnWithTwoCompLinearBindingThreePar
 	return jpp;
 }
 
-TEST_CASE("LRMP2D multi particle types dynamic reactions time derivative Jacobian vs FD bulk", "[LRMP2D],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("Column_2D as LRMP multi particle types dynamic reactions time derivative Jacobian vs FD bulk", "[Column_2D],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, false, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRMP2D multi particle types dynamic reactions time derivative Jacobian vs FD particle", "[LRMP2D],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("Column_2D as LRMP multi particle types dynamic reactions time derivative Jacobian vs FD particle", "[Column_2D],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRMP2D multi particle types dynamic reactions time derivative Jacobian vs FD modified particle", "[LRMP2D],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("Column_2D as LRMP multi particle types dynamic reactions time derivative Jacobian vs FD modified particle", "[Column_2D],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, true, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRMP2D multi particle types dynamic reactions time derivative Jacobian vs FD bulk and particle", "[LRMP2D],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("Column_2D as LRMP multi particle types dynamic reactions time derivative Jacobian vs FD bulk and particle", "[Column_2D],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRMP2D multi particle types dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[LRMP2D],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("Column_2D as LRMP multi particle types dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[Column_2D],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 8e-4);

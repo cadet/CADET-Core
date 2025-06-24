@@ -10,7 +10,7 @@
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
 
-#include "model/LumpedRateModelWithPoresDG2D.hpp"
+#include "model/ColumnModel2D.hpp"
 #include "model/BindingModel.hpp"
 #include "model/parts/BindingCellKernel.hpp"
 #include "linalg/DenseMatrix.hpp"
@@ -97,7 +97,7 @@ namespace model
  * @param [in] simState State of the simulation (state vector and its time derivatives) at which the Jacobian is evaluated
  * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
  */
-int LumpedRateModelWithPoresDG2D::linearSolve(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
+int ColumnModel2D::linearSolve(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
 	const ConstSimulationState& simState)
 {
 	BENCH_SCOPE(_timerLinearSolve);
@@ -162,7 +162,7 @@ int LumpedRateModelWithPoresDG2D::linearSolve(double t, double alpha, double out
  *
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  */
-void LumpedRateModelWithPoresDG2D::assembleDiscretizedGlobalJacobian(double alpha, Indexer idxr) {
+void ColumnModel2D::assembleDiscretizedGlobalJacobian(double alpha, Indexer idxr) {
 
 	// set to static (per section) jacobian
 	_globalJacDisc = _globalJac;
@@ -191,7 +191,7 @@ void LumpedRateModelWithPoresDG2D::assembleDiscretizedGlobalJacobian(double alph
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  * @param [in] parType Index of the particle type
  */
-void LumpedRateModelWithPoresDG2D::addTimeDerivativeToJacobianParticleBlock(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, unsigned int parType)
+void ColumnModel2D::addTimeDerivativeToJacobianParticleBlock(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, unsigned int parType)
 {
 	// Mobile phase
 	for (int comp = 0; comp < static_cast<int>(_disc.nComp); ++comp, ++jac)
