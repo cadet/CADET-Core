@@ -59,9 +59,9 @@ public:
 
 	virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx) = 0;
 
-	virtual bool hasQuasiStationary() const{ return false;}
+	virtual bool hasQuasiStationary(int comp) const{ return false;}
 	
-	virtual void quasiStationarityMap(std::map<int, std::vector<std::pair<unsigned int, unsigned int>>>& quasiStationaryMap) const {}
+	virtual void quasiStationarityMap(int comp, std::vector<std::pair<unsigned int, unsigned int>>& qsOrgDestMask) const {}
 
 	virtual int residual(active const* y, active* res, WithParamSensitivity, bool wantJac, linalg::BandedSparseRowIterator jacBegin) const = 0;
 	virtual int residual(active const* y, active* res, WithoutParamSensitivity, bool wantJac, linalg::BandedSparseRowIterator jacBegin) const = 0;

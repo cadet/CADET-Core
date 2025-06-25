@@ -52,40 +52,63 @@ public:
 	static const char* identifier() { return "LINEAR"; }
 	virtual const char* name() const CADET_NOEXCEPT { return "LINEAR"; }
 	virtual bool requiresConfiguration() const CADET_NOEXCEPT { return true; }
-	virtual bool usesParamProviderInDiscretizationConfig() const CADET_NOEXCEPT { return true; }
-
-	virtual bool hasQuasiStationary() const 
+	virtual bool usesParamProviderInDiscretizationConfig() const CADET_NOEXCEPT { return true; }	
+	virtual bool hasQuasiStationary(int comp) const 
 	{
-		return std::any_of(_exchangeMatrix.begin(), _exchangeMatrix.end(),
-			[](const active& val) { return static_cast<double>(val) == -1.0; });
-	}
-
-	virtual void quasiStationarityMap(std::map<int, std::vector<std::pair<unsigned int, unsigned int>>>& quasiStationaryMap) const
-	{
-		
-		for (auto comp = 0; comp < _nComp; comp++)
+		// Use stride pattern to check only relevant matrix elements for this component
+		for (unsigned int orig = 0; orig < _nChannel; ++orig)
 		{
-			for (unsigned int orig = 0; orig < _nChannel; ++orig)
+			for (unsigned int dest = 0; dest < _nChannel; ++dest)
 			{
-				for (unsigned int dest = 0; dest < _nChannel; ++dest)
+				if (orig != dest)
 				{
-					if (orig == dest || dest < orig)
-						continue;
-
-					size_t ex_bw = orig * _nChannel * _nComp + dest * _nComp + comp;
-					size_t ex_fw = dest * _nChannel * _nComp + orig * _nComp + comp;
-					// check if the symetric entry is also -1
-					
-					if ((_exchangeMatrix[ex_bw] < 0 && _exchangeMatrix[ex_fw] >= 0) || (_exchangeMatrix[ex_fw] < 0 && _exchangeMatrix[ex_bw] >= 0))
-							throw InvalidParameterException("Linear Exchange: For exchange in rapid equilibrium it is necessary e_ij = e_ji < 0. Please check your exchange matrix entries for symmetry");
-
-					bool negCondi = (static_cast<double>(_exchangeMatrix[ex_bw]) < 0.0 && static_cast<double>(_exchangeMatrix[ex_fw]) < 0.0);
-					bool highCondi = (static_cast<double>(_exchangeMatrix[ex_bw]) > 1e10 && static_cast<double>(_exchangeMatrix[ex_fw]) > 1e10);
-
-					if (negCondi || highCondi)
+					size_t index = orig * _nChannel * _nComp + dest * _nComp + comp;
+					if (index < _exchangeMatrix.size())
 					{
-						quasiStationaryMap[comp].push_back(std::make_pair(orig, dest));
+						double val = static_cast<double>(_exchangeMatrix[index]);
+						if (val < 0.0 || val > 1e10)
+						{
+							return true;
+						}
 					}
+				}
+			}
+		}
+		return false;
+	}
+	virtual void quasiStationarityMap(int comp, std::vector<std::pair<unsigned int, unsigned int>>& quasiStationaryMap) const
+	{
+		// Clear the map to ensure clean state
+		quasiStationaryMap.clear();
+
+		for (unsigned int orig = 0; orig < _nChannel; ++orig)
+		{
+			for (unsigned int dest = 0; dest < _nChannel; ++dest)
+			{
+				if (orig == dest || dest < orig)
+					continue;
+
+				size_t ex_bw = orig * _nChannel * _nComp + dest * _nComp + comp;
+				size_t ex_fw = dest * _nChannel * _nComp + orig * _nComp + comp;
+				
+				// Bounds checking
+				if (ex_bw >= _exchangeMatrix.size() || ex_fw >= _exchangeMatrix.size())
+					continue;
+
+				double val_bw = static_cast<double>(_exchangeMatrix[ex_bw]);
+				double val_fw = static_cast<double>(_exchangeMatrix[ex_fw]);
+				
+				// Check symmetry for rapid equilibrium conditions
+				if ((val_bw < 0.0 && val_fw >= 0.0) || (val_fw < 0.0 && val_bw >= 0.0))
+					throw InvalidParameterException("Linear Exchange: For exchange in rapid equilibrium it is necessary e_ij = e_ji < 0. Please check your exchange matrix entries for symmetry");
+
+				// Consistent with hasQuasiStationary: negative OR very large values
+				bool negCondi = (val_bw < 0.0 && val_fw < 0.0);
+				bool highCondi = (val_bw > 1e10 && val_fw > 1e10);
+
+				if (negCondi || highCondi)
+				{
+					quasiStationaryMap.push_back(std::make_pair(orig, dest));
 				}
 			}
 		}
@@ -284,25 +307,23 @@ protected:
 				}
 			}
 		}
-
-		// handle conserved moities
+		// handle conserved moieties
 		for (auto col = 0; col < _nCol; ++col)
 		{
 			const unsigned int offsetColBlock = col * _nChannel * _nComp;
 			ResidualType* const resColBlock = res + offsetC + offsetColBlock;
 			StateType const* const yColBlock = y + offsetC + offsetColBlock;
 			
-			std::map<int, std::vector<std::pair<unsigned int, unsigned int>>>quasiStatiMap;
-			quasiStationarityMap(quasiStatiMap);
-
-			for (const auto& eqComp : quasiStatiMap)
+			// Process each component separately using the component-specific quasiStationarityMap
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
-				for (auto odIdx = 0; odIdx < eqComp.second.size(); odIdx++) {
+				std::vector<std::pair<unsigned int, unsigned int>> quasiStatiPairs;
+				quasiStationarityMap(comp, quasiStatiPairs);
 
-                    const unsigned int comp = eqComp.first;
-
-					const auto rad_orig = eqComp.second[odIdx].first;
-					const auto rad_dest = eqComp.second[odIdx].second;
+				for (const auto& channelPair : quasiStatiPairs)
+				{
+					const auto rad_orig = channelPair.first;
+					const auto rad_dest = channelPair.second;
 
 					const unsigned int offsetToRadOrigBlock = rad_orig * _nComp;
 					const unsigned int offsetColRadOrigBlock = offsetColBlock + offsetToRadOrigBlock;
@@ -329,22 +350,18 @@ protected:
 						exchange_orig_comp *= -1.0;
 					if (exchange_dest_comp < 0)
 						exchange_dest_comp *= -1.0;
-					// conserved moities 
-					//*resCur_dest += static_cast<ParamType>(_crossSections[rad_dest]) / static_cast<ParamType>(_crossSections[rad_orig]) * *resCur_orig;
 
-					// algebraic equation
-					*resCur_orig = -exchange_orig_comp * yCur_orig[0] + exchange_dest_comp * yCur_dest[0] * static_cast<ParamType>(_crossSections[rad_orig]) / static_cast<ParamType>(_crossSections[rad_dest]);
+					// algebraic equation for rapid equilibrium
+					*resCur_orig = -exchange_orig_comp * yCur_orig[0] + exchange_dest_comp * yCur_dest[0] * static_cast<ParamType>(_crossSections[rad_dest]) / static_cast<ParamType>(_crossSections[rad_orig]);
 
 					if (wantJac)
 					{
 						linalg::BandedSparseRowIterator jacorig;
 						jacorig = jacBegin + offsetCur_orig;
 						jacorig[0] = -static_cast<double>(exchange_orig_comp);
-						jacorig[static_cast<int>(offsetCur_dest) - static_cast<int>(offsetCur_orig)] = static_cast<double>(exchange_dest_comp) * static_cast<double>(_crossSections[rad_orig]) / static_cast<double>(_crossSections[rad_dest]);
-
+						jacorig[static_cast<int>(offsetCur_dest) - static_cast<int>(offsetCur_orig)] = static_cast<double>(exchange_dest_comp);
 					}
 				}
-
 			}
 		}
 		return 0;

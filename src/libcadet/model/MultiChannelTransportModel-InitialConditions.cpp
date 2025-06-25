@@ -161,6 +161,97 @@ void MultiChannelTransportModel::readInitialCondition(IParameterProvider& paramP
 }
 
 /**
+ * @brief Creates quasi-stationary masks and conservation groups for a specific component
+ * @param [in] comp Component index
+ * @param [in] exchange Exchange model to query for quasi-stationary pairs
+ * @param [in] nChannel Number of channels
+ * @param [in] nComp Number of components
+ * @param [out] qsMask Output mask vector (will be resized and populated)
+ * @param [out] conservationGroups Groups of channels that form separate conservation constraints
+ * @return Number of active entries in the mask
+ */
+static int createQuasiStationaryMaskWithGroups(unsigned int comp, IExchangeModel* exchange,
+	unsigned int nChannel, unsigned int nComp,
+	std::vector<int>& qsMask,
+	std::vector<std::vector<unsigned int>>& conservationGroups)
+{
+	// Get quasi-stationary channel pairs for this component
+	std::vector<std::pair<unsigned int, unsigned int>> qsChannelPairs;
+	exchange->quasiStationarityMap(comp, qsChannelPairs);
+
+	// Initialize mask with zeros
+	qsMask.assign(nChannel * nComp, 0);
+	conservationGroups.clear();
+
+	if (qsChannelPairs.empty()) {
+		return 0;
+	}
+
+	// Build connected components (groups of channels that are connected via quasi stationary exchange)
+	std::vector<std::set<unsigned int>> groups;
+
+	for (const auto& channelPair : qsChannelPairs)
+	{
+		const auto source = channelPair.first;
+		const auto destination = channelPair.second;
+
+		if (source >= nChannel || destination >= nChannel) continue;
+
+		// Find if either channel is already in a group
+		int sourceGroup = -1;
+		int destGroup = -1;
+
+		for (size_t i = 0; i < groups.size(); ++i)
+		{
+			if (groups[i].count(source)) sourceGroup = i;
+			if (groups[i].count(destination)) destGroup = i;
+		}
+
+		//either sourse or destionation are in the group
+		if (sourceGroup == -1 && destGroup == -1)
+		{
+			// Create new group
+			groups.emplace_back();
+			groups.back().insert(source);
+			groups.back().insert(destination);
+		}
+		else if (sourceGroup != -1 && destGroup == -1)
+		{
+			// Add destination to source's group
+			groups[sourceGroup].insert(destination);
+		}
+		else if (sourceGroup == -1 && destGroup != -1)
+		{
+			// Add source to destination's group
+			groups[destGroup].insert(source);
+		}
+		else if (sourceGroup != destGroup)
+		{
+			// Merge two groups
+			groups[sourceGroup].insert(groups[destGroup].begin(), groups[destGroup].end());
+			groups.erase(groups.begin() + destGroup);
+		}
+		// If sourceGroup == destGroup, both are already in the same group
+	}
+
+	// Convert to output format and set mask
+	for (const auto& group : groups)
+	{
+		std::vector<unsigned int> channelGroup(group.begin(), group.end());
+		conservationGroups.push_back(channelGroup);
+
+		// Set mask entries for this group
+		for (unsigned int channel : group)
+		{
+			qsMask[channel * nComp + comp] = 1;
+		}
+	}
+
+	// Count active entries
+	return std::count(qsMask.begin(), qsMask.end(), 1);
+}
+
+/**
  * @brief Computes consistent initial values (state variables without their time derivatives)
  * @details Given the DAE \f[ F(t, y, \dot{y}) = 0, \f] the initial values \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ have
  *          to be consistent. This functions updates the initial state \f$ y_0 \f$ and overwrites the time
@@ -217,323 +308,353 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 
 	// Step 1: Solve algebraic equations
 	// Step 1a: Compute quasi-stationary exchange model state
-	if (!_exchange[0]->hasQuasiStationary())
-		return;
+	
+	// state vector structure: 
+	// y = [channel1, channel2,..., channelN] with channeli = [c1, c2, ..., cNComp]
 
-	// Copy quasi-stationary binding mask to a local array that also includes the mobile phase
-    std::vector<int> qsMask(_disc.nChannel * _disc.nComp,0);
-	std::map<int, std::vector<std::pair<unsigned int, unsigned int>>> qsOrgDestMask;
-	std::vector<int> ActiveComp(_disc.nComp,0);
-	std::vector<int> consIdx(_disc.nChannel * _disc.nComp, 0);
+	// initialize evey compoent in every channel consistent
+	for (auto comp = 0; comp < _disc.nComp; comp++)
+	{
+		if (!_exchange[0]->hasQuasiStationary(comp))
+			return;
 
+		// Create quasi-stationary mask for this component with conservation groups
+		std::vector<int> qsMask;
+		std::vector<std::vector<unsigned int>> conservationGroups;
+		const int numActiveMask = createQuasiStationaryMaskWithGroups(comp, _exchange[0], _disc.nChannel, _disc.nComp, qsMask, conservationGroups);
 
-    _exchange[0]->quasiStationarityMap(qsOrgDestMask);
-	//_exchange[0]->conservedIndex(conservedIdx);
-
-	// eigene funktion
-    for (const auto& eqComp : qsOrgDestMask)
-	{	
-		const auto comp = eqComp.first;
+		const linalg::ConstMaskArray mask{ qsMask.data(), static_cast<int>(_disc.nChannel * _disc.nComp) };
+		const int probSize = linalg::numMaskActive(mask);
 		
-		for (auto odIdx = 0; odIdx < eqComp.second.size(); odIdx++)
+		//Problem capturing variables here
+	#ifdef CADET_PARALLELIZE
+		BENCH_SCOPE(_timerConsistentInitPar);
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol), [&](std::size_t pblk)
+	#else
+		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+	#endif
 		{
-			const auto source = eqComp.second[odIdx].first;
-			const auto destination = eqComp.second[odIdx].second;
-			if (source < _disc.nChannel)
+			LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+
+			// Reuse memory of band matrix for dense matrix
+			linalg::DenseMatrixView fullJacobianMatrix(_convDispOp.jacobian().data(), nullptr, mask.len, mask.len);
+			linalg::CompressedSparseMatrix& testJac = _convDispOp.jacobian();
+
+			// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
+			const double z = (0.5 + static_cast<double>(pblk)) / static_cast<double>(_disc.nCol);
+
+			// Get workspace memory
+			BufferedArray<double> nonlinMemBuffer = tlmAlloc.array<double>(_nonlinearSolver->workspaceSize(probSize));
+			double* const nonlinMem = static_cast<double*>(nonlinMemBuffer);
+
+			BufferedArray<double> solutionBuffer = tlmAlloc.array<double>(probSize);
+			double* const solution = static_cast<double*>(solutionBuffer);
+
+			BufferedArray<double> fullResidualBuffer = tlmAlloc.array<double>(numDofs());
+			double* const fullResidual = static_cast<double*>(fullResidualBuffer);
+
+			BufferedArray<double> fullXBuffer = tlmAlloc.array<double>(numDofs());
+			double* const fullX = static_cast<double*>(fullXBuffer);
+
+			BufferedArray<double> jacobianMemBuffer = tlmAlloc.array<double>(probSize * probSize);
+			linalg::DenseMatrixView jacobianMatrix(static_cast<double*>(jacobianMemBuffer), new lapackInt_t[probSize], probSize, probSize);
+
+			// Get pointer to c variables in the channels
+			auto cShellOfset = _disc.nComp * _disc.nChannel * (1 + pblk);
+			double* const cShell = vecStateY + cShellOfset;
+			active* const localAdRes = adJac.adRes ? adJac.adRes : nullptr;
+			active* const localAdY = adJac.adY ? adJac.adY : nullptr;
+
+			const ColumnPosition colPos{ z, 0.0, 0.0 };
+
+			// Determine whether nonlinear solver is required
+			//todo 
+
+			// Extract initial values from current state
+			linalg::selectVectorSubset(cShell, mask, solution);	// Save values of conserved moieties for this component
+			
+			// The total amount of every component in quasi-stationary channels must be constant
+			std::vector<std::pair<unsigned int, unsigned int>> qsChannelPairs;
+			_exchange[0]->quasiStationarityMap(comp, qsChannelPairs);
+			
+			// Calculate conserved amounts for each group
+			std::vector<double> conservedQuants;
+			for (const auto& group : conservationGroups)
 			{
-				qsMask[destination * _disc.nComp + comp] = 1;
-				qsMask[source * _disc.nComp + comp] = 1;
-				consIdx[source * _disc.nComp + comp] = 1;
-				ActiveComp[comp] = 1;
-			}
-		}
-    }
-
-	// eigene funktion
-	std::vector<int> numActiveChannel(_disc.nComp, 0);
-	for (const auto& [comp, transfers] : qsOrgDestMask) 
-	{
-		std::set<unsigned int> uniqueSources;
-		for (const auto& [source, dest] : transfers) 
-		{
-			uniqueSources.insert(source);
-			uniqueSources.insert(dest);
-		}
-		numActiveChannel[comp] = uniqueSources.size();
-		
-	}
-
-	const linalg::ConstMaskArray mask{ qsMask.data(), static_cast<int>(_disc.nComp * _disc.nChannel) };
-	const int probSize = linalg::numMaskActive(mask);
-	unsigned int numActiveComp = std::count(ActiveComp.begin(), ActiveComp.end(), 1);
-	//Problem capturing variables here
-#ifdef CADET_PARALLELIZE
-	BENCH_SCOPE(_timerConsistentInitPar);
-	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol), [&](std::size_t pblk)
-#else
-	for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
-#endif
-	{
-		LinearBufferAllocator tlmAlloc = threadLocalMem.get();
-
-		// Reuse memory of band matrix for dense matrix
-		linalg::DenseMatrixView fullJacobianMatrix(_convDispOp.jacobian().data(), nullptr, mask.len, mask.len);
-		linalg::CompressedSparseMatrix& testJac = _convDispOp.jacobian();
-
-		// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
-		const double z = (0.5 + static_cast<double>(pblk)) / static_cast<double>(_disc.nCol);
-
-		// Get workspace memory
-		BufferedArray<double> nonlinMemBuffer = tlmAlloc.array<double>(_nonlinearSolver->workspaceSize(probSize));
-		double* const nonlinMem = static_cast<double*>(nonlinMemBuffer);
-
-		BufferedArray<double> solutionBuffer = tlmAlloc.array<double>(probSize);
-		double* const solution = static_cast<double*>(solutionBuffer);
-
-		BufferedArray<double> fullResidualBuffer = tlmAlloc.array<double>(numDofs());
-		double* const fullResidual = static_cast<double*>(fullResidualBuffer);
-
-		BufferedArray<double> fullXBuffer = tlmAlloc.array<double>(numDofs());
-		double* const fullX = static_cast<double*>(fullXBuffer);
-
-		BufferedArray<double> jacobianMemBuffer = tlmAlloc.array<double>(probSize * probSize);
-		linalg::DenseMatrixView jacobianMatrix(static_cast<double*>(jacobianMemBuffer), new lapackInt_t[probSize], probSize, probSize);
-
-		// Get pointer to c variables in the channels
-		auto cShellOfset = _disc.nComp * _disc.nChannel * (1 + pblk);
-		double* const cShell = vecStateY + cShellOfset;
-		active* const localAdRes = adJac.adRes ? adJac.adRes : nullptr;
-		active* const localAdY = adJac.adY ? adJac.adY  : nullptr;
-
-		const ColumnPosition colPos{ z, 0.0, 0.0 };
-
-		// Determine whether nonlinear solver is required
-		//todo 
-
-		// Extract initial values from current state
-		linalg::selectVectorSubset(cShell, mask, solution);
-
-		// Save values of conserved moieties
-		// moieties: The total amound of every component in qs must be constant all aloung the channels
-		// own funktion
-		std::vector<double> conservedQuants;
-		for (const auto& eqComp : qsOrgDestMask)
-		{
-			double consQuan = 0;
-			const unsigned int comp = eqComp.first;
-			
-			std::set<unsigned int> activeChannelsComp;
-
-			for (auto odIdx = 0; odIdx < eqComp.second.size(); odIdx++) {
-
-				const unsigned int comp = eqComp.first;
-
-				auto source = eqComp.second[odIdx].first;
-				auto destination = eqComp.second[odIdx].second;
-				
-				if (!activeChannelsComp.contains(source))
+				double totalConservedAmount = 0.0;
+				for (unsigned int channel : group)
 				{
-					consQuan += cShell[source * _disc.nComp + comp];
-					activeChannelsComp.insert(source);
+					totalConservedAmount += cShell[channel * _disc.nComp + comp];
 				}
-				if (!activeChannelsComp.contains(destination)) 
-				{
-					consQuan += cShell[destination * _disc.nComp + comp];
-					activeChannelsComp.insert(destination);
-				}
+				conservedQuants.push_back(totalConservedAmount);
 			}
-			conservedQuants.push_back(consQuan);
-			
 
-		}
-		std::function<bool(double const* const, linalg::detail::DenseMatrixBase&)> jacFunc;
-		if (localAdY && localAdRes)
-		{
-//				jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
-//					{
-//						// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
-//						// and initialize residuals with zero (also resetting directional values)
-//						ad::copyToAd(cShell, localAdY, mask.len);
-//						// @todo Check if this is necessary
-//						ad::resetAd(localAdRes, mask.len);
-//
-//						// Prepare input vector by overwriting masked items
-//						linalg::applyVectorSubset(x, mask, localAdY);
-//
-//						// Call residual function
-//						parts::cell::residualKernel<active, active, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, false, true>(
-//							simTime.t, simTime.secIdx, colPos, localAdY, nullptr, localAdRes, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
-//						);
-//
-//#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
-//						std::copy_n(qShell - _disc.nComp, mask.len, fullX);
-//						linalg::applyVectorSubset(x, mask, fullX);
-//
-//						// Compute analytic Jacobian
-//						parts::cell::residualKernel<double, double, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, true, true>(
-//							simTime.t, simTime.secIdx, colPos, fullX, nullptr, fullResidual, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
-//						);
-//
-//						// Compare
-//						const double diff = ad::compareDenseJacobianWithBandedAd(
-//							adJac.adRes + idxr.offsetCp(ParticleTypeIndex{ type }), pblk * idxr.strideParBlock(type), adJac.adDirOffset, _jacP[type].lowerBandwidth(),
-//							_jacP[type].lowerBandwidth(), _jacP[type].upperBandwidth(), fullJacobianMatrix
-//						);
-//						LOG(Debug) << "MaxDiff: " << diff;
-//#endif
-//
-//						// Extract Jacobian from AD
-//						ad::extractDenseJacobianFromBandedAd(
-//							adJac.adRes, pblk * idxr.strideParBlock(type), adJac.adDirOffset, _jacP[type].lowerBandwidth(),
-//							_jacP[type].lowerBandwidth(), _jacP[type].upperBandwidth(), fullJacobianMatrix
-//						);
-//
-//						// Extract Jacobian from full Jacobian
-//						mat.setAll(0.0);
-//						linalg::copyMatrixSubset(fullJacobianMatrix, mask, mask, mat);
-//
-//						// Replace upper part with conservation relations
-//						mat.submatrixSetAll(0.0, 0, 0, numActiveComp, probSize);
-//
-//						unsigned int bndIdx = 0;
-//						unsigned int rIdx = 0;
-//						unsigned int bIdx = 0;
-//						for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-//						{
-//							if (!mask.mask[comp])
-//							{
-//								bndIdx += _disc.nBound[_disc.nComp * type + comp];
-//								continue;
-//							}
-//
-//							mat.native(rIdx, rIdx) = static_cast<double>(_parPorosity[type]);
-//
-//							for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++bndIdx)
-//							{
-//								if (mask.mask[bndIdx])
-//								{
-//									mat.native(rIdx, bIdx + numActiveComp) = epsQ;
-//									++bIdx;
-//								}
-//							}
-//
-//							++rIdx;
-//						}
-//
-//						return true;
-//					};
-			int a = 1;
-		}
-		else
-		{	
-			jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
+			std::function<bool(double const* const, linalg::detail::DenseMatrixBase&)> jacFunc;
+			if (localAdY && localAdRes)
+			{
+				//				jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
+				//					{
+				//						// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
+				//						// and initialize residuals with zero (also resetting directional values)
+				//						ad::copyToAd(cShell, localAdY, mask.len);
+				//						// @todo Check if this is necessary
+				//						ad::resetAd(localAdRes, mask.len);
+				//
+				//						// Prepare input vector by overwriting masked items
+				//						linalg::applyVectorSubset(x, mask, localAdY);
+				//
+				//						// Call residual function
+				//						parts::cell::residualKernel<active, active, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, false, true>(
+				//							simTime.t, simTime.secIdx, colPos, localAdY, nullptr, localAdRes, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
+				//						);
+				//
+				//#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
+				//						std::copy_n(qShell - _disc.nComp, mask.len, fullX);
+				//						linalg::applyVectorSubset(x, mask, fullX);
+				//
+				//						// Compute analytic Jacobian
+				//						parts::cell::residualKernel<double, double, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, true, true>(
+				//							simTime.t, simTime.secIdx, colPos, fullX, nullptr, fullResidual, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
+				//						);
+				//
+				//						// Compare
+				//						const double diff = ad::compareDenseJacobianWithBandedAd(
+				//							adJac.adRes + idxr.offsetCp(ParticleTypeIndex{ type }), pblk * idxr.strideParBlock(type), adJac.adDirOffset, _jacP[type].lowerBandwidth(),
+				//							_jacP[type].lowerBandwidth(), _jacP[type].upperBandwidth(), fullJacobianMatrix
+				//						);
+				//						LOG(Debug) << "MaxDiff: " << diff;
+				//#endif
+				//
+				//						// Extract Jacobian from AD
+				//						ad::extractDenseJacobianFromBandedAd(
+				//							adJac.adRes, pblk * idxr.strideParBlock(type), adJac.adDirOffset, _jacP[type].lowerBandwidth(),
+				//							_jacP[type].lowerBandwidth(), _jacP[type].upperBandwidth(), fullJacobianMatrix
+				//						);
+				//
+				//						// Extract Jacobian from full Jacobian
+				//						mat.setAll(0.0);
+				//						linalg::copyMatrixSubset(fullJacobianMatrix, mask, mask, mat);
+				//
+				//						// Replace upper part with conservation relations
+				//						mat.submatrixSetAll(0.0, 0, 0, numActiveComp, probSize);
+				//
+				//						unsigned int bndIdx = 0;
+				//						unsigned int rIdx = 0;
+				//						unsigned int bIdx = 0;
+				//						for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+				//						{
+				//							if (!mask.mask[comp])
+				//							{
+				//								bndIdx += _disc.nBound[_disc.nComp * type + comp];
+				//								continue;
+				//							}
+				//
+				//							mat.native(rIdx, rIdx) = static_cast<double>(_parPorosity[type]);
+				//
+				//							for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++bndIdx)
+				//							{
+				//								if (mask.mask[bndIdx])
+				//								{
+				//									mat.native(rIdx, bIdx + numActiveComp) = epsQ;
+				//									++bIdx;
+				//								}
+				//							}
+				//
+				//							++rIdx;
+				//						}
+				//
+				//						return true;
+				//					};
+				int a = 1;
+			}
+			else
+			{
+				jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
+				{
+					// Prepare input vector by overwriting masked items
+					std::copy_n(cShell, mask.len, fullX + cShellOfset);
+					linalg::applyVectorSubset(x, mask, fullX + cShellOfset);
+
+					// Call residual function to compute Jacobian
+					residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, threadLocalMem);
+
+					// Clear the matrix
+					mat.setAll(0.0);
+
+					// Extract Jacobian submatrix corresponding to masked variables
+					const int numExchangeEq = probSize - conservedQuants.size();
+					
+					// Part 1: Manually extract exchange equation Jacobians from sparse matrix
+					// Map global indices to local indices for masked variables
+					std::vector<int> globalToLocal(mask.len, -1);
+					int localIdx = 0;
+					for (int i = 0; i < mask.len; ++i)
+					{
+						if (mask.mask[i])
+						{
+							globalToLocal[i] = localIdx++;
+						}
+					}
+					
+					// Extract relevant entries from sparse Jacobian
+					int extractedEntries = 0;
+					for (int localRowIdx = 0; localRowIdx < numExchangeEq; ++localRowIdx)
+					{
+						int globalRowIdx = -1;
+						int localCount = 0;
+						for (int i = 0; i < mask.len; ++i)
+						{
+							if (mask.mask[i])
+							{
+								if (localCount == localRowIdx)
+								{
+									globalRowIdx = i; 
+									break;
+								}
+								localCount++;
+							}
+						}
+						
+						std::cout << "Local row " << localRowIdx << " -> Global row " << globalRowIdx << "\n";
+						
+						if (globalRowIdx >= 0 && globalRowIdx < testJac.rows())
+						{
+							// Get sparse row data from the compressed sparse matrix
+							double const* const vals = testJac.valuesOfRow(globalRowIdx);
+							const int nnz = testJac.numNonZerosInRow(globalRowIdx);
+							int const* colIdx = testJac.columnIndicesOfRow(globalRowIdx);
+							
+							std::cout << "  Row " << globalRowIdx << " has " << nnz << " non-zeros\n";
+							
+							// Copy relevant entries to dense matrix
+							for (int j = 0; j < nnz; ++j)
+							{
+								const int globalColIdx = colIdx[j];
+								std::cout << "    Col[" << j << "]: global=" << colIdx[j] << " local=" << globalColIdx << "\n";
+								
+								if (globalColIdx >= 0 && globalColIdx < mask.len && mask.mask[globalColIdx])
+								{
+									const int localColIdx = globalToLocal[globalColIdx];
+									if (localColIdx >= 0)
+									{
+										mat.native(localRowIdx, localColIdx) = vals[j];
+										extractedEntries++;
+										std::cout << "      Setting mat(" << localRowIdx << "," << localColIdx << ") = " << vals[j] << "\n";
+									}
+								}
+							}
+						}
+					}
+					
+					std::cout << "Total extracted entries: " << extractedEntries << "\n";
+					
+					// Part 2: Set up conservation constraint equations in lower rows
+					if (conservedQuants.size() > 0)
+					{
+						std::cout << "Setting up conservation constraints...\n";
+						const int conservationStartRow = numExchangeEq;
+						
+						// For each conservation group, set up the constraint equation
+						for (unsigned int conIdx = 0; conIdx < conservedQuants.size(); ++conIdx)
+						{
+							const int rowIdx = conservationStartRow + conIdx;
+							const auto& currentGroup = conservationGroups[conIdx];
+							
+							std::cout << "  Conservation group " << conIdx << " has channels: ";
+							for (unsigned int ch : currentGroup) std::cout << ch << " ";
+							std::cout << "\n";
+							
+							// Set coefficients for channels in this conservation group
+							for (unsigned int channel : currentGroup)
+							{
+								// Find the column index in the reduced system (mask space)
+								const unsigned int maskIdx = channel * _disc.nComp + comp;
+								
+								if (maskIdx < mask.len && mask.mask[maskIdx])
+								{
+									const int localColIdx = globalToLocal[maskIdx];
+									if (localColIdx >= 0)
+									{
+										mat.native(rowIdx, localColIdx) = -1.0;
+										std::cout << "    Setting conservation mat(" << rowIdx << "," << localColIdx << ") = 1.0\n";
+									}
+								}
+							}
+						}
+					}
+
+					std::cout<< "Final Jacobian matrix for component " << comp << " in column " << pblk << ":\n";
+					for (int i = 0; i < mat.rows(); ++i)
+					{
+						for (int j = 0; j < mat.columns(); ++j)
+						{
+							std::cout << mat.native(i, j) << " ";
+						}
+						std::cout << "\n";
+					}
+					return true;
+				};
+			}
+			std::copy_n(vecStateY, numDofs(), fullX);
+			// Apply nonlinear solver
+			_nonlinearSolver->solve(
+				[&](double const* const x, double* const r)
 				{
 					// Prepare input vector by overwriting masked items
 					std::copy_n(cShell, mask.len, fullX + cShellOfset);
 					linalg::applyVectorSubset(x, mask, fullX + cShellOfset);
 
 					// Call residual function
-					residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, threadLocalMem);
+					residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, threadLocalMem);
+
+					// Extract values from residual 
+					// r = [ci_channel1, ci_channel2,..., ci_channelNeq, cm1, ..., cmNEQ]
+					// where ci_channeli is the value of the i-th component in the channel in rapid equilibrium
+					// and cm1, ..., cmNEQ are the values of the conservation relations
+					linalg::selectVectorSubset(fullResidual + cShellOfset, mask, r);					
 					
-					// Extract Jacobian from full Jacobian
-					mat.setAll(0.0);
-
-					// manully copy from fullJaconianMatrix into the first cols from mat
-					int r = 0;
-					for (auto i = 0; i < fullJacobianMatrix.rows(); i++)
+					// and save them in the lower part of r
+					unsigned int rIdx = probSize - conservedQuants.size();
+					std::fill_n(r + rIdx, conservedQuants.size(), 0.0);
+					
+					// For this component, the conservation constraint is:
+					// sum of concentrations in each quasi-stationary group = constant
+					if (conservedQuants.size() > 0)
 					{
-						if (!consIdx[i])
-							continue;
-						// number of active channels 
-
-						// non zero values in row i
-						double const* const vals = testJac.valuesOfRow(i);
-						const int nnz = testJac.numNonZerosInRow(i);
-						int const* colIdx = testJac.columnIndicesOfRow(i);
-						// get component
-						auto comp = i % _disc.nComp;
-						auto offset = numActiveChannel[i % _disc.nChannel];
-
-						auto c = 0;
-						for (auto j = 0; j < nnz; j++)
-						{	
-							if ( !mask.mask[colIdx[j]] || j > probSize)
-								continue;
-							
-							mat.native(r, c) = vals[j];
-							c++;
-						}
-						r ++;
-					}
-
-					// Replace lower part with conservation relations
-					unsigned int sIdx = probSize - conservedQuants.size();
-					mat.submatrixSetAll(0.0, sIdx, 0, numActiveComp, probSize);
-					auto compIdx = 0;
-					for (const auto& eqComp : qsOrgDestMask)
-					{
-						const unsigned int comp = eqComp.first;
-						for (auto i = 0; i < numActiveChannel[comp]; i++)
+						for (unsigned int conIdx = 0; conIdx < conservedQuants.size(); ++conIdx)
 						{
-							const auto compOffset = _disc.nComp * compIdx;
-							mat.native(sIdx, i + compOffset) -= 1.0;
+							r[rIdx] = conservedQuants[conIdx]; // target conserved amount for this group
+						
+							// Subtract current concentrations in quasi-stationary channels for this specific group
+							const auto& currentGroup = conservationGroups[conIdx];
+							for (unsigned int channel : currentGroup)
+							{
+								// Find the corresponding index in the mask
+								unsigned int maskIdx = channel * _disc.nComp + comp;
+								if (maskIdx < mask.len && mask.mask[maskIdx])
+								{
+									// Find corresponding index in solution vector x
+									unsigned int solIdx = 0;
+									for (unsigned int j = 0; j <= maskIdx; ++j)
+									{
+										if (mask.mask[j]) solIdx++;
+									}
+									r[rIdx] -= x[solIdx - 1];
+								}
+							}
+							++rIdx;
 						}
-						sIdx ++;
-						compIdx++;
 					}
-
-					for (auto i = 0; i < mat.rows(); i++)
-					{
-						for (auto j = 0; j < mat.columns(); j++)
-						{
-							std::cout << i << j << ": " << mat.native(i, j) << std::endl;
-						}
-					}	
 
 					return true;
-				};
+				},
+				jacFunc, errorTol, solution, nonlinMem, jacobianMatrix, probSize);
+
+			// Apply solution
+			linalg::applyVectorSubset(solution, mask, cShell);
+
 		}
-		std::copy_n(vecStateY, numDofs(), fullX);
-		// Apply nonlinear solver
-		_nonlinearSolver->solve(
-			[&](double const* const x, double* const r)
-			{
-				// Prepare input vector by overwriting masked items
-				std::copy_n(cShell , mask.len, fullX + cShellOfset);
-				linalg::applyVectorSubset(x, mask, fullX + cShellOfset);
-
-				// Call residual function
-				residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, fullX, nullptr, fullResidual, threadLocalMem);
-				
-				// Extract values from residual
-				linalg::selectVectorSubset(fullResidual + cShellOfset, mask, r);
-
-				// Calculate residual of conserved moieties
-				// lower entry is conserved
-				unsigned int rIdx = probSize - conservedQuants.size();
-				std::fill_n(r + rIdx, numActiveComp, 0.0);
-				int cIdx = 0;
-				for (const auto& eqComp : qsOrgDestMask)
-				{
-					const unsigned int comp = eqComp.first;
-					
-					r[rIdx] = conservedQuants[cIdx];
-					for (auto i = 0; i < numActiveChannel[comp]; i++)
-					{
-						r[rIdx] -= x[i];
-					}
-					rIdx++;
-					cIdx++;
-				}
-				return true;
-			},
-			jacFunc, errorTol, solution, nonlinMem, jacobianMatrix, probSize);
-
-		// Apply solution
-		linalg::applyVectorSubset(solution, mask, cShell);
-
 	}
-
 	// Step 1b: Compute fluxes j_f
 	// Reset j_f to 0.0
 	/*double* const jf = vecStateY + idxr.offsetJf();
@@ -748,60 +869,12 @@ void MultiChannelTransportModel::initializeSensitivityStates(const std::vector<d
  *          the sensitivity system for a parameter @f$ p @f$ reads
  *          \f[ \frac{\partial F}{\partial y}(t, y, \dot{y}) s + \frac{\partial F}{\partial \dot{y}}(t, y, \dot{y}) \dot{s} + \frac{\partial F}{\partial p}(t, y, \dot{y}) = 0. \f]
  *          The initial values of this linear DAE, @f$ s_0 = \frac{\partial y_0}{\partial p} @f$ and @f$ \dot{s}_0 = \frac{\partial \dot{y}_0}{\partial p} @f$
- *          have to be consistent with the sensitivity DAE. This functions updates the initial sensitivity\f$ s_0 \f$ and overwrites the time
- *          derivative \f$ \dot{s}_0 \f$ such that they are consistent.
+ *          have to be consistent with the sensitivity DAE. This functions updates the initial sensitivity\f$ s_0 \f$ and \f$ \dot{s}_0 \f$ such that they are consistent.
  *
  *          The process follows closely the one of consistentInitialConditions() and, in fact, is a linearized version of it.
  *          This is necessary because the initial conditions of the sensitivity system \f$ s_0 \f$ and \f$ \dot{s}_0 \f$ are
  *          related to the initial conditions \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ of the original DAE by differentiating them
- *          with respect to @f$ p @f$: @f$ s_0 = \frac{\partial y_0}{\partial p} @f$ and @f$ \dot{s}_0 = \frac{\partial \dot{y}_0}{\partial p}. @f$
- *          <ol>
- *              <li>Solve all algebraic equations in the model (e.g., quasi-stationary isotherms, reaction equilibria).
- *                 Once all @f$ c_i @f$, @f$ c_{p,i} @f$, and @f$ q_i^{(j)} @f$ have been computed, solve for the
- *                 fluxes @f$ j_{f,i} @f$. Let @f$ \mathcal{I}_a @f$ be the index set of algebraic equations, then, at this point, we have
- *                 \f[ \left( \frac{\partial F}{\partial y}(t, y_0, \dot{y}_0) s + \frac{\partial F}{\partial p}(t, y_0, \dot{y}_0) \right)_{\mathcal{I}_a} = 0. \f]</li>
- *              <li>Compute the time derivatives of the sensitivity @f$ \dot{s} @f$ such that the differential equations hold.
- *                 However, because of the algebraic equations, we need additional conditions to fully determine
- *                 @f$ \dot{s}@f$. By differentiating the algebraic equations with respect to time, we get the
- *                 missing linear equations (recall that the sensitivity vector @f$ s @f$ is fixed). The resulting system
- *                 has a similar structure as the system Jacobian.
- *                 @f[ \begin{align}
- *                  \left[\begin{array}{c|ccc|c}
- *                     \dot{J}_0  &         &        &           &   \\
- *                     \hline
- *                                & \dot{J}_1     &        &           &   \\
- *                                &         & \ddots &           &   \\
- *                                &         &        & \dot{J}_{N_z}   &   \\
- *                     \hline
- *                        J_{f,0} & J_{f,1} & \dots & J_{f,N_z} & I
- *                  \end{array}\right],
- *                 \end{align} @f]
- *                 where @f$ \dot{J}_i @f$ denotes the Jacobian with respect to @f$ \dot{y}@f$. Note that the
- *                 @f$ J_{i,f} @f$ matrices in the right column are missing.
- *
- *     Let @f$ \mathcal{I}_d @f$ denote the index set of differential equations.
- *     The right hand side of the linear system is given by @f[ -\frac{\partial F}{\partial y}(t, y, \dot{y}) s - \frac{\partial F}{\partial p}(t, y, \dot{y}), @f]
- *     which is 0 for algebraic equations (@f$ -\frac{\partial^2 F}{\partial t \partial p}@f$, to be more precise).
- *
- *     The linear system is solved by backsubstitution. First, the diagonal blocks are solved in parallel.
- *     Then, the equations for the fluxes @f$ j_f @f$ are solved by substituting in the solution of the
- *     diagonal blocks.</li>
- *          </ol>
- *     This function requires the parameter sensitivities to be computed beforehand and up-to-date Jacobians.
- * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
- * @param [in] simState Consistent state of the simulation (state vector and its time derivative)
- * @param [in,out] vecSensY Sensitivity subsystem state vectors
- * @param [in,out] vecSensYdot Time derivative state vectors of the sensitivity subsystems to be initialized
- * @param [in] adRes Pointer to residual vector of AD datatypes with parameter sensitivities
- * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
- */
-void MultiChannelTransportModel::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
-	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
-{
-	BENCH_SCOPE(_timerConsistentInit);
-
-	Indexer idxr(_disc);
-
+ *          with respect to @f$ p @f$: @f$ s_0 =
 	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
 		double* const sensY = vecSensY[param];
@@ -818,7 +891,6 @@ void MultiChannelTransportModel::consistentInitialSensitivity(const SimulationTi
 		// Step 2a: Assemble, factorize, and solve diagonal blocks of linear system
 
 		// Compute right hand side by adding -dF / dy * s = -J * s to -dF / dp which is already stored in sensYdot
-		multiplyWithJacobian(simTime, simState, sensY, -1.0, 1.0, sensYdot);
 
 		// Note that we have correctly negated the right hand side
 
@@ -833,8 +905,7 @@ void MultiChannelTransportModel::consistentInitialSensitivity(const SimulationTi
  *          the sensitivity system for a parameter @f$ p @f$ reads
  *          \f[ \frac{\partial F}{\partial y}(t, y, \dot{y}) s + \frac{\partial F}{\partial \dot{y}}(t, y, \dot{y}) \dot{s} + \frac{\partial F}{\partial p}(t, y, \dot{y}) = 0. \f]
  *          The initial values of this linear DAE, @f$ s_0 = \frac{\partial y_0}{\partial p} @f$ and @f$ \dot{s}_0 = \frac{\partial \dot{y}_0}{\partial p} @f$
- *          have to be consistent with the sensitivity DAE. This functions updates the initial sensitivity\f$ s_0 \f$ and overwrites the time
- *          derivative \f$ \dot{s}_0 \f$ such that they are consistent.
+ *          have to be consistent with the sensitivity DAE. This functions updates the initial sensitivity\f$ s_0 \f$ and \f$ \dot{s}_0 \f$ such that they are consistent.
  *
  *          The process follows closely the one of leanConsistentInitialConditions() and, in fact, is a linearized version of it.
  *          This is necessary because the initial conditions of the sensitivity system \f$ s_0 \f$ and \f$ \dot{s}_0 \f$ are
@@ -892,7 +963,7 @@ void MultiChannelTransportModel::leanConsistentInitialSensitivity(const Simulati
 
 		// Step 2: Compute the correct time derivative of the state vector
 
-		// Step 2a: Assemble, factorize, and solve diagonal blocks of linear system
+		// Step 2a: Assemble, factorize, and solve bulk block of linear system
 
 		// Compute right hand side by adding -dF / dy * s = -J * s to -dF / dp which is already stored in _tempState
 		multiplyWithJacobian(simTime, simState, sensY, -1.0, 1.0, _tempState);
@@ -904,6 +975,10 @@ void MultiChannelTransportModel::leanConsistentInitialSensitivity(const Simulati
 		_convDispOp.solveTimeDerivativeSystem(simTime, sensYdot + idxr.offsetC());
 	}
 }
+
+void MultiChannelTransportModel::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
+{}
 
 }  // namespace model
 
