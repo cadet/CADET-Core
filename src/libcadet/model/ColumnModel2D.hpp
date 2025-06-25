@@ -84,7 +84,7 @@ public:
 	virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return _disc.radNPoints; }
 	virtual bool canAccumulate() const CADET_NOEXCEPT { return false; }
 
-	static const char* identifier() { return "LUMPED_RATE_MODEL_WITH_PORES_2D"; }
+	static const char* identifier() { return "COLUMN_MODEL_2D"; }
 	virtual const char* unitOperationName() const CADET_NOEXCEPT { return identifier(); }
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper);
@@ -238,6 +238,7 @@ protected:
 		unsigned int radNNodes; //!< Number of radial DG nodes per element
 		unsigned int nBulkPoints; //!< Number of total bulk discrete points
 		unsigned int nParType; //!< Number of particle types
+		unsigned int* nParPoints; //!< Array with number of discrete points for each particle type
 		unsigned int* parTypeOffset; //!< Array with offsets (in particle block) to particle type, additional last element contains total number of particle DOFs
 		unsigned int* nBound; //!< Array with number of bound states for each component and particle type (particle type major ordering)
 		unsigned int* boundOffset; //!< Array with offset to the first bound state of each component in the solid phase (particle type major ordering)
