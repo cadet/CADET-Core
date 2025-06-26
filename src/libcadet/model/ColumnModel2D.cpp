@@ -581,7 +581,7 @@ bool ColumnModel2D::configure(IParameterProvider& paramProvider)
 	else
 	{
 		// Only one particle type present
-		_parTypeVolFrac.resize(_disc.axNPoints * _disc.radNElem, 1.0);
+		_parTypeVolFrac.resize(_disc.nParType * _disc.axNPoints * _disc.radNElem, 1.0);
 		_parTypeVolFracMode = MultiplexMode::Independent;
 	}
 
@@ -589,12 +589,15 @@ bool ColumnModel2D::configure(IParameterProvider& paramProvider)
 		throw InvalidParameterException("Number of elements in field PAR_TYPE_VOLFRAC does not match number of particle types times RAD_NELEM * (AX_POLYDEG+1)*AX_NELEM");
 
 	// Check that particle volume fractions sum up to 1.0
-	for (unsigned int i = 0; i < _disc.axNPoints * _disc.radNElem; ++i)
+	if (_disc.nParType > 0)
 	{
-		const double volFracSum = std::accumulate(_parTypeVolFrac.begin() + i * _disc.nParType, _parTypeVolFrac.begin() + (i+1) * _disc.nParType, 0.0,
-			[](double a, const active& b) -> double { return a + static_cast<double>(b); });
-		if (std::abs(1.0 - volFracSum) > 1e-10)
-			throw InvalidParameterException("Sum of field PAR_TYPE_VOLFRAC differs from 1.0 (is " + std::to_string(volFracSum) + ") in axial element " + std::to_string(i / _disc.radNElem) + " radial element " + std::to_string(i % _disc.radNElem));
+		for (unsigned int i = 0; i < _disc.axNPoints * _disc.radNElem; ++i)
+		{
+			const double volFracSum = std::accumulate(_parTypeVolFrac.begin() + i * _disc.nParType, _parTypeVolFrac.begin() + (i + 1) * _disc.nParType, 0.0,
+				[](double a, const active& b) -> double { return a + static_cast<double>(b); });
+			if (std::abs(1.0 - volFracSum) > 1e-12)
+				throw InvalidParameterException("Sum of field PAR_TYPE_VOLFRAC differs from 1.0 (is " + std::to_string(volFracSum) + ") in axial element " + std::to_string(i / _disc.radNElem) + " radial element " + std::to_string(i % _disc.radNElem));
+		}
 	}
 
 	// Register initial conditions parameters

@@ -87,14 +87,14 @@ TEST_CASE("Column_2D as LRMP time derivative Jacobian vs FD", "[Column_2D],[DG],
 	cadet::test::column::testTimeDerivativeJacobianFD("COLUMN_MODEL_2D_LRMP", "DG", 1e-6, 0.0, 9e-4);
 }
 
-TEST_CASE("Column_2D as LRMP transport Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Column_2D as LRMP pure bulk transport Jacobian with radially variable parameters", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
 {
-	const std::string relModelFilePath = std::string("/data/model_COL2D_LRMP_bulkTransport_1comp.json");
+	const std::string relModelFilePath = std::string("/data/model_COL2D_DPF_1comp.json");
 
-	// This test requires the following number of AD directions:
+	// Required AD directions:
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
-	// req. AD dirs: 8radPoints + 128 pure dofs (8axPoints*8radPoints) * (1 + 1)
-	test2DColumnJacobian(relModelFilePath, 4, 4, 1, 1);
+	// req. AD dirs: 12radPoints + 144 pure dofs (12axPoints*12radPoints) * (1 + 0)
+	test2DColumnJacobian(relModelFilePath, 6, 6, 1, 1, 6, 6);
 }
 
 TEST_CASE("Column_2D as LRMP transport Jacobian with radially constant parameters", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[ReleaseCI]")
