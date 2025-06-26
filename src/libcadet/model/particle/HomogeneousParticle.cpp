@@ -692,7 +692,7 @@ namespace model
 		return (_nComp + _strideBound) * (_nComp + _strideBound) + _nComp * 4; // reaction, binding patter + film diffusion pattern for one particle
 	}
 
-	int HomogeneousParticle::calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
+	int HomogeneousParticle::calcParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
 	{
 		return 1;
 	}
