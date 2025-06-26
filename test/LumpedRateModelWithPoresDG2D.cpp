@@ -20,6 +20,9 @@
 
 void test2DLRMPJacobian(const std::string relModelFilePath, const int maxAxElem, const int maxRadElem, const int axPolyDeg = 0, const int radPolyDeg = 0, const int minAxElem = 1, const int minRadElem = 1)
 {
+	if (maxAxElem < minAxElem || maxRadElem < minRadElem)
+		REQUIRE(false);
+
 	cadet::JsonParameterProvider jpp = cadet::test::column::getReferenceFile(relModelFilePath);
 
 	// get the number of radial ports
