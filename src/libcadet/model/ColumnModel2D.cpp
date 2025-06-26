@@ -318,7 +318,7 @@ namespace model
 
 ColumnModel2D::ColumnModel2D(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
 	_dynReactionBulk(nullptr), _jacInlet(),	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
-	_initC(0), _singleRadiusInitC(true), _initCp(0), _singleRadiusInitCp(true), _initQ(0), _singleRadiusInitQ(true), _initState(0), _initStateDot(0)
+	_initC(0), _singleRadiusInitC(true), _initCp(0), _singleRadiusInitCp(true), _initCs(0), _singleRadiusInitCs(true), _initState(0), _initStateDot(0)
 {
 }
 
@@ -493,7 +493,7 @@ bool ColumnModel2D::configureModelDiscretization(IParameterProvider& paramProvid
 	// Allocate memory
 	_initC.resize(_disc.nComp * _disc.radNPoints);
 	_initCp.resize(_disc.nComp * _disc.radNPoints * _disc.nParType);
-	_initQ.resize(nTotalBound * _disc.radNPoints);
+	_initCs.resize(nTotalBound * _disc.radNPoints);
 
 	// Set whether analytic Jacobian is used
 	useAnalyticJacobian(analyticJac);
@@ -633,7 +633,7 @@ bool ColumnModel2D::configure(IParameterProvider& paramProvider)
 		{
 			_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, ParTypeIndep);
 
-			active* const iq = _initQ.data() + _disc.nBoundBeforeType[0];
+			active* const iq = _initCs.data() + _disc.nBoundBeforeType[0];
 			for (unsigned int i = 0; i < _disc.strideBound[0]; ++i)
 				_parameters[initParams[i]] = iq + i;
 		}
@@ -643,7 +643,7 @@ bool ColumnModel2D::configure(IParameterProvider& paramProvider)
 			{
 				_binding[type]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, type);
 
-				active* const iq = _initQ.data() + _disc.nBoundBeforeType[type];
+				active* const iq = _initCs.data() + _disc.nBoundBeforeType[type];
 				for (unsigned int i = 0; i < _disc.strideBound[type]; ++i)
 					_parameters[initParams[i]] = iq + i;
 			}
@@ -661,7 +661,7 @@ bool ColumnModel2D::configure(IParameterProvider& paramProvider)
 					for (ParameterId& pId : initParams)
 						pId.reaction = r;
 
-					active* const iq = _initQ.data() + _disc.nBoundBeforeType[0] + r * _disc.strideBound[_disc.nParType];
+					active* const iq = _initCs.data() + _disc.nBoundBeforeType[0] + r * _disc.strideBound[_disc.nParType];
 					for (unsigned int i = 0; i < _disc.strideBound[0]; ++i)
 						_parameters[initParams[i]] = iq + i;
 				}
@@ -676,7 +676,7 @@ bool ColumnModel2D::configure(IParameterProvider& paramProvider)
 						for (ParameterId& pId : initParams)
 							pId.reaction = r;
 
-						active* const iq = _initQ.data() + _disc.nBoundBeforeType[type] + r * _disc.strideBound[_disc.nParType];
+						active* const iq = _initCs.data() + _disc.nBoundBeforeType[type] + r * _disc.strideBound[_disc.nParType];
 						for (unsigned int i = 0; i < _disc.strideBound[type]; ++i)
 							_parameters[initParams[i]] = iq + i;
 					}
@@ -1276,7 +1276,7 @@ void ColumnModel2D::multiplyWithDerivativeJacobian(const SimulationTime& simTime
 				// Add derivative with respect to dc_p / dt to Jacobian
 				localRet[comp] = localSdot[comp];
 
-				const double invBetaP = (1.0 - static_cast<double>(_parPorosity[type])) / (static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]) * static_cast<double>(_parPorosity[type]));
+				const double invBetaP = (1.0 - static_cast<double>(_particles[type]->getPorosity())) / (static_cast<double>(_particles[type]->getPoreAccessFactor()[comp]) * static_cast<double>(_particles[type]->getPorosity()));
 
 				// Add derivative with respect to dq / dt to Jacobian (normal equations)
 				for (unsigned int i = 0; i < nBound[comp]; ++i)

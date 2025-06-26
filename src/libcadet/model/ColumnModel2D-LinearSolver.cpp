@@ -199,7 +199,7 @@ void ColumnModel2D::addTimeDerivativeToJacobianParticleBlock(linalg::BandedEigen
 		// Add derivative with respect to dc_p / dt to Jacobian
 		jac[0] += alpha;
 
-		const double invBetaP = (1.0 - static_cast<double>(_parPorosity[parType])) / (static_cast<double>(_poreAccessFactor[parType * _disc.nComp + comp]) * static_cast<double>(_parPorosity[parType]));
+		const double invBetaP = (1.0 - static_cast<double>(_particles[parType]->getPorosity())) / (static_cast<double>(_particles[parType]->getPoreAccessFactor()[comp]) * static_cast<double>(_particles[parType]->getPorosity()));
 
 		// Add derivative with respect to dq / dt to Jacobian
 		const int nBound = static_cast<int>(_disc.nBound[parType * _disc.nComp + comp]);
