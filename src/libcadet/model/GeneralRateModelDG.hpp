@@ -530,18 +530,18 @@ protected:
 		globalJ.setFromTriplets(tripletList.begin(), tripletList.end());
 	}
 
-	int calcStaticAnaJacobian_GRM(unsigned int secIdx)
+	int calcTransportJacobian_GRM(unsigned int secIdx)
 	{
 		Indexer idxr(_disc);
 		// inlet and bulk jacobian
-		_convDispOp.calcStaticAnaJacobian(_globalJac, _jacInlet, idxr.offsetC());
+		_convDispOp.calcTransportJacobian(_globalJac, _jacInlet, idxr.offsetC());
 
 		// particle jacobian (without isotherm, which is handled in residualKernel)
 		for (int colNode = 0; colNode < _disc.nPoints; colNode++)
 		{
 			for (int parType = 0; parType < _disc.nParType; parType++)
 			{
-				_particle[parType].calcStaticAnaParticleDiffJacobian(secIdx, colNode, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }), _globalJac);
+				_particle[parType].calcParticleDiffJacobian(secIdx, colNode, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }), _globalJac);
 			}
 		}
 

@@ -847,7 +847,7 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 		if (!wantRes || _disc.newStaticJac)
 		{
 			// estimate new static (per section) jacobian
-			bool success = calcStaticAnaJacobian_GRM(secIdx);
+			bool success = calcTransportJacobian_GRM(secIdx);
 
 			_disc.newStaticJac = false;
 
