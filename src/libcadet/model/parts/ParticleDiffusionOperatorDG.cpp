@@ -1605,7 +1605,7 @@ namespace parts
 	 * @brief analytically calculates the static (per section) particle diffusion Jacobian
 	 * @return 1 if jacobain calculation fits the predefined pattern of the jacobian, 0 if not.
 	 */
-	int ParticleDiffusionOperatorDG::calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
+	int ParticleDiffusionOperatorDG::calcParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
 	{
 		// Prepare parameters
 		const active* const parDiff = getSectionDependentSlice(_parDiffusion, _nComp, secIdx);
