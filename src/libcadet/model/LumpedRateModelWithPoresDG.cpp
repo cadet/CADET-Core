@@ -927,7 +927,7 @@ int LumpedRateModelWithPoresDG::residualImpl(double t, unsigned int secIdx, Stat
 	{
 		if (!wantRes || _disc.newStaticJac) // static (per section) transport Jacobian
 		{
-			success = calcStaticAnaGlobalJacobian(secIdx);
+			success = calcTransportGlobalJacobian(secIdx);
 			_disc.newStaticJac = false;
 			if (cadet_unlikely(!success))
 				LOG(Error) << "Jacobian pattern did not fit the Jacobian estimation";

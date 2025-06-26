@@ -441,7 +441,7 @@ bool ColumnModel1D::configure(IParameterProvider& paramProvider)
 	}
 
 	// jaobian pattern set after binding and particle surface diffusion are configured
-	setJacobianPattern_GRM(_globalJac, 0, _dynReactionBulk);
+	setJacobianPattern(_globalJac, 0, _dynReactionBulk);
 	_globalJacDisc = _globalJac;
 	// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
 	// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
@@ -528,7 +528,7 @@ void ColumnModel1D::notifyDiscontinuousSectionTransition(double t, unsigned int 
 	Indexer idxr(_disc);
 
 	// todo: only reset jacobian pattern if it changes, i.e. once in configuration and then only for changes in SurfDiff+kinetic binding.
- 	setJacobianPattern_GRM(_globalJac, 0, _dynReactionBulk);
+ 	setJacobianPattern(_globalJac, 0, _dynReactionBulk);
 	_globalJacDisc = _globalJac;
 
 	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
@@ -857,7 +857,7 @@ int ColumnModel1D::residualImpl(double t, unsigned int secIdx, StateType const* 
 				if (!wantRes || _disc.newStaticJac)
 				{
 					// estimate new static (per section) jacobian
-					bool success = calcStaticAnaJacobian_GRM(secIdx);
+					bool success = calcTransportJacobian(secIdx);
 
 					_disc.newStaticJac = false;
 
