@@ -1169,7 +1169,7 @@ void LumpedRateModelWithPoresDG::multiplyWithDerivativeJacobian(const Simulation
 				// Add derivative with respect to dc_p / dt to Jacobian
 				localRet[comp] = localSdot[comp];
 
-				const double invBetaP = (1.0 - static_cast<double>(_particle[type].getPorosity())) / (static_cast<double>(_particle[type].getPoreAccessfactor()[comp]) * static_cast<double>(_particle[type].getPorosity()));
+				const double invBetaP = (1.0 - static_cast<double>(_particle[type].getPorosity())) / (static_cast<double>(_particle[type].getPoreAccessFactor()[comp]) * static_cast<double>(_particle[type].getPorosity()));
 
 				// Add derivative with respect to dq / dt to Jacobian (normal equations)
 				for (unsigned int i = 0; i < nBound[comp]; ++i)

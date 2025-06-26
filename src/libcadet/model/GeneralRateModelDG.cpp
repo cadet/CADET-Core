@@ -962,7 +962,7 @@ parts::cell::CellParameters GeneralRateModelDG::makeCellResidualParams(unsigned 
 			_disc.strideBound[parType],
 			qsReaction,
 			_particle[parType].getPorosity(),
-			_particle[parType].getPoreAccessfactor(),
+			_particle[parType].getPoreAccessFactor(),
 			_binding[parType],
 			(_dynReaction[parType] && (_dynReaction[parType]->numReactionsCombined() > 0)) ? _dynReaction[parType] : nullptr
 		};
