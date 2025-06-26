@@ -61,49 +61,7 @@
           7.0,
           -1.0,
           -1.0,
-          6.266004722355263e-10,
-          1.0,
-          0.0,
-          0.0,
-          8.0,
-          -1.0,
-          -1.0,
-          7.101472018669311e-10,
-          1.0,
-          0.0,
-          0.0,
-          9.0,
-          -1.0,
-          -1.0,
-          7.936939314983349e-10,
-          1.0,
-          0.0,
-          0.0,
-          10.0,
-          -1.0,
-          -1.0,
-          8.772406611297365e-10,
-          1.0,
-          0.0,
-          0.0,
-          11.0,
-          -1.0,
-          -1.0,
-          9.607873907611417e-10,
-          1.0,
-          0.0,
-          0.0,
-          12.0,
-          -1.0,
-          -1.0,
-          1.044334120392546e-09,
-          1.0,
-          0.0,
-          0.0,
-          13.0,
-          -1.0,
-          -1.0,
-          1.1278808500239482e-09
+          6.266004722355263e-10
         ],
         "SECTION": 0
       }
@@ -125,18 +83,17 @@
         0
       ],
       "NCOMP": 1,
-      "NPARTYPE": 2,
-      "PAR_TYPE_VOLFRAC": [ 0.7, 0.3, 0.5, 0.5, 0.7, 0.3, 0.1, 0.9 ],
-      "PAR_TYPE_VOLFRAC_MULTIPLEX": 1,
+      "NPARTYPE": 1,
+      "PAR_TYPE_VOLFRAC": [ 1.0, 1.0, 1.0, 1.0 ],
       "PORTS": 7,
       "UNIT_TYPE": "COLUMN_MODEL_2D",
       "VELOCITY": 0.000575,
       "discretization": {
-        "AX_NELEM": 4,
-        "AX_POLYDEG": 1,
+        "AX_NELEM": 7,
+        "AX_POLYDEG": 2,
         "RADIAL_DISC_TYPE": "EQUIDISTANT",
         "RAD_NELEM": 4,
-        "RAD_POLYDEG": 2,
+        "RAD_POLYDEG": 1,
         "SPATIAL_METHOD": "DG",
         "USE_ANALYTIC_JACOBIAN": true
       },
@@ -145,26 +102,14 @@
         "PAR_POROSITY": 0.75,
         "PAR_RADIUS": 4.5e-05,
         "FILM_DIFFUSION": 0.0,
-        "ADSORPTION_MODEL": "NONE",
-        "NBOUND": 0,
+        "ADSORPTION_MODEL": "LINEAR",
+        "adsorption": {
+          "IS_KINETIC": true,
+          "LIN_KA": [ 2.0 ],
+          "LIN_KD": [ 1.0 ]
+        },
+        "NBOUND": 1,
         "INIT_CP": [
-          0
-        ],
-        "INIT_CS": [
-          0
-        ]
-      },
-      "particle_type_001": {
-        "PARTICLE_TYPE": "HOMOGENEOUS_PARTICLE",
-        "PAR_POROSITY": 0.6,
-        "PAR_RADIUS": 8e-05,
-        "FILM_DIFFUSION": 0.0,
-        "ADSORPTION_MODEL": "NONE",
-        "NBOUND": 0,
-        "INIT_CP": [
-          0
-        ],
-        "INIT_CS": [
           0
         ]
       }

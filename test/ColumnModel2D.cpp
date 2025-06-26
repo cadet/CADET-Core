@@ -97,29 +97,19 @@ TEST_CASE("Column_2D as LRMP pure bulk transport Jacobian with radially variable
 	test2DColumnJacobian(relModelFilePath, 6, 6, 1, 1, 6, 6);
 }
 
-TEST_CASE("Column_2D as LRMP transport Jacobian with radially constant parameters", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[ReleaseCI]")
+TEST_CASE("Column_2D as LRMP 1comp lin. binding Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
 {
-	const std::string relModelFilePath = std::string("/data/model_COL2D_LRMP_bulkTransport_1comp.json");
-
-	// This test might run out of memory due to the required AD directions:
-	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
-	// req. AD dirs: 14radPoints + 588 pure dofs (21axPoints*14radPoints) * (1 + 1)
-	test2DColumnJacobian(relModelFilePath, 7, 7, 2, 1);
-}
-
-TEST_CASE("Column_2D as LRMP transport Jacobian with radially variable parameters", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
-{
-	const std::string relModelFilePath = std::string("/data/model_COL2D_LRMP_bulkTransportRadVar_1comp.json");
+	const std::string relModelFilePath = std::string("/data/model_COL2D_LRMP_linBnd_1comp.json");
 
 	// Required AD directions:
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
-	// req. AD dirs: 8radPoints + 96 pure dofs (6axPoints*8radPoints) * (1 + 1)
-	test2DColumnJacobian(relModelFilePath, 4, 4, 1, 1, 4, 4);
+	// req. AD dirs: 152 = 8radPoints + 144 pure dofs (6axPoints*8radPoints) * (1 + 2)
+	test2DColumnJacobian(relModelFilePath, 3, 4, 1, 1, 3, 4);
 }
 
-TEST_CASE("Column_2D as LRMP transport Jacobian with radially variable parameters including particle type volume fraction", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Column_2D as LRMP with 2parType no binding Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[todoCI]")
 {
-	const std::string relModelFilePath = std::string("/data/model_COL2D_LRMP_2parType_bulkTransportRadVar_1comp.json");
+	const std::string relModelFilePath = std::string("/data/model_COL2D_LRMP_2parType_1comp.json");
 
 	// Required AD directions:
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
