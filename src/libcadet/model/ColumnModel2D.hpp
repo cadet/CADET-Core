@@ -282,19 +282,8 @@ protected:
 	Eigen::SparseMatrix<double, Eigen::RowMajor> _globalJac; //!< global Jacobian
 	Eigen::SparseMatrix<double, Eigen::RowMajor> _globalJacDisc; //!< global Jacobian with time derivative from BDF method
 
-	std::vector<active> _parRadius; //!< Particle radius \f$ r_p \f$
-	bool _singleParRadius;
-	std::vector<active> _parPorosity; //!< Particle porosity (internal porosity) \f$ \varepsilon_p \f$
-	bool _singleParPorosity;
 	std::vector<active> _parTypeVolFrac; //!< Volume fraction of each particle type
 	MultiplexMode _parTypeVolFracMode; //!< Multiplexing mode of particle volume fractions
-	std::vector<double> _parGeomSurfToVol; //!< Particle surface to volume ratio factor (i.e., 3.0 for spherical, 2.0 for cylindrical, 1.0 for hexahedral)
-
-	// Vectorial parameters
-	std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$
-	MultiplexMode _filmDiffusionMode;
-	std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
-	MultiplexMode _poreAccessFactorMode;
 
 	bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used
 	unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation
@@ -306,8 +295,8 @@ protected:
 	bool _singleRadiusInitC;
 	std::vector<active> _initCp; //!< Liquid particle phase initial conditions
 	bool _singleRadiusInitCp;
-	std::vector<active> _initQ; //!< Solid phase initial conditions
-	bool _singleRadiusInitQ;
+	std::vector<active> _initCs; //!< Solid phase initial conditions
+	bool _singleRadiusInitCs;
 	std::vector<double> _initState; //!< Initial conditions for state vector if given
 	std::vector<double> _initStateDot; //!< Initial conditions for time derivative
 
@@ -331,6 +320,7 @@ protected:
 		// Strides
 		inline int strideColAxialNode() const CADET_NOEXCEPT { return strideColRadialNode() * static_cast<int>(_disc.radNPoints); }
 		inline int strideColRadialNode() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
+		inline int strideColRadialZone() const CADET_NOEXCEPT { return static_cast<int>(_disc.radNNodes * strideColRadialNode()); }
 		inline int strideColComp() const CADET_NOEXCEPT { return 1; }
 
 		inline int strideParComp() const CADET_NOEXCEPT { return 1; }
@@ -429,8 +419,7 @@ protected:
 		}
 		virtual int writeParticleCoordinates(unsigned int parType, double* coords) const
 		{
-			coords[0] = static_cast<double>(_model._parRadius[parType]) * 0.5;
-			return 1;
+			return _model._particles[parType]->writeParticleCoordinates(coords);
 		}
 
 	protected:
