@@ -113,7 +113,7 @@ namespace parts
 		parts::ParticleDiffusionOperatorBase* _parDiffOp;
 
 		inline const active& getPorosity() const CADET_NOEXCEPT  override { return _parDiffOp->getPorosity(); }
-		inline const active* getPoreAccessfactor() const CADET_NOEXCEPT  override { return _parDiffOp->getPoreAccessfactor(); }
+		inline const active* getPoreAccessFactor() const CADET_NOEXCEPT  override { return _parDiffOp->getPoreAccessFactor(); }
 		inline const active* getFilmDiffusion(const unsigned int secIdx) const CADET_NOEXCEPT { return _parDiffOp->getFilmDiffusion(secIdx);  }
 
 		inline int nDiscPoints() const CADET_NOEXCEPT  override { return _parDiffOp->nDiscPoints(); }

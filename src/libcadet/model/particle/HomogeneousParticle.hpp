@@ -104,7 +104,7 @@ namespace parts
 		}
 
 		inline const active& getPorosity() const CADET_NOEXCEPT  override { return _parPorosity; }
-		inline const active* getPoreAccessfactor() const CADET_NOEXCEPT  override { return &_poreAccessFactor[0]; }
+		inline const active* getPoreAccessFactor() const CADET_NOEXCEPT  override { return &_poreAccessFactor[0]; }
 		inline const active* getFilmDiffusion(const unsigned int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_filmDiffusion, _nComp, secIdx); }
 
 		inline int nDiscPoints() const CADET_NOEXCEPT  override { return 1; }

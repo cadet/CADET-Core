@@ -968,7 +968,7 @@ parts::cell::CellParameters ColumnModel1D::makeCellResidualParams(unsigned int p
 			_disc.strideBound[parType],
 			qsReaction,
 			_particles[parType]->getPorosity(),
-			_particles[parType]->getPoreAccessfactor(),
+			_particles[parType]->getPoreAccessFactor(),
 			_binding[parType],
 			(_dynReaction[parType] && (_dynReaction[parType]->numReactionsCombined() > 0)) ? _dynReaction[parType] : nullptr
 		};

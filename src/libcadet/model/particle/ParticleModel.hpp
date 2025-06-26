@@ -125,7 +125,7 @@ namespace cadet
 			inline bool reactionParDep() const CADET_NOEXCEPT { return _reactionParDep; }
 
 			virtual inline const active& getPorosity() const CADET_NOEXCEPT = 0;
-			virtual inline const active* getPoreAccessfactor() const CADET_NOEXCEPT = 0;
+			virtual inline const active* getPoreAccessFactor() const CADET_NOEXCEPT = 0;
 			virtual inline const active* getFilmDiffusion(const unsigned int secIdx) const CADET_NOEXCEPT = 0;
 
 			/**

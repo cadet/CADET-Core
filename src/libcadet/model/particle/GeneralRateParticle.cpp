@@ -370,7 +370,7 @@ namespace model
 			_parDiffOp->strideBound(),
 			qsReaction,
 			getPorosity(),
-			getPoreAccessfactor(),
+			getPoreAccessFactor(),
 			_binding,
 			(_dynReaction && (_dynReaction->numReactionsCombined() > 0)) ? _dynReaction : nullptr
 		};
