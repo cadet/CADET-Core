@@ -82,59 +82,59 @@ TEST_CASE("Column_2D as LRMP inlet DOF Jacobian", "[Column_2D],[DG],[DG2D],[Unit
 	cadet::test::column::testInletDofJacobian("COLUMN_MODEL_2D_LRMP", "DG");
 }
 
-TEST_CASE("Column_2D as LRMP time derivative Jacobian vs FD", "[Column_2D],[DG],[DG2D],[UnitOp],[Residual],[Jacobian],[testCI],[FD]")
+TEST_CASE("Column_2D as LRMP time derivative Jacobian vs FD", "[Column_2D],[DG],[DG2D],[UnitOp],[Residual],[Jacobian],[CI],[FD]")
 {
 	cadet::test::column::testTimeDerivativeJacobianFD("COLUMN_MODEL_2D_LRMP", "DG", 1e-6, 0.0, 9e-4);
 }
 
-TEST_CASE("Column_2D as LRMP transport Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[todoCI]")
+TEST_CASE("Column_2D as LRMP transport Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
 {
-	const std::string relModelFilePath = std::string("/data/model_LRMP2D_bulkTransport_1comp.json");
+	const std::string relModelFilePath = std::string("/data/model_COL2D_LRMP_bulkTransport_1comp.json");
 
 	// This test requires the following number of AD directions:
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
 	// req. AD dirs: 8radPoints + 128 pure dofs (8axPoints*8radPoints) * (1 + 1)
-	test2DLRMPJacobian(relModelFilePath, 4, 4, 1, 1);
+	test2DColumnJacobian(relModelFilePath, 4, 4, 1, 1);
 }
 
 TEST_CASE("Column_2D as LRMP transport Jacobian with radially constant parameters", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[ReleaseCI]")
 {
-	const std::string relModelFilePath = std::string("/data/model_LRMP2D_bulkTransport_1comp.json");
+	const std::string relModelFilePath = std::string("/data/model_COL2D_LRMP_bulkTransport_1comp.json");
 
 	// This test might run out of memory due to the required AD directions:
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
 	// req. AD dirs: 14radPoints + 588 pure dofs (21axPoints*14radPoints) * (1 + 1)
-	test2DLRMPJacobian(relModelFilePath, 7, 7, 2, 1);
+	test2DColumnJacobian(relModelFilePath, 7, 7, 2, 1);
 }
 
-TEST_CASE("Column_2D as LRMP transport Jacobian with radially variable parameters", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[todoCI]")
+TEST_CASE("Column_2D as LRMP transport Jacobian with radially variable parameters", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
 {
-	const std::string relModelFilePath = std::string("/data/model_LRMP2D_bulkTransportRadVar_1comp.json");
+	const std::string relModelFilePath = std::string("/data/model_COL2D_LRMP_bulkTransportRadVar_1comp.json");
 
 	// Required AD directions:
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
 	// req. AD dirs: 8radPoints + 96 pure dofs (6axPoints*8radPoints) * (1 + 1)
-	test2DLRMPJacobian(relModelFilePath, 4, 4, 1, 1, 4, 4);
+	test2DColumnJacobian(relModelFilePath, 4, 4, 1, 1, 4, 4);
 }
 
 TEST_CASE("Column_2D as LRMP transport Jacobian with radially variable parameters including particle type volume fraction", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
 {
-	const std::string relModelFilePath = std::string("/data/model_LRMP2D2parType_bulkTransportRadVar_1comp.json");
+	const std::string relModelFilePath = std::string("/data/model_COL2D_LRMP_2parType_bulkTransportRadVar_1comp.json");
 
 	// Required AD directions:
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
 	// req. AD dirs: 152 = 8radPoints + 144 pure dofs (6axPoints*8radPoints) * (1 + 2 * 1)
-	test2DLRMPJacobian(relModelFilePath, 3, 4, 1, 1, 3, 4);
+	test2DColumnJacobian(relModelFilePath, 3, 4, 1, 1, 3, 4);
 }
 
-TEST_CASE("Column_2D as LRMP with two component linear binding Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Column_2D as LRMP with two component linear binding Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[todoCI]")
 {
-	const std::string relModelFilePath = std::string("/data/model_LRMP2D_dynLin_2comp.json");
+	const std::string relModelFilePath = std::string("/data/model_COL2D_LRMP_dynLin_2comp.json");
 
 	// This test might run out of memory due to the required AD directions:
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
 	// req. AD dirs: 156 = 2*6radPoints + 144 pure dofs (4axPoints*6radPoints) * (2 + 4)
-	test2DLRMPJacobian(relModelFilePath, 2, 3, 1, 1);
+	test2DColumnJacobian(relModelFilePath, 2, 3, 1, 1);
 }
 
 TEST_CASE("Column_2D as LRMP numerical Benchmark for a pure bulk transport case with three radial zones", "[Column_2D],[DG],[DG2D],[Simulation],[Reference],[todoCI]")

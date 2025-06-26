@@ -115,31 +115,20 @@
       "SCHUR_SAFETY": 1e-08
     },
     "unit_000": {
-      "ADSORPTION_MODEL": "NONE",
       "COL_DISPERSION": [ 1e-08, 2e-08, 3e-08, 4e-08 ],
       "COL_DISPERSION_RADIAL": [ 1e-08, 2e-08, 3e-08, 4e-08 ],
       "COL_LENGTH": 0.014,
       "COL_POROSITY": [ 0.31, 0.33, 0.35, 0.37 ],
       "COL_RADIUS": 0.0035,
       "CROSS_SECTION_AREA": 3.848451000647497e-05,
-      "FILM_DIFFUSION": 0.0,
       "INIT_C": [
         0
       ],
-      "INIT_CP": [
-        0
-      ],
-      "INIT_Q": [
-        0
-      ],
-      "NBOUND": 0,
       "NCOMP": 1,
       "NPARTYPE": 1,
-      "PAR_POROSITY": 0.75,
-      "PAR_RADIUS": 4.5e-05,
       "PAR_TYPE_VOLFRAC": [ 1.0, 1.0, 1.0, 1.0 ],
       "PORTS": 7,
-      "UNIT_TYPE": "LUMPED_RATE_MODEL_WITH_PORES_2D",
+      "UNIT_TYPE": "COLUMN_MODEL_2D",
       "VELOCITY": 0.000575,
       "discretization": {
         "AX_NELEM": 7,
@@ -149,6 +138,17 @@
         "RAD_POLYDEG": 1,
         "SPATIAL_METHOD": "DG",
         "USE_ANALYTIC_JACOBIAN": true
+      },
+      "particle_type_000": {
+        "PARTICLE_TYPE": "HOMOGENEOUS_PARTICLE",
+        "PAR_POROSITY": 0.75,
+        "PAR_RADIUS": 4.5e-05,
+        "FILM_DIFFUSION": 0.0,
+        "ADSORPTION_MODEL": "NONE",
+        "NBOUND": 0,
+        "INIT_CP": [
+          0
+        ]
       }
     },
     "unit_001": {
