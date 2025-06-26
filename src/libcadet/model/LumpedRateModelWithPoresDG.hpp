@@ -484,9 +484,9 @@ protected:
 	 * @brief analytically calculates the static (per section) bulk jacobian (inlet DOFs included!)
 	 * @return 1 if jacobain estimation fits the predefined pattern of the jacobian, 0 if not.
 	 */
-	int calcStaticAnaGlobalJacobian(const unsigned int secIdx) {
+	int calcTransportGlobalJacobian(const unsigned int secIdx) {
 		
-		bool success = _convDispOp.calcStaticAnaJacobian(_globalJac, _jacInlet);
+		bool success = _convDispOp.calcTransportJacobian(_globalJac, _jacInlet);
 		success = success && calcFluxJacobians(secIdx, false);
 
 		return success;
