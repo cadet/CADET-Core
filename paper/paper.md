@@ -53,7 +53,7 @@ affiliations:
   - name: "RWTH Aachen University, Computational Systems Biotechnology, Aachen, 52074, Germany"
     index: 2
     ror: 04xfq0f34
-  - name: "Rensselaer Polytechnic Institute, Department of Chemical and Biological Engineering, Troy, 12180, NY, USA"
+  - name: "Rensselaer Polytechnic Institute, Department of Chemical and Biological Engineering, Troy, 12180, New York, United States of America"
     index: 3
     ror: 01rtyzb94
     
