@@ -207,7 +207,9 @@ protected:
 					{
 						const unsigned int offsetCur_orig = offsetColRadOrigBlock + comp;
 						const unsigned int offsetCur_dest = offsetColRadDestBlock + comp;
+
 						StateType const* const yCur_orig = yColRadOrigBlock + comp;
+
 						ResidualType* const resCur_orig = resColRadOrigBlock + comp;
 						ResidualType* const resCur_dest = resColRadDestBlock + comp;
 
@@ -225,7 +227,7 @@ protected:
 
 								linalg::BandedSparseRowIterator jacdest;
 								jacdest = jacBegin + offsetCur_dest;
-								jacdest[static_cast<int>(offsetCur_orig) - static_cast<int>(offsetCur_dest)] -= static_cast<double>(exchange_orig_dest_comp);
+								jacdest[static_cast<int>(offsetCur_orig) - static_cast<int>(offsetCur_dest)] -= static_cast<double>(exchange_orig_dest_comp);  // * _crossSections[rad_orig]) / _crossSections[rad_dest]); // check if this is correct
 
 							}
 

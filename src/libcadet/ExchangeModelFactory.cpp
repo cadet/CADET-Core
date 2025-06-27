@@ -21,6 +21,7 @@ namespace cadet
 		namespace exchange
 		{
 			void registerLinearExModel(std::unordered_map<std::string, std::function<model::IExchangeModel* ()>>& exchange);
+			void registerLangumirExModel(std::unordered_map<std::string, std::function<model::IExchangeModel* ()>>& exchange);
 		}
 	}
 
@@ -28,6 +29,7 @@ namespace cadet
 	{
 		// Register all ExchangeModels here
 		model::exchange::registerLinearExModel(_exchangeModels);
+		model::exchange::registerLangumirExModel(_exchangeModels);
 
 	}
 
