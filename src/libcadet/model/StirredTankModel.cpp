@@ -1999,7 +1999,7 @@ bool CSTRModel::setParameter(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk[0] }, true))
+		if (model::setParameter(pId, value, _dynReactionBulk , false))
 			return true;
 	}
 
@@ -2010,7 +2010,7 @@ bool CSTRModel::setParameter(const ParameterId& pId, int value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk[0] }, true))
+		if (model::setParameter(pId, value, _dynReactionBulk, false))
 			return true;
 	}
 
@@ -2021,7 +2021,7 @@ bool CSTRModel::setParameter(const ParameterId& pId, bool value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk[0] }, true))
+		if (model::setParameter(pId, value,  _dynReactionBulk, false))
 			return true;
 	}
 
@@ -2032,7 +2032,7 @@ void CSTRModel::setSensitiveParameterValue(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setSensitiveParameterValue(pId, value, _sensParams, std::vector<IDynamicReactionModel*>{ _dynReactionBulk[0] }, true))
+		if (model::setSensitiveParameterValue(pId, value, _sensParams,  _dynReactionBulk, false))
 			return;
 	}
 
@@ -2041,7 +2041,7 @@ void CSTRModel::setSensitiveParameterValue(const ParameterId& pId, double value)
 
 bool CSTRModel::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
 {
-	if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, std::vector<IDynamicReactionModel*>{ _dynReactionBulk[0] }, true))
+	if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams,  _dynReactionBulk , false))
 	{
 		LOG(Debug) << "Found parameter " << pId << " in DynamicBulkReactionModel: Dir " << adDirection << " is set to " << adValue;
 		return true;

@@ -157,7 +157,7 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with inhibition", "[M
 	);
 }
 
-TEST_CASE("MassActionLaw old interface vs. two seperate reactions", "[MassActionLaw],[ReactionModel],[Simulation],[CI]")
+TEST_CASE("MassActionLaw old interface vs. two separate reactions", "[MassActionLaw],[ReactionModel],[Simulation],[CI]")
 {
 	std::string modelFilePath = std::string("/data/model_CSTR_reacMAL_3comp_nreac_2.json");
 	std::string refFilePath = std::string("/data/ref_CSTR_reacMAL_3comp_one_type_old_interface.h5");
@@ -168,7 +168,7 @@ TEST_CASE("MassActionLaw old interface vs. two seperate reactions", "[MassAction
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
-TEST_CASE("MassActionLaw one reaction vs. two seperate reactions", "[MassActionLaw],[ReactionModel],[Simulation],[CI]")
+TEST_CASE("MassActionLaw one reaction vs. two separate reactions", "[MassActionLaw],[ReactionModel],[Simulation],[CI]")
 {
 	std::string modelFilePath = std::string("/data/model_CSTR_reacMAL_3comp_nreac_2.json");
 	std::string refFilePath = std::string("/data/ref_CSTR_reacMAL_3comp_nreac_1.h5");
