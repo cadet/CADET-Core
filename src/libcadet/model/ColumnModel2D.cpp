@@ -575,23 +575,22 @@ bool ColumnModel2D::configure(IParameterProvider& paramProvider)
 	if ((_disc.nParType > 1) && !paramProvider.exists("PAR_TYPE_VOLFRAC"))
 		throw InvalidParameterException("The required parameter \"PAR_TYPE_VOLFRAC\" was not found");
 
-	// Let PAR_TYPE_VOLFRAC default to 1.0 for backwards compatibility
 	if (paramProvider.exists("PAR_TYPE_VOLFRAC"))
-		_parTypeVolFracMode = readAndRegisterMultiplexParam(paramProvider, _parameters, _parTypeVolFrac, "PAR_TYPE_VOLFRAC", _disc.axNPoints, _disc.radNElem, _disc.nParType, _unitOpIdx);
-	else
+		_parTypeVolFracMode = readAndRegisterMultiplexParam(paramProvider, _parameters, _parTypeVolFrac, "PAR_TYPE_VOLFRAC", _disc.axNPoints, _disc.radNPoints, _disc.nParType, _unitOpIdx);
+	else if (_disc.nParType == 1)
 	{
-		// Only one particle type present
-		_parTypeVolFrac.resize(_disc.nParType * _disc.axNPoints * _disc.radNElem, 1.0);
+		_parTypeVolFrac.resize(_disc.axNPoints * _disc.radNPoints, 1.0);
 		_parTypeVolFracMode = MultiplexMode::Independent;
 	}
 
-	if (_disc.nParType * _disc.axNPoints * _disc.radNElem != _parTypeVolFrac.size())
-		throw InvalidParameterException("Number of elements in field PAR_TYPE_VOLFRAC does not match number of particle types times RAD_NELEM * (AX_POLYDEG+1)*AX_NELEM");
+
+	if (_disc.nParType * _disc.axNPoints * _disc.radNPoints != _parTypeVolFrac.size())
+		throw InvalidParameterException("Number of elements in field PAR_TYPE_VOLFRAC does not match number of particle types times (RAD_POLYDEG+1)*RAD_NELEM * (AX_POLYDEG+1)*AX_NELEM");
 
 	// Check that particle volume fractions sum up to 1.0
 	if (_disc.nParType > 0)
 	{
-		for (unsigned int i = 0; i < _disc.axNPoints * _disc.radNElem; ++i)
+		for (unsigned int i = 0; i < _disc.nBulkPoints; ++i)
 		{
 			const double volFracSum = std::accumulate(_parTypeVolFrac.begin() + i * _disc.nParType, _parTypeVolFrac.begin() + (i + 1) * _disc.nParType, 0.0,
 				[](double a, const active& b) -> double { return a + static_cast<double>(b); });
@@ -704,7 +703,7 @@ bool ColumnModel2D::configure(IParameterProvider& paramProvider)
 		paramProvider.popScope();
 	}
 
-	setGlobalJacPattern(_globalJac);
+	setGlobalJacPattern(_globalJac, 0);
 	_globalJacDisc = _globalJac;
 
 	// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
@@ -1038,10 +1037,10 @@ int ColumnModel2D::residual(const SimulationTime& simTime, const ConstSimulation
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 int ColumnModel2D::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
-	// reset Jacobian
-	if (_disc.newStaticJac) // also reset pattern
+	// reset Jacobian pattern every section
+	if (_disc.newStaticJac)
 	{
-		setGlobalJacPattern(_globalJac);
+		setGlobalJacPattern(_globalJac, secIdx);
 	}
 	else if (wantJac)
 	{
@@ -1058,8 +1057,13 @@ int ColumnModel2D::residualImpl(double t, unsigned int secIdx, StateType const* 
 		{
 			if (wantJac || _disc.newStaticJac)
 			{
-				_convDispOp.assembleConvDispJacobian(_globalJac, _jacInlet);
+				bool success = calcTransportJacobian(secIdx);
+
 				_disc.newStaticJac = false;
+
+				if (cadet_unlikely(!success)) {
+					LOG(Error) << "Jacobian pattern did not fit the Jacobian estimation";
+				}
 			}
 
 			residualBulk<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, y, yDot, res, threadLocalMem);
@@ -1078,7 +1082,7 @@ int ColumnModel2D::residualImpl(double t, unsigned int secIdx, StateType const* 
 			linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colPoint }) - idxr.offsetC());
 			model::columnPackingParameters packing
 			{
-				_parTypeVolFrac[axPoint * _disc.nParType * _disc.radNElem + radElem * _disc.nParType + parType],
+				_parTypeVolFrac[colPoint * _disc.nParType + parType],
 				_convDispOp.columnPorosity(radElem),
 				ColumnPosition{ _convDispOp.relativeAxialCoordinate(axPoint), _convDispOp.relativeRadialCoordinate(radPoint), 0.0 }
 			};
@@ -1359,7 +1363,7 @@ bool ColumnModel2D::setParameter(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (multiplexParameterValue(pId, hashString("PAR_TYPE_VOLFRAC"), _parTypeVolFracMode, _parTypeVolFrac, _disc.axNPoints, _disc.radNElem, _disc.nParType, value, nullptr))
+		if (multiplexParameterValue(pId, hashString("PAR_TYPE_VOLFRAC"), _parTypeVolFracMode, _parTypeVolFrac, _disc.axNPoints, _disc.radNPoints, _disc.nParType, value, nullptr))
 			return true;
 		const int mpIc = multiplexInitialConditions(pId, value, false);
 		if (mpIc > 0)
@@ -1466,7 +1470,7 @@ void ColumnModel2D::setSensitiveParameterValue(const ParameterId& pId, double va
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (multiplexParameterValue(pId, hashString("PAR_TYPE_VOLFRAC"), _parTypeVolFracMode, _parTypeVolFrac, _disc.axNPoints, _disc.radNElem, _disc.nParType, value, &_sensParams))
+		if (multiplexParameterValue(pId, hashString("PAR_TYPE_VOLFRAC"), _parTypeVolFracMode, _parTypeVolFrac, _disc.axNPoints, _disc.radNPoints, _disc.nParType, value, &_sensParams))
 			return;
 		if (multiplexInitialConditions(pId, value, true) != 0)
 			return;
@@ -1506,7 +1510,7 @@ bool ColumnModel2D::setSensitiveParameter(const ParameterId& pId, unsigned int a
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (multiplexParameterAD(pId, hashString("PAR_TYPE_VOLFRAC"), _parTypeVolFracMode, _parTypeVolFrac, _disc.axNPoints, _disc.radNElem, _disc.nParType, adDirection, adValue, _sensParams))
+		if (multiplexParameterAD(pId, hashString("PAR_TYPE_VOLFRAC"), _parTypeVolFracMode, _parTypeVolFrac, _disc.axNPoints, _disc.radNPoints, _disc.nParType, adDirection, adValue, _sensParams))
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;

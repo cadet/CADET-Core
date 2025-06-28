@@ -201,6 +201,37 @@ protected:
 	class Indexer;
 
 	int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity);
+	
+	int calcTransportJacobian(unsigned int secIdx)
+	{
+		Indexer idxr(_disc);
+		// inlet and bulk jacobian
+		_convDispOp.assembleConvDispJacobian(_globalJac, _jacInlet);
+
+		// particle transport diffusion Jacobian (without isotherm, which is handled in residualKernel)
+		for (int colNode = 0; colNode < _disc.nBulkPoints; colNode++)
+		{
+			for (int parType = 0; parType < _disc.nParType; parType++)
+			{
+				_particles[parType]->calcParticleDiffJacobian(secIdx, colNode, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }) - idxr.offsetC(), _globalJac);
+			}
+		}
+
+		// film diffusion Jacobian
+		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
+		{
+			for (unsigned int z = 0; z < _disc.axNPoints; z++)
+			{
+				for (unsigned int r = 0; r < _disc.radNElem; r++)
+				{
+					const unsigned int colNode = z * _disc.radNPoints + r * _disc.radNNodes;
+					_particles[parType]->calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }) - idxr.offsetC(), colNode * idxr.strideColRadialNode(), _disc.radNNodes, _disc.nParType, static_cast<double>(_convDispOp.columnPorosity(r)), &_parTypeVolFrac[colNode * _disc.nParType], _globalJac);
+				}
+			}
+		}
+
+		return _globalJac.isCompressed(); // check if the jacobian estimation fits the pattern
+	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes = true>
 	int residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem);
@@ -431,48 +462,10 @@ protected:
 
 	typedef Eigen::Triplet<double> T;
 
-	void setFilmDiffFluxPattern(std::vector<T>& tripletList)
-	{
-		Indexer idxr(_disc);
-
-		for (unsigned int parType = 0; parType < _disc.nParType; parType++) {
-
-			int offC = 0; // inlet DOFs not included in Jacobian
-			int offP = idxr.offsetCp(ParticleTypeIndex{ parType }) - idxr.offsetC(); // inlet DOFs not included in Jacobian
-
-			// add dependency of c^b, c^p and flux on another
-			for (unsigned int node = 0; node < _disc.nBulkPoints; node++) {
-				for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
-					// c^b on c^b entry already set
-					tripletList.push_back(T(offC + node * _disc.nComp + comp, offP + node * idxr.strideParBlock(parType) + comp, 0.0)); // c^b on c^p
-					// c^p on c^p entry already set
-					tripletList.push_back(T(offP + node * idxr.strideParBlock(parType) + comp, offC + node * _disc.nComp + comp, 0.0)); // c^p on c^b
-				}
-			}
-		}
-	}
-
-	void setParticlePattern(std::vector<T>& tripletList, Indexer& idxr)
-	{
-		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
-		{
-			for (unsigned int par = 0; par < _disc.nBulkPoints; par++)
-			{
-				const int offPar = idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ par }) - idxr.offsetC();
-
-				for (unsigned int conc = 0; conc < idxr.strideParLiquid() + idxr.strideParBound(parType); conc++)
-				{
-					for (unsigned int concDep = 0; concDep < idxr.strideParLiquid() + idxr.strideParBound(parType); concDep++)
-						tripletList.push_back(T(offPar + conc, offPar + concDep, 0.0));
-				}
-			}
-		}
-	}
-
 	/**
 	* @brief sets the sparsity pattern of the convection dispersion Jacobian
 	*/
-	void setGlobalJacPattern(Eigen::SparseMatrix<double, Eigen::RowMajor>& mat)
+	void setGlobalJacPattern(Eigen::SparseMatrix<double, Eigen::RowMajor>& mat, const int secIdx)
 	{
 		std::vector<T> tripletList;
 
@@ -486,11 +479,11 @@ protected:
 
 		_convDispOp.convDispJacPattern(tripletList);
 
-		// note: bulk reaction pattern already set in convDispJacPattern
-
-		setParticlePattern(tripletList, idxr);
-
-		setFilmDiffFluxPattern(tripletList);
+		for (int parType = 0; parType < _disc.nParType; parType++)
+		{
+			for (int colNode = 0; colNode < _disc.nBulkPoints; colNode++)
+				_particles[parType]->setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }) - idxr.offsetC(), colNode * idxr.strideColRadialNode(), colNode, secIdx);
+		}
 
 		mat.setFromTriplets(tripletList.begin(), tripletList.end());
 	}

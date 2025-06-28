@@ -93,7 +93,7 @@ TEST_CASE("Column_2D as LRMP pure bulk transport Jacobian with radially variable
 
 	// Required AD directions:
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
-	// req. AD dirs: 12radPoints + 144 pure dofs (12axPoints*12radPoints) * (1 + 0)
+	// req. AD dirs: 156 = 12radPoints + 144 pure dofs (12axPoints*12radPoints) * (1 + 0)
 	test2DColumnJacobian(relModelFilePath, 6, 6, 1, 1, 6, 6);
 }
 
@@ -107,7 +107,7 @@ TEST_CASE("Column_2D as LRMP 1comp lin. binding Jacobian", "[Column_2D],[DG],[DG
 	test2DColumnJacobian(relModelFilePath, 3, 4, 1, 1, 3, 4);
 }
 
-TEST_CASE("Column_2D as LRMP with 2parType no binding Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[todoCI]")
+TEST_CASE("Column_2D as LRMP with 2parType no binding Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
 {
 	const std::string relModelFilePath = std::string("/data/model_COL2D_LRMP_2parType_1comp.json");
 
@@ -117,7 +117,7 @@ TEST_CASE("Column_2D as LRMP with 2parType no binding Jacobian", "[Column_2D],[D
 	test2DColumnJacobian(relModelFilePath, 3, 4, 1, 1, 3, 4);
 }
 
-TEST_CASE("Column_2D as LRMP with two component linear binding Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[todoCI]")
+TEST_CASE("Column_2D as LRMP with two component linear binding Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
 {
 	const std::string relModelFilePath = std::string("/data/model_COL2D_LRMP_dynLin_2comp.json");
 
