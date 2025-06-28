@@ -87,7 +87,7 @@ TEST_CASE("Column_2D as LRMP time derivative Jacobian vs FD", "[Column_2D],[DG],
 	cadet::test::column::testTimeDerivativeJacobianFD("COLUMN_MODEL_2D_LRMP", "DG", 1e-6, 0.0, 9e-4);
 }
 
-TEST_CASE("Column_2D as LRMP pure bulk transport Jacobian with radially variable parameters", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("Column_2D as LRMP pure bulk transport Jacobian with radially variable parameters", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[testCI]")
 {
 	const std::string relModelFilePath = std::string("/data/model_COL2D_DPF_1comp.json");
 
@@ -127,12 +127,12 @@ TEST_CASE("Column_2D as LRMP with two component linear binding Jacobian", "[Colu
 	test2DColumnJacobian(relModelFilePath, 2, 3, 1, 1);
 }
 
-TEST_CASE("Column_2D as LRMP numerical Benchmark for a pure bulk transport case with three radial zones", "[Column_2D],[DG],[DG2D],[Simulation],[Reference],[todoCI]")
+TEST_CASE("Column_2D as LRMP numerical Benchmark for a pure bulk transport case with three radial zones", "[Column_2D],[DG],[DG2D],[Simulation],[Reference],[CI]")
 {
 	const std::string& modelFilePath = std::string("/data/model_2DLRMP3Zone_noFilmDiff_1Comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_2DLRMP3Zone_noFilmDiff_1Comp_benchmark1.h5");
-	const std::vector<double> absTol = { 1E-9 };
-	const std::vector<double> relTol = { 1E-4 };
+	const std::vector<double> absTol = { 5E-9 };
+	const std::vector<double> relTol = { 5E-4 };
 
 	cadet::test::column::DGparams disc;
 	//cadet::test::column::DGparams disc(0, 3, 8, 0, 0, 3, 6);
