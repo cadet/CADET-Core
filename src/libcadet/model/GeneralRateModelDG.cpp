@@ -847,7 +847,7 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 		if (!wantRes || _disc.newStaticJac)
 		{
 			// estimate new static (per section) jacobian
-			bool success = calcStaticAnaJacobian_GRM(secIdx);
+			bool success = calcTransportJacobian_GRM(secIdx);
 
 			_disc.newStaticJac = false;
 
@@ -962,7 +962,7 @@ parts::cell::CellParameters GeneralRateModelDG::makeCellResidualParams(unsigned 
 			_disc.strideBound[parType],
 			qsReaction,
 			_particle[parType].getPorosity(),
-			_particle[parType].getPoreAccessfactor(),
+			_particle[parType].getPoreAccessFactor(),
 			_binding[parType],
 			(_dynReaction[parType] && (_dynReaction[parType]->numReactionsCombined() > 0)) ? _dynReaction[parType] : nullptr
 		};

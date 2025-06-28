@@ -455,7 +455,7 @@ int AxialConvectionDispersionOperatorBaseDG::residualImpl(const IModel& model, d
 * @brief analytically calculates the (static) state jacobian
 * @return 1 if jacobain estimation fits the predefined pattern of the jacobian, 0 if not.
 */
-int AxialConvectionDispersionOperatorBaseDG::calcStaticAnaJacobian(Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset) {
+int AxialConvectionDispersionOperatorBaseDG::calcTransportJacobian(Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset) {
 
 	// DG convection dispersion Jacobian
 	if (_exactInt)

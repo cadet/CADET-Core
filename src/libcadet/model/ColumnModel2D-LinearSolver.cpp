@@ -10,7 +10,7 @@
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
 
-#include "model/LumpedRateModelWithPoresDG2D.hpp"
+#include "model/ColumnModel2D.hpp"
 #include "model/BindingModel.hpp"
 #include "model/parts/BindingCellKernel.hpp"
 #include "linalg/DenseMatrix.hpp"
@@ -97,7 +97,7 @@ namespace model
  * @param [in] simState State of the simulation (state vector and its time derivatives) at which the Jacobian is evaluated
  * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
  */
-int LumpedRateModelWithPoresDG2D::linearSolve(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
+int ColumnModel2D::linearSolve(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
 	const ConstSimulationState& simState)
 {
 	BENCH_SCOPE(_timerLinearSolve);
@@ -112,9 +112,9 @@ int LumpedRateModelWithPoresDG2D::linearSolve(double t, double alpha, double out
 		// Assemble and factorize discretized bulk Jacobian
 		assembleDiscretizedGlobalJacobian(alpha, idxr);
 
-		_globalSolver.factorize(_globalJacDisc);
+		_linearSolver->factorize(_globalJacDisc);
 
-		if (cadet_unlikely(_globalSolver.info() != Eigen::Success)) {
+		if (cadet_unlikely(_linearSolver->info() != Eigen::Success)) {
 			LOG(Error) << "Factorize() failed";
 		}
 
@@ -137,9 +137,9 @@ int LumpedRateModelWithPoresDG2D::linearSolve(double t, double alpha, double out
 
 	Eigen::Map<Eigen::VectorXd> r(rhs, numDofs());
 
-	r.segment(idxr.offsetC(), numPureDofs()) = _globalSolver.solve(r.segment(idxr.offsetC(), numPureDofs()));
+	r.segment(idxr.offsetC(), numPureDofs()) = _linearSolver->solve(r.segment(idxr.offsetC(), numPureDofs()));
 
-	if (cadet_unlikely(_globalSolver.info() != Eigen::Success))
+	if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 	{
 		LOG(Error) << "Solve() failed";
 	}
@@ -162,7 +162,7 @@ int LumpedRateModelWithPoresDG2D::linearSolve(double t, double alpha, double out
  *
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  */
-void LumpedRateModelWithPoresDG2D::assembleDiscretizedGlobalJacobian(double alpha, Indexer idxr) {
+void ColumnModel2D::assembleDiscretizedGlobalJacobian(double alpha, Indexer idxr) {
 
 	// set to static (per section) jacobian
 	_globalJacDisc = _globalJac;
@@ -191,7 +191,7 @@ void LumpedRateModelWithPoresDG2D::assembleDiscretizedGlobalJacobian(double alph
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  * @param [in] parType Index of the particle type
  */
-void LumpedRateModelWithPoresDG2D::addTimeDerivativeToJacobianParticleBlock(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, unsigned int parType)
+void ColumnModel2D::addTimeDerivativeToJacobianParticleBlock(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, unsigned int parType)
 {
 	// Mobile phase
 	for (int comp = 0; comp < static_cast<int>(_disc.nComp); ++comp, ++jac)
@@ -199,7 +199,7 @@ void LumpedRateModelWithPoresDG2D::addTimeDerivativeToJacobianParticleBlock(lina
 		// Add derivative with respect to dc_p / dt to Jacobian
 		jac[0] += alpha;
 
-		const double invBetaP = (1.0 - static_cast<double>(_parPorosity[parType])) / (static_cast<double>(_poreAccessFactor[parType * _disc.nComp + comp]) * static_cast<double>(_parPorosity[parType]));
+		const double invBetaP = (1.0 - static_cast<double>(_particles[parType]->getPorosity())) / (static_cast<double>(_particles[parType]->getPoreAccessFactor()[comp]) * static_cast<double>(_particles[parType]->getPorosity()));
 
 		// Add derivative with respect to dq / dt to Jacobian
 		const int nBound = static_cast<int>(_disc.nBound[parType * _disc.nComp + comp]);

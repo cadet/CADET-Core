@@ -375,7 +375,7 @@ namespace cadet
 						_disc.strideBound[type],
 						_binding[type]->reactionQuasiStationarity(),
 						_particle[type].getPorosity(),
-						_particle[type].getPoreAccessfactor(),
+						_particle[type].getPoreAccessFactor(),
 						_binding[type],
 						(_dynReaction[type] && (_dynReaction[type]->numReactionsCombined() > 0)) ? _dynReaction[type] : nullptr
 					};

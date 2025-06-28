@@ -613,7 +613,7 @@ namespace cadet
 
 				if (!wantRes || _disc.newStaticJac) {
 
-					success = _convDispOp.calcStaticAnaJacobian(_jac, _jacInlet);
+					success = _convDispOp.calcTransportJacobian(_jac, _jacInlet);
 
 					_disc.newStaticJac = false;
 				}

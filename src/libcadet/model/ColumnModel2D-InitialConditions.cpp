@@ -10,7 +10,7 @@
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
 
-#include "model/LumpedRateModelWithPoresDG2D.hpp"
+#include "model/ColumnModel2D.hpp"
 #include "model/BindingModel.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/Subset.hpp"
@@ -37,14 +37,14 @@ namespace cadet
 namespace model
 {
 
-int LumpedRateModelWithPoresDG2D::multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue)
+int ColumnModel2D::multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue)
 {
 	if (pId.name == hashString("INIT_C") && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep))
 	{
 		if ((pId.reaction == ReactionIndep) && _singleRadiusInitC)
 		{
 			_sensParams.insert(&_initC[pId.component]);
-			for (unsigned int r = 0; r < _disc.radNPoints; ++r)
+			for (unsigned int r = 0; r < _disc.radNElem; ++r)
 				_initC[r * _disc.nComp + pId.component].setADValue(adDirection, adValue);
 
 			return 1;
@@ -68,7 +68,7 @@ int LumpedRateModelWithPoresDG2D::multiplexInitialConditions(const cadet::Parame
 			if ((pId.name == hashString("INIT_CP")) && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
 			{
 				_sensParams.insert(&_initCp[pId.component]);
-				for (unsigned int r = 0; r < _disc.radNPoints; ++r)
+				for (unsigned int r = 0; r < _disc.radNElem; ++r)
 				{
 					for (unsigned int t = 0; t < _disc.nParType; ++t)
 						_initCp[r * _disc.nComp * _disc.nParType + t * _disc.nComp + pId.component].setADValue(adDirection, adValue);
@@ -92,32 +92,32 @@ int LumpedRateModelWithPoresDG2D::multiplexInitialConditions(const cadet::Parame
 				return -1;
 		}
 
-		if (_singleRadiusInitQ)
+		if (_singleRadiusInitCs)
 		{
-			if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+			if ((pId.name == hashString("INIT_CS")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
 			{
-				_sensParams.insert(&_initQ[_disc.nBoundBeforeType[0] + _disc.boundOffset[pId.component] + pId.boundState]);
-				for (unsigned int r = 0; r < _disc.radNPoints; ++r)
+				_sensParams.insert(&_initCs[_disc.nBoundBeforeType[0] + _disc.boundOffset[pId.component] + pId.boundState]);
+				for (unsigned int r = 0; r < _disc.radNElem; ++r)
 				{
 					for (unsigned int t = 0; t < _disc.nParType; ++t)
-						_initQ[r * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[t] + _disc.boundOffset[t * _disc.nComp + pId.component] + pId.boundState].setADValue(adDirection, adValue);
+						_initCs[r * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[t] + _disc.boundOffset[t * _disc.nComp + pId.component] + pId.boundState].setADValue(adDirection, adValue);
 				}
 				return 1;
 			}
-			else if (pId.name == hashString("INIT_Q"))
+			else if (pId.name == hashString("INIT_CS"))
 				return -1;
 		}
 		else
 		{
-			if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction != ReactionIndep))
+			if ((pId.name == hashString("INIT_CS")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction != ReactionIndep))
 			{
-				_sensParams.insert(&_initQ[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[0] + _disc.boundOffset[pId.component] + pId.boundState]);
+				_sensParams.insert(&_initCs[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[0] + _disc.boundOffset[pId.component] + pId.boundState]);
 				for (unsigned int t = 0; t < _disc.nParType; ++t)
-					_initQ[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[t] + _disc.boundOffset[t * _disc.nComp + pId.component] + pId.boundState].setADValue(adDirection, adValue);
+					_initCs[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[t] + _disc.boundOffset[t * _disc.nComp + pId.component] + pId.boundState].setADValue(adDirection, adValue);
 
 				return 1;
 			}
-			else if (pId.name == hashString("INIT_Q"))
+			else if (pId.name == hashString("INIT_CS"))
 				return -1;
 		}
 	}
@@ -128,7 +128,7 @@ int LumpedRateModelWithPoresDG2D::multiplexInitialConditions(const cadet::Parame
 			if ((pId.name == hashString("INIT_CP")) && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
 			{
 				_sensParams.insert(&_initCp[pId.particleType * _disc.nComp + pId.component]);
-				for (unsigned int r = 0; r < _disc.radNPoints; ++r)
+				for (unsigned int r = 0; r < _disc.radNElem; ++r)
 					_initCp[r * _disc.nComp * _disc.nParType + pId.particleType * _disc.nComp + pId.component].setADValue(adDirection, adValue);
 
 				return 1;
@@ -149,36 +149,36 @@ int LumpedRateModelWithPoresDG2D::multiplexInitialConditions(const cadet::Parame
 				return -1;
 		}
 
-		if (_singleRadiusInitQ)
+		if (_singleRadiusInitCs)
 		{
-			if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+			if ((pId.name == hashString("INIT_CS")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
 			{
-				_sensParams.insert(&_initQ[_disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState]);
-				for (unsigned int r = 0; r < _disc.radNPoints; ++r)
-					_initQ[r * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState].setADValue(adDirection, adValue);
+				_sensParams.insert(&_initCs[_disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState]);
+				for (unsigned int r = 0; r < _disc.radNElem; ++r)
+					_initCs[r * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState].setADValue(adDirection, adValue);
 
 				return 1;
 			}
-			else if (pId.name == hashString("INIT_Q"))
+			else if (pId.name == hashString("INIT_CS"))
 				return -1;
 		}
 		else
 		{
-			if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction != ReactionIndep))
+			if ((pId.name == hashString("INIT_CS")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction != ReactionIndep))
 			{
-				_sensParams.insert(&_initQ[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState]);
-				_initQ[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState].setADValue(adDirection, adValue);
+				_sensParams.insert(&_initCs[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState]);
+				_initCs[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState].setADValue(adDirection, adValue);
 
 				return 1;
 			}
-			else if (pId.name == hashString("INIT_Q"))
+			else if (pId.name == hashString("INIT_CS"))
 				return -1;
 		}
 	}
 	return 0;
 }
 
-int LumpedRateModelWithPoresDG2D::multiplexInitialConditions(const cadet::ParameterId& pId, double val, bool checkSens)
+int ColumnModel2D::multiplexInitialConditions(const cadet::ParameterId& pId, double val, bool checkSens)
 {
 	if (pId.name == hashString("INIT_C") && (pId.section == SectionIndep) && (pId.boundState == BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep))
 	{
@@ -187,7 +187,7 @@ int LumpedRateModelWithPoresDG2D::multiplexInitialConditions(const cadet::Parame
 			if (checkSens && !contains(_sensParams, &_initC[pId.component]))
 				return -1;
 
-			for (unsigned int r = 0; r < _disc.radNPoints; ++r)
+			for (unsigned int r = 0; r < _disc.radNElem; ++r)
 				_initC[r * _disc.nComp + pId.component].setValue(val);
 
 			return 1;
@@ -213,7 +213,7 @@ int LumpedRateModelWithPoresDG2D::multiplexInitialConditions(const cadet::Parame
 				if (checkSens && !contains(_sensParams, &_initCp[pId.component]))
 					return -1;
 
-				for (unsigned int r = 0; r < _disc.radNPoints; ++r)
+				for (unsigned int r = 0; r < _disc.radNElem; ++r)
 				{
 					for (unsigned int t = 0; t < _disc.nParType; ++t)
 						_initCp[r * _disc.nComp * _disc.nParType + t * _disc.nComp + pId.component].setValue(val);
@@ -240,37 +240,37 @@ int LumpedRateModelWithPoresDG2D::multiplexInitialConditions(const cadet::Parame
 				return -1;
 		}
 
-		if (_singleRadiusInitQ)
+		if (_singleRadiusInitCs)
 		{
-			if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+			if ((pId.name == hashString("INIT_CS")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
 			{
-				if (checkSens && !contains(_sensParams, &_initQ[_disc.nBoundBeforeType[0] + _disc.boundOffset[pId.component] + pId.boundState]))
+				if (checkSens && !contains(_sensParams, &_initCs[_disc.nBoundBeforeType[0] + _disc.boundOffset[pId.component] + pId.boundState]))
 					return -1;
 
-				for (unsigned int r = 0; r < _disc.radNPoints; ++r)
+				for (unsigned int r = 0; r < _disc.radNElem; ++r)
 				{
 					for (unsigned int t = 0; t < _disc.nParType; ++t)
-						_initQ[r * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[t] + _disc.boundOffset[t * _disc.nComp + pId.component] + pId.boundState].setValue(val);
+						_initCs[r * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[t] + _disc.boundOffset[t * _disc.nComp + pId.component] + pId.boundState].setValue(val);
 				}
 
 				return 1;
 			}
-			else if (pId.name == hashString("INIT_Q"))
+			else if (pId.name == hashString("INIT_CS"))
 				return -1;
 		}
 		else
 		{
-			if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction != ReactionIndep))
+			if ((pId.name == hashString("INIT_CS")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType == ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction != ReactionIndep))
 			{
-				if (checkSens && !contains(_sensParams, &_initQ[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[0] + _disc.boundOffset[pId.component] + pId.boundState]))
+				if (checkSens && !contains(_sensParams, &_initCs[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[0] + _disc.boundOffset[pId.component] + pId.boundState]))
 					return -1;
 
 				for (unsigned int t = 0; t < _disc.nParType; ++t)
-					_initQ[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[t] + _disc.boundOffset[t * _disc.nComp + pId.component] + pId.boundState].setValue(val);
+					_initCs[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[t] + _disc.boundOffset[t * _disc.nComp + pId.component] + pId.boundState].setValue(val);
 
 				return 1;
 			}
-			else if (pId.name == hashString("INIT_Q"))
+			else if (pId.name == hashString("INIT_CS"))
 				return -1;
 		}
 	}
@@ -283,7 +283,7 @@ int LumpedRateModelWithPoresDG2D::multiplexInitialConditions(const cadet::Parame
 				if (checkSens && !contains(_sensParams, &_initCp[pId.particleType * _disc.nComp + pId.component]))
 					return -1;
 
-				for (unsigned int r = 0; r < _disc.radNPoints; ++r)
+				for (unsigned int r = 0; r < _disc.radNElem; ++r)
 					_initCp[r * _disc.nComp * _disc.nParType + pId.particleType * _disc.nComp + pId.component].setValue(val);
 
 				return 1;
@@ -306,40 +306,40 @@ int LumpedRateModelWithPoresDG2D::multiplexInitialConditions(const cadet::Parame
 				return -1;
 		}
 
-		if (_singleRadiusInitQ)
+		if (_singleRadiusInitCs)
 		{
-			if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
+			if ((pId.name == hashString("INIT_CS")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction == ReactionIndep))
 			{
-				if (checkSens && !contains(_sensParams, &_initQ[_disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState]))
+				if (checkSens && !contains(_sensParams, &_initCs[_disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState]))
 					return -1;
 
-				for (unsigned int r = 0; r < _disc.radNPoints; ++r)
-					_initQ[r * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState].setValue(val);
+				for (unsigned int r = 0; r < _disc.radNElem; ++r)
+					_initCs[r * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState].setValue(val);
 
 				return 1;
 			}
-			else if (pId.name == hashString("INIT_Q"))
+			else if (pId.name == hashString("INIT_CS"))
 				return -1;
 		}
 		else
 		{
-			if ((pId.name == hashString("INIT_Q")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction != ReactionIndep))
+			if ((pId.name == hashString("INIT_CS")) && (pId.section == SectionIndep) && (pId.boundState != BoundStateIndep) && (pId.particleType != ParTypeIndep) && (pId.component != CompIndep) && (pId.reaction != ReactionIndep))
 			{
-				if (checkSens && !contains(_sensParams, &_initQ[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState]))
+				if (checkSens && !contains(_sensParams, &_initCs[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState]))
 					return -1;
 
-				_initQ[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState].setValue(val);
+				_initCs[pId.reaction * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[pId.particleType] + _disc.boundOffset[pId.particleType * _disc.nComp + pId.component] + pId.boundState].setValue(val);
 
 				return 1;
 			}
-			else if (pId.name == hashString("INIT_Q"))
+			else if (pId.name == hashString("INIT_CS"))
 				return -1;
 		}
 	}
 	return 0;
 }
 
-void LumpedRateModelWithPoresDG2D::applyInitialCondition(const SimulationState& simState) const
+void ColumnModel2D::applyInitialCondition(const SimulationState& simState) const
 {
 	Indexer idxr(_disc);
 
@@ -366,11 +366,14 @@ void LumpedRateModelWithPoresDG2D::applyInitialCondition(const SimulationState& 
 	for (unsigned int col = 0; col < _disc.axNPoints; ++col)
 	{
 		// Loop over radial cells
-		for (unsigned int rad = 0; rad < _disc.radNPoints; ++rad)
+		for (unsigned int radZone = 0; radZone < _disc.radNElem; ++radZone)
 		{
 			// Loop over components in cell
 			for (unsigned comp = 0; comp < _disc.nComp; ++comp)
-				stateYbulk[col * idxr.strideColAxialNode() + rad * idxr.strideColRadialNode() + comp * idxr.strideColComp()] = static_cast<double>(_initC[comp + rad * _disc.nComp]);
+			{
+				for (unsigned radNode = 0; radNode < _disc.radNNodes; ++radNode)
+					stateYbulk[col * idxr.strideColAxialNode() + radZone * idxr.strideColRadialZone() + radNode * idxr.strideColRadialNode() + comp * idxr.strideColComp()] = static_cast<double>(_initC[comp + radZone * _disc.nComp]);
+			}
 		}
 	}
 
@@ -387,14 +390,14 @@ void LumpedRateModelWithPoresDG2D::applyInitialCondition(const SimulationState& 
 				simState.vecStateY[offset + comp] = static_cast<double>(_initCp[comp + _disc.nComp * type + rad * _disc.nComp * _disc.nParType]);
 
 			// Initialize q
-			active const* const iq = _initQ.data() + rad * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[type];
+			active const* const iq = _initCs.data() + rad * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[type];
 			for (unsigned int bnd = 0; bnd < _disc.strideBound[type]; ++bnd)
 				simState.vecStateY[offset + idxr.strideParLiquid() + bnd] = static_cast<double>(iq[bnd]);
 		}
 	}
 }
 
-void LumpedRateModelWithPoresDG2D::readInitialCondition(IParameterProvider& paramProvider)
+void ColumnModel2D::readInitialCondition(IParameterProvider& paramProvider)
 {
 	_initState.clear();
 	_initStateDot.clear();
@@ -412,118 +415,90 @@ void LumpedRateModelWithPoresDG2D::readInitialCondition(IParameterProvider& para
 	}
 
 	const std::vector<double> initC = paramProvider.getDoubleArray("INIT_C");
-	_singleRadiusInitC = (initC.size() < _disc.nComp * _disc.radNPoints);
+	_singleRadiusInitC = (initC.size() < _disc.nComp * _disc.radNElem);
 
-	if (((initC.size() < _disc.nComp) && _singleRadiusInitC) || ((initC.size() < _disc.nComp * _disc.radNPoints) && !_singleRadiusInitC))
+	if (((initC.size() < _disc.nComp) && _singleRadiusInitC) || ((initC.size() < _disc.nComp * _disc.radNElem) && !_singleRadiusInitC))
 		throw InvalidParameterException("INIT_C does not contain enough values for all components (and radial zones)");
 
 	if (!_singleRadiusInitC)
-		ad::copyToAd(initC.data(), _initC.data(), _disc.nComp * _disc.radNPoints);
+		ad::copyToAd(initC.data(), _initC.data(), _disc.nComp * _disc.radNElem);
 	else
 	{
-		for (unsigned int r = 0; r < _disc.radNPoints; ++r)
+		for (unsigned int r = 0; r < _disc.radNElem; ++r)
 			ad::copyToAd(initC.data(), _initC.data() + r * _disc.nComp, _disc.nComp);
 	}
 
-	// Check if INIT_CP is present
-	if (paramProvider.exists("INIT_CP"))
+	// Check if INIT_CP is present, otherwise copy from INIT_C
+	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		const std::vector<double> initCp = paramProvider.getDoubleArray("INIT_CP");
+		paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
 
-		_singleRadiusInitCp = (initCp.size() == _disc.nComp * _disc.nParType) || (initCp.size() == _disc.nComp);
-
-		if (
-			((initCp.size() < _disc.nComp * _disc.nParType) && !_singleBinding && _singleRadiusInitCp) || ((initCp.size() < _disc.nComp) && _singleBinding && _singleRadiusInitCp)
-				|| ((initCp.size() < _disc.nComp * _disc.radNPoints) && _singleBinding && !_singleRadiusInitCp)
-				|| ((initCp.size() < _disc.nComp * _disc.nParType * _disc.radNPoints) && !_singleBinding && !_singleRadiusInitCp)
-			)
-			throw InvalidParameterException("INIT_CP does not contain enough values for all components");
-
-		if (!_singleBinding && !_singleRadiusInitCp)
-			ad::copyToAd(initCp.data(), _initCp.data(), _disc.nComp * _disc.nParType * _disc.radNPoints);
-		else if (!_singleBinding && _singleRadiusInitCp)
+		if (paramProvider.exists("INIT_CP"))
 		{
-			for (unsigned int r = 0; r < _disc.radNPoints; ++r)
-				ad::copyToAd(initCp.data(), _initCp.data() + r * _disc.nComp * _disc.nParType, _disc.nComp * _disc.nParType);
-		}
-		else if (_singleBinding && !_singleRadiusInitCp)
-		{
-			for (unsigned int r = 0; r < _disc.radNPoints; ++r)
+			const std::vector<double> initCp = paramProvider.getDoubleArray("INIT_CP");
+
+			_singleRadiusInitCp = initCp.size() == _disc.nComp;
+
+			if (
+				initCp.size() < _disc.nComp
+				|| ((initCp.size() < _disc.nComp * _disc.radNElem) && !_singleRadiusInitCp)
+				)
+				throw InvalidParameterException("INIT_CP does not contain enough values for all components");
+
+			if (!_singleRadiusInitCp)
+				for (unsigned int r = 0; r < _disc.radNElem; ++r)
+					ad::copyToAd(initCp.data() + r * _disc.nComp, _initCp.data() + parType * _disc.nComp + r * _disc.nParType * _disc.nComp, _disc.nComp);
+			else
 			{
-				for (unsigned int t = 0; t < _disc.nParType; ++t)
-					ad::copyToAd(initCp.data() + r * _disc.nComp, _initCp.data() + t * _disc.nComp + r * _disc.nComp * _disc.nParType, _disc.nComp);
-			}
-		}
-		else if (_singleBinding && _singleRadiusInitCp)
-		{
-			for (unsigned int r = 0; r < _disc.radNPoints; ++r)
-			{
-				for (unsigned int t = 0; t < _disc.nParType; ++t)
-					ad::copyToAd(initCp.data(), _initCp.data() + t * _disc.nComp + r * _disc.nComp * _disc.nParType, _disc.nComp);
-			}
-		}
-	}
-	else
-	{
-		_singleRadiusInitCp = _singleRadiusInitC;
-
-		if (!_singleRadiusInitCp)
-		{
-			for (unsigned int r = 0; r < _disc.radNPoints; ++r)
-			{
-				for (unsigned int t = 0; t < _disc.nParType; ++t)
-					ad::copyToAd(initC.data() + r * _disc.nComp, _initCp.data() + t * _disc.nComp + r * _disc.nComp * _disc.nParType, _disc.nComp);
+				for (unsigned int r = 0; r < _disc.radNElem; ++r)
+					ad::copyToAd(initCp.data(), _initCp.data() + parType * _disc.nComp + r * _disc.nParType * _disc.nComp, _disc.nComp);
 			}
 		}
 		else
 		{
-			for (unsigned int r = 0; r < _disc.radNPoints; ++r)
+			_singleRadiusInitCp = _singleRadiusInitC;
+
+			if (!_singleRadiusInitCp)
 			{
-				for (unsigned int t = 0; t < _disc.nParType; ++t)
-					ad::copyToAd(initC.data(), _initCp.data() + t * _disc.nComp + r * _disc.nComp * _disc.nParType, _disc.nComp);
+				for (unsigned int r = 0; r < _disc.radNElem; ++r)
+					ad::copyToAd(initC.data() + r * _disc.nComp, _initCp.data() + parType * _disc.nComp + r * _disc.nComp * _disc.nParType, _disc.nComp);
+			}
+			else
+			{
+				for (unsigned int r = 0; r < _disc.radNElem; ++r)
+					ad::copyToAd(initC.data(), _initCp.data() + parType * _disc.nComp + r * _disc.nComp * _disc.nParType, _disc.nComp);
 			}
 		}
-	}
 
-	std::vector<double> initQ;
-	if (paramProvider.exists("INIT_Q"))
-	{
-		initQ = paramProvider.getDoubleArray("INIT_Q");
-		_singleRadiusInitQ = (initQ.size() == _disc.strideBound[0]) || (initQ.size() == _disc.strideBound[_disc.nParType]);
-	}
-
-	if (initQ.empty() || (_disc.strideBound[_disc.nParType] == 0))
-		return;
-
-	if ((_disc.strideBound[_disc.nParType] > 0) && (
-		((initQ.size() < _disc.strideBound[_disc.nParType]) && !_singleBinding && _singleRadiusInitQ) || ((initQ.size() < _disc.strideBound[0]) && _singleBinding && _singleRadiusInitQ)
-			|| ((initQ.size() < _disc.strideBound[0] * _disc.radNPoints) && _singleBinding && !_singleRadiusInitQ)
-			|| ((initQ.size() < _disc.strideBound[_disc.nParType] * _disc.radNPoints) && !_singleBinding && !_singleRadiusInitQ)
-		))
-		throw InvalidParameterException("INIT_Q does not contain enough values for all bound states");
-
-	if (!_singleBinding && !_singleRadiusInitQ)
-		ad::copyToAd(initQ.data(), _initQ.data(), _disc.strideBound[_disc.nParType] * _disc.radNPoints);
-	else if (!_singleBinding && _singleRadiusInitQ)
-	{
-		for (unsigned int r = 0; r < _disc.radNPoints; ++r)
-			ad::copyToAd(initQ.data(), _initQ.data() + r * _disc.strideBound[_disc.nParType], _disc.strideBound[_disc.nParType]);
-	}
-	else if (_singleBinding && !_singleRadiusInitQ)
-	{
-		for (unsigned int r = 0; r < _disc.radNPoints; ++r)
+		std::vector<double> initCs;
+		if (paramProvider.exists("INIT_CS"))
 		{
-			for (unsigned int t = 0; t < _disc.nParType; ++t)
-				ad::copyToAd(initQ.data() + r * _disc.strideBound[0], _initQ.data() + _disc.nBoundBeforeType[t] + r * _disc.strideBound[_disc.nParType], _disc.strideBound[t]);
+			initCs = paramProvider.getDoubleArray("INIT_CS");
+			_singleRadiusInitCs = initCs.size() == _disc.strideBound[parType];
 		}
-	}
-	else if (_singleBinding && _singleRadiusInitQ)
-	{
-		for (unsigned int r = 0; r < _disc.radNPoints; ++r)
+
+		if (initCs.empty())
+			return;
+		if (_disc.strideBound[parType] == 0)
+			continue;
+
+		if (initCs.size() < _disc.strideBound[parType]
+			|| (!_singleRadiusInitCs && initCs.size() < _disc.strideBound[parType] * _disc.radNElem)
+			)
+			throw InvalidParameterException("INIT_CS does not contain enough values for all bound states");
+
+		if (!_singleRadiusInitCs)
 		{
-			for (unsigned int t = 0; t < _disc.nParType; ++t)
-				ad::copyToAd(initQ.data(), _initQ.data() + _disc.nBoundBeforeType[t] + r * _disc.strideBound[_disc.nParType], _disc.strideBound[t]);
+			for (unsigned int r = 0; r < _disc.radNElem; ++r)
+				ad::copyToAd(initCs.data() + r * _disc.strideBound[parType], _initCs.data() + parType * _disc.strideBound[parType] + r * _disc.strideBound[parType] * _disc.nParType, _disc.strideBound[parType]);
 		}
+		else if (!_singleBinding && _singleRadiusInitCs)
+		{
+			for (unsigned int r = 0; r < _disc.radNElem; ++r)
+				ad::copyToAd(initCs.data(), _initCs.data() + parType * _disc.strideBound[parType] + r * _disc.strideBound[parType] * _disc.nParType, _disc.strideBound[parType]);
+		}
+
+		paramProvider.popScope();
 	}
 }
 
@@ -563,7 +538,7 @@ void LumpedRateModelWithPoresDG2D::readInitialCondition(IParameterProvider& para
  * @param [in] errorTol Error tolerance for algebraic equations
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void LumpedRateModelWithPoresDG2D::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
+void ColumnModel2D::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -646,8 +621,8 @@ void LumpedRateModelWithPoresDG2D::consistentInitialState(const SimulationTime& 
 				_disc.boundOffset + _disc.nComp * type,
 				_disc.strideBound[type],
 				_binding[type]->reactionQuasiStationarity(),
-				_parPorosity[type],
-				_poreAccessFactor.data() + _disc.nComp * type,
+				_particles[type]->getPorosity(),
+				_particles[type]->getPoreAccessFactor(),
 				_binding[type],
 				(_dynReaction[type] && (_dynReaction[type]->numReactionsCombined() > 0)) ? _dynReaction[type] : nullptr
 			};
@@ -660,7 +635,7 @@ void LumpedRateModelWithPoresDG2D::consistentInitialState(const SimulationTime& 
 			active* const localAdRes = adJac.adRes ? adJac.adRes + localOffsetToParticle : nullptr;
 			active* const localAdY = adJac.adY ? adJac.adY + localOffsetToParticle : nullptr;
 
-			const ColumnPosition colPos{ z, r, static_cast<double>(_parRadius[type]) * 0.5 };
+			const ColumnPosition colPos{ z, r, static_cast<double>(_particles[type]->relativeCoordinate(0)) };
 
 			// Determine whether nonlinear solver is required
 			if (!_binding[type]->preConsistentInitialState(simTime.t, simTime.secIdx, colPos, qShell, qShell - idxr.strideParLiquid(), tlmAlloc))
@@ -670,8 +645,8 @@ void LumpedRateModelWithPoresDG2D::consistentInitialState(const SimulationTime& 
 			linalg::selectVectorSubset(qShell - _disc.nComp, mask, solution);
 
 			// Save values of conserved moieties
-			const double epsQ = 1.0 - static_cast<double>(_parPorosity[type]);
-			linalg::conservedMoietiesFromPartitionedMask(mask, _disc.nBound + type * _disc.nComp, _disc.nComp, qShell - _disc.nComp, conservedQuants, static_cast<double>(_parPorosity[type]), epsQ);
+			const double epsQ = 1.0 - static_cast<double>(_particles[type]->getPorosity());
+			linalg::conservedMoietiesFromPartitionedMask(mask, _disc.nBound + type * _disc.nComp, _disc.nComp, qShell - _disc.nComp, conservedQuants, static_cast<double>(_particles[type]->getPorosity()), epsQ);
 
 			std::function<bool(double const* const, linalg::detail::DenseMatrixBase&)> jacFunc;
 			if (localAdY && localAdRes)
@@ -732,7 +707,7 @@ void LumpedRateModelWithPoresDG2D::consistentInitialState(const SimulationTime& 
 								continue;
 							}
 
-							mat.native(rIdx, rIdx) = static_cast<double>(_parPorosity[type]);
+							mat.native(rIdx, rIdx) = static_cast<double>(_particles[type]->getPorosity());
 
 							for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++bndIdx)
 							{
@@ -780,7 +755,7 @@ void LumpedRateModelWithPoresDG2D::consistentInitialState(const SimulationTime& 
 								continue;
 							}
 
-							mat.native(rIdx, rIdx) = static_cast<double>(_parPorosity[type]);
+							mat.native(rIdx, rIdx) = static_cast<double>(_particles[type]->getPorosity());
 
 							for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++bndIdx)
 							{
@@ -827,7 +802,7 @@ void LumpedRateModelWithPoresDG2D::consistentInitialState(const SimulationTime& 
 							continue;
 						}
 
-						r[rIdx] = static_cast<double>(_parPorosity[type]) * x[rIdx] - conservedQuants[rIdx];
+						r[rIdx] = static_cast<double>(_particles[type]->getPorosity()) * x[rIdx] - conservedQuants[rIdx];
 
 						for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++bndIdx)
 						{
@@ -855,7 +830,7 @@ void LumpedRateModelWithPoresDG2D::consistentInitialState(const SimulationTime& 
 	}
 
 	// reset jacobian pattern //@todo can this be avoided?
-	setGlobalJacPattern(_globalJacDisc);
+	setGlobalJacPattern(_globalJacDisc, simTime.secIdx);
 }
 
 /**
@@ -892,7 +867,7 @@ void LumpedRateModelWithPoresDG2D::consistentInitialState(const SimulationTime& 
  * @param [in] vecStateY Consistently initialized state vector
  * @param [in,out] vecStateYdot On entry, residual without taking time derivatives into account. On exit, consistent state time derivatives.
  */
-void LumpedRateModelWithPoresDG2D::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem)
+void ColumnModel2D::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -952,7 +927,7 @@ void LumpedRateModelWithPoresDG2D::consistentInitialTimeDerivative(const Simulat
 			if (_binding[type]->dependsOnTime())
 			{
 				_binding[type]->timeDerivativeQuasiStationaryFluxes(simTime.t, simTime.secIdx,
-					ColumnPosition{ z, r, 0.5 * static_cast<double>(_parRadius[type]) },
+					ColumnPosition{ z, r, static_cast<double>(_particles[type]->relativeCoordinate(0)) },
 					qShellDot - _disc.nComp, qShellDot, dFluxDt, tlmAlloc);
 			}
 
@@ -969,17 +944,17 @@ void LumpedRateModelWithPoresDG2D::consistentInitialTimeDerivative(const Simulat
 
 	} CADET_PARFOR_END;
 
-	_globalSolver.factorize(_globalJacDisc);
+	_linearSolver->factorize(_globalJacDisc);
 
-	if (cadet_unlikely(_globalSolver.info() != Eigen::Success)) {
+	if (cadet_unlikely(_linearSolver->info() != Eigen::Success)) {
 		LOG(Error) << "Factorize() failed";
 	}
 
 	Eigen::Map<Eigen::VectorXd> yDot(vecStateYdot + idxr.offsetC(), numPureDofs());
 
-	yDot = _globalSolver.solve(yDot);
+	yDot = _linearSolver->solve(yDot);
 
-	if (cadet_unlikely(_globalSolver.info() != Eigen::Success))
+	if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 	{
 		LOG(Error) << "Solve() failed";
 	}
@@ -1019,7 +994,7 @@ void LumpedRateModelWithPoresDG2D::consistentInitialTimeDerivative(const Simulat
  * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
  * @param [in] errorTol Error tolerance for algebraic equations
  */
-void LumpedRateModelWithPoresDG2D::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
+void ColumnModel2D::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -1062,7 +1037,7 @@ void LumpedRateModelWithPoresDG2D::leanConsistentInitialState(const SimulationTi
  * @param [in,out] vecStateYdot On entry, inconsistent state time derivatives. On exit, partially consistent state time derivatives.
  * @param [in] res On entry, residual without taking time derivatives into account. The data is overwritten during execution of the function.
  */
-void LumpedRateModelWithPoresDG2D::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
+void ColumnModel2D::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -1086,7 +1061,7 @@ void LumpedRateModelWithPoresDG2D::leanConsistentInitialTimeDerivative(double t,
 		yDotSlice[i] = -resSlice[i];
 }
 
-void LumpedRateModelWithPoresDG2D::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
+void ColumnModel2D::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
 {
 	Indexer idxr(_disc);
 	for (std::size_t param = 0; param < vecSensY.size(); ++param)
@@ -1122,7 +1097,7 @@ void LumpedRateModelWithPoresDG2D::initializeSensitivityStates(const std::vector
 
 				// Initialize q
 				for (unsigned int bnd = 0; bnd < _disc.strideBound[type]; ++bnd)
-					stateYparticleSolid[bnd] = _initQ[bnd + _disc.nBoundBeforeType[type] + _disc.strideBound[_disc.nParType] * rad].getADValue(param);
+					stateYparticleSolid[bnd] = _initCs[bnd + _disc.nBoundBeforeType[type] + _disc.strideBound[_disc.nParType] * rad].getADValue(param);
 			}
 		}
 	}
@@ -1168,7 +1143,7 @@ void LumpedRateModelWithPoresDG2D::initializeSensitivityStates(const std::vector
  * @param [in] adRes Pointer to residual vector of AD datatypes with parameter sensitivities
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void LumpedRateModelWithPoresDG2D::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+void ColumnModel2D::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
@@ -1307,16 +1282,16 @@ void LumpedRateModelWithPoresDG2D::consistentInitialSensitivity(const Simulation
 		Eigen::Map<Eigen::VectorXd> yDot(sensYdot, numPureDofs());
 
 		// Factorize
-		_globalSolver.factorize(_globalJacDisc);
+		_linearSolver->factorize(_globalJacDisc);
 
-		if (cadet_unlikely(_globalSolver.info() != Eigen::Success))
+		if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 		{
 			LOG(Error) << "Factorize() failed";
 		}
 		// Solve
-		yDot.segment(0, numPureDofs()) = _globalSolver.solve(yDot.segment(0, numPureDofs()));
+		yDot.segment(0, numPureDofs()) = _linearSolver->solve(yDot.segment(0, numPureDofs()));
 
-		if (cadet_unlikely(_globalSolver.info() != Eigen::Success))
+		if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 		{
 			LOG(Error) << "Solve() failed";
 		}
@@ -1364,7 +1339,7 @@ void LumpedRateModelWithPoresDG2D::consistentInitialSensitivity(const Simulation
  * @param [in] adRes Pointer to residual vector of AD datatypes with parameter sensitivities
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void LumpedRateModelWithPoresDG2D::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+void ColumnModel2D::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
@@ -1408,23 +1383,23 @@ void LumpedRateModelWithPoresDG2D::leanConsistentInitialSensitivity(const Simula
 		}
 
 		const int bulkRows = idxr.offsetCp() - idxr.offsetC();
-		_globalSolver.analyzePattern(_globalJacDisc.block(0, 0, bulkRows, bulkRows));
-		_globalSolver.factorize(_globalJacDisc.block(0, 0, bulkRows, bulkRows));
+		_linearSolver->analyzePattern(_globalJacDisc.block(0, 0, bulkRows, bulkRows));
+		_linearSolver->factorize(_globalJacDisc.block(0, 0, bulkRows, bulkRows));
 
-		if (_globalSolver.info() != Eigen::Success) {
+		if (_linearSolver->info() != Eigen::Success) {
 			LOG(Error) << "factorization failed in sensitivity initialization";
 		}
 
 		Eigen::Map<Eigen::VectorXd> ret_vec(sensYdot + idxr.offsetC(), bulkRows);
-		ret_vec = _globalSolver.solve(ret_vec);
+		ret_vec = _linearSolver->solve(ret_vec);
 
 		// Use the factors to solve the linear system 
-		if (_globalSolver.info() != Eigen::Success) {
+		if (_linearSolver->info() != Eigen::Success) {
 			LOG(Error) << "solve failed in sensitivity initialization";
 		}
 
 		// reset linear solver to global Jacobian
-		_globalSolver.analyzePattern(_globalJacDisc);
+		_linearSolver->analyzePattern(_globalJacDisc);
 	}
 }
 
