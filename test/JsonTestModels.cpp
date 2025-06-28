@@ -834,7 +834,7 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 			if (uoType.find("COLUMN_") != std::string::npos)
 			{
 				particle["INIT_CS"] = { 0.0 };
-				grm["UNIT_TYPE"] = "COLUMN_MODEL_1D";
+				grm["UNIT_TYPE"] = uoType.find("_1D") != std::string::npos ? "COLUMN_MODEL_1D" : "COLUMN_MODEL_2D";
 				if (uoType.find("GRM") != std::string::npos)
 					particle["PARTICLE_TYPE"] = "GENERAL_RATE_PARTICLE";
 				else if (uoType.find("LRMP") != std::string::npos)
@@ -1126,7 +1126,7 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 		if (uoType.find("COLUMN_") != std::string::npos)
 		{
 			particle["INIT_CS"] = { 0.0 };
-			grm["UNIT_TYPE"] = "COLUMN_MODEL_1D";
+			grm["UNIT_TYPE"] = uoType.find("_1D") != std::string::npos ? "COLUMN_MODEL_1D" : "COLUMN_MODEL_2D";
 			if (uoType.find("GRM") != std::string::npos)
 				particle["PARTICLE_TYPE"] = "GENERAL_RATE_PARTICLE";
 			else if (uoType.find("LRMP") != std::string::npos)
