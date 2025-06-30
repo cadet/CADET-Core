@@ -140,6 +140,20 @@ TEST_CASE("Column_2D as LRMP numerical Benchmark for a pure bulk transport case 
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
 }
 
+TEST_CASE("Column_2D as LRMP2D analytical reference test for a three zone linear binding case", "[Column_2D],[DG],[DG2D],[Simulation],[Reference],[Analytical],[CI]")
+{
+	const std::string& modelFilePath = std::string("/data/model_COL2D_LRMP2D3Zone_dynLin_1Comp_benchmark1.json");
+	// Note that the analytical reference is actually a 2DGRM but with D^p -> \infty
+	const std::string& refFilePath = std::string("/data/refAna_2DLRMP3Zone_dynLin_1Comp_radZ3_benchmark1.h5");
+	const std::vector<double> absTol = { 1E-2 };
+	const std::vector<double> relTol = { 5E-2 };
+
+	//(int exact, int poly, int elem, int parPolyDeg, int parNelem, int radPolyDeg, int radNelem)
+	cadet::test::column::DGparams disc(1, 3, 8, 3, 1, 3, 3);
+	const int simDataStride = 12; // number of radial ports
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
+}
+
 TEST_CASE("Column_2D as LRMP sensitivity Jacobians", "[Column_2D],[UnitOp],[Sensitivity],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_2D_LRMP", "DG");
