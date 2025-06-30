@@ -89,7 +89,7 @@ namespace cadet
 				int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity);
 				int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
 
-				int calcStaticAnaJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset = 0);
+				int calcTransportJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset = 0);
 				typedef Eigen::Triplet<double> T;
 				void convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset = 0);
 				unsigned int nConvDispEntries(bool pureNNZ = false);

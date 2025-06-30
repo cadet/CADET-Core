@@ -125,7 +125,7 @@ namespace cadet
 			inline bool reactionParDep() const CADET_NOEXCEPT { return _reactionParDep; }
 
 			virtual inline const active& getPorosity() const CADET_NOEXCEPT = 0;
-			virtual inline const active* getPoreAccessfactor() const CADET_NOEXCEPT = 0;
+			virtual inline const active* getPoreAccessFactor() const CADET_NOEXCEPT = 0;
 			virtual inline const active* getFilmDiffusion(const unsigned int secIdx) const CADET_NOEXCEPT = 0;
 
 			/**
@@ -151,7 +151,7 @@ namespace cadet
 			 * @brief analytically calculates the static (per section) particle diffusion Jacobian
 			 * @return 1 if jacobain calculation fits the predefined pattern of the jacobian, 0 if not.
 			 */
-			virtual int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac) = 0;
+			virtual int calcParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac) = 0;
 			/**
 			 * @brief calculates the film diffusion Jacobian
 			 * @return 1 if jacobain calculation fits the predefined pattern of the jacobian, 0 if not

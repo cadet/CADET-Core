@@ -113,7 +113,7 @@ namespace parts
 		parts::ParticleDiffusionOperatorBase* _parDiffOp;
 
 		inline const active& getPorosity() const CADET_NOEXCEPT  override { return _parDiffOp->getPorosity(); }
-		inline const active* getPoreAccessfactor() const CADET_NOEXCEPT  override { return _parDiffOp->getPoreAccessfactor(); }
+		inline const active* getPoreAccessFactor() const CADET_NOEXCEPT  override { return _parDiffOp->getPoreAccessFactor(); }
 		inline const active* getFilmDiffusion(const unsigned int secIdx) const CADET_NOEXCEPT { return _parDiffOp->getFilmDiffusion(secIdx);  }
 
 		inline int nDiscPoints() const CADET_NOEXCEPT  override { return _parDiffOp->nDiscPoints(); }
@@ -127,7 +127,7 @@ namespace parts
 		}
 
 		unsigned int jacobianNNZperParticle() const override;
-		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac) override;
+		int calcParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac) override;
 		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool crossDepsOnly = false) override;
 
 		bool setParameter(const ParameterId& pId, double value) override;

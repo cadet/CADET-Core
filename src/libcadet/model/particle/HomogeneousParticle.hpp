@@ -104,7 +104,7 @@ namespace parts
 		}
 
 		inline const active& getPorosity() const CADET_NOEXCEPT  override { return _parPorosity; }
-		inline const active* getPoreAccessfactor() const CADET_NOEXCEPT  override { return &_poreAccessFactor[0]; }
+		inline const active* getPoreAccessFactor() const CADET_NOEXCEPT  override { return &_poreAccessFactor[0]; }
 		inline const active* getFilmDiffusion(const unsigned int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_filmDiffusion, _nComp, secIdx); }
 
 		inline int nDiscPoints() const CADET_NOEXCEPT  override { return 1; }
@@ -115,7 +115,7 @@ namespace parts
 		void setParJacPattern(std::vector<Eigen::Triplet<double>>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx) const override;
 
 		unsigned int jacobianNNZperParticle() const override;
-		int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac) override;
+		int calcParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac) override;
 		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool crossDepsOnly = false) override;
 
 		bool setParameter(const ParameterId& pId, double value) override;

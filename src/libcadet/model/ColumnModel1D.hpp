@@ -12,7 +12,7 @@
 
 /**
  * @file 
- * Defines the general rate model (GRM).
+ * Defines the one-dimensional column unit
  */
 
 #ifndef LIBCADET_COLUMNMODEL1D_HPP_
@@ -265,7 +265,7 @@ protected:
 		unsigned int nPoints; //!< Number of discrete column Points
 		bool exactInt;	//!< 1 for exact integration, 0 for inexact LGL quadrature
 		unsigned int nParType; //!< Number of particle types
-		unsigned int* nParPoints; //!< Array with number of radial nodes per cell in each particle type
+		unsigned int* nParPoints; //!< Array with number of discrete points for each particle type
 		unsigned int* parTypeOffset; //!< Array with offsets (in particle block) to particle type, additional last element contains total number of particle DOFs
 		unsigned int* nBound; //!< Array with number of bound states for each component and particle type (particle type major ordering)
 		unsigned int* boundOffset; //!< Array with offset to the first bound state of each component in the solid phase (particle type major ordering)
@@ -463,7 +463,7 @@ protected:
 
 	typedef Eigen::Triplet<double> T;
 
-	void setJacobianPattern_GRM(SparseMatrix<double, RowMajor>& globalJ, unsigned int secIdx, bool hasBulkReaction)
+	void setJacobianPattern(SparseMatrix<double, RowMajor>& globalJ, unsigned int secIdx, bool hasBulkReaction)
 	{
 		Indexer idxr(_disc);
 
@@ -511,18 +511,18 @@ protected:
 		globalJ.setFromTriplets(tripletList.begin(), tripletList.end());
 	}
 
-	int calcStaticAnaJacobian_GRM(unsigned int secIdx)
+	int calcTransportJacobian(unsigned int secIdx)
 	{
 		Indexer idxr(_disc);
 		// inlet and bulk jacobian
-		_convDispOp.calcStaticAnaJacobian(_globalJac, _jacInlet, idxr.offsetC());
+		_convDispOp.calcTransportJacobian(_globalJac, _jacInlet, idxr.offsetC());
 
 		// particle jacobian (without isotherm, which is handled in residualKernel)
 		for (int colNode = 0; colNode < _disc.nPoints; colNode++)
 		{
 			for (int parType = 0; parType < _disc.nParType; parType++)
 			{
-				_particles[parType]->calcStaticAnaParticleDiffJacobian(secIdx, colNode, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }), _globalJac);
+				_particles[parType]->calcParticleDiffJacobian(secIdx, colNode, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }), _globalJac);
 			}
 		}
 

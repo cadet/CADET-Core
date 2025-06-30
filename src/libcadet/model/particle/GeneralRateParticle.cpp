@@ -370,7 +370,7 @@ namespace model
 			_parDiffOp->strideBound(),
 			qsReaction,
 			getPorosity(),
-			getPoreAccessfactor(),
+			getPoreAccessFactor(),
 			_binding,
 			(_dynReaction && (_dynReaction->numReactionsCombined() > 0)) ? _dynReaction : nullptr
 		};
@@ -474,9 +474,9 @@ namespace model
 		return _parDiffOp->jacobianNNZperParticle();
 	}
 
-	int GeneralRateParticle::calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
+	int GeneralRateParticle::calcParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
 	{
-		return _parDiffOp->calcStaticAnaParticleDiffJacobian(secIdx, colNode, offsetLocalCp, globalJac);
+		return _parDiffOp->calcParticleDiffJacobian(secIdx, colNode, offsetLocalCp, globalJac);
 	}
 	
 	int GeneralRateParticle::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
