@@ -173,7 +173,7 @@ protected:
 	unsigned int _idxSNO = 3; //!< SNO component index, default 3
 	unsigned int _idxSN2 = 4; //!< SN2 component index, default 4
 	unsigned int _idxSALK = 5; //!< SALK component index, default 5
-	unsigned int _idxSI_bio = 6; //!< SI component index, default 6
+	unsigned int _idxSI_ad = 6; //!< SI component index, default 6
 	unsigned int _idxXI = 7; //!< XI component index, default 7
 	unsigned int _idxXS = 8; //!< XS component index, default 8
 	unsigned int _idxXH = 9; //!< XH component index, default 9
@@ -181,11 +181,11 @@ protected:
 	unsigned int _idxXA = 11; //!< XA component index, default 11
 	unsigned int _idxXMI = 12; //!< XMI component index, default 12
 	unsigned int _idxSS_nad = 13; //!< SS_nad component index, default 13
-	unsigned int _idxSI_nbio = 14; //!< SI_nbio component index, default 14
+	unsigned int _idxSI_nad = 14; //!< SI_nbio component index, default 14
 
-	bool  _distribution = false;
+	bool  _fractionate = false;
+
 	
-
 
 	virtual bool configureStoich(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
@@ -198,40 +198,42 @@ protected:
 		_paramHandler.configure(paramProvider, _stoichiometry.columns(), _nComp, _nBoundStates);
 		_paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
 
-		
+
 		_stoichiometry.resize(_nComp, 13);
 		_stoichiometry.setAll(0);
 
-		if (paramProvider.exists("ASM3_DISTRIBUTION"))
-			_distribution = paramProvider.getBool("ASM3_DISTRIBUTION")
+		if (paramProvider.exists("ASM3_FRACTIONATE"))
+			_fractionate = paramProvider.getBool("ASM3_FRACTIONATE");
 
 		if (paramProvider.exists("ASM3_COMP_IDX")) {
 			const std::vector<uint64_t> compIdx = paramProvider.getUint64Array("ASM3_COMP_IDX");
 			if (compIdx.size() != 13) {
 				throw InvalidParameterException("ASM3 configuration: ASM3_COMP_IDX must have 13 elements");
-			} else {
+			}
+			else {
 				LOG(Debug) << "ASM3_COMP_IDX set: " << compIdx;
-				// todo index fuer SS_nad und SI_nbio nach unten
 				_idxSO = compIdx[0];
-				_idxSS_ad = compIdx[1];
+				_idxSS_nad = compIdx[1];
 				_idxSNH = compIdx[2];
 				_idxSNO = compIdx[3];
 				_idxSN2 = compIdx[4];
 				_idxSALK = compIdx[5];
-				_idxSI_bio = compIdx[6];
+				_idxSI_nad = compIdx[6];
 				_idxXI = compIdx[7];
 				_idxXS = compIdx[8];
 				_idxXH = compIdx[9];
 				_idxXSTO = compIdx[10];
 				_idxXA = compIdx[11];
 				_idxXMI = compIdx[12];
-				if (_distribution)
+				if (_fractionate)
 				{
-					_idxSS_nad = compIdx[13];
-					_idxSI_nbio = compIdx[14];
+					//todo warníng 
+					_idxSS_ad = compIdx[13];
+					_idxSI_ad = compIdx[14];
 				}
 			}
-		} else {
+		}
+		else {
 			LOG(Debug) << "ASM3_COMP_IDX not set, using defaults";
 		}
 
@@ -260,14 +262,6 @@ protected:
 		const double fiSS_BM_prod = paramProvider.getDouble("ASM3_FISS_BM_PROD");
 		const double iVSS_BM = paramProvider.getDouble("ASM3_IVSS_BM");
 		const double iTSS_VSS_BM = paramProvider.getDouble("ASM3_ITSS_VSS_BM");
-		
-		double r = 0.0;
-		if (paramProvider.exists("ASM3_R")) 
-			r = paramProvider.getDouble("ASM3_R");
-
-		double s = 0.0;
-		if (!paramProvider.exists("ASM3_S")) 
-			s = paramProvider.getDouble("ASM3_S");
 
 		// internal variables
 		const double fXMI_BM = fiSS_BM_prod * fXI * iVSS_BM * (iTSS_VSS_BM - 1);
@@ -304,19 +298,19 @@ protected:
 		_stoichiometry.native(_idxSO, 3) = 1 - 1 / YH_aer;
 		_stoichiometry.native(_idxSO, 5) = -1 * (1 - fXI);
 		_stoichiometry.native(_idxSO, 7) = -1;
-		_stoichiometry.native(_idxSO, 9) = -(64.0/14.0) * 1/YA + 1;
+		_stoichiometry.native(_idxSO, 9) = -(64.0 / 14.0) * 1 / YA + 1;
 		_stoichiometry.native(_idxSO, 10) = -1 * (1 - fXI);
 		_stoichiometry.native(_idxSO, 12) = 1;
 
 		// SS_ad
-		_stoichiometry.native(_idxSS_ad, 0) = (1 - r) * (1 - fSI);
-		_stoichiometry.native(_idxSS_ad, 1) = -(1 - r);
-		_stoichiometry.native(_idxSS_ad, 2) = -(1 - r);
+		_stoichiometry.native(_idxSS_ad, 0) = (1 - fSI);
+		_stoichiometry.native(_idxSS_ad, 1) = -1;
+		_stoichiometry.native(_idxSS_ad, 2) = -1;
 
 		// SS_nad
-		_stoichiometry.native(_idxSS_nad, 0) = r * (1 - fSI);
-		_stoichiometry.native(_idxSS_nad, 1) = -r;
-		_stoichiometry.native(_idxSS_nad, 2) = -r;
+		_stoichiometry.native(_idxSS_nad, 0) = (1 - fSI);
+		_stoichiometry.native(_idxSS_nad, 1) = -1;
+		_stoichiometry.native(_idxSS_nad, 2) = -1;
 
 		// SNH
 		_stoichiometry.native(_idxSNH, 0) = c1n;
@@ -358,11 +352,11 @@ protected:
 		_stoichiometry.native(_idxSALK, 10) = c11a;
 		_stoichiometry.native(_idxSALK, 11) = c12a;
 
-		// SI_bio
-		_stoichiometry.native(_idxSI_bio, 0) = (1 - s) * fSI;
+		// SI_ad
+		_stoichiometry.native(_idxSI_bio, 0) = fSI;
 
-		//SI_nbio
-		_stoichiometry.native(_idxSI_nbio, 0) = s * fSI;
+		//SI_nad
+		_stoichiometry.native(_idxSI_nbio, 0) = fSI;
 
 		// XI
 		_stoichiometry.native(_idxXI, 5) = fXI;
@@ -399,15 +393,12 @@ protected:
 		_stoichiometry.native(_idxXMI, 11) = fXMI_BM;
 
 
-
-
-
 		//registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MM_STOICHIOMETRY_BULK", _stoichiometryBulk); todo
 
 		return true;
 	}
 
-	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
+		template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
 	int residualLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
 		StateType const* y, ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
 	{
@@ -451,10 +442,10 @@ protected:
 		const double bAUT = static_cast<double>(baut20) * ft105;
 
 		StateType SO = y[_idxSO];
-		StateType SS_ad = y[_idxSS_ad];
-		StateType SS_nad = 0.0;
-		if (_distribution)
-			SS_nad = y[_idxSS_nad];
+		StateType SS_nad = y[_idxSS_ad];
+		StateType SS_ad = 0.0;
+		if (_fractionate)
+			SS_ad = y[_idxSS_nad];
 		StateType SNH = y[_idxSNH];
 		StateType SNO = y[_idxSNO];
 		StateType SN2 = y[_idxSN2];
@@ -541,28 +532,28 @@ protected:
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		//parameters
-		const double kh20		= static_cast<double>(p->kh20);
-		const double T			= static_cast<double>(p->T);
-		const double io2		= static_cast<double>(p->io2);
-		const double V			= static_cast<double>(p->V);
-		const double k_sto20	= static_cast<double>(p->k_sto20);
-		const double kx			= static_cast<double>(p->kx);
-		const double kho2		= static_cast<double>(p->kho2);
-		const double khss		= static_cast<double>(p->khss);
-		const double khn03		= static_cast<double>(p->khn03);
-		const double etahno3	= static_cast<double>(p->etahno3);
-		const double khnh4		= static_cast<double>(p->khnh4);
-		const double khalk		= static_cast<double>(p->khalk);
-		const double khsto		= static_cast<double>(p->khsto);
-		const double muh2o		= static_cast<double>(p->muh2o);
-		const double etahend	= static_cast<double>(p->etahend);
-		const double bh20		= static_cast<double>(p->bh20);
-		const double muAUT20	= static_cast<double>(p->muAUT20);
-		const double kno2		= static_cast<double>(p->kno2);
-		const double knnh4		= static_cast<double>(p->knnh4);
-		const double knalk		= static_cast<double>(p->knalk);
-		const double baut20		= static_cast<double>(p->baut20);
-		const double etanend	= static_cast<double>(p->etanend);
+		const double kh20 = static_cast<double>(p->kh20);
+		const double T = static_cast<double>(p->T);
+		const double io2 = static_cast<double>(p->io2);
+		const double V = static_cast<double>(p->V);
+		const double k_sto20 = static_cast<double>(p->k_sto20);
+		const double kx = static_cast<double>(p->kx);
+		const double kho2 = static_cast<double>(p->kho2);
+		const double khss = static_cast<double>(p->khss);
+		const double khn03 = static_cast<double>(p->khn03);
+		const double etahno3 = static_cast<double>(p->etahno3);
+		const double khnh4 = static_cast<double>(p->khnh4);
+		const double khalk = static_cast<double>(p->khalk);
+		const double khsto = static_cast<double>(p->khsto);
+		const double muh2o = static_cast<double>(p->muh2o);
+		const double etahend = static_cast<double>(p->etahend);
+		const double bh20 = static_cast<double>(p->bh20);
+		const double muAUT20 = static_cast<double>(p->muAUT20);
+		const double kno2 = static_cast<double>(p->kno2);
+		const double knnh4 = static_cast<double>(p->knnh4);
+		const double knalk = static_cast<double>(p->knalk);
+		const double baut20 = static_cast<double>(p->baut20);
+		const double etanend = static_cast<double>(p->etanend);
 
 		// derived parameters
 		const double ft04 = exp(-0.04 * (20.0 - static_cast<double>(T)));
@@ -577,13 +568,14 @@ protected:
 		double SO = y[_idxSO];
 		double SS_ad = y[_idxSS_ad];
 		double SS_nad = 0.0;
-		if (_distribution)
+		if (_fractionate)
 			SS_nad = y[_idxSS_nad];
 		double SNH = y[_idxSNH];
 		double SNO = y[_idxSNO];
 		double SN2 = y[_idxSN2];
 		double SALK = y[_idxSALK];
-		//double SI_bio = y[_idxSI_bio]; // unused
+		double SI_ad = y[_idxSI_ad]; // unused
+		double SI_nad = y[_idxSI_nad]; // unused
 		//double XI = y[8]; // unused
 		double XS = y[_idxXS];
 		double XH = y[_idxXH];
@@ -592,27 +584,27 @@ protected:
 		//double XMI = y[13]; // unused
 		//XH_S = max(XH, 0.1)
 
-		double d[13][13] = {};
-        
+		double d[13][15] = {};
+
+
 		// p1: Hydrolysis: kh20 * ft04 * XS/XH_S / (XS/XH_S + kx) * XH;
 		d[0][_idxXS] = kh20 * ft04
 			* XH / ((XS + XH * kx)
-			* (XS + XH * kx)) * XH;
+				* (XS + XH * kx)) * XH;
 		d[0][_idxXH] = kh20 * ft04
 			* (XS * XS) / ((XS + kx * XH)
-			* (XS + kx * XH));
+				* (XS + kx * XH));
 		if (XH < 0.1)
 		{
-			d[0][idxXS] = kh20 * ft04
+			d[0][_idxXS] = kh20 * ft04
 				* 0.1 / ((XS + 0.1 * kx) * (XS + 0.1 * kx)) * XH;
-			d[0][idxXH] = 0.0;
+			d[0][_idxXH] = 0.0;
 		}
 
 		// p2: Aerobic storage of SS: k_sto * SO / (SO + kho2) * ( SS_ad + SS_nad ) / ( ( SS_ad + SS_nad ) + khss )  * XH;
 		d[1][_idxSO] = k_sto
-			* ( SS_ad + SS_nad ) / ( ( SS_ad + SS_nad ) + khss ) 
+			* (SS_ad + SS_nad) / ((SS_ad + SS_nad) + khss)
 			* kho2 / ((SO + kho2) * (SO + kho2)) * XH;
-		// todo ableitung SS_ad und SS_nad
 		d[1][_idxSS_ad] = k_sto
 			* SO / (SO + kho2)
 			* khss / ((SS_ad + SS_nad + khss) * (SS_ad + SS_nad + khss)) * XH;
@@ -621,12 +613,12 @@ protected:
 			* khss / ((SS_ad + SS_nad + khss) * (SS_ad + SS_nad + khss)) * XH;
 		d[1][_idxXH] = k_sto
 			* SO / (SO + kho2)
-			* ( SS_ad + SS_nad ) / ( ( SS_ad + SS_nad ) + khss ) ;
+			* (SS_ad + SS_nad) / ((SS_ad + SS_nad) + khss);
 
 		// p3: Anoxic storage of SS: k_sto * etahno3 * kho2 / (SO + kho2) * ( SS_ad + SS_nad ) / ( ( SS_ad + SS_nad ) + khss )  * SNO / (SNO + khn03) * XH;
 		d[2][_idxSO] = k_sto * etahno3
 			* -kho2 / ((SO + kho2) * (SO + kho2))
-			* ( SS_ad + SS_nad ) / ( ( SS_ad + SS_nad ) + khss ) 
+			* (SS_ad + SS_nad) / ((SS_ad + SS_nad) + khss)
 			* SNO / (SNO + khn03) * XH;
 		d[2][_idxSS_ad] = k_sto * etahno3
 			* kho2 / (SO + kho2)
@@ -638,11 +630,11 @@ protected:
 			* SNO / (SNO + khn03) * XH;
 		d[2][_idxSNO] = k_sto * etahno3
 			* kho2 / (SO + kho2)
-			* ( SS_ad + SS_nad ) / ( ( SS_ad + SS_nad ) + khss ) 
+			* (SS_ad + SS_nad) / ((SS_ad + SS_nad) + khss)
 			* khn03 / ((SNO + khn03) * (SNO + khn03)) * XH;
 		d[2][_idxXH] = k_sto * etahno3
 			* kho2 / (SO + kho2)
-			* ( SS_ad + SS_nad ) / ( ( SS_ad + SS_nad ) + khss ) 
+			* (SS_ad + SS_nad) / ((SS_ad + SS_nad) + khss)
 			* SNO / (SNO + khn03);
 
 		// p4: Aerobic growth: muH * SO / (SO + kho2) * SNH / (SNH + khnh4) * SALK / (SALK + khalk) * (XSTO/XH_S) / ((XSTO/XH_S) + khsto) * XH;
@@ -666,7 +658,7 @@ protected:
 			* SNH / (SNH + khnh4)
 			* SALK / (SALK + khalk)
 			* (khsto * XH) / ((XSTO + khsto * XH) * (XSTO + khsto * XH)) * XH;
-		d[3][_idxXH] = muH 
+		d[3][_idxXH] = muH
 			* SO / (SO + kho2)
 			* SNH / (SNH + khnh4)
 			* SALK / (SALK + khalk)
@@ -819,9 +811,9 @@ protected:
 			* SO / (SO + kno2)
 			* SALK / (SALK + knalk)
 			* knnh4 / ((SNH + knnh4) * (SNH + knnh4)) * XA;
-		d[9][_idxXA] = muAUT 
-			* SO / (SO + kno2) 
-			* SNH / (SNH + knnh4) 
+		d[9][_idxXA] = muAUT
+			* SO / (SO + kno2)
+			* SNH / (SNH + knnh4)
 			* SALK / (SALK + knalk);
 
 		//reaction11: bAUT * SO / (SO + kho2) * XA;
@@ -840,23 +832,31 @@ protected:
 		d[11][_idxXA] = bAUT * etanend
 			* SNO / (SNO + khn03)
 			* kho2 / (SO + kho2);
-		
-		
+
+
 		RowIterator curJac = jac;
 		for (size_t rIdx = 0; rIdx < _stoichiometry.columns(); rIdx++)
 		{
 			RowIterator curJac = jac;
-			for (int row = 0; row < _stoichiometry.rows(); ++row, ++curJac) 
+			for (int row = 0; row < _stoichiometry.rows(); ++row, ++curJac)
 			{
 				const double colFactor = static_cast<double>(_stoichiometry.native(row, rIdx));
-				for (size_t compIdx = 0; compIdx < _stoichiometry.rows(); compIdx++) 
+				for (size_t compIdx = 0; compIdx < _stoichiometry.rows(); compIdx++)
 				{
+					if (compIdx == _idxSI_ad)
+						colFactor *= SI_ad / (SI_ad + SI_nad);
+					if (compIdx == _idxSI_nad)
+						colFactor *= SI_nad / (SI_ad + SI_nad);
+					if (compIdx == _idxSS_ad)
+						colFactor *= SS_ad / (SS_ad + SS_nad);
+					if (compIdx == _idxSS_nad)
+						colFactor *= SS_nad / (SS_ad + SS_nad);
 
 					curJac[compIdx - static_cast<int>(row)] += colFactor * d[rIdx][compIdx];
 				}
 			}
 		}
-		
+
 	}
 
 	template <typename RowIteratorLiquid, typename RowIteratorSolid>
