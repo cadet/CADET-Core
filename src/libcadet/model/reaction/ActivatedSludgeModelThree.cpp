@@ -682,6 +682,7 @@ protected:
 			d[3][_idxSNH] = muH
 				* SO / (SO + kho2)
 				* khnh4 / ((SNH + khnh4) * (SNH + khnh4))
+				* khnh4 / ((SNH + khnh4) * (SNH + khnh4))
 				* SALK / (SALK + khalk)
 				* (XSTO / 0.1) / ((XSTO / 0.1) + khsto) * 0.1;
 			d[3][_idxSALK] = muH
