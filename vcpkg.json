@@ -3,6 +3,13 @@
     "hdf5",
     "suitesparse",
     "superlu",
-    "eigen3"
+    "eigen3",
+    "sundials"
+  ],
+  "overrides": [
+    {
+      "name": "sundials",
+      "version": "7.1.1"
+    }
   ]
 }
