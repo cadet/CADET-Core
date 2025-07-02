@@ -25,7 +25,7 @@
           "reaction_bulk": {
             "NREAC": 1,
             "reaction_model_000": {
-              "TYPE": "MICHAELIS_MENTEN",
+              "REACTION_TYPE": "MICHAELIS_MENTEN",
               "MM_KI": [
                 0,
                 35,

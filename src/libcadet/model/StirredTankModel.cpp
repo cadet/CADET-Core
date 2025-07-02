@@ -267,12 +267,12 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 
 				paramProvider.pushScope(reactionKey);
 
-				if (!paramProvider.exists("TYPE")) {
+				if (!paramProvider.exists("REACTION_TYPE")) {
 					paramProvider.popScope();
 					throw InvalidParameterException("Missing 'type' parameter for " + std::string(reactionKey));
 				}
 
-				std::string reactionType = paramProvider.getString("TYPE");
+				std::string reactionType = paramProvider.getString("REACTION_TYPE");
 				paramProvider.popScope();
 				_dynReactionBulk[i] = helper.createDynamicReactionModel(reactionType);
 
