@@ -75,7 +75,8 @@ For information on model equations, refer to :ref:`lumped_rate_model_without_por
 ``VELOCITY_COEFF``
 
    Interstitial velocity coefficient of the mobile phase (optional :math:`\texttt{COL_LENGTH}` is present, see Section :ref:`MUOPGRMflow`).
-   This input replaces the ``VELOCITY`` field, which is used for axial flow models. The distinction is made to emphasize that radial flow models do not incorporate a global velocity but a variable velocity field that depends on the spatial position, for details see Section :ref:`MUOPGRMradialFlow`.
+   This input replaces the ``VELOCITY`` field, which is used for axial flow models. The distinction is made to emphasize that radial flow models do not incorporate a global velocity but a variable velocity field that depends on the spatial position.
+   Specifically, the velocity coefficient here is defined as :math:`\frac{Q}{2 \pi L \varepsilon_c}`, for details see Section :ref:`MUOPGRMradialFlow`.
 
    **Unit:** :math:`\mathrm{m}\,\mathrm{s}^{-1}`
 
