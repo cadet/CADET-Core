@@ -66,7 +66,7 @@ int schurComplementMultiplierGRM(void* userData, double const* x, double* z)
 
 template <typename ConvDispOperator>
 GeneralRateModel<ConvDispOperator>::GeneralRateModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_hasSurfaceDiffusion(0, false), _dynReactionBulk(nullptr),
+	_hasSurfaceDiffusion(0, false), _dynReactionBulk{ nullptr },
 	_jacP(nullptr), _jacPdisc(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacInlet(), _hasParDepSurfDiffusion(false),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _initCp(0), _initQ(0), _initState(0), _initStateDot(0)
@@ -84,7 +84,10 @@ GeneralRateModel<ConvDispOperator>::~GeneralRateModel() CADET_NOEXCEPT
 	delete[] _jacP;
 	delete[] _jacPdisc;
 
-	delete _dynReactionBulk;
+	for (auto i = 0; i < _dynReactionBulk.size(); i++)
+	{
+		delete _dynReactionBulk[i];
+	}
 
 	clearParDepSurfDiffusion();
 }
@@ -480,22 +483,85 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
-
-	_dynReactionBulk = nullptr;
+	_oldReactionInterface = false;
+	_dynReactionBulk[0] = nullptr;
 	if (paramProvider.exists("REACTION_MODEL"))
 	{
+		_oldReactionInterface = true;
+		LOG(Warning) << "GRM reaction configuration: The reaction interface has changed. Please refer to the documentation. The old interface is only supported for backwards compatibility";
 		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
-		_dynReactionBulk = helper.createDynamicReactionModel(dynReactName);
-		if (!_dynReactionBulk)
+		_dynReactionBulk[0] = helper.createDynamicReactionModel(dynReactName);
+		if (!_dynReactionBulk[0])
 			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
 
-		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
+		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
 			paramProvider.pushScope("reaction_bulk");
 
-		reactionConfSuccess = _dynReactionBulk->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
+		reactionConfSuccess = _dynReactionBulk[0]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
 
-		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
+		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
 			paramProvider.popScope();
+	}
+	else if (paramProvider.exists("reaction_bulk"))
+	{
+		paramProvider.pushScope("reaction_bulk");
+
+		if (paramProvider.exists("NREAC"))
+		{
+			int nReactions = paramProvider.getInt("NREAC");
+
+			if (nReactions <= 0)
+			{
+				paramProvider.popScope();
+				throw InvalidParameterException("GRM reaction configuration: number of reaction must be positive, please check your configuration");
+			}
+			_dynReactionBulk.resize(nReactions);
+
+			for (int i = 0; i < nReactions; ++i) {
+
+				char reactionKey[32];
+				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
+
+				if (!paramProvider.exists(reactionKey)) {
+					paramProvider.popScope();
+					throw InvalidParameterException("GRM reaction configuration: Missing reaction model definition for " + std::string(reactionKey));
+				}
+
+				paramProvider.pushScope(reactionKey);
+
+				if (!paramProvider.exists("REACTION_TYPE")) {
+					paramProvider.popScope();
+					throw InvalidParameterException("GRM reaction configuration: Missing 'type' parameter for " + std::string(reactionKey));
+				}
+
+				std::string reactionType = paramProvider.getString("REACTION_TYPE");
+				paramProvider.popScope();
+				_dynReactionBulk[i] = helper.createDynamicReactionModel(reactionType);
+
+				if (!_dynReactionBulk[i]) {
+					paramProvider.popScope();
+					throw InvalidParameterException("GRM reaction configuration: Unknown dynamic reaction model " + reactionType +
+						" for " + reactionKey);
+				}
+
+				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
+					paramProvider.pushScope(reactionKey);
+
+				reactionConfSuccess = _dynReactionBulk[i]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
+
+				if (!reactionConfSuccess) {
+					if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
+						paramProvider.popScope();
+					paramProvider.popScope();
+					throw InvalidParameterException("GRM reaction configuration: Failed to configure reaction model " + reactionType +
+						" for " + reactionKey);
+				}
+
+				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
+					paramProvider.popScope();
+			}
+		}
+		paramProvider.popScope();
 	}
 
 	clearDynamicReactionModels();
@@ -830,11 +896,23 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 
 	// Reconfigure reaction model
 	bool dynReactionConfSuccess = true;
-	if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
+	for (auto i = 0; i < _dynReactionBulk.size(); i++)
 	{
-		paramProvider.pushScope("reaction_bulk");
-		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
-		paramProvider.popScope();
+		if (_dynReactionBulk[i] && _dynReactionBulk[i]->requiresConfiguration())
+		{
+			paramProvider.pushScope("reaction_bulk");
+			if (!_oldReactionInterface)
+			{
+				char reactionKey[32];
+				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
+				paramProvider.pushScope(reactionKey);
+			}
+			dynReactionConfSuccess = _dynReactionBulk[i]->configure(paramProvider, _unitOpIdx, ParTypeIndep);
+			paramProvider.popScope();
+
+			if (!_oldReactionInterface)
+				paramProvider.popScope();
+		}
 	}
 
 	if (_singleDynReaction)
@@ -875,8 +953,11 @@ unsigned int GeneralRateModel<ConvDispOperator>::threadLocalMemorySize() const C
 			lms.fitBlock(_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
 	}
 
-	if (_dynReactionBulk && _dynReactionBulk->requiresWorkspace())
-		lms.fitBlock(_dynReactionBulk->workspaceSize(_disc.nComp, 0, nullptr));
+	for (auto i = 0; i < _dynReactionBulk.size(); i++)
+	{
+		if (_dynReactionBulk[i] && _dynReactionBulk[i]->requiresWorkspace())
+			lms.fitBlock(_dynReactionBulk[i]->workspaceSize(_disc.nComp, 0, nullptr));
+	}
 
 	const unsigned int maxStrideBound = *std::max_element(_disc.strideBound, _disc.strideBound + _disc.nParType);
 	lms.add<active>(_disc.nComp + maxStrideBound);
@@ -1282,7 +1363,7 @@ int GeneralRateModel<ConvDispOperator>::residualBulk(double t, unsigned int secI
 	else
 		_convDispOp.jacobian(*this, t, secIdx, yBase, nullptr, nullptr);
 
-	if (!_dynReactionBulk || (_dynReactionBulk->numReactionsLiquid() == 0))
+	if (!_dynReactionBulk[0] || (_dynReactionBulk[0]->numReactionsLiquid() == 0))
 		return 0;
 
 	// Get offsets
@@ -1294,13 +1375,19 @@ int GeneralRateModel<ConvDispOperator>::residualBulk(double t, unsigned int secI
 	for (unsigned int col = 0; col < _disc.nCol; ++col, y += idxr.strideColCell(), res += idxr.strideColCell())
 	{
 		const ColumnPosition colPos{ (0.5 + static_cast<double>(col)) / static_cast<double>(_disc.nCol), 0.0, 0.0 };
-		if (wantRes)
-			_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
 
-		if (wantJac)
+		for (auto i = 0; i < _dynReactionBulk.size(); i++)
 		{
-			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(col * idxr.strideColCell()), tlmAlloc);
+
+			if (wantRes)
+				_dynReactionBulk[i]->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
+
+			if (wantJac)
+			{
+				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+				_dynReactionBulk[i]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(col * idxr.strideColCell()), tlmAlloc);
+
+			}
 		}
 	}
 
@@ -2878,7 +2965,7 @@ bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, do
 		if (_convDispOp.setParameter(pId, value))
 			return true;
 
-		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setParameter(pId, value,  _dynReactionBulk , false))
 			return true;
 	}
 
@@ -2902,7 +2989,7 @@ bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, in
 
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setParameter(pId, value, _dynReactionBulk , false))
 			return true;
 	}
 
@@ -2920,7 +3007,7 @@ bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, bo
 
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setParameter(pId, value,  _dynReactionBulk, false))
 			return true;
 	}
 
@@ -2973,7 +3060,7 @@ void GeneralRateModel<ConvDispOperator>::setSensitiveParameterValue(const Parame
 		if (_convDispOp.setSensitiveParameterValue(_sensParams, pId, value))
 			return;
 
-		if (model::setSensitiveParameterValue(pId, value, _sensParams, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setSensitiveParameterValue(pId, value, _sensParams,  _dynReactionBulk , false))
 			return;
 	}
 
@@ -3070,7 +3157,7 @@ bool GeneralRateModel<ConvDispOperator>::setSensitiveParameter(const ParameterId
 			return true;
 		}
 
-		if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, std::vector<IDynamicReactionModel*> { _dynReactionBulk }, true))
+		if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, _dynReactionBulk , false))
 		{
 			LOG(Debug) << "Found parameter " << pId << " in DynamicBulkReactionModel: Dir " << adDirection << " is set to " << adValue;
 			return true;
