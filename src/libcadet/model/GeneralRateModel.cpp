@@ -1363,7 +1363,7 @@ int GeneralRateModel<ConvDispOperator>::residualBulk(double t, unsigned int secI
 	else
 		_convDispOp.jacobian(*this, t, secIdx, yBase, nullptr, nullptr);
 
-	if (!_dynReactionBulk[0] || (_dynReactionBulk[0]->numReactionsLiquid() == 0))
+	if (!_dynReactionBulk[0])
 		return 0;
 
 	// Get offsets
@@ -1377,7 +1377,9 @@ int GeneralRateModel<ConvDispOperator>::residualBulk(double t, unsigned int secI
 		const ColumnPosition colPos{ (0.5 + static_cast<double>(col)) / static_cast<double>(_disc.nCol), 0.0, 0.0 };
 
 		for (auto i = 0; i < _dynReactionBulk.size(); i++)
-		{
+		{	
+			if (!_dynReactionBulk[i] || (_dynReactionBulk[i]->numReactionsLiquid() == 0))
+				continue;
 
 			if (wantRes)
 				_dynReactionBulk[i]->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
