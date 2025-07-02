@@ -52,30 +52,30 @@ public:
 	static const char* identifier() { return "LINEAR"; }
 	virtual const char* name() const CADET_NOEXCEPT { return "LINEAR"; }
 	virtual bool requiresConfiguration() const CADET_NOEXCEPT { return true; }
-	virtual bool usesParamProviderInDiscretizationConfig() const CADET_NOEXCEPT { return true; }	
+	virtual bool usesParamProviderInDiscretizationConfig() const CADET_NOEXCEPT { return true; }
+
+	virtual int numComp() { return _nComp; }
+	virtual int numChannel() { return _nChannel; }
+	virtual int numColums() { return _nCol; }
+
+	virtual double getCrossSectionRation(int idxOrig, int idxDest)
+	{
+		const double dest = static_cast<double>(_exchangeMatrix[idxDest]);
+		const double orig = static_cast<double>(_exchangeMatrix[idxOrig]);
+
+		return dest / orig;
+		
+	}
+
+
+
 	virtual bool hasQuasiStationary(int comp) const 
 	{
-		// Use stride pattern to check only relevant matrix elements for this component
-		for (unsigned int orig = 0; orig < _nChannel; ++orig)
-		{
-			for (unsigned int dest = 0; dest < _nChannel; ++dest)
-			{
-				if (orig != dest)
-				{
-					size_t index = orig * _nChannel * _nComp + dest * _nComp + comp;
-					if (index < _exchangeMatrix.size())
-					{
-						double val = static_cast<double>(_exchangeMatrix[index]);
-						if (val < 0.0 || val > 1e10)
-						{
-							return true;
-						}
-					}
-				}
-			}
-		}
-		return false;
+		std::vector<std::pair<unsigned int, unsigned int>> quasiStatiPairs;
+		quasiStationarityMap(comp, quasiStatiPairs);
+		return !quasiStatiPairs.empty();
 	}
+
 	virtual void quasiStationarityMap(int comp, std::vector<std::pair<unsigned int, unsigned int>>& quasiStationaryMap) const
 	{
 		// Clear the map to ensure clean state
@@ -242,7 +242,6 @@ protected:
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 	int residualImpl(StateType const* y, ResidualType* res, linalg::BandedSparseRowIterator jacBegin) const
 	{	
-		std::unordered_map<unsigned int, std::vector<std::array<unsigned int, 2>>> rapidEquilibriumMap;
 
 		const unsigned int offsetC = _nChannel * _nComp;
 		for (unsigned int col = 0; col < _nCol; ++col)
@@ -277,15 +276,10 @@ protected:
 
 						ParamType exchange_orig_dest_comp = static_cast<ParamType>(_exchangeMatrix[rad_orig * _nChannel * _nComp + rad_dest * _nComp + comp]);
 
-						if (exchange_orig_dest_comp < 0 || exchange_orig_dest_comp > 1e10)
+						if (exchange_orig_dest_comp != 0.0)
 						{
-							// save rapid equilibrium orginal and dest (only once) 
-							if (rad_orig < rad_dest)
-								rapidEquilibriumMap[comp].push_back({ rad_orig, rad_dest });
-						}
-
-						if (cadet_likely(exchange_orig_dest_comp > 0.0))
-						{
+							if (exchange_orig_dest_comp < 0)
+								exchange_orig_dest_comp *= -1.0;
 
 							*resCur_orig += exchange_orig_dest_comp * yCur_orig[0];
 							*resCur_dest -= exchange_orig_dest_comp * yCur_orig[0] * static_cast<ParamType>(_crossSections[rad_orig]) / static_cast<ParamType>(_crossSections[rad_dest]);
@@ -351,6 +345,8 @@ protected:
 					if (exchange_dest_comp < 0)
 						exchange_dest_comp *= -1.0;
 
+					*resCur_dest = *resCur_dest + (static_cast<ParamType>(_crossSections[rad_orig]) / static_cast<ParamType>(_crossSections[rad_dest])) * (*resCur_orig);
+					
 					// algebraic equation for rapid equilibrium
 					*resCur_orig = -exchange_orig_comp * yCur_orig[0] + exchange_dest_comp * yCur_dest[0] * static_cast<ParamType>(_crossSections[rad_dest]) / static_cast<ParamType>(_crossSections[rad_orig]);
 
@@ -359,7 +355,7 @@ protected:
 						linalg::BandedSparseRowIterator jacorig;
 						jacorig = jacBegin + offsetCur_orig;
 						jacorig[0] = -static_cast<double>(exchange_orig_comp);
-						jacorig[static_cast<int>(offsetCur_dest) - static_cast<int>(offsetCur_orig)] = static_cast<double>(exchange_dest_comp);
+						jacorig[static_cast<int>(offsetCur_dest) - static_cast<int>(offsetCur_orig)] = static_cast<double>(exchange_dest_comp) * (_crossSections[rad_dest] / _crossSections[rad_orig]);
 					}
 				}
 			}

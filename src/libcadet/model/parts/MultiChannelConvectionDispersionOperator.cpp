@@ -471,7 +471,7 @@ public:
 
 	virtual bool initialize(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int nChannel, const Weno& weno) = 0;
 	virtual void setSparsityPattern(const cadet::linalg::SparsityPattern& pattern) = 0;
-	virtual void assembleDiscretizedJacobian(double alpha) = 0;
+	virtual void assembleDiscretizedJacobian(double alpha, IExchangeModel* exchange) = 0;
 	virtual bool factorize() = 0;
 	virtual bool solveDiscretizedJacobian(double* rhs, double const* weight, double const* init, double outerTol) const = 0;
 };
@@ -496,7 +496,7 @@ public:
 
 	virtual void setSparsityPattern(const linalg::SparsityPattern& pattern) { }
 
-	virtual void assembleDiscretizedJacobian(double alpha)
+	virtual void assembleDiscretizedJacobian(double alpha, IExchangeModel* exchange)
 	{
 		_alpha = alpha;
 	}
@@ -558,15 +558,45 @@ int matrixMultiplierMultiChannelCDO(void* userData, double const* x, double* z)
 			_jacCdisc.prepare();
 		}
 
-		virtual void assembleDiscretizedJacobian(double alpha)
+		virtual void assembleDiscretizedJacobian(double alpha, IExchangeModel* exchange)
 		{
 			// Copy normal matrix over to factorizable matrix
 			_jacCdisc.copyFromSamePattern(*_jacC);
+			
+			const  int nCol = exchange->numColums();
+			const int nComp =  exchange->numComp();
+			const int nChannel = exchange->numChannel();
+
 
 			for (int i = 0; i < _jacC->rows(); ++i)
-				_jacCdisc.centered(i, 0) += alpha;
-		}
+				_jacCdisc.native(i, i) += alpha;
+			
+			for (unsigned int col = 0; col < nCol; ++col)
+			{
+				const unsigned int offsetColBlock = col * nChannel * nComp;
 
+				for (unsigned int comp = 0; comp < nComp; ++comp)
+				{
+					if (!exchange->hasQuasiStationary(comp))
+						continue;
+					std::vector<std::pair<unsigned int, unsigned int>> quasiStatiPairs;
+					exchange->quasiStationarityMap(comp, quasiStatiPairs);
+
+					for (const auto& channelPair : quasiStatiPairs)
+					{
+						const auto rad_orig = channelPair.first;
+						const auto rad_dest = channelPair.second;
+
+						const unsigned int idxOrig = offsetColBlock + rad_orig * nComp + comp;
+						const unsigned int idxDest = offsetColBlock + rad_dest * nComp+ comp;
+
+						const double crossSectionRatio = exchange->getCrossSectionRation(idxOrig, idxDest);
+
+						_jacCdisc.native(idxOrig, idxDest) += alpha * crossSectionRatio;
+					}
+				}
+			}
+		}
 		virtual bool factorize()
 		{
 			return _jacCdisc.factorize();
@@ -613,7 +643,7 @@ public:
 
 	virtual void setSparsityPattern(const linalg::SparsityPattern& pattern) { }
 
-	virtual void assembleDiscretizedJacobian(double alpha)
+	virtual void assembleDiscretizedJacobian(double alpha, IExchangeModel* exchange)
 	{
 		// Copy normal matrix over to factorizable matrix
 		_jacCdisc.setAll(0.0);
@@ -1146,9 +1176,9 @@ void MultiChannelConvectionDispersionOperator::extractJacobianFromAD(active cons
  *
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  */
-void MultiChannelConvectionDispersionOperator::assembleDiscretizedJacobian(double alpha)
+void MultiChannelConvectionDispersionOperator::assembleDiscretizedJacobian(double alpha, IExchangeModel* exchange)
 {
-	_linearSolver->assembleDiscretizedJacobian(alpha);
+	_linearSolver->assembleDiscretizedJacobian(alpha, exchange);
 }
 
 /**
@@ -1157,9 +1187,9 @@ void MultiChannelConvectionDispersionOperator::assembleDiscretizedJacobian(doubl
  * @param [in] alpha Factor in front of @f$ \frac{\partial F}{\partial \dot{y}} @f$
  * @return @c true if factorization went fine, otherwise @c false
  */
-bool MultiChannelConvectionDispersionOperator::assembleAndFactorizeDiscretizedJacobian(double alpha)
+bool MultiChannelConvectionDispersionOperator::assembleAndFactorizeDiscretizedJacobian(double alpha, IExchangeModel* exchange)
 {
-	assembleDiscretizedJacobian(alpha);
+	assembleDiscretizedJacobian(alpha, exchange);
 	return _linearSolver->factorize();
 }
 

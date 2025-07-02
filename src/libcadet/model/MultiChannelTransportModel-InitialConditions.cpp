@@ -515,7 +515,7 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 							}
 						}
 						
-						std::cout << "Local row " << localRowIdx << " -> Global row " << globalRowIdx << "\n";
+						//std::cout << "Local row " << localRowIdx << " -> Global row " << globalRowIdx << "\n";
 						
 						if (globalRowIdx >= 0 && globalRowIdx < testJac.rows())
 						{
@@ -524,13 +524,14 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 							const int nnz = testJac.numNonZerosInRow(globalRowIdx);
 							int const* colIdx = testJac.columnIndicesOfRow(globalRowIdx);
 							
-							std::cout << "  Row " << globalRowIdx << " has " << nnz << " non-zeros\n";
+
+							//std::cout << "  Row " << globalRowIdx << " has " << nnz << " non-zeros\n";
 							
 							// Copy relevant entries to dense matrix
 							for (int j = 0; j < nnz; ++j)
 							{
 								const int globalColIdx = colIdx[j];
-								std::cout << "    Col[" << j << "]: global=" << colIdx[j] << " local=" << globalColIdx << "\n";
+								//std::cout << "    Col[" << j << "]: global=" << colIdx[j] << " local=" << globalColIdx << "\n";
 								
 								if (globalColIdx >= 0 && globalColIdx < mask.len && mask.mask[globalColIdx])
 								{
@@ -539,19 +540,19 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 									{
 										mat.native(localRowIdx, localColIdx) = vals[j];
 										extractedEntries++;
-										std::cout << "      Setting mat(" << localRowIdx << "," << localColIdx << ") = " << vals[j] << "\n";
+										//std::cout << "      Setting mat(" << localRowIdx << "," << localColIdx << ") = " << vals[j] << "\n";
 									}
 								}
 							}
 						}
 					}
 					
-					std::cout << "Total extracted entries: " << extractedEntries << "\n";
+					//std::cout << "Total extracted entries: " << extractedEntries << "\n";
 					
 					// Part 2: Set up conservation constraint equations in lower rows
 					if (conservedQuants.size() > 0)
 					{
-						std::cout << "Setting up conservation constraints...\n";
+						//std::cout << "Setting up conservation constraints...\n";
 						const int conservationStartRow = numExchangeEq;
 						
 						// For each conservation group, set up the constraint equation
@@ -560,9 +561,9 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 							const int rowIdx = conservationStartRow + conIdx;
 							const auto& currentGroup = conservationGroups[conIdx];
 							
-							std::cout << "  Conservation group " << conIdx << " has channels: ";
-							for (unsigned int ch : currentGroup) std::cout << ch << " ";
-							std::cout << "\n";
+							//std::cout << "  Conservation group " << conIdx << " has channels: ";
+							//for (unsigned int ch : currentGroup) std::cout << ch << " ";
+							//std::cout << "\n";
 							
 							// Set coefficients for channels in this conservation group
 							for (unsigned int channel : currentGroup)
@@ -576,22 +577,22 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 									if (localColIdx >= 0)
 									{
 										mat.native(rowIdx, localColIdx) = -1.0;
-										std::cout << "    Setting conservation mat(" << rowIdx << "," << localColIdx << ") = 1.0\n";
+										//std::cout << "    Setting conservation mat(" << rowIdx << "," << localColIdx << ") = 1.0\n";
 									}
 								}
 							}
 						}
 					}
 
-					std::cout<< "Final Jacobian matrix for component " << comp << " in column " << pblk << ":\n";
-					for (int i = 0; i < mat.rows(); ++i)
-					{
-						for (int j = 0; j < mat.columns(); ++j)
-						{
-							std::cout << mat.native(i, j) << " ";
-						}
-						std::cout << "\n";
-					}
+					//std::cout<< "Final Jacobian matrix for component " << comp << " in column " << pblk << ":\n";
+					//for (int i = 0; i < mat.rows(); ++i)
+					//{
+					//	for (int j = 0; j < mat.columns(); ++j)
+					//	{
+					//		std::cout << mat.native(i, j) << " ";
+					//	}
+					//	std::cout << "\n";
+					//}
 					return true;
 				};
 			}

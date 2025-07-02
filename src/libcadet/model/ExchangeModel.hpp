@@ -68,6 +68,12 @@ public:
 	virtual int residual(double const* y, active* res, WithParamSensitivity, bool wantJac, linalg::BandedSparseRowIterator jacBegin) const = 0;
 	virtual int residual(double const* y, double* res, WithoutParamSensitivity, bool wantJac, linalg::BandedSparseRowIterator jacBegin) const = 0;
 
+	virtual int numComp() const { return 0; }
+	virtual int numChannel() const  { return 0; }
+	virtual int numColums() const { return 0; }
+
+	virtual double getCrossSectionRation(int idxOrig, int idxDest) const { return 0.0; }
+
 protected:
 };
 

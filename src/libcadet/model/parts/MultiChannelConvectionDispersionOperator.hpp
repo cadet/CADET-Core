@@ -86,7 +86,8 @@ public:
 	bool solveTimeDerivativeSystem(const SimulationTime& simTime, double* const rhs);
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 
-	bool assembleAndFactorizeDiscretizedJacobian(double alpha);
+	bool assembleAndFactorizeDiscretizedJacobian(double alpha, IExchangeModel* exchange);
+	bool assembleDiscretizedJacobianTest(double alpha, unsigned int nComp, unsigned int nCol, unsigned int nChannel);
 	bool solveDiscretizedJacobian(double* rhs, double const* weight, double const* init, double outerTol) const;
 
 	bool setParameter(const ParameterId& pId, double value);
@@ -116,7 +117,7 @@ protected:
 
 	friend int matrixMultiplierMultiChannelCDO(void* userData, double const* x, double* z);
 
-	void assembleDiscretizedJacobian(double alpha);
+	void assembleDiscretizedJacobian(double alpha, IExchangeModel* exchange);
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 	int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res);

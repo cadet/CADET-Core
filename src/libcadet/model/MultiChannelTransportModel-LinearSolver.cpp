@@ -51,7 +51,7 @@ int MultiChannelTransportModel::linearSolve(double t, double alpha, double outer
 	if (_factorizeJacobian)
 	{
 		// Assemble and factorize discretized bulk Jacobian
-		const bool result = _convDispOp.assembleAndFactorizeDiscretizedJacobian(alpha);
+		const bool result = _convDispOp.assembleAndFactorizeDiscretizedJacobian(alpha,_exchange[0]);
 		if (cadet_unlikely(!result))
 		{
 			LOG(Error) << "Factorize() failed for bulk block";
