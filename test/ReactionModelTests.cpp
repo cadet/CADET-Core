@@ -193,10 +193,12 @@ namespace reaction
 		}
 
 		const std::string uoType = jpp.getString("UNIT_TYPE");
-		const bool isLRMP = (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES");
+		const bool isLRM = (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES");
 		const int nTotalBound = std::accumulate(nBound.begin(), nBound.end(), 0);
 
-		if (!isLRMP && bulk)
+
+		
+		if (!isLRM && bulk)
 		{
 			char const* const scopeName = "reaction_bulk";
 			jpp.addScope(scopeName);
@@ -223,20 +225,30 @@ namespace reaction
 			jpp.set("MAL_KBWD_BULK", rateBwd);
 		}
 
-		if ((!isLRMP && particle) || (isLRMP && bulk))
+		if ((!isLRM && particle) || (isLRM && bulk))
 		{
 			const int nReactions = 3;
 
 			for (int i = 0; i < nParType; ++i)
 			{
+				const int nBoundParType = std::accumulate(nBound.begin() + i * nComp, nBound.begin() + (i + 1) * nComp, 0);
+				
 				std::ostringstream oss;
-				if (isLRMP)
+				if (isLRM)
 					oss << "reaction";
 				else
-					oss << "reaction_particle_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << i;
+					oss << "particle_type_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << i;
 
 				jpp.addScope(oss.str());
 				auto gs2 = util::makeGroupScope(jpp, oss.str());
+
+				int nReac = 1;
+				jpp.set("NREAC_CROSS_PHASE", nReac);
+
+				jpp.addScope("cross_phase_reaction_000");
+				auto gs3 = util::makeGroupScope(jpp, "cross_phase_reaction_000");
+				
+				jpp.set("TYPE", "MASS_ACTION_LAW_CROSS_PHASE");
 
 				std::vector<double> stoichMatLiquid(nReactions * nComp, 0.0);
 				std::vector<double> expFwdLiquid(nReactions * nComp, 0.0);
@@ -244,9 +256,9 @@ namespace reaction
 				std::vector<double> rateFwdLiquid(nReactions, 0.0);
 				std::vector<double> rateBwdLiquid(nReactions, 0.0);
 
-				std::vector<double> stoichMatSolid(nReactions * nTotalBound, 0.0);
-				std::vector<double> expFwdSolid(nReactions * nTotalBound, 0.0);
-				std::vector<double> expBwdSolid(nReactions * nTotalBound, 0.0);
+				std::vector<double> stoichMatSolid(nReactions * nBoundParType, 0.0);
+				std::vector<double> expFwdSolid(nReactions * nBoundParType, 0.0);
+				std::vector<double> expBwdSolid(nReactions * nBoundParType, 0.0);
 				std::vector<double> rateFwdSolid(nReactions, 0.0);
 				std::vector<double> rateBwdSolid(nReactions, 0.0);
 
@@ -276,8 +288,8 @@ namespace reaction
 
 				if (particleModifiers)
 				{
-					std::vector<double> expFwdLiquidModSolid(nReactions * nTotalBound, 0.0);
-					std::vector<double> expBwdLiquidModSolid(nReactions * nTotalBound, 0.0);
+					std::vector<double> expFwdLiquidModSolid(nReactions * nBoundParType, 0.0);
+					std::vector<double> expBwdLiquidModSolid(nReactions * nBoundParType, 0.0);
 					std::vector<double> expFwdSolidModLiquid(nReactions * nComp, 0.0);
 					std::vector<double> expBwdSolidModLiquid(nReactions * nComp, 0.0);
 
@@ -443,7 +455,7 @@ namespace reaction
 
 		// Evaluate with AD
 		ad::resetAd(adRes, numDofs);
-		crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY, adRes, 1.0, crm.buffer());
+		crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY, adRes, 1.0, crm.buffer());
 
 		// Extract Jacobian
 		jacAD.setAll(0.0);
@@ -451,7 +463,7 @@ namespace reaction
 
 		// Calculate analytic Jacobian
 		jacAna.setAll(0.0);
-		crm.model().analyticJacobianLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yState.data(), 1.0, jacAna.row(0), crm.buffer());
+		crm.model().analyticJacobianAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yState.data(), 1.0, jacAna.row(0), crm.buffer());
 
 		delete[] adY;
 		delete[] adRes;
@@ -460,7 +472,7 @@ namespace reaction
 			[&](double const* lDir, double* res) -> void
 				{
 					std::fill_n(res, nComp, 0.0);
-					crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, res, 1.0, crm.buffer());
+					crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, res, 1.0, crm.buffer());
 				},
 			[&](double const* lDir, double* res) -> void 
 				{
@@ -472,7 +484,7 @@ namespace reaction
 			[&](double const* lDir, double* res) -> void
 				{
 					std::fill_n(res, nComp, 0.0);
-					crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, res, 1.0, crm.buffer());
+					crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, res, 1.0, crm.buffer());
 				},
 			[&](double const* lDir, double* res) -> void 
 				{

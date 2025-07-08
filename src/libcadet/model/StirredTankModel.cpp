@@ -307,9 +307,10 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 
 
 	_dynReaction = std::vector<IDynamicReactionModel*>(_nParType, nullptr);
-
+	_oldReactionInterface = false;
 	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
 	{
+		_oldReactionInterface = true;
 		const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL_PARTICLES");
 		if (dynReactModelNames.size() < _nParType)
 			throw InvalidParameterException("Field REACTION_MODEL_PARTICLES contains too few elements (" + std::to_string(_nParType) + " required)");
@@ -324,6 +325,143 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 			reactionConfSuccess = _dynReaction[i]->configureModelDiscretization(paramProvider, _nComp, _nBound + i * _nComp, _boundOffset + i * _nComp) && reactionConfSuccess;
 		}
 	}
+	else if (paramProvider.exists("particle_type_000") && _nParType > 0)
+	{
+		_dynReaction = std::vector<IDynamicReactionModel*>(_nParType, nullptr);
+
+		unsigned int totalReacCrossPhase = 0;
+		unsigned int totalReacPore = 0;
+		unsigned int totalReacSolid = 0;
+		// First set offsets an calculate
+		_reaction.configureDimensionsOffSet(_nParType);
+		for (unsigned int par = 0; par < _nParType; par++)
+		{
+
+			char particleScope[32];
+			snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
+
+			if (paramProvider.exists(particleScope))
+			{
+				paramProvider.pushScope(particleScope); // particle_type_xxx
+
+				if (paramProvider.exists("NREAC_CROSS_PHASE"))
+				{
+					int nReactions = paramProvider.getInt("NREAC_CROSS_PHASE");
+
+					if (nReactions < 0)
+					{
+						paramProvider.popScope();
+						throw InvalidParameterException("CSTR-Configuration: number of cross phase reaction must be positive, please check your configuration");
+					}
+					totalReacCrossPhase += nReactions;
+					_reaction.computeOffsetsAndReaOfParType("cross_phase", nReactions, par);
+				}
+
+				if (paramProvider.exists("NREAC_PORE"))
+				{
+					int nReactions = paramProvider.getInt("NREAC_PORE");
+
+					if (nReactions < 0)
+					{
+						paramProvider.popScope();
+						throw InvalidParameterException("CSTR-Configuration: number of pore reaction must be positive, please check your configuration");
+					}
+					totalReacPore += nReactions;
+					_reaction.computeOffsetsAndReaOfParType("pore", nReactions, par);
+				}
+				if (paramProvider.exists("NREAC_SOLID"))
+				{
+					int nReactions = paramProvider.getInt("NREAC_SOLID");
+
+					if (nReactions < 0)
+					{
+						paramProvider.popScope();
+						throw InvalidParameterException("CSTR-Configuration: number of solid reaction must be positive, please check your configuration");
+					}
+					totalReacSolid += nReactions;
+					_reaction.computeOffsetsAndReaOfParType("solid", nReactions, par);
+				}
+				paramProvider.popScope(); // particle_type_xxx
+			}
+			else
+			{
+				throw InvalidParameterException("CSTR-Configuration:");
+			}
+		}
+
+		for (unsigned int par = 0; par < _nParType; par++)
+		{
+
+			char particleScope[32];
+			snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
+			paramProvider.pushScope(particleScope);
+
+			if (paramProvider.exists("NREAC_CROSS_PHASE"))
+			{
+
+				reactionConfSuccess = _reaction.configureDiscretization("cross_phase",
+					par,
+					totalReacCrossPhase,
+					_nParType,
+					_nComp,
+					_nBound,
+					_boundOffset,
+					paramProvider,
+					helper) && reactionConfSuccess;
+
+				paramProvider.popScope();
+			}
+			if (paramProvider.exists("NREAC_PORE"))
+			{
+				reactionConfSuccess = _reaction.configureDiscretization("pore",
+					par,
+					totalReacPore,
+					_nParType,
+					_nComp,
+					_nBound,
+					_boundOffset,
+					paramProvider,
+					helper) && reactionConfSuccess;
+
+				paramProvider.popScope();
+			}
+			if (paramProvider.exists("NREAC_SOLID"))
+			{
+				reactionConfSuccess = _reaction.configureDiscretization("solid",
+					par,
+					totalReacSolid,
+					_nParType,
+					_nComp,
+					_nBound,
+					_boundOffset,
+					paramProvider,
+					helper) && reactionConfSuccess;
+
+				paramProvider.popScope();
+			}
+
+		}
+
+	}
+	else if (paramProvider.exists("liquid_reaction_000"))
+	{
+			int nReactions = paramProvider.getInt("NREAC_LIQUID");
+			reactionConfSuccess = _reaction.configureDiscretization("liquid",
+				0, 
+				nReactions,
+				_nParType,
+				_nComp, 
+				_nBound, 
+				_boundOffset, 
+				paramProvider, 
+				helper) && reactionConfSuccess;
+	}
+	else
+	{
+		_dynReaction = std::vector<IDynamicReactionModel*>(_nParType, nullptr);
+		_reaction.empty(); // todo das als construktor 
+	}
+
 
 	return bindingConfSuccess && reactionConfSuccess;
 }
@@ -439,13 +577,42 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 		}
 	}
 
-	for (unsigned int type = 0; type < _nParType; ++type)
+	if (_oldReactionInterface)
 	{
-		if (!_dynReaction[type] || !_dynReaction[type]->requiresConfiguration())
-			continue;
+		// Old interface: one reaction per particle type
+		for (unsigned int type = 0; type < _nParType; ++type)
+		{
+			if (!_dynReaction[type] || !_dynReaction[type]->requiresConfiguration())
+				continue;
 
-		MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", type, _nParType == 1, true);
-		dynReactionConfSuccess = _dynReaction[type]->configure(paramProvider, _unitOpIdx, type) && dynReactionConfSuccess;
+			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", type, _nParType == 1, true);
+			dynReactionConfSuccess = _dynReaction[type]->configure(paramProvider, _unitOpIdx, type) && dynReactionConfSuccess;
+		}
+	}
+	else
+	{	
+		if (paramProvider.exists("NREAC_LIQUID"))
+			_reaction.configure("liquid", 0, _unitOpIdx, paramProvider);
+
+		for (unsigned int par = 0; par < _nParType; par++)
+		{
+			char particleScope[32];
+			snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
+			
+			if (paramProvider.exists(particleScope))
+			{
+				paramProvider.pushScope(particleScope);// scope particle_type
+
+				if (paramProvider.exists("NREAC_CROSS_PHASE"))
+					_reaction.configure("cross_phase", par, _unitOpIdx, paramProvider);
+				if (paramProvider.exists("NREAC_PORE"))
+					_reaction.configure("pore", par, _unitOpIdx, paramProvider);
+				if (paramProvider.exists("NREAC_SOLID"))
+					_reaction.configure("solid", par, _unitOpIdx, paramProvider);
+
+				paramProvider.popScope();// scope particle_type
+			}
+		}
 	}
 
 	return bindingConfSuccess && dynReactionConfSuccess;
@@ -456,13 +623,20 @@ unsigned int CSTRModel::threadLocalMemorySize() const CADET_NOEXCEPT
 	LinearMemorySizer lms;
 
 	// Memory for residualImpl()
-	for (unsigned int i = 0; i < _nParType; ++i)
+	if (_oldReactionInterface)
 	{
-		if (_binding[i] && _binding[i]->requiresWorkspace())
-			lms.fitBlock(_binding[i]->workspaceSize(_nComp, _strideBound[i], _nBound + i * _nComp));
-		if (_dynReaction[i] && _dynReaction[i]->requiresWorkspace())
-			lms.fitBlock(_dynReaction[i]->workspaceSize(_nComp, _strideBound[i], _nBound + i * _nComp));
+		for (unsigned int i = 0; i < _nParType; ++i)
+		{
+			if (_binding[i] && _binding[i]->requiresWorkspace())
+				lms.fitBlock(_binding[i]->workspaceSize(_nComp, _strideBound[i], _nBound + i * _nComp));
+			if (_dynReaction[i] && _dynReaction[i]->requiresWorkspace())
+				lms.fitBlock(_dynReaction[i]->workspaceSize(_nComp, _strideBound[i], _nBound + i * _nComp));
+		}
 	}
+	else	
+		_reaction.setWorkspaceRequirements(lms, _nComp);
+
+
 
 	for (auto i = 0; i < _dynReactionBulk.size(); i++)
 	{
@@ -1397,15 +1571,15 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 	// Reactions in liquid phase
 	const ColumnPosition colPos{0.0, 0.0, 0.0};
 
-	for (auto i = 0; i < _dynReactionBulk.size(); i++)
+	for (auto i = 0; i < _reaction.getDynReactionVector("liquid").size(); i++)
 	{
-		if (_dynReactionBulk[i] && (_dynReactionBulk[i]->numReactionsLiquid() > 0))
+		if (_reaction.getDynReactionVector("liquid")[i] && (_reaction.getDynReactionVector("liquid")[i]->numReactions() > 0))
 		{
 			LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
 			BufferedArray<ResidualType> flux = subAlloc.array<ResidualType>(_nComp);
 
 			std::fill_n(static_cast<ResidualType*>(flux), _nComp, 0.0);
-			_dynReactionBulk[i]->residualLiquidAdd(t, secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
+			_reaction.getDynReactionVector("liquid")[i]->residualFluxAdd(t, secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
 
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 				resC[comp] += v * flux[comp];
@@ -1415,12 +1589,12 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 				for (unsigned int comp = 0; comp < _nComp; ++comp)
 					_jac.native(comp, _nComp + _totalBound) += static_cast<double>(flux[comp]); // dF/dvliquid = flux
 
-				_dynReactionBulk[i]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
+				_reaction.getDynReactionVector("liquid")[i]->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
 			}
 		}
 	}
 
-	// Bound states
+	// Bound states (Binding and Reaction in Particle)
 	for (unsigned int type = 0; type < _nParType; ++type)
 	{
 		// Binding
@@ -1455,9 +1629,15 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 		}
 
 		// Reaction
-		IDynamicReactionModel* const dynReaction = _dynReaction[type];
-		if (dynReaction && (dynReaction->numReactionsCombined() > 0))
+
+		for (unsigned int reac = 0; reac < _reaction.getDynReactionVector("cross_phase").size(); ++reac)
 		{
+			auto offSet = _reaction.getOffsetForPhase("cross_phase", type);
+			
+			const IDynamicReactionModel* const dynReaction = _reaction.getDynReactionVector("cross_phase")[offSet + reac];
+			if (!dynReaction || (dynReaction->numReactionsCombined() == 0))
+				continue;
+
 			LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
 
 			ResidualType* const resQ = resC + _nComp + _offsetParType[type];
@@ -1469,18 +1649,86 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 			std::fill_n(fluxSolid, _strideBound[type], 0.0);
 			dynReaction->residualCombinedAdd(t, secIdx, colPos, c, c + _nComp + _offsetParType[type], fluxLiquid, fluxSolid, -1.0, subAlloc);
 
+			typedef typename DoubleActivePromoter<StateType, ParamType>::type FactorType;
+			const FactorType liquidFactor = vsolid * static_cast<ParamType>(_parTypeVolFrac[type]);
+			unsigned int idx = 0;
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
+			{
 				resC[comp] += v * fluxLiquid[comp];
+				
+				for (unsigned int bnd = 0; bnd < _nBound[type * _nComp + comp]; ++bnd, ++idx)
+				{
+					// Add reaction term to mobile phase
+					resC[comp] += static_cast<typename DoubleActiveDemoter<FactorType, ResidualType>::type>(liquidFactor)* fluxSolid[idx];
+
+					if (!qsReaction[idx])
+					{
+						// Add reaction term to solid phase
+						resQ[idx] +=  fluxSolid[idx];
+					}
+				}
+			}
+
+			if (wantJac)
+			{
+				// Assemble Jacobian: Reaction
+				BufferedArray<double> fluxJacobianMem = subAlloc.array<double>((_strideBound[type] + _nComp) * (_strideBound[type] + _nComp));
+				linalg::DenseMatrixView jacFlux(static_cast<double*>(fluxJacobianMem), nullptr, _strideBound[type] + _nComp, _strideBound[type] + _nComp);
+				jacFlux.setAll(0.0);
+				dynReaction->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), reinterpret_cast<double const*>(c + _nComp + _offsetParType[type]),
+					-1.0, jacFlux.row(0), jacFlux.row(_nComp), subAlloc);
+
+				unsigned int jacIdx = 0;
+				const double liquidFactor = static_cast<double>(vsolid) * static_cast<double>(_parTypeVolFrac[type]);
+				for (unsigned int comp = 0; comp < _nComp; ++comp)
+				{
+					// Add bulk part of reaction to mobile phase Jacobian
+					jacFlux.addSubmatrixTo(_jac, static_cast<double>(v), comp, 0, 1, _nComp, comp, 0);
+					jacFlux.addSubmatrixTo(_jac, static_cast<double>(v), comp, _nComp, 1, _strideBound[type], comp, _nComp + _offsetParType[type]);
+
+					for (unsigned int bnd = 0; bnd < _nBound[type * _nComp + comp]; ++bnd, ++jacIdx)
+					{
+						// Add Jacobian row to mobile phase
+						jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + jacIdx, 0, 1, _nComp, comp, 0);
+						jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + jacIdx, _nComp, 1, _strideBound[type], comp, _nComp + _offsetParType[type]);
+
+						if (!qsReaction[jacIdx])
+						{
+							// Add Jacobian row to solid phase
+							jacFlux.addSubmatrixTo(_jac, 1.0, _nComp + jacIdx, 0, 1, _nComp, _nComp + _offsetParType[type] + jacIdx, 0);
+							jacFlux.addSubmatrixTo(_jac, 1.0, _nComp + jacIdx, _nComp, 1, _strideBound[type], _nComp + _offsetParType[type] + jacIdx, _nComp + _offsetParType[type]);
+						}
+					}
+				}
+			}
+		}
+		// Solid Reaction
+		for (unsigned int reac = 0; reac < _reaction.getDynReactionVector("solid").size(); ++reac)
+		{
+			auto offSet = _reaction.getOffsetForPhase("solid", type);
+
+			const IDynamicReactionModel* const dynReaction = _reaction.getDynReactionVector("solid")[reac];
+			if (!dynReaction)
+				continue;
+
+			LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
+
+			ResidualType* const resQ = resC + _nComp + _offsetParType[type];
+			BufferedArray<ResidualType> fluxBuffer = subAlloc.array<ResidualType>(_nComp + _strideBound[type]);
+			ResidualType* const fluxSolid = static_cast<ResidualType*>(fluxBuffer) + _nComp;
+
+			std::fill_n(fluxSolid, _strideBound[type], 0.0);
+			dynReaction->residualFluxAdd(t, secIdx, colPos, c + _nComp + _offsetParType[type], fluxSolid, -1.0, subAlloc);
 
 			typedef typename DoubleActivePromoter<StateType, ParamType>::type FactorType;
 			const FactorType liquidFactor = vsolid * static_cast<ParamType>(_parTypeVolFrac[type]);
 			unsigned int idx = 0;
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
+				resC[comp] += static_cast<typename DoubleActiveDemoter<FactorType, ResidualType>::type>(liquidFactor)* fluxSolid[idx];
+
 				for (unsigned int bnd = 0; bnd < _nBound[type * _nComp + comp]; ++bnd, ++idx)
 				{
-					// Add reaction term to mobile phase
-					resC[comp] += static_cast<typename DoubleActiveDemoter<FactorType, ResidualType>::type>(liquidFactor) * fluxSolid[idx];
 
 					if (!qsReaction[idx])
 					{
@@ -1493,38 +1741,35 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 			if (wantJac)
 			{
 				// Assemble Jacobian: Reaction
-
-				// dRes / dC and dRes / dQ
 				BufferedArray<double> fluxJacobianMem = subAlloc.array<double>((_strideBound[type] + _nComp) * (_strideBound[type] + _nComp));
 				linalg::DenseMatrixView jacFlux(static_cast<double*>(fluxJacobianMem), nullptr, _strideBound[type] + _nComp, _strideBound[type] + _nComp);
-				dynReaction->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), reinterpret_cast<double const*>(c + _nComp + _offsetParType[type]),
-					-1.0, jacFlux.row(0), jacFlux.row(_nComp), subAlloc);
+				jacFlux.setAll(0.0);
+				dynReaction->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c + _nComp + _offsetParType[type]),
+					-1.0, jacFlux.row(_nComp), subAlloc);
 
-				idx = 0;
+				unsigned int jacIdx = 0;
 				const double liquidFactor = static_cast<double>(vsolid) * static_cast<double>(_parTypeVolFrac[type]);
 				for (unsigned int comp = 0; comp < _nComp; ++comp)
 				{
-					// Add bulk part of reaction to mobile phase Jacobian
-					jacFlux.addSubmatrixTo(_jac, static_cast<double>(v), comp, 0, 1, _nComp, comp, 0);
-					jacFlux.addSubmatrixTo(_jac, static_cast<double>(v), comp, _nComp, 1, _strideBound[type], comp, _nComp + _offsetParType[type]);
-
-					for (unsigned int bnd = 0; bnd < _nBound[type * _nComp + comp]; ++bnd, ++idx)
+					for (unsigned int bnd = 0; bnd < _nBound[type * _nComp + comp]; ++bnd, ++jacIdx)
 					{
 						// Add Jacobian row to mobile phase
-						jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + idx, 0, 1, _nComp, comp, 0);
-						jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + idx, _nComp, 1, _strideBound[type], comp, _nComp + _offsetParType[type]);
-
-						if (!qsReaction[idx])
+						jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + jacIdx, 0, 1, _nComp, comp, 0);
+						jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + jacIdx, _nComp, 1, _strideBound[type], comp, _nComp + _offsetParType[type]);
+						
+						if (!qsReaction[jacIdx])
 						{
 							// Add Jacobian row to solid phase
-							jacFlux.addSubmatrixTo(_jac, 1.0, _nComp + idx, 0, 1, _nComp, _nComp + _offsetParType[type] + idx, 0);
-							jacFlux.addSubmatrixTo(_jac, 1.0, _nComp + idx, _nComp, 1, _strideBound[type], _nComp + _offsetParType[type] + idx, _nComp + _offsetParType[type]);
+							jacFlux.addSubmatrixTo(_jac, 1.0, _nComp + jacIdx, 0, 1, _nComp, _nComp + _offsetParType[type] + jacIdx, 0);
+							jacFlux.addSubmatrixTo(_jac, 1.0, _nComp + jacIdx, _nComp, 1, _strideBound[type], _nComp + _offsetParType[type] + jacIdx, _nComp + _offsetParType[type]);
 						}
 					}
 				}
 			}
 		}
 	}
+
+	
 
 	// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
 	res[2 * _nComp + _totalBound] = vDot - flowIn + flowOut + static_cast<ParamType>(_curFlowRateFilter);
@@ -2002,7 +2247,7 @@ bool CSTRModel::setParameter(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, _dynReactionBulk , false))
+		if (model::setParameter(pId, value, _reaction.getDynReactionVector("liquid") , false))
 			return true;
 	}
 
@@ -2013,7 +2258,7 @@ bool CSTRModel::setParameter(const ParameterId& pId, int value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, _dynReactionBulk, false))
+		if (model::setParameter(pId, value, _reaction.getDynReactionVector("liquid"), false))
 			return true;
 	}
 
@@ -2024,7 +2269,7 @@ bool CSTRModel::setParameter(const ParameterId& pId, bool value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value,  _dynReactionBulk, false))
+		if (model::setParameter(pId, value,  _reaction.getDynReactionVector("liquid"), false))
 			return true;
 	}
 
@@ -2035,7 +2280,7 @@ void CSTRModel::setSensitiveParameterValue(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setSensitiveParameterValue(pId, value, _sensParams,  _dynReactionBulk, false))
+		if (model::setSensitiveParameterValue(pId, value, _sensParams,  _reaction.getDynReactionVector("liquid"), false))
 			return;
 	}
 
@@ -2044,7 +2289,7 @@ void CSTRModel::setSensitiveParameterValue(const ParameterId& pId, double value)
 
 bool CSTRModel::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
 {
-	if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams,  _dynReactionBulk , false))
+	if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams,  _reaction.getDynReactionVector("liquid") , false))
 	{
 		LOG(Debug) << "Found parameter " << pId << " in DynamicBulkReactionModel: Dir " << adDirection << " is set to " << adValue;
 		return true;

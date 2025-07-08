@@ -411,66 +411,10 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
 			paramProvider.popScope();
 	}
-	else if (paramProvider.exists("reaction_bulk"))
+	else if (paramProvider.exists("bulk_reaction_000"))
 	{
-		paramProvider.pushScope("reaction_bulk");
-
-		if (paramProvider.exists("NREAC"))
-		{
-			int nReactions = paramProvider.getInt("NREAC");
-
-			if (nReactions <= 0)
-			{
-				paramProvider.popScope();
-				throw InvalidParameterException("CSTR-Configuration: number of reaction must be positive, please check your configuration");
-			}
-			_dynReactionBulk.resize(nReactions, nullptr);
-
-			for (int i = 0; i < nReactions; ++i) {
-
-				char reactionKey[32];
-				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
-
-				if (!paramProvider.exists(reactionKey)) {
-					paramProvider.popScope();
-					throw InvalidParameterException("Missing reaction model definition for " + std::string(reactionKey));
-				}
-
-				paramProvider.pushScope(reactionKey);
-
-				if (!paramProvider.exists("REACTION_TYPE")) {
-					paramProvider.popScope();
-					throw InvalidParameterException("Missing 'type' parameter for " + std::string(reactionKey));
-				}
-
-				std::string reactionType = paramProvider.getString("REACTION_TYPE");
-				paramProvider.popScope();
-				_dynReactionBulk[i] = helper.createDynamicReactionModel(reactionType);
-
-				if (!_dynReactionBulk[i]) {
-					paramProvider.popScope();
-					throw InvalidParameterException("Unknown dynamic reaction model " + reactionType +
-						" for " + reactionKey);
-				}
-
-				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
-					paramProvider.pushScope(reactionKey);
-
-				reactionConfSuccess = _dynReactionBulk[i]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr) && reactionConfSuccess;
-
-				if (!reactionConfSuccess) {
-					if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
-						paramProvider.popScope();
-					paramProvider.popScope();
-					throw InvalidParameterException("Failed to configure reaction model " + reactionType +
-						" for " + reactionKey);
-				}
-
-				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
-					paramProvider.popScope();
-			}
-		}
-		paramProvider.popScope();
+		int nReactions = paramProvider.getInt("NREAC_BULK");
+		_reaction.configureDiscretization("bulk", 0, nReactions, 0 , _disc.nComp, nullptr, nullptr, paramProvider, helper);
 	}
 
 	
@@ -510,31 +454,14 @@ bool MultiChannelTransportModel::configure(IParameterProvider& paramProvider)
 
 	// Reconfigure reaction model
 	bool dynReactionConfSuccess = true;
-	for(auto i = 0; i < _dynReactionBulk.size(); i++)
-	{
-		if (_dynReactionBulk[i] && _dynReactionBulk[i]->requiresConfiguration())
-		{
-			paramProvider.pushScope("reaction_bulk");
-			if (!_oldReactionInterface)
-			{
-				char reactionKey[32];
-				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
-				paramProvider.pushScope(reactionKey);
-			}
-			dynReactionConfSuccess = _dynReactionBulk[i]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
-			paramProvider.popScope();
-
-			if (!_oldReactionInterface)
-				paramProvider.popScope();
-		}
-	}
+	
+	if (paramProvider.exists("NREAC_BULK"))
+		dynReactionConfSuccess = _reaction.configure("bulk", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 	
 	// Reconfigure exchange model
 	bool exchangeConfSuccess = true;
 	exchangeConfSuccess = _exchange[0]->configure(paramProvider, _unitOpIdx);
 	
-
-
 	return transportSuccess && dynReactionConfSuccess && exchangeConfSuccess;
 }
 
@@ -544,12 +471,12 @@ unsigned int MultiChannelTransportModel::threadLocalMemorySize() const CADET_NOE
 	LinearMemorySizer lms;
 
 	// Memory for residualImpl()
-	for (auto i = 0; i < _dynReactionBulk.size(); i++)
+	for (auto i = 0; i < _reaction.getDynReactionVector("bulk").size(); i++)
 	{
-		if (_dynReactionBulk[i] && _dynReactionBulk[i]->requiresWorkspace())
-			lms.fitBlock(_dynReactionBulk[i]->workspaceSize(_disc.nComp, 0, nullptr));
+		if (_reaction.getDynReactionVector("bulk")[i] && _reaction.getDynReactionVector("bulk")[i]->requiresWorkspace())
+			lms.fitBlock(_reaction.getDynReactionVector("bulk")[i]->workspaceSize(_disc.nComp, 0, nullptr));
 	}
-
+	
 	return lms.bufferSize();
 }
 
@@ -817,7 +744,7 @@ int MultiChannelTransportModel::residualImpl(double t, unsigned int secIdx, Stat
 	}
 	
 
-	if (!_dynReactionBulk[0])
+	if (!_reaction.getDynReactionVector("bulk")[0])
 		return 0;
 
 	// Get offsets
@@ -834,16 +761,16 @@ int MultiChannelTransportModel::residualImpl(double t, unsigned int secIdx, Stat
 
 		const ColumnPosition colPos{z, static_cast<double>(channelCell), 0.0};
 
-		for (auto i = 0; i < _dynReactionBulk.size(); i++)
+		for (auto i = 0; i < _reaction.getDynReactionVector("bulk").size(); i++)
 		{
-			if (_dynReactionBulk[i] && (_dynReactionBulk[i]->numReactionsLiquid() > 0))
+			if (_reaction.getDynReactionVector("bulk")[i] && (_reaction.getDynReactionVector("bulk")[i]->numReactions() > 0))
 			{
-				_dynReactionBulk[i]->residualLiquidAdd(t, secIdx, colPos, yC, resC, -1.0, tlmAlloc);
+				_reaction.getDynReactionVector("bulk")[i]->residualFluxAdd(t, secIdx, colPos, yC, resC, -1.0, tlmAlloc);
 
 				if (wantJac)
 				{
 					// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-					_dynReactionBulk[i]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(yC), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideChannelCell()), tlmAlloc);
+					_reaction.getDynReactionVector("bulk")[i]->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(yC), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideChannelCell()), tlmAlloc);
 				}
 			}
 		}

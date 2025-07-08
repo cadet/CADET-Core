@@ -29,6 +29,7 @@
 #include "Memory.hpp"
 #include "model/ModelUtils.hpp"
 #include "ParameterMultiplexing.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 
 #include <array>
 #include <vector>
@@ -276,8 +277,25 @@ protected:
 
 	ConvDispOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 	std::vector<IDynamicReactionModel*> _dynReactionBulk; //!< Dynamic reactions in the bulk volume
-	bool _oldReactionInterface;
+	std::vector <IDynamicReactionModel*> _dynReactionParticle; //!< Dynamic reactions in the parical volume
+	
 	IParameterParameterDependence* _filmDiffDep; //!< Film diffusion dependency on local velocity
+
+	bool _oldReactionInterface; //!< Flag to distinguish between old and new reaction interface
+	std::vector<int> _numCrossPhaseReactionsPerParticle; //!< Number of cross phase reactions per particle type
+	std::vector<int> _numParticleReactionsPerParticle; //!< Number of particle reactions per particle type
+	
+	ReactionSystem _reaction;
+	const int getReactionOffsetParticle(std::vector<int>& reactionPerParticle, unsigned int parType) const
+	{
+		int offset = 0;
+		for (auto par = 0; par < parType; par++)
+		{
+			offset += reactionPerParticle[par];
+		}
+		return offset;
+	}
+
 
 	std::vector<linalg::BandMatrix> _jacP; //!< Particle jacobian diagonal blocks (all of them for each particle type)
 	std::vector<linalg::FactorizableBandMatrix> _jacPdisc; //!< Particle jacobian diagonal blocks (all of them for each particle type) with time derivatives from BDF method

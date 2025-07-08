@@ -84,8 +84,7 @@ GeneralRateModel<ConvDispOperator>::~GeneralRateModel() CADET_NOEXCEPT
 	delete[] _jacP;
 	delete[] _jacPdisc;
 
-	for (auto* reac : _dynReactionBulk)
-		delete reac;
+	for (auto* reac : _dynReactionBulk) delete reac;
 
 	clearParDepSurfDiffusion();
 }
@@ -483,6 +482,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	bool reactionConfSuccess = true;
 	_oldReactionInterface = false;
 	_dynReactionBulk.resize(1, nullptr);
+	_dynReaction.resize(_disc.nParType, nullptr);
 	if (paramProvider.exists("REACTION_MODEL"))
 	{
 		_oldReactionInterface = true;
@@ -562,11 +562,14 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 		paramProvider.popScope();
 	}
 
-	clearDynamicReactionModels();
-	_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
+	_oldReactionInterface = false;
+	_reaction.clearDynamicReactionModels();
 
 	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
 	{
+		_oldReactionInterface = true;
+		_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
+
 		const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL_PARTICLES");
 
 		if (paramProvider.exists("REACTION_MODEL_PARTICLES_MULTIPLEX"))
@@ -600,6 +603,139 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 			}
 		}
 	}
+	else if (paramProvider.exists("particle_type_000") && _disc.nParType > 0)
+	{
+		_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
+
+		unsigned int totalReacCrossPhase = 0;
+		unsigned int totalReacPore = 0;
+		unsigned int totalReacSolid = 0;
+		// First set offsets an calculate
+		_reaction.configureDimensionsOffSet(_disc.nParType);
+		for (unsigned int par = 0; par < _disc.nParType; par++)
+		{
+
+			char particleScope[32];
+			snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
+			
+			if( paramProvider.exists(particleScope) )
+			{
+				paramProvider.pushScope(particleScope); // partilce_type_xxx
+
+				if (paramProvider.exists("NREAC_CROSS_PHASE"))
+				{
+					int nReactions = paramProvider.getInt("NREAC_CROSS_PHASE");
+
+					if (nReactions < 0)
+					{
+						paramProvider.popScope();
+						throw InvalidParameterException("GRM-Configuration: number of cross phase reaction must be positive, please check your configuration");
+					}
+					totalReacCrossPhase += nReactions;
+					_reaction.computeOffsetsAndReaOfParType("cross_phase", nReactions, par);
+				}
+
+				if (paramProvider.exists("NREAC_PORE"))
+				{
+					int nReactions = paramProvider.getInt("NREAC_PORE");
+
+					if (nReactions < 0)
+					{
+						paramProvider.popScope();
+						throw InvalidParameterException("GRM-Configuration: number of pore reaction must be positive, please check your configuration");
+					}
+					totalReacPore += nReactions;
+					_reaction.computeOffsetsAndReaOfParType("pore", nReactions, par);
+				}
+				if (paramProvider.exists("NREAC_SOLID"))
+				{
+					int nReactions = paramProvider.getInt("NREAC_SOLID");
+
+					if (nReactions < 0)
+					{
+						paramProvider.popScope();
+						throw InvalidParameterException("GRM-Configuration: number of solid reaction must be positive, please check your configuration");
+					}
+					totalReacSolid += nReactions;
+					_reaction.computeOffsetsAndReaOfParType("solid", nReactions, par);
+				}
+				paramProvider.popScope(); // partilce_type_xxx
+			}
+			else
+			{
+				throw InvalidParameterException("GRM-Configuration: Particle configuration is not correct");
+			}
+		}
+
+		for (unsigned int par = 0; par < _disc.nParType; par++)
+		{
+
+			char particleScope[32];
+			snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
+			paramProvider.pushScope(particleScope); // particle_type_xxx
+			
+			if (paramProvider.exists("NREAC_CROSS_PHASE"))
+			{
+				reactionConfSuccess = _reaction.configureDiscretization("cross_phase",
+					par,
+					totalReacCrossPhase,
+					_disc.nParType,
+					_disc.nComp,
+					_disc.nBound,
+					_disc.boundOffset,
+					paramProvider,
+					helper) && reactionConfSuccess;
+			
+			}
+			if (paramProvider.exists("NREAC_PORE"))
+			{
+				reactionConfSuccess = _reaction.configureDiscretization("pore",
+					par,
+					totalReacPore,
+					_disc.nParType,
+					_disc.nComp,
+					_disc.nBound,
+					_disc.boundOffset,
+					paramProvider,
+					helper) && reactionConfSuccess;
+			}
+			if (paramProvider.exists("NREAC_SOLID"))
+			{
+				reactionConfSuccess = _reaction.configureDiscretization("solid",
+					par,
+					totalReacSolid,
+					_disc.nParType,
+					_disc.nComp,
+					_disc.nBound,
+					_disc.boundOffset,
+					paramProvider,
+					helper) && reactionConfSuccess;
+
+			}
+			paramProvider.popScope(); // particle_type_xxx
+
+		}
+
+	}
+	else if (paramProvider.exists("NREAC_BULK"))
+	{
+		int nReactions = paramProvider.getInt("NREAC_BULK");
+		reactionConfSuccess = _reaction.configureDiscretization("bulk", 
+			0,
+			nReactions,
+			_disc.nParType,
+			_disc.nComp,
+			_disc.nBound,
+			_disc.boundOffset,
+			paramProvider,
+			helper) && reactionConfSuccess;
+	}
+	else
+	{
+		_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
+		_reaction.empty(); // todo das als construktor 
+	}
+
 
 	// Allocate memory
 	_tempState = new double[numDofs()];
@@ -913,23 +1049,50 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 		}
 	}
 
-	if (_singleDynReaction)
+	if (_oldReactionInterface)
 	{
-		if (_dynReaction[0] && _dynReaction[0]->requiresConfiguration())
+		if (_singleDynReaction)
 		{
-			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", true);
-			dynReactionConfSuccess = _dynReaction[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
+			if (_dynReaction[0] && _dynReaction[0]->requiresConfiguration())
+			{
+				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", true);
+				dynReactionConfSuccess = _dynReaction[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
+			}
+		}
+		else
+		{
+			for (unsigned int type = 0; type < _disc.nParType; ++type)
+			{
+				if (!_dynReaction[type] || !_dynReaction[type]->requiresConfiguration())
+					continue;
+
+				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", type, _disc.nParType == 1, true);
+				dynReactionConfSuccess = _dynReaction[type]->configure(paramProvider, _unitOpIdx, type) && dynReactionConfSuccess;
+			}
 		}
 	}
 	else
-	{
-		for (unsigned int type = 0; type < _disc.nParType; ++type)
-		{
- 			if (!_dynReaction[type] || !_dynReaction[type]->requiresConfiguration())
- 				continue;
+	{	
+		if (paramProvider.exists("NREAC_BULK"))
+			dynReactionConfSuccess  = _reaction.configure("bulk", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
-			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", type, _disc.nParType == 1, true);
-			dynReactionConfSuccess = _dynReaction[type]->configure(paramProvider, _unitOpIdx, type) && dynReactionConfSuccess;
+		for (unsigned int par = 0; par < _disc.nParType; par++)
+		{	
+			char particleScope[32];
+			snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
+
+			if (paramProvider.exists(particleScope))
+			{
+				paramProvider.pushScope(particleScope);
+				if (paramProvider.exists("NREAC_CROSS_PHASE"))
+					dynReactionConfSuccess = _reaction.configure("cross_phase", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+				if (paramProvider.exists("NREAC_PORE"))
+					dynReactionConfSuccess = _reaction.configure("pore", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+				if (paramProvider.exists("NREAC_SOLID"))
+					dynReactionConfSuccess = _reaction.configure("solid", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+
+				paramProvider.popScope();
+			}
 		}
 	}
 
@@ -942,20 +1105,36 @@ unsigned int GeneralRateModel<ConvDispOperator>::threadLocalMemorySize() const C
 	LinearMemorySizer lms;
 
 	// Memory for residualImpl()
-	for (unsigned int i = 0; i < _disc.nParType; ++i)
+	if (_oldReactionInterface)
 	{
-		if (_binding[i] && _binding[i]->requiresWorkspace())
-			lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
+		for (unsigned int i = 0; i < _disc.nParType; ++i)
+		{
+			if (_binding[i] && _binding[i]->requiresWorkspace())
+				lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
 
-		if (_dynReaction[i] && _dynReaction[i]->requiresWorkspace())
-			lms.fitBlock(_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
+			if (_dynReaction[i] && _dynReaction[i]->requiresWorkspace())
+				lms.fitBlock(_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
+		}
 	}
+	else
+	{
+		// New interface: handle multiple reactions per particle type
+		for (unsigned int i = 0; i < _disc.nParType; ++i)
+		{
+			if (_binding[i] && _binding[i]->requiresWorkspace())
+				lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
+		}
+		// Handle all reactions
+		_reaction.setWorkspaceRequirements(lms, _disc.nComp);
+	}
+
 
 	for (auto i = 0; i < _dynReactionBulk.size(); i++)
 	{
 		if (_dynReactionBulk[i] && _dynReactionBulk[i]->requiresWorkspace())
 			lms.fitBlock(_dynReactionBulk[i]->workspaceSize(_disc.nComp, 0, nullptr));
 	}
+
 
 	const unsigned int maxStrideBound = *std::max_element(_disc.strideBound, _disc.strideBound + _disc.nParType);
 	lms.add<active>(_disc.nComp + maxStrideBound);
@@ -1361,8 +1540,6 @@ int GeneralRateModel<ConvDispOperator>::residualBulk(double t, unsigned int secI
 	else
 		_convDispOp.jacobian(*this, t, secIdx, yBase, nullptr, nullptr);
 
-	if (!_dynReactionBulk[0])
-		return 0;
 
 	// Get offsets
 	Indexer idxr(_disc);
@@ -1374,18 +1551,18 @@ int GeneralRateModel<ConvDispOperator>::residualBulk(double t, unsigned int secI
 	{
 		const ColumnPosition colPos{ (0.5 + static_cast<double>(col)) / static_cast<double>(_disc.nCol), 0.0, 0.0 };
 
-		for (auto i = 0; i < _dynReactionBulk.size(); i++)
+		for (auto i = 0; i < _reaction.getDynReactionVector("bulk").size(); i++)
 		{	
-			if (!_dynReactionBulk[i] || (_dynReactionBulk[i]->numReactionsLiquid() == 0))
+			if (!_reaction.getDynReactionVector("bulk")[i])
 				continue;
 
 			if (wantRes)
-				_dynReactionBulk[i]->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
+				_reaction.getDynReactionVector("bulk")[i]->residualFluxAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
 
 			if (wantJac)
 			{
 				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-				_dynReactionBulk[i]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(col * idxr.strideColCell()), tlmAlloc);
+				_reaction.getDynReactionVector("bulk")[i]->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(col * idxr.strideColCell()), tlmAlloc);
 
 			}
 		}
@@ -1454,6 +1631,173 @@ int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int 
 
 		// We still need to handle transport and quasi-stationary reactions
 
+		const int numReacCrossPhase = _reaction.getDynReactionVector("cross_phase").size();
+		const int numReacParticle = _reaction.getDynReactionVector("pore").size();
+		const int numReacSolid = _reaction.getDynReactionVector("solid").size();
+		
+		//todo: double check offset
+		const int offSetCrossPhase = _reaction.getOffsetForPhase("cross_phase", parType);
+		const int offSetParticle = _reaction.getOffsetForPhase("pore", parType);
+		const int offSetSolid = _reaction.getOffsetForPhase("solid", parType);
+
+		if (numReacCrossPhase > 0 || numReacParticle > 0 || numReacSolid > 0)
+		{
+			unsigned int const* nBound = _disc.nBound + _disc.nComp * parType;
+			unsigned int const* boundOffset = _disc.boundOffset + _disc.nComp * parType;
+			unsigned int nTotalBound = _disc.strideBound[parType];
+			int const* qsReaction = _binding[parType]->reactionQuasiStationarity();
+			const active& porosity = _parPorosity[parType];
+			active const* poreAccessFactor = _poreAccessFactor.data() + _disc.nComp * parType;
+			IBindingModel* binding = _binding[parType];
+			auto jacBase = jac;
+			auto buffer = threadLocalMem.get();
+
+			// Pre-calculate 
+			std::vector<double> invBetaP(_disc.nComp);	
+			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+			{
+				invBetaP[comp] = (1.0 - static_cast<double>(porosity)) /
+					(poreAccessFactor ? static_cast<double>(poreAccessFactor[comp]) * static_cast<double>(porosity) : static_cast<double>(porosity));
+			}
+			// Cross phase reaction
+			for (unsigned int reac = 0; reac < 1; ++reac)
+			{
+				if (!_reaction.getDynReactionVector("cross_phase")[offSetCrossPhase + reac])
+					continue;
+
+				if (wantRes)
+				{
+
+					BufferedArray<ResidualType> fluxSolid = buffer.template array<ResidualType>(nTotalBound);
+
+					std::fill_n(static_cast<ResidualType*>(fluxSolid), nTotalBound, 0.0);
+					_reaction.getDynReactionVector("cross_phase")[offSetCrossPhase + reac]->residualCombinedAdd(t, secIdx, colPos, y , y + _disc.nComp, res, static_cast<ResidualType*>(fluxSolid), -1.0, buffer);
+
+					unsigned int idx = 0;
+					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+					{
+						for (unsigned int bnd = 0; bnd < nBound[comp]; ++bnd, ++idx)
+						{
+							// Add reaction term to mobile phase
+							res[static_cast<int>(comp)] += static_cast<typename DoubleActiveDemoter<ParamType, ResidualType>::type>(invBetaP[comp])* fluxSolid[idx];
+
+							if (!qsReaction[idx])
+							{
+								// Add reaction term to solid phase
+								res[idx + _disc.nComp] += fluxSolid[idx];
+							}
+						}
+					}
+
+					if (wantJac)
+					{
+						BufferedArray<double> fluxSolidJacobian = buffer.template array<double>(nTotalBound * (nTotalBound + _disc.nComp));
+						linalg::DenseMatrixView dmv(static_cast<double*>(fluxSolidJacobian), nullptr, nTotalBound, nTotalBound + _disc.nComp);
+						dmv.setAll(0.0);
+
+						// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+						_reaction.getDynReactionVector("cross_phase")[offSetCrossPhase + reac]->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), reinterpret_cast<double const*>(y + _disc.nComp), -1.0, jacBase, dmv.row(0, _disc.nComp), buffer);
+
+						unsigned int idx = 0;
+						for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+						{
+							for (unsigned int bnd = 0; bnd < nBound[comp]; ++bnd, ++idx)
+							{
+								// Add Jacobian row to mobile phase
+								(jacBase + comp).addArray(dmv.rowPtr(idx), -static_cast<int>(comp), dmv.columns(), invBetaP[comp]);
+
+								if (!qsReaction[idx])
+								{
+									// Add Jacobian row to solid phase
+									(jacBase + _disc.nComp + idx).addArray(dmv.rowPtr(idx), -static_cast<int>(_disc.nComp + idx), dmv.columns(), 1.0);
+								}
+							}
+						}
+
+					}
+				}
+			}
+			// Pore reactions
+			for (unsigned int reac = 0; reac < numReacParticle; ++reac)
+			{
+				if (!_reaction.getDynReactionVector("pore")[offSetParticle + reac])
+					continue;
+
+				if (wantRes)
+				{
+					_reaction.getDynReactionVector("pore")[offSetParticle + reac]->residualFluxAdd(t, secIdx, colPos, y, res, -1.0, buffer);
+
+					if (wantJac)
+					{
+
+						// We do not have bound states, but still need to obtain the Jacobian for the liquid phase.
+						// So we pass a row iterator for the solid phase that does not point anywhere and hope that the
+						// reaction model does not interact with it.
+
+						// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+						auto temp = _reaction.getDynReactionVector("pore")[offSetParticle + reac];
+						temp->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, jacBase, buffer);
+					}
+				}
+			}
+			// Solid reaction
+			for (unsigned int reac = 0; reac < numReacSolid; ++reac)
+			{
+				if (!_reaction.getDynReactionVector("solid")[offSetSolid + reac])
+					continue;
+
+				if (wantRes)
+				{
+
+					BufferedArray<ResidualType> fluxSolid = buffer.template array<ResidualType>(nTotalBound);
+					std::fill_n(static_cast<ResidualType*>(fluxSolid), nTotalBound, 0.0);
+					//todo change name 
+					_reaction.getDynReactionVector("solid")[offSetSolid + reac]->residualFluxAdd(t, secIdx, colPos, y + _disc.nComp, static_cast<ResidualType*>(fluxSolid), -1.0, buffer);
+					unsigned int idx = 0;
+					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+					{
+						for (unsigned int bnd = 0; bnd < nBound[comp]; ++bnd, ++idx)
+						{
+							res[static_cast<int>(comp)] += static_cast<typename DoubleActiveDemoter<ParamType, ResidualType>::type>(invBetaP[comp])* fluxSolid[idx];
+
+							if (!qsReaction[idx])
+							{
+								// Add reaction term to solid phase
+								res[idx + _disc.nComp] += fluxSolid[idx];
+							}
+						}
+					}
+
+					if (wantJac)
+					{
+						BufferedArray<double> fluxSolidJacobian = buffer.template array<double>(nTotalBound * (nTotalBound + _disc.nComp));
+						linalg::DenseMatrixView dmv(static_cast<double*>(fluxSolidJacobian), nullptr, nTotalBound, nTotalBound + _disc.nComp);
+						dmv.setAll(0.0);
+
+						// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+						_reaction.getDynReactionVector("solid")[offSetSolid + reac]->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y + _disc.nComp), -1.0, dmv.row(0, _disc.nComp), buffer);
+
+						unsigned int idx = 0;
+						for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+						{
+							for (unsigned int bnd = 0; bnd < nBound[comp]; ++bnd, ++idx)
+							{
+								(jacBase + comp).addArray(dmv.rowPtr(idx), -static_cast<int>(comp), dmv.columns(), invBetaP[comp]);
+
+								if (!qsReaction[idx])
+								{
+									// Add Jacobian row to solid phase
+									(jacBase + _disc.nComp + idx).addArray(dmv.rowPtr(idx), -static_cast<int>(_disc.nComp + idx), dmv.columns(), 1.0);
+								}
+							}
+						}
+
+					}
+				}
+			}
+		}
+		
+		
 		// Geometry
 		const ParamType outerAreaPerVolume = static_cast<ParamType>(outerSurfPerVol[par]);
 		const ParamType innerAreaPerVolume = static_cast<ParamType>(innerSurfPerVol[par]);
@@ -2139,7 +2483,7 @@ parts::cell::CellParameters GeneralRateModel<ConvDispOperator>::makeCellResidual
 			_parPorosity[parType],
 			_poreAccessFactor.data() + _disc.nComp * parType,
 			_binding[parType],
-			(_dynReaction[parType] && (_dynReaction[parType]->numReactionsCombined() > 0)) ? _dynReaction[parType] : nullptr
+			nullptr // historical reactions are now handeld by ReactionSystem
 		};
 }
 
@@ -2965,7 +3309,7 @@ bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, do
 		if (_convDispOp.setParameter(pId, value))
 			return true;
 
-		if (model::setParameter(pId, value,  _dynReactionBulk , false))
+		if (model::setParameter(pId, value,  _reaction.getDynReactionVector("bulk"), false))
 			return true;
 	}
 
@@ -2989,7 +3333,7 @@ bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, in
 
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, _dynReactionBulk , false))
+		if (model::setParameter(pId, value, _reaction.getDynReactionVector("bulk"), false))
 			return true;
 	}
 
@@ -3007,7 +3351,7 @@ bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, bo
 
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value,  _dynReactionBulk, false))
+		if (model::setParameter(pId, value, _reaction.getDynReactionVector("bulk"), false))
 			return true;
 	}
 
@@ -3060,7 +3404,7 @@ void GeneralRateModel<ConvDispOperator>::setSensitiveParameterValue(const Parame
 		if (_convDispOp.setSensitiveParameterValue(_sensParams, pId, value))
 			return;
 
-		if (model::setSensitiveParameterValue(pId, value, _sensParams,  _dynReactionBulk , false))
+		if (model::setSensitiveParameterValue(pId, value, _sensParams, _reaction.getDynReactionVector("bulk"), false))
 			return;
 	}
 
@@ -3157,7 +3501,7 @@ bool GeneralRateModel<ConvDispOperator>::setSensitiveParameter(const ParameterId
 			return true;
 		}
 
-		if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, _dynReactionBulk , false))
+		if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, _reaction.getDynReactionVector("bulk"), false))
 		{
 			LOG(Debug) << "Found parameter " << pId << " in DynamicBulkReactionModel: Dir " << adDirection << " is set to " << adValue;
 			return true;
