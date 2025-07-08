@@ -1376,12 +1376,12 @@ int GeneralRateModel2D::residualBulk(double t, unsigned int secIdx, StateType co
 		const double z = (0.5 + static_cast<double>(axialCell)) / static_cast<double>(_disc.nCol);
 
 		const ColumnPosition colPos{z, r, 0.0};
-		_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
+		_dynReactionBulk->residualFluxAdd(t, secIdx, colPos, _disc.nComp, y, res, -1.0, tlmAlloc);
 
 		if (wantJac)
 		{
 			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideColRadialCell()), tlmAlloc);
+			_dynReactionBulk->analyticJacobianAdd(t, secIdx, colPos, _disc.nComp, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideColRadialCell()), tlmAlloc);
 		}
 	}
 

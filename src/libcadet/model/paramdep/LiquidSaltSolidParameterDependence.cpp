@@ -84,7 +84,7 @@ public:
 	virtual int jacobianElementsPerRowLiquid() const CADET_NOEXCEPT { return 0; }
 	virtual int jacobianElementsPerRowCombined() const CADET_NOEXCEPT { return 1; }
 
-	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
+	virtual void analyticJacobianAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
 	virtual void analyticJacobianCombinedAddLiquid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
 
 	virtual void analyticJacobianCombinedAddSolid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int bnd, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const
@@ -113,7 +113,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void analyticJacobianLiquidAddImpl(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, RowIterator jac) const { }
+	void analyticJacobianAddImpl(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, RowIterator jac) const { }
 
 	template <typename StateType, typename ParamType>
 	typename DoubleActivePromoter<StateType, ParamType>::type combinedParameterLiquidImpl(const ColumnPosition& colPos, const ParamType& param, StateType const* yLiquid, StateType const* ySolid, int comp) const
@@ -154,7 +154,7 @@ public:
 	virtual int jacobianElementsPerRowLiquid() const CADET_NOEXCEPT { return 0; }
 	virtual int jacobianElementsPerRowCombined() const CADET_NOEXCEPT { return 1; }
 
-	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
+	virtual void analyticJacobianAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
 	virtual void analyticJacobianCombinedAddLiquid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
 
 	virtual void analyticJacobianCombinedAddSolid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int bnd, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const
@@ -183,7 +183,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void analyticJacobianLiquidAddImpl(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, RowIterator jac) const { }
+	void analyticJacobianAddImpl(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, RowIterator jac) const { }
 
 	template <typename StateType, typename ParamType>
 	typename DoubleActivePromoter<StateType, ParamType>::type combinedParameterLiquidImpl(const ColumnPosition& colPos, const ParamType& param, StateType const* yLiquid, StateType const* ySolid, int comp) const
@@ -224,7 +224,7 @@ public:
 	virtual int jacobianElementsPerRowLiquid() const CADET_NOEXCEPT { return 0; }
 	virtual int jacobianElementsPerRowCombined() const CADET_NOEXCEPT { return 1; }
 
-	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
+	virtual void analyticJacobianAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
 	virtual void analyticJacobianCombinedAddLiquid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
 
 	virtual void analyticJacobianCombinedAddSolid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int bnd, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const
@@ -269,7 +269,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void analyticJacobianLiquidAddImpl(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, RowIterator jac) const { }
+	void analyticJacobianAddImpl(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, RowIterator jac) const { }
 
 	template <typename StateType, typename ParamType>
 	typename DoubleActivePromoter<StateType, ParamType>::type combinedParameterLiquidImpl(const ColumnPosition& colPos, const ParamType& param, StateType const* yLiquid, StateType const* ySolid, int comp) const
