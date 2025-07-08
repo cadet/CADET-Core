@@ -278,6 +278,17 @@ protected:
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 	IParameterParameterDependence* _filmDiffDep; //!< Film diffusion dependency on local velocity
 
+	bool _oldReactionInterface; //!< Flag to distinguish between old and new reaction interface
+	std::vector<int> _numReactionsPerParticle; //!< Number of reactions per particle type
+
+	int getNumReactionsForParticle(unsigned int parType) const
+	{
+		if (_oldReactionInterface)
+			return 1; // Old interface has only one reaction per particle type
+
+		return _numReactionsPerParticle[parType];
+	}
+
 	std::vector<linalg::BandMatrix> _jacP; //!< Particle jacobian diagonal blocks (all of them for each particle type)
 	std::vector<linalg::FactorizableBandMatrix> _jacPdisc; //!< Particle jacobian diagonal blocks (all of them for each particle type) with time derivatives from BDF method
 
