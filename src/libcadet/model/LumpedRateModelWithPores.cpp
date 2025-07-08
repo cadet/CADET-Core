@@ -425,10 +425,12 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 	}
 
 	clearDynamicReactionModels();
-	_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
-
+	_oldReactionInterface = false;
 	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
 	{
+		_oldReactionInterface = true;
+		_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
+
 		const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL_PARTICLES");
 
 		if (paramProvider.exists("REACTION_MODEL_PARTICLES_MULTIPLEX"))
@@ -461,6 +463,108 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 				reactionConfSuccess = _dynReaction[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && reactionConfSuccess;
 			}
 		}
+	}
+	else if (paramProvider.exists("reaction_particle_000"))
+	{
+		// First get the total size of _dynReaction across all particles
+		int totalReactions = 0;
+		for (unsigned int par = 0; par < _disc.nParType; par++)
+		{
+
+			char particleScope[32];
+			snprintf(particleScope, sizeof(particleScope), "reaction_particle_%03d", par);
+			paramProvider.pushScope(particleScope);
+
+			if (paramProvider.exists("NREAC"))
+			{
+				int nReactions = paramProvider.getInt("NREAC");
+
+				if (nReactions <= 0)
+				{
+					paramProvider.popScope();
+					throw InvalidParameterException("CSTR-Configuration: number of reaction must be positive, please check your configuration");
+				}
+				totalReactions += nReactions;
+				_numReactionsPerParticle[par] = nReactions;
+			}
+			paramProvider.popScope();
+		}
+
+		_dynReaction.resize(totalReactions);
+		// initialize every reaction type for ever particle
+		int globalOffset = 0;
+		for (unsigned int par = 0; par < _disc.nParType; par++)
+		{
+			char particleScope[32];
+			snprintf(particleScope, sizeof(particleScope), "reaction_particle_%03d", par);
+			paramProvider.pushScope(particleScope);
+
+			int nReactions = paramProvider.getInt("NREAC");
+
+			for (int reac = 0; reac < nReactions; ++reac)
+			{
+
+				char reactionKey[32];
+				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", reac);
+
+				if (!paramProvider.exists(reactionKey))
+				{
+					paramProvider.popScope();
+					throw InvalidParameterException("Missing reaction model definition for particle " + std::to_string(par) +
+						", reaction " + std::to_string(reac) + " (" + std::string(reactionKey) + ")");
+				}
+
+				paramProvider.pushScope(reactionKey);
+
+				if (!paramProvider.exists("REACTION_TYPE"))
+				{
+					paramProvider.popScope();
+					paramProvider.popScope();
+					throw InvalidParameterException("Missing 'REACTION_TYPE' parameter for particle " + std::to_string(par) +
+						", " + std::string(reactionKey));
+				}
+
+				std::string reactionType = paramProvider.getString("REACTION_TYPE");
+				paramProvider.popScope();
+				_dynReaction[globalOffset + reac] = helper.createDynamicReactionModel(reactionType);
+
+				if (!_dynReaction[globalOffset + reac])
+				{
+					paramProvider.popScope();
+					paramProvider.popScope();
+					throw InvalidParameterException("Unknown dynamic reaction model '" + reactionType +
+						"' for particle " + std::to_string(par) + ", " + std::string(reactionKey));
+				}
+
+				if (_dynReaction[globalOffset + reac]->usesParamProviderInDiscretizationConfig())
+					paramProvider.pushScope(reactionKey);
+
+				// Configure the reaction model
+				reactionConfSuccess = _dynReaction[globalOffset + reac]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
+
+				if (!reactionConfSuccess)
+				{
+					if (_dynReaction[globalOffset + reac]->usesParamProviderInDiscretizationConfig())
+						paramProvider.popScope();
+					paramProvider.popScope();
+					throw InvalidParameterException("Failed to configure reaction model " + reactionType +
+						" for " + reactionKey);
+				}
+
+				if (_dynReaction[globalOffset + reac]->usesParamProviderInDiscretizationConfig())
+					paramProvider.popScope();
+
+				//paramProvider.popScope(); // Exit reaction_model_XXX scope
+
+			}
+			globalOffset += nReactions;
+			paramProvider.popScope(); // Exit reaction_particle_XXX scope
+		}
+	}
+	else
+	{
+		_dynReaction.push_back(nullptr);
+		_numReactionsPerParticle[0] = 0;
 	}
 
 	// Setup the memory for tempState based on state vector
@@ -645,25 +749,59 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configure(IParameterProvider& p
 		}
 	}
 
-	if (_singleDynReaction)
+	if (_oldReactionInterface)
 	{
-		if (_dynReaction[0] && _dynReaction[0]->requiresConfiguration())
+		if (_singleDynReaction)
 		{
-			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", true);
-			dynReactionConfSuccess = _dynReaction[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
+			if (_dynReaction[0] && _dynReaction[0]->requiresConfiguration())
+			{
+				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", true);
+				dynReactionConfSuccess = _dynReaction[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
+			}
+		}
+		else
+		{
+			for (unsigned int type = 0; type < _disc.nParType; ++type)
+			{
+				if (!_dynReaction[type] || !_dynReaction[type]->requiresConfiguration())
+					continue;
+
+				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", type, _disc.nParType == 1, true);
+				dynReactionConfSuccess = _dynReaction[type]->configure(paramProvider, _unitOpIdx, type) && dynReactionConfSuccess;
+			}
 		}
 	}
 	else
 	{
-		for (unsigned int type = 0; type < _disc.nParType; ++type)
+		// New interface: multiple reactions per particle type
+		int globalOffset = 0;
+		for (unsigned int par = 0; par < _disc.nParType; par++)
 		{
- 			if (!_dynReaction[type] || !_dynReaction[type]->requiresConfiguration())
- 				continue;
+			char particleScope[32];
+			snprintf(particleScope, sizeof(particleScope), "reaction_particle_%03d", par);
+			paramProvider.pushScope(particleScope);
 
-			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", type, _disc.nParType == 1, true);
-			dynReactionConfSuccess = _dynReaction[type]->configure(paramProvider, _unitOpIdx, type) && dynReactionConfSuccess;
+			int nReactions = paramProvider.getInt("NREAC");
+
+			for (int reac = 0; reac < nReactions; ++reac)
+			{
+				if (!_dynReaction[globalOffset + reac] || !_dynReaction[globalOffset + reac]->requiresConfiguration())
+					continue;
+
+				char reactionKey[32];
+				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", reac);
+				paramProvider.pushScope(reactionKey);
+
+				dynReactionConfSuccess = _dynReaction[globalOffset + reac]->configure(paramProvider, _unitOpIdx, par) && dynReactionConfSuccess;
+
+				paramProvider.popScope();
+			}
+
+			globalOffset += nReactions;
+			paramProvider.popScope();
 		}
 	}
+
 
 	return transportSuccess && bindingConfSuccess && dynReactionConfSuccess;
 }
@@ -674,13 +812,32 @@ unsigned int LumpedRateModelWithPores<ConvDispOperator>::threadLocalMemorySize()
 	LinearMemorySizer lms;
 
 	// Memory for residualImpl()
-	for (unsigned int i = 0; i < _disc.nParType; ++i)
+	if (_oldReactionInterface)
 	{
-		if (_binding[i] && _binding[i]->requiresWorkspace())
-			lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
+		for (unsigned int i = 0; i < _disc.nParType; ++i)
+		{
+			if (_binding[i] && _binding[i]->requiresWorkspace())
+				lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
 
-		if (_dynReaction[i] && _dynReaction[i]->requiresWorkspace())
-			lms.fitBlock(_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
+			if (_dynReaction[i] && _dynReaction[i]->requiresWorkspace())
+				lms.fitBlock(_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
+		}
+	}
+	else
+	{
+		// New interface: handle multiple reactions per particle type
+		for (unsigned int i = 0; i < _disc.nParType; ++i)
+		{
+			if (_binding[i] && _binding[i]->requiresWorkspace())
+				lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
+		}
+
+		// Handle all reactions
+		for (unsigned int i = 0; i < _dynReaction.size(); ++i)
+		{
+			if (_dynReaction[i] && _dynReaction[i]->requiresWorkspace())
+				lms.fitBlock(_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound[i % _disc.nParType], _disc.nBound + (i % _disc.nParType) * _disc.nComp));
+		}
 	}
 
 	for (auto i = 0; i < _dynReactionBulk.size(); i++)
@@ -1131,6 +1288,14 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualParticle(double t, unsig
 	// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
 	const double z = _convDispOp.relativeCoordinate(colCell);
 
+	//reactions of particle type
+	const int numReac = getNumReactionsForParticle(parType);
+	int reacStart = parType;
+	for (int i = 0; i < parType; i++)
+	{
+		reacStart += getNumReactionsForParticle(i)
+	}
+
 	const parts::cell::CellParameters cellResParams
 		{
 			_disc.nComp,
@@ -1141,7 +1306,7 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualParticle(double t, unsig
 			_parPorosity[parType],
 			_poreAccessFactor.data() + _disc.nComp * parType,
 			_binding[parType],
-			(_dynReaction[parType] && (_dynReaction[parType]->numReactionsCombined() > 0)) ? _dynReaction[parType] : nullptr
+			(_dynReaction[parType] && (_dynReaction[parType]->numReactionsCombined() > 0)) ? _dynReaction[parType] : nullptr,
 		};
 
 	// Handle time derivatives, binding, dynamic reactions
