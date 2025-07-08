@@ -52,49 +52,47 @@
                 ]
             }
         },
-        "unit_001": {
-            "CONST_SOLID_VOLUME": 1.0,
-            "INIT_C": [
-                1.0,
-               0.0,
-               1.0 
-            ],
-            "INIT_LIQUID_VOLUME": 1.0,
-            "NCOMP": 3,
-            "UNIT_TYPE": "CSTR",
-          "USE_ANALYTIC_JACOBIAN": 1,
-          "reaction_bulk": {
-            "NREAC": 2,
-            "reaction_model_000": {
-              "REACTION_TYPE": "MASS_ACTION_LAW",
-              "MAL_KBWD_BULK": [
-                0.5
-              ],
-              "MAL_KFWD_BULK": [
-                1.0
-              ],
-              "MAL_STOICHIOMETRY_BULK": [
-                -1,
-                1,
-                0
-              ]
-            },
-            "reaction_model_001": {
-              "REACTION_TYPE": "MASS_ACTION_LAW",
-              "MAL_KBWD_BULK": [
-                0.5
-              ],
-              "MAL_KFWD_BULK": [
-                1.0
-              ],
-              "MAL_STOICHIOMETRY_BULK": [
-                0,
-                1,
-                -1
-              ]
-            }
-          }
+      "unit_001": {
+        "CONST_SOLID_VOLUME": 1.0,
+        "INIT_C": [
+          1.0,
+          0.0,
+          1.0
+        ],
+        "INIT_LIQUID_VOLUME": 1.0,
+        "NCOMP": 3,
+        "UNIT_TYPE": "CSTR",
+        "USE_ANALYTIC_JACOBIAN": 1,
+        "NREAC_LIQUID": 2,
+        "liquid_reaction_000": {
+          "TYPE": "MASS_ACTION_LAW",
+          "MAL_KBWD": [
+            0.5
+          ],
+          "MAL_KFWD": [
+            1.0
+          ],
+          "MAL_STOICHIOMETRY": [
+            -1,
+            1,
+            0
+          ]
         },
+        "liquid_reaction_001": {
+          "TYPE": "MASS_ACTION_LAW",
+          "MAL_KBWD": [
+            0.5
+          ],
+          "MAL_KFWD": [
+            1.0
+          ],
+          "MAL_STOICHIOMETRY": [
+            0,
+            1,
+            -1
+          ]
+        }
+      },
         "unit_002": {
             "NCOMP": 3,
             "UNIT_TYPE": "OUTLET"

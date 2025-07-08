@@ -251,7 +251,6 @@ public:
 	 * @return Size of the workspace in bytes
 	 */
 	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT = 0;
-
 	/**
 	 * @brief Returns the amount of required AD seed vectors / directions
 	 * @details Only internally required AD directions count (e.g., for Jacobian computation).
