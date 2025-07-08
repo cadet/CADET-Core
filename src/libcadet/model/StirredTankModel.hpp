@@ -176,7 +176,17 @@ protected:
 	std::vector<double> _initConditionsDot; //!< Initial conditions for time derivative
 
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
+	std::vector<int> _numReactionsPerParticle; //!< Offset to the first reaction of each particle type
 
+	int getNumReactionsForParticle(unsigned int parType) const
+	{
+		if (_oldReactionInterface)
+			return 1; // Old interface has only one reaction per particle type
+
+		// For new interface, you need to store this information during configuration
+		// This is a simplified version - you may need to store this data differently
+		return _numReactionsPerParticle[parType];
+	}
 	class Exporter : public ISolutionExporter
 	{
 	public:
