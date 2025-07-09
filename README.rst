@@ -45,6 +45,8 @@ Therefore, we kindly ask that any publications or projects leveraging the capabi
 
 **General:**
 
+- Leweke, S.; Breuer, J.; Schmölder, J.; Jäpel, R.; Lanzrath, H.; Rao, J.; Hassan, J.; Zhang, W.; Berger, A.; Heymann, W.; von Lieres, E.: `CADET-Core 5.0: High-Performance Solver for Advanced Biotechnology Process Modeling <https://doi.org/10.21105/joss.07881>`_, Journal of Open Source Software **10** (2025), 7881.
+
 - Leweke, S.; von Lieres, E.: `Chromatography Analysis and Design Toolkit (CADET) <https://doi.org/10.1016/j.compchemeng.2018.02.025>`_, Computers and Chemical Engineering **113** (2018), 274–294.
 
 - von Lieres, E.; Andersson, J.: `A fast and accurate solver for the general rate model of column liquid chromatography <https://doi.org/10.1016/j.compchemeng.2010.03.008>`_, Computers and Chemical Engineering **34,8** (2010), 1180–1191.
