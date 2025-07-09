@@ -1,0 +1,91 @@
+cff-version: "1.2.0"
+authors:
+- family-names: Leweke
+  given-names: Samuel
+  orcid: "https://orcid.org/0000-0001-9471-4511"
+- family-names: Breuer
+  given-names: Jan
+  orcid: "https://orcid.org/0000-0002-1999-2439"
+- family-names: Schmölder
+  given-names: Johannes
+  orcid: "https://orcid.org/0000-0003-0446-7209"
+- family-names: Jäpel
+  given-names: Ronald
+  orcid: "https://orcid.org/0000-0002-4912-5176"
+- family-names: Lanzrath
+  given-names: Hannah
+  orcid: "https://orcid.org/0000-0002-2675-9002"
+- family-names: Rao
+  given-names: Jayghosh
+  orcid: "https://orcid.org/0000-0002-1216-9394"
+- family-names: Hassan
+  given-names: Jazib
+  orcid: "https://orcid.org/0000-0003-2741-5460"
+- family-names: Zhang
+  given-names: Wendi
+  orcid: "https://orcid.org/0000-0002-6127-1408"
+- family-names: Berger
+  given-names: Antonia
+  orcid: "https://orcid.org/0009-0002-0207-9042"
+- family-names: Heymann
+  given-names: William
+  orcid: "https://orcid.org/0000-0002-5093-0797"
+- family-names: von Lieres
+  given-names: Eric
+  orcid: "https://orcid.org/0000-0002-0309-8408"
+doi: 10.5281/zenodo.15656988
+message: >
+  If you use CADET, please cite our article in the Journal of Open Source Software
+  as well as Leweke et al. (2018). Additional topic-specific references (e.g., for discretization,
+  crystallization, and parameter sensitivities) are can be found in the
+  [CITATION.bib file](https://github.com/cadet/CADET-Core/blob/paper/JOSS_2024/CITATION.bib).
+preferred-citation:
+  authors:
+  - family-names: Leweke
+    given-names: Samuel
+    orcid: "https://orcid.org/0000-0001-9471-4511"
+  - family-names: Breuer
+    given-names: Jan
+    orcid: "https://orcid.org/0000-0002-1999-2439"
+  - family-names: Schmölder
+    given-names: Johannes
+    orcid: "https://orcid.org/0000-0003-0446-7209"
+  - family-names: Jäpel
+    given-names: Ronald
+    orcid: "https://orcid.org/0000-0002-4912-5176"
+  - family-names: Lanzrath
+    given-names: Hannah
+    orcid: "https://orcid.org/0000-0002-2675-9002"
+  - family-names: Rao
+    given-names: Jayghosh
+    orcid: "https://orcid.org/0000-0002-1216-9394"
+  - family-names: Hassan
+    given-names: Jazib
+    orcid: "https://orcid.org/0000-0003-2741-5460"
+  - family-names: Zhang
+    given-names: Wendi
+    orcid: "https://orcid.org/0000-0002-6127-1408"
+  - family-names: Berger
+    given-names: Antonia
+    orcid: "https://orcid.org/0009-0002-0207-9042"
+  - family-names: Heymann
+    given-names: William
+    orcid: "https://orcid.org/0000-0002-5093-0797"
+  - family-names: von Lieres
+    given-names: Eric
+    orcid: "https://orcid.org/0000-0002-0309-8408"
+  date-published: 2025-07-03
+  doi: 10.21105/joss.07881
+  issn: 2475-9066
+  issue: 111
+  journal: Journal of Open Source Software
+  publisher:
+    name: Open Journals
+  start: 7881
+  title: "CADET-Core 5.0: High-Performance Solver for Advanced
+    Biotechnology Process Modeling"
+  type: article
+  url: "https://joss.theoj.org/papers/10.21105/joss.07881"
+  volume: 10
+title: "CADET-Core 5.0: High-Performance Solver for Advanced
+  Biotechnology Process Modeling"
