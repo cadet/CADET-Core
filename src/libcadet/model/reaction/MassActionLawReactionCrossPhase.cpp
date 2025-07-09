@@ -62,7 +62,7 @@ namespace cadet
 			return true;
 		}
 
-		inline const char* ExtMassActionLawCrossPhaseParamHandler::identifier() CADET_NOEXCEPT { return "MASS_ACTION_LAW_CROSS_PHASE"; }
+		inline const char* ExtMassActionLawCrossPhaseParamHandler::identifier() CADET_NOEXCEPT { return "EXT_MASS_ACTION_LAW_CROSS_PHASE"; }
 
 		inline bool ExtMassActionLawCrossPhaseParamHandler::validateConfig(unsigned int nReactions, unsigned int nComp, unsigned int const* nBoundStates)
 		{
