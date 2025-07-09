@@ -339,6 +339,8 @@ public:
 
 		if (paramProvider.exists("MAL_STOICHIOMETRY_LIQUID"))
 		{
+			LOG(Warning) << "Cross phase reactions is only supported for backwards compatibility, but the implementation of the MAL has changed, please refer to the documentation.";
+
 			const std::size_t numElements = paramProvider.numElements("MAL_STOICHIOMETRY_LIQUID");
 			if (numElements % nComp != 0)
 				throw InvalidParameterException("Size of field MAL_STOICHIOMETRY_LIQUID must be a positive multiple of NCOMP (" + std::to_string(nComp) + ")");
@@ -355,6 +357,7 @@ public:
 
 		if (paramProvider.exists("MAL_STOICHIOMETRY_SOLID") && (_nTotalBoundStates > 0))
 		{
+			LOG(Warning) << "Cross phase reactions is only supported for backwards compatibility, but the implementation of the MAL has changed, please refer to the documentation.";
 			const std::size_t numElements = paramProvider.numElements("MAL_STOICHIOMETRY_SOLID");
 			if (numElements % _nTotalBoundStates != 0)
 				throw InvalidParameterException("Size of field MAL_STOICHIOMETRY_SOLID must be a positive multiple of NTOTALBND (" + std::to_string(_nTotalBoundStates) + ")");
