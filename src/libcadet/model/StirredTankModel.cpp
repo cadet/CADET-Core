@@ -334,7 +334,7 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 					paramProvider.pushScope(reactionKey);
 				
 				// Configure the reaction model
-				reactionConfSuccess = _dynReaction[globalOffset + reac]->configureModelDiscretization(paramProvider, _nComp, nullptr, nullptr);
+				reactionConfSuccess = _dynReaction[globalOffset + reac]->configureModelDiscretization(paramProvider, _nComp, _nBound + par * _nComp, _boundOffset + par * _nComp) && reactionConfSuccess;
 
 				if (!reactionConfSuccess) 
 				{
@@ -1557,7 +1557,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 				for (unsigned int bnd = 0; bnd < _nBound[type * _nComp + comp]; ++bnd, ++idx)
 				{
 					// Add reaction term to mobile phase
-					resC[comp] += static_cast<typename DoubleActiveDemoter<FactorType, ResidualType>::type>(liquidFactor)* fluxSolid[idx];
+					//resC[comp] += static_cast<typename DoubleActiveDemoter<FactorType, ResidualType>::type>(liquidFactor)* fluxSolid[idx];
 
 					if (!qsReaction[idx])
 					{
@@ -1586,8 +1586,8 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 					for (unsigned int bnd = 0; bnd < _nBound[type * _nComp + comp]; ++bnd, ++jacIdx)
 					{
 						// Add Jacobian row to mobile phase
-						jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + jacIdx, 0, 1, _nComp, comp, 0);
-						jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + jacIdx, _nComp, 1, _strideBound[type], comp, _nComp + _offsetParType[type]);
+						//jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + jacIdx, 0, 1, _nComp, comp, 0);
+						//jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + jacIdx, _nComp, 1, _strideBound[type], comp, _nComp + _offsetParType[type]);
 
 						if (!qsReaction[jacIdx])
 						{
