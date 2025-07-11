@@ -506,7 +506,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 			{
 
 				char reactionKey[32];
-				snprintf(reactionKey, sizeof(reactionKey), "reaction_cross_phase_%03d", reac);
+				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", reac);
 
 				if (!paramProvider.exists(reactionKey))
 				{
