@@ -426,6 +426,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 
 	clearDynamicReactionModels();
 	_oldReactionInterface = false;
+	_numReactionsPerParticle.resize(_disc.nParType);
 	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
 	{
 		_oldReactionInterface = true;
@@ -540,7 +541,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 					paramProvider.pushScope(reactionKey);
 
 				// Configure the reaction model
-				reactionConfSuccess = _dynReaction[globalOffset + reac]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
+				reactionConfSuccess = _dynReaction[globalOffset + reac]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + par * _disc.nComp, _disc.boundOffset + par * _disc.nComp) && reactionConfSuccess;
 
 				if (!reactionConfSuccess)
 				{
@@ -558,6 +559,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 
 			}
 			globalOffset += nReactions;
+			
 			paramProvider.popScope(); // Exit reaction_particle_XXX scope
 		}
 	}
@@ -1206,7 +1208,7 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualImpl(double t, unsigned 
 		if (cadet_unlikely(pblk == 0))
 			residualBulk<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, y, yDot, res, threadLocalMem);
 		else
-		{
+		{	
 			const unsigned int type = (pblk - 1) / _disc.nCol;
 			const unsigned int par = (pblk - 1) % _disc.nCol;
 			residualParticle<StateType, ResidualType, ParamType, wantJac, wantRes>(t, type, par, secIdx, y, yDot, res, threadLocalMem);
@@ -1288,14 +1290,6 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualParticle(double t, unsig
 	// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
 	const double z = _convDispOp.relativeCoordinate(colCell);
 
-	//reactions of particle type
-	const int numReac = getNumReactionsForParticle(parType);
-	int reacStart = parType;
-	for (int i = 0; i < parType; i++)
-	{
-		reacStart += getNumReactionsForParticle(i)
-	}
-
 	const parts::cell::CellParameters cellResParams
 		{
 			_disc.nComp,
@@ -1320,6 +1314,96 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualParticle(double t, unsig
 			t, secIdx, ColumnPosition{ z, 0.0, static_cast<double>(radius) * 0.5 }, y, yDot, res,
 			_jacP[parType].row(colCell * idxr.strideParBlock(parType)), cellResParams, threadLocalMem.get()
 		);
+	
+	// Reaction
+	const int numReac = getNumReactionsForParticle(parType);
+	const int offSet = getReactionOffSetParicle(parType);
+	if (numReac > 0)
+	{
+			unsigned int const* nBound = _disc.nBound + _disc.nComp * parType;
+			unsigned int const* boundOffset = _disc.boundOffset + _disc.nComp * parType;
+			unsigned int nTotalBound = _disc.strideBound[parType];
+			int const* qsReaction = _binding[parType]->reactionQuasiStationarity();
+			const active& porosity = _parPorosity[parType];
+			active const* poreAccessFactor = _poreAccessFactor.data() + _disc.nComp * parType;
+			IBindingModel* binding = _binding[parType];
+			auto jacBase = _jacP[parType].row(colCell * idxr.strideParBlock(parType));
+			auto colPos = ColumnPosition{ z, 0.0, static_cast<double>(radius) * 0.5 };
+			auto buffer = threadLocalMem.get();
+
+		for (unsigned int reac = 0; reac < numReac; ++reac)
+		{
+			if (!_dynReaction[offSet + reac])
+				continue;
+
+			if (wantRes)
+			{
+
+				BufferedArray<ResidualType> fluxSolid = buffer.template array<ResidualType>(nTotalBound);
+
+				std::fill_n(static_cast<ResidualType*>(fluxSolid), nTotalBound, 0.0);
+				_dynReaction[offSet + reac]->residualCombinedAdd(t, secIdx, colPos, y - _disc.nComp, y, res - _disc.nComp, static_cast<ResidualType*>(fluxSolid), -1.0, buffer);
+
+				unsigned int idx = 0;
+				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+				{
+					const ParamType invBetaP = (1.0 - static_cast<ParamType>(_parPorosity[parType])) / (poreAccessFactor ? static_cast<ParamType>(poreAccessFactor[comp]) * static_cast<ParamType>(porosity) : static_cast<ParamType>(porosity));
+
+					for (unsigned int bnd = 0; bnd < nBound[comp]; ++bnd, ++idx)
+					{
+						// Add reaction term to mobile phase
+						res[-static_cast<int>(_disc.nComp) + static_cast<int>(comp)] += static_cast<typename DoubleActiveDemoter<ParamType, ResidualType>::type>(invBetaP)* fluxSolid[idx];
+
+						if (!qsReaction[idx])
+						{
+							// Add reaction term to solid phase
+							res[idx] += fluxSolid[idx];
+						}
+					}
+				}
+
+				if (wantJac)
+				{
+					if (nTotalBound > 0)
+					{
+						BufferedArray<double> fluxSolidJacobian = buffer.template array<double>(nTotalBound * (nTotalBound + _disc.nComp));
+						linalg::DenseMatrixView dmv(static_cast<double*>(fluxSolidJacobian), nullptr, nTotalBound, nTotalBound + _disc.nComp);
+						dmv.setAll(0.0);
+
+						// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+						_dynReaction[offSet + reac]->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y - _disc.nComp), reinterpret_cast<double const*>(y), -1.0, jacBase, dmv.row(0, _disc.nComp), buffer);
+
+						unsigned int idx = 0;
+						for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+						{
+							const double invBetaP = (1.0 - static_cast<double>(porosity)) / (poreAccessFactor ? static_cast<double>(poreAccessFactor[comp]) * static_cast<double>(porosity) : static_cast<double>(porosity));
+
+							for (unsigned int bnd = 0; bnd < nBound[comp]; ++bnd, ++idx)
+							{
+								// Add Jacobian row to mobile phase
+								(jacBase + comp).addArray(dmv.rowPtr(idx), -static_cast<int>(comp), dmv.columns(), invBetaP);
+
+								if (!qsReaction[idx])
+								{
+									// Add Jacobian row to solid phase
+									(jacBase + _disc.nComp + idx).addArray(dmv.rowPtr(idx), -static_cast<int>(_disc.nComp + idx), dmv.columns(), 1.0);
+								}
+							}
+						}
+					}
+					else
+					{
+						// We do not have bound states, but still need to obtain the Jacobian for the liquid phase.
+						// So we pass a row iterator for the solid phase that does not point anywhere and hope that the
+						// reaction model does not interact with it.
+
+						// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+						_dynReaction[offSet + reac]->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y - _disc.nComp), reinterpret_cast<double const*>(y), -1.0, jacBase, linalg::DenseBandedRowIterator(), buffer);
+					}
+				}
+			}
+		}
+	}
 
 	return 0;
 }

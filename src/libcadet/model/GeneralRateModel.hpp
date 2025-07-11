@@ -329,6 +329,27 @@ protected:
 	std::vector<IDynamicReactionModel*> _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 	bool _oldReactionInterface;
 
+	bool _oldReactionInterface; //!< Flag to distinguish between old and new reaction interface
+	std::vector<int> _numReactionsPerParticle; //!< Number of reactions per particle type
+
+	const int getNumReactionsForParticle(unsigned int parType) const
+	{
+		if (_oldReactionInterface)
+			return 1; // Old interface has only one reaction per particle type
+
+		return _numReactionsPerParticle[parType];
+	}
+
+	const int getReactionOffSetParicle(unsigned int parType) const
+	{
+		int offSet = 0;
+		for (auto par = 0; par < parType; par++)
+		{
+			offSet += getNumReactionsForParticle(par);
+		}
+		return offSet;
+	}
+
 	linalg::BandMatrix* _jacP; //!< Particle jacobian diagonal blocks (all of them)
 	linalg::FactorizableBandMatrix* _jacPdisc; //!< Particle jacobian diagonal blocks (all of them) with time derivatives from BDF method
 

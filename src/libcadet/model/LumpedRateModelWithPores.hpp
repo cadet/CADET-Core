@@ -282,12 +282,22 @@ protected:
 	bool _oldReactionInterface; //!< Flag to distinguish between old and new reaction interface
 	std::vector<int> _numReactionsPerParticle; //!< Number of reactions per particle type
 
-	int getNumReactionsForParticle(unsigned int parType) const
+	const int getNumReactionsForParticle(unsigned int parType) const
 	{
 		if (_oldReactionInterface)
 			return 1; // Old interface has only one reaction per particle type
 
 		return _numReactionsPerParticle[parType];
+	}
+
+	const int getReactionOffSetParicle(unsigned int parType) const
+	{
+		int offSet = 0;
+		for (auto par = 0; par < parType; par++)
+		{
+			offSet += getNumReactionsForParticle(par);
+		}
+		return offSet;
 	}
 
 	std::vector<linalg::BandMatrix> _jacP; //!< Particle jacobian diagonal blocks (all of them for each particle type)
