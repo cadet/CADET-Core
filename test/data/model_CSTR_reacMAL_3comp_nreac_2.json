@@ -27,22 +27,26 @@
         },
         "unit_000": {
             "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
-            "NCOMP": 2,
+            "NCOMP": 3,
             "UNIT_TYPE": "INLET",
             "sec_000": {
                 "CONST_COEFF": [
+                    0.0,
                     0.0,
                     0.0
                 ],
                 "CUBE_COEFF": [
                     0.0,
+                    0.0,
                     0.0
                 ],
                 "LIN_COEFF": [
                     0.0,
+                    0.0,
                     0.0
                 ],
                 "QUAD_COEFF": [
+                    0.0,
                     0.0,
                     0.0
                 ]
@@ -52,31 +56,47 @@
             "CONST_SOLID_VOLUME": 1.0,
             "INIT_C": [
                 1.0,
-                0.0
+               0.0,
+               1.0 
             ],
             "INIT_LIQUID_VOLUME": 1.0,
-            "NCOMP": 2,
+            "NCOMP": 3,
             "UNIT_TYPE": "CSTR",
-          "USE_ANALYTIC_JACOBIAN": 0,
+          "USE_ANALYTIC_JACOBIAN": 1,
           "reaction_bulk": {
-            "NREAC": 1,
+            "NREAC": 2,
             "reaction_model_000": {
               "REACTION_TYPE": "MASS_ACTION_LAW",
               "MAL_KBWD_BULK": [
-                3.0
+                0.5
               ],
               "MAL_KFWD_BULK": [
                 1.0
               ],
               "MAL_STOICHIOMETRY_BULK": [
                 -1,
-                1
+                1,
+                0
+              ]
+            },
+            "reaction_model_001": {
+              "REACTION_TYPE": "MASS_ACTION_LAW",
+              "MAL_KBWD_BULK": [
+                0.5
+              ],
+              "MAL_KFWD_BULK": [
+                1.0
+              ],
+              "MAL_STOICHIOMETRY_BULK": [
+                0,
+                1,
+                -1
               ]
             }
-            }
+          }
         },
         "unit_002": {
-            "NCOMP": 2,
+            "NCOMP": 3,
             "UNIT_TYPE": "OUTLET"
         }
     },
@@ -89,28 +109,6 @@
             "WRITE_SOLUTION_BULK": 0,
             "WRITE_SOLUTION_INLET": 0,
             "WRITE_SOLUTION_OUTLET": 1
-        }
-    },
-    "sensitivity": {
-        "NSENS": 2,
-        "SENS_METHOD": "ad1",
-        "param_000": {
-            "SENS_BOUNDPHASE": -1,
-            "SENS_COMP": -1,
-            "SENS_NAME": "MAL_KFWD_BULK",
-            "SENS_PARTYPE": -1,
-            "SENS_REACTION": 0,
-            "SENS_SECTION": -1,
-            "SENS_UNIT": 1
-        },
-        "param_001": {
-            "SENS_BOUNDPHASE": -1,
-            "SENS_COMP": 0,
-            "SENS_NAME": "MAL_STOICHIOMETRY_BULK",
-            "SENS_PARTYPE": -1,
-            "SENS_REACTION": 0,
-            "SENS_SECTION": -1,
-            "SENS_UNIT": 1
         }
     },
     "solver": {
