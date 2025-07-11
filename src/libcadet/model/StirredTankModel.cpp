@@ -327,7 +327,7 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 			_numReactionsPerParticle[i] = 1;
 		}
 	}
-	else if (paramProvider.exists("reaction_particle_000"))
+	else if (paramProvider.exists("reaction_cross_phase_000"))
 	{
 		// First get the total size of _dynReaction across all particles
 		int totalReactions = 0;
@@ -335,7 +335,7 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 		{
 			
 			char particleScope[32];
-			snprintf(particleScope, sizeof(particleScope), "reaction_particle_%03d", par);
+			snprintf(particleScope, sizeof(particleScope), "reaction_cross_phase_%03d", par);
 			paramProvider.pushScope(particleScope);
 
 			if (paramProvider.exists("NREAC"))
@@ -359,7 +359,7 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 		for (unsigned int par = 0; par < _nParType; par++)
 		{
 			char particleScope[32];
-			snprintf(particleScope, sizeof(particleScope), "reaction_particle_%03d", par);
+			snprintf(particleScope, sizeof(particleScope), "reaction_cross_phase_%03d", par);
 			paramProvider.pushScope(particleScope);
 			
 			int nReactions = paramProvider.getInt("NREAC");			
@@ -558,7 +558,7 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 		for (unsigned int par = 0; par < _nParType; par++)
 		{
 			char particleScope[32];
-			snprintf(particleScope, sizeof(particleScope), "reaction_particle_%03d", par);
+			snprintf(particleScope, sizeof(particleScope), "reaction_cross_phase_%03d", par);
 			paramProvider.pushScope(particleScope);
 
 			int nReactions = paramProvider.getInt("NREAC");
