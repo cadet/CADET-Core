@@ -33,10 +33,10 @@
 	"parameters":
 		[
 
-			{ "type": "ScalarReactionDependentParameter", "varName": "kFwdLiquid", "confName": "KFWD_LIQUID"},
-			{ "type": "ScalarReactionDependentParameter", "varName": "kBwdLiquid", "confName": "KBWD_LIQUID"},
-			{ "type": "ScalarReactionDependentParameter", "varName": "kFwdSolid", "confName": "KFWD_SOLID"},
-			{ "type": "ScalarReactionDependentParameter", "varName": "kBwdSolid", "confName": "KBWD_SOLID"}
+			{ "type": "ScalarReactionDependentParameter", "varName": "kFwdLiquid", "confName": "MAL_KFWD_LIQUID"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "kBwdLiquid", "confName": "MAL_KBWD_LIQUID"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "kFwdSolid", "confName": "MAL_KFWD_SOLID"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "kBwdSolid", "confName": "MAL_KBWD_SOLID"}
 		]
 }
 </codegen>*/
@@ -322,9 +322,9 @@ namespace cadet
 				if (!nBound || !boundOffset)
 					return true;
 
-				if (paramProvider.exists("STOICHIOMETRY_LIQUID"))
+				if (paramProvider.exists("MAL_STOICHIOMETRY_LIQUID"))
 				{
-					const std::size_t numElements = paramProvider.numElements("STOICHIOMETRY_LIQUID");
+					const std::size_t numElements = paramProvider.numElements("MAL_STOICHIOMETRY_LIQUID");
 					if (numElements % nComp != 0)
 						throw InvalidParameterException("Size of field STOICHIOMETRY_LIQUID must be a positive multiple of NCOMP (" + std::to_string(nComp) + ")");
 
@@ -338,9 +338,9 @@ namespace cadet
 					_expLiquidBwdSolid.resize(_nTotalBoundStates, nReactions);
 				}
 
-				if (paramProvider.exists("STOICHIOMETRY_SOLID") && (_nTotalBoundStates > 0))
+				if (paramProvider.exists("MAL_STOICHIOMETRY_SOLID") && (_nTotalBoundStates > 0))
 				{
-					const std::size_t numElements = paramProvider.numElements("STOICHIOMETRY_SOLID");
+					const std::size_t numElements = paramProvider.numElements("MAL_STOICHIOMETRY_SOLID");
 					if (numElements % _nTotalBoundStates != 0)
 						throw InvalidParameterException("Size of field STOICHIOMETRY_SOLID must be a positive multiple of NTOTALBND (" + std::to_string(_nTotalBoundStates) + ")");
 
@@ -392,16 +392,16 @@ namespace cadet
 					throw InvalidParameterException("KFWD_SOLID and KBWD_SOLID have to have the same size (number of reactions)");
 
 
-				if (paramProvider.exists("STOICHIOMETRY_LIQUID"))
+				if (paramProvider.exists("MAL_STOICHIOMETRY_LIQUID"))
 				{
-					const std::vector<double> s = paramProvider.getDoubleArray("STOICHIOMETRY_LIQUID");
+					const std::vector<double> s = paramProvider.getDoubleArray("MAL_STOICHIOMETRY_LIQUID");
 
 					if (static_cast<int>(s.size()) != _stoichiometryLiquid.elements())
 						throw InvalidParameterException("STOICHIOMETRY_LIQUID has changed size (number of reactions changed)");
 
 					std::copy(s.begin(), s.end(), _stoichiometryLiquid.data());
 				}
-				registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "STOICHIOMETRY_LIQUID", _stoichiometryLiquid);
+				registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MAL_STOICHIOMETRY_LIQUID", _stoichiometryLiquid);
 
 				if (paramProvider.exists("EXPONENTS_LIQUID_FWD"))
 				{
