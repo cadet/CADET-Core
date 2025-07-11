@@ -539,7 +539,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 			}
 		}
 	}
-	else if (paramProvider.exists("reaction_particle_000"))
+	else if (paramProvider.exists("reaction_cross_phase_000"))
 	{
 		// First get the total size of _dynReaction across all particles
 		int totalReactions = 0;
@@ -547,7 +547,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 		{
 
 			char particleScope[32];
-			snprintf(particleScope, sizeof(particleScope), "reaction_particle_%03d", par);
+			snprintf(particleScope, sizeof(particleScope), "reaction_cross_phase_%03d", par);
 			paramProvider.pushScope(particleScope);
 
 			if (paramProvider.exists("NREAC"))
@@ -571,7 +571,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 		for (unsigned int par = 0; par < _disc.nParType; par++)
 		{
 			char particleScope[32];
-			snprintf(particleScope, sizeof(particleScope), "reaction_particle_%03d", par);
+			snprintf(particleScope, sizeof(particleScope), "reaction_cross_phase_%03d", par);
 			paramProvider.pushScope(particleScope);
 
 			int nReactions = paramProvider.getInt("NREAC");
@@ -972,7 +972,7 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 		for (unsigned int par = 0; par < _disc.nParType; par++)
 		{
 			char particleScope[32];
-			snprintf(particleScope, sizeof(particleScope), "reaction_particle_%03d", par);
+			snprintf(particleScope, sizeof(particleScope), "reaction_cross_phase_%03d", par);
 			paramProvider.pushScope(particleScope);
 
 			int nReactions = paramProvider.getInt("NREAC");
