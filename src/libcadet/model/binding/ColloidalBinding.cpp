@@ -263,7 +263,12 @@ protected:
 					continue;
 
 				StateParamType logKeq = pow(cpSalt, -static_cast<ParamType>(p->kEqSaltPowerExp[i])) * static_cast<ParamType>(p->kEqSaltPowerFact[i]) + exp(cpSalt * static_cast<ParamType>(p->kEqSaltExpExp[i])) * static_cast<ParamType>(p->kEqSaltExpFact[i]);
-				StateParamType bpp_i = pow(cpSalt, static_cast<ParamType>(p->bppSaltPowerExp[i])) * static_cast<ParamType>(p->bppSaltPowerFact[i]) + exp(cpSalt * static_cast<ParamType>(p->bppSaltExpExp[i])) * static_cast<ParamType>(p->bppSaltExpFact[i]);
+				StateParamType bpp_i = 0.0;
+
+				if (static_cast<double>(p->bppSaltPowerFact[i]) > 1e-16 || static_cast<double>(p->bppSaltExpFact[i]) > 1e-16)
+				{
+					bpp_i = pow(cpSalt, static_cast<ParamType>(p->bppSaltPowerExp[i])) * static_cast<ParamType>(p->bppSaltPowerFact[i]) + exp(cpSalt * static_cast<ParamType>(p->bppSaltExpExp[i])) * static_cast<ParamType>(p->bppSaltExpFact[i]);
+				}
 
 				if (phEnabled)
 				{
@@ -289,7 +294,10 @@ protected:
 					}
 
 					const ParamType radSum = static_cast<ParamType>(p->radius[i]) + static_cast<ParamType>(p->radius[j]);
-					S_i += y[bndIdx2] * sqrt(bpp_i * bpp_j) * radSum * exp(-kappa * (R - radSum));
+					if (bpp_i > 1e-16)
+					{
+						S_i += y[bndIdx2] * sqrt(bpp_i * bpp_j) * radSum * exp(-kappa * (R - radSum));
+					}
 
 					// Next bound component
 					++bndIdx2;
