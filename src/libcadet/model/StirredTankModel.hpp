@@ -178,14 +178,24 @@ protected:
 	std::vector <IDynamicReactionModel*> _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 	bool _old_interface; // 
 
+	std::vector<int> _numReactionsPerParticle; //!< Offset to the first reaction of each particle type
+
 	int getNumReactionsForParticle(unsigned int parType) const
 	{
 		if (_oldReactionInterface)
 			return 1; // Old interface has only one reaction per particle type
-
-		// For new interface, you need to store this information during configuration
-		// This is a simplified version - you may need to store this data differently
+		
 		return _numReactionsPerParticle[parType];
+	}
+
+	int getReactionOffSetParical(unsigned int parType) const
+	{
+		int offSet = 0;
+		for (auto par = 0; par < parType; par++)
+		{
+			offSet += getNumReactionsForParticle(par);
+		}
+		return offSet;
 	}
 	class Exporter : public ISolutionExporter
 	{
