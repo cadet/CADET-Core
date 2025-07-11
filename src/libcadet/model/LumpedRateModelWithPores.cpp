@@ -398,7 +398,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 			}
 		}
 	}
-	else if (paramProvider.exists("reaction_particle_000"))
+	else if (paramProvider.exists("reaction_cross_phase_000"))
 	{
 		// First get the total size of _dynReaction across all particles
 		int totalReactions = 0;
@@ -406,7 +406,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 		{
 
 			char particleScope[32];
-			snprintf(particleScope, sizeof(particleScope), "reaction_particle_%03d", par);
+			snprintf(particleScope, sizeof(particleScope), "reaction_cross_phase_%03d", par);
 			paramProvider.pushScope(particleScope);
 
 			if (paramProvider.exists("NREAC"))
@@ -430,7 +430,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 		for (unsigned int par = 0; par < _disc.nParType; par++)
 		{
 			char particleScope[32];
-			snprintf(particleScope, sizeof(particleScope), "reaction_particle_%03d", par);
+			snprintf(particleScope, sizeof(particleScope), "reaction_cross_phase_%03d", par);
 			paramProvider.pushScope(particleScope);
 
 			int nReactions = paramProvider.getInt("NREAC");
@@ -439,7 +439,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 			{
 
 				char reactionKey[32];
-				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", reac);
+				snprintf(reactionKey, sizeof(reactionKey), "reaction_cross_phase_%03d", reac);
 
 				if (!paramProvider.exists(reactionKey))
 				{
