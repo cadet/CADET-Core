@@ -315,6 +315,7 @@ public:
 	 */
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT = 0;
 
+	virtual unsigned int numReactions() const CADET_NOEXCEPT { return 0; };
 protected:
 };
 
