@@ -189,6 +189,9 @@ public:
 
 	virtual unsigned int threadLocalMemorySize() const CADET_NOEXCEPT;
 
+	bool configureDiscretizationReactionModel(IParameterProvider& paramProvider, std::vector<IDynamicReactionModel*>& dynReaction, std::vector<int>& reacPerParticle, unsigned int parType, const IConfigHelper& helper);
+	bool configureReactionModel(IParameterProvider& paramProvider, std::string reactionType, std::vector <IDynamicReactionModel*>& dynReaction, std::vector<int>& reacPerParticle, unsigned int parType);
+
 #ifdef CADET_BENCHMARK_MODE
 	virtual std::vector<double> benchmarkTimings() const
 	{
@@ -327,26 +330,20 @@ protected:
 
 	ConvDispOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
-
+	
+	std::vector <IDynamicReactionModel*> _dynReactionParticle; //!< Dynamic reactions in the parical volume
 	bool _oldReactionInterface; //!< Flag to distinguish between old and new reaction interface
-	std::vector<int> _numReactionsPerParticle; //!< Number of reactions per particle type
+	std::vector<int> _numCrossPhaseReactionsPerParticle; //!< Number of cross phase reactions per particle type
+	std::vector<int> _numParticleReactionsPerParticle; //!< Number of particle reactions per particle type
 
-	const int getNumReactionsForParticle(unsigned int parType) const
+	const int getReactionOffsetParticle(std::vector<int>& reactionPerParticle, unsigned int parType) const
 	{
-		if (_oldReactionInterface)
-			return 1; // Old interface has only one reaction per particle type
-
-		return _numReactionsPerParticle[parType];
-	}
-
-	const int getReactionOffSetParicle(unsigned int parType) const
-	{
-		int offSet = 0;
+		int offset = 0;
 		for (auto par = 0; par < parType; par++)
 		{
-			offSet += getNumReactionsForParticle(par);
+			offset += reactionPerParticle[par];
 		}
-		return offSet;
+		return offset;
 	}
 
 	linalg::BandMatrix* _jacP; //!< Particle jacobian diagonal blocks (all of them)
