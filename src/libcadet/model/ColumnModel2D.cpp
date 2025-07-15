@@ -1265,44 +1265,20 @@ void ColumnModel2D::multiplyWithDerivativeJacobian(const SimulationTime& simTime
 			const unsigned int pblk = idxParLoop % _disc.nBulkPoints;
 			const unsigned int type = idxParLoop / _disc.nBulkPoints;
 
-			// Particle
-			double const* const localSdot = sDot + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ pblk });
-			double* const localRet = ret + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ pblk });
-
+			const double invBetaP = (1.0 / static_cast<double>(_particles[type]->getPorosity()) - 1.0);
 			unsigned int const* const nBound = _disc.nBound + type * _disc.nComp;
 			unsigned int const* const boundOffset = _disc.boundOffset + type * _disc.nComp;
-
-			// Mobile phase
-			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-			{
-				// Add derivative with respect to dc_p / dt to Jacobian
-				localRet[comp] = localSdot[comp];
-
-				const double invBetaP = (1.0 - static_cast<double>(_particles[type]->getPorosity())) / (static_cast<double>(_particles[type]->getPoreAccessFactor()[comp]) * static_cast<double>(_particles[type]->getPorosity()));
-
-				// Add derivative with respect to dq / dt to Jacobian (normal equations)
-				for (unsigned int i = 0; i < nBound[comp]; ++i)
-				{
-					// Index explanation:
-					//   nComp -> skip mobile phase
-					//   + boundOffset[comp] skip bound states of all previous components
-					//   + i go to current bound state
-					localRet[comp] += invBetaP * localSdot[_disc.nComp + boundOffset[comp] + i];
-				}
-			}
-
-			// Solid phase
-			double const* const solidSdot = localSdot + _disc.nComp;
-			double* const solidRet = localRet + _disc.nComp;
 			int const* const qsReaction = _binding[type]->reactionQuasiStationarity();
 
-			for (unsigned int bnd = 0; bnd < _disc.strideBound[type]; ++bnd)
+			// Particle shells
+			const int offsetCpType = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ pblk });
+			for (unsigned int shell = 0; shell < _disc.nParPoints[type]; ++shell)
 			{
-				// Add derivative with respect to dynamic states to Jacobian
-				if (qsReaction[bnd])
-					solidRet[bnd] = 0.0;
-				else
-					solidRet[bnd] = solidSdot[bnd];
+				const int offsetCpShell = offsetCpType + shell * idxr.strideParNode(type);
+				double const* const mobileSdot = sDot + offsetCpShell;
+				double* const mobileRet = ret + offsetCpShell;
+
+				parts::cell::multiplyWithDerivativeJacobianKernel<true>(mobileSdot, mobileRet, _disc.nComp, nBound, boundOffset, _disc.strideBound[type], qsReaction, 1.0, invBetaP);
 			}
 		}
 	} CADET_PARFOR_END;

@@ -77,6 +77,8 @@ void test2DColumnJacobian(const std::string relModelFilePath, const int maxAxEle
 	}
 }
 
+/* 2D LRMP test cases */
+
 TEST_CASE("Column_2D as LRMP inlet DOF Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[Inlet],[CI]")
 {
 	cadet::test::column::testInletDofJacobian("COLUMN_MODEL_2D_LRMP", "DG");
@@ -148,7 +150,7 @@ TEST_CASE("Column_2D as LRMP2D analytical reference test for a three zone linear
 	const std::vector<double> absTol = { 1E-2 };
 	const std::vector<double> relTol = { 5E-2 };
 
-	//(int exact, int poly, int elem, int parPolyDeg, int parNelem, int radPolyDeg, int radNelem)
+	//(int exact, int polyDeg, int elem, int parPolyDeg, int parNelem, int radPolyDeg, int radNelem)
 	cadet::test::column::DGparams disc(1, 3, 8, 3, 1, 3, 3);
 	const int simDataStride = 12; // number of radial ports
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
@@ -318,4 +320,16 @@ TEST_CASE("Column_2D as LRMP multi particle types dynamic reactions time derivat
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 8e-4);
+}
+
+/* 2D GRM test cases */
+
+TEST_CASE("Column_2D as GRM inlet DOF Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[Inlet],[CI]")
+{
+	cadet::test::column::testInletDofJacobian("COLUMN_MODEL_2D_GRM", "DG");
+}
+
+TEST_CASE("Column_2D as GRM time derivative Jacobian vs FD", "[Column_2D],[DG],[DG2D],[UnitOp],[Residual],[Jacobian],[CI],[FD]")
+{
+	cadet::test::column::testTimeDerivativeJacobianFD("COLUMN_MODEL_2D_GRM", "DG", 1e-6, 0.0, 9e-4);
 }
