@@ -461,16 +461,12 @@ bool ColumnModel2D::configureModelDiscretization(IParameterProvider& paramProvid
 
 	// Precompute offsets of particle type DOFs
 	if (firstConfigCall)
-	{
 		_disc.parTypeOffset = new unsigned int[_disc.nParType + 1];
-	}
+
 	_disc.parTypeOffset[0] = 0;
-	unsigned int nTotalParPoints = 0;
+
 	for (unsigned int j = 1; j < _disc.nParType + 1; ++j)
-	{
 		_disc.parTypeOffset[j] = _disc.parTypeOffset[j - 1] + (_disc.nComp + _disc.strideBound[j - 1]) * _disc.nParPoints[j - 1] * _disc.nBulkPoints;
-		nTotalParPoints += _disc.nParPoints[j - 1];
-	}
 
 	paramProvider.pushScope("discretization");
 
@@ -582,7 +578,6 @@ bool ColumnModel2D::configure(IParameterProvider& paramProvider)
 		_parTypeVolFrac.resize(_disc.axNPoints * _disc.radNPoints, 1.0);
 		_parTypeVolFracMode = MultiplexMode::Independent;
 	}
-
 
 	if (_disc.nParType * _disc.axNPoints * _disc.radNPoints != _parTypeVolFrac.size())
 		throw InvalidParameterException("Number of elements in field PAR_TYPE_VOLFRAC does not match number of particle types times (RAD_POLYDEG+1)*RAD_NELEM * (AX_POLYDEG+1)*AX_NELEM");
@@ -703,7 +698,7 @@ bool ColumnModel2D::configure(IParameterProvider& paramProvider)
 		paramProvider.popScope();
 	}
 
-	setGlobalJacPattern(_globalJac, 0);
+	setJacobianPattern(_globalJac, 0, _dynReactionBulk);
 	_globalJacDisc = _globalJac;
 
 	// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
@@ -1040,7 +1035,7 @@ int ColumnModel2D::residualImpl(double t, unsigned int secIdx, StateType const* 
 	// reset Jacobian pattern every section
 	if (_disc.newStaticJac)
 	{
-		setGlobalJacPattern(_globalJac, secIdx);
+		setJacobianPattern(_globalJac, secIdx, _dynReactionBulk);
 	}
 	else if (wantJac)
 	{

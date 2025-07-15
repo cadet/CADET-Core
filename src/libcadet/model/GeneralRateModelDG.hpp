@@ -471,7 +471,7 @@ protected:
 
 		std::vector<T> tripletList;
 		// reserve space for all entries
-		int bulkEntries = _convDispOp.nConvDispEntries(false);
+		int bulkEntries = _convDispOp.nJacEntries(false);
 		if (hasBulkReaction)
 			bulkEntries += _disc.nPoints * _disc.nComp * _disc.nComp; // add nComp entries for every component at each discrete bulk point
 
