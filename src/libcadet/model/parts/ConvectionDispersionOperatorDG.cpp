@@ -472,7 +472,7 @@ int AxialConvectionDispersionOperatorBaseDG::calcTransportJacobian(Eigen::Sparse
  * @brief calculates the number of entris for the DG convection dispersion jacobian
  * @note only dispersion entries are relevant for jacobian NNZ as the convection entries are a subset of these
  */
-unsigned int AxialConvectionDispersionOperatorBaseDG::nConvDispEntries(bool pureNNZ) {
+unsigned int AxialConvectionDispersionOperatorBaseDG::nJacEntries(bool pureNNZ) {
 
 	if (_exactInt) {
 		if (pureNNZ) {

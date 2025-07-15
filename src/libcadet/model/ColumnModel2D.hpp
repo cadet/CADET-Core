@@ -357,7 +357,8 @@ protected:
 		inline int strideParComp() const CADET_NOEXCEPT { return 1; }
 		inline int strideParLiquid() const CADET_NOEXCEPT { return static_cast<int>(_disc.nComp); }
 		inline int strideParBound(int parType) const CADET_NOEXCEPT { return static_cast<int>(_disc.strideBound[parType]); }
-		inline int strideParBlock(int parType) const CADET_NOEXCEPT { return strideParLiquid() + strideParBound(parType); }
+		inline int strideParNode(int parType) const CADET_NOEXCEPT { return strideParLiquid() + strideParBound(parType); }
+		inline int strideParBlock(int parType) const CADET_NOEXCEPT { return static_cast<int>(_disc.nParPoints[parType]) * strideParNode(parType); }
 
 		// Offsets
 		inline int offsetC() const CADET_NOEXCEPT { return _disc.nComp * _disc.radNPoints; }
@@ -465,19 +466,46 @@ protected:
 	/**
 	* @brief sets the sparsity pattern of the convection dispersion Jacobian
 	*/
-	void setGlobalJacPattern(Eigen::SparseMatrix<double, Eigen::RowMajor>& mat, const int secIdx)
+	void setJacobianPattern(Eigen::SparseMatrix<double, Eigen::RowMajor>& mat, const int secIdx, bool hasBulkReaction)
 	{
+		Indexer idxr(_disc);
 		std::vector<T> tripletList;
 
-		Indexer idxr(_disc);
+		int nBulkEntries = _convDispOp.nJacEntries();
+		if (hasBulkReaction)
+			nBulkEntries += _disc.nBulkPoints * _disc.nComp * _disc.nComp; // add nComp entries for every component at each discrete bulk point
 
-		int nJacEntries = _convDispOp.nJacEntries() + _disc.nBulkPoints * _disc.nComp + 2 * numPureDofs(); // bulkTransportPattern: convDispOp; bulkReactionPattern: nComp * nBulkPoints; flux pattern: 2*pDOF; particlePattern: nBulkPoints * (nComp+nBound)
-		for (int parType = 0; parType < _disc.nParType; parType++)
-			nJacEntries += _disc.nBulkPoints * (_disc.nComp + _disc.nBound[parType]);
+		// particle
+		int addTimeDer = 0; // additional time derivative entries: bound states in particle dispersion equation
+		int isothermNNZ = 0;
+		int nParEntries = 0;
+		for (int type = 0; type < _disc.nParType; type++)
+		{
+			isothermNNZ = (idxr.strideParNode(type)) * _disc.nParPoints[type] * _disc.strideBound[type]; // every bound satte might depend on every bound and liquid state
+			addTimeDer = _disc.nParPoints[type] * _disc.strideBound[type];
+			nParEntries += _disc.nBulkPoints * _particles[type]->jacobianNNZperParticle() + addTimeDer + isothermNNZ;
+		}
 
-		tripletList.reserve(nJacEntries);
+		tripletList.reserve(nBulkEntries + nParEntries);
 
 		_convDispOp.convDispJacPattern(tripletList);
+
+		// bulk reaction jacobian
+		if (hasBulkReaction)
+		{
+			for (unsigned int colNode = 0; colNode < _disc.nBulkPoints; colNode++)
+			{
+				for (unsigned int comp = 0; comp < _disc.nComp; comp++)
+				{
+					for (unsigned int toComp = 0; toComp < _disc.nComp; toComp++)
+					{
+						tripletList.push_back(T(idxr.offsetC() + colNode * idxr.strideColRadialNode() + comp * idxr.strideColComp(),
+							idxr.offsetC() + colNode * idxr.strideColRadialNode() + toComp * idxr.strideColComp(),
+							0.0));
+					}
+				}
+			}
+		}
 
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{

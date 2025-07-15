@@ -389,7 +389,7 @@ namespace cadet
 				unsigned int isotherm_entries = _disc.nPoints * _disc.strideBound * (_disc.strideBound + _disc.nComp);
 				unsigned int reaction_entries = has_reaction ? _disc.nPoints * _disc.nComp * (_disc.strideBound + _disc.nComp) : 0;
 
-				tripletList.reserve(_convDispOp.nConvDispEntries(false) + isotherm_entries + reaction_entries);
+				tripletList.reserve(_convDispOp.nJacEntries(false) + isotherm_entries + reaction_entries);
 
 				_convDispOp.convDispJacPattern(tripletList);
 
