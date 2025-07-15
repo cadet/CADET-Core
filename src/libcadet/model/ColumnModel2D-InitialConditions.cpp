@@ -908,7 +908,7 @@ void ColumnModel2D::consistentInitialTimeDerivative(const SimulationTime& simTim
 
 			double* const dFluxDt = _tempState + idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(type) }, ParticleIndex{ blk });
 
-			addTimeDerivativeToJacobianParticleBlock(jac, idxr, 1.0, type); // Mobile and solid phase equations (advances jac accordingly)
+			addTimeDerivativeToJacobianParticleShell(jac, idxr, 1.0, type); // Mobile and solid phase equations (advances jac accordingly)
 
 			// Iterator jac has already been advanced to next shell
 
@@ -1248,7 +1248,7 @@ void ColumnModel2D::consistentInitialSensitivity(const SimulationTime& simTime, 
 				linalg::BandedEigenSparseRowIterator jacPar(_globalJacDisc, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(type) }, ParticleIndex{ pblk }) - idxr.offsetC());
 
 				// Mobile and solid phase
-				addTimeDerivativeToJacobianParticleBlock(jacPar, idxr, 1.0, type);
+				addTimeDerivativeToJacobianParticleShell(jacPar, idxr, 1.0, type);
 				// Iterator jac has already been advanced to next shell
 
 				// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0

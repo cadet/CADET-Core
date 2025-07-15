@@ -249,7 +249,7 @@ protected:
 
 	void assembleDiscretizedGlobalJacobian(double alpha, Indexer idxr);
 
-	void addTimeDerivativeToJacobianParticleBlock(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, unsigned int parType);
+	void addTimeDerivativeToJacobianParticleShell(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, unsigned int parType);
 
 	unsigned int numAdDirsForJacobian() const CADET_NOEXCEPT;
 
