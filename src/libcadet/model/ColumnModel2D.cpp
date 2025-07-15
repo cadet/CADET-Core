@@ -826,16 +826,15 @@ void ColumnModel2D::prepareADvectors(const AdJacobianParams& adJac) const
 
 	Indexer idxr(_disc);
 
-	// todo improve AD seed vectors
-
 	const int adDirOffset = adJac.adDirOffset;
 	active * adVec = adJac.adY;
+
+	// Dense seeding implemented here, could be improved by figuring out the sparse seeding / colouring
 
 	// Start with diagonal Jacobian element
 	for (int eq = 0; eq < numDofs(); ++eq)
 	{
-		// Clear previously set directions
-		adVec[eq].fillADValue(adDirOffset, 0.0);
+		adVec[eq].fillADValue(adDirOffset, 0.0); // Clear previously set directions
 		adVec[eq].setADValue(adDirOffset + eq, 1.0);
 	}
 }

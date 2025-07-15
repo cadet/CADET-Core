@@ -89,16 +89,6 @@ TEST_CASE("Column_2D as LRMP time derivative Jacobian vs FD", "[Column_2D],[DG],
 	cadet::test::column::testTimeDerivativeJacobianFD("COLUMN_MODEL_2D_LRMP", "DG", 1e-6, 0.0, 9e-4);
 }
 
-TEST_CASE("Column_2D as LRMP pure bulk transport Jacobian with radially variable parameters", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
-{
-	const std::string relModelFilePath = std::string("/data/model_COL2D_DPF_1comp.json");
-
-	// Required AD directions:
-	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
-	// req. AD dirs: 156 = 12radPoints + 144 pure dofs (12axPoints*12radPoints) * (1 + 0)
-	test2DColumnJacobian(relModelFilePath, 6, 6, 1, 1, 6, 6);
-}
-
 TEST_CASE("Column_2D as LRMP 1comp lin. binding Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
 {
 	const std::string relModelFilePath = std::string("/data/model_COL2D_LRMP_linBnd_1comp.json");
@@ -127,19 +117,6 @@ TEST_CASE("Column_2D as LRMP with two component linear binding Jacobian", "[Colu
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
 	// req. AD dirs: 156 = 2*6radPoints + 144 pure dofs (4axPoints*6radPoints) * (2 + 4)
 	test2DColumnJacobian(relModelFilePath, 2, 3, 1, 1);
-}
-
-TEST_CASE("Column_2D as LRMP numerical Benchmark for a pure bulk transport case with three radial zones", "[Column_2D],[DG],[DG2D],[Simulation],[Reference],[CI]")
-{
-	const std::string& modelFilePath = std::string("/data/model_2DLRMP3Zone_noFilmDiff_1Comp_benchmark1.json");
-	const std::string& refFilePath = std::string("/data/ref_2DLRMP3Zone_noFilmDiff_1Comp_benchmark1.h5");
-	const std::vector<double> absTol = { 5E-9 };
-	const std::vector<double> relTol = { 5E-4 };
-
-	cadet::test::column::DGparams disc;
-	//cadet::test::column::DGparams disc(0, 3, 8, 0, 0, 3, 6);
-	const int simDataStride = (3 + 1) * 6; // number of radial ports
-	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
 }
 
 TEST_CASE("Column_2D as LRMP2D analytical reference test for a three zone linear binding case", "[Column_2D],[DG],[DG2D],[Simulation],[Reference],[Analytical],[CI]")
@@ -322,6 +299,31 @@ TEST_CASE("Column_2D as LRMP multi particle types dynamic reactions time derivat
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 8e-4);
 }
 
+/* 2D DPF test cases */
+
+TEST_CASE("Column_2D as DPF for pure bulk transport Jacobian with radially variable parameters", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
+{
+	const std::string relModelFilePath = std::string("/data/model_COL2D_DPF_1comp.json");
+
+	// Required AD directions:
+	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
+	// req. AD dirs: 156 = 12radPoints + 144 pure dofs (12axPoints*12radPoints) * (1 + 0)
+	test2DColumnJacobian(relModelFilePath, 6, 6, 1, 1, 6, 6);
+}
+
+TEST_CASE("Column_2D as DPF numerical Benchmark for pure bulk transport case with three radial zones", "[Column_2D],[DG],[DG2D],[Simulation],[Reference],[CI]")
+{
+	const std::string& modelFilePath = std::string("/data/model_COL2D_DPF3Zone_noFilmDiff_1Comp_benchmark1.json");
+	const std::string& refFilePath = std::string("/data/ref_2DLRMP3Zone_noFilmDiff_1Comp_benchmark1.h5");
+	const std::vector<double> absTol = { 5E-9 };
+	const std::vector<double> relTol = { 5E-4 };
+
+	cadet::test::column::DGparams disc;
+	//cadet::test::column::DGparams disc(0, 3, 8, 0, 0, 3, 6);
+	const int simDataStride = (3 + 1) * 6; // number of radial ports
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
+}
+
 /* 2D GRM test cases */
 
 TEST_CASE("Column_2D as GRM inlet DOF Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[Inlet],[CI]")
@@ -332,4 +334,34 @@ TEST_CASE("Column_2D as GRM inlet DOF Jacobian", "[Column_2D],[DG],[DG2D],[UnitO
 TEST_CASE("Column_2D as GRM time derivative Jacobian vs FD", "[Column_2D],[DG],[DG2D],[UnitOp],[Residual],[Jacobian],[CI],[FD]")
 {
 	cadet::test::column::testTimeDerivativeJacobianFD("COLUMN_MODEL_2D_GRM", "DG", 1e-6, 0.0, 9e-4);
+}
+
+TEST_CASE("Column_2D as GRM 1comp lin. binding Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
+{
+	const std::string relModelFilePath = std::string("/data/model_COL2D_GRM_linBnd_1comp.json");
+
+	// Required AD directions:
+	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + ([parPolyDeg + 1] * parNElem) * (nComp + nBound))
+	// req. AD dirs: 116 = 6radPoints + 108 pure dofs (2axPoints*6radPoints) * (1 + 4parPoints * 2)
+	test2DColumnJacobian(relModelFilePath, 1, 3, 1, 1, 1, 3);
+}
+
+TEST_CASE("Column_2D as GRM with 2parType no binding Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
+{
+	const std::string relModelFilePath = std::string("/data/model_COL2D_GRM_2parType_1comp.json");
+
+	// Required AD directions:
+	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParTypesPoints * (nComp + nBound))
+	// req. AD dirs: 136 = 8radPoints + 128 pure dofs (2axPoints*8radPoints) * (1 + 7 * 1)
+	test2DColumnJacobian(relModelFilePath, 1, 4, 1, 1, 1, 4);
+}
+
+TEST_CASE("Column_2D as GRM with two component linear binding Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
+{
+	const std::string relModelFilePath = std::string("/data/model_COL2D_GRM_dynLin_2comp.json");
+
+	// This test might run out of memory due to the required AD directions:
+	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParPoints * (nComp + nBound))
+	// req. AD dirs: 142 = 2*6radPoints + 120 pure dofs (2axPoints*6radPoints) * (2 + 2 * 4)
+	test2DColumnJacobian(relModelFilePath, 1, 3, 1, 1);
 }

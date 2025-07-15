@@ -200,9 +200,11 @@
       "UNIT_TYPE": "COLUMN_MODEL_2D",
       "VELOCITY": 0.000575,
       "particle_type_000": {
-        "PARTICLE_TYPE": "HOMOGENEOUS_PARTICLE",
+        "PARTICLE_TYPE": "GENERAL_RATE_PARTICLE",
+        "PAR_DIFFUSION": 1.0,
         "PAR_POROSITY": 0.75,
         "PAR_RADIUS": 4.5e-05,
+        "PAR_SURFDIFFUSION": 0.0,
         "NBOUND": 1,
         "FILM_DIFFUSION": 6.9e-06,
         "INIT_CP": [
