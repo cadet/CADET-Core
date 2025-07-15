@@ -612,7 +612,6 @@ void ColumnModel1D::prepareADvectors(const AdJacobianParams& adJac) const
 				_adVec[eq].fillADValue(adJac.adDirOffset, 0.0);
 				// Set direction
 				_adVec[eq].setADValue(adDirOffset + eq, 1.0);
-
 			}
 		}
 		if (type < _disc.nParType - 1u) // move to dedicated DoFs of next particle type
