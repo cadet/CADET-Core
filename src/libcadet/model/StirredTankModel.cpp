@@ -116,6 +116,9 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 	if (paramProvider.exists("NBOUND"))
 	{
 		const std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
+		if (nBound.size() < _nComp)
+			throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_nComp) + " required)");
+
 		_nParType = nBound.size() / _nComp;
 		
 		_nBound = new unsigned int[_nComp * _nParType];
