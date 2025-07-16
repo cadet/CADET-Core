@@ -13,6 +13,7 @@ General CADET-Core publications
 .. bibliography:: literature.bib
    :filter: False
 
+   Leweke2025
    Leweke2018CADET
 
 **Original Publication of chromatography models and their FV discretization in CADET**
