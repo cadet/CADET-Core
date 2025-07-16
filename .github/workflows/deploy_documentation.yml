@@ -1,8 +1,11 @@
 name: "Trigger for dispatching CADET-Website"
+
 on:
   push:
     branches:
       - 'master'
+      - 'chore/developer_guide'
+  workflow_dispatch:
 
 jobs:
   dispatch_docs:
