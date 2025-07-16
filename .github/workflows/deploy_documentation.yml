@@ -15,5 +15,5 @@ jobs:
         uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.DISPATCH_DOCS }}
-          repository: modsim/CADET-Website
+          repository: cadet/CADET-Website
           event-type: build_docs
