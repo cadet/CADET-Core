@@ -7,6 +7,9 @@ CADET-Core
 .. image:: https://github.com/cadet/cadet-core/actions/workflows/ci.yml/badge.svg?branch=master
    :target: https://github.com/cadet/cadet-core/actions/workflows/ci.yml?query=branch%3Amaster
 
+.. image:: https://joss.theoj.org/papers/282a9ec56a0680e51ed4f1fa8fda3650/status.svg
+   :target: https://joss.theoj.org/papers/282a9ec56a0680e51ed4f1fa8fda3650
+
 .. image:: https://anaconda.org/conda-forge/cadet/badges/downloads.svg
    :target: https://anaconda.org/conda-forge/cadet
 
@@ -41,6 +44,8 @@ As an open-source project, CADET-Core relies on the support and recognition from
 Therefore, we kindly ask that any publications or projects leveraging the capabilities of CADET-Core acknowledge its creators and their contributions by citing an adequate selection of our publications.
 
 **General:**
+
+- Leweke, S.; Breuer, J.; Schmölder, J.; Jäpel, R.; Lanzrath, H.; Rao, J.; Hassan, J.; Zhang, W.; Berger, A.; Heymann, W.; von Lieres, E.: `CADET-Core 5.0: High-Performance Solver for Advanced Biotechnology Process Modeling <https://doi.org/10.21105/joss.07881>`_, Journal of Open Source Software **10** (2025), 7881.
 
 - Leweke, S.; von Lieres, E.: `Chromatography Analysis and Design Toolkit (CADET) <https://doi.org/10.1016/j.compchemeng.2018.02.025>`_, Computers and Chemical Engineering **113** (2018), 274–294.
 
