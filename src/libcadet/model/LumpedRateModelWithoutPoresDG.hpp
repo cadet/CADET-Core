@@ -304,7 +304,7 @@ namespace cadet
 				virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return false; }
 				virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound > 0; }
 				virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
-				virtual bool isParticleLumped() const CADET_NOEXCEPT { return true; }
+				virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return true; }
 				virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return true; }
 
 				virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }

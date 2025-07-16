@@ -162,6 +162,8 @@ namespace parts
 				return true;
 		}
 
+		virtual bool isParticleLumped() const CADET_NOEXCEPT { return false; }
+
 	protected:
 
 		/**

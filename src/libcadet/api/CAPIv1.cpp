@@ -610,7 +610,7 @@ namespace v1
 			if (nParShells) \
 				*nParShells = unitRec->numParticleShells(parType); \
 			if (keepParticleSingletonDimension) \
-				*keepParticleSingletonDimension = unitRec->keepParticleSingletonDim(); \
+				*keepParticleSingletonDimension = unitRec->keepParticleSingletonDim(static_cast<unsigned int>(parType)); \
 			if (nComp) \
 				*nComp = unitRec->numComponents(); \
 			if (data) \
@@ -648,7 +648,7 @@ namespace v1
 			if (nParShells) \
 				*nParShells = unitRec->numParticleShells(parType); \
 			if (keepParticleSingletonDim) \
-				*keepParticleSingletonDim = unitRec->keepParticleSingletonDim(); \
+				*keepParticleSingletonDim = unitRec->keepParticleSingletonDim(static_cast<unsigned int>(parType)); \
 			if (nBound) \
 				*nBound = unitRec->numBoundStates(); \
 			if (data) \
@@ -967,7 +967,7 @@ namespace v1
 			return cdtDataNotStored;
 		}
 
-		bool keepParticleSingletonDimension = unitRec->keepParticleSingletonDim();
+		bool keepParticleSingletonDimension = unitRec->keepParticleSingletonDim(static_cast<unsigned int>(parType));
 
 		if (nCoords)
 			*nCoords = unitRec->numParticleShells(parType);
