@@ -121,7 +121,7 @@ TEST_CASE("Column_2D as LRMP with two component linear binding Jacobian", "[Colu
 
 TEST_CASE("Column_2D as LRMP2D analytical reference test for a three zone linear binding case", "[Column_2D],[DG],[DG2D],[Simulation],[Reference],[Analytical],[CI]")
 {
-	const std::string& modelFilePath = std::string("/data/model_COL2D_LRMP2D3Zone_dynLin_1Comp_benchmark1.json");
+	const std::string& modelFilePath = std::string("/data/model_COL2D_LRMP3Zone_dynLin_1Comp_benchmark1.json");
 	// Note that the analytical reference is actually a 2DGRM but with D^p -> \infty
 	const std::string& refFilePath = std::string("/data/refAna_2DLRMP3Zone_dynLin_1Comp_radZ3_benchmark1.h5");
 	const std::vector<double> absTol = { 1E-2 };
@@ -364,4 +364,20 @@ TEST_CASE("Column_2D as GRM with two component linear binding Jacobian", "[Colum
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParPoints * (nComp + nBound))
 	// req. AD dirs: 142 = 2*6radPoints + 120 pure dofs (2axPoints*6radPoints) * (2 + 2 * 4)
 	test2DColumnJacobian(relModelFilePath, 1, 3, 1, 1);
+}
+
+TEST_CASE("Column_2D as GRM non limiting particle diffusion analytical reference test for a three zone linear binding case", "[Column_2D],[DG],[DG2D],[Simulation],[Reference],[Analytical],[CI]")
+{
+	// Note that this test in combination with the similar test for the LRMP above proves equivalence of the LRMP and GRM with non limiting particle diffusion
+
+	const std::string& modelFilePath = std::string("/data/model_COL2D_GRM3Zone_dynLin_1Comp_benchmark1.json");
+	// Note that the analytical reference is actually a 2DGRM but with D^p -> \infty
+	const std::string& refFilePath = std::string("/data/refAna_2DLRMP3Zone_dynLin_1Comp_radZ3_benchmark1.h5");
+	const std::vector<double> absTol = { 1E-2 };
+	const std::vector<double> relTol = { 5E-2 };
+
+	//(int exact, int polyDeg, int elem, int parPolyDeg, int parNelem, int radPolyDeg, int radNelem)
+	cadet::test::column::DGparams disc(1, 3, 8, 3, 1, 3, 3);
+	const int simDataStride = 12; // number of radial ports
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
 }

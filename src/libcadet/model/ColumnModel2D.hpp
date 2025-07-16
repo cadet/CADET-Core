@@ -396,20 +396,17 @@ protected:
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return true; }
 		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound[_disc.nParType] > 0; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
-		virtual bool isParticleLumped() const CADET_NOEXCEPT { return true; }
+		virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return _model._particles[parType]->isParticleLumped(); }
 		virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return true; }
 		virtual bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
 
-		virtual unsigned int primaryPolynomialDegree() const CADET_NOEXCEPT { return 0; }
-		virtual unsigned int secondaryPolynomialDegree() const CADET_NOEXCEPT { return 0; }
-		virtual unsigned int particlePolynomialDegree(unsigned int parType) const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
 		virtual unsigned int numPrimaryCoordinates() const CADET_NOEXCEPT { return _disc.axNPoints; }
 		virtual unsigned int numSecondaryCoordinates() const CADET_NOEXCEPT { return _disc.radNPoints; }
 		virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return _disc.radNPoints; }
 		virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return _disc.radNPoints; }
 		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return _disc.nParType; }
-		virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return 1; }
+		virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return _disc.nParPoints[parType]; }
 		virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound[parType]; }
 		virtual unsigned int numMobilePhaseDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.axNPoints * _disc.radNPoints; }
 		virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _disc.nComp * _disc.nBulkPoints; }
