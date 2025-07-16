@@ -3,7 +3,7 @@
 Software Architecture
 =====================
 
-This section gives a general overview of the object-oriented c++ implementation of CADET-Core and is based on the Software Architecture chapter 3.2 in Samuel Lewekes PhD thesis :cite:`Leweke2021_thesis`.
+This section gives a general overview of the object-oriented c++ implementation of CADET-Core and is based on the Software Architecture chapter 3.2 in Samuel Lewekes PhD thesis :cite:`leweke_unified_2021`.
 
 The CADET-Core software is designed to be modular, extendable, maintainable and computationally efficient and robust.
 To promote these goals, CADET-Core is implemented in C++, a highly performant, object-oriented language that supports cross-platform compatibility.
