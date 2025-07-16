@@ -131,6 +131,8 @@ namespace parts
 		bool leanConsistentInitialStateValidity() const override { return true; }
 		bool leanConsistentInitialTimeDerivativeValidity() const override { return true; }
 
+		virtual bool isParticleLumped() const CADET_NOEXCEPT { return true; }
+
 	protected:
 
 		/* diffusion */

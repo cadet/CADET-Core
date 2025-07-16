@@ -175,6 +175,8 @@ namespace cadet
 
 			unsigned int* nBound() CADET_NOEXCEPT { return _nBound.get(); }
 
+			virtual bool isParticleLumped() const CADET_NOEXCEPT = 0;
+
 			protected:
 
 				unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)
