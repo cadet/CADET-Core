@@ -264,7 +264,7 @@ inline cadet::JsonParameterProvider createColumnWithTwoCompLinearBindingThreeHom
 
 	const double parVolFrac[] = { 0.3, 0.6, 0.1 };
 	const double parFactor[] = { 0.9, 0.8 };
-	cadet::test::particle::extendModelToManyParticleTypes(jpp, 3, parFactor, parVolFrac);
+	cadet::test::particle::extendModelToManyParticleTypes(jpp, 3, parFactor, parVolFrac, true);
 
 	return jpp;
 }
@@ -534,7 +534,7 @@ inline cadet::JsonParameterProvider createColumnWithTwoCompLinearBindingThreeGRM
 
 	const double parVolFrac[] = { 0.3, 0.6, 0.1 };
 	const double parFactor[] = { 0.9, 0.8 };
-	cadet::test::particle::extendModelToManyParticleTypes(jpp, 3, parFactor, parVolFrac);
+	cadet::test::particle::extendModelToManyParticleTypes(jpp, 3, parFactor, parVolFrac, true);
 
 	return jpp;
 }
