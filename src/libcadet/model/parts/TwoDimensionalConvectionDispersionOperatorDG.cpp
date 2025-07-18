@@ -126,7 +126,7 @@ cadet::model::MultiplexMode readAndRegisterMultiplexParam(cadet::IParameterProvi
 	const cadet::StringHash nameHash = cadet::hashStringRuntime(name);
 	switch (mode)
 	{
-		case cadet::model::MultiplexMode::Independent:
+		case cadet::model::MultiplexMode::Independent: // nSec = 1
 		case cadet::model::MultiplexMode::Section:
 			{
 				std::vector<cadet::active> p(nComp * radNElem * nSec);
@@ -139,14 +139,14 @@ cadet::model::MultiplexMode readAndRegisterMultiplexParam(cadet::IParameterProvi
 					parameters[cadet::makeParamId(nameHash, uoi, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, (mode == cadet::model::MultiplexMode::Independent) ? cadet::SectionIndep : s)] = &values[s * radNElem * nComp];
 			}
 			break;
-		case cadet::model::MultiplexMode::Component:
+		case cadet::model::MultiplexMode::Component: // nSec = 1
 		case cadet::model::MultiplexMode::ComponentSection:
 			{
 				std::vector<cadet::active> p(nComp * radNElem * nSec);
 				for (unsigned int s = 0; s < nSec; ++s)
 				{
-					for (unsigned int i = 0; i < nComp; ++i)
-						std::copy(values.begin() + s * nComp, values.begin() + (s+1) * nComp, p.begin() + i * nComp + s * nComp * radNElem);
+					for (unsigned int r = 0; r < radNElem; ++r)
+						std::copy(values.begin() + s * nComp, values.begin() + (s+1) * nComp, p.begin() + r * nComp + s * nComp * radNElem);
 				}
 
 				values = std::move(p);
@@ -158,23 +158,23 @@ cadet::model::MultiplexMode readAndRegisterMultiplexParam(cadet::IParameterProvi
 				}
 			}
 			break;
-		case cadet::model::MultiplexMode::Radial:
+		case cadet::model::MultiplexMode::Radial: // nSec = 1
 		case cadet::model::MultiplexMode::RadialSection:
 			{
 				std::vector<cadet::active> p(nComp * radNElem * nSec);
-				for (unsigned int i = 0; i < radNElem * nSec; ++i)
-					std::fill(p.begin() + i * nComp, p.begin() + (i+1) * nComp, values[i]);
+				for (unsigned int idx = 0; idx < radNElem * nSec; ++idx)
+					std::fill(p.begin() + idx * nComp, p.begin() + (idx+1) * nComp, values[idx]);
 
 				values = std::move(p);
 
 				for (unsigned int s = 0; s < nSec; ++s)
 				{
-					for (unsigned int i = 0; i < radNElem; ++i)
-						parameters[cadet::makeParamId(nameHash, uoi, cadet::CompIndep, i, cadet::BoundStateIndep, cadet::ReactionIndep, (mode == cadet::model::MultiplexMode::Radial) ? cadet::SectionIndep : s)] = &values[s * radNElem * nComp + i * nComp];
+					for (unsigned int r = 0; r < radNElem; ++r)
+						parameters[cadet::makeParamId(nameHash, uoi, cadet::CompIndep, r, cadet::BoundStateIndep, cadet::ReactionIndep, (mode == cadet::model::MultiplexMode::Radial) ? cadet::SectionIndep : s)] = &values[s * radNElem * nComp + r * nComp];
 				}
 			}
 			break;
-		case cadet::model::MultiplexMode::ComponentRadial:
+		case cadet::model::MultiplexMode::ComponentRadial: // nSec = 1
 		case cadet::model::MultiplexMode::ComponentRadialSection:
 			cadet::registerParam3DArray(parameters, values, [=](bool multi, unsigned int sec, unsigned int compartment, unsigned int comp) { return cadet::makeParamId(nameHash, uoi, comp, compartment, cadet::BoundStateIndep, cadet::ReactionIndep, multi ? sec : cadet::SectionIndep); }, nComp, radNElem);
 			break;

@@ -969,17 +969,17 @@ void LumpedRateModelWithPoresDG2D::consistentInitialTimeDerivative(const Simulat
 
 	} CADET_PARFOR_END;
 
-	_globalSolver.factorize(_globalJacDisc);
+	_linearSolver->factorize(_globalJacDisc);
 
-	if (cadet_unlikely(_globalSolver.info() != Eigen::Success)) {
+	if (cadet_unlikely(_linearSolver->info() != Eigen::Success)) {
 		LOG(Error) << "Factorize() failed";
 	}
 
 	Eigen::Map<Eigen::VectorXd> yDot(vecStateYdot + idxr.offsetC(), numPureDofs());
 
-	yDot = _globalSolver.solve(yDot);
+	yDot = _linearSolver->solve(yDot);
 
-	if (cadet_unlikely(_globalSolver.info() != Eigen::Success))
+	if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 	{
 		LOG(Error) << "Solve() failed";
 	}
@@ -1307,16 +1307,16 @@ void LumpedRateModelWithPoresDG2D::consistentInitialSensitivity(const Simulation
 		Eigen::Map<Eigen::VectorXd> yDot(sensYdot, numPureDofs());
 
 		// Factorize
-		_globalSolver.factorize(_globalJacDisc);
+		_linearSolver->factorize(_globalJacDisc);
 
-		if (cadet_unlikely(_globalSolver.info() != Eigen::Success))
+		if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 		{
 			LOG(Error) << "Factorize() failed";
 		}
 		// Solve
-		yDot.segment(0, numPureDofs()) = _globalSolver.solve(yDot.segment(0, numPureDofs()));
+		yDot.segment(0, numPureDofs()) = _linearSolver->solve(yDot.segment(0, numPureDofs()));
 
-		if (cadet_unlikely(_globalSolver.info() != Eigen::Success))
+		if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 		{
 			LOG(Error) << "Solve() failed";
 		}
@@ -1408,23 +1408,23 @@ void LumpedRateModelWithPoresDG2D::leanConsistentInitialSensitivity(const Simula
 		}
 
 		const int bulkRows = idxr.offsetCp() - idxr.offsetC();
-		_globalSolver.analyzePattern(_globalJacDisc.block(0, 0, bulkRows, bulkRows));
-		_globalSolver.factorize(_globalJacDisc.block(0, 0, bulkRows, bulkRows));
+		_linearSolver->analyzePattern(_globalJacDisc.block(0, 0, bulkRows, bulkRows));
+		_linearSolver->factorize(_globalJacDisc.block(0, 0, bulkRows, bulkRows));
 
-		if (_globalSolver.info() != Eigen::Success) {
+		if (_linearSolver->info() != Eigen::Success) {
 			LOG(Error) << "factorization failed in sensitivity initialization";
 		}
 
 		Eigen::Map<Eigen::VectorXd> ret_vec(sensYdot + idxr.offsetC(), bulkRows);
-		ret_vec = _globalSolver.solve(ret_vec);
+		ret_vec = _linearSolver->solve(ret_vec);
 
 		// Use the factors to solve the linear system 
-		if (_globalSolver.info() != Eigen::Success) {
+		if (_linearSolver->info() != Eigen::Success) {
 			LOG(Error) << "solve failed in sensitivity initialization";
 		}
 
 		// reset linear solver to global Jacobian
-		_globalSolver.analyzePattern(_globalJacDisc);
+		_linearSolver->analyzePattern(_globalJacDisc);
 	}
 }
 

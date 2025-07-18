@@ -20,6 +20,9 @@
 
 void test2DLRMPJacobian(const std::string relModelFilePath, const int maxAxElem, const int maxRadElem, const int axPolyDeg = 0, const int radPolyDeg = 0, const int minAxElem = 1, const int minRadElem = 1)
 {
+	if (maxAxElem < minAxElem || maxRadElem < minRadElem)
+		REQUIRE(false);
+
 	cadet::JsonParameterProvider jpp = cadet::test::column::getReferenceFile(relModelFilePath);
 
 	// get the number of radial ports
@@ -88,19 +91,19 @@ TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian]
 {
 	const std::string relModelFilePath = std::string("/data/model_LRMP2D_bulkTransport_1comp.json");
 
-	// This test might run out of memory due to the required AD directions:
+	// This test requires the following number of AD directions:
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
-	// result here is 8radPoints + 128 pure dofs (8axPoints*8radPoints) * (1 + 1)
+	// req. AD dirs: 8radPoints + 128 pure dofs (8axPoints*8radPoints) * (1 + 1)
 	test2DLRMPJacobian(relModelFilePath, 4, 4, 1, 1);
 }
 
-TEST_CASE("LRMP2D transport Jacobian with radially constant parameters", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[ReleaseCI]")
+TEST_CASE("LRMP2D transport Jacobian with radially constant parameters", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[AD_dirs]")
 {
 	const std::string relModelFilePath = std::string("/data/model_LRMP2D_bulkTransport_1comp.json");
 
 	// This test might run out of memory due to the required AD directions:
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
-	// result here is 14radPoints + 588 pure dofs (21axPoints*14radPoints) * (1 + 1)
+	// req. AD dirs: 14radPoints + 588 pure dofs (21axPoints*14radPoints) * (1 + 1)
 	test2DLRMPJacobian(relModelFilePath, 7, 7, 2, 1);
 }
 
@@ -110,28 +113,28 @@ TEST_CASE("LRMP2D transport Jacobian with radially variable parameters", "[LRMP2
 
 	// Required AD directions:
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
-	// result here is 8radPoints + 96 pure dofs (6axPoints*8radPoints) * (1 + 1)
-	test2DLRMPJacobian(relModelFilePath, 3, 4, 1, 1, 4, 4);
+	// req. AD dirs: 8radPoints + 96 pure dofs (6axPoints*8radPoints) * (1 + 1)
+	test2DLRMPJacobian(relModelFilePath, 4, 4, 1, 1, 4, 4);
 }
 
-TEST_CASE("LRMP2D transport Jacobian with radially variable parameters, including particle type volume fraction", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("LRMP2D transport Jacobian with radially variable parameters including particle type volume fraction", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
 {
 	const std::string relModelFilePath = std::string("/data/model_LRMP2D2parType_bulkTransportRadVar_1comp.json");
 
 	// Required AD directions:
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
-	// result here is 8radPoints + 144 pure dofs (6axPoints*8radPoints) * (1 + 2 * 1)
-	test2DLRMPJacobian(relModelFilePath, 3, 4, 1, 1, 4, 4);
+	// req. AD dirs: 152 = 8radPoints + 144 pure dofs (6axPoints*8radPoints) * (1 + 2 * 1)
+	test2DLRMPJacobian(relModelFilePath, 3, 4, 1, 1, 3, 4);
 }
 
-TEST_CASE("LRMP2D with two component linear binding Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[ReleaseCI]")
+TEST_CASE("LRMP2D with two component linear binding Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CI]")
 {
 	const std::string relModelFilePath = std::string("/data/model_LRMP2D_dynLin_2comp.json");
 
 	// This test might run out of memory due to the required AD directions:
 	// inletDof + (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
-	// result here is 2*12radPoints + 1296 pure dofs (18axPoints*12radPoints) * (2 + 4)
-	test2DLRMPJacobian(relModelFilePath, 6, 6, 2, 1);
+	// req. AD dirs: 156 = 2*6radPoints + 144 pure dofs (4axPoints*6radPoints) * (2 + 4)
+	test2DLRMPJacobian(relModelFilePath, 2, 3, 1, 1);
 }
 
 TEST_CASE("LRMP2D numerical Benchmark for a pure bulk transport case with three radial zones", "[LRMP2D],[DG],[DG2D],[Simulation],[Reference],[CI]")
