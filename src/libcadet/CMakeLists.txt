@@ -174,6 +174,7 @@ set (LIBCADET_NONLINALG_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/linalg/Gmres.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/nonlin/AdaptiveTrustRegionNewton.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/nonlin/LevenbergMarquardt.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/nonlin/PseudoTransientContinuation.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/nonlin/CompositeSolver.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/nonlin/Solver.cpp
 )

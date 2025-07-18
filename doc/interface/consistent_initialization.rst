@@ -21,6 +21,8 @@ Available solvers are
 
 - ``ATRN_ERR``: Robust adaptive trust-region Newton solver, implemetation of the NLEQ-ERR algorithm described in :cite:`Deuflhard2011` (pp. 148)
 
+- ``PCT``: Pseudo-transient continuation method, see :cite:`Deuflhard2011` (section 6.4)
+
 - ``COMPOSITE``: Applies multiple solvers subsequently
 
 
