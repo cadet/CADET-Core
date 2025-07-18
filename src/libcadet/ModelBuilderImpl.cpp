@@ -33,6 +33,7 @@ namespace cadet
 		void registerInletModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 		void registerOutletModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 
+		void registerColumnModel1D(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx, IParameterProvider&)>>& models);
 		void registerGeneralRateModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 		void registerLumpedRateModelWithPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 		void registerLumpedRateModelWithoutPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
@@ -41,7 +42,7 @@ namespace cadet
 		void registerGeneralRateModel2D(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 		void registerMultiChannelTransportModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 	#ifdef ENABLE_DG
-		void registerLumpedRateModelWithPoresDG2D(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx, IParameterProvider&)>>& models);
+		void registerColumnModel2D(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx, IParameterProvider&)>>& models);
 	#endif
 #endif
 
@@ -66,12 +67,15 @@ namespace cadet
 		model::registerLumpedRateModelWithPores(_modelCreators);
 		model::registerLumpedRateModelWithoutPores(_modelCreators);
 		model::registerCSTRModel(_modelCreators);
+#ifdef ENABLE_DG
+		model::registerColumnModel1D(_modelCreators);
+#endif
 
 #ifdef ENABLE_2D_MODELS
 		model::registerGeneralRateModel2D(_modelCreators);
 		model::registerMultiChannelTransportModel(_modelCreators);
 	#ifdef ENABLE_DG
-			model::registerLumpedRateModelWithPoresDG2D(_modelCreators);
+			model::registerColumnModel2D(_modelCreators);
 	#endif
 #endif
 
@@ -257,6 +261,11 @@ namespace cadet
 		return nullptr;		
 	}
 
+	model::IParticleModel* ModelBuilder::createParticleModel(const std::string& name) const
+	{
+		return _particleModels.create(name);
+	}
+
 	model::IBindingModel* ModelBuilder::createBindingModel(const std::string& name) const
 	{
 		return _bindingModels.create(name);
@@ -265,6 +274,11 @@ namespace cadet
 	model::IExchangeModel* ModelBuilder::createExchangeModel(const std::string& name) const
 	{
 		return _exchangeModels.create(name);
+	}
+
+	bool ModelBuilder::isValidParticleModel(const std::string& name) const
+	{
+		return _particleModels.exists(name);
 	}
 
 	bool ModelBuilder::isValidBindingModel(const std::string& name) const

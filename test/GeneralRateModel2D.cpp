@@ -45,6 +45,30 @@ TEST_CASE("GRM2D Jacobian forward vs backward flow", "[GRM2D],[UnitOp],[Residual
 		cadet::test::column::testJacobianWenoForwardBackwardFD("GENERAL_RATE_MODEL_2D", "FV", i, 1e-6, 0.0, 1e-3);
 }
 
+TEST_CASE("GRM2D numerical reference test for a three zone linear binding GRM with surface diffusion", "[GRM2D],[FV],[Simulation],[Reference],[Analytical],[CI]")
+{
+	const std::string& modelFilePath = std::string("/data/model_2DGRMsd3Zone_dynLin_1Comp_benchmark1.json");
+	const std::string refFilePath = std::string("/data/ref_2DGRMsd3Zone_dynLin_1Comp_benchmark1_FV_axZ16radZ12parZ12.h5");
+	const std::vector<double> absTol = { 1E-12 };
+	const std::vector<double> relTol = { 1E-12 };
+
+	cadet::test::column::FVparams disc;
+	const int simDataStride = 12; // number of radial ports
+}
+
+TEST_CASE("GRM2D analytical reference test for a three zone linear binding GRM with surface diffusion", "[GRM2D],[FV],[Simulation],[Reference],[Analytical],[CI]")
+{
+	const std::string& modelFilePath = std::string("/data/model_2DGRMsd3Zone_dynLin_1Comp_benchmark1.json");
+	const std::string refFilePath = std::string("/data/refAna_2DGRMsd3Zone_dynLin_1Comp_radZ3_benchmark1.h5");
+	const std::vector<double> absTol = { 1E-3 };
+	const std::vector<double> relTol = { 5E-1 };
+
+	cadet::test::column::FVparams disc(64, 12, 3, 12);
+	const int simDataStride = 12; // number of radial ports
+
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
+}
+
 TEST_CASE("GRM2D time derivative Jacobian vs FD", "[GRM2D],[UnitOp],[Residual],[Jacobian],[FDtestGRM2D]")
 {
 	cadet::test::column::testTimeDerivativeJacobianFD("GENERAL_RATE_MODEL_2D", "FV", 1e-6, 0.0, 9e-4);

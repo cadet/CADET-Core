@@ -64,7 +64,7 @@ TEST_CASE("GRM_DG non-binding linear pulse vs analytic solution", "[GRM],[DG],[D
 //	}
 //}
 
-TEST_CASE("GRM_DG numerical Benchmark with parameter sensitivities for linear case", "[GRM],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens3]")
+TEST_CASE("GRM_DG numerical Benchmark1 with parameter sensitivities for linear case", "[GRM],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens3]")
 {
 	std::string modelFilePath = std::string("/data/model_GRM_dynLin_1comp_benchmark1.json");
 	std::string refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark1_cDG_P3Z8_GSM_parP3parZ1.h5");
@@ -73,14 +73,20 @@ TEST_CASE("GRM_DG numerical Benchmark with parameter sensitivities for linear ca
 
 	cadet::test::column::DGparams disc(0, 3, 8, 3, 1);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
+}
 
-	modelFilePath = std::string("/data/model_GRM_dynLin_1comp_sensbenchmark2.json");
-	refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark2_cDG_P3Z8_GSM_parP3parZ1.h5");
+TEST_CASE("GRM_DG numerical Benchmark2 with parameter sensitivities for linear case", "[GRM],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens3]")
+{
+	std::string modelFilePath = std::string("/data/model_GRM_dynLin_1comp_sensbenchmark2.json");
+	std::string refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark2_cDG_P3Z8_GSM_parP3parZ1.h5");
+	const std::vector<double> absTol = { 1e-12, 1e-6, 1e-6, 1e-12 };
+	const std::vector<double> relTol = { 1e-4, 1e-3, 1e-4, 1e-4 };
 
+	cadet::test::column::DGparams disc(0, 3, 8, 3, 1);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
-TEST_CASE("GRM_DG numerical Benchmark with parameter sensitivities and multiplexing for 2parType 2comp linear case", "[GRM],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens15]")
+TEST_CASE("GRM_DG numerical Benchmark with parameter sensitivities and multiplexing for 2parType 2comp linear case", "[GRM],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens21]")
 {
 	const std::string modelFilePath = std::string("/data/model_GRMparType2_dynLin_2comp_sensbenchmark1.json");
 	const std::string refFilePath = std::string("/data/ref_GRMparType2_dynLin_2comp_sensbenchmark1_cDG_P3Z4_DGexInt_parP3parZ2.h5");
