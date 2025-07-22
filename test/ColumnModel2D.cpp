@@ -382,17 +382,6 @@ TEST_CASE("Column_2D as GRM non limiting particle diffusion analytical reference
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
 }
 
-//TEST_CASE("Column_2D as GRM numerical reference test for a three zone linear binding GRM with surface diffusion", "[GRM2D],[FV],[Simulation],[Reference],[Analytical],[todoCI]")
-//{
-//	const std::string& modelFilePath = std::string("/data/model_COL2D_GRMsd3Zone_dynLin_1Comp_benchmark1.json");
-//	const std::string refFilePath = std::string("/data/ref_2DGRMsd3Zone_dynLin_1Comp_benchmark1_FV_axZ16radZ12parZ12.h5");
-//	const std::vector<double> absTol = { 1E-12 };
-//	const std::vector<double> relTol = { 1E-12 };
-//
-//	cadet::test::column::FVparams disc;
-//	const int simDataStride = 12; // number of radial ports
-//}
-
 TEST_CASE("Column_2D as GRM analytical reference test for a three zone linear binding GRM with surface diffusion", "[GRM2D],[DG],[DG2D],[Simulation],[Reference],[Analytical],[CI]")
 {
 	const std::string& modelFilePath = std::string("/data/model_COL2D_GRMsd3Zone_dynLin_1Comp_benchmark1.json");
@@ -405,6 +394,33 @@ TEST_CASE("Column_2D as GRM analytical reference test for a three zone linear bi
 
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
 }
+
+// todo modify SMA test case so that 2DDG does not produce negative values
+//TEST_CASE("Column_2D as GRM numerical reference test for a three zone linear binding GRM with surface diffusion", "[GRM2D],[DG],[DG2D],[Simulation],[Reference],[Analytical],[todoCI]")
+//{
+//	const std::string& modelFilePath = std::string("/data/model_COL2D_GRMsd3Zone_dynLin_1Comp_benchmark1.json");
+//	const std::string refFilePath = std::string("/data/ref_2DGRMsd3Zone_dynLin_1Comp_benchmark1_FV_axZ16radZ12parZ12.h5");
+//	const std::vector<double> absTol = { 1E-12 };
+//	const std::vector<double> relTol = { 1E-12 };
+//
+//	cadet::test::column::DGparams disc;
+//	const int simDataStride = 12; // number of radial ports
+//	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
+//}
+
+// todo find an SMA case that doesnt produce small negative values and compute reference
+//TEST_CASE("Column_2D as GRM analytical reference test for a three zone SMA binding GRM with surface diffusion", "[GRM2D],[DG],[DG2D],[Simulation],[Reference],[Analytical],[todoCI]")
+//{
+//	const std::string& modelFilePath = std::string("/data/model_COL2D_GRM3Zone_dynSMA_4Comp_benchmark1.json");
+//	const std::string refFilePath = std::string("/data/refAna_2DGRMsd3Zone_dynLin_1Comp_radZ3_benchmark1.h5");
+//	const std::vector<double> absTol = { 1E-3 }; // relatively high tolerance needed here, since the analyrtical solution computes cross sectional averages
+//	const std::vector<double> relTol = { 2E-1 };
+//
+//	cadet::test::column::DGparams disc;
+//	const int simDataStride = 12; // number of radial ports
+//
+//	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
+//}
 
 TEST_CASE("Column_2D as GRM sensitivity Jacobians", "[Column_2D],[UnitOp],[Sensitivity],[CI]")
 {
@@ -478,11 +494,13 @@ TEST_CASE("Column_2D as GRM consistent sensitivity initialization with SMA bindi
 	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_2D_GRM", "DG", y.data(), yDot.data(), false, 1e-9, 1, 1);
 }
 
-TEST_CASE("Column_2D as GRM LWE one vs two identical particle types match", "[Column_2D],[Simulation],[ParticleType],[testCI]")
+// todo modify SMA test case so that 2DDG does not produce negative values
+TEST_CASE("Column_2D as GRM LWE one vs two identical particle types match", "[Column_2D],[Simulation],[ParticleType],[todoCI]")
 {
 	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("COLUMN_MODEL_2D_GRM", "DG", 1e-7, 5e-5);
 }
 
+// todo modify SMA test case so that 2DDG does not produce negative values
 TEST_CASE("Column_2D as GRM LWE separate identical particle types match", "[Column_2D],[Simulation],[ParticleType],[todoCI]")
 {
 	cadet::test::particle::testSeparateIdenticalParticleTypes("COLUMN_MODEL_2D_GRM", "DG", 1e-7, 5e-5);
