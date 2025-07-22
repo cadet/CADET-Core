@@ -1031,12 +1031,13 @@ int ColumnModel2D::residual(const SimulationTime& simTime, const ConstSimulation
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 int ColumnModel2D::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
-	// reset Jacobian pattern every section
-	if (_disc.newStaticJac)
+	if (wantRes)
 	{
-		setJacobianPattern(_globalJac, secIdx, _dynReactionBulk);
+		double* const resPtr = reinterpret_cast<double* const>(res);
+		Eigen::Map<Eigen::VectorXd> resi(resPtr, numDofs());
+		resi.setZero();
 	}
-	else if (wantJac)
+	if (wantJac)
 	{
 		std::fill_n(_globalJac.valuePtr(), _globalJac.nonZeros(), 0.0);
 	}
