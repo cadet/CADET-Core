@@ -352,7 +352,6 @@
       "SCHUR_SAFETY": 1e-08
     },
     "unit_000": {
-      "ADSORPTION_MODEL": "NONE",
       "COL_DISPERSION": 5.75e-08,
       "COL_DISPERSION_RADIAL": 5e-08,
       "COL_LENGTH": 0.014,
@@ -366,14 +365,9 @@
       "NPARTYPE": 0,
       "PORTS": 24,
       "UNIT_TYPE": "COLUMN_MODEL_2D",
-      "VELOCITY": 0.000575,
       "discretization": {
         "AX_NELEM": 8,
         "AX_POLYDEG": 3,
-        "NPAR": 2,
-        "PAR_DISC_TYPE": [
-          "EQUIDISTANT_PAR"
-        ],
         "RADIAL_DISC_TYPE": "EQUIDISTANT",
         "RAD_NELEM": 6,
         "RAD_POLYDEG": 3,

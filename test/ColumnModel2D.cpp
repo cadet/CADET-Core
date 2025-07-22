@@ -386,7 +386,7 @@ TEST_CASE("Column_2D as GRM analytical reference test for a three zone linear bi
 {
 	const std::string& modelFilePath = std::string("/data/model_COL2D_GRMsd3Zone_dynLin_1Comp_benchmark1.json");
 	const std::string refFilePath = std::string("/data/refAna_2DGRMsd3Zone_dynLin_1Comp_radZ3_benchmark1.h5");
-	const std::vector<double> absTol = { 1E-3 }; // relatively high tolerance needed here, since the analyrtical solution computes cross sectional averages
+	const std::vector<double> absTol = { 5E-4 }; // relatively high tolerance needed here, since the analyrtical solution computes cross sectional averages
 	const std::vector<double> relTol = { 2E-1 };
 
 	cadet::test::column::DGparams disc;
@@ -395,18 +395,17 @@ TEST_CASE("Column_2D as GRM analytical reference test for a three zone linear bi
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
 }
 
-// todo modify SMA test case so that 2DDG does not produce negative values
-//TEST_CASE("Column_2D as GRM numerical reference test for a three zone linear binding GRM with surface diffusion", "[GRM2D],[DG],[DG2D],[Simulation],[Reference],[Analytical],[todoCI]")
-//{
-//	const std::string& modelFilePath = std::string("/data/model_COL2D_GRMsd3Zone_dynLin_1Comp_benchmark1.json");
-//	const std::string refFilePath = std::string("/data/ref_2DGRMsd3Zone_dynLin_1Comp_benchmark1_FV_axZ16radZ12parZ12.h5");
-//	const std::vector<double> absTol = { 1E-12 };
-//	const std::vector<double> relTol = { 1E-12 };
-//
-//	cadet::test::column::DGparams disc;
-//	const int simDataStride = 12; // number of radial ports
-//	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
-//}
+TEST_CASE("Column_2D as GRM numerical reference test for a three zone linear binding GRM with surface diffusion", "[GRM2D],[DG],[DG2D],[Simulation],[Reference],[Analytical],[CI]")
+{
+	const std::string& modelFilePath = std::string("/data/model_COL2D_GRMsd3Zone_dynLin_1Comp_benchmark1.json");
+	const std::string refFilePath = std::string("/data/ref_COL2D_GRMsd3Zone_dynLin_1Comp_benchmark1_DG_axP3Z8_radP3Z3_parP3Z1.h5");
+	const std::vector<double> absTol = { 1E-12 };
+	const std::vector<double> relTol = { 1E-12 };
+
+	cadet::test::column::DGparams disc;
+	const int simDataStride = 12; // number of radial ports
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
+}
 
 // todo find an SMA case that doesnt produce small negative values and compute reference
 //TEST_CASE("Column_2D as GRM analytical reference test for a three zone SMA binding GRM with surface diffusion", "[GRM2D],[DG],[DG2D],[Simulation],[Reference],[Analytical],[todoCI]")
@@ -585,4 +584,18 @@ TEST_CASE("Column_2D as GRM multi particle types dynamic reactions time derivati
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeGRMParticleTypes();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 8e-4);
+}
+
+/* Mixed homogeneous and 1D particles test cases */
+
+TEST_CASE("Column_2D with 3 zones and mixed homogeneous and 1D particles numerical reference test", "[GRM2D],[DG],[DG2D],[Simulation],[Reference],[Analytical],[testCI]")
+{
+	const std::string& modelFilePath = std::string("/data/model_COL2D_GRMsd3Zone2ParType_dynLin_1Comp_benchmark1.json");
+	const std::string refFilePath = std::string("/data/ref_COL2D_GRMsd3Zone2ParType_dynLin_1Comp_benchmark1_DG_axP3Z8_radP3Z3_parP3Z1.h5");
+	const std::vector<double> absTol = { 1E-12 };
+	const std::vector<double> relTol = { 1E-12 };
+
+	cadet::test::column::DGparams disc;
+	const int simDataStride = 12; // number of radial ports
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
 }
