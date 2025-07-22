@@ -201,7 +201,7 @@
       "VELOCITY": 0.000575,
       "particle_type_000": {
         "PARTICLE_TYPE": "GENERAL_RATE_PARTICLE",
-        "PAR_DIFFUSION": 1.0,
+        "PAR_DIFFUSION": 1.0e-6,
         "PAR_POROSITY": 0.75,
         "PAR_RADIUS": 4.5e-05,
         "PAR_SURFDIFFUSION": 0.0,
@@ -232,7 +232,7 @@
         "AX_NELEM": 8,
         "AX_POLYDEG": 3,
         "RADIAL_DISC_TYPE": "EQUIDISTANT",
-        "RAD_NELEM": 6,
+        "RAD_NELEM": 3,
         "RAD_POLYDEG": 3,
         "SPATIAL_METHOD": "DG",
         "USE_ANALYTIC_JACOBIAN": true
