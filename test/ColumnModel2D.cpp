@@ -124,7 +124,7 @@ TEST_CASE("Column_2D as LRMP2D analytical reference test for a three zone linear
 	const std::string& modelFilePath = std::string("/data/model_COL2D_LRMP3Zone_dynLin_1Comp_benchmark1.json");
 	// Note that the analytical reference is actually a 2DGRM but with D^p -> \infty
 	const std::string& refFilePath = std::string("/data/refAna_2DLRMP3Zone_dynLin_1Comp_radZ3_benchmark1.h5");
-	const std::vector<double> absTol = { 1E-2 };
+	const std::vector<double> absTol = { 1E-2 }; // relatively high tolerance needed here, since the analyrtical solution computes cross sectional averages
 	const std::vector<double> relTol = { 5E-2 };
 
 	//(int exact, int polyDeg, int elem, int parPolyDeg, int parNelem, int radPolyDeg, int radNelem)
@@ -373,7 +373,7 @@ TEST_CASE("Column_2D as GRM non limiting particle diffusion analytical reference
 
 	const std::string& modelFilePath = std::string("/data/model_COL2D_GRM3Zone_dynLin_1Comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/refAna_2DLRMP3Zone_dynLin_1Comp_radZ3_benchmark1.h5");
-	const std::vector<double> absTol = { 1E-2 };
+	const std::vector<double> absTol = { 1E-2 }; // relatively high tolerance needed here, since the analyrtical solution computes cross sectional averages
 	const std::vector<double> relTol = { 5E-2 };
 
 	//(int exact, int polyDeg, int elem, int parPolyDeg, int parNelem, int radPolyDeg, int radNelem)
@@ -393,18 +393,18 @@ TEST_CASE("Column_2D as GRM non limiting particle diffusion analytical reference
 //	const int simDataStride = 12; // number of radial ports
 //}
 
-//TEST_CASE("Column_2D as GRM analytical reference test for a three zone linear binding GRM with surface diffusion", "[GRM2D],[FV],[Simulation],[Reference],[Analytical],[todoCI]")
-//{
-//	const std::string& modelFilePath = std::string("/data/model_2DCOL_GRMsd3Zone_dynLin_1Comp_benchmark1.json");
-//	const std::string refFilePath = std::string("/data/refAna_2DGRMsd3Zone_dynLin_1Comp_radZ3_benchmark1.h5");
-//	const std::vector<double> absTol = { 1E-3 };
-//	const std::vector<double> relTol = { 5E-1 };
-//
-//	cadet::test::column::FVparams disc(64, 12, 3, 12);
-//	const int simDataStride = 12; // number of radial ports
-//
-//	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
-//}
+TEST_CASE("Column_2D as GRM analytical reference test for a three zone linear binding GRM with surface diffusion", "[GRM2D],[DG],[DG2D],[Simulation],[Reference],[Analytical],[CI]")
+{
+	const std::string& modelFilePath = std::string("/data/model_COL2D_GRMsd3Zone_dynLin_1Comp_benchmark1.json");
+	const std::string refFilePath = std::string("/data/refAna_2DGRMsd3Zone_dynLin_1Comp_radZ3_benchmark1.h5");
+	const std::vector<double> absTol = { 1E-3 }; // relatively high tolerance needed here, since the analyrtical solution computes cross sectional averages
+	const std::vector<double> relTol = { 2E-1 };
+
+	cadet::test::column::DGparams disc;
+	const int simDataStride = 12; // number of radial ports
+
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
+}
 
 TEST_CASE("Column_2D as GRM sensitivity Jacobians", "[Column_2D],[UnitOp],[Sensitivity],[CI]")
 {
