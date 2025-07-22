@@ -477,6 +477,8 @@ void ColumnModel2D::readInitialCondition(IParameterProvider& paramProvider)
 			_singleRadiusInitCs = initCs.size() == _disc.strideBound[parType];
 		}
 
+		paramProvider.popScope();
+
 		if (initCs.empty())
 			return;
 		if (_disc.strideBound[parType] == 0)
@@ -497,8 +499,6 @@ void ColumnModel2D::readInitialCondition(IParameterProvider& paramProvider)
 			for (unsigned int r = 0; r < _disc.radNElem; ++r)
 				ad::copyToAd(initCs.data(), _initCs.data() + parType * _disc.strideBound[parType] + r * _disc.strideBound[parType] * _disc.nParType, _disc.strideBound[parType]);
 		}
-
-		paramProvider.popScope();
 	}
 }
 
