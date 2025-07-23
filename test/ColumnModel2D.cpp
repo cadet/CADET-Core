@@ -325,6 +325,18 @@ TEST_CASE("Column_2D as DPF numerical Benchmark for pure bulk transport case wit
 
 /* 2D GRM test cases */
 
+TEST_CASE("Column_2D as GRM without radial variance equals Column_1D as GRM numerical Benchmark", "[Column_2D],[DG],[DG2D],[Simulation],[Reference],[CI]")
+{
+	const std::string& modelFilePath = std::string("/data/model_COL2D_GRM_dynLin_1comp_benchmark1.json");
+	std::string refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark1_cDG_P3Z8_GSM_parP3parZ1.h5");
+	const std::vector<double> absTol = { 5E-7 };
+	const std::vector<double> relTol = { 1E-5 };
+
+	cadet::test::column::DGParamsNewIF disc(0, 3, 8, 3, 1, 3, 3);
+	const int simDataStride = (3 + 1) * 3; // number of radial ports
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false, simDataStride);
+}
+
 TEST_CASE("Column_2D as GRM inlet DOF Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[Inlet],[CI]")
 {
 	cadet::test::column::testInletDofJacobian("COLUMN_MODEL_2D_GRM", "DG");
