@@ -880,23 +880,56 @@ void ColumnModel2D::extractJacobianFromAD(active const* const adRes, unsigned in
  */
 void ColumnModel2D::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
 {
-	// todo implement this function?
-	//Indexer idxr(_disc);
+	Indexer idxr(_disc);
 
-	//LOG(Debug) << "AD dir offset: " << adDirOffset << " DiagDirPar: " << _jacP[0].lowerBandwidth();
+	const int offCp = idxr.offsetCp() - idxr.offsetC();
 
-	//// Particles
-	//double maxDiffPar = 0.0;
-	//for (unsigned int type = 0; type < _disc.nParType; ++type)
-	//{
-	//	for (unsigned int pblk = 0; pblk < _disc.axNPoints * _disc.radNPoints; ++pblk)
-	//	{
-	//		linalg::BandMatrix& jacMat = _jacP[_disc.axNPoints * _disc.radNPoints * type + pblk];
-	//		const double localDiff = ad::compareBandedJacobianWithAd(adRes + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{pblk}), adDirOffset, jacMat.lowerBandwidth(), jacMat);
-	//		LOG(Debug) << "-> Par type " << type << " block " << pblk << " diff: " << localDiff;
-	//		maxDiffPar = std::max(maxDiffPar, localDiff);
-	//	}
-	//}
+	double inletJacMaxError = 0.0;
+	int row = 0;
+	int col = 0;
+
+	active const* const adResUnit = adRes + adDirOffset + idxr.offsetC();
+
+	for (int i = 0; i < _convDispOp.axNNodes() * _disc.radNPoints * _disc.nComp; i++)
+	{
+		for (int j = 0; j < _disc.radNPoints * _disc.nComp; j++)
+		{
+			const double localError = std::abs(_jacInlet(i, j) - adResUnit[i].getADValue(j + adDirOffset));
+			if (localError > 1e-14)
+			{
+				inletJacMaxError = std::max(inletJacMaxError, localError);
+				row = i;
+				col = j;
+				LOG(Debug) << "Error in Inlet Jacobian: " << localError << " at row, col: " << i << ", " << j;
+			}
+		}
+	}
+
+	double mainJacMaxError = 0.0;
+
+	for (int i = 0; i < _globalJac.rows(); i++)
+	{
+		for (int j = 0; j < _globalJac.cols(); j++)
+		{
+			const double localError = std::abs(_globalJac.coeff(i, j) - adResUnit[i].getADValue(j + idxr.offsetC() + adDirOffset));
+			if (localError > 1e-14)
+			{
+				mainJacMaxError = std::max(mainJacMaxError, localError);
+				row = i;
+				col = j;
+
+				if(i < offCp && j < offCp)
+					LOG(Debug) << "Error in bulk Jacobian: " << localError << " at row, col: " << i << ", " << j;
+				else if((i >= offCp && j < offCp) || (i < offCp && j >= offCp))
+					LOG(Debug) << "Error in film diffusion Jacobian: " << localError << " at row, col: " << i << ", " << j;
+				else
+					LOG(Debug) << "Error in particle Jacobian: " << localError << " at row, col: " << i << ", " << j;
+			
+				LOG(Debug) << "AD Jacobian value: " << adResUnit[i].getADValue(j + idxr.offsetC() + adDirOffset);
+				LOG(Debug) << "Analytical Jacobian value: " << _globalJac.coeff(i, j);
+			}
+		}
+	}
 }
 
 #endif

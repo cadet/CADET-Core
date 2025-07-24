@@ -681,26 +681,95 @@ void ColumnModel1D::extractJacobianFromAD(active const* const adRes, unsigned in
  */
 void ColumnModel1D::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
 {
-	// todo write this function
-	//Indexer idxr(_disc);
+	Indexer idxr(_disc);
 
-	//LOG(Debug) << "AD dir offset: " << adDirOffset << " DiagDirCol: " << _convDispOp.jacobian().lowerBandwidth() << " DiagDirPar: " << _jacP[0].lowerBandwidth();
+	const active* const adVec = adRes + idxr.offsetC();
 
-	//// Column
-	//const double maxDiffCol = _convDispOp.checkAnalyticJacobianAgainstAd(adRes, adDirOffset);
+	/* Extract bulk phase equations entries */
+	const int lowerBandwidth = (_disc.exactInt) ? 2 * _disc.nNodes * idxr.strideColNode() : _disc.nNodes * idxr.strideColNode();
+	const int upperBandwidth = lowerBandwidth;
+	const int stride = lowerBandwidth + 1 + upperBandwidth;
+	int diagDir = lowerBandwidth;
+	const int bulkDoFs = idxr.offsetCp() - idxr.offsetC();
+	const int eqOffset = 0;
+	const int matOffset = idxr.offsetC();
 
-	//// Particles
-	//double maxDiffPar = 0.0;
-	//for (unsigned int type = 0; type < _disc.nParType; ++type)
-	//{
-	//	for (unsigned int pblk = 0; pblk < _disc.nPoints; ++pblk)
-	//	{
-	//		linalg::BandMatrix& jacMat = _jacP[_disc.nPoints * type + pblk];
-	//		const double localDiff = ad::compareBandedJacobianWithAd(adRes + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{pblk}), adDirOffset, jacMat.lowerBandwidth(), jacMat);
-	//		LOG(Debug) << "-> Par type " << type << " block " << pblk << " diff: " << localDiff;
-	//		maxDiffPar = std::max(maxDiffPar, localDiff);
-	//	}
-	//}
+	double JacMaxError = 0.0;
+	int row = 0;
+	int col = 0;
+
+	for (int eq = eqOffset; eq < eqOffset + bulkDoFs; ++eq)
+	{
+		// Start with lowest subdiagonal and stay in the range of the columns:
+		// diagDir might be too big for the matrix and, hence, dir ranges between
+		// diagDir - lowerBandwidth <= dir <= diagDir + upperBandwidth
+		int dir = diagDir - lowerBandwidth + eq % stride;
+
+		// Loop over diagonals
+		for (int diag = 0; diag < stride; ++diag)
+		{
+			if (eq - lowerBandwidth + diag >= eqOffset && // left block boundary
+				eq - lowerBandwidth + diag < eqOffset + bulkDoFs && // right block boundary
+				adVec[eq].getADValue(adDirOffset + dir) != 0.0 // keep pattern
+				)
+			{
+				row = matOffset + eq;
+				col = matOffset + eq - lowerBandwidth + diag;
+
+				const double localError = std::abs(_globalJac.coeff(row, col) - adVec[eq].getADValue(adDirOffset + dir));
+
+				if (localError > 1e-14)
+				{
+					JacMaxError = std::max(JacMaxError, localError);
+					if (row < idxr.offsetCp() && col < idxr.offsetCp())
+						LOG(Debug) << "Error in bulk Jacobian: " << localError << " at row, col: " << row << ", " << col;
+					else if ((row >= idxr.offsetCp() && col < idxr.offsetCp()) || (row < idxr.offsetCp() && col >= idxr.offsetCp()))
+						LOG(Debug) << "Error in film diffusion Jacobian: " << localError << " at row, col: " << row << ", " << col;
+					else
+						LOG(Debug) << "Error in particle Jacobian: " << localError << " at row, col: " << row << ", " << col;
+
+					LOG(Debug) << "AD Jacobian value: " << adVec[eq].getADValue(adDirOffset + dir);
+					LOG(Debug) << "Analytical Jacobian value: " << _globalJac.coeff(row, col);
+				}
+			}
+			// Wrap around at end of row and jump to lowest subdiagonal
+			if (dir == diagDir + upperBandwidth)
+				dir = diagDir - lowerBandwidth;
+			else
+				++dir;
+		}
+	}
+
+	/* Handle particle liquid and solid phase equations entries */
+	// Read particle Jacobian entries from dedicated AD directions
+	int offsetParticleTypeDirs = adDirOffset + _convDispOp.requiredADdirs();
+
+	for (unsigned int type = 0; type < _disc.nParType; type++)
+	{
+		for (unsigned int par = 0; par < _disc.nPoints; par++)
+		{
+			const int eqOffset_res = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par });
+			const int eqOffset_mat = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par });
+			for (unsigned int phase = 0; phase < idxr.strideParBlock(type); phase++)
+			{
+				for (unsigned int phaseTo = 0; phaseTo < idxr.strideParBlock(type); phaseTo++)
+				{
+					row = eqOffset_mat + phase;
+					col = eqOffset_mat + phaseTo;
+
+					const double localError = std::abs(_globalJac.coeff(row, col) - adRes[eqOffset_res + phase].getADValue(offsetParticleTypeDirs + phaseTo));
+
+					LOG(Debug) << "Error in particle type " + std::to_string(type) + " Jacobian: " << localError << " at row, col: " << row << ", " << col;
+					LOG(Debug) << "AD Jacobian value: " << adRes[eqOffset_res + phase].getADValue(offsetParticleTypeDirs + phaseTo);
+					LOG(Debug) << "Analytical Jacobian value: " << _globalJac.coeff(row, col);
+
+				}
+			}
+		}
+		offsetParticleTypeDirs += idxr.strideParBlock(type);
+	}
+
+	// Analytical Jacobain is always used for film diffusion, nothing to do here
 }
 
 #endif
