@@ -117,6 +117,9 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 	if (_disc.nParType < 0)
 		throw InvalidParameterException("Number of particle types must be >= 0!");
 
+	if (_disc.nParType == 0 && paramProvider.exists("particle_type_000"))
+		throw InvalidParameterException("NPARTYPE is set to 0, but group particle_type_000 exists.");
+
 	paramProvider.pushScope("discretization");
 
 	const bool firstConfigCall = _tempState == nullptr; // used to not multiply allocate memory
