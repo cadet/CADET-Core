@@ -167,8 +167,10 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureDiscretizationReaction
 			if (dynReaction[offSet + i]->usesParamProviderInDiscretizationConfig())
 				paramProvider.popScope();
 		}
+		paramProvider.popScope();
+
 	}
-	paramProvider.popScope();
+	
 
 	return reactionConfSuccess;
 }
@@ -581,7 +583,7 @@ if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
 				if (nReactions <= 0)
 				{
 					paramProvider.popScope();
-					throw InvalidParameterException("CSTR-Configuration: number of reaction must be positive, please check your configuration");
+					throw InvalidParameterException("LRMP-Configuration: number of reaction must be positive, please check your configuration");
 				}
 				totalReactions += nReactions;
 				_numCrossPhaseReactionsPerParticle[par] = nReactions;
@@ -597,9 +599,11 @@ if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
 			char particleScope[32];
 			snprintf(particleScope, sizeof(particleScope), "reaction_cross_phase_%03d", par);
 			paramProvider.pushScope(particleScope);
-			
+
 			reactionConfSuccess = configureDiscretizationReactionModel(paramProvider, _dynReaction, _numCrossPhaseReactionsPerParticle, par, helper) && reactionConfSuccess;
+
 		}
+
 	}
 	else
 	{
@@ -626,7 +630,7 @@ if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
 				if (nReactions <= 0)
 				{
 					paramProvider.popScope();
-					throw InvalidParameterException("CSTR-Configuration: number of reaction must be positive, please check your configuration");
+					throw InvalidParameterException("LRMP-Configuration: number of reaction must be positive, please check your configuration");
 				}
 				totalReactionsParticle += nReactions;
 				_numParticleReactionsPerParticle[par] = nReactions;
