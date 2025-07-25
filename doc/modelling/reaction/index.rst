@@ -4,12 +4,35 @@ Reaction models
 ===============
 
 
-Reaction models describe the (net) fluxes :math:`f_{\mathrm{react}}` of a
+Reaction models describe the (net) fluxes :math:`f_{\mathrm{react}}(c)` of a
 reaction mechanism.
-CADET features one reaction type:
 
- - :ref:`mass_action_law_model` (most commonly used)
+In this kind of mechanism, the fluxes are typically
+defined as a function of the concentration of the components involved in the reaction and the reaction parameters.
+
+In CADET, reaction models are defined for each phase separately, i.e., for the bulk phase, particle phase and solid phase.
+
+CADET features the following reaction model types:
+
+ - :ref:`mass_action_law_model`
  - :ref:`michaelis_menten_kinetics_model`
+
+It is possible to combine reaction models if they are defined for the same phase.
+
+Cross phase reaction models
+---------------------------
+
+If a reaction is defined between a liquid phase (bulk or particle) and solid phases, the net fluxes of the reaction are defined
+as a function of the concentrations in the respective phases and is called a cross phase reaction, i.e :math:`f_{\mathrm{react}}(c^\mathrm{b}, c^{\mathrm{\ell}})`.
+
+CADET features the following cross phase reaction types:
+
+ - :ref:`mass_action_law_model_cross_phase`
+
+Further details on the interface specification are provided in :ref:`the corresponding section <FFReaction>`.
+
+Application examples
+--------------------
 
 Historically, a chromatography system is modeled as a reaction system without considering any transport phenomenon. We also introduce some reaction-based models that can be solved in CADET:
 
