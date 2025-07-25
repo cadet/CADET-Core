@@ -316,7 +316,7 @@ namespace model
 {
 
 MultiChannelTransportModel::MultiChannelTransportModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-_dynReactionBulk{ nullptr }, _jacInlet(),
+_dynReactionBulk{ }, _jacInlet(),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _singleRadiusInitC(true), _initState(0), _initStateDot(0)
 {
@@ -325,10 +325,8 @@ _dynReactionBulk{ nullptr }, _jacInlet(),
 MultiChannelTransportModel::~MultiChannelTransportModel() CADET_NOEXCEPT
 {
 	delete[] _tempState;
-	for (auto i = 0; i < _dynReactionBulk.size(); i++)
-	{
-		delete _dynReactionBulk[i];
-	}
+	for (auto* reac : _dynReactionBulk)
+		delete reac;
 }
 
 unsigned int MultiChannelTransportModel::numDofs() const CADET_NOEXCEPT
@@ -394,9 +392,9 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
-
-	_dynReactionBulk[0] = nullptr;
 	_oldReactionInterface = false;
+
+	_dynReactionBulk.resize(1,nullptr);
 	if (paramProvider.exists("REACTION_MODEL"))
 	{
 		_oldReactionInterface = true;
@@ -426,7 +424,7 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 				paramProvider.popScope();
 				throw InvalidParameterException("CSTR-Configuration: number of reaction must be positive, please check your configuration");
 			}
-			_dynReactionBulk.resize(nReactions);
+			_dynReactionBulk.resize(nReactions, nullptr);
 
 			for (int i = 0; i < nReactions; ++i) {
 
@@ -458,7 +456,7 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
 					paramProvider.pushScope(reactionKey);
 
-				reactionConfSuccess = _dynReactionBulk[i]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
+				reactionConfSuccess = _dynReactionBulk[i]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr) && reactionConfSuccess;
 
 				if (!reactionConfSuccess) {
 					if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
@@ -523,7 +521,7 @@ bool MultiChannelTransportModel::configure(IParameterProvider& paramProvider)
 				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
 				paramProvider.pushScope(reactionKey);
 			}
-			dynReactionConfSuccess = _dynReactionBulk[i]->configure(paramProvider, _unitOpIdx, ParTypeIndep);
+			dynReactionConfSuccess = _dynReactionBulk[i]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
 			paramProvider.popScope();
 
 			if (!_oldReactionInterface)

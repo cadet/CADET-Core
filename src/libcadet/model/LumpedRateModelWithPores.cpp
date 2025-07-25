@@ -63,7 +63,7 @@ int schurComplementMultiplierLRMPores(void* userData, double const* x, double* z
 
 template <typename ConvDispOperator>
 LumpedRateModelWithPores<ConvDispOperator>::LumpedRateModelWithPores(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-_dynReactionBulk{ nullptr }, _filmDiffDep(nullptr), _jacP(0), _jacPdisc(0), _jacPF(0), _jacFP(0), _jacInlet(), _analyticJac(true),
+_dynReactionBulk{ }, _filmDiffDep(nullptr), _jacP(0), _jacPdisc(0), _jacPF(0), _jacFP(0), _jacInlet(), _analyticJac(true),
 	_jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr), _initC(0), _initCp(0), _initQ(0),
 	_initState(0), _initStateDot(0)
 {
@@ -73,12 +73,10 @@ template <typename ConvDispOperator>
 LumpedRateModelWithPores<ConvDispOperator>::~LumpedRateModelWithPores() CADET_NOEXCEPT
 {
 	delete[] _tempState;
-
-	for (auto i = 0; i < _dynReactionBulk.size(); i++)
-	{
-		delete _dynReactionBulk[i];
-	}
 	delete _filmDiffDep;
+
+	for (auto* reac : _dynReactionBulk)
+		delete reac;
 }
 
 template <typename ConvDispOperator>
@@ -342,9 +340,9 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
-
 	_oldReactionInterface = false;
-	_dynReactionBulk[0] = nullptr;
+	_dynReactionBulk.resize(1, nullptr);
+
 	if (paramProvider.exists("REACTION_MODEL"))
 	{
 		_oldReactionInterface = true;
@@ -352,13 +350,14 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 
 		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
 		_dynReactionBulk[0] = helper.createDynamicReactionModel(dynReactName);
+
 		if (!_dynReactionBulk[0])
 			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
 
 		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
 			paramProvider.pushScope("reaction_bulk");
 
-		reactionConfSuccess = _dynReactionBulk[0]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
+		reactionConfSuccess = _dynReactionBulk[0]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr) && reactionConfSuccess;
 
 		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
 			paramProvider.popScope();
@@ -376,7 +375,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 				paramProvider.popScope();
 				throw InvalidParameterException("LRMP bulk reaction configuration: number of reaction must be positive, please check your configuration");
 			}
-			_dynReactionBulk.resize(nReactions);
+			_dynReactionBulk.resize(nReactions, nullptr);
 
 			for (int i = 0; i < nReactions; ++i) {
 
@@ -408,7 +407,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
 					paramProvider.pushScope(reactionKey);
 
-				reactionConfSuccess = _dynReactionBulk[i]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
+				reactionConfSuccess = _dynReactionBulk[i]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr) && reactionConfSuccess;
 
 				if (!reactionConfSuccess) {
 					if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
@@ -638,7 +637,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configure(IParameterProvider& p
 				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
 				paramProvider.pushScope(reactionKey);
 			}
-			dynReactionConfSuccess = _dynReactionBulk[i]->configure(paramProvider, _unitOpIdx, ParTypeIndep);
+			dynReactionConfSuccess = _dynReactionBulk[i]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
 			paramProvider.popScope();
 
 			if (!_oldReactionInterface)
@@ -1082,8 +1081,8 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualBulk(double t, unsigned 
 	else
 		_convDispOp.jacobian(*this, t, secIdx, yBase, nullptr, nullptr);
 
-	if (!_dynReactionBulk[0])
-		return 0;
+	if (_dynReactionBulk.empty() || !_dynReactionBulk[0])
+    return 0;
 
 	// Get offsets
 	Indexer idxr(_disc);

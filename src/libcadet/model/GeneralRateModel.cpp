@@ -66,7 +66,7 @@ int schurComplementMultiplierGRM(void* userData, double const* x, double* z)
 
 template <typename ConvDispOperator>
 GeneralRateModel<ConvDispOperator>::GeneralRateModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_hasSurfaceDiffusion(0, false), _dynReactionBulk{ nullptr },
+	_hasSurfaceDiffusion(0, false), _dynReactionBulk{  },
 	_jacP(nullptr), _jacPdisc(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacInlet(), _hasParDepSurfDiffusion(false),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _initCp(0), _initQ(0), _initState(0), _initStateDot(0)
@@ -84,10 +84,8 @@ GeneralRateModel<ConvDispOperator>::~GeneralRateModel() CADET_NOEXCEPT
 	delete[] _jacP;
 	delete[] _jacPdisc;
 
-	for (auto i = 0; i < _dynReactionBulk.size(); i++)
-	{
-		delete _dynReactionBulk[i];
-	}
+	for (auto* reac : _dynReactionBulk)
+		delete reac;
 
 	clearParDepSurfDiffusion();
 }
@@ -484,7 +482,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
 	_oldReactionInterface = false;
-	_dynReactionBulk[0] = nullptr;
+	_dynReactionBulk.resize(1, nullptr);
 	if (paramProvider.exists("REACTION_MODEL"))
 	{
 		_oldReactionInterface = true;
@@ -497,7 +495,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
 			paramProvider.pushScope("reaction_bulk");
 
-		reactionConfSuccess = _dynReactionBulk[0]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
+		reactionConfSuccess = _dynReactionBulk[0]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr) && reactionConfSuccess;
 
 		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
 			paramProvider.popScope();
@@ -515,7 +513,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 				paramProvider.popScope();
 				throw InvalidParameterException("GRM reaction configuration: number of reaction must be positive, please check your configuration");
 			}
-			_dynReactionBulk.resize(nReactions);
+			_dynReactionBulk.resize(nReactions, nullptr);
 
 			for (int i = 0; i < nReactions; ++i) {
 
@@ -907,7 +905,7 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
 				paramProvider.pushScope(reactionKey);
 			}
-			dynReactionConfSuccess = _dynReactionBulk[i]->configure(paramProvider, _unitOpIdx, ParTypeIndep);
+			dynReactionConfSuccess = _dynReactionBulk[i]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
 			paramProvider.popScope();
 
 			if (!_oldReactionInterface)
