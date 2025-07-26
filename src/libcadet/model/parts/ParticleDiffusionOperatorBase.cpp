@@ -554,10 +554,31 @@ namespace parts
 		}
 	}
 
+	void ParticleDiffusionOperatorBase::parReactionPattern(std::vector<Eigen::Triplet<double>>& tripletList, const int offset, const unsigned int colNode, const bool includeSolid)
+	{
+		// particle liquid reactions
+		for (int parNode = 0; parNode < _nParPoints; parNode++)
+		{
+			for (int comp = 0; comp < _nComp; comp++)
+			{
+				for (int conc = 0; conc < _nComp; conc++) {
+					// row: jump over previous nodes and add current liquid concentration offset
+					// col: jump over previous nodes and add current liquid concentration offset
+					tripletList.push_back(Eigen::Triplet<double>(offset + parNode * strideParPoint() + comp,
+						offset + parNode * strideParPoint() + conc, 0.0));
+				}
+			}
+		}
+		if (includeSolid)
+			parBindingPattern(tripletList, offset, colNode);
+	}
+
 	void ParticleDiffusionOperatorBase::setParticleJacobianPattern(std::vector<Eigen::Triplet<double>>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx)
 	{
 		parSolidTimeDerJacPattern(tripletList, offsetPar, colNode, secIdx);
 		parBindingPattern(tripletList, offsetPar, colNode);
+		if (_hasDynamicReactions)
+			parReactionPattern(tripletList, offsetPar, colNode);
 	}
 
 	bool ParticleDiffusionOperatorBase::setParameter(const ParameterId& pId, double value)

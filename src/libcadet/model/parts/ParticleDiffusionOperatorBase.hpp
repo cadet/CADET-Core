@@ -197,6 +197,10 @@ namespace parts
 		 * @brief sets the sparsity pattern of the binding Jacobian
 		 */
 		virtual void parBindingPattern(std::vector<Eigen::Triplet<double>>& tripletList, const int offset, const unsigned int colNode);
+		/**
+		 * @brief sets the sparsity pattern of the reaction Jacobian
+		 */
+		virtual void parReactionPattern(std::vector<Eigen::Triplet<double>>& tripletList, const int offset, const unsigned int colNode, const bool includeSolid=false);
 
 		/* component system */
 		unsigned int _nComp; //!< Number of components

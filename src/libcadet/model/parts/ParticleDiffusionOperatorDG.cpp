@@ -1037,6 +1037,7 @@ namespace parts
 	*/
 	void ParticleDiffusionOperatorDG::setParticleJacobianPattern(std::vector<ParticleDiffusionOperatorDG::T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx)
 	{
+		// binding pattern
 		ParticleDiffusionOperatorBase::setParticleJacobianPattern(tripletList, offsetPar, offsetBulk, colNode, secIdx);
 
 		// Ordering of particle surface diffusion:
@@ -1356,8 +1357,14 @@ namespace parts
 	
 	unsigned int ParticleDiffusionOperatorDG::jacobianNNZperParticle() const
 	{
+		int NNZ = 0;
 		// particle Jacobian entries + 4 * nComp entries for film diffusion flux entries (4 for possible interdependence of Cl and Cp)
-		return _nComp * ((3u * _nParElem - 2u) * _nParNode * _nParNode + (2u * _nParElem - 3u) * _nParNode) + 4 * _nComp;
+		if (_hasDynamicReactions)
+			NNZ += _nComp * _nComp + _strideBound * _strideBound;
+
+		NNZ += _nComp * ((3u * _nParElem - 2u) * _nParNode * _nParNode + (2u * _nParElem - 3u) * _nParNode); // particle diffusion
+		NNZ += 2 * (_nParNode * _nComp + _nComp); // film diffusion cp on cl + cl on cp
+		return NNZ;
 	}
 	/**
 	 * @brief calculates the DG Jacobian auxiliary block
