@@ -304,7 +304,7 @@ namespace cadet
 				virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return false; }
 				virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound > 0; }
 				virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
-				virtual bool isParticleLumped() const CADET_NOEXCEPT { return true; }
+				virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return true; }
 				virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return true; }
 
 				virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
@@ -389,7 +389,7 @@ namespace cadet
 				unsigned int isotherm_entries = _disc.nPoints * _disc.strideBound * (_disc.strideBound + _disc.nComp);
 				unsigned int reaction_entries = has_reaction ? _disc.nPoints * _disc.nComp * (_disc.strideBound + _disc.nComp) : 0;
 
-				tripletList.reserve(_convDispOp.nConvDispEntries(false) + isotherm_entries + reaction_entries);
+				tripletList.reserve(_convDispOp.nJacEntries(false) + isotherm_entries + reaction_entries);
 
 				_convDispOp.convDispJacPattern(tripletList);
 

@@ -974,11 +974,6 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 			Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> _cRes(res + offsetC + comp, _axNPoints * _radNPoints, InnerStride<Dynamic>(_radNodeStride));
 			_cRes = _cDot.template cast<ResidualType>();
 		}
-		else
-		{
-			Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> _cRes(res + offsetC + comp, _axNPoints * _radNPoints, InnerStride<Dynamic>(_radNodeStride));
-			_cRes.setZero();
-		}
 
 		for (unsigned int zEidx = 0; zEidx < _axNElem; zEidx++)
 		{

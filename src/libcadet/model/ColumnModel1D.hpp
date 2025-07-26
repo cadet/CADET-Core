@@ -12,7 +12,7 @@
 
 /**
  * @file 
- * Defines the general rate model (GRM).
+ * Defines the one-dimensional column unit
  */
 
 #ifndef LIBCADET_COLUMNMODEL1D_HPP_
@@ -389,7 +389,7 @@ protected:
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return true; }
 		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound[_disc.nParType] > 0; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
-		virtual bool isParticleLumped() const CADET_NOEXCEPT { return false; }
+		virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return _model._particles[parType]->isParticleLumped(); }
 		virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return true; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
@@ -463,24 +463,20 @@ protected:
 
 	typedef Eigen::Triplet<double> T;
 
-	void setJacobianPattern_GRM(SparseMatrix<double, RowMajor>& globalJ, unsigned int secIdx, bool hasBulkReaction)
+	void setJacobianPattern(SparseMatrix<double, RowMajor>& globalJ, unsigned int secIdx, bool hasBulkReaction)
 	{
 		Indexer idxr(_disc);
-
 		std::vector<T> tripletList;
-		// reserve space for all entries
-		int bulkEntries = _convDispOp.nConvDispEntries(false);
+
+		int bulkEntries = _convDispOp.nJacEntries(false);
 		if (hasBulkReaction)
 			bulkEntries += _disc.nPoints * _disc.nComp * _disc.nComp; // add nComp entries for every component at each discrete bulk point
 
 		// particle
-		int addTimeDer = 0; // additional time derivative entries: bound states in particle dispersion equation
-		int isothermNNZ = 0;
 		int particleEntries = 0;
-		for (int type = 0; type < _disc.nParType; type++) {
-			isothermNNZ = (idxr.strideParNode(type)) * _disc.nParPoints[type] * _disc.strideBound[type]; // every bound satte might depend on every bound and liquid state
-			addTimeDer = _disc.nParPoints[type] * _disc.strideBound[type];
-			particleEntries += _disc.nPoints * _particles[type]->jacobianNNZperParticle() + addTimeDer + isothermNNZ;
+		for (int type = 0; type < _disc.nParType; type++)
+		{
+			particleEntries += _disc.nPoints * _particles[type]->jacobianNNZperParticle();
 		}
 
 		tripletList.reserve(bulkEntries + particleEntries);
@@ -489,10 +485,14 @@ protected:
 		_convDispOp.convDispJacPattern(tripletList, bulkOffset);
 
 		// bulk reaction jacobian
-		if (hasBulkReaction) {
-			for (unsigned int colNode = 0; colNode < _disc.nPoints; colNode++) {
-				for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
-					for (unsigned int toComp = 0; toComp < _disc.nComp; toComp++) {
+		if (hasBulkReaction)
+		{
+			for (unsigned int colNode = 0; colNode < _disc.nPoints; colNode++)
+			{
+				for (unsigned int comp = 0; comp < _disc.nComp; comp++)
+				{
+					for (unsigned int toComp = 0; toComp < _disc.nComp; toComp++)
+					{
 						tripletList.push_back(T(idxr.offsetC() + colNode * idxr.strideColNode() + comp * idxr.strideColComp(),
 							idxr.offsetC() + colNode * idxr.strideColNode() + toComp * idxr.strideColComp(),
 							0.0));
@@ -502,8 +502,10 @@ protected:
 		}
 
 		// particle jacobian (including film diffusion, isotherm and time derivative)
-		for (int colNode = 0; colNode < _disc.nPoints; colNode++) {
-			for (int type = 0; type < _disc.nParType; type++) {
+		for (int colNode = 0; colNode < _disc.nPoints; colNode++)
+		{
+			for (int type = 0; type < _disc.nParType; type++)
+			{
 				_particles[type]->setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}, ParticleIndex{static_cast<unsigned int>(colNode)}), idxr.offsetC() + colNode * idxr.strideColNode(), colNode, secIdx);
 			}
 		}
@@ -511,18 +513,18 @@ protected:
 		globalJ.setFromTriplets(tripletList.begin(), tripletList.end());
 	}
 
-	int calcStaticAnaJacobian_GRM(unsigned int secIdx)
+	int calcTransportJacobian(unsigned int secIdx)
 	{
 		Indexer idxr(_disc);
 		// inlet and bulk jacobian
-		_convDispOp.calcStaticAnaJacobian(_globalJac, _jacInlet, idxr.offsetC());
+		_convDispOp.calcTransportJacobian(_globalJac, _jacInlet, idxr.offsetC());
 
 		// particle jacobian (without isotherm, which is handled in residualKernel)
 		for (int colNode = 0; colNode < _disc.nPoints; colNode++)
 		{
 			for (int parType = 0; parType < _disc.nParType; parType++)
 			{
-				_particles[parType]->calcStaticAnaParticleDiffJacobian(secIdx, colNode, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }), _globalJac);
+				_particles[parType]->calcParticleDiffJacobian(secIdx, colNode, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }), _globalJac);
 			}
 		}
 
@@ -543,13 +545,14 @@ protected:
 		Eigen::Map<const VectorXd> hmpf(y_, numDofs());
 		VectorXd y = hmpf;
 		VectorXd yDot;
-		if (yDot_) {
+		if (yDot_)
+		{
 			Eigen::Map<const VectorXd> hmpf2(yDot_, numDofs());
 			yDot = hmpf2;
 		}
-		else {
+		else
 			return MatrixXd::Zero(numDofs(), numDofs());
-		}
+
 		VectorXd res = VectorXd::Zero(numDofs());
 		const double* yPtr = &y[0];
 		const double* yDotPtr = &yDot[0];
@@ -561,12 +564,14 @@ protected:
 
 		residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, yPtr, yDotPtr, resPtr, threadLocalMem);
 
-		for (int col = 0; col < Jacobian.cols(); col++) {
+		for (int col = 0; col < Jacobian.cols(); col++)
+		{
 			Jacobian.col(col) = -(1.0 + alpha) * res;
 		}
 		/*	 Residual(y+h)	*/
 		// state DOFs
-		for (int dof = 0; dof < Jacobian.cols(); dof++) {
+		for (int dof = 0; dof < Jacobian.cols(); dof++)
+		{
 			y[dof] += epsilon;
 			residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, yPtr, yDotPtr, resPtr, threadLocalMem);
 			y[dof] -= epsilon;
@@ -574,7 +579,8 @@ protected:
 		}
 
 		// state derivative Jacobian
-		for (int dof = 0; dof < Jacobian.cols(); dof++) {
+		for (int dof = 0; dof < Jacobian.cols(); dof++)
+		{
 			yDot[dof] += epsilon;
 			residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, yPtr, yDotPtr, resPtr, threadLocalMem);
 			yDot[dof] -= epsilon;

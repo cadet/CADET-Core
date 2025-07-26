@@ -124,7 +124,7 @@ namespace parts
 		virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity) = 0;
 
 		virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac, bool outliersOnly = false) = 0;
-		virtual int calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac) = 0;
+		virtual int calcParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac) = 0;
 		
 		/**
 		 *@brief adds the solid time derivative and binding pattern to the list
@@ -197,6 +197,10 @@ namespace parts
 		 * @brief sets the sparsity pattern of the binding Jacobian
 		 */
 		virtual void parBindingPattern(std::vector<Eigen::Triplet<double>>& tripletList, const int offset, const unsigned int colNode);
+		/**
+		 * @brief sets the sparsity pattern of the reaction Jacobian
+		 */
+		virtual void parReactionPattern(std::vector<Eigen::Triplet<double>>& tripletList, const int offset, const unsigned int colNode, const bool includeSolid=false);
 
 		/* component system */
 		unsigned int _nComp; //!< Number of components

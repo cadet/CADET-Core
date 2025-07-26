@@ -389,7 +389,7 @@ protected:
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return true; }
 		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound[_disc.nParType] > 0; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
-		virtual bool isParticleLumped() const CADET_NOEXCEPT { return false; }
+		virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return false; }
 		virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return true; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
@@ -471,7 +471,7 @@ protected:
 
 		std::vector<T> tripletList;
 		// reserve space for all entries
-		int bulkEntries = _convDispOp.nConvDispEntries(false);
+		int bulkEntries = _convDispOp.nJacEntries(false);
 		if (hasBulkReaction)
 			bulkEntries += _disc.nPoints * _disc.nComp * _disc.nComp; // add nComp entries for every component at each discrete bulk point
 
@@ -530,18 +530,18 @@ protected:
 		globalJ.setFromTriplets(tripletList.begin(), tripletList.end());
 	}
 
-	int calcStaticAnaJacobian_GRM(unsigned int secIdx)
+	int calcTransportJacobian_GRM(unsigned int secIdx)
 	{
 		Indexer idxr(_disc);
 		// inlet and bulk jacobian
-		_convDispOp.calcStaticAnaJacobian(_globalJac, _jacInlet, idxr.offsetC());
+		_convDispOp.calcTransportJacobian(_globalJac, _jacInlet, idxr.offsetC());
 
 		// particle jacobian (without isotherm, which is handled in residualKernel)
 		for (int colNode = 0; colNode < _disc.nPoints; colNode++)
 		{
 			for (int parType = 0; parType < _disc.nParType; parType++)
 			{
-				_particle[parType].calcStaticAnaParticleDiffJacobian(secIdx, colNode, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }), _globalJac);
+				_particle[parType].calcParticleDiffJacobian(secIdx, colNode, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }), _globalJac);
 			}
 		}
 

@@ -471,12 +471,13 @@ namespace model
 
 	unsigned int GeneralRateParticle::jacobianNNZperParticle() const
 	{
-		return _parDiffOp->jacobianNNZperParticle();
+		const int nTotalBound = std::accumulate(&_nBound[0], &_nBound[0] + _nComp, 0);
+		return _parDiffOp->nDiscPoints() * _nComp * (_nComp + nTotalBound) + nTotalBound * (_nComp + nTotalBound) + _parDiffOp->jacobianNNZperParticle(); // reaction, binding entries + particle diffusion entries (including film diffusion)
 	}
 
-	int GeneralRateParticle::calcStaticAnaParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
+	int GeneralRateParticle::calcParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
 	{
-		return _parDiffOp->calcStaticAnaParticleDiffJacobian(secIdx, colNode, offsetLocalCp, globalJac);
+		return _parDiffOp->calcParticleDiffJacobian(secIdx, colNode, offsetLocalCp, globalJac);
 	}
 	
 	int GeneralRateParticle::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)

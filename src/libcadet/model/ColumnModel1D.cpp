@@ -117,6 +117,9 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 	if (_disc.nParType < 0)
 		throw InvalidParameterException("Number of particle types must be >= 0!");
 
+	if (_disc.nParType == 0 && paramProvider.exists("particle_type_000"))
+		throw InvalidParameterException("NPARTYPE is set to 0, but group particle_type_000 exists.");
+
 	paramProvider.pushScope("discretization");
 
 	const bool firstConfigCall = _tempState == nullptr; // used to not multiply allocate memory
@@ -441,7 +444,7 @@ bool ColumnModel1D::configure(IParameterProvider& paramProvider)
 	}
 
 	// jaobian pattern set after binding and particle surface diffusion are configured
-	setJacobianPattern_GRM(_globalJac, 0, _dynReactionBulk);
+	setJacobianPattern(_globalJac, 0, _dynReactionBulk);
 	_globalJacDisc = _globalJac;
 	// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
 	// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
@@ -528,7 +531,7 @@ void ColumnModel1D::notifyDiscontinuousSectionTransition(double t, unsigned int 
 	Indexer idxr(_disc);
 
 	// todo: only reset jacobian pattern if it changes, i.e. once in configuration and then only for changes in SurfDiff+kinetic binding.
- 	setJacobianPattern_GRM(_globalJac, 0, _dynReactionBulk);
+ 	setJacobianPattern(_globalJac, 0, _dynReactionBulk);
 	_globalJacDisc = _globalJac;
 
 	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
@@ -612,7 +615,6 @@ void ColumnModel1D::prepareADvectors(const AdJacobianParams& adJac) const
 				_adVec[eq].fillADValue(adJac.adDirOffset, 0.0);
 				// Set direction
 				_adVec[eq].setADValue(adDirOffset + eq, 1.0);
-
 			}
 		}
 		if (type < _disc.nParType - 1u) // move to dedicated DoFs of next particle type
@@ -857,7 +859,7 @@ int ColumnModel1D::residualImpl(double t, unsigned int secIdx, StateType const* 
 				if (!wantRes || _disc.newStaticJac)
 				{
 					// estimate new static (per section) jacobian
-					bool success = calcStaticAnaJacobian_GRM(secIdx);
+					bool success = calcTransportJacobian(secIdx);
 
 					_disc.newStaticJac = false;
 
