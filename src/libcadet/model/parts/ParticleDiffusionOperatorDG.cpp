@@ -1030,6 +1030,23 @@ namespace parts
 	// ==========================================================================================================================================================  //
 	// ========================================						DG particle Jacobian							=============================================  //
 	// ==========================================================================================================================================================  //
+	
+	void ParticleDiffusionOperatorDG::parBindingPattern(std::vector<Eigen::Triplet<double>>& tripletList, const int offset, const unsigned int colNode)
+	{
+		// every bound state might depend on every bound and liquid state
+		for (int parNode = 0; parNode < _nParPoints; parNode++)
+		{
+			for (int state = 0; state < strideParPoint(); state++)
+			{
+				for (int stateDep = 0; stateDep < strideParPoint(); stateDep++) {
+					// row: jump over previous nodes and liquid states and add current bound state offset
+					// col: jump over previous nodes and add current concentration offset (liquid and bound)
+					tripletList.push_back(Eigen::Triplet<double>(offset + parNode * strideParPoint() + state,
+						offset + parNode * strideParPoint() + stateDep, 0.0));
+				}
+			}
+		}
+	}
 
 	/**
 	 * @brief calculates the particle dispersion jacobian Pattern, including entries for the dependence of particle entries on bulk entries through film diffusion boundary condition
@@ -1037,8 +1054,6 @@ namespace parts
 	*/
 	void ParticleDiffusionOperatorDG::setParticleJacobianPattern(std::vector<ParticleDiffusionOperatorDG::T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx)
 	{
-		ParticleDiffusionOperatorBase::setParticleJacobianPattern(tripletList, offsetPar, offsetBulk, colNode, secIdx);
-
 		// Ordering of particle surface diffusion:
 		// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
 		active const* const _parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
@@ -1336,21 +1351,24 @@ namespace parts
 
 		} // if nelements > 1
 
-		/* Flux Jacobian: dependence of particle entries on bulk entries through BC */
+		/* flux Jacobian */
 
 		for (unsigned int comp = 0; comp < _nComp; comp++)
 		{
+			// cb on cp dependence through source term
+			tripletList.push_back(Eigen::Triplet<double>(offsetBulk + comp, offsetPar + comp, 0.0));
+
+			// cp on cb dependence through BC
 			for (unsigned int node = 0; node < _nParNode; node++) {
 				// row: add particle offset to current parType and particle, go to last cell and current node and add component offset
 				// col: add flux offset to current component, jump over previous nodes and components
 				tripletList.push_back(T(offsetPar + (_nParElem - 1) * _nParNode * strideParNode() + node * strideParNode() + comp * strideParComp(),
 					offsetBulk + comp,
 					0.0));
-				tripletList.push_back(T(offsetBulk + comp,
-					offsetPar + (_nParElem - 1) * _nParNode * strideParNode() + node * strideParNode() + comp * strideParComp(),
-					0.0));
 			}
 		}
+
+		parBindingPattern(tripletList, offsetPar, colNode);
 
 	}
 	

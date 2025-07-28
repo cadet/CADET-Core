@@ -129,7 +129,7 @@ namespace parts
 		/**
 		 *@brief adds the solid time derivative and binding pattern to the list
 		 */
-		virtual void setParticleJacobianPattern(std::vector<Eigen::Triplet<double>>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx);
+		virtual void setParticleJacobianPattern(std::vector<Eigen::Triplet<double>>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx) = 0;
 
 		/**
 		 * @brief calculates and returns the physical particle coordinates according to the discretization
@@ -188,15 +188,6 @@ namespace parts
 		inline MultiplexMode parSurfDiffMode() const CADET_NOEXCEPT { return _parSurfDiffusionMode; }
 
 	protected:
-
-		/**
-		 *@brief sets the sparsity pattern of the solid phase time derivative Jacobian
-		 */
-		virtual void parSolidTimeDerJacPattern(std::vector<Eigen::Triplet<double>>& tripletList, unsigned int offset, unsigned int colNode, unsigned int secIdx);
-		/**
-		 * @brief sets the sparsity pattern of the binding Jacobian
-		 */
-		virtual void parBindingPattern(std::vector<Eigen::Triplet<double>>& tripletList, const int offset, const unsigned int colNode);
 
 		/* component system */
 		unsigned int _nComp; //!< Number of components
