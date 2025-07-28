@@ -511,7 +511,7 @@ protected:
 
 		unsigned int nEntries = 0;
 		// Convection dispersion
-		nEntries = _convDispOp.nConvDispEntries(false);
+		nEntries = _convDispOp.nJacEntries(false);
 
 		// Bulk reaction entries
 		if (hasBulkReaction)
