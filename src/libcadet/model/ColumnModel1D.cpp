@@ -928,17 +928,13 @@ int ColumnModel1D::residualImpl(double t, unsigned int secIdx, StateType const* 
 		{
 			if (wantJac)
 			{
-				if (!wantRes || _disc.newStaticJac)
-				{
 					// estimate new static (per section) jacobian
 					bool success = calcTransportJacobian(secIdx);
 
 					_disc.newStaticJac = false;
 
-					if (cadet_unlikely(!success)) {
-						LOG(Error) << "Jacobian pattern did not fit the Jacobian estimation";
-					}
-				}
+					if (cadet_unlikely(!success))
+						LOG(Error) << "Jacobian pattern did not fit the analytical transport Jacobian assembly";
 			}
 
 			residualBulk<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, y, yDot, res, threadLocalMem);
