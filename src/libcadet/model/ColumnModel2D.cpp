@@ -857,7 +857,9 @@ void ColumnModel2D::extractJacobianFromAD(active const* const adRes, unsigned in
 	{
 		for (int j = 0; j < _disc.radNPoints * _disc.nComp; j++)
 		{
-			_jacInlet(i, j) = adResUnit[i].getADValue(j + adDirOffset);
+			const double val = adResUnit[i].getADValue(j + adDirOffset);
+			if(std::abs(val) > 1e-15)
+				_jacInlet(i, j) = val;
 		}
 	}
 
@@ -865,9 +867,14 @@ void ColumnModel2D::extractJacobianFromAD(active const* const adRes, unsigned in
 	{
 		for (int j = 0; j < _globalJac.cols(); j++)
 		{
-			_globalJac.coeffRef(i, j) = adResUnit[i].getADValue(j + idxr.offsetC() + adDirOffset);
+			const double val = adResUnit[i].getADValue(j + idxr.offsetC() + adDirOffset);
+			if (std::abs(val) > 1e-15)
+			_globalJac.coeffRef(i, j) = val;
 		}
 	}
+
+	if (!_globalJac.isCompressed())
+		_globalJac.makeCompressed();
 }
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN

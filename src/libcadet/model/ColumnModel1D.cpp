@@ -669,6 +669,9 @@ void ColumnModel1D::extractJacobianFromAD(active const* const adRes, unsigned in
 	{
 		_particles[parType]->calcFilmDiffJacobian(_disc.curSection, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(parType)}), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], _globalJac, true);
 	}
+
+	if (!_globalJac.isCompressed())
+		_globalJac.makeCompressed();
 }
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
