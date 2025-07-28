@@ -99,7 +99,7 @@ unsigned int ColumnModel1D::numPureDofs() const CADET_NOEXCEPT
 
 bool ColumnModel1D::usesAD() const CADET_NOEXCEPT
 {
-#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
+#ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 	// We always need AD if we want to check the analytical Jacobian
 	return true;
 #else
@@ -237,7 +237,7 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 
 	// Determine whether analytic Jacobian should be used but don't set it right now.
 	// We need to setup Jacobian matrices first.
-#ifndef CADET_CHECK_ANALYTIC_JACOBIAN
+#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	const bool analyticJac = paramProvider.getBool("USE_ANALYTIC_JACOBIAN");
 #else
 	const bool analyticJac = false;
@@ -513,7 +513,7 @@ unsigned int ColumnModel1D::numAdDirsForJacobian() const CADET_NOEXCEPT
 
 void ColumnModel1D::useAnalyticJacobian(const bool analyticJac)
 {
-#ifndef CADET_CHECK_ANALYTIC_JACOBIAN
+#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	_analyticJac = analyticJac;
 	if (!_analyticJac)
 		_jacobianAdDirs = numAdDirsForJacobian();
@@ -566,7 +566,7 @@ void ColumnModel1D::reportSolutionStructure(ISolutionRecorder& recorder) const
 unsigned int ColumnModel1D::requiredADdirs() const CADET_NOEXCEPT
 {
 	const unsigned int numDirsBinding = maxBindingAdDirs();
-#ifndef CADET_CHECK_ANALYTIC_JACOBIAN
+#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	return numDirsBinding + _jacobianAdDirs;
 #else
 	// If CADET_CHECK_ANALYTIC_JACOBIAN is active, we always need the AD directions for the Jacobian
@@ -674,7 +674,7 @@ void ColumnModel1D::extractJacobianFromAD(active const* const adRes, unsigned in
 		_globalJac.makeCompressed();
 }
 
-#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
+#ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 
 /**
  * @brief Compares the analytical Jacobian with a Jacobian derived by AD
@@ -814,7 +814,7 @@ int ColumnModel1D::residual(const SimulationTime& simTime, const ConstSimulation
 	{
 		_factorizeJacobian = true;
 
-#ifndef CADET_CHECK_ANALYTIC_JACOBIAN
+#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 		if (_analyticJac)
 		{
 			if (paramSensitivity)

@@ -35,7 +35,7 @@ TEST_CASE("Column_1D as GRM LWE forward vs backward flow", "[Column_1D],[DG],[DG
 	}
 }
 
-TEST_CASE("Column_1D as GRM linear pulse vs analytic solution", "[Column_1D],[DG],[DG1D],[Simulation],[Analytic],[CI]")
+TEST_CASE("Column_1D as GRM linear pulse vs analytic solution", "[Column_1D],[DG],[DG1D],[Simulation],[Analytic],[test2CI]")
 {
 	cadet::test::column::DGparams disc;
 	cadet::test::column::testAnalyticBenchmark("COLUMN_1D_GRM", "/data/grm-pulseBenchmark.data", true, true, disc, 6e-5, 1e-7);

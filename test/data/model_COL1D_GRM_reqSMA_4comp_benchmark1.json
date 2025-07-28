@@ -29,11 +29,11 @@
         0.0,
         0.0
       ],
-      "NPARTYPE": 1,
       "NCOMP": 4,
       "TOTAL_POROSITY": 0.8425,
       "UNIT_TYPE": "COLUMN_MODEL_1D",
       "VELOCITY": 0.000575,
+      "NPARTYPE": 1,
       "particle_type_000": {
         "PARTICLE_TYPE": "GENERAL_RATE_PARTICLE",
         "INIT_CS": [

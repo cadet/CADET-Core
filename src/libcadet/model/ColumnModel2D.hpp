@@ -202,11 +202,16 @@ protected:
 
 	int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity);
 	
-	int calcTransportJacobian(unsigned int secIdx)
+	int calcTransportJacobian(unsigned int secIdx, const bool newStaticJac)
 	{
 		Indexer idxr(_disc);
+
+		bool jojo = _globalJac.isCompressed();
+
 		// inlet and bulk jacobian
 		_convDispOp.assembleConvDispJacobian(_globalJac, _jacInlet, true, 0);
+		
+		jojo = _globalJac.isCompressed();
 
 		// particle transport diffusion Jacobian (without isotherm, which is handled in residualKernel)
 		for (int colNode = 0; colNode < _disc.nBulkPoints; colNode++)
@@ -216,6 +221,7 @@ protected:
 				_particles[parType]->calcParticleDiffJacobian(secIdx, colNode, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }) - idxr.offsetC(), _globalJac);
 			}
 		}
+		jojo = _globalJac.isCompressed();
 
 		// film diffusion Jacobian
 		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
@@ -229,6 +235,7 @@ protected:
 				}
 			}
 		}
+		jojo = _globalJac.isCompressed();
 
 		return _globalJac.isCompressed(); // check if the jacobian estimation fits the pattern
 	}
@@ -256,7 +263,7 @@ protected:
 	int multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue);
 	int multiplexInitialConditions(const cadet::ParameterId& pId, double val, bool checkSens);
 
-#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
+#ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 	void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
 #endif
 
@@ -496,8 +503,8 @@ protected:
 				{
 					for (unsigned int toComp = 0; toComp < _disc.nComp; toComp++)
 					{
-						tripletList.push_back(T(idxr.offsetC() + colNode * idxr.strideColRadialNode() + comp * idxr.strideColComp(),
-							idxr.offsetC() + colNode * idxr.strideColRadialNode() + toComp * idxr.strideColComp(),
+						tripletList.push_back(T(colNode * idxr.strideColRadialNode() + comp * idxr.strideColComp(),
+							colNode * idxr.strideColRadialNode() + toComp * idxr.strideColComp(),
 							0.0));
 					}
 				}

@@ -252,7 +252,7 @@ protected:
 
 	parts::cell::CellParameters makeCellResidualParams(unsigned int parType, int const* qsReaction) const;
 
-#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
+#ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 	void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
 #endif
 

@@ -363,7 +363,7 @@ unsigned int ColumnModel2D::numPureDofs() const CADET_NOEXCEPT
 
 bool ColumnModel2D::usesAD() const CADET_NOEXCEPT
 {
-#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
+#ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 	// We always need AD if we want to check the analytical Jacobian
 	return true;
 #else
@@ -478,7 +478,7 @@ bool ColumnModel2D::configureModelDiscretization(IParameterProvider& paramProvid
 
 	// Determine whether analytic Jacobian should be used but don't set it right now.
 	// We need to setup Jacobian matrices first.
-#ifndef CADET_CHECK_ANALYTIC_JACOBIAN
+#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	const bool analyticJac = paramProvider.getBool("USE_ANALYTIC_JACOBIAN");
 #else
 	const bool analyticJac = false;
@@ -764,7 +764,7 @@ unsigned int ColumnModel2D::numAdDirsForJacobian() const CADET_NOEXCEPT
 
 void ColumnModel2D::useAnalyticJacobian(const bool analyticJac)
 {
-#ifndef CADET_CHECK_ANALYTIC_JACOBIAN
+#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	_analyticJac = analyticJac;
 	if (!_analyticJac)
 		_jacobianAdDirs = numAdDirsForJacobian();
@@ -813,7 +813,7 @@ void ColumnModel2D::reportSolutionStructure(ISolutionRecorder& recorder) const
 
 unsigned int ColumnModel2D::requiredADdirs() const CADET_NOEXCEPT
 {
-#ifndef CADET_CHECK_ANALYTIC_JACOBIAN
+#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	return _jacobianAdDirs;
 #else
 	// If CADET_CHECK_ANALYTIC_JACOBIAN is active, we always need the AD directions for the Jacobian
@@ -877,7 +877,7 @@ void ColumnModel2D::extractJacobianFromAD(active const* const adRes, unsigned in
 		_globalJac.makeCompressed();
 }
 
-#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
+#ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 
 /**
  * @brief Compares the analytical Jacobian with a Jacobian derived by AD
@@ -976,7 +976,7 @@ int ColumnModel2D::residual(const SimulationTime& simTime, const ConstSimulation
 	{
 		_factorizeJacobian = true;
 
-#ifndef CADET_CHECK_ANALYTIC_JACOBIAN
+#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 		if (_analyticJac)
 		{
 			if (paramSensitivity)
@@ -1093,15 +1093,14 @@ int ColumnModel2D::residualImpl(double t, unsigned int secIdx, StateType const* 
 	{
 		if (cadet_unlikely(pblk == 0))
 		{
-			if (wantJac || _disc.newStaticJac)
+			if (wantJac)
 			{
-				bool success = calcTransportJacobian(secIdx);
+				bool success = calcTransportJacobian(secIdx, true);// _disc.newStaticJac);
 
 				_disc.newStaticJac = false;
 
-				if (cadet_unlikely(!success)) {
-					LOG(Error) << "Jacobian pattern did not fit the Jacobian estimation";
-				}
+				if (cadet_unlikely(!success))
+					LOG(Error) << "Jacobian pattern did not fit the analytical transport Jacobian assembly";
 			}
 
 			residualBulk<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, y, yDot, res, threadLocalMem);
