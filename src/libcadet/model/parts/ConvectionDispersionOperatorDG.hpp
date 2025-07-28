@@ -92,7 +92,7 @@ namespace cadet
 				int calcTransportJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset = 0);
 				typedef Eigen::Triplet<double> T;
 				void convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset = 0);
-				unsigned int nConvDispEntries(bool pureNNZ = false);
+				unsigned int nJacEntries(bool pureNNZ = false);
 				void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 				void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset = 0);
 
