@@ -466,10 +466,9 @@ protected:
 	void setJacobianPattern(SparseMatrix<double, RowMajor>& globalJ, unsigned int secIdx, bool hasBulkReaction)
 	{
 		Indexer idxr(_disc);
-
 		std::vector<T> tripletList;
-		// reserve space for all entries
-		int bulkEntries = _convDispOp.nConvDispEntries(false);
+
+		int bulkEntries = _convDispOp.nJacEntries(false);
 		if (hasBulkReaction)
 			bulkEntries += _disc.nPoints * _disc.nComp * _disc.nComp; // add nComp entries for every component at each discrete bulk point
 
@@ -477,7 +476,8 @@ protected:
 		int addTimeDer = 0; // additional time derivative entries: bound states in particle dispersion equation
 		int isothermNNZ = 0;
 		int particleEntries = 0;
-		for (int type = 0; type < _disc.nParType; type++) {
+		for (int type = 0; type < _disc.nParType; type++)
+		{
 			isothermNNZ = (idxr.strideParNode(type)) * _disc.nParPoints[type] * _disc.strideBound[type]; // every bound satte might depend on every bound and liquid state
 			addTimeDer = _disc.nParPoints[type] * _disc.strideBound[type];
 			particleEntries += _disc.nPoints * _particles[type]->jacobianNNZperParticle() + addTimeDer + isothermNNZ;
@@ -489,10 +489,14 @@ protected:
 		_convDispOp.convDispJacPattern(tripletList, bulkOffset);
 
 		// bulk reaction jacobian
-		if (hasBulkReaction) {
-			for (unsigned int colNode = 0; colNode < _disc.nPoints; colNode++) {
-				for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
-					for (unsigned int toComp = 0; toComp < _disc.nComp; toComp++) {
+		if (hasBulkReaction)
+		{
+			for (unsigned int colNode = 0; colNode < _disc.nPoints; colNode++)
+			{
+				for (unsigned int comp = 0; comp < _disc.nComp; comp++)
+				{
+					for (unsigned int toComp = 0; toComp < _disc.nComp; toComp++)
+					{
 						tripletList.push_back(T(idxr.offsetC() + colNode * idxr.strideColNode() + comp * idxr.strideColComp(),
 							idxr.offsetC() + colNode * idxr.strideColNode() + toComp * idxr.strideColComp(),
 							0.0));
@@ -502,8 +506,10 @@ protected:
 		}
 
 		// particle jacobian (including film diffusion, isotherm and time derivative)
-		for (int colNode = 0; colNode < _disc.nPoints; colNode++) {
-			for (int type = 0; type < _disc.nParType; type++) {
+		for (int colNode = 0; colNode < _disc.nPoints; colNode++)
+		{
+			for (int type = 0; type < _disc.nParType; type++)
+			{
 				_particles[type]->setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}, ParticleIndex{static_cast<unsigned int>(colNode)}), idxr.offsetC() + colNode * idxr.strideColNode(), colNode, secIdx);
 			}
 		}
@@ -543,13 +549,14 @@ protected:
 		Eigen::Map<const VectorXd> hmpf(y_, numDofs());
 		VectorXd y = hmpf;
 		VectorXd yDot;
-		if (yDot_) {
+		if (yDot_)
+		{
 			Eigen::Map<const VectorXd> hmpf2(yDot_, numDofs());
 			yDot = hmpf2;
 		}
-		else {
+		else
 			return MatrixXd::Zero(numDofs(), numDofs());
-		}
+
 		VectorXd res = VectorXd::Zero(numDofs());
 		const double* yPtr = &y[0];
 		const double* yDotPtr = &yDot[0];
@@ -561,12 +568,14 @@ protected:
 
 		residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, yPtr, yDotPtr, resPtr, threadLocalMem);
 
-		for (int col = 0; col < Jacobian.cols(); col++) {
+		for (int col = 0; col < Jacobian.cols(); col++)
+		{
 			Jacobian.col(col) = -(1.0 + alpha) * res;
 		}
 		/*	 Residual(y+h)	*/
 		// state DOFs
-		for (int dof = 0; dof < Jacobian.cols(); dof++) {
+		for (int dof = 0; dof < Jacobian.cols(); dof++)
+		{
 			y[dof] += epsilon;
 			residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, yPtr, yDotPtr, resPtr, threadLocalMem);
 			y[dof] -= epsilon;
@@ -574,7 +583,8 @@ protected:
 		}
 
 		// state derivative Jacobian
-		for (int dof = 0; dof < Jacobian.cols(); dof++) {
+		for (int dof = 0; dof < Jacobian.cols(); dof++)
+		{
 			yDot[dof] += epsilon;
 			residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, yPtr, yDotPtr, resPtr, threadLocalMem);
 			yDot[dof] -= epsilon;
