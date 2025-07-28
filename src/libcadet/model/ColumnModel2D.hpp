@@ -206,7 +206,7 @@ protected:
 	{
 		Indexer idxr(_disc);
 		// inlet and bulk jacobian
-		_convDispOp.assembleConvDispJacobian(_globalJac, _jacInlet);
+		_convDispOp.assembleConvDispJacobian(_globalJac, _jacInlet, true, 0);
 
 		// particle transport diffusion Jacobian (without isotherm, which is handled in residualKernel)
 		for (int colNode = 0; colNode < _disc.nBulkPoints; colNode++)

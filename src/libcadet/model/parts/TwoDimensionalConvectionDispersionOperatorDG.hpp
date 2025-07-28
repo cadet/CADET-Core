@@ -89,13 +89,15 @@ public:
 	bool computeConvDispJacobianBlocks();
 	template <typename Action>
 	void addAxElemBlockToJac(const Eigen::MatrixXd& block, const int offRow, const int offColumn, const int depElem, Action addEntry, const active* const compFac = nullptr);
+	void insertAxElemBlockToJac(const Eigen::MatrixXd& block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int offColumn, const int depElem, const active* const compFac = nullptr);
 	void addAxElemBlockToJac(const Eigen::MatrixXd& block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int offColumn, const int depElem, const active* const compFac = nullptr);
 	void addAxElemBlockToJac(const Eigen::MatrixXd& block, std::vector<T>& tripletList, const int offRow, const int offColumn, const int depElem);
 	template <typename Action>
 	void addRadElemBlockToJac(const Eigen::MatrixXd* block, const int offRow, const int nLeftRadElemDep, const int depElem, Action addEntry);
+	void insertRadElemBlockToJac(const Eigen::MatrixXd* block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int nLeftRadElemDep, const int depElem);
 	void addRadElemBlockToJac(const Eigen::MatrixXd* block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int nLeftRadElemDep, const int depElem);
 	void addRadElemBlockToJac(const Eigen::MatrixXd* block, std::vector<T>& tripletList, const int offRow, const int nLeftRadElemDep, const int depElem);
-	bool assembleConvDispJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset = 0);
+	bool assembleConvDispJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const bool addJac, const int bulkOffset = 0);
 
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 	void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset = 0);
