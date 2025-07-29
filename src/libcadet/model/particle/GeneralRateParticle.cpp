@@ -471,7 +471,9 @@ namespace model
 
 	unsigned int GeneralRateParticle::jacobianNNZperParticle() const
 	{
-		return _parDiffOp->jacobianNNZperParticle();
+		const int bindingNNZ = _parDiffOp->nDiscPoints() * (_parDiffOp->strideBound() + _nComp) * (_parDiffOp->strideBound() + _nComp);
+
+		return _parDiffOp->jacobianNNZperParticle() + bindingNNZ;
 	}
 
 	int GeneralRateParticle::calcParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
