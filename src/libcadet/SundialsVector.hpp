@@ -41,8 +41,8 @@
 
 	#define NVec_New(x) N_VNew_Serial(x)
 	#define NVec_Destroy N_VDestroy_Serial
-	#define NVec_DestroyArray N_VDestroyVectorArray_Serial
-	#define NVec_CloneArray N_VCloneVectorArray_Serial
+	#define NVec_DestroyArray N_VDestroyVectorArray
+	#define NVec_CloneArray N_VCloneVectorArray
 	#define NVec_NewEmpty N_VNewEmpty_Serial
 	#define NVec_SetThreads(x, nThreads) 
 #endif
