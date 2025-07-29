@@ -39,7 +39,7 @@
 	#define NVEC_DATA(x) NV_DATA_S(x)
 	#define NVEC_LENGTH(x) NV_LENGTH_S(x)
 
-	#define NVec_New(x) N_VNew_Serial(x)
+	#define NVec_New(x, context) N_VNew_Serial(x, context)
 	#define NVec_Destroy N_VDestroy_Serial
 	#define NVec_DestroyArray N_VDestroyVectorArray
 	#define NVec_CloneArray N_VCloneVectorArray
