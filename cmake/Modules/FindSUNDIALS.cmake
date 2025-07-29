@@ -51,6 +51,7 @@
 
 # List of the valid SUNDIALS components
 set(SUNDIALS_VALID_COMPONENTS
+    sundials_core
     sundials_cvode
     sundials_cvodes
     sundials_ida
