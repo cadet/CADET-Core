@@ -361,7 +361,7 @@ namespace cadet
 			sensY, sensYdot, sensRes, sim->_vecADres, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
 	}
 
-	Simulator::Simulator() : _model(nullptr), _solRecorder(nullptr), _idaMemBlock(nullptr), _vecStateY(nullptr),
+	Simulator::Simulator() : _model(nullptr), _solRecorder(nullptr), _idaMemBlock(nullptr), _sunctx(nullptr), _vecStateY(nullptr),
 		_vecStateYdot(nullptr), _vecFwdYs(nullptr), _vecFwdYsDot(nullptr),
 		_relTolS(1.0e-9), _absTol(1, 1.0e-12), _relTol(1.0e-9), _initStepSize(1, 1.0e-6), _maxSteps(10000), _maxStepSize(0.0),
 		_nThreads(0), _sensErrorTestEnabled(true), _maxNewtonIter(4), _maxErrorTestFail(10), _maxConvTestFail(10),
@@ -410,9 +410,10 @@ namespace cadet
 		_model = reinterpret_cast<ISimulatableModel*>(&model);
 
 		// Allocate and initialize state vectors
+		SUNContext_Create(SUN_COMM_NULL, &_sunctx);
 		const unsigned int nDOFs = _model->numDofs();
-		_vecStateY = NVec_New(nDOFs);
-		_vecStateYdot = NVec_New(nDOFs);
+		_vecStateY = NVec_New(nDOFs, _sunctx);
+		_vecStateYdot = NVec_New(nDOFs, _sunctx);
 
 		// Propagate section times if available
 		if (_sectionTimes.size() > 0)
@@ -436,7 +437,7 @@ namespace cadet
 		NVec_Const(0.0, _vecStateYdot);
 
 		// Create IDAS internal memory
-		_idaMemBlock = IDACreate();
+		_idaMemBlock = IDACreate(_sunctx);
 
 		// IDAS Step 4.1: Specify error handler function
 		IDASetErrHandlerFn(_idaMemBlock, &idasErrorHandler, this);

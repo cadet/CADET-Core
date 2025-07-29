@@ -233,6 +233,8 @@ protected:
 
 	void* _idaMemBlock; //!< IDAS internal memory
 
+	SUNContext _sunctx;
+
 	/**
 	 * @brief Determines whether the transition from section i to section i+1 is continuous.
 	 * @details The solver will be reset only at discontinuous transitions. The i-th element 
