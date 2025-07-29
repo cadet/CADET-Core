@@ -151,6 +151,8 @@ namespace parts
 
 	protected:
 
+		void parBindingPattern(std::vector<Eigen::Triplet<double>>& tripletList, const int offset, const unsigned int colNode);
+
 		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, linalg::BandedEigenSparseRowIterator& jacBase);
 

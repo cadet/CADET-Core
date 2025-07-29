@@ -670,6 +670,7 @@ namespace model
 
 	void HomogeneousParticle::setParJacPattern(std::vector<Eigen::Triplet<double>>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx) const
 	{
+		// binding Jacobian pattern
 		// add dense nComp * nBound blocks, since all solid and liquid entries can be coupled through binding.
 		for (unsigned int parState = 0; parState < _nComp + _strideBound; parState++) {
 			for (unsigned int toParState = 0; toParState < _nComp + _strideBound; toParState++) {
@@ -677,7 +678,7 @@ namespace model
 			}
 		}
 
-		/* Flux Jacobian: dependence of particle entries on bulk entries through BC */
+		// flux Jacobian pattern
 
 		for (unsigned int comp = 0; comp < _nComp; comp++)
 		{
