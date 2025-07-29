@@ -691,8 +691,6 @@ bool AxialConvectionDispersionOperatorBaseDG::setSensitiveParameter(std::unorder
 	return true;
 }
 
-// @todo: radial flow DG
-
 /**
  * @brief Creates an ConvectionDispersionOperatorDG
  */

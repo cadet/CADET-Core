@@ -112,9 +112,9 @@ int LumpedRateModelWithPoresDG2D::linearSolve(double t, double alpha, double out
 		// Assemble and factorize discretized bulk Jacobian
 		assembleDiscretizedGlobalJacobian(alpha, idxr);
 
-		_globalSolver.factorize(_globalJacDisc);
+		_linearSolver->factorize(_globalJacDisc);
 
-		if (cadet_unlikely(_globalSolver.info() != Eigen::Success)) {
+		if (cadet_unlikely(_linearSolver->info() != Eigen::Success)) {
 			LOG(Error) << "Factorize() failed";
 		}
 
@@ -137,9 +137,9 @@ int LumpedRateModelWithPoresDG2D::linearSolve(double t, double alpha, double out
 
 	Eigen::Map<Eigen::VectorXd> r(rhs, numDofs());
 
-	r.segment(idxr.offsetC(), numPureDofs()) = _globalSolver.solve(r.segment(idxr.offsetC(), numPureDofs()));
+	r.segment(idxr.offsetC(), numPureDofs()) = _linearSolver->solve(r.segment(idxr.offsetC(), numPureDofs()));
 
-	if (cadet_unlikely(_globalSolver.info() != Eigen::Success))
+	if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 	{
 		LOG(Error) << "Solve() failed";
 	}

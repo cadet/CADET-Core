@@ -59,7 +59,7 @@ TEST_CASE("GRM Jacobian forward vs backward flow", "[GRM],[FV],[UnitOp],[Residua
 	}
 }
 
-TEST_CASE("GRM numerical Benchmark with parameter sensitivities for linear case", "[GRM],[FV],[Simulation],[Reference],[Sensitivity],[CI_sens1]")
+TEST_CASE("GRM numerical Benchmark1 with parameter sensitivities for linear case", "[GRM],[FV],[Simulation],[Reference],[Sensitivity],[CI_sens1]")
 {
 	std::string modelFilePath = std::string("/data/model_GRM_dynLin_1comp_benchmark1.json");
 	std::string refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark1_FV_Z32parZ4.h5");
@@ -68,10 +68,16 @@ TEST_CASE("GRM numerical Benchmark with parameter sensitivities for linear case"
 
 	cadet::test::column::FVparams disc(32, 4);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
+}
 
-	modelFilePath = std::string("/data/model_GRM_dynLin_1comp_sensbenchmark2.json");
-	refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark2_FV_Z32parZ4.h5");
+TEST_CASE("GRM numerical Benchmark2 with parameter sensitivities for linear case", "[GRM],[FV],[Simulation],[Reference],[Sensitivity],[CI_sens1]")
+{
+	std::string modelFilePath = std::string("/data/model_GRM_dynLin_1comp_sensbenchmark2.json");
+	std::string refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark2_FV_Z32parZ4.h5");
+	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12, 1e-12 };
+	const std::vector<double> relTol = { 1e-4, 1e-4, 1e-4, 1e-4, 1e-4 };
 
+	cadet::test::column::FVparams disc(32, 4);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 

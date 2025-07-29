@@ -611,6 +611,816 @@ bool multiplexBndCompTypeSecParameterAD(const ParameterId& pId, StringHash nameH
 	return false;
 }
 
+/* For the new particle type interface */
+
+
+bool newIF_setTypeParameterValue(const ParameterId& pId, StringHash nameHash, bool typeDep, active& parameter, unsigned int parTypeIdx, double value, std::unordered_set<active*> const* sensParams)
+{
+	if (!typeDep || (pId.name != nameHash) || (pId.particleType != ParTypeIndep && pId.particleType != parTypeIdx))
+		return false;
+
+	if ((pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+		return false;
+	if (sensParams && !contains(*sensParams, &parameter))
+		return false;
+
+	parameter.setValue(value);
+
+	return true;
+}
+
+bool newIF_setTypeParameterAD(const ParameterId& pId, StringHash nameHash, bool typeDep, active& parameter, unsigned int parTypeIdx, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams)
+{
+	if (!typeDep || (pId.name != nameHash) || (pId.particleType != ParTypeIndep && pId.particleType != parTypeIdx))
+		return false;
+
+	if ((pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+		return false;
+
+	sensParams.insert(&parameter);
+	parameter.setADValue(adDirection, adValue);
+
+	return true;
+}
+
+
+MultiplexMode newIF_readAndRegisterMultiplexCompSecParam(IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, std::vector<active>& values, const std::string& name, unsigned int nComp, unsigned int parTypeIdx, const bool parTypeDep, UnitOpIdx uoi)
+{
+	MultiplexMode mode = MultiplexMode::Independent;
+	readScalarParameterOrArray(values, paramProvider, name, 1);
+	if (paramProvider.exists(name + "_MULTIPLEX"))
+	{
+		const int modeConfig = paramProvider.getInt(name + "_MULTIPLEX");
+		if (modeConfig == 0)
+		{
+			mode = parTypeDep ? MultiplexMode::ComponentType : MultiplexMode::Component;
+			if (values.size() != nComp)
+				throw InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be " + std::to_string(nComp) + ")");
+		}
+		else if (modeConfig == 1)
+		{
+			mode = parTypeDep ? MultiplexMode::ComponentSectionType : MultiplexMode::ComponentSection;
+			if ((values.size() % nComp) != 0)
+				throw InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be positive multiple of " + std::to_string(nComp) + ")");
+		}
+		else
+			throw InvalidParameterException("Unsupported multiplex mode of field " + name + "_MULTIPLEX, must be 0 or 1");
+	}
+	else
+	{
+		if (values.size() == nComp)
+			mode = parTypeDep ? MultiplexMode::ComponentType : MultiplexMode::Component;
+		else if ((values.size() % nComp) == 0)
+			mode = parTypeDep ? MultiplexMode::ComponentSectionType : MultiplexMode::ComponentSection;
+		else
+			throw InvalidParameterException("Could not infer multiplex mode of field " + name + ", set " + name + "_MULTIPLEX or change number of elements");
+	}
+
+	const StringHash nameHash = hashStringRuntime(name);
+	switch (mode)
+	{
+	case MultiplexMode::Component:
+	case MultiplexMode::ComponentType:
+	{
+		if (parTypeDep || parTypeIdx == 0) // only register once for parTypeIndep
+		{
+			for (unsigned int s = 0; s < nComp; ++s)
+				parameters[makeParamId(nameHash, uoi, s, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &values[s];
+		}
+	}
+	break;
+	case MultiplexMode::ComponentSection:
+	case MultiplexMode::ComponentSectionType:
+	{
+		std::vector<active> p(values.size());
+		for (std::size_t s = 0; s < values.size() / nComp; ++s)
+		{
+			std::copy(values.begin() + s * nComp, values.begin() + (s + 1) * nComp, p.begin() + s * nComp);
+		}
+
+		values = std::move(p);
+
+		if (parTypeDep || parTypeIdx == 0) // only register once for parTypeIndep
+		{
+			for (std::size_t s = 0; s < values.size() / nComp; ++s)
+			{
+				for (unsigned int i = 0; i < nComp; ++i)
+					parameters[makeParamId(nameHash, uoi, i, ParTypeIndep, BoundStateIndep, ReactionIndep, s)] = &values[s * nComp + i];
+			}
+		}
+	}
+	break;
+	case MultiplexMode::RadialSection:
+	case MultiplexMode::Independent:
+	case MultiplexMode::ComponentRadial:
+	case MultiplexMode::ComponentRadialSection:
+	case MultiplexMode::Axial:
+	case MultiplexMode::Section:
+	case MultiplexMode::Type:
+	case MultiplexMode::Radial:
+	case MultiplexMode::AxialRadial:
+		cadet_assert(false);
+		break;
+	}
+
+	return mode;
+}
+
+MultiplexMode newIF_readAndRegisterMultiplexBndCompSecParam(IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, std::vector<active>& values, const std::string& name,
+	unsigned int nTotalBound, unsigned int nComp, unsigned int strideBound, unsigned int const* nBound, const unsigned int parTypeIdx, const bool parTypeDep, UnitOpIdx uoi)
+{
+	if (nTotalBound == 0)
+		return MultiplexMode::Component;
+
+	MultiplexMode mode = MultiplexMode::Independent;
+	readScalarParameterOrArray(values, paramProvider, name, 1);
+	if (paramProvider.exists(name + "_MULTIPLEX"))
+	{
+		const int modeConfig = paramProvider.getInt(name + "_MULTIPLEX");
+		if (modeConfig == 0)
+		{
+			mode = parTypeDep ? MultiplexMode::ComponentType : MultiplexMode::Component;
+			if (values.size() != strideBound)
+				throw InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be " + std::to_string(strideBound) + ")");
+		}
+		else if (modeConfig == 1)
+		{
+			mode = parTypeDep ? MultiplexMode::ComponentSectionType : MultiplexMode::ComponentSection;
+			if ((values.size() % strideBound) != 0)
+				throw InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be positive multiple of " + std::to_string(strideBound) + ")");
+		}
+		else
+			throw InvalidParameterException("Unsupported multiplex mode of field " + name + "_MULTIPLEX, must be 0 or 1");
+	}
+	else
+	{
+		if (values.size() == strideBound)
+			mode = parTypeDep ? MultiplexMode::ComponentType : MultiplexMode::Component;
+		else if ((values.size() % strideBound) == 0)
+			mode = parTypeDep ? MultiplexMode::ComponentSectionType : MultiplexMode::ComponentSection;
+		else
+			throw InvalidParameterException("Could not infer multiplex mode of field " + name + ", set " + name + "_MULTIPLEX or change number of elements");
+	}
+
+	const StringHash nameHash = hashStringRuntime(name);
+	switch (mode)
+	{
+	case MultiplexMode::Component:
+	case MultiplexMode::ComponentType:
+	{
+		std::vector<active> p(strideBound); // same for all parTypes since parTypeIndep
+		std::copy(values.begin(), values.end(), p.begin());
+		values = std::move(p);
+
+		if (parTypeDep || parTypeIdx == 0) // only register once for parTypeIndep
+		{
+			unsigned int idx = 0;
+			for (unsigned int c = 0; c < nComp; ++c)
+			{
+				for (unsigned int s = 0; s < nBound[c]; ++s, ++idx)
+					parameters[makeParamId(nameHash, uoi, c, ParTypeIndep, s, ReactionIndep, SectionIndep)] = &values[idx];
+			}
+		}
+	}
+	break;
+	case MultiplexMode::ComponentSection:
+	case MultiplexMode::ComponentSectionType:
+	{
+
+		// parameters already correctly read, nothing to do in this case
+
+		if (parTypeDep || parTypeIdx == 0) // only register once for parTypeIndep
+		{
+			for (std::size_t sec = 0; sec < values.size() / strideBound; ++sec)
+			{
+				unsigned int idx = nTotalBound * sec;
+				for (unsigned int c = 0; c < nComp; ++c)
+				{
+					for (unsigned int s = 0; s < nBound[c]; ++s, ++idx)
+						parameters[makeParamId(nameHash, uoi, c, ParTypeIndep, s, ReactionIndep, sec)] = &values[idx];
+				}
+			}
+		}
+	}
+	break;
+	case MultiplexMode::RadialSection:
+	case MultiplexMode::Independent:
+	case MultiplexMode::ComponentRadial:
+	case MultiplexMode::ComponentRadialSection:
+	case MultiplexMode::Axial:
+	case MultiplexMode::Section:
+	case MultiplexMode::Type:
+	case MultiplexMode::Radial:
+	case MultiplexMode::AxialRadial:
+		cadet_assert(false);
+		break;
+	}
+
+	return mode;
+}
+
+/* For particle type specific particle models: only read/register one particle type */
+
+
+bool singleTypeMultiplexTypeParameterValue(const ParameterId& pId, StringHash nameHash, bool mode, active& data, unsigned int parTypeIdx, double value, std::unordered_set<active*> const* sensParams)
+{
+	if (!mode || (pId.name != nameHash) || (pId.particleType != ParTypeIndep && pId.particleType != parTypeIdx))
+		return false;
+
+	if ((pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+		return false;
+	if (sensParams && !contains(*sensParams, &data))
+		return false;
+
+	data.setValue(value);
+
+	return true;
+}
+
+bool singleTypeMultiplexTypeParameterAD(const ParameterId& pId, StringHash nameHash, bool mode, active& data, unsigned int parTypeIdx, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams)
+{
+	if (!mode || (pId.name != nameHash) || (pId.particleType != ParTypeIndep && pId.particleType != parTypeIdx))
+		return false;
+
+	if ((pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+		return false;
+
+	sensParams.insert(&data);
+	data.setADValue(adDirection, adValue);
+
+	return true;
+}
+
+
+MultiplexMode readAndRegisterSingleTypeMultiplexCompTypeSecParam(IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, std::vector<active>& values, const std::string& name, unsigned int nParType, unsigned int nComp, unsigned int parTypeIdx, UnitOpIdx uoi)
+{
+	MultiplexMode mode = MultiplexMode::Independent;
+	readScalarParameterOrArray(values, paramProvider, name, 1);
+	if (paramProvider.exists(name + "_MULTIPLEX"))
+	{
+		const int modeConfig = paramProvider.getInt(name + "_MULTIPLEX");
+		if (modeConfig == 0)
+		{
+			mode = MultiplexMode::Component;
+			if (values.size() != nComp)
+				throw InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be " + std::to_string(nComp) + ")");
+		}
+		else if (modeConfig == 1)
+		{
+			mode = MultiplexMode::ComponentSection;
+			if ((values.size() % nComp) != 0)
+				throw InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be positive multiple of " + std::to_string(nComp) + ")");
+		}
+		else if (modeConfig == 2)
+		{
+			mode = MultiplexMode::ComponentType;
+			if (values.size() != nComp * nParType)
+				throw InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be " + std::to_string(nComp * nParType) + ")");
+		}
+		else if (modeConfig == 3)
+		{
+			mode = MultiplexMode::ComponentSectionType;
+			if ((values.size() % (nComp * nParType)) != 0)
+				throw InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be positive multiple of " + std::to_string(nComp * nParType) + ")");
+		}
+	}
+	else
+	{
+		if (values.size() == nComp)
+			mode = MultiplexMode::Component;
+		else if (values.size() == nComp * nParType)
+			mode = MultiplexMode::ComponentType;
+		else if ((values.size() % (nComp * nParType)) == 0)
+			mode = MultiplexMode::ComponentSectionType;
+		else if ((values.size() % nComp) == 0)
+			mode = MultiplexMode::ComponentSection;
+		else
+			throw InvalidParameterException("Could not infer multiplex mode of field " + name + ", set " + name + "_MULTIPLEX or change number of elements");
+	}
+
+	const StringHash nameHash = hashStringRuntime(name);
+	switch (mode)
+	{
+	case MultiplexMode::Component:
+	{
+		if (parTypeIdx == 0)
+		{
+			for (unsigned int s = 0; s < nComp; ++s)
+				parameters[makeParamId(nameHash, uoi, s, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &values[s];
+		}
+	}
+	break;
+	case MultiplexMode::ComponentSection:
+	{
+		std::vector<active> p(values.size());
+		for (std::size_t s = 0; s < values.size() / nComp; ++s)
+		{
+			std::copy(values.begin() + s * nComp, values.begin() + (s + 1) * nComp, p.begin() + s * nComp);
+		}
+
+		values = std::move(p);
+
+		if (parTypeIdx == 0)
+		{
+			for (std::size_t s = 0; s < values.size() / nComp; ++s)
+			{
+				for (unsigned int i = 0; i < nComp; ++i)
+					parameters[makeParamId(nameHash, uoi, i, ParTypeIndep, BoundStateIndep, ReactionIndep, s)] = &values[s * nComp + i];
+			}
+		}
+	}
+	break;
+	case MultiplexMode::ComponentType:
+	{
+		std::vector<active> p(nComp);
+		std::copy(values.begin() + parTypeIdx * nComp, values.begin() + parTypeIdx * nComp + nComp, p.begin());
+		values = std::move(p);
+
+		registerParam1DArray(parameters, values, [=](bool multi, unsigned int comp) { return makeParamId(nameHash, uoi, comp, parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep); });
+	}
+	break;
+	case MultiplexMode::ComponentSectionType:
+	{
+		const int nSec = values.size() / nParType / nComp;
+		std::vector<active> p(nComp * nSec);
+
+		for (int s = 0; s < nSec; s++)
+			std::copy(values.begin() + s * nParType * nComp + parTypeIdx * nComp, values.begin() + s * nParType * nComp + parTypeIdx * nComp + nComp, p.begin() + s * nComp);
+
+		values = std::move(p);
+
+		registerParam2DArray(parameters, values, [=](bool multi, unsigned int sec, unsigned int comp) { return makeParamId(nameHash, uoi, comp, parTypeIdx, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, nComp);
+	}
+	break;
+	case MultiplexMode::RadialSection:
+	case MultiplexMode::Independent:
+	case MultiplexMode::ComponentRadial:
+	case MultiplexMode::ComponentRadialSection:
+	case MultiplexMode::Axial:
+	case MultiplexMode::Section:
+	case MultiplexMode::Type:
+	case MultiplexMode::Radial:
+	case MultiplexMode::AxialRadial:
+		cadet_assert(false);
+		break;
+	}
+
+	return mode;
+}
+
+bool singleTypeMultiplexCompTypeSecParameterValue(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data, unsigned int nComp, unsigned int parTypeIdx, double value, std::unordered_set<active*> const* sensParams)
+{
+	if (pId.name != nameHash || (pId.particleType != ParTypeIndep && pId.particleType != parTypeIdx))
+		return false;
+
+	switch (mode)
+	{
+	case MultiplexMode::Component:
+	{
+		if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState != BoundStateIndep)
+			|| (pId.reaction != ReactionIndep) || (pId.section != SectionIndep))
+			return false;
+
+		if (sensParams && !contains(*sensParams, &data[pId.component]))
+			if (parTypeIdx == 0)
+				return false; // sensParams is only expected to contain this address for the first particle type since the parameter is parTypeIndep
+
+		data[pId.component].setValue(value);
+
+		return true;
+	}
+	case MultiplexMode::ComponentSection:
+	{
+		if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState != BoundStateIndep)
+			|| (pId.reaction != ReactionIndep) || (pId.section == SectionIndep))
+			return false;
+
+		if (sensParams && !contains(*sensParams, &data[pId.section * nComp + pId.component]))
+			if (parTypeIdx == 0)
+				return false; // sensParams is only expected to contain this address for the first particle type since the parameter is parTypeIndep
+
+		data[pId.section * nComp + pId.component].setValue(value);
+
+		return true;
+	}
+	case MultiplexMode::ComponentType:
+	{
+		if ((pId.component == CompIndep) || (pId.particleType == ParTypeIndep) || (pId.boundState != BoundStateIndep)
+			|| (pId.reaction != ReactionIndep) || (pId.section != SectionIndep))
+			return false;
+
+		if (sensParams && !contains(*sensParams, &data[pId.component]))
+			return false;
+
+		for (unsigned int s = 0; s < data.size() / nComp; ++s)
+			data[s * nComp + pId.component].setValue(value);
+
+		return true;
+	}
+	case MultiplexMode::ComponentSectionType:
+	{
+		if ((pId.component == CompIndep) || (pId.particleType == ParTypeIndep) || (pId.boundState != BoundStateIndep)
+			|| (pId.reaction != ReactionIndep) || (pId.section == SectionIndep))
+			return false;
+
+		if (sensParams && !contains(*sensParams, &data[pId.section * nComp + pId.component]))
+			if (parTypeIdx == 0)
+				return false; // sensParams is only expected to contain this address for the first particle type since the parameter is parTypeIndep
+
+		data[pId.section * nComp + pId.component].setValue(value);
+
+		return true;
+	}
+	case MultiplexMode::RadialSection:
+	case MultiplexMode::Independent:
+	case MultiplexMode::ComponentRadial:
+	case MultiplexMode::ComponentRadialSection:
+	case MultiplexMode::Axial:
+	case MultiplexMode::Section:
+	case MultiplexMode::Type:
+	case MultiplexMode::Radial:
+	case MultiplexMode::AxialRadial:
+		cadet_assert(false);
+		break;
+	}
+
+	return false;
+}
+
+bool singleTypeMultiplexCompTypeSecParameterAD(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data, unsigned int nComp, unsigned int parTypeIdx, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams)
+{
+	if (pId.name != nameHash || (pId.particleType != ParTypeIndep && pId.particleType != parTypeIdx))
+		return false;
+
+	switch (mode)
+	{
+	case MultiplexMode::Component:
+	{
+		if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState != BoundStateIndep)
+			|| (pId.reaction != ReactionIndep) || (pId.section != SectionIndep))
+			return false;
+
+		if (parTypeIdx == 0)
+			sensParams.insert(&data[pId.component]);
+
+		data[pId.component].setADValue(adDirection, adValue);
+
+		return true;
+	}
+	case MultiplexMode::ComponentSection:
+	{
+		if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState != BoundStateIndep)
+			|| (pId.reaction != ReactionIndep) || (pId.section == SectionIndep))
+			return false;
+
+		if (parTypeIdx == 0)
+			sensParams.insert(&data[pId.section * nComp + pId.component]);
+
+		data[pId.section * nComp + pId.component].setADValue(adDirection, adValue);
+
+		return true;
+	}
+	case MultiplexMode::ComponentType:
+	{
+		if ((pId.component == CompIndep) || (pId.particleType == ParTypeIndep) || (pId.boundState != BoundStateIndep)
+			|| (pId.reaction != ReactionIndep) || (pId.section != SectionIndep))
+			return false;
+
+		sensParams.insert(&data[pId.component]);
+
+		for (unsigned int s = 0; s < data.size() / nComp; ++s)
+			data[s * nComp + pId.component].setADValue(adDirection, adValue);
+
+		return true;
+	}
+	case MultiplexMode::ComponentSectionType:
+	{
+		if ((pId.component == CompIndep) || (pId.particleType == ParTypeIndep) || (pId.boundState != BoundStateIndep)
+			|| (pId.reaction != ReactionIndep) || (pId.section == SectionIndep))
+			return false;
+
+		sensParams.insert(&data[pId.section * nComp + pId.component]);
+
+		data[pId.section * nComp + pId.component].setADValue(adDirection, adValue);
+
+		return true;
+	}
+	case MultiplexMode::RadialSection:
+	case MultiplexMode::Independent:
+	case MultiplexMode::ComponentRadial:
+	case MultiplexMode::ComponentRadialSection:
+	case MultiplexMode::Axial:
+	case MultiplexMode::Section:
+	case MultiplexMode::Type:
+	case MultiplexMode::Radial:
+	case MultiplexMode::AxialRadial:
+		cadet_assert(false);
+		break;
+	}
+
+	return false;
+}
+
+
+MultiplexMode readAndRegisterSingleTypeMultiplexBndCompTypeSecParam(IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, std::vector<active>& values, const std::string& name, unsigned int nTotalBound, unsigned int nComp, unsigned int strideBound, unsigned int const* nBound, unsigned int const* nBoundBeforeType, const unsigned int parTypeIdx, UnitOpIdx uoi)
+{
+	if (nTotalBound == 0)
+		return MultiplexMode::Component;
+
+	MultiplexMode mode = MultiplexMode::Independent;
+	readScalarParameterOrArray(values, paramProvider, name, 1);
+	if (paramProvider.exists(name + "_MULTIPLEX"))
+	{
+		const int modeConfig = paramProvider.getInt(name + "_MULTIPLEX");
+		if (modeConfig == 0)
+		{
+			mode = MultiplexMode::Component;
+			if (values.size() != strideBound)
+				throw InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be " + std::to_string(strideBound) + ")");
+		}
+		else if (modeConfig == 1)
+		{
+			mode = MultiplexMode::ComponentSection;
+			if ((values.size() % strideBound) != 0)
+				throw InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be positive multiple of " + std::to_string(strideBound) + ")");
+		}
+		else if (modeConfig == 2)
+		{
+			mode = MultiplexMode::ComponentType;
+			if (values.size() != nTotalBound)
+				throw InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be " + std::to_string(nTotalBound) + ")");
+		}
+		else if (modeConfig == 3)
+		{
+			mode = MultiplexMode::ComponentSectionType;
+			if ((values.size() % nTotalBound) != 0)
+				throw InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be positive multiple of " + std::to_string(nTotalBound) + ")");
+		}
+	}
+	else
+	{
+		if (values.size() == strideBound)
+			mode = MultiplexMode::Component;
+		else if (values.size() == nTotalBound)
+			mode = MultiplexMode::ComponentType;
+		else if ((values.size() % nTotalBound) == 0)
+			mode = MultiplexMode::ComponentSectionType;
+		else if ((values.size() % strideBound) == 0)
+			mode = MultiplexMode::ComponentSection;
+		else
+			throw InvalidParameterException("Could not infer multiplex mode of field " + name + ", set " + name + "_MULTIPLEX or change number of elements");
+	}
+
+	const StringHash nameHash = hashStringRuntime(name);
+	switch (mode)
+	{
+	case MultiplexMode::Component:
+	{
+		std::vector<active> p(strideBound); // same for all parTypes since parTypeIndep
+		std::copy(values.begin(), values.end(), p.begin());
+		values = std::move(p);
+
+		if (parTypeIdx == 0) // only register for first particle type index
+		{
+			unsigned int idx = 0;
+			for (unsigned int c = 0; c < nComp; ++c)
+			{
+				for (unsigned int s = 0; s < nBound[c]; ++s, ++idx)
+					parameters[makeParamId(nameHash, uoi, c, ParTypeIndep, s, ReactionIndep, SectionIndep)] = &values[idx];
+			}
+		}
+	}
+	break;
+	case MultiplexMode::ComponentSection:
+	{
+
+		// parameters already correctly read, nothing to do in this case
+
+		if (parTypeIdx == 0)
+		{
+			for (std::size_t sec = 0; sec < values.size() / strideBound; ++sec)
+			{
+				unsigned int idx = nTotalBound * sec;
+				for (unsigned int c = 0; c < nComp; ++c)
+				{
+					for (unsigned int s = 0; s < nBound[c]; ++s, ++idx)
+						parameters[makeParamId(nameHash, uoi, c, ParTypeIndep, s, ReactionIndep, sec)] = &values[idx];
+				}
+			}
+		}
+	}
+	break;
+	case MultiplexMode::ComponentType:
+	{
+		std::vector<active> p(strideBound);
+		std::copy(values.begin() + nBoundBeforeType[parTypeIdx], values.begin() + nBoundBeforeType[parTypeIdx] + strideBound, p.begin());
+		values = std::move(p);
+
+		unsigned int idx = 0;
+		for (unsigned int c = 0; c < nComp; ++c)
+		{
+			for (unsigned int s = 0; s < nBound[c]; ++s, ++idx)
+				parameters[makeParamId(nameHash, uoi, c, parTypeIdx, s, ReactionIndep, SectionIndep)] = &values[idx];
+		}
+	}
+	break;
+	case MultiplexMode::ComponentSectionType:
+	{
+		const int nSec = values.size() / nTotalBound;
+		std::vector<active> p(nSec * strideBound);
+		for (int s = 0; s < nSec; s++)
+			std::copy(values.begin() + s * nTotalBound + nBoundBeforeType[parTypeIdx], values.begin() + s * nTotalBound + nBoundBeforeType[parTypeIdx] + strideBound, p.begin() + s * strideBound);
+		values = std::move(p);
+
+		unsigned int idx = 0;
+		for (std::size_t sec = 0; sec < nSec; ++sec)
+		{
+			for (unsigned int c = 0; c < nComp; ++c)
+			{
+				for (unsigned int s = 0; s < nBound[c]; ++s, ++idx)
+					parameters[makeParamId(nameHash, uoi, c, parTypeIdx, s, ReactionIndep, sec)] = &values[idx];
+			}
+		}
+	}
+	break;
+	case MultiplexMode::RadialSection:
+	case MultiplexMode::Independent:
+	case MultiplexMode::ComponentRadial:
+	case MultiplexMode::ComponentRadialSection:
+	case MultiplexMode::Axial:
+	case MultiplexMode::Section:
+	case MultiplexMode::Type:
+	case MultiplexMode::Radial:
+	case MultiplexMode::AxialRadial:
+		cadet_assert(false);
+		break;
+	}
+
+	return mode;
+}
+
+bool singleTypeMultiplexBndCompTypeSecParameterValue(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data,
+	unsigned int nComp, unsigned int strideBound, unsigned int const* boundOffset, unsigned int parTypeIdx, double value, std::unordered_set<active*> const* sensParams)
+{
+	if (pId.name != nameHash || (pId.particleType != ParTypeIndep && pId.particleType != parTypeIdx))
+		return false;
+
+	if (strideBound == 0)
+		return true;
+
+	switch (mode)
+	{
+	case MultiplexMode::Component:
+	{
+		if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState == BoundStateIndep)
+			|| (pId.reaction != ReactionIndep) || (pId.section != SectionIndep))
+			return false;
+
+		if (sensParams && !contains(*sensParams, &data[boundOffset[pId.component] + pId.boundState]))
+			if (parTypeIdx == 0)
+				return false;
+
+		data[boundOffset[pId.component] + pId.boundState].setValue(value);
+
+		return true;
+	}
+	case MultiplexMode::ComponentSection:
+	{
+		if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState == BoundStateIndep)
+			|| (pId.reaction != ReactionIndep) || (pId.section == SectionIndep))
+			return false;
+
+		if (sensParams && !contains(*sensParams, &data[pId.section * strideBound + boundOffset[pId.component] + pId.boundState]))
+			if (parTypeIdx == 0)
+				return false;
+
+		data[pId.section * strideBound + boundOffset[pId.component] + pId.boundState].setValue(value);
+
+		return true;
+	}
+	case MultiplexMode::ComponentType:
+	{
+		if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState == BoundStateIndep)
+			|| (pId.reaction != ReactionIndep) || (pId.section != SectionIndep))
+			return false;
+
+		if (sensParams && !contains(*sensParams, &data[boundOffset[pId.component] + pId.boundState]))
+			if (parTypeIdx == 0)
+				return false;
+
+		for (unsigned int s = 0; s < data.size() / nComp; ++s)
+			data[s * strideBound + boundOffset[pId.component] + pId.boundState].setValue(value);
+
+		return true;
+	}
+	case MultiplexMode::ComponentSectionType:
+	{
+		if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState == BoundStateIndep)
+			|| (pId.reaction != ReactionIndep) || (pId.section == SectionIndep))
+			return false;
+
+		if (sensParams && !contains(*sensParams, &data[pId.section * strideBound + boundOffset[pId.component] + pId.boundState]))
+			if (parTypeIdx == 0)
+				return false;
+
+		data[pId.section * strideBound + boundOffset[pId.component] + pId.boundState].setValue(value);
+
+		return true;
+	}
+	case MultiplexMode::RadialSection:
+	case MultiplexMode::Independent:
+	case MultiplexMode::ComponentRadial:
+	case MultiplexMode::ComponentRadialSection:
+	case MultiplexMode::Axial:
+	case MultiplexMode::Section:
+	case MultiplexMode::Type:
+	case MultiplexMode::Radial:
+	case MultiplexMode::AxialRadial:
+		cadet_assert(false);
+		break;
+	}
+
+	return false;
+}
+
+bool singleTypeMultiplexBndCompTypeSecParameterAD(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data,
+	unsigned int nComp, unsigned int strideBound, unsigned int const* boundOffset, unsigned int parTypeIdx, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams)
+{
+	if (pId.name != nameHash || (pId.particleType != ParTypeIndep && pId.particleType != parTypeIdx))
+		return false;
+
+	if (strideBound == 0)
+		return true;
+
+	switch (mode)
+	{
+	case MultiplexMode::Component:
+	{
+		if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState == BoundStateIndep)
+			|| (pId.reaction != ReactionIndep) || (pId.section != SectionIndep))
+			return false;
+
+		if (parTypeIdx == 0)
+			sensParams.insert(&data[boundOffset[pId.component] + pId.boundState]);
+
+		data[boundOffset[pId.component] + pId.boundState].setADValue(adDirection, adValue);
+
+		return true;
+	}
+	case MultiplexMode::ComponentSection:
+	{
+		if ((pId.component == CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState == BoundStateIndep)
+			|| (pId.reaction != ReactionIndep) || (pId.section == SectionIndep))
+			return false;
+
+		if (parTypeIdx == 0)
+			sensParams.insert(&data[pId.section * strideBound + boundOffset[pId.component] + pId.boundState]);
+
+		data[pId.section * strideBound + boundOffset[pId.component] + pId.boundState].setADValue(adDirection, adValue);
+
+		return true;
+	}
+	case MultiplexMode::ComponentType:
+	{
+		if ((pId.component == CompIndep) || (pId.particleType == ParTypeIndep) || (pId.boundState == BoundStateIndep)
+			|| (pId.reaction != ReactionIndep) || (pId.section != SectionIndep))
+			return false;
+
+		sensParams.insert(&data[boundOffset[pId.component] + pId.boundState]);
+
+		for (unsigned int s = 0; s < data.size() / nComp; ++s)
+			data[s * strideBound + boundOffset[pId.component] + pId.boundState].setADValue(adDirection, adValue);
+
+		return true;
+	}
+	case MultiplexMode::ComponentSectionType:
+	{
+		if ((pId.component == CompIndep) || (pId.particleType == ParTypeIndep) || (pId.boundState == BoundStateIndep)
+			|| (pId.reaction != ReactionIndep) || (pId.section == SectionIndep))
+			return false;
+
+		sensParams.insert(&data[pId.section * strideBound + boundOffset[pId.component] + pId.boundState]);
+
+		data[pId.section * strideBound + boundOffset[pId.component] + pId.boundState].setADValue(adDirection, adValue);
+
+		return true;
+	}
+	case MultiplexMode::RadialSection:
+	case MultiplexMode::Independent:
+	case MultiplexMode::ComponentRadial:
+	case MultiplexMode::ComponentRadialSection:
+	case MultiplexMode::Axial:
+	case MultiplexMode::Section:
+	case MultiplexMode::Type:
+	case MultiplexMode::Radial:
+	case MultiplexMode::AxialRadial:
+		cadet_assert(false);
+		break;
+	}
+
+	return false;
+}
+
 }  // namespace model
 
 }  // namespace cadet
