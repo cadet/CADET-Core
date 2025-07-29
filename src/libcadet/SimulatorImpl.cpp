@@ -19,9 +19,8 @@
 #include "ParamIdUtil.hpp"
 #include "SimulationTypes.hpp"
 
-#include <idas/idas.h>
-#include <idas/idas_impl.h>
 #include "SundialsVector.hpp"
+#include <idas/idas.h>
 
 #include <vector>
 #include <sstream>
