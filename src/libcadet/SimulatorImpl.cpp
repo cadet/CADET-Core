@@ -182,30 +182,6 @@ namespace cadet
 	}
 
 	/**
-	 * @brief IDAS error handler function
-	 * @details Handles errors reported by the IDAS solver. See section 4.6.2 of the IDAS manual for details.
-	 */
-	void idasErrorHandler(int error_code, const char* module, const char* function, char* msg, void* eh_data)
-	{
-//		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(eh_data);
-
-		std::ostringstream oss;
-		oss << "In function '" << function << "' of module '" << module << "', error code '" << getIDAReturnFlagName(error_code) << "':\n" << msg;
-
-		// @todo Find an error handling system and put it here
-		if (error_code < 0)
-		{
-			// Error
-			LOG(Error) << oss.str();
-		}
-		else
-		{
-			// Warning
-			LOG(Warning) << oss.str();
-		}
-	}
-
-	/**
 	* @brief IDAS wrapper function to call the model's residual() method
 	*/
 	int residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* userData)
@@ -438,8 +414,6 @@ namespace cadet
 		// Create IDAS internal memory
 		_idaMemBlock = IDACreate(_sunctx);
 
-		// IDAS Step 4.1: Specify error handler function
-		IDASetErrHandlerFn(_idaMemBlock, &idasErrorHandler, this);
 
 		// IDAS Step 5: Initialize the solver
 		_model->applyInitialCondition(SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
