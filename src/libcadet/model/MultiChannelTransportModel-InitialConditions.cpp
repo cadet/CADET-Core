@@ -392,80 +392,107 @@ void MultiChannelTransportModel::consistentInitialState(const SimulationTime& si
 			std::function<bool(double const* const, linalg::detail::DenseMatrixBase&)> jacFunc;
 			if (localAdY && localAdRes)
 			{
-				//				jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
-				//					{
-				//						// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
-				//						// and initialize residuals with zero (also resetting directional values)
-				//						ad::copyToAd(cShell, localAdY, mask.len);
-				//						// @todo Check if this is necessary
-				//						ad::resetAd(localAdRes, mask.len);
-				//
-				//						// Prepare input vector by overwriting masked items
-				//						linalg::applyVectorSubset(x, mask, localAdY);
-				//
-				//						// Call residual function
-				//						parts::cell::residualKernel<active, active, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, false, true>(
-				//							simTime.t, simTime.secIdx, colPos, localAdY, nullptr, localAdRes, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
-				//						);
-				//
-				//#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
-				//						std::copy_n(qShell - _disc.nComp, mask.len, fullX);
-				//						linalg::applyVectorSubset(x, mask, fullX);
-				//
-				//						// Compute analytic Jacobian
-				//						parts::cell::residualKernel<double, double, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, true, true>(
-				//							simTime.t, simTime.secIdx, colPos, fullX, nullptr, fullResidual, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
-				//						);
-				//
-				//						// Compare
-				//						const double diff = ad::compareDenseJacobianWithBandedAd(
-				//							adJac.adRes + idxr.offsetCp(ParticleTypeIndex{ type }), pblk * idxr.strideParBlock(type), adJac.adDirOffset, _jacP[type].lowerBandwidth(),
-				//							_jacP[type].lowerBandwidth(), _jacP[type].upperBandwidth(), fullJacobianMatrix
-				//						);
-				//						LOG(Debug) << "MaxDiff: " << diff;
-				//#endif
-				//
-				//						// Extract Jacobian from AD
-				//						ad::extractDenseJacobianFromBandedAd(
-				//							adJac.adRes, pblk * idxr.strideParBlock(type), adJac.adDirOffset, _jacP[type].lowerBandwidth(),
-				//							_jacP[type].lowerBandwidth(), _jacP[type].upperBandwidth(), fullJacobianMatrix
-				//						);
-				//
-				//						// Extract Jacobian from full Jacobian
-				//						mat.setAll(0.0);
-				//						linalg::copyMatrixSubset(fullJacobianMatrix, mask, mask, mat);
-				//
-				//						// Replace upper part with conservation relations
-				//						mat.submatrixSetAll(0.0, 0, 0, numActiveComp, probSize);
-				//
-				//						unsigned int bndIdx = 0;
-				//						unsigned int rIdx = 0;
-				//						unsigned int bIdx = 0;
-				//						for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-				//						{
-				//							if (!mask.mask[comp])
-				//							{
-				//								bndIdx += _disc.nBound[_disc.nComp * type + comp];
-				//								continue;
-				//							}
-				//
-				//							mat.native(rIdx, rIdx) = static_cast<double>(_parPorosity[type]);
-				//
-				//							for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++bndIdx)
-				//							{
-				//								if (mask.mask[bndIdx])
-				//								{
-				//									mat.native(rIdx, bIdx + numActiveComp) = epsQ;
-				//									++bIdx;
-				//								}
-				//							}
-				//
-				//							++rIdx;
-				//						}
-				//
-				//						return true;
-				//					};
-				int a = 1;
+				jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
+				{
+					// Copy over state vector to AD state vector (without changing directional values to keep seed vectors)
+					// and initialize residuals with zero (also resetting directional values)
+					ad::copyToAd(cShell, localAdY + cShellOfset, mask.len);
+					ad::resetAd(localAdRes, numDofs());
+
+					// Prepare input vector by overwriting masked items
+					linalg::applyVectorSubset(x, mask, localAdY + cShellOfset);
+
+					// Call residual function with AD types
+					residualImpl<active, active, double, false>(simTime.t, simTime.secIdx, localAdY, nullptr, localAdRes, threadLocalMem);
+
+					// Clear the matrix
+					mat.setAll(0.0);
+
+					// Extract Jacobian submatrix corresponding to masked variables
+					const int numExchangeEq = probSize - conservedQuants.size();
+					
+					// Part 1: Extract exchange equation Jacobians from AD derivatives
+					// Map global indices to local indices for masked variables
+					std::vector<int> globalToLocal(mask.len, -1);
+					int localIdx = 0;
+					for (int i = 0; i < mask.len; ++i)
+					{
+						if (mask.mask[i])
+						{
+							globalToLocal[i] = localIdx++;
+						}
+					}
+					
+					// Extract relevant entries from AD Jacobian
+					for (int localRowIdx = 0; localRowIdx < numExchangeEq; ++localRowIdx)
+					{
+						int globalRowIdx = -1;
+						int localCount = 0;
+						for (int i = 0; i < mask.len; ++i)
+						{
+							if (mask.mask[i])
+							{
+								if (localCount == localRowIdx)
+								{
+									globalRowIdx = i; 
+									break;
+								}
+								localCount++;
+							}
+						}
+						
+						if (globalRowIdx >= 0 && globalRowIdx < mask.len)
+						{
+							// Get AD residual at global row index (offset by cShellOfset)
+							const active& adResVal = localAdRes[cShellOfset + globalRowIdx];
+							
+							// Extract derivatives for masked columns
+							for (int j = 0; j < mask.len; ++j)
+							{
+								if (mask.mask[j])
+								{
+									const int localColIdx = globalToLocal[j];
+									if (localColIdx >= 0)
+									{
+										// Extract derivative with respect to variable at position (cShellOfset + j)
+										mat.native(localRowIdx, localColIdx) = adResVal.getADValue(adJac.adDirOffset + j);
+									}
+								}
+							}
+						}
+					}
+					
+					// Part 2: Set up conservation constraint equations in lower rows
+					if (conservedQuants.size() > 0)
+					{
+						const int conservationStartRow = numExchangeEq;
+						
+						// For each conservation group, set up the constraint equation
+						for (unsigned int conIdx = 0; conIdx < conservedQuants.size(); ++conIdx)
+						{
+							const int rowIdx = conservationStartRow + conIdx;
+							const auto& currentGroup = conservationGroups[conIdx];
+							
+							// Set coefficients for channels in this conservation group
+							for (unsigned int channel : currentGroup)
+							{
+								// Find the column index in the reduced system (mask space)
+								const unsigned int maskIdx = channel * _disc.nComp + comp;
+								
+								if (maskIdx < mask.len && mask.mask[maskIdx])
+								{
+									const int localColIdx = globalToLocal[maskIdx];
+									if (localColIdx >= 0)
+									{
+										mat.native(rowIdx, localColIdx) = -1.0;
+									}
+								}
+							}
+						}
+					}
+
+					return true;
+				};
 			}
 			else
 			{
@@ -716,17 +743,219 @@ void MultiChannelTransportModel::consistentInitialTimeDerivative(const Simulatio
 	BENCH_SCOPE(_timerConsistentInit);
 
 	Indexer idxr(_disc);
-	//todo
+
 	// Step 2: Compute the correct time derivative of the state vector
 
 	// Step 2a: Assemble, factorize, and solve diagonal blocks of linear system
 
 	// Note that the residual has not been negated, yet. We will do that now.
-	for (unsigned int i = idxr.offsetC(); i < numDofs(); ++i)
+	for (unsigned int i = 0; i < numDofs(); ++i)
 		vecStateYdot[i] = -vecStateYdot[i];
 
 	// Handle bulk column block
 	_convDispOp.solveTimeDerivativeSystem(simTime, vecStateYdot + idxr.offsetC());
+
+	// Process quasi-stationary exchange constraints for each component
+	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+	{
+		if (!_exchange[0]->hasQuasiStationary(comp))
+			continue;
+
+		// Create quasi-stationary mask for this component with conservation groups
+		std::vector<int> qsMask;
+		std::vector<std::vector<unsigned int>> conservationGroups;
+		const int numActiveMask = createQuasiStationaryMaskWithGroups(comp, _exchange[0], _disc.nChannel, _disc.nComp, qsMask, conservationGroups);
+
+		if (conservationGroups.empty())
+			continue;
+
+#ifdef CADET_PARALLELIZE
+		BENCH_START(_timerConsistentInitPar);
+		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nCol),
+			[comp, qsMask, conservationGroups, mask, probSize, dFluxDt, &simTime, &vecStateY, &vecStateYdot, &threadLocalMem, this](std::size_t pblk)
+#else
+		for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
+#endif
+		{
+			LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+			const double z = (0.5 + static_cast<double>(pblk)) / static_cast<double>(_disc.nCol);
+
+
+			// Get offset for this column block
+			auto cShellOffset = _disc.nComp * _disc.nChannel * (1 + pblk);
+			double* const cShell = const_cast<double*>(vecStateY) + cShellOffset;
+			double* const cShellDot = vecStateYdot + cShellOffset;
+
+			const linalg::ConstMaskArray mask{ qsMask.data(), static_cast<int>(_disc.nChannel * _disc.nComp) };
+			const int probSize = linalg::numMaskActive(mask);
+
+			// Initialize Jacobian matrix for this component/column block
+			if (probSize <= 0 || conservationGroups.empty())
+				continue;
+
+
+			// Compute time derivative of quasi-stationary fluxes (if exchange depends on time)
+			BufferedArray<double> dFluxDtBuffer = tlmAlloc.array<double>(mask.len);
+			double* const dFluxDt = static_cast<double*>(dFluxDtBuffer);
+			std::fill_n(dFluxDt, mask.len, 0.0);
+
+			if (_exchange[0]->dependsOnTime())
+			{
+				// TODO: Call exchange model's time derivative function if it exists
+				// This is analogous to _binding[type]->timeDerivativeQuasiStationaryFluxes in LRM
+				_exchange[0]->timeDerivativeQuasiStationaryExchange(simTime.t, simTime.secIdx,
+					ColumnPosition{ z, 0.0, 0.0 }, cShell, dFluxDt, tlmAlloc);
+			}
+
+			// Allocate memory for factorizable matrix (similar to LRM's _jacPdisc)
+			BufferedArray<double> jacMatrixBuffer = tlmAlloc.array<double>(probSize * probSize);
+			linalg::DenseMatrixView jacMatrix(static_cast<double*>(jacMatrixBuffer),
+				new lapackInt_t[probSize], probSize, probSize);
+
+			// Set up matrix similar to LRM's approach
+			jacMatrix.setAll(0.0);
+
+			// Midpoint of current column cell (z coordinate) - needed in externally dependent exchange
+
+			// Map global indices to local indices for masked variables
+			std::vector<int> globalToLocal(mask.len, -1);
+			int localIdx = 0;
+			for (int i = 0; i < mask.len; ++i)
+			{
+				if (mask.mask[i])
+				{
+					globalToLocal[i] = localIdx++;
+				}
+			}
+
+			// Add time derivative contributions to Jacobian matrix
+			// This is the REAL Jacobian ∂F/∂ẏ, NOT identity matrix!
+			const int numExchangeEq = probSize - conservationGroups.size();
+
+			// Part 1: Calculate time derivative jacobian
+			BufferedArray<double> tempJacBuffer = tlmAlloc.array<double>(mask.len * mask.len);
+			linalg::DenseMatrixView tempJac(static_cast<double*>(tempJacBuffer),
+				new lapackInt_t[mask.len], mask.len, mask.len);
+			tempJac.setAll(0.0);
+
+
+			ColumnPosition colPos{ z, 0.0, 0.0 };
+
+			//jacobianTimeDerivative(simTime.t, simTime.secIdx, colPos, comp, 
+			//     cShell, cShellDot, tempJac.data(), tlmAlloc);
+
+			// for now, calculate explizit
+			for (int i = 0; i < numExchangeEq; ++i)
+			{
+				// Finde entsprechende globale Indizes
+				int globalRow = -1, globalCol = -1;
+				int count = 0;
+				for (int j = 0; j < mask.len; ++j)
+				{
+					if (mask.mask[j])
+					{
+						if (count == i) { globalRow = j; break; }
+						count++;
+					}
+				}
+
+				if (globalRow >= 0)
+				{
+					jacMatrix.native(i, i) = 1.0;
+				}
+			}
+
+			if (conservationGroups.size() > 0)
+			{
+				// Set up constraint rows in Jacobian (ersetze quasi-stationäre Zeilen)
+				for (unsigned int conIdx = 0; conIdx < conservationGroups.size(); ++conIdx)
+				{
+					const int rowIdx = numExchangeEq + conIdx;
+					const auto& currentGroup = conservationGroups[conIdx];
+
+					// Clear the row first
+					for (int col = 0; col < probSize; ++col)
+						jacMatrix.native(rowIdx, col) = 0.0;
+
+					// Set conservation constraint: sum of time derivatives in group = 0
+					for (unsigned int channel : currentGroup)
+					{
+						const unsigned int maskIdx = channel * _disc.nComp + comp;
+						if (maskIdx < mask.len && mask.mask[maskIdx])
+						{
+							const int localColIdx = globalToLocal[maskIdx];
+							if (localColIdx >= 0)
+							{
+								jacMatrix.native(rowIdx, localColIdx) = 1.0;
+							}
+						}
+					}
+				}
+
+				// Set right hand side for conservation constraints
+				for (unsigned int conIdx = 0; conIdx < conservationGroups.size(); ++conIdx)
+				{
+					const auto& currentGroup = conservationGroups[conIdx];
+
+					// Calculate the constraint RHS: time derivative of exchange flux for this group
+					double rhsValue = 0.0;
+					for (unsigned int channel : currentGroup)
+					{
+						const unsigned int maskIdx = channel * _disc.nComp + comp;
+						if (maskIdx < mask.len)
+						{
+							rhsValue -= dFluxDt[maskIdx]; // Add time derivative of exchange flux
+						}
+					}
+
+					// Apply constraint RHS to representative channel
+					if (!currentGroup.empty())
+					{
+						unsigned int reprChannel = currentGroup[0];
+						const unsigned int reprMaskIdx = reprChannel * _disc.nComp + comp;
+						if (reprMaskIdx < mask.len && mask.mask[reprMaskIdx])
+						{
+							cShellDot[reprMaskIdx] = rhsValue;
+						}
+					}
+				}
+			}
+
+			// Precondition, factorize, and solve
+			BufferedArray<double> scaleFactorsBuffer = tlmAlloc.array<double>(probSize);
+			double* const scaleFactors = static_cast<double*>(scaleFactorsBuffer);
+
+			jacMatrix.rowScaleFactors(scaleFactors);
+			jacMatrix.scaleRows(scaleFactors);
+
+			// Factorize
+			const bool result = jacMatrix.factorize();
+			if (!result)
+			{
+				LOG(Error) << "Factorize() failed for component " << comp << " column block " << pblk;
+			}
+
+			// Extract RHS vector from current time derivatives
+			BufferedArray<double> rhsBuffer = tlmAlloc.array<double>(probSize);
+			double* const rhs = static_cast<double*>(rhsBuffer);
+			linalg::selectVectorSubset(cShellDot, mask, rhs);
+
+			// Solve
+			const bool result2 = jacMatrix.solve(scaleFactors, rhs);
+			if (!result2)
+			{
+				LOG(Error) << "Solve() failed for component " << comp << " column block " << pblk;
+			}
+
+			// Apply solution back to time derivatives
+			linalg::applyVectorSubset(rhs, mask, cShellDot);
+
+		} CADET_PARFOR_END;
+
+#ifdef CADET_PARALLELIZE
+		BENCH_STOP(_timerConsistentInitPar);
+#endif
+	}
 }
 
 /**

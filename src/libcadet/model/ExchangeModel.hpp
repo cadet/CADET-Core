@@ -74,6 +74,10 @@ public:
 
 	virtual double getCrossSectionRation(int idxOrig, int idxDest) const { return 0.0; }
 
+	virtual void timeDerivativeQuasiStationaryExchange(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double* dResDt, LinearBufferAllocator workSpace) const {}
+
+	virtual bool dependsOnTime() const { return false; }
+
 protected:
 };
 
