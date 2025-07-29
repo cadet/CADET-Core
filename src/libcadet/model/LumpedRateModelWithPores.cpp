@@ -63,7 +63,7 @@ int schurComplementMultiplierLRMPores(void* userData, double const* x, double* z
 
 template <typename ConvDispOperator>
 LumpedRateModelWithPores<ConvDispOperator>::LumpedRateModelWithPores(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_dynReactionBulk(nullptr), _filmDiffDep(nullptr), _jacP(0), _jacPdisc(0), _jacPF(0), _jacFP(0), _jacInlet(), _analyticJac(true),
+_dynReactionBulk{ }, _filmDiffDep(nullptr), _jacP(0), _jacPdisc(0), _jacPF(0), _jacFP(0), _jacInlet(), _analyticJac(true),
 	_jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr), _initC(0), _initCp(0), _initQ(0),
 	_initState(0), _initStateDot(0)
 {
@@ -73,9 +73,10 @@ template <typename ConvDispOperator>
 LumpedRateModelWithPores<ConvDispOperator>::~LumpedRateModelWithPores() CADET_NOEXCEPT
 {
 	delete[] _tempState;
-
-	delete _dynReactionBulk;
 	delete _filmDiffDep;
+
+	for (auto* reac : _dynReactionBulk)
+		delete reac;
 }
 
 template <typename ConvDispOperator>
@@ -339,22 +340,88 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
+	_oldReactionInterface = false;
+	_dynReactionBulk.resize(1, nullptr);
 
-	_dynReactionBulk = nullptr;
 	if (paramProvider.exists("REACTION_MODEL"))
 	{
+		_oldReactionInterface = true;
+		LOG(Warning) << "LRMP reaction configuration: The reaction interface has changed. Please refer to the documentation. The old interface is only supported for backwards compatibility";
+
 		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
-		_dynReactionBulk = helper.createDynamicReactionModel(dynReactName);
-		if (!_dynReactionBulk)
+		_dynReactionBulk[0] = helper.createDynamicReactionModel(dynReactName);
+
+		if (!_dynReactionBulk[0])
 			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
 
-		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
+		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
 			paramProvider.pushScope("reaction_bulk");
 
-		reactionConfSuccess = _dynReactionBulk->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
+		reactionConfSuccess = _dynReactionBulk[0]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr) && reactionConfSuccess;
 
-		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
+		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
 			paramProvider.popScope();
+	}
+	else if (paramProvider.exists("reaction_bulk"))
+	{
+		paramProvider.pushScope("reaction_bulk");
+
+		if (paramProvider.exists("NREAC"))
+		{
+			int nReactions = paramProvider.getInt("NREAC");
+
+			if (nReactions <= 0)
+			{
+				paramProvider.popScope();
+				throw InvalidParameterException("LRMP bulk reaction configuration: number of reaction must be positive, please check your configuration");
+			}
+			_dynReactionBulk.resize(nReactions, nullptr);
+
+			for (int i = 0; i < nReactions; ++i) {
+
+				char reactionKey[32];
+				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
+
+				if (!paramProvider.exists(reactionKey)) {
+					paramProvider.popScope();
+					throw InvalidParameterException("LRMP bulk reaction configuration: Missing reaction model definition for " + std::string(reactionKey));
+				}
+
+				paramProvider.pushScope(reactionKey);
+
+				if (!paramProvider.exists("REACTION_TYPE")) {
+					paramProvider.popScope();
+					throw InvalidParameterException("LRMP bulk reaction configuration: Missing 'type' parameter for " + std::string(reactionKey));
+				}
+
+				std::string reactionType = paramProvider.getString("REACTION_TYPE");
+				paramProvider.popScope();
+				_dynReactionBulk[i] = helper.createDynamicReactionModel(reactionType);
+
+				if (!_dynReactionBulk[i]) {
+					paramProvider.popScope();
+					throw InvalidParameterException("LRMP bulk reaction configuration: Unknown dynamic reaction model " + reactionType +
+						" for " + reactionKey);
+				}
+
+				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
+					paramProvider.pushScope(reactionKey);
+
+				reactionConfSuccess = _dynReactionBulk[i]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr) && reactionConfSuccess;
+
+				if (!reactionConfSuccess) {
+					if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
+						paramProvider.popScope();
+					paramProvider.popScope();
+					throw InvalidParameterException("LRMP bulk reaction configuration: Failed to configure reaction model " + reactionType +
+						" for " + reactionKey);
+				}
+
+				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
+					paramProvider.popScope();
+			}
+		}
+		paramProvider.popScope();
 	}
 
 	clearDynamicReactionModels();
@@ -559,11 +626,23 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configure(IParameterProvider& p
 
 	// Reconfigure reaction model
 	bool dynReactionConfSuccess = true;
-	if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
+	for (auto i = 0; i < _dynReactionBulk.size(); i++)
 	{
-		paramProvider.pushScope("reaction_bulk");
-		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
-		paramProvider.popScope();
+		if (_dynReactionBulk[i] && _dynReactionBulk[i]->requiresConfiguration())
+		{
+			paramProvider.pushScope("reaction_bulk");
+			if (!_oldReactionInterface)
+			{
+				char reactionKey[32];
+				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
+				paramProvider.pushScope(reactionKey);
+			}
+			dynReactionConfSuccess = _dynReactionBulk[i]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
+			paramProvider.popScope();
+
+			if (!_oldReactionInterface)
+				paramProvider.popScope();
+		}
 	}
 
 	if (_singleDynReaction)
@@ -604,8 +683,11 @@ unsigned int LumpedRateModelWithPores<ConvDispOperator>::threadLocalMemorySize()
 			lms.fitBlock(_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
 	}
 
-	if (_dynReactionBulk && _dynReactionBulk->requiresWorkspace())
-		lms.fitBlock(_dynReactionBulk->workspaceSize(_disc.nComp, 0, nullptr));
+	for (auto i = 0; i < _dynReactionBulk.size(); i++)
+	{
+		if (_dynReactionBulk[i] && _dynReactionBulk[i]->requiresWorkspace())
+			lms.fitBlock(_dynReactionBulk[i]->workspaceSize(_disc.nComp, 0, nullptr));
+	}
 
 	const unsigned int maxStrideBound = *std::max_element(_disc.strideBound, _disc.strideBound + _disc.nParType);
 	lms.add<active>(_disc.nComp + maxStrideBound);
@@ -999,8 +1081,8 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualBulk(double t, unsigned 
 	else
 		_convDispOp.jacobian(*this, t, secIdx, yBase, nullptr, nullptr);
 
-	if (!_dynReactionBulk || (_dynReactionBulk->numReactionsLiquid() == 0))
-		return 0;
+	if (_dynReactionBulk.empty() || !_dynReactionBulk[0])
+    return 0;
 
 	// Get offsets
 	Indexer idxr(_disc);
@@ -1011,13 +1093,21 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualBulk(double t, unsigned 
 	for (unsigned int col = 0; col < _disc.nCol; ++col, y += idxr.strideColCell(), res += idxr.strideColCell())
 	{
 		const ColumnPosition colPos{(0.5 + static_cast<double>(col)) / static_cast<double>(_disc.nCol), 0.0, 0.0};
-		if (wantRes)
-			_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
 
-		if (wantJac)
+		for (auto i = 0; i < _dynReactionBulk.size(); i++)
 		{
-			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(col * idxr.strideColCell()), tlmAlloc);
+
+			if (!_dynReactionBulk[i] || (_dynReactionBulk[i]->numReactionsLiquid() == 0))
+				continue;
+
+			if (wantRes)
+				_dynReactionBulk[i]->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
+
+			if (wantJac)
+			{
+				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+				_dynReactionBulk[i]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(col * idxr.strideColCell()), tlmAlloc);
+			}
 		}
 	}
 
@@ -1538,7 +1628,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::setParameter(const ParameterId&
 			}
 		}
 
-		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setParameter(pId, value, _dynReactionBulk, false))
 			return true;
 	}
 
@@ -1550,7 +1640,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::setParameter(const ParameterId&
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setParameter(pId, value, _dynReactionBulk, false))
 			return true;
 	}
 
@@ -1562,7 +1652,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::setParameter(const ParameterId&
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setParameter(pId, value, _dynReactionBulk, false))
 			return true;
 	}
 
@@ -1616,7 +1706,7 @@ void LumpedRateModelWithPores<ConvDispOperator>::setSensitiveParameterValue(cons
 			}
 		}
 
-		if (model::setSensitiveParameterValue(pId, value, _sensParams, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setSensitiveParameterValue(pId, value, _sensParams, _dynReactionBulk, false))
 			return;
 	}
 
@@ -1696,7 +1786,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::setSensitiveParameter(const Par
 			}
 		}
 
-		if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, std::vector<IDynamicReactionModel*> { _dynReactionBulk }, true))
+		if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams,  _dynReactionBulk , false))
 		{
 			LOG(Debug) << "Found parameter " << pId << " in DynamicBulkReactionModel: Dir " << adDirection << " is set to " << adValue;
 			return true;
