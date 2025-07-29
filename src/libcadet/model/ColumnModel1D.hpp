@@ -473,14 +473,12 @@ protected:
 			bulkEntries += _disc.nPoints * _disc.nComp * _disc.nComp; // add nComp entries for every component at each discrete bulk point
 
 		// particle
-		int addTimeDer = 0; // additional time derivative entries: bound states in particle dispersion equation
 		int isothermNNZ = 0;
 		int particleEntries = 0;
 		for (int type = 0; type < _disc.nParType; type++)
 		{
 			isothermNNZ = (idxr.strideParNode(type)) * _disc.nParPoints[type] * _disc.strideBound[type]; // every bound satte might depend on every bound and liquid state
-			addTimeDer = _disc.nParPoints[type] * _disc.strideBound[type];
-			particleEntries += _disc.nPoints * _particles[type]->jacobianNNZperParticle() + addTimeDer + isothermNNZ;
+			particleEntries += _disc.nPoints * _particles[type]->jacobianNNZperParticle() + isothermNNZ;
 		}
 
 		tripletList.reserve(bulkEntries + particleEntries);
