@@ -606,7 +606,7 @@ TEST_CASE("MCT dynamic reactions Jacobian vs AD bulk", "[MCT],[Jacobian],[AD],[R
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("MULTI_CHANNEL_TRANSPORT", "FV", true, false, false, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-TEST_CASE("MCT compare AD with analytical Jacobian for 2 channels and langmuir exchange", "[testHere]")
+TEST_CASE("MCT compare AD with analytical Jacobian for 2 channels and langmuir exchange", "[MCT],[Jacobian],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createMCT({ 1.0, 1.0 }, { 1.0, 1.0 }, { 1.0, 0.2 }, { 1.0, 1.0 }, { 0.0, 0.01, 0.0, 0.0 }, 1e-4); // increased col dispersion so that jacobian entries are above tolerances
 	jpp.pushScope("model");
@@ -615,7 +615,7 @@ TEST_CASE("MCT compare AD with analytical Jacobian for 2 channels and langmuir e
 	cadet::test::column::testJacobianAD(jpp, FDtolerance);
 }
 
-TEST_CASE("MCT numerical Benchmark comparison with linear binding LRM (2 channel with langmuir exchange, no reaction case)", "[testHere]")
+TEST_CASE("MCT numerical Benchmark comparison with linear binding LRM (2 channel with langmuir exchange, no reaction case)", "[MCT],[Simulation],[Reference],[CI]")
 {
 	const std::string& modelFilePath = std::string("/data/model_MCT2ch_1comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRM_dynLin_1comp_benchmark2_FV_Z357.h5");
