@@ -16,5 +16,5 @@ Available Exchange Models
 The exchange models are configured in the MCT unit operation under the ``exchange`` group. Each model implements different kinetic laws for the exchange process:
 
 - **Linear Exchange**: Simple linear exchange kinetics (default)
-- **Langmuir Exchange**: Capacity-limited exchange with competitive multi-component kinetics
+- **Langmuir Exchange**: Saturation-limited exchange with competitive multi-component kinetics
 
