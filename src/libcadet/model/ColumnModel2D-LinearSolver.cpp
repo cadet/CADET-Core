@@ -130,7 +130,7 @@ int ColumnModel2D::linearSolve(double t, double alpha, double outerTol, double* 
 	Eigen::Map<Eigen::VectorXd> rInlet(rhs, _disc.radNPoints * _disc.nComp);
 	Eigen::Map<Eigen::VectorXd> rInletDep(rhs + idxr.offsetC(), _convDispOp.axNNodes() * _disc.radNPoints * _disc.nComp);
 
-	rInletDep += _jacInlet * rInlet;
+	rInletDep -= _jacInlet * rInlet;
 
 	// ==== Step 2: Solve system of pure DOFs
 	// The result is stored in rhs (in-place solution)
