@@ -1272,8 +1272,8 @@ void ColumnModel2D::multiplyWithJacobian(const SimulationTime& simTime, const Co
 	ret_vec = alpha * _globalJac * yS_vec + beta * ret_vec;
 
 	// Map inlet DOFs to the column inlet (first bulk nodes)
-	Eigen::Map<const Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> yInlet(yS + idxr.offsetC(), _disc.radNPoints * _disc.nComp, Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
-	Eigen::Map<Eigen::VectorXd, 0, Eigen::InnerStride<Eigen::Dynamic>> retInlet(ret + idxr.offsetC(), _convDispOp.axNNodes() * _disc.radNPoints * _disc.nComp, Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
+	Eigen::Map<const Eigen::VectorXd> yInlet(yS + idxr.offsetC(), _disc.radNPoints * _disc.nComp);
+	Eigen::Map<Eigen::VectorXd> retInlet(ret + idxr.offsetC(), _convDispOp.axNNodes() * _disc.radNPoints * _disc.nComp);
 
 	retInlet += _jacInlet * yInlet;
 }

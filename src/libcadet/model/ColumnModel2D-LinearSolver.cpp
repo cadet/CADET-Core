@@ -126,9 +126,9 @@ int ColumnModel2D::linearSolve(double t, double alpha, double outerTol, double* 
 
 	// rhs is passed twice but due to the values in jacA the writes happen to a different area of the rhs than the reads.
 
-	// Handle inlet DOFs: // todo backward flow.
-	Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>, 0, Eigen::InnerStride<Eigen::Dynamic>> rInlet(rhs, _disc.radNPoints * _disc.nComp, Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
-	Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>, 0, Eigen::InnerStride<Eigen::Dynamic>> rInletDep(rhs + idxr.offsetC(), _convDispOp.axNNodes() * _disc.radNPoints * _disc.nComp, Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
+	// Handle inlet DOFs:
+	Eigen::Map<Eigen::VectorXd> rInlet(rhs, _disc.radNPoints * _disc.nComp);
+	Eigen::Map<Eigen::VectorXd> rInletDep(rhs + idxr.offsetC(), _convDispOp.axNNodes() * _disc.radNPoints * _disc.nComp);
 
 	rInletDep += _jacInlet * rInlet;
 
