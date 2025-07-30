@@ -8,6 +8,7 @@ This section gives complete information about the supported unit operations, bin
 .. toctree::
     unit_operations/index
     binding/index
+    exchange/index
     reaction/index
     networks
     crystallization

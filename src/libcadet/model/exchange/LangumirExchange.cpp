@@ -254,6 +254,10 @@ protected:
 									continue;
 
 								const ParamType comp_dest = static_cast<ParamType>(*yDestChannel);
+
+								if( comp_dest > cap_dest)
+									throw InvalidParameterException("Langumir Exchange: Concentration is higher than the set capacity, please check your initial concentrations.");
+
 								cap_sum_orig_dest += comp_dest / cap_dest;
 							}
 							
@@ -299,8 +303,8 @@ namespace exchange
 	{
 		exchange[LangumirExchange::identifier()] = []() { return new  LangumirExchange(); };
 	}
-}  // namespace exchange
+} // namespace exchange
 
 } // namespace model
 
-}// namespace cadet
+} // namespace cadet
