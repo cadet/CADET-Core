@@ -9,6 +9,7 @@ Input Group
     system
     unit_operations/index
     binding/index
+    exchange/index
     population_balance_model
     reaction/index
     flux_reconstruction
