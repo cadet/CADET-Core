@@ -188,13 +188,29 @@ protected:
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 	int residualImpl(StateType const* y, ResidualType* res, linalg::BandedSparseRowIterator jacBegin) const
 	{	
-
+		// Pre-compute constants to avoid repeated calculations
 		const unsigned int offsetC = _nChannel * _nComp;
-		for (unsigned int col = 0; col < _nCol; ++col) // Collum
+		const unsigned int channelBlockSize = _nChannel * _nComp;
+		
+		// Pre-cast cross sections to avoid repeated casting
+		std::vector<ParamType> crossSectionsTyped(_nChannel);
+		for (unsigned int i = 0; i < _nChannel; ++i) 
 		{
-			const unsigned int offsetColBlock = col * _nChannel * _nComp;
+			crossSectionsTyped[i] = static_cast<ParamType>(_crossSections[i]);
+		}
+
+		for (unsigned int col = 0; col < _nCol; ++col) // Column
+		{
+			const unsigned int offsetColBlock = col * channelBlockSize;
 			ResidualType* const resColBlock = res + offsetC + offsetColBlock;
 			StateType const* const yColBlock = y + offsetC + offsetColBlock;
+
+			// Pre-compute capacity matrix values for this column (cache optimization)
+			std::vector<ParamType> capacityMatrixTyped(_nComp * _nChannel);
+			for (unsigned int i = 0; i < _nComp * _nChannel; ++i) 
+			{
+				capacityMatrixTyped[i] = static_cast<ParamType>(_capacityMatrix[i]);
+			}
 
 			for (unsigned int rad_orig = 0; rad_orig < _nChannel; ++rad_orig)  // Channel orig
 			{
@@ -218,62 +234,49 @@ protected:
 						const unsigned int offsetCur_orig = offsetColRadOrigBlock + comp; // component in orig channel
 						const unsigned int offsetCur_dest = offsetColRadDestBlock + comp; // component in dest channel
 						StateType const* const yCur_orig = yColRadOrigBlock + comp; // state of component in orig channel
-						//StateType const* const yCur_dest = yColRadDestBlock + comp; // state of component in dest channel
 						ResidualType* const resCur_orig = resColRadOrigBlock + comp; // residual of component in orig channel
 						ResidualType* const resCur_dest = resColRadDestBlock + comp; // residual of component in dest channel
 
 						const ParamType exchange_orig_dest_comp = static_cast<ParamType>(_exchangeMatrix[rad_orig * _nChannel * _nComp + rad_dest * _nComp + comp]);
-						const ParamType capacity_orig_comp = static_cast<ParamType>(_capacityMatrix[rad_dest * _nComp + comp]);
-						//const ParamType capacity_dest_comp = static_cast<ParamType>(_capacityMatrix[rad_dest * _nComp + comp]);
-						if (cadet_likely(exchange_orig_dest_comp > 0.0))
+						const ParamType capacity_dest_comp = capacityMatrixTyped[rad_dest * _nComp + comp];
+
+						if (cadet_likely(exchange_orig_dest_comp > static_cast<ParamType>(0.0)))
 						{
-							double compSum_orig_dest = 0.0;
-							for (unsigned int component = 0; component < _nComp; component++)
+							// Pre-compute capacity sum for Langmuir term (avoid repeated access)
+							ParamType cap_sum_orig_dest = static_cast<ParamType>(0.0);
+							StateType const* yDestChannel = yColRadDestBlock;
+							
+							for (unsigned int component = 0; component < _nComp; ++component, ++yDestChannel)
 							{
-
-								StateType const* const compSum = yColRadDestBlock + component;
-								double compSum_dest = static_cast<double>(compSum[0]);
+								const ParamType cap_dest = capacityMatrixTyped[rad_dest * _nComp + component];
 								
-								double cMax_destComp  = static_cast<double>(_capacityMatrix[rad_dest * _nComp + component]);
-								
-								if (cMax_destComp < 1e-16)
-								{
+								if (cap_dest < static_cast<ParamType>(1e-16))
 									continue;
-								}
 
-								compSum_orig_dest += compSum_dest / cMax_destComp;
-							 }
-							
-							*resCur_orig += exchange_orig_dest_comp * yCur_orig[0] * capacity_orig_comp * (1 - compSum_orig_dest);
-							if (capacity_orig_comp < 1e-16)
-							{
-								*resCur_orig += exchange_orig_dest_comp * yCur_orig[0];
-							}
-
-							*resCur_dest -= exchange_orig_dest_comp * yCur_orig[0] * static_cast<ParamType>(_crossSections[rad_orig]) / static_cast<ParamType>(_crossSections[rad_dest]) * capacity_orig_comp * (1 - compSum_orig_dest);
-							if (capacity_orig_comp < 1e-16)
-							{
-								*resCur_dest -= exchange_orig_dest_comp * yCur_orig[0] * static_cast<ParamType>(_crossSections[rad_orig]) / static_cast<ParamType>(_crossSections[rad_dest]);
+								const ParamType comp_dest = static_cast<ParamType>(*yDestChannel);
+								cap_sum_orig_dest += comp_dest / cap_dest;
 							}
 							
+							// Clamp for numerical stability
+							cap_sum_orig_dest = std::min(cap_sum_orig_dest, static_cast<ParamType>(1.0));
+							
+							const ParamType langmuir_factor = (capacity_dest_comp > static_cast<ParamType>(1e-16)) ? 
+								capacity_dest_comp * (static_cast<ParamType>(1.0) - cap_sum_orig_dest) : static_cast<ParamType>(0.0);
+							const ParamType exchange_term = exchange_orig_dest_comp * static_cast<ParamType>(*yCur_orig) * langmuir_factor;
+							const ParamType cross_section_ratio = crossSectionsTyped[rad_orig] / crossSectionsTyped[rad_dest];
+							
+							*resCur_orig += exchange_term;
+							*resCur_dest -= exchange_term * cross_section_ratio;
 
-							if (wantJac) {
+							if (wantJac) 
+							{
+								const double jac_coeff = static_cast<double>(exchange_orig_dest_comp * langmuir_factor);
 
-								linalg::BandedSparseRowIterator jacorig;
-								jacorig = jacBegin + offsetCur_orig;
-								jacorig[0] += static_cast<double>(exchange_orig_dest_comp) * static_cast<double>(capacity_orig_comp * (1 - compSum_orig_dest));
-								if (capacity_orig_comp < 1e-16)
-								{
-									jacorig[0] -= static_cast<double>(exchange_orig_dest_comp);
-								}
+								linalg::BandedSparseRowIterator jacorig = jacBegin + offsetCur_orig;
+								jacorig[0] += jac_coeff;
 
-								linalg::BandedSparseRowIterator jacdest;
-								jacdest = jacBegin + offsetCur_dest;
-								jacdest[static_cast<int>(offsetCur_orig) - static_cast<int>(offsetCur_dest)] -= static_cast<double>(exchange_orig_dest_comp) * static_cast<double>(capacity_orig_comp) * (1 - compSum_orig_dest);
-								if (capacity_orig_comp < 1e-16)
-								{
-									jacdest[static_cast<int>(offsetCur_orig) - static_cast<int>(offsetCur_dest)] += static_cast<double>(exchange_orig_dest_comp);
-								}
+								linalg::BandedSparseRowIterator jacdest = jacBegin + offsetCur_dest;
+								jacdest[static_cast<int>(offsetCur_orig) - static_cast<int>(offsetCur_dest)] -= jac_coeff * static_cast<double>(cross_section_ratio);
 							}
 
 						}
