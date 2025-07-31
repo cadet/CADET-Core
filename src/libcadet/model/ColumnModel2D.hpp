@@ -408,14 +408,14 @@ protected:
 		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return _disc.nParType; }
 		virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return _disc.nParPoints[parType]; }
 		virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound[parType]; }
-		virtual unsigned int numMobilePhaseDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.axNPoints * _disc.radNPoints; }
-		virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _disc.nComp * _disc.nBulkPoints; }
-		virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nBulkPoints * _disc.nParType; }
+		virtual unsigned int numMobilePhaseDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nBulkPoints; }
+		virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _disc.nComp * _disc.nBulkPoints * _disc.nParPoints[parType]; }
+		virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nBulkPoints * std::accumulate(&_disc.nParPoints[0], &_disc.nParPoints[_disc.nParType], 0); }
 		virtual unsigned int numSolidPhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound[parType] * _disc.nBulkPoints; }
 		virtual unsigned int numSolidPhaseDofs() const CADET_NOEXCEPT {
 			unsigned int nDofPerParType = 0;
 			for (unsigned int i = 0; i < _disc.nParType; ++i)
-				nDofPerParType += _disc.strideBound[i];
+				nDofPerParType += _disc.nParPoints[i] * _disc.strideBound[i];
 			return _disc.nBulkPoints * nDofPerParType;
 		}
 		virtual unsigned int numParticleFluxDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.axNPoints * _disc.radNPoints * _disc.nParType; }
