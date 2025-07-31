@@ -740,7 +740,7 @@ protected:
 			writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->bulk.data());
 		}
 
-		if (_curCfg->storeParticle)
+		if (_curCfg->storeParticle && _nParShells.size() > 0)
 		{
 			std::vector<std::size_t> layout(0);
 			layout.reserve(5);
@@ -800,7 +800,7 @@ protected:
 			}
 		}
 
-		if (_curCfg->storeSolid)
+		if (_curCfg->storeSolid && _nParShells.size() > 0)
 		{
 			std::vector<std::size_t> layout(0);
 			layout.reserve(5);
