@@ -1621,14 +1621,17 @@ int ColumnModel2D::Exporter::writeSolidPhase(unsigned int parType, double* buffe
 	cadet_assert(parType < _disc.nParType);
 
 	const unsigned int stride = _disc.nComp + _disc.strideBound[parType];
-	double const* ptr = _data + _idx.offsetCp(ParticleTypeIndex{parType}) + _disc.nComp;
+	double const* ptr = _data + _idx.offsetCp(ParticleTypeIndex{parType}) + _idx.strideParLiquid();
 	for (unsigned int i = 0; i < _disc.axNPoints * _disc.radNPoints; ++i)
 	{
-		std::copy_n(ptr, _disc.strideBound[parType], buffer);
-		buffer += _disc.strideBound[parType];
-		ptr += stride;
+		for (unsigned int j = 0; j < _disc.nParPoints[parType]; ++j)
+		{
+			std::copy_n(ptr, _disc.strideBound[parType], buffer);
+			buffer += _disc.strideBound[parType];
+			ptr += stride;
+		}
 	}
-	return _disc.nBulkPoints * _disc.strideBound[parType];
+	return _disc.nBulkPoints * _disc.nParPoints[parType] * _disc.strideBound[parType];
 }
 
 int ColumnModel2D::Exporter::writeParticleMobilePhase(unsigned int parType, double* buffer) const
@@ -1639,11 +1642,14 @@ int ColumnModel2D::Exporter::writeParticleMobilePhase(unsigned int parType, doub
 	double const* ptr = _data + _idx.offsetCp(ParticleTypeIndex{parType});
 	for (unsigned int i = 0; i < _disc.axNPoints * _disc.radNPoints; ++i)
 	{
+		for (unsigned int j = 0; j < _disc.nParPoints[parType]; ++j)
+		{
 			std::copy_n(ptr, _disc.nComp, buffer);
 			buffer += _disc.nComp;
 			ptr += stride;
+		}
 	}
-	return _disc.nBulkPoints * _disc.nComp;
+	return _disc.nBulkPoints * _disc.nParPoints[parType] * _disc.nComp;
 }
 
 int ColumnModel2D::Exporter::writeInlet(unsigned int port, double* buffer) const
