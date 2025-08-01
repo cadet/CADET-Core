@@ -418,19 +418,17 @@ TEST_CASE("Column_2D as GRM numerical reference test for a three zone linear bin
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
 }
 
-//// todo find an SMA case that doesnt produce small negative values and compute reference
-//TEST_CASE("Column_2D as GRM analytical reference test for a three zone SMA binding GRM with surface diffusion", "[GRM2D],[DG],[DG2D],[Simulation],[Reference],[Analytical],[todoCI]")
-//{
-//	const std::string& modelFilePath = std::string("/data/model_COL2D_GRM3Zone_dynSMA_4Comp_benchmark1.json");
-//	const std::string refFilePath = std::string("/data/refAna_2DGRMsd3Zone_dynLin_1Comp_radZ3_benchmark1.h5");
-//	const std::vector<double> absTol = { 1E-3 }; // relatively high tolerance needed here, since the analyrtical solution computes cross sectional averages
-//	const std::vector<double> relTol = { 2E-1 };
-//
-//	cadet::test::column::DGParamsNewIF disc;
-//	const int simDataStride = 12; // number of radial ports
-//
-//	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
-//}
+TEST_CASE("Column_2D as GRM without radial variation numerical 1D reference test for a three zone SMA binding GRM with surface diffusion", "[GRM2D],[DG],[DG2D],[Simulation],[Reference],[Analytical],[testCI]")
+{
+	const std::string& modelFilePath = std::string("/data/model_COL2D_GRM2Zone_noRadVar_SMA_LWE.json");
+	const std::string refFilePath = std::string("/data/ref_GRM_reqSMA_4comp_sensbenchmark1_exIntDG_P3Z8_GSM_parP3parZ1.h5");
+	const std::vector<double> absTol = { 1E-10 };
+	const std::vector<double> relTol = { 1E-6 };
+
+	cadet::test::column::DGParamsNewIF disc(1, 3, 8, 3, 1, 3, 2); // (int exact, int polyDeg, int elem, int parPolyDeg, int parNelem, int radPolyDeg, int radNelem)
+	const int simDataStride = 12; // number of radial ports
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
+}
 
 TEST_CASE("Column_2D as GRM sensitivity Jacobians", "[Column_2D],[UnitOp],[Sensitivity],[CI]")
 {
