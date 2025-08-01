@@ -84,13 +84,8 @@ GeneralRateModel<ConvDispOperator>::~GeneralRateModel() CADET_NOEXCEPT
 	delete[] _jacP;
 	delete[] _jacPdisc;
 
-	for (auto* reac : _dynReactionBulk)
-		delete reac;
-
-	for (unsigned int i = 0; i < _dynReactionParticle.size(); i++)
-	{
-		delete _dynReactionParticle[i];
-	}
+	for (auto* reac : _dynReactionBulk) delete reac;
+	for (auto* reac : _dynReactionParticle) delete reac;
 
 	clearParDepSurfDiffusion();
 }

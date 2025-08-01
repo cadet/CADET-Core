@@ -76,7 +76,7 @@ LumpedRateModelWithPores<ConvDispOperator>::~LumpedRateModelWithPores() CADET_NO
 	delete _filmDiffDep;
 
 	for (auto* reac : _dynReactionBulk) delete reac;
-	for(auto* reac: _dynReactionParticle) delete reac
+	for (auto* reac : _dynReactionParticle) delete reac;
 
 }
 
