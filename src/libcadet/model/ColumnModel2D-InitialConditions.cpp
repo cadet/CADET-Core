@@ -382,17 +382,23 @@ void ColumnModel2D::applyInitialCondition(const SimulationState& simState) const
 	{
 		for (unsigned int blk = 0; blk < _disc.nBulkPoints; ++blk)
 		{
-			const unsigned int radZone = floor((blk / _disc.radNPoints) / _disc.radNNodes);
+			const unsigned int radZone = floor((blk % _disc.radNPoints) / _disc.radNNodes);
 			const unsigned int offset = idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ blk });
 
-			// Initialize c_p
-			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-				simState.vecStateY[offset + comp] = static_cast<double>(_initCp[comp + _disc.nComp * parType + radZone * _disc.nComp * _disc.nParType]);
+			// Loop over particle nodes
+			for (unsigned int shell = 0; shell < _disc.nParPoints[parType]; ++shell)
+			{
+				const unsigned int shellOffset = offset + shell * idxr.strideParNode(parType);
 
-			// Initialize q
-			active const* const iq = _initCs.data() + radZone * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[parType];
-			for (unsigned int bnd = 0; bnd < _disc.strideBound[parType]; ++bnd)
-				simState.vecStateY[offset + idxr.strideParLiquid() + bnd] = static_cast<double>(iq[bnd]);
+				// Initialize c_p
+				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+					simState.vecStateY[shellOffset + comp] = static_cast<double>(_initCp[comp + _disc.nComp * parType + radZone * _disc.nComp * _disc.nParType]);
+
+				// Initialize q
+				active const* const iq = _initCs.data() + radZone * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[parType];
+				for (unsigned int bnd = 0; bnd < _disc.strideBound[parType]; ++bnd)
+					simState.vecStateY[shellOffset + idxr.strideParLiquid() + bnd] = static_cast<double>(iq[bnd]);
+			}
 		}
 	}
 }

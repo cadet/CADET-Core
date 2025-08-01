@@ -490,9 +490,9 @@ bool ColumnModel2D::configureModelDiscretization(IParameterProvider& paramProvid
 	paramProvider.popScope();
 
 	// Allocate memory
-	_initC.resize(_disc.nComp * _disc.radNPoints);
-	_initCp.resize(_disc.nComp * _disc.radNPoints * _disc.nParType);
-	_initCs.resize(nTotalBound * _disc.radNPoints);
+	_initC.resize(_disc.nComp * _disc.radNElem);
+	_initCp.resize(_disc.nComp * _disc.nParType * _disc.radNElem);
+	_initCs.resize(nTotalBound * _disc.radNElem);
 
 	// Set whether analytic Jacobian is used
 	useAnalyticJacobian(analyticJac);
