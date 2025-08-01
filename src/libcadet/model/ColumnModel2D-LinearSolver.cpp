@@ -10,7 +10,7 @@
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
 
-#include "model/LumpedRateModelWithPoresDG2D.hpp"
+#include "model/ColumnModel2D.hpp"
 #include "model/BindingModel.hpp"
 #include "model/parts/BindingCellKernel.hpp"
 #include "linalg/DenseMatrix.hpp"
@@ -97,7 +97,7 @@ namespace model
  * @param [in] simState State of the simulation (state vector and its time derivatives) at which the Jacobian is evaluated
  * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
  */
-int LumpedRateModelWithPoresDG2D::linearSolve(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
+int ColumnModel2D::linearSolve(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
 	const ConstSimulationState& simState)
 {
 	BENCH_SCOPE(_timerLinearSolve);
@@ -126,11 +126,11 @@ int LumpedRateModelWithPoresDG2D::linearSolve(double t, double alpha, double out
 
 	// rhs is passed twice but due to the values in jacA the writes happen to a different area of the rhs than the reads.
 
-	// Handle inlet DOFs: // todo backward flow.
-	Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>, 0, Eigen::InnerStride<Eigen::Dynamic>> rInlet(rhs, _disc.radNPoints * _disc.nComp, Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
-	Eigen::Map<Eigen::Vector<double, Eigen::Dynamic>, 0, Eigen::InnerStride<Eigen::Dynamic>> rInletDep(rhs + idxr.offsetC(), _convDispOp.axNNodes() * _disc.radNPoints * _disc.nComp, Eigen::InnerStride<Eigen::Dynamic>(idxr.strideColRadialNode()));
+	// Handle inlet DOFs:
+	Eigen::Map<Eigen::VectorXd> rInlet(rhs, _disc.radNPoints * _disc.nComp);
+	Eigen::Map<Eigen::VectorXd> rInletDep(rhs + idxr.offsetC(), _convDispOp.axNNodes() * _disc.radNPoints * _disc.nComp);
 
-	rInletDep += _jacInlet * rInlet;
+	rInletDep -= _jacInlet * rInlet;
 
 	// ==== Step 2: Solve system of pure DOFs
 	// The result is stored in rhs (in-place solution)
@@ -162,7 +162,7 @@ int LumpedRateModelWithPoresDG2D::linearSolve(double t, double alpha, double out
  *
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  */
-void LumpedRateModelWithPoresDG2D::assembleDiscretizedGlobalJacobian(double alpha, Indexer idxr) {
+void ColumnModel2D::assembleDiscretizedGlobalJacobian(double alpha, Indexer idxr) {
 
 	// set to static (per section) jacobian
 	_globalJacDisc = _globalJac;
@@ -173,14 +173,19 @@ void LumpedRateModelWithPoresDG2D::assembleDiscretizedGlobalJacobian(double alph
 	// Add time derivatives to particles
 	for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 	{
-		linalg::BandedEigenSparseRowIterator jac(_globalJacDisc, idxr.offsetCp(ParticleTypeIndex{ parType }) - idxr.offsetC());
-
-		for (unsigned int j = 0; j < _disc.nBulkPoints; ++j)
+		for (unsigned int colNode = 0; colNode < _disc.nBulkPoints; ++colNode)
 		{
-			addTimeDerivativeToJacobianParticleBlock(jac, idxr, alpha, parType); // Mobile and solid phase equations (advances jac accordingly)
+			linalg::BandedEigenSparseRowIterator jac(_globalJacDisc, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) - idxr.offsetC());
+
+			for (unsigned int j = 0; j < _disc.nParPoints[parType]; ++j)
+			{
+				// Time derivative for mobile and solid phase equations (advances jac accordingly)
+				addTimeDerivativeToJacobianParticleShell(jac, idxr, alpha, parType);
+			}
 		}
 	}
 }
+
 /**
  * @brief Adds Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$ to bead rows of system Jacobian
  * @details Actually adds @f$ \alpha \frac{\partial F}{\partial \dot{y}} @f$, which is useful
@@ -191,40 +196,10 @@ void LumpedRateModelWithPoresDG2D::assembleDiscretizedGlobalJacobian(double alph
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  * @param [in] parType Index of the particle type
  */
-void LumpedRateModelWithPoresDG2D::addTimeDerivativeToJacobianParticleBlock(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, unsigned int parType)
+void ColumnModel2D::addTimeDerivativeToJacobianParticleShell(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, unsigned int parType)
 {
-	// Mobile phase
-	for (int comp = 0; comp < static_cast<int>(_disc.nComp); ++comp, ++jac)
-	{
-		// Add derivative with respect to dc_p / dt to Jacobian
-		jac[0] += alpha;
-
-		const double invBetaP = (1.0 - static_cast<double>(_parPorosity[parType])) / (static_cast<double>(_poreAccessFactor[parType * _disc.nComp + comp]) * static_cast<double>(_parPorosity[parType]));
-
-		// Add derivative with respect to dq / dt to Jacobian
-		const int nBound = static_cast<int>(_disc.nBound[parType * _disc.nComp + comp]);
-		for (int i = 0; i < nBound; ++i)
-		{
-			// Index explanation:
-			//   -comp -> go back to beginning of liquid phase
-			//   + strideParLiquid() skip to solid phase
-			//   + offsetBoundComp() jump to component (skips all bound states of previous components)
-			//   + i go to current bound state
-			jac[idxr.strideParLiquid() - comp + idxr.offsetBoundComp(ParticleTypeIndex{ parType }, ComponentIndex{ static_cast<unsigned int>(comp) }) + i] += alpha * invBetaP;
-		}
-	}
-
-	// Solid phase
-	int const* const qsReaction = _binding[parType]->reactionQuasiStationarity();
-	for (unsigned int bnd = 0; bnd < _disc.strideBound[parType]; ++bnd, ++jac)
-	{
-		// Add derivative with respect to dynamic states to Jacobian
-		if (qsReaction[bnd])
-			continue;
-
-		// Add derivative with respect to dq / dt to Jacobian
-		jac[0] += alpha;
-	}
+	parts::cell::addTimeDerivativeToJacobianParticleShell<linalg::BandedEigenSparseRowIterator, true>(jac, alpha, static_cast<double>(_particles[parType]->getPorosity()), _disc.nComp, _disc.nBound + _disc.nComp * parType,
+		_particles[parType]->getPoreAccessFactor(), _disc.strideBound[parType], _disc.boundOffset + _disc.nComp * parType, _binding[parType]->reactionQuasiStationarity());
 }
 
 }  // namespace model

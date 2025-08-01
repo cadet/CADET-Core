@@ -356,7 +356,7 @@ protected:
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return true; }
 		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound[_disc.nParType] > 0; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
-		virtual bool isParticleLumped() const CADET_NOEXCEPT { return true; }
+		virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return true; }
 		virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return true; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
@@ -484,9 +484,9 @@ protected:
 	 * @brief analytically calculates the static (per section) bulk jacobian (inlet DOFs included!)
 	 * @return 1 if jacobain estimation fits the predefined pattern of the jacobian, 0 if not.
 	 */
-	int calcStaticAnaGlobalJacobian(const unsigned int secIdx) {
+	int calcTransportGlobalJacobian(const unsigned int secIdx) {
 		
-		bool success = _convDispOp.calcStaticAnaJacobian(_globalJac, _jacInlet);
+		bool success = _convDispOp.calcTransportJacobian(_globalJac, _jacInlet);
 		success = success && calcFluxJacobians(secIdx, false);
 
 		return success;
@@ -511,7 +511,7 @@ protected:
 
 		unsigned int nEntries = 0;
 		// Convection dispersion
-		nEntries = _convDispOp.nConvDispEntries(false);
+		nEntries = _convDispOp.nJacEntries(false);
 
 		// Bulk reaction entries
 		if (hasBulkReaction)

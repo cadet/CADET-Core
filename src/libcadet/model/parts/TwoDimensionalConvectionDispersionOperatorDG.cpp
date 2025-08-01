@@ -974,11 +974,6 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 			Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> _cRes(res + offsetC + comp, _axNPoints * _radNPoints, InnerStride<Dynamic>(_radNodeStride));
 			_cRes = _cDot.template cast<ResidualType>();
 		}
-		else
-		{
-			Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> _cRes(res + offsetC + comp, _axNPoints * _radNPoints, InnerStride<Dynamic>(_radNodeStride));
-			_cRes.setZero();
-		}
 
 		for (unsigned int zEidx = 0; zEidx < _axNElem; zEidx++)
 		{
@@ -1441,6 +1436,23 @@ void TwoDimensionalConvectionDispersionOperatorDG::addAxElemBlockToJac(const Eig
 	}
 }
 /**
+ * @brief inserts an element block for all components to the system Jacobian
+ * @detail the element block has axNNodes * radNNodes rows and arbitrary number of columns
+ * @param [in] block to be added
+ * @param [in] jacobian jacobian matrix
+ * @param [in] offRow offset to first considered row
+ * @param [in] offColumn column to row offset
+ * @param [in] depElem number of elements the element block element depends on
+ */
+void TwoDimensionalConvectionDispersionOperatorDG::insertAxElemBlockToJac(const Eigen::MatrixXd& block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int offColumn, const int depElem, const active* const compFac)
+{
+	auto insertEntry = [&jacobian](int row, int col, double value) {
+		jacobian.coeffRef(row, col) = value;
+		};
+
+	addAxElemBlockToJac(block, offRow, offColumn, depElem, insertEntry, compFac);
+}
+/**
  * @brief adds an element block for all components to the system Jacobian
  * @detail the element block has axNNodes * radNNodes rows and arbitrary number of columns
  * @param [in] block to be added
@@ -1536,6 +1548,23 @@ void TwoDimensionalConvectionDispersionOperatorDG::addRadElemBlockToJac(const Ei
 	addRadElemBlockToJac(block, offRow, nLeftRadElemDep, depElem, addEntry);
 }
 /**
+ * @brief inserts an element block for all components to the system Jacobian
+ * @detail the element block has axNNodes * radNNodes rows and arbitrary number of columns
+ * @param [in] block to be added
+ * @param [in] jacobian jacobian matrix times -1.0
+ * @param [in] offRow offset to first considered row
+ * @param [in] nLeftRadElemDep number of left radial elements this block depends on
+ * @param [in] depElem number of elements the element block element depends on
+ */
+void TwoDimensionalConvectionDispersionOperatorDG::insertRadElemBlockToJac(const Eigen::MatrixXd* block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int nLeftRadElemDep, const int depElem)
+{
+	auto insertEntry = [&jacobian](int row, int col, double value) {
+		jacobian.coeffRef(row, col) = value;
+		};
+
+	addRadElemBlockToJac(block, offRow, nLeftRadElemDep, depElem, insertEntry);
+}
+/**
  * @brief adds an element block for all components to the system Jacobian
  * @detail the element block has axNNodes * radNNodes rows and arbitrary number of columns
  * @param [in] block to be added
@@ -1625,9 +1654,10 @@ void TwoDimensionalConvectionDispersionOperatorDG::convDispJacPattern(std::vecto
  * @brief Assembles the transport Jacobian
  * @param [in] jacobian Jacobian matrix of unit in sparse format
  * @param [in] jacInlet Inlet Jacobian matrix
+ * @param [in] addJac determines whether the Jacobian entrties are added to the matrix, or overwrite existing entries
  * @param [in] bulkOffset Offset to first entry of bulk phase in unit Jacobian, defaults to 0
  */
-bool TwoDimensionalConvectionDispersionOperatorDG::assembleConvDispJacobian(Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset)
+bool TwoDimensionalConvectionDispersionOperatorDG::assembleConvDispJacobian(Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const bool addJac, const int bulkOffset)
 {
 	const int Np = _elemNPoints; //<! number of points per 2D element
 	const int uAxElem = std::min(5, static_cast<int>(_axNElem)); // number of unique axial Jacobian blocks (per radial element)
@@ -1644,6 +1674,29 @@ bool TwoDimensionalConvectionDispersionOperatorDG::assembleConvDispJacobian(Eige
 
 		for (int rElem = 0; rElem < _radNElem; rElem++, curDax += _nComp, curDrad += _nComp)
 		{
+			const int nRightAxElemDep = std::min(2, static_cast<int>(_axNElem) - 1 - zElem); //<! number of right axial elements, this element depends on
+			const int nLeftAxElemDep = std::min(2, zElem); //<! number of left axial elements, this element depends on
+			const int offSetRow = bulkOffset + zElem * _axElemStride + rElem * _radElemStride;
+			const int offSetColumnToRow = -nLeftAxElemDep * _axElemStride;
+
+			/* handle axial dispersion Jacobian */
+			{
+				int uAxBlockIdx = zElem; // unique block index
+				if (zElem > 2)
+				{
+					if (zElem + 2 == _axNElem || _axNElem == 4) // next element is last element or special case of four elements
+						uAxBlockIdx = 3;
+					else if (zElem + 1 == _axNElem) // this element is the last element and we have at least five elements
+						uAxBlockIdx = 4;
+					else // this element has at least two neighbours in each axial direction
+						uAxBlockIdx = 2;
+				}
+				if (addJac)
+					addAxElemBlockToJac(-_jacAxDispersion[rElem * uAxElem + uAxBlockIdx].block(0, Np * (2 - nLeftAxElemDep), Np, Np * (nLeftAxElemDep + 1 + nRightAxElemDep)), jacobian, offSetRow, offSetColumnToRow, nLeftAxElemDep + 1 + nRightAxElemDep, curDax);
+				else
+					insertAxElemBlockToJac(-_jacAxDispersion[rElem * uAxElem + uAxBlockIdx].block(0, Np * (2 - nLeftAxElemDep), Np, Np * (nLeftAxElemDep + 1 + nRightAxElemDep)), jacobian, offSetRow, offSetColumnToRow, nLeftAxElemDep + 1 + nRightAxElemDep, curDax);
+			}
+
 			/* handle axial convection Jacobian */
 
 			// inlet Jacobian
@@ -1661,34 +1714,16 @@ bool TwoDimensionalConvectionDispersionOperatorDG::assembleConvDispJacobian(Eige
 					}
 				}
 			}
-			// "inner" Jacobian
-			const int nRightAxElemDep = std::min(2, static_cast<int>(_axNElem) - 1 - zElem); //<! number of right axial elements, this element depends on
-			const int nLeftAxElemDep = std::min(2, zElem); //<! number of left axial elements, this element depends on
-			const int offSetRow = bulkOffset + zElem * _axElemStride + rElem * _radElemStride;
-			const int offSetColumnToRow = -nLeftAxElemDep * _axElemStride;
-
+			// "inner" Jacobian convection part is always added since its a subset of the dispersion pattern
 			addAxElemBlockToJac(-_jacConvection[rElem].block(0, Np * (2 - nLeftAxElemDep), Np, Np * (nLeftAxElemDep + 1 + nRightAxElemDep)), jacobian, offSetRow, offSetColumnToRow, nLeftAxElemDep + 1 + nRightAxElemDep);
-
-			/* handle axial dispersion Jacobian */
-			{
-				int uAxBlockIdx = zElem; // unique block index
-				if (zElem > 2)
-				{
-					if (zElem + 2 == _axNElem || _axNElem == 4) // next element is last element or special case of four elements
-						uAxBlockIdx = 3;
-					else if (zElem + 1 == _axNElem) // this element is the last element and we have at least five elements
-						uAxBlockIdx = 4;
-					else // this element has at least two neighbours in each axial direction
-						uAxBlockIdx = 2;
-				}
-
-				addAxElemBlockToJac(-_jacAxDispersion[rElem * uAxElem + uAxBlockIdx].block(0, Np * (2 - nLeftAxElemDep), Np, Np * (nLeftAxElemDep + 1 + nRightAxElemDep)), jacobian, offSetRow, offSetColumnToRow, nLeftAxElemDep + 1 + nRightAxElemDep, curDax);
-			}
 
 			/* handle radial dispersion Jacobian */
 			const int nLeftRadElem = std::min(2, rElem);
 			const int nRightRadElem = std::min(2, static_cast<int>(_radNElem) - 1 - rElem);
-			addRadElemBlockToJac(_jacRadDispersion + rElem * _nComp, jacobian, offSetRow, nLeftRadElem, nLeftRadElem + 1 + nRightRadElem);
+			if (addJac)
+				addRadElemBlockToJac(_jacRadDispersion + rElem * _nComp, jacobian, offSetRow, nLeftRadElem, nLeftRadElem + 1 + nRightRadElem);
+			else
+				insertRadElemBlockToJac(_jacRadDispersion + rElem * _nComp, jacobian, offSetRow, nLeftRadElem, nLeftRadElem + 1 + nRightRadElem);
 		}
 	}
 

@@ -58,7 +58,7 @@ public:
 	InternalStorageUnitOpRecorder(UnitOpIdx idx) : _cfgSolution({false, false, false, true, false, false, false}),
 		_cfgSolutionDot({false, false, false, false, false, false, false}), _cfgSensitivity({false, false, false, true, false, false, false}),
 		_cfgSensitivityDot({false, false, false, true, false, false, false}), _storeTime(false), _storeCoordinates(false), _splitComponents(true), _splitPorts(true),
-		_singleAsMultiPortUnitOps(false), _keepBulkSingletonDim(true), _keepParticleSingletonDim(true), _curCfg(nullptr), _nComp(0), _nVolumeDof(0), _nAxialCells(0), _nRadialCells(0),
+		_singleAsMultiPortUnitOps(false), _keepBulkSingletonDim(true), _curCfg(nullptr), _nComp(0), _nVolumeDof(0), _nAxialCells(0), _nRadialCells(0),
 		_nInletPorts(0), _nOutletPorts(0), _numTimesteps(0), _numSens(0), _unitOp(idx), _needsReAlloc(false), _axialCoords(0), _radialCoords(0), _particleCoords(0)
 	{
 	}
@@ -125,19 +125,20 @@ public:
 		_nOutletPorts = exporter.numOutletPorts();
 
 		_keepBulkSingletonDim = exporter.hasPrimaryExtent();
-		_keepParticleSingletonDim = !exporter.isParticleLumped();
 
 		_nAxialCells = exporter.numPrimaryCoordinates();
 		_nRadialCells = exporter.numSecondaryCoordinates();
 
 		// Query particle type specific structure
 		const unsigned int numParTypes = exporter.numParticleTypes();
+		_keepParticleSingletonDim.resize(numParTypes, 0u);
 		_nParShells.resize(numParTypes, 0u);
 		_nBoundStates.resize(numParTypes, 0u);
 		for (unsigned int i = 0; i < numParTypes; ++i)
 		{
 			_nParShells[i] = exporter.numParticleShells(i);
 			_nBoundStates[i] = exporter.numBoundStates(i);
+			_keepParticleSingletonDim[i] = !exporter.isParticleLumped(i);
 		}
 
 		// Obtain coordinates
@@ -350,7 +351,7 @@ public:
 			unsigned int offset = 0;
 			for (std::size_t pt = 0; pt < _nParShells.size(); ++pt)
 			{
-				if (_nParShells[pt] == 0 || (!_keepParticleSingletonDim && (_nParShells[pt] == 1)))
+				if (_nParShells[pt] == 0 || (!_keepParticleSingletonDim[pt] && (_nParShells[pt] == 1)))
 					continue;
 
 				oss.str("");
@@ -449,10 +450,10 @@ public:
 	inline void treatSingleAsMultiPortUnitOps(bool smp) CADET_NOEXCEPT { _singleAsMultiPortUnitOps = smp; }
 
 	inline bool keepBulkSingletonDim() const CADET_NOEXCEPT { return _keepBulkSingletonDim; }
-	inline void keepBulkSingletonDim(bool keepSingleton) CADET_NOEXCEPT { _keepBulkSingletonDim = keepSingleton; }
+	inline void setKeepBulkSingletonDim(bool keepSingleton) CADET_NOEXCEPT { _keepBulkSingletonDim = keepSingleton; }
 
-	inline bool keepParticleSingletonDim() const CADET_NOEXCEPT { return _keepParticleSingletonDim; }
-	inline void keepParticleSingletonDim(bool keepSingleton) CADET_NOEXCEPT { _keepParticleSingletonDim = keepSingleton; }
+	inline bool keepParticleSingletonDim(unsigned int parType) const CADET_NOEXCEPT { return _keepParticleSingletonDim[parType]; }
+	inline void setKeepParticleSingletonDim(bool keepSingleton) CADET_NOEXCEPT { std::fill(_keepParticleSingletonDim.begin(), _keepParticleSingletonDim.end(), keepSingleton); }
 
 	inline UnitOpIdx unitOperation() const CADET_NOEXCEPT { return _unitOp; }
 	inline void unitOperation(UnitOpIdx idx) CADET_NOEXCEPT { _unitOp = idx; }
@@ -739,7 +740,7 @@ protected:
 			writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->bulk.data());
 		}
 
-		if (_curCfg->storeParticle)
+		if (_curCfg->storeParticle && _nParShells.size() > 0)
 		{
 			std::vector<std::size_t> layout(0);
 			layout.reserve(5);
@@ -754,7 +755,7 @@ protected:
 			{
 				if (_nParShells[0] >= 1)
 				{
-					if ((_nParShells[0] == 1) && _keepParticleSingletonDim)
+					if ((_nParShells[0] == 1) && _keepParticleSingletonDim[0])
 						layout.push_back(_nParShells[0]);
 					else if (_nParShells[0] > 1)
 						layout.push_back(_nParShells[0]);
@@ -779,12 +780,12 @@ protected:
 					std::size_t layoutSize = layout.size();
 					if (hasParticleShells)
 					{
-						if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim)
+						if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim[parType])
 						{
 							layout[layoutSize - 2] = _nComp;
 							--layoutSize;
 						}
-						else if ((_nParShells[parType] == 1) && _keepParticleSingletonDim)
+						else if ((_nParShells[parType] == 1) && _keepParticleSingletonDim[parType])
 							layout[layout.size() - 2] = _nParShells[parType];
 						else if (_nParShells[parType] > 1)
 							layout[layout.size() - 2] = _nParShells[parType];
@@ -799,7 +800,7 @@ protected:
 			}
 		}
 
-		if (_curCfg->storeSolid)
+		if (_curCfg->storeSolid && _nParShells.size() > 0)
 		{
 			std::vector<std::size_t> layout(0);
 			layout.reserve(5);
@@ -814,7 +815,7 @@ protected:
 			{
 				if (_nParShells[0] >= 1)
 				{
-					if ((_nParShells[0] == 1) && _keepParticleSingletonDim)
+					if ((_nParShells[0] == 1) && _keepParticleSingletonDim[0])
 						layout.push_back(_nParShells[0]);
 					else if (_nParShells[0] > 1)
 						layout.push_back(_nParShells[0]);
@@ -839,9 +840,9 @@ protected:
 					std::size_t layoutSize = layout.size();
 					if (hasParticleShells)
 					{
-						if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim)
+						if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim[0])
 							--layoutSize;
-						else if ((_nParShells[parType] == 1) && _keepParticleSingletonDim)
+						else if ((_nParShells[parType] == 1) && _keepParticleSingletonDim[0])
 							layout[layout.size() - 2] = _nParShells[parType];
 						else if (_nParShells[parType] > 1)
 							layout[layout.size() - 2] = _nParShells[parType];
@@ -934,7 +935,7 @@ protected:
 	bool _splitPorts;
 	bool _singleAsMultiPortUnitOps;
 	bool _keepBulkSingletonDim;
-	bool _keepParticleSingletonDim;
+	std::vector<bool> _keepParticleSingletonDim;
 
 	StorageConfig const* _curCfg;
 	Storage* _curStorage;

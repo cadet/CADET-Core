@@ -1,6 +1,6 @@
 {
   "model": {
-    "NUNITS": 2,
+    "NUNITS": 5,
     "connections": {
       "CONNECTIONS_INCLUDE_PORTS": 1,
       "NSWITCHES": 1,
@@ -12,98 +12,168 @@
           0.0,
           -1.0,
           -1.0,
-          8.3546729631403548e-11,
+          6.3175767776832955e-12,
+          0.0,
+          4.0,
+          0.0,
+          0.0,
+          -1.0,
+          -1.0,
+          6.3175767776832955e-12,
           1.0,
           0.0,
           0.0,
           1.0,
           -1.0,
           -1.0,
-          2.5064018889421068e-10,
+          2.2111518721891524e-10,
+          0.0,
+          4.0,
+          1.0,
+          0.0,
+          -1.0,
+          -1.0,
+          2.2111518721891524e-10,
           1.0,
           0.0,
           0.0,
           2.0,
           -1.0,
           -1.0,
-          3.1330023611776335e-10,
+          5.3699402610308e-10,
+          0.0,
+          4.0,
+          2.0,
+          0.0,
+          -1.0,
+          -1.0,
+          5.3699402610308e-10,
           1.0,
           0.0,
           0.0,
           3.0,
           -1.0,
           -1.0,
-          4.3862033056486869e-10,
-          1.0,
+          1.4530426588671583e-10,
+          0.0,
+          4.0,
+          3.0,
+          0.0,
+          -1.0,
+          -1.0,
+          1.4530426588671583e-10,
+          2.0,
           0.0,
           0.0,
           4.0,
           -1.0,
           -1.0,
-          3.759602833413161e-10,
-          1.0,
+          1.5793941944208242e-10,
+          0.0,
+          5.0,
+          4.0,
+          0.0,
+          -1.0,
+          -1.0,
+          1.5793941944208242e-10,
+          2.0,
           0.0,
           0.0,
           5.0,
           -1.0,
           -1.0,
-          4.5950701297271953e-10,
-          1.0,
+          9.792244005409108e-10,
+          0.0,
+          5.0,
+          5.0,
+          0.0,
+          -1.0,
+          -1.0,
+          9.792244005409108e-10,
+          2.0,
           0.0,
           0.0,
           6.0,
           -1.0,
           -1.0,
-          5.430537426041233e-10,
-          1.0,
+          1.2951032394250757e-09,
+          0.0,
+          5.0,
+          6.0,
+          0.0,
+          -1.0,
+          -1.0,
+          1.2951032394250757e-09,
+          2.0,
           0.0,
           0.0,
           7.0,
           -1.0,
           -1.0,
-          6.266004722355263e-10,
-          1.0,
+          2.9692610855111465e-10,
+          0.0,
+          5.0,
+          7.0,
+          0.0,
+          -1.0,
+          -1.0,
+          2.9692610855111465e-10,
+          3.0,
           0.0,
           0.0,
           8.0,
           -1.0,
           -1.0,
-          7.101472018669311e-10,
-          1.0,
+          3.095612621064807e-10,
+          0.0,
+          6.0,
+          8.0,
+          0.0,
+          -1.0,
+          -1.0,
+          3.095612621064807e-10,
+          3.0,
           0.0,
           0.0,
           9.0,
           -1.0,
           -1.0,
-          7.936939314983349e-10,
-          1.0,
+          1.7373336138629064e-09,
+          0.0,
+          6.0,
+          9.0,
+          0.0,
+          -1.0,
+          -1.0,
+          1.7373336138629064e-09,
+          3.0,
           0.0,
           0.0,
           10.0,
           -1.0,
           -1.0,
-          8.772406611297365e-10,
-          1.0,
+          2.053212452747071e-09,
+          0.0,
+          6.0,
+          10.0,
+          0.0,
+          -1.0,
+          -1.0,
+          2.053212452747071e-09,
+          3.0,
           0.0,
           0.0,
           11.0,
           -1.0,
           -1.0,
-          9.607873907611417e-10,
-          1.0,
+          4.485479512155133e-10,
           0.0,
+          6.0,
+          11.0,
           0.0,
-          12.0,
           -1.0,
           -1.0,
-          1.044334120392546e-09,
-          1.0,
-          0.0,
-          0.0,
-          13.0,
-          -1.0,
-          -1.0,
-          1.1278808500239482e-09
+          4.485479512155133e-10
         ],
         "SECTION": 0
       }
@@ -115,43 +185,60 @@
       "SCHUR_SAFETY": 1e-08
     },
     "unit_000": {
-      "ADSORPTION_MODEL": "NONE",
-      "COL_DISPERSION": [ 1e-08, 2e-08, 3e-08, 4e-08 ],
-      "COL_DISPERSION_RADIAL": [ 1e-08, 2e-08, 3e-08, 4e-08 ],
+      "COL_DISPERSION": [ 5.75e-08, 1e-08, 6e-07 ],
+      "COL_DISPERSION_RADIAL": [ 9e-08, 5e-08, 1e-08 ],
       "COL_LENGTH": 0.014,
-      "COL_POROSITY": [ 0.31, 0.33, 0.35, 0.37 ],
+      "COL_POROSITY": [ 0.37, 0.38, 0.4 ],
       "COL_RADIUS": 0.0035,
       "CROSS_SECTION_AREA": 3.848451000647497e-05,
-      "FILM_DIFFUSION": 0.0,
       "INIT_C": [
         0
       ],
-      "INIT_CP": [
-        0
-      ],
-      "INIT_Q": [
-        0
-      ],
-      "NBOUND": 0,
       "NCOMP": 1,
-      "NPARTYPE": 2,
-      "PAR_POROSITY": [ 0.75, 0.6 ],
-      "PAR_RADIUS": [ 4.5e-05, 8e-05 ],
-      "PAR_TYPE_VOLFRAC": [ 0.7, 0.3, 0.5, 0.5, 0.7, 0.3, 0.1, 0.9 ],
-      "PAR_TYPE_VOLFRAC_MULTIPLEX": 1,
-      "PORTS": 7,
-      "UNIT_TYPE": "LUMPED_RATE_MODEL_WITH_PORES_2D",
+      "NPARTYPE": 1,
+      "PAR_TYPE_VOLFRAC": 1.0,
+      "PORTS": 12,
+      "UNIT_TYPE": "COLUMN_MODEL_2D",
       "VELOCITY": 0.000575,
-      "discretization": {
-        "AX_NELEM": 4,
-        "AX_POLYDEG": 1,
-        "RADIAL_DISC_TYPE": "EQUIDISTANT",
-        "RAD_NELEM": 4,
-        "RAD_POLYDEG": 2,
-        "SPATIAL_METHOD": "DG",
-        "USE_ANALYTIC_JACOBIAN": true
-      }
-    },
+      "particle_type_000": {
+        "PARTICLE_TYPE": "GENERAL_RATE_PARTICLE",
+        "FILM_DIFFUSION": 6.9e-06,
+        "PAR_DIFFUSION": 6.07e-11,
+        "PAR_POROSITY": 0.75,
+        "PAR_RADIUS": 4.5e-05,
+        "PAR_SURFDIFFUSION": 1e-11,
+        "ADSORPTION_MODEL": "LINEAR",
+        "NBOUND": 1,
+        "adsorption": {
+          "IS_KINETIC": 1,
+          "LIN_KA": 35.5,
+          "LIN_KD": 1.0
+        },
+        "INIT_CP": [
+          0
+        ],
+        "INIT_CS": [
+          0
+        ],
+        "discretization": {
+          "PAR_DISC_TYPE": [
+            "EQUIDISTANT_PAR"
+          ],
+          "SPATIAL_METHOD": "DG",
+          "PAR_POLYDEG": 3,
+          "PAR_NELEM": 1
+        }
+        },
+        "discretization": {
+          "AX_POLYDEG": 3,
+          "AX_NELEM": 8,
+          "RAD_POLYDEG": 3,
+          "RAD_NELEM": 3,
+          "RADIAL_DISC_TYPE": "EQUIDISTANT",
+          "SPATIAL_METHOD": "DG",
+          "USE_ANALYTIC_JACOBIAN": true
+        }
+      },
     "unit_001": {
       "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
       "NCOMP": 1,
@@ -165,6 +252,46 @@
           0.0
         ]
       }
+    },
+    "unit_002": {
+      "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
+      "NCOMP": 1,
+      "PORTS": 1,
+      "UNIT_TYPE": "INLET",
+      "sec_000": {
+        "CONST_COEFF": 2.0
+      },
+      "sec_001": {
+        "CONST_COEFF": [
+          0.0
+        ]
+      }
+    },
+    "unit_003": {
+      "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
+      "NCOMP": 1,
+      "PORTS": 1,
+      "UNIT_TYPE": "INLET",
+      "sec_000": {
+        "CONST_COEFF": 3.0
+      },
+      "sec_001": {
+        "CONST_COEFF": [
+          0.0
+        ]
+      }
+    },
+    "unit_004": {
+      "NCOMP": 1,
+      "UNIT_TYPE": "OUTLET"
+    },
+    "unit_005": {
+      "NCOMP": 1,
+      "UNIT_TYPE": "OUTLET"
+    },
+    "unit_006": {
+      "NCOMP": 1,
+      "UNIT_TYPE": "OUTLET"
     }
   },
   "return": {
@@ -173,7 +300,37 @@
     "unit_000": {
       "WRITE_COORDINATES": 1,
       "WRITE_SENS_OUTLET": 0,
-      "WRITE_SOLUTION_BULK": 1,
+      "WRITE_SOLUTION_BULK": 0,
+      "WRITE_SOLUTION_FLUX": 0,
+      "WRITE_SOLUTION_INLET": 0,
+      "WRITE_SOLUTION_OUTLET": 1,
+      "WRITE_SOLUTION_PARTICLE": 0,
+      "WRITE_SOLUTION_SOLID": 0
+    },
+    "unit_004": {
+      "WRITE_COORDINATES": 1,
+      "WRITE_SENS_OUTLET": 0,
+      "WRITE_SOLUTION_BULK": 0,
+      "WRITE_SOLUTION_FLUX": 0,
+      "WRITE_SOLUTION_INLET": 0,
+      "WRITE_SOLUTION_OUTLET": 1,
+      "WRITE_SOLUTION_PARTICLE": 0,
+      "WRITE_SOLUTION_SOLID": 0
+    },
+    "unit_005": {
+      "WRITE_COORDINATES": 1,
+      "WRITE_SENS_OUTLET": 0,
+      "WRITE_SOLUTION_BULK": 0,
+      "WRITE_SOLUTION_FLUX": 0,
+      "WRITE_SOLUTION_INLET": 0,
+      "WRITE_SOLUTION_OUTLET": 1,
+      "WRITE_SOLUTION_PARTICLE": 0,
+      "WRITE_SOLUTION_SOLID": 0
+    },
+    "unit_006": {
+      "WRITE_COORDINATES": 1,
+      "WRITE_SENS_OUTLET": 0,
+      "WRITE_SOLUTION_BULK": 0,
       "WRITE_SOLUTION_FLUX": 0,
       "WRITE_SOLUTION_INLET": 0,
       "WRITE_SOLUTION_OUTLET": 1,
@@ -183,9 +340,8 @@
   },
   "solver": {
     "CONSISTENT_INIT_MODE": 3,
-    "NTHREADS": -1,
+    "NTHREADS": 1,
     "USER_SOLUTION_TIMES": [
-      0.0,
       1.0,
       2.0,
       3.0,
@@ -1699,11 +1855,11 @@
       ]
     },
     "time_integrator": {
-      "ABSTOL": 1e-06,
-      "ALGTOL": 1e-10,
+      "ABSTOL": 1e-10,
+      "ALGTOL": 1e-08,
       "INIT_STEP_SIZE": 1e-06,
       "MAX_STEPS": 1000000,
-      "RELTOL": 1e-06,
+      "RELTOL": 1e-08,
       "USE_MODIFIED_NEWTON": 0
     }
   }
