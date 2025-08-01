@@ -505,13 +505,13 @@ TEST_CASE("Column_2D as GRM consistent sensitivity initialization with SMA bindi
 }
 
 // todo modify SMA test case so that 2DDG does not produce negative values
-TEST_CASE("Column_2D as GRM LWE one vs two identical particle types match", "[Column_2D],[Simulation],[ParticleType],[todoCI]")
+TEST_CASE("Column_2D as GRM LWE one vs two identical particle types match", "[Column_2D],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("COLUMN_MODEL_2D_GRM", "DG", 1e-7, 5e-5);
 }
 
 // todo modify SMA test case so that 2DDG does not produce negative values
-TEST_CASE("Column_2D as GRM LWE separate identical particle types match", "[Column_2D],[Simulation],[ParticleType],[todoCI]")
+TEST_CASE("Column_2D as GRM LWE separate identical particle types match", "[Column_2D],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testSeparateIdenticalParticleTypes("COLUMN_MODEL_2D_GRM", "DG", 1e-7, 5e-5);
 }
