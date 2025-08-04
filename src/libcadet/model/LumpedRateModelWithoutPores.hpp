@@ -249,6 +249,8 @@ protected:
 	std::vector<active> _initQ; //!< Solid phase initial conditions
 	std::vector<double> _initState; //!< Initial conditions for state vector if given
 	std::vector<double> _initStateDot; //!< Initial conditions for time derivative
+	
+	bool _oldReactionInterface; //!< Flag to distinguish between old and new reaction interface
 
 	BENCH_TIMER(_timerResidual)
 	BENCH_TIMER(_timerResidualPar)

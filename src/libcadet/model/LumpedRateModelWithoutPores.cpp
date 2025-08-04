@@ -254,6 +254,7 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 	bool reactionConfSuccess = true;
 	clearDynamicReactionModels();
 	_dynReaction.push_back(nullptr);
+	_oldReactionInterface = false;
 
 	if (paramProvider.exists("REACTION_MODEL"))
 	{
@@ -269,6 +270,74 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 		if (_dynReaction[0]->usesParamProviderInDiscretizationConfig())
 			paramProvider.popScope();
 	}
+	else if (paramProvider.exists("reaction_cross_phase"))
+	{
+			paramProvider.pushScope("reaction_cross_phase");
+
+			int nReactions = paramProvider.getInt("NREAC");
+			_dynReaction.resize(nReactions);
+			
+			for (int reac = 0; reac < nReactions; ++reac)
+			{
+				char reactionKey[32];
+				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", reac);
+
+				if (!paramProvider.exists(reactionKey))
+				{
+					paramProvider.popScope();
+					throw InvalidParameterException(std::string("Missing reaction model definition") +
+						", reaction " + std::to_string(reac) +
+						" (" + std::string(reactionKey) + ")");
+				}
+
+				paramProvider.pushScope(reactionKey);
+
+				if (!paramProvider.exists("REACTION_TYPE"))
+				{
+					paramProvider.popScope();
+					paramProvider.popScope();
+					throw InvalidParameterException(std::string("Missing 'REACTION_TYPE' parameter " )+
+						", " + std::string(reactionKey));
+				}
+
+				std::string reactionType = paramProvider.getString("REACTION_TYPE");
+				paramProvider.popScope();
+				_dynReaction[reac] = helper.createDynamicReactionModel(reactionType);
+
+				if (!_dynReaction[reac])
+				{
+					paramProvider.popScope();
+					paramProvider.popScope();
+					throw InvalidParameterException("Unknown dynamic reaction model '" + reactionType +
+						"' for particle " + std::string(reactionKey));
+				}
+
+				if (_dynReaction[reac]->usesParamProviderInDiscretizationConfig())
+					paramProvider.pushScope(reactionKey);
+
+				// Configure the reaction model
+				reactionConfSuccess = _dynReaction[reac]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset) && reactionConfSuccess;
+
+				if (!reactionConfSuccess)
+				{
+					if (_dynReaction[reac]->usesParamProviderInDiscretizationConfig())
+						paramProvider.popScope();
+					paramProvider.popScope();
+					throw InvalidParameterException("Failed to configure reaction model " + reactionType +
+						" for " + reactionKey);
+				}
+
+				if (_dynReaction[reac]->usesParamProviderInDiscretizationConfig())
+					paramProvider.popScope();
+
+				//paramProvider.popScope(); // Exit reaction_model_XXX scope
+
+			}
+
+			paramProvider.popScope(); // Exit reaction_particle_XXX scope
+
+	}
+
 
 	// Setup the memory for tempState based on state vector
 	_tempState = new double[numDofs()];
@@ -311,16 +380,42 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configure(IParameterProvider
 		paramProvider.popScope();
 	}
 
-	// Reconfigure dynamic reaction model
-	bool reactionConfSuccess = true;
-	if (_dynReaction[0] && paramProvider.exists("reaction") && _dynReaction[0]->requiresConfiguration())
+	// Reconfigure reaction model
+	bool dynReactionConfSuccess = true;
+	if (_oldReactionInterface)
 	{
-		paramProvider.pushScope("reaction");
-		reactionConfSuccess = _dynReaction[0]->configure(paramProvider, _unitOpIdx, cadet::ParTypeIndep);
+		// Reconfigure dynamic reaction model
+		if (_dynReaction[0] && paramProvider.exists("reaction") && _dynReaction[0]->requiresConfiguration())
+		{
+			paramProvider.pushScope("reaction");
+			dynReactionConfSuccess = _dynReaction[0]->configure(paramProvider, _unitOpIdx, cadet::ParTypeIndep);
+			paramProvider.popScope();
+		}
+	}
+	else
+	{
+		// New interface: multiple reactions per particle type
+		paramProvider.pushScope("reaction_particle");
+
+		int nReactions = paramProvider.getInt("NREAC");
+
+		for (int reac = 0; reac < nReactions; ++reac)
+		{
+			if (!_dynReaction[reac] || !_dynReaction[reac]->requiresConfiguration())
+				continue;
+
+			char reactionKey[32];
+			snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", reac);
+			paramProvider.pushScope(reactionKey);
+
+			dynReactionConfSuccess = _dynReaction[reac]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
+
+			paramProvider.popScope();
+		}
 		paramProvider.popScope();
 	}
 
-	return transportSuccess && bindingConfSuccess && reactionConfSuccess;
+	return transportSuccess && bindingConfSuccess && dynReactionConfSuccess;
 }
 
 template <typename ConvDispOperator>
@@ -332,9 +427,9 @@ unsigned int LumpedRateModelWithoutPores<ConvDispOperator>::threadLocalMemorySiz
 	if (_binding[0] && _binding[0]->requiresWorkspace())
 		lms.addBlock(_binding[0]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound));
 
-	if (_dynReaction[0])
+	for (unsigned int i = 0; i < _dynReaction.size(); ++i)
 	{
-		lms.addBlock(_dynReaction[0]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound));
+		lms.addBlock(_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound));
 		lms.add<active>(_disc.strideBound);
 		lms.add<double>(_disc.strideBound * (_disc.strideBound + _disc.nComp));
 	}
@@ -682,6 +777,94 @@ int LumpedRateModelWithoutPores<ConvDispOperator>::residualImpl(double t, unsign
 			parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandMatrix::RowIterator, wantJac, false, false>(
 				t, secIdx, ColumnPosition{ z, 0.0, 0.0 }, localY, localYdot, localRes, _jac.row(col * idxr.strideColCell()), cellResParams, threadLocalMem.get()
 			);
+
+		// Reaction
+		if (_dynReaction.size() > 0)
+		{
+			unsigned int const* nBound = _disc.nBound;
+			unsigned int const* boundOffset = _disc.boundOffset;
+			unsigned int nTotalBound = _disc.strideBound;
+			int const* qsReaction = _binding[0]->reactionQuasiStationarity();
+			const active& porosity = _totalPorosity;
+			IBindingModel* binding = _binding[0];
+			auto jacBase = _jac.row(col * idxr.strideColCell());
+			auto colPos = ColumnPosition{ z, 0.0, 0.0 };
+			auto buffer = threadLocalMem.get();
+
+			for (unsigned int reac = 0; reac < _dynReaction.size(); ++reac)
+			{
+				if (!_dynReaction[ reac])
+					continue;
+
+				if (wantRes)
+				{
+
+					BufferedArray<ResidualType> fluxSolid = buffer.template array<ResidualType>(nTotalBound);
+
+					std::fill_n(static_cast<ResidualType*>(fluxSolid), nTotalBound, 0.0);
+					_dynReaction[reac]->residualCombinedAdd(t, secIdx, colPos, localY - _disc.nComp, localY, localRes - _disc.nComp, static_cast<ResidualType*>(fluxSolid), -1.0, buffer);
+
+					unsigned int idx = 0;
+					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+					{
+						const ParamType invBetaP = (1.0 - static_cast<ParamType>(porosity));
+
+						for (unsigned int bnd = 0; bnd < nBound[comp]; ++bnd, ++idx)
+						{
+							// Add reaction term to mobile phase
+							localRes[-static_cast<int>(_disc.nComp) + static_cast<int>(comp)] += static_cast<typename DoubleActiveDemoter<ParamType, ResidualType>::type>(invBetaP)* fluxSolid[idx];
+
+							if (!qsReaction[idx])
+							{
+								// Add reaction term to solid phase
+								localRes[idx] += fluxSolid[idx];
+							}
+						}
+					}
+
+					if (wantJac)
+					{
+						if (nTotalBound > 0)
+						{
+							BufferedArray<double> fluxSolidJacobian = buffer.template array<double>(nTotalBound * (nTotalBound + _disc.nComp));
+							linalg::DenseMatrixView dmv(static_cast<double*>(fluxSolidJacobian), nullptr, nTotalBound, nTotalBound + _disc.nComp);
+							dmv.setAll(0.0);
+
+							// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+							_dynReaction[reac]->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(localY - _disc.nComp), reinterpret_cast<double const*>(localY), -1.0, jacBase, dmv.row(0, _disc.nComp), buffer);
+
+							unsigned int idx = 0;
+							for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+							{
+								const double invBetaP = (1.0 - static_cast<double>(porosity));
+
+								for (unsigned int bnd = 0; bnd < nBound[comp]; ++bnd, ++idx)
+								{
+									// Add Jacobian row to mobile phase
+									(jacBase + comp).addArray(dmv.rowPtr(idx), -static_cast<int>(comp), dmv.columns(), invBetaP);
+
+									if (!qsReaction[idx])
+									{
+										// Add Jacobian row to solid phase
+										(jacBase + _disc.nComp + idx).addArray(dmv.rowPtr(idx), -static_cast<int>(_disc.nComp + idx), dmv.columns(), 1.0);
+									}
+								}
+							}
+						}
+						else
+						{
+							// We do not have bound states, but still need to obtain the Jacobian for the liquid phase.
+							// So we pass a row iterator for the solid phase that does not point anywhere and hope that the
+							// reaction model does not interact with it.
+
+							// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+							_dynReaction[reac]->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y - _disc.nComp), reinterpret_cast<double const*>(y), -1.0, jacBase, linalg::DenseBandedRowIterator(), buffer);
+						}
+					}
+				}
+			}
+		}
+
 
 	} CADET_PARFOR_END;
 
