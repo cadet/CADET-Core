@@ -168,20 +168,20 @@ protected:
 	linalg::ActiveDenseMatrix _stoichiometry;
 
 	unsigned int _idxSO = 0; //!< SO component index, default 0
-	unsigned int _idxSS_ad = 1; //!< SS / SS_ad component index, default 1
+	unsigned int _idxSS_nad = 1; //!< SS / SS_ad component index, default 1
 	unsigned int _idxSNH = 2; //!< SNH component index, default 2
 	unsigned int _idxSNO = 3; //!< SNO component index, default 3
 	unsigned int _idxSN2 = 4; //!< SN2 component index, default 4
 	unsigned int _idxSALK = 5; //!< SALK component index, default 5
-	unsigned int _idxSI_ad = 6; //!< SI component index, default 6
+	unsigned int _idxSI_nad = 6; //!< SI component index, default 6
 	unsigned int _idxXI = 7; //!< XI component index, default 7
 	unsigned int _idxXS = 8; //!< XS component index, default 8
 	unsigned int _idxXH = 9; //!< XH component index, default 9
 	unsigned int _idxXSTO = 10; //!< XSTO component index, default 10
 	unsigned int _idxXA = 11; //!< XA component index, default 11
 	unsigned int _idxXMI = 12; //!< XMI component index, default 12
-	unsigned int _idxSS_nad = 13; //!< SS_nad component index, default 13
-	unsigned int _idxSI_nad = 14; //!< SI_nbio component index, default 14
+	unsigned int _idxSI_ad = 13;
+	unsigned int _idxSS_ad = 14;
 
 	bool  _fractionate = false;
 
@@ -302,16 +302,18 @@ protected:
 		_stoichiometry.native(_idxSO, 10) = -1 * (1 - fXI);
 		_stoichiometry.native(_idxSO, 12) = 1;
 
-		// SS_ad
-		_stoichiometry.native(_idxSS_ad, 0) = (1 - fSI);
-		_stoichiometry.native(_idxSS_ad, 1) = -1;
-		_stoichiometry.native(_idxSS_ad, 2) = -1;
-
 		// SS_nad
 		_stoichiometry.native(_idxSS_nad, 0) = (1 - fSI);
 		_stoichiometry.native(_idxSS_nad, 1) = -1;
 		_stoichiometry.native(_idxSS_nad, 2) = -1;
 
+		// SS_ad
+		if (_fractionate)
+		{
+			_stoichiometry.native(_idxSS_ad, 0) = (1 - fSI);
+			_stoichiometry.native(_idxSS_ad, 1) = -1;
+			_stoichiometry.native(_idxSS_ad, 2) = -1;
+		}
 		// SNH
 		_stoichiometry.native(_idxSNH, 0) = c1n;
 		_stoichiometry.native(_idxSNH, 1) = c2n;
@@ -353,10 +355,11 @@ protected:
 		_stoichiometry.native(_idxSALK, 11) = c12a;
 
 		// SI_ad
-		_stoichiometry.native(_idxSI_bio, 0) = fSI;
+		_stoichiometry.native(_idxSI_nad, 0) = fSI;
 
 		//SI_nad
-		_stoichiometry.native(_idxSI_nbio, 0) = fSI;
+		if(_fractionate)
+			_stoichiometry.native(_idxSI_ad, 0) = fSI;
 
 		// XI
 		_stoichiometry.native(_idxXI, 5) = fXI;
@@ -442,10 +445,10 @@ protected:
 		const double bAUT = static_cast<double>(baut20) * ft105;
 
 		StateType SO = y[_idxSO];
-		StateType SS_nad = y[_idxSS_ad];
+		StateType SS_nad = y[_idxSS_nad];
 		StateType SS_ad = 0.0;
 		if (_fractionate)
-			SS_ad = y[_idxSS_nad];
+			SS_ad = y[_idxSS_ad];
 		StateType SNH = y[_idxSNH];
 		StateType SNO = y[_idxSNO];
 		StateType SN2 = y[_idxSN2];
@@ -566,23 +569,25 @@ protected:
 		const double bAUT = static_cast<double>(baut20) * ft105;
 
 		double SO = y[_idxSO];
-		double SS_ad = y[_idxSS_ad];
-		double SS_nad = 0.0;
-		if (_fractionate)
-			SS_nad = y[_idxSS_nad];
+		double SS_nad = y[_idxSS_nad];
+		double SS_ad = 0.0;
 		double SNH = y[_idxSNH];
 		double SNO = y[_idxSNO];
 		double SN2 = y[_idxSN2];
 		double SALK = y[_idxSALK];
-		double SI_ad = y[_idxSI_ad]; // unused
-		double SI_nad = y[_idxSI_nad]; // unused
-		//double XI = y[8]; // unused
+		double SI_nad = y[_idxSI_nad];
+		double SI_ad = 0.0;
 		double XS = y[_idxXS];
 		double XH = y[_idxXH];
 		double XSTO = y[_idxXSTO];
 		double XA = y[_idxXA];
-		//double XMI = y[13]; // unused
-		//XH_S = max(XH, 0.1)
+
+		if (_fractionate)
+		{
+			SS_ad = y[_idxSS_ad];
+			SI_ad = y[_idxSI_ad];
+		}
+
 
 		double d[13][15] = {};
 
@@ -605,9 +610,10 @@ protected:
 		d[1][_idxSO] = k_sto
 			* (SS_ad + SS_nad) / ((SS_ad + SS_nad) + khss)
 			* kho2 / ((SO + kho2) * (SO + kho2)) * XH;
-		d[1][_idxSS_ad] = k_sto
-			* SO / (SO + kho2)
-			* khss / ((SS_ad + SS_nad + khss) * (SS_ad + SS_nad + khss)) * XH;
+		if (_fractionate)
+			d[1][_idxSS_ad] = k_sto
+				* SO / (SO + kho2)
+				* khss / ((SS_ad + SS_nad + khss) * (SS_ad + SS_nad + khss)) * XH;
 		d[1][_idxSS_nad] = k_sto
 			* SO / (SO + kho2)
 			* khss / ((SS_ad + SS_nad + khss) * (SS_ad + SS_nad + khss)) * XH;
@@ -620,10 +626,11 @@ protected:
 			* -kho2 / ((SO + kho2) * (SO + kho2))
 			* (SS_ad + SS_nad) / ((SS_ad + SS_nad) + khss)
 			* SNO / (SNO + khn03) * XH;
-		d[2][_idxSS_ad] = k_sto * etahno3
-			* kho2 / (SO + kho2)
-			* khss / ((SS_ad + SS_nad + khss) * (SS_ad + SS_nad + khss))
-			* SNO / (SNO + khn03) * XH;
+		if(_fractionate)
+			d[2][_idxSS_ad] = k_sto * etahno3
+				* kho2 / (SO + kho2)
+				* khss / ((SS_ad + SS_nad + khss) * (SS_ad + SS_nad + khss))
+				* SNO / (SNO + khn03) * XH;
 		d[2][_idxSS_nad] = k_sto * etahno3
 			* kho2 / (SO + kho2)
 			* khss / ((SS_ad + SS_nad + khss) * (SS_ad + SS_nad + khss))
@@ -840,18 +847,20 @@ protected:
 			RowIterator curJac = jac;
 			for (int row = 0; row < _stoichiometry.rows(); ++row, ++curJac)
 			{
-				const double colFactor = static_cast<double>(_stoichiometry.native(row, rIdx));
+				double colFactor = static_cast<double>(_stoichiometry.native(row, rIdx));
 				for (size_t compIdx = 0; compIdx < _stoichiometry.rows(); compIdx++)
 				{
-					if (compIdx == _idxSI_ad)
-						colFactor *= SI_ad / (SI_ad + SI_nad);
-					if (compIdx == _idxSI_nad)
-						colFactor *= SI_nad / (SI_ad + SI_nad);
-					if (compIdx == _idxSS_ad)
-						colFactor *= SS_ad / (SS_ad + SS_nad);
-					if (compIdx == _idxSS_nad)
-						colFactor *= SS_nad / (SS_ad + SS_nad);
-
+					if (_fractionate)
+					{
+						if (compIdx == _idxSI_ad)
+							colFactor *= SI_ad / (SI_ad + SI_nad);
+						if (compIdx == _idxSI_nad)
+							colFactor *= SI_nad / (SI_ad + SI_nad);
+						if (compIdx == _idxSS_ad)
+							colFactor *= SS_ad / (SS_ad + SS_nad);
+						if (compIdx == _idxSS_nad)
+							colFactor *= SS_nad / (SS_ad + SS_nad);
+					}
 					curJac[compIdx - static_cast<int>(row)] += colFactor * d[rIdx][compIdx];
 				}
 			}
