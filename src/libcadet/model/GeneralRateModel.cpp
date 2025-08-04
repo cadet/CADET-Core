@@ -1602,7 +1602,7 @@ int GeneralRateModel<ConvDispOperator>::residualBulk(double t, unsigned int secI
 
 		for (auto i = 0; i < _dynReactionBulk.size(); i++)
 		{	
-			if (!_dynReactionBulk[i] || (_dynReactionBulk[i]->numReactionsLiquid() == 0))
+			if (!_dynReactionBulk[i])
 				continue;
 
 			if (wantRes)
