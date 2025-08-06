@@ -1,7 +1,7 @@
 #include "model/LumpedRateModelWithPores.hpp"
 #include "CompileTimeConfig.hpp"
 #ifdef ENABLE_DG
-#include "model/LumpedRateModelWithPoresDG.hpp"
+#include "model/ColumnModel1D.hpp"
 #endif
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -24,7 +24,7 @@ namespace cadet
 
 #ifdef ENABLE_DG
 				if (discName == "DG")
-					model = new LumpedRateModelWithPoresDG(uoId);
+					model = new ColumnModel1D(uoId);
 				else if (discName == "FV")
 #else
 				if (discName == "FV")
@@ -80,8 +80,8 @@ namespace cadet
 			typedef LumpedRateModelWithPores<parts::RadialConvectionDispersionOperator> RadialLRMP;
 
 #ifdef ENABLE_DG
-			models[LumpedRateModelWithPoresDG::identifier()] = selectAxialFlowDiscretizationLRMP;
-			models["LRMP_DG"] = selectAxialFlowDiscretizationLRMP;
+			models[ColumnModel1D::identifier()] = selectAxialFlowDiscretizationLRMP;
+			models["COLUMN_MODEL_1D"] = selectAxialFlowDiscretizationLRMP;
 #endif
 			models[AxialLRMP::identifier()] = selectAxialFlowDiscretizationLRMP;
 			models["LRMP"] = selectAxialFlowDiscretizationLRMP;
