@@ -19,7 +19,6 @@
 #define LIBCADET_HOMOGENEOUSPARTICLE_HPP_
 
 #include "model/particle/ParticleModel.hpp"
-#include "model/parts/ParticleDiffusionOperatorBase.hpp"
 #include "model/BindingModel.hpp"
 #include "cadet/StrongTypes.hpp"
 #include "ParamIdUtil.hpp"
@@ -82,8 +81,6 @@ namespace parts
 
 		bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp) override;
 		bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound) override;
-		bool configureModelDiscretization_old(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp) override;
-		bool configure_old(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound) override;
 
 		void updateRadialDisc() { }
 

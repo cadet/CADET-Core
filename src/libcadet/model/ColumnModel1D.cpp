@@ -188,10 +188,7 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 	bool particleConfSuccess = true;
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		if (unitName == "COLUMN_MODEL_1D")
-			particleConfSuccess = particleConfSuccess && _particles[parType]->configureModelDiscretization(paramProvider, helper, _disc.nComp, parType, _disc.nParType, idxr.strideColComp());
-		else
-			particleConfSuccess = particleConfSuccess && _particles[parType]->configureModelDiscretization_old(paramProvider, helper, _disc.nComp, parType, _disc.nParType, idxr.strideColComp());
+		particleConfSuccess = particleConfSuccess && _particles[parType]->configureModelDiscretization(paramProvider, helper, _disc.nComp, parType, _disc.nParType, idxr.strideColComp());
 	}
 	paramProvider.pushScope("discretization");
 
