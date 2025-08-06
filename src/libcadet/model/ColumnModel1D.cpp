@@ -110,6 +110,9 @@ bool ColumnModel1D::usesAD() const CADET_NOEXCEPT
 
 bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
+	// Read unit type as name to allow model configuration via GRM, LRMP. Here, the particle types are set correspondingly
+	std::string unitName = paramProvider.getString("UNIT_TYPE");
+
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
@@ -162,20 +165,33 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
-		std::string particleModelName = paramProvider.getString("PARTICLE_TYPE");
+		if (unitName == "COLUMN_MODEL_1D")
+		{
+			paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
+			std::string particleModelName = paramProvider.getString("PARTICLE_TYPE");
 
-		_particles[parType] = helper.createParticleModel(particleModelName);
-		if (!_particles[parType])
-			throw InvalidParameterException("Unknown particle model " + particleModelName);
+			_particles[parType] = helper.createParticleModel(particleModelName);
+			if (!_particles[parType])
+				throw InvalidParameterException("Unknown particle model " + particleModelName);
 
-		paramProvider.popScope();
+			paramProvider.popScope();
+		}
+		else
+		{
+			if (unitName == "GENERAL_RATE_MODEL_DG")
+				_particles[parType] = helper.createParticleModel("GENERAL_RATE_PARTICLE");
+			else if (unitName == "LUMPED_RATE_MODEL_WITH_PORES_DG")
+				_particles[parType] = helper.createParticleModel("HOMOGENEOUS_PARTICLE");
+		}
 	}
 
 	bool particleConfSuccess = true;
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		particleConfSuccess = particleConfSuccess && _particles[parType]->configureModelDiscretization(paramProvider, helper, _disc.nComp, parType, _disc.nParType, idxr.strideColComp());
+		if (unitName == "COLUMN_MODEL_1D")
+			particleConfSuccess = particleConfSuccess && _particles[parType]->configureModelDiscretization(paramProvider, helper, _disc.nComp, parType, _disc.nParType, idxr.strideColComp());
+		else
+			particleConfSuccess = particleConfSuccess && _particles[parType]->configureModelDiscretization_old(paramProvider, helper, _disc.nComp, parType, _disc.nParType, idxr.strideColComp());
 	}
 	paramProvider.pushScope("discretization");
 
