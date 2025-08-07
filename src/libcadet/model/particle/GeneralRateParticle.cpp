@@ -212,7 +212,7 @@ namespace model
 		}
 
 		// Reconfigure particle transport and discretization
-		const bool parTransportConfigSuccess = _parDiffOp->configure(unitOpIdx, paramProvider, parameters, nParType, nBoundBeforeType, nTotalBound, _binding->reactionQuasiStationarity(), _binding->hasDynamicReactions());
+		const bool parTransportConfigSuccess = _parDiffOp->configure(unitOpIdx, paramProvider, parameters, nParType, nBoundBeforeType, nTotalBound, _binding->reactionQuasiStationarity());
 		
 		paramProvider.popScope(); // particle_type_{:03}
 
