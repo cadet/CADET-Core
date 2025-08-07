@@ -116,9 +116,9 @@ namespace parts
 		return baseConfigSuccess;
 	}
 
-	bool ParticleDiffusionOperatorDG::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding, const bool hasDynamicReactions)
+	bool ParticleDiffusionOperatorDG::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding)
 	{
-		const bool baseConfigSuccess = ParticleDiffusionOperatorBase::configure(unitOpIdx, paramProvider, parameters, nParType, nBoundBeforeType, nTotalBound, reqBinding, hasDynamicReactions);
+		const bool baseConfigSuccess = ParticleDiffusionOperatorBase::configure(unitOpIdx, paramProvider, parameters, nParType, nBoundBeforeType, nTotalBound, reqBinding);
 
 		// Compute particle metrics
 		if (_deltaR == nullptr)
@@ -1633,7 +1633,7 @@ namespace parts
 				// set back iterator to first node as required by component loop
 				jacCp += _nParNode * strideParNode();
 			}
-			if (blk < nBulkPoints - 1) // execute iteration statement only when condition is true in next loop.
+			if (blk < nBulkPoints - 1) // go to next particle block
 				jacCp += _strideBound + (_nParPoints - 1) * strideParNode();
 		}
 
