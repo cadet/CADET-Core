@@ -776,6 +776,7 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 				json disc;
 				json parDisc;
 				disc["SPATIAL_METHOD"] = spatialMethod;
+				parDisc["SPATIAL_METHOD"] = spatialMethod;
 
 				if (spatialMethod == "FV")
 				{
@@ -787,6 +788,7 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 					
 					disc["NCOL"] = 10;
 					parDisc["NPAR"] = 4;
+					parDisc["SPATIAL_METHOD"] = spatialMethod;
 
 					disc["MAX_KRYLOV"] = 0;
 					disc["GS_TYPE"] = 1;
@@ -1078,6 +1080,7 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 		json disc;
 		json parDisc;
 		disc["SPATIAL_METHOD"] = spatialMethod;
+		parDisc["SPATIAL_METHOD"] = spatialMethod;
 		if (model2D)
 			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
 
