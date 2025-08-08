@@ -380,9 +380,8 @@ namespace parts
 		active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
 
 
-		// Go to the particle block of the given column cell
+		// get temporary pointer to move through for particle diffusion
 		StateType const* y = yPar;
-		double const* yDot = yDotPar;
 		ResidualType* res = resPar;
 
 		active const* const outerSurfPerVol = _parOuterSurfAreaPerVolume.data();
@@ -586,18 +585,10 @@ namespace parts
 				y += _strideBound;
 				jacBase += _strideBound;
 			}
-
-			// Advance yDot over particle shell
-			yDot += strideParPoint();
 		}
 
 		/* Film diffusion */
 		// note that bulk equation part is treated outside this operator; here we only handle the particle equation film diffusion
-
-		// Get offsets
-		StateType const* const yCol = yBulk;
-		ResidualType* const resParType = resPar;
-		StateType const* const yParType = yPar;
 
 		// Discretized film diffusion kf for finite volumes
 		ParamType* const kf_FV = _discParFlux.create<ParamType>(_nComp);
@@ -629,7 +620,7 @@ namespace parts
 		// J_{p,f} block, implements bead boundary condition in outer bead shell equation
 		for (unsigned int comp = 0; comp < _nComp; ++comp)
 		{
-			ResidualType flux = kf_FV[comp] * (yParType[(_nParPoints - 1) * strideParPoint() + comp] - yCol[comp * strideBulkComp()]);
+			ResidualType flux = kf_FV[comp] * (yBulk[comp * strideBulkComp()] - yPar[(_nParPoints - 1) * strideParPoint() + comp]);
 
 			if (cadet_unlikely(_hasSurfaceDiffusion && _hasReqReactions && (_nParPoints > 1)))
 			{
@@ -657,12 +648,12 @@ namespace parts
 					// Evaluate surface diffusion coefficient and apply weighted arithmetic mean
 					const int curIdx = strideParLiquid() + idxBnd;
 
-					const ResidualType gradQ = (yParType[(_nParPoints - 1) * strideParPoint() + curIdx] - yParType[(_nParPoints - 2) * strideParPoint() + curIdx]) / dr;
-					flux -= kf_FV[comp] * static_cast<ParamType>(parSurfDiff[comp]) * gradQ;
+					const ResidualType gradQ = (yPar[(_nParPoints - 1) * strideParPoint() + curIdx] - yPar[(_nParPoints - 2) * strideParPoint() + curIdx]) / dr;
+					flux += kf_FV[comp] * static_cast<ParamType>(parSurfDiff[comp]) * gradQ;
 				}
 			}
 
-			resParType[comp] += jacPF_val / static_cast<ParamType>(_poreAccessFactor[comp]) * flux;
+			resPar[comp] += jacPF_val / static_cast<ParamType>(_poreAccessFactor[comp]) * flux;
 		}
 
 		_discParFlux.destroy<ParamType>();
