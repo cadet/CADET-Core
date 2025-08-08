@@ -17,8 +17,40 @@
 
 using json = nlohmann::json;
 
+void getSpatialMethods(const std::string& spatialMethod, std::string& bulkMethod, std::string& parMethod)
+{
+	if (spatialMethod.size() == 2) {
+		// Only one method specified, use for both
+		if (spatialMethod == "DG" || spatialMethod == "FV") {
+			bulkMethod = spatialMethod;
+			parMethod = spatialMethod;
+		}
+		else
+			throw std::invalid_argument("Unknown spatial method: " + spatialMethod);
+	}
+	else if (spatialMethod.size() == 4)
+	{
+		std::string bulkCandidate = spatialMethod.substr(0, 2);
+		std::string parCandidate = spatialMethod.substr(2, 2);
+
+		if ((bulkCandidate == "DG" || bulkCandidate == "FV") &&
+			(parCandidate == "DG" || parCandidate == "FV")) {
+			bulkMethod = bulkCandidate;
+			parMethod = parCandidate;
+		}
+		else
+			throw std::invalid_argument("Unknown spatial method: " + spatialMethod);
+	}
+	else
+		throw std::invalid_argument("Invalid spatial method length: " + spatialMethod);
+}
+
 json createColumnWithSMAJson(const std::string& uoType, const std::string& spatialMethod)
 {
+	std::string bulkMethod;
+	std::string parMethod;
+	getSpatialMethods(spatialMethod, bulkMethod, parMethod);
+
 	json config;
 	json particle;
 
@@ -83,10 +115,10 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 	{
 		json disc;
 		json discPar;
-		disc["SPATIAL_METHOD"] = spatialMethod;
-		discPar["SPATIAL_METHOD"] = spatialMethod;
+		disc["SPATIAL_METHOD"] = bulkMethod;
+		discPar["SPATIAL_METHOD"] = parMethod;
 
-		if (spatialMethod == "FV")
+		if (bulkMethod == "FV")
 		{
 			disc["NCOL"] = 16;
 			discPar["NPAR"] = 4;
@@ -110,7 +142,7 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 				disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
 			}
 		}
-		else if (spatialMethod == "DG")
+		else if (bulkMethod == "DG")
 		{
 			if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
 			{
@@ -127,9 +159,16 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 				disc["EXACT_INTEGRATION"] = 0;
 				disc["POLYDEG"] = 4;
 				disc["NELEM"] = 2;
-				discPar["PAR_POLYDEG"] = 3;
-				discPar["PAR_NELEM"] = 1;
 			}
+		}
+		if (parMethod == "DG")
+		{
+			discPar["PAR_POLYDEG"] = 3;
+			discPar["PAR_NELEM"] = 1;
+		}
+		else if (parMethod == "FV")
+		{
+			discPar["NCELLS"] = 4;
 		}
 
 		if (uoType == "MULTI_CHANNEL_TRANSPORT")
@@ -219,6 +258,10 @@ cadet::JsonParameterProvider createColumnWithSMA(const std::string& uoType, cons
 
 json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(const std::string& uoType, const std::string& spatialMethod)
 {
+	std::string bulkMethod;
+	std::string parMethod;
+	getSpatialMethods(spatialMethod, bulkMethod, parMethod);
+
 	json config;
 	config["UNIT_TYPE"] = uoType;
 	config["NCOMP"] = 2;
@@ -270,9 +313,9 @@ json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(cons
 	// Discretization
 	{
 		json disc;
-		disc["SPATIAL_METHOD"] = spatialMethod;
+		disc["SPATIAL_METHOD"] = bulkMethod;
 
-		if (spatialMethod == "FV")
+		if (bulkMethod == "FV")
 		{
 			disc["NCOL"] = 15;
 
@@ -288,7 +331,7 @@ json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(cons
 				disc["weno"] = weno;
 			}
 		}
-		else if (spatialMethod == "DG")
+		else if (bulkMethod == "DG")
 		{
 			disc["EXACT_INTEGRATION"] = 0;
 			disc["POLYDEG"] = 4;
@@ -299,14 +342,14 @@ json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(cons
 		{
 			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
 
-			if (spatialMethod == "DG")
+			if (bulkMethod == "DG")
 			{
 				disc["AX_POLYDEG"] = 4;
 				disc["AX_NELEM"] = 2;
 				disc["RAD_POLYDEG"] = 2;
 				disc["RAD_NELEM"] = 1;
 			}
-			else if (spatialMethod == "FV")
+			else if (bulkMethod == "FV")
 			{
 				disc["NCOL"] = 8;
 				disc["NRAD"] = 3;
@@ -314,9 +357,9 @@ json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(cons
 		}
 
 	json parDisc;
-	parDisc["SPATIAL_METHOD"] = spatialMethod;
+	parDisc["SPATIAL_METHOD"] = parMethod;
 	parDisc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
-	if (spatialMethod == "DG")
+	if (bulkMethod == "DG")
 	{
 		parDisc["PAR_POLYDEG"] = 3;
 		parDisc["PAR_NELEM"] = 1;
@@ -343,9 +386,12 @@ json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(cons
 	return config;
 }
 
-
 json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::string& spatialMethod)
 {
+	std::string bulkMethod;
+	std::string parMethod;
+	getSpatialMethods(spatialMethod, bulkMethod, parMethod);
+
 	json config;
 	json particle;
 	config["UNIT_TYPE"] = uoType;
@@ -405,13 +451,12 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 	{
 		json disc;
 		json parDisc;
-		disc["SPATIAL_METHOD"] = spatialMethod;
-		parDisc["SPATIAL_METHOD"] = spatialMethod;
+		disc["SPATIAL_METHOD"] = bulkMethod;
+		parDisc["SPATIAL_METHOD"] = parMethod;
 
-		if (spatialMethod == "FV")
+		if (bulkMethod == "FV")
 		{
 			disc["NCOL"] = 15;
-			parDisc["NPAR"] = 5;
 
 			disc["MAX_KRYLOV"] = 0;
 			disc["GS_TYPE"] = 1;
@@ -425,11 +470,19 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 				disc["weno"] = weno;
 			}
 		}
-		else if (spatialMethod == "DG")
+		else if (bulkMethod == "DG")
 		{
 			disc["EXACT_INTEGRATION"] = 0;
-			disc["POLYDEG"] = 4;
-			disc["NELEM"] = 2;
+			disc["POLYDEG"] = 3;
+			disc["NELEM"] = 1;
+		}
+		if (parMethod == "FV")
+		{
+			parDisc["NPAR"] = 5;
+			parDisc["NCELLS"] = 5;
+		}
+		else if (parMethod == "DG")
+		{
 			parDisc["PAR_POLYDEG"] = 3;
 			parDisc["PAR_NELEM"] = 1;
 		}
@@ -438,16 +491,14 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 		{
 			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
 
-			if (spatialMethod == "DG")
+			if (bulkMethod == "DG")
 			{
 				disc["AX_POLYDEG"] = 4;
 				disc["AX_NELEM"] = 2;
 				disc["RAD_POLYDEG"] = 2;
 				disc["RAD_NELEM"] = 1;
-				disc["PAR_POLYDEG"] = 3;
-				disc["PAR_NELEM"] = 1;
 			}
-			else if (spatialMethod == "FV")
+			else if (bulkMethod == "FV")
 			{
 				disc["NCOL"] = 8;
 				disc["NRAD"] = 3;
@@ -706,6 +757,10 @@ cadet::JsonParameterProvider createLWE(const std::string& uoType, const std::str
 
 cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding)
 {
+	std::string bulkMethod;
+	std::string parMethod;
+	getSpatialMethods(spatialMethod, bulkMethod, parMethod);
+
 	json config;
 	// Model
 	{
@@ -775,10 +830,10 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 			{
 				json disc;
 				json parDisc;
-				disc["SPATIAL_METHOD"] = spatialMethod;
-				parDisc["SPATIAL_METHOD"] = spatialMethod;
+				disc["SPATIAL_METHOD"] = bulkMethod;
+				parDisc["SPATIAL_METHOD"] = parMethod;
 
-				if (spatialMethod == "FV")
+				if (bulkMethod == "FV")
 				{
 					if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
 					{
@@ -788,7 +843,7 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 					
 					disc["NCOL"] = 10;
 					parDisc["NPAR"] = 4;
-					parDisc["SPATIAL_METHOD"] = spatialMethod;
+					parDisc["SPATIAL_METHOD"] = parMethod;
 
 					disc["MAX_KRYLOV"] = 0;
 					disc["GS_TYPE"] = 1;
@@ -802,7 +857,7 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 						disc["weno"] = weno;
 					}
 				}
-				else if (spatialMethod == "DG")
+				else if (bulkMethod == "DG")
 				{
 					if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
 					{
@@ -899,13 +954,13 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 					// the two unit operations with 3 ports (and we need to have 7 columns)
 
 					// Flow rates depend on the spatial method, since nodal/cell cross sections are different
-					if (spatialMethod == "FV")
+					if (bulkMethod == "FV")
 					{
 						sw["CONNECTIONS"] = { 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 7.42637597e-09,
 											 1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 2.22791279e-08,
 											 1.0, 0.0, 0.0, 2.0, -1.0, -1.0, 3.71318798e-08 };
 					}
-					else if (spatialMethod == "DG")
+					else if (bulkMethod == "DG")
 					{
 						sw["CONNECTIONS"] = { 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 2.2743276399659853e-10,
 											  1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 5.458386335918363e-09,
@@ -1019,6 +1074,10 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 
 json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const std::string& uoType, const std::string& spatialMethod)
 {
+	std::string bulkMethod;
+	std::string parMethod;
+	getSpatialMethods(spatialMethod, bulkMethod, parMethod);
+
 	json grm;
 	json particle;
 	grm["NCOMP"] = 1;
@@ -1079,12 +1138,12 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 		const bool model2D = uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos;
 		json disc;
 		json parDisc;
-		disc["SPATIAL_METHOD"] = spatialMethod;
-		parDisc["SPATIAL_METHOD"] = spatialMethod;
+		disc["SPATIAL_METHOD"] = bulkMethod;
+		parDisc["SPATIAL_METHOD"] = parMethod;
 		if (model2D)
 			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
 
-		if (spatialMethod == "FV")
+		if (bulkMethod == "FV")
 		{
 			disc["NCOL"] = 512;
 			parDisc["NPAR"] = 4;
@@ -1103,7 +1162,7 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 				disc["weno"] = weno;
 			}
 		}
-		else if (spatialMethod == "DG")
+		else if (bulkMethod == "DG")
 		{
 			if (model2D)
 			{
@@ -1118,8 +1177,15 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 				disc["POLYDEG"] = 5;
 				disc["NELEM"] = 15;
 			}
+		}
+		if (parMethod == "DG")
+		{
 			parDisc["PAR_POLYDEG"] = 3;
 			parDisc["PAR_NELEM"] = 1;
+		}
+		else if (parMethod == "FV")
+		{
+			parDisc["NCELLS"] = 4;
 		}
 
 		parDisc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
@@ -1156,6 +1222,10 @@ cadet::JsonParameterProvider createColumnLinearBenchmark(bool dynamicBinding, bo
 
 cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType, const std::string& spatialMethod)
 {
+	std::string bulkMethod;
+	std::string parMethod;
+	getSpatialMethods(spatialMethod, bulkMethod, parMethod);
+
 	json config;
 	// Model
 	{
@@ -1216,13 +1286,13 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 					// the two unit operations with 3 ports (and we need to have 7 columns)
 
 				// Flow rates depend on the spatial method, since nodal/cell cross sections are different
-				if (spatialMethod == "FV")
+				if (bulkMethod == "FV")
 				{
 					sw["CONNECTIONS"] = { 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 1.16355283e-09,
 					                      1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 3.49065850e-09,
 					                      1.0, 0.0, 0.0, 2.0, -1.0, -1.0, 5.81776417e-09 };
 				}
-				else if (spatialMethod == "DG")
+				else if (bulkMethod == "DG")
 				{
 					sw["CONNECTIONS"] = { 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 3.563380556155088e-11,
 										  1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 8.552113334772209e-10,
