@@ -32,7 +32,7 @@ TEST_CASE("Radial LRMP numerical Benchmark with parameter sensitivities for line
 	const std::string& refFilePath = std::string("/data/ref_radLRMP_dynLin_1comp_sensbenchmark1_FV_Z32.h5");
 	const std::vector<double> absTol = { 1e-12, 1e-6, 1e-6, 1e-6 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
-	cadet::test::column::FVparams disc(32);
+	cadet::test::column::FVParams disc(32);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
@@ -46,7 +46,7 @@ TEST_CASE("Radial LRMP transport Jacobian", "[RadLRMP],[UnitOp],[Jacobian],[CI]"
 
 TEST_CASE("Radial LRMP Jacobian forward vs backward flow", "[RadLRMP],[UnitOp],[Residual],[Jacobian],[AD],[ReleaseCI]")
 {
-	cadet::test::column::FVparams disc(16);
+	cadet::test::column::FVParams disc(16);
 	cadet::test::column::testJacobianForwardBackward("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", disc);
 }
 

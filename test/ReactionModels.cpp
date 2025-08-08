@@ -85,7 +85,7 @@ TEST_CASE("CSTR with MAL reaction numerical Benchmark with parameter sensitiviti
 	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12 };
 	const std::vector<double> relTol = { 1e-6, 1e-6, 1e-6 };
 
-	cadet::test::column::Dummyparams disc;
+	cadet::test::column::DummyParams disc;
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
@@ -164,7 +164,7 @@ TEST_CASE("MassActionLaw old interface vs. two separate reactions", "[MassAction
 	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12 };
 	const std::vector<double> relTol = { 1e-6, 1e-6, 1e-6 };
 
-	cadet::test::column::Dummyparams disc;
+	cadet::test::column::DummyParams disc;
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
@@ -175,6 +175,6 @@ TEST_CASE("MassActionLaw one reaction vs. two separate reactions", "[MassActionL
 	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12 };
 	const std::vector<double> relTol = { 1e-6, 1e-6, 1e-6 };
 
-	cadet::test::column::Dummyparams disc;
+	cadet::test::column::DummyParams disc;
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }

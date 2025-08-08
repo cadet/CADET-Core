@@ -221,6 +221,7 @@ if (ENABLE_DG)
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/particle/HomogeneousParticle.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ParticleDiffusionOperatorBase.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ParticleDiffusionOperatorDG.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ParticleDiffusionOperatorFV.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithoutPoresDG.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/ColumnModel1D.cpp
 	)

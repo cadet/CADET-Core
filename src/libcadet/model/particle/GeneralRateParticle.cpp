@@ -12,6 +12,7 @@
 
 #include "model/particle/GeneralRateParticle.hpp"
 #include "model/parts/ParticleDiffusionOperatorDG.hpp"
+#include "model/parts/ParticleDiffusionOperatorFV.hpp"
 
 #include "cadet/Exceptions.hpp"
 #include "BindingModelFactory.hpp"
@@ -115,16 +116,13 @@ namespace model
 
 		paramProvider.pushScope("discretization");
 
-		if (paramProvider.exists("SPATIAL_METHOD"))
-		{
-			const std::string parSpatialMethod = paramProvider.getString("SPATIAL_METHOD");
-			if (parSpatialMethod != "DG")
-				throw InvalidParameterException("Unsupported SPATIAL_METHOD '" + parSpatialMethod + "' for GeneralRateParticle. Only 'DG' is supported for now.");
-
+		const std::string parSpatialMethod = paramProvider.getString("SPATIAL_METHOD");
+		if (parSpatialMethod == "DG")
 			_parDiffOp = new parts::ParticleDiffusionOperatorDG();
-		}
+		else if (parSpatialMethod == "FV")
+			_parDiffOp = new parts::ParticleDiffusionOperatorFV();
 		else
-			_parDiffOp = new parts::ParticleDiffusionOperatorDG();
+			throw InvalidParameterException("Unsupported SPATIAL_METHOD '" + parSpatialMethod + "' for GeneralRateParticle. Only 'DG' and 'FV' are supported.");
 
 		paramProvider.popScope();
 
@@ -212,7 +210,7 @@ namespace model
 		}
 
 		// Reconfigure particle transport and discretization
-		const bool parTransportConfigSuccess = _parDiffOp->configure(unitOpIdx, paramProvider, parameters, nParType, nBoundBeforeType, nTotalBound, _binding->reactionQuasiStationarity(), _binding->hasDynamicReactions());
+		const bool parTransportConfigSuccess = _parDiffOp->configure(unitOpIdx, paramProvider, parameters, nParType, nBoundBeforeType, nTotalBound, _binding->reactionQuasiStationarity());
 		
 		paramProvider.popScope(); // particle_type_{:03}
 

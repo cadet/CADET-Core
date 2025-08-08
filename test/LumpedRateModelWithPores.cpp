@@ -21,7 +21,7 @@
 
 TEST_CASE("LRMP LWE forward vs backward flow", "[LRMP],[FV],[Simulation],[CI]")
 {
-	cadet::test::column::FVparams disc;
+	cadet::test::column::FVParams disc;
 
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
@@ -33,7 +33,7 @@ TEST_CASE("LRMP LWE forward vs backward flow", "[LRMP],[FV],[Simulation],[CI]")
 
 TEST_CASE("LRMP linear pulse vs analytic solution", "[LRMP],[FV],[Simulation],[Analytic],[CI]")
 {
-	cadet::test::column::FVparams disc(512);
+	cadet::test::column::FVParams disc(512);
 	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITH_PORES", "/data/lrmp-pulseBenchmark.data", true, true, disc, 6e-5, 1e-7);
 	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITH_PORES", "/data/lrmp-pulseBenchmark.data", true, false, disc, 6e-5, 1e-7);
 	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITH_PORES", "/data/lrmp-pulseBenchmark.data", false, true, disc, 6e-5, 1e-7);
@@ -42,14 +42,14 @@ TEST_CASE("LRMP linear pulse vs analytic solution", "[LRMP],[FV],[Simulation],[A
 
 TEST_CASE("LRMP non-binding linear pulse vs analytic solution", "[LRMP],[FV],[Simulation],[Analytic],[NonBinding],[CI]")
 {
-	cadet::test::column::FVparams disc(512);
+	cadet::test::column::FVParams disc(512);
 	cadet::test::column::testAnalyticNonBindingBenchmark("LUMPED_RATE_MODEL_WITH_PORES", "/data/lrmp-nonBinding.data", true, disc, 6e-5, 1e-7);
 	cadet::test::column::testAnalyticNonBindingBenchmark("LUMPED_RATE_MODEL_WITH_PORES", "/data/lrmp-nonBinding.data", false, disc, 6e-5, 1e-7);
 }
 
 TEST_CASE("LRMP Jacobian forward vs backward flow", "[LRMP],[FV],[UnitOp],[Residual],[Jacobian],[AD],[CI]")
 {
-	cadet::test::column::FVparams disc;
+	cadet::test::column::FVParams disc;
 
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
@@ -66,7 +66,7 @@ TEST_CASE("LRMP numerical Benchmark with parameter sensitivities for linear case
 	const std::vector<double> absTol = { 1e-12, 1e-6, 1e-6, 1e-6 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 
-	cadet::test::column::FVparams disc(32);
+	cadet::test::column::FVParams disc(32);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
@@ -77,7 +77,7 @@ TEST_CASE("LRMP numerical Benchmark with parameter sensitivities for SMA LWE cas
 	const std::vector<double> absTol = { 1e-12, 1e-6, 1e-6, 1e-6 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 
-	cadet::test::column::FVparams disc(32);
+	cadet::test::column::FVParams disc(32);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 
@@ -89,7 +89,7 @@ TEST_CASE("LRMP numerical EOC Benchmark with parameter sensitivities for linear 
 	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
 	const std::vector<double> relTol = { 1e-4, 1e-4, 1e-4, 1e-4 };
 
-	cadet::test::column::FVparams disc(16);
+	cadet::test::column::FVParams disc(16);
 	cadet::test::column::testEOCReferenceBenchmark(modelFilePath, refFilePath, convFilePath, "001", absTol, relTol, 4, disc, true);
 }
 
@@ -101,7 +101,7 @@ TEST_CASE("LRMP numerical EOC Benchmark with parameter sensitivities for SMA LWE
 	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
 	const std::vector<double> relTol = { 1e-4, 1e-4, 1e-4, 1e-4 };
 
-	cadet::test::column::FVparams disc(8);
+	cadet::test::column::FVParams disc(8);
 	cadet::test::column::testEOCReferenceBenchmark(modelFilePath, refFilePath, convFilePath, "000", absTol, relTol, 2, disc, true);
 }
 
