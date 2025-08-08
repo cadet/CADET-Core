@@ -473,17 +473,17 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 		else if (bulkMethod == "DG")
 		{
 			disc["EXACT_INTEGRATION"] = 0;
-			disc["POLYDEG"] = 3;
+			disc["POLYDEG"] = 1;
 			disc["NELEM"] = 1;
 		}
 		if (parMethod == "FV")
 		{
 			parDisc["NPAR"] = 5;
-			parDisc["NCELLS"] = 5;
+			parDisc["NCELLS"] = 1;
 		}
 		else if (parMethod == "DG")
 		{
-			parDisc["PAR_POLYDEG"] = 3;
+			parDisc["PAR_POLYDEG"] = 1;
 			parDisc["PAR_NELEM"] = 1;
 		}
 
@@ -1174,18 +1174,18 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 			else
 			{
 				disc["EXACT_INTEGRATION"] = 0;
-				disc["POLYDEG"] = 5;
-				disc["NELEM"] = 15;
+				disc["POLYDEG"] = 2;
+				disc["NELEM"] = 2;
 			}
 		}
 		if (parMethod == "DG")
 		{
-			parDisc["PAR_POLYDEG"] = 3;
+			parDisc["PAR_POLYDEG"] = 1;
 			parDisc["PAR_NELEM"] = 1;
 		}
 		else if (parMethod == "FV")
 		{
-			parDisc["NCELLS"] = 4;
+			parDisc["NCELLS"] = 1;
 		}
 
 		parDisc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");

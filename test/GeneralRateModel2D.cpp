@@ -28,7 +28,7 @@
 
 TEST_CASE("GRM2D LWE forward vs backward flow", "[GRM2D],[Simulation],[fixGRM2D]") // todo fix. off by a lot
 {
-	cadet::test::column::FVparams disc;
+	cadet::test::column::FVParams disc;
 
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
@@ -52,7 +52,7 @@ TEST_CASE("GRM2D numerical reference test for a three zone linear binding GRM wi
 	const std::vector<double> absTol = { 1E-12 };
 	const std::vector<double> relTol = { 1E-12 };
 
-	cadet::test::column::FVparams disc;
+	cadet::test::column::FVParams disc;
 	const int simDataStride = 12; // number of radial ports
 }
 
@@ -63,7 +63,7 @@ TEST_CASE("GRM2D analytical reference test for a three zone linear binding GRM w
 	const std::vector<double> absTol = { 1E-3 };
 	const std::vector<double> relTol = { 5E-1 };
 
-	cadet::test::column::FVparams disc(64, 12, 3, 12);
+	cadet::test::column::FVParams disc(64, 12, 3, 12);
 	const int simDataStride = 12; // number of radial ports
 
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);

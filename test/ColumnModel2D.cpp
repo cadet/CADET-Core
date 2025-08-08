@@ -128,7 +128,7 @@ TEST_CASE("Column_2D as LRMP2D analytical reference test for a three zone linear
 	const std::vector<double> relTol = { 5E-2 };
 
 	//(int exact, int polyDeg, int elem, int parPolyDeg, int parNelem, int radPolyDeg, int radNelem)
-	cadet::test::column::DGParamsNewIF disc(1, 3, 8, 3, 1, 3, 3);
+	cadet::test::column::DGParams disc(1, 3, 8, 3, 1, 3, 3);
 	const int simDataStride = 12; // number of radial ports
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
 }
@@ -318,7 +318,7 @@ TEST_CASE("Column_2D as DPF numerical Benchmark for pure bulk transport case wit
 	const std::vector<double> absTol = { 5E-9 };
 	const std::vector<double> relTol = { 5E-4 };
 
-	cadet::test::column::DGParamsNewIF disc;
+	cadet::test::column::DGParams disc;
 	const int simDataStride = (3 + 1) * 6; // number of radial ports
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
 }
@@ -332,7 +332,7 @@ TEST_CASE("Column_2D as GRM without radial variance equals Column_1D as GRM nume
 	const std::vector<double> absTol = { 5E-7 };
 	const std::vector<double> relTol = { 1E-5 };
 
-	cadet::test::column::DGParamsNewIF disc(0, 3, 8, 3, 1, 3, 3);
+	cadet::test::column::DGParams disc(0, 3, 8, 3, 1, 3, 3);
 	const int simDataStride = (3 + 1) * 3; // number of radial ports
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false, simDataStride);
 }
@@ -388,7 +388,7 @@ TEST_CASE("Column_2D as GRM non limiting particle diffusion analytical reference
 	const std::vector<double> relTol = { 5E-2 };
 
 	//(int exact, int polyDeg, int elem, int parPolyDeg, int parNelem, int radPolyDeg, int radNelem)
-	cadet::test::column::DGParamsNewIF disc(1, 3, 8, 3, 1, 3, 3);
+	cadet::test::column::DGParams disc(1, 3, 8, 3, 1, 3, 3);
 	const int simDataStride = 12; // number of radial ports
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
 }
@@ -400,7 +400,7 @@ TEST_CASE("Column_2D as GRM analytical reference test for a three zone linear bi
 	const std::vector<double> absTol = { 5E-4 }; // relatively high tolerance needed here, since the analytical solution is given as cross sectional averages
 	const std::vector<double> relTol = { 2E-1 };
 
-	cadet::test::column::DGParamsNewIF disc;
+	cadet::test::column::DGParams disc;
 	const int simDataStride = 12; // number of radial ports
 
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, false, simDataStride);
@@ -413,7 +413,7 @@ TEST_CASE("Column_2D as GRM numerical reference test for a three zone linear bin
 	const std::vector<double> absTol = { 1E-10 };
 	const std::vector<double> relTol = { 1E-8 };
 
-	cadet::test::column::DGParamsNewIF disc;
+	cadet::test::column::DGParams disc;
 	const int simDataStride = 12; // number of radial ports
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, false, simDataStride);
 }
@@ -425,7 +425,7 @@ TEST_CASE("Column_2D as GRM without radial variation SMA LWE numerical 1D refere
 	const std::vector<double> absTol = { 5E-6 };
 	const std::vector<double> relTol = { 5E-2 };
 
-	cadet::test::column::DGParamsNewIF disc(1, 3, 8, 3, 1, 3, 2); // (int exact, int polyDeg, int elem, int parPolyDeg, int parNelem, int radPolyDeg, int radNelem)
+	cadet::test::column::DGParams disc(1, 3, 8, 3, 1, 3, 2); // (int exact, int polyDeg, int elem, int parPolyDeg, int parNelem, int radPolyDeg, int radNelem)
 	const int simDataStride = 8; // number of radial ports
 	const int outletDataStride = 4; // number of components
 	const int outletDataOffset = 1; // offset to component to be compared
@@ -606,7 +606,7 @@ TEST_CASE("Column_2D with 3 zones and mixed homogeneous and 1D particles numeric
 	const std::vector<double> absTol = { 1E-12 };
 	const std::vector<double> relTol = { 1E-12 };
 
-	cadet::test::column::DGParamsNewIF disc;
+	cadet::test::column::DGParams disc;
 	const int simDataStride = 12; // number of radial ports
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, false, simDataStride);
 }
