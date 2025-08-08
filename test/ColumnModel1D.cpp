@@ -151,6 +151,17 @@ TEST_CASE("Column_1D as LRMP numerical Benchmark with parameter sensitivities fo
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 
+TEST_CASE("Column_1D as GRM with single cell FV particle (pseudo LRMP) numerical Benchmark with parameter sensitivities for SMA LWE case", "[Column_1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens23],[testCI]")
+{
+	const std::string& modelFilePath = std::string("/data/model_COL1D_GRM_reqSMA_4comp_benchmark1.json");
+	const std::string& refFilePath = std::string("/data/ref_LRMP_reqSMA_4comp_sensbenchmark1_DG_P3Z8.h5");
+	const std::vector<double> absTol = { 1e-12, 1e-12, 5e-10, 1e-12 };
+	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
+
+	auto discDGFV = cadet::test::column::createDGFVParams(0, 3, 8, 0, 0, 1);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, *discDGFV, true);
+}
+
 TEST_CASE("Column_1D with mixed general rate and homogeneous particle types and linear binding numerical Benchmark with parameter sensitivities", "[Column_1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens24]")
 {
 	const std::string& modelFilePath = std::string("/data/model_COL1D_2parTypeMixed_2comp_benchmark1.json");
@@ -222,6 +233,16 @@ TEST_CASE("Column_1D as GRM dynamic binding with surf diff par dep Jacobian vs A
 TEST_CASE("Column_1D as GRM rapid-equilibrium binding with surf diff par dep Jacobian vs AD", "[Column_1D],[DG],[DG1D],[UnitOp],[Residual],[Jacobian],[ParameterDependence],[CI]")
 {
 	cadet::test::column::testJacobianADVariableParSurfDiff("COLUMN_1D_GRM", "DG", false);
+}
+
+TEST_CASE("Column_1D as GRM dynamic binding with surf diff par dep bulk DG and par FV discretization Jacobian vs AD", "[Column_1D],[DGFV],[DG1D],[UnitOp],[Residual],[Jacobian],[ParameterDependence],[todoCI]")
+{
+	cadet::test::column::testJacobianADVariableParSurfDiff("COLUMN_1D_GRM", "DGFV", true);
+}
+
+TEST_CASE("Column_1D as GRM rapid-equilibrium binding with surf diff par dep bulk DG and par FV discretization Jacobian vs AD", "[Column_1D],[DGFV],[DG1D],[UnitOp],[Residual],[Jacobian],[ParameterDependence],[todoCI]")
+{
+	cadet::test::column::testJacobianADVariableParSurfDiff("COLUMN_1D_GRM", "DGFV", false);
 }
 
 TEST_CASE("Column_1D as GRM sensitivity Jacobians", "[Column_1D],[DG],[DG1D],[UnitOp],[Sensitivity],[CI]")
@@ -358,6 +379,12 @@ TEST_CASE("Column_1D as GRM inlet DOF Jacobian", "[Column_1D],[DG],[DG1D],[UnitO
 TEST_CASE("Column_1D as GRM transport Jacobian", "[Column_1D],[DG],[DG1D],[UnitOp],[Jacobian],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "COLUMN_1D_GRM", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Column_1D as GRM transport Jacobian with bulk DG and par FV discretization", "[Column_1D],[DGFV],[DG1D],[UnitOp],[Jacobian],[todoCI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "COLUMN_1D_GRM", "DGFV");
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
 

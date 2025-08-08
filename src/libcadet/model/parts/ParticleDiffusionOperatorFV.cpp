@@ -611,13 +611,7 @@ namespace parts
 				kf_FV[comp] = static_cast<ParamType>(filmDiff[comp]);
 		}
 
-		//// done in particle model, not here: J_{0,f} block, adds flux to column void / bulk volume equations
-		//for (unsigned int i = 0; i < _nComp; ++i)
-		//{
-		//	resCol[i] += invBetaC * surfaceToVolumeRatio * static_cast<ParamType>(_parTypeVolFrac) * yFluxType[i];
-		//}
-
-		// J_{p,f} block, implements bead boundary condition in outer bead shell equation
+		// implement bead boundary condition in outer bead shell equation
 		for (unsigned int comp = 0; comp < _nComp; ++comp)
 		{
 			ResidualType flux = kf_FV[comp] * (yBulk[comp * strideBulkComp()] - yPar[(_nParPoints - 1) * strideParPoint() + comp]);

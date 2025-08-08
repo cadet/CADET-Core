@@ -28,6 +28,15 @@
 #include "linalg/Norms.hpp"
 #include "linalg/Subset.hpp"
 
+
+
+
+#include <iostream>
+#include <iomanip>
+
+
+
+
 #include "AdUtils.hpp"
 #include "SensParamUtil.hpp"
 
@@ -521,7 +530,7 @@ unsigned int ColumnModel1D::numAdDirsForJacobian() const CADET_NOEXCEPT
 		sumParBandwidth += idxr.strideParBlock(type);
 	}
 
-	return _convDispOp.requiredADdirs() + sumParBandwidth;
+	return numDofs();
 }
 
 void ColumnModel1D::useAnalyticJacobian(const bool analyticJac)
@@ -595,92 +604,38 @@ void ColumnModel1D::prepareADvectors(const AdJacobianParams& adJac) const
 
 	Indexer idxr(_disc);
 
-	// The global DG Jacobian is banded around the main diagonal and has additional (also banded, but offset) entries for film diffusion,
-	// i.e. banded AD vector seeding is not sufficient (as it is for the FV Jacobians, see @puttmann2016 and the DG LRM Jacobian).
-	// The compressed vectorial AD seeding and Jacobian construction is described in the following.
-	// The global DG Jacobian is banded around the main diagonal and has additional (also banded) entries for film diffusion.
-	// To feasibly seed and reconstruct the Jacobian (we need information for decompression), we create dedicated active directions for
-	// the bulk and each particle type. Particle AD directions are treated as dense (per particle block) since only nCells > 6 would
-	// justify band compression, which rarely ever happens.
+	const int adDirOffset = adJac.adDirOffset;
+	active* adVec = adJac.adY;
 
-	// We begin by seeding the (banded around main diagonal) bulk Jacobian block
-	// We have differing Jacobian structures for exact integration and collocation DG scheme, i.e. we need different seed vectors
-	// collocation DG: 2 * N_n * (N_c + N_q) + 1 = total bandwidth (main diagonal entries maximally depend on the next and last N_n liquid phase entries of same component)
-	//    ex. int. DG: 4 * N_n * (N_c + N_q) + 1 = total bandwidth (main diagonal entries maximally depend on the next and last 2*N_n liquid phase entries of same component)
-	const int lowerBandwidth = (_disc.exactInt) ? 2 * _disc.nNodes * idxr.strideColNode() : _disc.nNodes * idxr.strideColNode();
-	const int upperBandwidth = lowerBandwidth;
-	const int bulkRows = idxr.offsetCp() - idxr.offsetC();
-	ad::prepareAdVectorSeedsForBandMatrix(adJac.adY + _disc.nComp, adJac.adDirOffset, bulkRows, lowerBandwidth, upperBandwidth, lowerBandwidth);
+	// Dense seeding implemented here, could be improved by figuring out the sparse seeding / colouring
 
-	// We now seed the particle Jacobian blocks using the individual AD directions for each particle type.
-	unsigned int adDirOffset = adJac.adDirOffset + _convDispOp.requiredADdirs();
-
-	for (unsigned int type = 0; type < _disc.nParType; type++)
+	// Start with diagonal Jacobian element
+	for (int eq = 0; eq < numDofs(); ++eq)
 	{
-		for (unsigned int parBlock = 0; parBlock < _disc.nPoints; parBlock++)
-		{
-			// move adVec pointer to start of current particle block 
-			active* _adVec = adJac.adY + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ parBlock });
-
-			for (int eq = 0; eq < idxr.strideParBlock(type); ++eq)
-			{
-				// Clear previously set directions
-				_adVec[eq].fillADValue(adJac.adDirOffset, 0.0);
-				// Set direction
-				_adVec[eq].setADValue(adDirOffset + eq, 1.0);
-			}
-		}
-		if (type < _disc.nParType - 1u) // move to dedicated DoFs of next particle type
-			adDirOffset += idxr.strideParBlock(type);
+		adVec[eq].fillADValue(adDirOffset + eq, 0.0);
+		adVec[eq].setADValue(adDirOffset + eq, 1.0);
 	}
 }
+
 /**
- * @brief Extracts the system Jacobian from band compressed AD seed vectors
- * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
+ * @brief Extracts the system Jacobian from AD seed vectors
+ * @param [in] adRes Residual vector of AD datatypes with AD seed vectors
  * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
  */
 void ColumnModel1D::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
 {
 	Indexer idxr(_disc);
 
-	const active* const adVec = adRes + idxr.offsetC();
+	active const* const adResUnit = adRes + adDirOffset;
 
-	/* Extract bulk phase equations entries */
-	const int lowerBandwidth = (_disc.exactInt) ? 2 * _disc.nNodes * idxr.strideColNode() : _disc.nNodes * idxr.strideColNode();
-	const int upperBandwidth = lowerBandwidth;
-	const int stride = lowerBandwidth + 1 + upperBandwidth;
-	int diagDir = lowerBandwidth;
-	const int bulkDoFs = idxr.offsetCp() - idxr.offsetC();
-	const int eqOffset = 0;
-	const int matOffset = idxr.offsetC();
-	ad::extractBandedBlockEigenJacobianFromAd(adVec, adDirOffset, diagDir, lowerBandwidth, upperBandwidth, eqOffset, bulkDoFs, _globalJac, matOffset);
-
-	/* Handle particle liquid and solid phase equations entries */
-	// Read particle Jacobian entries from dedicated AD directions
-	int offsetParticleTypeDirs = adDirOffset + _convDispOp.requiredADdirs();
-
-	for (unsigned int type = 0; type < _disc.nParType; type++)
+	for (int i = 0; i < _globalJac.rows(); i++)
 	{
-		for (unsigned int par = 0; par < _disc.nPoints; par++)
+		for (int j = 0; j < _globalJac.cols(); j++)
 		{
-			const int eqOffset_res = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par });
-			const int eqOffset_mat = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par });
-			for (unsigned int phase = 0; phase < idxr.strideParBlock(type); phase++)
-			{
-				for (unsigned int phaseTo = 0; phaseTo < idxr.strideParBlock(type); phaseTo++)
-				{
-					_globalJac.coeffRef(eqOffset_mat + phase, eqOffset_mat + phaseTo) = adRes[eqOffset_res + phase].getADValue(offsetParticleTypeDirs + phaseTo);
-				}
-			}
+			const double val = adResUnit[i].getADValue(j + adDirOffset);
+			if (std::abs(val) > 1e-15)
+				_globalJac.coeffRef(i, j) = val;
 		}
-		offsetParticleTypeDirs += idxr.strideParBlock(type);
-	}
-
-	/* Add analytically derived flux entries (only those that are part of the outlier bands) */
-	// todo extract these entries instead of analytical calculation?
-	for (unsigned int parType = 0; parType < _disc.nParType; parType++)
-	{
-		_particles[parType]->calcFilmDiffJacobian(_disc.curSection, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(parType)}), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], _globalJac, true);
 	}
 
 	if (!_globalJac.isCompressed())
@@ -923,8 +878,7 @@ int ColumnModel1D::residualImpl(double t, unsigned int secIdx, StateType const* 
 {
 	if (wantRes)
 	{
-		double* const resPtr = reinterpret_cast<double* const>(res);
-		Eigen::Map<Eigen::VectorXd> resi(resPtr, numDofs());
+		Eigen::Map<Eigen::Vector<ResidualType, Dynamic>> resi(res, numDofs());
 		resi.setZero();
 	}
 
@@ -1127,6 +1081,12 @@ int ColumnModel1D::residualSensFwdCombine(const SimulationTime& simTime, const C
 void ColumnModel1D::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
 {
 	Indexer idxr(_disc);
+
+	//if(_analyticJac)
+	//	std::cout << "analytical Jacobian:\n";
+	//else
+	//	std::cout << "AD Jacobian:\n";
+	//std::cout << std::scientific << std::setprecision(1) << _globalJac.toDense() << std::endl;
 
 	// Handle identity matrix of inlet DOFs
 	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
