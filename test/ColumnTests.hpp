@@ -415,8 +415,11 @@ namespace column
 	 * @param [in] relTol Relative error tolerance
 	 * @param [in] disc Numerical discretization parameters
 	 * @param [in] compare_sens Specifies whether sensitivities are included
+	 * @param [in] simDataStride strides in simulation data (eg stride over radial ports), only applied to simulation data
+	 * @param [in] outletDataStride strides in outlet data (eg stride over nComp), applied to simulation and reference data
+	 * @param [in] outletDataOffset offset to outlet data entry (eg to specific component), applied to simulation and reference data
 	 */
-	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const cadet::test::column::DiscParams& disc, const bool compare_sens = false, const int simDataStride = 1);
+	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const cadet::test::column::DiscParams& disc, const bool compare_sens = false, const int simDataStride = 1, const int outletDataStride = 1, const int outletDataOffset = 0);
 
 	/**
 	 * @brief Runs an EOC test comparing against numerical reference data (outlet data)
