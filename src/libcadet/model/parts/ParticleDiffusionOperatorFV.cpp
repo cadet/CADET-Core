@@ -49,10 +49,10 @@ namespace parts
 
 		paramProvider.pushScope("discretization");
 
-		_nParCells = paramProvider.getInt("NCELLS");
+		_nParPoints = paramProvider.getInt("NCELLS");
 		// Default boundary order handling to second order
 		_boundaryOrderFV = 2;
-		if (paramProvider.exists("PAR_BOUNDARY_ORDER"))
+		if (paramProvider.exists("FV_BOUNDARY_ORDER"))
 		{
 			_boundaryOrderFV = paramProvider.getInt("FV_BOUNDARY_ORDER");
 			if ((_boundaryOrderFV < 1) || (_boundaryOrderFV > 2))
@@ -60,9 +60,9 @@ namespace parts
 		}
 
 		// Configure particle discretization
-		_parCenterRadius.resize(_nParCells);
-		_parOuterSurfAreaPerVolume.resize(_nParCells);
-		_parInnerSurfAreaPerVolume.resize(_nParCells);
+		_parCenterRadius.resize(_nParPoints);
+		_parOuterSurfAreaPerVolume.resize(_nParPoints);
+		_parInnerSurfAreaPerVolume.resize(_nParPoints);
 
 		// Read particle discretization mode and default to "EQUIDISTANT_PAR"
 		_parDiscMode = ParticleDiscretizationMode::Equidistant;
@@ -76,8 +76,8 @@ namespace parts
 		if (paramProvider.exists("PAR_DISC_VECTOR"))
 		{
 			_parDiscVector = paramProvider.getDoubleArray("PAR_DISC_VECTOR");
-			if (_parDiscVector.size() < _nParCells)
-				throw InvalidParameterException("Field PAR_DISC_VECTOR contains too few elements (" + std::to_string(_nParCells) + " required)");
+			if (_parDiscVector.size() < _nParPoints)
+				throw InvalidParameterException("Field PAR_DISC_VECTOR contains too few elements (" + std::to_string(_nParPoints) + " required)");
 		}
 
 		paramProvider.popScope(); // discretization
@@ -92,7 +92,7 @@ namespace parts
 		const bool baseConfigSuccess = ParticleDiffusionOperatorBase::configure(unitOpIdx, paramProvider, parameters, nParType, nBoundBeforeType, nTotalBound, reqBinding);
 
 		// Compute particle metrics
-		_deltaR.resize(_nParCells);
+		_deltaR.resize(_nParPoints);
 		updateRadialDisc();
 
 		return baseConfigSuccess;
@@ -108,12 +108,12 @@ namespace parts
 		active* const ptrInnerSurfAreaPerVolume = _parInnerSurfAreaPerVolume.data();
 
 		const active radius = _parRadius - _parCoreRadius;
-		const active dr = radius / static_cast<double>(_nParCells);
-		std::fill(_deltaR.data(), _deltaR.data() + _nParCells, dr);
+		const active dr = radius / static_cast<double>(_nParPoints);
+		std::fill(_deltaR.data(), _deltaR.data() + _nParPoints, dr);
 
 		if (_parGeomSurfToVol == _SurfVolRatioSphere)
 		{
-			for (unsigned int cell = 0; cell < _nParCells; ++cell)
+			for (unsigned int cell = 0; cell < _nParPoints; ++cell)
 			{
 				const active r_out = _parRadius - static_cast<double>(cell) * dr;
 				const active r_in = _parRadius - static_cast<double>(cell + 1) * dr;
@@ -129,7 +129,7 @@ namespace parts
 		}
 		else if (_parGeomSurfToVol == _SurfVolRatioCylinder)
 		{
-			for (unsigned int cell = 0; cell < _nParCells; ++cell)
+			for (unsigned int cell = 0; cell < _nParPoints; ++cell)
 			{
 				const active r_out = _parRadius - static_cast<double>(cell) * dr;
 				const active r_in = _parRadius - static_cast<double>(cell + 1) * dr;
@@ -145,7 +145,7 @@ namespace parts
 		}
 		else if (_parGeomSurfToVol == _SurfVolRatioSlab)
 		{
-			for (unsigned int cell = 0; cell < _nParCells; ++cell)
+			for (unsigned int cell = 0; cell < _nParPoints; ++cell)
 			{
 				const active r_out = _parRadius - static_cast<double>(cell) * dr;
 				const active r_in = _parRadius - static_cast<double>(cell + 1) * dr;
@@ -175,11 +175,11 @@ namespace parts
 		{
 			active r_out = _parRadius;
 			active r_in = _parCoreRadius;
-			const active volumePerShell = (pow(_parRadius, 3.0) - pow(_parCoreRadius, 3.0)) / static_cast<double>(_nParCells);
+			const active volumePerShell = (pow(_parRadius, 3.0) - pow(_parCoreRadius, 3.0)) / static_cast<double>(_nParPoints);
 
-			for (unsigned int cell = 0; cell < _nParCells; ++cell)
+			for (unsigned int cell = 0; cell < _nParPoints; ++cell)
 			{
-				if (cell != (_nParCells - 1))
+				if (cell != (_nParPoints - 1))
 					r_in = pow(pow(r_out, 3.0) - volumePerShell, (1.0 / 3.0));
 				else
 					r_in = _parCoreRadius;
@@ -198,11 +198,11 @@ namespace parts
 		{
 			active r_out = _parRadius;
 			active r_in = _parCoreRadius;
-			const active volumePerShell = (sqr(_parRadius) - sqr(_parCoreRadius)) / static_cast<double>(_nParCells);
+			const active volumePerShell = (sqr(_parRadius) - sqr(_parCoreRadius)) / static_cast<double>(_nParPoints);
 
-			for (unsigned int cell = 0; cell < _nParCells; ++cell)
+			for (unsigned int cell = 0; cell < _nParPoints; ++cell)
 			{
-				if (cell != (_nParCells - 1))
+				if (cell != (_nParPoints - 1))
 					r_in = sqrt(sqr(r_out) - volumePerShell);
 				else
 					r_in = _parCoreRadius;
@@ -221,11 +221,11 @@ namespace parts
 		{
 			active r_out = _parRadius;
 			active r_in = _parCoreRadius;
-			const active volumePerShell = (_parRadius - _parCoreRadius) / static_cast<double>(_nParCells);
+			const active volumePerShell = (_parRadius - _parCoreRadius) / static_cast<double>(_nParPoints);
 
-			for (unsigned int cell = 0; cell < _nParCells; ++cell)
+			for (unsigned int cell = 0; cell < _nParPoints; ++cell)
 			{
-				if (cell != (_nParCells - 1))
+				if (cell != (_nParPoints - 1))
 					r_in = r_out - volumePerShell;
 				else
 					r_in = _parCoreRadius;
@@ -254,7 +254,7 @@ namespace parts
 		active* const ptrInnerSurfAreaPerVolume = _parInnerSurfAreaPerVolume.data();
 
 		// Care for the right ordering and include 0.0 / 1.0 if not already in the vector.
-		std::vector<active> orderedInterfaces = std::vector<active>(_parDiscVector.begin(), _parDiscVector.begin() + _nParCells + 1);
+		std::vector<active> orderedInterfaces = std::vector<active>(_parDiscVector.begin(), _parDiscVector.begin() + _nParPoints + 1);
 
 		// Sort in descending order
 		std::sort(orderedInterfaces.begin(), orderedInterfaces.end(), std::greater<active>());
@@ -264,12 +264,12 @@ namespace parts
 		orderedInterfaces.back() = 0.0;
 
 		// Map [0, 1] -> [core radius, particle radius] via linear interpolation
-		for (unsigned int cell = 0; cell < _nParCells; ++cell)
+		for (unsigned int cell = 0; cell < _nParPoints; ++cell)
 			orderedInterfaces[cell] = static_cast<double>(orderedInterfaces[cell]) * (_parRadius - _parCoreRadius) + _parCoreRadius;
 
 		if (_parGeomSurfToVol == _SurfVolRatioSphere)
 		{
-			for (unsigned int cell = 0; cell < _nParCells; ++cell)
+			for (unsigned int cell = 0; cell < _nParPoints; ++cell)
 			{
 				ptrCellSize[cell] = orderedInterfaces[cell] - orderedInterfaces[cell + 1];
 				ptrCenterRadius[cell] = (orderedInterfaces[cell] + orderedInterfaces[cell + 1]) * 0.5;
@@ -283,7 +283,7 @@ namespace parts
 		}
 		else if (_parGeomSurfToVol == _SurfVolRatioCylinder)
 		{
-			for (unsigned int cell = 0; cell < _nParCells; ++cell)
+			for (unsigned int cell = 0; cell < _nParPoints; ++cell)
 			{
 				ptrCellSize[cell] = orderedInterfaces[cell] - orderedInterfaces[cell + 1];
 				ptrCenterRadius[cell] = (orderedInterfaces[cell] + orderedInterfaces[cell + 1]) * 0.5;
@@ -297,7 +297,7 @@ namespace parts
 		}
 		else if (_parGeomSurfToVol == _SurfVolRatioSlab)
 		{
-			for (unsigned int cell = 0; cell < _nParCells; ++cell)
+			for (unsigned int cell = 0; cell < _nParPoints; ++cell)
 			{
 				ptrCellSize[cell] = orderedInterfaces[cell] - orderedInterfaces[cell + 1];
 				ptrCenterRadius[cell] = (orderedInterfaces[cell] + orderedInterfaces[cell + 1]) * 0.5;
@@ -331,9 +331,9 @@ namespace parts
 	int ParticleDiffusionOperatorFV::writeParticleCoordinates(double* coords) const
 	{
 		active const* const pcr = _parCenterRadius.data();
-		for (unsigned int i = 0; i < _nParCells; ++i)
+		for (unsigned int i = 0; i < _nParPoints; ++i)
 			coords[i] = static_cast<double>(pcr[i]);
-		return _nParCells;
+		return _nParPoints;
 	}
 
 	int ParticleDiffusionOperatorFV::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity)
@@ -390,7 +390,7 @@ namespace parts
 		active const* const parCenterRadius = _parCenterRadius.data();
 
 		// Loop over particle cells
-		for (unsigned int par = 0; par < _nParCells; ++par)
+		for (unsigned int par = 0; par < _nParPoints; ++par)
 		{
 			// Geometry
 			const ParamType outerAreaPerVolume = static_cast<ParamType>(outerSurfPerVol[par]);
@@ -466,7 +466,7 @@ namespace parts
 
 				// Add flow through inner surface
 				// Note that this term vanishes for the most inner shell due to boundary conditions
-				if (cadet_likely(par != _nParCells - 1))
+				if (cadet_likely(par != _nParPoints - 1))
 				{
 					// Difference between two cell-centers
 					const ParamType dr = static_cast<ParamType>(parCenterRadius[par]) - static_cast<ParamType>(parCenterRadius[par + 1]);
@@ -557,7 +557,7 @@ namespace parts
 
 					// Add flow through inner surface
 					// Note that this term vanishes for the most inner shell due to boundary conditions
-					if (cadet_likely(par != _nParCells - 1))
+					if (cadet_likely(par != _nParPoints - 1))
 					{
 						// Difference between two cell-centers
 						const ParamType dr = static_cast<ParamType>(parCenterRadius[par]) - static_cast<ParamType>(parCenterRadius[par + 1]);
@@ -629,9 +629,9 @@ namespace parts
 		// J_{p,f} block, implements bead boundary condition in outer bead shell equation
 		for (unsigned int comp = 0; comp < _nComp; ++comp)
 		{
-			ResidualType flux = kf_FV[comp] * (yParType[(_nParCells - 1) * strideParPoint() + comp] - yCol[comp * strideBulkComp()]);
+			ResidualType flux = kf_FV[comp] * (yParType[(_nParPoints - 1) * strideParPoint() + comp] - yCol[comp * strideBulkComp()]);
 
-			if (cadet_unlikely(_hasSurfaceDiffusion && _hasReqReactions && (_nParCells > 1)))
+			if (cadet_unlikely(_hasSurfaceDiffusion && _hasReqReactions && (_nParPoints > 1)))
 			{
 				// Ordering of particle surface diffusion:
 				// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
@@ -657,7 +657,7 @@ namespace parts
 					// Evaluate surface diffusion coefficient and apply weighted arithmetic mean
 					const int curIdx = strideParLiquid() + idxBnd;
 
-					const ResidualType gradQ = (yParType[(_nParCells - 1) * strideParPoint() + curIdx] - yParType[(_nParCells - 2) * strideParPoint() + curIdx]) / dr;
+					const ResidualType gradQ = (yParType[(_nParPoints - 1) * strideParPoint() + curIdx] - yParType[(_nParPoints - 2) * strideParPoint() + curIdx]) / dr;
 					flux -= kf_FV[comp] * static_cast<ParamType>(parSurfDiff[comp]) * gradQ;
 				}
 			}
@@ -689,14 +689,11 @@ namespace parts
 			for (unsigned int i = 0; i < _nComp; ++i)
 			{
 				const unsigned int offsetBound = _boundOffset[i];
-
-				// Only to same component in previous cell and last bound state in next cell
-				lowerBandwidth = std::max(lowerBandwidth, cellSize);
 				upperBandwidth = std::max(upperBandwidth, cellSize - i - 1 + _nComp + offsetBound + _nBound[i]);
 			}
 		}
 
-		return _nParCells * strideParPoint() * (lowerBandwidth + 1 + upperBandwidth);
+		return _nParPoints * strideParPoint() * (lowerBandwidth + 1 + upperBandwidth);
 	}
 
 	/**
@@ -732,14 +729,11 @@ namespace parts
 			tripletList.push_back(Eigen::Triplet<double>(offsetBulk + comp, offsetPar + strideParBlock() - strideParPoint() + comp, 0.0));
 
 			// cp on cb dependence through BC
-			for (unsigned int cell = 0; cell < std::min(2, _nParCells); cell++) // only the outer two shells/cells are considered since onley they are used to compute the boundary condition
-			{
-				// row: add particle offset to current parType and particle, go to last cell and current cell and add component offset
-				// col: add flux offset to current component, jump over previous cells and components
-				tripletList.push_back(T(offsetPar + (_nParCells - 1) * strideParPoint() + cell * strideParPoint() + comp * strideParComp(),
-					offsetBulk + comp,
-					0.0));
-			}
+			// row: add particle offset to current parType and particle, go to last cell and current cell and add component offset
+			// col: add flux offset to current component, jump over previous cells and components
+			tripletList.push_back(T(offsetPar + (_nParPoints - 1) * strideParPoint() + comp * strideParComp(),
+				offsetBulk + comp,
+				0.0));
 		}
 	}
 	
@@ -779,7 +773,7 @@ namespace parts
 		const double jacPF_val = -outerAreaPerVolume / epsP;
 
 		linalg::BandedEigenSparseRowIterator jacCl(globalJac, offsetC);
-		linalg::BandedEigenSparseRowIterator jacCp(globalJac, offsetCp + (_nParCells - 1) * strideParPoint()); // iterator at the outer particle boundary
+		linalg::BandedEigenSparseRowIterator jacCp(globalJac, offsetCp + (_nParPoints - 1) * strideParPoint()); // iterator at the outer particle boundary
 
 		for (unsigned int blk = 0; blk < nBulkPoints; blk++)
 		{
@@ -820,7 +814,7 @@ namespace parts
 				jacCp[0] -= kf_FV[comp] * jacPF_val / static_cast<double>(_poreAccessFactor[comp]);
 
 				// Cs entries
-				if (cadet_unlikely(_hasSurfaceDiffusion && _reqBinding && (_nParCells > 1)))
+				if (cadet_unlikely(_hasSurfaceDiffusion && _reqBinding && (_nParPoints > 1)))
 				{
 					// Ordering of particle surface diffusion:
 					// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
@@ -850,7 +844,7 @@ namespace parts
 				}
 
 				if (blk < nBulkPoints - 1) // go to next particle block
-					jacCp += _strideBound + (_nParCells - 1) * strideParPoint();
+					jacCp += _strideBound + (_nParPoints - 1) * strideParPoint();
 			}
 		}
 
