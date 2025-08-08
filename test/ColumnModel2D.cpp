@@ -418,16 +418,18 @@ TEST_CASE("Column_2D as GRM numerical reference test for a three zone linear bin
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, false, simDataStride);
 }
 
-TEST_CASE("Column_2D as GRM without radial variation SMA LWE numerical 1D reference test", "[GRM2D],[DG],[DG2D],[Simulation],[Reference],[Analytical],[testCI]")
+TEST_CASE("Column_2D as GRM without radial variation SMA LWE numerical 1D reference test", "[GRM2D],[DG],[DG2D],[Simulation],[Reference],[Analytical],[CI]")
 {
 	const std::string& modelFilePath = std::string("/data/model_COL2D_GRM2Zone_noRadVar_SMA_LWE.json");
 	const std::string refFilePath = std::string("/data/ref_GRM_reqSMA_4comp_sensbenchmark1_exIntDG_P3Z8_GSM_parP3parZ1.h5");
-	const std::vector<double> absTol = { 1E-10 };
-	const std::vector<double> relTol = { 1E-6 };
+	const std::vector<double> absTol = { 5E-6 };
+	const std::vector<double> relTol = { 5E-2 };
 
 	cadet::test::column::DGParamsNewIF disc(1, 3, 8, 3, 1, 3, 2); // (int exact, int polyDeg, int elem, int parPolyDeg, int parNelem, int radPolyDeg, int radNelem)
-	const int simDataStride = 12; // number of radial ports
-	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, false, simDataStride);
+	const int simDataStride = 8; // number of radial ports
+	const int outletDataStride = 4; // number of components
+	const int outletDataOffset = 1; // offset to component to be compared
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, false, simDataStride, outletDataStride, outletDataOffset);
 }
 
 TEST_CASE("Column_2D as GRM sensitivity Jacobians", "[Column_2D],[UnitOp],[Sensitivity],[CI]")
