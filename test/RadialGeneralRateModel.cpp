@@ -25,7 +25,7 @@ TEST_CASE("Radial GRM numerical Benchmark with parameter sensitivities for linea
 	const std::string& refFilePath = std::string("/data/ref_radGRM_dynLin_1comp_sensbenchmark1_FV_Z32parZ4.h5");
 	const std::vector<double> absTol = { 1e-12, 1e-8, 1e-4, 1e-4 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
-	cadet::test::column::FVparams disc(32, 4);
+	cadet::test::column::FVParams disc(32, 4);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
@@ -39,7 +39,7 @@ TEST_CASE("Radial GRM transport Jacobian", "[RadGRM],[UnitOp],[Jacobian],[CI]")
 
 TEST_CASE("Radial GRM Jacobian forward vs backward flow", "[RadGRM],[UnitOp],[Residual],[Jacobian],[AD],[ReleaseCI]")
 {
-	cadet::test::column::FVparams disc(16);
+	cadet::test::column::FVParams disc(16);
 	cadet::test::column::testJacobianForwardBackward("RADIAL_GENERAL_RATE_MODEL", disc);
 }
 
