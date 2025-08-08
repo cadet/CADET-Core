@@ -1778,7 +1778,7 @@ namespace column
 		return pp_setup;
 	}
 
-	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const DiscParams& disc, const bool compare_sens, const int simDataStride)
+	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const DiscParams& disc, const bool compareSens, const int simDataStride, const int outletDataStride, const int outletDataOffset)
 	{
 		const int unitOpID = std::stoi(unitID);
 
@@ -1811,7 +1811,7 @@ namespace column
 
 		// copy sensitivity setup
 		int nSens = 0;
-		if (pp_ref.exists("sensitivity") && compare_sens)
+		if (pp_ref.exists("sensitivity") && compareSens)
 			nSens = copySensitivities(pp_ref, *setupJson, unitID);
 
 		pp_ref.popScope();
@@ -1845,10 +1845,10 @@ namespace column
 		pp_ref.popScope();
 
 		// compare the simulation results with the reference data
-		for (unsigned int i = 0; i < ref_outlet.size(); ++i)
-			CHECK((sim_outlet[i * simDataStride]) == cadet::test::makeApprox(ref_outlet[i], relTol[0], absTol[0]));
+		for (unsigned int i = 0; i < ref_outlet.size() / outletDataStride; ++i)
+			CHECK((sim_outlet[i * simDataStride * outletDataStride + outletDataOffset]) == cadet::test::makeApprox(ref_outlet[i * outletDataStride + outletDataOffset], relTol[0], absTol[0]));
 
-		if (pp_ref.exists("sensitivity") && compare_sens)
+		if (pp_ref.exists("sensitivity") && compareSens)
 		{
 			if (nSens != absTol.size() - 1 || nSens != relTol.size() - 1)
 				throw std::out_of_range("Faulty sensitivity reference test setup: Size of abstol or reltol is not equal to NSENS + 1");
