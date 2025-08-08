@@ -130,7 +130,7 @@ namespace parts
 
 		typedef Eigen::Triplet<double> T;
 
-		int particleJacobianBandwidth(unsigned int lowerBandwidth, unsigned int upperBandWidth) const;
+		int particleJacobianBandwidth(unsigned int& lowerBandwidth, unsigned int& upperBandWidth) const;
 
 		void setParticleJacobianPattern(std::vector<T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx);
 
@@ -155,7 +155,6 @@ namespace parts
 
 		/* FV specific operators */
 
-		int _nParCells; //!< Number of FV particle cells
 		std::vector<active> _deltaR; //!< particle cell spacing
 		ArrayPool _discParFlux; //!< Storage for discretized @f$ k_f @f$ value
 		int _boundaryOrderFV; //!< Order of the bulk-particle boundary discretization
