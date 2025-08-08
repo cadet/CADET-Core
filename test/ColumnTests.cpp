@@ -135,172 +135,6 @@ namespace test
 
 namespace column
 {
-
-	void FVparams::setDisc(JsonParameterProvider& jpp, const std::string unitID) const {
-
-		int level = 0;
-
-		if (jpp.exists("model"))
-		{
-			jpp.pushScope("model");
-			++level;
-		}
-		if (jpp.exists("unit_" + unitID))
-		{
-			jpp.pushScope("unit_" + unitID);
-			++level;
-		}
-
-		std::string unitType = jpp.getString("UNIT_TYPE");
-
-		jpp.pushScope("discretization");
-		jpp.set("SPATIAL_METHOD", "FV");
-
-		if (nAxCells)
-			jpp.set("NCOL", nAxCells);
-
-		if (nParCells)
-			jpp.set("NPAR", nParCells);
-
-		if (nRadCells)
-		{
-			if (unitType == "MULTI_CHANNEL_TRANSPORT")
-			{
-				jpp.popScope();
-				jpp.set("NCHANNEL", nRadCells);
-				jpp.pushScope("discretization");
-			}
-			else
-				jpp.set("NRAD", nRadCells);
-		}
-
-		if (jpp.exists("weno"))
-		{
-			jpp.pushScope("weno");
-			if (wenoOrder)
-				jpp.set("WENO_ORDER", wenoOrder);
-
-			jpp.popScope();
-		}
-		jpp.popScope();
-
-		for (int l = 0; l < level; ++l)
-			jpp.popScope();
-	}
-
-	void DGparams::setDisc(JsonParameterProvider& jpp, const std::string unitID) const {
-
-		int level = 0;
-
-		if (jpp.exists("model"))
-		{
-			jpp.pushScope("model");
-			++level;
-		}
-		if (jpp.exists("unit_" + unitID))
-		{
-			jpp.pushScope("unit_" + unitID);
-			++level;
-		}
-
-		jpp.pushScope("discretization");
-		jpp.set("SPATIAL_METHOD", "DG");
-
-		if (radPolyDeg)
-		{
-			jpp.set("RAD_POLYDEG", radPolyDeg);
-			if (radNelem)
-				jpp.set("RAD_NELEM", radNelem);
-			if (polyDeg)
-				jpp.set("AX_POLYDEG", polyDeg);
-			if (nElem)
-				jpp.set("AX_NELEM", nElem);
-		}
-		else
-		{
-			if (exactIntegration > -1)
-				jpp.set("EXACT_INTEGRATION", exactIntegration);
-			if (polyDeg)
-				jpp.set("POLYDEG", polyDeg);
-			if (nElem)
-				jpp.set("NELEM", nElem);
-		}
-		if (parNelem)
-			jpp.set("PAR_NELEM", parNelem);
-		if (parPolyDeg)
-			jpp.set("PAR_POLYDEG", parPolyDeg);
-
-		jpp.popScope();
-
-		for (int l = 0; l < level; ++l)
-			jpp.popScope();
-	}
-
-	void DGParamsNewIF::setDisc(JsonParameterProvider& jpp, const std::string unitID) const {
-
-		int level = 0;
-
-		if (jpp.exists("model"))
-		{
-			jpp.pushScope("model");
-			++level;
-		}
-		if (jpp.exists("unit_" + unitID))
-		{
-			jpp.pushScope("unit_" + unitID);
-			++level;
-		}
-
-		jpp.pushScope("discretization");
-		jpp.set("SPATIAL_METHOD", "DG");
-
-		if (radPolyDeg)
-		{
-			jpp.set("RAD_POLYDEG", radPolyDeg);
-			if (radNelem)
-				jpp.set("RAD_NELEM", radNelem);
-			if (polyDeg)
-				jpp.set("AX_POLYDEG", polyDeg);
-			if (nElem)
-				jpp.set("AX_NELEM", nElem);
-		}
-		else
-		{
-			if (exactIntegration > -1)
-				jpp.set("EXACT_INTEGRATION", exactIntegration);
-			if (polyDeg)
-				jpp.set("POLYDEG", polyDeg);
-			if (nElem)
-				jpp.set("NELEM", nElem);
-		}
-
-		jpp.popScope();
-
-		if (parPolyDeg)
-		{
-			const int nParType = jpp.getInt("NPARTYPE");
-
-			for (int parType = 0; parType < nParType; parType++)
-			{
-				std::ostringstream parTypeIdxString;
-				parTypeIdxString << std::setfill('0') << std::setw(3) << std::setprecision(0) << parType;
-				jpp.pushScope("particle_type_" + parTypeIdxString.str());
-				if (jpp.exists("discretization")) // does not exist e.g. for homogeneous particles
-				{
-					jpp.pushScope("discretization");
-					jpp.set("SPATIAL_METHOD", "DG");
-					jpp.set("PAR_POLYDEG", parPolyDeg);
-					jpp.set("PAR_NELEM", parNelem);
-					jpp.popScope();
-				}
-				jpp.popScope();
-			}
-		}
-
-		for (int l = 0; l < level; ++l)
-			jpp.popScope();
-	}
-
 	/**
 	 * @brief Reads reference chromatograms from a test data file
 	 * @details The file format is as follows:
@@ -840,7 +674,7 @@ namespace column
 		}
 	}
 
-	void testForwardBackward(const char* uoType, FVparams disc, double absTol, double relTol)
+	void testForwardBackward(const char* uoType, FVParams disc, double absTol, double relTol)
 	{
 		SECTION("Forward vs backward flow (WENO=" + std::to_string(disc.getWenoOrder()) + ")")
 		{
@@ -852,19 +686,7 @@ namespace column
 		}
 	}
 
-	void testForwardBackward(const char* uoType, DGparams disc, double absTol, double relTol)
-	{
-		SECTION("Forward vs backward flow (DG integration mode " + std::to_string(disc.getIntegrationMode()) + ")")
-		{
-			// Use Load-Wash-Elution test case
-			cadet::JsonParameterProvider jpp = createLWE(uoType, "DG");
-			disc.setDisc(jpp);
-
-			testForwardBackward(jpp, absTol, relTol);
-		}
-	}
-
-	void testForwardBackward(const char* uoType, DGParamsNewIF disc, double absTol, double relTol)
+	void testForwardBackward(const char* uoType, DGParams disc, double absTol, double relTol)
 	{
 		SECTION("Forward vs backward flow (DG integration mode " + std::to_string(disc.getIntegrationMode()) + ")")
 		{
@@ -920,12 +742,12 @@ namespace column
 		}
 	}
 
-	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, FVparams& disc, double absTol, double relTol)
+	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, FVParams& disc, double absTol, double relTol)
 	{
 		testAnalyticBenchmark(uoType, refFileRelPath, forwardFlow, dynamicBinding, disc, "FV", absTol, relTol);
 	}
 
-	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, DGparams& disc, double absTol, double relTol)
+	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, DGParams& disc, double absTol, double relTol)
 	{
 		testAnalyticBenchmark(uoType, refFileRelPath, forwardFlow, dynamicBinding, disc, "DG", absTol, relTol);
 	}
@@ -966,12 +788,12 @@ namespace column
 		}
 	}
 
-	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, FVparams& disc, double absTol, double relTol)
+	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, FVParams& disc, double absTol, double relTol)
 	{
 		testAnalyticNonBindingBenchmark(uoType, refFileRelPath, forwardFlow, disc, "FV", absTol, relTol);
 	}
 
-	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, DGparams& disc, double absTol, double relTol)
+	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, DGParams& disc, double absTol, double relTol)
 	{
 		testAnalyticNonBindingBenchmark(uoType, refFileRelPath, forwardFlow, disc, "DG", absTol, relTol);
 	}
@@ -1142,7 +964,7 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testJacobianForwardBackward(const char* uoType, FVparams disc, const double absTolFDpattern)
+	void testJacobianForwardBackward(const char* uoType, FVParams disc, const double absTolFDpattern)
 	{
 		SECTION("Forward vs backward flow Jacobian (WENO=" + std::to_string(disc.getWenoOrder()) + ")")
 		{
@@ -1154,7 +976,7 @@ namespace column
 		}
 	}
 
-	void testJacobianForwardBackward(const char* uoType, DGparams disc, const double absTolFDpattern)
+	void testJacobianForwardBackward(const char* uoType, DGParams disc, const double absTolFDpattern)
 	{
 		SECTION("Forward vs backward flow Jacobian (DG integration mode " + std::to_string(disc.getIntegrationMode()) + ")")
 		{
@@ -1177,7 +999,7 @@ namespace column
 			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
 			const unsigned int nComp = jpp.getInt("NCOMP");
 
-			FVparams disc;
+			FVParams disc;
 			disc.setWenoOrder(wenoOrder);
 			cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp, disc);
 
