@@ -392,10 +392,10 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configure(IParameterProvider
 			paramProvider.popScope();
 		}
 	}
-	else
+	else if (paramProvider.exists("reaction_cross_phase"))
 	{
 		// New interface: multiple reactions per particle type
-		paramProvider.pushScope("reaction_particle");
+		paramProvider.pushScope("reaction_cross_phase");
 
 		int nReactions = paramProvider.getInt("NREAC");
 
@@ -429,9 +429,12 @@ unsigned int LumpedRateModelWithoutPores<ConvDispOperator>::threadLocalMemorySiz
 
 	for (unsigned int i = 0; i < _dynReaction.size(); ++i)
 	{
-		lms.addBlock(_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound));
-		lms.add<active>(_disc.strideBound);
-		lms.add<double>(_disc.strideBound * (_disc.strideBound + _disc.nComp));
+		if (_dynReaction[i] && _dynReaction[i]->requiresWorkspace())
+		{
+			lms.addBlock(_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound));
+			lms.add<active>(_disc.strideBound);
+			lms.add<double>(_disc.strideBound * (_disc.strideBound + _disc.nComp));
+		}
 	}
 
 	lms.commit();
