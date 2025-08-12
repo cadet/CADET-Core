@@ -23,25 +23,36 @@ recent version.
 
 ## Install dependencies
 
+### Debian/Ubuntu/...
+
 ```
 sudo apt-get update
 sudo apt -y install build-essential cmake libhdf5-dev libsuperlu-dev libeigen3-dev
 ```
+#### LAPACK
 
-### LAPACK
+You can either use a LAPACK implementation provided by your distribution or install the freely available Intel MKL.
 
-You can either use a LAPACK implementation provided by your distribution or install the freely available Intel MKL
-
-for Intel run
-
+For Intel run:
 ```
 sudo apt -y install intel-mkl
 ```
 
-for distro defaults run
-
+For distro defaults run:
 ```
 sudo apt -y install liblapack3 liblapack-dev libblas3 libblas-dev
+```
+
+### Fedora
+
+Required packages:
+```
+sudo dnf install cmake gcc-c++ git eigen3-devel hdf5-devel lapack-devel
+```
+
+Recommended packages:
+```
+sudo dnf install SuperLU-devel suitesparse-devel
 ```
 
 ## Build CADET-Core
