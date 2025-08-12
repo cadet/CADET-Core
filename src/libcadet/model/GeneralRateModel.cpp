@@ -744,7 +744,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	}
 
 
-	if (paramProvider.exists("reaction_particle_000"))
+	if (paramProvider.exists("reaction_pore_000"))
 	{
 		// First get the total size of _dynReactionParticle across all particles
 		int totalReactionsParticle = 0;
@@ -752,7 +752,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 		for (unsigned int par = 0; par < _disc.nParType; par++)
 		{
 			char particleScope[32];
-			snprintf(particleScope, sizeof(particleScope), "reaction_particle_%03d", par);
+			snprintf(particleScope, sizeof(particleScope), "reaction_pore_%03d", par);
 			paramProvider.pushScope(particleScope);
 
 			if (paramProvider.exists("NREAC"))
@@ -776,7 +776,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 		for (unsigned int par = 0; par < _disc.nParType; par++)
 		{
 			char particleScope[32];
-			snprintf(particleScope, sizeof(particleScope), "reaction_particle_%03d", par);
+			snprintf(particleScope, sizeof(particleScope), "reaction_pore_%03d", par);
 			paramProvider.pushScope(particleScope);
 
 			reactionConfSuccess = configureDiscretizationReactionModel(paramProvider, _dynReactionParticle, _numParticleReactionsPerParticle, par, helper) && reactionConfSuccess;
