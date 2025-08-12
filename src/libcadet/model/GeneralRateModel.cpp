@@ -660,9 +660,6 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 
 	clearDynamicReactionModels();
 	_oldReactionInterface = false;
-	_dynReaction.resize(1, nullptr);
-	_numCrossPhaseReactionsPerParticle.resize(_disc.nParType, 0);
-	_numParticleReactionsPerParticle.resize(_disc.nParType, 0);
 
 	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
 	{
@@ -742,9 +739,8 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	}
 	else
 	{
-		_dynReaction.push_back(nullptr);
-		_numCrossPhaseReactionsPerParticle.push_back(0);
-		_numParticleReactionsPerParticle.push_back(0);
+		_dynReaction.resize(_disc.nParType, nullptr);
+		_numCrossPhaseReactionsPerParticle.resize(_disc.nParType, 0);
 	}
 
 
@@ -789,8 +785,8 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	}
 	else
 	{
-		_dynReactionParticle.push_back(nullptr);
-		_numParticleReactionsPerParticle.push_back(0);
+		_dynReactionParticle.resize(_disc.nParType,nullptr);
+		_numParticleReactionsPerParticle.resize(_disc.nParType, 0);
 	}
 
 	// Allocate memory

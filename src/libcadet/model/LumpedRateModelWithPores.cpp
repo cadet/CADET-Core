@@ -607,9 +607,8 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 	}
 	else
 	{
-		_dynReaction.push_back(nullptr);
-		_numCrossPhaseReactionsPerParticle.push_back(0);
-		_numParticleReactionsPerParticle.push_back(0);
+		_dynReaction.resize(_disc.nParType, nullptr);
+		_numCrossPhaseReactionsPerParticle.resize(_disc.nParType, 0);
 	}
 	
 	
@@ -654,9 +653,8 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 	}
 	else
 	{
-		_dynReactionParticle.push_back(nullptr);
-		_numParticleReactionsPerParticle.push_back(0);
-		_numCrossPhaseReactionsPerParticle.push_back(0);
+		_dynReactionParticle.resize(_disc.nParType, nullptr);
+		_numParticleReactionsPerParticle.resize(_disc.nParType, 0);
 	}
 
 
