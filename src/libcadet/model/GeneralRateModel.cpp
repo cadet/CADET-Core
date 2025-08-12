@@ -660,6 +660,10 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 
 	clearDynamicReactionModels();
 	_oldReactionInterface = false;
+	_dynReaction.resize(1, nullptr);
+	_numCrossPhaseReactionsPerParticle.resize(_disc.nParType, 0);
+	_numParticleReactionsPerParticle.resize(_disc.nParType, 0);
+
 	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
 	{
 		_oldReactionInterface = true;
@@ -700,7 +704,6 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	}
 	else if (paramProvider.exists("reaction_cross_phase_000"))
 	{
-		_numCrossPhaseReactionsPerParticle.resize(_disc.nParType);
 		// First get the total size of _dynReaction across all particles
 		int totalReactions = 0;
 		for (unsigned int par = 0; par < _disc.nParType; par++)
@@ -741,6 +744,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	{
 		_dynReaction.push_back(nullptr);
 		_numCrossPhaseReactionsPerParticle.push_back(0);
+		_numParticleReactionsPerParticle.push_back(0);
 	}
 
 
@@ -1680,7 +1684,7 @@ int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int 
 
 		// We still need to handle transport and quasi-stationary reactions
 
-			// Cross Phase Reactions
+		// Cross Phase Reactions
 		const int numReacCrossPhase = _numCrossPhaseReactionsPerParticle[parType];
 		const int numReacParticle = _numParticleReactionsPerParticle[parType];
 		const int offSetCrossPhase = getReactionOffsetParticle(_numCrossPhaseReactionsPerParticle, parType);

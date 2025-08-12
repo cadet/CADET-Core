@@ -253,7 +253,6 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
 	clearDynamicReactionModels();
-	_dynReaction.push_back(nullptr);
 	_oldReactionInterface = false;
 
 	if (paramProvider.exists("REACTION_MODEL"))
@@ -337,7 +336,10 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 			paramProvider.popScope(); // Exit reaction_particle_XXX scope
 
 	}
-
+	else
+	{
+		_dynReaction.push_back(nullptr);
+	}
 
 	// Setup the memory for tempState based on state vector
 	_tempState = new double[numDofs()];

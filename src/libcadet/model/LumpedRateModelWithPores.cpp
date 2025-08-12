@@ -525,8 +525,8 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 
 	clearDynamicReactionModels();
 	_oldReactionInterface = false;
-	
-if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
+
+	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
 	{
 		_oldReactionInterface = true;
 		_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
@@ -609,6 +609,7 @@ if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
 	{
 		_dynReaction.push_back(nullptr);
 		_numCrossPhaseReactionsPerParticle.push_back(0);
+		_numParticleReactionsPerParticle.push_back(0);
 	}
 	
 	
@@ -655,6 +656,7 @@ if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
 	{
 		_dynReactionParticle.push_back(nullptr);
 		_numParticleReactionsPerParticle.push_back(0);
+		_numCrossPhaseReactionsPerParticle.push_back(0);
 	}
 
 
