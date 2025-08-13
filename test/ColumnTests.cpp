@@ -1000,7 +1000,7 @@ namespace column
 			const unsigned int nComp = jpp.getInt("NCOMP");
 
 			FVParams disc;
-			disc.setWenoOrder(wenoOrder);
+			disc.setBulkDiscParam("WENO_ORDER", static_cast<int>(wenoOrder));
 			cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp, disc);
 
 			// Obtain memory for state, Jacobian multiply direction, Jacobian column

@@ -84,26 +84,64 @@ namespace column
 		JsonParameterProvider& getProvider() { return jpp_; }
 	};
 
-	// Base classes for bulk and particle discretization
 	class BulkDiscretization {
 	public:
 		virtual ~BulkDiscretization() = default;
 		virtual int getNAxCells() const = 0;
-		virtual void setBulkParameters(JsonParameterProvider& jpp, const std::string& unitType, JsonDiscScopeManager& manager) const = 0;
 		virtual std::string getDiscType() const = 0;
 		virtual std::unique_ptr<BulkDiscretization> clone() const = 0;
+		virtual void setBulkParameters(JsonParameterProvider& jpp, const std::string& unitType, JsonDiscScopeManager& manager) const
+		{
+			for (const auto& [name, val] : stringParams_) jpp.set(name, val);
+			for (const auto& [name, val] : doubleParams_) jpp.set(name, val);
+			for (const auto& [name, val] : intParams_) jpp.set(name, val);
+		}
+
+		virtual void setDiscParam(const std::string& name, const std::string& value) {
+			stringParams_.emplace_back(name, value);
+		}
+		virtual void setDiscParam(const std::string& name, double value) {
+			doubleParams_.emplace_back(name, value);
+		}
+		virtual void setDiscParam(const std::string& name, int value) {
+			intParams_.emplace_back(name, value);
+		}
+
+	private:
+		std::vector<std::pair<std::string, std::string>> stringParams_;
+		std::vector<std::pair<std::string, double>> doubleParams_;
+		std::vector<std::pair<std::string, int>> intParams_;
 	};
 
 	class ParticleDiscretization {
 	public:
 		virtual ~ParticleDiscretization() = default;
 		virtual int getNParCells() const = 0;
-		virtual void setParticleParameters(JsonParameterProvider& jpp) const = 0;
 		virtual std::string getDiscType() const = 0;
 		virtual std::unique_ptr<ParticleDiscretization> clone() const = 0;
+		virtual void setParticleParameters(JsonParameterProvider& jpp) const
+		{
+			for (const auto& [name, val] : stringParams_) jpp.set(name, val);
+			for (const auto& [name, val] : doubleParams_) jpp.set(name, val);
+			for (const auto& [name, val] : intParams_) jpp.set(name, val);
+		}
+
+		virtual void setDiscParam(const std::string& name, const std::string& value) {
+			stringParams_.emplace_back(name, value);
+		}
+		virtual void setDiscParam(const std::string& name, double value) {
+			doubleParams_.emplace_back(name, value);
+		}
+		virtual void setDiscParam(const std::string& name, int value) {
+			intParams_.emplace_back(name, value);
+		}
+
+	private:
+		std::vector<std::pair<std::string, std::string>> stringParams_;
+		std::vector<std::pair<std::string, double>> doubleParams_;
+		std::vector<std::pair<std::string, int>> intParams_;
 	};
 
-	// Concrete bulk discretization implementations
 	class BulkFV : public BulkDiscretization {
 	private:
 		int nAxCells_;
@@ -115,11 +153,25 @@ namespace column
 			: nAxCells_(nAxCells), wenoOrder_(wenoOrder), nRadCells_(nRadCells) {
 		}
 
+		void setDiscParam(const std::string& name, int value) {
+			if (name == "WENO_ORDER")
+				wenoOrder_ = value;
+			else if (name == "NCHANNEL" || name == "NRAD")
+				nRadCells_ = value;
+			else if (name == "NCOL")
+				nRadCells_ = value;
+			else
+				BulkDiscretization::setDiscParam(name, value);
+		}
+
 		std::string getDiscType() const override { return "FV"; }
 
 		int getNAxCells() const override { return nAxCells_; }
 
-		void setBulkParameters(JsonParameterProvider& jpp, const std::string& unitType, JsonDiscScopeManager& manager) const override {
+		void setBulkParameters(JsonParameterProvider& jpp, const std::string& unitType, JsonDiscScopeManager& manager) const
+		{
+			BulkDiscretization::setBulkParameters(jpp, unitType, manager);
+
 			jpp.set("SPATIAL_METHOD", "FV");
 
 			if (nAxCells_) jpp.set("NCOL", nAxCells_);
@@ -145,11 +197,7 @@ namespace column
 		std::unique_ptr<BulkDiscretization> clone() const override {
 			return std::make_unique<BulkFV>(nAxCells_, wenoOrder_, nRadCells_);
 		}
-
-		// Setters for configuration
-		void setWenoOrder(int order) { wenoOrder_ = order; }
 		int getWenoOrder() const { return wenoOrder_; }
-		void setNRad(int nRad) { nRadCells_ = nRad; }
 	};
 
 	class BulkDG : public BulkDiscretization {
@@ -166,11 +214,29 @@ namespace column
 			radPolyDeg_(radPolyDeg), radNelem_(radNelem) {
 		}
 
+		void setDiscParam(const std::string& name, int value) {
+			if (name == "EXACT_INTEGRATION")
+				exactIntegration_ = value;
+			else if (name == "POLYDEG")
+				polyDeg_ = value;
+			else if (name == "NELEM")
+				nElem_ = value;
+			else if (name == "RAD_POLYDEG")
+				radPolyDeg_ = value;
+			else if (name == "RAD_NELEM")
+				radNelem_ = value;
+			else
+				BulkDiscretization::setDiscParam(name, value);
+		}
+
 		std::string getDiscType() const override { return "DG"; }
 
 		int getNAxCells() const override { return nElem_; }
 
-		void setBulkParameters(JsonParameterProvider& jpp, const std::string& unitType, JsonDiscScopeManager& manager) const override {
+		void setBulkParameters(JsonParameterProvider& jpp, const std::string& unitType, JsonDiscScopeManager& manager) const
+		{
+			BulkDiscretization::setBulkParameters(jpp, unitType, manager);
+
 			jpp.set("SPATIAL_METHOD", "DG");
 
 			if (radPolyDeg_) {
@@ -189,13 +255,9 @@ namespace column
 		std::unique_ptr<BulkDiscretization> clone() const override {
 			return std::make_unique<BulkDG>(exactIntegration_, polyDeg_, nElem_, radPolyDeg_, radNelem_);
 		}
-
-		// Setters for configuration
-		void setIntegrationMode(int integrationMode) { exactIntegration_ = integrationMode; }
 		int getIntegrationMode() const { return exactIntegration_; }
 	};
 
-	// Concrete particle discretization implementations
 	class ParticleFV : public ParticleDiscretization {
 	private:
 		int nParCells_;
@@ -203,12 +265,21 @@ namespace column
 	public:
 		ParticleFV(int nParCells = 0) : nParCells_(nParCells) {}
 
+		void setDiscParam(const std::string& name, int value) {
+			if (name == "NPAR" || name == "NCELLS")
+				nParCells_ = value;
+			else
+				ParticleDiscretization::setDiscParam(name, value);
+		}
+
 		std::string getDiscType() const override { return "FV"; }
 
 		int getNParCells() const override { return nParCells_; }
 
-		void setParticleParameters(JsonParameterProvider& jpp) const override
+		void setParticleParameters(JsonParameterProvider& jpp) const
 		{
+			ParticleDiscretization::setParticleParameters(jpp);
+
 			if (nParCells_) {
 				jpp.set("NPAR", nParCells_);
 				jpp.set("NCELLS", nParCells_);
@@ -230,12 +301,23 @@ namespace column
 			: parPolyDeg_(parPolyDeg), parNelem_(parNelem) {
 		}
 
+		void setDiscParam(const std::string& name, int value) {
+			if (name == "POLYDEG" || name == "PAR_POLYDEG")
+				parPolyDeg_ = value;
+			else if (name == "NELEM" || name == "PAR_NELEM")
+				parNelem_ = value;
+			else
+				ParticleDiscretization::setDiscParam(name, value);
+		}
+
 		std::string getDiscType() const override { return "DG"; }
 
 		int getNParCells() const override { return parNelem_; }
 
-		void setParticleParameters(JsonParameterProvider& jpp) const override
+		void setParticleParameters(JsonParameterProvider& jpp) const
 		{
+			ParticleDiscretization::setParticleParameters(jpp);
+
 			if (parPolyDeg_)
 			{
 				jpp.set("SPATIAL_METHOD", "DG");
@@ -253,7 +335,6 @@ namespace column
 	class DummyBulk : public BulkDiscretization {
 	public:
 		int getNAxCells() const override { return 0; }
-		void setBulkParameters(JsonParameterProvider& jpp, const std::string& unitType, JsonDiscScopeManager& manager) const override {}
 		std::unique_ptr<BulkDiscretization> clone() const override {
 			return std::make_unique<DummyBulk>();
 		}
@@ -263,7 +344,6 @@ namespace column
 	class DummyParticle : public ParticleDiscretization {
 	public:
 		int getNParCells() const override { return 0; }
-		void setParticleParameters(JsonParameterProvider& jpp) const override {}
 		std::unique_ptr<ParticleDiscretization> clone() const override {
 			return std::make_unique<DummyParticle>();
 		}
@@ -331,6 +411,13 @@ namespace column
 			}
 		}
 
+		void setBulkDiscParam(const std::string paramName, std::string value) { bulkDisc_->setDiscParam(paramName, value); }
+		void setBulkDiscParam(const std::string paramName, double value) { bulkDisc_->setDiscParam(paramName, value); }
+		void setBulkDiscParam(const std::string paramName, int value) { bulkDisc_->setDiscParam(paramName, value); }
+		void setParticleDiscParam(const std::string paramName, std::string value) { particleDisc_->setDiscParam(paramName, value); }
+		void setParticleDiscParam(const std::string paramName, double value) { particleDisc_->setDiscParam(paramName, value); }
+		void setParticleDiscParam(const std::string paramName, int value) { particleDisc_->setDiscParam(paramName, value); }
+
 		std::string getBulkDiscType() const {
 			return bulkDisc_->getDiscType();
 		}
@@ -389,15 +476,8 @@ namespace column
 		FVParams(int nCol, int nPar, int wenoOrder, int nRad)
 			: DiscParams(std::make_unique<BulkFV>(nCol, wenoOrder, nRad), std::make_unique<ParticleFV>(nPar)) {
 		}
-
-		void setWenoOrder(int order) {
-			static_cast<BulkFV*>(bulkDisc_.get())->setWenoOrder(order);
-		}
 		int getWenoOrder() const {
 			return static_cast<const BulkFV*>(bulkDisc_.get())->getWenoOrder();
-		}
-		void setNRad(int nRad) {
-			static_cast<BulkFV*>(bulkDisc_.get())->setNRad(nRad);
 		}
 	};
 
@@ -414,14 +494,9 @@ namespace column
 			: DiscParams(std::make_unique<BulkDG>(exact, poly, elem, radPolyDeg, radNelem),
 				std::make_unique<ParticleDG>(parPolyDeg, parNelem)) {
 		}
-
-		void setIntegrationMode(int integrationMode) {
-			static_cast<BulkDG*>(bulkDisc_.get())->setIntegrationMode(integrationMode);
-		}
 		int getIntegrationMode() const {
 			return static_cast<const BulkDG*>(bulkDisc_.get())->getIntegrationMode();
 		}
-
 	};
 
 	/**
