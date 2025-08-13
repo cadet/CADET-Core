@@ -21,6 +21,7 @@
 #include "ConfigurationHelper.hpp"
 #include "model/BindingModel.hpp"
 #include "model/ReactionModel.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 #include "model/ParameterDependence.hpp"
 #include "model/parts/BindingCellKernel.hpp"
 #include "SimulationTypes.hpp"
