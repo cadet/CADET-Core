@@ -30,7 +30,7 @@ TEST_CASE("Column_1D as GRM LWE forward vs backward flow", "[Column_1D],[DG],[DG
 	// Test all integration modes
 	for (int i = 0; i <= 1; i++)
 	{
-		disc.setIntegrationMode(i);
+		disc.setBulkDiscParam("EXACT_INTEGRATION", i);
 		cadet::test::column::testForwardBackward("COLUMN_1D_GRM", disc, 1e-9, 2e-4);
 	}
 }
@@ -70,7 +70,7 @@ TEST_CASE("Column_1D as LRMP non-binding linear pulse vs analytic solution", "[C
 TEST_CASE("Column_1D as GRM Jacobian forward vs backward flow", "[Column_1D],[DG],[DG1D],[UnitOp],[Residual],[Jacobian],[AD],[CI]")
 {
 	cadet::test::column::DGParams disc;
-	disc.setIntegrationMode(1);
+	disc.setBulkDiscParam("EXACT_INTEGRATION", 1);
 	cadet::test::column::testJacobianForwardBackward("COLUMN_1D_GRM", disc, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
