@@ -447,7 +447,7 @@ TEST_CASE("MCT inlet DOF Jacobian", "[MCT],[UnitOp],[Jacobian],[Inlet],[CI]")
 	cadet::test::column::testInletDofJacobian("MULTI_CHANNEL_TRANSPORT", "FV");
 }
 
-TEST_CASE("MCT numerical Benchmark for 1 channel no exchange, no reaction case", "[MCT],[Simulation],[Reference],[mctReference]") // todo CI flag: currently only runs locally but fails on server
+TEST_CASE("MCT numerical Benchmark for 1 channel no exchange, no reaction case", "[MCT],[Simulation],[Reference]") // todo CI flag: currently only runs locally but fails on server
 {
 	const std::string& modelFilePath = std::string("/data/model_MCT1ch_noEx_noReac_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_MCT1ch_noEx_noReac_benchmark1_FV_Z256.h5");
@@ -458,7 +458,7 @@ TEST_CASE("MCT numerical Benchmark for 1 channel no exchange, no reaction case",
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("MCT numerical Benchmark comparison with LRM (1 channel no exchange, no reaction case)", "[MCT],[Simulation],[Reference],[mctReference]") // todo CI flag: currently only runs locally but fails on server
+TEST_CASE("MCT numerical Benchmark comparison with LRM (1 channel no exchange, no reaction case)", "[MCT],[Simulation],[Reference]") // todo CI flag: currently only runs locally but fails on server
 {
 	const std::string& modelFilePath = std::string("/data/model_LRM_noBnd_1comp_MCTbenchmark.json");
 	const std::string& refFilePath = std::string("/data/ref_MCT1ch_noEx_noReac_benchmark1_FV_Z256.h5");
@@ -469,7 +469,7 @@ TEST_CASE("MCT numerical Benchmark comparison with LRM (1 channel no exchange, n
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("MCT numerical Benchmark comparison with linear binding LRM (2 channel with exchange, no reaction case)", "[MCT],[Simulation],[Reference],[mctReference],[CI],[jojojo]")
+TEST_CASE("MCT numerical Benchmark comparison with linear binding LRM (2 channel with exchange, no reaction case)", "[MCT],[Simulation],[Reference],[CI]")
 {
 	const std::string& modelFilePath = std::string("/data/model_MCT2ch_1comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRM_dynLin_1comp_benchmark2_FV_Z357.h5");
@@ -481,7 +481,7 @@ TEST_CASE("MCT numerical Benchmark comparison with linear binding LRM (2 channel
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false, 2);
 }
 
-TEST_CASE("MCT numerical Benchmark for 1 channel no exchange, with reaction case", "[MCT],[Simulation],[Reference],[mctReference]") // todo CI flag: currently only runs locally but fails on server
+TEST_CASE("MCT numerical Benchmark for 1 channel no exchange, with reaction case", "[MCT],[Simulation],[Reference]") // todo CI flag: currently only runs locally but fails on server
 {
 	const std::string& modelFilePath = std::string("/data/model_MCT1ch_noEx_reac_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_MCT1ch_noEx_reac_benchmark1_FV_Z256.h5");
@@ -492,7 +492,7 @@ TEST_CASE("MCT numerical Benchmark for 1 channel no exchange, with reaction case
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("MCT numerical Benchmark for 2 channels with one-way-exchange and reaction case", "[MCT],[Simulation],[Reference],[mctReference]") // todo CI flag: currently only runs locally but fails on server
+TEST_CASE("MCT numerical Benchmark for 2 channels with one-way-exchange and reaction case", "[MCT],[Simulation],[Reference]") // todo CI flag: currently only runs locally but fails on server
 {
 	const std::string& modelFilePath = std::string("/data/model_MCT2ch_oneWayEx_reac_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_MCT2ch_oneWayEx_reac_benchmark1_FV_Z256.h5");
@@ -503,7 +503,7 @@ TEST_CASE("MCT numerical Benchmark for 2 channels with one-way-exchange and reac
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("MCT numerical Benchmark for 3 channels with two-way-exchange and reaction case", "[MCT],[Simulation],[Reference],[mctReference]") // todo CI flag: currently only runs locally but fails on server
+TEST_CASE("MCT numerical Benchmark for 3 channels with two-way-exchange and reaction case", "[MCT],[Simulation],[Reference]") // todo CI flag: currently only runs locally but fails on server
 {
 	const std::string& modelFilePath = std::string("/data/model_MCT3ch_twoWayExc_reac_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_MCT3ch_twoWayExc_reac_benchmark1_FV_Z256.h5");
