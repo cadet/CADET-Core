@@ -26,7 +26,7 @@ TEST_CASE("GRM LWE forward vs backward flow", "[GRM],[FV],[Simulation],[CI]")
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
 	{
-		disc.setWenoOrder(i);
+		disc.setBulkDiscParam("WENO_ORDER", static_cast<int>(i));
 		cadet::test::column::testForwardBackward("GENERAL_RATE_MODEL", disc, 1e-9, 2e-4);
 	}
 }
@@ -54,7 +54,7 @@ TEST_CASE("GRM Jacobian forward vs backward flow", "[GRM],[FV],[UnitOp],[Residua
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
 	{
-		disc.setWenoOrder(i);
+		disc.setBulkDiscParam("WENO_ORDER", static_cast<int>(i));
 		cadet::test::column::testJacobianForwardBackward("GENERAL_RATE_MODEL", disc);
 	}
 }

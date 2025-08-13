@@ -33,7 +33,7 @@ TEST_CASE("GRM2D LWE forward vs backward flow", "[GRM2D],[Simulation],[fixGRM2D]
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
 	{
-		disc.setWenoOrder(i);
+		disc.setBulkDiscParam("WENO_ORDER", static_cast<int>(i));
 		cadet::test::column::testForwardBackward("GENERAL_RATE_MODEL_2D", disc, 1e-9, 2e-4);
 	}
 }
