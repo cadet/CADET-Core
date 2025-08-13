@@ -218,7 +218,7 @@ TEST_CASE("Column_2D as LRMP linear binding single particle matches particle dis
 	cadet::test::particle::testLinearMixedParticleTypes("COLUMN_MODEL_2D_LRMP", "DG", 5e-8, 5e-5);
 }
 
-TEST_CASE("Column_2D as LRMP multiple particle types Jacobian analytic vs AD", "[Column_2D],[Jacobian],[AD],[ParticleType],[ReleaseCI]")
+TEST_CASE("Column_2D as LRMP multiple particle types Jacobian analytic vs AD", "[Column_2D],[Jacobian],[AD],[ParticleType]")
 {
 	cadet::test::particle::testJacobianMixedParticleTypes("COLUMN_MODEL_2D_LRMP", "DG", 1e10); // @todo figure out why FD Jacobian pattern comparison doesnt work but AD Jacobian comparison does
 }

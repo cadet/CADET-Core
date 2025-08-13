@@ -43,18 +43,18 @@ TEST_CASE("Radial LRM transport Jacobian", "[RadLRM],[UnitOp],[Jacobian],[CI]")
 
 // NOTE: THE FOLLOWING TESTS ARE ONLY INCLUDED IN THE RELEASE CI, NOT THE STANDARD CI SINCE THEY ARE (TO A HIGH DEGREE) REDUNDANT WITH THE AXIAL FLOW TESTS
 
-TEST_CASE("Radial LRM Jacobian forward vs backward flow", "[RadLRM],[UnitOp],[Residual],[Jacobian],[AD],[ReleaseCI]")
+TEST_CASE("Radial LRM Jacobian forward vs backward flow", "[RadLRM],[UnitOp],[Residual],[Jacobian],[AD]")
 {
 	cadet::test::column::FVParams disc(16);
 	cadet::test::column::testJacobianForwardBackward("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", disc);
 }
 
-TEST_CASE("Radial LRM time derivative Jacobian vs FD", "[RadLRM],[UnitOp],[Residual],[Jacobian],[ReleaseCI],[FD]")
+TEST_CASE("Radial LRM time derivative Jacobian vs FD", "[RadLRM],[UnitOp],[Residual],[Jacobian],[FD]")
 {
 	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "FV");
 }
 
-TEST_CASE("Radial LRM sensitivity Jacobians", "[RadLRM],[UnitOp],[Sensitivity],[ReleaseCI]")
+TEST_CASE("Radial LRM sensitivity Jacobians", "[RadLRM],[UnitOp],[Sensitivity]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "FV");
 
@@ -81,7 +81,7 @@ TEST_CASE("Radial LRM sensitivity Jacobians", "[RadLRM],[UnitOp],[Sensitivity],[
 //	cadet::test::column::testFwdSensSolutionForwardBackward("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", absTols, relTols, passRatio);
 //}
 
-TEST_CASE("Radial LRM consistent initialization with linear binding", "[RadLRM],[ConsistentInit],[ReleaseCI]")
+TEST_CASE("Radial LRM consistent initialization with linear binding", "[RadLRM],[ConsistentInit]")
 {
 	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", 1e-12, 1e-12);
 }
@@ -100,7 +100,7 @@ TEST_CASE("Radial LRM consistent initialization with linear binding", "[RadLRM],
 //	cadet::test::column::testConsistentInitializationSMABinding("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", y.data(), 1e-14, 1e-5);
 //}
 
-TEST_CASE("Radial LRM consistent sensitivity initialization with linear binding", "[RadLRM],[ConsistentInit],[Sensitivity],[ReleaseCI]")
+TEST_CASE("Radial LRM consistent sensitivity initialization with linear binding", "[RadLRM],[ConsistentInit],[Sensitivity]")
 {
 	// Fill state vector with given initial values
 	const unsigned int numDofs = 4 + 16 * (4 + 4);
@@ -112,7 +112,7 @@ TEST_CASE("Radial LRM consistent sensitivity initialization with linear binding"
 	cadet::test::column::testConsistentInitializationSensitivity("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", y.data(), yDot.data(), true, 1e-12);
 }
 
-TEST_CASE("Radial LRM consistent sensitivity initialization with SMA binding", "[RadLRM],[ConsistentInit],[Sensitivity],[ReleaseCI]")
+TEST_CASE("Radial LRM consistent sensitivity initialization with SMA binding", "[RadLRM],[ConsistentInit],[Sensitivity]")
 {
 	// Fill state vector with given initial values
 	const unsigned int numDofs = 4 + 16 * (4 + 4);
@@ -128,33 +128,33 @@ TEST_CASE("Radial LRM consistent sensitivity initialization with SMA binding", "
 	cadet::test::column::testConsistentInitializationSensitivity("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", y.data(), yDot.data(), false, 1e-9);
 }
 
-TEST_CASE("Radial LRM inlet DOF Jacobian", "[RadLRM],[UnitOp],[Jacobian],[Inlet],[ReleaseCI]")
+TEST_CASE("Radial LRM inlet DOF Jacobian", "[RadLRM],[UnitOp],[Jacobian],[Inlet]")
 {
 	cadet::test::column::testInletDofJacobian("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "FV");
 }
 
-TEST_CASE("Radial LRM with two component linear binding Jacobian", "[RadLRM],[UnitOp],[Jacobian],[ReleaseCI]")
+TEST_CASE("Radial LRM with two component linear binding Jacobian", "[RadLRM],[UnitOp],[Jacobian]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "FV");
 	cadet::test::column::testJacobianAD(jpp);
 }
 
-TEST_CASE("Radial LRM dynamic reactions Jacobian vs AD bulk", "[RadLRM],[Jacobian],[AD],[ReactionModel],[ReleaseCI]")
+TEST_CASE("Radial LRM dynamic reactions Jacobian vs AD bulk", "[RadLRM],[Jacobian],[AD],[ReactionModel]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", true, false, false);
 }
 
-TEST_CASE("Radial LRM dynamic reactions Jacobian vs AD modified bulk", "[RadLRM],[Jacobian],[AD],[ReactionModel],[ReleaseCI]")
+TEST_CASE("Radial LRM dynamic reactions Jacobian vs AD modified bulk", "[RadLRM],[Jacobian],[AD],[ReactionModel]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", true, false, true);
 }
 
-TEST_CASE("Radial LRM dynamic reactions time derivative Jacobian vs FD bulk", "[RadLRM],[Jacobian],[Residual],[ReactionModel],[ReleaseCI],[FD]")
+TEST_CASE("Radial LRM dynamic reactions time derivative Jacobian vs FD bulk", "[RadLRM],[Jacobian],[Residual],[ReactionModel],[FD]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", true, false, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("Radial LRM dynamic reactions time derivative Jacobian vs FD modified bulk", "[RadLRM],[Jacobian],[Residual],[ReactionModel],[ReleaseCI],[FD]")
+TEST_CASE("Radial LRM dynamic reactions time derivative Jacobian vs FD modified bulk", "[RadLRM],[Jacobian],[Residual],[ReactionModel],[FD]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", true, false, true, 1e-6, 1e-14, 8e-4);
 }

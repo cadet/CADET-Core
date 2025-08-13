@@ -80,30 +80,6 @@ TEST_CASE("LRM numerical Benchmark with parameter sensitivities for SMA LWE case
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 
-TEST_CASE("LRM numerical EOC Benchmark with parameter sensitivities for linear case", "[LRM],[FV],[EOC],[EOC_LRM_FV]")
-{
-	const std::string& modelFilePath = std::string("/data/model_LRM_dynLin_1comp_benchmark1.json");
-	const std::string& refFilePath = std::string("/data/ref_LRM_dynLin_1comp_sensbenchmark1_FV_Z131072.h5");
-	const std::string& convFilePath = std::string("/data/convergence_LRM_dynLin_1comp_sensbenchmark1.json");
-	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
-	const std::vector<double> relTol = { 1e-2, 1e-3, 1e-1, 1e-2 };
-
-	cadet::test::column::FVParams disc(16);
-	cadet::test::column::testEOCReferenceBenchmark(modelFilePath, refFilePath, convFilePath, "001", absTol, relTol, 4, disc, true);
-}
-
-TEST_CASE("LRM numerical EOC Benchmark with parameter sensitivities for SMA LWE case", "[LRM],[FV],[EOC],[EOC_LRM_FV]")
-{
-	const std::string& modelFilePath = std::string("/data/model_LRM_reqSMA_4comp_benchmark1.json");
-	const std::string& refFilePath = std::string("/data/ref_LRM_reqSMA_4comp_sensbenchmark1_FV_Z4096.h5");
-	const std::string& convFilePath = std::string("/data/convergence_LRM_reqSMA_4comp_sensbenchmark1.json");
-	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
-	const std::vector<double> relTol = { 1e-4, 1e-4, 1e-4, 1e-4 };
-
-	cadet::test::column::FVParams disc(8);
-	cadet::test::column::testEOCReferenceBenchmark(modelFilePath, refFilePath, convFilePath, "000", absTol, relTol, 2, disc, true);
-}
-
 TEST_CASE("LRM time derivative Jacobian vs FD", "[LRM],[FV],[UnitOp],[Residual],[Jacobian],[CI],[FD]")
 {
 	cadet::test::column::testTimeDerivativeJacobianFD("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV");

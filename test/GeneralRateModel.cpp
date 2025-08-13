@@ -103,31 +103,6 @@ TEST_CASE("GRM numerical Benchmark with parameter sensitivities for SMA LWE case
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 
-// Note that more extensive EOC tests are now part of CADET-Verification
-TEST_CASE("GRM numerical EOC Benchmark with parameter sensitivities for linear case", "[GRM],[FV],[EOC],[EOC_GRM_FV]")
-{
-	const std::string& modelFilePath = std::string("/data/model_GRM_dynLin_1comp_benchmark1.json");
-	const std::string& refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark1_FV_Z1024parZ128.h5");
-	const std::string& convFilePath = std::string("/data/convergence_GRM_dynLin_1comp_sensbenchmark1.json");
-	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
-	const std::vector<double> relTol = { 1e-4, 1e-4, 1e-4, 1e-4 };
-
-	cadet::test::column::FVParams disc(8, 1);
-	cadet::test::column::testEOCReferenceBenchmark(modelFilePath, refFilePath, convFilePath, "001", absTol, relTol, 3, disc, true);
-}
-
-TEST_CASE("GRM numerical EOC Benchmark with parameter sensitivities for SMA LWE case", "[GRM],[FV],[EOC],[EOC_GRM_FV]")
-{
-	const std::string& modelFilePath = std::string("/data/model_GRM_reqSMA_4comp_benchmark1.json");
-	const std::string& refFilePath = std::string("/data/ref_GRM_reqSMA_4comp_sensbenchmark1_FV_Z512parZ64.h5");
-	const std::string& convFilePath = std::string("/data/convergence_GRM_reqSMA_4comp_sensbenchmark1.json");
-	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
-	const std::vector<double> relTol = { 1e-4, 1e-4, 1e-4, 1e-4 };
-
-	cadet::test::column::FVParams disc(8, 1);
-	cadet::test::column::testEOCReferenceBenchmark(modelFilePath, refFilePath, convFilePath, "000", absTol, relTol, 2, disc, true);
-}
-
 TEST_CASE("GRM time derivative Jacobian vs FD", "[GRM],[FV],[UnitOp],[Residual],[Jacobian],[CI],[FD]")
 {
 	cadet::test::column::testTimeDerivativeJacobianFD("GENERAL_RATE_MODEL", "FV", 1e-6, 0.0, 9e-4);
