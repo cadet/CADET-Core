@@ -328,7 +328,7 @@ namespace model
 			// Add flux to column void / bulk volume
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
-				// + 1/Beta_c * (surfaceToVolumeRatio_{p,j}) * d_j * (k_f * [c_l - c_p])
+				// + 1/Beta^c * (surfaceToVolumeRatio^p_j) * d_j * (k_f * [c^b - c^p])
 				resBulk[comp] += static_cast<ParamType>(filmDiff[comp]) * jacCF_val * static_cast<ParamType>(packing.parTypeVolFrac) * (yBulk[comp] - yPar[(nDiscPoints() - 1) * stridePoint() + comp]);
 			}
 		}

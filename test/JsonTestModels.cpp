@@ -484,7 +484,7 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 		else if (parMethod == "DG")
 		{
 			parDisc["PAR_POLYDEG"] = 3;
-			parDisc["PAR_NELEM"] = 1;
+			parDisc["PAR_NELEM"] = 2;
 		}
 
 		if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)

@@ -403,6 +403,12 @@ TEST_CASE("Column_1D as GRM with two component linear binding Jacobian", "[Colum
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
+TEST_CASE("Column_1D as GRM with two component linear binding Jacobian with bulk DG and par FV discretization", "[Column_1D],[DGFV],[UnitOp],[Jacobian],[testCI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_1D_GRM", "DGFV");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
 TEST_CASE("Column_1D as GRM LWE one vs two identical particle types match", "[Column_1D],[DG],[DG1D],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("COLUMN_1D_GRM", "DG", 2e-8, 5e-5);
