@@ -43,7 +43,7 @@ struct ReactionSystem
             {"solid", PhaseData{}}
         };
 
-        PhaseData& getPhaseData(std::string phaseType)
+        PhaseData& getPhaseData(const std::string& phaseType)
         {
             auto phase = phaseMap.find(phaseType);
             if (phase == phaseMap.end())
@@ -53,7 +53,7 @@ struct ReactionSystem
         }
 
         // Const version of getPhaseData
-        const PhaseData& getPhaseData(std::string phaseType) const
+        const PhaseData& getPhaseData(const std::string& phaseType) const
         {
             auto phase = phaseMap.find(phaseType);
             if (phase == phaseMap.end())
@@ -84,33 +84,16 @@ struct ReactionSystem
             return phaseData.totalReactions;
         }
 
-        void configureDimensions(unsigned int numberOfParticles)
+        void configureDimensions(unsigned int numOfPart)
         {
-            _reactions.numberOfParticles = numberOfParticles;
-            _crossPhaseOffsets.resize(numberOfParticles,0);
-            _poreOffsets.resize(numberOfParticles,0);
-            _solidOffsets.resize(numberOfParticles,0);
+           numberOfParticles = numOfPart;
+           for (auto& phase : phaseMap)
+           {
+               phase.second.offsets.resize(numOfPart, 0);
+           }
         }
 
-        int setCrossPhaseOffset(unsigned int numOfReaOfParType,  unsigned int parType) const
-		{
-			computeOffsets(numOfReaOfParType, parType, crossPhaseOffsets);
-			return (parType < crossPhaseOffsets.size()) ? crossPhaseOffsets[parType] : 0;
-		}
-
-        int setPoreOffset(unsigned int numOfReaOfParType, unsigned int parType) const
-		{
-			computeOffsets(numOfReaOfParType, parType, poreOffsets);
-			return (parType < poreOffsets.size()) ? poreOffsets[parType] : 0;
-		}
-
-		int setSolidOffset(unsigned int numOfReaOfParType, unsigned int parType) const
-		{
-			computeOffsets(numOfReaOfParType, parType, solidOffsets);
-			return (parType < solidOffsets.size()) ? solidOffsets[parType] : 0;
-		}
-
-		static void computeOffsets(const std::string& phaseType, unsigned int numOfReaOfParType, unsigned int parType)
+		void computeOffsets(const std::string& phaseType, unsigned int numOfReaOfParType, unsigned int parType)
 		{
             auto& offsets = getPhaseData(phaseType).offsets;
             for (size_t i = 0; i < parType; ++i)
@@ -122,33 +105,23 @@ struct ReactionSystem
 			}
 		}
 
-        std::vector<IDynamicReactionModel*>& getDynReactionVector(const std::string& phase_type)
-        {
-            if (phase_type == "CROSSPHASE" || phase_type == "crossphase")
-                return dynReactionCrossPhase;
-            else if (phase_type == "PORE" || phase_type == "pore")
-                return dynReactionPore;
-            else if (phase_type == "SOLID" || phase_type == "solid")
-                return dynReactionSolid;
-            else
-                throw InvalidParameterException("Unknown phase type: " + phase_type);
-        }
 
-        int getOffsetForPhase(const std::string& phase_type, unsigned int parType) const
+        int getOffsetForPhase(const std::string& phaseType, unsigned int parType) const
         {
-            const auto& offsets = const_cast<ReactionSystem*>(this)->getPhaseData(phase_type).offsets;
+            const auto& offsets = const_cast<ReactionSystem*>(this)->getPhaseData(phaseType).offsets;
             return (parType < offsets.size()) ? offsets[parType] : 0;
         }
 
-        bool configureDiscretization(std::string phase_type, unsigned int parType, unsigned int nReactions, IParameterProvider& paramProvider, const IConfigHelper& helper)
+        bool configureDiscretization(std::string phaseType, unsigned int parType, unsigned int nReactions, unsigned int nComp, unsigned int* nBound, unsigned int* boundOffset,  IParameterProvider& paramProvider, const IConfigHelper& helper)
 	    {
-            auto& dynReaction = getDynReactionVector(phase_type);
-            int offSet = getOffsetForPhase(phase_type, parType);
+            auto& dynReaction = getDynReactionVector(phaseType);
+            int offSet = getOffsetForPhase(phaseType, parType);
 
+            bool reactionConfSuccess = true;
             for (unsigned int i = 0; i < nReactions; ++i) 
 				{
 					char reactionKey[32];
-					snprintf(reactionKey, sizeof(reactionKey), phase_type +"_%03d", i);
+                    snprintf(reactionKey, sizeof(reactionKey), "%s_%03d", phaseType.c_str(), i);
 
 					if (!paramProvider.exists(reactionKey)) 
 					{
@@ -178,7 +151,7 @@ struct ReactionSystem
 					if (dynReaction[offSet + i]->usesParamProviderInDiscretizationConfig())
 						paramProvider.pushScope(reactionKey);
 
-					reactionConfSuccess = dynReaction[offSet + i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + parType * _disc.nComp, _disc.boundOffset + parType * _disc.nComp) && reactionConfSuccess;
+					reactionConfSuccess = dynReaction[offSet + i]->configureModelDiscretization(paramProvider, nComp, nBound + parType * nComp, boundOffset + parType * nComp) && reactionConfSuccess;
 
 					if (!reactionConfSuccess) 
 					{
@@ -192,16 +165,18 @@ struct ReactionSystem
 					if (dynReaction[offSet + i]->usesParamProviderInDiscretizationConfig())
 						paramProvider.popScope();
 				}
+
+            return reactionConfSuccess;
 	    }
 
-        bool configure(std::string reactionType, unsigned int parType, unsigned int unitOpIdx, IParameterProvider& paramProvider)
+        bool configure(std::string phaseType, unsigned int parType, unsigned int unitOpIdx, unsigned int nReactions, IParameterProvider& paramProvider)
         {
-            auto& dynReaction = getDynReactionVector(phase_type);
-            int offSet = getOffsetForPhase(phase_type, parType);
+            auto& dynReaction = getDynReactionVector(phaseType);
+            int offSet = getOffsetForPhase(phaseType, parType);
             
             bool dynReactionConfSuccess = true;
 
-            for (int reac = 0; reac < nReactions; ++reac)
+            for (unsigned int reac = 0; reac < nReactions; ++reac)
             {
                 if (!dynReaction[offSet + reac] || !dynReaction[offSet + reac]->requiresConfiguration())
                     continue;
@@ -220,16 +195,16 @@ struct ReactionSystem
             return dynReactionConfSuccess;
         }
 
-        void setWorkspaceRequirements(LinearMemorySizer lms)
+        void setWorkspaceRequirements(LinearMemorySizer lms, unsigned int nComp)
         {
             for (auto phase: phaseMap)
-            {
-                auto& dynReactionVector = _reactions.getDynReactionVector(phase);
-                    for (auto i = 0; i < dynReactionVector.size(); i++)
-                    {
-                            if (dynReactionVector[i] && dynReactionVector[i]->requiresWorkspace())
-                                lms.fitBlock(dynReactionVector[i]->workspaceSize(_disc.nComp, 0, nullptr));
-                    }
+            {   
+                auto& dynReactionVector = getDynReactionVector(phase.first);
+                for (auto i = 0; i < dynReactionVector.size(); i++)
+                {
+                        if (dynReactionVector[i] && dynReactionVector[i]->requiresWorkspace())
+                            lms.fitBlock(dynReactionVector[i]->workspaceSize(nComp, 0, nullptr));
+                }
             }
         }
 
@@ -237,17 +212,11 @@ struct ReactionSystem
 		{
 			for (auto phase: phaseMap)
 			{
-				auto& dynReactionVector = _reactions.getDynReactionVector(phase);
+				auto& dynReactionVector = getDynReactionVector(phase.first);
 				for (auto* reac : dynReactionVector) delete reac;
 			}
 		}
 
-		~ReactionSystem()
-		{
-			for (auto* reac : _dynReactionBulk) delete reac;
-			for (auto* reac : _dynReactionPoreParticle) delete reac;
-			for (auto* reac : _dynReactionSolidParticle) delete reac;
-		}
 	};
 
 } // namespace model
