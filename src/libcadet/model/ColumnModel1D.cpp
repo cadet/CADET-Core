@@ -201,8 +201,6 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 		}
 	}
 
-	_disc.newStaticJac = true;
-
 	_disc.nBound = new unsigned int[_disc.nParType * _disc.nComp];
 	for (int parType = 0; parType < _disc.nParType; parType++)
 		for (int comp = 0; comp < _disc.nComp; comp++)
@@ -555,7 +553,6 @@ void ColumnModel1D::notifyDiscontinuousSectionTransition(double t, unsigned int 
 	}
 
 	_disc.curSection = secIdx;
-	_disc.newStaticJac = true;
 }
 
 void ColumnModel1D::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
@@ -942,13 +939,11 @@ int ColumnModel1D::residualImpl(double t, unsigned int secIdx, StateType const* 
 		{
 			if (wantJac)
 			{
-					// estimate new static (per section) jacobian
-					bool success = calcTransportJacobian(secIdx);
+				// estimate new static (per section) jacobian
+				bool success = calcTransportJacobian(secIdx);
 
-					_disc.newStaticJac = false;
-
-					if (cadet_unlikely(!success))
-						LOG(Error) << "Jacobian pattern did not fit the analytical transport Jacobian assembly";
+				if (cadet_unlikely(!success))
+					LOG(Error) << "Jacobian pattern did not fit the analytical transport Jacobian assembly";
 			}
 
 			residualBulk<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, y, yDot, res, threadLocalMem);
