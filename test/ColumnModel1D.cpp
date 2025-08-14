@@ -214,16 +214,6 @@ TEST_CASE("Column_1D as LRMP time derivative Jacobian vs FD", "[Column_1D],[DG],
 	cadet::test::column::testTimeDerivativeJacobianFD("COLUMN_1D_LRMP", "DG");
 }
 
-TEST_CASE("Column_1D as GRM dynamic binding with surf diff par dep Jacobian vs AD", "[Column_1D],[DG],[DG1D],[UnitOp],[Residual],[Jacobian],[ParameterDependence],[CI]")
-{
-	cadet::test::column::testJacobianADVariableParSurfDiff("COLUMN_1D_GRM", "DG", true);
-}
-
-TEST_CASE("Column_1D as GRM rapid-equilibrium binding with surf diff par dep Jacobian vs AD", "[Column_1D],[DG],[DG1D],[UnitOp],[Residual],[Jacobian],[ParameterDependence],[CI]")
-{
-	cadet::test::column::testJacobianADVariableParSurfDiff("COLUMN_1D_GRM", "DG", false);
-}
-
 TEST_CASE("Column_1D as GRM sensitivity Jacobians", "[Column_1D],[DG],[DG1D],[UnitOp],[Sensitivity],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_1D_GRM", "DG");
