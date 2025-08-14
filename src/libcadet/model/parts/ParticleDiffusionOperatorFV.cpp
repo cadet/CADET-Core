@@ -50,6 +50,8 @@ namespace parts
 		paramProvider.pushScope("discretization");
 
 		_nParPoints = paramProvider.getInt("NCELLS");
+		if (_nParPoints < 1)
+			throw InvalidParameterException("Field NCELLS in discretization of particle type " + std::to_string(_parTypeIdx) + " must be > 0 but is " + std::to_string(_nParPoints));
 		// Default boundary order handling to second order
 		_boundaryOrderFV = 2;
 		if (paramProvider.exists("FV_BOUNDARY_ORDER"))
@@ -790,6 +792,9 @@ namespace parts
 				jacCp[jacCl.row() - jacCp.row()] = kf_FV[comp] * jacPF_val / static_cast<double>(_poreAccessFactor[comp]);
 
 				// Cp on Cp entry
+				if (cadet_unlikely(_nParPoints == 1))
+					jacCp[0] = -kf_FV[comp] * jacPF_val / static_cast<double>(_poreAccessFactor[comp]);
+				else
 				jacCp[0] -= kf_FV[comp] * jacPF_val / static_cast<double>(_poreAccessFactor[comp]);
 
 				// Cs entries
