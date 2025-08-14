@@ -1081,9 +1081,7 @@ int ColumnModel2D::residualImpl(double t, unsigned int secIdx, StateType const* 
 		resi.setZero();
 	}
 	if (wantJac)
-	{
-		std::fill_n(_globalJac.valuePtr(), _globalJac.nonZeros(), 0.0);
-	}
+		_globalJac.coeffs().setZero();
 
 #ifdef CADET_PARALLELIZE
 	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.axNPoints * _disc.radNPoints * _disc.nParType + 1), [&](std::size_t pblk)

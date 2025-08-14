@@ -923,10 +923,11 @@ int ColumnModel1D::residualImpl(double t, unsigned int secIdx, StateType const* 
 {
 	if (wantRes)
 	{
-		double* const resPtr = reinterpret_cast<double* const>(res);
-		Eigen::Map<Eigen::VectorXd> resi(resPtr, numDofs());
+		Eigen::Map<Eigen::Vector<ResidualType, Dynamic>> resi(res, numDofs());
 		resi.setZero();
 	}
+	if (wantJac)
+		_globalJac.coeffs().setZero();
 
 	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 	Indexer idxr(_disc);
