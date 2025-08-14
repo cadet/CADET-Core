@@ -153,16 +153,12 @@ namespace column
 			: nAxCells_(nAxCells), wenoOrder_(wenoOrder), nRadCells_(nRadCells) {
 		}
 
-		void setDiscParam(const std::string& name, const std::string& value) {
-			BulkDiscretization::setDiscParam(name, value);
-		}
-		void setDiscParam(const std::string& name, double value) {
-			BulkDiscretization::setDiscParam(name, value);
-		}
 		void setDiscParam(const std::string& name, int value) {
 			if (name == "WENO_ORDER")
 				wenoOrder_ = value;
-			else if (name == "NCHANNEL")
+			else if (name == "NCHANNEL" || name == "NRAD")
+				nRadCells_ = value;
+			else if (name == "NCOL")
 				nRadCells_ = value;
 			else
 				BulkDiscretization::setDiscParam(name, value);
@@ -218,15 +214,17 @@ namespace column
 			radPolyDeg_(radPolyDeg), radNelem_(radNelem) {
 		}
 
-		void setDiscParam(const std::string& name, const std::string& value) {
-			BulkDiscretization::setDiscParam(name, value);
-		}
-		void setDiscParam(const std::string& name, double value) {
-			BulkDiscretization::setDiscParam(name, value);
-		}
 		void setDiscParam(const std::string& name, int value) {
 			if (name == "EXACT_INTEGRATION")
 				exactIntegration_ = value;
+			else if (name == "POLYDEG")
+				polyDeg_ = value;
+			else if (name == "NELEM")
+				nElem_ = value;
+			else if (name == "RAD_POLYDEG")
+				radPolyDeg_ = value;
+			else if (name == "RAD_NELEM")
+				radNelem_ = value;
 			else
 				BulkDiscretization::setDiscParam(name, value);
 		}
@@ -267,6 +265,13 @@ namespace column
 	public:
 		ParticleFV(int nParCells = 0) : nParCells_(nParCells) {}
 
+		void setDiscParam(const std::string& name, int value) {
+			if (name == "NPAR" || name == "NCELLS")
+				nParCells_ = value;
+			else
+				ParticleDiscretization::setDiscParam(name, value);
+		}
+
 		std::string getDiscType() const override { return "FV"; }
 
 		int getNParCells() const override { return nParCells_; }
@@ -294,6 +299,15 @@ namespace column
 	public:
 		ParticleDG(int parPolyDeg = 0, int parNelem = 0)
 			: parPolyDeg_(parPolyDeg), parNelem_(parNelem) {
+		}
+
+		void setDiscParam(const std::string& name, int value) {
+			if (name == "POLYDEG" || name == "PAR_POLYDEG")
+				parPolyDeg_ = value;
+			else if (name == "NELEM" || name == "PAR_NELEM")
+				parNelem_ = value;
+			else
+				ParticleDiscretization::setDiscParam(name, value);
 		}
 
 		std::string getDiscType() const override { return "DG"; }
