@@ -120,6 +120,17 @@ TEST_CASE("Column_1D as pseudo-LRMP (GRM with single FV cell) numerical Benchmar
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, *discDGFV, true);
 }
 
+TEST_CASE("Column_1D as GRM numerical Benchmark1 with parameter sensitivities for linear case with bulk DG and par FV discretization", "[Column_1D],[DGFV],[Simulation],[Reference],[Sensitivity],[testCI]")
+{
+	const std::string& modelFilePath = std::string("/data/model_COL1D_GRM_dynLin_1comp_benchmark1.json");
+	const std::string& refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark1_cDG_P3Z8_GSM_parP3parZ1.h5");
+	const std::vector<double> absTol = { 5e-9 };
+	const std::vector<double> relTol = { 1.0 };
+
+	auto discDGFV = cadet::test::column::createDGFVParams(0, 3, 8, 0, 0, 5);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, *discDGFV, false);
+}
+
 TEST_CASE("Column_1D as GRM numerical Benchmark2 with parameter sensitivities for linear case", "[Column_1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens18]")
 {
 	std::string modelFilePath = std::string("/data/model_COL1D_GRM_dynLin_1comp_sensbenchmark2.json");
