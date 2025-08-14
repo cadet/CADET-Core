@@ -272,8 +272,6 @@ protected:
 		unsigned int* strideBound; //!< Total number of bound states for each particle type, additional last element contains total number of bound states for all types
 		unsigned int* nBoundBeforeType; //!< Array with number of bound states before a particle type (cumulative sum of strideBound)
 
-		bool newStaticJac; //!< determines wether static analytical jacobian is to be computed
-
 		// parameter
 		int curSection; //!< current time section index
 
