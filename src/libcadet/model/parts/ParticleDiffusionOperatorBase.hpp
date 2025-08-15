@@ -87,7 +87,7 @@ namespace parts
 		 * @param [in] paramProvider Parameter provider
 		 * @return @c true if the configuration was successful, otherwise @c false
 		 */
-		virtual bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding, const bool hasDynamicReactions) = 0;
+		virtual bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding) = 0;
 
 		/**
 		 * @brief updates radial discretization operators based on configured parameters
@@ -218,6 +218,7 @@ namespace parts
 		/* binding and reactions */
 		const int* _reqBinding; //!< Array of size @p _strideBound with flags whether binding is in rapid equilibrium for each bound state
 		bool _hasDynamicReactions; //! Determines whether or not the binding has any dynamic reactions
+		bool _hasReqReactions; //! Determines whether or not the binding has any rapid-equilibrium reactions
 
 		/* discretization - state vector strides, offsets */
 		unsigned int _parTypeIdx; //!< Particle type index (wrt the unit operation that owns this particle model)

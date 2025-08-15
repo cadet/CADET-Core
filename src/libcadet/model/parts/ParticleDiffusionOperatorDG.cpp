@@ -116,9 +116,9 @@ namespace parts
 		return baseConfigSuccess;
 	}
 
-	bool ParticleDiffusionOperatorDG::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding, const bool hasDynamicReactions)
+	bool ParticleDiffusionOperatorDG::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding)
 	{
-		const bool baseConfigSuccess = ParticleDiffusionOperatorBase::configure(unitOpIdx, paramProvider, parameters, nParType, nBoundBeforeType, nTotalBound, reqBinding, hasDynamicReactions);
+		const bool baseConfigSuccess = ParticleDiffusionOperatorBase::configure(unitOpIdx, paramProvider, parameters, nParType, nBoundBeforeType, nTotalBound, reqBinding);
 
 		// Compute particle metrics
 		if (_deltaR == nullptr)
@@ -1610,7 +1610,7 @@ namespace parts
 					jacCl[0] += static_cast<double>(filmDiff[comp]) * (1.0 - colPorosity) / colPorosity
 					* _parGeomSurfToVol / static_cast<double>(_parRadius)
 					* static_cast<double>(parTypeVolFrac[_parTypeIdx + blk * nParType]);
-				// add Cl on Cp entries (added since these entries are also touched by bulk jacobian)
+				// add Cl on Cp entries
 				// row: already at bulk phase. already at current node and component.
 				// col: go to current particle phase entry.
 				jacCl[jacCp.row() - jacCl.row()] = -static_cast<double>(filmDiff[comp]) * (1.0 - colPorosity) / colPorosity
@@ -1622,7 +1622,7 @@ namespace parts
 				for (int node = _parPolyDeg; node >= 0; node--, jacCp -= strideParNode()) {
 					// row: already at particle. Already at current node and liquid state.
 					// col: original entry at outer node.
-					if (!outliersOnly) // Cp on Cb
+					if (!outliersOnly) // Cp on Cp
 						jacCp[entry - jacCp.row()]
 						+= static_cast<double>(filmDiff[comp]) * 2.0 / static_cast<double>(_deltaR[0]) * _parInvMM[_nParElem - 1](node, _nParNode - 1) * exIntLiftContribution / static_cast<double>(_parPorosity) / static_cast<double>(_poreAccessFactor[comp]);
 					// row: already at particle. Already at current node and liquid state.
@@ -1633,7 +1633,7 @@ namespace parts
 				// set back iterator to first node as required by component loop
 				jacCp += _nParNode * strideParNode();
 			}
-			if (blk < nBulkPoints - 1) // execute iteration statement only when condition is true in next loop.
+			if (blk < nBulkPoints - 1) // go to next particle block
 				jacCp += _strideBound + (_nParPoints - 1) * strideParNode();
 		}
 

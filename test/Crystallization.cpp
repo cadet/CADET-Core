@@ -36,7 +36,7 @@ TEST_CASE("Crystallization in a CSTR with initial distribution and growth", "[Cr
 	const std::vector<double> absTol = { 1e-10 };
 	const std::vector<double> relTol = { 1e-10 };
 
-	cadet::test::column::Dummyparams disc; // CSTR, so no spatial resolution
+	cadet::test::column::DummyParams disc; // CSTR, so no spatial resolution
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
@@ -47,7 +47,7 @@ TEST_CASE("Crystallization in a CSTR with initial distribution and size-dependen
 	const std::vector<double> absTol = { 1e-10 };
 	const std::vector<double> relTol = { 1e-10 };
 
-	cadet::test::column::Dummyparams disc; // CSTR, so no spatial resolution
+	cadet::test::column::DummyParams disc; // CSTR, so no spatial resolution
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
@@ -58,7 +58,7 @@ TEST_CASE("Crystallization in a CSTR with primary nucleation and growth", "[Crys
 	const std::vector<double> absTol = { 1e-10 };
 	const std::vector<double> relTol = { 1e-10 };
 
-	cadet::test::column::Dummyparams disc; // CSTR, so no spatial resolution
+	cadet::test::column::DummyParams disc; // CSTR, so no spatial resolution
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
@@ -69,7 +69,7 @@ TEST_CASE("Crystallization in a CSTR with primary nucleation, growth and growth 
 	const std::vector<double> absTol = { 1e-10 };
 	const std::vector<double> relTol = { 1e-10 };
 
-	cadet::test::column::Dummyparams disc; // CSTR, so no spatial resolution
+	cadet::test::column::DummyParams disc; // CSTR, so no spatial resolution
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
@@ -80,7 +80,7 @@ TEST_CASE("Crystallization in a CSTR with primary and secondary nucleation and g
 	const std::vector<double> absTol = { 5e+6 };
 	const std::vector<double> relTol = { 1e-6 };
 
-	cadet::test::column::Dummyparams disc; // CSTR, so no spatial resolution
+	cadet::test::column::DummyParams disc; // CSTR, so no spatial resolution
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
@@ -91,7 +91,7 @@ TEST_CASE("Crystallization in a DPFR/LRM with primary and secondary nucleation a
 	const std::vector<double> absTol = { 2e+8 };
 	const std::vector<double> relTol = { 5e-6 };
 
-	cadet::test::column::FVparams disc(25);
+	cadet::test::column::FVParams disc(25);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
@@ -217,7 +217,7 @@ TEST_CASE("Crystallization Aggregation in a CSTR", "[Crystallization],[Aggregati
 	const std::vector<double> absTol = { 1e-10 };
 	const std::vector<double> relTol = { 1e-10 };
 
-	cadet::test::column::Dummyparams disc; // CSTR, so no spatial resolution
+	cadet::test::column::DummyParams disc; // CSTR, so no spatial resolution
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
@@ -247,7 +247,7 @@ TEST_CASE("Crystallization Fragmentation in a CSTR", "[Crystallization],[Fragmen
 	const std::vector<double> absTol = { 1e-7 };
 	const std::vector<double> relTol = { 1e-7 };
 
-	cadet::test::column::Dummyparams disc; // CSTR, so no spatial resolution
+	cadet::test::column::DummyParams disc; // CSTR, so no spatial resolution
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
@@ -277,7 +277,7 @@ TEST_CASE("Crystallization combined Aggregation and Fragmentation in a CSTR", "[
 	const std::vector<double> absTol = { 1e-8 };
 	const std::vector<double> relTol = { 1e-8 };
 
-	cadet::test::column::Dummyparams disc; // CSTR, so no spatial resolution
+	cadet::test::column::DummyParams disc; // CSTR, so no spatial resolution
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
@@ -307,7 +307,7 @@ TEST_CASE("Crystallization combined PBM, Aggregation and Fragmentation in a CSTR
 	const std::vector<double> absTol = { 2e-7 };
 	const std::vector<double> relTol = { 8e-1 };
 
-	cadet::test::column::Dummyparams disc; // CSTR, so no spatial resolution
+	cadet::test::column::DummyParams disc; // CSTR, so no spatial resolution
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
@@ -337,7 +337,7 @@ TEST_CASE("Crystallization combined PBM and Aggregation in a DPFR", "[Crystalliz
 	const std::vector<double> absTol = { 1E+10 }; // we need to define a (high) tolerances as the numerical values in this test are extremely high, values of up to xE+27
 	const std::vector<double> relTol = { 1E-12 };
 
-	cadet::test::column::FVparams disc(16);
+	cadet::test::column::FVParams disc(16);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 

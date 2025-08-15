@@ -134,10 +134,11 @@ namespace parts
 		return parSurfDiffDepConfSuccess;
 	}
 
-	bool ParticleDiffusionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding, const bool hasDynamicReactions)
+	bool ParticleDiffusionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding)
 	{
 		_reqBinding = reqBinding;
-		_hasDynamicReactions = hasDynamicReactions;
+		_hasDynamicReactions = std::any_of(reqBinding, reqBinding + nTotalBound, [](int r) { return r == 0; });;
+		_hasReqReactions = std::any_of(reqBinding, reqBinding + nTotalBound, [](int r) { return r != 0; });
 
 		// Read geometry parameters
 		_parRadius = paramProvider.getDouble("PAR_RADIUS");
