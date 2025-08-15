@@ -233,7 +233,6 @@ protected:
 
 	void* _idaMemBlock; //!< IDAS internal memory
 
-	SUNContext _sunctx;
 
 	/**
 	 * @brief Determines whether the transition from section i to section i+1 is continuous.
@@ -288,7 +287,8 @@ protected:
 
 	INotificationCallback* _notification; //!< Callback handler for notifications
 	SUNLinearSolver _linearSolver; //!< Sunlinearsolver object.
-	N_Vector _linearSolverWeight;
+	N_Vector _linearSolverWeight; //!< Weight vector.
+	SUNContext _sunctx; //!< Idas suncontext object
 };
 
 } // namespace cadet
