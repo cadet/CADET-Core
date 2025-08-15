@@ -394,13 +394,13 @@ namespace cadet
 	}
 
 
-	Simulator::Simulator() : _model(nullptr), _solRecorder(nullptr), _idaMemBlock(nullptr), _sunctx(nullptr), _vecStateY(nullptr),
+	Simulator::Simulator() : _model(nullptr), _solRecorder(nullptr), _idaMemBlock(nullptr), _vecStateY(nullptr),
 		_vecStateYdot(nullptr), _vecFwdYs(nullptr), _vecFwdYsDot(nullptr),
 		_relTolS(1.0e-9), _absTol(1, 1.0e-12), _relTol(1.0e-9), _initStepSize(1, 1.0e-6), _maxSteps(10000), _maxStepSize(0.0),
 		_nThreads(0), _sensErrorTestEnabled(true), _maxNewtonIter(4), _maxErrorTestFail(10), _maxConvTestFail(10),
 		_maxNewtonIterSens(4), _curSec(0), _skipConsistencyStateY(false), _skipConsistencySensitivity(false),
 		_consistentInitMode(ConsistentInitialization::Full), _consistentInitModeSens(ConsistentInitialization::Full),
-		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr), _linearSolver(nullptr)
+		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr), _linearSolver(nullptr), _sunctx(nullptr)
 	{
 #if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 		LOG(Debug) << "Resetting AD directions from " << ad::getDirections() << " to default " << ad::getMaxDirections();
@@ -432,6 +432,11 @@ namespace cadet
 
 		if (_idaMemBlock)
 			IDAFree(&_idaMemBlock);
+		//if (_linearSolver)
+			//			SUNLinSolFree(_linearSolver);
+		if (_sunctx) {
+			SUNContext_Free(&_sunctx);
+		}
 	}
 
 	void Simulator::initializeModel(IModelSystem& model)
@@ -486,14 +491,6 @@ namespace cadet
 
 		// IDAS Step 7.1: Set optional inputs
 
-		// Set time integrator parameters
-		IDASetMaxNumSteps(_idaMemBlock, _maxSteps);
-		IDASetMaxStep(_idaMemBlock, _maxStepSize);
-		IDASetMaxNonlinIters(_idaMemBlock, _maxNewtonIter);
-		IDASetMaxErrTestFails(_idaMemBlock, _maxErrorTestFail);
-		IDASetMaxConvFails(_idaMemBlock, _maxConvTestFail);
-		IDASetSensMaxNonlinIters(_idaMemBlock, _maxNewtonIterSens);
-
 		// Specify the linear solver.
 
 		_linearSolver = SUNLinSolNewEmpty(_sunctx);
@@ -508,6 +505,7 @@ namespace cadet
 		_linearSolver->ops->resid = linearSolverResidual;
 		_linearSolver->ops->setscalingvectors = linearSolverSetScalingVectors;
 		
+		IDASetLinearSolver(_idaMemBlock, _linearSolver, NULL);
 		
 //		IDAMem IDA_mem = static_cast<IDAMem>(_idaMemBlock);
 
@@ -525,6 +523,16 @@ namespace cadet
 
 		// Attach user data structure
 		IDASetUserData(_idaMemBlock, this);
+
+
+		// Set time integrator parameters
+		IDASetMaxNumSteps(_idaMemBlock, _maxSteps);
+		IDASetMaxStep(_idaMemBlock, _maxStepSize);
+		IDASetMaxNonlinIters(_idaMemBlock, _maxNewtonIter);
+		IDASetMaxErrTestFails(_idaMemBlock, _maxErrorTestFail);
+		IDASetMaxConvFails(_idaMemBlock, _maxConvTestFail);
+		//IDASetSensMaxNonlinIters(_idaMemBlock, _maxNewtonIterSens);
+
 
 		// Allocate memory for AD if required
 		if (_model->usesAD())
