@@ -107,6 +107,7 @@ set(LIBCADET_BINDINGMODEL_SOURCES
 )
 set(LIBCADET_EXCHANGEMODEL_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/exchange/LinearExchange.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/exchange/LangumirExchange.cpp
 )
 
 
