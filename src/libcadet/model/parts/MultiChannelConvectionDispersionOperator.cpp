@@ -22,7 +22,7 @@
 #include "model/parts/AxialConvectionDispersionKernel.hpp"
 #include "model/ParameterDependence.hpp"
 #include "model/exchange/LinearExchange.cpp"
-
+#include "model/exchange/LangumirExchange.cpp"
 
 #ifdef SUPERLU_FOUND
 	#include "linalg/SuperLUSparseMatrix.hpp"
