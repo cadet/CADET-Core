@@ -6,10 +6,11 @@ Reaction models
 
 Reaction models describe the (net) fluxes :math:`f_{\mathrm{react}}` of a
 reaction mechanism.
-CADET features one reaction type:
+CADET features multiple reaction types:
 
- - :ref:`mass_action_law_model` (most commonly used)
+ - :ref:`mass_action_law_model`
  - :ref:`michaelis_menten_kinetics_model`
+
 
 Historically, a chromatography system is modeled as a reaction system without considering any transport phenomenon. We also introduce some reaction-based models that can be solved in CADET:
 
