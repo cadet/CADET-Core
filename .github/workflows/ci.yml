@@ -4,6 +4,8 @@ on:
   push:
     paths-ignore:
       - 'doc/**'
+      - 'doc/ISSUE_TEMPLATE'
+      - 'doc/PULL_REQUEST_TEMPLATE'
       - '.zenodo.json'
       - 'AUTHORS.md'
       - 'BUILD-LINUX.md'
@@ -24,6 +26,8 @@ on:
   pull_request:
     paths-ignore:
       - 'doc/**'
+      - 'doc/ISSUE_TEMPLATE'
+      - 'doc/PULL_REQUEST_TEMPLATE'
       - '.zenodo.json'
       - 'AUTHORS.md'
       - 'BUILD-LINUX.md'
