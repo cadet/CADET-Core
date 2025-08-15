@@ -3,11 +3,64 @@
 Reaction models
 ===============
 
+This section describes the configuration of reaction models for different phases in CADET unit operations.
+
+The corresponding group that contains the reaction models for each phase reads:
+
+- For bulk phase: ``/input/model/unit_XXX/reaction_bulk``
+- For solid phase: ``/input/model/unit_XXX/reaction_solid``
+- For particle phase: ``/input/model/unit_XXX/reaction_particle_YYY``
+- For cross phase: ``/input/model/unit_XXX/reaction_cross_phase_YYY``
+
+Where ``XXX`` denotes the index of the unit operation and ``YYY`` denotes the index of the particle type.
+
+Configuration Steps
+-------------------
+
+Before defining the reaction model parameters, it is necessary to specify how many reaction models are used in each phase.
+
+1. **Set the number of reactions**: This is done by setting ``/NREACT`` to the number of reaction models used in the phase.
+
+   For example:
+
+   - ``/input/model/unit_000/reaction_bulk/NREACT = 2`` indicates that 2 reaction models are used in the bulk phase
+   - ``/input/model/unit_000/reaction_solid/NREACT = 1`` indicates that 1 reaction model is used in the solid phase
+
+2. **Define reaction model parameters**: After setting ``NREACT``, the parameters for each individual reaction model are specified.
+
+The group that contains the parameters of each reaction model reads:
+``/input/model/unit_XXX/reaction_phase/reaction_model_ZZZ``. 
+
+Where ``XXX`` denotes the index of the unit operation, ``phase`` is either ``bulk``, ``solid``, ``particle_YYY``,
+or ``cross_phase_YYY``, and ``ZZZ`` denotes the index of the reaction model (starting from ``000``).
+
+**Example**: If ``NREACT = 2`` for the bulk phase, then the parameters would be found in:
+
+- ``/input/model/unit_000/reaction_bulk/reaction_model_000`` (first reaction model)
+- ``/input/model/unit_000/reaction_bulk/reaction_model_001`` (second reaction model)
+
+The reaction model parameters are specified in the following sections:
+
+**Single-Phase Reaction Models** (for bulk, solid, and particle phases):
+
 .. toctree::
     :maxdepth: 2
 
     mass_action_law
     michaelis_menten_kinetics
+
+**Cross-Phase Reaction Models** (only for cross-phase reactions):
+
+.. toctree::
+    :maxdepth: 2
+
+    mass_action_law_cross_phase
+
+.. note::
+   Cross-phase reaction models can **only** be used in the cross-phase configuration (``reaction_cross_phase_YYY``).
+   They cannot be used in bulk, solid, or particle phase configurations.
+   For reactions within a single phase, use the standard reaction models listed above.
+
 
 Externally dependent reaction models
 ------------------------------------
@@ -30,17 +83,3 @@ However, if only one index is passed in ``EXTFUN``, this external source is used
 
 Note that parameter sensitivities with respect to column radius, column length, particle core radius, and particle radius may be wrong when using externally dependent reaction models.
 This is caused by not taking into account the derivative of the external profile with respect to column position.
-
-
-.. _multiple-particle-types_reactions:
-
-Multiple particle types
------------------------
-
-The group that contains the parameters of a reaction model in unit operation with index ``XXX`` reads ``/input/model/unit_XXX/reaction_particle``.
-This is valid for models with a single particle type.
-If a model has multiple particle types, it may have a different reaction model in each type.
-The parameters are then placed in the group ``/input/model/unit_XXX/reaction_particle_YYY`` instead, where ``YYY`` denotes the index of the particle type.
-
-Note that, in any case, ``/input/model/unit_XXX/reaction_particle_000`` contains the parameters of the first (and possibly sole) particle type.
-This group also takes precedence over a possibly existing ``/input/model/unit_XXX/adsorption_particle`` group.
