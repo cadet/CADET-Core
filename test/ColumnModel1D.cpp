@@ -96,6 +96,17 @@ TEST_CASE("Column_1D as GRM numerical Benchmark1 with parameter sensitivities fo
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
+TEST_CASE("Column_1D as GRM numerical Benchmark1 for linear case with surface diffusion", "[Column_1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI]")
+{
+	std::string modelFilePath = std::string("/data/model_COL1D_GRMsd_dynLin_1comp_benchmark1.json");
+	std::string refFilePath = std::string("/data/ref_COL1D_GRMsd_dynLin_1comp_benchmark1_cDG_P3Z8_GSM_parP3parZ1.h5");
+	const std::vector<double> absTol = { 1e-12 };
+	const std::vector<double> relTol = { 1e-6 };
+
+	cadet::test::column::DGParams disc(0, 3, 8, 3, 1);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
 TEST_CASE("Column_1D as LRMP numerical Benchmark with parameter sensitivities for linear case", "[Column_1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens22]")
 {
 	const std::string& modelFilePath = std::string("/data/model_COL1D_LRMP_dynLin_1comp_benchmark1.json");
