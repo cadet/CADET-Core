@@ -326,6 +326,12 @@ namespace cadet
 		const double tol = IDA_mem->ida_epsNewt;
 
 		LOG(Trace) << "==> Solve at t = " << t << " alpha = " << alpha << " tol = " << tol;
+		if (sim->_notification)
+		{
+			const unsigned int secIdx = sim->getCurrentSection(t);
+			if (!sim->_notification->timeIntegrationLinearSolve(secIdx, t, NVEC_DATA(y), NVEC_DATA(yDot)))
+				return IDA_TOO_MUCH_WORK;
+		}
 
 		return sim->_model->linearSolve(t, alpha, tol, NVEC_DATA(rhs), NVEC_DATA(weight), cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)});
 	}
