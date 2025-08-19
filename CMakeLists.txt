@@ -260,7 +260,7 @@ set_package_properties(LAPACK PROPERTIES
 if (NOT ENABLE_PACKAGED_SUNDIALS)
 	# SUNDIALS_ROOT environment variable can be used to find SUNDIALS package
 	set(SUNDIALS_PREFER_STATIC_LIBRARIES ${ENABLE_STATIC_LINK_DEPS})
-	find_package(SUNDIALS REQUIRED COMPONENTS sundials_idas sundials_nvecserial OPTIONAL_COMPONENTS sundials_nvecopenmp)
+	find_package(SUNDIALS REQUIRED COMPONENTS sundials_idas sundials_nvecserial sundials_core OPTIONAL_COMPONENTS sundials_nvecopenmp)
 	set_package_properties(SUNDIALS PROPERTIES
 		TYPE REQUIRED
 		PURPOSE "Time integration"
