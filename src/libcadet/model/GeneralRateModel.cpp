@@ -21,7 +21,6 @@
 #include "ConfigurationHelper.hpp"
 #include "model/BindingModel.hpp"
 #include "model/ReactionModel.hpp"
-#include "model/reaction/ReactionSystem.hpp"
 #include "model/ParameterDependence.hpp"
 #include "model/parts/BindingCellKernel.hpp"
 #include "SimulationTypes.hpp"
@@ -659,8 +658,8 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 		paramProvider.popScope();
 	}
 
-	clearDynamicReactionModels();
 	_oldReactionInterface = false;
+	_reaction.clearDynamicReactionModels();
 
 	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
 	{
@@ -700,48 +699,130 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 			}
 		}
 	}
-	else if (paramProvider.exists("reaction_cross_phase_000"))
+	else if (paramProvider.exists("particle_type_000") && _disc.nParType > 0)
 	{
-		// First get the total size of _dynReaction across all particles
-		int totalReactions = 0;
+		_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
+
+		unsigned int totalReacCrossPhase = 0;
+		unsigned int totalReacPore = 0;
+		unsigned int totalReacSolid = 0;
+		// First set offsets an calculate
+		_reaction.configureDimensionsOffSet(_disc.nParType);
 		for (unsigned int par = 0; par < _disc.nParType; par++)
 		{
 
 			char particleScope[32];
-			snprintf(particleScope, sizeof(particleScope), "reaction_cross_phase_%03d", par);
-			paramProvider.pushScope(particleScope);
-
-			if (paramProvider.exists("NREAC"))
+			snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
+			
+			if( paramProvider.exists(particleScope) )
 			{
-				int nReactions = paramProvider.getInt("NREAC");
+				paramProvider.pushScope(particleScope);
 
-				if (nReactions <= 0)
+				if (paramProvider.exists("NREAC_COSS_PHASE"))
 				{
+					int nReactions = paramProvider.getInt("NREAC_COSS_PHASE");
+
+					if (nReactions < 0)
+					{
+						paramProvider.popScope();
+						throw InvalidParameterException("GRM-Configuration: number of cross phase reaction must be positive, please check your configuration");
+					}
+					totalReacCrossPhase += nReactions;
+					_reaction.computeOffsets("cross_phase", nReactions, par);
 					paramProvider.popScope();
-					throw InvalidParameterException("CSTR-Configuration: number of reaction must be positive, please check your configuration");
 				}
-				totalReactions += nReactions;
-				_numCrossPhaseReactionsPerParticle[par] = nReactions;
+
+				if (paramProvider.exists("NREAC_PORE"))
+				{
+					int nReactions = paramProvider.getInt("NREAC_PORE");
+
+					if (nReactions < 0)
+					{
+						paramProvider.popScope();
+						throw InvalidParameterException("GRM-Configuration: number of pore reaction must be positive, please check your configuration");
+					}
+					totalReacPore += nReactions;
+					_reaction.computeOffsets("pore", nReactions, par);
+					paramProvider.popScope();
+				}
+				if (paramProvider.exists("NREAC_SOLID"))
+				{
+					int nReactions = paramProvider.getInt("NREAC_SOLID");
+
+					if (nReactions < 0)
+					{
+						paramProvider.popScope();
+						throw InvalidParameterException("GRM-Configuration: number of solid reaction must be positive, please check your configuration");
+					}
+					totalReacSolid += nReactions;
+					_reaction.computeOffsets("solid", nReactions, par);
+					paramProvider.popScope();
+				}
 			}
-			paramProvider.popScope();
+			else
+			{
+				throw InvalidParameterException("GRM-Configuration:");
+			}
 		}
 
-		_dynReaction.resize(totalReactions);
-		// initialize every reaction type for ever particle
-		int globalOffset = 0;
+
+
 		for (unsigned int par = 0; par < _disc.nParType; par++)
 		{
-			char particleScope[32];
-			snprintf(particleScope, sizeof(particleScope), "reaction_cross_phase_%03d", par);
-			paramProvider.pushScope(particleScope);
 
-			reactionConfSuccess = configureDiscretizationReactionModel(paramProvider, _dynReaction, _numCrossPhaseReactionsPerParticle, par, helper) && reactionConfSuccess;
+			char particleScope[32];
+			snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
+			paramProvider.pushScope(particleScope);
+			
+			if (paramProvider.exists("NREAC_CROSS_PHASE"))
+			{
+
+				_reaction.configureDiscretization("cross_phase",
+					par,
+					totalReacCrossPhase,
+					_disc.nComp,
+					_disc.nBound,
+					_disc.boundOffset,
+					paramProvider,
+					helper);
+				
+				paramProvider.popScope();
+			}
+			if (paramProvider.exists("NREAC_PORE"))
+			{
+				_reaction.configureDiscretization("pore",
+					par,
+					totalReacPore,
+					_disc.nComp,
+					_disc.nBound,
+					_disc.boundOffset,
+					paramProvider,
+					helper);
+
+				paramProvider.popScope();
+			}
+			if (paramProvider.exists("NREAC_SOLID"))
+			{
+				_reaction.configureDiscretization("pore",
+					par,
+					totalReacSolid,
+					_disc.nComp,
+					_disc.nBound,
+					_disc.boundOffset,
+					paramProvider,
+					helper);
+
+				paramProvider.popScope();
+			}
+
 		}
+
 	}
 	else
 	{
-		_dynReaction.resize(_disc.nParType, nullptr);
+		_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
 		_numCrossPhaseReactionsPerParticle.resize(_disc.nParType, 0);
+		_reaction.empty(); // todo das als construktor 
 	}
 
 
@@ -1682,10 +1763,10 @@ int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int 
 		// We still need to handle transport and quasi-stationary reactions
 
 		// Cross Phase Reactions
-		const int numReacCrossPhase = _numCrossPhaseReactionsPerParticle[parType];
-		const int numReacParticle = _numParticleReactionsPerParticle[parType];
-		const int offSetCrossPhase = getReactionOffsetParticle(_numCrossPhaseReactionsPerParticle, parType);
-		const int offSetParticle = getReactionOffsetParticle(_numParticleReactionsPerParticle, parType);
+		const int numReacCrossPhase = _reaction.getDynReactionVector("cross_phase").size();
+		const int numReacParticle = _reaction.getDynReactionVector("pore").size();
+		const int offSetCrossPhase = _reaction.getOffsetForPhase("cross_phase", parType);
+		const int offSetParticle = _reaction.getOffsetForPhase("pore", parType);
 
 		if (numReacCrossPhase > 0 || numReacParticle > 0)
 		{
@@ -1710,7 +1791,7 @@ int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int 
 
 			for (unsigned int reac = 0; reac < numReacCrossPhase; ++reac)
 			{
-				if (!_dynReaction[offSetCrossPhase + reac])
+				if (!_reaction.getDynReactionVector("cross_phase")[offSetCrossPhase + reac])
 					continue;
 
 				if (wantRes)
@@ -1719,7 +1800,7 @@ int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int 
 					BufferedArray<ResidualType> fluxSolid = buffer.template array<ResidualType>(nTotalBound);
 
 					std::fill_n(static_cast<ResidualType*>(fluxSolid), nTotalBound, 0.0);
-					_dynReaction[offSetCrossPhase + reac]->residualCombinedAdd(t, secIdx, colPos, y - _disc.nComp, y, res - _disc.nComp, static_cast<ResidualType*>(fluxSolid), -1.0, buffer);
+					_reaction.getDynReactionVector("cross_phase")[offSetCrossPhase + reac]->residualCombinedAdd(t, secIdx, colPos, y - _disc.nComp, y, res - _disc.nComp, static_cast<ResidualType*>(fluxSolid), -1.0, buffer);
 
 					unsigned int idx = 0;
 					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
@@ -1746,7 +1827,7 @@ int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int 
 							dmv.setAll(0.0);
 
 							// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-							_dynReaction[offSetCrossPhase + reac]->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y - _disc.nComp), reinterpret_cast<double const*>(y), -1.0, jacBase, dmv.row(0, _disc.nComp), buffer);
+							_reaction.getDynReactionVector("cross_phase")[offSetCrossPhase + reac]->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y - _disc.nComp), reinterpret_cast<double const*>(y), -1.0, jacBase, dmv.row(0, _disc.nComp), buffer);
 
 							unsigned int idx = 0;
 							for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
@@ -1771,7 +1852,7 @@ int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int 
 							// reaction model does not interact with it.
 
 							// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-							_dynReaction[offSetCrossPhase + reac]->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y - _disc.nComp), reinterpret_cast<double const*>(y), -1.0, jacBase, linalg::DenseBandedRowIterator(), buffer);
+							_reaction.getDynReactionVector("cross_phase")[offSetCrossPhase + reac]->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y - _disc.nComp), reinterpret_cast<double const*>(y), -1.0, jacBase, linalg::DenseBandedRowIterator(), buffer);
 						}
 					}
 				}
@@ -1779,12 +1860,12 @@ int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int 
 
 			for (unsigned int reac = 0; reac < numReacParticle; ++reac)
 			{
-				if (!_dynReactionParticle[offSetParticle + reac])
+				if (!_reaction.getDynReactionVector("pore")[offSetParticle + reac])
 					continue;
 
 				if (wantRes)
 				{
-					_dynReactionParticle[offSetParticle + reac]->residualLiquidAdd(t, secIdx, colPos, y - _disc.nComp, res - _disc.nComp, -1.0, buffer);
+					_reaction.getDynReactionVector("pore")[offSetParticle + reac]->residualLiquidAdd(t, secIdx, colPos, y - _disc.nComp, res - _disc.nComp, -1.0, buffer);
 
 					if (wantJac)
 					{
@@ -1794,7 +1875,7 @@ int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int 
 						// reaction model does not interact with it.
 
 						// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-						_dynReactionParticle[offSetParticle + reac]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y - _disc.nComp), -1.0, jacBase, buffer);
+						_reaction.getDynReactionVector("pore")[offSetParticle + reac]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y - _disc.nComp), -1.0, jacBase, buffer);
 					}
 				}
 			}

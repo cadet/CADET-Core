@@ -13,6 +13,7 @@
 #include "model/reaction/ReactionModelBase.hpp"
 #include "model/ReactionModel.hpp"
 #include "cadet/Exceptions.hpp"
+#include "ConfigurationHelper.hpp"
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -20,7 +21,10 @@
 #include <iterator>
 #include <algorithm>
 #include <numeric>
-
+#include <map>
+#include <vector>
+#include <string>
+#include <cstdio>
 namespace cadet
 {
 
@@ -69,7 +73,7 @@ struct ReactionSystem
 
         unsigned int getTotalReactions(const std::string& phaseType) const
         {
-            return getPhaseData(phaseType).totalReactions; // ← Kein const_cast mehr nötig!
+            return getPhaseData(phaseType).totalReactions;
         }
 
         std::vector<IDynamicReactionModel*>& getDynReactionVector(const std::string& phase_type)
@@ -84,31 +88,37 @@ struct ReactionSystem
             return phaseData.totalReactions;
         }
 
-        void configureDimensions(unsigned int numOfPart)
+        void configureDimensions(const std::string& phaseType, unsigned int numReac)
         {
-           numberOfParticles = numOfPart;
-           for (auto& phase : phaseMap)
-           {
-               phase.second.offsets.resize(numOfPart, 0);
-           }
+            auto& reactionVector = getPhaseData(phaseType).dynReactions;
+            reactionVector.resize(numReac, nullptr);
         }
 
-		void computeOffsets(const std::string& phaseType, unsigned int numOfReaOfParType, unsigned int parType)
-		{
-            auto& offsets = getPhaseData(phaseType).offsets;
-            for (size_t i = 0; i < parType; ++i)
-			{
-				if (i == 0)
-					offsets[i] = numOfReaOfParType;
-				else
-					offsets[i] = offsets[i - 1] + numOfReaOfParType;
-			}
-		}
+        void configureDimensionsOffSet(unsigned int nParTypes)
+        {
 
+            for (auto phase : phaseMap)
+            {
+                auto& offset = getPhaseData(phase.first).offsets;
+                offset.resize(nParTypes, 0);
+            }           
+        }
+
+        void computeOffsets(const std::string& phaseType, unsigned int numOfReaOfParType, unsigned int parType)
+        {
+            auto& offsets = getPhaseData(phaseType).offsets;
+            for (size_t i = 0; i <= parType; ++i)
+            {
+                if (i == 0)
+                    offsets[i] = 0;
+                else
+                    offsets[i] = offsets[i - 1] + numOfReaOfParType;
+            }
+        }
 
         int getOffsetForPhase(const std::string& phaseType, unsigned int parType) const
         {
-            const auto& offsets = const_cast<ReactionSystem*>(this)->getPhaseData(phaseType).offsets;
+            const auto& offsets = getPhaseData(phaseType).offsets;
             return (parType < offsets.size()) ? offsets[parType] : 0;
         }
 
@@ -116,20 +126,15 @@ struct ReactionSystem
 	    {
             auto& dynReaction = getDynReactionVector(phaseType);
             int offSet = getOffsetForPhase(phaseType, parType);
+            configureDimensions(phaseType, nReactions);
 
             bool reactionConfSuccess = true;
             for (unsigned int i = 0; i < nReactions; ++i) 
 				{
 					char reactionKey[32];
-                    snprintf(reactionKey, sizeof(reactionKey), "%s_%03d", phaseType.c_str(), i);
+                    snprintf(reactionKey, sizeof(reactionKey), "%s_reaction_%03d", phaseType.c_str(), i);
 
-					if (!paramProvider.exists(reactionKey)) 
-					{
-						paramProvider.popScope();
-						throw InvalidParameterException("Missing reaction model definition for " + std::string(reactionKey));
-					}
-
-					paramProvider.pushScope(reactionKey);
+                    paramProvider.pushScope(reactionKey);
 
 					if (!paramProvider.exists("TYPE")) 
 					{
@@ -138,7 +143,6 @@ struct ReactionSystem
 					}
 
 					std::string reactionType = paramProvider.getString("TYPE");
-					paramProvider.popScope();
 					dynReaction[offSet + i] = helper.createDynamicReactionModel(reactionType);
 
 					if (!dynReaction[offSet + i]) 
@@ -147,9 +151,6 @@ struct ReactionSystem
 						throw InvalidParameterException("Unknown dynamic reaction model " + reactionType +
 							" for " + reactionKey);
 					}
-
-					if (dynReaction[offSet + i]->usesParamProviderInDiscretizationConfig())
-						paramProvider.pushScope(reactionKey);
 
 					reactionConfSuccess = dynReaction[offSet + i]->configureModelDiscretization(paramProvider, nComp, nBound + parType * nComp, boundOffset + parType * nComp) && reactionConfSuccess;
 
@@ -216,6 +217,15 @@ struct ReactionSystem
 				for (auto* reac : dynReactionVector) delete reac;
 			}
 		}
+
+        void empty()
+        {
+            for (auto phase : phaseMap)
+            {
+                auto& dynReacVec = getPhaseData(phase.first).dynReactions;
+                dynReacVec.resize(1);
+            }
+        }
 
 	};
 
