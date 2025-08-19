@@ -32,16 +32,10 @@ namespace cadet
 	{
 		void registerInletModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 		void registerOutletModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
-
-		void registerColumnModel1D(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx, IParameterProvider&)>>& models);
-		void registerGeneralRateModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
-		void registerLumpedRateModelWithPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
-		void registerLumpedRateModelWithoutPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
+		void registerColumnModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 		void registerCSTRModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 #ifdef ENABLE_2D_MODELS
-		void registerGeneralRateModel2D(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 		void registerMultiChannelTransportModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
-		void registerColumnModel2D(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx, IParameterProvider&)>>& models);
 #endif
 
 		namespace inlet
@@ -61,16 +55,10 @@ namespace cadet
 		// Register all available models
 		model::registerInletModel(_modelCreators);
 		model::registerOutletModel(_modelCreators);
-		model::registerGeneralRateModel(_modelCreators);
-		model::registerLumpedRateModelWithPores(_modelCreators);
-		model::registerLumpedRateModelWithoutPores(_modelCreators);
 		model::registerCSTRModel(_modelCreators);
-		model::registerColumnModel1D(_modelCreators);
-
+		model::registerColumnModel(_modelCreators);
 #ifdef ENABLE_2D_MODELS
-		model::registerGeneralRateModel2D(_modelCreators);
 		model::registerMultiChannelTransportModel(_modelCreators);
-		model::registerColumnModel2D(_modelCreators);
 #endif
 
 		// Register all available inlet profiles

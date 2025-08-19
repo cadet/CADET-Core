@@ -367,6 +367,7 @@
         "TOTAL_POROSITY": 0.21,
         "UNIT_TYPE": "LUMPED_RATE_MODEL_WITHOUT_PORES",
         "discretization": {
+          "SPATIAL_METHOD": "FV",
           "GS_TYPE": 1,
           "MAX_KRYLOV": 0,
           "MAX_RESTARTS": 10,
