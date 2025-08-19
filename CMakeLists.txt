@@ -117,9 +117,6 @@ add_feature_info(ENABLE_DEBUG_THREADING ENABLE_DEBUG_THREADING "Use multi-thread
 option(ENABLE_2D_MODELS "Build 2D models (e.g., 2D general rate model, multichannel transport)" ON)
 add_feature_info(ENABLE_2D_MODELS ENABLE_2D_MODELS "Build 2D models (e.g., 2D general rate model, multichannel transport)")
 
-option(ENABLE_DG "Build DG variants of models" ON)
-add_feature_info(ENABLE_DG ENABLE_DG "Build DG variants of models")
-
 option(ENABLE_SUNDIALS_OPENMP "Prefer OpenMP vector implementation of SUNDIALS if available (for large problems)" OFF)
 add_feature_info(ENABLE_SUNDIALS_OPENMP ENABLE_SUNDIALS_OPENMP "Prefer OpenMP vector implementation of SUNDIALS if available (for large problems)")
 
@@ -425,16 +422,14 @@ if (ENABLE_2D_MODELS)
 endif()
 
 set(EIGEN_TARGET "")
-if (ENABLE_DG)
-	find_package(Eigen3 3.4 REQUIRED NO_MODULE)
+find_package(Eigen3 3.4 REQUIRED NO_MODULE)
 
-	# Disable DG if Eigen is not present
-	if (NOT TARGET Eigen3::Eigen)
-		message(STATUS "Disabling DG support because Eigen3 could not be found")
-		set(ENABLE_DG OFF)
-	else()
-		set(EIGEN_TARGET "Eigen3::Eigen")
-	endif()
+# Disable DG if Eigen is not present
+if (NOT TARGET Eigen3::Eigen)
+	message(STATUS "Disabling DG support because Eigen3 could not be found")
+	set(ENABLE_DG OFF)
+else()
+	set(EIGEN_TARGET "Eigen3::Eigen")
 endif()
 
 set(IPO_AVAILABLE OFF)
@@ -664,12 +659,10 @@ if (ENABLE_2D_MODELS)
 	endif()
 endif()
 
-if (ENABLE_DG)
-	message("Found Eigen3: ${Eigen3_FOUND}")
-	if (TARGET Eigen3::Eigen)
-		message("  Version ${Eigen3_VERSION}")
-		message("  Includes ${Eigen3_INCLUDE_DIRS}")
-	endif()
+message("Found Eigen3: ${Eigen3_FOUND}")
+if (TARGET Eigen3::Eigen)
+	message("  Version ${Eigen3_VERSION}")
+	message("  Includes ${Eigen3_INCLUDE_DIRS}")
 endif()
 
 message("Found HDF5: ${HDF5_FOUND}")
