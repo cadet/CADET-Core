@@ -179,10 +179,8 @@ set (LIBCADET_NONLINALG_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/nonlin/CompositeSolver.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/nonlin/Solver.cpp
 )
-if (ENABLE_DG)
-	list(APPEND LIBCADET_NONLINALG_SOURCES ${CMAKE_SOURCE_DIR}/src/libcadet/linalg/BandedEigenSparseRowIterator.hpp)
-	list(APPEND LIBCADET_NONLINALG_SOURCES ${CMAKE_SOURCE_DIR}/src/libcadet/linalg/EigenSolverWrapper.cpp)
-endif()
+list(APPEND LIBCADET_NONLINALG_SOURCES ${CMAKE_SOURCE_DIR}/src/libcadet/linalg/BandedEigenSparseRowIterator.hpp)
+list(APPEND LIBCADET_NONLINALG_SOURCES ${CMAKE_SOURCE_DIR}/src/libcadet/linalg/EigenSolverWrapper.cpp)
 
 if (ENABLE_2D_MODELS)
 	set(LIBCADET_NONLINALG_SPARSE_SOURCES)
@@ -213,25 +211,23 @@ else()
 endif()
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/linalg/SparseSolverInterface.hpp.in" "${CMAKE_CURRENT_BINARY_DIR}/SparseSolverInterface.hpp" @ONLY)
 
-if (ENABLE_DG)
+list (APPEND LIBCADET_SOURCES
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/DGToolbox.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ConvectionDispersionOperatorDG.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/particle/GeneralRateParticle.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/particle/HomogeneousParticle.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ParticleDiffusionOperatorBase.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ParticleDiffusionOperatorDG.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithoutPoresDG.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/ColumnModel1D.cpp
+)
+if (ENABLE_2D_MODELS)
 	list (APPEND LIBCADET_SOURCES
-		${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/DGToolbox.cpp
-		${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ConvectionDispersionOperatorDG.cpp
-		${CMAKE_SOURCE_DIR}/src/libcadet/model/particle/GeneralRateParticle.cpp
-		${CMAKE_SOURCE_DIR}/src/libcadet/model/particle/HomogeneousParticle.cpp
-		${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ParticleDiffusionOperatorBase.cpp
-		${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ParticleDiffusionOperatorDG.cpp
-		${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithoutPoresDG.cpp
-		${CMAKE_SOURCE_DIR}/src/libcadet/model/ColumnModel1D.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/TwoDimensionalConvectionDispersionOperatorDG.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/ColumnModel2D.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/ColumnModel2D-LinearSolver.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/ColumnModel2D-InitialConditions.cpp
 	)
-	if (ENABLE_2D_MODELS)
-		list (APPEND LIBCADET_SOURCES
-			${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/TwoDimensionalConvectionDispersionOperatorDG.cpp
-			${CMAKE_SOURCE_DIR}/src/libcadet/model/ColumnModel2D.cpp
-			${CMAKE_SOURCE_DIR}/src/libcadet/model/ColumnModel2D-LinearSolver.cpp
-			${CMAKE_SOURCE_DIR}/src/libcadet/model/ColumnModel2D-InitialConditions.cpp
-		)
-	endif()
 endif()
 
 # Preprocess binding and reaction models

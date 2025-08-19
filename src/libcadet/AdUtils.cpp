@@ -15,9 +15,7 @@
 #include "linalg/SparseMatrix.hpp"
 #include "AdUtils.hpp"
 
-#ifdef ENABLE_DG
-	#include <Eigen/Sparse>
-#endif
+#include <Eigen/Sparse>
 #include <limits>
 #include <algorithm>
 
@@ -239,111 +237,107 @@ void adMatrixVectorMultiply(const linalg::SparseMatrix<active>& mat, double cons
 	}
 }
 
-#ifdef ENABLE_DG
-
-	void extractBandedEigenJacobianFromAd(active const* const adVec, int adDirOffset, int diagDir, const int lowerBandwidth, const int upperBandwidth, Eigen::SparseMatrix<double, Eigen::RowMajor>& mat)
+void extractBandedEigenJacobianFromAd(active const* const adVec, int adDirOffset, int diagDir, const int lowerBandwidth, const int upperBandwidth, Eigen::SparseMatrix<double, Eigen::RowMajor>& mat)
+{
+	const int stride = lowerBandwidth + 1 + upperBandwidth;
+	for (int eq = 0; eq < mat.rows(); ++eq)
 	{
-		const int stride = lowerBandwidth + 1 + upperBandwidth;
-		for (int eq = 0; eq < mat.rows(); ++eq)
+		// Start with lowest subdiagonal and stay in the range of the columns:
+		// diagDir might be too big for the matrix and, hence, dir ranges between
+		// diagDir - lowerBandwidth <= dir <= diagDir + upperBandwidth
+		int dir = diagDir - lowerBandwidth + eq % stride;
+
+		// Loop over diagonals
+		for (int diag = 0; diag < stride; ++diag)
 		{
-			// Start with lowest subdiagonal and stay in the range of the columns:
-			// diagDir might be too big for the matrix and, hence, dir ranges between
-			// diagDir - lowerBandwidth <= dir <= diagDir + upperBandwidth
-			int dir = diagDir - lowerBandwidth + eq % stride;
+			if (eq - lowerBandwidth + diag >= 0 && // left block boundary
+				eq - lowerBandwidth + diag < mat.rows() && // right block boundary
+				adVec[eq].getADValue(adDirOffset + dir) != 0.0 // keep pattern
+				)
+				mat.coeffRef(eq, eq - lowerBandwidth + diag) = adVec[eq].getADValue(adDirOffset + dir);
 
-			// Loop over diagonals
-			for (int diag = 0; diag < stride; ++diag)
-			{
-				if (eq - lowerBandwidth + diag >= 0 && // left block boundary
-					eq - lowerBandwidth + diag < mat.rows() && // right block boundary
-					adVec[eq].getADValue(adDirOffset + dir) != 0.0 // keep pattern
-					)
-					mat.coeffRef(eq, eq - lowerBandwidth + diag) = adVec[eq].getADValue(adDirOffset + dir);
-
-				// Wrap around at end of row and jump to lowest subdiagonal
-				if (dir == diagDir + upperBandwidth)
-					dir = diagDir - lowerBandwidth;
-				else
-					++dir;
-			}
+			// Wrap around at end of row and jump to lowest subdiagonal
+			if (dir == diagDir + upperBandwidth)
+				dir = diagDir - lowerBandwidth;
+			else
+				++dir;
 		}
 	}
+}
 
-	void extractBandedBlockEigenJacobianFromAd(active const* const adVec, int adDirOffset, int diagDir, const int lowerBandwidth, const int upperBandwidth,
-		const int blockOffset, const int nRows, Eigen::SparseMatrix<double, Eigen::RowMajor>& mat, const int matrixOffset)
+void extractBandedBlockEigenJacobianFromAd(active const* const adVec, int adDirOffset, int diagDir, const int lowerBandwidth, const int upperBandwidth,
+	const int blockOffset, const int nRows, Eigen::SparseMatrix<double, Eigen::RowMajor>& mat, const int matrixOffset)
+{
+	const int stride = lowerBandwidth + 1 + upperBandwidth;
+	for (int eq = blockOffset; eq < blockOffset + nRows; ++eq)
 	{
-		const int stride = lowerBandwidth + 1 + upperBandwidth;
-		for (int eq = blockOffset; eq < blockOffset + nRows; ++eq)
+		// Start with lowest subdiagonal and stay in the range of the columns:
+		// diagDir might be too big for the matrix and, hence, dir ranges between
+		// diagDir - lowerBandwidth <= dir <= diagDir + upperBandwidth
+		int dir = diagDir - lowerBandwidth + eq % stride;
+
+		// Loop over diagonals
+		for (int diag = 0; diag < stride; ++diag)
 		{
-			// Start with lowest subdiagonal and stay in the range of the columns:
-			// diagDir might be too big for the matrix and, hence, dir ranges between
-			// diagDir - lowerBandwidth <= dir <= diagDir + upperBandwidth
-			int dir = diagDir - lowerBandwidth + eq % stride;
+			if (eq - lowerBandwidth + diag >= blockOffset && // left block boundary
+				eq - lowerBandwidth + diag < blockOffset + nRows && // right block boundary
+				adVec[eq].getADValue(adDirOffset + dir) != 0.0 // keep pattern
+				)
+				mat.coeffRef(matrixOffset + eq, matrixOffset + eq - lowerBandwidth + diag) = adVec[eq].getADValue(adDirOffset + dir);
 
-			// Loop over diagonals
-			for (int diag = 0; diag < stride; ++diag)
-			{
-				if (eq - lowerBandwidth + diag >= blockOffset && // left block boundary
-					eq - lowerBandwidth + diag < blockOffset + nRows && // right block boundary
-					adVec[eq].getADValue(adDirOffset + dir) != 0.0 // keep pattern
-					)
-					mat.coeffRef(matrixOffset + eq, matrixOffset + eq - lowerBandwidth + diag) = adVec[eq].getADValue(adDirOffset + dir);
-
-				// Wrap around at end of row and jump to lowest subdiagonal
-				if (dir == diagDir + upperBandwidth)
-					dir = diagDir - lowerBandwidth;
-				else
-					++dir;
-			}
+			// Wrap around at end of row and jump to lowest subdiagonal
+			if (dir == diagDir + upperBandwidth)
+				dir = diagDir - lowerBandwidth;
+			else
+				++dir;
 		}
 	}
+}
 
-	double compareBandedEigenJacobianWithAd(active const* const adVec, const int adDirOffset, const int diagDir, const int lowerBandwidth, const int upperBandwidth,
-		const int blockOffset, const int nRows, const Eigen::SparseMatrix<double, Eigen::RowMajor>& mat, const int matrixOffset)
+double compareBandedEigenJacobianWithAd(active const* const adVec, const int adDirOffset, const int diagDir, const int lowerBandwidth, const int upperBandwidth,
+	const int blockOffset, const int nRows, const Eigen::SparseMatrix<double, Eigen::RowMajor>& mat, const int matrixOffset)
+{
+	double maxDiff = 0.0;
+
+	const int stride = lowerBandwidth + 1 + upperBandwidth;
+	for (int eq = blockOffset; eq < blockOffset + nRows; ++eq)
 	{
-		double maxDiff = 0.0;
+		// Start with lowest subdiagonal and stay in the range of the columns:
+		// diagDir might be too big for the matrix and, hence, dir ranges between
+		// diagDir - lowerBandwidth <= dir <= diagDir + upperBandwidth
+		int dir = diagDir - lowerBandwidth + eq % stride;
 
-		const int stride = lowerBandwidth + 1 + upperBandwidth;
-		for (int eq = blockOffset; eq < blockOffset + nRows; ++eq)
+		// Loop over diagonals
+		for (int diag = 0; diag < stride; ++diag)
 		{
-			// Start with lowest subdiagonal and stay in the range of the columns:
-			// diagDir might be too big for the matrix and, hence, dir ranges between
-			// diagDir - lowerBandwidth <= dir <= diagDir + upperBandwidth
-			int dir = diagDir - lowerBandwidth + eq % stride;
-
-			// Loop over diagonals
-			for (int diag = 0; diag < stride; ++diag)
+			if (eq - lowerBandwidth + diag >= blockOffset && // left block boundary
+				eq - lowerBandwidth + diag < blockOffset + nRows && // right block boundary
+				adVec[eq].getADValue(adDirOffset + dir) != 0.0 // keep pattern
+				)
 			{
-				if (eq - lowerBandwidth + diag >= blockOffset && // left block boundary
-					eq - lowerBandwidth + diag < blockOffset + nRows && // right block boundary
-					adVec[eq].getADValue(adDirOffset + dir) != 0.0 // keep pattern
-					)
-				{
-					double baseVal = adVec[eq].getADValue(adDirOffset + dir);
-					double matVal = mat.coeff(matrixOffset + eq, matrixOffset + eq - lowerBandwidth + diag);
+				double baseVal = adVec[eq].getADValue(adDirOffset + dir);
+				double matVal = mat.coeff(matrixOffset + eq, matrixOffset + eq - lowerBandwidth + diag);
 
-					if (std::isnan(matVal) || std::isnan(baseVal))
-						return std::numeric_limits<double>::quiet_NaN();
-					const double diff = std::abs(matVal - baseVal);
+				if (std::isnan(matVal) || std::isnan(baseVal))
+					return std::numeric_limits<double>::quiet_NaN();
+				const double diff = std::abs(matVal - baseVal);
 
-					baseVal = std::abs(baseVal);
-					if (baseVal > 0.0)
-						maxDiff = std::max(maxDiff, diff / baseVal);
-					else
-						maxDiff = std::max(maxDiff, diff);
-				}
-
-				// Wrap around at end of row and jump to lowest subdiagonal
-				if (dir == diagDir + upperBandwidth)
-					dir = diagDir - lowerBandwidth;
+				baseVal = std::abs(baseVal);
+				if (baseVal > 0.0)
+					maxDiff = std::max(maxDiff, diff / baseVal);
 				else
-					++dir;
+					maxDiff = std::max(maxDiff, diff);
 			}
-		}
-		return maxDiff;
-	}
 
-#endif
+			// Wrap around at end of row and jump to lowest subdiagonal
+			if (dir == diagDir + upperBandwidth)
+				dir = diagDir - lowerBandwidth;
+			else
+				++dir;
+		}
+	}
+	return maxDiff;
+}
 
 }  // namespace ad
 
