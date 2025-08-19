@@ -1631,16 +1631,9 @@ int ColumnModel1D::Exporter::writeOutlet(double* buffer) const
 	return _disc.nComp;
 }
 
-void registerColumnModel1D(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx, IParameterProvider&)>>& models)
-{
-	models[ColumnModel1D::identifier()] = [](UnitOpIdx uoId, IParameterProvider&) { return new ColumnModel1D(uoId); };
-	models["COLUMN_MODEL_1D"] = [](UnitOpIdx uoId, IParameterProvider&) { return new ColumnModel1D(uoId); };
-}
-
 }  // namespace model
 
 }  // namespace cadet
 
 #include "model/ColumnModel1D-InitialConditions.cpp"
 #include "model/ColumnModel1D-LinearSolver.cpp"
-

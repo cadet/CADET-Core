@@ -1687,13 +1687,6 @@ int ColumnModel2D::Exporter::writeOutlet(double* buffer) const
 	return _disc.nComp * _disc.radNPoints;
 }
 
-
-void registerColumnModel2D(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models)
-{
-	models[ColumnModel2D::identifier()] = [](UnitOpIdx uoId, IParameterProvider&) { return new ColumnModel2D(uoId); };
-	models["COLUMN_MODEL_2D"] = [](UnitOpIdx uoId, IParameterProvider&) { return new ColumnModel2D(uoId); };
-}
-
 }  // namespace model
 
 }  // namespace cadet
