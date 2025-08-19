@@ -146,11 +146,9 @@ set(LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/OutletModel.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/StirredTankModel.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithoutPores.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithoutPoresBuilder.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithPores.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithPoresBuilder.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModelBuilder.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/ColumnModelBuilder.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/ParameterMultiplexing.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ConvectionDispersionOperator.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/AxialConvectionDispersionKernel.cpp
@@ -200,7 +198,6 @@ if (ENABLE_2D_MODELS)
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/MultiChannelTransportModel.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/MultiChannelTransportModel-LinearSolver.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/MultiChannelTransportModel-InitialConditions.cpp
-		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2DBuilder.cpp
 	)
 
 	if (NOT SUPERLU_FOUND)

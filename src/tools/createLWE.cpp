@@ -55,6 +55,7 @@ void configureDiscretization(cadet::io::HDF5Writer& writer, int nCol, int nParTy
     Scope<cadet::io::HDF5Writer> s2(writer, "discretization");
 
     writer.scalar<int>("NCOL", nCol); // 64
+    writer.scalar<std::string>("SPATIAL_METHOD", "FV");
     if (nParType > 1)
     {
         const std::vector<int> nPar_vec(nParType, nPar);
