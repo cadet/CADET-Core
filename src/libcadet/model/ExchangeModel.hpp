@@ -26,9 +26,7 @@
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
 
-#ifdef ENABLE_DG
-	#include "linalg/BandedEigenSparseRowIterator.hpp"
-#endif
+#include "linalg/BandedEigenSparseRowIterator.hpp"
 
 #include "AutoDiff.hpp"
 #include "SimulationTypes.hpp"

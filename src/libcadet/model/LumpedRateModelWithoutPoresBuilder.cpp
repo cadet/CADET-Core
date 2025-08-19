@@ -1,8 +1,6 @@
 #include "model/LumpedRateModelWithoutPores.hpp"
 #include "CompileTimeConfig.hpp"
-#ifdef ENABLE_DG
-	#include "model/LumpedRateModelWithoutPoresDG.hpp"
-#endif
+#include "model/LumpedRateModelWithoutPoresDG.hpp"
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
 
@@ -22,13 +20,9 @@ namespace model
 
 			const std::string discName = paramProvider.getString("SPATIAL_METHOD");
 
-#ifdef ENABLE_DG
-			if(discName == "DG")
+			if (discName == "DG")
 				model = new LumpedRateModelWithoutPoresDG(uoId);
 			else if (discName == "FV")
-#else
-			if (discName == "FV")
-#endif
 				model = createAxialFVLRM(uoId);
 			else
 			{
@@ -79,10 +73,8 @@ void registerLumpedRateModelWithoutPores(std::unordered_map<std::string, std::fu
 	typedef LumpedRateModelWithoutPores<parts::AxialConvectionDispersionOperatorBase> AxialLRM;
 	typedef LumpedRateModelWithoutPores<parts::RadialConvectionDispersionOperatorBase> RadialLRM;
 
-#ifdef ENABLE_DG
 	models[LumpedRateModelWithoutPoresDG::identifier()] = selectAxialFlowDiscretizationLRM;
 	models["LRM_DG"] = selectAxialFlowDiscretizationLRM;
-#endif
 
 	models[AxialLRM::identifier()] = selectAxialFlowDiscretizationLRM;
 	models["LRM"] = selectAxialFlowDiscretizationLRM;

@@ -61,11 +61,9 @@ if (ENABLE_2D_MODELS)
 	list(APPEND TEST_ADDITIONAL_SOURCES SparseFactorizableMatrix.cpp TwoDimConvectionDispersionOperator.cpp)
 endif()
 
-if (ENABLE_DG)
-	list(APPEND TEST_ADDITIONAL_SOURCES ColumnModel1D.cpp LumpedRateModelWithoutPoresDG.cpp)
-	if (ENABLE_2D_MODELS)
-		list(APPEND TEST_ADDITIONAL_SOURCES ColumnModel2D.cpp)
-	endif()
+list(APPEND TEST_ADDITIONAL_SOURCES ColumnModel1D.cpp LumpedRateModelWithoutPoresDG.cpp)
+if (ENABLE_2D_MODELS)
+	list(APPEND TEST_ADDITIONAL_SOURCES ColumnModel2D.cpp)
 endif()
 
 add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp UnitOperationTests.cpp SimHelper.cpp ParticleHelper.cpp
