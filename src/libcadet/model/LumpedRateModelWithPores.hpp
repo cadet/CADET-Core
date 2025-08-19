@@ -29,6 +29,7 @@
 #include "Memory.hpp"
 #include "model/ModelUtils.hpp"
 #include "ParameterMultiplexing.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 
 #include <array>
 #include <vector>
@@ -287,6 +288,7 @@ protected:
 	std::vector<int> _numCrossPhaseReactionsPerParticle; //!< Number of cross phase reactions per particle type
 	std::vector<int> _numParticleReactionsPerParticle; //!< Number of particle reactions per particle type
 	
+	ReactionSystem _reaction;
 	const int getReactionOffsetParticle(std::vector<int>& reactionPerParticle, unsigned int parType) const
 	{
 		int offset = 0;

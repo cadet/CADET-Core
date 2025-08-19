@@ -331,12 +331,7 @@ protected:
 
 	ConvDispOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 	std::vector<IDynamicReactionModel*> _dynReactionBulk; //!< Dynamic reactions in the bulk volume
-	std::vector <IDynamicReactionModel*> _dynReactionParticle; //!< Dynamic reactions in the parical volume
 	bool _oldReactionInterface; //!< Flag to distinguish between old and new reaction interface
-
-	std::vector<int> _numCrossPhaseReactionsPerParticle; //!< Number of cross phase reactions per particle type
-	std::vector<int> _numParticleReactionsPerParticle; //!< Number of particle reactions per particle type
-
 	ReactionSystem _reaction;
 
 	const int getReactionOffsetParticle(std::vector<int>& reactionPerParticle, unsigned int parType) const

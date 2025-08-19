@@ -85,7 +85,6 @@ GeneralRateModel<ConvDispOperator>::~GeneralRateModel() CADET_NOEXCEPT
 	delete[] _jacPdisc;
 
 	for (auto* reac : _dynReactionBulk) delete reac;
-	for (auto* reac : _dynReactionParticle) delete reac;
 
 	clearParDepSurfDiffusion();
 }
@@ -718,9 +717,9 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 			{
 				paramProvider.pushScope(particleScope);
 
-				if (paramProvider.exists("NREAC_COSS_PHASE"))
+				if (paramProvider.exists("NREAC_CROSS_PHASE"))
 				{
-					int nReactions = paramProvider.getInt("NREAC_COSS_PHASE");
+					int nReactions = paramProvider.getInt("NREAC_CROSS_PHASE");
 
 					if (nReactions < 0)
 					{
@@ -765,8 +764,6 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 			}
 		}
 
-
-
 		for (unsigned int par = 0; par < _disc.nParType; par++)
 		{
 
@@ -803,7 +800,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 			}
 			if (paramProvider.exists("NREAC_SOLID"))
 			{
-				_reaction.configureDiscretization("pore",
+				_reaction.configureDiscretization("solid",
 					par,
 					totalReacSolid,
 					_disc.nComp,
@@ -821,55 +818,9 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	else
 	{
 		_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
-		_numCrossPhaseReactionsPerParticle.resize(_disc.nParType, 0);
 		_reaction.empty(); // todo das als construktor 
 	}
 
-
-	if (paramProvider.exists("reaction_pore_000"))
-	{
-		// First get the total size of _dynReactionParticle across all particles
-		int totalReactionsParticle = 0;
-		_numParticleReactionsPerParticle.resize(_disc.nParType);
-		for (unsigned int par = 0; par < _disc.nParType; par++)
-		{
-			char particleScope[32];
-			snprintf(particleScope, sizeof(particleScope), "reaction_pore_%03d", par);
-			paramProvider.pushScope(particleScope);
-
-			if (paramProvider.exists("NREAC"))
-			{
-				int nReactions = paramProvider.getInt("NREAC");
-
-				if (nReactions <= 0)
-				{
-					paramProvider.popScope();
-					throw InvalidParameterException("CSTR-Configuration: number of reaction must be positive, please check your configuration");
-				}
-				totalReactionsParticle += nReactions;
-				_numParticleReactionsPerParticle[par] = nReactions;
-			}
-			paramProvider.popScope();
-		}
-
-		_dynReactionParticle = std::vector<IDynamicReactionModel*>(totalReactionsParticle, nullptr);
-
-		// initialize every reaction type for ever particle
-		for (unsigned int par = 0; par < _disc.nParType; par++)
-		{
-			char particleScope[32];
-			snprintf(particleScope, sizeof(particleScope), "reaction_pore_%03d", par);
-			paramProvider.pushScope(particleScope);
-
-			reactionConfSuccess = configureDiscretizationReactionModel(paramProvider, _dynReactionParticle, _numParticleReactionsPerParticle, par, helper) && reactionConfSuccess;
-
-		}
-	}
-	else
-	{
-		_dynReactionParticle.resize(_disc.nParType,nullptr);
-		_numParticleReactionsPerParticle.resize(_disc.nParType, 0);
-	}
 
 	// Allocate memory
 	_tempState = new double[numDofs()];
@@ -1208,10 +1159,17 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 	else
 	{
 		for (unsigned int par = 0; par < _disc.nParType; par++)
-		{
+		{	
+			char particleScope[32];
+			snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
+			paramProvider.pushScope(particleScope);
 
-			dynReactionConfSuccess = configureReactionModel(paramProvider, "cross_phase", _dynReaction, _numCrossPhaseReactionsPerParticle, par) && dynReactionConfSuccess;
-			dynReactionConfSuccess = configureReactionModel(paramProvider, "particle", _dynReactionParticle, _numParticleReactionsPerParticle, par) && dynReactionConfSuccess;
+			if (paramProvider.exists("NREAC_CROSS_PHASE"))
+				_reaction.configure("cross_phase", par, _unitOpIdx, paramProvider);
+			if(paramProvider.exists("NREAC_PORE"))
+				_reaction.configure("pore", par, _unitOpIdx, paramProvider);
+			if (paramProvider.exists("NREAC_SOLID"))
+				_reaction.configure("solid", par, _unitOpIdx, paramProvider);
 		}
 	}
 
@@ -1243,13 +1201,8 @@ unsigned int GeneralRateModel<ConvDispOperator>::threadLocalMemorySize() const C
 			if (_binding[i] && _binding[i]->requiresWorkspace())
 				lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
 		}
-
 		// Handle all reactions
-		for (unsigned int i = 0; i < _dynReaction.size(); ++i)
-		{
-			if (_dynReaction[i] && _dynReaction[i]->requiresWorkspace())
-				lms.fitBlock(_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound[i % _disc.nParType], _disc.nBound + (i % _disc.nParType) * _disc.nComp));
-		}
+		_reaction.setWorkspaceRequirements(lms, _disc.nComp);
 	}
 
 
@@ -1259,11 +1212,6 @@ unsigned int GeneralRateModel<ConvDispOperator>::threadLocalMemorySize() const C
 			lms.fitBlock(_dynReactionBulk[i]->workspaceSize(_disc.nComp, 0, nullptr));
 	}
 
-	for (auto i = 0; i < _dynReactionParticle.size(); i++)
-	{
-		if (_dynReactionParticle[i] && _dynReactionParticle[i]->requiresWorkspace())
-			lms.fitBlock(_dynReactionParticle[i]->workspaceSize(_disc.nComp, 0, nullptr));
-	}
 
 	const unsigned int maxStrideBound = *std::max_element(_disc.strideBound, _disc.strideBound + _disc.nParType);
 	lms.add<active>(_disc.nComp + maxStrideBound);

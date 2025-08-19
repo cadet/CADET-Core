@@ -75,8 +75,13 @@ struct ReactionSystem
         {
             return getPhaseData(phaseType).totalReactions;
         }
+        // Const version of getDynReactionVector
+        const std::vector<IDynamicReactionModel*>& getDynReactionVector(const std::string& phase_type) const
+        {
+            return getPhaseData(phase_type).dynReactions;
+        }
 
-        std::vector<IDynamicReactionModel*>& getDynReactionVector(const std::string& phase_type)
+        std::vector<IDynamicReactionModel*>& getDynReactionVector(const std::string& phase_type) 
         {
             return getPhaseData(phase_type).dynReactions;
         }
@@ -170,11 +175,12 @@ struct ReactionSystem
             return reactionConfSuccess;
 	    }
 
-        bool configure(std::string phaseType, unsigned int parType, unsigned int unitOpIdx, unsigned int nReactions, IParameterProvider& paramProvider)
+        bool configure(std::string phaseType, unsigned int parType, unsigned int unitOpIdx, IParameterProvider& paramProvider)
         {
             auto& dynReaction = getDynReactionVector(phaseType);
             int offSet = getOffsetForPhase(phaseType, parType);
-            
+            unsigned int nReactions = dynReaction.size();
+
             bool dynReactionConfSuccess = true;
 
             for (unsigned int reac = 0; reac < nReactions; ++reac)
@@ -183,7 +189,7 @@ struct ReactionSystem
                     continue;
 
                 char reactionKey[32];
-                snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", reac);
+                snprintf(reactionKey, sizeof(reactionKey), "%s_reaction_%03d", phaseType.c_str(), reac);
                 paramProvider.pushScope(reactionKey);
 
                 dynReactionConfSuccess = dynReaction[offSet + reac]->configure(paramProvider, unitOpIdx, parType) && dynReactionConfSuccess;
@@ -196,7 +202,7 @@ struct ReactionSystem
             return dynReactionConfSuccess;
         }
 
-        void setWorkspaceRequirements(LinearMemorySizer lms, unsigned int nComp)
+        void setWorkspaceRequirements(LinearMemorySizer lms, unsigned int nComp) const
         {
             for (auto phase: phaseMap)
             {   
