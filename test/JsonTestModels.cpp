@@ -355,7 +355,7 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 	config["COL_DISPERSION_RADIAL"] = 1e-6;
 	particle["FILM_DIFFUSION"] = {6.9e-6, 6.9e-6};
 	particle["PAR_DIFFUSION"] = {7e-10, 6.07e-11};
-	particle["PAR_SURFDIFFUSION"] = {1e-10, 1e-10};
+	particle["PAR_SURFDIFFUSION"] = {1e-10, 5e-11};
 
 	if (uoType == "MULTI_CHANNEL_TRANSPORT")
 		config["NCHANNEL"] = 3;
