@@ -560,7 +560,7 @@ namespace cadet
 		IDASetMaxNonlinIters(_idaMemBlock, _maxNewtonIter);
 		IDASetMaxErrTestFails(_idaMemBlock, _maxErrorTestFail);
 		IDASetMaxConvFails(_idaMemBlock, _maxConvTestFail);
-		//IDASetSensMaxNonlinIters(_idaMemBlock, _maxNewtonIterSens);
+
 
 
 		// Allocate memory for AD if required
@@ -646,6 +646,9 @@ namespace cadet
 
 		// Activate sensitivity error control
 		IDASetSensErrCon(_idaMemBlock, _sensErrorTestEnabled);
+
+		// Set Maximum of Sens Non lin Iters
+		IDASetSensMaxNonlinIters(_idaMemBlock, _maxNewtonIterSens);
 	}
 
 	void Simulator::initializeFwdSensitivities()
