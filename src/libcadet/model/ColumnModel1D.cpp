@@ -165,25 +165,39 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
+		paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
+
 		if (unitName == "COLUMN_MODEL_1D")
 		{
-			paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
 			std::string particleModelName = paramProvider.getString("PARTICLE_TYPE");
 
 			_particles[parType] = helper.createParticleModel(particleModelName);
+
 			if (!_particles[parType])
 				throw InvalidParameterException("Unknown particle model " + particleModelName);
-
-			paramProvider.popScope();
 		}
 		else
 		{
-			if (unitName == "GENERAL_RATE_MODEL_DG")
-				_particles[parType] = helper.createParticleModel("GENERAL_RATE_PARTICLE");
-			else if (unitName == "LUMPED_RATE_MODEL_WITH_PORES_DG")
-				_particles[parType] = helper.createParticleModel("HOMOGENEOUS_PARTICLE");
+			if (unitName == "GENERAL_RATE_MODEL")
+			{
+				if ((paramProvider.exists("PARTICLE_TYPE") ? paramProvider.getString("PARTICLE_TYPE") : "GENERAL_RATE_PARTICLE") == "GENERAL_RATE_PARTICLE")
+					_particles[parType] = helper.createParticleModel("GENERAL_RATE_PARTICLE");
+				else
+					throw InvalidParameterException("Unit type was specified as " + unitName + ", which is inconsistent with specified particle model " + paramProvider.getString("PARTICLE_TYPE"));
+			}
+			else if (unitName == "LUMPED_RATE_MODEL_WITH_PORES")
+			{
+				if ((paramProvider.exists("PARTICLE_TYPE") ? paramProvider.getString("PARTICLE_TYPE") : "HOMOGENEOUS_PARTICLE") == "HOMOGENEOUS_PARTICLE")
+					_particles[parType] = helper.createParticleModel("HOMOGENEOUS_PARTICLE");
+				else
+					throw InvalidParameterException("Unit type was specified as " + unitName + ", which is inconsistent with specified particle model " + paramProvider.getString("PARTICLE_TYPE"));
+			}
 		}
+		paramProvider.popScope();
 	}
+
+	if (std::any_of(_particles.begin(), _particles.end(), [](IParticleModel* pm) { return !static_cast<bool>(pm); }))
+		throw InvalidParameterException("Particle model configuration failed");
 
 	bool particleConfSuccess = true;
 	for (int parType = 0; parType < _disc.nParType; parType++)
