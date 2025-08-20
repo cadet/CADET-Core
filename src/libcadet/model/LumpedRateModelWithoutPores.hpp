@@ -27,6 +27,7 @@
 #include "linalg/Gmres.hpp"
 #include "Memory.hpp"
 #include "model/ModelUtils.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 
 #include <array>
 #include <vector>
@@ -251,6 +252,7 @@ protected:
 	std::vector<double> _initStateDot; //!< Initial conditions for time derivative
 	
 	bool _oldReactionInterface; //!< Flag to distinguish between old and new reaction interface
+	ReactionSystem _reaction;
 
 	BENCH_TIMER(_timerResidual)
 	BENCH_TIMER(_timerResidualPar)

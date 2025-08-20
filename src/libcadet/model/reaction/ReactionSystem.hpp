@@ -190,14 +190,12 @@ struct ReactionSystem
 
                 char reactionKey[32];
                 snprintf(reactionKey, sizeof(reactionKey), "%s_reaction_%03d", phaseType.c_str(), reac);
-                paramProvider.pushScope(reactionKey);
+                paramProvider.pushScope(reactionKey); //scope reaction_xxx
 
                 dynReactionConfSuccess = dynReaction[offSet + reac]->configure(paramProvider, unitOpIdx, parType) && dynReactionConfSuccess;
 
-                paramProvider.popScope();
+                paramProvider.popScope();//scope reaction_xxx
             }
-
-            paramProvider.popScope();
         
             return dynReactionConfSuccess;
         }

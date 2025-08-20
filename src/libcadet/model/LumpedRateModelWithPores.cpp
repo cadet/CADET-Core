@@ -945,7 +945,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configure(IParameterProvider& p
 		{
 			char particleScope[32];
 			snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
-			paramProvider.pushScope(particleScope);
+			paramProvider.pushScope(particleScope);// scope particle_type
 
 			if (paramProvider.exists("NREAC_CROSS_PHASE"))
 				_reaction.configure("cross_phase", par, _unitOpIdx, paramProvider);
@@ -953,6 +953,9 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configure(IParameterProvider& p
 				_reaction.configure("pore", par, _unitOpIdx, paramProvider);
 			if (paramProvider.exists("NREAC_SOLID"))
 				_reaction.configure("solid", par, _unitOpIdx, paramProvider);
+
+			paramProvider.popScope();// scope particle_type
+
 		}
 	}
 
@@ -1465,21 +1468,24 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualParticle(double t, unsig
 	
 	const int numReacCrossPhase = _reaction.getDynReactionVector("cross_phase").size();
 	const int numReacParticle = _reaction.getDynReactionVector("pore").size();
+	const int numReacSolid = _reaction.getDynReactionVector("solid").size();
+	
 	const int offSetCrossPhase = _reaction.getOffsetForPhase("cross_phase", parType);
 	const int offSetParticle = _reaction.getOffsetForPhase("pore", parType);
+	const int offSetSolid = _reaction.getOffsetForPhase("solid", parType);
 	
-	if (numReacCrossPhase > 0 || numReacParticle > 0)
+	if (numReacCrossPhase > 0 || numReacParticle > 0 || numReacSolid > 0)
 	{
-			unsigned int const* nBound = _disc.nBound + _disc.nComp * parType;
-			unsigned int const* boundOffset = _disc.boundOffset + _disc.nComp * parType;
-			unsigned int nTotalBound = _disc.strideBound[parType];
-			int const* qsReaction = _binding[parType]->reactionQuasiStationarity();
-			const active& porosity = _parPorosity[parType];
-			active const* poreAccessFactor = _poreAccessFactor.data() + _disc.nComp * parType;
-			IBindingModel* binding = _binding[parType];
-			auto jacBase = _jacP[parType].row(colCell * idxr.strideParBlock(parType));
-			auto colPos = ColumnPosition{ z, 0.0, static_cast<double>(radius) * 0.5 };
-			auto buffer = threadLocalMem.get();
+		unsigned int const* nBound = _disc.nBound + _disc.nComp * parType;
+		unsigned int const* boundOffset = _disc.boundOffset + _disc.nComp * parType;
+		unsigned int nTotalBound = _disc.strideBound[parType];
+		int const* qsReaction = _binding[parType]->reactionQuasiStationarity();
+		const active& porosity = _parPorosity[parType];
+		active const* poreAccessFactor = _poreAccessFactor.data() + _disc.nComp * parType;
+		IBindingModel* binding = _binding[parType];
+		auto jacBase = _jacP[parType].row(colCell * idxr.strideParBlock(parType));
+		auto colPos = ColumnPosition{ z, 0.0, static_cast<double>(radius) * 0.5 };
+		auto buffer = threadLocalMem.get();
 
 		// Pre-calculate 
 		std::vector<double> invBetaP(_disc.nComp);
@@ -1576,6 +1582,57 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualParticle(double t, unsig
 
 					// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
 					_reaction.getDynReactionVector("pore")[offSetParticle + reac]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y - _disc.nComp), -1.0, jacBase, buffer);
+				}
+			}
+		}
+		
+		// Solid reaction
+		for (unsigned int reac = 0; reac < numReacSolid; ++reac)
+		{
+			if (!_reaction.getDynReactionVector("solid")[offSetSolid + reac])
+				continue;
+
+			if (wantRes)
+			{
+
+				BufferedArray<ResidualType> fluxSolid = buffer.template array<ResidualType>(nTotalBound);
+
+				std::fill_n(static_cast<ResidualType*>(fluxSolid), nTotalBound, 0.0);
+				_reaction.getDynReactionVector("solid")[offSetCrossPhase + reac]->residualLiquidAdd(t, secIdx, colPos, y, static_cast<ResidualType*>(fluxSolid), -1.0, buffer);
+
+				unsigned int idx = 0;
+				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+				{
+					for (unsigned int bnd = 0; bnd < nBound[comp]; ++bnd, ++idx)
+					{
+						if (!qsReaction[idx])
+						{
+							// Add reaction term to solid phase
+							res[idx] += fluxSolid[idx];
+						}
+					}
+				}
+			}
+			if (wantJac)
+			{
+				BufferedArray<double> fluxSolidJacobian = buffer.template array<double>(nTotalBound * (nTotalBound + _disc.nComp));
+				linalg::DenseMatrixView dmv(static_cast<double*>(fluxSolidJacobian), nullptr, nTotalBound, nTotalBound + _disc.nComp);
+				dmv.setAll(0.0);
+
+				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+				_reaction.getDynReactionVector("solid")[offSetSolid + reac]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, dmv.row(0, _disc.nComp), buffer);
+
+				unsigned int idx = 0;
+				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+				{
+					for (unsigned int bnd = 0; bnd < nBound[comp]; ++bnd, ++idx)
+					{
+						if (!qsReaction[idx])
+						{
+							// Add Jacobian row to solid phase
+							(jacBase + _disc.nComp + idx).addArray(dmv.rowPtr(idx), -static_cast<int>(_disc.nComp + idx), dmv.columns(), 1.0);
+						}
+					}
 				}
 			}
 		}
