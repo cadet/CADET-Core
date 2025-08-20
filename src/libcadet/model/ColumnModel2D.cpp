@@ -390,14 +390,17 @@ bool ColumnModel2D::configureModelDiscretization(IParameterProvider& paramProvid
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
+		const std::string parGroup = "particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType);
+		paramProvider.pushScope(parGroup);
+
 		std::string particleModelName = paramProvider.getString("PARTICLE_TYPE");
 
 		_particles[parType] = helper.createParticleModel(particleModelName);
+
 		if (!_particles[parType])
 			throw InvalidParameterException("Unknown particle model " + particleModelName);
 
-		paramProvider.popScope();
+		paramProvider.popScope(); // particle_type_xxx
 	}
 
 	bool particleConfSuccess = true;
