@@ -346,10 +346,7 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configure(IParameterProvider
 	{
 		_reaction.configure("solid", 0, _unitOpIdx, paramProvider);
 	}
-	else
-	{
-		_dynReaction.push_back(nullptr);
-	}
+
 
 	return transportSuccess && bindingConfSuccess && dynReactionConfSuccess;
 }

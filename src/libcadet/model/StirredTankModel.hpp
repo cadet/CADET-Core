@@ -23,6 +23,7 @@
 #include "AutoDiff.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "model/ModelUtils.hpp"
+#include "reaction/ReactionSystem.hpp"
 #include "Memory.hpp"
 
 #include <array>
@@ -177,6 +178,8 @@ protected:
 
 	std::vector <IDynamicReactionModel*> _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 	bool _old_interface; // 
+	
+	ReactionSystem _reaction;
 
 	std::vector<int> _numReactionsPerParticle; //!< Offset to the first reaction of each particle type
 
