@@ -160,30 +160,55 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 
 	paramProvider.popScope();
 
+	// Create and configure particle model
 	Indexer idxr(_disc);
 	_particles = std::vector<IParticleModel*>(_disc.nParType, nullptr);
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
+		const std::string parGroup = "particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType);
+		if (!paramProvider.exists(parGroup))
+			throw InvalidParameterException("Unit type was specified as " + unitName + ", but group " + parGroup + " is missing");
+		paramProvider.pushScope(parGroup);
+
 		if (unitName == "COLUMN_MODEL_1D")
 		{
-			paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
 			std::string particleModelName = paramProvider.getString("PARTICLE_TYPE");
 
 			_particles[parType] = helper.createParticleModel(particleModelName);
+
 			if (!_particles[parType])
 				throw InvalidParameterException("Unknown particle model " + particleModelName);
-
-			paramProvider.popScope();
 		}
 		else
 		{
-			if (unitName == "GENERAL_RATE_MODEL_DG")
-				_particles[parType] = helper.createParticleModel("GENERAL_RATE_PARTICLE");
-			else if (unitName == "LUMPED_RATE_MODEL_WITH_PORES_DG")
-				_particles[parType] = helper.createParticleModel("HOMOGENEOUS_PARTICLE");
+			if (unitName == "GENERAL_RATE_MODEL")
+			{
+				if ((paramProvider.exists("PARTICLE_TYPE") ? paramProvider.getString("PARTICLE_TYPE") : "GENERAL_RATE_PARTICLE") == "GENERAL_RATE_PARTICLE")
+				{
+					_particles[parType] = helper.createParticleModel("GENERAL_RATE_PARTICLE");
+				}
+				else
+					throw InvalidParameterException("Unit type was specified as " + unitName + ", which is inconsistent with specified particle model " + paramProvider.getString("PARTICLE_TYPE"));
+			}
+			else if (unitName == "LUMPED_RATE_MODEL_WITH_PORES")
+			{
+				if ((paramProvider.exists("PARTICLE_TYPE") ? paramProvider.getString("PARTICLE_TYPE") : "HOMOGENEOUS_PARTICLE") == "HOMOGENEOUS_PARTICLE")
+				{
+					_particles[parType] = helper.createParticleModel("HOMOGENEOUS_PARTICLE");
+				}
+				else
+					throw InvalidParameterException("Unit type was specified as " + unitName + ", which is inconsistent with specified particle model " + paramProvider.getString("PARTICLE_TYPE"));
+			}
+			else
+				throw InvalidParameterException("Failed to configure unit type " + unitName);
 		}
+
+		paramProvider.popScope(); // particle_type_xxx
 	}
+
+	if (std::any_of(_particles.begin(), _particles.end(), [](IParticleModel* pm) { return !static_cast<bool>(pm); }))
+		throw InvalidParameterException("Particle model configuration failed");
 
 	bool particleConfSuccess = true;
 	for (int parType = 0; parType < _disc.nParType; parType++)

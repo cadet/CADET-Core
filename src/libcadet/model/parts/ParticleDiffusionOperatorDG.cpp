@@ -53,6 +53,9 @@ namespace parts
 	{
 		const bool baseConfigSuccess = ParticleDiffusionOperatorBase::configureModelDiscretization(paramProvider, helper, nComp, parTypeIdx, nParType, strideBulkComp);
 
+		if (!paramProvider.exists("discretization"))
+			throw InvalidParameterException("Group discretization does not exist but is required for particle type " + std::to_string(_parTypeIdx));
+
 		paramProvider.pushScope("discretization");
 
 		if (paramProvider.exists("PAR_POLYDEG"))
