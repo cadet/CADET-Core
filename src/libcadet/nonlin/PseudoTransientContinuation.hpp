@@ -130,9 +130,9 @@ namespace nonlin
 			for (int i = 0; i < size; ++i)
 			{
 				if (scale)
-					dx[i] = residualMem[0] / scale[i];
+					dx[i] = residualMem[i] / scale[i];
 				else
-					dx[i] = residualMem[0];
+					dx[i] = residualMem[i];
 			}
 
 			if (variant)
