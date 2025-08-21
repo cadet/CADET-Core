@@ -27,6 +27,7 @@
 #include "Memory.hpp"
 #include "model/ModelUtils.hpp"
 #include "model/ParameterMultiplexing.hpp"
+#include "reaction/ReactionSystem.hpp"
 
 #include <array>
 #include <vector>
@@ -204,6 +205,7 @@ protected:
 
 	parts::MultiChannelConvectionDispersionOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 	std::vector<IDynamicReactionModel*> _dynReactionBulk; //!< Dynamic reactions in the bulk volume
+	ReactionSystem _reaction;
 	bool _oldReactionInterface;
 	std::vector<IExchangeModel*> _exchange; //!< Exchange transition model
 

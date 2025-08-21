@@ -543,40 +543,40 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 			if (paramProvider.exists("NREAC_CROSS_PHASE"))
 			{
 
-				_reaction.configureDiscretization("cross_phase",
+				reactionConfSuccess = _reaction.configureDiscretization("cross_phase",
 					par,
 					totalReacCrossPhase,
 					_disc.nComp,
 					_disc.nBound,
 					_disc.boundOffset,
 					paramProvider,
-					helper);
+					helper) && reactionConfSuccess;
 
 				paramProvider.popScope();
 			}
 			if (paramProvider.exists("NREAC_PORE"))
 			{
-				_reaction.configureDiscretization("pore",
+				reactionConfSuccess = _reaction.configureDiscretization("pore",
 					par,
 					totalReacPore,
 					_disc.nComp,
 					_disc.nBound,
 					_disc.boundOffset,
 					paramProvider,
-					helper);
+					helper) && reactionConfSuccess;
 
 				paramProvider.popScope();
 			}
 			if (paramProvider.exists("NREAC_SOLID"))
 			{
-				_reaction.configureDiscretization("solid",
+				reactionConfSuccess = _reaction.configureDiscretization("solid",
 					par,
 					totalReacSolid,
 					_disc.nComp,
 					_disc.nBound,
 					_disc.boundOffset,
 					paramProvider,
-					helper);
+					helper) && reactionConfSuccess;
 
 				paramProvider.popScope();
 			}
@@ -584,58 +584,26 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 		}
 
 	}
+	else if (paramProvider.exists("bulk_reaction_000"))
+	{
+			int nReactions = paramProvider.getInt("NREAC_BULK");
+			reactionConfSuccess  = _reaction.configureDiscretization("bulk",
+				0, 
+				nReactions,
+				_disc.nComp,
+				_disc.nBound,
+				_disc.boundOffset,
+				paramProvider,
+				helper) && reactionConfSuccess;
+	}
 	else
 	{
-		_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
+		_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr); //todo handle _dynReaction mabye replace it with ReactionSystem
 		_reaction.empty(); // todo das als construktor 
 	}
 	
 	
-	if (paramProvider.exists("reaction_pore_000"))
-	{
-		// First get the total size of _dynReactionParticle across all particles
-		int totalReactionsParticle = 0;
-		_numParticleReactionsPerParticle.resize(_disc.nParType);
-		for (unsigned int par = 0; par < _disc.nParType; par++)
-		{
-			char particleScope[32];
-			snprintf(particleScope, sizeof(particleScope), "reaction_pore_%03d", par);
-			paramProvider.pushScope(particleScope);
-
-			if (paramProvider.exists("NREAC"))
-			{
-				int nReactions = paramProvider.getInt("NREAC");
-
-				if (nReactions <= 0)
-				{
-					paramProvider.popScope();
-					throw InvalidParameterException("LRMP-Configuration: number of reaction must be positive, please check your configuration");
-				}
-				totalReactionsParticle += nReactions;
-				_numParticleReactionsPerParticle[par] = nReactions;
-			}
-			paramProvider.popScope();
-		}
-
-		_dynReactionParticle = std::vector<IDynamicReactionModel*>(totalReactionsParticle, nullptr);
-
-		// initialize every reaction type for ever particle
-		for (unsigned int par = 0; par < _disc.nParType; par++)
-		{
-			char particleScope[32];
-			snprintf(particleScope, sizeof(particleScope), "reaction_pore_%03d", par);
-			paramProvider.pushScope(particleScope);
-
-			reactionConfSuccess = configureDiscretizationReactionModel(paramProvider, _dynReactionParticle, _numParticleReactionsPerParticle,par, helper) && reactionConfSuccess;
-
-		}
-	}
-	else
-	{
-		_dynReactionParticle.resize(_disc.nParType, nullptr);
-		_numParticleReactionsPerParticle.resize(_disc.nParType, 0);
-	}
-
+	
 
 	// Setup the memory for tempState based on state vector
 	_tempState = new double[numDofs()];
@@ -843,21 +811,28 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configure(IParameterProvider& p
 	}
 	else
 	{
+		if (paramProvider.exists("NREAC_BULK"))
+			dynReactionConfSuccess = _reaction.configure("bulk", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+
 		for (unsigned int par = 0; par < _disc.nParType; par++)
 		{
+
 			char particleScope[32];
 			snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
-			paramProvider.pushScope(particleScope);// scope particle_type
 
-			if (paramProvider.exists("NREAC_CROSS_PHASE"))
-				_reaction.configure("cross_phase", par, _unitOpIdx, paramProvider);
-			if (paramProvider.exists("NREAC_PORE"))
-				_reaction.configure("pore", par, _unitOpIdx, paramProvider);
-			if (paramProvider.exists("NREAC_SOLID"))
-				_reaction.configure("solid", par, _unitOpIdx, paramProvider);
+			if (paramProvider.exists(particleScope))
+			{
+				paramProvider.pushScope(particleScope);// scope particle_type
 
-			paramProvider.popScope();// scope particle_type
+				if (paramProvider.exists("NREAC_CROSS_PHASE"))
+					dynReactionConfSuccess = _reaction.configure("cross_phase", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+				if (paramProvider.exists("NREAC_PORE"))
+					dynReactionConfSuccess = _reaction.configure("pore", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+				if (paramProvider.exists("NREAC_SOLID"))
+					dynReactionConfSuccess = _reaction.configure("solid", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
+				paramProvider.popScope();// scope particle_type
+			}
 		}
 	}
 
@@ -1293,7 +1268,7 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualBulk(double t, unsigned 
 	else
 		_convDispOp.jacobian(*this, t, secIdx, yBase, nullptr, nullptr);
 
-	if (_dynReactionBulk.empty() || !_dynReactionBulk[0])
+	if (_reaction.getDynReactionVector("bulk").empty() || !_reaction.getDynReactionVector("bulk")[0])
     return 0;
 
 	// Get offsets
@@ -1306,19 +1281,19 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualBulk(double t, unsigned 
 	{
 		const ColumnPosition colPos{(0.5 + static_cast<double>(col)) / static_cast<double>(_disc.nCol), 0.0, 0.0};
 
-		for (auto i = 0; i < _dynReactionBulk.size(); i++)
+		for (auto i = 0; i < _reaction.getDynReactionVector("bulk").size(); i++)
 		{
 
-			if (!_dynReactionBulk[i])
+			if (!_reaction.getDynReactionVector("bulk")[i])
 				continue;
 
 			if (wantRes)
-				_dynReactionBulk[i]->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
+				_reaction.getDynReactionVector("bulk")[i]->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
 
 			if (wantJac)
 			{
 				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-				_dynReactionBulk[i]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(col * idxr.strideColCell()), tlmAlloc);
+				_reaction.getDynReactionVector("bulk")[i]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(col * idxr.strideColCell()), tlmAlloc);
 			}
 		}
 	}
@@ -1353,7 +1328,7 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualParticle(double t, unsig
 			_parPorosity[parType],
 			_poreAccessFactor.data() + _disc.nComp * parType,
 			_binding[parType],
-			(_dynReaction[parType] && (_dynReaction[parType]->numReactionsCombined() > 0)) ? _dynReaction[parType] : nullptr,
+			nullptr,
 		};
 
 	// Handle time derivatives, binding, dynamic reactions
@@ -2012,7 +1987,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::setParameter(const ParameterId&
 			}
 		}
 
-		if (model::setParameter(pId, value, _dynReactionBulk, false))
+		if (model::setParameter(pId, value, _reaction.getDynReactionVector("bulk"), false))
 			return true;
 	}
 
@@ -2024,7 +1999,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::setParameter(const ParameterId&
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, _dynReactionBulk, false))
+		if (model::setParameter(pId, value, _reaction.getDynReactionVector("bulk"), false))
 			return true;
 	}
 
@@ -2036,7 +2011,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::setParameter(const ParameterId&
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, _dynReactionBulk, false))
+		if (model::setParameter(pId, value, _reaction.getDynReactionVector("bulk"), false))
 			return true;
 	}
 
@@ -2090,7 +2065,7 @@ void LumpedRateModelWithPores<ConvDispOperator>::setSensitiveParameterValue(cons
 			}
 		}
 
-		if (model::setSensitiveParameterValue(pId, value, _sensParams, _dynReactionBulk, false))
+		if (model::setSensitiveParameterValue(pId, value, _sensParams, _reaction.getDynReactionVector("bulk"), false))
 			return;
 	}
 
@@ -2170,7 +2145,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::setSensitiveParameter(const Par
 			}
 		}
 
-		if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams,  _dynReactionBulk , false))
+		if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams,  _reaction.getDynReactionVector("bulk") , false))
 		{
 			LOG(Debug) << "Found parameter " << pId << " in DynamicBulkReactionModel: Dir " << adDirection << " is set to " << adValue;
 			return true;

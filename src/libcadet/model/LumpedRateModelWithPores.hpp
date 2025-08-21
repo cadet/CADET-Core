@@ -247,9 +247,6 @@ protected:
 	int multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue);
 	int multiplexInitialConditions(const cadet::ParameterId& pId, double val, bool checkSens);
 
-	bool configureDiscretizationReactionModel(IParameterProvider& paramProvider, std::vector<IDynamicReactionModel*>& dynReaction, std::vector<int>& reacPerParticle, unsigned int parType, const IConfigHelper& helper);
-	bool configureReactionModel(IParameterProvider& paramProvider, std::string reactionType, std::vector <IDynamicReactionModel*>& dynReaction, std::vector<int>& reacPerParticle, unsigned int parType);
-
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
 #endif

@@ -273,12 +273,26 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 	else if (paramProvider.exists("cross_phase_reaction_000"))
 	{
 		int nReactions = paramProvider.getInt("NREAC_CROSS_PHASE");
-		_reaction.configureDiscretization("cross_phase", 0, nReactions, _disc.nComp, _disc.nBound, _disc.boundOffset, paramProvider, helper);
+		reactionConfSuccess = _reaction.configureDiscretization("cross_phase",
+			0,
+			nReactions, 
+			_disc.nComp, 
+			_disc.nBound, 
+			_disc.boundOffset, 
+			paramProvider, 
+			helper) && reactionConfSuccess;
 	}
 	else if (paramProvider.exists("solid_reaction_000"))
 	{
 		int nReactions = paramProvider.getInt("NREAC_SOLID");
-		_reaction.configureDiscretization("solid", 0, nReactions, _disc.nComp, _disc.nBound, _disc.boundOffset, paramProvider, helper);
+		reactionConfSuccess = _reaction.configureDiscretization("solid",
+			0, 
+			nReactions, 
+			_disc.nComp, 
+			_disc.nBound, 
+			_disc.boundOffset, 
+			paramProvider, 
+			helper) && reactionConfSuccess;
 	}
 	else
 	{
@@ -339,14 +353,9 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configure(IParameterProvider
 		}
 	}
 	if (paramProvider.exists("cross_phase_reaction_000"))
-	{
-		_reaction.configure("cross_phase", 0, _unitOpIdx, paramProvider);
-	}
+		dynReactionConfSuccess = _reaction.configure("cross_phase", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 	if (paramProvider.exists("solid_reaction_000"))
-	{
-		_reaction.configure("solid", 0, _unitOpIdx, paramProvider);
-	}
-
+		dynReactionConfSuccess = _reaction.configure("solid", 0, _unitOpIdx, paramProvider)&& dynReactionConfSuccess;
 
 	return transportSuccess && bindingConfSuccess && dynReactionConfSuccess;
 }
@@ -701,7 +710,7 @@ int LumpedRateModelWithoutPores<ConvDispOperator>::residualImpl(double t, unsign
 				_totalPorosity,
 				nullptr,
 				_binding[0],
-				(_dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0)) ? _dynReaction[0] : nullptr
+				nullptr
 			};
 
 		// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic

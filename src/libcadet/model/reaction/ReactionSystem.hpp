@@ -44,7 +44,8 @@ struct ReactionSystem
         std::map<std::string, PhaseData> phaseMap = {
             {"cross_phase", PhaseData{}},
             {"pore", PhaseData{}},
-            {"solid", PhaseData{}}
+            {"solid", PhaseData{}},
+            {"bulk", PhaseData{}}
         };
 
         PhaseData& getPhaseData(const std::string& phaseType)

@@ -190,9 +190,6 @@ public:
 
 	virtual unsigned int threadLocalMemorySize() const CADET_NOEXCEPT;
 
-	bool configureDiscretizationReactionModel(IParameterProvider& paramProvider, std::vector<IDynamicReactionModel*>& dynReaction, std::vector<int>& reacPerParticle, unsigned int parType, const IConfigHelper& helper);
-	bool configureReactionModel(IParameterProvider& paramProvider, std::string reactionType, std::vector <IDynamicReactionModel*>& dynReaction, std::vector<int>& reacPerParticle, unsigned int parType);
-
 #ifdef CADET_BENCHMARK_MODE
 	virtual std::vector<double> benchmarkTimings() const
 	{
