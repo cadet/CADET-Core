@@ -20,7 +20,7 @@ namespace cadet
 namespace nonlin
 {
 
-PseudoTransientContinuationSolver::PseudoTransientContinuationSolver() : _tau(1e-4), _scale(nullptr), _maxIter(50), _numNonMonotone(5), _variant(false) { }
+PseudoTransientContinuationSolver::PseudoTransientContinuationSolver() : _tau(20.0), _scale(nullptr), _maxIter(100), _numNonMonotone(5), _variant(false) { }
 PseudoTransientContinuationSolver::~PseudoTransientContinuationSolver() { }
 
 bool PseudoTransientContinuationSolver::configure(IParameterProvider& paramProvider)

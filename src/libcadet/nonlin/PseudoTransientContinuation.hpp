@@ -98,7 +98,7 @@ namespace nonlin
 	 */
 	template <typename IterateOutputPolicy = VoidPTCIterateOutputPolicy>
 	bool pseudoTransientContinuation(std::function<bool(double const* const, double* const)> residual, std::function<bool(double const* const, linalg::detail::DenseMatrixBase&)> jacobian,
-		int maxIter, double resTol, int maxNonMonotone, double tau, double const* const scale, bool variant, double* const point, linalg::detail::DenseMatrixBase& jacMat, double* const workingMemory, unsigned int size)
+		int maxIter, double resTol, int maxNonMonotone, double tau, double const* const scale, bool variant, double* const point, linalg::detail::DenseMatrixBase& jacMat, double* const workingMemory, int size)
 	{
 		// Split working memory into parts
 		double* const residualMem = workingMemory;
@@ -137,46 +137,51 @@ namespace nonlin
 
 			if (variant)
 			{
-				// (1/tau * I - F'(x)) * dx = F(x), update x = x + dx
-				// -(1/tau * I - F'(x)) * dx = -F(x), update x = x + dx
-				// (F'(x) - 1/tau * I) * dx = -F(x), update x = x + dx
-				// (F'(x) - 1/tau * I) * (-dx) = F(x), update x = x - dx
+				// (1/tau * I - F'(x)) * dx = F(x), update x_new = x + dx
+				// -(1/tau * I - F'(x)) * dx = -F(x), update x_new = x + dx
+				// (F'(x) - 1/tau * I) * dx = -F(x), update x_new = x + dx
+				// (F'(x) - 1/tau * I) * (-dx) = F(x), update x_new = x - dx
 
-				for (int i = 0; i < size; ++i)
+				if (scale)
 				{
-					jacMat.native(i, i) -= inv_tau;
+					for (int i = 0; i < size; ++i)
+						jacMat.native(i, i) -= inv_tau / scale[i];
 				}
-				
-				jacMat.robustFactorize(qrMem);
-				jacMat.robustSolve(dx, qrMem);
-			}
-			else
-			{
-				// (I - tau * F'(x)) * dx = F(x), update x <- x + tau * dx
-				for (int i = 0; i < size; ++i)
+				else
 				{
-					for (int j = 0; j < size; ++j)
-						jacMat.native(i, j) *= -tau;
-					
-					jacMat.native(i, i) += 1.0;
+					for (int i = 0; i < size; ++i)
+						jacMat.native(i, i) -= inv_tau;
 				}
 
 				jacMat.robustFactorize(qrMem);
 				jacMat.robustSolve(dx, qrMem);
-			}
 
-			if (variant)
-			{
 				for (int i = 0; i < size; ++i)
 					point[i] = point[i] - dx[i];
 			}
 			else
 			{
+				// (I - tau * F'(x)) * dx = F(x), update x_new = x + tau * dx
+				for (int i = 0; i < size; ++i)
+				{
+					for (int j = 0; j < size; ++j)
+						jacMat.native(i, j) *= -tau;
+
+					if (scale)
+						jacMat.native(i, i) += 1.0 / scale[i];
+					else
+						jacMat.native(i, i) += 1.0;
+				}
+
+				jacMat.robustFactorize(qrMem);
+				jacMat.robustSolve(dx, qrMem);
+
 				for (int i = 0; i < size; ++i)
 					point[i] = point[i] + tau * dx[i];
 			}
 
 			residual(point, residualMem);
+
 			double normFkp1 = 0.0;
 			if (scale)
 				normFkp1 = cadet::linalg::l2normWeighted(residualMem, scale, size);
