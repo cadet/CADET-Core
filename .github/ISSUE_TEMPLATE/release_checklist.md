@@ -1,3 +1,12 @@
+---
+name: Release checklist
+about: Checklist to make a release
+title: ''
+labels: 'maintenance'
+assignees: ''
+
+---
+
 # CADET-Core Release Guide
 
 CADET-Core follows the semantic versioning system described at [semver.org](https://semver.org/).
