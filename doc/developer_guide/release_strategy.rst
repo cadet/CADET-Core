@@ -9,7 +9,7 @@ Agile code development
 PRs are merged into master as soon as they are complete, i.e. no half-baked solutions, tested, documented, updated C-API (if required).
 This happens independent of when we want to release the code.
 
-Due to our limited resources and since we’re not paid by our users, we need to avoid technical debt arising from trying to satisfy everybody at once.
+Due to our limited resources and since weâ€™re not paid by our users, we need to avoid technical debt arising from trying to satisfy everybody at once.
 Specifically, we do not implement multiple interfaces on master since they all need to be tested and later deprecated.
 
 Release strategy and Code distribution
@@ -36,6 +36,6 @@ This strategy is meant to reduce development time and maintenance overhead and s
 Making a new release
 ^^^^^^^^^^^^^^^^^^^^
 
-Every release of CADET-Core follows the **release_checklist**, ensuring proper testing, documentation and deployment:
-
-.. include:: ../../.github/ISSUE_TEMPLATE/release_checklist.md
+Every release of CADET-Core follows the `release checklist
+<https://github.com/CADET/CADET-Core/blob/master/.github/ISSUE_TEMPLATE/release_checklist.md>`_,
+ensuring proper testing, documentation and deployment.
