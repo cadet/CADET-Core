@@ -22,4 +22,4 @@ Since some contributors may be new to collaborative development with Git and Git
    model_expansion
    debugging
    testing
-   release_new_version
+   release_strategy
