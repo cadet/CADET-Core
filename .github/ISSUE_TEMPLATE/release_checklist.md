@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-# CADET-Core Release Guide
+# CADET-Core Release Checklist
 
 CADET-Core follows the semantic versioning system described at [semver.org](https://semver.org/).
 
