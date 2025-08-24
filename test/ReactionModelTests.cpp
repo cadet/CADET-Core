@@ -198,6 +198,7 @@ namespace reaction
 
 		if (!isLRMP && bulk)
 		{
+			jpp.set("REACTION_MODEL", "MASS_ACTION_LAW");
 			char const* const scopeName = "reaction_bulk";
 			jpp.addScope(scopeName);
 			auto gs2 = util::makeGroupScope(jpp, scopeName);
@@ -226,6 +227,7 @@ namespace reaction
 		if ((!isLRMP && particle) || (isLRMP && bulk))
 		{
 			const int nReactions = 3;
+			jpp.set("REACTION_MODEL_PARTICLE", "MASS_ACTION_LAW");
 
 			for (int i = 0; i < nParType; ++i)
 			{
