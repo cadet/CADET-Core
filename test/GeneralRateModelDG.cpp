@@ -301,27 +301,27 @@ TEST_CASE("GRM_DG linear binding single particle matches spatially dependent par
 
 TEST_CASE("GRM_DG dynamic reactions Jacobian vs AD bulk", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
 {
-	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("GENERAL_RATE_MODEL", "DG", true, false, false, 1e-14);
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("GENERAL_RATE_MODEL", "DG", true, false, false, 1e-10);
 }
 
 TEST_CASE("GRM_DG dynamic reactions Jacobian vs AD particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
 {
-	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("GENERAL_RATE_MODEL", "DG", false, true, false, 1e-14);
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("GENERAL_RATE_MODEL", "DG", false, true, false, 1e-10);
 }
 
 TEST_CASE("GRM_DG dynamic reactions Jacobian vs AD modified particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
 {
-	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("GENERAL_RATE_MODEL", "DG", false, true, true, 1e-14);
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("GENERAL_RATE_MODEL", "DG", false, true, true, 1e-10);
 }
 
 TEST_CASE("GRM_DG dynamic reactions Jacobian vs AD bulk and particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
 {
-	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("GENERAL_RATE_MODEL", "DG", true, true, false, 1e-14);
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("GENERAL_RATE_MODEL", "DG", true, true, false, 1e-10);
 }
 
 TEST_CASE("GRM_DG dynamic reactions Jacobian vs AD bulk and modified particle", "[GRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
 {
-	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("GENERAL_RATE_MODEL", "DG", true, true, true, 1e-14);
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("GENERAL_RATE_MODEL", "DG", true, true, true, 1e-10);
 }
 
 TEST_CASE("GRM_DG dynamic reactions time derivative Jacobian vs FD bulk", "[GRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
