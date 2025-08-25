@@ -65,27 +65,15 @@ namespace model
 		// ==== Construct binding model
 
 		_binding = nullptr;
-		std::vector<std::string> bindModelNames = { "NONE" };
+		std::string bindModelName = "NONE";
 		bool bindingConfSuccess = true;
 
 		if (paramProvider.exists("ADSORPTION_MODEL"))
-		{
-			bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
+			bindModelName = paramProvider.getString("ADSORPTION_MODEL");
 
-			if (_bindingParDep && (bindModelNames.size() != 1))
-				throw InvalidParameterException("Field ADSORPTION_MODEL requires (only) 1 element");
-
-			if (paramProvider.exists("adsorption"))
-			{
-				paramProvider.pushScope("adsorption");
-				_bindingParDep = paramProvider.exists("BINDING_PARTYPE_DEPENDENT") ? paramProvider.getInt("BINDING_PARTYPE_DEPENDENT") : true;
-				paramProvider.popScope();
-			}
-		}
-
-		_binding = helper.createBindingModel(bindModelNames[0]);
+		_binding = helper.createBindingModel(bindModelName);
 		if (!_binding)
-			throw InvalidParameterException("Unknown binding model " + bindModelNames[0]);
+			throw InvalidParameterException("Unknown binding model " + bindModelName);
 
 		std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
 		if (nBound.size() != _nComp)
@@ -95,21 +83,10 @@ namespace model
 			_nBound = std::make_shared<unsigned int[]>(_nComp);
 		std::copy_n(nBound.begin(), _nComp, _nBound.get());
 
-		_bindingParDep = true;
-
-		if (_binding->usesParamProviderInDiscretizationConfig())
-		{
-			paramProvider.pushScope("adsorption");
-
-			if (paramProvider.exists("BINDING_PARTYPE_DEPENDENT"))
-				_bindingParDep = paramProvider.getBool("BINDING_PARTYPE_DEPENDENT");
-
-			paramProvider.popScope();
-		}
-		else if (bindModelNames[0] == "NONE")
+		if (bindModelName == "NONE")
 			_nBound = std::make_shared<unsigned int[]>(_nComp, 0);
 		else
-			throw InvalidParameterException("Binding model " + bindModelNames[0] + " was specified, but group \"adsorption\" is missing for particle type " + std::to_string(_parTypeIdx));
+			throw InvalidParameterException("Binding model " + bindModelName + " was specified, but group \"adsorption\" is missing for particle type " + std::to_string(_parTypeIdx));
 
 		// ==== Construct and configure particle transport and discretization
 
@@ -133,15 +110,12 @@ namespace model
 		const bool particleTransportConfigSuccess = _parDiffOp->configureModelDiscretization(paramProvider, helper, nComp, parTypeIdx, nParType, strideBulkComp);
 
 		// ==== Configure binding model
-
-		if (_binding->usesParamProviderInDiscretizationConfig())
-			paramProvider.pushScope("adsorption");
-
-		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _parDiffOp->offsetBoundComp());
-
-		if (_binding->usesParamProviderInDiscretizationConfig())
-			paramProvider.popScope();
-
+		_bindingParDep = true;
+		{
+			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _binding->usesParamProviderInDiscretizationConfig());
+			bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _parDiffOp->offsetBoundComp());
+			_bindingParDep = paramProvider.exists("BINDING_PARTYPE_DEPENDENT") ? paramProvider.getInt("BINDING_PARTYPE_DEPENDENT") : true;
+		}
 		// ==== Construct and configure dynamic reaction model
 
 		_dynReaction = nullptr;
@@ -160,14 +134,11 @@ namespace model
 			if (!_dynReaction)
 				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[0]);
 
-			if (paramProvider.exists("reaction"))
 			{
-				paramProvider.pushScope("reaction");
+				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction", _dynReaction->usesParamProviderInDiscretizationConfig());
+				reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _parDiffOp->offsetBoundComp()) && reactionConfSuccess;
 				_reactionParDep = paramProvider.exists("REACTION_PARTYPE_DEPENDENT") ? paramProvider.getInt("REACTION_PARTYPE_DEPENDENT") : true;
-				paramProvider.popScope();
 			}
-
-			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _parDiffOp->offsetBoundComp()) && reactionConfSuccess;
 		}
 
 		paramProvider.popScope(); // particle_type_{:03}

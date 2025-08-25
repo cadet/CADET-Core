@@ -129,28 +129,16 @@ namespace model
 
 		_bindingParDep = true;
 
-		if (_binding->usesParamProviderInDiscretizationConfig())
-		{
-			paramProvider.pushScope("adsorption");
-
-			if (paramProvider.exists("BINDING_PARTYPE_DEPENDENT"))
-				_bindingParDep = paramProvider.getBool("BINDING_PARTYPE_DEPENDENT");
-
-			paramProvider.popScope();
-		}
-		else if (bindModelNames[0] == "NONE")
+		if (bindModelNames[0] == "NONE")
 			_nBound = std::make_shared<unsigned int[]>(_nComp, 0);
 		else
 			throw InvalidParameterException("Binding model " + bindModelNames[0] + " was specified, but group \"adsorption\" is missing for particle type " + std::to_string(_parTypeIdx));
 
-		if (_binding->usesParamProviderInDiscretizationConfig())
-			paramProvider.pushScope("adsorption");
-
-		bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _boundOffset);
-
-		if (_binding->usesParamProviderInDiscretizationConfig())
-			paramProvider.popScope();
-
+		{
+			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _binding->usesParamProviderInDiscretizationConfig());
+			bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _boundOffset);
+			_bindingParDep = paramProvider.getBool("BINDING_PARTYPE_DEPENDENT");
+		}
 		// ==== Construct and configure dynamic reaction model
 
 		_dynReaction = nullptr;
@@ -169,14 +157,11 @@ namespace model
 			if (!_dynReaction)
 				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[0]);
 
-			if (paramProvider.exists("reaction"))
 			{
-				paramProvider.pushScope("reaction");
+				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction", _dynReaction->usesParamProviderInDiscretizationConfig());
+				reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _boundOffset) && reactionConfSuccess;
 				_reactionParDep = paramProvider.exists("REACTION_PARTYPE_DEPENDENT") ? paramProvider.getInt("REACTION_PARTYPE_DEPENDENT") : true;
-				paramProvider.popScope();
 			}
-
-			reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _boundOffset) && reactionConfSuccess;
 		}
 
 		paramProvider.popScope(); // particle_type_{:03}
@@ -420,8 +405,8 @@ namespace model
 
 	void HomogeneousParticle::setParJacPattern(std::vector<Eigen::Triplet<double>>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx) const
 	{
-		// binding Jacobian pattern
-		// add dense nComp * nBound blocks, since all solid and liquid entries can be coupled through binding.
+		// binding and reaction Jacobian pattern
+		// add dense nComp * nBound blocks, since all solid and liquid entries can be coupled through reaction and or binding.
 		for (unsigned int parState = 0; parState < _nComp + _strideBound; parState++) {
 			for (unsigned int toParState = 0; toParState < _nComp + _strideBound; toParState++) {
 				tripletList.push_back(Eigen::Triplet<double>(offsetPar + parState, offsetPar + toParState, 0.0));
@@ -429,14 +414,12 @@ namespace model
 		}
 
 		// flux Jacobian pattern
-
 		for (unsigned int comp = 0; comp < _nComp; comp++)
 		{
 			tripletList.push_back(Eigen::Triplet<double>(offsetPar + comp, offsetBulk + comp, 0.0));
 			tripletList.push_back(Eigen::Triplet<double>(offsetBulk + comp, offsetPar + comp, 0.0));
 		}
 	}
-
 
 	unsigned int HomogeneousParticle::jacobianNNZperParticle() const
 	{

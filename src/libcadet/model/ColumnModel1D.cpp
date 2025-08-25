@@ -296,13 +296,8 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 		if (!_dynReactionBulk)
 			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
 
-		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
-			paramProvider.pushScope("reaction_bulk");
-
+		MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_bulk", _dynReactionBulk->usesParamProviderInDiscretizationConfig());
 		reactionConfSuccess = _dynReactionBulk->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
-
-		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
-			paramProvider.popScope();
 	}
 
 	// ==== Construct and configure binding and particle reaction -> done in particle model, only pointers are copied here.
@@ -463,9 +458,8 @@ bool ColumnModel1D::configure(IParameterProvider& paramProvider)
 	bool dynReactionConfSuccess = true;
 	if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
 	{
-		paramProvider.pushScope("reaction_bulk");
+		MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_bulk", _dynReactionBulk->requiresConfiguration());
 		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
-		paramProvider.popScope();
 	}
 
 	// jaobian pattern set after binding and particle surface diffusion are configured
