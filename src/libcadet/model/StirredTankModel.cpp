@@ -1594,7 +1594,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 		}
 	}
 
-	// Bound states
+	// Bound states (Binding and Reaction in Particle)
 	for (unsigned int type = 0; type < _nParType; ++type)
 	{
 		// Binding
@@ -1650,23 +1650,22 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 			std::fill_n(fluxSolid, _strideBound[type], 0.0);
 			dynReaction->residualCombinedAdd(t, secIdx, colPos, c, c + _nComp + _offsetParType[type], fluxLiquid, fluxSolid, -1.0, subAlloc);
 
-			for (unsigned int comp = 0; comp < _nComp; ++comp)
-				resC[comp] += v * fluxLiquid[comp];
-
 			typedef typename DoubleActivePromoter<StateType, ParamType>::type FactorType;
 			const FactorType liquidFactor = vsolid * static_cast<ParamType>(_parTypeVolFrac[type]);
 			unsigned int idx = 0;
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
+				resC[comp] += v * fluxLiquid[comp];
+				
 				for (unsigned int bnd = 0; bnd < _nBound[type * _nComp + comp]; ++bnd, ++idx)
 				{
 					// Add reaction term to mobile phase
-					//resC[comp] += static_cast<typename DoubleActiveDemoter<FactorType, ResidualType>::type>(liquidFactor)* fluxSolid[idx];
+					resC[comp] += static_cast<typename DoubleActiveDemoter<FactorType, ResidualType>::type>(liquidFactor)* fluxSolid[idx];
 
 					if (!qsReaction[idx])
 					{
 						// Add reaction term to solid phase
-						resQ[idx] += fluxSolid[idx];
+						resQ[idx] +=  fluxSolid[idx];
 					}
 				}
 			}
@@ -1676,6 +1675,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 				// Assemble Jacobian: Reaction
 				BufferedArray<double> fluxJacobianMem = subAlloc.array<double>((_strideBound[type] + _nComp) * (_strideBound[type] + _nComp));
 				linalg::DenseMatrixView jacFlux(static_cast<double*>(fluxJacobianMem), nullptr, _strideBound[type] + _nComp, _strideBound[type] + _nComp);
+				jacFlux.setAll(0.0);
 				dynReaction->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), reinterpret_cast<double const*>(c + _nComp + _offsetParType[type]),
 					-1.0, jacFlux.row(0), jacFlux.row(_nComp), subAlloc);
 
@@ -1690,8 +1690,8 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 					for (unsigned int bnd = 0; bnd < _nBound[type * _nComp + comp]; ++bnd, ++jacIdx)
 					{
 						// Add Jacobian row to mobile phase
-						//jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + jacIdx, 0, 1, _nComp, comp, 0);
-						//jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + jacIdx, _nComp, 1, _strideBound[type], comp, _nComp + _offsetParType[type]);
+						jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + jacIdx, 0, 1, _nComp, comp, 0);
+						jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + jacIdx, _nComp, 1, _strideBound[type], comp, _nComp + _offsetParType[type]);
 
 						if (!qsReaction[jacIdx])
 						{
@@ -1726,6 +1726,8 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 			unsigned int idx = 0;
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
+				resC[comp] += static_cast<typename DoubleActiveDemoter<FactorType, ResidualType>::type>(liquidFactor)* fluxSolid[idx];
+
 				for (unsigned int bnd = 0; bnd < _nBound[type * _nComp + comp]; ++bnd, ++idx)
 				{
 
@@ -1742,14 +1744,20 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 				// Assemble Jacobian: Reaction
 				BufferedArray<double> fluxJacobianMem = subAlloc.array<double>((_strideBound[type] + _nComp) * (_strideBound[type] + _nComp));
 				linalg::DenseMatrixView jacFlux(static_cast<double*>(fluxJacobianMem), nullptr, _strideBound[type] + _nComp, _strideBound[type] + _nComp);
+				jacFlux.setAll(0.0);
 				dynReaction->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c + _nComp + _offsetParType[type]),
 					-1.0, jacFlux.row(_nComp), subAlloc);
 
 				unsigned int jacIdx = 0;
+				const double liquidFactor = static_cast<double>(vsolid) * static_cast<double>(_parTypeVolFrac[type]);
 				for (unsigned int comp = 0; comp < _nComp; ++comp)
 				{
 					for (unsigned int bnd = 0; bnd < _nBound[type * _nComp + comp]; ++bnd, ++jacIdx)
 					{
+						// Add Jacobian row to mobile phase
+						jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + jacIdx, 0, 1, _nComp, comp, 0);
+						jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + jacIdx, _nComp, 1, _strideBound[type], comp, _nComp + _offsetParType[type]);
+						
 						if (!qsReaction[jacIdx])
 						{
 							// Add Jacobian row to solid phase
