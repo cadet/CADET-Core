@@ -1,0 +1,26 @@
+
+Particle traveling on the unit circle example
+---------------------------------------------
+alpha      = 1.0000e+00
+num orbits = 100
+---------------------------------------------
+rtol       = 0.0001
+atol       = 1e-09
+proj sol   = 1
+proj err   = 0
+nout       = 0
+tstop      = 0
+---------------------------------------------
+
+     t            x              y             err x          err y       err constr
+0.0000e+00   1.000000e+00   0.000000e+00   0.000000e+00   0.000000e+00   0.000000e+00
+6.2832e+02   9.979545e-01   6.392827e-02  -2.045504e-03   6.392827e-02   0.000000e+00
+
+Integration Statistics:
+Number of steps taken = 4131  
+Number of function evaluations = 6030  
+Number of linear solver setups = 862   
+Number of Jacobian evaluations = 115   
+Number of nonlinear solver iterations = 6027  
+Number of convergence failures = 52    
+Number of error test failures = 343   

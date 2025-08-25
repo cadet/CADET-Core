@@ -1,0 +1,49 @@
+#!/usr/bin/env groovy
+pipeline {
+    agent any
+
+    options {
+        // Abort a running Pipeline build if a new one is started
+        disableConcurrentBuilds(abortPrevious: true)
+    }
+
+    stages {
+
+        stage('print-environment') {
+            steps {
+                sh "printenv"
+            }
+        }
+
+        stage('build-and-test') {
+            steps {
+                dir('test') {
+                    script {
+                        if (env.CHANGE_BRANCH =~ '^(release(/|-).*)$' ||
+                            env.BRANCH_NAME =~ '^(release(/|-).*)$') {
+                            sh "./test_driver.sh --testtype Release --env env/jenkins.sh"
+                        } else if (env.BRANCH_NAME =~ '^(main|develop)$' ||
+                                   env.CHANGE_TARGET =~ '^(main|develop)$') {
+                            sh "./test_driver.sh --testtype PR --env env/jenkins.sh"
+                        } else {
+                            sh "./test_driver.sh --testtype Branch --env env/jenkins.sh"
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Tests Complete'
+            archiveArtifacts artifacts: 'test/**/build_*/Testing/Temporary/LastTest.log, test/**/build_*/CMakeFiles/*.log, test/**/build_*/*.log'
+        }
+        failure {
+            sh("cd test && ./notify.py failed ${env.BRANCH_NAME} ${env.BUILD_URL}")
+        }
+        fixed {
+            sh("cd test && ./notify.py fixed ${env.BRANCH_NAME} ${env.BUILD_URL}")
+        }
+    }
+}
