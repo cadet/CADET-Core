@@ -37,7 +37,9 @@
 			{ "type": "ScalarReactionDependentParameter", "varName": "kFwdLiquid", "confName": "MAL_KFWD_LIQUID"},
 			{ "type": "ScalarReactionDependentParameter", "varName": "kBwdLiquid", "confName": "MAL_KBWD_LIQUID"},
 			{ "type": "ScalarReactionDependentParameter", "varName": "kFwdSolid", "confName": "MAL_KFWD_SOLID"},
-			{ "type": "ScalarReactionDependentParameter", "varName": "kBwdSolid", "confName": "MAL_KBWD_SOLID"}
+			{ "type": "ScalarReactionDependentParameter", "varName": "kBwdSolid", "confName": "MAL_KBWD_SOLID"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "kFwd", "confName": "MAL_KFWD"},
+			{ "type": "ScalarReactionDependentParameter", "varName": "kBwd", "confName": "MAL_KBWD"}
 		]
 }
 </codegen>*/
@@ -50,6 +52,8 @@
  kBwdLiquid = Backward rate for reactions in particle liquid phase
  kFwdSolid = Forward rate for reactions in particle solid phase
  kBwdSolid = Backward rate for reactions in particle solid phase
+ kFwd = Forward rate for reactions
+ kBwd = Backward rate for reactions 
 */
 
 namespace cadet
@@ -320,7 +324,7 @@ public:
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
 	{
 		DynamicReactionModelBase::configureModelDiscretization(paramProvider, nComp, nBound, boundOffset);
-
+		_oldInterface = true;
 		if (paramProvider.exists("MAL_STOICHIOMETRY_BULK"))
 		{
 			const std::size_t numElements = paramProvider.numElements("MAL_STOICHIOMETRY_BULK");
@@ -334,11 +338,27 @@ public:
 			_expBulkBwd.resize(nComp, nReactions);
 		}
 
+		if (paramProvider.exists("MAL_STOICHIOMETRY"))
+		{
+			_oldInterface = false;
+			const std::size_t numElements = paramProvider.numElements("MAL_STOICHIOMETRY");
+			if (numElements % nComp != 0)
+				throw InvalidParameterException("Size of field MAL_STOICHIOMETRY must be a positive multiple of NCOMP (" + std::to_string(nComp) + ")");
+
+			const unsigned int nReactions = numElements / nComp;
+
+			_stoichiometry.resize(nComp, nReactions);
+			_expFwd.resize(nComp, nReactions);
+			_expBwd.resize(nComp, nReactions);
+		}
+
 		if (!nBound || !boundOffset)
 			return true;
 
 		if (paramProvider.exists("MAL_STOICHIOMETRY_LIQUID"))
 		{
+			LOG(Warning) << "Cross phase reactions is only supported for backwards compatibility, but the implementation of the MAL has changed, please refer to the documentation.";
+
 			const std::size_t numElements = paramProvider.numElements("MAL_STOICHIOMETRY_LIQUID");
 			if (numElements % nComp != 0)
 				throw InvalidParameterException("Size of field MAL_STOICHIOMETRY_LIQUID must be a positive multiple of NCOMP (" + std::to_string(nComp) + ")");
@@ -355,6 +375,7 @@ public:
 
 		if (paramProvider.exists("MAL_STOICHIOMETRY_SOLID") && (_nTotalBoundStates > 0))
 		{
+			LOG(Warning) << "Cross phase reactions is only supported for backwards compatibility, but the implementation of the MAL has changed, please refer to the documentation.";
 			const std::size_t numElements = paramProvider.numElements("MAL_STOICHIOMETRY_SOLID");
 			if (numElements % _nTotalBoundStates != 0)
 				throw InvalidParameterException("Size of field MAL_STOICHIOMETRY_SOLID must be a positive multiple of NTOTALBND (" + std::to_string(_nTotalBoundStates) + ")");
@@ -372,6 +393,7 @@ public:
 		return true;
 	}
 
+	virtual unsigned int numReactions() const CADET_NOEXCEPT { return _stoichiometry.columns(); }
 	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometryBulk.columns(); }
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return _stoichiometryLiquid.columns() + _stoichiometrySolid.columns(); }
 
@@ -380,6 +402,10 @@ public:
 protected:
 	ParamHandler_t _paramHandler; //!< Handles parameters and their dependence on external functions
 
+	linalg::ActiveDenseMatrix _stoichiometry;
+	linalg::ActiveDenseMatrix _expFwd;
+	linalg::ActiveDenseMatrix _expBwd;
+	
 	linalg::ActiveDenseMatrix _stoichiometryBulk;
 	linalg::ActiveDenseMatrix _expBulkFwd;
 	linalg::ActiveDenseMatrix _expBulkBwd;
@@ -396,13 +422,28 @@ protected:
 	linalg::ActiveDenseMatrix _expSolidFwdLiquid;
 	linalg::ActiveDenseMatrix _expSolidBwdLiquid;
 
-	inline int maxNumReactions() const CADET_NOEXCEPT { return std::max(std::max(_stoichiometryBulk.columns(), _stoichiometryLiquid.columns()), _stoichiometrySolid.columns()); }
+	bool _oldInterface;
+	
+	inline int maxNumReactions() const CADET_NOEXCEPT
+	{
+		int maxReac = 0;
+		if (_oldInterface)
+			maxReac = std::max(std::max(_stoichiometryBulk.columns(), _stoichiometryLiquid.columns()), _stoichiometrySolid.columns());
+
+		if (!_oldInterface)
+			maxReac = _stoichiometry.columns();
+
+		return maxReac;
+	}
 
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
 		_paramHandler.configure(paramProvider, maxNumReactions(), _nComp, _nBoundStates);
 		_paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
 
+		if ((_stoichiometry.columns() > 0) && ((static_cast<int>(_paramHandler.kFwd().size()) < _stoichiometry.columns()) || (static_cast<int>(_paramHandler.kBwd().size()) < _stoichiometry.columns())))
+			throw InvalidParameterException("MAL_KFWD and MAL_KBWD have to have the same size (number of reactions)");
+		
 		if ((_stoichiometryBulk.columns() > 0) && ((static_cast<int>(_paramHandler.kFwdBulk().size()) < _stoichiometryBulk.columns()) || (static_cast<int>(_paramHandler.kBwdBulk().size()) < _stoichiometryBulk.columns())))
 			throw InvalidParameterException("MAL_KFWD_BULK and MAL_KBWD_BULK have to have the same size (number of reactions)");
 
@@ -412,6 +453,47 @@ protected:
 		if ((_stoichiometrySolid.columns() > 0) && ((static_cast<int>(_paramHandler.kFwdSolid().size()) < _stoichiometrySolid.columns()) || (static_cast<int>(_paramHandler.kBwdSolid().size()) < _stoichiometrySolid.columns())))
 			throw InvalidParameterException("MAL_KFWD_SOLID and MAL_KBWD_SOLID have to have the same size (number of reactions)");
 
+		if (paramProvider.exists("MAL_STOICHIOMETRY"))
+		{
+			const std::vector<double> s = paramProvider.getDoubleArray("MAL_STOICHIOMETRY");
+
+			if (static_cast<int>(s.size()) != _stoichiometry.elements())
+				throw InvalidParameterException("MAL_STOICHIOMETRY has changed size (number of reactions changed)");
+
+			std::copy(s.begin(), s.end(), _stoichiometry.data());
+		}
+		registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MAL_STOICHIOMETRY", _stoichiometry);
+
+		if (paramProvider.exists("MAL_EXPONENTS_FWD"))
+		{
+			const std::vector<double> s = paramProvider.getDoubleArray("MAL_EXPONENTS_FWD");
+			if (static_cast<int>(s.size()) != _stoichiometry.elements())
+				throw InvalidParameterException("Expected MAL_EXPONENTS_FWD and MAL_STOICHIOMETRY to be of the same size (" + std::to_string(_stoichiometry.elements()) + ")");
+
+			std::copy(s.begin(), s.end(), _expFwd.data());
+		}
+		else
+		{
+			// Obtain default values from stoichiometry
+			std::transform(_stoichiometry.data(), _stoichiometry.data() + _stoichiometry.elements(), _expFwd.data(), [](const active& v) { return std::max(0.0, -static_cast<double>(v)); });
+		}
+		registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MAL_EXPONENTS_FWD", _expFwd);
+
+		if (paramProvider.exists("MAL_EXPONENTS_BWD"))
+		{
+			const std::vector<double> s = paramProvider.getDoubleArray("MAL_EXPONENTS_BWD");
+			if (static_cast<int>(s.size()) != _stoichiometry.elements())
+				throw InvalidParameterException("Expected MAL_EXPONENTS_BWD and MAL_STOICHIOMETRY to be of the same size (" + std::to_string(_stoichiometry.elements()) + ")");
+
+			std::copy(s.begin(), s.end(), _expBwd.data());
+		}
+		else
+		{
+			// Obtain default values from stoichiometry
+			std::transform(_stoichiometry.data(), _stoichiometry.data() + _stoichiometry.elements(), _expBwd.data(), [](const active& v) { return std::max(0.0, static_cast<double>(v)); });
+		}
+		registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MAL_EXPONENTS_BWD", _expBwd);
+		
 		if (paramProvider.exists("MAL_STOICHIOMETRY_BULK"))
 		{
 			const std::vector<double> s = paramProvider.getDoubleArray("MAL_STOICHIOMETRY_BULK");
@@ -558,16 +640,33 @@ protected:
 		// Calculate fluxes
 		typedef typename DoubleActivePromoter<StateType, ParamType>::type flux_t;
 		BufferedArray<flux_t> fluxes = workSpace.array<flux_t>(maxNumReactions());
-		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
+		linalg::ActiveDenseMatrix stoich;
+		if (_oldInterface)
+			stoich = _stoichiometryBulk;
+		if (!_oldInterface)
+			stoich = _stoichiometry;
+
+		for (int r = 0; r < stoich.columns(); ++r)
 		{
-			flux_t fwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kFwdBulk[r]), r, _expBulkFwd, _nComp);
+			flux_t fwd;
+			if (_oldInterface)
+				fwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kFwdBulk[r]), r, _expBulkFwd, _nComp);
+			if (!_oldInterface)
+				fwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kFwd[r]), r, _expFwd, _nComp);
+
 			for (int c = 0; c < _nComp; ++c)
 			{
-				if (_expBulkFwd.native(c, r) != 0.0)
+				linalg::ActiveDenseMatrix expFwd;
+				if (_oldInterface)
+					expFwd = _expBulkFwd;
+				if (!_oldInterface)
+					expFwd = _expFwd;
+
+				if (expFwd.native(c, r) != 0.0)
 				{
 					if (static_cast<double>(y[c]) > 0.0)
 						fwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]),
-							static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expBulkFwd.native(c, r)));
+							static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(expFwd.native(c, r)));
 					else
 					{
 						fwd *= 0.0;
@@ -576,14 +675,24 @@ protected:
 				}
 			}
 
-			flux_t bwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kBwdBulk[r]), r, _expBulkBwd, _nComp);
+			flux_t bwd;
+			if (_oldInterface)
+				bwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kBwdBulk[r]), r, _expBulkBwd, _nComp);
+			if (!_oldInterface)
+				bwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kBwd[r]), r, _expBwd, _nComp);
 			for (int c = 0; c < _nComp; ++c)
-			{
-				if (_expBulkBwd.native(c, r) != 0.0)
+			{	
+				linalg::ActiveDenseMatrix expBwd;
+				if (_oldInterface)
+					expBwd = _expBulkBwd;
+				if (!_oldInterface)
+					expBwd = _expBwd;
+
+				if (expBwd.native(c, r) != 0.0)
 				{
 					if (static_cast<double>(y[c]) > 0.0)
 						bwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]),
-							static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expBulkBwd.native(c, r)));
+							static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(expBwd.native(c, r)));
 					else
 					{
 						bwd *= 0.0;
@@ -596,7 +705,7 @@ protected:
 		}
 
 		// Add reaction terms to residual
-		_stoichiometryBulk.multiplyVector(static_cast<flux_t*>(fluxes), factor, res);
+		stoich.multiplyVector(static_cast<flux_t*>(fluxes), factor, res);
 
 		return 0;
 	}
@@ -761,17 +870,49 @@ protected:
 		BufferedArray<double> fluxes = workSpace.array<double>(2 * _nComp);
 		double* const fluxGradFwd = static_cast<double*>(fluxes);
 		double* const fluxGradBwd = fluxGradFwd + _nComp;
-		for (int r = 0; r < _stoichiometryBulk.columns(); ++r)
+		
+		linalg::ActiveDenseMatrix stoich;
+		if (_oldInterface)
+			stoich = _stoichiometryBulk;
+
+		if (!_oldInterface)
+			stoich = _stoichiometry;
+
+		for (int r = 0; r < stoich.columns(); ++r)
 		{
 			// Calculate gradients of forward and backward fluxes
-			fluxGradLiquid(fluxGradFwd, r, _nComp, static_cast<double>(p->kFwdBulk[r]), _expBulkFwd, y);
-			fluxGradLiquid(fluxGradBwd, r, _nComp, static_cast<double>(p->kBwdBulk[r]), _expBulkBwd, y);
+			double kFwd;
+			if (_oldInterface)
+				kFwd = static_cast<double>(p->kFwdBulk[r]);
+			if (!_oldInterface)
+				kFwd = static_cast<double>(p->kFwd[r]);
+
+			double kBwd;
+			if (_oldInterface)
+				kBwd = static_cast<double>(p->kBwdBulk[r]);
+			if (!_oldInterface)
+				kBwd = static_cast<double>(p->kBwd[r]);
+			
+			linalg::ActiveDenseMatrix expFwd;
+			if (_oldInterface)
+				expFwd = _expBulkFwd;
+			if (!_oldInterface)
+				expFwd = _expFwd;
+			
+			linalg::ActiveDenseMatrix expBwd;
+			if (_oldInterface)
+				expBwd = _expBulkBwd;
+			if (!_oldInterface)
+				expBwd = _expBwd;
+
+			fluxGradLiquid(fluxGradFwd, r, _nComp, kFwd, expFwd, y);
+			fluxGradLiquid(fluxGradBwd, r, _nComp, kBwd, expBwd, y);
 
 			// Add gradients to Jacobian
 			RowIterator curJac = jac;
 			for (int row = 0; row < _nComp; ++row, ++curJac)
 			{
-				const double colFactor = static_cast<double>(_stoichiometryBulk.native(row, r)) * factor;
+				const double colFactor = static_cast<double>(stoich.native(row, r)) * factor;
 				for (int col = 0; col < _nComp; ++col)
 					curJac[col - static_cast<int>(row)] += colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
 			}
