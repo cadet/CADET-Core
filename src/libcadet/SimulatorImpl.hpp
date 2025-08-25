@@ -287,6 +287,7 @@ protected:
 
 	INotificationCallback* _notification; //!< Callback handler for notifications
 	SUNLinearSolver _linearSolver; //!< Sunlinearsolver object.
+	SUNNonlinearSolver _nonlinearSolver; //!< Sunnonlinearsolver object.
 	N_Vector _linearSolverWeight; //!< Weight vector.
 	SUNContext _sunctx; //!< Idas suncontext object
 };
