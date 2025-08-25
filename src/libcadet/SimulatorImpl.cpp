@@ -24,6 +24,7 @@
 #include <idas/idas_ls.h>
 #include <sundials/sundials_matrix.h>
 #include <sunmatrix/sunmatrix_dense.h>
+#include <sunnonlinsol/sunnonlinsol_newton.h>
 
 #include <vector>
 #include <sstream>
@@ -356,6 +357,7 @@ namespace cadet
 
 	SUNLinearSolver_Type linearSolverGetType(SUNLinearSolver)
 	{
+		//      return SUNLINEARSOLVER_MATRIX_EMBEDDED;
 		return SUNLINEARSOLVER_ITERATIVE;
 		//		return SUNLINEARSOLVER_DIRECT;
 	}
@@ -424,7 +426,7 @@ namespace cadet
 		_nThreads(0), _sensErrorTestEnabled(true), _maxNewtonIter(4), _maxErrorTestFail(10), _maxConvTestFail(10),
 		_maxNewtonIterSens(4), _curSec(0), _skipConsistencyStateY(false), _skipConsistencySensitivity(false),
 		_consistentInitMode(ConsistentInitialization::Full), _consistentInitModeSens(ConsistentInitialization::Full),
-		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr), _linearSolver(nullptr), _sunctx(nullptr)
+		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr), _linearSolver(nullptr), _nonlinearSolver(nullptr), _linearSolverWeight(nullptr), _sunctx(nullptr)
 	{
 #if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 		LOG(Debug) << "Resetting AD directions from " << ad::getDirections() << " to default " << ad::getMaxDirections();
@@ -500,6 +502,9 @@ namespace cadet
 		NVec_Const(0.0, _vecStateY);
 		NVec_Const(0.0, _vecStateYdot);
 
+		_linearSolver = SUNLinSolNewEmpty(_sunctx);
+		_nonlinearSolver = SUNNonlinSol_Newton(_vecStateY, _sunctx);
+
 		// Create IDAS internal memory
 		_idaMemBlock = IDACreate(_sunctx);
 
@@ -522,7 +527,8 @@ namespace cadet
 
 		// Specify the linear solver.
 
-		_linearSolver = SUNLinSolNewEmpty(_sunctx);
+
+
 		_linearSolver->content = this;
 		_linearSolver->ops->gettype = linearSolverGetType;
 		_linearSolver->ops->initialize = linearSolverInitialize;
@@ -534,7 +540,8 @@ namespace cadet
 		_linearSolver->ops->resid = linearSolverResidual;
 		_linearSolver->ops->setscalingvectors = linearSolverSetScalingVectors;
 		
-		IDASetLinearSolver(_idaMemBlock, _linearSolver, NULL);
+		IDASetLinearSolver(_idaMemBlock, _linearSolver, nullptr);
+		IDASetNonlinearSolver(_idaMemBlock, _nonlinearSolver);
 		
 //		IDAMem IDA_mem = static_cast<IDAMem>(_idaMemBlock);
 
