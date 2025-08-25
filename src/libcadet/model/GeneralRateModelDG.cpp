@@ -1306,9 +1306,9 @@ int GeneralRateModelDG::residualBulk(double t, unsigned int secIdx, StateType co
 		{
 			for (unsigned int col = 0; col < _disc.nPoints; ++col, y += idxr.strideColNode())
 			{
-				const ColumnPosition colPos{ (0.5 + static_cast<double>(col)) / static_cast<double>(_disc.nPoints), 0.0, 0.0 };
+				const ColumnPosition colPos{ _convDispOp.relativeCoordinate(col), 0.0, 0.0 };
 
-				linalg::BandedEigenSparseRowIterator jac(_globalJac, col * idxr.strideColNode());
+				linalg::BandedEigenSparseRowIterator jac(_globalJac, idxr.offsetC() + col * idxr.strideColNode());
 				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
 				_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, jac, tlmAlloc);
 			}
@@ -1325,7 +1325,7 @@ int GeneralRateModelDG::residualBulk(double t, unsigned int secIdx, StateType co
 
 			if (wantJac)
 			{
-				linalg::BandedEigenSparseRowIterator jac(_globalJac, col * idxr.strideColNode());
+				linalg::BandedEigenSparseRowIterator jac(_globalJac, idxr.offsetC() + col * idxr.strideColNode());
 				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
 				_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, jac, tlmAlloc);
 			}

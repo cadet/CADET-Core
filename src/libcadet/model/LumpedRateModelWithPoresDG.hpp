@@ -469,8 +469,8 @@ protected:
 		for (unsigned int blk = 0; blk < _disc.nPoints; blk++) {
 			for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
 				for (unsigned int toComp = 0; toComp < _disc.nComp; toComp++) {
-					tripletList.push_back(T(idxr.offsetC() + blk * idxr.strideColNode() + comp * idxr.strideColComp(),
-						idxr.offsetC() + blk * idxr.strideColNode() + toComp * idxr.strideColComp(),
+					tripletList.push_back(T(blk * idxr.strideColNode() + comp * idxr.strideColComp(),
+						blk * idxr.strideColNode() + toComp * idxr.strideColComp(),
 						0.0));
 				}
 			}
