@@ -1288,12 +1288,12 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualBulk(double t, unsigned 
 				continue;
 
 			if (wantRes)
-				_reaction.getDynReactionVector("bulk")[i]->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
+				_reaction.getDynReactionVector("bulk")[i]->residualFluxAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
 
 			if (wantJac)
 			{
 				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-				_reaction.getDynReactionVector("bulk")[i]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(col * idxr.strideColCell()), tlmAlloc);
+				_reaction.getDynReactionVector("bulk")[i]->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(col * idxr.strideColCell()), tlmAlloc);
 			}
 		}
 	}
@@ -1448,7 +1448,7 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualParticle(double t, unsig
 
 			if (wantRes)
 			{
-				_reaction.getDynReactionVector("pore")[offSetParticle + reac]->residualLiquidAdd(t, secIdx, colPos, y - _disc.nComp, res - _disc.nComp, -1.0, buffer);
+				_reaction.getDynReactionVector("pore")[offSetParticle + reac]->residualFluxAdd(t, secIdx, colPos, y - _disc.nComp, res - _disc.nComp, -1.0, buffer);
 
 				if (wantJac)
 				{
@@ -1458,7 +1458,7 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualParticle(double t, unsig
 					// reaction model does not interact with it.
 
 					// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-					_reaction.getDynReactionVector("pore")[offSetParticle + reac]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y - _disc.nComp), -1.0, jacBase, buffer);
+					_reaction.getDynReactionVector("pore")[offSetParticle + reac]->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y - _disc.nComp), -1.0, jacBase, buffer);
 				}
 			}
 		}
@@ -1475,7 +1475,7 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualParticle(double t, unsig
 				BufferedArray<ResidualType> fluxSolid = buffer.template array<ResidualType>(nTotalBound);
 
 				std::fill_n(static_cast<ResidualType*>(fluxSolid), nTotalBound, 0.0);
-				_reaction.getDynReactionVector("solid")[offSetCrossPhase + reac]->residualLiquidAdd(t, secIdx, colPos, y, static_cast<ResidualType*>(fluxSolid), -1.0, buffer);
+				_reaction.getDynReactionVector("solid")[offSetCrossPhase + reac]->residualFluxAdd(t, secIdx, colPos, y, static_cast<ResidualType*>(fluxSolid), -1.0, buffer);
 
 				unsigned int idx = 0;
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
@@ -1497,7 +1497,7 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualParticle(double t, unsig
 				dmv.setAll(0.0);
 
 				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-				_reaction.getDynReactionVector("solid")[offSetSolid + reac]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, dmv.row(0, _disc.nComp), buffer);
+				_reaction.getDynReactionVector("solid")[offSetSolid + reac]->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, dmv.row(0, _disc.nComp), buffer);
 
 				unsigned int idx = 0;
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)

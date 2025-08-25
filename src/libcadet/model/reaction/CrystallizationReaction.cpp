@@ -1340,7 +1340,7 @@ protected:
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-	int residualLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y, ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
+	int residualFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y, ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
 	{
 		ResidualType B_0 = 0.0;
 		ResidualType k_g_times_s_g = 0.0;
@@ -1533,7 +1533,7 @@ protected:
 	int residualCombinedImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
 		StateType const* yLiquid, StateType const* ySolid, ResidualType* resLiquid, ResidualType* resSolid, double factor, LinearBufferAllocator workSpace) const
 	{
-		return residualLiquidImpl<StateType, ResidualType, ParamType, double>(t, secIdx, colPos, yLiquid, resLiquid, factor, workSpace);
+		return residualFluxImpl<StateType, ResidualType, ParamType, double>(t, secIdx, colPos, yLiquid, resLiquid, factor, workSpace);
 	}
 
 	template <typename RowIterator>

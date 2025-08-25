@@ -201,16 +201,16 @@ public:
 	 * @param [in,out] workSpace Memory work space
 	 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 	 */
-	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
+	virtual int residualFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
 		active* res, const active& factor, LinearBufferAllocator workSpace) const = 0;
 
-	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
+	virtual int residualFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
 		active* res, double factor, LinearBufferAllocator workSpace) const = 0;
 
-	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
+	virtual int residualFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
 		active* res, double factor, LinearBufferAllocator workSpace) const = 0;
 
-	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
+	virtual int residualFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
 		double* res, double factor, LinearBufferAllocator workSpace) const = 0;
 
 	/**
@@ -234,11 +234,11 @@ public:
 	 * @param [in,out] jac Row iterator pointing to the first component row of the underlying matrix in which the Jacobian is stored
 	 * @param [in,out] workSpace Memory work space
 	 */
-	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const = 0;
-	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const = 0;
-	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
+	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const = 0;
+	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const = 0;
+	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
 	#ifdef ENABLE_DG
-	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
+	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
 	#endif
 
 	/**

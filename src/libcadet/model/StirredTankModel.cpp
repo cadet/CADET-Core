@@ -1579,7 +1579,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 			BufferedArray<ResidualType> flux = subAlloc.array<ResidualType>(_nComp);
 
 			std::fill_n(static_cast<ResidualType*>(flux), _nComp, 0.0);
-			_reaction.getDynReactionVector("liquid")[i]->residualLiquidAdd(t, secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
+			_reaction.getDynReactionVector("liquid")[i]->residualFluxAdd(t, secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
 
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 				resC[comp] += v * flux[comp];
@@ -1589,7 +1589,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 				for (unsigned int comp = 0; comp < _nComp; ++comp)
 					_jac.native(comp, _nComp + _totalBound) += static_cast<double>(flux[comp]); // dF/dvliquid = flux
 
-				_reaction.getDynReactionVector("liquid")[i]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
+				_reaction.getDynReactionVector("liquid")[i]->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
 			}
 		}
 	}
@@ -1719,7 +1719,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 			ResidualType* const fluxSolid = static_cast<ResidualType*>(fluxBuffer) + _nComp;
 
 			std::fill_n(fluxSolid, _strideBound[type], 0.0);
-			dynReaction->residualLiquidAdd(t, secIdx, colPos, c + _nComp + _offsetParType[type], fluxSolid, -1.0, subAlloc);
+			dynReaction->residualFluxAdd(t, secIdx, colPos, c + _nComp + _offsetParType[type], fluxSolid, -1.0, subAlloc);
 
 			typedef typename DoubleActivePromoter<StateType, ParamType>::type FactorType;
 			const FactorType liquidFactor = vsolid * static_cast<ParamType>(_parTypeVolFrac[type]);
@@ -1745,7 +1745,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 				BufferedArray<double> fluxJacobianMem = subAlloc.array<double>((_strideBound[type] + _nComp) * (_strideBound[type] + _nComp));
 				linalg::DenseMatrixView jacFlux(static_cast<double*>(fluxJacobianMem), nullptr, _strideBound[type] + _nComp, _strideBound[type] + _nComp);
 				jacFlux.setAll(0.0);
-				dynReaction->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c + _nComp + _offsetParType[type]),
+				dynReaction->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c + _nComp + _offsetParType[type]),
 					-1.0, jacFlux.row(_nComp), subAlloc);
 
 				unsigned int jacIdx = 0;

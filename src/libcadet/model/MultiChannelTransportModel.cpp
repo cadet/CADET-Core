@@ -765,12 +765,12 @@ int MultiChannelTransportModel::residualImpl(double t, unsigned int secIdx, Stat
 		{
 			if (_reaction.getDynReactionVector("bulk")[i] && (_reaction.getDynReactionVector("bulk")[i]->numReactions() > 0))
 			{
-				_reaction.getDynReactionVector("bulk")[i]->residualLiquidAdd(t, secIdx, colPos, yC, resC, -1.0, tlmAlloc);
+				_reaction.getDynReactionVector("bulk")[i]->residualFluxAdd(t, secIdx, colPos, yC, resC, -1.0, tlmAlloc);
 
 				if (wantJac)
 				{
 					// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-					_reaction.getDynReactionVector("bulk")[i]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(yC), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideChannelCell()), tlmAlloc);
+					_reaction.getDynReactionVector("bulk")[i]->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(yC), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideChannelCell()), tlmAlloc);
 				}
 			}
 		}

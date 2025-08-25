@@ -488,7 +488,7 @@ namespace cadet
 			}
 
 			template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-			int residualLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
+			int residualFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
 				StateType const* y, ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
 			{
 				return 0;

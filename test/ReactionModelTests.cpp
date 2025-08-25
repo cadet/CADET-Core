@@ -443,7 +443,7 @@ namespace reaction
 
 		// Evaluate with AD
 		ad::resetAd(adRes, numDofs);
-		crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY, adRes, 1.0, crm.buffer());
+		crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY, adRes, 1.0, crm.buffer());
 
 		// Extract Jacobian
 		jacAD.setAll(0.0);
@@ -451,7 +451,7 @@ namespace reaction
 
 		// Calculate analytic Jacobian
 		jacAna.setAll(0.0);
-		crm.model().analyticJacobianLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yState.data(), 1.0, jacAna.row(0), crm.buffer());
+		crm.model().analyticJacobianAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yState.data(), 1.0, jacAna.row(0), crm.buffer());
 
 		delete[] adY;
 		delete[] adRes;
@@ -460,7 +460,7 @@ namespace reaction
 			[&](double const* lDir, double* res) -> void
 				{
 					std::fill_n(res, nComp, 0.0);
-					crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, res, 1.0, crm.buffer());
+					crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, res, 1.0, crm.buffer());
 				},
 			[&](double const* lDir, double* res) -> void 
 				{
@@ -472,7 +472,7 @@ namespace reaction
 			[&](double const* lDir, double* res) -> void
 				{
 					std::fill_n(res, nComp, 0.0);
-					crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, res, 1.0, crm.buffer());
+					crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, res, 1.0, crm.buffer());
 				},
 			[&](double const* lDir, double* res) -> void 
 				{

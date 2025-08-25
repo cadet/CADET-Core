@@ -632,7 +632,7 @@ protected:
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-	int residualLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
+	int residualFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
 		StateType const* y, ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
