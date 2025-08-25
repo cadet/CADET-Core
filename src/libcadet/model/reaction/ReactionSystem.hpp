@@ -45,7 +45,8 @@ struct ReactionSystem
             {"cross_phase", PhaseData{}},
             {"pore", PhaseData{}},
             {"solid", PhaseData{}},
-            {"bulk", PhaseData{}}
+            {"bulk", PhaseData{}},
+            {"liquid", PhaseData{}}
         };
 
         PhaseData& getPhaseData(const std::string& phaseType)

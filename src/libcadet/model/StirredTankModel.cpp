@@ -446,8 +446,8 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 	}
 	else if (paramProvider.exists("bulk_reaction_000"))
 	{
-			int nReactions = paramProvider.getInt("NREAC_BULK");
-			reactionConfSuccess = _reaction.configureDiscretization("bulk",
+			int nReactions = paramProvider.getInt("NREAC_LIQUID");
+			reactionConfSuccess = _reaction.configureDiscretization("liquid",
 				0, 
 				nReactions, 
 				_nComp, 
@@ -591,8 +591,8 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 	}
 	else
 	{	
-		if (paramProvider.exists("NREAC_BULK"))
-			_reaction.configure("bulk", 0, _unitOpIdx, paramProvider);
+		if (paramProvider.exists("NREAC_LIQUID"))
+			_reaction.configure("liquid", 0, _unitOpIdx, paramProvider);
 
 		for (unsigned int par = 0; par < _nParType; par++)
 		{
@@ -1571,15 +1571,15 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 	// Reactions in liquid phase
 	const ColumnPosition colPos{0.0, 0.0, 0.0};
 
-	for (auto i = 0; i < _reaction.getDynReactionVector("bulk").size(); i++)
+	for (auto i = 0; i < _reaction.getDynReactionVector("liquid").size(); i++)
 	{
-		if (_reaction.getDynReactionVector("bulk")[i] && (_reaction.getDynReactionVector("bulk")[i]->numReactions() > 0))
+		if (_reaction.getDynReactionVector("liquid")[i] && (_reaction.getDynReactionVector("liquid")[i]->numReactions() > 0))
 		{
 			LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
 			BufferedArray<ResidualType> flux = subAlloc.array<ResidualType>(_nComp);
 
 			std::fill_n(static_cast<ResidualType*>(flux), _nComp, 0.0);
-			_reaction.getDynReactionVector("bulk")[i]->residualLiquidAdd(t, secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
+			_reaction.getDynReactionVector("liquid")[i]->residualLiquidAdd(t, secIdx, colPos, c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
 
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 				resC[comp] += v * flux[comp];
@@ -1589,7 +1589,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 				for (unsigned int comp = 0; comp < _nComp; ++comp)
 					_jac.native(comp, _nComp + _totalBound) += static_cast<double>(flux[comp]); // dF/dvliquid = flux
 
-				_reaction.getDynReactionVector("bulk")[i]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
+				_reaction.getDynReactionVector("liquid")[i]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(c), -static_cast<double>(v), _jac.row(0), subAlloc);
 			}
 		}
 	}
@@ -2248,7 +2248,7 @@ bool CSTRModel::setParameter(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, _reaction.getDynReactionVector("bulk") , false))
+		if (model::setParameter(pId, value, _reaction.getDynReactionVector("liquid") , false))
 			return true;
 	}
 
@@ -2259,7 +2259,7 @@ bool CSTRModel::setParameter(const ParameterId& pId, int value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, _reaction.getDynReactionVector("bulk"), false))
+		if (model::setParameter(pId, value, _reaction.getDynReactionVector("liquid"), false))
 			return true;
 	}
 
@@ -2270,7 +2270,7 @@ bool CSTRModel::setParameter(const ParameterId& pId, bool value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value,  _reaction.getDynReactionVector("bulk"), false))
+		if (model::setParameter(pId, value,  _reaction.getDynReactionVector("liquid"), false))
 			return true;
 	}
 
@@ -2281,7 +2281,7 @@ void CSTRModel::setSensitiveParameterValue(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setSensitiveParameterValue(pId, value, _sensParams,  _reaction.getDynReactionVector("bulk"), false))
+		if (model::setSensitiveParameterValue(pId, value, _sensParams,  _reaction.getDynReactionVector("liquid"), false))
 			return;
 	}
 
@@ -2290,7 +2290,7 @@ void CSTRModel::setSensitiveParameterValue(const ParameterId& pId, double value)
 
 bool CSTRModel::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
 {
-	if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams,  _reaction.getDynReactionVector("bulk") , false))
+	if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams,  _reaction.getDynReactionVector("liquid") , false))
 	{
 		LOG(Debug) << "Found parameter " << pId << " in DynamicBulkReactionModel: Dir " << adDirection << " is set to " << adValue;
 		return true;
