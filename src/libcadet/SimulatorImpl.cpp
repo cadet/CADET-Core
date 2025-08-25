@@ -188,7 +188,7 @@ namespace cadet
 	 * @brief IDAS error handler function
 	 * @details Handles errors reported by the IDAS solver. See section 4.6.2 of the IDAS manual for details.
 	 */
-	void idasErrorHandler(int error_code, const char* module, const char* function, char* msg, void* eh_data)
+	void idasErrorHandler(int line, const char* function, const char* module, const char* msg, int error_code, void* eh_data, SUNContext _sct)
 	{
 //		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(eh_data);
 
@@ -504,7 +504,7 @@ namespace cadet
 		_idaMemBlock = IDACreate(_sunctx);
 
 		// IDAS Step 4.1: Specify error handler function
-		IDASetErrHandlerFn(_idaMemBlock, &idasErrorHandler, this);
+		SUNContext_PushErrHandler(_sunctx, &idasErrorHandler, this);
 
 		// IDAS Step 5: Initialize the solver
 		_model->applyInitialCondition(SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
