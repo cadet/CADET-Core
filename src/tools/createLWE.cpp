@@ -39,7 +39,8 @@ struct ProgramOptions
 	bool velocityDependence;
 	bool reverseFlow;
 	bool adJacobian;
-	int nPar;
+    int polyDeg;
+    int nPar;
 	int nCol;
 	int nRad;
 	int nParType;
@@ -50,84 +51,69 @@ struct ProgramOptions
 	std::string unitType;
 };
 
-void configureDiscretization(cadet::io::HDF5Writer& writer, int nCol, int nParType, int nPar, int nRad, bool adJacobian)
+void configureParticleDiscretization(cadet::io::HDF5Writer& writer, const int polyDeg, const int nPar)
 {
     Scope<cadet::io::HDF5Writer> s2(writer, "discretization");
 
-    writer.scalar<int>("NCOL", nCol); // 64
-    writer.scalar<std::string>("SPATIAL_METHOD", "FV");
-    if (nParType > 1)
+    if (polyDeg == 0)
     {
-        const std::vector<int> nPar_vec(nParType, nPar);
-        writer.vector<int>("NPAR", nPar_vec.size(), nPar_vec.data()); // 16
+        writer.scalar<std::string>("SPATIAL_METHOD", "FV");
+        writer.scalar<int>("NCELLS", nPar);
+        writer.scalar<int>("FV_BOUNDARY_ORDER", 2);
     }
     else
-        writer.scalar<int>("NPAR", nPar);
-
-    if (nRad > 1)
-        writer.scalar<int>("NRAD", nRad);
-        writer.scalar("RADIAL_DISC_TYPE", std::string("EQUIDISTANT"));
-
-    if (nParType > 1)
     {
-        std::vector<std::string> parDiscType(nParType, std::string("EQUIDISTANT_PAR"));
-        writer.vector<std::string>("PAR_DISC_TYPE", parDiscType.size(), parDiscType.data());
+        writer.scalar<std::string>("SPATIAL_METHOD", "DG");
+        writer.scalar<int>("PAR_POLYDEG", polyDeg);
+        writer.scalar<int>("PAR_NELEM", polyDeg);
     }
-    else
-        writer.scalar("PAR_DISC_TYPE", std::string("EQUIDISTANT_PAR"));
 
-    writer.scalar<int>("USE_ANALYTIC_JACOBIAN", !adJacobian);
-    writer.scalar<int>("MAX_KRYLOV", 0);
-    writer.scalar<int>("GS_TYPE", 1);
-    writer.scalar<int>("MAX_RESTARTS", 10);
-    writer.scalar<double>("SCHUR_SAFETY", 1e-8);
-
-    // WENO
-    {
-        Scope<cadet::io::HDF5Writer> s3(writer, "weno");
-
-        writer.scalar<int>("WENO_ORDER", 3);
-        writer.scalar<int>("BOUNDARY_MODEL", 0);
-        writer.scalar<double>("WENO_EPS", 1e-10);
-    }
+    writer.scalar<std::string>("PAR_DISC_TYPE", "EQUIDISTANT");
 }
 
-void configureParticles(cadet::io::HDF5Writer& writer, int nParType)
+void configureBulkDiscretization(cadet::io::HDF5Writer& writer, int polyDeg, int nCol, int nRad, bool adJacobian)
 {
-    const double par_radius = 4.5e-5;
-    const double par_coreradius = 0.0;
-    const double par_porosity = 0.75;
+    Scope<cadet::io::HDF5Writer> s2(writer, "discretization");
 
-    writer.scalar<int>("NPARTYPE", nParType);
-
-    if (nParType > 1)
+    if (polyDeg == 0)
     {
-        std::vector<std::string> par_geom;
-        std::vector<double> par_radii;
-        std::vector<double> par_coreradii;
-        std::vector<double> par_porosities;
-        std::vector<double> par_volfrac;
-        for (int i = 0; i < nParType; ++i) {
-            par_radii.push_back(par_radius);
-            par_geom.push_back("SPHERE");
-            par_coreradii.push_back(par_coreradius);
-            par_porosities.push_back(par_porosity);
-            par_volfrac.push_back(1.0 / static_cast<double>(nParType));
-        }
+        writer.scalar<std::string>("SPATIAL_METHOD", "FV");
+        writer.scalar<int>("NCOL", nCol); // 64
+        // WENO
+        {
+            Scope<cadet::io::HDF5Writer> s3(writer, "weno");
 
-        writer.vector<std::string>("PAR_GEOM", par_geom.size(), par_geom.data());
-        writer.vector<double>("PAR_RADIUS", par_radii.size(), par_radii.data());
-        writer.vector<double>("PAR_CORERADIUS", par_coreradii.size(), par_coreradii.data());
-        writer.vector<double>("PAR_POROSITY", par_porosities.size(), par_porosities.data());
-        writer.vector<double>("PAR_TYPE_VOLFRAC", nParType, par_volfrac.data());
+            writer.scalar<int>("WENO_ORDER", 3);
+            writer.scalar<int>("BOUNDARY_MODEL", 0);
+            writer.scalar<double>("WENO_EPS", 1e-10);
+        }
+        writer.scalar<int>("MAX_KRYLOV", 0);
+        writer.scalar<int>("GS_TYPE", 1);
+        writer.scalar<int>("MAX_RESTARTS", 10);
+        writer.scalar<double>("SCHUR_SAFETY", 1e-8);
+
+        if (nRad > 1)
+        {
+            writer.scalar<int>("NRAD", nRad);
+            writer.scalar("RADIAL_DISC_TYPE", std::string("EQUIDISTANT"));
+        }
     }
     else
     {
-        writer.scalar("PAR_GEOM", std::string("SPHERE"));
-        writer.scalar<double>("PAR_RADIUS", par_radius);
-        writer.scalar<double>("PAR_CORERADIUS", par_coreradius);
-        writer.scalar<double>("PAR_POROSITY", par_porosity);
+        writer.scalar<std::string>("SPATIAL_METHOD", "DG");
+        writer.scalar<int>("POLYDEG", polyDeg);
+        writer.scalar<int>("EXACT_INTEGRATION", 1);
+        writer.scalar<int>("NELEM", polyDeg);
+
+        if (nRad > 1)
+        {
+            writer.scalar<int>("RAD_NELEM", nRad);
+            writer.scalar<int>("RAD_POLYDEG", polyDeg);
+            writer.scalar("RADIAL_DISC_TYPE", std::string("EQUIDISTANT"));
+        }
     }
+
+    writer.scalar<int>("USE_ANALYTIC_JACOBIAN", !adJacobian);
 }
 
 void configureAdsorption(cadet::io::HDF5Writer& writer, int nParType, bool isKinetic)
@@ -184,76 +170,50 @@ void configureAdsorption(cadet::io::HDF5Writer& writer, int nParType, bool isKin
     }
 }
 
-void configureFilmDiffusion(cadet::io::HDF5Writer& writer, int nComp, int nParType, bool velocityDependence)
+void configureParticles(cadet::io::HDF5Writer& writer, const int nParType, const bool isKinetic, const bool filmDiffVelocityDep, const std::string parModel, const int polyDeg, const int nParCells)
 {
-    const double filmDiff[] = { 6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6 };
-    if (nParType > 1)
+    const double par_radius = 4.5e-5;
+    const double par_coreradius = 0.0;
+    const double par_porosity = 0.75;
+
+    for (int parType = 0; parType < nParType; parType++)
     {
-        writer.scalar<int>("FILM_DIFFUSION_MULTIPLEX", 2); // component and particle type dependent, section independent
+        Scope<cadet::io::HDF5Writer> s2(writer, "particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
 
-        std::vector<double> filmDiffMultiplex;
+        writer.scalar("PARTICLE_TYPE", parModel);
 
-        for (int i = 0; i < nParType; ++i) {
-            filmDiffMultiplex.insert(filmDiffMultiplex.end(), filmDiff, filmDiff + nComp);
+        if (parModel == "GENERAL_RATE_PARTICLE" || parModel == "HOMOGENEOUS_PARTICLE")
+        {
+            writer.scalar("PAR_GEOM", std::string("SPHERE"));
+            writer.scalar<double>("PAR_RADIUS", par_radius);
+            writer.scalar<double>("PAR_CORERADIUS", par_coreradius);
+            writer.scalar<double>("PAR_POROSITY", par_porosity);
+
+            const double filmDiff[] = { 6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6 };
+
+            writer.scalar<int>("FILM_DIFFUSION_MULTIPLEX", 0); // componenent dependent, particle type and section independent
+            writer.vector<double>("FILM_DIFFUSION", 4, filmDiff);
+
+            if (filmDiffVelocityDep)
+            {
+                writer.scalar<std::string>("FILM_DIFFUSION_DEP", "POWER_LAW");
+                writer.scalar<double>("FILM_DIFFUSION_DEP_BASE", 1.25);
+                writer.scalar<double>("FILM_DIFFUSION_DEP_EXPONENT", 1.0);
+            }
         }
 
-        writer.vector<double>("FILM_DIFFUSION", filmDiffMultiplex.size(), filmDiffMultiplex.data());
-    }
-    else
-    {
-        writer.scalar<int>("FILM_DIFFUSION_MULTIPLEX", 0); // componenent dependent, particle type and section independent
-        writer.vector<double>("FILM_DIFFUSION", 4, filmDiff);
-    }
-    
-    if (velocityDependence)
-    {
-        writer.scalar<std::string>("FILM_DIFFUSION_DEP", "POWER_LAW");
-        writer.scalar<double>("FILM_DIFFUSION_DEP_BASE", 1.25);
-        writer.scalar<double>("FILM_DIFFUSION_DEP_EXPONENT", 1.0);
-    }
+        if (parModel == "GENERAL_RATE_PARTICLE")
+        {
+            const double parSurfDiff[] = { 0.0, 0.0, 0.0, 0.0 };
+            writer.vector<double>("PAR_SURFDIFFUSION", 4, parSurfDiff);
 
-}
-
-void configurePoreDiffusion(cadet::io::HDF5Writer& writer, int nComp, int nParType)
-{
-    const double parDiff[] = { 7e-10, 6.07e-11, 6.07e-11, 6.07e-11 };
-
-    if (nParType > 1)
-    {
-        std::vector<double> parDiffMultiplex;
-
-        for (int i = 0; i < nParType; ++i) {
-            parDiffMultiplex.insert(parDiffMultiplex.end(), parDiff, parDiff + nComp);
+            const double parDiff[] = { 7e-10, 6.07e-11, 6.07e-11, 6.07e-11 };
+            writer.vector<double>("PAR_DIFFUSION", 4, parDiff);
+            configureParticleDiscretization(writer, polyDeg, nParCells);
         }
 
-        writer.vector<double>("PAR_DIFFUSION", parDiffMultiplex.size(), parDiffMultiplex.data());
+        configureAdsorption(writer, nParType, isKinetic);
     }
-    else
-    {
-        writer.vector<double>("PAR_DIFFUSION", 4, parDiff);
-    }
-
-}
-
-void configureSurfaceDiffusion(cadet::io::HDF5Writer& writer, int nComp, int nParType)
-{
-    const double parSurfDiff[] = { 0.0, 0.0, 0.0, 0.0 };
-
-    if (nParType > 1)
-    {
-        std::vector<double> parSurfDiffMultiplex;
-
-        for (int i = 0; i < nParType; ++i) {
-            parSurfDiffMultiplex.insert(parSurfDiffMultiplex.end(), parSurfDiff, parSurfDiff + nComp);
-        }
-
-        writer.vector<double>("PAR_SURFDIFFUSION", parSurfDiffMultiplex.size(), parSurfDiffMultiplex.data());
-    }
-    else
-    {
-        writer.vector<double>("PAR_SURFDIFFUSION", 4, parSurfDiff);
-    }
-
 }
 
 void configureFlowDirection(cadet::io::HDF5Writer& writer, bool reverseFlow)
@@ -277,7 +237,7 @@ void configureUnitSolver(cadet::io::HDF5Writer& writer)
 void configureCstr(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp)
 {
     writer.scalar<double>("POROSITY", 0.37 + (1.0 - 0.37) * 0.75);
-    configureAdsorption(writer, opts.nParType, opts.isKinetic);
+    configureParticles(writer, opts.nParType, opts.isKinetic, opts.velocityDependence, "EQUILIBRIUM_PARTICLE", opts.polyDeg, opts.nPar);
 
     writer.scalar<double>("INIT_VOLUME", 1e-3);
 }
@@ -304,10 +264,10 @@ void configureLRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp
         writer.scalar<double>("COL_DISPERSION_DEP_EXPONENT", 1.0);
     }
 
-    configureDiscretization(writer, opts.nCol, opts.nParType, opts.nPar, opts.nRad, opts.adJacobian);
+    configureBulkDiscretization(writer, opts.polyDeg, opts.nCol, opts.nRad, opts.adJacobian);
 
     writer.scalar<double>("TOTAL_POROSITY", 0.37 + (1.0 - 0.37) * 0.75);
-    configureAdsorption(writer, opts.nParType, opts.isKinetic);
+    configureParticles(writer, opts.nParType, opts.isKinetic, opts.velocityDependence, "GENERAL_RATE_PARTICLE", opts.polyDeg, opts.nPar);
 
     configureFlowDirection(writer, opts.reverseFlow);
 }
@@ -334,13 +294,11 @@ void configureLRMP(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nCom
         writer.scalar<double>("COL_DISPERSION_DEP_EXPONENT", 1.0);
     }
 
-    configureDiscretization(writer, opts.nCol, opts.nParType, opts.nPar, opts.nRad, opts.adJacobian);
+    configureBulkDiscretization(writer, opts.polyDeg, opts.nCol, opts.nParType, opts.adJacobian);
 
     writer.scalar<double>("COL_POROSITY", 0.37);
-    configureParticles(writer, opts.nParType);
-    configureAdsorption(writer, opts.nParType, opts.isKinetic);
-
-    configureFilmDiffusion(writer, nComp, opts.nParType, opts.velocityDependence);
+    writer.scalar<int>("NPARTYPE", opts.nParType);
+    configureParticles(writer, opts.nParType, opts.isKinetic, opts.velocityDependence, "HOMOGENEOUS_PARTICLE", opts.polyDeg, opts.nPar);
 
     configureFlowDirection(writer, opts.reverseFlow);
 }
@@ -366,15 +324,11 @@ void configureGRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp
         writer.scalar<double>("COL_DISPERSION_DEP_EXPONENT", 1.0);
     }
 
-    configureDiscretization(writer, opts.nCol, opts.nParType, opts.nPar, opts.nRad, opts.adJacobian);
+    configureBulkDiscretization(writer, opts.polyDeg, opts.nCol, opts.nRad, opts.adJacobian);
 
     writer.scalar<double>("COL_POROSITY", 0.37);
-    configureParticles(writer, opts.nParType);
-    configureAdsorption(writer, opts.nParType, opts.isKinetic);
-
-    configureFilmDiffusion(writer, nComp, opts.nParType, opts.velocityDependence);
-    configurePoreDiffusion(writer, nComp, opts.nParType);
-    configureSurfaceDiffusion(writer, nComp, opts.nParType);
+    writer.scalar<int>("NPARTYPE", opts.nParType);
+    configureParticles(writer, opts.nParType, opts.isKinetic, opts.velocityDependence, "GENERAL_RATE_PARTICLE", opts.polyDeg, opts.nPar);
 
     configureFlowDirection(writer, opts.reverseFlow);
 }
@@ -393,41 +347,37 @@ void configure2DGRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nCo
     }
     writer.scalar<double>("COL_DISPERSION_RADIAL", 1e-6);
 
-    configureDiscretization(writer, opts.nCol, opts.nParType, opts.nPar, opts.nRad, opts.adJacobian);
+    configureBulkDiscretization(writer, opts.polyDeg, opts.nCol, opts.nRad, opts.adJacobian);
 
     writer.scalar<double>("COL_POROSITY", 0.37);
-    configureParticles(writer, opts.nParType);
-    configureAdsorption(writer, opts.nParType, opts.isKinetic);
-
-    configureFilmDiffusion(writer, nComp, opts.nParType, false);
-    configurePoreDiffusion(writer, nComp, opts.nParType);
-    configureSurfaceDiffusion(writer, nComp, opts.nParType);
-
+    writer.scalar<int>("NPARTYPE", opts.nParType);
+    configureParticles(writer, opts.nParType, opts.isKinetic, opts.velocityDependence, "GENERAL_RATE_PARTICLE", opts.polyDeg, opts.nPar);
+    
     configureFlowDirection(writer, opts.reverseFlow);
 }
 
 void configureInitialConditions(cadet::io::HDF5Writer& writer, int nParType)
 {
     const double initC[] = {50.0, 0.0, 0.0, 0.0};
-    const double initQ[] = {1.2e3, 0.0, 0.0, 0.0};
+    const double initCs[] = {1.2e3, 0.0, 0.0, 0.0};
     writer.vector<double>("INIT_C", 4, initC);
 
     if (nParType > 1)
     {
         //std::vector<double> init_cps;
-        std::vector<double> init_qs;
+        std::vector<double> INIT_CSs;
 
         for (int i = 0; i < nParType; ++i)
         {
             //init_cps.insert(init_cps.end(), initC, initC + 4);
-            init_qs.insert(init_qs.end(), initQ, initQ + 4);
+            INIT_CSs.insert(INIT_CSs.end(), initCs, initCs + 4);
         }
 
-        //writer.vector<double>("INIT_CP", init_cps.size(), init_qs.data());
-        writer.vector<double>("INIT_Q", init_qs.size(), init_qs.data());
+        //writer.vector<double>("INIT_CP", init_cps.size(), INIT_CSs.data());
+        writer.vector<double>("INIT_CS", INIT_CSs.size(), INIT_CSs.data());
     }
     else
-        writer.vector<double>("INIT_Q", 4, initQ);
+        writer.vector<double>("INIT_CS", 4, initCs);
 }
 
 void configureInlet(cadet::io::HDF5Writer& writer, double startTime)
@@ -695,7 +645,7 @@ int main(int argc, char** argv)
 		cmd >> (new TCLAP::SwitchArg("", "reverseFlow", "Reverse the flow for column"))->storeIn(&opts.reverseFlow);
 		cmd >> (new TCLAP::SwitchArg("", "radialFlow", "Use radial flow column"))->storeIn(&opts.radialFlow);
 		cmd >> (new TCLAP::SwitchArg("", "velDep", "Use velocity dependent dispersion and film diffusion"))->storeIn(&opts.velocityDependence);
-		cmd >> (new TCLAP::ValueArg<int>("", "rad", "Number of radial cells (default: 3)", false, 3, "Value"))->storeIn(&opts.nRad);
+        cmd >> (new TCLAP::ValueArg<int>("", "rad", "Number of radial cells (default: 3)", false, 3, "Value"))->storeIn(&opts.nRad);
 		cmd >> (new TCLAP::ValueArg<int>("", "parTypes", "Number of particle types (default: 1)", false, 1, "Value"))->storeIn(&opts.nParType);
 		addMiscToCmdLine(cmd, opts);
 		addUnitTypeToCmdLine(cmd, opts.unitType);
