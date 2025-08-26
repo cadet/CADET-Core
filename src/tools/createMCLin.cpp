@@ -68,56 +68,23 @@ int main(int argc, char** argv)
 			writer.scalar("UNIT_TYPE", std::string("GENERAL_RATE_MODEL"));
 			writer.scalar<int>("NCOMP", 2);
 
-			// Transport
+			// Bulk Transport
+			writer.scalar<double>("COL_LENGTH", 0.014);
 			writer.scalar<double>("VELOCITY", 5.75e-4);
 			writer.scalar<double>("COL_DISPERSION", 5.75e-8);
 
-			const double filmDiff[] = {6.9e-6, 6.9e-6};
-			const double parDiff[] = {7e-10, 7e-10};
-			const double parSurfDiff[] = {0.0, 1e-10};
-
-			writer.vector<double>("FILM_DIFFUSION", 2, filmDiff);
-			writer.vector<double>("PAR_DIFFUSION", 2, parDiff);
-			writer.vector<double>("PAR_SURFDIFFUSION", 2, parSurfDiff);
-
-			// Geometry
-			writer.scalar<double>("COL_LENGTH", 0.014);
-			writer.scalar<double>("PAR_RADIUS", 4.5e-5);
-			writer.scalar<double>("PAR_CORERADIUS", 0.0);
-			writer.scalar<double>("COL_POROSITY", 0.37);
-			writer.scalar<double>("PAR_POROSITY", 0.75);
-
 			// Initial conditions
-			const double initC[] = {0.0, 0.0};
-			const double initQ[] = {0.0, 0.0};
+			const double initC[] = { 0.0, 0.0 };
 			writer.vector<double>("INIT_C", 2, initC);
-			writer.vector<double>("INIT_Q", 2, initQ);
-
-			// Adsorption
-			writer.scalar("ADSORPTION_MODEL", std::string("LINEAR"));
-			const int nBound[] = { 1, 1 };
-			writer.vector<int>("NBOUND", 2, nBound);
-			{
-				Scope<cadet::io::HDF5Writer> s2(writer, "adsorption");
-				if (opts.isKinetic)
-					writer.scalar<int>("IS_KINETIC", 1);
-				else
-					writer.scalar<int>("IS_KINETIC", 0);
-
-				const double kA[] = {35.5, 20.0};
-				const double kD[] = {1000.0, 1000.0};
-				writer.vector<double>("LIN_KA", 2, kA);
-				writer.vector<double>("LIN_KD", 2, kD);
-			}
 
 			// Discretization
 			{
 				Scope<cadet::io::HDF5Writer> s2(writer, "discretization");
 
 				writer.scalar<int>("NCOL", 10); // 64
-				writer.scalar<int>("NPAR", 4); // 16
+				writer.scalar<int>("NCELLS", 4); // 16
 
-				writer.scalar("PAR_DISC_TYPE", std::string("EQUIDISTANT_PAR"));
+				writer.scalar("PAR_DISC_TYPE", std::string("EQUIDISTANT"));
 
 				writer.scalar<int>("USE_ANALYTIC_JACOBIAN", 1);
 				writer.scalar<int>("MAX_KRYLOV", 0);
@@ -132,6 +99,55 @@ int main(int argc, char** argv)
 					writer.scalar<int>("WENO_ORDER", 3);
 					writer.scalar<int>("BOUNDARY_MODEL", 0);
 					writer.scalar<double>("WENO_EPS", 1e-12);
+				}
+			}
+
+			// Particle
+			{
+				Scope<cadet::io::HDF5Writer> su(writer, "particle_type_000");
+				writer.scalar<double>("PAR_RADIUS", 4.5e-5);
+				writer.scalar<double>("PAR_CORERADIUS", 0.0);
+				writer.scalar<double>("COL_POROSITY", 0.37);
+				writer.scalar<double>("PAR_POROSITY", 0.75);
+
+				const double filmDiff[] = { 6.9e-6, 6.9e-6 };
+				const double parDiff[] = { 7e-10, 7e-10 };
+				const double parSurfDiff[] = { 0.0, 1e-10 };
+
+				writer.vector<double>("FILM_DIFFUSION", 2, filmDiff);
+				writer.vector<double>("PAR_DIFFUSION", 2, parDiff);
+				writer.vector<double>("PAR_SURFDIFFUSION", 2, parSurfDiff);
+
+				const double initCp[] = { 0.0, 0.0 };
+				const double initCs[] = { 0.0, 0.0 };
+				writer.vector<double>("INIT_CP", 2, initCp);
+				writer.vector<double>("INIT_CS", 2, initCs);
+
+				// Adsorption
+				writer.scalar("ADSORPTION_MODEL", std::string("LINEAR"));
+				const int nBound[] = { 1, 1 };
+				writer.vector<int>("NBOUND", 2, nBound);
+				{
+					Scope<cadet::io::HDF5Writer> s2(writer, "adsorption");
+					if (opts.isKinetic)
+						writer.scalar<int>("IS_KINETIC", 1);
+					else
+						writer.scalar<int>("IS_KINETIC", 0);
+
+					const double kA[] = { 35.5, 20.0 };
+					const double kD[] = { 1000.0, 1000.0 };
+					writer.vector<double>("LIN_KA", 2, kA);
+					writer.vector<double>("LIN_KD", 2, kD);
+				}
+
+				// Discretization
+				{
+					Scope<cadet::io::HDF5Writer> s2(writer, "discretization");
+
+					writer.scalar("SPATIAL_METHOD", std::string("FV"));
+					writer.scalar<int>("NCELLS", 4);
+					writer.scalar("PAR_DISC_TYPE", std::string("EQUIDISTANT"));
+					writer.scalar<int>("FV_BOUNDARY_ORDER", 2);
 				}
 			}
 		}

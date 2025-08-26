@@ -98,9 +98,9 @@ int main(int argc, char** argv)
 
 			// Initial conditions
 			const double initC[] = {0.0};
-			const double initQ[] = {0.0};
+			const double initCs[] = {0.0};
 			writer.vector<double>("INIT_C", 1, initC);
-			writer.vector<double>("INIT_Q", 1, initQ);
+			writer.vector<double>("INIT_CS", 1, initCs);
 
 			// Adsorption
 			if (opts.nonBinding)
@@ -149,17 +149,17 @@ int main(int argc, char** argv)
 				if (!isGRM2D)
 				{
 					writer.scalar<int>("NCOL", 16);
-					writer.scalar<int>("NPAR", 4);
+					writer.scalar<int>("NCELLS", 4);
 				}
 				else
 				{
 					writer.scalar<int>("NCOL", 8);
-					writer.scalar<int>("NPAR", 4);
+					writer.scalar<int>("NCELLS", 4);
 					writer.scalar<int>("NRAD", 3);
 					writer.scalar<std::string>("RADIAL_DISC_TYPE", "EQUIDISTANT");
 				}
 
-				writer.scalar("PAR_DISC_TYPE", std::string("EQUIDISTANT_PAR"));
+				writer.scalar("PAR_DISC_TYPE", std::string("EQUIDISTANT"));
 
 				writer.scalar<int>("USE_ANALYTIC_JACOBIAN", 1);
 				writer.scalar<int>("MAX_KRYLOV", 0);

@@ -20,17 +20,8 @@ if (HDF5_FOUND)
 	add_executable(createLWE createLWE.cpp)
 	list(APPEND TOOLS_TARGETS createLWE)
 
-	add_executable(createSCLin createSCLin.cpp)
-	list(APPEND TOOLS_TARGETS createSCLin)
-
-	add_executable(createSCLinStep createSCLinStep.cpp)
-	list(APPEND TOOLS_TARGETS createSCLinStep)
-
 	add_executable(createMCLin createMCLin.cpp)
 	list(APPEND TOOLS_TARGETS createMCLin)
-
-	add_executable(createSCLang createSCLang.cpp)
-	list(APPEND TOOLS_TARGETS createSCLang)
 
 	add_executable(createConvBenchmark createConvBenchmark.cpp)
 	list(APPEND TOOLS_TARGETS createConvBenchmark)
