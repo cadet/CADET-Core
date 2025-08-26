@@ -256,7 +256,7 @@ namespace column
 
 		jpp.pushScope("discretization");
 
-		jpp.set("NPAR", static_cast<int>(nPar));
+		jpp.set("NCELLS", static_cast<int>(nPar));
 
 		jpp.popScope();
 

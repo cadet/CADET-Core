@@ -239,7 +239,7 @@ TEST_CASE("Radial LRMP dynamic reactions time derivative Jacobian vs FD bulk and
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "FV", true, true, true, 1e-6, 1e-14, 8e-4);
 }
 
-inline cadet::JsonParameterProvider createColumnWithTwoCompLinearBindingThreeParticleTypes()
+inline cadet::JsonParameterProvider createColumnWithTwoCompLinearBindingThreeParticleTypesRadLRMP()
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "FV");
 
@@ -252,60 +252,60 @@ inline cadet::JsonParameterProvider createColumnWithTwoCompLinearBindingThreePar
 
 TEST_CASE("Radial LRMP multi particle types dynamic reactions Jacobian vs AD bulk", "[RadLRMP],[Jacobian],[AD],[ReactionModel],[ParticleType]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesRadLRMP();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, false, false);
 }
 
 TEST_CASE("Radial LRMP multi particle types dynamic reactions Jacobian vs AD particle", "[RadLRMP],[Jacobian],[AD],[ReactionModel],[ParticleType]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesRadLRMP();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, false);
 }
 
 TEST_CASE("Radial LRMP multi particle types dynamic reactions Jacobian vs AD modified particle", "[RadLRMP],[Jacobian],[AD],[ReactionModel],[ParticleType]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesRadLRMP();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, true);
 }
 
 TEST_CASE("Radial LRMP multi particle types dynamic reactions Jacobian vs AD bulk and particle", "[RadLRMP],[Jacobian],[AD],[ReactionModel],[ParticleType]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesRadLRMP();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, false);
 }
 
 TEST_CASE("Radial LRMP multi particle types dynamic reactions Jacobian vs AD bulk and modified particle", "[RadLRMP],[Jacobian],[AD],[ReactionModel],[ParticleType]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesRadLRMP();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, true);
 }
 
 TEST_CASE("Radial LRMP multi particle types dynamic reactions time derivative Jacobian vs FD bulk", "[RadLRMP],[Jacobian],[Residual],[ReactionModel],[ParticleType],[FD]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesRadLRMP();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, false, false, 1e-6, 1e-14, 8e-4);
 }
 
 TEST_CASE("Radial LRMP multi particle types dynamic reactions time derivative Jacobian vs FD particle", "[RadLRMP],[Jacobian],[Residual],[ReactionModel],[ParticleType],[FD]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesRadLRMP();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, false, 1e-6, 1e-14, 8e-4);
 }
 
 TEST_CASE("Radial LRMP multi particle types dynamic reactions time derivative Jacobian vs FD modified particle", "[RadLRMP],[Jacobian],[Residual],[ReactionModel],[ParticleType],[FD]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesRadLRMP();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, true, 1e-6, 1e-14, 8e-4);
 }
 
 TEST_CASE("Radial LRMP multi particle types dynamic reactions time derivative Jacobian vs FD bulk and particle", "[RadLRMP],[Jacobian],[Residual],[ReactionModel],[ParticleType],[FD]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesRadLRMP();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, false, 1e-6, 1e-14, 8e-4);
 }
 
 TEST_CASE("Radial LRMP multi particle types dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[RadLRMP],[Jacobian],[Residual],[ReactionModel],[ParticleType],[FD]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesRadLRMP();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 8e-4);
 }

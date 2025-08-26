@@ -246,7 +246,7 @@ protected:
 	double* _tempState; //!< Temporary storage with the size of the state vector or larger if binding models require it
 
 	std::vector<active> _initC; //!< Liquid phase initial conditions
-	std::vector<active> _initQ; //!< Solid phase initial conditions
+	std::vector<active> _initCs; //!< Solid phase initial conditions
 	std::vector<double> _initState; //!< Initial conditions for state vector if given
 	std::vector<double> _initStateDot; //!< Initial conditions for time derivative
 

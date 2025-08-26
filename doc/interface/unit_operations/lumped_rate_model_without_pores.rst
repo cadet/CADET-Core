@@ -59,7 +59,7 @@ For information on model equations, refer to :ref:`lumped_rate_model_without_por
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NCOMP}`
    ================  =========================  ===================================
    
-``INIT_Q``
+``INIT_CS``
 
    Initial concentrations for each bound state of each component in the bead solid phase in component-major ordering
 
@@ -71,7 +71,7 @@ For information on model equations, refer to :ref:`lumped_rate_model_without_por
    
 ``INIT_STATE``
 
-   Full state vector for initialization (optional, :math:`\texttt{INIT_C}` and :math:`\texttt{INIT_Q}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives)
+   Full state vector for initialization (optional, :math:`\texttt{INIT_C}` and :math:`\texttt{INIT_CS}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives)
 
    **Unit:** :math:`various`
    

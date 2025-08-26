@@ -26,7 +26,7 @@
 #include "ParallelSupport.hpp"
 #include "Approx.hpp"
 
-TEST_CASE("GRM2D LWE forward vs backward flow", "[GRM2D],[Simulation],[fixGRM2D]") // todo fix. off by a lot
+TEST_CASE("GRM2D LWE forward vs backward flow", "[GRM2D],[FV],[Simulation],[fixGRM2D]") // todo fix. off by a lot
 {
 	cadet::test::column::FVParams disc;
 
@@ -38,7 +38,7 @@ TEST_CASE("GRM2D LWE forward vs backward flow", "[GRM2D],[Simulation],[fixGRM2D]
 	}
 }
 
-TEST_CASE("GRM2D Jacobian forward vs backward flow", "[GRM2D],[UnitOp],[Residual],[Jacobian],[fixGRM2D]") // todo fix. off by some tolerance
+TEST_CASE("GRM2D Jacobian forward vs backward flow", "[GRM2D],[FV],[UnitOp],[Residual],[Jacobian],[fixGRM2D]") // todo fix. off by some tolerance
 {
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
@@ -69,29 +69,29 @@ TEST_CASE("GRM2D analytical reference test for a three zone linear binding GRM w
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true, simDataStride);
 }
 
-TEST_CASE("GRM2D time derivative Jacobian vs FD", "[GRM2D],[UnitOp],[Residual],[Jacobian],[FDtestGRM2D]")
+TEST_CASE("GRM2D time derivative Jacobian vs FD", "[GRM2D],[FV],[UnitOp],[Residual],[Jacobian],[FDtestGRM2D]")
 {
 	cadet::test::column::testTimeDerivativeJacobianFD("GENERAL_RATE_MODEL_2D", "FV", 1e-6, 0.0, 9e-4);
 }
 
-TEST_CASE("GRM2D rapid-equilibrium binding flux Jacobian vs FD", "[GRM2D],[UnitOp],[Residual],[Jacobian],[FDtestGRM2D]")
+TEST_CASE("GRM2D rapid-equilibrium binding flux Jacobian vs FD", "[GRM2D],[FV],[UnitOp],[Residual],[Jacobian],[FDtestGRM2D]")
 {
 	cadet::test::column::testArrowHeadJacobianFD("GENERAL_RATE_MODEL_2D", "FV", false, 1e-6, 5e-7);
 }
 
-TEST_CASE("GRM2D dynamic binding flux Jacobian vs FD", "[GRM2D],[UnitOp],[Residual],[Jacobian],[FDtestGRM2D]")
+TEST_CASE("GRM2D dynamic binding flux Jacobian vs FD", "[GRM2D],[FV],[UnitOp],[Residual],[Jacobian],[FDtestGRM2D]")
 {
 	cadet::test::column::testArrowHeadJacobianFD("GENERAL_RATE_MODEL_2D", true, 1e-6, 2e-9);
 }
 
-TEST_CASE("GRM2D sensitivity Jacobians", "[GRM2D],[UnitOp],[Sensitivity],[CI]")
+TEST_CASE("GRM2D sensitivity Jacobians", "[GRM2D],[FV],[UnitOp],[Sensitivity],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("GENERAL_RATE_MODEL_2D", "FV");
 
 	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7);
 }
 
-TEST_CASE("GRM2D forward sensitivity vs FD", "[GRM2D],[Sensitivity],[Simulation],[failedFDtestGRM2D]") // todo fix. off by a bigger tolerance
+TEST_CASE("GRM2D forward sensitivity vs FD", "[GRM2D],[FV],[Sensitivity],[Simulation],[failedFDtestGRM2D]") // todo fix. off by a bigger tolerance
 {
 	// Relative error is checked first, we use high absolute error for letting
 	// some points that are far off pass the error test, too. This is required
@@ -103,7 +103,7 @@ TEST_CASE("GRM2D forward sensitivity vs FD", "[GRM2D],[Sensitivity],[Simulation]
 	cadet::test::column::testFwdSensSolutionFD("GENERAL_RATE_MODEL_2D", "FV", false, fdStepSize, absTols, relTols, passRatio);
 }
 
-TEST_CASE("GRM2D forward sensitivity forward vs backward flow", "[GRM2D],[Sensitivity],[Simulation],[fixGRM2D]") // todo fix. off by a lot
+TEST_CASE("GRM2D forward sensitivity forward vs backward flow", "[GRM2D],[FV],[Sensitivity],[Simulation],[fixGRM2D]") // todo fix. off by a lot
 {
 	const double absTols[] = {4e-5, 1e-11, 1e-11, 8e-9};
 	const double relTols[] = {6e-9, 5e-8, 5e-6, 5e-10};
@@ -111,12 +111,12 @@ TEST_CASE("GRM2D forward sensitivity forward vs backward flow", "[GRM2D],[Sensit
 	cadet::test::column::testFwdSensSolutionForwardBackward("GENERAL_RATE_MODEL_2D", "FV", absTols, relTols, passRatio);
 }
 
-TEST_CASE("GRM2D consistent initialization with linear binding", "[GRM2D],[ConsistentInit],[CI]")
+TEST_CASE("GRM2D consistent initialization with linear binding", "[GRM2D],[FV],[ConsistentInit],[CI]")
 {
 	cadet::test::column::testConsistentInitializationLinearBinding("GENERAL_RATE_MODEL_2D", "FV", 1e-12, 1e-12);
 }
 
-TEST_CASE("GRM2D consistent initialization with SMA binding", "[GRM2D],[ConsistentInit],[fixGRM2D]")  // todo fix. adjust tolerances?
+TEST_CASE("GRM2D consistent initialization with SMA binding", "[GRM2D],[FV],[ConsistentInit],[fixGRM2D]")  // todo fix. adjust tolerances?
 {
 	std::vector<double> y(4 * 3 + 4 * 8 * 3 + 8 * 3 * 3 * (4 + 4) + 4 * 8 * 3, 0.0);
 // Optimal values:
@@ -131,7 +131,7 @@ TEST_CASE("GRM2D consistent initialization with SMA binding", "[GRM2D],[Consiste
 	cadet::test::column::testConsistentInitializationSMABinding("GENERAL_RATE_MODEL_2D", "FV", y.data(), 1e-14, 1e-5);
 }
 
-TEST_CASE("GRM2D consistent sensitivity initialization with linear binding", "[GRM2D],[ConsistentInit],[Sensitivity],[CI]")
+TEST_CASE("GRM2D consistent sensitivity initialization with linear binding", "[GRM2D],[FV],[ConsistentInit],[Sensitivity],[CI]")
 {
 	// Fill state vector with given initial values
 	const unsigned int numDofs = 2 * 3 + 2 * 8 * 3 + 8 * 3 * 3 * (2 + 2) + 2 * 8 * 3;
@@ -143,7 +143,7 @@ TEST_CASE("GRM2D consistent sensitivity initialization with linear binding", "[G
 	cadet::test::column::testConsistentInitializationSensitivity("GENERAL_RATE_MODEL_2D", "FV", y.data(), yDot.data(), true, 1e-14);
 }
 
-TEST_CASE("GRM2D consistent sensitivity initialization with SMA binding", "[GRM2D],[ConsistentInit],[Sensitivity],[CI]")
+TEST_CASE("GRM2D consistent sensitivity initialization with SMA binding", "[GRM2D],[FV],[ConsistentInit],[Sensitivity],[CI]")
 {
 	// Fill state vector with given initial values
 	const unsigned int numDofs = 4 * 3 + 4 * 8 * 3 + 8 * 3 * 3 * (4 + 4) + 4 * 8 * 3;
@@ -160,72 +160,72 @@ TEST_CASE("GRM2D consistent sensitivity initialization with SMA binding", "[GRM2
 	cadet::test::column::testConsistentInitializationSensitivity("GENERAL_RATE_MODEL_2D", "FV", y.data(), yDot.data(), false, 1e-9);
 }
 
-TEST_CASE("GRM2D inlet DOF Jacobian", "[GRM2D],[UnitOp],[Jacobian],[Inlet],[CI]")
+TEST_CASE("GRM2D inlet DOF Jacobian", "[GRM2D],[FV],[UnitOp],[Jacobian],[Inlet],[CI]")
 {
 	cadet::test::column::testInletDofJacobian("GENERAL_RATE_MODEL_2D", "FV");
 }
 
-TEST_CASE("GRM2D LWE one vs two identical particle types match", "[GRM2D],[Simulation],[ParticleType],[CI]")
+TEST_CASE("GRM2D LWE one vs two identical particle types match", "[GRM2D],[FV],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("GENERAL_RATE_MODEL_2D", "FV", 1e-7, 5e-5);
 }
 
-TEST_CASE("GRM2D LWE separate identical particle types match", "[GRM2D],[Simulation],[ParticleType],[CI]")
+TEST_CASE("GRM2D LWE separate identical particle types match", "[GRM2D],[FV],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testSeparateIdenticalParticleTypes("GENERAL_RATE_MODEL_2D", "FV", 1e-15, 1e-15);
 }
 
-TEST_CASE("GRM2D linear binding single particle matches particle distribution", "[GRM2D],[Simulation],[ParticleType],[CI]")
+TEST_CASE("GRM2D linear binding single particle matches particle distribution", "[GRM2D],[FV],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testLinearMixedParticleTypes("GENERAL_RATE_MODEL_2D", "FV", 5e-8, 5e-5);
 }
 
-TEST_CASE("GRM2D multiple particle types Jacobian analytic vs AD", "[GRM2D],[Jacobian],[AD],[ParticleType],[fixGRM2D]") // todo fix. AD and analytical Jacobians dont match
+TEST_CASE("GRM2D multiple particle types Jacobian analytic vs AD", "[GRM2D],[FV],[Jacobian],[AD],[ParticleType],[fixGRM2D]") // todo fix. AD and analytical Jacobians dont match
 {
 	cadet::test::particle::testJacobianMixedParticleTypes("GENERAL_RATE_MODEL_2D", "FV");
 }
 
-TEST_CASE("GRM2D multiple particle types time derivative Jacobian vs FD", "[GRM2D],[UnitOp],[Residual],[Jacobian],[ParticleType],[FDtestGRM2D]")
+TEST_CASE("GRM2D multiple particle types time derivative Jacobian vs FD", "[GRM2D],[FV],[UnitOp],[Residual],[Jacobian],[ParticleType],[FDtestGRM2D]")
 {
 	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("GENERAL_RATE_MODEL_2D", "FV", 1e-6, 0.0, 5e-3);
 }
 
-TEST_CASE("GRM2D linear binding single particle matches spatially dependent particle distribution", "[GRM2D],[Simulation],[ParticleType],[CI]")
+TEST_CASE("GRM2D linear binding single particle matches spatially dependent particle distribution", "[GRM2D],[FV],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("GENERAL_RATE_MODEL_2D", "FV", 5e-8, 5e-5);
 }
 
-TEST_CASE("GRM2D multiple spatially dependent particle types flux Jacobian vs FD", "[GRM2D],[UnitOp],[Residual],[Jacobian],[ParticleType],[FDtestGRM2D]") // todo fix. only one assertion is slightly off (5.0401-6 != 5.0247-6)
+TEST_CASE("GRM2D multiple spatially dependent particle types flux Jacobian vs FD", "[GRM2D],[FV],[UnitOp],[Residual],[Jacobian],[ParticleType],[FDtestGRM2D]") // todo fix. only one assertion is slightly off (5.0401-6 != 5.0247-6)
 {
 	cadet::test::particle::testArrowHeadJacobianSpatiallyMixedParticleTypes("GENERAL_RATE_MODEL_2D", 1e-6, 1e-7, 1e-5);
 }
 
-TEST_CASE("GRM2D dynamic reactions time derivative Jacobian vs FD bulk", "[GRM2D],[Jacobian],[Residual],[ReactionModel],[FDtestGRM2D]")
+TEST_CASE("GRM2D dynamic reactions time derivative Jacobian vs FD bulk", "[GRM2D],[FV],[Jacobian],[Residual],[ReactionModel],[FDtestGRM2D]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("GENERAL_RATE_MODEL_2D", "FV", true, false, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("GRM2D dynamic reactions time derivative Jacobian vs FD particle", "[GRM2D],[Jacobian],[Residual],[ReactionModel],[FDtestGRM2D]")
+TEST_CASE("GRM2D dynamic reactions time derivative Jacobian vs FD particle", "[GRM2D],[FV],[Jacobian],[Residual],[ReactionModel],[FDtestGRM2D]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("GENERAL_RATE_MODEL_2D", "FV", false, true, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("GRM2D dynamic reactions time derivative Jacobian vs FD modified particle", "[GRM2D],[Jacobian],[Residual],[ReactionModel],[FDtestGRM2D]")
+TEST_CASE("GRM2D dynamic reactions time derivative Jacobian vs FD modified particle", "[GRM2D],[FV],[Jacobian],[Residual],[ReactionModel],[FDtestGRM2D]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("GENERAL_RATE_MODEL_2D", "FV", false, true, true, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("GRM2D dynamic reactions time derivative Jacobian vs FD bulk and particle", "[GRM2D],[Jacobian],[Residual],[ReactionModel],[FDtestGRM2D]")
+TEST_CASE("GRM2D dynamic reactions time derivative Jacobian vs FD bulk and particle", "[GRM2D],[FV],[Jacobian],[Residual],[ReactionModel],[FDtestGRM2D]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("GENERAL_RATE_MODEL_2D", "FV", true, true, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("GRM2D dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[GRM2D],[Jacobian],[Residual],[ReactionModel],[FDtestGRM2D]")
+TEST_CASE("GRM2D dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[GRM2D],[FV],[Jacobian],[Residual],[ReactionModel],[FDtestGRM2D]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("GENERAL_RATE_MODEL_2D", "FV", true, true, true, 1e-6, 1e-14, 8e-4);
 }
 
-inline cadet::JsonParameterProvider createColumnWithTwoCompLinearBindingThreeParticleTypes()
+inline cadet::JsonParameterProvider createColumnWithTwoCompLinearBindingThreeParticleTypesGRM2D()
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("GENERAL_RATE_MODEL_2D", "FV");
 
@@ -236,37 +236,37 @@ inline cadet::JsonParameterProvider createColumnWithTwoCompLinearBindingThreePar
 	return jpp;
 }
 
-TEST_CASE("GRM2D multi particle types dynamic reactions time derivative Jacobian vs FD bulk", "[GRM2D],[Jacobian],[Residual],[ReactionModel],[ParticleType],[FDtestGRM2D]")
+TEST_CASE("GRM2D multi particle types dynamic reactions time derivative Jacobian vs FD bulk", "[GRM2D],[FV],[Jacobian],[Residual],[ReactionModel],[ParticleType],[FDtestGRM2D]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesGRM2D();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, false, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("GRM2D multi particle types dynamic reactions time derivative Jacobian vs FD particle", "[GRM2D],[Jacobian],[Residual],[ReactionModel],[ParticleType],[FDtestGRM2D]")
+TEST_CASE("GRM2D multi particle types dynamic reactions time derivative Jacobian vs FD particle", "[GRM2D],[FV],[Jacobian],[Residual],[ReactionModel],[ParticleType],[FDtestGRM2D]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesGRM2D();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("GRM2D multi particle types dynamic reactions time derivative Jacobian vs FD modified particle", "[GRM2D],[Jacobian],[Residual],[ReactionModel],[ParticleType],[FDtestGRM2D]")
+TEST_CASE("GRM2D multi particle types dynamic reactions time derivative Jacobian vs FD modified particle", "[GRM2D],[FV],[Jacobian],[Residual],[ReactionModel],[ParticleType],[FDtestGRM2D]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesGRM2D();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, true, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("GRM2D multi particle types dynamic reactions time derivative Jacobian vs FD bulk and particle", "[GRM2D],[Jacobian],[Residual],[ReactionModel],[ParticleType],[FDtestGRM2D]")
+TEST_CASE("GRM2D multi particle types dynamic reactions time derivative Jacobian vs FD bulk and particle", "[GRM2D],[FV],[Jacobian],[Residual],[ReactionModel],[ParticleType],[FDtestGRM2D]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesGRM2D();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("GRM2D multi particle types dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[GRM2D],[Jacobian],[Residual],[ReactionModel],[ParticleType],[FDtestGRM2D]")
+TEST_CASE("GRM2D multi particle types dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[GRM2D],[FV],[Jacobian],[Residual],[ReactionModel],[ParticleType],[FDtestGRM2D]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesGRM2D();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("GRM2D with 1 radial zone matches GRM", "[GRM],[GRM2D],[UnitOp],[Jacobian],[CI]")
+TEST_CASE("GRM2D with 1 radial zone matches GRM", "[GRM],[GRM2D],[FV],[UnitOp],[Jacobian],[CI]")
 {
 	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 	REQUIRE(nullptr != mb);

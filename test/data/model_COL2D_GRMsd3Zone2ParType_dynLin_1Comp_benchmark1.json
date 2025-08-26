@@ -196,7 +196,7 @@
             "INIT_CP": [
                 0
             ],
-            "INIT_Q": [
+            "INIT_CS": [
                 0
             ],
             "NCOMP": 1,
@@ -231,13 +231,14 @@
                     "LIN_KA": 35.5,
                     "LIN_KD": 1.0
                 },
-                "discretization": {
-                    "PAR_DISC_TYPE": [
-                        "EQUIDISTANT_PAR"
-                    ],
-                    "PAR_NELEM": 1,
-                    "PAR_POLYDEG": 3
-                }
+              "discretization": {
+                "SPATIAL_METHOD": "DG",
+                "PAR_DISC_TYPE": [
+                  "EQUIDISTANT"
+                ],
+                "PAR_NELEM": 1,
+                "PAR_POLYDEG": 3
+              }
             },
             "particle_type_001": {
                 "ADSORPTION_MODEL": "LINEAR",

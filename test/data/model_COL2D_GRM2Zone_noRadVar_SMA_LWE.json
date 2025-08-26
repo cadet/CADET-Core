@@ -235,11 +235,12 @@
                         10.0
                     ]
                 },
-                "discretization": {
-                    "PAR_DISC_TYPE": "EQUIDISTANT_PAR",
-                    "PAR_NELEM": 1,
-                    "PAR_POLYDEG": 3
-                }
+              "discretization": {
+                "SPATIAL_METHOD": "DG",
+                "PAR_DISC_TYPE": "EQUIDISTANT",
+                "PAR_NELEM": 1,
+                "PAR_POLYDEG": 3
+              }
             }
         },
         "unit_001": {

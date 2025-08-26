@@ -260,7 +260,7 @@
           "PAR_POLYDEG": 3,
           "PAR_NELEM": 1,
           "PAR_DISC_TYPE": [
-            "EQUIDISTANT_PAR"
+            "EQUIDISTANT"
           ]
         }
       },

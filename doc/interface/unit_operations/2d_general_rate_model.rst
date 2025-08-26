@@ -93,7 +93,7 @@ For information on model equations, refer to :ref:`2d_general_rate_model_model`.
    **Type:** double  **Range:** :math:`\geq 0`
    ================  =========================
 
-``INIT_Q``
+``INIT_CS``
 
    Initial concentrations for each bound state of each component in the bead solid phase. If :math:`\texttt{ADSORPTION_MODEL_MULTIPLEX}` is 0, values for each particle type are required in type-component-major ordering (length is :math:`\texttt{NTOTALBND}`). If :math:`\texttt{ADSORPTION_MODEL_MULTIPLEX}` is 1, values for one particle type are required in component-major ordering (length is :math:`\sum_{i = 0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i`).  Alternatively, values for each radial zone can be supplied. If :math:`\texttt{ADSORPTION_MODEL_MULTIPLEX}` is 0, values for each radial zone and each particle type are required in radial-type-component-major ordering (length is :math:`\texttt{NRAD} \cdot \texttt{NTOTALBND}`). If :math:`\texttt{ADSORPTION_MODEL_MULTIPLEX}` is 1, values for each radial zone and all particle types are required in radial-component-major ordering (length is :math:`\texttt{NRAD} \cdot \sum_{i = 0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i`). In the radial-inhomogeneous case, the :math:`\texttt{SENS_REACTION}` field is used for indexing the radial zone when specifying parameter sensitivities.
 
@@ -105,7 +105,7 @@ For information on model equations, refer to :ref:`2d_general_rate_model_model`.
 
 ``INIT_STATE``
 
-   Full state vector for initialization (optional, :math:`\texttt{INIT_C}`, :math:`\texttt{INIT_CP}`, and :math:`\texttt{INIT_Q}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives)
+   Full state vector for initialization (optional, :math:`\texttt{INIT_C}`, :math:`\texttt{INIT_CP}`, and :math:`\texttt{INIT_CS}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives)
 
    **Unit:** :math:`various`
 
@@ -430,7 +430,7 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE - GENERAL_RATE_MODEL_2D
 
 ``PAR_DISC_TYPE``
 
-   Specifies the discretization scheme inside the particles for all or each particle type. Valid values are :math:`\texttt{EQUIDISTANT_PAR}`, :math:`\texttt{EQUIVOLUME_PAR}`, and :math:`\texttt{USER_DEFINED_PAR}`.
+   Specifies the discretization scheme inside the particles for all or each particle type. Valid values are :math:`\texttt{EQUIDISTANT}`, :math:`\texttt{EQUIVOLUME}`, and :math:`\texttt{USER_DEFINED}`.
 
    ================  =========================================
    **Type:** string  **Length:** :math:`1 / \texttt{NPARTYPE}`
@@ -438,13 +438,13 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE - GENERAL_RATE_MODEL_2D
 
 ``PAR_DISC_VECTOR``
 
-   Node coordinates for the cell boundaries (ignored if :math:`\texttt{PAR_DISC_TYPE} \neq \texttt{USER_DEFINED_PAR}`). The coordinates are relative and have to include the endpoints 0 and 1. They are later linearly mapped to the true radial range :math:`[r_{c,j}, r_{p,j}]`. The coordinates for each particle type are appended to one long vector in type-major ordering.
+   Node coordinates for the cell boundaries (ignored if :math:`\texttt{PAR_DISC_TYPE} \neq \texttt{USER_DEFINED}`). The coordinates are relative and have to include the endpoints 0 and 1. They are later linearly mapped to the true radial range :math:`[r_{c,j}, r_{p,j}]`. The coordinates for each particle type are appended to one long vector in type-major ordering.
 
    ================  ========================  ===============================================
    **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`sum_i (\texttt{NPAR}_i + 1)`
    ================  ========================  ===============================================
 
-``PAR_BOUNDARY_ORDER``
+``FV_BOUNDARY_ORDER``
 
    Order of accuracy of outer particle boundary condition. Optional, defaults to 2.
 

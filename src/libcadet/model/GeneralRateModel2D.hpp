@@ -331,8 +331,8 @@ protected:
 	bool _singleRadiusInitC;
 	std::vector<active> _initCp; //!< Liquid particle phase initial conditions
 	bool _singleRadiusInitCp;
-	std::vector<active> _initQ; //!< Solid phase initial conditions
-	bool _singleRadiusInitQ;
+	std::vector<active> _initCs; //!< Solid phase initial conditions
+	bool _singleRadiusInitCs;
 	std::vector<double> _initState; //!< Initial conditions for state vector if given
 	std::vector<double> _initStateDot; //!< Initial conditions for time derivative
 
