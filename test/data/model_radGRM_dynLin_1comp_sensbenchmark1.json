@@ -57,43 +57,51 @@
                 ]
             }
         },
-        "unit_001": {
-            "ADSORPTION_MODEL": "LINEAR",
-            "ADSORPTION_MODEL_MULTIPLEX": 1,
-            "COL_DISPERSION": 5.75e-08,
-            "COL_POROSITY": 0.37,
-            "COL_RADIUS_INNER": 0.01,
-            "COL_RADIUS_OUTER": 0.2,
-            "FILM_DIFFUSION": 6.9e-06,
-            "FILM_DIFFUSION_MULTIPLEX": 0,
-            "INIT_C": [
-                0.0
+      "unit_001": {
+        "UNIT_TYPE": "RADIAL_GENERAL_RATE_MODEL",
+        "NCOMP": 1,
+        "PAR_TYPE_VOLFRAC": 1,
+        "VELOCITY_COEFF": 0.000575,
+        "COL_DISPERSION": 5.75e-08,
+        "COL_POROSITY": 0.37,
+        "COL_RADIUS_INNER": 0.01,
+        "COL_RADIUS_OUTER": 0.2,
+        "INIT_C": [
+          0.0
+        ],
+        "particle_type_000": {
+          "PARTICLE_TYPE": "GENERAL_RATE_PARTICLE",
+          "PAR_CORERADIUS": 0.0,
+          "PAR_DIFFUSION": 6.07e-11,
+          "PAR_POROSITY": 0.75,
+          "PAR_RADIUS": 4.5e-05,
+          "PAR_SURFDIFFUSION": 0.0,
+          "FILM_DIFFUSION": 6.9e-06,
+          "ADSORPTION_MODEL": "LINEAR",
+          "NBOUND": [ 1 ],
+          "adsorption": {
+            "IS_KINETIC": true,
+            "LIN_KA": [
+              12.3
             ],
-            "INIT_CP": [
-                0.0
-            ],
-            "INIT_Q": [
-                0.0
-            ],
-            "NCOMP": 1,
-            "PAR_CORERADIUS": 0.0,
-            "PAR_DIFFUSION": 6.07e-11,
-            "PAR_POROSITY": 0.75,
-            "PAR_RADIUS": 4.5e-05,
-            "PAR_SURFDIFFUSION": 0.0,
-            "PAR_TYPE_VOLFRAC": 1,
-            "UNIT_TYPE": "RADIAL_GENERAL_RATE_MODEL",
-            "VELOCITY_COEFF": 0.000575,
-            "adsorption": {
-                "IS_KINETIC": true,
-                "LIN_KA": [
-                    12.3
-                ],
-                "LIN_KD": [
-                    45.0
-                ]
-            }
+            "LIN_KD": [
+              45.0
+            ]
+          },
+          "discretization": {
+            "SPATIAL_DISCRETIZATION": "FV"
+          },
+          "INIT_CP": [
+            0.0
+          ],
+          "INIT_CS": [
+            0.0
+          ]
         },
+        "discretization": {
+          "SPATIAL_DISCRETIZATION": "FV"
+        }
+      },
         "unit_002": {
             "NCOMP": 1,
             "UNIT_TYPE": "OUTLET"

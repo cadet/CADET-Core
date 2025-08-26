@@ -72,6 +72,9 @@
       "VELOCITY": 0.000575,
       "particle_type_000": {
         "PARTICLE_TYPE": "GENERAL_RATE_PARTICLE",
+        "PAR_GEOM": [
+          "SPHERE"
+        ],
         "INIT_CP": [
           0.0
         ],
@@ -100,13 +103,9 @@
           ]
         },
         "discretization": {
-          "NPAR": 2,
-          "PAR_BOUNDARY_ORDER": 2,
+          "SPATIAL_METHOD": "DG",
           "PAR_DISC_TYPE": [
-            "EQUIDISTANT_PAR"
-          ],
-          "PAR_GEOM": [
-            "SPHERE"
+            "EQUIDISTANT"
           ]
         }
       },

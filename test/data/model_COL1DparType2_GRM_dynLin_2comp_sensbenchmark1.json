@@ -140,10 +140,10 @@
             1
           ],
           "discretization": {
-            "NPAR": 2,
-            "PAR_BOUNDARY_ORDER": 2,
+            "NCELLS": 2,
+            "FV_BOUNDARY_ORDER": 2,
             "PAR_DISC_TYPE": [
-              "EQUIDISTANT_PAR"
+              "EQUIDISTANT"
             ],
             "PAR_NELEM": 2,
             "PAR_POLYDEG": 3,
@@ -206,10 +206,10 @@
             1
           ],
           "discretization": {
-            "NPAR": 2,
-            "PAR_BOUNDARY_ORDER": 2,
+            "NCELLS": 2,
+            "FV_BOUNDARY_ORDER": 2,
             "PAR_DISC_TYPE": [
-              "EQUIDISTANT_PAR"
+              "EQUIDISTANT"
             ],
             "PAR_NELEM": 2,
             "PAR_POLYDEG": 3,

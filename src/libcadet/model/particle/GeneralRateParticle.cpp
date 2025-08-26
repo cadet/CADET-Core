@@ -92,16 +92,11 @@ namespace model
 
 		paramProvider.pushScope("discretization");
 
-		if (paramProvider.exists("SPATIAL_METHOD"))
-		{
 			const std::string parSpatialMethod = paramProvider.getString("SPATIAL_METHOD");
-			if (parSpatialMethod != "DG")
-				throw InvalidParameterException("Unsupported SPATIAL_METHOD '" + parSpatialMethod + "' for GeneralRateParticle. Only 'DG' is supported for now.");
-
+		if (parSpatialMethod == "DG")
 			_parDiffOp = new parts::ParticleDiffusionOperatorDG();
-		}
 		else
-			_parDiffOp = new parts::ParticleDiffusionOperatorDG();
+			throw InvalidParameterException("Unsupported SPATIAL_METHOD '" + parSpatialMethod + "' for GeneralRateParticle. Only 'DG' and 'FV' are supported.");
 
 		paramProvider.popScope();
 
@@ -156,30 +151,16 @@ namespace model
 		bool bindingConfSuccess = true;
 		if (_binding)
 		{
-			if (_binding->requiresConfiguration())
-			{
-				paramProvider.pushScope("adsorption");
-				bindingConfSuccess = _binding->configure(paramProvider, unitOpIdx, ParTypeIndep);
-				paramProvider.popScope(); // adsorption
-			}
+			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _binding->usesParamProviderInDiscretizationConfig());
+			bindingConfSuccess = _binding->configure(paramProvider, unitOpIdx, ParTypeIndep);
 		}
 
 		// Reconfigure reaction model
 		bool dynReactionConfSuccess = true;
 		if (_dynReaction && _dynReaction->requiresConfiguration())
 		{
-			if (paramProvider.exists("reaction_particle"))
-			{
-				paramProvider.pushScope("reaction_particle");
-				dynReactionConfSuccess = _dynReaction->configure(paramProvider, unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
-			}
-			else
-			{
-				std::ostringstream parTypeIdxString;
-				parTypeIdxString << std::setfill('0') << std::setw(3) << std::setprecision(0) << _parTypeIdx;
-				paramProvider.pushScope("particle_type_" + parTypeIdxString.str());
-				dynReactionConfSuccess = _dynReaction->configure(paramProvider, unitOpIdx, _parTypeIdx) && dynReactionConfSuccess;
-			}
+			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction", _dynReaction->usesParamProviderInDiscretizationConfig());
+			dynReactionConfSuccess = _dynReaction->configure(paramProvider, unitOpIdx, ParTypeIndep);
 		}
 
 		// Reconfigure particle transport and discretization
@@ -187,7 +168,7 @@ namespace model
 		
 		paramProvider.popScope(); // particle_type_{:03}
 
-		return parTransportConfigSuccess&& bindingConfSuccess&& dynReactionConfSuccess;
+		return parTransportConfigSuccess && bindingConfSuccess && dynReactionConfSuccess;
 	}
 
 	bool GeneralRateParticle::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
@@ -301,7 +282,7 @@ namespace model
 			// Add flux to column void / bulk volume
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
-				// + 1/Beta_c * (surfaceToVolumeRatio_{p,j}) * d_j * (k_f * [c_l - c_p])
+				// + 1/Beta^c * (surfaceToVolumeRatio^p_j) * d_j * (k_f * [c^b - c^p])
 				resBulk[comp] += static_cast<ParamType>(filmDiff[comp]) * jacCF_val * static_cast<ParamType>(packing.parTypeVolFrac) * (yBulk[comp] - yPar[(nDiscPoints() - 1) * stridePoint() + comp]);
 			}
 		}

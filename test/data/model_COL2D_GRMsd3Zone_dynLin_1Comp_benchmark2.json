@@ -222,7 +222,7 @@
         ],
         "discretization": {
           "PAR_DISC_TYPE": [
-            "EQUIDISTANT_PAR"
+            "EQUIDISTANT"
           ],
           "SPATIAL_METHOD": "DG",
           "PAR_POLYDEG": 3,

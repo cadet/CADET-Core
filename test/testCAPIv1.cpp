@@ -130,7 +130,7 @@ json createColumnWithSMAJson(const std::string& uoType)
 
 	// Initial conditions
 	config["INIT_C"] = {50.0, 0.0, 0.0, 0.0};
-	config["INIT_Q"] = {1.2e3, 0.0, 0.0, 0.0};
+	config["INIT_CS"] = {1.2e3, 0.0, 0.0, 0.0};
 
 	// Adsorption
 	config["ADSORPTION_MODEL"] = std::string("STERIC_MASS_ACTION");
@@ -151,17 +151,17 @@ json createColumnWithSMAJson(const std::string& uoType)
 		json disc;
 
 		disc["NCOL"] = 16;
-		disc["NPAR"] = 4;
+		disc["NCELLS"] = 4;
 
 		if (uoType == "GENERAL_RATE_MODEL_2D")
 		{
 			disc["NCOL"] = 8;
 			disc["NRAD"] = 3;
-			disc["NPAR"] = 3;
+			disc["NCELLS"] = 3;
 			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
 		}
 
-		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
+		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT");
 
 		disc["USE_ANALYTIC_JACOBIAN"] = true;
 		disc["MAX_KRYLOV"] = 0;

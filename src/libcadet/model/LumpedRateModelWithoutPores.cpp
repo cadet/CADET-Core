@@ -114,7 +114,7 @@ namespace model
 template <typename ConvDispOperator>
 LumpedRateModelWithoutPores<ConvDispOperator>::LumpedRateModelWithoutPores(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
 	_jacInlet(), _analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr), _initC(0),
-	_initQ(0), _initState(0), _initStateDot(0)
+	_initCs(0), _initState(0), _initStateDot(0)
 {
 	// Multiple particle types are not supported
 	_singleBinding = true;
@@ -161,24 +161,24 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
+	if (paramProvider.exists("NPARTYPE") ? paramProvider.getInt("NPARTYPE") != 1 : false)
+		throw InvalidParameterException("Number of particle types must be 1 for EQUILIBRIUM particles, i.e. LUMPED_RATE_MODEL_WITHOUT_PORES");
+
+	if ((paramProvider.exists("PARTICLE_TYPE") ? paramProvider.getString("PARTICLE_TYPE") : "EQUILIBRIUM_PARTICLE") != "EQUILIBRIUM_PARTICLE")
+		throw InvalidParameterException("Unit type was specified as LUMPED_RATE_MODEL_WITHOUT_PORES, which is inconsistent with specified particle model " + paramProvider.getString("PARTICLE_TYPE"));
+
+	paramProvider.pushScope("particle_type_000");
+
 	std::vector<int> nBound;
-	const bool newNBoundInterface = paramProvider.exists("NBOUND");
-
-	paramProvider.pushScope("discretization");
-
-	if (!newNBoundInterface && paramProvider.exists("NBOUND")) // done here and in this order for backwards compatibility
-		nBound = paramProvider.getIntArray("NBOUND");
-	else
-	{
-		paramProvider.popScope();
-		nBound = paramProvider.getIntArray("NBOUND");
-		paramProvider.pushScope("discretization");
-	}
+	nBound = paramProvider.getIntArray("NBOUND");
 	if (nBound.size() < _disc.nComp)
 		throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
 
 	_disc.nBound = new unsigned int[_disc.nComp];
 	std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound);
+
+	paramProvider.popScope();
+	paramProvider.pushScope("discretization");
 
 	_disc.nCol = paramProvider.getInt("NCOL");
 
@@ -201,7 +201,7 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 
 	// Allocate space for initial conditions
 	_initC.resize(_disc.nComp);
-	_initQ.resize(_disc.strideBound);
+	_initCs.resize(_disc.strideBound);
 
 	// Create nonlinear solver for consistent initialization
 	configureNonlinearSolver(paramProvider);
@@ -233,6 +233,8 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 	clearBindingModels();
 	_binding.push_back(nullptr);
 
+	paramProvider.pushScope("particle_type_000");
+
 	if (paramProvider.exists("ADSORPTION_MODEL"))
 		_binding[0] = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
 	else
@@ -249,6 +251,8 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 
 	if (_binding[0]->usesParamProviderInDiscretizationConfig())
 		paramProvider.popScope();
+
+	paramProvider.popScope();
 
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
@@ -299,10 +303,12 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configure(IParameterProvider
 		_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, cadet::ParTypeIndep);
 
 		for (unsigned int i = 0; i < _disc.strideBound; ++i)
-			_parameters[initParams[i]] = _initQ.data() + i;
+			_parameters[initParams[i]] = _initCs.data() + i;
 	}
 
 	// Reconfigure binding model
+	paramProvider.pushScope("particle_type_000");
+
 	bool bindingConfSuccess = true;
 	if (_binding[0] && paramProvider.exists("adsorption") && _binding[0]->requiresConfiguration())
 	{
@@ -310,6 +316,8 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configure(IParameterProvider
 		bindingConfSuccess = _binding[0]->configure(paramProvider, _unitOpIdx, cadet::ParTypeIndep);
 		paramProvider.popScope();
 	}
+
+	paramProvider.popScope();
 
 	// Reconfigure dynamic reaction model
 	bool reactionConfSuccess = true;
@@ -1027,7 +1035,7 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::applyInitialCondition(const 
 
 		// Initialize q
 		for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
-			stateYbulk[localOffset + idxr.strideColLiquid() + bnd] = static_cast<double>(_initQ[bnd]);
+			stateYbulk[localOffset + idxr.strideColLiquid() + bnd] = static_cast<double>(_initCs[bnd]);
 	}
 }
 
@@ -1050,20 +1058,22 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::readInitialCondition(IParame
 	}
 
 	const std::vector<double> initC = paramProvider.getDoubleArray("INIT_C");
-	std::vector<double> initQ;
 
-	if (paramProvider.exists("INIT_Q"))
-		initQ = paramProvider.getDoubleArray("INIT_Q");
+	std::vector<double> initCs;
+	paramProvider.pushScope("particle_type_000");
+	if (paramProvider.exists("INIT_CS"))
+		initCs = paramProvider.getDoubleArray("INIT_CS");
+	paramProvider.popScope();
 
 	if (initC.size() < _disc.nComp)
 		throw InvalidParameterException("INIT_C does not contain enough values for all components");
 
-	if ((_disc.strideBound > 0) && (initQ.size() < _disc.strideBound))
-		throw InvalidParameterException("INIT_Q does not contain enough values for all bound states");
+	if ((_disc.strideBound > 0) && (initCs.size() < _disc.strideBound))
+		throw InvalidParameterException("INIT_CS does not contain enough values for all bound states");
 
 	ad::copyToAd(initC.data(), _initC.data(), _disc.nComp);
-	if (!initQ.empty())
-		ad::copyToAd(initQ.data(), _initQ.data(), _disc.strideBound);
+	if (!initCs.empty())
+		ad::copyToAd(initCs.data(), _initCs.data(), _disc.strideBound);
 }
 
 /**
@@ -1598,7 +1608,7 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::initializeSensitivityStates(
 
 			// Initialize q
 			for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
-				stateYbulk[localOffset + idxr.strideColLiquid() + bnd] = _initQ[bnd].getADValue(param);
+				stateYbulk[localOffset + idxr.strideColLiquid() + bnd] = _initCs[bnd].getADValue(param);
 		}
 	}
 }

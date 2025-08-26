@@ -35,7 +35,7 @@ namespace test
 		jpp.set("INIT_C", c);
 		jpp.set("INIT_LIQUID_VOLUME", v);
 		if (!q.empty())
-			jpp.set("INIT_Q", q);
+			jpp.set("INIT_CS", q);
 	}
 
 	void setInitialConditions(cadet::JsonParameterProvider& jpp, const std::vector<double>& c, const std::vector<double>& cp, const std::vector<double>& q)
@@ -46,7 +46,7 @@ namespace test
 		if (!cp.empty())
 			jpp.set("INIT_CP", cp);
 		if (!q.empty())
-			jpp.set("INIT_Q", q);
+			jpp.set("INIT_CS", q);
 	}
 
 	void setFlowRates(cadet::JsonParameterProvider& jpp, unsigned int secIdx, double in, double out, double filter)

@@ -193,12 +193,12 @@ namespace parts
 		}
 
 		bool filmDiffParTypeDep = paramProvider.exists("FILM_DIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getBool("FILM_DIFFUSION_PARTYPE_DEPENDENT") : true;
-		_filmDiffusionMode = newIF_readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", _nComp, _parTypeIdx, filmDiffParTypeDep, unitOpIdx);
+		_filmDiffusionMode = readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", _nComp, _parTypeIdx, filmDiffParTypeDep, unitOpIdx);
 
 		if (paramProvider.exists("PORE_ACCESSIBILITY"))
 		{
 			bool poreAccessParTypeDep = paramProvider.exists("PORE_ACCESSIBILITY_PARTYPE_DEPENDENT") ? paramProvider.getBool("PORE_ACCESSIBILITY_PARTYPE_DEPENDENT") : true;
-			_poreAccessFactorMode = newIF_readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _nComp, _parTypeIdx, poreAccessParTypeDep, unitOpIdx);
+			_poreAccessFactorMode = readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _nComp, _parTypeIdx, poreAccessParTypeDep, unitOpIdx);
 		}
 		else
 		{
@@ -211,12 +211,12 @@ namespace parts
 			_invBetaP[comp] = (1.0 - _parPorosity) / (_poreAccessFactor[comp] * _parPorosity);
 
 		bool parDiffParTypeDep = paramProvider.exists("PAR_DIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getBool("PAR_DIFFUSION_PARTYPE_DEPENDENT") : true;
-		_parDiffusionMode = newIF_readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _parDiffusion, "PAR_DIFFUSION", _nComp, _parTypeIdx, parDiffParTypeDep, unitOpIdx);
+		_parDiffusionMode = readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _parDiffusion, "PAR_DIFFUSION", _nComp, _parTypeIdx, parDiffParTypeDep, unitOpIdx);
 
 		if (paramProvider.exists("PAR_SURFDIFFUSION"))
 		{
 			bool parSurfDiffParTypeDep = paramProvider.exists("PAR_SURFDIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getBool("PAR_SURFDIFFUSION_PARTYPE_DEPENDENT") : true;
-			_parSurfDiffusionMode = newIF_readAndRegisterMultiplexBndCompSecParam(paramProvider, parameters, _parSurfDiffusion, "PAR_SURFDIFFUSION", nTotalBound, _nComp, _strideBound, _nBound.get(), _parTypeIdx, parSurfDiffParTypeDep, unitOpIdx);
+			_parSurfDiffusionMode = readAndRegisterMultiplexBndCompSecParam(paramProvider, parameters, _parSurfDiffusion, "PAR_SURFDIFFUSION", _nComp, _strideBound, _nBound.get(), _parTypeIdx, parSurfDiffParTypeDep, unitOpIdx);
 		}
 		else
 		{

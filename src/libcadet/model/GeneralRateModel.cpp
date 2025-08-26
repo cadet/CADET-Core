@@ -66,10 +66,10 @@ int schurComplementMultiplierGRM(void* userData, double const* x, double* z)
 
 template <typename ConvDispOperator>
 GeneralRateModel<ConvDispOperator>::GeneralRateModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_hasSurfaceDiffusion(0, false), _dynReactionBulk{  },
+	_hasSurfaceDiffusion(0, false), _dynReactionBulk(nullptr),
 	_jacP(nullptr), _jacPdisc(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacInlet(), _hasParDepSurfDiffusion(false),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
-	_initC(0), _initCp(0), _initQ(0), _initState(0), _initStateDot(0)
+	_initC(0), _initCp(0), _initCs(0), _initState(0), _initStateDot(0)
 {
 }
 
@@ -84,8 +84,7 @@ GeneralRateModel<ConvDispOperator>::~GeneralRateModel() CADET_NOEXCEPT
 	delete[] _jacP;
 	delete[] _jacPdisc;
 
-	for (auto* reac : _dynReactionBulk)
-		delete reac;
+	delete _dynReactionBulk;
 
 	clearParDepSurfDiffusion();
 }
@@ -144,73 +143,36 @@ void GeneralRateModel<ConvDispOperator>::clearParDepSurfDiffusion()
 template <typename ConvDispOperator>
 bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
+	// Read unit type as name to allow model configuration via GRM, LRMP. Here, the particle types are set correspondingly
+	std::string unitName = paramProvider.getString("UNIT_TYPE");
+
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
-	std::vector<int> nBound;
-	const bool newNBoundInterface = paramProvider.exists("NBOUND");
-	const bool newNPartypeInterface = paramProvider.exists("NPARTYPE");
+	_disc.nParType = paramProvider.exists("NPARTYPE") ? paramProvider.getInt("NPARTYPE") : 1;
+	if (_disc.nParType < 1)
+		throw InvalidParameterException("Number of particle types must be >= 1 for the GENERAL_RATE_MODEL with arrow-head Finite Volume discretization");
 
 	paramProvider.pushScope("discretization");
-
-	if (!newNBoundInterface && paramProvider.exists("NBOUND")) // done here and in this order for backwards compatibility
-		nBound = paramProvider.getIntArray("NBOUND");
-	else
-	{
-		paramProvider.popScope();
-		nBound = paramProvider.getIntArray("NBOUND");
-		paramProvider.pushScope("discretization");
-	}
-	if (nBound.size() < _disc.nComp)
-		throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
-
 	_disc.nCol = paramProvider.getInt("NCOL");
-
-	const std::vector<int> nParCell = paramProvider.getIntArray("NPAR");
-
-	if (!newNPartypeInterface && paramProvider.exists("NPARTYPE")) // done here and in this order for backwards compatibility
-		_disc.nParType = paramProvider.getInt("NPARTYPE");
-	else if (newNPartypeInterface)
-	{
-		paramProvider.popScope();
-		_disc.nParType = paramProvider.getInt("NPARTYPE");
-		paramProvider.pushScope("discretization");
-	}
-	else
-	{
-		// Infer number of particle types
-		_disc.nParType = std::max(nBound.size() / _disc.nComp, nParCell.size());
-	}
-
-	if ((nParCell.size() > 1) && (nParCell.size() < _disc.nParType))
-		throw InvalidParameterException("Field NPAR must have 1 or NPARTYPE (" + std::to_string(_disc.nParType) + ") entries");
-
-	_disc.nParCell = new unsigned int[_disc.nParType];
-	if (nParCell.size() < _disc.nParType)
-	{
-		// Multiplex number of particle shells to all particle types
-		for (unsigned int i = 0; i < _disc.nParType; ++i)
-			std::fill(_disc.nParCell, _disc.nParCell + _disc.nParType, nParCell[0]);
-	}
-	else
-		std::copy_n(nParCell.begin(), _disc.nParType, _disc.nParCell);
-
-	if ((nBound.size() > _disc.nComp) && (nBound.size() < _disc.nComp * _disc.nParType))
-		throw InvalidParameterException("Field NBOUND must have NCOMP (" + std::to_string(_disc.nComp) + ") or NCOMP * NPARTYPE (" + std::to_string(_disc.nComp * _disc.nParType) + ") entries");
-
-	_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
-	if (nBound.size() < _disc.nComp * _disc.nParType)
-	{
-		// Multiplex number of bound states to all particle types
-		for (unsigned int i = 0; i < _disc.nParType; ++i)
-			std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound + i * _disc.nComp);
-	}
-	else
-		std::copy_n(nBound.begin(), _disc.nComp * _disc.nParType, _disc.nBound);
-
-	const unsigned int nTotalBound = std::accumulate(_disc.nBound, _disc.nBound + _disc.nComp * _disc.nParType, 0u);
+	paramProvider.popScope();
 
 	// Precompute offsets and total number of bound states (DOFs in solid phase)
+	_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
+
+	for (int parType = 0; parType < _disc.nParType; parType++)
+	{
+		paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
+
+		std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
+		if (nBound.size() != _disc.nComp)
+			throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
+		std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound + parType * _disc.nComp);
+
+		paramProvider.popScope();
+	}
+
+	const unsigned int nTotalBound = std::accumulate(_disc.nBound, _disc.nBound + _disc.nComp * _disc.nParType, 0u);
 	_disc.boundOffset = new unsigned int[_disc.nComp * _disc.nParType];
 	_disc.strideBound = new unsigned int[_disc.nParType + 1];
 	_disc.nBoundBeforeType = new unsigned int[_disc.nParType];
@@ -230,6 +192,112 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 
 		if (j != _disc.nParType - 1)
 			_disc.nBoundBeforeType[j + 1] = _disc.nBoundBeforeType[j] + _disc.strideBound[j];
+	}
+
+	// configure particles
+	_disc.nParCell = new unsigned int[_disc.nParType];
+	_parDiscType = std::vector<ParticleDiscretizationMode>(_disc.nParType, ParticleDiscretizationMode::Equidistant);
+	_parGeomSurfToVol = std::vector<double>(_disc.nParType, SurfVolRatioSphere);
+	clearBindingModels();
+	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
+	bool bindingConfSuccess = true;
+	clearDynamicReactionModels();
+	_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
+	bool reactionConfSuccess = true;
+
+	for (int parType = 0; parType < _disc.nParType; parType++)
+	{
+		paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
+		paramProvider.pushScope("discretization");
+
+		_disc.nParCell[parType] = paramProvider.getInt("NCELLS");
+
+		if (paramProvider.exists("PAR_DISC_TYPE"))
+		{
+			std::string pdt = paramProvider.getString("PAR_DISC_TYPE");
+			if (pdt == "EQUIVOLUME")
+				_parDiscType[parType] = ParticleDiscretizationMode::Equivolume;
+			else if (pdt == "USER_DEFINED")
+			{
+				_parDiscType[parType] = ParticleDiscretizationMode::UserDefined;
+				const int oldVecSize = _parDiscVector.size();
+				_parDiscVector.resize(oldVecSize + _disc.nParCell[parType] + 1);
+				std::vector<double> parDiscVec = paramProvider.getDoubleArray("PAR_DISC_VECTOR");
+				std::copy_n(parDiscVec.begin(), _disc.nParCell[parType] + 1, _parDiscVector.begin() + oldVecSize);
+
+				if (_parDiscVector.size() < _disc.nParCell[parType])
+					throw InvalidParameterException("Field PAR_DISC_VECTOR contains too few elements (" + std::to_string(_disc.nParCell[parType]) + " required)");
+			}
+			// EQUIDISTANT is default
+		}
+
+		// Read bulk-particle interface discretization order
+		// Default to second order
+		_colParBoundaryOrder = 2;
+		if (paramProvider.exists("FV_BOUNDARY_ORDER"))
+		{
+			_colParBoundaryOrder = paramProvider.getInt("FV_BOUNDARY_ORDER");
+			if ((_colParBoundaryOrder < 1) || (_colParBoundaryOrder > 2))
+				throw InvalidParameterException("Field FV_BOUNDARY_ORDER is out of valid range (1 or 2)");
+		}
+
+		paramProvider.popScope();
+
+		// ==== Construct and configure binding model
+
+		std::string bindModelName = "NONE";
+		if (paramProvider.exists("ADSORPTION_MODEL"))
+			bindModelName = paramProvider.getString("ADSORPTION_MODEL");
+
+		if (paramProvider.exists("BINDING_PARTYPE_DEPENDENT"))
+			_singleBinding = !paramProvider.getInt("BINDING_PARTYPE_DEPENDENT");
+		else
+			_singleBinding = _disc.nParType == 1;
+
+		_binding[parType] = helper.createBindingModel(bindModelName);
+		if (!_binding[parType])
+			throw InvalidParameterException("Unknown binding model " + bindModelName);
+
+		{
+			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _binding[parType]->usesParamProviderInDiscretizationConfig());
+			bindingConfSuccess = _binding[parType]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + parType * _disc.nComp, _disc.boundOffset + parType * _disc.nComp) && bindingConfSuccess;
+		}
+
+		// ==== Construct and configure dynamic particle reaction model
+
+		if (paramProvider.exists("REACTION_MODEL"))
+		{
+			const std::string dynReactModelName = paramProvider.getString("REACTION_MODEL");
+			_dynReaction[parType] = helper.createDynamicReactionModel(dynReactModelName);
+
+			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction", _dynReaction[parType]->usesParamProviderInDiscretizationConfig());
+
+			if (paramProvider.exists("REACTION_PARTYPE_DEPENDENT"))
+				_singleBinding = !paramProvider.getInt("REACTION_PARTYPE_DEPENDENT");
+			else
+				_singleBinding = _disc.nParType == 1;
+
+			if (!_dynReaction[parType])
+				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelName);
+
+			reactionConfSuccess = reactionConfSuccess && _dynReaction[parType]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + parType * _disc.nComp, _disc.boundOffset + parType * _disc.nComp) && reactionConfSuccess;
+		}
+
+		// Set particle geometry
+		if (paramProvider.exists("PAR_GEOM"))
+		{
+			std::string geom = paramProvider.getString("PAR_GEOM");
+			if (geom == "SPHERE")
+				_parGeomSurfToVol[parType] = SurfVolRatioSphere;
+			else if (geom == "CYLINDER")
+				_parGeomSurfToVol[parType] = SurfVolRatioCylinder;
+			else if (geom == "SLAB")
+				_parGeomSurfToVol[parType] = SurfVolRatioSlab;
+			else
+				throw InvalidParameterException("Unknown particle geometry type " + geom);
+		}
+
+		paramProvider.popScope();
 	}
 
 	// Precompute offsets of particle type DOFs
@@ -252,59 +320,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	_parOuterSurfAreaPerVolume.resize(nTotalParCells);
 	_parInnerSurfAreaPerVolume.resize(nTotalParCells);
 
-	// Read particle discretization mode and default to "EQUIDISTANT_PAR"
-	_parDiscType = std::vector<ParticleDiscretizationMode>(_disc.nParType, ParticleDiscretizationMode::Equidistant);
-	std::vector<std::string> pdt = paramProvider.getStringArray("PAR_DISC_TYPE");
-	if ((pdt.size() == 1) && (_disc.nParType > 1))
-	{
-		// Multiplex using first value
-		pdt.resize(_disc.nParType, pdt[0]);
-	}
-	else if (pdt.size() < _disc.nParType)
-		throw InvalidParameterException("Field PAR_DISC_TYPE contains too few elements (" + std::to_string(_disc.nParType) + " required)");
-
-	for (unsigned int i = 0; i < _disc.nParType; ++i)
-	{
-		if (pdt[i] == "EQUIVOLUME_PAR")
-			_parDiscType[i] = ParticleDiscretizationMode::Equivolume;
-		else if (pdt[i] == "USER_DEFINED_PAR")
-			_parDiscType[i] = ParticleDiscretizationMode::UserDefined;
-	}
-
-	// Read particle geometry and default to "SPHERICAL"
-	_parGeomSurfToVol = std::vector<double>(_disc.nParType, SurfVolRatioSphere);
-	paramProvider.popScope();
-	if (paramProvider.exists("PAR_GEOM"))
-	{
-		std::vector<std::string> pg = paramProvider.getStringArray("PAR_GEOM");
-		if ((pg.size() == 1) && (_disc.nParType > 1))
-		{
-			// Multiplex using first value
-			pg.resize(_disc.nParType, pg[0]);
-		}
-		else if (pg.size() < _disc.nParType)
-			throw InvalidParameterException("Field PAR_GEOM contains too few elements (" + std::to_string(_disc.nParType) + " required)");
-
-		for (unsigned int i = 0; i < _disc.nParType; ++i)
-		{
-			if (pg[i] == "SPHERE")
-				_parGeomSurfToVol[i] = SurfVolRatioSphere;
-			else if (pg[i] == "CYLINDER")
-				_parGeomSurfToVol[i] = SurfVolRatioCylinder;
-			else if (pg[i] == "SLAB")
-				_parGeomSurfToVol[i] = SurfVolRatioSlab;
-			else
-				throw InvalidParameterException("Unknown particle geometry type \"" + pg[i] + "\" at index " + std::to_string(i) + " of field PAR_GEOM");
-		}
-	}
 	paramProvider.pushScope("discretization");
-
-	if (paramProvider.exists("PAR_DISC_VECTOR"))
-	{
-		_parDiscVector = paramProvider.getDoubleArray("PAR_DISC_VECTOR");
-		if (_parDiscVector.size() < nTotalParCells + _disc.nParType)
-			throw InvalidParameterException("Field PAR_DISC_VECTOR contains too few elements (Sum [NPAR + 1] = " + std::to_string(nTotalParCells + _disc.nParType) + " required)");
-	}
 
 	// Determine whether analytic Jacobian should be used but don't set it right now.
 	// We need to setup Jacobian matrices first.
@@ -314,16 +330,6 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	const bool analyticJac = false;
 #endif
 
-	// Read bulk-particle interface discretization order
-	// Default to second order
-	_colParBoundaryOrder = 2;
-	if (paramProvider.exists("PAR_BOUNDARY_ORDER"))
-	{
-		_colParBoundaryOrder = paramProvider.getInt("PAR_BOUNDARY_ORDER");
-		if ((_colParBoundaryOrder < 1) || (_colParBoundaryOrder > 2))
-			throw InvalidParameterException("Field PAR_BOUNDARY_ORDER is out of valid range (1 or 2)");
-	}
-
 	// Initialize and configure GMRES for solving the Schur-complement
 	_gmres.initialize(_disc.nCol * _disc.nComp * _disc.nParType, paramProvider.getInt("MAX_KRYLOV"), linalg::toOrthogonalization(paramProvider.getInt("GS_TYPE")), paramProvider.getInt("MAX_RESTARTS"));
 	_gmres.matrixVectorMultiplier(&schurComplementMultiplierGRM<ConvDispOperator>, this);
@@ -332,7 +338,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	// Allocate space for initial conditions
 	_initC.resize(_disc.nComp);
 	_initCp.resize(_disc.nComp * _disc.nParType);
-	_initQ.resize(nTotalBound);
+	_initCs.resize(nTotalBound);
 
 	// Determine whether surface diffusion optimization is applied (decreases Jacobian size)
 	const bool optimizeParticleJacobianBandwidth = paramProvider.exists("OPTIMIZE_PAR_BANDWIDTH") ? paramProvider.getBool("OPTIMIZE_PAR_BANDWIDTH") : true;
@@ -343,6 +349,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	paramProvider.popScope();
 
 	// ==== Construct and configure parameter dependencies
+	paramProvider.pushScope("particle_type_000");
 	clearParDepSurfDiffusion();
 	bool parSurfDiffDepConfSuccess = true;
 	if (paramProvider.exists("PAR_SURFDIFFUSION_DEP"))
@@ -437,168 +444,27 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 		_hasSurfaceDiffusion = std::vector<bool>(_disc.nParType, true);
 	}
 
+	paramProvider.popScope();
+
 	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nCol);
 
-	// ==== Construct and configure binding model
-	clearBindingModels();
-	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
+	// ==== Construct and configure dynamic bulk reaction model
 
-	std::vector<std::string> bindModelNames = { "NONE" };
-	if (paramProvider.exists("ADSORPTION_MODEL"))
-		bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
-
-	if (paramProvider.exists("ADSORPTION_MODEL_MULTIPLEX"))
-		_singleBinding = (paramProvider.getInt("ADSORPTION_MODEL_MULTIPLEX") == 1);
-	else
-	{
-		// Infer multiplex mode
-		_singleBinding = (bindModelNames.size() == 1);
-	}
-
-	if (!_singleBinding && (bindModelNames.size() < _disc.nParType))
-		throw InvalidParameterException("Field ADSORPTION_MODEL contains too few elements (" + std::to_string(_disc.nParType) + " required)");
-	else if (_singleBinding && (bindModelNames.size() != 1))
-		throw InvalidParameterException("Field ADSORPTION_MODEL requires (only) 1 element");
-
-	bool bindingConfSuccess = true;
-	for (unsigned int i = 0; i < _disc.nParType; ++i)
-	{
-		if (_singleBinding && (i > 0))
-		{
-			// Reuse first binding model
-			_binding[i] = _binding[0];
-		}
-		else
-		{
-			_binding[i] = helper.createBindingModel(bindModelNames[i]);
-			if (!_binding[i])
-				throw InvalidParameterException("Unknown binding model " + bindModelNames[i]);
-
-			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _singleBinding, i, _disc.nParType == 1, _binding[i]->usesParamProviderInDiscretizationConfig());
-			bindingConfSuccess = _binding[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && bindingConfSuccess;
-		}
-	}
-
-	// ==== Construct and configure dynamic reaction model
-	bool reactionConfSuccess = true;
-	_oldReactionInterface = false;
-	_dynReactionBulk.resize(1, nullptr);
+	_dynReactionBulk = nullptr;
 	if (paramProvider.exists("REACTION_MODEL"))
 	{
-		_oldReactionInterface = true;
-		LOG(Warning) << "GRM reaction configuration: The reaction interface has changed. Please refer to the documentation. The old interface is only supported for backwards compatibility";
 		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
-		_dynReactionBulk[0] = helper.createDynamicReactionModel(dynReactName);
-		if (!_dynReactionBulk[0])
+		_dynReactionBulk = helper.createDynamicReactionModel(dynReactName);
+		if (!_dynReactionBulk)
 			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
 
-		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
+		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
 			paramProvider.pushScope("reaction_bulk");
 
-		reactionConfSuccess = _dynReactionBulk[0]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr) && reactionConfSuccess;
+		reactionConfSuccess = reactionConfSuccess && _dynReactionBulk->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
 
-		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
+		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
 			paramProvider.popScope();
-	}
-	else if (paramProvider.exists("reaction_bulk"))
-	{
-		paramProvider.pushScope("reaction_bulk");
-
-		if (paramProvider.exists("NREAC"))
-		{
-			int nReactions = paramProvider.getInt("NREAC");
-
-			if (nReactions <= 0)
-			{
-				paramProvider.popScope();
-				throw InvalidParameterException("GRM reaction configuration: number of reaction must be positive, please check your configuration");
-			}
-			_dynReactionBulk.resize(nReactions, nullptr);
-
-			for (int i = 0; i < nReactions; ++i) {
-
-				char reactionKey[32];
-				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
-
-				if (!paramProvider.exists(reactionKey)) {
-					paramProvider.popScope();
-					throw InvalidParameterException("GRM reaction configuration: Missing reaction model definition for " + std::string(reactionKey));
-				}
-
-				paramProvider.pushScope(reactionKey);
-
-				if (!paramProvider.exists("REACTION_TYPE")) {
-					paramProvider.popScope();
-					throw InvalidParameterException("GRM reaction configuration: Missing 'type' parameter for " + std::string(reactionKey));
-				}
-
-				std::string reactionType = paramProvider.getString("REACTION_TYPE");
-				paramProvider.popScope();
-				_dynReactionBulk[i] = helper.createDynamicReactionModel(reactionType);
-
-				if (!_dynReactionBulk[i]) {
-					paramProvider.popScope();
-					throw InvalidParameterException("GRM reaction configuration: Unknown dynamic reaction model " + reactionType +
-						" for " + reactionKey);
-				}
-
-				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
-					paramProvider.pushScope(reactionKey);
-
-				reactionConfSuccess = _dynReactionBulk[i]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
-
-				if (!reactionConfSuccess) {
-					if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
-						paramProvider.popScope();
-					paramProvider.popScope();
-					throw InvalidParameterException("GRM reaction configuration: Failed to configure reaction model " + reactionType +
-						" for " + reactionKey);
-				}
-
-				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
-					paramProvider.popScope();
-			}
-		}
-		paramProvider.popScope();
-	}
-
-	clearDynamicReactionModels();
-	_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
-
-	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
-	{
-		const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL_PARTICLES");
-
-		if (paramProvider.exists("REACTION_MODEL_PARTICLES_MULTIPLEX"))
-			_singleDynReaction = (paramProvider.getInt("REACTION_MODEL_PARTICLES_MULTIPLEX") == 1);
-		else
-		{
-			// Infer multiplex mode
-			_singleDynReaction = (dynReactModelNames.size() == 1);
-		}
-
-		if (!_singleDynReaction && (dynReactModelNames.size() < _disc.nParType))
-			throw InvalidParameterException("Field REACTION_MODEL_PARTICLES contains too few elements (" + std::to_string(_disc.nParType) + " required)");
-		else if (_singleDynReaction && (dynReactModelNames.size() != 1))
-			throw InvalidParameterException("Field REACTION_MODEL_PARTICLES requires (only) 1 element");
-
-		for (unsigned int i = 0; i < _disc.nParType; ++i)
-		{
-			if (_singleDynReaction && (i > 0))
-			{
-				// Reuse first binding model
-				_dynReaction[i] = _dynReaction[0];
-			}
-			else
-			{
-				_dynReaction[i] = helper.createDynamicReactionModel(dynReactModelNames[i]);
-				if (!_dynReaction[i])
-					throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[i]);
-
-				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _singleDynReaction, i, _disc.nParType == 1, _dynReaction[i]->usesParamProviderInDiscretizationConfig());
-				reactionConfSuccess = _dynReaction[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && reactionConfSuccess;
-			}
-		}
 	}
 
 	// Allocate memory
@@ -708,16 +574,54 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 
 	// Read geometry parameters
 	_colPorosity = paramProvider.getDouble("COL_POROSITY");
-	_singleParRadius = readAndRegisterMultiplexTypeParam(paramProvider, _parameters, _parRadius, "PAR_RADIUS", _disc.nParType, _unitOpIdx);
-	_singleParPorosity = readAndRegisterMultiplexTypeParam(paramProvider, _parameters, _parPorosity, "PAR_POROSITY", _disc.nParType, _unitOpIdx);
 
-	// Let PAR_CORERADIUS default to 0.0 for backwards compatibility
-	if (paramProvider.exists("PAR_CORERADIUS"))
-		_singleParCoreRadius = readAndRegisterMultiplexTypeParam(paramProvider, _parameters, _parCoreRadius, "PAR_CORERADIUS", _disc.nParType, _unitOpIdx);
-	else
+	_singleParRadius = true;
+	_singleParPorosity = true;
+	_singleParCoreRadius = true;
+	_parRadius = std::vector<active>(_disc.nParType, 0.0);
+	_parCoreRadius = std::vector<active>(_disc.nParType, 0.0);
+	_parPorosity = std::vector<active>(_disc.nParType, 0.0);
+
+	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		_singleParCoreRadius = true;
-		_parCoreRadius = std::vector<active>(_disc.nParType, 0.0);
+		paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
+
+		_parRadius[parType] = paramProvider.getDouble("PAR_RADIUS");
+
+		if (paramProvider.exists("PAR_RADIUS_PARTYPE_DEPENDENT"))
+			_singleParRadius = !paramProvider.getBool("PAR_RADIUS_PARTYPE_DEPENDENT");
+
+		if (_singleParRadius && parType == 0)
+			_parameters[makeParamId(hashStringRuntime("PAR_RADIUS"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parRadius[parType];
+		else if (!_singleParRadius)
+			_parameters[makeParamId(hashStringRuntime("PAR_RADIUS"), _unitOpIdx, CompIndep, parType, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parRadius[parType];
+
+		if (paramProvider.exists("PAR_CORERADIUS"))
+		{
+			_parCoreRadius[parType] = paramProvider.getDouble("PAR_CORERADIUS");
+
+			if (paramProvider.exists("PAR_CORERADIUS_PARTYPE_DEPENDENT"))
+				_singleParCoreRadius = !paramProvider.getBool("PAR_CORERADIUS_PARTYPE_DEPENDENT");
+
+			if (_singleParCoreRadius && parType == 0)
+				_parameters[makeParamId(hashStringRuntime("PAR_CORERADIUS"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parCoreRadius[parType];
+			else if (!_singleParCoreRadius)
+				_parameters[makeParamId(hashStringRuntime("PAR_CORERADIUS"), _unitOpIdx, CompIndep, parType, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parCoreRadius[parType];
+		}
+		else
+			_parCoreRadius[parType] = 0.0;
+
+		_parPorosity[parType] = paramProvider.getDouble("PAR_POROSITY");
+
+		if (paramProvider.exists("PAR_POROSITY_PARTYPE_DEPENDENT"))
+			_singleParPorosity = !paramProvider.getBool("PAR_RADIUS_PARTYPE_DEPENDENT");
+
+		if (_singleParPorosity && parType == 0)
+			_parameters[makeParamId(hashStringRuntime("PAR_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parPorosity[parType];
+		else if (!_singleParPorosity)
+			_parameters[makeParamId(hashStringRuntime("PAR_POROSITY"), _unitOpIdx, CompIndep, parType, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parPorosity[parType];
+
+		paramProvider.popScope();
 	}
 
 	// Check whether PAR_TYPE_VOLFRAC is required or not
@@ -766,15 +670,54 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 	}
 
 	// Read vectorial parameters (which may also be section dependent; transport)
-	_filmDiffusionMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, _parameters, _filmDiffusion, "FILM_DIFFUSION", _disc.nParType, _disc.nComp, _unitOpIdx);
-	_parDiffusionMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, _parameters, _parDiffusion, "PAR_DIFFUSION", _disc.nParType, _disc.nComp, _unitOpIdx);
-
-	if (paramProvider.exists("PAR_SURFDIFFUSION"))
-		_parSurfDiffusionMode = readAndRegisterMultiplexBndCompTypeSecParam(paramProvider, _parameters, _parSurfDiffusion, "PAR_SURFDIFFUSION", _disc.nParType, _disc.nComp, _disc.strideBound, _disc.nBound, _unitOpIdx);
-	else
+	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		_parSurfDiffusionMode = MultiplexMode::Component;
-		_parSurfDiffusion.resize(_disc.strideBound[_disc.nParType], 0.0);
+		paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
+
+		bool filmDiffParTypeDep = paramProvider.exists("FILM_DIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getInt("FILM_DIFFUSION_PARTYPE_DEPENDENT") : true;
+		MultiplexMode tmpMode = parType > 0 ? _filmDiffusionMode : MultiplexMode::Independent;
+		_filmDiffusionMode = readAndRegisterMultiplexCompSecParam(paramProvider, _parameters, _filmDiffusion, "FILM_DIFFUSION", _disc.nComp, parType, filmDiffParTypeDep, _unitOpIdx, _filmDiffusion.size());
+		if (parType > 0 && tmpMode != _filmDiffusionMode)
+			throw InvalidParameterException("Inconsistent film diffusion multiplex mode accross particle types " + std::to_string(parType - 1) + " and " + std::to_string(parType));
+
+		bool parDiffParTypeDep = paramProvider.exists("PAR_DIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getInt("PAR_DIFFUSION_PARTYPE_DEPENDENT") : true;
+		if (parType > 0)
+			tmpMode = _parDiffusionMode;
+		_parDiffusionMode = readAndRegisterMultiplexCompSecParam(paramProvider, _parameters, _parDiffusion, "PAR_DIFFUSION", _disc.nComp, parType, parDiffParTypeDep, _unitOpIdx, _parDiffusion.size());
+		if (parType > 0 && tmpMode != _parDiffusionMode)
+			throw InvalidParameterException("Inconsistent pore diffusion multiplex mode accross particle types " + std::to_string(parType - 1) + " and " + std::to_string(parType));
+
+		if (paramProvider.exists("PAR_SURFDIFFUSION"))
+		{
+			bool surfDiffParTypeDep = paramProvider.exists("PAR_SURFDIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getInt("PAR_SURFDIFFUSION_PARTYPE_DEPENDENT") : true;
+			if (parType > 0)
+				tmpMode = _parSurfDiffusionMode;
+			_parSurfDiffusionMode = readAndRegisterMultiplexBndCompSecParam(paramProvider, _parameters, _parSurfDiffusion, "PAR_SURFDIFFUSION", _disc.nComp, _disc.strideBound[parType], _disc.nBound + parType * _disc.nComp, parType, surfDiffParTypeDep, _unitOpIdx, _parSurfDiffusion.size());
+			if (parType > 0 && tmpMode != _parSurfDiffusionMode)
+				throw InvalidParameterException("Inconsistent surface diffusion multiplex mode accross particle types " + std::to_string(parType - 1) + " and " + std::to_string(parType));
+		}
+		else if (parType == 0)
+		{
+			_parSurfDiffusionMode = MultiplexMode::Component;
+			_parSurfDiffusion.resize(_disc.strideBound[_disc.nParType], 0.0);
+		}
+
+		if (paramProvider.exists("PORE_ACCESSIBILITY"))
+		{
+			if (parType > 0)
+				tmpMode = _poreAccessFactorMode;
+			bool poreAccessParTypeDep = paramProvider.exists("PORE_ACCESSIBILITY_PARTYPE_DEPENDENT") ? paramProvider.getBool("PORE_ACCESSIBILITY_PARTYPE_DEPENDENT") : true;
+			_poreAccessFactorMode = readAndRegisterMultiplexCompSecParam(paramProvider, _parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _disc.nComp, parType, poreAccessParTypeDep, _unitOpIdx, _poreAccessFactor.size());
+			if (parType > 0 && tmpMode != _poreAccessFactorMode)
+				throw InvalidParameterException("Inconsistent pore access factor mode accross particle types " + std::to_string(parType - 1) + " and " + std::to_string(parType));
+		}
+		else if (parType == 0)
+		{
+			_poreAccessFactorMode = MultiplexMode::ComponentType;
+			_poreAccessFactor = std::vector<cadet::active>(_disc.nComp * _disc.nParType, 1.0);
+		}
+
+		paramProvider.popScope();
 	}
 
 	bool parSurfDiffDepConfSuccess = true;
@@ -802,15 +745,6 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 		throw InvalidParameterException("Number of elements in field PAR_DIFFUSION is not a positive multiple of NCOMP * NPARTYPE (" + std::to_string(_disc.nComp * _disc.nParType) + ")");
 	if ((_parSurfDiffusion.size() < _disc.strideBound[_disc.nParType]) || ((_disc.strideBound[_disc.nParType] > 0) && (_parSurfDiffusion.size() % _disc.strideBound[_disc.nParType] != 0)))
 		throw InvalidParameterException("Number of elements in field PAR_SURFDIFFUSION is not a positive multiple of NTOTALBND (" + std::to_string(_disc.strideBound[_disc.nParType]) + ")");
-
-	if (paramProvider.exists("PORE_ACCESSIBILITY"))
-		_poreAccessFactorMode = readAndRegisterMultiplexCompTypeSecParam(paramProvider, _parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _disc.nParType, _disc.nComp, _unitOpIdx);
-	else
-	{
-		_poreAccessFactorMode = MultiplexMode::ComponentType;
-		_poreAccessFactor = std::vector<cadet::active>(_disc.nComp * _disc.nParType, 1.0);
-	}
-
 	if (_disc.nComp * _disc.nParType != _poreAccessFactor.size())
 		throw InvalidParameterException("Number of elements in field PORE_ACCESSIBILITY differs from NCOMP * NPARTYPE (" + std::to_string(_disc.nComp * _disc.nParType) + ")");
 
@@ -850,7 +784,7 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 		{
 			_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, ParTypeIndep);
 
-			active* const iq = _initQ.data() + _disc.nBoundBeforeType[0];
+			active* const iq = _initCs.data() + _disc.nBoundBeforeType[0];
 			for (unsigned int i = 0; i < _disc.strideBound[0]; ++i)
 				_parameters[initParams[i]] = iq + i;
 		}
@@ -860,7 +794,7 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 			{
 				_binding[type]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, type);
 
-				active* const iq = _initQ.data() + _disc.nBoundBeforeType[type];
+				active* const iq = _initCs.data() + _disc.nBoundBeforeType[type];
 				for (unsigned int i = 0; i < _disc.strideBound[type]; ++i)
 					_parameters[initParams[i]] = iq + i;
 			}
@@ -875,61 +809,62 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 		{
 			if (_binding[0] && _binding[0]->requiresConfiguration())
 			{
-				MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", true);
+				paramProvider.pushScope("particle_type_000");
+				paramProvider.pushScope("adsorption");
 				bindingConfSuccess = _binding[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep);
+				paramProvider.popScope();
+				paramProvider.popScope();
 			}
 		}
 		else
 		{
 			for (unsigned int type = 0; type < _disc.nParType; ++type)
 			{
-	 			if (!_binding[type] || !_binding[type]->requiresConfiguration())
-	 				continue;
+				if (!_binding[type] || !_binding[type]->requiresConfiguration())
+					continue;
 
-				MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", type, _disc.nParType == 1, true);
-				bindingConfSuccess = _binding[type]->configure(paramProvider, _unitOpIdx, type) && bindingConfSuccess;
+				paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(type).length(), '0') + std::to_string(type));
+				paramProvider.pushScope("adsorption");
+				bindingConfSuccess = bindingConfSuccess && _binding[type]->configure(paramProvider, _unitOpIdx, type);
+				paramProvider.popScope();
+				paramProvider.popScope();
 			}
 		}
 	}
 
 	// Reconfigure reaction model
 	bool dynReactionConfSuccess = true;
-	for (auto i = 0; i < _dynReactionBulk.size(); i++)
+	if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
 	{
-		if (_dynReactionBulk[i] && _dynReactionBulk[i]->requiresConfiguration())
-		{
-			paramProvider.pushScope("reaction_bulk");
-			if (!_oldReactionInterface)
-			{
-				char reactionKey[32];
-				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
-				paramProvider.pushScope(reactionKey);
-			}
-			dynReactionConfSuccess = _dynReactionBulk[i]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
-			paramProvider.popScope();
-
-			if (!_oldReactionInterface)
-				paramProvider.popScope();
-		}
+		MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_bulk", _dynReactionBulk->requiresConfiguration());
+		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
 	}
 
 	if (_singleDynReaction)
 	{
 		if (_dynReaction[0] && _dynReaction[0]->requiresConfiguration())
 		{
-			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", true);
-			dynReactionConfSuccess = _dynReaction[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
+			paramProvider.pushScope("particle_type_000");
+			{
+				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction", _dynReaction[0]->requiresConfiguration());
+				dynReactionConfSuccess = dynReactionConfSuccess && _dynReaction[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep);
+			}
+			paramProvider.popScope();
 		}
 	}
 	else
 	{
 		for (unsigned int type = 0; type < _disc.nParType; ++type)
 		{
- 			if (!_dynReaction[type] || !_dynReaction[type]->requiresConfiguration())
- 				continue;
+			if (!_dynReaction[type] || !_dynReaction[type]->requiresConfiguration())
+				continue;
 
-			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", type, _disc.nParType == 1, true);
-			dynReactionConfSuccess = _dynReaction[type]->configure(paramProvider, _unitOpIdx, type) && dynReactionConfSuccess;
+			paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(type).length(), '0') + std::to_string(type));
+			{
+				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction", _dynReaction[type]->requiresConfiguration());
+				dynReactionConfSuccess = dynReactionConfSuccess && _dynReaction[type]->configure(paramProvider, _unitOpIdx, type);
+			}
+			paramProvider.popScope();
 		}
 	}
 
@@ -951,11 +886,8 @@ unsigned int GeneralRateModel<ConvDispOperator>::threadLocalMemorySize() const C
 			lms.fitBlock(_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
 	}
 
-	for (auto i = 0; i < _dynReactionBulk.size(); i++)
-	{
-		if (_dynReactionBulk[i] && _dynReactionBulk[i]->requiresWorkspace())
-			lms.fitBlock(_dynReactionBulk[i]->workspaceSize(_disc.nComp, 0, nullptr));
-	}
+	if (_dynReactionBulk && _dynReactionBulk->requiresWorkspace())
+		lms.fitBlock(_dynReactionBulk->workspaceSize(_disc.nComp, 0, nullptr));
 
 	const unsigned int maxStrideBound = *std::max_element(_disc.strideBound, _disc.strideBound + _disc.nParType);
 	lms.add<active>(_disc.nComp + maxStrideBound);
@@ -1361,7 +1293,7 @@ int GeneralRateModel<ConvDispOperator>::residualBulk(double t, unsigned int secI
 	else
 		_convDispOp.jacobian(*this, t, secIdx, yBase, nullptr, nullptr);
 
-	if (!_dynReactionBulk[0])
+	if (!_dynReactionBulk || (_dynReactionBulk->numReactionsLiquid() == 0))
 		return 0;
 
 	// Get offsets
@@ -1373,21 +1305,13 @@ int GeneralRateModel<ConvDispOperator>::residualBulk(double t, unsigned int secI
 	for (unsigned int col = 0; col < _disc.nCol; ++col, y += idxr.strideColCell(), res += idxr.strideColCell())
 	{
 		const ColumnPosition colPos{ (0.5 + static_cast<double>(col)) / static_cast<double>(_disc.nCol), 0.0, 0.0 };
+		if (wantRes)
+			_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
 
-		for (auto i = 0; i < _dynReactionBulk.size(); i++)
-		{	
-			if (!_dynReactionBulk[i] || (_dynReactionBulk[i]->numReactionsLiquid() == 0))
-				continue;
-
-			if (wantRes)
-				_dynReactionBulk[i]->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
-
-			if (wantJac)
-			{
-				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-				_dynReactionBulk[i]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(col * idxr.strideColCell()), tlmAlloc);
-
-			}
+		if (wantJac)
+		{
+			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(col * idxr.strideColCell()), tlmAlloc);
 		}
 	}
 
@@ -1409,12 +1333,10 @@ int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int 
 
 	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
-	// Prepare parameters
-	active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * _disc.nParType, secIdx) + parType * _disc.nComp;
-
-	// Ordering of particle surface diffusion:
-	// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
-	active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _disc.strideBound[_disc.nParType], secIdx) + _disc.nBoundBeforeType[parType];
+	// Prepare parameter
+	const int nSec = _parDiffusion.size() / _disc.nComp / _disc.nParType; // 1 if not section dependent
+	active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * nSec, parType) + (nSec > 1 ? secIdx * _disc.nComp : 0);
+	active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _disc.nBoundBeforeType[parType] * nSec, 1) + (nSec > 1 ? secIdx * _disc.strideBound[parType] : 0);
 
 	// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
 	const double z = _convDispOp.relativeCoordinate(colCell);
@@ -2011,11 +1933,9 @@ int GeneralRateModel<ConvDispOperator>::residualFlux(double t, unsigned int secI
 
 		const ParamType epsP = static_cast<ParamType>(_parPorosity[type]);
 
-		// Ordering of diffusion:
-		// sec0type0comp0, sec0type0comp1, sec0type0comp2, sec0type1comp0, sec0type1comp1, sec0type1comp2,
-		// sec1type0comp0, sec1type0comp1, sec1type0comp2, sec1type1comp0, sec1type1comp1, sec1type1comp2, ...
-		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
-		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
+		const int nSec = _parDiffusion.size() / _disc.nComp / _disc.nParType; // 1 if not section dependent
+		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp *nSec, type) + (nSec > 1 ? secIdx * _disc.nComp : 0);
+		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp *nSec, type) + (nSec > 1 ? secIdx * _disc.nComp : 0);
 
 		const ParamType surfaceToVolumeRatio = _parGeomSurfToVol[type] / static_cast<ParamType>(_parRadius[type]);
 		const ParamType outerAreaPerVolume = static_cast<ParamType>(_parOuterSurfAreaPerVolume[_disc.nParCellsBeforeType[type]]);
@@ -2077,9 +1997,8 @@ int GeneralRateModel<ConvDispOperator>::residualFlux(double t, unsigned int secI
 		{
 			int const* const qsReaction = _binding[type]->reactionQuasiStationarity();
 
-			// Ordering of particle surface diffusion:
-			// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
-			active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _disc.strideBound[_disc.nParType], secIdx) + _disc.nBoundBeforeType[type];
+			const int nSec = _parDiffusion.size() / _disc.nComp / _disc.nParType; // 1 if not section dependent
+			active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _disc.nBoundBeforeType[type] * nSec, 1) + (nSec > 1 ? secIdx * _disc.strideBound[type] : 0);
 			active const* const parCenterRadius = _parCenterRadius.data() + _disc.nParCellsBeforeType[type];
 			const ParamType absOuterShellHalfRadius = 0.5 * static_cast<ParamType>(_parCellSize[_disc.nParCellsBeforeType[type]]);
 
@@ -2176,12 +2095,10 @@ void GeneralRateModel<ConvDispOperator>::assembleOffdiagJac(double t, unsigned i
 	{
 		const unsigned int typeOffset = type * _disc.nCol * _disc.nComp;
 		const double epsP = static_cast<double>(_parPorosity[type]);
-
-		// Ordering of diffusion:
-		// sec0type0comp0, sec0type0comp1, sec0type0comp2, sec0type1comp0, sec0type1comp1, sec0type1comp2,
-		// sec1type0comp0, sec1type0comp1, sec1type0comp2, sec1type1comp0, sec1type1comp1, sec1type1comp2, ...
-		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
-		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
+		
+		const int nSec = _parDiffusion.size() / _disc.nComp / _disc.nParType; // 1 if not section dependent
+		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp *nSec, type) + (nSec > 1 ? secIdx * _disc.nComp : 0);
+		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp *nSec, type) + (nSec > 1 ? secIdx * _disc.nComp : 0);
 
 		const double surfaceToVolumeRatio = _parGeomSurfToVol[type] / static_cast<double>(_parRadius[type]);
 		const double outerAreaPerVolume = static_cast<double>(_parOuterSurfAreaPerVolume[_disc.nParCellsBeforeType[type]]);
@@ -2248,9 +2165,8 @@ void GeneralRateModel<ConvDispOperator>::assembleOffdiagJac(double t, unsigned i
 		{
 			int const* const qsReaction = _binding[type]->reactionQuasiStationarity();
 
-			// Ordering of particle surface diffusion:
-			// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
-			active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _disc.strideBound[_disc.nParType], secIdx) + _disc.nBoundBeforeType[type];
+			const int nSec = _parDiffusion.size() / _disc.nComp / _disc.nParType; // 1 if not section dependent
+			active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _disc.nBoundBeforeType[type] * nSec, 1) + (nSec > 1 ? secIdx * _disc.strideBound[type] : 0);
 			active const* const parCenterRadius = _parCenterRadius.data() + _disc.nParCellsBeforeType[type];
 			const double absOuterShellHalfRadius = 0.5 * static_cast<double>(_parCellSize[_disc.nParCellsBeforeType[type]]);
 
@@ -2349,11 +2265,9 @@ void GeneralRateModel<ConvDispOperator>::assembleOffdiagJacFluxParticle(double t
 		const unsigned int typeOffset = type * _disc.nCol * _disc.nComp;
 		const double epsP = static_cast<double>(_parPorosity[type]);
 
-		// Ordering of diffusion:
-		// sec0type0comp0, sec0type0comp1, sec0type0comp2, sec0type1comp0, sec0type1comp1, sec0type1comp2,
-		// sec1type0comp0, sec1type0comp1, sec1type0comp2, sec1type1comp0, sec1type1comp1, sec1type1comp2, ...
-		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
-		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * _disc.nParType, secIdx) + type * _disc.nComp;
+		const int nSec = _parDiffusion.size() / _disc.nComp / _disc.nParType; // 1 if not section dependent
+		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp *nSec, type) + (nSec > 1 ? secIdx * _disc.nComp : 0);
+		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp *nSec, type) + (nSec > 1 ? secIdx * _disc.nComp : 0);
 
 		// Discretized film diffusion kf for finite volumes
 		if (cadet_likely(_colParBoundaryOrder == 2))
@@ -2383,9 +2297,8 @@ void GeneralRateModel<ConvDispOperator>::assembleOffdiagJacFluxParticle(double t
 		{
 			int const* const qsReaction = _binding[type]->reactionQuasiStationarity();
 
-			// Ordering of particle surface diffusion:
-			// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
-			active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _disc.strideBound[_disc.nParType], secIdx) + _disc.nBoundBeforeType[type];
+			const int nSec = _parDiffusion.size() / _disc.nComp / _disc.nParType; // 1 if not section dependent
+			active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _disc.nBoundBeforeType[type] * nSec, 1) + (nSec > 1 ? secIdx * _disc.strideBound[type] : 0);
 			active const* const parCenterRadius = _parCenterRadius.data() + _disc.nParCellsBeforeType[type];
 			const double absOuterShellHalfRadius = 0.5 * static_cast<double>(_parCellSize[_disc.nParCellsBeforeType[type]]);
 
@@ -2924,14 +2837,24 @@ bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, do
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (multiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nParType, _disc.nComp, value, nullptr))
-			return true;
-		if (multiplexCompTypeSecParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _disc.nParType, _disc.nComp, value, nullptr))
-			return true;
-		if (multiplexCompTypeSecParameterValue(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _disc.nParType, _disc.nComp, value, nullptr))
-			return true;
-		if (multiplexBndCompTypeSecParameterValue(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _disc.nParType, _disc.nComp, _disc.strideBound, _disc.nBound, _disc.boundOffset, _disc.nBoundBeforeType, value, nullptr))
-			return true;
+		for (int parType = 0; parType < _disc.nParType; parType++)
+		{
+			if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nComp, parType, value, nullptr, (_poreAccessFactor.size() / _disc.nParType) * parType))
+				return true;
+			if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _disc.nComp, parType, value, nullptr, (_filmDiffusion.size() / _disc.nParType) * parType))
+				return true;
+			if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _disc.nComp, parType, value, nullptr, (_parDiffusion.size() / _disc.nParType) * parType))
+				return true;
+			if (singleTypeMultiplexBndCompTypeSecParameterValue(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _disc.nComp, _disc.strideBound[parType], _disc.boundOffset + parType * _disc.nComp, parType, value, nullptr, (_parSurfDiffusion.size() / _disc.nParType) * parType))
+				return true;
+			if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _singleParRadius, _parRadius[parType], parType, value, nullptr))
+				return true;
+			if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius[parType], parType, value, nullptr))
+				return true;
+			if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity[parType], parType, value, nullptr))
+				return true;
+		}
+
 		const int mpIc = multiplexInitialConditions(pId, value, false);
 		if (mpIc > 0)
 			return true;
@@ -2952,20 +2875,13 @@ bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, do
 			return true;
 		}
 
-		if (multiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _singleParRadius, _parRadius, value, nullptr))
-			return true;
-		if (multiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius, value, nullptr))
-			return true;
-		if (multiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, value, nullptr))
-			return true;
-
 		if (model::setParameter(pId, value, _parDepSurfDiffusion, _singleParDepSurfDiffusion))
 			return true;
 
 		if (_convDispOp.setParameter(pId, value))
 			return true;
 
-		if (model::setParameter(pId, value,  _dynReactionBulk , false))
+		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
 			return true;
 	}
 
@@ -2989,7 +2905,7 @@ bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, in
 
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, _dynReactionBulk , false))
+		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
 			return true;
 	}
 
@@ -3007,7 +2923,7 @@ bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, bo
 
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value,  _dynReactionBulk, false))
+		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
 			return true;
 	}
 
@@ -3019,16 +2935,23 @@ void GeneralRateModel<ConvDispOperator>::setSensitiveParameterValue(const Parame
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (multiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nParType, _disc.nComp, value, &_sensParams))
-			return;
-		if (multiplexCompTypeSecParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _disc.nParType, _disc.nComp, value, &_sensParams))
-			return;
-		if (multiplexCompTypeSecParameterValue(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _disc.nParType, _disc.nComp, value, &_sensParams))
-			return;
-		if (multiplexBndCompTypeSecParameterValue(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _disc.nParType, _disc.nComp, _disc.strideBound, _disc.nBound, _disc.boundOffset, _disc.nBoundBeforeType, value, &_sensParams))
-			return;
-		if (multiplexInitialConditions(pId, value, true) != 0)
-			return;
+		for (int parType = 0; parType < _disc.nParType; parType++)
+		{
+			if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nComp, parType, value, &_sensParams, (_poreAccessFactor.size() / _disc.nParType) * parType))
+				return;
+			if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _disc.nComp, parType, value, &_sensParams, (_filmDiffusion.size() / _disc.nParType) * parType))
+				return;
+			if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _disc.nComp, parType, value, &_sensParams, (_parDiffusion.size() / _disc.nParType) * parType))
+				return;
+			if (singleTypeMultiplexBndCompTypeSecParameterValue(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _disc.nComp, _disc.strideBound[parType], _disc.boundOffset + parType * _disc.nComp, parType, value, &_sensParams, (_parSurfDiffusion.size() / _disc.nParType) * parType))
+				return;
+			if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _singleParRadius, _parRadius[parType], parType, value, &_sensParams))
+				return;
+			if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius[parType], parType, value, &_sensParams))
+				return;
+			if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity[parType], parType, value, &_sensParams))
+				return;
+		}
 
 		// Intercept changes to PAR_TYPE_VOLFRAC when not specified per axial cell (but once globally)
 		if (_axiallyConstantParTypeVolFrac && (pId.name == hashString("PAR_TYPE_VOLFRAC")))
@@ -3047,20 +2970,13 @@ void GeneralRateModel<ConvDispOperator>::setSensitiveParameterValue(const Parame
 			return;
 		}
 
-		if (multiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _singleParRadius, _parRadius, value, &_sensParams))
-			return;
-		if (multiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius, value, &_sensParams))
-			return;
-		if (multiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, value, &_sensParams))
-			return;
-
 		if (model::setSensitiveParameterValue(pId, value, _sensParams, _parDepSurfDiffusion, _singleParDepSurfDiffusion))
 			return;
 
 		if (_convDispOp.setSensitiveParameterValue(_sensParams, pId, value))
 			return;
 
-		if (model::setSensitiveParameterValue(pId, value, _sensParams,  _dynReactionBulk , false))
+		if (model::setSensitiveParameterValue(pId, value, _sensParams, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
 			return;
 	}
 
@@ -3076,28 +2992,49 @@ bool GeneralRateModel<ConvDispOperator>::setSensitiveParameter(const ParameterId
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (multiplexCompTypeSecParameterAD(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nParType, _disc.nComp, adDirection, adValue, _sensParams))
+		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
-		}
+			if (singleTypeMultiplexCompTypeSecParameterAD(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _disc.nComp, parType, adDirection, adValue, _sensParams, (_poreAccessFactor.size() / _disc.nParType) * parType))
+			{
+				LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+				return true;
+			}
 
-		if (multiplexCompTypeSecParameterAD(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _disc.nParType, _disc.nComp, adDirection, adValue, _sensParams))
-		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
-		}
+			if (singleTypeMultiplexCompTypeSecParameterAD(pId, hashString("FILM_DIFFUSION"), _filmDiffusionMode, _filmDiffusion, _disc.nComp, parType, adDirection, adValue, _sensParams, (_filmDiffusion.size() / _disc.nParType) * parType))
+			{
+				LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+				return true;
+			}
 
-		if (multiplexCompTypeSecParameterAD(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _disc.nParType, _disc.nComp, adDirection, adValue, _sensParams))
-		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
-		}
+			if (singleTypeMultiplexCompTypeSecParameterAD(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _disc.nComp, parType, adDirection, adValue, _sensParams, (_parDiffusion.size() / _disc.nParType) * parType))
+			{
+				LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+				return true;
+			}
 
-		if (multiplexBndCompTypeSecParameterAD(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _disc.nParType, _disc.nComp, _disc.strideBound, _disc.nBound, _disc.boundOffset, _disc.nBoundBeforeType, adDirection, adValue, _sensParams))
-		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
+			if (singleTypeMultiplexBndCompTypeSecParameterAD(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _disc.nComp, _disc.strideBound[parType], _disc.boundOffset + parType * _disc.nComp, parType, adDirection, adValue, _sensParams, (_parSurfDiffusion.size() / _disc.nParType) * parType))
+			{
+				LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+				return true;
+			}
+
+			if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_RADIUS"), _singleParRadius, _parRadius[parType], parType, adDirection, adValue, _sensParams))
+			{
+				LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+				return true;
+			}
+
+			if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius[parType], parType, adDirection, adValue, _sensParams))
+			{
+				LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+				return true;
+			}
+
+			if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity[parType], parType, adDirection, adValue, _sensParams))
+			{
+				LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+				return true;
+			}
 		}
 
 		const int mpIc = multiplexInitialConditions(pId, adDirection, adValue);
@@ -3127,24 +3064,6 @@ bool GeneralRateModel<ConvDispOperator>::setSensitiveParameter(const ParameterId
 			return true;
 		}
 
-		if (multiplexTypeParameterAD(pId, hashString("PAR_RADIUS"), _singleParRadius, _parRadius, adDirection, adValue, _sensParams))
-		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
-		}
-
-		if (multiplexTypeParameterAD(pId, hashString("PAR_CORERADIUS"), _singleParCoreRadius, _parCoreRadius, adDirection, adValue, _sensParams))
-		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
-		}
-
-		if (multiplexTypeParameterAD(pId, hashString("PAR_POROSITY"), _singleParPorosity, _parPorosity, adDirection, adValue, _sensParams))
-		{
-			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
-		}
-
 		if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, _parDepSurfDiffusion, _singleParDepSurfDiffusion))
 		{
 			LOG(Debug) << "Found parameter " << pId << " in surface diffusion parameter dependence: Dir " << adDirection << " is set to " << adValue;
@@ -3157,7 +3076,7 @@ bool GeneralRateModel<ConvDispOperator>::setSensitiveParameter(const ParameterId
 			return true;
 		}
 
-		if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, _dynReactionBulk , false))
+		if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, std::vector<IDynamicReactionModel*> { _dynReactionBulk }, true))
 		{
 			LOG(Debug) << "Found parameter " << pId << " in DynamicBulkReactionModel: Dir " << adDirection << " is set to " << adValue;
 			return true;

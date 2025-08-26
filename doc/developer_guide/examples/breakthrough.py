@@ -43,7 +43,7 @@ model.root.input.model.unit_001.adsorption.mcl_qmax = [100.0,]  # mol / m^3   (s
 
 ## Initial conditions
 model.root.input.model.unit_001.init_c = [0.0,]
-model.root.input.model.unit_001.init_q = [0.0,]
+model.root.input.model.unit_001.INIT_CS = [0.0,]
 
 ## Discretization
 ### Grid cells
@@ -52,7 +52,7 @@ model.root.input.model.unit_001.discretization.ncol = 20
 model.root.input.model.unit_001.discretization.npar = 5
 
 ### Other options
-model.root.input.model.unit_001.discretization.par_disc_type = 'EQUIDISTANT_PAR'    
+model.root.input.model.unit_001.discretization.par_disc_type = 'EQUIDISTANT'    
 model.root.input.model.unit_001.discretization.use_analytic_jacobian = 1
 model.root.input.model.unit_001.discretization.reconstruction = 'WENO'
 model.root.input.model.unit_001.discretization.gs_type = 1

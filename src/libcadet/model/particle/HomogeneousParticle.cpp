@@ -206,12 +206,12 @@ namespace model
 			throw InvalidParameterException("Particle porosity is not within (0, 1] for particle type " + std::to_string(_parTypeIdx));
 
 		bool filmDiffParTypeDep = paramProvider.exists("FILM_DIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getBool("FILM_DIFFUSION_PARTYPE_DEPENDENT") : true;
-		_filmDiffusionMode = newIF_readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", _nComp, _parTypeIdx, filmDiffParTypeDep, unitOpIdx);
+		_filmDiffusionMode = readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", _nComp, _parTypeIdx, filmDiffParTypeDep, unitOpIdx);
 
 		if (paramProvider.exists("PORE_ACCESSIBILITY"))
 		{
 			bool poreAccessParTypeDep = paramProvider.exists("PORE_ACCESSIBILITY_PARTYPE_DEPENDENT") ? paramProvider.getBool("PORE_ACCESSIBILITY_PARTYPE_DEPENDENT") : true;
-			_poreAccessFactorMode = newIF_readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _nComp, _parTypeIdx, poreAccessParTypeDep, unitOpIdx);
+			_poreAccessFactorMode = readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _nComp, _parTypeIdx, poreAccessParTypeDep, unitOpIdx);
 		}
 		else
 		{
@@ -240,7 +240,7 @@ namespace model
 		//	{
 		//		_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), unitOpIdx, ParTypeIndep);
 
-		//		active* const iq = _initQ.data() + _nBoundBeforeType[0];
+		//		active* const iq = _initCs.data() + _nBoundBeforeType[0];
 		//		for (unsigned int i = 0; i < _strideBound[0]; ++i)
 		//			parameters[initParams[i]] = iq + i;
 		//	}
@@ -250,7 +250,7 @@ namespace model
 		//		{
 		//			_binding[type]->fillBoundPhaseInitialParameters(initParams.data(), unitOpIdx, type);
 
-		//			active* const iq = _initQ.data() + _nBoundBeforeType[type];
+		//			active* const iq = _initCs.data() + _nBoundBeforeType[type];
 		//			for (unsigned int i = 0; i < _strideBound[type]; ++i)
 		//				parameters[initParams[i]] = iq + i;
 		//		}
@@ -263,16 +263,8 @@ namespace model
 		{
 			if (_binding->requiresConfiguration())
 			{
-				if (_bindingParDep)
-				{
-					MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", true);
-					bindingConfSuccess = _binding->configure(paramProvider, unitOpIdx, ParTypeIndep);
-				}
-				else
-				{
-					MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _parTypeIdx, nParType == 1, true);
-					bindingConfSuccess = _binding->configure(paramProvider, unitOpIdx, _parTypeIdx);
-				}
+				MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _binding->usesParamProviderInDiscretizationConfig());
+				bindingConfSuccess = _binding->configure(paramProvider, unitOpIdx, ParTypeIndep);
 			}
 		}
 
@@ -280,16 +272,8 @@ namespace model
 		bool dynReactionConfSuccess = true;
 		if (_dynReaction && _dynReaction->requiresConfiguration())
 		{
-			if (_reactionParDep)
-			{
-				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", true);
-				dynReactionConfSuccess = _dynReaction->configure(paramProvider, unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
-			}
-			else
-			{
-				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _parTypeIdx, nParType == 1, true);
-				dynReactionConfSuccess = _dynReaction->configure(paramProvider, unitOpIdx, _parTypeIdx) && dynReactionConfSuccess;
-			}
+			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction", _dynReaction->usesParamProviderInDiscretizationConfig());
+			dynReactionConfSuccess = _dynReaction->configure(paramProvider, unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
 		}
 
 		paramProvider.popScope(); // particle_type_{:03}

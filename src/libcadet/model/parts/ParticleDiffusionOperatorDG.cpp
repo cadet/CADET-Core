@@ -67,9 +67,9 @@ namespace parts
 			if (_nParElem < 1)
 				throw InvalidParameterException("Particle number of elements (PAR_NELEM) must be at least 1, but was specified as " + std::to_string(_nParElem) + " for particle type " + std::to_string(_parTypeIdx));
 		}
-		else if (paramProvider.exists("NPAR"))
+		else if (paramProvider.exists("NCELLS"))
 		{
-			const int nParPoints = paramProvider.getInt("NPAR");
+			const int nParPoints = paramProvider.getInt("NCELLS");
 			if (nParPoints < 1)
 				throw InvalidParameterException("Particle number of discrete points (NPAR) must be at least 1, but was specified as " + std::to_string(nParPoints) + " for particle type " + std::to_string(_parTypeIdx));
 		}
@@ -95,13 +95,13 @@ namespace parts
 		_parOuterSurfAreaPerVolume.resize(_nParElem);
 		_parInnerSurfAreaPerVolume.resize(_nParElem);
 
-		// Read particle discretization mode and default to "EQUIDISTANT_PAR"
+		// Read particle discretization mode and default to "EQUIDISTANT"
 		_parDiscMode = ParticleDiscretizationMode::Equidistant;
 		std::string pdt = paramProvider.getString("PAR_DISC_TYPE");
 
-		if (pdt == "EQUIVOLUME_PAR")
+		if (pdt == "EQUIVOLUME")
 			_parDiscMode = ParticleDiscretizationMode::Equivolume;
-		else if (pdt == "USER_DEFINED_PAR")
+		else if (pdt == "USER_DEFINED")
 			_parDiscMode = ParticleDiscretizationMode::UserDefined;
 
 		if (paramProvider.exists("PAR_DISC_VECTOR"))

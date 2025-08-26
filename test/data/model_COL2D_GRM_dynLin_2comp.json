@@ -155,7 +155,7 @@
         "discretization": {
           "SPATIAL_METHOD": "DG",
           "PAR_DISC_TYPE": [
-            "EQUIDISTANT_PAR"
+            "EQUIDISTANT"
           ],
           "PAR_POLYDEG": 1,
           "PAR_NELEM": 1
