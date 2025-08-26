@@ -915,11 +915,12 @@ namespace parts
 	// ========================================						DG particle Jacobian							=============================================  //
 	// ==========================================================================================================================================================  //
 	
-	void ParticleDiffusionOperatorDG::parBindingPattern(std::vector<Eigen::Triplet<double>>& tripletList, const int offset, const unsigned int colNode)
+	void ParticleDiffusionOperatorDG::parBindingAndReactionPattern(std::vector<Eigen::Triplet<double>>& tripletList, const int offset, const unsigned int colNode)
 	{
-		// every bound state might depend on every bound and liquid state
 		for (int parNode = 0; parNode < _nParPoints; parNode++)
 		{
+			// binding: every bound state might depend on every bound and liquid state
+			// reaction: every liquid and bound state might depend on every liquid and bound state
 			for (int state = 0; state < strideParPoint(); state++)
 			{
 				for (int stateDep = 0; stateDep < strideParPoint(); stateDep++) {
@@ -931,14 +932,14 @@ namespace parts
 			}
 		}
 	}
+
 	/**
 	 * @brief calculates the particle dispersion jacobian Pattern, including entries for the dependence of particle entries on bulk entries through film diffusion boundary condition
 	 * @detail Does NOT add film diffusion entries for the dependence of bulk conc. on particle conc.
 	*/
 	void ParticleDiffusionOperatorDG::setParticleJacobianPattern(std::vector<ParticleDiffusionOperatorDG::T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx)
 	{
-
-		parBindingPattern(tripletList, offsetPar, colNode);
+		parBindingAndReactionPattern(tripletList, offsetPar, colNode);
 
 		// Ordering of particle surface diffusion:
 		// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
