@@ -501,7 +501,7 @@ protected:
 			}
 		}
 
-		// particle jacobian (including film diffusion, isotherm and time derivative)
+		// particle jacobian (including film diffusion, isotherm, reaction and time derivative)
 		for (int colNode = 0; colNode < _disc.nPoints; colNode++)
 		{
 			for (int type = 0; type < _disc.nParType; type++)
@@ -519,7 +519,7 @@ protected:
 		// inlet and bulk jacobian
 		_convDispOp.calcTransportJacobian(_globalJac, _jacInlet, idxr.offsetC());
 
-		// particle jacobian (without isotherm, which is handled in residualKernel)
+		// particle transport jacobian
 		for (int colNode = 0; colNode < _disc.nPoints; colNode++)
 		{
 			for (int parType = 0; parType < _disc.nParType; parType++)

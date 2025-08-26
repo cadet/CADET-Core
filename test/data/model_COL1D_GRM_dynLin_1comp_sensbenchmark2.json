@@ -79,7 +79,6 @@
           0.0
         ],
         "ADSORPTION_MODEL": "LINEAR",
-        "ADSORPTION_MODEL_MULTIPLEX": 1,
         "NBOUND": [
           1
         ],
