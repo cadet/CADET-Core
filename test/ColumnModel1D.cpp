@@ -118,6 +118,30 @@ TEST_CASE("Column_1D as LRMP numerical Benchmark with parameter sensitivities fo
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
+TEST_CASE("Column_1D as pseudo-LRMP (GRM with single FV cell) numerical Benchmark with parameter sensitivities for linear case", "[Column_1D],[DGFV],[Simulation],[Reference],[Sensitivity],[CI_sens25]")
+{
+	const std::string& modelFilePath = std::string("/data/model_COL1D_pseudoGRM_dynLin_1comp_benchmark1.json");
+	const std::string& refFilePath = std::string("/data/ref_LRMP_dynLin_1comp_sensbenchmark1_DG_P3Z8.h5");
+	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
+	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
+
+	// FV_BOUNDARY_ORDER = 1 und disabled surfaceDiffusion (otherwise surface diffusion contributes to film diffusion when binding is dynamic)
+	auto discDGFV = cadet::test::column::createDGFVParams(0, 3, 8, 0, 0, 1);
+	discDGFV->setParticleDiscParam("FV_BOUNDARY_ORDER", 1);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, *discDGFV, true);
+}
+
+TEST_CASE("Column_1D as GRM numerical Benchmark1 for linear case with bulk DG and par FV discretization", "[Column_1D],[DGFV],[Simulation],[Reference],[Sensitivity],[CI]")
+{
+	const std::string& modelFilePath = std::string("/data/model_COL1D_GRM_dynLin_1comp_benchmark1.json");
+	const std::string& refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark1_cDG_P3Z8_GSM_parP3parZ1.h5");
+	const std::vector<double> absTol = { 5e-9 };
+	const std::vector<double> relTol = { 1.0 };
+
+	auto discDGFV = cadet::test::column::createDGFVParams(0, 3, 8, 0, 0, 5);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, *discDGFV, false);
+}
+
 TEST_CASE("Column_1D as GRM numerical Benchmark2 with parameter sensitivities for linear case", "[Column_1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens18]")
 {
 	std::string modelFilePath = std::string("/data/model_COL1D_GRM_dynLin_1comp_sensbenchmark2.json");
@@ -160,6 +184,17 @@ TEST_CASE("Column_1D as LRMP numerical Benchmark with parameter sensitivities fo
 
 	cadet::test::column::DGParams disc(0, 3, 8);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
+}
+
+TEST_CASE("Column_1D as GRM numerical Benchmark SMA LWE case with bulk DG and par FV discretization", "[Column_1D],[DGFV],[Simulation],[Reference],[CI]")
+{
+	const std::string modelFilePath = std::string("/data/model_COL1D_GRM_reqSMA_4comp_benchmark1.json");
+	const std::string refFilePath = std::string("/data/ref_GRM_reqSMA_4comp_sensbenchmark1_exIntDG_P3Z8_GSM_parP3parZ1.h5");
+	const std::vector<double> absTol = { 5e-8 };
+	const std::vector<double> relTol = { 1.0 };
+
+	auto discDGFV = cadet::test::column::createDGFVParams(1, 3, 8, 0, 0, 10);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, *discDGFV, false);
 }
 
 TEST_CASE("Column_1D with mixed general rate and homogeneous particle types and linear binding numerical Benchmark with parameter sensitivities", "[Column_1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens24]")
@@ -366,6 +401,18 @@ TEST_CASE("Column_1D as GRM with two component linear binding Jacobian", "[Colum
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_GRM", "DG");
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Column_1D as GRM transport Jacobian with bulk DG and par FV discretization", "[Column_1D],[DGFV],[UnitOp],[Jacobian],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "COLUMN_MODEL_1D_GRM", "DGFV");
+	cadet::test::column::testJacobianAD(jpp, 1e+10);
+}
+
+TEST_CASE("Column_1D as GRM with two component linear binding Jacobian with bulk DG and par FV discretization", "[Column_1D],[DGFV],[UnitOp],[Jacobian],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_GRM", "DGFV");
+	cadet::test::column::testJacobianAD(jpp, 1e+10);
 }
 
 TEST_CASE("Column_1D as GRM LWE one vs two identical particle types match", "[Column_1D],[DG],[DG1D],[Simulation],[ParticleType],[CI]")
