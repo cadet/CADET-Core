@@ -295,7 +295,6 @@ if (NOT ENABLE_PACKAGED_SUNDIALS)
 	endif()
 else()
 	set(SUNDIALS_FOUND TRUE)
-	set(SUNDIALS_VERSION "3.2.1")
 	set(SUNDIALS_NVEC_TARGET "SUNDIALS::sundials_nvecserial")
 	add_subdirectory(ThirdParty/sundials)
 
@@ -307,6 +306,10 @@ else()
 	add_library(SUNDIALS::sundials_nvecserial INTERFACE IMPORTED)
 	target_include_directories(SUNDIALS::sundials_nvecserial INTERFACE ThirdParty/sundials/include "${CMAKE_BINARY_DIR}/ThirdParty/sundials/include")
 	target_link_libraries(SUNDIALS::sundials_nvecserial INTERFACE sundials_nvecserial_static)
+
+	add_library(SUNDIALS::sundials_core INTERFACE IMPORTED)
+	target_include_directories(SUNDIALS::sundials_core INTERFACE ThirdParty/sundials/include "${CMAKE_BINARY_DIR}/ThirdParty/sundials/include")
+	target_link_libraries(SUNDIALS::sundials_core INTERFACE sundials_core_static)
 endif()
 
 if (ENABLE_CADET_TOOLS OR ENABLE_CADET_CLI)
