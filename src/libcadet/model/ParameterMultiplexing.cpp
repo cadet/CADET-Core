@@ -377,10 +377,7 @@ bool singleTypeMultiplexCompTypeSecParameterAD(const ParameterId& pId, StringHas
 
 		sensParams.insert(&data[valTypeOffset + pId.component]);
 
-		const int nSec = valTypeOffset > 0 ? valTypeOffset / parTypeIdx / nComp : data.size() / nComp;
-
-		for (unsigned int s = 0; s < nSec; ++s)
-			data[valTypeOffset + s * nComp + pId.component].setADValue(adDirection, adValue);
+		data[valTypeOffset + pId.component].setADValue(adDirection, adValue);
 
 		return true;
 	}
@@ -543,10 +540,7 @@ bool singleTypeMultiplexBndCompTypeSecParameterAD(const ParameterId& pId, String
 
 		sensParams.insert(&data[valTypeOffset + boundOffset[pId.component] + pId.boundState]);
 
-		const int nSec = valTypeOffset > 0 ? valTypeOffset / parTypeIdx / nComp : data.size() / nComp;
-
-		for (unsigned int s = 0; s < nSec; ++s)
-			data[valTypeOffset + s * strideBound + boundOffset[pId.component] + pId.boundState].setADValue(adDirection, adValue);
+		data[valTypeOffset + boundOffset[pId.component] + pId.boundState].setADValue(adDirection, adValue);
 
 		return true;
 	}
