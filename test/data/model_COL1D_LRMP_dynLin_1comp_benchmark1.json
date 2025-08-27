@@ -68,7 +68,9 @@
       "UNIT_TYPE": "COLUMN_MODEL_1D",
       "VELOCITY": 0.03333333333333333,
       "particle_type_000": {
-        "PARTICLE_TYPE": "HOMOGENEOUS_PARTICLE",
+        "HAS_FILM_DIFFUSION": true,
+        "HAS_PORE_DIFFUSION": false,
+        "HAS_SURFACE_DIFFUSION": false,
         "INIT_CP": [
           0.0
         ],

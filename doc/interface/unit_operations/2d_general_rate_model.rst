@@ -93,7 +93,7 @@ For information on model equations, refer to :ref:`2d_general_rate_model_model`.
    **Type:** double  **Range:** :math:`\geq 0`
    ================  =========================
 
-``INIT_Q``
+``INIT_CS``
 
    Initial concentrations for each bound state of each component in the bead solid phase. If :math:`\texttt{ADSORPTION_MODEL_MULTIPLEX}` is 0, values for each particle type are required in type-component-major ordering (length is :math:`\texttt{NTOTALBND}`). If :math:`\texttt{ADSORPTION_MODEL_MULTIPLEX}` is 1, values for one particle type are required in component-major ordering (length is :math:`\sum_{i = 0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i`).  Alternatively, values for each radial zone can be supplied. If :math:`\texttt{ADSORPTION_MODEL_MULTIPLEX}` is 0, values for each radial zone and each particle type are required in radial-type-component-major ordering (length is :math:`\texttt{NRAD} \cdot \texttt{NTOTALBND}`). If :math:`\texttt{ADSORPTION_MODEL_MULTIPLEX}` is 1, values for each radial zone and all particle types are required in radial-component-major ordering (length is :math:`\texttt{NRAD} \cdot \sum_{i = 0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i`). In the radial-inhomogeneous case, the :math:`\texttt{SENS_REACTION}` field is used for indexing the radial zone when specifying parameter sensitivities.
 
@@ -105,7 +105,7 @@ For information on model equations, refer to :ref:`2d_general_rate_model_model`.
 
 ``INIT_STATE``
 
-   Full state vector for initialization (optional, :math:`\texttt{INIT_C}`, :math:`\texttt{INIT_CP}`, and :math:`\texttt{INIT_Q}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives)
+   Full state vector for initialization (optional, :math:`\texttt{INIT_C}`, :math:`\texttt{INIT_CP}`, and :math:`\texttt{INIT_CS}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives)
 
    **Unit:** :math:`various`
 
@@ -113,28 +113,28 @@ For information on model equations, refer to :ref:`2d_general_rate_model_model`.
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NDOF} / 2\texttt{NDOF}`
    ================  =============================  ==================================================
 
-``COL_DISPERSION``
+``COL_DISPERSION_AXIAL``
 
    Axial dispersion coefficient.  In case of a spatially inhomogeneous setting, the :math:`\texttt{SENS_PARTYPE}` field is used for indexing the radial zone when specifying parameter sensitivities.
 
    **Unit:** :math:`\mathrm{m}_{\mathrm{IV}}^{2}\,\mathrm{s}^{-1}`
 
-   ================  =========================  =========================================================
-   **Type:** double  **Range:** :math:`\geq 0`  **Length:** see :math:`\texttt{COL_DISPERSION_MULTIPLEX}`
-   ================  =========================  =========================================================
+   ================  =========================  ===============================================================
+   **Type:** double  **Range:** :math:`\geq 0`  **Length:** see :math:`\texttt{COL_DISPERSION_AXIAL_MULTIPLEX}`
+   ================  =========================  ===============================================================
 
-``COL_DISPERSION_MULTIPLEX``
+``COL_DISPERSION_AXIAL_MULTIPLEX``
 
-   Multiplexing mode of :math:`\texttt{COL_DISPERSION}`. Determines whether :math:`\texttt{COL_DISPERSION}` is treated as component-, radial-, and/or section-independent.  This field is optional. When left out, multiplexing behavior is inferred from the length of :math:`\texttt{COL_DISPERSION}`.  Valid modes are:
+   Multiplexing mode of :math:`\texttt{COL_DISPERSION_AXIAL}`. Determines whether :math:`\texttt{COL_DISPERSION_AXIAL}` is treated as component-, radial-, and/or section-independent.  This field is optional. When left out, multiplexing behavior is inferred from the length of :math:`\texttt{COL_DISPERSION_AXIAL}`.  Valid modes are:
 
-  0. Component-independent, radial-independent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is 1
-  1. Component-independent, radial-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NRAD}`
-  2. Component-dependent, radial-independent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP}`
-  3. Component-dependent, radial-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NRAD}`; ordering is radial-major
-  4. Component-independent, radial-independent, section-dependent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NSEC}`
-  5. Component-independent, radial-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NRAD} \cdot \texttt{NSEC}`; ordering is section-major
-  6. Component-dependent, radial-independent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NSEC}`; ordering is section-major
-  7. Component-dependent, radial-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NRAD} \cdot \texttt{NSEC}`; ordering is section-radial-major
+  0. Component-independent, radial-independent, section-independent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is 1
+  1. Component-independent, radial-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NRAD}`
+  2. Component-dependent, radial-independent, section-independent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NCOMP}`
+  3. Component-dependent, radial-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{NRAD}`; ordering is radial-major
+  4. Component-independent, radial-independent, section-dependent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NSEC}`
+  5. Component-independent, radial-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NRAD} \cdot \texttt{NSEC}`; ordering is section-major
+  6. Component-dependent, radial-independent, section-independent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{NSEC}`; ordering is section-major
+  7. Component-dependent, radial-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{NRAD} \cdot \texttt{NSEC}`; ordering is section-radial-major
 
    =============  ===================================  =============
    **Type:** int  **Range:** :math:`\{0, \dots, 7 \}`  **Length:** 1
@@ -278,47 +278,47 @@ For information on model equations, refer to :ref:`2d_general_rate_model_model`.
    **Type:** int  **Range:** :math:`\{0, \dots, 3 \}`  **Length:** 1
    =============  ===================================  =============
 
-``PAR_DIFFUSION``
+``PORE_DIFFUSION``
 
    Effective particle diffusion coefficients of each component in each particle type
 
    **Unit:** :math:`\mathrm{m}_{\mathrm{MP}}^{2}\,\mathrm{s}^{-1}`
 
    ================  ======================  ========================================================
-   **Type:** double  **Range:** :math:`> 0`  **Length:** see :math:`\texttt{PAR_DIFFUSION_MULTIPLEX}`
+   **Type:** double  **Range:** :math:`> 0`  **Length:** see :math:`\texttt{PORE_DIFFUSION_MULTIPLEX}`
    ================  ======================  ========================================================
 
-``PAR_DIFFUSION_MULTIPLEX``
+``PORE_DIFFUSION_MULTIPLEX``
 
-   Multiplexing mode of :math:`\texttt{PAR_DIFFUSION}`. Determines whether :math:`\texttt{PAR_DIFFUSION}` is treated as component-, type-, and/or section-independent.  This field is optional. When left out, multiplexing behavior is inferred from the length of :math:`\texttt{PAR_DIFFUSION}`.  Valid modes are:
+   Multiplexing mode of :math:`\texttt{PORE_DIFFUSION}`. Determines whether :math:`\texttt{PORE_DIFFUSION}` is treated as component-, type-, and/or section-independent.  This field is optional. When left out, multiplexing behavior is inferred from the length of :math:`\texttt{PORE_DIFFUSION}`.  Valid modes are:
 
-  0. Component-dependent, type-independent, section-independent; length of :math:`\texttt{PAR_DIFFUSION}` is :math:`\texttt{NCOMP}`
-  1. Component-dependent, type-independent, section-dependent; length of :math:`\texttt{PAR_DIFFUSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NSEC}`; ordering is section-major
-  2. Component-dependent, type-dependent, section-independent; length of :math:`\texttt{PAR_DIFFUSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NPARTYPE}`; ordering is type-major
-  3. Component-dependent, type-dependent, section-dependent; length of :math:`\texttt{PAR_DIFFUSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NPARTYPE} \cdot \texttt{NSEC}`; ordering is section-type-major
+  0. Component-dependent, type-independent, section-independent; length of :math:`\texttt{PORE_DIFFUSION}` is :math:`\texttt{NCOMP}`
+  1. Component-dependent, type-independent, section-dependent; length of :math:`\texttt{PORE_DIFFUSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NSEC}`; ordering is section-major
+  2. Component-dependent, type-dependent, section-independent; length of :math:`\texttt{PORE_DIFFUSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NPARTYPE}`; ordering is type-major
+  3. Component-dependent, type-dependent, section-dependent; length of :math:`\texttt{PORE_DIFFUSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NPARTYPE} \cdot \texttt{NSEC}`; ordering is section-type-major
 
    =============  ===================================  =============
    **Type:** int  **Range:** :math:`\{0, \dots, 3 \}`  **Length:** 1
    =============  ===================================  =============
 
-``PAR_SURFDIFFUSION``
+``SURFACE_DIFFUSION``
 
    Particle surface diffusion coefficients of each bound state of each component in each particle type (optional, defaults to all :math:`0~m_{SP}^2 s^{-1}`)
 
    **Unit:** :math:`\mathrm{m}_{\mathrm{SP}}^{2}\,\mathrm{s}^{-1}`
 
    ================  =========================  ============================================================
-   **Type:** double  **Range:** :math:`\geq 0`  **Length:** see :math:`\texttt{PAR_SURFDIFFUSION_MULTIPLEX}`
+   **Type:** double  **Range:** :math:`\geq 0`  **Length:** see :math:`\texttt{SURFACE_DIFFUSION_MULTIPLEX}`
    ================  =========================  ============================================================
 
-``PAR_SURFDIFFUSION_MULTIPLEX``
+``SURFACE_DIFFUSION_MULTIPLEX``
 
-   Multiplexing mode of :math:`\texttt{PAR_SURFDIFFUSION}`. Determines whether :math:`\texttt{PAR_SURFDIFFUSION}` is treated as component-, type-, and/or section-independent.  This field is optional. When left out, multiplexing behavior is inferred from the length of :math:`\texttt{PAR_SURFDIFFUSION}`.  Valid modes are:
+   Multiplexing mode of :math:`\texttt{SURFACE_DIFFUSION}`. Determines whether :math:`\texttt{SURFACE_DIFFUSION}` is treated as component-, type-, and/or section-independent.  This field is optional. When left out, multiplexing behavior is inferred from the length of :math:`\texttt{SURFACE_DIFFUSION}`.  Valid modes are:
 
-  0. Component-dependent, type-independent, section-independent; length of :math:`\texttt{PAR_SURFDIFFUSION}` is :math:`\texttt{NBND}`; ordering is component-major
-  1. Component-dependent, type-independent, section-dependent; length of :math:`\texttt{PAR_SURFDIFFUSION}` is :math:`\texttt{NBND} \cdot \texttt{NSEC}`; ordering is section-component-major
-  2. Component-dependent, type-dependent, section-independent; length of :math:`\texttt{PAR_SURFDIFFUSION}` is :math:`\texttt{NTOTALBND}`; ordering is type-component-major
-  3. Component-dependent, type-dependent, section-dependent; length of :math:`\texttt{PAR_SURFDIFFUSION}` is :math:`\texttt{NTOTALBND} \cdot \texttt{NSEC}`; ordering is section-type-component-major
+  0. Component-dependent, type-independent, section-independent; length of :math:`\texttt{SURFACE_DIFFUSION}` is :math:`\texttt{NBND}`; ordering is component-major
+  1. Component-dependent, type-independent, section-dependent; length of :math:`\texttt{SURFACE_DIFFUSION}` is :math:`\texttt{NBND} \cdot \texttt{NSEC}`; ordering is section-component-major
+  2. Component-dependent, type-dependent, section-independent; length of :math:`\texttt{SURFACE_DIFFUSION}` is :math:`\texttt{NTOTALBND}`; ordering is type-component-major
+  3. Component-dependent, type-dependent, section-dependent; length of :math:`\texttt{SURFACE_DIFFUSION}` is :math:`\texttt{NTOTALBND} \cdot \texttt{NSEC}`; ordering is section-type-component-major
 
    =============  ===================================  =============
    **Type:** int  **Range:** :math:`\{0, \dots, 3 \}`  **Length:** 1
@@ -430,7 +430,7 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE - GENERAL_RATE_MODEL_2D
 
 ``PAR_DISC_TYPE``
 
-   Specifies the discretization scheme inside the particles for all or each particle type. Valid values are :math:`\texttt{EQUIDISTANT_PAR}`, :math:`\texttt{EQUIVOLUME_PAR}`, and :math:`\texttt{USER_DEFINED_PAR}`.
+   Specifies the discretization scheme inside the particles for all or each particle type. Valid values are :math:`\texttt{EQUIDISTANT}`, :math:`\texttt{EQUIVOLUME}`, and :math:`\texttt{USER_DEFINED}`.
 
    ================  =========================================
    **Type:** string  **Length:** :math:`1 / \texttt{NPARTYPE}`
@@ -438,13 +438,13 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE - GENERAL_RATE_MODEL_2D
 
 ``PAR_DISC_VECTOR``
 
-   Node coordinates for the cell boundaries (ignored if :math:`\texttt{PAR_DISC_TYPE} \neq \texttt{USER_DEFINED_PAR}`). The coordinates are relative and have to include the endpoints 0 and 1. They are later linearly mapped to the true radial range :math:`[r_{c,j}, r_{p,j}]`. The coordinates for each particle type are appended to one long vector in type-major ordering.
+   Node coordinates for the cell boundaries (ignored if :math:`\texttt{PAR_DISC_TYPE} \neq \texttt{USER_DEFINED}`). The coordinates are relative and have to include the endpoints 0 and 1. They are later linearly mapped to the true radial range :math:`[r_{c,j}, r_{p,j}]`. The coordinates for each particle type are appended to one long vector in type-major ordering.
 
    ================  ========================  ===============================================
    **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`sum_i (\texttt{NPAR}_i + 1)`
    ================  ========================  ===============================================
 
-``PAR_BOUNDARY_ORDER``
+``FV_BOUNDARY_ORDER``
 
    Order of accuracy of outer particle boundary condition. Optional, defaults to 2.
 

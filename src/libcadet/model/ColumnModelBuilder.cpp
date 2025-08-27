@@ -1,3 +1,4 @@
+#include "model/particle/ParticleModel.hpp"
 #include "model/ColumnModel1D.hpp"
 #ifdef ENABLE_2D_MODELS
 	#include "model/ColumnModel2D.hpp"
@@ -33,7 +34,17 @@ namespace model
 
 				paramProvider.pushScope("particle_type_000");
 
-				if(paramProvider.getString("PARTICLE_TYPE") == "EQUILIBRIUM_PARTICLE")
+				bool filmDiffusion = true;
+
+				if (paramProvider.exists("HAS_FILM_DIFFUSION"))
+					filmDiffusion = paramProvider.getBool("HAS_FILM_DIFFUSION");
+
+				const bool poreDiffusion = paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false;
+				const bool surfaceDiffusion = paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false;
+
+				const std::string particleType = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType();
+
+				if(particleType == "EQUILIBRIUM_PARTICLE")
 				{
 					if (discName == "DG")
 						model = new LumpedRateModelWithoutPoresDG(uoId);
@@ -44,9 +55,9 @@ namespace model
 				}
 				else if (discName == "FV")
 				{
-					if(paramProvider.getString("PARTICLE_TYPE") == "HOMOGENEOUS_PARTICLE")
+					if(particleType == "HOMOGENEOUS_PARTICLE")
 						model = createAxialFVLRMP(uoId);
-					else if (paramProvider.getString("PARTICLE_TYPE") == "GENERAL_RATE_PARTICLE")
+					else if (particleType == "GENERAL_RATE_PARTICLE")
 						model = createAxialFVGRM(uoId);
 				}
 				else
@@ -68,10 +79,19 @@ namespace model
 				model = new ColumnModel2D(uoId);
 			else if (discName == "FV")
 			{
-				if (uoType != "GENERAL_RATE_MODEL_2D")
-					LOG(Error) << uoType + " has no FV implementation for the bulk phase, but was specified as such for unit " << uoId;
-				else
+				if (uoType == "GENERAL_RATE_MODEL_2D")
+					return new GeneralRateModel2D(uoId);
+
+				const bool filmDiffusion = paramProvider.getBool("HAS_FILM_DIFFUSION");
+				const bool poreDiffusion = paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false;
+				const bool surfaceDiffusion = paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false;
+
+				const std::string particleType = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType();
+
+				if (particleType == "GENERAL_RATE_PARTICLE")
 					model = new GeneralRateModel2D(uoId);
+				else
+					LOG(Error) << "This particle Type (check HAS_FILM_DIFFUSION, HAS_PORE_DIFFUSION, HAS_SURFACE_DIFFUSION) is not implemented for FV discretization of the bulk phase, but was specified as such for unit " << uoId;
 			}
 			else
 				LOG(Error) << "Unknown bulk discretization type " << discName << " for unit " << uoId;
@@ -112,7 +132,7 @@ namespace model
 
 		std::string uoType = paramProvider.getString("UNIT_TYPE");
 
-		if (uoType == "COLUMN_MODEL_1D")
+		if (uoType == "RADIAL_COLUMN_MODEL_1D")
 		{
 			if (paramProvider.exists("particle_type_000"))
 			{
@@ -127,17 +147,23 @@ namespace model
 
 				paramProvider.pushScope("particle_type_000");
 
-				if (paramProvider.getString("PARTICLE_TYPE") == "EQUILIBRIUM_PARTICLE")
+				const bool filmDiffusion = paramProvider.getBool("HAS_FILM_DIFFUSION");
+				const bool poreDiffusion = paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false;
+				const bool surfaceDiffusion = paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false;
+
+				const std::string particleType = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType();
+
+				if (particleType == "EQUILIBRIUM_PARTICLE")
 					model = createRadialFVLRM(uoId);
-				if (paramProvider.getString("PARTICLE_TYPE") == "HOMOGENEOUS_PARTICLE")
+				if (particleType == "HOMOGENEOUS_PARTICLE")
 					model = createRadialFVLRMP(uoId);
-				else if (paramProvider.getString("PARTICLE_TYPE") == "GENERAL_RATE_PARTICLE")
+				else if (particleType == "GENERAL_RATE_PARTICLE")
 					model = createRadialFVGRM(uoId);
 
 				paramProvider.popScope();
 			}
 			else
-				model = createRadialFVLRM(uoId); // LRM used for npartype = 0
+				model = createRadialFVLRMP(uoId); // LRMP used for npartype = 0
 		}
 		else
 		{
@@ -168,6 +194,7 @@ namespace model
 	{
 		models[ColumnModel1D::identifier()] = selectAxialFlowColumnUnitOperation;
 		models["COLUMN_MODEL_1D"] = selectAxialFlowColumnUnitOperation;
+		models["RADIAL_COLUMN_MODEL_1D"] = selectRadialFlowColumnUnitOperation;
 
 		models[ColumnModel2D::identifier()] = selectAxialFlowColumnUnitOperation;
 		models["COLUMN_MODEL_2D"] = selectAxialFlowColumnUnitOperation;

@@ -225,7 +225,7 @@ TEST_CASE("Column_2D as LRMP multiple particle types Jacobian analytic vs AD", "
 
 TEST_CASE("Column_2D as LRMP multiple particle types time derivative Jacobian vs FD", "[Column_2D],[UnitOp],[Residual],[Jacobian],[ParticleType],[CI]")
 {
-	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("COLUMN_MODEL_2D_LRMP", "DG", 1e-6, 0.0, 5e-3, true);
+	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("COLUMN_MODEL_2D_LRMP", "DG", 1e-6, 0.0, 5e-3);
 }
 
 TEST_CASE("Column_2D as LRMP linear binding single particle matches spatially dependent particle distribution", "[Column_2D],[Simulation],[ParticleType],[CI]")
@@ -264,7 +264,7 @@ inline cadet::JsonParameterProvider createColumnWithTwoCompLinearBindingThreeHom
 
 	const double parVolFrac[] = { 0.3, 0.6, 0.1 };
 	const double parFactor[] = { 0.9, 0.8 };
-	cadet::test::particle::extendModelToManyParticleTypes(jpp, 3, parFactor, parVolFrac, true);
+	cadet::test::particle::extendModelToManyParticleTypes(jpp, 3, parFactor, parVolFrac);
 
 	return jpp;
 }
@@ -523,7 +523,7 @@ TEST_CASE("Column_2D as GRM linear binding single particle matches particle dist
 
 TEST_CASE("Column_2D as GRM multiple particle types time derivative Jacobian vs FD", "[Column_2D],[UnitOp],[Residual],[Jacobian],[ParticleType],[CI]")
 {
-	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("COLUMN_MODEL_2D_GRM", "DG", 1e-6, 0.0, 5e-3, true);
+	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("COLUMN_MODEL_2D_GRM", "DG", 1e-6, 0.0, 5e-3);
 }
 
 TEST_CASE("Column_2D as GRM linear binding single particle matches spatially dependent particle distribution", "[Column_2D],[Simulation],[ParticleType],[CI]")
@@ -562,7 +562,7 @@ inline cadet::JsonParameterProvider createColumnWithTwoCompLinearBindingThreeGRM
 
 	const double parVolFrac[] = { 0.3, 0.6, 0.1 };
 	const double parFactor[] = { 0.9, 0.8 };
-	cadet::test::particle::extendModelToManyParticleTypes(jpp, 3, parFactor, parVolFrac, true);
+	cadet::test::particle::extendModelToManyParticleTypes(jpp, 3, parFactor, parVolFrac);
 
 	return jpp;
 }

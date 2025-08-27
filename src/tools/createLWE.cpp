@@ -180,10 +180,9 @@ void configureParticles(cadet::io::HDF5Writer& writer, const int nParType, const
     {
         Scope<cadet::io::HDF5Writer> s2(writer, "particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
 
-        writer.scalar("PARTICLE_TYPE", parModel);
-
         if (parModel == "GENERAL_RATE_PARTICLE" || parModel == "HOMOGENEOUS_PARTICLE")
         {
+            writer.scalar<int>("HAS_FILM_DIFFUSION", true);
             writer.scalar("PAR_GEOM", std::string("SPHERE"));
             writer.scalar<double>("PAR_RADIUS", par_radius);
             writer.scalar<double>("PAR_CORERADIUS", par_coreradius);
@@ -200,17 +199,22 @@ void configureParticles(cadet::io::HDF5Writer& writer, const int nParType, const
                 writer.scalar<double>("FILM_DIFFUSION_DEP_BASE", 1.25);
                 writer.scalar<double>("FILM_DIFFUSION_DEP_EXPONENT", 1.0);
             }
-        }
 
-        if (parModel == "GENERAL_RATE_PARTICLE")
-        {
-            const double parSurfDiff[] = { 0.0, 0.0, 0.0, 0.0 };
-            writer.vector<double>("PAR_SURFDIFFUSION", 4, parSurfDiff);
+            if (parModel == "GENERAL_RATE_PARTICLE")
+            {
+                writer.scalar<int>("HAS_PORE_DIFFUSION", true);
+                writer.scalar<int>("HAS_SURFACE_DIFFUSION", false);
+                const double parSurfDiff[] = { 0.0, 0.0, 0.0, 0.0 };
+                writer.vector<double>("SURFACE_DIFFUSION", 4, parSurfDiff);
 
-            const double parDiff[] = { 7e-10, 6.07e-11, 6.07e-11, 6.07e-11 };
-            writer.vector<double>("PAR_DIFFUSION", 4, parDiff);
-            configureParticleDiscretization(writer, polyDeg, nParCells);
+                const double parDiff[] = { 7e-10, 6.07e-11, 6.07e-11, 6.07e-11 };
+                writer.vector<double>("PORE_DIFFUSION", 4, parDiff);
+                configureParticleDiscretization(writer, polyDeg, nParCells);
+            }
         }
+        else
+            writer.scalar<int>("HAS_FILM_DIFFUSION", false);
+
 
         configureAdsorption(writer, nParType, isKinetic);
     }

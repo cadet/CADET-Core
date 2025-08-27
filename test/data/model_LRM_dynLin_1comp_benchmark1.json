@@ -52,30 +52,36 @@
                 ]
             }
         },
-        "unit_001": {
-            "ADSORPTION_MODEL": "LINEAR",
-            "COL_DISPERSION": 0.0001,
-            "COL_LENGTH": 1.0,
-            "INIT_C": [
-                0.0
+      "unit_001": {
+        "UNIT_TYPE": "COLUMN_MODEL_1D",
+        "NCOMP": 1,
+        "TOTAL_POROSITY": 0.6,
+        "COL_DISPERSION": 0.0001,
+        "COL_LENGTH": 1.0,
+        "INIT_C": [
+          0.0
+        ],
+        "VELOCITY": 0.03333333333333333,
+        "particle_type_000": {
+          "HAS_FILM_DIFFUSION": false,
+          "HAS_PORE_DIFFUSION": false,
+          "HAS_SURFACE_DIFFUSION": false,
+          "ADSORPTION_MODEL": "LINEAR",
+          "NBOUND": [ 1 ],
+          "adsorption": {
+            "IS_KINETIC": 1,
+            "LIN_KA": [
+              1.0
             ],
-            "INIT_Q": [
-                0.0
-            ],
-            "NCOMP": 1,
-            "TOTAL_POROSITY": 0.6,
-            "UNIT_TYPE": "LUMPED_RATE_MODEL_WITHOUT_PORES",
-            "VELOCITY": 0.03333333333333333,
-            "adsorption": {
-                "IS_KINETIC": 1,
-                "LIN_KA": [
-                    1.0
-                ],
-                "LIN_KD": [
-                    1.0
-                ]
-            }
-        },
+            "LIN_KD": [
+              1.0
+            ]
+          },
+          "INIT_CS": [
+            0.0
+          ]
+        }
+      },
         "unit_002": {
             "NCOMP": 1,
             "UNIT_TYPE": "OUTLET"

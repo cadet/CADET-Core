@@ -213,7 +213,7 @@
     "unit_001": {
       "UNIT_TYPE": "COLUMN_MODEL_2D",
       "VELOCITY": 0.000575,
-      "COL_DISPERSION": 5.75e-08,
+      "COL_DISPERSION_AXIAL": 5.75e-08,
       "COL_DISPERSION_RADIAL": 0.0,
       "COL_LENGTH": 0.014,
       "COL_RADIUS": 0.0035,
@@ -225,7 +225,9 @@
       "NCOMP": 1,
       "NPARTYPE": 1,
       "particle_type_000": {
-        "PARTICLE_TYPE": "GENERAL_RATE_PARTICLE",
+        "HAS_FILM_DIFFUSION": true,
+        "HAS_PORE_DIFFUSION": true,
+        "HAS_SURFACE_DIFFUSION": true,
         "INIT_CP": [
           0.0
         ],
@@ -237,10 +239,10 @@
         "FILM_DIFFUSION": 6.9e-06,
         "FILM_DIFFUSION_MULTIPLEX": 0,
         "PAR_CORERADIUS": 0.0,
-        "PAR_DIFFUSION": 6.07e-11,
+        "PORE_DIFFUSION": 6.07e-11,
         "PAR_POROSITY": 0.75,
         "PAR_RADIUS": 4.5e-05,
-        "PAR_SURFDIFFUSION": 0.0,
+        "SURFACE_DIFFUSION": 0.0,
         "PAR_TYPE_VOLFRAC": 1,
         "adsorption": {
           "IS_KINETIC": true,

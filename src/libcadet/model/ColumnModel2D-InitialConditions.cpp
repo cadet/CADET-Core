@@ -390,11 +390,11 @@ void ColumnModel2D::applyInitialCondition(const SimulationState& simState) const
 			{
 				const unsigned int shellOffset = offset + shell * idxr.strideParNode(parType);
 
-				// Initialize c_p
+				// Initialize c^p
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 					simState.vecStateY[shellOffset + comp] = static_cast<double>(_initCp[comp + _disc.nComp * parType + radZone * _disc.nComp * _disc.nParType]);
 
-				// Initialize q
+				// Initialize c^s
 				active const* const iq = _initCs.data() + radZone * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[parType];
 				for (unsigned int bnd = 0; bnd < _disc.strideBound[parType]; ++bnd)
 					simState.vecStateY[shellOffset + idxr.strideParLiquid() + bnd] = static_cast<double>(iq[bnd]);
@@ -1106,11 +1106,11 @@ void ColumnModel2D::initializeSensitivityStates(const std::vector<double*>& vecS
 				double* const stateYparticle = vecSensY[param] + offset;
 				double* const stateYparticleSolid = stateYparticle + idxr.strideParLiquid();
 
-				// Initialize c_p
+				// Initialize c^p
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 					stateYparticle[comp] = _initCp[comp + parType * _disc.nComp + rad * _disc.nComp * _disc.nParType].getADValue(param);
 
-				// Initialize q
+				// Initialize c^s
 				for (unsigned int bnd = 0; bnd < _disc.strideBound[parType]; ++bnd)
 					stateYparticleSolid[bnd] = _initCs[bnd + _disc.nBoundBeforeType[parType] + _disc.strideBound[_disc.nParType] * rad].getADValue(param);
 			}

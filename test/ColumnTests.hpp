@@ -266,7 +266,7 @@ namespace column
 		ParticleFV(int nParCells = 0) : nParCells_(nParCells) {}
 
 		void setDiscParam(const std::string& name, int value) {
-			if (name == "NPAR" || name == "NCELLS")
+			if (name == "NCELLS")
 				nParCells_ = value;
 			else
 				ParticleDiscretization::setDiscParam(name, value);
@@ -281,7 +281,6 @@ namespace column
 			ParticleDiscretization::setParticleParameters(jpp);
 
 			if (nParCells_) {
-				jpp.set("NPAR", nParCells_);
 				jpp.set("NCELLS", nParCells_);
 			}
 		}
@@ -383,7 +382,7 @@ namespace column
 		virtual int getNAxCells() const { return bulkDisc_->getNAxCells(); }
 		virtual int getNParCells() const { return particleDisc_->getNParCells(); }
 
-		virtual void setDisc(JsonParameterProvider& jpp, const std::string unitID = "000", const std::string parID = "000") const
+		virtual void setDisc(JsonParameterProvider& jpp, const std::string unitID = "000") const
 		{
 			JsonDiscScopeManager manager(jpp, unitID);
 			std::string unitType = manager.getUnitType();
@@ -393,21 +392,16 @@ namespace column
 			bulkDisc_->setBulkParameters(manager.getProvider(), unitType, manager);
 			manager.exitDiscretization();
 
-			if (jpp.exists("particle_type_" + parID))
+			int parType = 0;
+			while (jpp.exists("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType)))
 			{
-				jpp.pushScope("particle_type_" + parID);
+				jpp.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
 				manager.enterDiscretization();
 				jpp.set("SPATIAL_METHOD", particleDisc_->getDiscType());
 				particleDisc_->setParticleParameters(jpp);
 				manager.exitDiscretization();
 				jpp.popScope();
-			}
-			else
-			{
-				manager.enterDiscretization();
-				jpp.set("SPATIAL_METHOD", particleDisc_->getDiscType());
-				particleDisc_->setParticleParameters(jpp);
-				manager.exitDiscretization();
+				parType++;
 			}
 		}
 

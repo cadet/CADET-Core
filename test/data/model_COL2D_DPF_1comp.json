@@ -101,7 +101,7 @@
       "SCHUR_SAFETY": 1e-08
     },
     "unit_000": {
-      "COL_DISPERSION": [ 1e-08, 2e-08, 3e-08, 4e-08, 5e-08, 6e-08 ],
+      "COL_DISPERSION_AXIAL": [ 1e-08, 2e-08, 3e-08, 4e-08, 5e-08, 6e-08 ],
       "COL_DISPERSION_RADIAL": [ 1e-08, 2e-08, 3e-08, 4e-08, 5e-08, 6e-08 ],
       "COL_LENGTH": 0.014,
       "COL_POROSITY": [ 0.31, 0.33, 0.35, 0.37, 0.38, 0.39 ],

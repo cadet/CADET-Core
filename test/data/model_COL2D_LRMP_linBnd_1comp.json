@@ -73,7 +73,7 @@
       "SCHUR_SAFETY": 1e-08
     },
     "unit_000": {
-      "COL_DISPERSION": [ 1e-08, 2e-08, 3e-08, 4e-08 ],
+      "COL_DISPERSION_AXIAL": [ 1e-08, 2e-08, 3e-08, 4e-08 ],
       "COL_DISPERSION_RADIAL": [ 1e-08, 2e-08, 3e-08, 4e-08 ],
       "COL_LENGTH": 0.014,
       "COL_POROSITY": [ 0.31, 0.33, 0.35, 0.37 ],
@@ -98,7 +98,9 @@
         "USE_ANALYTIC_JACOBIAN": true
       },
       "particle_type_000": {
-        "PARTICLE_TYPE": "HOMOGENEOUS_PARTICLE",
+        "HAS_FILM_DIFFUSION": true,
+        "HAS_PORE_DIFFUSION": false,
+        "HAS_SURFACE_DIFFUSION": false,
         "PAR_POROSITY": 0.75,
         "PAR_RADIUS": 4.5e-05,
         "FILM_DIFFUSION": 1e-09,
