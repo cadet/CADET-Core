@@ -256,7 +256,7 @@ namespace column
 
 		jpp.pushScope("discretization");
 
-		jpp.set("NPAR", static_cast<int>(nPar));
+		jpp.set("NCELLS", static_cast<int>(nPar));
 
 		jpp.popScope();
 
@@ -466,6 +466,10 @@ namespace column
 			pp.pushScope(sensParam);
 			nlohmann::json sens_param;
 			sens_param["SENS_NAME"] = pp.getString("SENS_NAME");
+			if (sens_param["SENS_NAME"] == "PAR_DIFFUSION")
+				sens_param["SENS_NAME"] = "PORE_DIFFUSION";
+			else if (sens_param["SENS_NAME"] == "PAR_SURFDIFFUSION")
+				sens_param["SENS_NAME"] = "SURFACE_DIFFUSION";
 			sens_param["SENS_COMP"] = pp.getInt("SENS_COMP");
 			sens_param["SENS_BOUNDPHASE"] = pp.getInt("SENS_BOUNDPHASE");
 			sens_param["SENS_PARTYPE"] = pp.getInt("SENS_PARTYPE");
@@ -496,11 +500,11 @@ namespace column
 		if (pp.exists("ADSORPTION_MODEL_MULTIPLEX"))
 			setupJson["model"]["unit_" + unitID]["ADSORPTION_MODEL_MULTIPLEX"] = pp.getInt("ADSORPTION_MODEL_MULTIPLEX");
 
-		if (pp.exists("PAR_DIFFUSION_MULTIPLEX"))
-			setupJson["model"]["unit_" + unitID]["PAR_DIFFUSION_MULTIPLEX"] = pp.getInt("PAR_DIFFUSION_MULTIPLEX");
+		if (pp.exists("PORE_DIFFUSION_MULTIPLEX"))
+			setupJson["model"]["unit_" + unitID]["PORE_DIFFUSION_MULTIPLEX"] = pp.getInt("PORE_DIFFUSION_MULTIPLEX");
 
-		if (pp.exists("PAR_SURFDIFFUSION_MULTIPLEX"))
-			setupJson["model"]["unit_" + unitID]["PAR_SURFDIFFUSION_MULTIPLEX"] = pp.getInt("PAR_SURFDIFFUSION_MULTIPLEX");
+		if (pp.exists("SURFACE_DIFFUSION_MULTIPLEX"))
+			setupJson["model"]["unit_" + unitID]["SURFACE_DIFFUSION_MULTIPLEX"] = pp.getInt("SURFACE_DIFFUSION_MULTIPLEX");
 
 		if (pp.exists("PORE_ACCESSIBILITY_MULTIPLEX"))
 			setupJson["model"]["unit_" + unitID]["PORE_ACCESSIBILITY_MULTIPLEX"] = pp.getInt("PORE_ACCESSIBILITY_MULTIPLEX");
@@ -1121,9 +1125,9 @@ namespace column
 			auto ms = util::makeOptionalGroupScope(jpp, "model");
 			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
 
-			jpp.set("PAR_SURFDIFFUSION_DEP", "LIQUID_SALT_EXPONENTIAL");
-			jpp.set("PAR_SURFDIFFUSION_EXPFACTOR", std::vector<double>{ 0.8, 1.6 });
-			jpp.set("PAR_SURFDIFFUSION_EXPARGMULT", std::vector<double>{ 1.3, 2.1 });
+			jpp.set("SURFACE_DIFFUSION_DEP", "LIQUID_SALT_EXPONENTIAL");
+			jpp.set("SURFACE_DIFFUSION_EXPFACTOR", std::vector<double>{ 0.8, 1.6 });
+			jpp.set("SURFACE_DIFFUSION_EXPARGMULT", std::vector<double>{ 1.3, 2.1 });
 		}
 
 		testArrowHeadJacobianFD(jpp, h, absTol, relTol);
@@ -1137,9 +1141,9 @@ namespace column
 			auto ms = util::makeOptionalGroupScope(jpp, "model");
 			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
 
-			jpp.set("PAR_SURFDIFFUSION_DEP", "LIQUID_SALT_EXPONENTIAL");
-			jpp.set("PAR_SURFDIFFUSION_EXPFACTOR", std::vector<double>{ 0.8, 1.6 });
-			jpp.set("PAR_SURFDIFFUSION_EXPARGMULT", std::vector<double>{ 1.3, 2.1 });
+			jpp.set("SURFACE_DIFFUSION_DEP", "LIQUID_SALT_EXPONENTIAL");
+			jpp.set("SURFACE_DIFFUSION_EXPFACTOR", std::vector<double>{ 0.8, 1.6 });
+			jpp.set("SURFACE_DIFFUSION_EXPARGMULT", std::vector<double>{ 1.3, 2.1 });
 		}
 
 		testJacobianAD(jpp, 1e-14);
@@ -1211,7 +1215,9 @@ namespace column
 				unit->prepareADvectors(adParams);
 
 				// Add dispersion parameter sensitivity
-				REQUIRE(unit->setSensitiveParameter(makeParamId(hashString("COL_DISPERSION"), 0, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep), 0, 1.0));
+				const bool dispSens = unit->setSensitiveParameter(makeParamId(hashString("COL_DISPERSION"), 0, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep), 0, 1.0) ||
+					unit->setSensitiveParameter(makeParamId(hashString("COL_DISPERSION_AXIAL"), 0, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep), 0, 1.0);
+				REQUIRE(dispSens);
 
 				// Obtain memory for state, Jacobian multiply direction, Jacobian column
 				const unsigned int nDof = unit->numDofs();

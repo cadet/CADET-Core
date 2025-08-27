@@ -393,12 +393,21 @@ bool ColumnModel2D::configureModelDiscretization(IParameterProvider& paramProvid
 		const std::string parGroup = "particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType);
 		paramProvider.pushScope(parGroup);
 
-		std::string particleModelName = paramProvider.getString("PARTICLE_TYPE");
+		const bool filmDiffusion = paramProvider.getBool("HAS_FILM_DIFFUSION");
+		const bool poreDiffusion = paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false;
+		const bool surfaceDiffusion = paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false;
 
-		_particles[parType] = helper.createParticleModel(particleModelName);
+		const std::string particleType = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType();
+
+		_particles[parType] = helper.createParticleModel(particleType);
 
 		if (!_particles[parType])
-			throw InvalidParameterException("Unknown particle model " + particleModelName);
+			throw InvalidParameterException("Unknown particle model " + particleType);
+
+		_particles[parType] = helper.createParticleModel(particleType);
+
+		if (!_particles[parType])
+			throw InvalidParameterException("Unknown particle model " + particleType);
 
 		paramProvider.popScope(); // particle_type_xxx
 	}

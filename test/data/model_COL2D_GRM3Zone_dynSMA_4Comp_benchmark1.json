@@ -185,21 +185,23 @@
       "SCHUR_SAFETY": 1e-08
     },
     "unit_000": {
-      "COL_DISPERSION": 5.75e-08,
+      "COL_DISPERSION_AXIAL": 5.75e-08,
       "COL_DISPERSION_RADIAL": 5e-08,
       "COL_LENGTH": 0.014,
       "COL_POROSITY": 0.37,
       "COL_RADIUS": 0.0035,
       "CROSS_SECTION_AREA": 3.848451000647497e-05,
       "particle_type_000": {
-        "PARTICLE_TYPE": "GENERAL_RATE_PARTICLE",
+        "HAS_FILM_DIFFUSION": true,
+        "HAS_PORE_DIFFUSION": true,
+        "HAS_SURFACE_DIFFUSION": true,
         "FILM_DIFFUSION": [
           6.9e-06,
           6.9e-06,
           6.9e-06,
           6.9e-06
         ],
-        "PAR_DIFFUSION": [
+        "PORE_DIFFUSION": [
           7e-10,
           6.07e-11,
           6.07e-11,
@@ -207,7 +209,7 @@
         ],
         "PAR_POROSITY": 0.75,
         "PAR_RADIUS": 4.5e-05,
-        "PAR_SURFDIFFUSION": [
+        "SURFACE_DIFFUSION": [
           0,
           0,
           0,
@@ -260,7 +262,7 @@
           "PAR_POLYDEG": 3,
           "PAR_NELEM": 1,
           "PAR_DISC_TYPE": [
-            "EQUIDISTANT_PAR"
+            "EQUIDISTANT"
           ]
         }
       },

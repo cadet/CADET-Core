@@ -115,7 +115,7 @@
       "SCHUR_SAFETY": 1e-08
     },
     "unit_000": {
-      "COL_DISPERSION": [ 1e-08, 2e-08, 3e-08, 4e-08 ],
+      "COL_DISPERSION_AXIAL": [ 1e-08, 2e-08, 3e-08, 4e-08 ],
       "COL_DISPERSION_RADIAL": [ 1e-08, 2e-08, 3e-08, 4e-08 ],
       "COL_LENGTH": 0.014,
       "COL_POROSITY": [ 0.31, 0.33, 0.35, 0.37 ],
@@ -141,10 +141,12 @@
         "USE_ANALYTIC_JACOBIAN": true
       },
       "particle_type_000": {
-        "PARTICLE_TYPE": "GENERAL_RATE_PARTICLE",
+        "HAS_FILM_DIFFUSION": true,
+        "HAS_PORE_DIFFUSION": true,
+        "HAS_SURFACE_DIFFUSION": false,
         "PAR_POROSITY": 0.75,
         "PAR_RADIUS": 4.5e-05,
-        "PAR_DIFFUSION": 4.5e-011,
+        "PORE_DIFFUSION": 4.5e-011,
         "FILM_DIFFUSION": 1e-08,
         "ADSORPTION_MODEL": "NONE",
         "NBOUND": 0,
@@ -154,17 +156,19 @@
         "discretization": {
           "SPATIAL_METHOD": "DG",
           "PAR_DISC_TYPE": [
-            "EQUIDISTANT_PAR"
+            "EQUIDISTANT"
           ],
           "PAR_POLYDEG": 1,
           "PAR_NELEM": 2
         }
       },
       "particle_type_001": {
-        "PARTICLE_TYPE": "GENERAL_RATE_PARTICLE",
+        "HAS_FILM_DIFFUSION": true,
+        "HAS_PORE_DIFFUSION": true,
+        "HAS_SURFACE_DIFFUSION": false,
         "PAR_POROSITY": 0.6,
         "PAR_RADIUS": 8e-05,
-        "PAR_DIFFUSION": 1e-011,
+        "PORE_DIFFUSION": 1e-011,
         "FILM_DIFFUSION": 2e-08,
         "ADSORPTION_MODEL": "NONE",
         "NBOUND": 0,
@@ -174,7 +178,7 @@
         "discretization": {
           "SPATIAL_METHOD": "DG",
           "PAR_DISC_TYPE": [
-            "EQUIDISTANT_PAR"
+            "EQUIDISTANT"
           ],
           "PAR_POLYDEG": 2,
           "PAR_NELEM": 1

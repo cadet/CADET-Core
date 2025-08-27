@@ -35,7 +35,9 @@
       "UNIT_TYPE": "COLUMN_MODEL_1D",
       "VELOCITY": 0.000575,
       "particle_type_000": {
-        "PARTICLE_TYPE": "GENERAL_RATE_PARTICLE",
+        "HAS_FILM_DIFFUSION": true,
+        "HAS_PORE_DIFFUSION": true,
+        "HAS_SURFACE_DIFFUSION": true,
         "INIT_CS": [
           1200.0,
           0.0,
@@ -49,7 +51,7 @@
           6.9e-06
         ],
         "PAR_CORERADIUS": 0.0,
-        "PAR_DIFFUSION": [
+        "PORE_DIFFUSION": [
           7e-10,
           6.07e-11,
           6.07e-11,
@@ -57,7 +59,7 @@
         ],
         "PAR_POROSITY": 0.75,
         "PAR_RADIUS": 4.5e-05,
-        "PAR_SURFDIFFUSION": [
+        "SURFACE_DIFFUSION": [
           0.0,
           0.0,
           0.0,

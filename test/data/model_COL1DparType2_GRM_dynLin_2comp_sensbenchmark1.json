@@ -85,7 +85,9 @@
         "UNIT_TYPE": "COLUMN_MODEL_1D",
         "VELOCITY": 0.000575,
         "particle_type_000": {
-          "PARTICLE_TYPE": "GENERAL_RATE_PARTICLE",
+          "HAS_FILM_DIFFUSION": true,
+          "HAS_PORE_DIFFUSION": true,
+          "HAS_SURFACE_DIFFUSION": true,
           "INIT_CP": [
             0.0,
             0.0
@@ -103,25 +105,25 @@
           "FILM_DIFFUSION_MULTIPLEX": 1,
           "FILM_DIFFUSION_PARTYPE_DEPENDENT": false,
           "PAR_CORERADIUS": 0.0,
-          "PAR_DIFFUSION": [
+          "PORE_DIFFUSION": [
             1.214e-10,
             2e-11,
             2.428e-10,
             4e-11
           ],
-          "PAR_DIFFUSION_MULTIPLEX": 1,
-          "PAR_DIFFUSION_PARTYPE_DEPENDENT": true,
+          "PORE_DIFFUSION_MULTIPLEX": 1,
+          "PORE_DIFFUSION_PARTYPE_DEPENDENT": true,
           "PAR_GEOM": [
             "SPHERE"
           ],
           "PAR_POROSITY": 0.75,
           "PAR_RADIUS": 4.5e-05,
-          "PAR_SURFDIFFUSION": [
+          "SURFACE_DIFFUSION": [
             5e-11,
             2e-11
           ],
-          "PAR_SURFDIFFUSION_PARTYPE_DEPENDENT": true,
-          "PAR_SURFDIFFUSION_MULTIPLEX": 0,
+          "SURFACE_DIFFUSION_PARTYPE_DEPENDENT": true,
+          "SURFACE_DIFFUSION_MULTIPLEX": 0,
           "ADSORPTION_MODEL": "LINEAR",
           "adsorption": {
             "IS_KINETIC": true,
@@ -140,10 +142,10 @@
             1
           ],
           "discretization": {
-            "NPAR": 2,
-            "PAR_BOUNDARY_ORDER": 2,
+            "NCELLS": 2,
+            "FV_BOUNDARY_ORDER": 2,
             "PAR_DISC_TYPE": [
-              "EQUIDISTANT_PAR"
+              "EQUIDISTANT"
             ],
             "PAR_NELEM": 2,
             "PAR_POLYDEG": 3,
@@ -151,7 +153,9 @@
           }
         },
         "particle_type_001": {
-          "PARTICLE_TYPE": "GENERAL_RATE_PARTICLE",
+          "HAS_FILM_DIFFUSION": true,
+          "HAS_PORE_DIFFUSION": true,
+          "HAS_SURFACE_DIFFUSION": true,
           "INIT_CP": [
             0.0,
             0.0
@@ -169,25 +173,25 @@
           "FILM_DIFFUSION_MULTIPLEX": 1,
           "FILM_DIFFUSION_PARTYPE_DEPENDENT": false,
           "PAR_CORERADIUS": 0.0,
-          "PAR_DIFFUSION": [
+          "PORE_DIFFUSION": [
             6.07e-11,
             1e-11,
             1.214e-10,
             2e-11
           ],
-          "PAR_DIFFUSION_MULTIPLEX": 1,
-          "PAR_DIFFUSION_PARTYPE_DEPENDENT": true,
+          "PORE_DIFFUSION_MULTIPLEX": 1,
+          "PORE_DIFFUSION_PARTYPE_DEPENDENT": true,
           "PAR_GEOM": [
             "SPHERE"
           ],
           "PAR_POROSITY": 0.75,
           "PAR_RADIUS": 4.5e-05,
-          "PAR_SURFDIFFUSION": [
+          "SURFACE_DIFFUSION": [
             1e-10,
             4e-11
           ],
-          "PAR_SURFDIFFUSION_MULTIPLEX": 0,
-          "PAR_SURFDIFFUSION_PARTYPE_DEPENDENT": true,
+          "SURFACE_DIFFUSION_MULTIPLEX": 0,
+          "SURFACE_DIFFUSION_PARTYPE_DEPENDENT": true,
           "ADSORPTION_MODEL": "LINEAR",
           "adsorption": {
             "IS_KINETIC": true,
@@ -206,10 +210,10 @@
             1
           ],
           "discretization": {
-            "NPAR": 2,
-            "PAR_BOUNDARY_ORDER": 2,
+            "NCELLS": 2,
+            "FV_BOUNDARY_ORDER": 2,
             "PAR_DISC_TYPE": [
-              "EQUIDISTANT_PAR"
+              "EQUIDISTANT"
             ],
             "PAR_NELEM": 2,
             "PAR_POLYDEG": 3,
@@ -287,7 +291,7 @@
         "param_002": {
             "SENS_BOUNDPHASE": -1,
             "SENS_COMP": 0,
-            "SENS_NAME": "PAR_DIFFUSION",
+            "SENS_NAME": "PORE_DIFFUSION",
             "SENS_PARTYPE": 0,
             "SENS_REACTION": -1,
             "SENS_SECTION": 0,
@@ -296,7 +300,7 @@
         "param_003": {
             "SENS_BOUNDPHASE": -1,
             "SENS_COMP": 0,
-            "SENS_NAME": "PAR_DIFFUSION",
+            "SENS_NAME": "PORE_DIFFUSION",
             "SENS_PARTYPE": 1,
             "SENS_REACTION": -1,
             "SENS_SECTION": 0,
@@ -305,7 +309,7 @@
         "param_004": {
             "SENS_BOUNDPHASE": 0,
             "SENS_COMP": 0,
-            "SENS_NAME": "PAR_SURFDIFFUSION",
+            "SENS_NAME": "SURFACE_DIFFUSION",
             "SENS_PARTYPE": 0,
             "SENS_REACTION": -1,
             "SENS_SECTION": -1,
@@ -314,7 +318,7 @@
         "param_005": {
             "SENS_BOUNDPHASE": 0,
             "SENS_COMP": 1,
-            "SENS_NAME": "PAR_SURFDIFFUSION",
+            "SENS_NAME": "SURFACE_DIFFUSION",
             "SENS_PARTYPE": 0,
             "SENS_REACTION": -1,
             "SENS_SECTION": -1,

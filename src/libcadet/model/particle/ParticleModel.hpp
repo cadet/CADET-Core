@@ -32,6 +32,7 @@
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
 
+#include <bitset>
 #include <unordered_map>
 #include <unordered_set>
 #include <Eigen/Sparse>
@@ -48,6 +49,60 @@ namespace cadet
 
 		class IDynamicReactionModel;
 		class IParameterStateDependence;
+
+		class ParticleModel {
+		private:
+			// Bit positions for each particle transport aspect
+			enum class TransportBit : size_t {
+				FilmDiffusion = 0,
+				PoreDiffusion = 1,
+				SurfaceDiffusion = 2
+			};
+
+			std::bitset<3> _transportFlags;
+
+			void validateConfiguration() const
+			{
+				if (!hasFilmDiffusion() && (hasPoreDiffusion() || hasSurfaceDiffusion()))
+					throw std::invalid_argument("Invalid Particle configuration: instantaneous/no film diffusion is not supported in combination with pore diffusion and surface diffusion");
+			}
+
+		public:
+
+			ParticleModel(bool filmDiffusion, bool poreDiffusion, bool surfaceDiffusion) {
+				_transportFlags[static_cast<size_t>(TransportBit::FilmDiffusion)] = filmDiffusion;
+				_transportFlags[static_cast<size_t>(TransportBit::PoreDiffusion)] = poreDiffusion;
+				_transportFlags[static_cast<size_t>(TransportBit::SurfaceDiffusion)] = surfaceDiffusion;
+
+				validateConfiguration();
+			}
+
+			bool hasFilmDiffusion() const {
+				return _transportFlags[static_cast<size_t>(TransportBit::FilmDiffusion)];
+			}
+
+			bool hasPoreDiffusion() const {
+				return _transportFlags[static_cast<size_t>(TransportBit::PoreDiffusion)];
+			}
+
+			bool hasSurfaceDiffusion() const {
+				return _transportFlags[static_cast<size_t>(TransportBit::SurfaceDiffusion)];
+			}
+			
+			std::string getParticleTransportType() const
+			{
+				validateConfiguration();
+
+				if (!hasFilmDiffusion())
+					return "EQUILIBRIUM_PARTICLE";
+				else if (!hasPoreDiffusion() && !hasSurfaceDiffusion())
+					return "HOMOGENEOUS_PARTICLE";
+				else if (hasPoreDiffusion() || hasSurfaceDiffusion())
+					return "GENERAL_RATE_PARTICLE";
+				else
+					return "UNKNOWN";
+			}
+		};
 
 		namespace parts
 		{

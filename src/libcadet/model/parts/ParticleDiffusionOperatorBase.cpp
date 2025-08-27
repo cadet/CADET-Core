@@ -77,9 +77,9 @@ namespace parts
 
 		delete _parDepSurfDiffusion;
 		bool parSurfDiffDepConfSuccess = true;
-		if (paramProvider.exists("PAR_SURFDIFFUSION_DEP"))
+		if (paramProvider.exists("SURFACE_DIFFUSION_DEP"))
 		{
-			const std::string psdDepName = paramProvider.getString("PAR_SURFDIFFUSION_DEP");
+			const std::string psdDepName = paramProvider.getString("SURFACE_DIFFUSION_DEP");
 			
 			_paramDepSurfDiffTypeDep = paramProvider.exists("PAR_SURFDIFFUSIN_DEP_PARTYPE_DEPENDENT") ? paramProvider.getBool("PAR_SURFDIFFUSIN_DEP_PARTYPE_DEPENDENT") : true;
 
@@ -106,10 +106,10 @@ namespace parts
 		}
 
 		// Check whether surface diffusion is present
-		_hasSurfaceDiffusion = false;
-		if (paramProvider.exists("PAR_SURFDIFFUSION"))
+		_hasSurfaceDiffusion = paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false;
+		if (_hasSurfaceDiffusion)
 		{
-			const std::vector<double> surfDiff = paramProvider.getDoubleArray("PAR_SURFDIFFUSION");
+			const std::vector<double> surfDiff = paramProvider.getDoubleArray("SURFACE_DIFFUSION");
 			// Assume particle surface diffusion if a parameter dependence is present
 			if (_parDepSurfDiffusion)
 			{
@@ -193,12 +193,12 @@ namespace parts
 		}
 
 		bool filmDiffParTypeDep = paramProvider.exists("FILM_DIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getBool("FILM_DIFFUSION_PARTYPE_DEPENDENT") : true;
-		_filmDiffusionMode = newIF_readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", _nComp, _parTypeIdx, filmDiffParTypeDep, unitOpIdx);
+		_filmDiffusionMode = readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", _nComp, _parTypeIdx, filmDiffParTypeDep, unitOpIdx);
 
 		if (paramProvider.exists("PORE_ACCESSIBILITY"))
 		{
 			bool poreAccessParTypeDep = paramProvider.exists("PORE_ACCESSIBILITY_PARTYPE_DEPENDENT") ? paramProvider.getBool("PORE_ACCESSIBILITY_PARTYPE_DEPENDENT") : true;
-			_poreAccessFactorMode = newIF_readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _nComp, _parTypeIdx, poreAccessParTypeDep, unitOpIdx);
+			_poreAccessFactorMode = readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _nComp, _parTypeIdx, poreAccessParTypeDep, unitOpIdx);
 		}
 		else
 		{
@@ -210,13 +210,13 @@ namespace parts
 		for (int comp = 0; comp < _nComp; comp++)
 			_invBetaP[comp] = (1.0 - _parPorosity) / (_poreAccessFactor[comp] * _parPorosity);
 
-		bool parDiffParTypeDep = paramProvider.exists("PAR_DIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getBool("PAR_DIFFUSION_PARTYPE_DEPENDENT") : true;
-		_parDiffusionMode = newIF_readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _parDiffusion, "PAR_DIFFUSION", _nComp, _parTypeIdx, parDiffParTypeDep, unitOpIdx);
+		bool parDiffParTypeDep = paramProvider.exists("PORE_DIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getBool("PORE_DIFFUSION_PARTYPE_DEPENDENT") : true;
+		_parDiffusionMode = readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _parDiffusion, "PORE_DIFFUSION", _nComp, _parTypeIdx, parDiffParTypeDep, unitOpIdx);
 
-		if (paramProvider.exists("PAR_SURFDIFFUSION"))
+		if (paramProvider.exists("SURFACE_DIFFUSION") && _hasSurfaceDiffusion)
 		{
-			bool parSurfDiffParTypeDep = paramProvider.exists("PAR_SURFDIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getBool("PAR_SURFDIFFUSION_PARTYPE_DEPENDENT") : true;
-			_parSurfDiffusionMode = newIF_readAndRegisterMultiplexBndCompSecParam(paramProvider, parameters, _parSurfDiffusion, "PAR_SURFDIFFUSION", nTotalBound, _nComp, _strideBound, _nBound.get(), _parTypeIdx, parSurfDiffParTypeDep, unitOpIdx);
+			bool parSurfDiffParTypeDep = paramProvider.exists("SURFACE_DIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getBool("SURFACE_DIFFUSION_PARTYPE_DEPENDENT") : true;
+			_parSurfDiffusionMode = readAndRegisterMultiplexBndCompSecParam(paramProvider, parameters, _parSurfDiffusion, "SURFACE_DIFFUSION", _nComp, _strideBound, _nBound.get(), _parTypeIdx, parSurfDiffParTypeDep, unitOpIdx);
 		}
 		else
 		{
@@ -229,11 +229,11 @@ namespace parts
 		{
 			if (!_paramDepSurfDiffTypeDep && _parDepSurfDiffusion)
 			{
-				parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configure(paramProvider, unitOpIdx, ParTypeIndep, "PAR_SURFDIFFUSION");
+				parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configure(paramProvider, unitOpIdx, ParTypeIndep, "SURFACE_DIFFUSION");
 			}
 			else if (_paramDepSurfDiffTypeDep && _parDepSurfDiffusion)
 			{
-				parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configure(paramProvider, unitOpIdx, _parTypeIdx, "PAR_SURFDIFFUSION") && parSurfDiffDepConfSuccess;
+				parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configure(paramProvider, unitOpIdx, _parTypeIdx, "SURFACE_DIFFUSION") && parSurfDiffDepConfSuccess;
 			}
 		}
 
@@ -247,9 +247,9 @@ namespace parts
 
 	bool ParticleDiffusionOperatorBase::setParameter(const ParameterId& pId, double value)
 	{
-		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _nComp, _parTypeIdx, value, nullptr))
+		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PORE_DIFFUSION"), _parDiffusionMode, _parDiffusion, _nComp, _parTypeIdx, value, nullptr))
 			return true;
-		if (singleTypeMultiplexBndCompTypeSecParameterValue(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nComp, _strideBound, _boundOffset, _parTypeIdx, value, nullptr))
+		if (singleTypeMultiplexBndCompTypeSecParameterValue(pId, hashString("SURFACE_DIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nComp, _strideBound, _boundOffset, _parTypeIdx, value, nullptr))
 			return true;
 
 		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _parRadiusParTypeDep, _parRadius, _parTypeIdx, value, nullptr))
@@ -290,9 +290,9 @@ namespace parts
 
 	bool ParticleDiffusionOperatorBase::setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value)
 	{
-		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _nComp, _parTypeIdx, value, &sensParams))
+		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PORE_DIFFUSION"), _parDiffusionMode, _parDiffusion, _nComp, _parTypeIdx, value, &sensParams))
 			return true;
-		if (singleTypeMultiplexBndCompTypeSecParameterValue(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nComp, _strideBound, _boundOffset, _parTypeIdx, value, &sensParams))
+		if (singleTypeMultiplexBndCompTypeSecParameterValue(pId, hashString("SURFACE_DIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nComp, _strideBound, _boundOffset, _parTypeIdx, value, &sensParams))
 			return true;
 
 		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _parRadiusParTypeDep, _parRadius, _parTypeIdx, value, &sensParams))
@@ -315,13 +315,13 @@ namespace parts
 
 	bool ParticleDiffusionOperatorBase::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
 	{
-		if (singleTypeMultiplexCompTypeSecParameterAD(pId, hashString("PAR_DIFFUSION"), _parDiffusionMode, _parDiffusion, _nComp, _parTypeIdx, adDirection, adValue, sensParams))
+		if (singleTypeMultiplexCompTypeSecParameterAD(pId, hashString("PORE_DIFFUSION"), _parDiffusionMode, _parDiffusion, _nComp, _parTypeIdx, adDirection, adValue, sensParams))
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;
 		}
 
-		if (singleTypeMultiplexBndCompTypeSecParameterAD(pId, hashString("PAR_SURFDIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nComp, _strideBound, _boundOffset, _parTypeIdx, adDirection, adValue, sensParams))
+		if (singleTypeMultiplexBndCompTypeSecParameterAD(pId, hashString("SURFACE_DIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nComp, _strideBound, _boundOffset, _parTypeIdx, adDirection, adValue, sensParams))
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;

@@ -606,10 +606,10 @@ void CSTRModel::readInitialCondition(IParameterProvider& paramProvider)
 	
 	ad::copyToAd(initC.data(), _initConditions.data(), _nComp);
 
-	if (paramProvider.exists("INIT_Q"))
+	if (paramProvider.exists("INIT_CS"))
 	{
-		const std::vector<double> initQ = paramProvider.getDoubleArray("INIT_Q");
-		ad::copyToAd(initQ.data(), _initConditions.data() + _nComp, _totalBound);
+		const std::vector<double> initCs = paramProvider.getDoubleArray("INIT_CS");
+		ad::copyToAd(initCs.data(), _initConditions.data() + _nComp, _totalBound);
 	}
 	else
 		ad::fillAd(_initConditions.data() + _nComp, _totalBound, 0.0);

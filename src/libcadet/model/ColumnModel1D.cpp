@@ -173,32 +173,44 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 
 		if (unitName == "COLUMN_MODEL_1D")
 		{
-			std::string particleModelName = paramProvider.getString("PARTICLE_TYPE");
+			const bool filmDiffusion = paramProvider.getBool("HAS_FILM_DIFFUSION");
+			const bool poreDiffusion = paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false;
+			const bool surfaceDiffusion = paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false;
+			const std::string particleType = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType();
 
-			_particles[parType] = helper.createParticleModel(particleModelName);
+			_particles[parType] = helper.createParticleModel(particleType);
 
 			if (!_particles[parType])
-				throw InvalidParameterException("Unknown particle model " + particleModelName);
+				throw InvalidParameterException("Unknown particle model " + particleType);
 		}
 		else
 		{
+			std::string particleType = "NONE";
+			if (paramProvider.exists("HAS_FILM_DIFFUSION"))
+			{
+				const bool filmDiffusion = paramProvider.getBool("HAS_FILM_DIFFUSION");
+				const bool poreDiffusion = paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false;
+				const bool surfaceDiffusion = paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false;
+				particleType = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType();
+			}
+
 			if (unitName == "GENERAL_RATE_MODEL")
 			{
-				if ((paramProvider.exists("PARTICLE_TYPE") ? paramProvider.getString("PARTICLE_TYPE") : "GENERAL_RATE_PARTICLE") == "GENERAL_RATE_PARTICLE")
-				{
+				particleType = particleType == "NONE" ? "GENERAL_RATE_PARTICLE" : particleType;
+
+				if (particleType == "GENERAL_RATE_PARTICLE")
 					_particles[parType] = helper.createParticleModel("GENERAL_RATE_PARTICLE");
-				}
 				else
-					throw InvalidParameterException("Unit type was specified as " + unitName + ", which is inconsistent with specified particle model " + paramProvider.getString("PARTICLE_TYPE"));
+					throw InvalidParameterException("Unit type was specified as " + unitName + ", which is inconsistent with specified particle model " + particleType);
 			}
 			else if (unitName == "LUMPED_RATE_MODEL_WITH_PORES")
 			{
-				if ((paramProvider.exists("PARTICLE_TYPE") ? paramProvider.getString("PARTICLE_TYPE") : "HOMOGENEOUS_PARTICLE") == "HOMOGENEOUS_PARTICLE")
-				{
+				particleType = particleType == "NONE" ? "HOMOGENEOUS_PARTICLE" : particleType;
+
+				if (particleType == "HOMOGENEOUS_PARTICLE")
 					_particles[parType] = helper.createParticleModel("HOMOGENEOUS_PARTICLE");
-				}
 				else
-					throw InvalidParameterException("Unit type was specified as " + unitName + ", which is inconsistent with specified particle model " + paramProvider.getString("PARTICLE_TYPE"));
+					throw InvalidParameterException("Unit type was specified as " + unitName + ", which is inconsistent with specified particle model " + particleType);
 			}
 			else
 				throw InvalidParameterException("Failed to configure unit type " + unitName);

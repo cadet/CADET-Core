@@ -55,7 +55,7 @@ Group /input/sensitivity/param_XXX
    
 ``SENS_PARTYPE``
 
-   Particle type index (:math:`-1` if parameter is independent of particle types, see the multiplexing of the corresponding parameter, e.g. `PAR_DIFFUSION_MULTIPLEX`)
+   Particle type index (:math:`-1` if parameter is independent of particle types, see the multiplexing of the corresponding parameter, e.g. `PORE_DIFFUSION_MULTIPLEX`)
    
    =============  ==========================  ===========================
    **Type:** int  **Range:** :math:`\geq -1`  **Length:** :math:`\geq 1`

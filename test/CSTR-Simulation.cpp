@@ -337,7 +337,7 @@ TEST_CASE("CSTR initial condition read and apply correctly", "[CSTR],[InitialCon
 	cadet::JsonParameterProvider jppState("{}");
 	jppState.set("INIT_STATE", std::vector<double>{-1.0, -2.0, -3.0});
 	jppState.set("INIT_C", 4.0);
-	jppState.set("INIT_Q", 5.0);
+	jppState.set("INIT_CS", 5.0);
 	jppState.set("INIT_LIQUID_VOLUME", 6.0);
 	std::fill(vecStateY.begin(), vecStateY.end(), 0.0);
 	std::fill(vecStateYdot.begin(), vecStateYdot.end(), 0.0);
@@ -426,17 +426,17 @@ TEST_CASE("CSTR initial condition behave like standard parameters", "[CSTR],[Ini
 	// Get parameter values
 	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_C", 0, 0, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep)) == 1.0);
 	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_C", 0, 1, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep)) == 2.0);
-	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_Q", 0, 0, 0, 0, cadet::ReactionIndep, cadet::SectionIndep)) == 3.0);
-	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_Q", 0, 1, 0, 0, cadet::ReactionIndep, cadet::SectionIndep)) == 4.0);
-	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_Q", 0, 1, 0, 1, cadet::ReactionIndep, cadet::SectionIndep)) == 5.0);
+	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_CS", 0, 0, 0, 0, cadet::ReactionIndep, cadet::SectionIndep)) == 3.0);
+	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_CS", 0, 1, 0, 0, cadet::ReactionIndep, cadet::SectionIndep)) == 4.0);
+	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_CS", 0, 1, 0, 1, cadet::ReactionIndep, cadet::SectionIndep)) == 5.0);
 	CHECK(uo->getParameterDouble(cadet::makeParamId("INIT_LIQUID_VOLUME", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep)) == 6.0);
 
 	// Set parameter values
 	uo->setParameter(cadet::makeParamId("INIT_C", 0, 0, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -1.0);
 	uo->setParameter(cadet::makeParamId("INIT_C", 0, 1, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -2.0);
-	uo->setParameter(cadet::makeParamId("INIT_Q", 0, 0, 0, 0, cadet::ReactionIndep, cadet::SectionIndep), -3.0);
-	uo->setParameter(cadet::makeParamId("INIT_Q", 0, 1, 0, 0, cadet::ReactionIndep, cadet::SectionIndep), -4.0);
-	uo->setParameter(cadet::makeParamId("INIT_Q", 0, 1, 0, 1, cadet::ReactionIndep, cadet::SectionIndep), -5.0);
+	uo->setParameter(cadet::makeParamId("INIT_CS", 0, 0, 0, 0, cadet::ReactionIndep, cadet::SectionIndep), -3.0);
+	uo->setParameter(cadet::makeParamId("INIT_CS", 0, 1, 0, 0, cadet::ReactionIndep, cadet::SectionIndep), -4.0);
+	uo->setParameter(cadet::makeParamId("INIT_CS", 0, 1, 0, 1, cadet::ReactionIndep, cadet::SectionIndep), -5.0);
 	uo->setParameter(cadet::makeParamId("INIT_LIQUID_VOLUME", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -6.0);
 
 	// Apply initial conditions to state vector

@@ -275,8 +275,7 @@ protected:
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
 	ConvDispOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
-	std::vector<IDynamicReactionModel*> _dynReactionBulk; //!< Dynamic reactions in the bulk volume
-	bool _oldReactionInterface;
+	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 	IParameterParameterDependence* _filmDiffDep; //!< Film diffusion dependency on local velocity
 
 	std::vector<linalg::BandMatrix> _jacP; //!< Particle jacobian diagonal blocks (all of them for each particle type)
@@ -314,7 +313,7 @@ protected:
 
 	std::vector<active> _initC; //!< Liquid bulk phase initial conditions
 	std::vector<active> _initCp; //!< Liquid particle phase initial conditions
-	std::vector<active> _initQ; //!< Solid phase initial conditions
+	std::vector<active> _initCs; //!< Solid phase initial conditions
 	std::vector<double> _initState; //!< Initial conditions for state vector if given
 	std::vector<double> _initStateDot; //!< Initial conditions for time derivative
 

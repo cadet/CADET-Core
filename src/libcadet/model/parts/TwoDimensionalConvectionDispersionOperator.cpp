@@ -871,7 +871,7 @@ bool TwoDimensionalConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, 
 
 	_dir = std::vector<int>(_nRad, 1);
 
-	_axialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _axialDispersion, "COL_DISPERSION", _nComp, _nRad, unitOpIdx);
+	_axialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _axialDispersion, "COL_DISPERSION_AXIAL", _nComp, _nRad, unitOpIdx);
 	_radialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _radialDispersion, "COL_DISPERSION_RADIAL", _nComp, _nRad, unitOpIdx);
 
 	// Add parameters to map
@@ -1362,7 +1362,7 @@ bool TwoDimensionalConvectionDispersionOperator::setParameter(const ParameterId&
 		}
 	}
 
-	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _nRad, value, nullptr);
+	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION_AXIAL"), _axialDispersionMode, _axialDispersion, _nComp, _nRad, value, nullptr);
 	if (ad)
 		return true;
 
@@ -1408,7 +1408,7 @@ bool TwoDimensionalConvectionDispersionOperator::setSensitiveParameterValue(cons
 		}
 	}
 
-	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _nRad, value, &sensParams);
+	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION_AXIAL"), _axialDispersionMode, _axialDispersion, _nComp, _nRad, value, &sensParams);
 	if (ad)
 		return true;
 
@@ -1455,7 +1455,7 @@ bool TwoDimensionalConvectionDispersionOperator::setSensitiveParameter(std::unor
 		}
 	}
 
-	const bool ad = multiplexParameterAD(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _nRad, adDirection, adValue, sensParams);
+	const bool ad = multiplexParameterAD(pId, hashString("COL_DISPERSION_AXIAL"), _axialDispersionMode, _axialDispersion, _nComp, _nRad, adDirection, adValue, sensParams);
 	if (ad)
 		return true;
 

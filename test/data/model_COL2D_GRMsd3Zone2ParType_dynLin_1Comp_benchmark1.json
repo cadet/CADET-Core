@@ -183,76 +183,81 @@
             "MAX_RESTARTS": 10,
             "SCHUR_SAFETY": 1e-08
         },
-        "unit_000": {
-            "COL_DISPERSION": 5.75e-08,
-            "COL_DISPERSION_RADIAL": 5e-08,
-            "COL_LENGTH": 0.014,
-            "COL_POROSITY": 0.37,
-            "COL_RADIUS": 0.0035,
-            "CROSS_SECTION_AREA": 3.848451000647497e-05,
-            "INIT_C": [
-                0
-            ],
-            "INIT_CP": [
-                0
-            ],
-            "INIT_Q": [
-                0
-            ],
-            "NCOMP": 1,
-            "NPARTYPE": 2,
-            "PAR_TYPE_VOLFRAC": [
-                0.4,
-                0.6
-            ],
-            "PORTS": 12,
-            "UNIT_TYPE": "COLUMN_MODEL_2D",
-            "VELOCITY": 0.000575,
-            "discretization": {
-                "AX_NELEM": 8,
-                "AX_POLYDEG": 3,
-                "RADIAL_DISC_TYPE": "EQUIDISTANT",
-                "RAD_NELEM": 3,
-                "RAD_POLYDEG": 3,
-                "SPATIAL_METHOD": "DG",
-                "USE_ANALYTIC_JACOBIAN": true
-            },
-            "particle_type_000": {
-                "ADSORPTION_MODEL": "LINEAR",
-                "FILM_DIFFUSION": 6.9e-06,
-                "NBOUND": 1,
-                "PARTICLE_TYPE": "GENERAL_RATE_PARTICLE",
-                "PAR_DIFFUSION": 6.07e-11,
-                "PAR_POROSITY": 0.75,
-                "PAR_RADIUS": 4.5e-05,
-                "PAR_SURFDIFFUSION": 1e-11,
-                "adsorption": {
-                    "IS_KINETIC": 0,
-                    "LIN_KA": 35.5,
-                    "LIN_KD": 1.0
-                },
-                "discretization": {
-                    "PAR_DISC_TYPE": [
-                        "EQUIDISTANT_PAR"
-                    ],
-                    "PAR_NELEM": 1,
-                    "PAR_POLYDEG": 3
-                }
-            },
-            "particle_type_001": {
-                "ADSORPTION_MODEL": "LINEAR",
-                "FILM_DIFFUSION": 6.9e-06,
-                "NBOUND": 1,
-                "PARTICLE_TYPE": "HOMOGENEOUS_PARTICLE",
-                "PAR_POROSITY": 0.75,
-                "PAR_RADIUS": 4.5e-05,
-                "adsorption": {
-                    "IS_KINETIC": 0,
-                    "LIN_KA": 35.5,
-                    "LIN_KD": 1.0
-                }
-            }
+      "unit_000": {
+        "COL_DISPERSION_AXIAL": 5.75e-08,
+        "COL_DISPERSION_RADIAL": 5e-08,
+        "COL_LENGTH": 0.014,
+        "COL_POROSITY": 0.37,
+        "COL_RADIUS": 0.0035,
+        "CROSS_SECTION_AREA": 3.848451000647497e-05,
+        "INIT_C": [
+          0
+        ],
+        "INIT_CP": [
+          0
+        ],
+        "INIT_CS": [
+          0
+        ],
+        "NCOMP": 1,
+        "NPARTYPE": 2,
+        "PAR_TYPE_VOLFRAC": [
+          0.4,
+          0.6
+        ],
+        "PORTS": 12,
+        "UNIT_TYPE": "COLUMN_MODEL_2D",
+        "VELOCITY": 0.000575,
+        "discretization": {
+          "AX_NELEM": 8,
+          "AX_POLYDEG": 3,
+          "RADIAL_DISC_TYPE": "EQUIDISTANT",
+          "RAD_NELEM": 3,
+          "RAD_POLYDEG": 3,
+          "SPATIAL_METHOD": "DG",
+          "USE_ANALYTIC_JACOBIAN": true
         },
+        "particle_type_000": {
+          "ADSORPTION_MODEL": "LINEAR",
+          "FILM_DIFFUSION": 6.9e-06,
+          "NBOUND": 1,
+          "HAS_FILM_DIFFUSION": true,
+          "HAS_PORE_DIFFUSION": true,
+          "HAS_SURFACE_DIFFUSION": true,
+          "PORE_DIFFUSION": 6.07e-11,
+          "PAR_POROSITY": 0.75,
+          "PAR_RADIUS": 4.5e-05,
+          "SURFACE_DIFFUSION": 1e-11,
+          "adsorption": {
+            "IS_KINETIC": 0,
+            "LIN_KA": 35.5,
+            "LIN_KD": 1.0
+          },
+          "discretization": {
+            "SPATIAL_METHOD": "DG",
+            "PAR_DISC_TYPE": [
+              "EQUIDISTANT"
+            ],
+            "PAR_NELEM": 1,
+            "PAR_POLYDEG": 3
+          }
+        },
+        "particle_type_001": {
+          "ADSORPTION_MODEL": "LINEAR",
+          "FILM_DIFFUSION": 6.9e-06,
+          "NBOUND": 1,
+          "HAS_FILM_DIFFUSION": true,
+          "HAS_PORE_DIFFUSION": false,
+          "HAS_SURFACE_DIFFUSION": false,
+          "PAR_POROSITY": 0.75,
+          "PAR_RADIUS": 4.5e-05,
+          "adsorption": {
+            "IS_KINETIC": 0,
+            "LIN_KA": 35.5,
+            "LIN_KD": 1.0
+          }
+        }
+      },
         "unit_001": {
             "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
             "NCOMP": 1,

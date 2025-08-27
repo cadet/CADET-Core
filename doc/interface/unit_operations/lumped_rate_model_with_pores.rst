@@ -84,7 +84,7 @@ For information on model equations, refer to :ref:`lumped_rate_model_with_pores_
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NCOMP} / \texttt{NPARTYPE} \cdot \texttt{NCOMP}`
    ================  =========================  ===========================================================================
    
-``INIT_Q``
+``INIT_CS``
    Initial concentrations for each bound state of each component in the bead solid phase. If :math:`\texttt{ADSORPTION_MODEL_MULTIPLEX}` is :math:`0`, values for each particle type are required in type-component-major ordering (length is :math:`\texttt{NTOTALBND}`). If :math:`\texttt{ADSORPTION_MODEL_MULTIPLEX}` is :math:`1`, values for one particle type are required in component-major ordering (length is :math:`\sum_{i = 0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i`).
 
    **Unit:** :math:`\mathrm{mol}\,\mathrm{m}_{\mathrm{SP}}^{-3}`
@@ -94,7 +94,7 @@ For information on model equations, refer to :ref:`lumped_rate_model_with_pores_
    ================  =========================
    
 ``INIT_STATE``
-   Full state vector for initialization (optional, :math:`\texttt{INIT_C}`, :math:`\texttt{INIT_CP}`, and :math:`\texttt{INIT_Q}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives)
+   Full state vector for initialization (optional, :math:`\texttt{INIT_C}`, :math:`\texttt{INIT_CP}`, and :math:`\texttt{INIT_CS}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives)
 
    **Unit:** :math:`various`
    
