@@ -194,7 +194,6 @@ namespace reaction
 
 		const std::string uoType = jpp.getString("UNIT_TYPE");
 		const bool isLRMP = (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES");
-		const int nTotalBound = std::accumulate(nBound.begin(), nBound.end(), 0);
 
 		if (!isLRMP && bulk)
 		{
@@ -227,10 +226,14 @@ namespace reaction
 		if ((!isLRMP && particle) || (isLRMP && bulk))
 		{
 			const int nReactions = 3;
-			jpp.set("REACTION_MODEL_PARTICLE", "MASS_ACTION_LAW");
+
+			std::vector<std::string> reacModels(nParType, "MASS_ACTION_LAW");
+			jpp.set("REACTION_MODEL_PARTICLES", reacModels);
 
 			for (int i = 0; i < nParType; ++i)
 			{
+				const int nBoundParType = std::accumulate(nBound.begin() + i * nComp, nBound.begin() + (i + 1) * nComp, 0);
+
 				std::ostringstream oss;
 				if (isLRMP)
 					oss << "reaction";
@@ -246,9 +249,9 @@ namespace reaction
 				std::vector<double> rateFwdLiquid(nReactions, 0.0);
 				std::vector<double> rateBwdLiquid(nReactions, 0.0);
 
-				std::vector<double> stoichMatSolid(nReactions * nTotalBound, 0.0);
-				std::vector<double> expFwdSolid(nReactions * nTotalBound, 0.0);
-				std::vector<double> expBwdSolid(nReactions * nTotalBound, 0.0);
+				std::vector<double> stoichMatSolid(nReactions * nBoundParType, 0.0);
+				std::vector<double> expFwdSolid(nReactions * nBoundParType, 0.0);
+				std::vector<double> expBwdSolid(nReactions * nBoundParType, 0.0);
 				std::vector<double> rateFwdSolid(nReactions, 0.0);
 				std::vector<double> rateBwdSolid(nReactions, 0.0);
 
@@ -278,8 +281,8 @@ namespace reaction
 
 				if (particleModifiers)
 				{
-					std::vector<double> expFwdLiquidModSolid(nReactions * nTotalBound, 0.0);
-					std::vector<double> expBwdLiquidModSolid(nReactions * nTotalBound, 0.0);
+					std::vector<double> expFwdLiquidModSolid(nReactions * nBoundParType, 0.0);
+					std::vector<double> expBwdLiquidModSolid(nReactions * nBoundParType, 0.0);
 					std::vector<double> expFwdSolidModLiquid(nReactions * nComp, 0.0);
 					std::vector<double> expBwdSolidModLiquid(nReactions * nComp, 0.0);
 
