@@ -436,6 +436,7 @@ namespace column
 		//setupJson["solver"]["NTHREADS"] = pp.getInt("NTHREADS");
 		nlohmann::json timeIntegrator;
 		pp.pushScope("time_integrator");
+		timeIntegrator["USE_MODIFIED_NEWTON"] = (copy && pp.exists("USE_MODIFIED_NEWTON")) ? pp.getBool("USE_MODIFIED_NEWTON") : true;
 		timeIntegrator["ABSTOL"] = copy ? pp.getDouble("ABSTOL") : 1e-8;
 		timeIntegrator["ALGTOL"] = copy ? pp.getDouble("ALGTOL") : 1e-8;
 		timeIntegrator["RELTOL"] = copy ? pp.getDouble("RELTOL") : 1e-6;
