@@ -1,18 +1,18 @@
-.. _axial_flow_column_1D_config:
+.. _radial_flow_column_1D_config:
 
-Axial Flow Column 1D
-====================
+Radial Flow Column 1D
+=====================
 
-Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
-------------------------------------------------------------
+Group /input/model/unit_XXX - UNIT_TYPE - RADIAL_COLUMN_MODEL_1D
+----------------------------------------------------------------
 
 ``UNIT_TYPE``
 
    Specifies the type of unit operation model
    
-   ================  ===========================================  =============
-   **Type:** string  **Range:** :math:`\texttt{COLUMN_MODEL_1D}`  **Length:** 1
-   ================  ===========================================  =============
+   ================  ==================================================  =============
+   **Type:** string  **Range:** :math:`\texttt{RADIAL_COLUMN_MODEL_1D}`  **Length:** 1
+   ================  ==================================================  =============
 
 ``NCOMP``
 
@@ -22,21 +22,33 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
    =============  =========================  =============
 
-``CROSS_SECTION_AREA``
+``COL_RADIUS_INNER``
 
-   Cross section area of the column (optional if :math:`\texttt{VELOCITY}` is present, see Section :ref:`MUOPGRMflow`)
-   **Unit:** :math:`\mathrm{m}^{2}`
-   
-   ================  =====================  =============
-   **Type:** double  **Range:** :math:`>0`  **Length:** 1
-   ================  =====================  =============
+	Inner column radius
+
+	**Unit:** :math:`\mathrm{m}`
+
+	================  ======================  =============
+	**Type:** double  **Range:** :math:`> 0`  **Length:** 1
+	================  ======================  =============
+
+``COL_RADIUS_OUTER``
+
+	Outer column radius
+
+	**Unit:** :math:`\mathrm{m}`
+
+	================  ======================  =============
+	**Type:** double  **Range:** :math:`> 0`  **Length:** 1
+	================  ======================  =============
+
 
 ``COL_LENGTH``
 
-   Column length
+   Column length/height (optional if :math:`\texttt{VELOCITY_COEFF}` is present, see Section :ref:`MUOPGRMflow`)
 
    **Unit:** :math:`\mathrm{m}`
-   
+
    ================  ======================  =============
    **Type:** double  **Range:** :math:`> 0`  **Length:** 1
    ================  ======================  =============
@@ -65,14 +77,17 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
    **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`\texttt{NPARTYPE} / \texttt{NCOL} \cdot \texttt{NPARTYPE}`
    ================  ========================  =============================================================================
 
-``VELOCITY``
+``VELOCITY_COEFF``
 
-   Interstitial velocity of the mobile phase (optional if :math:`\texttt{CROSS_SECTION_AREA}` is present, see Section :ref:`MUOPGRMflow`)
+   Interstitial velocity coefficient of the mobile phase (optional :math:`\texttt{COL_LENGTH}` is present, see Section :ref:`MUOPGRMflow`).
+   This input replaces the ``VELOCITY`` field, which is used for axial flow models. The distinction is made to emphasize that radial flow models do not incorporate a global velocity but a variable velocity field that depends on the spatial position.
+   Specifically, the velocity coefficient here is defined as :math:`\frac{Q}{2 \pi L \varepsilon_c}`, for details see Section :ref:`MUOPGRMradialFlow`.
+
    **Unit:** :math:`\mathrm{m}\,\mathrm{s}^{-1}`
-   
-   ================  =============================  =======================================
+
+   ================  =============================  ======================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`1 / \texttt{NSEC}`
-   ================  =============================  =======================================
+   ================  =============================  ======================================
 
 ``COL_DISPERSION``
 
@@ -132,8 +147,8 @@ Group /input/model/unit_XXX/particle_type_XXX
 Each particle type is specified in another subgroup `particle_type_XXX`, see :ref:`particle_model_config`.
 
 
-Group /input/model/unit_XXX/discretization - UNIT_TYPE - COLUMN_MODEL_1D
--------------------------------------------------------------------------
+Group /input/model/unit_XXX/discretization - UNIT_TYPE - RADIAL_COLUMN_MODEL_1D
+-------------------------------------------------------------------------------
 
 ``USE_ANALYTIC_JACOBIAN``
 
@@ -146,70 +161,15 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE - COLUMN_MODEL_1D
 Spatial discretization - Numerical Methods
 ------------------------------------------
 
-CADET offers two spatial discretization methods: Finite Volumes (FV) and Discontinuous Galerkin (DG). Each method has it's own set of input fields.
-While both methods approximate the same solution to the same underlying model, they may differ in terms of computational performance.
-With our currently implemented variants of FV and DG, FV perform better for solutions with steep gradients or discontinuities, while DG can be much faster for rather smooth solutions.
-For the same number of discrete points, DG will generally be slower but often more accurate.
-
-For further information on the choice of discretization methods and their parameters, see :ref:`spatial_discretization_methods`.
+CADET offers a 1st order upwind FV method for radial flow chromatography
 
 ``SPATIAL_METHOD``
 
    Spatial discretization method. Optional, defaults to :math:`\texttt{FV}`
 
-   ================  ===============================================  =============
-   **Type:** string  **Range:** :math:`\{\texttt{FV}, \texttt{DG}\}`  **Length:** 1
-   ================  ===============================================  =============
-
-Discontinuous Galerkin
-----------------------
-
-``POLYDEG``
-
-   DG polynomial degree. Optional, defaults to 4 and :math:`N_d \in \{3, 4, 5\}` is recommended. The total number of axial discrete points is given by (``POLYDEG`` + 1 ) * ``NELEM``
-   
-   =============  =========================  =============
-   **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
-   =============  =========================  =============
-
-``NELEM``
-
-   Number of axial column discretization DG cells\elements. The total number of axial discrete points is given by (``POLYDEG`` + 1 ) * ``NELEM``
-   
-   =============  =========================  =============
-   **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
-   =============  =========================  =============
-
-``NCOL``
-
-   Number of axial discrete points. Optional and ignored if ``NELEM`` is defined. Otherwise, used to calculate ``NELEM`` = :math:`\lfloor` ``NCOL`` / (``POLYDEG`` + 1 ) :math:`\rfloor`
-   
-   =============  =========================  =============
-   **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
-   =============  =========================  =============
-
-``EXACT_INTEGRATION``
-
-   Specifies the DG integration variant. Optional, defaults to 0
-   
-   =============  ===========================  =============
-   **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1
-   =============  ===========================  =============
-
-``LINEAR_SOLVER``
-
-   Specifies the linear solver variant used to factorize the semidiscretized system. Optional, defaults to ``SparseLU``. For more information on these solvers, we refer to the `Eigen documentation <https://eigen.tuxfamily.org/>`_
-   
-   =============  ===================================================================================  =============
-   **Type:** int  **Range:** :math:`\{\texttt{SparseLU}, \texttt{SparseQR}, ..., \texttt{BiCGSTAB}\}`  **Length:** 1
-   =============  ===================================================================================  =============
-   
-
-   When using the DG method, we generally recommend specifying ``USE_MODIFIED_NEWTON = 1`` in :ref:`FFSolverTime`, i.e. to use the modified Newton method to solve the linear system within the time integrator.
-   For further information on discretization parameters, see also :ref:`non_consistency_solver_parameters`.
-
-Finite Volumes
---------------
+   ================  ==================================  =============
+   **Type:** string  **Range:** :math:`\{\texttt{FV}\}`  **Length:** 1
+   ================  ==================================  =============
 
 ``NCELLS``
 
@@ -218,14 +178,6 @@ Finite Volumes
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
    =============  =========================  =============
-
-``RECONSTRUCTION``
-
-   Type of reconstruction method for fluxes
-   
-   ================  ================================  =============
-   **Type:** string  **Range:** :math:`\texttt{WENO}`  **Length:** 1
-   ================  ================================  =============
 
 The following FV discretization parameters are only required if particles are present:
 
@@ -261,12 +213,5 @@ The following FV discretization parameters are only required if particles are pr
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
    ================  =========================  =============
 
-``FIX_ZERO_SURFACE_DIFFUSION``
-
-   Determines whether the surface diffusion parameters :math:`\texttt{SURFACE_DIFFUSION}` are fixed if the parameters are zero. If the parameters are fixed to zero (:math:`\texttt{FIX_ZERO_SURFACE_DIFFUSION} = 1`, :math:`\texttt{SURFACE_DIFFUSION} = 0`), the parameters must not become non-zero during this or subsequent simulation runs. The internal data structures are optimized for a more efficient simulation.  This field is optional and defaults to :math:`0` (optimization disabled in favor of flexibility).
-   
-   =============  ===========================  =============
-   **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1
-   =============  ===========================  =============
-
+When using the FV method, we generally recommend specifying ``USE_MODIFIED_NEWTON = 0`` in :ref:`FFSolverTime`, i.e. to use the full Newton method to solve the linear system within the time integrator.
 For further information on discretization parameters, see also :ref:`flux_reconstruction_methods` (FV specific)), and :ref:`non_consistency_solver_parameters`.
