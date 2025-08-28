@@ -231,22 +231,22 @@ TEST_CASE("LRMP dynamic reactions Jacobian vs AD bulk", "[LRMP],[FV],[Jacobian],
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("LUMPED_RATE_MODEL_WITH_PORES", "FV", true, false, false);
 }
 
-TEST_CASE("LRMP dynamic reactions Jacobian vs AD particle", "[LRMP],[FV],[Jacobian],[AD],[ReactionModel],[CI]")
+TEST_CASE("LRMP dynamic reactions Jacobian vs AD particle", "[LRMP],[FV],[Jacobian],[AD],[ReactionModel],[fixParReacTest]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("LUMPED_RATE_MODEL_WITH_PORES", "FV", false, true, false);
 }
 
-TEST_CASE("LRMP dynamic reactions Jacobian vs AD modified particle", "[LRMP],[FV],[Jacobian],[AD],[ReactionModel],[CI]")
+TEST_CASE("LRMP dynamic reactions Jacobian vs AD modified particle", "[LRMP],[FV],[Jacobian],[AD],[ReactionModel],[fixParReacTest]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("LUMPED_RATE_MODEL_WITH_PORES", "FV", false, true, true);
 }
 
-TEST_CASE("LRMP dynamic reactions Jacobian vs AD bulk and particle", "[LRMP],[FV],[Jacobian],[AD],[ReactionModel],[CI]")
+TEST_CASE("LRMP dynamic reactions Jacobian vs AD bulk and particle", "[LRMP],[FV],[Jacobian],[AD],[ReactionModel],[fixParReacTest]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("LUMPED_RATE_MODEL_WITH_PORES", "FV", true, true, false);
 }
 
-TEST_CASE("LRMP dynamic reactions Jacobian vs AD bulk and modified particle", "[LRMP],[FV],[Jacobian],[AD],[ReactionModel],[CI]")
+TEST_CASE("LRMP dynamic reactions Jacobian vs AD bulk and modified particle", "[LRMP],[FV],[Jacobian],[AD],[ReactionModel],[fixParReacTest]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("LUMPED_RATE_MODEL_WITH_PORES", "FV", true, true, true);
 }
@@ -256,22 +256,22 @@ TEST_CASE("LRMP dynamic reactions time derivative Jacobian vs FD bulk", "[LRMP],
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITH_PORES", "FV", true, false, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRMP dynamic reactions time derivative Jacobian vs FD particle", "[LRMP],[FV],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
+TEST_CASE("LRMP dynamic reactions time derivative Jacobian vs FD particle", "[LRMP],[FV],[Jacobian],[Residual],[ReactionModel],[fixParReacTest],[FD]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITH_PORES", "FV", false, true, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRMP dynamic reactions time derivative Jacobian vs FD modified particle", "[LRMP],[FV],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
+TEST_CASE("LRMP dynamic reactions time derivative Jacobian vs FD modified particle", "[LRMP],[FV],[Jacobian],[Residual],[ReactionModel],[fixParReacTest],[FD]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITH_PORES", "FV", false, true, true, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRMP dynamic reactions time derivative Jacobian vs FD bulk and particle", "[LRMP],[FV],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
+TEST_CASE("LRMP dynamic reactions time derivative Jacobian vs FD bulk and particle", "[LRMP],[FV],[Jacobian],[Residual],[ReactionModel],[fixParReacTest],[FD]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITH_PORES", "FV", true, true, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRMP dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[LRMP],[FV],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
+TEST_CASE("LRMP dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[LRMP],[FV],[Jacobian],[Residual],[ReactionModel],[fixParReacTest],[FD]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITH_PORES", "FV", true, true, true, 1e-6, 1e-14, 8e-4);
 }
@@ -293,25 +293,25 @@ TEST_CASE("LRMP multi particle types dynamic reactions Jacobian vs AD bulk", "[L
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, false, false);
 }
 
-TEST_CASE("LRMP multi particle types dynamic reactions Jacobian vs AD particle", "[LRMP],[FV],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("LRMP multi particle types dynamic reactions Jacobian vs AD particle", "[LRMP],[FV],[Jacobian],[AD],[ReactionModel],[ParticleType],[fixParReacTest]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, false);
 }
 
-TEST_CASE("LRMP multi particle types dynamic reactions Jacobian vs AD modified particle", "[LRMP],[FV],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("LRMP multi particle types dynamic reactions Jacobian vs AD modified particle", "[LRMP],[FV],[Jacobian],[AD],[ReactionModel],[ParticleType],[fixParReacTest]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, true);
 }
 
-TEST_CASE("LRMP multi particle types dynamic reactions Jacobian vs AD bulk and particle", "[LRMP],[FV],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("LRMP multi particle types dynamic reactions Jacobian vs AD bulk and particle", "[LRMP],[FV],[Jacobian],[AD],[ReactionModel],[ParticleType],[fixParReacTest]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, false);
 }
 
-TEST_CASE("LRMP multi particle types dynamic reactions Jacobian vs AD bulk and modified particle", "[LRMP],[FV],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+TEST_CASE("LRMP multi particle types dynamic reactions Jacobian vs AD bulk and modified particle", "[LRMP],[FV],[Jacobian],[AD],[ReactionModel],[ParticleType],[fixParReacTest]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, true);
@@ -323,25 +323,25 @@ TEST_CASE("LRMP multi particle types dynamic reactions time derivative Jacobian 
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, false, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRMP multi particle types dynamic reactions time derivative Jacobian vs FD particle", "[LRMP],[FV],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI],[FD]")
+TEST_CASE("LRMP multi particle types dynamic reactions time derivative Jacobian vs FD particle", "[LRMP],[FV],[Jacobian],[Residual],[ReactionModel],[ParticleType],[fixParReacTest],[FD]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRMP multi particle types dynamic reactions time derivative Jacobian vs FD modified particle", "[LRMP],[FV],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI],[FD]")
+TEST_CASE("LRMP multi particle types dynamic reactions time derivative Jacobian vs FD modified particle", "[LRMP],[FV],[Jacobian],[Residual],[ReactionModel],[ParticleType],[fixParReacTest],[FD]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, true, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRMP multi particle types dynamic reactions time derivative Jacobian vs FD bulk and particle", "[LRMP],[FV],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI],[FD]")
+TEST_CASE("LRMP multi particle types dynamic reactions time derivative Jacobian vs FD bulk and particle", "[LRMP],[FV],[Jacobian],[Residual],[ReactionModel],[ParticleType],[fixParReacTest],[FD]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRMP multi particle types dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[LRMP],[FV],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI],[FD]")
+TEST_CASE("LRMP multi particle types dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[LRMP],[FV],[Jacobian],[Residual],[ReactionModel],[ParticleType],[fixParReacTest],[FD]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 8e-4);
