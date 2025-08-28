@@ -167,7 +167,7 @@ By default, the following initial conditions are applied for all :math:`z \in [0
     Binding with multiple bound states
 
 
-See Table :ref:`general_rate_model_config`.
+See Table :ref:`axial_flow_column_1D_config` and :ref:`particle_model_config`.
 
 
 .. _MUOPGRMParticleGeometry:
@@ -291,7 +291,7 @@ The final behavior for radial flow models is controlled by the interplay of colu
 - If :math:`u` is given and :math:`L` is not, the provided interstitial velocity coefficient is used to calculate the interstitial velocity field.
 
 
-For information on model parameters see :ref:`general_rate_model_config`.
+For information on model parameters see :ref:`axial_flow_column_1D_config` and :ref:`particle_model_config`.
 
 .. _MUOPGRMradialFlow:
 
@@ -344,4 +344,4 @@ Note that the outlet boundary condition Eq. :eq:`BCOutletRadial` is also known 
 
 The complementing mass transport and binding equations for the liquid and solid phases of the porous beads are described by the same equations as for the axial GRM.
 
-For information on model parameters see :ref:`radial_flow_models_config` in addition to :ref:`general_rate_model_config`.
+For information on model parameters see :ref:`radial_flow_column_1D_config` and :ref:`particle_model_config`.

@@ -8,12 +8,10 @@ Unit Operations
 
     inlet
     outlet
-    general_rate_model 
-    lumped_rate_model_with_pores
-    lumped_rate_model_without_pores
-    2d_general_rate_model
+    axial_flow_column_1D_config
+    radial_flow_column_1D_config
+    axial_flow_column_2D_config
     cstr
-    radial_flow_models
     multi_channel_transport_model
     ../population_balance_model
 
