@@ -1,0 +1,186 @@
+%===================================================================================
+\section{Introduction}\label{s:ex_intro}
+%===================================================================================
+
+This report is intended to serve as a companion document to the User
+Documentation of {\ida} \cite{ida_ug}.  It provides details, with
+listings, on the example programs supplied with the {\ida} distribution
+package.
+
+The {\ida} distribution contains examples of the following types: serial
+{\CC} examples, parallel {\CC} examples, {\petsc} examples, and {\trilinos}
+examples.
+%%
+With the exception of ``demo''-type example files, the names of all the examples 
+distributed with {\sundials} are of the form \verb![slv][PbName]_[ls]_[prec]_[p]!, 
+where
+\begin{description}
+\item [{[slv]}] identifies the solver (for {\ida} examples this is \id{ida}, 
+  while for {\fida} examples, this is \id{fida});
+\item [{[PbName]}] identifies the problem;
+\item [{[ls]}] identifies the linear solver module used;
+\item [{[prec]}] indicates the {\ida} preconditioner module used
+  (if applicable --- for examples using a Krylov linear solver
+  and the {\idabbdpre} module, this will be \id{bbd});
+\item [{[p]}] indicates an example using the parallel vector module {\nvecp}.
+\end{description}
+
+\vspace{0.2in}\noindent
+The following lists summarize all examples distributed with {\ida}.
+
+\vspace{0.2in}\noindent
+The {\ida} distribution contains, in the {\em srcdir}\id{/examples/ida/serial}
+directory, the following nine serial examples (using the {\nvecs} module):
+%%
+\begin{itemize}
+
+\item \id{idaRoberts\_dns}
+  solves the Robertson chemical kinetics problem~\cite{Rob:66}, which consists
+  of two differential equations and one algebraic constraint.  It also uses
+  the rootfinding feature of {\ida}.
+
+  The problem is solved with the {\sunlinsoldense} linear solver using
+  a user-supplied Jacobian.
+
+\item \id{idaRoberts\_klu}
+  is the same as \id{idaRoberts\_dns} but uses the KLU sparse direct linear solver.
+
+\item \id{idaRoberts\_sps}
+  is the same as \id{idaRoberts\_dns} but uses the SuperLUMT sparse direct linear
+  solver (with one thread).
+
+\item \id{idaSlCrank\_dns}
+  solves a system of index-2 DAEs, modeling a planar slider-crank mechanism.
+
+  The problem is obtained through a stabilized index reduction (Gear-Gupta-Leimkuhler)
+  starting from the index-3 DAE equations of motion derived using three generalized
+  coordinates and two algebraic position constraints.
+
+\item \id{idaHeat2D\_bnd}
+  solves a 2-D heat equation, semidiscretized to a DAE on the unit square.
+
+  This program solves the problem with the {\sunlinsolband} linear solver and
+  the default difference-quotient Jacobian approximation. For purposes of
+  illustration, \id{IDACalcIC} is called to compute correct values at the
+  boundary, given incorrect values as input initial guesses. The constraint
+  $u > 0.0$ is imposed for all components.
+
+\item \id{idaHeat2D\_kry}
+  solves the same 2-D heat equation problem as \id{idaHeat2D\_bnd}, with the Krylov
+  linear solver {\sunlinsolspgmr}. The preconditioner uses only the diagonal elements
+  of the Jacobian.
+
+\item \id{idaHeat2D\_klu}
+  solves the same 2-D heat equation problem as \id{idaHeat2D\_bnd}, with
+  sparse linear solver {\sunlinsolklu}.
+
+\item \id{idaHeat2D\_sps}
+  solves the same 2-D heat equation problem as \id{idaHeat2D\_bnd}, with
+  sparse linear solver SuperLUMT.
+
+\item \id{idaFoodWeb\_bnd}
+  solves a system of PDEs modelling a food web problem, with predator-prey
+  interaction and diffusion, on the unit square in 2-D, using the band
+  linear solver.
+
+\item \id{idaFoodWeb\_kry}
+  solves the same problem as \id{idaFoodWeb\_bnd}, but with {\sunlinsolspgmr}
+  and a user-supplied preconditioner.
+
+  The PDEs are discretized in space to a system of DAEs which are solved
+  using the {\sunlinsolband} linear solver with the default difference-quotient 
+  Jacobian approximation.
+
+\item \id{idaKrylovDemo\_ls}
+  solves the same problem as \id{idaHeat2D\_kry}, with three Krylov linear solvers
+  {\sunlinsolspgmr}, {\sunlinsolspbcgs}, and {\sunlinsolsptfqmr}.  The
+  preconditioner uses only the diagonal elements of the Jacobian.
+
+\end{itemize}
+
+\vspace{0.2in}\noindent
+In the {\em srcdir}\id{/examples/ida/parallel} directory, the {\ida} 
+distribution contains the following four parallel examples 
+(using the {\nvecp} module):
+%%
+\begin{itemize}
+
+\item \id{idaHeat2D\_kry\_p}
+  solves the same 2-D heat equation problem as \id{idaHeat2D\_kry}, with {\sunlinsolspgmr}
+  in parallel, and with a user-supplied diagonal preconditioner,
+  
+\item \id{idaHeat2D\_kry\_bbd\_p}
+  solves the same problem as \id{idaHeat2D\_kry\_p}.
+
+  This program  uses the Krylov linear solver {\sunlinsolspgmr} in parallel, and the
+  band-block-diagonal preconditioner {\idabbdpre} with half-bandwidths equal to $1$.
+
+\item \id{idaFoodWeb\_kry\_p}
+  solves the same food web problem as \id{idaFoodWeb\_bnd}, but with {\sunlinsolspgmr}
+  and a user-supplied preconditioner.
+  
+  The preconditioner supplied to {\sunlinsolspgmr} is the block-diagonal part of 
+  the Jacobian with $n_s \times n_s$ blocks arising from the reaction terms only
+  ($n_s =$ number of species).
+
+\item \id{idaFoodWeb\_kry\_bbd\_p}
+  solves the same food web problem as \id{idaFoodWeb\_kry\_p}.
+
+  This program solves the problem using {\sunlinsolspgmr} in parallel and the
+  {\idabbdpre} preconditioner.
+
+\end{itemize}
+
+%% As part of the {\fida} module, in the subdirectories \id{fcmix\_serial},
+%% \id{fcmix\_parallel}, \id{fcmix\_openmp}, and \id{fcmix\_pthreads},
+%% within the directory {\em srcdir}\id{/examples/ida},
+%% are the following four examples for the {\F}-{\CC} interface:
+%% %
+%% \begin{itemize}
+%% \item \id{fidaRoberts\_dns} is a serial chemical kinetics example ({\dense})
+%%        with rootfinding, equivalent to \id{idaRoberts\_dns}.
+
+%% \item \id{fidaHeat2D\_kry\_bbd\_p} is a parallel example ({\spgmr}/{\idabbdpre})
+%%        equivalent to the example \id{idaHeat2D\_kry\_bbd\_p}.
+
+%% \item \id{fidaRoberts\_dns\_openmp} is the same as \id{fidaRoberts\_dns} but
+%%        uses the NVECTOR module NVECTOR\_OPENMP.
+
+%% \item \id{fidaRoberts\_dns\_pthreads} is the same as \id{fidaRoberts\_dns} but
+%%        uses the NVECTOR module NVECTOR\_PTHREADS.
+
+%% \end{itemize}
+%% \
+\vspace{0.2in}\noindent
+Finally, in the subdirectory \id{petsc} of \id{examples/ida} are the
+following examples:
+\begin{itemize}
+\item \id{idaHeat2D\_kry\_petsc} solves the same problem as \id{idaHeat2D\_kry}
+      (with SPGMR) but using the {\petsc} vector module.
+\item \id{idaHeat2D\_jac\_petsc} solves the same problem as \id{idaHeat2D\_kry}
+      but using the default {\petsc} Krylov solver and the {\petsc} vector module.
+\end{itemize}
+
+\vspace{0.2in}\noindent 
+In the following sections, we give detailed descriptions of some (but
+not all) of these examples.  We also give our output files for
+each of these examples, but users should be cautioned that their
+results may differ slightly from these.  Solution
+values may differ within tolerances, and differences in cumulative
+counters, such as numbers of steps or Newton iterations, may differ
+from one machine environment to another by as much as 10\% to 20\%.
+
+In the descriptions below, we make frequent references to the {\ida}
+User Document \cite{ida_ug}.  All citations to specific sections
+(e.g. \ugref{s:types}) are references to parts of that User Document, unless
+explicitly stated otherwise.
+
+\vspace{0.2in}\noindent {\bf Note}. 
+The examples in the {\ida} distribution are written in such a way as
+to compile and run for any combination of configuration options during the
+installation of {\sundials} (see Appendix \ref{c:install} in the User Guide).
+As a consequence, they contain portions of code that will not be typically present in a
+user program. For example, all example programs make use of the
+variables \id{SUNDIALS\_EXTENDED\_PRECISION} and \id{SUNDIALS\_DOUBLE\_PRECISION}
+to test if the solver libraries were built in extended or double precision,
+and use the appropriate conversion specifiers in \id{printf} functions.

@@ -1,0 +1,70 @@
+# -----------------------------------------------------------------
+# Programmer(s): Radu Serban, Slaven Peles, Cody Balos @ LLNL
+# -----------------------------------------------------------------
+# SUNDIALS Copyright Start
+# Copyright (c) 2002-2025, Lawrence Livermore National Security
+# and Southern Methodist University.
+# All rights reserved.
+#
+# See the top-level LICENSE and NOTICE files for details.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+# SUNDIALS Copyright End
+# -----------------------------------------------------------------
+# Makefile for SUNDIALS examples documentation
+# -----------------------------------------------------------------
+
+QUIET =
+
+SHARED_DIR = ../sundials
+
+# Use pdflatex as default compiler
+TEX_COMPILER = pdflatex
+
+EX_SHARED_FILES = \
+ug.tex \
+biblio.bib
+
+EX_SHARED = $(addprefix $(SHARED_DIR)/, ${EX_SHARED_FILES})
+
+export TEXINPUTS=./:${SHARED_DIR}//:${SHARED_DIR}/figures//:
+export BIBINPUTS=./:${SHARED_DIR}//:
+export BSTINPUTS=./:${SHARED_DIR}//:
+
+#-------------------------------------------------------------------------------
+
+all:
+	@echo "Usage:"
+	@echo "  make ex     - compile LaTeX files to generate PDF for Examples Guide (pdflatex)"
+	@echo "  make clean  - remove all temporary files"
+	@echo "  make purge  - remove temporary files + PDF files"
+	@echo "  make ex_pdf - generate PDF file for Examples Guide using pdflatex"
+	@echo "  make ex_xel - generate PDF file for Examples Guide using xelatex"
+	@echo ""
+
+ex: ${EXAMPLES}.pdf
+
+ex_pdf: use_pdflatex ex
+
+ex_xel: use_xelatex ex
+
+${EXAMPLES}.pdf: ${EX_FILES} ${EX_SHARED}
+	${TEX_COMPILER} ${QUIET} ${EXAMPLES}.tex
+	bibtex ${EXAMPLES}
+	makeindex ${EXAMPLES}.idx
+	${TEX_COMPILER} ${QUIET} ${EXAMPLES}.tex
+	${TEX_COMPILER} ${QUIET} ${EXAMPLES}.tex
+
+#-------------------------------------------------------------------------------
+
+use_pdflatex:
+	$(eval TEX_COMPILER := pdflatex)
+
+use_xelatex:
+	$(eval TEX_COMPILER := xelatex)
+
+clean:
+	rm -f *~ *.aux *.bbl *.blg *.log *.toc *.lot *.lof *.ist *.ind *.ilg *.idx *.dvi *.out
+
+purge:  clean
+	rm -f ${EXAMPLES}.pdf

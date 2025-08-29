@@ -1,27 +1,61 @@
 # ---------------------------------------------------------------
-# Programmer:  David Gardner and Slaven Peles @ LLNL
+# Programmer(s): David J. Gardner, Slaven Peles, and
+#                Cody Balos @ LLNL
 # ---------------------------------------------------------------
-# LLNS Copyright Start
-# Copyright (c) 2014, Lawrence Livermore National Security
-# This work was performed under the auspices of the U.S. Department
-# of Energy by Lawrence Livermore National Laboratory in part under
-# Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
-# Produced at the Lawrence Livermore National Laboratory.
+# SUNDIALS Copyright Start
+# Copyright (c) 2002-2025, Lawrence Livermore National Security
+# and Southern Methodist University.
 # All rights reserved.
-# For details, see the LICENSE file.
-# LLNS Copyright End
+#
+# See the top-level LICENSE and NOTICE files for details.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+# SUNDIALS Copyright End
 # ---------------------------------------------------------------
-# src level CMakeLists.txt for SUNDIALS (for cmake build system)
+# src level CMakeLists.txt for SUNDIALS
 # ---------------------------------------------------------------
 
-# Always add SUNDIALS provided serial modules
-ADD_SUBDIRECTORY(nvec_ser)
+# Add all of the shared SUNDIALS components
+add_subdirectory(sundials)
+add_subdirectory(nvector)
+add_subdirectory(sunmatrix)
+add_subdirectory(sunlinsol)
+add_subdirectory(sunnonlinsol)
+add_subdirectory(sunmemory)
+add_subdirectory(sunadaptcontroller)
+add_subdirectory(sunadjointcheckpointscheme)
 
-# Always add SUNDIALS provided iterative linear solver modules
-ADD_SUBDIRECTORY(sunlinsol_spgmr)
-ADD_SUBDIRECTORY(sunlinsol_spfgmr)
-ADD_SUBDIRECTORY(sunlinsol_spbcgs)
-ADD_SUBDIRECTORY(sunlinsol_sptfqmr)
+# ARKODE library
+if(BUILD_ARKODE)
+  add_subdirectory(arkode)
+endif()
+
+# CVODE library
+if(BUILD_CVODE)
+  add_subdirectory(cvode)
+endif()
+
+# CVODES library
+if(BUILD_CVODES)
+  add_subdirectory(cvodes)
+endif()
+
+# IDA library
+if(BUILD_IDA)
+  add_subdirectory(ida)
+endif()
 
 # IDAS library
-ADD_SUBDIRECTORY(idas)
+if(BUILD_IDAS)
+  add_subdirectory(idas)
+endif()
+
+# KINSOL library
+if(BUILD_KINSOL)
+  add_subdirectory(kinsol)
+endif()
+
+# CPODES library
+if(BUILD_CPODES)
+  add_subdirectory(cpodes)
+endif()

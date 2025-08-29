@@ -1,218 +1,293 @@
 # ---------------------------------------------------------------
-# Programmer: Radu Serban, David J. Gardner, Cody J. Balos,
-#             and Slaven Peles @ LLNL
+# Programmer(s): Radu Serban, David J. Gardner, Cody J. Balos,
+#                and Slaven Peles @ LLNL
 # ---------------------------------------------------------------
-# LLNS Copyright Start
-# Copyright (c) 2014, Lawrence Livermore National Security
-# This work was performed under the auspices of the U.S. Department
-# of Energy by Lawrence Livermore National Laboratory in part under
-# Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
-# Produced at the Lawrence Livermore National Laboratory.
+# SUNDIALS Copyright Start
+# Copyright (c) 2002-2025, Lawrence Livermore National Security
+# and Southern Methodist University.
 # All rights reserved.
-# For details, see the LICENSE file.
-# LLNS Copyright End
+#
+# See the top-level LICENSE and NOTICE files for details.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+# SUNDIALS Copyright End
 # ---------------------------------------------------------------
 # Top level CMakeLists.txt for SUNDIALS (for cmake build system)
 # ---------------------------------------------------------------
 
-# ---------------------------------------------------------------
-# Initial commands
-# ---------------------------------------------------------------
+# ===============================================================
+# Initial setup.
+# ===============================================================
 
-# Libraries linked via full path no longer produce linker search paths
-# Allows examples to build
-if(COMMAND cmake_policy)
-  cmake_policy(SET CMP0003 NEW)
-endif(COMMAND cmake_policy)
+cmake_minimum_required(VERSION 3.18)
 
-# MACOSX_RPATH is enabled by default
-# Fixes dynamic loading on OSX
-if(POLICY CMP0042)
-  cmake_policy(SET CMP0042 NEW) # Added in CMake 3.0
-else()
-  if(APPLE)
-    set(CMAKE_MACOSX_RPATH 1)
-  endif()
+# Address DOWNLOAD_EXTRACT_TIMESTAMP warning with CMake 3.24+
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.24")
+  cmake_policy(SET CMP0135 NEW)
 endif()
 
-# Project SUNDIALS (initially only C supported)
-# sets PROJECT_SOURCE_DIR and PROJECT_BINARY_DIR variables
-PROJECT(sundials C)
+# Project SUNDIALS (initially only C supported) sets PROJECT_SOURCE_DIR and
+# PROJECT_BINARY_DIR variables.
+project(SUNDIALS C)
+
+# Specify the location of additional CMAKE modules
+set(CMAKE_MODULE_PATH
+    ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake
+    ${PROJECT_SOURCE_DIR}/cmake/macros ${PROJECT_SOURCE_DIR}/cmake/tpl)
+
+# MACRO definitions
+include(SundialsCMakeMacros)
+include(CMakePrintHelpers)
+include(CheckCSourceCompiles)
+include(FindPackageHandleStandardArgs)
 
 # Set some variables with info on the SUNDIALS project
-SET(PACKAGE_BUGREPORT "woodward6@llnl.gov")
-SET(PACKAGE_NAME "SUNDIALS")
-SET(PACKAGE_STRING "SUNDIALS 3.2.1")
-SET(PACKAGE_TARNAME "sundials")
+set(PACKAGE_BUGREPORT "sundials-users@llnl.gov")
+set(PACKAGE_NAME "SUNDIALS")
+set(PACKAGE_STRING "SUNDIALS 7.4.0")
+set(PACKAGE_TARNAME "sundials")
 
-# set SUNDIALS version numbers
+# Set SUNDIALS version numbers
+sundials_git_version() # sets SUNDIALS_GIT_VERSION
+message(STATUS "SUNDIALS_GIT_VERSION: ${SUNDIALS_GIT_VERSION}")
+
 # (use "" for the version label if none is needed)
-SET(PACKAGE_VERSION_MAJOR "3")
-SET(PACKAGE_VERSION_MINOR "2")
-SET(PACKAGE_VERSION_PATCH "1")
-SET(PACKAGE_VERSION_LABEL "")
+set(PACKAGE_VERSION_MAJOR "7")
+set(PACKAGE_VERSION_MINOR "4")
+set(PACKAGE_VERSION_PATCH "0")
+set(PACKAGE_VERSION_LABEL "")
 
-IF(PACKAGE_VERSION_LABEL)
-  SET(PACKAGE_VERSION "${PACKAGE_VERSION_MAJOR}.${PACKAGE_VERSION_MINOR}.${PACKAGE_VERSION_PATCH}-${PACKAGE_VERSION_LABEL}")
-ELSE()
-  SET(PACKAGE_VERSION "${PACKAGE_VERSION_MAJOR}.${PACKAGE_VERSION_MINOR}.${PACKAGE_VERSION_PATCH}")
-ENDIF()
-
-# Hide some cache variables
-MARK_AS_ADVANCED(EXECUTABLE_OUTPUT_PATH LIBRARY_OUTPUT_PATH)
-
-# Always show the C compiler and flags
-MARK_AS_ADVANCED(CLEAR
-  CMAKE_C_COMPILER
-  CMAKE_C_FLAGS)
+if(PACKAGE_VERSION_LABEL)
+  set(PACKAGE_VERSION
+      "${PACKAGE_VERSION_MAJOR}.${PACKAGE_VERSION_MINOR}.${PACKAGE_VERSION_PATCH}-${PACKAGE_VERSION_LABEL}"
+  )
+else()
+  set(PACKAGE_VERSION
+      "${PACKAGE_VERSION_MAJOR}.${PACKAGE_VERSION_MINOR}.${PACKAGE_VERSION_PATCH}"
+  )
+endif()
 
 # Specify the VERSION and SOVERSION for shared libraries
 
-SET(idaslib_VERSION "2.2.1")
-SET(idaslib_SOVERSION "2")
+set(arkodelib_VERSION "6.4.0")
+set(arkodelib_SOVERSION "6")
 
-SET(nveclib_VERSION "3.2.1")
-SET(nveclib_SOVERSION "3")
+set(cvodelib_VERSION "7.4.0")
+set(cvodelib_SOVERSION "7")
 
-# Specify the location of additional CMAKE modules
-SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/config)
+set(cvodeslib_VERSION "7.4.0")
+set(cvodeslib_SOVERSION "7")
 
-# Get correct build paths automatically, but expose CMAKE_INSTALL_LIBDIR
-# as a regular cache variable so that a user can more easily see what
-# the library dir was set to be by GNUInstallDirs.
-INCLUDE(GNUInstallDirs)
-MARK_AS_ADVANCED(CLEAR CMAKE_INSTALL_LIBDIR)
+set(idalib_VERSION "7.4.0")
+set(idalib_SOVERSION "7")
 
-# ---------------------------------------------------------------
-# MACRO definitions
-# ---------------------------------------------------------------
-INCLUDE(SundialsCMakeMacros)
+set(idaslib_VERSION "6.4.0")
+set(idaslib_SOVERSION "6")
 
-# ---------------------------------------------------------------
-# Check for deprecated SUNDIALS CMake options/variables
-# ---------------------------------------------------------------
-INCLUDE(SundialsDeprecated)
+set(kinsollib_VERSION "7.4.0")
+set(kinsollib_SOVERSION "7")
 
-# ---------------------------------------------------------------
-# Which modules to build?
-# ---------------------------------------------------------------
+set(cpodeslib_VERSION "0.0.0")
+set(cpodeslib_SOVERSION "0")
 
-# For each SUNDIALS solver available (i.e. for which we have the
-# sources), give the user the option of enabling/disabling it.
+set(nveclib_VERSION "7.4.0")
+set(nveclib_SOVERSION "7")
 
-OPTION(BUILD_IDAS "Build the IDAS library" ON)
+set(sunmatrixlib_VERSION "5.4.0")
+set(sunmatrixlib_SOVERSION "5")
 
-# ---------------------------------------------------------------
-# Option to specify precision (realtype)
-# ---------------------------------------------------------------
+set(sunlinsollib_VERSION "5.4.0")
+set(sunlinsollib_SOVERSION "5")
 
-SET(SUNDIALS_PRECISION "double")
-SET(FPRECISION_LEVEL "8")
+set(sunnonlinsollib_VERSION "4.4.0")
+set(sunnonlinsollib_SOVERSION "4")
 
-# ---------------------------------------------------------------
-# Option to specify index type
-# ---------------------------------------------------------------
+set(sundialslib_VERSION
+    "${PACKAGE_VERSION_MAJOR}.${PACKAGE_VERSION_MINOR}.${PACKAGE_VERSION_PATCH}"
+)
+set(sundialslib_SOVERSION "${PACKAGE_VERSION_MAJOR}")
 
-SET(DOCSTR "Signed 64-bit (64) or signed 32-bit (32) integer")
-SHOW_VARIABLE(SUNDIALS_INDEX_SIZE STRING "${DOCSTR}" "32")
-SET(DOCSTR "Integer type to use for indices in SUNDIALS")
-SHOW_VARIABLE(SUNDIALS_INDEX_TYPE STRING "${DOCSTR}" "")
-MARK_AS_ADVANCED(SUNDIALS_INDEX_TYPE)
-include(SundialsIndexSize)
+# ===============================================================
+# Initial Setup
+# ===============================================================
 
-# ---------------------------------------------------------------
-# Options to build static and/or shared libraries
-# ---------------------------------------------------------------
-
-SET(SUNDIALS_EXPORT "#define SUNDIALS_EXPORT")
-
-# ---------------------------------------------------------------
-# Option to use the generic math libraries (UNIX only)
-# ---------------------------------------------------------------
-
-IF(UNIX)
-  OPTION(USE_GENERIC_MATH "Use generic (std-c) math libraries" ON)
-  IF(USE_GENERIC_MATH)
-    # executables will be linked against -lm
-    SET(EXTRA_LINK_LIBS -lm)
-    # prepare substitution variable for sundials_config.h
-    SET(SUNDIALS_USE_GENERIC_MATH TRUE)
-  ENDIF(USE_GENERIC_MATH)
-ENDIF(UNIX)
-
-## clock-monotonic, see if we need to link with rt
-include(CheckSymbolExists)
-set(CMAKE_REQUIRED_LIBRARIES_SAVE ${CMAKE_REQUIRED_LIBRARIES})
-set(CMAKE_REQUIRED_LIBRARIES rt)
-CHECK_SYMBOL_EXISTS(_POSIX_TIMERS "unistd.h;time.h" SUNDIALS_POSIX_TIMERS)
-set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES_SAVE})
-if(SUNDIALS_POSIX_TIMERS)
-  find_library(SUNDIALS_RT_LIBRARY NAMES rt)
-  mark_as_advanced(SUNDIALS_RT_LIBRARY)
-  if(SUNDIALS_RT_LIBRARY)
-    # sundials_config.h symbol
-    SET(SUNDIALS_HAVE_POSIX_TIMERS TRUE)
-    set(EXTRA_LINK_LIBS ${EXTRA_LINK_LIBS} ${SUNDIALS_RT_LIBRARY})
-  endif()
+# Prohibit in-source build
+if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
+  message(FATAL_ERROR "In-source build prohibited.")
 endif()
 
+# Organize targets into folders when using an IDE
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
+# Get correct build paths automatically, but expose LIBDIR and INCLUDEDIR as a
+# regular cache variable so that a user can more easily see what they were set
+# to by GNUInstallDirs.
+include(GNUInstallDirs)
+mark_as_advanced(CLEAR CMAKE_INSTALL_LIBDIR)
+mark_as_advanced(CLEAR CMAKE_INSTALL_INCLUDEDIR)
+
+# Suffixes to use for static and shared targets.
+set(_STATIC_LIB_SUFFIX
+    "_static"
+    CACHE INTERNAL "" FORCE)
+set(_SHARED_LIB_SUFFIX
+    "_shared"
+    CACHE INTERNAL "" FORCE)
+
+# A list of all the alias targets created.
+set(_SUNDIALS_ALIAS_TARGETS
+    ""
+    CACHE INTERNAL "" FORCE)
+
+# We default to release builds
+set(_DEFAULT_CMAKE_BUILD_TYPE RelWithDebInfo)
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(
+    STATUS
+      "Building SUNDIALS in '${_DEFAULT_CMAKE_BUILD_TYPE}' mode as CMAKE_BUILD_TYPE was not specified."
+  )
+  set(CMAKE_BUILD_TYPE
+      "${_DEFAULT_CMAKE_BUILD_TYPE}"
+      CACHE STRING "Choose the type of build." FORCE)
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
+                                               "MinSizeRel" "RelWithDebInfo")
+else()
+  message(STATUS "Building SUNDIALS in '${CMAKE_BUILD_TYPE}' mode.")
+endif()
 
 # ===============================================================
-# Options for Parallelism
+# Build options to be processed first
 # ===============================================================
 
-OPTION(MPI_ENABLE "Enable MPI support" OFF)
-OPTION(OPENMP_ENABLE "Enable OpenMP support" OFF)
-OPTION(PTHREAD_ENABLE "Enable Pthreads support" OFF)
-OPTION(CUDA_ENABLE "Enable CUDA support" OFF)
-OPTION(RAJA_ENABLE "Enable RAJA support" OFF)
+include(SundialsDeprecated)
+include(SundialsBuildOptionsPre)
 
 # ===============================================================
 # Options for external packages
 # ===============================================================
 
-# ---------------------------------------------------------------
-# Enable BLAS support?
-# ---------------------------------------------------------------
-OPTION(BLAS_ENABLE "Enable BLAS support" OFF)
+include(SundialsTPLOptions)
 
 # ===============================================================
-# Add any platform specifc settings
+# Options for examples
 # ===============================================================
 
-# Under Windows, add compiler directive to inhibit warnings
-# about use of unsecure functions
-
-IF(WIN32)
-  ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
-ENDIF(WIN32)
-
-IF(APPLE)
-  SET(CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS "${CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS} -undefined dynamic_lookup")
-ENDIF(APPLE)
+include(SundialsExampleOptions)
 
 # ===============================================================
-# Add source and configuration files
+# Setup compilers
 # ===============================================================
 
-# ---------------------------------------------------------------
-# Configure the header file sundials_config.h
-# ---------------------------------------------------------------
+include(SundialsSetupCompilers)
 
-# All required substitution variables should be available at this point.
-# Generate the header file and place it in the binary dir.
-CONFIGURE_FILE(
-  ${PROJECT_SOURCE_DIR}/include/sundials/sundials_config.in
-  ${PROJECT_BINARY_DIR}/include/sundials/sundials_config.h
-  )
+# ===============================================================
+# Setup third-party libraries
+# ===============================================================
 
-# Add the include directory in the source tree and the one in
-# the binary tree (for the header file sundials_config.h)
-INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/include ${PROJECT_BINARY_DIR}/include)
+include(SundialsSetupTPLs)
 
-# ---------------------------------------------------------------
-# Add selected modules to the build system
-# ---------------------------------------------------------------
+# ===============================================================
+# Build options to be processed last
+# ===============================================================
 
-ADD_SUBDIRECTORY(src)
+include(SundialsBuildOptionsPost)
 
+# ===============================================================
+# At this point all the configuration options are set. Setup the
+# sundials_config.h.
+# ===============================================================
+
+include(SundialsSetupConfig)
+
+# ===============================================================
+# Setup testing
+# ===============================================================
+
+include(SundialsSetupTesting)
+
+# ===============================================================
+# Add src and tests; optionally add examples and unit tests.
+# ===============================================================
+
+# Add selected packages and modules to the build
+add_subdirectory(src)
+
+# Add selected examples to the build
+if(_BUILD_EXAMPLES)
+  add_subdirectory(examples)
+endif()
+
+# Add benchmarks to the build
+if(BUILD_BENCHMARKS)
+  include(SundialsSetupBenchmarks)
+  add_subdirectory(benchmarks)
+endif()
+
+# Add unit tests to the build
+if(SUNDIALS_TEST_ENABLE_UNIT_TESTS)
+  add_subdirectory(test/unit_tests)
+endif()
+
+if(SUNDIALS_ENABLE_EXTERNAL_ADDONS)
+  add_subdirectory(external)
+endif()
+
+# ===============================================================
+# Install configuration header files and license file.
+# ===============================================================
+
+# install sundials_export header file
+install(FILES "${PROJECT_BINARY_DIR}/include/sundials/sundials_export.h"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/sundials")
+
+# install configured header file
+install(FILES "${PROJECT_BINARY_DIR}/include/sundials/sundials_config.h"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/sundials")
+
+# install shared Fortran 2003 modules
+if(BUILD_FORTRAN_MODULE_INTERFACE)
+  # While the .mod files get generated for static and shared libraries, they are
+  # identical. So only install one set of the .mod files.
+  if(BUILD_STATIC_LIBS)
+    install(DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}_STATIC/
+            DESTINATION ${Fortran_INSTALL_MODDIR})
+  else()
+    install(DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}_SHARED/
+            DESTINATION ${Fortran_INSTALL_MODDIR})
+  endif()
+endif()
+
+# install license and notice files
+install(FILES "${PROJECT_SOURCE_DIR}/LICENSE"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/sundials")
+install(FILES "${PROJECT_SOURCE_DIR}/NOTICE"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/sundials")
+
+# create package version file
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+  SUNDIALSConfigVersion.cmake
+  VERSION ${PACKAGE_VERSION}
+  COMPATIBILITY AnyNewerVersion)
+
+# install targets
+install(
+  EXPORT sundials-targets
+  FILE SUNDIALSTargets.cmake
+  NAMESPACE SUNDIALS::
+  DESTINATION "${SUNDIALS_INSTALL_CMAKEDIR}")
+
+# install SUNDIALSConfig.cmake
+configure_package_config_file(
+  "${PROJECT_SOURCE_DIR}/cmake/SUNDIALSConfig.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/SUNDIALSConfig.cmake"
+  INSTALL_DESTINATION "${SUNDIALS_INSTALL_CMAKEDIR}")
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/SUNDIALSConfig.cmake"
+              "${CMAKE_CURRENT_BINARY_DIR}/SUNDIALSConfigVersion.cmake"
+        DESTINATION "${SUNDIALS_INSTALL_CMAKEDIR}")
+
+# Export targets so build directory can be used directly
+export(
+  EXPORT sundials-targets
+  FILE "${CMAKE_CURRENT_BINARY_DIR}/SUNDIALSTargets.cmake"
+  NAMESPACE SUNDIALS::)
