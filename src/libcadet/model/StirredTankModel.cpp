@@ -308,7 +308,6 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 
 	_dynReaction = std::vector<IDynamicReactionModel*>(_nParType, nullptr);
 	_oldReactionInterface = false;
-	_numReactionsPerParticle.resize(_nParType);
 	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
 	{
 		_oldReactionInterface = true;
@@ -324,7 +323,6 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 
 			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _nParType == 1, i, _nParType == 1, _dynReaction[i]->usesParamProviderInDiscretizationConfig());
 			reactionConfSuccess = _dynReaction[i]->configureModelDiscretization(paramProvider, _nComp, _nBound + i * _nComp, _boundOffset + i * _nComp) && reactionConfSuccess;
-			_numReactionsPerParticle[i] = 1;
 		}
 	}
 	else if (paramProvider.exists("particle_type_000") && _nParType > 0)
@@ -344,7 +342,7 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 
 			if (paramProvider.exists(particleScope))
 			{
-				paramProvider.pushScope(particleScope);
+				paramProvider.pushScope(particleScope); // particle_type_xxx
 
 				if (paramProvider.exists("NREAC_CROSS_PHASE"))
 				{
@@ -353,11 +351,10 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 					if (nReactions < 0)
 					{
 						paramProvider.popScope();
-						throw InvalidParameterException("GRM-Configuration: number of cross phase reaction must be positive, please check your configuration");
+						throw InvalidParameterException("CSTR-Configuration: number of cross phase reaction must be positive, please check your configuration");
 					}
 					totalReacCrossPhase += nReactions;
-					_reaction.computeOffsets("cross_phase", nReactions, par);
-					paramProvider.popScope();
+					_reaction.computeOffsetsAndReaOfParType("cross_phase", nReactions, par);
 				}
 
 				if (paramProvider.exists("NREAC_PORE"))
@@ -367,11 +364,10 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 					if (nReactions < 0)
 					{
 						paramProvider.popScope();
-						throw InvalidParameterException("GRM-Configuration: number of pore reaction must be positive, please check your configuration");
+						throw InvalidParameterException("CSTR-Configuration: number of pore reaction must be positive, please check your configuration");
 					}
 					totalReacPore += nReactions;
-					_reaction.computeOffsets("pore", nReactions, par);
-					paramProvider.popScope();
+					_reaction.computeOffsetsAndReaOfParType("pore", nReactions, par);
 				}
 				if (paramProvider.exists("NREAC_SOLID"))
 				{
@@ -380,12 +376,12 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 					if (nReactions < 0)
 					{
 						paramProvider.popScope();
-						throw InvalidParameterException("GRM-Configuration: number of solid reaction must be positive, please check your configuration");
+						throw InvalidParameterException("CSTR-Configuration: number of solid reaction must be positive, please check your configuration");
 					}
 					totalReacSolid += nReactions;
-					_reaction.computeOffsets("solid", nReactions, par);
-					paramProvider.popScope();
+					_reaction.computeOffsetsAndReaOfParType("solid", nReactions, par);
 				}
+				paramProvider.popScope(); // particle_type_xxx
 			}
 			else
 			{
@@ -406,6 +402,7 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 				reactionConfSuccess = _reaction.configureDiscretization("cross_phase",
 					par,
 					totalReacCrossPhase,
+					_nParType,
 					_nComp,
 					_nBound,
 					_boundOffset,
@@ -419,6 +416,7 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 				reactionConfSuccess = _reaction.configureDiscretization("pore",
 					par,
 					totalReacPore,
+					_nParType,
 					_nComp,
 					_nBound,
 					_boundOffset,
@@ -432,6 +430,7 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 				reactionConfSuccess = _reaction.configureDiscretization("solid",
 					par,
 					totalReacSolid,
+					_nParType,
 					_nComp,
 					_nBound,
 					_boundOffset,
@@ -444,12 +443,13 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 		}
 
 	}
-	else if (paramProvider.exists("bulk_reaction_000"))
+	else if (paramProvider.exists("liquid_reaction_000"))
 	{
 			int nReactions = paramProvider.getInt("NREAC_LIQUID");
 			reactionConfSuccess = _reaction.configureDiscretization("liquid",
 				0, 
-				nReactions, 
+				nReactions,
+				_nParType,
 				_nComp, 
 				_nBound, 
 				_boundOffset, 
@@ -1629,7 +1629,6 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 		}
 
 		// Reaction
-		const int nReactions = getNumReactionsForParticle(type);
 
 		for (unsigned int reac = 0; reac < _reaction.getDynReactionVector("cross_phase").size(); ++reac)
 		{

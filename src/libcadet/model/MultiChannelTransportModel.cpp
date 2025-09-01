@@ -414,7 +414,7 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 	else if (paramProvider.exists("bulk_reaction_000"))
 	{
 		int nReactions = paramProvider.getInt("NREAC_BULK");
-		_reaction.configureDiscretization("bulk", 0, nReactions, _disc.nComp, nullptr, nullptr, paramProvider, helper);
+		_reaction.configureDiscretization("bulk", 0, nReactions, 0 , _disc.nComp, nullptr, nullptr, paramProvider, helper);
 	}
 
 	

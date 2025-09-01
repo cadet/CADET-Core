@@ -440,9 +440,9 @@ namespace cadet
 				readAndRegisterExponents(paramProvider, _parameters, unitOpIdx, parTypeIdx, "EXPONENTS_LIQUID_BWD_MODSOLID", _expLiquidBwdSolid, _nComp, _boundOffset);
 
 
-				if (paramProvider.exists("STOICHIOMETRY_SOLID"))
+				if (paramProvider.exists("MAL_STOICHIOMETRY_SOLID"))
 				{
-					const std::vector<double> s = paramProvider.getDoubleArray("STOICHIOMETRY_SOLID");
+					const std::vector<double> s = paramProvider.getDoubleArray("MAL_STOICHIOMETRY_SOLID");
 
 					if (static_cast<int>(s.size()) != _stoichiometrySolid.elements())
 						throw InvalidParameterException("STOICHIOMETRY_SOLID has changed size (number of reactions changed)");

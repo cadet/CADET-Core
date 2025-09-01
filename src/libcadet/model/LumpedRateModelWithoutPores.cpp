@@ -272,10 +272,11 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 	}
 	else if (paramProvider.exists("liquid_reaction_000"))
 	{
-		int nReactions = paramProvider.getInt("NREAC_LIQUIT");
+		int nReactions = paramProvider.getInt("NREAC_LIQUID");
 		reactionConfSuccess = _reaction.configureDiscretization("liquid",
 			0,
 			nReactions,
+			_disc.nParType,
 			_disc.nComp,
 			_disc.nBound,
 			_disc.boundOffset,
@@ -287,7 +288,8 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 		int nReactions = paramProvider.getInt("NREAC_CROSS_PHASE");
 		reactionConfSuccess = _reaction.configureDiscretization("cross_phase",
 			0,
-			nReactions, 
+			nReactions,
+			_disc.nParType,
 			_disc.nComp, 
 			_disc.nBound, 
 			_disc.boundOffset, 
@@ -299,7 +301,8 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 		int nReactions = paramProvider.getInt("NREAC_SOLID");
 		reactionConfSuccess = _reaction.configureDiscretization("solid",
 			0, 
-			nReactions, 
+			nReactions,
+			_disc.nParType,
 			_disc.nComp, 
 			_disc.nBound, 
 			_disc.boundOffset, 
@@ -826,7 +829,7 @@ int LumpedRateModelWithoutPores<ConvDispOperator>::residualImpl(double t, unsign
 					if (wantJac)
 					{
 						// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-						_reaction.getDynReactionVector("lquid")[reac]->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(localY - _disc.nComp), -1.0, jacBase, buffer);
+						_reaction.getDynReactionVector("liquid")[reac]->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(localY - _disc.nComp), -1.0, jacBase, buffer);
 
 					}
 				}

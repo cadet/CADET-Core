@@ -38,7 +38,16 @@ struct ReactionSystem
         {
             std::vector<IDynamicReactionModel*> dynReactions; //!< Dynamic reactions in the phase
             std::vector<int> offsets; //!< Offsets for reactions in the phase
-            unsigned int totalReactions = 0; //!< Total reactions in the phase
+            std::vector<int> nReacParType;
+            unsigned int totalReactions; //!< Total reactions in the phase
+
+            PhaseData()
+            {
+                dynReactions = { nullptr };
+                offsets = { 0 };
+                totalReactions = 0;
+
+            }
         }; 
 
         std::map<std::string, PhaseData> phaseMap = {
@@ -70,8 +79,7 @@ struct ReactionSystem
 
         public:
 
-        bool oldReactionInterface; //!< Flag to distinguish between old and new reaction interface
-        unsigned int numberOfParticles; //!< Internal storage for the number of particles in the unit
+        unsigned int _parTypes; //!< Internal storage for the number of particles in the unit
 
         unsigned int getTotalReactions(const std::string& phaseType) const
         {
@@ -95,32 +103,33 @@ struct ReactionSystem
             return phaseData.totalReactions;
         }
 
-        void configureDimensions(const std::string& phaseType, unsigned int numReac)
+        void configureDimensions(const std::string& phaseType, unsigned int numReac, unsigned int nParTypes)
         {
-            auto& reactionVector = getPhaseData(phaseType).dynReactions;
-            reactionVector.resize(numReac, nullptr);
-        }
-
-        void configureDimensionsOffSet(unsigned int nParTypes)
-        {
-
-            for (auto phase : phaseMap)
-            {
-                auto& offset = getPhaseData(phase.first).offsets;
+                auto& offset = getPhaseData(phaseType).offsets;
+                auto& nReacParTyps = getPhaseData(phaseType).nReacParType;
+                auto& reactionVector = getPhaseData(phaseType).dynReactions;
                 offset.resize(nParTypes, 0);
-            }           
+                nReacParTyps.resize(nParTypes, 0);
+                reactionVector.resize(numReac, nullptr);
+
         }
 
-        void computeOffsets(const std::string& phaseType, unsigned int numOfReaOfParType, unsigned int parType)
+        void computeOffsetsAndReaOfParType(const std::string& phaseType, unsigned int numOfReaOfParType, unsigned int parType)
         {
             auto& offsets = getPhaseData(phaseType).offsets;
-            for (size_t i = 0; i <= parType; ++i)
+            auto& nReacParTyps = getPhaseData(phaseType).nReacParType;
+
+            if (parType == 0)
             {
-                if (i == 0)
-                    offsets[i] = 0;
-                else
-                    offsets[i] = offsets[i - 1] + numOfReaOfParType;
+                offsets[parType] = 0;
+                nReacParTyps[parType] = numOfReaOfParType;
             }
+            else
+            {
+                offsets[parType] = offsets[parType - 1] + numOfReaOfParType;
+                nReacParTyps[parType] = numOfReaOfParType;
+            }
+            
         }
 
         int getOffsetForPhase(const std::string& phaseType, unsigned int parType) const
@@ -129,14 +138,16 @@ struct ReactionSystem
             return (parType < offsets.size()) ? offsets[parType] : 0;
         }
 
-        bool configureDiscretization(std::string phaseType, unsigned int parType, unsigned int nReactions, unsigned int nComp, unsigned int* nBound, unsigned int* boundOffset,  IParameterProvider& paramProvider, const IConfigHelper& helper)
+        bool configureDiscretization(std::string phaseType, unsigned int parType, unsigned int nReactions, unsigned int nParTyps, unsigned int nComp, unsigned int* nBound, unsigned int* boundOffset,  IParameterProvider& paramProvider, const IConfigHelper& helper)
 	    {
             auto& dynReaction = getDynReactionVector(phaseType);
             int offSet = getOffsetForPhase(phaseType, parType);
-            configureDimensions(phaseType, nReactions);
+            configureDimensions(phaseType, nReactions, nParTyps);
 
             bool reactionConfSuccess = true;
-            for (unsigned int i = 0; i < nReactions; ++i) 
+            const unsigned int nReac = getPhaseData(phaseType).nReacParType[parType];
+
+            for (unsigned int i = 0; i < nReac; ++i)
 				{
 					char reactionKey[32];
                     snprintf(reactionKey, sizeof(reactionKey), "%s_reaction_%03d", phaseType.c_str(), i);
@@ -181,11 +192,13 @@ struct ReactionSystem
         {
             auto& dynReaction = getDynReactionVector(phaseType);
             int offSet = getOffsetForPhase(phaseType, parType);
-            unsigned int nReactions = dynReaction.size();
+            unsigned int nTotalReactions = dynReaction.size();
 
             bool dynReactionConfSuccess = true;
-
-            for (unsigned int reac = 0; reac < nReactions; ++reac)
+             
+            const unsigned int nReac = getPhaseData(phaseType).nReacParType[parType];
+            
+            for (unsigned int reac = 0; reac < nReac; ++reac)
             {
                 if (!dynReaction[offSet + reac] || !dynReaction[offSet + reac]->requiresConfiguration())
                     continue;
@@ -231,6 +244,13 @@ struct ReactionSystem
                 auto& dynReacVec = getPhaseData(phase.first).dynReactions;
                 dynReacVec.resize(1);
             }
+        }
+
+        ReactionSystem()
+        {
+            PhaseData();
+            oldReactionInterface = false;
+            numberOfParticles = 0;
         }
 
 	};
