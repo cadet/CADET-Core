@@ -21,6 +21,10 @@
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
 
+
+#include <iostream>
+
+
 #include "ParallelSupport.hpp"
 
 #ifdef CADET_PARALLELIZE
@@ -131,7 +135,30 @@ int ColumnModel1D::linearSolve(double t, double alpha, double outerTol, double* 
 		if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 		{
 			LOG(Error) << "Factorize() failed";
+			//std::cout << "Jac:\n" << _globalJac.toDense().block(idxr.offsetCp(), idxr.offsetCp(), idxr.strideParBlock(0), idxr.strideParBlock(0)) << std::endl;
+
+			//for (unsigned int col = 0; col < _disc.nPoints; col++)
+			//	std::cout << "JacDisc:\n" << _globalJacDisc.toDense().block(idxr.offsetCp(ParticleTypeIndex{ 0 }, ParticleIndex{col}), idxr.offsetCp(ParticleTypeIndex{ 0 }, ParticleIndex{ col }), idxr.strideParBlock(0), idxr.strideParBlock(0)) << std::endl;
+
+
+			for (int i = 0; i < numDofs(); i++)
+			{
+				if (std::isnan(simState.vecStateY[i]) || std::isnan(simState.vecStateYdot[i]) || std::isnan(rhs[i]))
+					throw std::runtime_error(
+						"NaN value(s) detected during simulation at time "
+						+ std::to_string(t) + ".\n\n"
+						"Common causes:\n"
+						"  - Low spatial resolution combined with highly non-linear "
+						"adsorption/reaction processes (which may disallow negative values). "
+						"In this case, try stabilizing the spatial method by increasing the resolution "
+						"and/or switching to the Finite Volume (FV) method.\n"
+						"  - Inconsistent or unstable initial values, check the consistent initialization mode, or try to relax initial conditions.\n"
+						"  - Discontinuities in time section transitions or inconsistent (re)initialization of boundary values."
+					);
+			}
 		}
+
+		//std::cout << "JacDisc:\n" << _globalJacDisc.toDense().block(idxr.offsetCp(), idxr.offsetCp(), idxr.strideParBlock(0), idxr.strideParBlock(0)) << std::endl;
 
 		// Do not factorize again at next call without changed Jacobians
 		_factorizeJacobian = false;

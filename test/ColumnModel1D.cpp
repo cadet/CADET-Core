@@ -105,7 +105,7 @@ TEST_CASE("Column_1D as GRM numerical Benchmark1 with parameter sensitivities fo
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
-TEST_CASE("Column_1D as GRM numerical Benchmark1 for linear case with surface diffusion", "[Column_1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI]")
+TEST_CASE("Column_1D as GRM numerical Benchmark1 for linear case with surface diffusion", "[Column_1D],[DG],[DG1D],[Simulation],[Reference],[CI]")
 {
 	std::string modelFilePath = std::string("/data/model_COL1D_GRMsd_dynLin_1comp_benchmark1.json");
 	std::string refFilePath = std::string("/data/ref_COL1D_GRMsd_dynLin_1comp_benchmark1_cDG_P3Z8_GSM_parP3parZ1.h5");
@@ -114,6 +114,17 @@ TEST_CASE("Column_1D as GRM numerical Benchmark1 for linear case with surface di
 
 	cadet::test::column::DGParams disc(0, 3, 8, 3, 1);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
+TEST_CASE("Column_1D as GRM numerical Benchmark1 for linear case with surface diffusion and bulk DG and par FV discretization", "[Column_1D],[DGFV],[Simulation],[Reference],[CI]")
+{
+	std::string modelFilePath = std::string("/data/model_COL1D_GRMsd_dynLin_1comp_benchmark1.json");
+	std::string refFilePath = std::string("/data/ref_COL1D_GRMsd_dynLin_1comp_benchmark1_cDG_P3Z8_GSM_parP5parZ3.h5");
+	const std::vector<double> absTol = { 1e-6 };
+	const std::vector<double> relTol = { 1e-2 };
+
+	auto discDGFV = cadet::test::column::createDGFVParams(0, 3, 8, 0, 0, 50);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, *discDGFV, false);
 }
 
 TEST_CASE("Column_1D as LRMP numerical Benchmark with parameter sensitivities for linear case", "[Column_1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens22]")
@@ -162,6 +173,17 @@ TEST_CASE("Column_1D as GRM numerical Benchmark with parameter sensitivities and
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
+TEST_CASE("Column_1D as GRM numerical Benchmark for 2parType 2comp linear case with bulk DG and par FV discretization", "[Column_1D],[DGFV],[Simulation],[Reference],[Sensitivity],[test]")
+{
+	const std::string modelFilePath = std::string("/data/model_COL1DparType2_GRM_dynLin_2comp_sensbenchmark1.json");
+	const std::string refFilePath = std::string("/data/ref_GRMparType2_dynLin_2comp_sensbenchmark1_cDG_P3Z4_DGexInt_parP3parZ2.h5");
+	const std::vector<double> absTol = { 1e-8 };
+	const std::vector<double> relTol = { 1e-2 };
+
+	auto discDGFV = cadet::test::column::createDGFVParams(0, 3, 4, 0, 0, 10);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, *discDGFV, false);
+}
+
 TEST_CASE("Column_1D as GRM numerical Benchmark with parameter sensitivities for SMA LWE case", "[Column_1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens20]")
 {
 	const std::string modelFilePath = std::string("/data/model_COL1D_GRM_reqSMA_4comp_benchmark1.json");
@@ -169,7 +191,7 @@ TEST_CASE("Column_1D as GRM numerical Benchmark with parameter sensitivities for
 	const std::vector<double> absTol = { 1e-10, 1e-6, 1e-6, 1e-10 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 
-	cadet::test::column::DGParams disc(1, 3, 8, 3, 1);
+	cadet::test::column::DGParams disc(1, 1, 1, 1, 1);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 
@@ -184,14 +206,18 @@ TEST_CASE("Column_1D as LRMP numerical Benchmark with parameter sensitivities fo
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 
-TEST_CASE("Column_1D as GRM numerical Benchmark SMA LWE case with bulk DG and par FV discretization", "[Column_1D],[DGFV],[Simulation],[Reference],[todoCI]")
+// NAN entries in particle Jaocbian
+// NAN entries in rhs of linear system, but not in y nor yDot
+// negative y values occur, but that also happens for low resolution DG which runs fine
+// test 2compLin ? Jacobian tets is fine but simulation?
+TEST_CASE("Column_1D as GRM numerical Benchmark for SMA LWE case with bulk DG and par FV discretization", "[Column_1D],[DGFV],[Simulation],[Reference],[todoCI]")
 {
 	const std::string modelFilePath = std::string("/data/model_COL1D_GRM_reqSMA_4comp_benchmark1.json");
 	const std::string refFilePath = std::string("/data/ref_GRM_reqSMA_4comp_sensbenchmark1_exIntDG_P3Z8_GSM_parP3parZ1.h5");
 	const std::vector<double> absTol = { 5e-8 };
 	const std::vector<double> relTol = { 1.0 };
 
-	auto discDGFV = cadet::test::column::createDGFVParams(1, 1, 1, 0, 0, 1);
+	auto discDGFV = cadet::test::column::createDGFVParams(1, 1, 1, 0, 0, 2);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, *discDGFV, false);
 }
 

@@ -34,6 +34,8 @@
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
 
+#include <iostream>
+
 #include <algorithm>
 #include <functional>
 #include <numeric>
@@ -956,6 +958,14 @@ int ColumnModel1D::residualImpl(double t, unsigned int secIdx, StateType const* 
 	}
 	if (wantJac)
 		_globalJac.coeffs().setZero();
+
+
+	//double jo = 0.0;
+	//for (int i = 0; i < numDofs(); i++)
+	//	jo = std::min(jo, static_cast<double>(y[i]));
+
+	//if (jo < 0.0)
+	//	std::cout << "min y: " << jo << std::endl;
 
 	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 	Indexer idxr(_disc);
