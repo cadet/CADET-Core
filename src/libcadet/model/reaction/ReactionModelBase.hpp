@@ -85,7 +85,7 @@ protected:
  * @details An IDynamicReactionModel implementation has to provide residualFluxAdd(), residualCombinedAdd(),
  *          analyticJacobianAdd(), and analyticJacobianCombinedAdd() methods for different variants of state
  *          and parameter type. This macro saves some time by providing those implementations. It assumes that the 
- *          implementation provides templatized residualFluxImpl(), residualCombinedImpl(), jacobianLiquidImpl(),
+ *          implementation provides templatized residualFluxImpl(), residualCombinedImpl(), jacobianFluxImpl(),
  *          and jacobianCombinedImpl() function that realize all required variants.
  *          
  *          The implementation is inserted inline in the class declaration.
@@ -137,25 +137,25 @@ protected:
 	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                                \
 		double factor, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const                                                      \
 	{                                                                                                                                                   \
-		jacobianLiquidImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
+		jacobianFluxImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
 	}                                                                                                                                                   \
 	                                                                                                                                                    \
 	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                                \
 		double factor, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const                                                       \
 	{                                                                                                                                                   \
-		jacobianLiquidImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
+		jacobianFluxImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
 	}                                                                                                                                                   \
 	                                                                                                                                                    \
 	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                                \
 		double factor, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const                                                      \
 	{                                                                                                                                                   \
-		jacobianLiquidImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
+		jacobianFluxImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
 	}                                                                                                                                                   \
 	                                                                                                                                                    \
 	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                                \
 		double factor, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const                                                 \
 	{                                                                                                                                                   \
-		jacobianLiquidImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
+		jacobianFluxImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
 	}                                                                                                                                                   \
 		                                                                                                                                                \
 	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid,  \
@@ -228,19 +228,19 @@ protected:
 	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                                \
 		double factor, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const                                                      \
 	{                                                                                                                                                   \
-		jacobianLiquidImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
+		jacobianFluxImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
 	}                                                                                                                                                   \
 	                                                                                                                                                    \
 	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                                \
 		double factor, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const                                                       \
 	{                                                                                                                                                   \
-		jacobianLiquidImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
+		jacobianFluxImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
 	}                                                                                                                                                   \
 	                                                                                                                                                    \
 	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                                \
 		double factor, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const                                                      \
 	{                                                                                                                                                   \
-		jacobianLiquidImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
+		jacobianFluxImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
 	}                                                                                                                                                   \
 	                                                                                                                                                    \
 	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid,  \
