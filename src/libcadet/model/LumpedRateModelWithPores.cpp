@@ -341,133 +341,12 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
-	_oldReactionInterface = false;
-	_dynReactionBulk.resize(1, nullptr);
-
-	if (paramProvider.exists("REACTION_MODEL"))
-	{
-		_oldReactionInterface = true;
-		LOG(Warning) << "LRMP reaction configuration: The reaction interface has changed. Please refer to the documentation. The old interface is only supported for backwards compatibility";
-
-		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
-		_dynReactionBulk[0] = helper.createDynamicReactionModel(dynReactName);
-
-		if (!_dynReactionBulk[0])
-			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
-
-		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
-			paramProvider.pushScope("reaction_bulk");
-
-		reactionConfSuccess = _dynReactionBulk[0]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr) && reactionConfSuccess;
-
-		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
-			paramProvider.popScope();
-	}
-	else if (paramProvider.exists("reaction_bulk"))
-	{
-		paramProvider.pushScope("reaction_bulk");
-
-		if (paramProvider.exists("NREAC"))
-		{
-			int nReactions = paramProvider.getInt("NREAC");
-
-			if (nReactions <= 0)
-			{
-				paramProvider.popScope();
-				throw InvalidParameterException("LRMP bulk reaction configuration: number of reaction must be positive, please check your configuration");
-			}
-			_dynReactionBulk.resize(nReactions, nullptr);
-
-			for (int i = 0; i < nReactions; ++i) {
-
-				char reactionKey[32];
-				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
-
-				if (!paramProvider.exists(reactionKey)) {
-					paramProvider.popScope();
-					throw InvalidParameterException("LRMP bulk reaction configuration: Missing reaction model definition for " + std::string(reactionKey));
-				}
-
-				paramProvider.pushScope(reactionKey);
-
-				if (!paramProvider.exists("REACTION_TYPE")) {
-					paramProvider.popScope();
-					throw InvalidParameterException("LRMP bulk reaction configuration: Missing 'type' parameter for " + std::string(reactionKey));
-				}
-
-				std::string reactionType = paramProvider.getString("REACTION_TYPE");
-				paramProvider.popScope();
-				_dynReactionBulk[i] = helper.createDynamicReactionModel(reactionType);
-
-				if (!_dynReactionBulk[i]) {
-					paramProvider.popScope();
-					throw InvalidParameterException("LRMP bulk reaction configuration: Unknown dynamic reaction model " + reactionType +
-						" for " + reactionKey);
-				}
-
-				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
-					paramProvider.pushScope(reactionKey);
-
-				reactionConfSuccess = _dynReactionBulk[i]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr) && reactionConfSuccess;
-
-				if (!reactionConfSuccess) {
-					if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
-						paramProvider.popScope();
-					paramProvider.popScope();
-					throw InvalidParameterException("LRMP bulk reaction configuration: Failed to configure reaction model " + reactionType +
-						" for " + reactionKey);
-				}
-
-				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
-					paramProvider.popScope();
-			}
-		}
-		paramProvider.popScope();
-	}
 
 	clearDynamicReactionModels();
 	_reaction.clearDynamicReactionModels();
-	_oldReactionInterface = false;
+	_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
 
-	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
-	{
-		_oldReactionInterface = true;
-		_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
-
-		const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL_PARTICLES");
-
-		if (paramProvider.exists("REACTION_MODEL_PARTICLES_MULTIPLEX"))
-			_singleDynReaction = (paramProvider.getInt("REACTION_MODEL_PARTICLES_MULTIPLEX") == 1);
-		else
-		{
-			// Infer multiplex mode
-			_singleDynReaction = (dynReactModelNames.size() == 1);
-		}
-
-		if (!_singleDynReaction && (dynReactModelNames.size() < _disc.nParType))
-			throw InvalidParameterException("Field REACTION_MODEL_PARTICLES contains too few elements (" + std::to_string(_disc.nParType) + " required)");
-		else if (_singleDynReaction && (dynReactModelNames.size() != 1))
-			throw InvalidParameterException("Field REACTION_MODEL_PARTICLES requires (only) 1 element");
-
-		for (unsigned int i = 0; i < _disc.nParType; ++i)
-		{
-			if (_singleDynReaction && (i > 0))
-			{
-				// Reuse first binding model
-				_dynReaction[i] = _dynReaction[0];
-			}
-			else
-			{
-				_dynReaction[i] = helper.createDynamicReactionModel(dynReactModelNames[i]);
-				if (!_dynReaction[i])
-					throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[i]);
-
-				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _singleDynReaction, i, _disc.nParType == 1, _dynReaction[i]->usesParamProviderInDiscretizationConfig());
-				reactionConfSuccess = _dynReaction[i]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + i * _disc.nComp, _disc.boundOffset + i * _disc.nComp) && reactionConfSuccess;
-			}
-		}
-	}
-	else if (paramProvider.exists("particle_type_000") && _disc.nParType > 0)
+	if (paramProvider.exists("particle_type_000") && _disc.nParType > 0)
 	{
 		_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
 
@@ -475,7 +354,6 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 		unsigned int totalReacPore = 0;
 		unsigned int totalReacSolid = 0;
 		// First set offsets an calculate
-		_reaction.configureDimensionsOffSet(_disc.nParType);
 		for (unsigned int par = 0; par < _disc.nParType; par++)
 		{
 
@@ -488,8 +366,8 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 
 				if (paramProvider.exists("NREAC_CROSS_PHASE"))
 				{
+					_reaction.configureDimOfSetAndReacParType("cross_phase", _disc.nParType);
 					int nReactions = paramProvider.getInt("NREAC_CROSS_PHASE");
-
 					if (nReactions < 0)
 					{
 						paramProvider.popScope();
@@ -500,8 +378,8 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 				}
 				if (paramProvider.exists("NREAC_PORE"))
 				{
+					_reaction.configureDimOfSetAndReacParType("pore", _disc.nParType);
 					int nReactions = paramProvider.getInt("NREAC_PORE");
-
 					if (nReactions < 0)
 					{
 						paramProvider.popScope();
@@ -513,8 +391,8 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 				}
 				if (paramProvider.exists("NREAC_SOLID"))
 				{
+					_reaction.configureDimOfSetAndReacParType("solid", _disc.nParType);
 					int nReactions = paramProvider.getInt("NREAC_SOLID");
-
 					if (nReactions < 0)
 					{
 						paramProvider.popScope();
@@ -545,7 +423,6 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 				reactionConfSuccess = _reaction.configureDiscretization("cross_phase",
 					par,
 					totalReacCrossPhase,
-					_disc.nParType,
 					_disc.nComp,
 					_disc.nBound,
 					_disc.boundOffset,
@@ -557,7 +434,6 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 				reactionConfSuccess = _reaction.configureDiscretization("pore",
 					par,
 					totalReacPore,
-					_disc.nParType,
 					_disc.nComp,
 					_disc.nBound,
 					_disc.boundOffset,
@@ -569,7 +445,6 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 				reactionConfSuccess = _reaction.configureDiscretization("solid",
 					par,
 					totalReacSolid,
-					_disc.nParType,
 					_disc.nComp,
 					_disc.nBound,
 					_disc.boundOffset,
@@ -581,13 +456,12 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 		}
 
 	}
-	else if (paramProvider.exists("NREAC_BULK"))
+	if (paramProvider.exists("NREAC_BULK"))
 	{
 			int nReactions = paramProvider.getInt("NREAC_BULK");
 			reactionConfSuccess  = _reaction.configureDiscretization("bulk",
 				0, 
 				nReactions,
-				_disc.nParType,
 				_disc.nComp,
 				_disc.nBound,
 				_disc.boundOffset,
@@ -596,13 +470,9 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 	}
 	else
 	{
-		_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr); //todo handle _dynReaction mabye replace it with ReactionSystem
 		_reaction.empty(); // todo das als construktor 
 	}
 	
-	
-	
-
 	// Setup the memory for tempState based on state vector
 	_tempState = new double[numDofs()];
 
@@ -1341,9 +1211,9 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualParticle(double t, unsig
 			_jacP[parType].row(colCell * idxr.strideParBlock(parType)), cellResParams, threadLocalMem.get()
 		);
 	
-	const int numReacCrossPhase = _reaction.getDynReactionVector("cross_phase").size();
-	const int numReacParticle = _reaction.getDynReactionVector("pore").size();
-	const int numReacSolid = _reaction.getDynReactionVector("solid").size();
+	const int numReacCrossPhase = _reaction.getnReactionOfParType("cross_phase", parType);
+	const int numReacParticle = _reaction.getnReactionOfParType("pore", parType);
+	const int numReacSolid = _reaction.getnReactionOfParType("solid", parType);
 	
 	const int offSetCrossPhase = _reaction.getOffsetForPhase("cross_phase", parType);
 	const int offSetParticle = _reaction.getOffsetForPhase("pore", parType);
