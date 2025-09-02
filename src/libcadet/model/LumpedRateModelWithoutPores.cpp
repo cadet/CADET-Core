@@ -251,58 +251,41 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 		paramProvider.popScope();
 
 	// ==== Construct and configure dynamic reaction model
-	bool reactionConfSuccess = true;
+	_dynReaction.resize(1, nullptr);
 	clearDynamicReactionModels();
-	_oldReactionInterface = false;
+	
+	bool reactionConfSuccess = true;
 	_reaction.clearDynamicReactionModels();
-
-	if (paramProvider.exists("REACTION_MODEL"))
-	{
-		_dynReaction[0] = helper.createDynamicReactionModel(paramProvider.getString("REACTION_MODEL"));
-		if (!_dynReaction[0])
-			throw InvalidParameterException("Unknown dynamic reaction model " + paramProvider.getString("REACTION_MODEL"));
-
-		if (_dynReaction[0]->usesParamProviderInDiscretizationConfig())
-			paramProvider.pushScope("reaction");
-
-		reactionConfSuccess = _dynReaction[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
-
-		if (_dynReaction[0]->usesParamProviderInDiscretizationConfig())
-			paramProvider.popScope();
-	}
-	else if (paramProvider.exists("liquid_reaction_000"))
+	if (paramProvider.exists("NREAC_LIQUID"))
 	{
 		int nReactions = paramProvider.getInt("NREAC_LIQUID");
 		reactionConfSuccess = _reaction.configureDiscretization("liquid",
 			0,
 			nReactions,
-			_disc.nParType,
 			_disc.nComp,
 			_disc.nBound,
 			_disc.boundOffset,
 			paramProvider,
 			helper) && reactionConfSuccess;
 	}
-	else if (paramProvider.exists("cross_phase_reaction_000"))
+	else if (paramProvider.exists("NREAC_CROSS_PHASE"))
 	{
 		int nReactions = paramProvider.getInt("NREAC_CROSS_PHASE");
 		reactionConfSuccess = _reaction.configureDiscretization("cross_phase",
 			0,
 			nReactions,
-			_disc.nParType,
 			_disc.nComp, 
 			_disc.nBound, 
 			_disc.boundOffset, 
 			paramProvider, 
 			helper) && reactionConfSuccess;
 	}
-	else if (paramProvider.exists("solid_reaction_000"))
+	else if (paramProvider.exists("NREAC_SOLID"))
 	{
 		int nReactions = paramProvider.getInt("NREAC_SOLID");
 		reactionConfSuccess = _reaction.configureDiscretization("solid",
 			0, 
 			nReactions,
-			_disc.nParType,
 			_disc.nComp, 
 			_disc.nBound, 
 			_disc.boundOffset, 
@@ -311,7 +294,7 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 	}
 	else
 	{
-		_dynReaction.push_back(nullptr);
+		_reaction.empty();
 	}
 
 	// Setup the memory for tempState based on state vector
@@ -357,16 +340,6 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configure(IParameterProvider
 
 	// Reconfigure reaction model
 	bool dynReactionConfSuccess = true;
-	if (_oldReactionInterface)
-	{
-		// Reconfigure dynamic reaction model
-		if (_dynReaction[0] && paramProvider.exists("reaction") && _dynReaction[0]->requiresConfiguration())
-		{
-			paramProvider.pushScope("reaction");
-			dynReactionConfSuccess = _dynReaction[0]->configure(paramProvider, _unitOpIdx, cadet::ParTypeIndep);
-			paramProvider.popScope();
-		}
-	}
 	if (paramProvider.exists("cross_phase_reaction_000"))
 		dynReactionConfSuccess = _reaction.configure("cross_phase", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 	if (paramProvider.exists("solid_reaction_000"))
@@ -755,7 +728,7 @@ int LumpedRateModelWithoutPores<ConvDispOperator>::residualImpl(double t, unsign
 			auto colPos = ColumnPosition{ z, 0.0, 0.0 };
 			auto buffer = threadLocalMem.get();
 
-			for (unsigned int reac = 0; reac < _reaction.getDynReactionVector("cross_phase").size(); ++reac)
+			for (unsigned int reac = 0; reac < _reaction.getnReactionOfParType("cross_phase", 0); ++reac)
 			{
 				if (!_reaction.getDynReactionVector("cross_phase")[reac])
 					continue;
@@ -817,7 +790,7 @@ int LumpedRateModelWithoutPores<ConvDispOperator>::residualImpl(double t, unsign
 					}
 				}
 			}
-			for (unsigned int reac = 0; reac < _reaction.getDynReactionVector("liquid").size(); ++reac)
+			for (unsigned int reac = 0; reac < _reaction.getnReactionOfParType("liquid", 0); ++reac)
 			{
 				if (!_reaction.getDynReactionVector("liquid")[reac])
 					continue;
@@ -834,7 +807,7 @@ int LumpedRateModelWithoutPores<ConvDispOperator>::residualImpl(double t, unsign
 					}
 				}
 			}
-			for (unsigned int reac = 0; reac < _reaction.getDynReactionVector("solid").size(); ++reac)
+			for (unsigned int reac = 0; reac < _reaction.getnReactionOfParType("solid", 0); ++reac)
 			{
 				if (!_reaction.getDynReactionVector("solid")[reac])
 					continue;
