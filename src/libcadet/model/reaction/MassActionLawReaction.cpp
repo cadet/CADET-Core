@@ -333,7 +333,7 @@ protected:
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
 	int residualFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
-		StateType const* y, ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
+		const unsigned int nStates, StateType const* y, ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
@@ -343,9 +343,9 @@ protected:
 
 		for (int r = 0; r < _stoichiometry.columns(); ++r)
 		{
-			flux_t fwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kFwd[r]), r, _expFwd, _nComp);
+			flux_t fwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kFwd[r]), r, _expFwd, nStates);
 
-			for (int c = 0; c < _nComp; ++c)
+			for (int c = 0; c < nStates; ++c)
 			{
 				if (_expFwd.native(c, r) != 0.0)
 				{
@@ -360,8 +360,8 @@ protected:
 				}
 			}
 
-			flux_t bwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kBwd[r]), r, _expBwd, _nComp);
-			for (int c = 0; c < _nComp; ++c)
+			flux_t bwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kBwd[r]), r, _expBwd, nStates);
+			for (int c = 0; c < nStates; ++c)
 			{	
 
 				if (_expBwd.native(c, r) != 0.0)
@@ -386,7 +386,38 @@ protected:
 		return 0;
 	}
 
-	template <typename StateType, typename ResidualType, typename ParamType>
+
+	template <typename RowIterator>
+	void jacobianFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nState, double const* y, double factor, const RowIterator& jac, LinearBufferAllocator workSpace) const
+	{
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+
+		BufferedArray<double> fluxes = workSpace.array<double>(2 * nState);
+		double* const fluxGradFwd = static_cast<double*>(fluxes);
+		double* const fluxGradBwd = fluxGradFwd + nState;
+		
+		for (int r = 0; r < _stoichiometry.columns(); ++r)
+		{
+			// Calculate gradients of forward and backward fluxes
+			double kFwd = static_cast<double>(p->kFwd[r]);
+			double kBwd = static_cast<double>(p->kBwd[r]);
+			
+
+			fluxGrad(fluxGradFwd, r, nState, kFwd, _expFwd, y);
+			fluxGrad(fluxGradBwd, r, nState, kBwd, _expBwd, y);
+
+			// Add gradients to Jacobian
+			RowIterator curJac = jac;
+			for (int row = 0; row < nState; ++row, ++curJac)
+			{
+				const double colFactor = static_cast<double>(_stoichiometry.native(row, r)) * factor;
+				for (int col = 0; col < nState; ++col)
+					curJac[col - static_cast<int>(row)] += colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
+			}
+		}
+	}
+
+		template <typename StateType, typename ResidualType, typename ParamType>
 	int residualCombinedImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
 		StateType const* yLiquid, StateType const* ySolid, ResidualType* resLiquid, ResidualType* resSolid, double factor, LinearBufferAllocator workSpace) const
 	{
@@ -397,36 +428,6 @@ protected:
 	void jacobianCombinedImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, const RowIteratorLiquid& jacLiquid, const RowIteratorSolid& jacSolid, LinearBufferAllocator workSpace) const
 	{
 
-	}
-
-	template <typename RowIterator>
-	void jacobianFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, const RowIterator& jac, LinearBufferAllocator workSpace) const
-	{
-		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
-
-		BufferedArray<double> fluxes = workSpace.array<double>(2 * _nComp);
-		double* const fluxGradFwd = static_cast<double*>(fluxes);
-		double* const fluxGradBwd = fluxGradFwd + _nComp;
-		
-		for (int r = 0; r < _stoichiometry.columns(); ++r)
-		{
-			// Calculate gradients of forward and backward fluxes
-			double kFwd = static_cast<double>(p->kFwd[r]);
-			double kBwd = static_cast<double>(p->kBwd[r]);
-			
-
-			fluxGrad(fluxGradFwd, r, _nComp, kFwd, _expFwd, y);
-			fluxGrad(fluxGradBwd, r, _nComp, kBwd, _expBwd, y);
-
-			// Add gradients to Jacobian
-			RowIterator curJac = jac;
-			for (int row = 0; row < _nComp; ++row, ++curJac)
-			{
-				const double colFactor = static_cast<double>(_stoichiometry.native(row, r)) * factor;
-				for (int col = 0; col < _nComp; ++col)
-					curJac[col - static_cast<int>(row)] += colFactor * (fluxGradFwd[col] - fluxGradBwd[col]);
-			}
-		}
 	}
 
 

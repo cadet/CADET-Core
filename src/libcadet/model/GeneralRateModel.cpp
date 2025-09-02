@@ -1377,7 +1377,7 @@ int GeneralRateModel<ConvDispOperator>::residualBulk(double t, unsigned int secI
 				continue;
 
 			if (wantRes)
-				_reaction.getDynReactionVector("bulk")[i]->residualFluxAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
+				_reaction.getDynReactionVector("bulk")[i]->residualFluxAdd(t, secIdx, colPos, _disc.nComp,  y, res, -1.0, tlmAlloc);
 
 			if (wantJac)
 			{
@@ -1545,11 +1545,11 @@ int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int 
 
 				if (wantRes)
 				{
-					_reaction.getDynReactionVector("pore")[offSetParticle + reac]->residualFluxAdd(t, secIdx, colPos, y, res, -1.0, buffer);
+					_reaction.getDynReactionVector("pore")[offSetParticle + reac]->residualFluxAdd(t, secIdx, colPos, _disc.nComp, y, res, -1.0, buffer);
 
 					if (wantJac)
 					{
-						_reaction.getDynReactionVector("pore")[offSetParticle + reac]->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, jacBase, buffer);
+						_reaction.getDynReactionVector("pore")[offSetParticle + reac]->analyticJacobianAdd(t, secIdx, colPos, _disc.nComp, reinterpret_cast<double const*>(y), -1.0, jacBase, buffer);
 					}
 				}
 			}
@@ -1565,7 +1565,7 @@ int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int 
 					BufferedArray<ResidualType> fluxSolid = buffer.template array<ResidualType>(nTotalBound);
 					std::fill_n(static_cast<ResidualType*>(fluxSolid), nTotalBound, 0.0);
 					//todo change name 
-					_reaction.getDynReactionVector("solid")[offSetSolid + reac]->residualFluxAdd(t, secIdx, colPos, y + _disc.nComp, static_cast<ResidualType*>(fluxSolid), -1.0, buffer);
+					_reaction.getDynReactionVector("solid")[offSetSolid + reac]->residualFluxAdd(t, secIdx, colPos, _disc.nBoundBeforeType[parType], y + _disc.nComp, static_cast<ResidualType*>(fluxSolid), -1.0, buffer);
 					unsigned int idx = 0;
 					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 					{
@@ -1588,7 +1588,7 @@ int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int 
 						dmv.setAll(0.0);
 
 						// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-						_reaction.getDynReactionVector("solid")[offSetSolid + reac]->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y + _disc.nComp), -1.0, dmv.row(0, _disc.nComp), buffer);
+						_reaction.getDynReactionVector("solid")[offSetSolid + reac]->analyticJacobianAdd(t, secIdx, colPos, _disc.nBoundBeforeType[parType], reinterpret_cast<double const*>(y + _disc.nComp), -1.0, dmv.row(0, _disc.nComp), buffer);
 
 						unsigned int idx = 0;
 						for (unsigned int comp = 0; comp < _disc.nComp; ++comp)

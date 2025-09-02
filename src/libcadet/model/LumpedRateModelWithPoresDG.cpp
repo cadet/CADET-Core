@@ -1070,7 +1070,7 @@ int LumpedRateModelWithPoresDG::residualBulk(double t, unsigned int secIdx, Stat
 
 			linalg::BandedEigenSparseRowIterator jac(_globalJacDisc, col * idxr.strideColNode());
 			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_dynReactionBulk->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, jac, tlmAlloc);
+			_dynReactionBulk->analyticJacobianAdd(t, secIdx, colPos, _disc.nComp, reinterpret_cast<double const*>(y), -1.0, jac, tlmAlloc);
 		}
 
 		return 0;
@@ -1081,13 +1081,13 @@ int LumpedRateModelWithPoresDG::residualBulk(double t, unsigned int secIdx, Stat
 	for (unsigned int col = 0; col < _disc.nPoints; ++col, y += idxr.strideColNode(), res += idxr.strideColNode())
 	{
 		const ColumnPosition colPos{ _convDispOp.relativeCoordinate(col), 0.0, 0.0 };
-		_dynReactionBulk->residualFluxAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
+		_dynReactionBulk->residualFluxAdd(t, secIdx, colPos, _disc.nComp, y, res, -1.0, tlmAlloc);
 
 		if (wantJac)
 		{
 			linalg::BandedEigenSparseRowIterator jac(_globalJac, col * idxr.strideColNode());
 			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_dynReactionBulk->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, jac, tlmAlloc);
+			_dynReactionBulk->analyticJacobianAdd(t, secIdx, colPos, _disc.nComp, reinterpret_cast<double const*>(y), -1.0, jac, tlmAlloc);
 		}
 	}
 

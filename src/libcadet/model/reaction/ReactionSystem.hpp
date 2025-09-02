@@ -31,26 +31,41 @@ namespace cadet
 namespace model
 {
 
+/**
+ * @brief Manages reaction models across different phases in a unit operation
+ * 
+ * The ReactionSystem organizes and manages dynamic reaction models for different
+ * phases (cross_phase, pore, solid, bulk, liquid) within a unit operation.
+ * It handles configuration, discretization, and memory management of reaction models.
+ */
 struct ReactionSystem
 	{   
         private:
+        /**
+         * @brief Data structure holding reaction information for a specific phase
+         */
         struct PhaseData
         {
             std::vector<IDynamicReactionModel*> dynReactions; //!< Dynamic reactions in the phase
             std::vector<int> offsets; //!< Offsets for reactions in the phase
-            std::vector<int> nReacParType;
+            std::vector<int> nReacParType; //!< Number of reactions per particle type
             unsigned int totalReactions; //!< Total reactions in the phase
 
+            /**
+             * @brief Default constructor initializing phase data with safe defaults
+             */
             PhaseData()
             {
                 dynReactions = { nullptr };
                 offsets = { 0 };
+                nReacParType = { 0 };
                 totalReactions = 0;
 
             }
         }; 
 
-        std::map<std::string, PhaseData> phaseMap = {
+        //!< Maps phase type strings to their corresponding phase data
+        std::map<std::string, PhaseData> _phaseMap = {
             {"cross_phase", PhaseData{}},
             {"pore", PhaseData{}},
             {"solid", PhaseData{}},
@@ -58,20 +73,31 @@ struct ReactionSystem
             {"liquid", PhaseData{}}
         };
 
+        /**
+         * @brief Retrieves phase data for a given phase type
+         * @param phaseType The type of phase to retrieve data for
+         * @return Reference to the phase data
+         * @throws InvalidParameterException if phase type is unknown
+         */
         PhaseData& getPhaseData(const std::string& phaseType)
         {
-            auto phase = phaseMap.find(phaseType);
-            if (phase == phaseMap.end())
+            auto phase = _phaseMap.find(phaseType);
+            if (phase == _phaseMap.end())
                 throw InvalidParameterException("Unknown phase type: " + phaseType);
 
             return phase->second;
         }
 
-        // Const version of getPhaseData
+        /**
+         * @brief Const version of getPhaseData
+         * @param phaseType The type of phase to retrieve data for
+         * @return Const reference to the phase data
+         * @throws InvalidParameterException if phase type is unknown
+         */
         const PhaseData& getPhaseData(const std::string& phaseType) const
         {
-            auto phase = phaseMap.find(phaseType);
-            if (phase == phaseMap.end())
+            auto phase = _phaseMap.find(phaseType);
+            if (phase == _phaseMap.end())
                 throw InvalidParameterException("Unknown phase type: " + phaseType);
 
             return phase->second;
@@ -81,39 +107,80 @@ struct ReactionSystem
 
         unsigned int _parTypes; //!< Internal storage for the number of particles in the unit
 
+        /**
+         * @brief Gets the total number of reactions for a specific phase
+         * @param phaseType The phase type to query
+         * @return Total number of reactions in the phase
+         */
         unsigned int getTotalReactions(const std::string& phaseType) const
         {
             return getPhaseData(phaseType).totalReactions;
         }
-        // Const version of getDynReactionVector
+        
+        /**
+         * @brief Gets const reference to dynamic reaction vector for a phase
+         * @param phase_type The phase type to retrieve reactions for
+         * @return Const reference to the vector of dynamic reaction models
+         */
         const std::vector<IDynamicReactionModel*>& getDynReactionVector(const std::string& phase_type) const
         {
             return getPhaseData(phase_type).dynReactions;
         }
 
+        /**
+         * @brief Gets mutable reference to dynamic reaction vector for a phase
+         * @param phase_type The phase type to retrieve reactions for
+         * @return Mutable reference to the vector of dynamic reaction models
+         */
         std::vector<IDynamicReactionModel*>& getDynReactionVector(const std::string& phase_type) 
         {
             return getPhaseData(phase_type).dynReactions;
         }
 
+        /**
+         * @brief Updates and returns the total number of reactions for a phase
+         * @param phaseType The phase type to update
+         * @param nReactions Number of reactions to add to the total
+         * @return Updated total number of reactions
+         */
         unsigned int updateTotalReactions(const std::string& phaseType, unsigned int nReactions)
         {
             PhaseData& phaseData = getPhaseData(phaseType);
             phaseData.totalReactions += nReactions;
             return phaseData.totalReactions;
         }
-
-        void configureDimensions(const std::string& phaseType, unsigned int numReac, unsigned int nParTypes)
+        //TODO: Split into offset and nReacParType as they are computed beforehand (see CSTR)
+        
+        /**
+         * @brief Configures dimensions for offset and reaction-per-particle-type arrays
+         * @param phaseType The phase type to configure
+         * @param nParTypes Number of particle types to allocate for
+         */
+        void configureDimOfSetAndReacParType(const std::string& phaseType, unsigned int nParTypes)
         {
-                auto& offset = getPhaseData(phaseType).offsets;
-                auto& nReacParTyps = getPhaseData(phaseType).nReacParType;
-                auto& reactionVector = getPhaseData(phaseType).dynReactions;
-                offset.resize(nParTypes, 0);
-                nReacParTyps.resize(nParTypes, 0);
-                reactionVector.resize(numReac, nullptr);
-
+            auto& offset = getPhaseData(phaseType).offsets;
+            auto& nReacParTyps = getPhaseData(phaseType).nReacParType;
+            offset.resize(nParTypes, 0);
+            nReacParTyps.resize(nParTypes, 0);
+        }
+        
+        /**
+         * @brief Configures the dimensions of the dynamic reaction vector for a phase
+         * @param phaseType The phase type to configure
+         * @param numReac Number of reactions to allocate space for
+         */
+        void configureDimensions(const std::string& phaseType, unsigned int numReac)
+        {
+            auto& reactionVector = getPhaseData(phaseType).dynReactions;
+            reactionVector.resize(numReac, nullptr);
         }
 
+        /**
+         * @brief Computes offsets and stores number of reactions per particle type
+         * @param phaseType The phase type to compute offsets for
+         * @param numOfReaOfParType Number of reactions for this particle type
+         * @param parType The particle type index
+         */
         void computeOffsetsAndReaOfParType(const std::string& phaseType, unsigned int numOfReaOfParType, unsigned int parType)
         {
             auto& offsets = getPhaseData(phaseType).offsets;
@@ -126,27 +193,72 @@ struct ReactionSystem
             }
             else
             {
-                offsets[parType] = offsets[parType - 1] + numOfReaOfParType;
+                offsets[parType] = offsets[parType - 1] + nReacParTyps[parType - 1];
                 nReacParTyps[parType] = numOfReaOfParType;
             }
             
         }
 
+        /**
+         * @brief Gets the offset for a specific particle type in a phase
+         * @param phaseType The phase type to query
+         * @param parType The particle type index
+         * @return Offset value for the given particle type
+         * @throws InvalidParameterException if parType is out of bounds
+         */
         int getOffsetForPhase(const std::string& phaseType, unsigned int parType) const
         {
             const auto& offsets = getPhaseData(phaseType).offsets;
-            return (parType < offsets.size()) ? offsets[parType] : 0;
+            if (parType >= offsets.size()) {
+                throw InvalidParameterException("ParType index " + std::to_string(parType) + 
+                    " out of bounds for phase " + phaseType);
+            }
+            return offsets[parType];
         }
 
-        bool configureDiscretization(std::string phaseType, unsigned int parType, unsigned int nReactions, unsigned int nParTyps, unsigned int nComp, unsigned int* nBound, unsigned int* boundOffset,  IParameterProvider& paramProvider, const IConfigHelper& helper)
+        /**
+         * @brief Gets the number of reactions for a specific particle type in a phase
+         * @param phaseType The phase type to query
+         * @param parType The particle type index
+         * @return Number of reactions for the given particle type
+         * @throws InvalidParameterException if parType is out of bounds
+         */
+        int getnReactionOfParType(const std::string& phaseType, unsigned int parType) const
+        {
+            const auto& nReacType = getPhaseData(phaseType).nReacParType;
+            if (parType >= nReacType.size()) {
+                throw InvalidParameterException("ParType index " + std::to_string(parType) + 
+                    " out of bounds for phase " + phaseType);
+            }
+            return nReacType[parType];
+        }
+
+        /**
+         * @brief Configures discretization for reaction models in a specific phase
+         * @param phaseType The phase type to configure
+         * @param parType The particle type index
+         * @param nReactions Number of reactions to configure
+         * @param nComp Number of components
+         * @param nBound Array of bound states per component
+         * @param boundOffset Array of bound state offsets per component
+         * @param paramProvider Parameter provider for configuration
+         * @param helper Configuration helper for creating reaction models
+         * @return True if configuration succeeded, false otherwise
+         */
+        bool configureDiscretization(std::string phaseType, unsigned int parType, unsigned int nReactions, unsigned int nComp, unsigned int* nBound, unsigned int* boundOffset,  IParameterProvider& paramProvider, const IConfigHelper& helper)
 	    {
             auto& dynReaction = getDynReactionVector(phaseType);
             int offSet = getOffsetForPhase(phaseType, parType);
-            configureDimensions(phaseType, nReactions, nParTyps);
+            configureDimensions(phaseType, nReactions);
 
             bool reactionConfSuccess = true;
-            const unsigned int nReac = getPhaseData(phaseType).nReacParType[parType];
+            // Determine the number of reactions to configure
+            const unsigned int nReac =
+                (getPhaseData(phaseType).nReacParType[parType] == 0)
+                ? static_cast<unsigned int>(getPhaseData(phaseType).dynReactions.size())
+                : getPhaseData(phaseType).nReacParType[parType];
 
+            // Configure each reaction model
             for (unsigned int i = 0; i < nReac; ++i)
 				{
 					char reactionKey[32];
@@ -154,15 +266,18 @@ struct ReactionSystem
 
                     paramProvider.pushScope(reactionKey);
 
+                    // Check if reaction type is specified
 					if (!paramProvider.exists("TYPE")) 
 					{
 						paramProvider.popScope();
 						throw InvalidParameterException("Missing 'type' parameter for " + std::string(reactionKey));
 					}
 
+                    // Create reaction model based on type
 					std::string reactionType = paramProvider.getString("TYPE");
 					dynReaction[offSet + i] = helper.createDynamicReactionModel(reactionType);
 
+                    // Validate reaction model creation
 					if (!dynReaction[offSet + i]) 
 					{
 						paramProvider.popScope();
@@ -170,8 +285,10 @@ struct ReactionSystem
 							" for " + reactionKey);
 					}
 
+                    // Configure the reaction model discretization
 					reactionConfSuccess = dynReaction[offSet + i]->configureModelDiscretization(paramProvider, nComp, nBound + parType * nComp, boundOffset + parType * nComp) && reactionConfSuccess;
 
+                    // Handle configuration failure
 					if (!reactionConfSuccess) 
 					{
 						if (dynReaction[offSet + i]->usesParamProviderInDiscretizationConfig())
@@ -181,6 +298,7 @@ struct ReactionSystem
 							" for " + reactionKey);
 					}
 
+                    // Pop scope if reaction model used parameter provider
 					if (dynReaction[offSet + i]->usesParamProviderInDiscretizationConfig())
 						paramProvider.popScope();
 				}
@@ -188,6 +306,14 @@ struct ReactionSystem
             return reactionConfSuccess;
 	    }
 
+        /**
+         * @brief Configures reaction models for a specific phase and particle type
+         * @param phaseType The phase type to configure
+         * @param parType The particle type index
+         * @param unitOpIdx Unit operation index
+         * @param paramProvider Parameter provider for configuration
+         * @return True if configuration succeeded, false otherwise
+         */
         bool configure(std::string phaseType, unsigned int parType, unsigned int unitOpIdx, IParameterProvider& paramProvider)
         {
             auto& dynReaction = getDynReactionVector(phaseType);
@@ -196,17 +322,25 @@ struct ReactionSystem
 
             bool dynReactionConfSuccess = true;
              
-            const unsigned int nReac = getPhaseData(phaseType).nReacParType[parType];
+            // Determine the number of reactions to configure
+            const unsigned int nReac =
+                (getPhaseData(phaseType).nReacParType[parType] == 0)
+                ? static_cast<unsigned int>(getPhaseData(phaseType).dynReactions.size())
+                : getPhaseData(phaseType).nReacParType[parType];
             
+            // Configure each reaction
             for (unsigned int reac = 0; reac < nReac; ++reac)
             {
+                // Skip null reactions or those that don't require configuration
                 if (!dynReaction[offSet + reac] || !dynReaction[offSet + reac]->requiresConfiguration())
                     continue;
 
+                // Create reaction scope key
                 char reactionKey[32];
                 snprintf(reactionKey, sizeof(reactionKey), "%s_reaction_%03d", phaseType.c_str(), reac);
                 paramProvider.pushScope(reactionKey); //scope reaction_xxx
 
+                // Configure the reaction model
                 dynReactionConfSuccess = dynReaction[offSet + reac]->configure(paramProvider, unitOpIdx, parType) && dynReactionConfSuccess;
 
                 paramProvider.popScope();//scope reaction_xxx
@@ -215,42 +349,66 @@ struct ReactionSystem
             return dynReactionConfSuccess;
         }
 
+        /**
+         * @brief Sets workspace requirements for all reaction models across all phases
+         * @param lms Linear memory sizer to configure workspace requirements
+         * @param nComp Number of components in the system
+         */
         void setWorkspaceRequirements(LinearMemorySizer lms, unsigned int nComp) const
         {
-            for (auto phase: phaseMap)
+            for (auto phase: _phaseMap)
             {   
                 auto& dynReactionVector = getDynReactionVector(phase.first);
+                // Iterate through all reaction models in this phase
                 for (auto i = 0; i < dynReactionVector.size(); i++)
                 {
-                        if (dynReactionVector[i] && dynReactionVector[i]->requiresWorkspace())
-                            lms.fitBlock(dynReactionVector[i]->workspaceSize(nComp, 0, nullptr));
+                    // Check if reaction model exists and requires workspace
+                    if (dynReactionVector[i] && dynReactionVector[i]->requiresWorkspace())
+                        lms.fitBlock(dynReactionVector[i]->workspaceSize(nComp, 0, nullptr));
                 }
             }
         }
 
+        /**
+         * @brief Clears and deletes all dynamic reaction models in all phases
+         * Properly deallocates memory and resets vectors to safe state
+         */
 		void clearDynamicReactionModels()
 		{
-			for (auto phase: phaseMap)
+			for (auto& phase: _phaseMap)
 			{
 				auto& dynReactionVector = getDynReactionVector(phase.first);
-				for (auto* reac : dynReactionVector) delete reac;
+                // Delete all reaction model pointers
+				for (auto* reac : dynReactionVector) 
+				{
+					delete reac;
+				}
+                // Clear vector and reset to safe initial state
+				dynReactionVector.clear();
+				dynReactionVector.resize(1, nullptr);
 			}
 		}
 
+        /**
+         * @brief Empties all reaction vectors without deleting the models
+         * Used for cleanup without memory deallocation
+         */
         void empty()
         {
-            for (auto phase : phaseMap)
+            for (auto& phase : _phaseMap)
             {
                 auto& dynReacVec = getPhaseData(phase.first).dynReactions;
-                dynReacVec.resize(1);
+                dynReacVec.clear();
+                dynReacVec.resize(1, nullptr);
             }
         }
 
+        /**
+         * @brief Default constructor - initializes phase map with default values
+         */
         ReactionSystem()
         {
-            PhaseData();
-            oldReactionInterface = false;
-            numberOfParticles = 0;
+            // Constructor body intentionally empty - _phaseMap is already initialized with default values
         }
 
 	};
