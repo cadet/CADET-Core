@@ -316,7 +316,7 @@ namespace model
 {
 
 MultiChannelTransportModel::MultiChannelTransportModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-_dynReactionBulk{ }, _jacInlet(),
+	_jacInlet(),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _singleRadiusInitC(true), _initState(0), _initStateDot(0)
 {
@@ -325,8 +325,6 @@ _dynReactionBulk{ }, _jacInlet(),
 MultiChannelTransportModel::~MultiChannelTransportModel() CADET_NOEXCEPT
 {
 	delete[] _tempState;
-	for (auto* reac : _dynReactionBulk)
-		delete reac;
 }
 
 unsigned int MultiChannelTransportModel::numDofs() const CADET_NOEXCEPT
@@ -392,29 +390,17 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
-	_oldReactionInterface = false;
-
-	_dynReactionBulk.resize(1,nullptr);
-	if (paramProvider.exists("REACTION_MODEL"))
-	{
-		_oldReactionInterface = true;
-		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
-		_dynReactionBulk[0] = helper.createDynamicReactionModel(dynReactName);
-		if (!_dynReactionBulk[0])
-			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
-
-		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
-			paramProvider.pushScope("reaction_bulk");
-
-		reactionConfSuccess = _dynReactionBulk[0]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
-
-		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
-			paramProvider.popScope();
-	}
-	else if (paramProvider.exists("bulk_reaction_000"))
+	
+	_reaction.clearDynamicReactionModels();
+	_reaction.configureDimOfSetAndReacParType(1);
+	if (paramProvider.exists("NREAC_BULK"))
 	{
 		int nReactions = paramProvider.getInt("NREAC_BULK");
-		_reaction.configureDiscretization("bulk", 0, nReactions, 0 , _disc.nComp, nullptr, nullptr, paramProvider, helper);
+		reactionConfSuccess = _reaction.configureDiscretization("bulk", 0, nReactions, _disc.nComp, nullptr, nullptr, paramProvider, helper) && reactionConfSuccess;
+	}
+	else
+	{
+		_reaction.empty();
 	}
 
 	
@@ -765,12 +751,12 @@ int MultiChannelTransportModel::residualImpl(double t, unsigned int secIdx, Stat
 		{
 			if (_reaction.getDynReactionVector("bulk")[i] && (_reaction.getDynReactionVector("bulk")[i]->numReactions() > 0))
 			{
-				_reaction.getDynReactionVector("bulk")[i]->residualFluxAdd(t, secIdx, colPos, yC, resC, -1.0, tlmAlloc);
+				_reaction.getDynReactionVector("bulk")[i]->residualFluxAdd(t, secIdx, colPos, _disc.nComp, yC, resC, -1.0, tlmAlloc);
 
 				if (wantJac)
 				{
 					// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-					_reaction.getDynReactionVector("bulk")[i]->analyticJacobianAdd(t, secIdx, colPos, reinterpret_cast<double const*>(yC), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideChannelCell()), tlmAlloc);
+					_reaction.getDynReactionVector("bulk")[i]->analyticJacobianAdd(t, secIdx, colPos, _disc.nComp, reinterpret_cast<double const*>(yC), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideChannelCell()), tlmAlloc);
 				}
 			}
 		}

@@ -204,9 +204,7 @@ protected:
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
 	parts::MultiChannelConvectionDispersionOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
-	std::vector<IDynamicReactionModel*> _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 	ReactionSystem _reaction;
-	bool _oldReactionInterface;
 	std::vector<IExchangeModel*> _exchange; //!< Exchange transition model
 
 	linalg::DoubleSparseMatrix _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
