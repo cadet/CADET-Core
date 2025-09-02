@@ -153,15 +153,17 @@ struct ReactionSystem
         
         /**
          * @brief Configures dimensions for offset and reaction-per-particle-type arrays
-         * @param phaseType The phase type to configure
          * @param nParTypes Number of particle types to allocate for
          */
-        void configureDimOfSetAndReacParType(const std::string& phaseType, unsigned int nParTypes)
+        void configureDimOfSetAndReacParType(unsigned int nParTypes)
         {
-            auto& offset = getPhaseData(phaseType).offsets;
-            auto& nReacParTyps = getPhaseData(phaseType).nReacParType;
-            offset.resize(nParTypes, 0);
-            nReacParTyps.resize(nParTypes, 0);
+            for(auto& [phaseType, phaseData] : _phaseMap)
+            {
+                auto& offset = phaseData.offsets;
+                auto& nReacParTyps = phaseData.nReacParType;
+                offset.resize(nParTypes, 0);
+                nReacParTyps.resize(nParTypes, 0);
+            }
         }
         
         /**

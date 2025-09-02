@@ -66,7 +66,7 @@ int schurComplementMultiplierGRM(void* userData, double const* x, double* z)
 
 template <typename ConvDispOperator>
 GeneralRateModel<ConvDispOperator>::GeneralRateModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_hasSurfaceDiffusion(0, false), _dynReactionBulk{  },
+	_hasSurfaceDiffusion(0, false),
 	_jacP(nullptr), _jacPdisc(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacInlet(), _hasParDepSurfDiffusion(false),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _initCp(0), _initQ(0), _initState(0), _initStateDot(0)
@@ -83,8 +83,6 @@ GeneralRateModel<ConvDispOperator>::~GeneralRateModel() CADET_NOEXCEPT
 
 	delete[] _jacP;
 	delete[] _jacPdisc;
-
-	for (auto* reac : _dynReactionBulk) delete reac;
 
 	clearParDepSurfDiffusion();
 }
@@ -480,10 +478,16 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
-	_dynReactionBulk.resize(1, nullptr);
 	_dynReaction.resize(_disc.nParType, nullptr);
 
 	_reaction.clearDynamicReactionModels();
+	_reaction.configureDimOfSetAndReacParType(_disc.nParType);
+
+	bool hasCrossPhaseReac = false;
+	bool hasSolidReac = false;
+	bool hasPoreReac = false;
+	bool hasLiquidReac = false;
+	
 	if (paramProvider.exists("particle_type_000") && _disc.nParType > 0)
 	{
 		unsigned int totalReacCrossPhase = 0;
@@ -503,7 +507,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 
 				if (paramProvider.exists("NREAC_CROSS_PHASE"))
 				{
-					_reaction.configureDimOfSetAndReacParType("cross_phase", _disc.nParType);
+					hasCrossPhaseReac = true;
 					int nReactions = paramProvider.getInt("NREAC_CROSS_PHASE");
 
 					if (nReactions < 0)
@@ -517,7 +521,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 
 				if (paramProvider.exists("NREAC_PORE"))
 				{
-					_reaction.configureDimOfSetAndReacParType("pore", _disc.nParType);
+					hasPoreReac = true;
 					int nReactions = paramProvider.getInt("NREAC_PORE");
 
 					if (nReactions < 0)
@@ -530,7 +534,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 				}
 				if (paramProvider.exists("NREAC_SOLID"))
 				{
-					_reaction.configureDimOfSetAndReacParType("solid", _disc.nParType);
+					hasSolidReac = true;
 					int nReactions = paramProvider.getInt("NREAC_SOLID");
 					if (nReactions < 0)
 					{
@@ -595,8 +599,9 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 		}
 
 	}
-	else if (paramProvider.exists("NREAC_BULK"))
+	if (paramProvider.exists("NREAC_BULK"))
 	{
+		hasLiquidReac = true;
 		int nReactions = paramProvider.getInt("NREAC_BULK");
 		reactionConfSuccess = _reaction.configureDiscretization("bulk", 
 			0,
@@ -607,9 +612,10 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 			paramProvider,
 			helper) && reactionConfSuccess;
 	}
-	else
+
+	if (!hasLiquidReac && !hasCrossPhaseReac && !hasSolidReac && !hasPoreReac)
 	{
-		_reaction.empty(); // todo das als construktor 
+		_reaction.empty();
 	}
 
 
@@ -947,15 +953,6 @@ unsigned int GeneralRateModel<ConvDispOperator>::threadLocalMemorySize() const C
 	// Handle all reactions
 	_reaction.setWorkspaceRequirements(lms, _disc.nComp);
 	
-
-
-	for (auto i = 0; i < _dynReactionBulk.size(); i++)
-	{
-		if (_dynReactionBulk[i] && _dynReactionBulk[i]->requiresWorkspace())
-			lms.fitBlock(_dynReactionBulk[i]->workspaceSize(_disc.nComp, 0, nullptr));
-	}
-
-
 	const unsigned int maxStrideBound = *std::max_element(_disc.strideBound, _disc.strideBound + _disc.nParType);
 	lms.add<active>(_disc.nComp + maxStrideBound);
 	lms.add<double>((maxStrideBound + _disc.nComp) * (maxStrideBound + _disc.nComp));
@@ -1434,6 +1431,15 @@ int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int 
 	int const* const qsReaction = _binding[parType]->reactionQuasiStationarity();
 	const parts::cell::CellParameters cellResParams = makeCellResidualParams(parType, qsReaction);
 
+	// dim for reactions
+	const int numReacCrossPhase = _reaction.getnReactionOfParType("cross_phase", parType);
+	const int numReacParticle = _reaction.getnReactionOfParType("pore", parType);
+	const int numReacSolid = _reaction.getnReactionOfParType("solid", parType);
+
+	const int offSetCrossPhase = _reaction.getOffsetForPhase("cross_phase", parType);
+	const int offSetParticle = _reaction.getOffsetForPhase("pore", parType);
+	const int offSetSolid = _reaction.getOffsetForPhase("solid", parType);
+
 	// Loop over particle cells
 	for (unsigned int par = 0; par < _disc.nParCell[parType]; ++par)
 	{
@@ -1450,15 +1456,6 @@ int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int 
 			);
 
 		// We still need to handle transport and quasi-stationary reactions
-
-		const int numReacCrossPhase = _reaction.getnReactionOfParType("cross_phase", par);
-		const int numReacParticle = _reaction.getnReactionOfParType("pore", par);
-		const int numReacSolid = _reaction.getnReactionOfParType("solid", par);
-		
-		//todo: double check offset
-		const int offSetCrossPhase = _reaction.getOffsetForPhase("cross_phase", parType);
-		const int offSetParticle = _reaction.getOffsetForPhase("pore", parType);
-		const int offSetSolid = _reaction.getOffsetForPhase("solid", parType);
 
 		if (numReacCrossPhase > 0 || numReacParticle > 0 || numReacSolid > 0)
 		{

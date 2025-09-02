@@ -256,8 +256,15 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 	
 	bool reactionConfSuccess = true;
 	_reaction.clearDynamicReactionModels();
+	_reaction.configureDimOfSetAndReacParType(1);
+
+	bool hasCrossPhaseReac = false;
+	bool hasSolidReac = false;
+	bool hasLiquidReac = false;
+
 	if (paramProvider.exists("NREAC_LIQUID"))
 	{
+		hasLiquidReac = true;
 		int nReactions = paramProvider.getInt("NREAC_LIQUID");
 		reactionConfSuccess = _reaction.configureDiscretization("liquid",
 			0,
@@ -268,8 +275,9 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 			paramProvider,
 			helper) && reactionConfSuccess;
 	}
-	else if (paramProvider.exists("NREAC_CROSS_PHASE"))
+	if (paramProvider.exists("NREAC_CROSS_PHASE"))
 	{
+		hasCrossPhaseReac = true;
 		int nReactions = paramProvider.getInt("NREAC_CROSS_PHASE");
 		reactionConfSuccess = _reaction.configureDiscretization("cross_phase",
 			0,
@@ -280,8 +288,9 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 			paramProvider, 
 			helper) && reactionConfSuccess;
 	}
-	else if (paramProvider.exists("NREAC_SOLID"))
+	if (paramProvider.exists("NREAC_SOLID"))
 	{
+		hasSolidReac = true;
 		int nReactions = paramProvider.getInt("NREAC_SOLID");
 		reactionConfSuccess = _reaction.configureDiscretization("solid",
 			0, 
@@ -292,7 +301,8 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 			paramProvider, 
 			helper) && reactionConfSuccess;
 	}
-	else
+
+	if (!hasLiquidReac && !hasCrossPhaseReac && !hasSolidReac)
 	{
 		_reaction.empty();
 	}
@@ -340,11 +350,11 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configure(IParameterProvider
 
 	// Reconfigure reaction model
 	bool dynReactionConfSuccess = true;
-	if (paramProvider.exists("cross_phase_reaction_000"))
+	if (paramProvider.exists("NREAC_CROSS_PHASE"))
 		dynReactionConfSuccess = _reaction.configure("cross_phase", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
-	if (paramProvider.exists("solid_reaction_000"))
+	if (paramProvider.exists("NREAC_SOLID"))
 		dynReactionConfSuccess = _reaction.configure("solid", 0, _unitOpIdx, paramProvider)&& dynReactionConfSuccess;
-	if (paramProvider.exists("liquid_reaction_000"))
+	if (paramProvider.exists("NREAC_LIQUID"))
 		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
 	return transportSuccess && bindingConfSuccess && dynReactionConfSuccess;
@@ -361,16 +371,6 @@ unsigned int LumpedRateModelWithoutPores<ConvDispOperator>::threadLocalMemorySiz
 
 	_reaction.setWorkspaceRequirements(lms, _disc.nComp);
 	
-	for (unsigned int i = 0; i < _dynReaction.size(); ++i)
-	{
-		if (_dynReaction[i] && _dynReaction[i]->requiresWorkspace())
-		{
-			lms.addBlock(_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound));
-			lms.add<active>(_disc.strideBound);
-			lms.add<double>(_disc.strideBound * (_disc.strideBound + _disc.nComp));
-		}
-	}
-
 	lms.commit();
 	const std::size_t resKernelSize = lms.bufferSize();
 
@@ -728,7 +728,7 @@ int LumpedRateModelWithoutPores<ConvDispOperator>::residualImpl(double t, unsign
 			auto colPos = ColumnPosition{ z, 0.0, 0.0 };
 			auto buffer = threadLocalMem.get();
 
-			for (unsigned int reac = 0; reac < _reaction.getnReactionOfParType("cross_phase", 0); ++reac)
+			for (unsigned int reac = 0; reac < _reaction.getDynReactionVector("cross_phase").size(); ++reac)
 			{
 				if (!_reaction.getDynReactionVector("cross_phase")[reac])
 					continue;
@@ -739,22 +739,31 @@ int LumpedRateModelWithoutPores<ConvDispOperator>::residualImpl(double t, unsign
 					BufferedArray<ResidualType> fluxSolid = buffer.template array<ResidualType>(nTotalBound);
 
 					std::fill_n(static_cast<ResidualType*>(fluxSolid), nTotalBound, 0.0);
-					_reaction.getDynReactionVector("cross_phase")[reac]->residualCombinedAdd(t, secIdx, colPos, localY - _disc.nComp, localY, localRes - _disc.nComp, static_cast<ResidualType*>(fluxSolid), -1.0, buffer);
+					_reaction.getDynReactionVector("cross_phase")[reac]->residualCombinedAdd(t, 
+						secIdx, 
+						colPos,
+						localY,
+						localY + _disc.nComp,
+						localRes,
+						static_cast<ResidualType*>(fluxSolid),
+						-1.0,
+						buffer);
 
+					// Calculate invBetaP once outside the loops for efficiency
+					const ParamType invBetaP = (1.0 - static_cast<ParamType>(porosity));
+					
 					unsigned int idx = 0;
 					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 					{
-						const ParamType invBetaP = (1.0 - static_cast<ParamType>(porosity));
-
 						for (unsigned int bnd = 0; bnd < nBound[comp]; ++bnd, ++idx)
 						{
 							// Add reaction term to mobile phase
-							localRes[-static_cast<int>(_disc.nComp) + static_cast<int>(comp)] += static_cast<typename DoubleActiveDemoter<ParamType, ResidualType>::type>(invBetaP)* fluxSolid[idx];
+							localRes[static_cast<int>(comp)] += static_cast<typename DoubleActiveDemoter<ParamType, ResidualType>::type>(invBetaP)* fluxSolid[idx];
 
 							if (!qsReaction[idx])
 							{
 								// Add reaction term to solid phase
-								localRes[idx] += fluxSolid[idx];
+								localRes[idx + _disc.nComp] += fluxSolid[idx];
 							}
 						}
 					}
@@ -767,17 +776,26 @@ int LumpedRateModelWithoutPores<ConvDispOperator>::residualImpl(double t, unsign
 						dmv.setAll(0.0);
 
 						// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-						_reaction.getDynReactionVector("cross_phase")[reac]->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(localY - _disc.nComp), reinterpret_cast<double const*>(localY), -1.0, jacBase, dmv.row(0, _disc.nComp), buffer);
+						_reaction.getDynReactionVector("cross_phase")[reac]->analyticJacobianCombinedAdd(t, 
+							secIdx, 
+							colPos, 
+							reinterpret_cast<double const*>(localY ), 
+							reinterpret_cast<double const*>(localY + _disc.nComp),
+							-1.0, 
+							jacBase, 
+							dmv.row(0), 
+							buffer);
+
+						// Calculate invBetaP once outside the loops for efficiency
+						const double invBetaPJac = (1.0 - static_cast<double>(porosity));
 
 						unsigned int idx = 0;
 						for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 						{
-							const double invBetaP = (1.0 - static_cast<double>(porosity));
-
 							for (unsigned int bnd = 0; bnd < nBound[comp]; ++bnd, ++idx)
 							{
 								// Add Jacobian row to mobile phase
-								(jacBase + comp).addArray(dmv.rowPtr(idx), -static_cast<int>(comp), dmv.columns(), invBetaP);
+								(jacBase + comp).addArray(dmv.rowPtr(idx), -static_cast<int>(comp), dmv.columns(), invBetaPJac);
 
 								if (!qsReaction[idx])
 								{
@@ -790,24 +808,38 @@ int LumpedRateModelWithoutPores<ConvDispOperator>::residualImpl(double t, unsign
 					}
 				}
 			}
-			for (unsigned int reac = 0; reac < _reaction.getnReactionOfParType("liquid", 0); ++reac)
+			for (unsigned int reac = 0; reac < _reaction.getDynReactionVector("liquid").size(); ++reac)
 			{
 				if (!_reaction.getDynReactionVector("liquid")[reac])
 					continue;
 
 				if (wantRes)
 				{
-					_reaction.getDynReactionVector("liquid")[reac]->residualFluxAdd(t, secIdx, colPos, _disc.nComp, localY - _disc.nComp, localRes - _disc.nComp, -1.0, buffer);
+					_reaction.getDynReactionVector("liquid")[reac]->residualFluxAdd(t, 
+						secIdx, 
+						colPos, 
+						_disc.nComp, 
+						localY, 
+						localRes, 
+						-1.0, 
+						buffer);
 
 					if (wantJac)
 					{
 						// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-						_reaction.getDynReactionVector("liquid")[reac]->analyticJacobianAdd(t, secIdx, colPos, _disc.nComp, reinterpret_cast<double const*>(localY - _disc.nComp), -1.0, jacBase, buffer);
+						_reaction.getDynReactionVector("liquid")[reac]->analyticJacobianAdd(t, 
+							secIdx, 
+							colPos, 
+							_disc.nComp, 
+							reinterpret_cast<double const*>(localY),
+							-1.0, 
+							jacBase, 
+							buffer);
 
 					}
 				}
 			}
-			for (unsigned int reac = 0; reac < _reaction.getnReactionOfParType("solid", 0); ++reac)
+			for (unsigned int reac = 0; reac < _reaction.getDynReactionVector("solid").size(); ++reac)
 			{
 				if (!_reaction.getDynReactionVector("solid")[reac])
 					continue;
@@ -818,19 +850,27 @@ int LumpedRateModelWithoutPores<ConvDispOperator>::residualImpl(double t, unsign
 					BufferedArray<ResidualType> fluxSolid = buffer.template array<ResidualType>(nTotalBound);
 
 					std::fill_n(static_cast<ResidualType*>(fluxSolid), nTotalBound, 0.0);
-					_reaction.getDynReactionVector("solid")[reac]->residualFluxAdd(t, secIdx, colPos, _disc.strideBound, localY, static_cast<ResidualType*>(fluxSolid), -1.0, buffer);
+					_reaction.getDynReactionVector("solid")[reac]->residualFluxAdd(t,
+						secIdx,
+						colPos,
+						_disc.strideBound,
+						localY + _disc.nComp,
+						static_cast<ResidualType*>(fluxSolid),
+						-1.0,
+						buffer);
 
+					// Calculate invBetaP once outside the loops for efficiency
+					const ParamType invBetaP = (1.0 - static_cast<ParamType>(porosity));
+					
 					unsigned int idx = 0;
 					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 					{
-						const ParamType invBetaP = (1.0 - static_cast<ParamType>(porosity));
-
 						for (unsigned int bnd = 0; bnd < nBound[comp]; ++bnd, ++idx)
 						{
 							if (!qsReaction[idx])
 							{
 								// Add reaction term to solid phase
-								localRes[idx] += fluxSolid[idx];
+								localRes[idx + _disc.nComp] += fluxSolid[idx];
 							}
 						}
 					}
@@ -842,13 +882,21 @@ int LumpedRateModelWithoutPores<ConvDispOperator>::residualImpl(double t, unsign
 						dmv.setAll(0.0);
 
 						// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-						_reaction.getDynReactionVector("solid")[reac]->analyticJacobianAdd(t, secIdx, colPos, _disc.strideBound, reinterpret_cast<double const*>(localY), -1.0, dmv.row(0, _disc.nComp), buffer);
+						_reaction.getDynReactionVector("solid")[reac]->analyticJacobianAdd(t, 
+							secIdx, 
+							colPos, 
+							_disc.strideBound, 
+							reinterpret_cast<double const*>(localY + +_disc.nComp),
+							-1.0, 
+							dmv.row(0), 
+							buffer);
+
+						// Calculate invBetaP once outside the loops for efficiency  
+						const double invBetaPJac = (1.0 - static_cast<double>(porosity));
 
 						unsigned int idx = 0;
 						for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 						{
-							const double invBetaP = (1.0 - static_cast<double>(porosity));
-
 							for (unsigned int bnd = 0; bnd < nBound[comp]; ++bnd, ++idx)
 							{
 								if (!qsReaction[idx])
@@ -1360,7 +1408,7 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::consistentInitialState(const
 				_totalPorosity,
 				nullptr,
 				_binding[0],
-				(_dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0)) ? _dynReaction[0] : nullptr
+				nullptr
 			};
 
 		const int localOffsetToCell = idxr.offsetC() + col * idxr.strideColCell();

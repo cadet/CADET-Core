@@ -432,7 +432,7 @@ namespace reaction
 			[&](double const* lDir, double* res) -> void
 				{
 					std::fill_n(res, numDofs, 0.0);
-					crm.model().residualCombinedAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, crm.nComp(), lDir, lDir + crm.nComp(), res, res + crm.nComp(), 1.0, crm.buffer());
+					crm.model().residualCombinedAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, lDir + crm.nComp(), res, res + crm.nComp(), 1.0, crm.buffer());
 				},
 			[&](double const* lDir, double* res) -> void 
 				{
@@ -455,7 +455,7 @@ namespace reaction
 
 		// Evaluate with AD
 		ad::resetAd(adRes, numDofs);
-		crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY, adRes, 1.0, crm.buffer());
+		crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, crm.nComp(), adY, adRes, 1.0, crm.buffer());
 
 		// Extract Jacobian
 		jacAD.setAll(0.0);
@@ -472,7 +472,7 @@ namespace reaction
 			[&](double const* lDir, double* res) -> void
 				{
 					std::fill_n(res, nComp, 0.0);
-					crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, res, 1.0, crm.buffer());
+					crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, crm.nComp(), lDir, res, 1.0, crm.buffer());
 				},
 			[&](double const* lDir, double* res) -> void 
 				{

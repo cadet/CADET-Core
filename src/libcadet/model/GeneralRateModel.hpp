@@ -327,8 +327,6 @@ protected:
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
 	ConvDispOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
-	std::vector<IDynamicReactionModel*> _dynReactionBulk; //!< Dynamic reactions in the bulk volume
-	bool _oldReactionInterface; //!< Flag to distinguish between old and new reaction interface
 	ReactionSystem _reaction;
 
 	const int getReactionOffsetParticle(std::vector<int>& reactionPerParticle, unsigned int parType) const

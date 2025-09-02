@@ -316,7 +316,7 @@ namespace model
 {
 
 MultiChannelTransportModel::MultiChannelTransportModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-_dynReactionBulk{ }, _jacInlet(),
+	_jacInlet(),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _singleRadiusInitC(true), _initState(0), _initStateDot(0)
 {
@@ -325,8 +325,6 @@ _dynReactionBulk{ }, _jacInlet(),
 MultiChannelTransportModel::~MultiChannelTransportModel() CADET_NOEXCEPT
 {
 	delete[] _tempState;
-	for (auto* reac : _dynReactionBulk)
-		delete reac;
 }
 
 unsigned int MultiChannelTransportModel::numDofs() const CADET_NOEXCEPT
@@ -394,10 +392,15 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 	bool reactionConfSuccess = true;
 	
 	_reaction.clearDynamicReactionModels();
+	_reaction.configureDimOfSetAndReacParType(1);
 	if (paramProvider.exists("NREAC_BULK"))
 	{
 		int nReactions = paramProvider.getInt("NREAC_BULK");
 		reactionConfSuccess = _reaction.configureDiscretization("bulk", 0, nReactions, _disc.nComp, nullptr, nullptr, paramProvider, helper) && reactionConfSuccess;
+	}
+	else
+	{
+		_reaction.empty();
 	}
 
 	
