@@ -225,107 +225,8 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 	// ==== Construct and configure dynamic reaction model
 	clearDynamicReactionModels();
 	bool reactionConfSuccess = true;
-	_old_interface = false;
-	_dynReactionBulk[0] = nullptr;
-	if (paramProvider.exists("REACTION_MODEL"))
-	{
-		_old_interface = true;
-		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
-		_dynReactionBulk[0] = helper.createDynamicReactionModel(dynReactName);
-		if (!_dynReactionBulk[0])
-			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
-
-		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
-			paramProvider.pushScope("reaction_bulk");
-
-		reactionConfSuccess = _dynReactionBulk[0]->configureModelDiscretization(paramProvider, _nComp, nullptr, nullptr);
-
-		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
-			paramProvider.popScope();
-	}
-	else if (paramProvider.exists("reaction_bulk"))
-	{
-		paramProvider.pushScope("reaction_bulk");
-		
-		if (paramProvider.exists("NREAC")) 
-		{
-			int nReactions = paramProvider.getInt("NREAC");
-
-			if (nReactions <= 0)
-			{
-				paramProvider.popScope();
-				throw InvalidParameterException("CSTR-Configuration: number of reaction must be positive, please check your configuration");
-			}
-			_dynReactionBulk.resize(nReactions);
-
-			for (int i = 0; i < nReactions; ++i) {
-
-				char reactionKey[32];
-				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
-
-				if (!paramProvider.exists(reactionKey)) {
-					paramProvider.popScope();
-					throw InvalidParameterException("Missing reaction model definition for " + std::string(reactionKey));
-				}
-
-				paramProvider.pushScope(reactionKey);
-
-				if (!paramProvider.exists("REACTION_TYPE")) {
-					paramProvider.popScope();
-					throw InvalidParameterException("Missing 'type' parameter for " + std::string(reactionKey));
-				}
-
-				std::string reactionType = paramProvider.getString("REACTION_TYPE");
-				paramProvider.popScope();
-				_dynReactionBulk[i] = helper.createDynamicReactionModel(reactionType);
-
-				if (!_dynReactionBulk[i]) {
-					paramProvider.popScope();
-					throw InvalidParameterException("Unknown dynamic reaction model " + reactionType +
-						" for " + reactionKey);
-				}
-
-				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
-					paramProvider.pushScope(reactionKey);
-
-				reactionConfSuccess = _dynReactionBulk[i]->configureModelDiscretization(paramProvider, _nComp, nullptr, nullptr);
-
-				if (!reactionConfSuccess) {
-					if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
-						paramProvider.popScope();
-					paramProvider.popScope();
-					throw InvalidParameterException("Failed to configure reaction model " + reactionType +
-						" for " + reactionKey);
-				}
-
-				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
-					paramProvider.popScope();
-			}
-		}
-		paramProvider.popScope();
-	}
-
-
-	_dynReaction = std::vector<IDynamicReactionModel*>(_nParType, nullptr);
-	_oldReactionInterface = false;
-	if (paramProvider.exists("REACTION_MODEL_PARTICLES"))
-	{
-		_oldReactionInterface = true;
-		const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL_PARTICLES");
-		if (dynReactModelNames.size() < _nParType)
-			throw InvalidParameterException("Field REACTION_MODEL_PARTICLES contains too few elements (" + std::to_string(_nParType) + " required)");
-
-		for (unsigned int i = 0; i < _nParType; ++i)
-		{
-			_dynReaction[i] = helper.createDynamicReactionModel(dynReactModelNames[i]);
-			if (!_dynReaction[i])
-				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[i]);
-
-			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", _nParType == 1, i, _nParType == 1, _dynReaction[i]->usesParamProviderInDiscretizationConfig());
-			reactionConfSuccess = _dynReaction[i]->configureModelDiscretization(paramProvider, _nComp, _nBound + i * _nComp, _boundOffset + i * _nComp) && reactionConfSuccess;
-		}
-	}
-	else if (paramProvider.exists("particle_type_000") && _nParType > 0)
+	
+	if (paramProvider.exists("particle_type_000") && _nParType > 0)
 	{
 		_dynReaction = std::vector<IDynamicReactionModel*>(_nParType, nullptr);
 
@@ -333,7 +234,6 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 		unsigned int totalReacPore = 0;
 		unsigned int totalReacSolid = 0;
 		// First set offsets an calculate
-		_reaction.configureDimensionsOffSet(_nParType);
 		for (unsigned int par = 0; par < _nParType; par++)
 		{
 
@@ -346,8 +246,8 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 
 				if (paramProvider.exists("NREAC_CROSS_PHASE"))
 				{
-					int nReactions = paramProvider.getInt("NREAC_CROSS_PHASE");
-
+					_reaction.configureDimOfSetAndReacParType("cross_phase", _nParType);
+					const int nReactions = paramProvider.getInt("NREAC_CROSS_PHASE");
 					if (nReactions < 0)
 					{
 						paramProvider.popScope();
@@ -359,7 +259,8 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 
 				if (paramProvider.exists("NREAC_PORE"))
 				{
-					int nReactions = paramProvider.getInt("NREAC_PORE");
+					_reaction.configureDimOfSetAndReacParType("pore", _nParType);
+					const int nReactions = paramProvider.getInt("NREAC_PORE");
 
 					if (nReactions < 0)
 					{
@@ -371,8 +272,9 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 				}
 				if (paramProvider.exists("NREAC_SOLID"))
 				{
-					int nReactions = paramProvider.getInt("NREAC_SOLID");
+					_reaction.configureDimOfSetAndReacParType("solid", _nParType);
 
+					const int nReactions = paramProvider.getInt("NREAC_SOLID");
 					if (nReactions < 0)
 					{
 						paramProvider.popScope();
@@ -402,7 +304,6 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 				reactionConfSuccess = _reaction.configureDiscretization("cross_phase",
 					par,
 					totalReacCrossPhase,
-					_nParType,
 					_nComp,
 					_nBound,
 					_boundOffset,
@@ -416,7 +317,6 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 				reactionConfSuccess = _reaction.configureDiscretization("pore",
 					par,
 					totalReacPore,
-					_nParType,
 					_nComp,
 					_nBound,
 					_boundOffset,
@@ -430,7 +330,6 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 				reactionConfSuccess = _reaction.configureDiscretization("solid",
 					par,
 					totalReacSolid,
-					_nParType,
 					_nComp,
 					_nBound,
 					_boundOffset,
@@ -443,13 +342,12 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 		}
 
 	}
-	else if (paramProvider.exists("liquid_reaction_000"))
+	if (paramProvider.exists("NREAC_LIQUID"))
 	{
 			int nReactions = paramProvider.getInt("NREAC_LIQUID");
 			reactionConfSuccess = _reaction.configureDiscretization("liquid",
 				0, 
 				nReactions,
-				_nParType,
 				_nComp, 
 				_nBound, 
 				_boundOffset, 
@@ -458,8 +356,7 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 	}
 	else
 	{
-		_dynReaction = std::vector<IDynamicReactionModel*>(_nParType, nullptr);
-		_reaction.empty(); // todo das als construktor 
+		_reaction.empty();
 	}
 
 
@@ -558,62 +455,30 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 
 	// Reconfigure reaction model
 	bool dynReactionConfSuccess = true;
-	for (auto i = 0; i < _dynReactionBulk.size(); i++)
+	
+	if (paramProvider.exists("NREAC_LIQUID"))
+		_reaction.configure("liquid", 0, _unitOpIdx, paramProvider);
+
+	for (unsigned int par = 0; par < _nParType; par++)
 	{
-		if (_dynReactionBulk[i] && _dynReactionBulk[i]->requiresConfiguration())
-		{
-			paramProvider.pushScope("reaction_bulk");
-			if (!_old_interface)
-			{
-				char reactionKey[32];
-				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
-				paramProvider.pushScope(reactionKey);
-			}
-			dynReactionConfSuccess = _dynReactionBulk[i]->configure(paramProvider, _unitOpIdx, ParTypeIndep);
-			paramProvider.popScope();
+		char particleScope[32];
+		snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
 			
-			if(!_old_interface)
-				paramProvider.popScope();
-		}
-	}
-
-	if (_oldReactionInterface)
-	{
-		// Old interface: one reaction per particle type
-		for (unsigned int type = 0; type < _nParType; ++type)
+		if (paramProvider.exists(particleScope))
 		{
-			if (!_dynReaction[type] || !_dynReaction[type]->requiresConfiguration())
-				continue;
+			paramProvider.pushScope(particleScope);// scope particle_type
 
-			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_particle", type, _nParType == 1, true);
-			dynReactionConfSuccess = _dynReaction[type]->configure(paramProvider, _unitOpIdx, type) && dynReactionConfSuccess;
+			if (paramProvider.exists("NREAC_CROSS_PHASE"))
+				_reaction.configure("cross_phase", par, _unitOpIdx, paramProvider);
+			if (paramProvider.exists("NREAC_PORE"))
+				_reaction.configure("pore", par, _unitOpIdx, paramProvider);
+			if (paramProvider.exists("NREAC_SOLID"))
+				_reaction.configure("solid", par, _unitOpIdx, paramProvider);
+
+			paramProvider.popScope();// scope particle_type
 		}
 	}
-	else
-	{	
-		if (paramProvider.exists("NREAC_LIQUID"))
-			_reaction.configure("liquid", 0, _unitOpIdx, paramProvider);
 
-		for (unsigned int par = 0; par < _nParType; par++)
-		{
-			char particleScope[32];
-			snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
-			
-			if (paramProvider.exists(particleScope))
-			{
-				paramProvider.pushScope(particleScope);// scope particle_type
-
-				if (paramProvider.exists("NREAC_CROSS_PHASE"))
-					_reaction.configure("cross_phase", par, _unitOpIdx, paramProvider);
-				if (paramProvider.exists("NREAC_PORE"))
-					_reaction.configure("pore", par, _unitOpIdx, paramProvider);
-				if (paramProvider.exists("NREAC_SOLID"))
-					_reaction.configure("solid", par, _unitOpIdx, paramProvider);
-
-				paramProvider.popScope();// scope particle_type
-			}
-		}
-	}
 
 	return bindingConfSuccess && dynReactionConfSuccess;
 }
@@ -622,28 +487,8 @@ unsigned int CSTRModel::threadLocalMemorySize() const CADET_NOEXCEPT
 {
 	LinearMemorySizer lms;
 
-	// Memory for residualImpl()
-	if (_oldReactionInterface)
-	{
-		for (unsigned int i = 0; i < _nParType; ++i)
-		{
-			if (_binding[i] && _binding[i]->requiresWorkspace())
-				lms.fitBlock(_binding[i]->workspaceSize(_nComp, _strideBound[i], _nBound + i * _nComp));
-			if (_dynReaction[i] && _dynReaction[i]->requiresWorkspace())
-				lms.fitBlock(_dynReaction[i]->workspaceSize(_nComp, _strideBound[i], _nBound + i * _nComp));
-		}
-	}
-	else	
-		_reaction.setWorkspaceRequirements(lms, _nComp);
-
-
-
-	for (auto i = 0; i < _dynReactionBulk.size(); i++)
-	{
-		if (_dynReactionBulk[i] && _dynReactionBulk[i]->requiresWorkspace())
-			lms.fitBlock(_dynReactionBulk[i]->workspaceSize(_nComp, 0, nullptr));
-	}
-
+	// Memory for residualImpl()	
+	_reaction.setWorkspaceRequirements(lms, _nComp);
 
 	const unsigned int maxStrideBound = _strideBound ? *std::max_element(_strideBound, _strideBound + _nParType) : 0;
 	lms.add<active>(_nComp + maxStrideBound);
@@ -1630,7 +1475,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 
 		// Reaction
 
-		for (unsigned int reac = 0; reac < _reaction.getDynReactionVector("cross_phase").size(); ++reac)
+		for (unsigned int reac = 0; reac < _reaction.getnReactionOfParType("cross_phase", type); ++reac)
 		{
 			auto offSet = _reaction.getOffsetForPhase("cross_phase", type);
 			
@@ -1703,7 +1548,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 			}
 		}
 		// Solid Reaction
-		for (unsigned int reac = 0; reac < _reaction.getDynReactionVector("solid").size(); ++reac)
+		for (unsigned int reac = 0; reac < _reaction.getnReactionOfParType("solid", type); ++reac)
 		{
 			auto offSet = _reaction.getOffsetForPhase("solid", type);
 

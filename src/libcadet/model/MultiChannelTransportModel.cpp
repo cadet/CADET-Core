@@ -392,29 +392,12 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
-	_oldReactionInterface = false;
-
-	_dynReactionBulk.resize(1,nullptr);
-	if (paramProvider.exists("REACTION_MODEL"))
-	{
-		_oldReactionInterface = true;
-		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
-		_dynReactionBulk[0] = helper.createDynamicReactionModel(dynReactName);
-		if (!_dynReactionBulk[0])
-			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
-
-		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
-			paramProvider.pushScope("reaction_bulk");
-
-		reactionConfSuccess = _dynReactionBulk[0]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
-
-		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
-			paramProvider.popScope();
-	}
-	else if (paramProvider.exists("bulk_reaction_000"))
+	
+	_reaction.clearDynamicReactionModels();
+	if (paramProvider.exists("NREAC_BULK"))
 	{
 		int nReactions = paramProvider.getInt("NREAC_BULK");
-		_reaction.configureDiscretization("bulk", 0, nReactions, 0 , _disc.nComp, nullptr, nullptr, paramProvider, helper);
+		reactionConfSuccess = _reaction.configureDiscretization("bulk", 0, nReactions, _disc.nComp, nullptr, nullptr, paramProvider, helper) && reactionConfSuccess;
 	}
 
 	
