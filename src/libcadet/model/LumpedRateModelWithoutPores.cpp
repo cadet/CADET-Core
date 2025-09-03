@@ -166,13 +166,12 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 
 	paramProvider.pushScope("particle_type_000");
 
-	const bool filmDiffusion = paramProvider.getBool("HAS_FILM_DIFFUSION");
-	const bool poreDiffusion = paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false;
-	const bool surfaceDiffusion = paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false;
-	const std::string particleType = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType();
-
-	if (particleType != "EQUILIBRIUM_PARTICLE")
-		throw InvalidParameterException("Unit type was specified as LUMPED_RATE_MODEL_WITHOUT_PORES, which is inconsistent with specified particle model " + particleType);
+	if (paramProvider.getBool("HAS_FILM_DIFFUSION"))
+		throw InvalidParameterException("HAS_FILM_DIFFUSION must be false for LUMPED_RATE_MODEL_WITHOUT_PORES");
+	if (paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false)
+		throw InvalidParameterException("HAS_PORE_DIFFUSION must be false for LUMPED_RATE_MODEL_WITHOUT_PORES");
+	if (paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false)
+		throw InvalidParameterException("HAS_SURFACE_DIFFUSION must be false for LUMPED_RATE_MODEL_WITHOUT_PORES");
 
 	std::vector<int> nBound;
 	nBound = paramProvider.getIntArray("NBOUND");
