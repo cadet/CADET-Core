@@ -82,9 +82,11 @@ namespace model
 				if (uoType == "GENERAL_RATE_MODEL_2D")
 					return new GeneralRateModel2D(uoId);
 
+				paramProvider.pushScope("particle_type_000");
 				const bool filmDiffusion = paramProvider.getBool("HAS_FILM_DIFFUSION");
 				const bool poreDiffusion = paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false;
 				const bool surfaceDiffusion = paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false;
+				paramProvider.popScope();
 
 				const std::string particleType = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType();
 
