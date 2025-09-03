@@ -423,6 +423,9 @@ bool GeneralRateModel2D::configureModelDiscretization(IParameterProvider& paramP
 	{
 		paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
 
+		if (!paramProvider.getBool("HAS_FILM_DIFFUSION"))
+			throw InvalidParameterException("HAS_FILM_DIFFUSION must be true for this model with FV discretization");
+
 		std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
 		if (nBound.size() != _disc.nComp)
 			throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");

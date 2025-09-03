@@ -130,11 +130,14 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 	if (firstConfigCall)
 		_linearSolver = cadet::linalg::setLinearSolver(paramProvider.exists("LINEAR_SOLVER") ? paramProvider.getString("LINEAR_SOLVER") : "SparseLU");
 
+	if (paramProvider.getString("SPATIAL_METHOD") != "DG" && _disc.nParType == 0)
+		throw InvalidParameterException("Column with NPARTYPE = 0 is only available for DG discretization");
+
 	if (paramProvider.exists("POLYDEG"))
 		_disc.polyDeg = paramProvider.getInt("POLYDEG");
 	else
 		_disc.polyDeg = 4u; // default value
-	if (paramProvider.getInt("POLYDEG") < 1)
+	if (_disc.polyDeg < 1)
 		throw InvalidParameterException("Polynomial degree must be at least 1!");
 	else if (_disc.polyDeg < 3)
 		LOG(Warning) << "Polynomial degree > 2 in bulk discretization (cf. POLYDEG) is always recommended for performance reasons.";

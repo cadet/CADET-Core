@@ -500,7 +500,6 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 		if (parMethod == "FV")
 		{
 			parDisc["NCELLS"] = 5;
-			parDisc["NCELLS"] = 5;
 		}
 		else if (parMethod == "DG")
 		{
