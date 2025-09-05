@@ -16,49 +16,75 @@
     },
     "unit_000": {
       "INIT_C": [
-        500,
-        0
+        1.0,
+        0.0,
+        2.0,
+        0.01,
+        0.0,
+        0.0,
+        0.0
       ],
-      "INIT_LIQUID_VOLUME": 1000,
-      "NCOMP": 2,
-      "REACTION_MODEL": "MICHAELIS_MENTEN",
+      "INIT_LIQUID_VOLUME": 10,
+      "NCOMP": 7,
+      "REACTION_MODEL": "MASS_ACTION_LAW",
       "UNIT_TYPE": "CSTR",
       "reaction_bulk": {
-        "MM_KI_C": [
-          0,
-          35,
-          0,
-          0,
-          0,
-          0,
-          0,
+        "MAL_KBWD_BULK": [
+          700000000.0,
+          800000000.0,
+          800000000.0,
+          700000000.0,
           0
         ],
-        "MM_KI_UC": [
-          0,
-          35,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0
+        "MAL_KFWD_BULK": [
+          1000000000.0,
+          1000000000.0,
+          1000000000.0,
+          1000000000.0,
+          120000.0
         ],
-        "MM_KMM": [
-          2.5,
-          0.0,
-          0.0,
-          5.0
-        ],
-        "MM_STOICHIOMETRY_BULK": [
-          -1e-09,
-          0.0,
-          1.0,
-          -1.0
-        ],
-        "MM_VMAX": [
-          400,
-          100
+        "MAL_STOICHIOMETRY_BULK": [
+          -1,
+          0,
+          0,
+          -1,
+          0,
+
+          0,
+          0,
+          0,
+          0,
+          1,
+
+          0,
+          -1,
+          -1,
+          0,
+          0,
+
+          -1,
+          -1,
+          0,
+          0,
+          1,
+
+          1,
+          0,
+          -1,
+          0,
+          0,
+
+          0,
+          1,
+          0,
+          -1,
+          0,
+
+          0,
+          0,
+          1,
+          1,
+          -1
         ]
       }
     }
@@ -67,7 +93,15 @@
     "SPLIT_COMPONENTS_DATA": false,
     "SPLIT_PORTS_DATA": 0,
     "unit_000": {
-      "WRITE_SOLUTION_OUTLET": 1
+      "WRITE_COORDINATES": 1,
+      "WRITE_SENS_OUTLET": 1,
+      "WRITE_SOLUTION_BULK": 1,
+      "WRITE_SOLUTION_FLUX": 1,
+      "WRITE_SOLUTION_INLET": 1,
+      "WRITE_SOLUTION_OUTLET": 1,
+      "WRITE_SOLUTION_PARTICLE": 1,
+      "WRITE_SOLUTION_SOLID": 1,
+      "WRITE_SOLUTION_VOLUME": 1
     }
   },
   "solver": {
