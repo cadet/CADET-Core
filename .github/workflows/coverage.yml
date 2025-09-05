@@ -117,7 +117,7 @@ jobs:
             --root "${{ github.workspace }}" \
             --filter "${{ github.workspace }}/src" \
             --filter "${{ github.workspace }}/include" \
-            --filter "$BUILD_DIR/src" \
+            --filter "${{ github.workspace }}/build/src" \
             --exclude '.*ThirdParty.*' \
             --cobertura -o coverage.xml \
             --print-summary
