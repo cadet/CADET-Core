@@ -491,7 +491,13 @@ unsigned int CSTRModel::threadLocalMemorySize() const CADET_NOEXCEPT
 {
 	LinearMemorySizer lms;
 
-	// Memory for residualImpl()	
+	// Memory for residualImpl()
+	for (unsigned int i = 0; i < _nParType; ++i)
+	{
+		if (_binding[i] && _binding[i]->requiresWorkspace())
+			lms.fitBlock(_binding[i]->workspaceSize(_nComp, _strideBound[i], _nBound + i * _nComp));
+	}
+
 	_reaction.setWorkspaceRequirements(lms, _nComp);
 
 	const unsigned int maxStrideBound = _strideBound ? *std::max_element(_strideBound, _strideBound + _nParType) : 0;
@@ -1419,7 +1425,6 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 
 	// Reactions in liquid phase
 	const ColumnPosition colPos{0.0, 0.0, 0.0};
-
 	for (auto i = 0; i < _reaction.getDynReactionVector("liquid").size(); i++)
 	{
 		if (_reaction.getDynReactionVector("liquid")[i] && (_reaction.getDynReactionVector("liquid")[i]->numReactions() > 0))
@@ -1428,7 +1433,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 			BufferedArray<ResidualType> flux = subAlloc.array<ResidualType>(_nComp);
 
 			std::fill_n(static_cast<ResidualType*>(flux), _nComp, 0.0);
-			_reaction.getDynReactionVector("liquid")[i]->residualFluxAdd(t, secIdx, colPos, _nComp,c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
+ 			_reaction.getDynReactionVector("liquid")[i]->residualFluxAdd(t, secIdx, colPos, _nComp,c, static_cast<ResidualType*>(flux), -1.0, subAlloc);
 
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 				resC[comp] += v * flux[comp];

@@ -157,12 +157,15 @@ struct ReactionSystem
          */
         void configureDimOfSetAndReacParType(unsigned int nParTypes)
         {
-            for(auto& [phaseType, phaseData] : _phaseMap)
+            unsigned int dim = std::max(1u, nParTypes);
+            
+            for (auto& [phaseType, phaseData] : _phaseMap)
             {
                 auto& offset = phaseData.offsets;
                 auto& nReacParTyps = phaseData.nReacParType;
-                offset.resize(nParTypes, 0);
-                nReacParTyps.resize(nParTypes, 0);
+                offset.resize(dim, 0);
+                nReacParTyps.resize(dim, 0);
+
             }
         }
         
@@ -356,7 +359,7 @@ struct ReactionSystem
          * @param lms Linear memory sizer to configure workspace requirements
          * @param nComp Number of components in the system
          */
-        void setWorkspaceRequirements(LinearMemorySizer lms, unsigned int nComp) const
+        void setWorkspaceRequirements(LinearMemorySizer& lms, unsigned int nComp) const
         {
             for (auto phase: _phaseMap)
             {   
@@ -366,7 +369,10 @@ struct ReactionSystem
                 {
                     // Check if reaction model exists and requires workspace
                     if (dynReactionVector[i] && dynReactionVector[i]->requiresWorkspace())
-                        lms.fitBlock(dynReactionVector[i]->workspaceSize(nComp, 0, nullptr));
+                    {
+                        //todo: richtige werte fuer boundstate und so
+                        lms.fitBlock(dynReactionVector[i]->workspaceSize(nComp, 1, nullptr));
+                    }
                 }
             }
         }
