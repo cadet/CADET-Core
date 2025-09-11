@@ -1,0 +1,50 @@
+\documentclass[twoside,titlepage,11pt]{article}
+
+\input{ug.tex}
+
+\externaldocument{install}
+\externaldocument{ida_math}
+\externaldocument{ida_usage}
+%\externaldocument{ida_fcmix}
+\externaldocument{ida_nvec}
+\externaldocument{ida_sunmat}
+\externaldocument{ida_sunlinsol}
+\externaldocument{ida_sunnonlinsol}
+\externaldocument{linsolv}
+
+%===============================================================
+
+\title{Example Programs for {\ida} {\idarelease}}
+\author{
+  Alan C. Hindmarsh, Radu Serban, and Aaron Collier\\
+  {\em Center for Applied Scientific Computing} \\
+  {\em Lawrence Livermore National Laboratory}
+}
+\date{
+  \today 
+  \vfill 
+  {\centerline{\includegraphics[width=0.5\textwidth]{doc_logo_blue}}}
+  \vfill \idaucrlug
+}
+
+\makeindex
+
+\begin{document}
+
+\frontex
+\raggedbottom
+%===============================================================
+\include{ida_ex_intro}
+\include{ida_ex_serial}
+\include{ida_ex_parallel}
+\include{ida_ex_petsc}
+\include{ida_ex_trilinos}
+%\include{ida_ex_fortran}
+%===============================================================
+% References
+\bibliographystyle{plain}
+\bibliography{biblio}
+%===============================================================
+\clearemptydoublepage
+%===============================================================
+\end{document}

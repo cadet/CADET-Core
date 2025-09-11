@@ -1,19 +1,15 @@
-/*
- * -----------------------------------------------------------------
- * $Revision$
- * $Date$
- * ----------------------------------------------------------------- 
+/* -----------------------------------------------------------------
  * Programmer(s): Radu Serban and Aaron Collier @ LLNL
  * -----------------------------------------------------------------
- * LLNS Copyright Start
- * Copyright (c) 2014, Lawrence Livermore National Security
- * This work was performed under the auspices of the U.S. Department 
- * of Energy by Lawrence Livermore National Laboratory in part under 
- * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
- * Produced at the Lawrence Livermore National Laboratory.
+ * SUNDIALS Copyright Start
+ * Copyright (c) 2002-2025, Lawrence Livermore National Security
+ * and Southern Methodist University.
  * All rights reserved.
- * For details, see the LICENSE file.
- * LLNS Copyright End
+ *
+ * See the top-level LICENSE and NOTICE files for details.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ * SUNDIALS Copyright End
  * -----------------------------------------------------------------
  * This is the header file for a generic NVECTOR package.
  * It defines the N_Vector structure (_generic_N_Vector) which
@@ -22,381 +18,330 @@
  *     the description and actual data of the vector
  *   - an 'ops' filed which contains a structure listing operations
  *     acting on such vectors
- *
- * Part I of this file contains type declarations for the
- * _generic_N_Vector and _generic_N_Vector_Ops structures, as well
- * as references to pointers to such structures (N_Vector).
- *
- * Part II of this file contains the prototypes for the vector
- * functions which operate on N_Vector.
- *
+ * -----------------------------------------------------------------
+ * This header file contains:
+ *   - enumeration constants for all SUNDIALS-defined vector types,
+ *     as well as a generic type for user-supplied vector types,
+ *   - type declarations for the _generic_N_Vector and
+ *     _generic_N_Vector_Ops structures, as well as references to
+ *     pointers to such structures (N_Vector), and
+ *   - prototypes for the vector functions which operate on
+ *     N_Vector objects.
+ * -----------------------------------------------------------------
  * At a minimum, a particular implementation of an NVECTOR must
  * do the following:
- *  - specify the 'content' field of N_Vector,
- *  - implement the operations on those N_Vectors,
- *  - provide a constructor routine for new vectors
+ *   - specify the 'content' field of N_Vector,
+ *   - implement the operations on those N_Vector objects,
+ *   - provide a constructor routine for new N_Vector objects
  *
  * Additionally, an NVECTOR implementation may provide the following:
- *  - macros to access the underlying N_Vector data
- *  - a constructor for an array of N_Vectors
- *  - a constructor for an empty N_Vector (i.e., a new N_Vector with
- *    a NULL data pointer).
- *  - a routine to print the content of an N_Vector
- * -----------------------------------------------------------------
- */
+ *   - macros to access the underlying N_Vector data
+ *   - a constructor for an array of N_Vectors
+ *   - a constructor for an empty N_Vector (i.e., a new N_Vector with
+ *     a NULL data pointer).
+ *   - a routine to print the content of an N_Vector
+ * -----------------------------------------------------------------*/
 
 #ifndef _NVECTOR_H
 #define _NVECTOR_H
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <sundials/sundials_config.h>
+#include <sundials/sundials_context.h>
+#include <sundials/sundials_errors.h>
 #include <sundials/sundials_types.h>
 
-#ifdef __cplusplus  /* wrapper to enable C++ usage */
+#ifdef __cplusplus /* wrapper to enable C++ usage */
 extern "C" {
 #endif
 
-  
-/*
- * -----------------------------------------------------------------
+/* -----------------------------------------------------------------
  * Implemented N_Vector types
- * -----------------------------------------------------------------
- */
-  
-typedef enum {
-  SUNDIALS_NVEC_SERIAL, 
-  SUNDIALS_NVEC_PARALLEL, 
-  SUNDIALS_NVEC_OPENMP, 
-  SUNDIALS_NVEC_PTHREADS, 
-  SUNDIALS_NVEC_PARHYP, 
+ * ----------------------------------------------------------------- */
+
+typedef enum
+{
+  SUNDIALS_NVEC_SERIAL,
+  SUNDIALS_NVEC_PARALLEL,
+  SUNDIALS_NVEC_OPENMP,
+  SUNDIALS_NVEC_PTHREADS,
+  SUNDIALS_NVEC_PARHYP,
   SUNDIALS_NVEC_PETSC,
   SUNDIALS_NVEC_CUDA,
+  SUNDIALS_NVEC_HIP,
+  SUNDIALS_NVEC_SYCL,
   SUNDIALS_NVEC_RAJA,
+  SUNDIALS_NVEC_KOKKOS,
+  SUNDIALS_NVEC_OPENMPDEV,
+  SUNDIALS_NVEC_TRILINOS,
+  SUNDIALS_NVEC_MANYVECTOR,
+  SUNDIALS_NVEC_MPIMANYVECTOR,
+  SUNDIALS_NVEC_MPIPLUSX,
   SUNDIALS_NVEC_CUSTOM
 } N_Vector_ID;
-  
-/*
- * -----------------------------------------------------------------
+
+/* -----------------------------------------------------------------
  * Generic definition of N_Vector
- * -----------------------------------------------------------------
- */
+ * ----------------------------------------------------------------- */
 
 /* Forward reference for pointer to N_Vector_Ops object */
-typedef struct _generic_N_Vector_Ops *N_Vector_Ops;
+typedef _SUNDIALS_STRUCT_ _generic_N_Vector_Ops* N_Vector_Ops;
 
 /* Forward reference for pointer to N_Vector object */
-typedef struct _generic_N_Vector *N_Vector;
+typedef _SUNDIALS_STRUCT_ _generic_N_Vector* N_Vector;
 
 /* Define array of N_Vectors */
-typedef N_Vector *N_Vector_S;
+typedef N_Vector* N_Vector_S;
 
-/* Structure containing function pointers to vector operations  */  
-struct _generic_N_Vector_Ops {
+/* Structure containing function pointers to vector operations  */
+struct _generic_N_Vector_Ops
+{
+  /*
+   * REQUIRED operations.
+   *
+   * These must be implemented by derivations of the generic N_Vector.
+   */
+
+  /* constructors, destructors, and utility operations */
   N_Vector_ID (*nvgetvectorid)(N_Vector);
-  N_Vector    (*nvclone)(N_Vector);
-  N_Vector    (*nvcloneempty)(N_Vector);
-  void        (*nvdestroy)(N_Vector);
-  void        (*nvspace)(N_Vector, sunindextype *, sunindextype *);
-  realtype*   (*nvgetarraypointer)(N_Vector);
-  void        (*nvsetarraypointer)(realtype *, N_Vector);
-  void        (*nvlinearsum)(realtype, N_Vector, realtype, N_Vector, N_Vector); 
-  void        (*nvconst)(realtype, N_Vector);
-  void        (*nvprod)(N_Vector, N_Vector, N_Vector);
-  void        (*nvdiv)(N_Vector, N_Vector, N_Vector);
-  void        (*nvscale)(realtype, N_Vector, N_Vector);
-  void        (*nvabs)(N_Vector, N_Vector);
-  void        (*nvinv)(N_Vector, N_Vector);
-  void        (*nvaddconst)(N_Vector, realtype, N_Vector);
-  realtype    (*nvdotprod)(N_Vector, N_Vector);
-  realtype    (*nvmaxnorm)(N_Vector);
-  realtype    (*nvwrmsnorm)(N_Vector, N_Vector);
-  realtype    (*nvwrmsnormmask)(N_Vector, N_Vector, N_Vector);
-  realtype    (*nvmin)(N_Vector);
-  realtype    (*nvwl2norm)(N_Vector, N_Vector);
-  realtype    (*nvl1norm)(N_Vector);
-  void        (*nvcompare)(realtype, N_Vector, N_Vector);
-  booleantype (*nvinvtest)(N_Vector, N_Vector);
-  booleantype (*nvconstrmask)(N_Vector, N_Vector, N_Vector);
-  realtype    (*nvminquotient)(N_Vector, N_Vector);
+  N_Vector (*nvclone)(N_Vector);
+  N_Vector (*nvcloneempty)(N_Vector);
+  void (*nvdestroy)(N_Vector);
+  void (*nvspace)(N_Vector, sunindextype*, sunindextype*);
+  sunrealtype* (*nvgetarraypointer)(N_Vector);
+  sunrealtype* (*nvgetdevicearraypointer)(N_Vector);
+  void (*nvsetarraypointer)(sunrealtype*, N_Vector);
+  SUNComm (*nvgetcommunicator)(N_Vector);
+  sunindextype (*nvgetlength)(N_Vector);
+  sunindextype (*nvgetlocallength)(N_Vector);
+
+  /* standard vector operations */
+  void (*nvlinearsum)(sunrealtype, N_Vector, sunrealtype, N_Vector, N_Vector);
+  void (*nvconst)(sunrealtype, N_Vector);
+  void (*nvprod)(N_Vector, N_Vector, N_Vector);
+  void (*nvdiv)(N_Vector, N_Vector, N_Vector);
+  void (*nvscale)(sunrealtype, N_Vector, N_Vector);
+  void (*nvabs)(N_Vector, N_Vector);
+  void (*nvinv)(N_Vector, N_Vector);
+  void (*nvaddconst)(N_Vector, sunrealtype, N_Vector);
+  sunrealtype (*nvdotprod)(N_Vector, N_Vector);
+  sunrealtype (*nvmaxnorm)(N_Vector);
+  sunrealtype (*nvwrmsnorm)(N_Vector, N_Vector);
+  sunrealtype (*nvwrmsnormmask)(N_Vector, N_Vector, N_Vector);
+  sunrealtype (*nvmin)(N_Vector);
+  sunrealtype (*nvwl2norm)(N_Vector, N_Vector);
+  sunrealtype (*nvl1norm)(N_Vector);
+  void (*nvcompare)(sunrealtype, N_Vector, N_Vector);
+  sunbooleantype (*nvinvtest)(N_Vector, N_Vector);
+  sunbooleantype (*nvconstrmask)(N_Vector, N_Vector, N_Vector);
+  sunrealtype (*nvminquotient)(N_Vector, N_Vector);
+
+  /*
+   * OPTIONAL operations.
+   *
+   * These operations provide default implementations that may be overridden.
+   */
+
+  /* OPTIONAL fused vector operations */
+  SUNErrCode (*nvlinearcombination)(int, sunrealtype*, N_Vector*, N_Vector);
+  SUNErrCode (*nvscaleaddmulti)(int, sunrealtype*, N_Vector, N_Vector*,
+                                N_Vector*);
+  SUNErrCode (*nvdotprodmulti)(int, N_Vector, N_Vector*, sunrealtype*);
+
+  /* OPTIONAL vector array operations */
+  SUNErrCode (*nvlinearsumvectorarray)(int, sunrealtype, N_Vector*, sunrealtype,
+                                       N_Vector*, N_Vector*);
+  SUNErrCode (*nvscalevectorarray)(int, sunrealtype*, N_Vector*, N_Vector*);
+  SUNErrCode (*nvconstvectorarray)(int, sunrealtype, N_Vector*);
+  SUNErrCode (*nvwrmsnormvectorarray)(int, N_Vector*, N_Vector*, sunrealtype*);
+  SUNErrCode (*nvwrmsnormmaskvectorarray)(int, N_Vector*, N_Vector*, N_Vector,
+                                          sunrealtype*);
+  SUNErrCode (*nvscaleaddmultivectorarray)(int, int, sunrealtype*, N_Vector*,
+                                           N_Vector**, N_Vector**);
+  SUNErrCode (*nvlinearcombinationvectorarray)(int, int, sunrealtype*,
+                                               N_Vector**, N_Vector*);
+
+  /*
+   * OPTIONAL operations with no default implementation.
+   */
+
+  /* Local reduction kernels (no parallel communication) */
+  sunrealtype (*nvdotprodlocal)(N_Vector, N_Vector);
+  sunrealtype (*nvmaxnormlocal)(N_Vector);
+  sunrealtype (*nvminlocal)(N_Vector);
+  sunrealtype (*nvl1normlocal)(N_Vector);
+  sunbooleantype (*nvinvtestlocal)(N_Vector, N_Vector);
+  sunbooleantype (*nvconstrmasklocal)(N_Vector, N_Vector, N_Vector);
+  sunrealtype (*nvminquotientlocal)(N_Vector, N_Vector);
+  sunrealtype (*nvwsqrsumlocal)(N_Vector, N_Vector);
+  sunrealtype (*nvwsqrsummasklocal)(N_Vector, N_Vector, N_Vector);
+
+  /* Single buffer reduction operations */
+  SUNErrCode (*nvdotprodmultilocal)(int, N_Vector, N_Vector*, sunrealtype*);
+  SUNErrCode (*nvdotprodmultiallreduce)(int, N_Vector, sunrealtype*);
+
+  /* XBraid interface operations */
+  SUNErrCode (*nvbufsize)(N_Vector, sunindextype*);
+  SUNErrCode (*nvbufpack)(N_Vector, void*);
+  SUNErrCode (*nvbufunpack)(N_Vector, void*);
+
+  /* Debugging functions (called when SUNDIALS_DEBUG_PRINTVEC is defined). */
+  void (*nvprint)(N_Vector);
+  void (*nvprintfile)(N_Vector, FILE*);
 };
 
-/*
- * -----------------------------------------------------------------
- * A vector is a structure with an implementation-dependent
- * 'content' field, and a pointer to a structure of vector
- * operations corresponding to that implementation.
- * -----------------------------------------------------------------
- */
-
-struct _generic_N_Vector {
-  void *content;
-  struct _generic_N_Vector_Ops *ops;
+/* A vector is a structure with an implementation-dependent
+   'content' field, and a pointer to a structure of vector
+   operations corresponding to that implementation. */
+struct _generic_N_Vector
+{
+  void* content;
+  N_Vector_Ops ops;
+  SUNContext sunctx;
 };
-  
-/*
- * -----------------------------------------------------------------
+
+/* -----------------------------------------------------------------
  * Functions exported by NVECTOR module
- * -----------------------------------------------------------------
- */
+ * ----------------------------------------------------------------- */
+
+SUNDIALS_EXPORT N_Vector N_VNewEmpty(SUNContext sunctx);
+SUNDIALS_EXPORT void N_VFreeEmpty(N_Vector v);
+SUNDIALS_EXPORT SUNErrCode N_VCopyOps(N_Vector w, N_Vector v);
 
 /*
- * -----------------------------------------------------------------
- * N_VGetVectorID
- *   Returns an identifier for the vector type from enumeration 
- *   N_Vector_ID.
- *
- * N_VClone
- *   Creates a new vector of the same type as an existing vector.
- *   It does not copy the vector, but rather allocates storage for
- *   the new vector.
- *
- * N_VCloneEmpty
- *   Creates a new vector of the same type as an existing vector,
- *   but does not allocate storage.
- *
- * N_VDestroy
- *   Destroys a vector created with N_VClone.
- *
- * N_VSpace
- *   Returns space requirements for one N_Vector (type 'realtype' in
- *   lrw and type 'sunindextype' in liw).
- *
- * N_VGetArrayPointer
- *   Returns a pointer to the data component of the given N_Vector.
- *   NOTE: This function assumes that the internal data is stored
- *   as a contiguous 'realtype' array. This routine is only used in
- *   the solver-specific interfaces to the dense and banded linear
- *   solvers, as well as the interfaces to  the banded preconditioners
- *   distributed with SUNDIALS.
- *   
- * N_VSetArrayPointer
- *   Overwrites the data field in the given N_Vector with a user-supplied
- *   array of type 'realtype'.
- *   NOTE: This function assumes that the internal data is stored
- *   as a contiguous 'realtype' array. This routine is only used in
- *   the interfaces to the dense linear solver.
- *
- * N_VLinearSum
- *   Performs the operation z = a*x + b*y
- *
- * N_VConst
- *   Performs the operation z[i] = c for i = 0, 1, ..., N-1
- *
- * N_VProd
- *   Performs the operation z[i] = x[i]*y[i] for i = 0, 1, ..., N-1
- *
- * N_VDiv
- *   Performs the operation z[i] = x[i]/y[i] for i = 0, 1, ..., N-1
- *
- * N_VScale
- *   Performs the operation z = c*x
- *
- * N_VAbs
- *   Performs the operation z[i] = |x[i]| for i = 0, 1, ..., N-1
- *
- * N_VInv
- *   Performs the operation z[i] = 1/x[i] for i = 0, 1, ..., N-1
- *   This routine does not check for division by 0. It should be
- *   called only with an N_Vector x which is guaranteed to have
- *   all non-zero components.
- *
- * N_VAddConst
- *   Performs the operation z[i] = x[i] + b   for i = 0, 1, ..., N-1
- *
- * N_VDotProd
- *   Returns the dot product of two vectors:
- *         sum (i = 0 to N-1) {x[i]*y[i]}
- *
- * N_VMaxNorm
- *   Returns the maximum norm of x:
- *         max (i = 0 to N-1) ABS(x[i])
- *
- * N_VWrmsNorm
- *   Returns the weighted root mean square norm of x with weight 
- *   vector w:
- *         sqrt [(sum (i = 0 to N-1) {(x[i]*w[i])^2})/N]
- *
- * N_VWrmsNormMask
- *   Returns the weighted root mean square norm of x with weight
- *   vector w, masked by the elements of id:
- *         sqrt [(sum (i = 0 to N-1) {(x[i]*w[i]*msk[i])^2})/N]
- *   where msk[i] = 1.0 if id[i] > 0 and
- *         msk[i] = 0.0 if id[i] < 0
- *
- * N_VMin
- *   Returns the smallest element of x:
- *         min (i = 0 to N-1) x[i]
- *
- * N_VWL2Norm
- *   Returns the weighted Euclidean L2 norm of x with weight 
- *   vector w:
- *         sqrt [(sum (i = 0 to N-1) {(x[i]*w[i])^2})]
- *
- * N_VL1Norm
- *   Returns the L1 norm of x:
- *         sum (i = 0 to N-1) {ABS(x[i])}
- *
- * N_VCompare
- *   Performs the operation
- *          z[i] = 1.0 if ABS(x[i]) >= c   i = 0, 1, ..., N-1
- *                 0.0 otherwise
- *
- * N_VInvTest
- *   Performs the operation z[i] = 1/x[i] with a test for 
- *   x[i] == 0.0 before inverting x[i].
- *   This routine returns SUNTRUE if all components of x are non-zero 
- *   (successful inversion) and returns SUNFALSE otherwise.
- *
- * N_VConstrMask
- *   Performs the operation : 
- *       m[i] = 1.0 if constraint test fails for x[i]
- *       m[i] = 0.0 if constraint test passes for x[i]
- *   where the constraint tests are as follows:
- *      If c[i] = +2.0, then x[i] must be >  0.0.
- *      If c[i] = +1.0, then x[i] must be >= 0.0.
- *      If c[i] = -1.0, then x[i] must be <= 0.0.
- *      If c[i] = -2.0, then x[i] must be <  0.0.
- *   This routine returns a boolean SUNFALSE if any element failed
- *   the constraint test, SUNTRUE if all passed. It also sets a
- *   mask vector m, with elements equal to 1.0 where the
- *   corresponding constraint test failed, and equal to 0.0
- *   where the constraint test passed.
- *   This routine is specialized in that it is used only for
- *   constraint checking.
- *
- * N_VMinQuotient
- *   Performs the operation : 
- *       minq  = min ( num[i]/denom[i]) over all i such that   
- *       denom[i] != 0.
- *   This routine returns the minimum of the quotients obtained
- *   by term-wise dividing num[i] by denom[i]. A zero element
- *   in denom will be skipped. If no such quotients are found,
- *   then the large value BIG_REAL is returned.
- *
- * -----------------------------------------------------------------
- *
- * The following table lists the vector functions used by
- * different modules in SUNDIALS. The symbols in the table
- * have the following meaning:
- * S    -  called by the solver;
- * D    -  called by the dense linear solver module
- * B    -  called by the band linear solver module
- * Di   -  called by the diagonal linear solver module
- * I    -  called by the iterative linear solver module
- * BP   -  called by the band preconditioner module
- * BBDP -  called by the band-block diagonal preconditioner module
- * F    -  called by the Fortran-to-C interface
- *
- *                  ------------------------------------------------
- *                                         MODULES                  
- * NVECTOR          ------------------------------------------------
- * FUNCTIONS          CVODE/CVODES          IDA             KINSOL    
- * -----------------------------------------------------------------
- * N_VGetVectorID     
- * -----------------------------------------------------------------
- * N_VClone           S Di I                S I BBDP        S I BBDP
- * -----------------------------------------------------------------
- * N_VCloneEmpty      F                     F               F
- * -----------------------------------------------------------------
- * N_VDestroy         S Di I                S I BBDP        S I BBDP
- * -----------------------------------------------------------------
- * N_VSpace           S                     S               S         
- * -----------------------------------------------------------------
- * N_VGetArrayPointer D B BP BBDP F         D B BBDP        BBDP F     
- * -----------------------------------------------------------------
- * N_VSetArrayPointer D F                   D               F
- * -----------------------------------------------------------------
- * N_VLinearSum       S D Di I              S D I           S I       
- * -----------------------------------------------------------------
- * N_VConst           S I                   S I             I       
- * -----------------------------------------------------------------
- * N_VProd            S Di I                S I             S I       
- * -----------------------------------------------------------------
- * N_VDiv             S Di I                S I             S I
- * -----------------------------------------------------------------
- * N_VScale           S D B Di I BP BBDP    S D B I BBDP    S I BBDP  
- * -----------------------------------------------------------------
- * N_VAbs             S                     S               S         
- * -----------------------------------------------------------------
- * N_VInv             S Di                  S               S         
- * -----------------------------------------------------------------
- * N_VAddConst        S Di                  S                        
- * -----------------------------------------------------------------
- * N_VDotProd         I                     I               I         
- * -----------------------------------------------------------------
- * N_VMaxNorm         S                     S               S         
- * -----------------------------------------------------------------
- * N_VWrmsNorm        S D B I BP BBDP       S                         
- * -----------------------------------------------------------------
- * N_VWrmsNormMask                          S                         
- * -----------------------------------------------------------------
- * N_VMin             S                     S               S         
- * -----------------------------------------------------------------
- * N_VWL2Norm                                               S I       
- * -----------------------------------------------------------------
- * N_VL1Norm                                                I
- * -----------------------------------------------------------------
- * N_VCompare         Di                    S                         
- * -----------------------------------------------------------------
- * N_VInvTest         Di                                              
- * -----------------------------------------------------------------
- * N_VConstrMask                            S               S         
- * -----------------------------------------------------------------
- * N_VMinQuotient                           S               S         
- * -----------------------------------------------------------------
+ * Required operations.
  */
-  
+
 SUNDIALS_EXPORT N_Vector_ID N_VGetVectorID(N_Vector w);
 SUNDIALS_EXPORT N_Vector N_VClone(N_Vector w);
 SUNDIALS_EXPORT N_Vector N_VCloneEmpty(N_Vector w);
 SUNDIALS_EXPORT void N_VDestroy(N_Vector v);
-SUNDIALS_EXPORT void N_VSpace(N_Vector v, sunindextype *lrw, sunindextype *liw);
-SUNDIALS_EXPORT realtype *N_VGetArrayPointer(N_Vector v);
-SUNDIALS_EXPORT void N_VSetArrayPointer(realtype *v_data, N_Vector v);
-SUNDIALS_EXPORT void N_VLinearSum(realtype a, N_Vector x, realtype b, N_Vector y, N_Vector z);
-SUNDIALS_EXPORT void N_VConst(realtype c, N_Vector z);
+SUNDIALS_DEPRECATED_EXPORT_MSG(
+  "Work space functions will be removed in version 8.0.0")
+void N_VSpace(N_Vector v, sunindextype* lrw, sunindextype* liw);
+SUNDIALS_EXPORT sunrealtype* N_VGetArrayPointer(N_Vector v);
+SUNDIALS_EXPORT sunrealtype* N_VGetDeviceArrayPointer(N_Vector v);
+SUNDIALS_EXPORT void N_VSetArrayPointer(sunrealtype* v_data, N_Vector v);
+SUNDIALS_EXPORT SUNComm N_VGetCommunicator(N_Vector v);
+SUNDIALS_EXPORT sunindextype N_VGetLength(N_Vector v);
+SUNDIALS_EXPORT sunindextype N_VGetLocalLength(N_Vector v);
+
+/* standard vector operations */
+SUNDIALS_EXPORT void N_VLinearSum(sunrealtype a, N_Vector x, sunrealtype b,
+                                  N_Vector y, N_Vector z);
+SUNDIALS_EXPORT void N_VConst(sunrealtype c, N_Vector z);
 SUNDIALS_EXPORT void N_VProd(N_Vector x, N_Vector y, N_Vector z);
 SUNDIALS_EXPORT void N_VDiv(N_Vector x, N_Vector y, N_Vector z);
-SUNDIALS_EXPORT void N_VScale(realtype c, N_Vector x, N_Vector z);
+SUNDIALS_EXPORT void N_VScale(sunrealtype c, N_Vector x, N_Vector z);
 SUNDIALS_EXPORT void N_VAbs(N_Vector x, N_Vector z);
 SUNDIALS_EXPORT void N_VInv(N_Vector x, N_Vector z);
-SUNDIALS_EXPORT void N_VAddConst(N_Vector x, realtype b, N_Vector z);
-SUNDIALS_EXPORT realtype N_VDotProd(N_Vector x, N_Vector y);
-SUNDIALS_EXPORT realtype N_VMaxNorm(N_Vector x);
-SUNDIALS_EXPORT realtype N_VWrmsNorm(N_Vector x, N_Vector w);
-SUNDIALS_EXPORT realtype N_VWrmsNormMask(N_Vector x, N_Vector w, N_Vector id);
-SUNDIALS_EXPORT realtype N_VMin(N_Vector x);
-SUNDIALS_EXPORT realtype N_VWL2Norm(N_Vector x, N_Vector w);
-SUNDIALS_EXPORT realtype N_VL1Norm(N_Vector x);
-SUNDIALS_EXPORT void N_VCompare(realtype c, N_Vector x, N_Vector z);
-SUNDIALS_EXPORT booleantype N_VInvTest(N_Vector x, N_Vector z);
-SUNDIALS_EXPORT booleantype N_VConstrMask(N_Vector c, N_Vector x, N_Vector m);
-SUNDIALS_EXPORT realtype N_VMinQuotient(N_Vector num, N_Vector denom);
+SUNDIALS_EXPORT void N_VAddConst(N_Vector x, sunrealtype b, N_Vector z);
+SUNDIALS_EXPORT sunrealtype N_VDotProd(N_Vector x, N_Vector y);
+SUNDIALS_EXPORT sunrealtype N_VMaxNorm(N_Vector x);
+SUNDIALS_EXPORT sunrealtype N_VWrmsNorm(N_Vector x, N_Vector w);
+SUNDIALS_EXPORT sunrealtype N_VWrmsNormMask(N_Vector x, N_Vector w, N_Vector id);
+SUNDIALS_EXPORT sunrealtype N_VMin(N_Vector x);
+SUNDIALS_EXPORT sunrealtype N_VWL2Norm(N_Vector x, N_Vector w);
+SUNDIALS_EXPORT sunrealtype N_VL1Norm(N_Vector x);
+SUNDIALS_EXPORT void N_VCompare(sunrealtype c, N_Vector x, N_Vector z);
+SUNDIALS_EXPORT sunbooleantype N_VInvTest(N_Vector x, N_Vector z);
+SUNDIALS_EXPORT sunbooleantype N_VConstrMask(N_Vector c, N_Vector x, N_Vector m);
+SUNDIALS_EXPORT sunrealtype N_VMinQuotient(N_Vector num, N_Vector denom);
 
 /*
- * -----------------------------------------------------------------
+ * OPTIONAL operations with default implementations.
+ */
+
+/* fused vector operations */
+SUNDIALS_EXPORT
+SUNErrCode N_VLinearCombination(int nvec, sunrealtype* c, N_Vector* X,
+                                N_Vector z);
+
+SUNDIALS_EXPORT
+SUNErrCode N_VScaleAddMulti(int nvec, sunrealtype* a, N_Vector x, N_Vector* Y,
+                            N_Vector* Z);
+
+SUNDIALS_EXPORT
+SUNErrCode N_VDotProdMulti(int nvec, N_Vector x, N_Vector* Y,
+                           sunrealtype* dotprods);
+
+/* vector array operations */
+SUNDIALS_EXPORT
+SUNErrCode N_VLinearSumVectorArray(int nvec, sunrealtype a, N_Vector* X,
+                                   sunrealtype b, N_Vector* Y, N_Vector* Z);
+
+SUNDIALS_EXPORT
+SUNErrCode N_VScaleVectorArray(int nvec, sunrealtype* c, N_Vector* X,
+                               N_Vector* Z);
+
+SUNDIALS_EXPORT
+SUNErrCode N_VConstVectorArray(int nvec, sunrealtype c, N_Vector* Z);
+
+SUNDIALS_EXPORT
+SUNErrCode N_VWrmsNormVectorArray(int nvec, N_Vector* X, N_Vector* W,
+                                  sunrealtype* nrm);
+
+SUNDIALS_EXPORT
+SUNErrCode N_VWrmsNormMaskVectorArray(int nvec, N_Vector* X, N_Vector* W,
+                                      N_Vector id, sunrealtype* nrm);
+
+SUNDIALS_EXPORT
+SUNErrCode N_VScaleAddMultiVectorArray(int nvec, int nsum, sunrealtype* a,
+                                       N_Vector* X, N_Vector** Y, N_Vector** Z);
+
+SUNDIALS_EXPORT
+SUNErrCode N_VLinearCombinationVectorArray(int nvec, int nsum, sunrealtype* c,
+                                           N_Vector** X, N_Vector* Z);
+
+/*
+ * OPTIONAL operations with no default implementation.
+ */
+
+/* local reduction kernels (no parallel communication) */
+SUNDIALS_EXPORT sunrealtype N_VDotProdLocal(N_Vector x, N_Vector y);
+SUNDIALS_EXPORT sunrealtype N_VMaxNormLocal(N_Vector x);
+SUNDIALS_EXPORT sunrealtype N_VMinLocal(N_Vector x);
+SUNDIALS_EXPORT sunrealtype N_VL1NormLocal(N_Vector x);
+SUNDIALS_EXPORT sunrealtype N_VWSqrSumLocal(N_Vector x, N_Vector w);
+SUNDIALS_EXPORT sunrealtype N_VWSqrSumMaskLocal(N_Vector x, N_Vector w,
+                                                N_Vector id);
+SUNDIALS_EXPORT sunbooleantype N_VInvTestLocal(N_Vector x, N_Vector z);
+SUNDIALS_EXPORT sunbooleantype N_VConstrMaskLocal(N_Vector c, N_Vector x,
+                                                  N_Vector m);
+SUNDIALS_EXPORT sunrealtype N_VMinQuotientLocal(N_Vector num, N_Vector denom);
+
+/* single buffer reduction operations */
+SUNDIALS_EXPORT SUNErrCode N_VDotProdMultiLocal(int nvec, N_Vector x, N_Vector* Y,
+                                                sunrealtype* dotprods);
+SUNDIALS_EXPORT SUNErrCode N_VDotProdMultiAllReduce(int nvec_total, N_Vector x,
+                                                    sunrealtype* sum);
+
+/* XBraid interface operations */
+SUNDIALS_EXPORT SUNErrCode N_VBufSize(N_Vector x, sunindextype* size);
+SUNDIALS_EXPORT SUNErrCode N_VBufPack(N_Vector x, void* buf);
+SUNDIALS_EXPORT SUNErrCode N_VBufUnpack(N_Vector x, void* buf);
+
+/* -----------------------------------------------------------------
  * Additional functions exported by NVECTOR module
- * -----------------------------------------------------------------
- */
+ * ----------------------------------------------------------------- */
 
-/*
- * -----------------------------------------------------------------
- * N_VCloneEmptyVectorArray
- *   Creates (by cloning 'w') an array of 'count' empty N_Vectors 
- *
- * N_VCloneVectorArray
- *   Creates (by cloning 'w') an array of 'count' N_Vectors 
- *
- * N_VDestroyVectorArray
- *   Frees memory for an array of 'count' N_Vectors that was
- *   created by a call to N_VCloneVectorArray
- *
- * These functions are used by the SPGMR iterative linear solver 
- * module and by the CVODES and IDAS solvers.
- * -----------------------------------------------------------------
- */
+SUNDIALS_EXPORT N_Vector* N_VNewVectorArray(int count, SUNContext sunctx);
+SUNDIALS_EXPORT N_Vector* N_VCloneEmptyVectorArray(int count, N_Vector w);
+SUNDIALS_EXPORT N_Vector* N_VCloneVectorArray(int count, N_Vector w);
+SUNDIALS_EXPORT void N_VDestroyVectorArray(N_Vector* vs, int count);
 
-SUNDIALS_EXPORT N_Vector *N_VCloneEmptyVectorArray(int count, N_Vector w);
-SUNDIALS_EXPORT N_Vector *N_VCloneVectorArray(int count, N_Vector w);
-SUNDIALS_EXPORT void N_VDestroyVectorArray(N_Vector *vs, int count);
+/* These function are really only for users of the Fortran interface */
+SUNDIALS_EXPORT N_Vector N_VGetVecAtIndexVectorArray(N_Vector* vs, int index);
+SUNDIALS_EXPORT void N_VSetVecAtIndexVectorArray(N_Vector* vs, int index,
+                                                 N_Vector w);
+
+/* -----------------------------------------------------------------
+ * Debugging functions
+ * ----------------------------------------------------------------- */
+
+SUNDIALS_EXPORT void N_VPrint(N_Vector v);
+SUNDIALS_EXPORT void N_VPrintFile(N_Vector v, FILE* outfile);
 
 #ifdef __cplusplus
 }
