@@ -57,31 +57,40 @@
                 ]
             }
         },
-        "unit_001": {
-            "ADSORPTION_MODEL": "LINEAR",
-            "COL_DISPERSION": 5.75e-08,
-            "COL_RADIUS_INNER": 0.01,
-            "COL_RADIUS_OUTER": 0.2,
-            "INIT_C": [
-                0.0
+      "unit_001": {
+        "UNIT_TYPE": "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES",
+        "NCOMP": 1,
+        "TOTAL_POROSITY": 0.8425,
+        "VELOCITY_COEFF": 0.000575,
+        "COL_DISPERSION": 5.75e-08,
+        "COL_RADIUS_INNER": 0.01,
+        "COL_RADIUS_OUTER": 0.2,
+        "INIT_C": [
+          0.0
+        ],
+        "particle_type_000": {
+          "HAS_FILM_DIFFUSION": false,
+          "HAS_PORE_DIFFUSION": false,
+          "HAS_SURFACE_DIFFUSION": false,
+          "ADSORPTION_MODEL": "LINEAR",
+          "NBOUND": [ 1 ],
+          "adsorption": {
+            "IS_KINETIC": 1,
+            "LIN_KA": [
+              12.3
             ],
-            "INIT_Q": [
-                0.0
-            ],
-            "NCOMP": 1,
-            "TOTAL_POROSITY": 0.8425,
-            "UNIT_TYPE": "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES",
-            "VELOCITY_COEFF": 0.000575,
-            "adsorption": {
-                "IS_KINETIC": 1,
-                "LIN_KA": [
-                    12.3
-                ],
-                "LIN_KD": [
-                    45.0
-                ]
-            }
-        },
+            "LIN_KD": [
+              45.0
+            ]
+          },
+          "INIT_CP": [
+            0.0
+          ],
+          "INIT_CS": [
+            0.0
+          ]
+        }
+      },
         "unit_002": {
             "NCOMP": 1,
             "UNIT_TYPE": "OUTLET"

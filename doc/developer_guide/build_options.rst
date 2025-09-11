@@ -40,7 +40,6 @@ The following build arguments can be set in the cmakeSettings.json or from the c
 - ``DENABLE_PLATFORM_TIMER``: Utilizes a platform-dependent timer.
 - ``DENABLE_DEBUG_THREADING``: Activates multi-threading in debug builds.
 - ``DENABLE_2D_MODELS``: Builds 2D models such as the 2D general rate model and multichannel transport.
-- ``DENABLE_DG``: Constructs DG variants of models.
 - ``DENABLE_SUNDIALS_OPENMP``: Prefers the OpenMP vector implementation of SUNDIALS for large problems if available.
 - ``DENABLE_CADET_CLI``: Builds the CADET-Core command line interface.
 - ``DENABLE_CADET_TOOLS``: Constructs CADET-Core tools.

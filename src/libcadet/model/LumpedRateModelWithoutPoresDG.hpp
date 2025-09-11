@@ -24,6 +24,7 @@
 #include "UnitOperationBase.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "model/parts/ConvectionDispersionOperatorDG.hpp"
+#include "model/particle/ParticleModel.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/SparseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
@@ -249,7 +250,7 @@ namespace cadet
 			double* _tempState; //!< Temporary storage with the size of the state vector or larger if binding models require it
 
 			std::vector<active> _initC; //!< Liquid phase initial conditions
-			std::vector<active> _initQ; //!< Solid phase initial conditions
+			std::vector<active> _initCs; //!< Solid phase initial conditions
 			std::vector<double> _initState; //!< Initial conditions for state vector if given
 			std::vector<double> _initStateDot; //!< Initial conditions for time derivative
 
@@ -304,7 +305,7 @@ namespace cadet
 				virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return false; }
 				virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound > 0; }
 				virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
-				virtual bool isParticleLumped() const CADET_NOEXCEPT { return true; }
+				virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return true; }
 				virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return true; }
 
 				virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
@@ -389,7 +390,7 @@ namespace cadet
 				unsigned int isotherm_entries = _disc.nPoints * _disc.strideBound * (_disc.strideBound + _disc.nComp);
 				unsigned int reaction_entries = has_reaction ? _disc.nPoints * _disc.nComp * (_disc.strideBound + _disc.nComp) : 0;
 
-				tripletList.reserve(_convDispOp.nConvDispEntries(false) + isotherm_entries + reaction_entries);
+				tripletList.reserve(_convDispOp.nJacEntries(false) + isotherm_entries + reaction_entries);
 
 				_convDispOp.convDispJacPattern(tripletList);
 

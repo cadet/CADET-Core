@@ -93,7 +93,7 @@ For information on model equations, refer to :ref:`cstr_model`.
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
    ================  =========================  =============
    
-``INIT_Q``
+``INIT_CS``
 
    Initial concentrations for each bound state of each component in the bead solid phase of each particle type in type-component-major ordering. This field is optional and defaults to all 0.
 
@@ -105,7 +105,7 @@ For information on model equations, refer to :ref:`cstr_model`.
    
 ``INIT_STATE``
 
-   Full state vector for initialization (optional, :math:`\texttt{INIT_C}`, :math:`\texttt{INIT_Q}`, and :math:`\texttt{INIT_VOLUME}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives)
+   Full state vector for initialization (optional, :math:`\texttt{INIT_C}`, :math:`\texttt{INIT_CS}`, and :math:`\texttt{INIT_VOLUME}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives)
 
    **Unit:** :math:`various`
    

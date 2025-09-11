@@ -10,6 +10,9 @@
 .. image:: https://github.com/cadet/cadet-core/actions/workflows/ci.yml/badge.svg?branch=master
    :target: https://github.com/cadet/cadet-core/actions/workflows/ci.yml?query=branch%3Amaster
 
+.. image:: https://joss.theoj.org/papers/282a9ec56a0680e51ed4f1fa8fda3650/status.svg
+   :target: https://joss.theoj.org/papers/282a9ec56a0680e51ed4f1fa8fda3650
+
 .. image:: https://anaconda.org/conda-forge/cadet/badges/downloads.svg
    :target: https://anaconda.org/conda-forge/cadet
 

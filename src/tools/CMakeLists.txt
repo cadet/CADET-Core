@@ -17,23 +17,9 @@ set(TOOLS_TARGETS)
 
 # Add the executables
 if (HDF5_FOUND)
+
 	add_executable(createLWE createLWE.cpp)
 	list(APPEND TOOLS_TARGETS createLWE)
-
-	add_executable(createSCLin createSCLin.cpp)
-	list(APPEND TOOLS_TARGETS createSCLin)
-
-	add_executable(createSCLinStep createSCLinStep.cpp)
-	list(APPEND TOOLS_TARGETS createSCLinStep)
-
-	add_executable(createMCLin createMCLin.cpp)
-	list(APPEND TOOLS_TARGETS createMCLin)
-
-	add_executable(createSCLang createSCLang.cpp)
-	list(APPEND TOOLS_TARGETS createSCLang)
-
-	add_executable(createConvBenchmark createConvBenchmark.cpp)
-	list(APPEND TOOLS_TARGETS createConvBenchmark)
 
 	add_executable(convertFile convertFile.cpp ${CMAKE_SOURCE_DIR}/src/io/FileIO.cpp FormatConverter.cpp ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml/pugixml.cpp)
 	target_include_directories(convertFile PRIVATE ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml ${CMAKE_SOURCE_DIR}/ThirdParty/json)

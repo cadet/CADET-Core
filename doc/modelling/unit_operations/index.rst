@@ -53,7 +53,7 @@ is given in :numref:`table_features_unit_operations`.
      - ×
      - ×
      - ×
-   * - :ref:`pbm_model`
+   * - :ref:`FFCrystallization`
      - ×
      - ×
      - ×
