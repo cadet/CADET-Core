@@ -30,8 +30,7 @@ The following checklist describes the steps to execute sequentially for creating
 
 ## Pre-release build and Docker image
 
-- [ ] If the pre-release should not appear on Zenodo, temporarily disconnect Zenodo from GitHub before creating the label (Eric has the required access rights).
-- [ ] Add a pre-release label such as `v1.2.3-alpha` or `v1.2.3-beta.1` to the latest commit on the release branch.  
+- [ ] Manually dispatch the `build_docker_containers` workflow ([cd_docker.yml](https://github.com/cadet/CADET-Core/blob/master/.github/workflows/cd_docker.yml)) and input the commit hash of the last commit on the release branch.  
   This triggers the Docker workflow to build an image containing:
   - The CADET-Core version at this commit
   - The latest released version of CADET-Python
@@ -56,7 +55,6 @@ The following checklist describes the steps to execute sequentially for creating
 
 ## Creating the release on GitHub
 
-- [ ] Reconnect Zenodo if it was disconnected for the pre-release.
 - [ ] Go to [GitHub Releases](https://github.com/cadet/CADET-Core/releases/new):
   - Set the release branch as the target.
   - Specify the tag `vX.X.X` according to semantic versioning.
