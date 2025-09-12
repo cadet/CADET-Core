@@ -575,7 +575,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 			}
 			if (paramProvider.exists("NREAC_LIQUID"))
 			{
-				reactionConfSuccess = _reaction.configureDiscretization("liquid",
+				reactionConfSuccess = _reaction.configureDiscretization("pore",
 					par,
 					totalReacPore,
 					_disc.nComp,
@@ -605,7 +605,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	{
 		hasLiquidReac = true;
 		int nReactions = paramProvider.getInt("NREAC_LIQUID");
-		reactionConfSuccess = _reaction.configureDiscretization("bulk", 
+		reactionConfSuccess = _reaction.configureDiscretization("liquid", 
 			0,
 			nReactions,
 			_disc.nComp,

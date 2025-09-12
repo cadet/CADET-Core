@@ -381,11 +381,11 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 					totalReacCrossPhase += nReactions;
 					_reaction.computeOffsetsAndReaOfParType("cross_phase", nReactions, par);
 				}
-				if (paramProvider.exists("NREAC_PORE"))
+				if (paramProvider.exists("NREAC_LIQUID"))
 				{
 
 					hasPoreReac = true;
-					int nReactions = paramProvider.getInt("NREAC_PORE");
+					int nReactions = paramProvider.getInt("NREAC_LIQUID");
 					if (nReactions < 0)
 					{
 						paramProvider.popScope();
@@ -435,7 +435,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 					paramProvider,
 					helper) && reactionConfSuccess;
 			}
-			if (paramProvider.exists("NREAC_PORE"))
+			if (paramProvider.exists("NREAC_LIQUID"))
 			{
 				reactionConfSuccess = _reaction.configureDiscretization("pore",
 					par,
@@ -466,7 +466,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 	{
 		hasLiquidReac = true;
 		int nReactions = paramProvider.getInt("NREAC_LIQUID");
-		reactionConfSuccess  = _reaction.configureDiscretization("bulk",
+		reactionConfSuccess  = _reaction.configureDiscretization("liquid",
 			0, 
 			nReactions,
 			_disc.nComp,
@@ -658,7 +658,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configure(IParameterProvider& p
 
 			if (paramProvider.exists("NREAC_CROSS_PHASE"))
 				dynReactionConfSuccess = _reaction.configure("cross_phase", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
-			if (paramProvider.exists("NREAC_PORE"))
+			if (paramProvider.exists("NREAC_LIQUID"))
 				dynReactionConfSuccess = _reaction.configure("pore", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 			if (paramProvider.exists("NREAC_SOLID"))
 				dynReactionConfSuccess = _reaction.configure("solid", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;

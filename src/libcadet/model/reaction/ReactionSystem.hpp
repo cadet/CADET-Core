@@ -264,7 +264,10 @@ struct ReactionSystem
             // Configure each reaction model
             for (unsigned int i = 0; i < nReac; ++i)
 				{
-					char reactionKey[32];
+                    // for finite volumen units where the particles are not handling their own reactions.    
+                    if (phaseType == "pore")
+                        phaseType = "liquid";
+                    char reactionKey[32];
                     snprintf(reactionKey, sizeof(reactionKey), "%s_reaction_%03d", phaseType.c_str(), i);
 
                     paramProvider.pushScope(reactionKey);

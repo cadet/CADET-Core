@@ -63,11 +63,11 @@ Examples
 
 Cross-phase reaction that consumes one bulk and one liquid component and produces a solid state (one reaction)::
 
-   input.model.unit_000.reaction_bulk_000.NREAC_bulk = 1
-   input.model.unit_000.reaction_bulk_000.type = MASS_ACTION_LAW
-   input.model.unit_000.reaction_bulk_000.reaction_model_000.MAL_KFWD = [1.0]
-   input.model.unit_000.reaction_bulk_000.reaction_model_000.MAL_KBWD = [1.0]
-   input.model.unit_000.reaction_bulk_000.reaction_model_000.MAL_STOICHIOMETRY = [... length NCOMP*1 ...]
+   input.model.unit_000.reaction_liquid_000.NREAC_LIQUID = 1
+   input.model.unit_000.reaction_liquid_000.type = MASS_ACTION_LAW
+   input.model.unit_000.reaction_liquid_000.reaction_model_000.MAL_KFWD = [1.0]
+   input.model.unit_000.reaction_liquid_000.reaction_model_000.MAL_KBWD = [1.0]
+   input.model.unit_000.reaction_liquid_000.reaction_model_000.MAL_STOICHIOMETRY = [... length NCOMP*1 ...]
 
 Cross-Phase reaction in a pore::
 
