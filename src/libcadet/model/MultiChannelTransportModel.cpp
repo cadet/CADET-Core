@@ -325,6 +325,7 @@ MultiChannelTransportModel::MultiChannelTransportModel(UnitOpIdx unitOpIdx) : Un
 MultiChannelTransportModel::~MultiChannelTransportModel() CADET_NOEXCEPT
 {
 	delete[] _tempState;
+	_reaction.clearDynamicReactionModels();
 }
 
 unsigned int MultiChannelTransportModel::numDofs() const CADET_NOEXCEPT
@@ -393,10 +394,10 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 	
 	_reaction.clearDynamicReactionModels();
 	_reaction.configureDimOfSetAndReacParType(1);
-	if (paramProvider.exists("NREAC_BULK"))
+	if (paramProvider.exists("NREAC_LIQUID"))
 	{
-		int nReactions = paramProvider.getInt("NREAC_BULK");
-		reactionConfSuccess = _reaction.configureDiscretization("bulk", 0, nReactions, _disc.nComp, nullptr, nullptr, paramProvider, helper) && reactionConfSuccess;
+		int nReactions = paramProvider.getInt("NREAC_LIQUID");
+		reactionConfSuccess = _reaction.configureDiscretization("liquid", 0, nReactions, _disc.nComp, nullptr, nullptr, paramProvider, helper) && reactionConfSuccess;
 	}
 	else
 	{
@@ -441,8 +442,8 @@ bool MultiChannelTransportModel::configure(IParameterProvider& paramProvider)
 	// Reconfigure reaction model
 	bool dynReactionConfSuccess = true;
 	
-	if (paramProvider.exists("NREAC_BULK"))
-		dynReactionConfSuccess = _reaction.configure("bulk", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+	if (paramProvider.exists("NREAC_LIQUID"))
+		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 	
 	// Reconfigure exchange model
 	bool exchangeConfSuccess = true;
@@ -457,10 +458,10 @@ unsigned int MultiChannelTransportModel::threadLocalMemorySize() const CADET_NOE
 	LinearMemorySizer lms;
 
 	// Memory for residualImpl()
-	for (auto i = 0; i < _reaction.getDynReactionVector("bulk").size(); i++)
+	for (auto i = 0; i < _reaction.getDynReactionVector("liquid").size(); i++)
 	{
-		if (_reaction.getDynReactionVector("bulk")[i] && _reaction.getDynReactionVector("bulk")[i]->requiresWorkspace())
-			lms.fitBlock(_reaction.getDynReactionVector("bulk")[i]->workspaceSize(_disc.nComp, 0, nullptr));
+		if (_reaction.getDynReactionVector("liquid")[i] && _reaction.getDynReactionVector("liquid")[i]->requiresWorkspace())
+			lms.fitBlock(_reaction.getDynReactionVector("liquid")[i]->workspaceSize(_disc.nComp, 0, nullptr));
 	}
 	
 	return lms.bufferSize();
@@ -730,7 +731,7 @@ int MultiChannelTransportModel::residualImpl(double t, unsigned int secIdx, Stat
 	}
 	
 
-	if (!_reaction.getDynReactionVector("bulk")[0])
+	if (!_reaction.getDynReactionVector("liquid")[0])
 		return 0;
 
 	// Get offsets
@@ -747,16 +748,16 @@ int MultiChannelTransportModel::residualImpl(double t, unsigned int secIdx, Stat
 
 		const ColumnPosition colPos{z, static_cast<double>(channelCell), 0.0};
 
-		for (auto i = 0; i < _reaction.getDynReactionVector("bulk").size(); i++)
+		for (auto i = 0; i < _reaction.getDynReactionVector("liquid").size(); i++)
 		{
-			if (_reaction.getDynReactionVector("bulk")[i] && (_reaction.getDynReactionVector("bulk")[i]->numReactions() > 0))
+			if (_reaction.getDynReactionVector("liquid")[i] && (_reaction.getDynReactionVector("liquid")[i]->numReactions() > 0))
 			{
-				_reaction.getDynReactionVector("bulk")[i]->residualFluxAdd(t, secIdx, colPos, _disc.nComp, yC, resC, -1.0, tlmAlloc);
+				_reaction.getDynReactionVector("liquid")[i]->residualFluxAdd(t, secIdx, colPos, _disc.nComp, yC, resC, -1.0, tlmAlloc);
 
 				if (wantJac)
 				{
 					// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-					_reaction.getDynReactionVector("bulk")[i]->analyticJacobianAdd(t, secIdx, colPos, _disc.nComp, reinterpret_cast<double const*>(yC), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideChannelCell()), tlmAlloc);
+					_reaction.getDynReactionVector("liquid")[i]->analyticJacobianAdd(t, secIdx, colPos, _disc.nComp, reinterpret_cast<double const*>(yC), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideChannelCell()), tlmAlloc);
 				}
 			}
 		}

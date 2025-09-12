@@ -125,6 +125,7 @@ template <typename ConvDispOperator>
 LumpedRateModelWithoutPores<ConvDispOperator>::~LumpedRateModelWithoutPores() CADET_NOEXCEPT
 {
 	delete[] _tempState;
+	_reaction.clearDynamicReactionModels();
 }
 
 template <typename ConvDispOperator>

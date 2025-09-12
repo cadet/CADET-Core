@@ -75,6 +75,7 @@ CSTRModel::~CSTRModel() CADET_NOEXCEPT
 	delete[] _nBound;
 	delete[] _strideBound;
 	delete[] _offsetParType;
+	_reaction.clearDynamicReactionModels();
 
 }
 

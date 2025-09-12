@@ -67,7 +67,6 @@ struct ReactionSystem
         //!< Maps phase type strings to their corresponding phase data
         std::map<std::string, PhaseData> _phaseMap = {
             {"cross_phase", PhaseData{}},
-            {"pore", PhaseData{}},
             {"solid", PhaseData{}},
             {"bulk", PhaseData{}},
             {"liquid", PhaseData{}}
@@ -400,7 +399,7 @@ struct ReactionSystem
 			{
 				auto& dynReactionVector = getDynReactionVector(phase.first);
                 // Delete all reaction model pointers
-				for (auto* reac : dynReactionVector) 
+				for (auto* reac: dynReactionVector) 
 				{
 					delete reac;
 				}

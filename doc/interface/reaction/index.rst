@@ -3,51 +3,28 @@
 Reaction models
 ===============
 
-Reactions can take place on different phases in the model. Depending on the unit operation, reactions can be defined for the bulk phase, solid phase, particle phase, or as cross-phase reactions between liquid and solid phases.
-In general the following phases are supported with reactions
+Reactions can take place on different phases in the model. The interface specification depends on the phase where and between the reaction takes place.
 
-- Bulk - main fluid phase in GRM and LRMP units
-- Solid - solid phase of particles
-- Pore - liquid within particles
-- Liquid - main fluid phase in LRM and CSTR
+A reaction can be located in:
 
-The following table provides an overview of reaction phase support across different unit operations:
+- **Column**: The reaction group is defined under the corresponding column phase i.e. ``unit_XXX``.
+- **Particle**: The reaction group is defined under the corresponding particle phase i.e. ``particle_type_XXX``.
 
+Furthermore, we differ between reactions which take place in either a single phase or between two phases.
 
-.. list-table:: Unit Operation Reaction Phase Support
-    :header-rows: 1
-    :widths: 40 20 20 20
+Single Reactions
+----------------
+Single reactions take place either in the liquid phase, the solid phase.
 
-    * - Unit Operation
-      - Bulk/Liquid
-      - Pore/Particle Liquid
-      - Solid/Particle Solid
-    * - GeneralRateModel (1D/2D/DG)
-      - bulk
-      - pore (particle liquid)
-      - solid (particle solid)
-    * - LumpedRateModelWithPores
-      - bulk
-      - liquid (particle liquid)
-      - solid (particle solid)
-    * - LumpedRateModelWithoutPores
-      - liquid (particle liquid / bulk)
-      - --
-      - solid (particle solid)
-    * - CSTR
-      - liquid (particle liquid / bulk)
-      - --
-      - solid (particle solid)
-    * - MCTM
-      - liquid (bulk)
-      - --
-      - --
+  To specify the number of reactions, use one of the following parameters:
 
+  - ``NREAC_LIQUID`` for liquid phase reactions,
+  - ``NREAC_SOLID`` for solid phase reactions.
 
-**Single-Phase Reaction Models** (for bulk/liquid, solid, and particle phases):
+**Single-Phase Reaction Models**:
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
 
     mass_action_law
     michaelis_menten_kinetics
@@ -55,41 +32,22 @@ The following table provides an overview of reaction phase support across differ
 
 Cross Phase Reactions
 ---------------------
+Cross phase reactions take place between a liquid phase and a solid phase.
 
-Cross-phase reactions enable chemical processes that occur at the interface between different phases, 
-such as dissolution, precipitation, or catalytic reactions on solid surfaces. These reactions 
-are different from single-phase reactions as they involve mass transfer between phases.
-They are defined between a solid phase and a liquid phase i.e bulk/particle liquid and solid/particle solid phase.
+To specify the number of reactions, use the parameter:
+  - ``NREAC_CROSS_PHASE`` for cross-phase reactions.
+  
 
 **Cross-Phase Reaction Models**:
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
 
     mass_action_law_cross_phase
 
 .. note::
-   Cross-phase reaction models can **only** be used in the cross-phase formulation
-   For reactions within a single phase, use the standard reaction models listed above.
-
-
-Particle Reactions
-------------------
-
-If the reaction takes place in a phase associated with a particle, the reaction group is defined under the corresponding particle phase i.e. ``particle_type_XXX``.
-Each particle can have its own reaction model configuration.
-
-.. note::
-   - For reactions within a single phase, use the standard reaction models listed above.
-   - For reactions between a liquid and solid phase, use cross-phase reaction models.
-
-
-Multiple Reaction Models per Phase
-----------------------------------
-
-Multiple reaction models can be defined for each phase of a unit operation.
-The number of reaction models is specified by the parameter ``NREAC_PHASE`` (e.g., ``NREAC_BULK`` for the bulk phase).
-If your reaction model is defined in a particle phase, the input group is defined under the corresponding particle type (e.g., ``particle_type_000/NREAC_SOLID``).
+  - Cross-phase reaction models can **only** be used in the cross-phase formulation
+  - For the LRM model, cross-phase reactions are not supported in the particle phase.
 
 
 Step by Step Guide to Define Reactions
@@ -97,8 +55,8 @@ Step by Step Guide to Define Reactions
 
 1. Choose the appropriate reaction model based on the kinetics of your system (e.g., Mass Action Law, Michaelis-Menten).
 2. Check if your reaction occurs within a single phase or between phases (cross-phase).
-3. Choose a phase for your reaction (bulk/liquid, solid, particle liquid, particle solid). **Note** that for particle reactions, the reaction model should be defined under the specific particle type.
-4. Choose how many reaction types you want to define for the selected phase and set up the corresponding groups in the configuration file (e.g., ``NREAC_BULK``, ``NREAC_SOLID``, ``NREAC_CROSS_PHASE``).
+3. Choose a phase for your reaction (liquid, solid). **Note** that for particle reactions, the reaction model should be defined under the specific particle type.
+4. Choose how many reaction types you want to define for the selected phase and set up the corresponding groups in the configuration file (e.g., ``NREAC_LIQUID``, ``NREAC_SOLID``, ``NREAC_CROSS_PHASE``).
   **Note** here that the input group depends on whether the reaction is defined in a particle phase or not. 
 5. Define the reaction parameters according to the chosen model's specifications. Refer to the specific reaction model documentation for details on required parameters.
 

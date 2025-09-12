@@ -85,7 +85,7 @@ GeneralRateModel<ConvDispOperator>::~GeneralRateModel() CADET_NOEXCEPT
 	delete[] _jacPdisc;
 	
 	
-
+	_reaction.clearDynamicReactionModels();
 	clearParDepSurfDiffusion();
 }
 
@@ -573,9 +573,9 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 					helper) && reactionConfSuccess;
 			
 			}
-			if (paramProvider.exists("NREAC_PORE"))
+			if (paramProvider.exists("NREAC_LIQUID"))
 			{
-				reactionConfSuccess = _reaction.configureDiscretization("pore",
+				reactionConfSuccess = _reaction.configureDiscretization("liquid",
 					par,
 					totalReacPore,
 					_disc.nComp,
@@ -601,10 +601,10 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 		}
 
 	}
-	if (paramProvider.exists("NREAC_BULK"))
+	if (paramProvider.exists("NREAC_LIQUID"))
 	{
 		hasLiquidReac = true;
-		int nReactions = paramProvider.getInt("NREAC_BULK");
+		int nReactions = paramProvider.getInt("NREAC_LIQUID");
 		reactionConfSuccess = _reaction.configureDiscretization("bulk", 
 			0,
 			nReactions,
@@ -913,7 +913,7 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 	}
 	bool dynReactionConfSuccess = true;
 	// Reconfigure reaction model
-	if (paramProvider.exists("NREAC_BULK"))
+	if (paramProvider.exists("NREAC_LIQUID"))
 		dynReactionConfSuccess  = _reaction.configure("bulk", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
 	for (unsigned int par = 0; par < _disc.nParType; par++)
@@ -926,7 +926,7 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 			paramProvider.pushScope(particleScope);
 			if (paramProvider.exists("NREAC_CROSS_PHASE"))
 				dynReactionConfSuccess = _reaction.configure("cross_phase", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
-			if (paramProvider.exists("NREAC_PORE"))
+			if (paramProvider.exists("NREAC_LIQUID"))
 				dynReactionConfSuccess = _reaction.configure("pore", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 			if (paramProvider.exists("NREAC_SOLID"))
 				dynReactionConfSuccess = _reaction.configure("solid", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;

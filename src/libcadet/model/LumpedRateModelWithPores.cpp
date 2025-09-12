@@ -74,6 +74,7 @@ LumpedRateModelWithPores<ConvDispOperator>::~LumpedRateModelWithPores() CADET_NO
 {
 	delete[] _tempState;
 	delete _filmDiffDep;
+	_reaction.clearDynamicReactionModels();
 
 }
 
@@ -461,10 +462,10 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 		}
 
 	}
-	if (paramProvider.exists("NREAC_BULK"))
+	if (paramProvider.exists("NREAC_LIQUID"))
 	{
 		hasLiquidReac = true;
-		int nReactions = paramProvider.getInt("NREAC_BULK");
+		int nReactions = paramProvider.getInt("NREAC_LIQUID");
 		reactionConfSuccess  = _reaction.configureDiscretization("bulk",
 			0, 
 			nReactions,
@@ -642,7 +643,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configure(IParameterProvider& p
 	}
 	
 	bool dynReactionConfSuccess = true;
-	if (paramProvider.exists("NREAC_BULK"))
+	if (paramProvider.exists("NREAC_LIQUID"))
 		dynReactionConfSuccess = _reaction.configure("bulk", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
 	for (unsigned int par = 0; par < _disc.nParType; par++)
