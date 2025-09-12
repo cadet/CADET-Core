@@ -5,7 +5,7 @@ Michaelis Menten kinetics
 
 **Group /input/model/unit_XXX/reaction - REACTION_MODEL = MICHAELIS_MENTEN**
 
-For information on model equations, refer to :ref:`_michaelis_menten_kinetics_model`.
+For information on model equations, refer to :ref:`michaelis_menten_kinetics_model`.
 
 ``MM_STOICHIOMETRY_BULK``
 
@@ -34,7 +34,7 @@ For information on model equations, refer to :ref:`_michaelis_menten_kinetics_mo
 
 ``MM_KM``
 
-    Michaelis constant :math:`K_{\mathrm{M},{i,j}}` for reaction :math:`j` and substrate :math:`i`.
+    Michaelis constant :math:`K_{\mathrm{M}_{i,j}}` for reaction :math:`j` and substrate :math:`i`.
     This constant represents the substrate concentration at which the reaction rate is half of its maximum value.
    
     **Unit:** :math:`~mol^{-1}~m^{-3}`
@@ -45,7 +45,7 @@ For information on model equations, refer to :ref:`_michaelis_menten_kinetics_mo
 
 ``MM_KI_C``
 
-	Inhibition constant for competitive inhibition :math:`K_{I_{k}}`.
+	Inhibition constant for competitive inhibition :math:`K^{c}_{I_{k}}`.
     The index :math:`k` corresponds to the inhibitors acting on substrate :math:`c_{i,j}` in reaction :math:`j`, i.e. :math:`k = (j,i,k)`, where :math:`k` is the index of the inhibitor.
     If :math:`K^{c}_{I_{k}} > 0`, the component inhibits the reaction.
 	Input as reaction index major.
@@ -58,7 +58,7 @@ For information on model equations, refer to :ref:`_michaelis_menten_kinetics_mo
 
 ``MM_KI_UC``
 
-	Inhibition constant uncompetitive inhibition :math:`K^{u}_{I_{k}}`.
+	Inhibition constant for uncompetitive inhibition :math:`K^{uc}_{I_{k}}`.
     The index :math:`k` corresponds to the inhibitors acting on substrate :math:`c_{i,j}` in reaction :math:`j`, i.e. :math:`k = (j,i,k)`, where :math:`k` is the index of the inhibitor.
 	Input as reaction index major.
 
