@@ -16,7 +16,7 @@ where :math:`S` is the stoichiometric matrix and :math:`\nu` a flux vector with
 .. math::
 
     \begin{aligned}
-        \nu_{j} = v_{\mathrm{max},j} \prod_{i = 1}^{N_{sub,j}} \nu_{i,j} = v_{\mathrm{max},j} \prod_{i = 1}^{N_{sub,j}} \frac{ c_{i,j}}{K_{\mathrm{M},i,j} + c_{i,j}}
+        \nu_{j} = v_{\mathrm{max},j} \prod_{i = 1}^{N_{sub,j}} \nu_{i,j} = v_{\mathrm{max},j} \prod_{i = 1}^{N_{sub,j}} \frac{ c_{i,j}}{K_{\mathrm{M}_{i,j}} + c_{i,j}}
     \end{aligned}
 
 where
@@ -40,13 +40,13 @@ In competitive inhibition, the inhibitor binds at the enzyme's active site. The 
 .. math::
 
     \begin{aligned}
-        \nu_{i,j} =  \frac{ c_{i,j}}{K_{\mathrm{M},i,j}\,(1 + \sum_{k \in \mathcal{I}_{i,j}} \frac{c_{k}}{K^{c}_{I_{k}}}) + c_{i,j}},
+        \nu_{i,j} =  \frac{c_{i,j}}{K_{\mathrm{M}_{i,j}}\,(1 + \sum_{k \in \mathcal{I}_{i,j}} \frac{c_{k}}{K^{c}_{I_{k}}}) + c_{i,j}},
     \end{aligned}
 
 where
  - :math:`c_{i,j}` is the substrate component and :math:`c_{k}` is one inhibitor acting on substrate :math:`c_{i,j}`,
  - :math:`K^{c}_{I_{k}}` is the inhibition constant with respect to inhibitor :math:`c_{k}` i.e if :math:`K^{c}_{I_{k}} > 0`, component :math:`c_{k}` acts as an inhibitor to substrate :math:`c_{i,j}`,
- - :math:`\mathcal{I}_{i,j}` is the index set of inhibitors for substrate :math:`c_{i,j}`, i.e the indices :math:`k` where :math:`K^{c}_{I_{k}} > 0`.
+ - :math:`\mathcal{I}^{c}_{i,j}` is the index set of inhibitors for substrate :math:`c_{i,j}`, i.e the indices :math:`k` where :math:`K^{c}_{I_{k}} > 0`.
 
 Uncompetitive Inhibition
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -56,29 +56,30 @@ In an uncompetitive inhibition, the inhibitor binds to the enzyme-substrate comp
 .. math::
 
     \begin{aligned}
-        \nu_{i,j} = \frac{c_{i,j}}{K_{\mathrm{M},i,j} + c_{i,j} \, (1 + \sum_{k \in \mathcal{I}_{i,j}} \frac{c_{k}}{\tilde{K}_{k}})},
+        \nu_{i,j} = \frac{c_{i,j}}{K_{\mathrm{M}_{i,j}} + c_{i,j} \, (1 + \sum_{k \in \mathcal{I}_{i,j}} \frac{c_{k}}{K^{uc}_{I_{k}}})},
     \end{aligned}
 
 where
  - :math:`c_{i,j}` is the substrate component and :math:`c_{k}` is one inhibitor acting on substrate :math:`c_{i,j}`.
- - :math:`K^{u}_{I_{k}}` is the inhibition constant with respect to component :math:`c_{k}` in reaction :math:`j` i.e if :math:`K^{u}_{I_{k}} > 0`, component :math:`c_{k}` acts as an inhibitor to substrate :math:`c_{i,j}`.
- - :math:`\mathcal{I}_{i,j}` is the index set of inhibitors in reaction :math:`j`, i.e the indices :math:`k` where :math:`K^{u}_{I_{k}} > 0`.
+ - :math:`K^{uc}_{I_{k}}` is the inhibition constant with respect to component :math:`c_{k}` in reaction :math:`j` i.e if :math:`K^{uc}_{I_{k}} > 0`, component :math:`c_{k}` acts as an inhibitor to substrate :math:`c_{i,j}`.
+ - :math:`\mathcal{I}^{uc}_{i,j}` is the index set of inhibitors in reaction :math:`j`, i.e the indices :math:`k` where :math:`K^{uc}_{I_{k}} > 0`.
 
 Mixed Inhibition
 ^^^^^^^^^^^^^^^^
 
-In non-competitive inhibition, the inhibitor can bind to both the enzyme and the enzyme-substrate complex, preventing the reaction from proceeding. The modified flux expression is:
+In mixed inhibition, the inhibitor can bind to both the enzyme and the enzyme-substrate complex, preventing the reaction from proceeding. The modified flux expression is:
 
 .. math::
 
     \begin{aligned}
-       \nu_{i,j} =  \frac{c_{i,j}}{ K_{\mathrm{M},i,j} \,(1 + \sum_{k \in \mathcal{I}_{i,j}} \frac{c_{k}}{K^{c}_{I_{k}}}) + c_{i,j} \,(1 + \sum_{k \in \mathcal{I}_{i,j}} \frac{c_{k}}{K^{u}_{I_{k}}})},
+       \nu_{i,j} =  \frac{c_{i,j}}{ K_{\mathrm{M}_{i,j}} \,(1 + \sum_{k \in \mathcal{I}_{i,j}} \frac{c_{k}}{K^{c}_{I_{k}}}) + c_{i,j} \,(1 + \sum_{k \in \mathcal{I}_{i,j}} \frac{c_{k}}{K^{uc}_{I_{k}}})},
     \end{aligned}
 
 where
  - :math:`c_{i,j}` is the substrate component and :math:`c_{k}` is one the inhibitor acting on substrate :math:`c_{i,j}`.
- - :math:`K^{c}_{I_{k}}`and :math:`K^{u}_{I_{k}}` are the inhibition constants with respect to component :math:`c_{k}` in reaction :math:`j` i.e if :math:`K^{c}_{I_{k}} > 0`, component :math:`c_{k}` acts as an inhibitor to substrate :math:`c_{i,j}`.
- - :math:`\mathcal{I}_{i,j}` is the index set of inhibitors in reaction :math:`j`, i.e the indices :math:`k` where :math:`K^{c}_{I_{k}} > 0`.
+ - :math:`K^{c}_{I_{k}}` and :math:`K^{uc}_{I_{k}}` are the inhibition constants with respect to component :math:`c_{k}` in reaction :math:`j` i.e if :math:`K^{c}_{I_{k}} > 0`, component :math:`c_{k}` acts as an inhibitor to substrate :math:`c_{i,j}`.
+ - :math:`\mathcal{I}^{c}_{i,j}` is the index set of inhibitors in reaction :math:`j`, i.e the indices :math:`k` where :math:`K^{c}_{I_{k}} > 0`,
+ - :math:`\mathcal{I}^{uc}_{i,j}` is the index set of inhibitors in reaction :math:`j`, i.e the indices :math:`k` where :math:`K^{uc}_{I_{k}} > 0`.
 
 
 Non-Competitive Inhibition
@@ -89,14 +90,14 @@ Non-competitive inhibition is a form of mixed inhibition where the inhibitor bin
 .. math::
 
     \begin{aligned}
-       \nu_{i,j} =  \frac{c_{i,j}}{(K_{\mathrm{M},i,j} + c_{i,j}) \,(1 + \sum_{k \in \mathcal{I}_{i,j}} \frac{c_{k}}{K^{n}_{I_{k}}})}
+       \nu_{i,j} =  \frac{c_{i,j}}{(K_{\mathrm{M}_{i,j}} + c_{i,j}) \,(1 + \sum_{k \in \mathcal{I}_{i,j}} \frac{c_{k}}{K^{n}_{I_{k}}})}
     \end{aligned}
 
 where
  - :math:`c_{i,j}` is the substrate component and :math:`c_{k}` is one the inhibitor acting on substrate :math:`c_{i,j}`.
  - :math:`K^{n}_{I_{k}}` is the inhibition constant with respect to component :math:`c_{k}` in reaction :math:`j` i.e if :math:`K^{n}_{I_{k}} > 0`, component :math:`c_{k}` acts as an inhibitor to substrate :math:`c_{i,j}`.
  - :math:`\mathcal{I}_{i,j}` is the index set of inhibitors in reaction :math:`j`, i.e the indices :math:`k` where :math:`K^{n}_{I_{k}} > 0`.
-Note that the inhibition constant for the non-competitive inhibition is indirectly given if :math:` K^{c}_{I_{k}} = K^{u}_{I_{k}} = K^{n}_{I_{k}}`
+Note that the inhibition constant for the non-competitive inhibition is indirectly given if :math:`K^{c}_{I_{k}} = K^{uc}_{I_{k}} = K^{n}_{I_{k}}`
 
 For configuration information please refer to :ref:`michaelis_menten_kinetics_config`.
 
@@ -123,7 +124,7 @@ where:
 - :math:`K_S` is the saturation constant (half-saturation constant)
 
 By choosing a Michaelis-Menten kinetics configuration with one substrate and setting the the parameter accordingly,
-i.e :math:`\mu_{\mathrm{max}} = v_{\mathrm{max}}`, :math:`K_S = K_{\mathrm{M},0,0}` and :math:`c_S = c_{0,0}`,
+i.e :math:`\mu_{\mathrm{max}} = v_{\mathrm{max}}`, :math:`K_S = K_{\mathrm{M}_{0,0}}` and :math:`c_S = c_{0,0}`,
 the Monod equation can be expressed in the same form as the Michaelis-Menten kinetics.
 
 Literature
