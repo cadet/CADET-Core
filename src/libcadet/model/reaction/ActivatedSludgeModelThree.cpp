@@ -207,31 +207,31 @@ protected:
 
 		if (paramProvider.exists("ASM3_COMP_IDX")) {
 			const std::vector<uint64_t> compIdx = paramProvider.getUint64Array("ASM3_COMP_IDX");
-			if (compIdx.size() != 13) {
+			if (_fractionate)
+			{
+				if (compIdx.size() != 15) {
+					throw InvalidParameterException("ASM3 configuration: ASM3_COMP_IDX must have 15 elements");
+				}
+				_idxSS_ad = compIdx[13];
+				_idxSI_ad = compIdx[14];
+			}
+			else if (compIdx.size() != 13) {
 				throw InvalidParameterException("ASM3 configuration: ASM3_COMP_IDX must have 13 elements");
 			}
-			else {
-				LOG(Debug) << "ASM3_COMP_IDX set: " << compIdx;
-				_idxSO = compIdx[0];
-				_idxSS_nad = compIdx[1];
-				_idxSNH = compIdx[2];
-				_idxSNO = compIdx[3];
-				_idxSN2 = compIdx[4];
-				_idxSALK = compIdx[5];
-				_idxSI_nad = compIdx[6];
-				_idxXI = compIdx[7];
-				_idxXS = compIdx[8];
-				_idxXH = compIdx[9];
-				_idxXSTO = compIdx[10];
-				_idxXA = compIdx[11];
-				_idxXMI = compIdx[12];
-				if (_fractionate)
-				{
-					//todo warníng 
-					_idxSS_ad = compIdx[13];
-					_idxSI_ad = compIdx[14];
-				}
-			}
+			LOG(Debug) << "ASM3_COMP_IDX set: " << compIdx;
+			_idxSO = compIdx[0];
+			_idxSS_nad = compIdx[1];
+			_idxSNH = compIdx[2];
+			_idxSNO = compIdx[3];
+			_idxSN2 = compIdx[4];
+			_idxSALK = compIdx[5];
+			_idxSI_nad = compIdx[6];
+			_idxXI = compIdx[7];
+			_idxXS = compIdx[8];
+			_idxXH = compIdx[9];
+			_idxXSTO = compIdx[10];
+			_idxXA = compIdx[11];
+			_idxXMI = compIdx[12];
 		}
 		else {
 			LOG(Debug) << "ASM3_COMP_IDX not set, using defaults";
