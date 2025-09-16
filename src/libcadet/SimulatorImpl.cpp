@@ -1460,7 +1460,7 @@ namespace cadet
 		if (paramProvider.exists("USE_MODIFIED_NEWTON"))
 			_modifiedNewton = paramProvider.getBool("USE_MODIFIED_NEWTON");
 		else
-			_modifiedNewton = false;
+			_modifiedNewton = true;
 
 		_absTol.clear();
 		if (paramProvider.isArray("ABSTOL"))
