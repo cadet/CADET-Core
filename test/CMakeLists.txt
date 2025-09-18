@@ -79,6 +79,7 @@ add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp Unit
 	ParamDepTests.cpp ParameterDependencies.cpp
 	ModelSystem.cpp
 	BandMatrix.cpp DenseMatrix.cpp SparseMatrix.cpp StringHashing.cpp LogUtils.cpp AD.cpp Subset.cpp Graph.cpp
+	NonlinearSolvers.cpp
 	"${CMAKE_CURRENT_BINARY_DIR}/Paths_$<CONFIG>.cpp" "${CMAKE_SOURCE_DIR}/src/io/JsonParameterProvider.cpp"
 	${TEST_ADDITIONAL_SOURCES}
 	$<TARGET_OBJECTS:libcadet_object>)
