@@ -226,8 +226,8 @@ public:
 	 *
 	 * @param [in] t Current time point
 	 * @param [in] secIdx Index of the current section
-	 * @param [in] nStates number of states
 	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
+	* @param [in] nStates number of states
 	 * @param [in] y Pointer to first component in the current cell
 	 * @param [in] factor Factor @f$ \gamma @f$
 	 * @param [in,out] jac Row iterator pointing to the first component row of the underlying matrix in which the Jacobian is stored

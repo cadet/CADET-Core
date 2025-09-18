@@ -1533,6 +1533,10 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 				}
 			}
 
+			// Add volume part
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
+				_jac.data()[(comp + 1) * (_nComp + _totalBound) + comp] += static_cast<double>(fluxLiquid[comp]);
+			
 			if (wantJac)
 			{
 				// Assemble Jacobian: Reaction
@@ -1635,9 +1639,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 						}
 					}
 				}
-				// Add volume part
-				for (unsigned int comp = 0; comp < _nComp; ++comp)
-					_jac.data()[(comp + 1) * (_nComp + _totalBound) + comp] += static_cast<double>(fluxLiquid[comp]);
+
 			}
 		}
 	}

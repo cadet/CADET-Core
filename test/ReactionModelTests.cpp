@@ -179,8 +179,7 @@ namespace reaction
 
 		if (!isLRM && bulk)
 		{
-			jpp.set("REACTION_MODEL", "MASS_ACTION_LAW");
-			char const* const scopeName = "reaction_bulk";
+			char const* const scopeName = "";
 			jpp.addScope(scopeName);
 			auto gs2 = util::makeGroupScope(jpp, scopeName);
 
@@ -198,17 +197,12 @@ namespace reaction
 			util::populate(rateFwd.data(), [](unsigned int idx) { return std::sin(0.3 + idx * 0.2) * 0.5 + 1.5; }, rateFwd.size());
 			util::populate(rateBwd.data(), [](unsigned int idx) { return std::sin(0.4 + idx * 0.4) * 0.5 + 1.6; }, rateBwd.size());
 
-			jpp.set("MAL_STOICHIOMETRY_BULK", stoichMat);
-			jpp.set("MAL_EXPONENTS_BULK_FWD", expFwd);
-			jpp.set("MAL_EXPONENTS_BULK_BWD", expBwd);
-			jpp.set("MAL_KFWD_BULK", rateFwd);
-			jpp.set("MAL_KBWD_BULK", rateBwd);
+			jpp.set("MAL_STOICHIOMETRY", stoichMat);
+			jpp.set("MAL_EXPONENTS_FWD", expFwd);
+			jpp.set("MAL_EXPONENTS_BWD", expBwd);
+			jpp.set("MAL_KFWD", rateFwd);
+			jpp.set("MAL_KBWD", rateBwd);
 		}
-
-		if (!jpp.exists("NPARTYPE"))
-			return;
-
-		const int nParType = jpp.getInt("NPARTYPE");
 
 		if ((!isLRM && particle) || (isLRM && bulk))
 		{
@@ -216,33 +210,23 @@ namespace reaction
 
 			for (int i = 0; i < nParType; ++i)
 			{
-				if (!isCSTR)
-					jpp.pushScope("particle_type_" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i));
+				const int nBoundParType = std::accumulate(nBound.begin() + i * nComp, nBound.begin() + (i + 1) * nComp, 0);
 
-				std::vector<int> nBound = jpp.getIntArray("NBOUND");
-				const int nTotalBound = std::accumulate(nBound.begin(), nBound.end(), 0);
-
-				std::string scope;
-				if (!isCSTR)
-				{
-					jpp.set("REACTION_MODEL", "MASS_ACTION_LAW");
-					scope = "reaction";
-				}
+				std::ostringstream oss;
+				if (isLRM)
+					oss << "reaction";
 				else
-				{
-					jpp.set("REACTION_MODEL_PARTICLE", "MASS_ACTION_LAW");
-					scope = "reaction_particle";
-				}
+					oss << "particle_type_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << i;
 
-				jpp.addScope(scope);
-				auto gs2 = util::makeGroupScope(jpp, scope);
+				jpp.addScope(oss.str());
+				auto gs2 = util::makeGroupScope(jpp, oss.str());
 
 				int nReac = 1;
 				jpp.set("NREAC_CROSS_PHASE", nReac);
 
 				jpp.addScope("cross_phase_reaction_000");
 				auto gs3 = util::makeGroupScope(jpp, "cross_phase_reaction_000");
-				
+
 				jpp.set("TYPE", "MASS_ACTION_LAW_CROSS_PHASE");
 
 				std::vector<double> stoichMatLiquid(nReactions * nComp, 0.0);
@@ -298,9 +282,6 @@ namespace reaction
 					jpp.set("MAL_EXPONENTS_SOLID_FWD_MODLIQUID", expFwdSolidModLiquid);
 					jpp.set("MAL_EXPONENTS_SOLID_BWD_MODLIQUID", expBwdSolidModLiquid);
 				}
-
-				if (!isCSTR)
-					jpp.popScope();
 			}
 		}
 	}

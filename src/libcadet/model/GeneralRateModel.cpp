@@ -447,7 +447,6 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	else if (_singleBinding && (bindModelNames.size() != 1))
 		throw InvalidParameterException("Field ADSORPTION_MODEL requires (only) 1 element");
 
-	bool bindingConfSuccess = true;
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
 	{
 		if (_singleBinding && (i > 0))
@@ -467,7 +466,6 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	}
 
 	// ==== Construct and configure dynamic reaction model
-	bool reactionConfSuccess = true;
 	_dynReaction.resize(_disc.nParType, nullptr);
 
 	_reaction.clearDynamicReactionModels();

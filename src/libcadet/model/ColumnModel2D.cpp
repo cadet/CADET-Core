@@ -1181,7 +1181,7 @@ int ColumnModel2D::residualBulk(double t, unsigned int secIdx, StateType const* 
 				linalg::BandedEigenSparseRowIterator jac(_globalJac, rowIdx);
 
 				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-				_dynReactionBulk->analyticJacobianAdd(t, secIdx, colPos, _disc.nComp, reinterpret_cast<double const*>(y), -1.0, jac, tlmAlloc);
+				//_dynReactionBulk->analyticJacobianAdd(t, secIdx, colPos, _disc.nComp, reinterpret_cast<double const*>(y), -1.0, jac, tlmAlloc);
 			}
 		}
 	}
