@@ -167,7 +167,6 @@ namespace reaction
 
 		return 0;
 	}
-
 	void extendModelWithDynamicReactions(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, bool bulk, bool particle, bool particleModifiers)
 	{
 		auto gs = util::makeModelGroupScope(jpp, unit);
@@ -179,10 +178,12 @@ namespace reaction
 
 		if (!isLRM && bulk)
 		{
-			char const* const scopeName = "";
+			char const* const scopeName = "liquid_reaction_000";
 			jpp.addScope(scopeName);
 			auto gs2 = util::makeGroupScope(jpp, scopeName);
 
+			jpp.set("TYPE", "MASS_ACTION_LAW");
+			
 			const int nReactions = 4;
 
 			std::vector<double> stoichMat(nReactions * nComp, 0.0);
@@ -204,27 +205,27 @@ namespace reaction
 			jpp.set("MAL_KBWD", rateBwd);
 		}
 
+		if (!jpp.exists("NPARTYPE"))
+			return;
+
+		const int nParType = jpp.getInt("NPARTYPE");
+
 		if ((!isLRM && particle) || (isLRM && bulk))
 		{
 			const int nReactions = 3;
 
 			for (int i = 0; i < nParType; ++i)
 			{
-				const int nBoundParType = std::accumulate(nBound.begin() + i * nComp, nBound.begin() + (i + 1) * nComp, 0);
+				
+				jpp.pushScope("particle_type_" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i)); // particle_type_xxx
 
-				std::ostringstream oss;
-				if (isLRM)
-					oss << "reaction";
-				else
-					oss << "particle_type_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << i;
-
-				jpp.addScope(oss.str());
-				auto gs2 = util::makeGroupScope(jpp, oss.str());
+				std::vector<int> nBound = jpp.getIntArray("NBOUND");
+				const int nTotalBound = std::accumulate(nBound.begin(), nBound.end(), 0);
 
 				int nReac = 1;
 				jpp.set("NREAC_CROSS_PHASE", nReac);
 
-				jpp.addScope("cross_phase_reaction_000");
+				jpp.addScope("cross_phase_reaction_000"); // particle_type_xxx//cross_phase_reaction_000
 				auto gs3 = util::makeGroupScope(jpp, "cross_phase_reaction_000");
 
 				jpp.set("TYPE", "MASS_ACTION_LAW_CROSS_PHASE");
@@ -235,9 +236,9 @@ namespace reaction
 				std::vector<double> rateFwdLiquid(nReactions, 0.0);
 				std::vector<double> rateBwdLiquid(nReactions, 0.0);
 
-				std::vector<double> stoichMatSolid(nReactions * nBoundParType, 0.0);
-				std::vector<double> expFwdSolid(nReactions * nBoundParType, 0.0);
-				std::vector<double> expBwdSolid(nReactions * nBoundParType, 0.0);
+				std::vector<double> stoichMatSolid(nReactions * nTotalBound, 0.0);
+				std::vector<double> expFwdSolid(nReactions * nTotalBound, 0.0);
+				std::vector<double> expBwdSolid(nReactions * nTotalBound, 0.0);
 				std::vector<double> rateFwdSolid(nReactions, 0.0);
 				std::vector<double> rateBwdSolid(nReactions, 0.0);
 
@@ -267,8 +268,8 @@ namespace reaction
 
 				if (particleModifiers)
 				{
-					std::vector<double> expFwdLiquidModSolid(nReactions * nBoundParType, 0.0);
-					std::vector<double> expBwdLiquidModSolid(nReactions * nBoundParType, 0.0);
+					std::vector<double> expFwdLiquidModSolid(nReactions * nTotalBound, 0.0);
+					std::vector<double> expBwdLiquidModSolid(nReactions * nTotalBound, 0.0);
 					std::vector<double> expFwdSolidModLiquid(nReactions * nComp, 0.0);
 					std::vector<double> expBwdSolidModLiquid(nReactions * nComp, 0.0);
 
@@ -282,6 +283,9 @@ namespace reaction
 					jpp.set("MAL_EXPONENTS_SOLID_FWD_MODLIQUID", expFwdSolidModLiquid);
 					jpp.set("MAL_EXPONENTS_SOLID_BWD_MODLIQUID", expBwdSolidModLiquid);
 				}
+
+				if (!isCSTR)
+					jpp.popScope();
 			}
 		}
 	}

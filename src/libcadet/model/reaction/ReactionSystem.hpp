@@ -10,6 +10,8 @@
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
 
+#pragma once
+
 #include "model/reaction/ReactionModelBase.hpp"
 #include "model/ReactionModel.hpp"
 #include "cadet/Exceptions.hpp"

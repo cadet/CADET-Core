@@ -267,7 +267,7 @@ TEST_CASE("GRM multiple spatially dependent particle types flux Jacobian vs FD",
 	cadet::test::particle::testArrowHeadJacobianSpatiallyMixedParticleTypes("GENERAL_RATE_MODEL", 1e-6, 1e-8, 1e-5);
 }
 
-TEST_CASE("GRM dynamic reactions Jacobian vs AD bulk", "[GRM],[Jacobian],[AD],[ReactionModel],[CI]")
+TEST_CASE("GRM dynamic reactions Jacobian vs AD bulk", "[GRM],[Jacobian],[AD],[ReactionModel],[CI],[testHere]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("GENERAL_RATE_MODEL", "FV", true, false, false);
 }
