@@ -178,6 +178,9 @@ namespace reaction
 
 		if (!isLRM && bulk)
 		{
+			const int reactionTypes = 1;
+			jpp.set("NREAC_LIQUID", reactionTypes);
+			
 			char const* const scopeName = "liquid_reaction_000";
 			jpp.addScope(scopeName);
 			auto gs2 = util::makeGroupScope(jpp, scopeName);
@@ -185,13 +188,12 @@ namespace reaction
 			jpp.set("TYPE", "MASS_ACTION_LAW");
 			
 			const int nReactions = 4;
-
 			std::vector<double> stoichMat(nReactions * nComp, 0.0);
 			std::vector<double> expFwd(nReactions * nComp, 0.0);
 			std::vector<double> expBwd(nReactions * nComp, 0.0);
 			std::vector<double> rateFwd(nReactions, 0.0);
 			std::vector<double> rateBwd(nReactions, 0.0);
-
+			
 			util::populate(stoichMat.data(), [](unsigned int idx) { return 2.0 * std::sin(0.5 + idx * 0.7); }, stoichMat.size());
 			util::populate(expFwd.data(), [](unsigned int idx) { return std::sin(0.1 + idx * 0.7) + 1.4; }, expFwd.size());
 			util::populate(expBwd.data(), [](unsigned int idx) { return std::sin(0.2 + idx * 0.3) + 1.1; }, expBwd.size());
@@ -272,7 +274,7 @@ namespace reaction
 					std::vector<double> expBwdLiquidModSolid(nReactions * nTotalBound, 0.0);
 					std::vector<double> expFwdSolidModLiquid(nReactions * nComp, 0.0);
 					std::vector<double> expBwdSolidModLiquid(nReactions * nComp, 0.0);
-
+					
 					util::populate(expFwdLiquidModSolid.data(), [](unsigned int idx) { return std::sin(idx * 0.7 + 0.1) * 0.5 + 1.6; }, expFwdLiquidModSolid.size());
 					util::populate(expBwdLiquidModSolid.data(), [](unsigned int idx) { return std::sin(idx * 0.7 + 0.2) * 0.5 + 1.6; }, expBwdLiquidModSolid.size());
 					util::populate(expFwdSolidModLiquid.data(), [](unsigned int idx) { return std::sin(idx * 0.7 + 0.3) * 0.5 + 1.6; }, expFwdSolidModLiquid.size());
