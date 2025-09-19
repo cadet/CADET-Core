@@ -167,7 +167,6 @@ namespace reaction
 
 		return 0;
 	}
-
 	void extendModelWithDynamicReactions(cadet::JsonParameterProvider& jpp, UnitOpIdx unit, bool bulk, bool particle, bool particleModifiers)
 	{
 		auto gs = util::makeModelGroupScope(jpp, unit);
@@ -179,30 +178,33 @@ namespace reaction
 
 		if (!isLRM && bulk)
 		{
-			jpp.set("REACTION_MODEL", "MASS_ACTION_LAW");
-			char const* const scopeName = "reaction_bulk";
+			const int reactionTypes = 1;
+			jpp.set("NREAC_LIQUID", reactionTypes);
+			
+			char const* const scopeName = "liquid_reaction_000";
 			jpp.addScope(scopeName);
 			auto gs2 = util::makeGroupScope(jpp, scopeName);
 
+			jpp.set("TYPE", "MASS_ACTION_LAW");
+			
 			const int nReactions = 4;
-
 			std::vector<double> stoichMat(nReactions * nComp, 0.0);
 			std::vector<double> expFwd(nReactions * nComp, 0.0);
 			std::vector<double> expBwd(nReactions * nComp, 0.0);
 			std::vector<double> rateFwd(nReactions, 0.0);
 			std::vector<double> rateBwd(nReactions, 0.0);
-
+			
 			util::populate(stoichMat.data(), [](unsigned int idx) { return 2.0 * std::sin(0.5 + idx * 0.7); }, stoichMat.size());
 			util::populate(expFwd.data(), [](unsigned int idx) { return std::sin(0.1 + idx * 0.7) + 1.4; }, expFwd.size());
 			util::populate(expBwd.data(), [](unsigned int idx) { return std::sin(0.2 + idx * 0.3) + 1.1; }, expBwd.size());
 			util::populate(rateFwd.data(), [](unsigned int idx) { return std::sin(0.3 + idx * 0.2) * 0.5 + 1.5; }, rateFwd.size());
 			util::populate(rateBwd.data(), [](unsigned int idx) { return std::sin(0.4 + idx * 0.4) * 0.5 + 1.6; }, rateBwd.size());
 
-			jpp.set("MAL_STOICHIOMETRY_BULK", stoichMat);
-			jpp.set("MAL_EXPONENTS_BULK_FWD", expFwd);
-			jpp.set("MAL_EXPONENTS_BULK_BWD", expBwd);
-			jpp.set("MAL_KFWD_BULK", rateFwd);
-			jpp.set("MAL_KBWD_BULK", rateBwd);
+			jpp.set("MAL_STOICHIOMETRY", stoichMat);
+			jpp.set("MAL_EXPONENTS_FWD", expFwd);
+			jpp.set("MAL_EXPONENTS_BWD", expBwd);
+			jpp.set("MAL_KFWD", rateFwd);
+			jpp.set("MAL_KBWD", rateBwd);
 		}
 
 		if (!jpp.exists("NPARTYPE"))
@@ -216,26 +218,19 @@ namespace reaction
 
 			for (int i = 0; i < nParType; ++i)
 			{
-				if (!isCSTR)
-					jpp.pushScope("particle_type_" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i));
+				
+				jpp.pushScope("particle_type_" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i)); // particle_type_xxx
 
 				std::vector<int> nBound = jpp.getIntArray("NBOUND");
 				const int nTotalBound = std::accumulate(nBound.begin(), nBound.end(), 0);
 
-				std::string scope;
-				if (!isCSTR)
-				{
-					jpp.set("REACTION_MODEL", "MASS_ACTION_LAW");
-					scope = "reaction";
-				}
-				else
-				{
-					jpp.set("REACTION_MODEL_PARTICLE", "MASS_ACTION_LAW");
-					scope = "reaction_particle";
-				}
+				int nReac = 1;
+				jpp.set("NREAC_CROSS_PHASE", nReac);
 
-				jpp.addScope(scope);
-				auto gs2 = util::makeGroupScope(jpp, scope);
+				jpp.addScope("cross_phase_reaction_000"); // particle_type_xxx//cross_phase_reaction_000
+				auto gs3 = util::makeGroupScope(jpp, "cross_phase_reaction_000");
+
+				jpp.set("TYPE", "MASS_ACTION_LAW_CROSS_PHASE");
 
 				std::vector<double> stoichMatLiquid(nReactions * nComp, 0.0);
 				std::vector<double> expFwdLiquid(nReactions * nComp, 0.0);
@@ -279,7 +274,7 @@ namespace reaction
 					std::vector<double> expBwdLiquidModSolid(nReactions * nTotalBound, 0.0);
 					std::vector<double> expFwdSolidModLiquid(nReactions * nComp, 0.0);
 					std::vector<double> expBwdSolidModLiquid(nReactions * nComp, 0.0);
-
+					
 					util::populate(expFwdLiquidModSolid.data(), [](unsigned int idx) { return std::sin(idx * 0.7 + 0.1) * 0.5 + 1.6; }, expFwdLiquidModSolid.size());
 					util::populate(expBwdLiquidModSolid.data(), [](unsigned int idx) { return std::sin(idx * 0.7 + 0.2) * 0.5 + 1.6; }, expBwdLiquidModSolid.size());
 					util::populate(expFwdSolidModLiquid.data(), [](unsigned int idx) { return std::sin(idx * 0.7 + 0.3) * 0.5 + 1.6; }, expFwdSolidModLiquid.size());
@@ -408,7 +403,7 @@ namespace reaction
 
 		// Evaluate with AD
 		ad::resetAd(adRes, numDofs);
-		crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY, adRes, 1.0, crm.buffer());
+		crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, crm.nComp(), adY, adRes, 1.0, crm.buffer());
 
 		// Extract Jacobian
 		jacAD.setAll(0.0);
@@ -416,7 +411,7 @@ namespace reaction
 
 		// Calculate analytic Jacobian
 		jacAna.setAll(0.0);
-		crm.model().analyticJacobianLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yState.data(), 1.0, jacAna.row(0), crm.buffer());
+		crm.model().analyticJacobianAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, crm.nComp(), yState.data(), 1.0, jacAna.row(0), crm.buffer());
 
 		delete[] adY;
 		delete[] adRes;
@@ -425,7 +420,7 @@ namespace reaction
 			[&](double const* lDir, double* res) -> void
 				{
 					std::fill_n(res, nComp, 0.0);
-					crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, res, 1.0, crm.buffer());
+					crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, crm.nComp(), lDir, res, 1.0, crm.buffer());
 				},
 			[&](double const* lDir, double* res) -> void 
 				{
@@ -437,7 +432,7 @@ namespace reaction
 			[&](double const* lDir, double* res) -> void
 				{
 					std::fill_n(res, nComp, 0.0);
-					crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, res, 1.0, crm.buffer());
+					crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, crm.nComp(), lDir, res, 1.0, crm.buffer());
 				},
 			[&](double const* lDir, double* res) -> void 
 				{
