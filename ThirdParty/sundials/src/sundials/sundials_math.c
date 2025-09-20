@@ -1,99 +1,92 @@
-/*
- * -----------------------------------------------------------------
- * $Revision$
- * $Date$
- * -----------------------------------------------------------------
+/* -----------------------------------------------------------------
  * Programmer(s): Scott D. Cohen, Alan C. Hindmarsh and
  *                Aaron Collier @ LLNL
  * -----------------------------------------------------------------
- * LLNS Copyright Start
- * Copyright (c) 2014, Lawrence Livermore National Security
- * This work was performed under the auspices of the U.S. Department 
- * of Energy by Lawrence Livermore National Laboratory in part under 
- * Contract W-7405-Eng-48 and in part under Contract DE-AC52-07NA27344.
- * Produced at the Lawrence Livermore National Laboratory.
+ * SUNDIALS Copyright Start
+ * Copyright (c) 2002-2025, Lawrence Livermore National Security
+ * and Southern Methodist University.
  * All rights reserved.
- * For details, see the LICENSE file.
- * LLNS Copyright End
+ *
+ * See the top-level LICENSE and NOTICE files for details.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ * SUNDIALS Copyright End
  * -----------------------------------------------------------------
  * This is the implementation file for a simple C-language math
  * library.
- * -----------------------------------------------------------------
- */
+ * -----------------------------------------------------------------*/
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
-
 #include <sundials/sundials_math.h>
+#include <sundials/sundials_types.h>
 
-#define ZERO RCONST(0.0)
-#define ONE  RCONST(1.0)
+int SUNIpowerI(int base, int exponent)
+{
+  int i;
+  int prod = 1;
 
-realtype SUNRpowerI(realtype base, int exponent)
+  for (i = 1; i <= exponent; i++) { prod *= base; }
+  return (prod);
+}
+
+sunrealtype SUNRpowerI(sunrealtype base, int exponent)
 {
   int i, expt;
-  realtype prod;
+  sunrealtype prod;
 
-  prod = ONE;
+  prod = SUN_RCONST(1.0);
   expt = abs(exponent);
-  for(i = 1; i <= expt; i++) prod *= base;
-  if (exponent < 0) prod = ONE/prod;
-  return(prod);
+  for (i = 1; i <= expt; i++) { prod *= base; }
+  if (exponent < 0) { prod = SUN_RCONST(1.0) / prod; }
+  return (prod);
 }
 
-realtype SUNRpowerR(realtype base, realtype exponent)
+sunbooleantype SUNRCompare(sunrealtype a, sunrealtype b)
 {
-  if (base <= ZERO) return(ZERO);
-
-#if defined(SUNDIALS_USE_GENERIC_MATH)
-  return((realtype) pow((double) base, (double) exponent));
-#elif defined(SUNDIALS_DOUBLE_PRECISION)
-  return(pow(base, exponent));
-#elif defined(SUNDIALS_SINGLE_PRECISION)
-  return(powf(base, exponent));
-#elif defined(SUNDIALS_EXTENDED_PRECISION)
-  return(powl(base, exponent));
-#endif
+  return (SUNRCompareTol(a, b, 10 * SUN_UNIT_ROUNDOFF));
 }
 
-realtype SUNRsqrt(realtype x)
+sunbooleantype SUNRCompareTol(sunrealtype a, sunrealtype b, sunrealtype tol)
 {
-  if (x <= ZERO) return(ZERO);
+  sunrealtype diff;
+  sunrealtype norm;
 
-#if defined(SUNDIALS_USE_GENERIC_MATH)
-  return((realtype) sqrt((double) x));
-#elif defined(SUNDIALS_DOUBLE_PRECISION)
-  return(sqrt(x));
-#elif defined(SUNDIALS_SINGLE_PRECISION)
-  return(sqrtf(x));
-#elif defined(SUNDIALS_EXTENDED_PRECISION)
-  return(sqrtl(x));
-#endif
+  /* If a and b are exactly equal.
+   * This also covers the case where a and b are both inf under IEEE 754.
+   */
+  if (a == b) { return (SUNFALSE); }
+
+  diff = SUNRabs(a - b);
+  norm = SUNMIN(SUNRabs(a + b), SUN_BIG_REAL);
+
+  /* When |a + b| is very small (less than 10*SUN_UNIT_ROUNDOFF) or zero, we use
+   * an absolute difference:
+   *    |a - b| >= 10*SUN_UNIT_ROUNDOFF
+   * Otherwise we use a relative difference:
+   *    |a - b| < tol * |a + b|
+   * The choice to use |a + b| over max(a, b) is arbitrary, as is the choice to
+   * use 10*SUN_UNIT_ROUNDOFF.
+   * 
+   * In order to handle NANs correctly without explicit checks of isnan or
+   * isunordered (which throw warnings for some compilers and flags), we use
+   * !isless. The seemingly equivalent >= can have undefined behavior for NANs.
+   */
+  return !isless(diff, SUNMAX(10 * SUN_UNIT_ROUNDOFF, tol * norm));
 }
 
-realtype SUNRabs(realtype x)
+sunrealtype SUNStrToReal(const char* str)
 {
-#if defined(SUNDIALS_USE_GENERIC_MATH)
-  return((realtype) fabs((double) x));
+  char* end;
+#if defined(SUNDIALS_EXTENDED_PRECISION)
+  return strtold(str, &end);
 #elif defined(SUNDIALS_DOUBLE_PRECISION)
-  return(fabs(x));
+  return strtod(str, &end);
 #elif defined(SUNDIALS_SINGLE_PRECISION)
-  return(fabsf(x));
-#elif defined(SUNDIALS_EXTENDED_PRECISION)
-  return(fabsl(x));
-#endif
-}
-
-realtype SUNRexp(realtype x)
-{
-#if defined(SUNDIALS_USE_GENERIC_MATH)
-  return((realtype) exp((double) x));
-#elif defined(SUNDIALS_DOUBLE_PRECISION)
-  return(exp(x));
-#elif defined(SUNDIALS_SINGLE_PRECISION)
-  return(expf(x));
-#elif defined(SUNDIALS_EXTENDED_PRECISION)
-  return(expl(x));
+  return strtof(str, &end);
+#else
+#error \
+  "SUNDIALS precision not defined, report to github.com/LLNL/sundials/issues"
 #endif
 }

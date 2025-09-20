@@ -1,0 +1,48 @@
+\documentclass[twoside,titlepage,11pt]{article}
+
+\input{ug.tex}
+
+\externaldocument{install}
+\externaldocument{idas_math}
+\externaldocument{idas_sim}
+\externaldocument{idas_fwd}
+\externaldocument{idas_adj}
+\externaldocument{idas_nvec}
+\externaldocument{idas_sunmat}
+\externaldocument{idas_sunlinsol}
+\externaldocument{idas_sunnonlinsol}
+\externaldocument{linsolv}
+
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+
+\title{Example Programs for {\idas} \\ \idasrelease}
+\author{
+  Radu Serban and Alan C. Hindmarsh \\
+  {\em Center for Applied Scientific Computing} \\
+  {\em Lawrence Livermore National Laboratory}
+}
+\date{
+  \today 
+  \vfill 
+  {\centerline{\includegraphics[width=0.5\textwidth]{doc_logo_blue}}}
+  \vfill \idasucrlex
+}
+
+\makeindex
+
+\begin{document}
+
+\frontex
+\raggedbottom
+%===============================================================
+\include{idas_ex_intro}
+\include{idas_ex_fwd}
+\include{idas_ex_adj}
+%===============================================================
+% References
+\bibliographystyle{plain}
+\bibliography{biblio}
+%===============================================================
+\clearemptydoublepage
+%===============================================================
+\end{document}
