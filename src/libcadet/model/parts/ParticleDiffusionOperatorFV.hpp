@@ -15,8 +15,8 @@
  * Defines the particle dispersion transport operator according to the discontinuous Galerkin discretization.
  */
 
-#ifndef LIBCADET_PARTCICLEDIFFUSIONOPERATORDG_HPP_
-#define LIBCADET_PARTCICLEDIFFUSIONOPERATORDG_HPP_
+#ifndef LIBCADET_PARTCICLEDIFFUSIONOPERATORFV_HPP_
+#define LIBCADET_PARTCICLEDIFFUSIONOPERATORFV_HPP_
 
 #include "model/parts/ParticleDiffusionOperatorBase.hpp"
 #include "cadet/StrongTypes.hpp"
@@ -57,7 +57,7 @@ namespace parts
 	}
 
 	/**
-	 * @brief Particle dispersion transport operator based on DG
+	 * @brief Particle dispersion transport operator based on a FVM
 	 * @details Implements the equation
 	 *
 	 @f[ \begin{align}
@@ -67,17 +67,17 @@ namespace parts
 	 &= k^{\mathrm{f}}_{i} \left. \left( c^{\mathrm{b}}_i - c^{\mathrm{p}}_{i} \right|_{r = R^{\mathrm{p}}_{}} \right)
 	 \end{align} @f]
 	 * Additionally implements the variants for cylindrical and slab-shaped particles
-	 * Methods are described in @cite Breuer2023
+	 * Methods are described in @cite Lieres2010
 	 *
 	 * This class does not store the Jacobian. It only fills existing matrices given to its residual() functions.
 	 * It assumes that there is no offset to the particle entries in the local state vector
 	 */
-	class ParticleDiffusionOperatorDG : public ParticleDiffusionOperatorBase
+	class ParticleDiffusionOperatorFV : public ParticleDiffusionOperatorBase
 	{
 	public:
 
-		ParticleDiffusionOperatorDG();
-		~ParticleDiffusionOperatorDG() CADET_NOEXCEPT;
+		ParticleDiffusionOperatorFV();
+		~ParticleDiffusionOperatorFV() CADET_NOEXCEPT;
 
 		bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp);
 		bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding);
@@ -119,12 +119,9 @@ namespace parts
 			UserDefined
 		};
 
-		double relativeCoordinate(const unsigned int nodeIdx) const CADET_NOEXCEPT
+		double relativeCoordinate(const unsigned int cellIdx) const CADET_NOEXCEPT
 		{
-			const unsigned int element = floor(nodeIdx / _nParNode);
-			const unsigned int node = nodeIdx % _nParNode;
-			// divide by particle radius to get relative position
-			return static_cast<double>((_deltaR[element] * element + 0.5 * _deltaR[element] * (1 + _parNodes[node])) / (_parRadius - _parCoreRadius));
+			return static_cast<double>(std::accumulate(&_deltaR[0], &_deltaR[cellIdx], _deltaR[cellIdx] * 0.5) / (_parRadius - _parCoreRadius));
 		}
 
 		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly = false);
@@ -132,6 +129,8 @@ namespace parts
 		int writeParticleCoordinates(double* coords) const;
 
 		typedef Eigen::Triplet<double> T;
+
+		int particleJacobianBandwidth(unsigned int& lowerBandwidth, unsigned int& upperBandWidth) const;
 
 		void setParticleJacobianPattern(std::vector<T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx);
 
@@ -143,85 +142,26 @@ namespace parts
 
 	protected:
 
-		void parBindingAndReactionPattern(std::vector<Eigen::Triplet<double>>& tripletList, const int offset, const unsigned int colNode);
+		void parBindingPattern(std::vector<Eigen::Triplet<double>>& tripletList, const int offset, const unsigned int colNode);
 
 		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, linalg::BandedEigenSparseRowIterator& jacBase);
-
-		void initializeDG();
-
-		void initializeDGjac(const double parGeomSurfToVol);
-
-		int addSolidDGentries(const int secIdx, linalg::BandedEigenSparseRowIterator& jacBase, const int* const reqBinding);
-
-		template<typename ResidualType, typename ParamType>
-		void applyParInvMap(Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<>>& state);
-
-		template<typename StateType, typename ResidualType>
-		void parGSMVolumeIntegral(Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state, Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>>& stateDer);
-
-		template<typename StateType, typename ResidualType>
-		void parVolumeIntegral(const bool aux, Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state, Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>>& stateDer);
-
-		template<typename StateType>
-		void InterfaceFluxParticle(Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state, const unsigned int strideCell, const unsigned int strideNode, const bool aux, const int comp, const bool addParDisc = false);
-
-		template<typename StateType, typename ResidualType>
-		void parSurfaceIntegral(Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state,
-			Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>>& stateDer, unsigned const int strideCell, unsigned const int strideNode,
-			const bool aux, const int comp = 0, const bool addParDisc = false);
-
-		template<typename StateType>
-		void solve_auxiliary_DG(Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<>>& conc, unsigned int strideCell, unsigned int strideNode, int comp);
-
-		Eigen::MatrixXd DGjacobianParDispBlock(unsigned int elemIdx,double parGeomSurfToVol);
-		Eigen::MatrixXd GSMjacobianParDispBlock(double parGeomSurfToVol);
-		Eigen::MatrixXd getParBMatrix(int element, double parGeomSurfToVol);
-		Eigen::MatrixXd parAuxBlockGstar(unsigned int elemIdx, MatrixXd leftG, MatrixXd middleG, MatrixXd rightG);
-		Eigen::MatrixXd getParGBlock(unsigned int elemIdx);
-
-		void insertParJacBlock(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, const active* const parDiff, const active* const surfDiff, const active* const beta_p, const int* nonKinetic, unsigned int nBlocks, int offRowToCol);
-		void addDiagonalSolidJacobianEntries(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, const int* const reqBinding, const active* const surfDiffPtr);
-
-		inline int strideParNode() const CADET_NOEXCEPT { return strideParPoint(); }
-		inline int strideParElem() const CADET_NOEXCEPT { return strideParNode() * _nParNode; }
 
 		ParticleDiscretizationMode _parDiscMode; //!< Particle discretization mode
 
 		std::vector<double> _parDiscVector; //!< Particle discretization element boundary coodinates
 
-		unsigned int _nParElem; //!< Number of elements per particle
-		unsigned int _parPolyDeg; //!< Polynomial degree of particle elements
-		unsigned int _nParNode; //!< Number of nodes per particle element
-		bool _parGSM; //!< specifies whether (single element) Galerkin spectral method should be used in particles
-
-		std::vector<active> _parElementSize; //!< Particle element size
 		std::vector<active> _parCenterRadius; //!< Particle node-centered position for each particle node
 
-		/* DG specific operators */
+		/* FV specific operators */
 
-		active* _deltaR; //!< particle element spacing
-		Eigen::VectorXd _parNodes; //!< Array with positions of nodes in radial reference element for each particle
-		Eigen::MatrixXd _parPolyDerM; //!< Array with polynomial derivative Matrix for each particle
-		Eigen::MatrixXd* _minus_InvMM_ST; //!< equals minus inverse mass matrix times transposed stiffness matrix.
-		Eigen::VectorXd _parInvWeights; //!< Array with weights for LGL quadrature of size nNodes for each particle
-		Eigen::MatrixXd* _parInvMM; //!< dense inverse mass matrix for exact integration of integrals with metrics, for each particle
-		Eigen::MatrixXd _parInvMM_Leg; //!< dense inverse mass matrix (Legendre) for exact integration of integral without metric, for each particle
-		Eigen::MatrixXd _secondOrderStiffnessM; //!< specific second order stiffness matrix
-		Eigen::MatrixXd _minus_parInvMM_Ar; //!< inverse mass matrix times specific second order stiffness matrix
-		Eigen::Vector<active, Dynamic>* _Ir; //!< metric part for each element
-
-		Eigen::MatrixXd* _DGjacParDispBlocks; //!< particle dispersion blocks of DG jacobian
-
-		Eigen::Vector<active, Dynamic> _g_p; //!< auxiliary variable g = dc_p / dr
-		Eigen::Vector<active, Dynamic> _g_pSum; //!< auxiliary variable g = sum_{k \in p, s_i} dc_k / dr
-		Eigen::Vector<active, Dynamic> _surfaceFluxParticle; //!< stores the surface flux values for each particle
-		active* _localFlux; //!< stores the local (at respective particle) film diffusion flux
-
+		std::vector<active> _deltaR; //!< particle cell spacing
+		ArrayPool _discParFlux; //!< Storage for discretized @f$ k_f @f$ value
+		int _boundaryOrderFV; //!< Order of the bulk-particle boundary discretization
 	};
 
 } // namespace parts
 } // namespace model
 } // namespace cadet
 
-#endif  // LIBCADET_PARTCICLEDIFFUSIONOPERATORDG_HPP_
+#endif  // LIBCADET_PARTCICLEDIFFUSIONOPERATORFV_HPP_
