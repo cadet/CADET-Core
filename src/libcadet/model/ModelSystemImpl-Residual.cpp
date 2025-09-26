@@ -539,6 +539,7 @@ int ModelSystem::residual(const SimulationTime& simTime, const ConstSimulationSt
 			{
 				LOG(Warning) << "Residual has NAN value in unit " << i << " (at least) at index " << j;
 				_errorIndicator[i] = 1; // recoverable error
+				break;
 			}
 		}
 
@@ -585,6 +586,7 @@ int ModelSystem::residualWithJacobian(const SimulationTime& simTime, const Const
 			{
 				LOG(Warning) << "Residual has NAN value in unit " << i << " (at least) at index " << j;
 				_errorIndicator[i] = 1; // recoverable error
+				break;
 			}
 		}
 
