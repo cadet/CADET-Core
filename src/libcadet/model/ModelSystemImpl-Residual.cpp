@@ -535,7 +535,7 @@ int ModelSystem::residual(const SimulationTime& simTime, const ConstSimulationSt
 
 		for (int j = 0; j < _dofs[i]; j++)
 		{
-			if (std::isnan(res + offset + j))
+			if (std::isnan(res[offset + j]))
 			{
 				LOG(Warning) << "Residual has NAN value in unit " << i << " (at least) at index " << j;
 				_errorIndicator[i] = 1; // recoverable error
@@ -581,7 +581,7 @@ int ModelSystem::residualWithJacobian(const SimulationTime& simTime, const Const
 
 		for (int j = 0; j < _dofs[i]; j++)
 		{
-			if (std::isnan(res + offset + j))
+			if (std::isnan(res[offset + j]))
 			{
 				LOG(Warning) << "Residual has NAN value in unit " << i << " (at least) at index " << j;
 				_errorIndicator[i] = 1; // recoverable error
