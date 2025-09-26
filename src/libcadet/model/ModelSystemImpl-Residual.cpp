@@ -532,6 +532,18 @@ int ModelSystem::residual(const SimulationTime& simTime, const ConstSimulationSt
 		}
 
 		_errorIndicator[i] = m->residual(simTime, applyOffset(simState, offset), res + offset, _threadLocalStorage);
+
+		for (int j = 0; j < _dofs[i]; j++)
+		{
+			if (std::isnan(res + offset + j))
+			{
+				LOG(Warning) << "Residual has NAN value in unit " << i << " (at least) at index " << j;
+				_errorIndicator[i] = 1; // recoverable error
+			}
+		}
+
+		return 0;
+
 	} CADET_PARFOR_END;
 
 	// Handle connections
@@ -566,6 +578,15 @@ int ModelSystem::residualWithJacobian(const SimulationTime& simTime, const Const
 
 		_errorIndicator[i] = m->residualWithJacobian(simTime, applyOffset(simState, offset),
 			res + offset, applyOffset(adJac, offset), _threadLocalStorage);
+
+		for (int j = 0; j < _dofs[i]; j++)
+		{
+			if (std::isnan(res + offset + j))
+			{
+				LOG(Warning) << "Residual has NAN value in unit " << i << " (at least) at index " << j;
+				_errorIndicator[i] = 1; // recoverable error
+			}
+		}
 
 	} CADET_PARFOR_END;
 
