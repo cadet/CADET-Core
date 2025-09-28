@@ -271,6 +271,9 @@ inline void compareJacobianFD(const std::function<void(double const*, double*)>&
 	for (unsigned int col = 0; col < n; ++col)
 	{
 		std::copy(y, y + n, dir);
+		std::fill(colB, colB + m, 0.0);
+		std::fill(colA, colA + m, 0.0);
+
 
 		if (y[col] != 0.0)
 			dir[col] = y[col] * (1.0 + h);
@@ -376,6 +379,9 @@ inline void checkJacobianPatternFD(const std::function<void(double const*, doubl
 	for (unsigned int col = 0; col < n; ++col)
 	{
 		std::copy(y, y + n, dir);
+		std::fill(colB, colB + m, 0.0);
+		std::fill(colB, colB + m, 0.0);
+
 		if (y[col] != 0.0)
 			dir[col] = y[col] * (1.0 + h);
 		else
