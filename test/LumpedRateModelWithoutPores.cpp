@@ -191,7 +191,7 @@ TEST_CASE("LRM dynamic reactions time derivative Jacobian vs FD bulk", "[LRM],[F
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", true, false, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRM dynamic reactions time derivative Jacobian vs FD modified bulk", "[LRM],[FV],[Jacobian],[Residual],[ReactionModel],[CI],[FD],[testHere]")
+TEST_CASE("LRM dynamic reactions time derivative Jacobian vs FD modified bulk", "[LRM],[FV],[Jacobian],[Residual],[ReactionModel],[CI_toFix],[FD],[testHere]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", true, false, true, 1e-6, 1e-14, 8e-4);
 }
