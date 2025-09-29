@@ -543,8 +543,6 @@ int ModelSystem::residual(const SimulationTime& simTime, const ConstSimulationSt
 			}
 		}
 
-		return 0;
-
 	} CADET_PARFOR_END;
 
 	// Handle connections
