@@ -201,10 +201,13 @@ jobs:
           ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5 || true
       - name: Run CI test set I - bindings
         run: |
+          continue-on-error: true
+          id: test1
           ${BUILD_DIR}/test/testRunner [CI_binding]
       - name: Run CI test set II - sensitivities
         run: |
-          set -e
+          continue-on-error: true
+          id: test2
           ${BUILD_DIR}/test/testRunner [CI_sens1]
           ${BUILD_DIR}/test/testRunner [CI_sens2]
           ${BUILD_DIR}/test/testRunner [CI_sens3]
@@ -230,7 +233,8 @@ jobs:
           ${BUILD_DIR}/test/testRunner [CI_sens24]
       - name: Run CI test set III - crystallization
         run: |
-          set -e
+          continue-on-error: true
+          id: test3
           ${BUILD_DIR}/test/testRunner [CI_cry1]
           ${BUILD_DIR}/test/testRunner [CI_cry2]
           ${BUILD_DIR}/test/testRunner [CI_cry3]
@@ -253,7 +257,16 @@ jobs:
           ${BUILD_DIR}/test/testRunner [CI_cry20]
       - name: Run CI test set IV
         run: |
+          continue-on-error: true
+          id: test4
           ${BUILD_DIR}/test/testRunner [CI]
+      - name: Fail job if any tests failed
+        if: |
+          steps.test1.outcome == 'failure' ||
+          steps.test2.outcome == 'failure' ||
+          steps.test3.outcome == 'failure' ||
+          steps.test4.outcome == 'failure'
+        run: exit 1
   MacOS:
     runs-on: macos-latest
     strategy:
