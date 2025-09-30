@@ -125,6 +125,13 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 		disc["SPATIAL_METHOD"] = bulkMethod;
 		discPar["SPATIAL_METHOD"] = parMethod;
 
+		json cSolver;
+		cSolver["SOLVER_NAME"] = "PTC";
+
+		//cSolver["SOLVER_NAME"] = "COMPOSITE";
+		//cSolver["SUBSOLVERS"] = { "ATRN_ERR", "LEVMAR"};
+		disc["consistency_solver"] = cSolver;
+
 		if (bulkMethod == "FV")
 		{
 			disc["NCOL"] = 16;

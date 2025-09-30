@@ -116,7 +116,7 @@ TEST_CASE("GRM2D consistent initialization with linear binding", "[GRM2D],[FV],[
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_2D_GRM", "FV", 1e-12, 1e-12);
 }
 
-TEST_CASE("GRM2D consistent initialization with SMA binding", "[GRM2D],[FV],[ConsistentInit],[fixGRM2D]")  // todo fix. adjust tolerances?
+TEST_CASE("GRM2D consistent initialization with SMA binding", "[GRM2D],[FV],[ConsistentInit],[testHereX]")
 {
 	std::vector<double> y(4 * 3 + 4 * 8 * 3 + 8 * 3 * 3 * (4 + 4) + 4 * 8 * 3, 0.0);
 // Optimal values:

@@ -148,23 +148,23 @@ TEST_CASE("Column_2D as LRMP consistent initialization with linear binding", "[C
 	//cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_2D_LRMP", "DG", 1e-12, 1e-12, 1, 1); // @todo AD with req binding does not work
 }
 
-//TEST_CASE("Column_2D as LRMP consistent initialization with SMA binding", "[Column_2D],[ConsistentInit],[todo]")  // todo fix (also doesnt work for other models)
-//{
-//	std::vector<double> y(4 * 3 + 4 * 8 * 3 + 8 * 3 * 3 * (4 + 4) + 4 * 8 * 3, 0.0);
-//	// Optimal values:
-//	//	const double bindingCell[] = {1.2, 2.0, 1.0, 1.5, 858.034, 66.7896, 3.53273, 2.53153, 
-//	//		1.0, 1.8, 1.5, 1.6, 856.173, 64.457, 5.73227, 2.85286};
-//	const double bindingCell[] = { 1.2, 2.0, 1.0, 1.5, 840.0, 63.0, 3.0, 3.0,
-//		1.0, 1.8, 1.5, 1.6, 840.0, 63.0, 6.0, 3.0 };
-//	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4 * 3 + 4 * 8 * 3);
-//	cadet::test::util::repeat(y.data() + 4 * 3 + 4 * 8 * 3, bindingCell, 16, 3 * 8 * 3 / 2);
-//	cadet::test::util::populate(y.data() + 4 * 3 + 4 * 8 * 3 + 8 * 3 * 3 * (4 + 4), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4 * 8 * 3);
-//
-//	cadet::test::column::testConsistentInitializationSMABinding("COLUMN_MODEL_2D_LRMP", "DG", y.data(), 1e-14, 1e-5, 0, 0);
-//	cadet::test::column::testConsistentInitializationSMABinding("COLUMN_MODEL_2D_LRMP", "DG", y.data(), 1e-14, 1e-5, 1, 0);
-//	//cadet::test::column::testConsistentInitializationSMABinding("COLUMN_MODEL_2D_LRMP", "DG", y.data(), 1e-14, 1e-5, 0, 1);
-//	//cadet::test::column::testConsistentInitializationSMABinding("COLUMN_MODEL_2D_LRMP", "DG", y.data(), 1e-14, 1e-5, 1, 1);
-//}
+TEST_CASE("Column_2D as LRMP consistent initialization with SMA binding", "[Column_2D],[ConsistentInit],[testHereX]")
+{
+	std::vector<double> y(4 * 3 + 4 * 8 * 3 + 8 * 3 * 3 * (4 + 4) + 4 * 8 * 3, 0.0);
+	// Optimal values:
+	//	const double bindingCell[] = {1.2, 2.0, 1.0, 1.5, 858.034, 66.7896, 3.53273, 2.53153, 
+	//		1.0, 1.8, 1.5, 1.6, 856.173, 64.457, 5.73227, 2.85286};
+	const double bindingCell[] = { 1.2, 2.0, 1.0, 1.5, 840.0, 63.0, 3.0, 3.0,
+		1.0, 1.8, 1.5, 1.6, 840.0, 63.0, 6.0, 3.0 };
+	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4 * 3 + 4 * 8 * 3);
+	cadet::test::util::repeat(y.data() + 4 * 3 + 4 * 8 * 3, bindingCell, 16, 3 * 8 * 3 / 2);
+	cadet::test::util::populate(y.data() + 4 * 3 + 4 * 8 * 3 + 8 * 3 * 3 * (4 + 4), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4 * 8 * 3);
+
+	cadet::test::column::testConsistentInitializationSMABinding("COLUMN_MODEL_2D_LRMP", "DG", y.data(), 1e-14, 1e-5, 0, 0);
+	cadet::test::column::testConsistentInitializationSMABinding("COLUMN_MODEL_2D_LRMP", "DG", y.data(), 1e-14, 1e-5, 1, 0);
+	//cadet::test::column::testConsistentInitializationSMABinding("COLUMN_MODEL_2D_LRMP", "DG", y.data(), 1e-14, 1e-5, 0, 1);
+	//cadet::test::column::testConsistentInitializationSMABinding("COLUMN_MODEL_2D_LRMP", "DG", y.data(), 1e-14, 1e-5, 1, 1);
+}
 
 TEST_CASE("Column_2D as LRMP consistent sensitivity initialization with linear binding", "[Column_2D],[ConsistentInit],[Sensitivity],[CI]")
 {

@@ -86,19 +86,19 @@ TEST_CASE("Radial LRM consistent initialization with linear binding", "[RadLRM],
 	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", 1e-12, 1e-12);
 }
 
-//TEST_CASE("Radial LRM consistent initialization with SMA binding", "[RadLRM],[ConsistentInit],[fixLRM]") // todo (for all models) fix
-//{
-//	std::vector<double> y(4 + 16 * (4 + 4), 0.0);
-//	// Optimal values:
-//	//	const double bindingCell[] = {1.2, 2.0, 1.0, 1.5, 858.034, 66.7896, 3.53273, 2.53153, 
-//	//		1.0, 1.8, 1.5, 1.6, 856.173, 64.457, 5.73227, 2.85286};
-//	const double bindingCell[] = {1.2, 2.0, 1.0, 1.5, 840.0, 63.0, 3.0, 3.0, 
-//		1.0, 1.8, 1.5, 1.6, 840.0, 63.0, 6.0, 3.0};
-//	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4);
-//	cadet::test::util::repeat(y.data() + 4, bindingCell, 16, 8);
-//
-//	cadet::test::column::testConsistentInitializationSMABinding("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", y.data(), 1e-14, 1e-5);
-//}
+TEST_CASE("Radial LRM consistent initialization with SMA binding", "[RadLRM],[ConsistentInit],[testHereX]") 
+{
+	std::vector<double> y(4 + 16 * (4 + 4), 0.0);
+	// Optimal values:
+	//	const double bindingCell[] = {1.2, 2.0, 1.0, 1.5, 858.034, 66.7896, 3.53273, 2.53153, 
+	//		1.0, 1.8, 1.5, 1.6, 856.173, 64.457, 5.73227, 2.85286};
+	const double bindingCell[] = {1.2, 2.0, 1.0, 1.5, 840.0, 63.0, 3.0, 3.0, 
+		1.0, 1.8, 1.5, 1.6, 840.0, 63.0, 6.0, 3.0};
+	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4);
+	cadet::test::util::repeat(y.data() + 4, bindingCell, 16, 8);
+
+	cadet::test::column::testConsistentInitializationSMABinding("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", y.data(), 1e-14, 1e-5);
+}
 
 TEST_CASE("Radial LRM consistent sensitivity initialization with linear binding", "[RadLRM],[ConsistentInit],[Sensitivity]")
 {

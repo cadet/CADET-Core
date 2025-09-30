@@ -767,8 +767,6 @@ void ColumnModel1D::consistentInitialTimeDerivative(const SimulationTime& simTim
 
 }
 
-
-
 /**
  * @brief Computes approximately / partially consistent initial values (state variables without their time derivatives)
  * @details Given the DAE \f[ F(t, y, \dot{y}) = 0, \f] the initial values \f$ y_0 \f$ and \f$ \dot{y}_0 \f$ have
