@@ -34,7 +34,7 @@
             "MM_KMM": [
               100
             ],
-            "MM_STOICHIOMETRY_BULK": [
+            "MM_STOICHIOMETRY": [
               -1.0,
               1.0
             ],

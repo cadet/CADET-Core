@@ -77,9 +77,8 @@ public:
 	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y, double factor, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const { }
 	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y, double factor, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const { }
 	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y, double factor, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const { }
-	#ifdef ENABLE_DG
 	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y, double factor, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const { }
-	#endif
+
 
 	virtual int residualCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* yLiquid, active const* ySolid,
 		active* resLiquid, active* resSolid, double factor, LinearBufferAllocator workSpace) const { return 0; }
