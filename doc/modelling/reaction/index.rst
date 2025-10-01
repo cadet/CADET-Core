@@ -11,20 +11,20 @@ In this kind of mechanism, the fluxes are typically
 defined as a function of the concentration of the components involved in the reaction and the reaction parameters.
 
 In CADET, reaction models are defined for each phase of a unit operation separately, i.e., for the liquid phase and solid phase.
-For information on the interface specification, see :ref:`FFReaction`.
+For more information on the interface specification, see :ref:`FFReaction`.
 
 CADET features the following reaction model types:
 
  - :ref:`mass_action_law_model`
  - :ref:`michaelis_menten_kinetics_model`
 
-It is possible to combine reaction models if they are defined for the same phase.
+It is possible to combine reaction models within the same phase.
 
 Cross phase reaction models
 ---------------------------
 
 If a reaction is defined between a liquid phase and solid phases, the net fluxes of the reaction are defined
-as a function of the concentrations in the respective phases and is called a cross phase reaction, i.e :math:`f_{\mathrm{react}}(c^\mathrm{b}, c^{\mathrm{\ell}})`.
+as a function of the concentrations in the respective phases and is called a cross phase reaction.
 
 CADET features the following cross phase reaction types:
 
