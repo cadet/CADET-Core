@@ -394,7 +394,6 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 	bool reactionConfSuccess = true;
 	
 	_reaction.clearDynamicReactionModels();
-	_reaction.configureDimOfSetAndReacParType(1);
 	if (paramProvider.exists("NREAC_LIQUID"))
 	{
 		int nReactions = paramProvider.getInt("NREAC_LIQUID");

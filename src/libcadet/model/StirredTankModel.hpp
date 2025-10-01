@@ -23,7 +23,7 @@
 #include "AutoDiff.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "model/ModelUtils.hpp"
-#include "reaction/ReactionSystem.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 #include "Memory.hpp"
 
 #include <array>
@@ -177,6 +177,8 @@ protected:
 	std::vector<double> _initConditionsDot; //!< Initial conditions for time derivative
 
 	ReactionSystem _reaction;
+	std::vector<ReactionSystem> _reacParticle;
+
 
 	class Exporter : public ISolutionExporter
 	{
