@@ -7,8 +7,8 @@ Reactions can take place on different phases in the model. The interface specifi
 
 A reaction can be located in:
 
-- **Column**: The reaction group is defined under the corresponding column phase i.e. ``unit_XXX/phase_reaction_YYY``.
-- **Particle**: The reaction group is defined under the corresponding particle phase i.e. ``particle_type_XXX/phase_reaction_YYY``.
+- **Column**: The reaction group is defined under the corresponding transport phase i.e. ``unit_XXX/liquid_reaction_YYY``.
+- **Particle**: The reaction group is defined under the corresponding particle phase i.e. ``particle_type_XXX/liquid_reaction_YYY`` or ``particle_type_XXX/solid_reaction_YYY``.
 
 Furthermore, we differ between reactions which take place in either a single phase or between two phases.
 
@@ -16,12 +16,12 @@ Single Phase Reactions
 ----------------
 Single phase reactions take place either in the liquid phase, the solid phase.
 
-The number of reaction is specified at the **column/particle level** using the following parameters:
+The number of reaction models is specified at the unit or particle level using the following parameters:
 
-  - ``NREAC_LIQUID`` for liquid phase reactions,
-  - ``NREAC_SOLID`` for solid phase reactions.
+  - ``NREAC_LIQUID`` for liquid phase reactions i.e. ``unit_XXX/NREAC_LIQUID`` or ``particle_type_XXX/NREAC_LIQUID``.,
+  - ``NREAC_SOLID`` for solid phase reactions i.e. ``unit_XXX/NREAC_SOLID`` or ``particle_type_XXX/NREAC_SOLID``.
 
-The input group for single reactions is given by ``phase_reaction_YYY`` where ``phase`` is one of ``liquid`` or ``solid`` and ``YYY`` is a 0-based index for the reaction group.
+The input group for parameter of single reactions is given by ``phase_reaction_YYY`` where ``phase`` is one of ``liquid`` or ``solid`` and ``YYY`` is a 0-based index for the reaction group.
 
 **Single-Phase Reaction Models**:
 
@@ -36,8 +36,8 @@ Cross Phase Reactions
 ---------------------
 Cross phase reactions take place between a liquid phase and a solid phase.
 
-To specify the number of reactions, use the parameter at the **column/particle level**:
-  - ``NREAC_CROSS_PHASE`` for cross-phase reactions.
+To specify the number of reaction models, use the parameter at the column or particle level:
+  - ``NREAC_CROSS_PHASE`` for cross-phase reactions i.e. ``unit_XXX/NREAC_CROSS_PHASE`` or ``particle_type_XXX/NREAC_CROSS_PHASE``.
   
 The input group for cross-phase reactions is given by ``cross_phase_reaction_YYY`` where ``YYY`` is a 0-based index for the reaction group.
 
@@ -52,13 +52,12 @@ The input group for cross-phase reactions is given by ``cross_phase_reaction_YYY
   - Cross-phase reaction models can **only** be used in the cross-phase formulation
   - For the LRM model, cross-phase reactions are not supported in the particle phase.
 
-
 Step by Step Guide to Define Reactions
 --------------------------------------
 
 1. Choose the appropriate reaction model based on the kinetics of your system (e.g., Mass Action Law, Michaelis-Menten).
-2. Choose a phase for your reaction (liquid, solid or cross phase) and define the input group accordingly (i.e., ``liquid_reaction_000``).
-3. Choose how many reaction types you want to define for the selected phase and set up the corresponding parameter in the configuration file (e.g., ``NREAC_LIQUID``, ``NREAC_SOLID``, ``NREAC_CROSS_PHASE``).
+2. Choose a phase for your reaction (liquid, solid or cross phase) and define the input group accordingly (i.e., ``liquid_reaction_000, solid_reaction_000, cross_phase_reaction_000``).
+3. Choose how many reaction model types you want to define for the selected phase and set up the corresponding parameter in the configuration file (e.g., ``NREAC_LIQUID``, ``NREAC_SOLID``, ``NREAC_CROSS_PHASE``).
   **Note** here that the input group depends on whether the reaction is defined in a particle phase or not.
 4. Define the reaction parameters according to the chosen model's specifications. Refer to the specific reaction model documentation for details on required parameters.
 
