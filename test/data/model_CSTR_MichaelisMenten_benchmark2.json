@@ -35,7 +35,7 @@
                 2.5,
                 5.0
               ],
-              "MM_STOICHIOMETRY_BULK": [
+              "MM_STOICHIOMETRY": [
                 -1e-09,
                 0.0,
                 1.0,

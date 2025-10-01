@@ -226,8 +226,8 @@ public:
 	 *
 	 * @param [in] t Current time point
 	 * @param [in] secIdx Index of the current section
-	 * @param [in] nStates number of states
 	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
+	* @param [in] nStates number of states
 	 * @param [in] y Pointer to first component in the current cell
 	 * @param [in] factor Factor @f$ \gamma @f$
 	 * @param [in,out] jac Row iterator pointing to the first component row of the underlying matrix in which the Jacobian is stored
@@ -236,9 +236,8 @@ public:
 	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y, double factor, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const = 0;
 	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y, double factor, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const = 0;
 	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y, double factor, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
-	#ifdef ENABLE_DG
 	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y, double factor, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
-	#endif
+
 
 	/**
 	 * @brief Evaluates the residual for one combined phase cell
