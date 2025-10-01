@@ -1,0 +1,371 @@
+%===============================================================================
+\section{Introduction}\label{s:ex_intro}
+%===============================================================================
+
+This report is intended to serve as a companion document to the User
+Documentation of {\cvodes} \cite{cvodes_ug}.  It provides details, with
+listings, on the example programs supplied with the {\cvodes} distribution
+package.
+
+The {\cvodes} distribution contains examples of the following types: 
+serial and parallel examples of Initial Value Problem (IVP) integration, 
+serial and parallel examples of forward sensitivity analysis (FSA), and 
+serial and parallel examples of adjoint sensitivity analysis (ASA).
+The names of all these examples are given in the following table.
+In addition, there is an example using OpenMP.
+
+\newlength{\colone}
+
+\settowidth{\colone}{em*3}
+\begin{center}
+  \begin{tabular}{|p{\colone}|l|l|} \hline
+
+    & Serial examples & Parallel examples \\ \hline
+
+    IVP & \id{cvsRoberts\_dns}     \id{cvsRoberts\_dnsL}             & \id{cvsAdvDiff\_non\_p}      \\
+    {}  & \id{cvsRoberts\_dns\_uw} \id{cvsRoberts\_dns\_constraints} & \id{cvsDiurnal\_kry\_p}      \\
+    {}  & \id{cvsRoberts\_klu}     \id{cvsRoberts\_sps}              & \id{cvsDirunal\_kry\_bbd\_p} \\
+    {}  & \id{cvsAdvDiff\_bnd}     \id{cvsAdvDiff\_bndL}             & {}                           \\
+    {}  & \id{cvsDirunal\_kry}     \id{cvsDiurnal\_kry\_bp}          & {}                           \\
+    {}  & \id{cvsDirectDemo\_ls}   \id{cvsKrylovDemo\_ls}            & {}                           \\
+    {}  & \id{cvsKrylovDemo\_prec}                                   & {}                           \\
+    \hline
+    
+    FSA & \id{cvsRoberts\_FSA\_dns} \id{cvsRoberts\_FSA\_dns\_constraints} & \id{cvsAdvDiff\_FSA\_non\_p} \\
+    {}  & \id{cvsRoberts\_FSA\_klu} \id{cvsRoberts\_FSA\_sps}              & \id{cvsDiurnal\_FSA\_kry\_p} \\
+    {}  & \id{cvsAdvDiff\_FSA\_non} \id{cvsDiurnal\_FSA\_kry}              & {}                           \\
+    \hline
+    
+    ASA & \id{cvsRoberts\_ASAi\_dns} \id{cvsRoberts\_ASAi\_dns\_constraints} & \id{cvsAdvDiff\_ASAp\_non\_p}      \\
+    {}  & \id{cvsRoberts\_ASAi\_klu} \id{cvsRoberts\_ASAi\_sps}              & \id{cvsAtmDisp\_ASAi\_kry\_bbd\_p} \\
+    {}  & \id{cvsAdvDiff\_ASAi\_bnd} \id{cvsFoodWeb\_ASAi\_kry}              & {}                                 \\
+    {}  & \id{cvsFoodWeb\_ASAp\_kry} \id{cvsHessian\_ASA\_FSA}               & {}                                 \\
+    \hline
+
+
+  \end{tabular}
+\end{center}
+
+\vspace{0.2in}\noindent
+With the exception of ''demo''-type example files, the names of all the examples 
+distributed with {\sundials} are of the form \verb![slv][PbName]_[SA]_[ls]_[prec]_[p]!, 
+where
+\begin{description}
+\item [{[slv]}] identifies the solver (for {\cvodes} examples this is \id{cvs});
+\item [{[PbName]}] identifies the problem;
+\item [{[SA]}] identifies sensitivity analysis examples. This field can be one
+  of: \id{FSA} for forward sensitivity examples, \id{ASAi} for adjoint sensitivity
+  examples using an integral-form model output, or \id{ASAp} for adjoint sensitivity
+  examples using an pointwise model output;
+\item [{[ls]}] identifies the linear solver module used (for examples using
+  fixed-point iteration for the nonlinear system solver, \id{non} specifies
+  that no linear solver was used);
+\item [{[prec]}] indicates the {\cvodes} preconditioner module used, 
+  \id{bp} for {\cvbandpre} or \id{bbd} for {\cvbbdpre} 
+  (only if applicable, for examples using a Krylov linear solver);
+\item [{[p]}] indicates an example using the parallel vector module {\nvecp}.
+\end{description}
+
+\vspace{0.2in}\noindent
+The examples are briefly described next.
+Note that the {\cvodes} distribution includes all of the {\cvode} {\CC}
+examples (denoted here as examples for IVP integration). More details on
+these can be found in the {\cvode} Example Program document~\cite{cvode_ex}.
+
+%%
+%%--------------------------------------------------------------------------
+%%
+
+\vspace{0.2in}\noindent
+Supplied in the {\em srcdir}\id{/examples/cvodes/serial} directory are the
+following serial examples (using the {\nvecs} module):
+
+\begin{itemize}
+
+%% IVP integration examples
+
+\item \id{cvsRoberts\_dns}
+  solves a chemical kinetics problem consisting of three rate equations.
+  \newline
+  This program solves the problem with the BDF method and Newton          
+  iteration, with the {\sunlinsoldense} linear solver module and a user-supplied    
+  Jacobian routine.  It also uses the rootfinding feature of {\cvodes}.
+\item \id{cvsRoberts\_dns\_constraints}
+  is the same as \id{cvsRoberts\_dns} but imposes the constraint
+  $u \geq 0.0$ for all components.
+\item \id{cvsRoberts\_dnsL}
+  is the same as \id{cvsRoberts\_dns} but uses the
+  {\sunlinsollapdense} linear solver module.
+\item \id{cvsRoberts\_dns\_uw}
+  is the same as \id{cvsRoberts\_dns} but demonstrates the user-supplied error
+  weight function feature of {\cvodes}.
+\item \id{cvsRoberts\_klu}
+  is the same as \id{cvsRoberts\_dns} but uses the {\sunlinsolklu}
+  sparse direct linear solver module.
+\item \id{cvsRoberts\_sps}
+  is the same as \id{cvsRoberts\_dns} but uses the
+  {\sunlinsolslumt} sparse direct linear solver module (with one thread).
+\item \id{cvsAdvDiff\_bnd}
+  solves the semi-discrete form of an advection-diffusion equation in 2-D. 
+  \newline
+  This program solves the problem with the BDF method and Newton          
+  iteration, with the {\sunlinsolband} linear solver module and a user-supplied     
+  Jacobian routine.
+\item \id{cvsAdvDiff\_bndL}
+  is the same as \id{cvsAdvDiff\_bnd} but uses the {\sunlinsollapband}
+  linear solver module.
+\item \id{cvsDiurnal\_kry}
+  solves the semi-discrete form of a two-species diurnal kinetics
+  advection-diffusion PDE system in 2-D.
+  \newline
+  The problem is solved with the BDF/GMRES method (i.e.    
+  using the {\sunlinsolspgmr} linear solver) and the block-diagonal part of the  
+  Newton matrix as a left preconditioner. A copy of the block-diagonal 
+  part of the Jacobian is saved and conditionally reused within the    
+  preconditioner setup routine.
+\item \id{cvsDiurnal\_kry\_bp}
+  solves the same problem as \id{cvsDiurnal\_kry}, with the BDF/GMRES method 
+  and a banded preconditioner, generated by difference quotients, 
+  using the module {\cvbandpre}.
+  \newline
+  The problem is solved twice: with preconditioning on the left,
+  then on the right.
+\item \id{cvsDirectDemo\_ls}
+  is a demonstration program for {\cvodes} with direct linear solvers.
+  \newline
+  Two separate problems are solved using both the Adams and BDF linear
+  multistep methods in combination with fixed-point and Newton
+  iterations. 
+  \newline
+  The first problem is the Van der Pol oscillator for which 
+  the Newton iteration cases use the following types of Jacobian approximations:
+  (1) dense, user-supplied, (2) dense, difference-quotient approximation, 
+  (3) diagonal approximation. The second problem is a linear ODE with a
+  banded lower triangular matrix derived from a 2-D advection PDE. In this
+  case, the Newton iteration cases use the following types of Jacobian
+  approximation: (1) banded, user-supplied, (2) banded, difference-quotient
+  approximation, (3) diagonal approximation.
+\item \id{cvsKrylovDemo\_ls}
+  solves the same problem as \id{cvsDiurnal\_kry}, with the BDF method, but with
+  three Krylov linear solver modules: {\sunlinsolspgmr},
+  {\sunlinsolspbcgs}, and {\sunlinsolsptfqmr}. 
+\item \id{cvsKrylovDemo\_prec}
+  is a demonstration program with the GMRES linear solver.
+  \newline
+  This program solves a stiff ODE system that arises from a system     
+  of partial differential equations.  The PDE system is a six-species
+  food web population model, with predator-prey interaction and diffusion 
+  on the unit square in two dimensions.
+  \newline
+  The ODE system is solved using Newton iteration and the      
+  {\sunlinsolspgmr} linear solver module (scaled preconditioned GMRES).
+  \newline
+  The preconditioner matrix used is the product of two matrices:         
+  (1) a matrix, only defined implicitly, based on a fixed number of     
+  Gauss-Seidel iterations using the diffusion terms only; and               
+  (2) a block-diagonal matrix based on the partial derivatives of the   
+  interaction terms only, using block-grouping.                          
+  \newline
+  Four different runs are made for this problem.                        
+  The product preconditioner is applied on the left and on the right.    
+  In each case, both the modified and classical Gram-Schmidt options    
+  are tested.
+
+%% FSA examples
+
+\item \id{cvsRoberts\_FSA\_dns}
+  solves a 3-species kinetics problem (from \id{cvsRoberts\_dns}).
+  \newline
+  {\cvodes} computes both its solution and solution sensitivities with respect
+  to the three reaction rate constants appearing in the model. 
+  This program solves the problem with the BDF method, Newton          
+  iteration with the {\sunlinsoldense} linear solver module, and a user-supplied    
+  Jacobian routine. It also uses the user-supplied error
+  weight function feature of {\cvodes}.
+\item \id{cvsRoberts\_FSA\_dns\_constraints}
+  is the same as \id{cvsRoberts\_FSA\_dns} but imposes the constraint
+  $u \geq 0.0$ for all components.
+\item \id{cvsRoberts\_FSA\_klu}
+  is the same as \id{cvsRoberts\_FSA\_dns} but uses the
+  {\sunlinsolklu} sparse direct linear solver module.
+\item \id{cvsRoberts\_FSA\_sps}
+  is the same as \id{cvsRoberts\_FSA\_dns} but uses the
+  {\sunlinsolslumt} sparse direct linear solver module.
+\item \id{cvsAdvDiff\_FSA\_non}
+  solves the semi-discrete form of an advection-diffusion equation in 1-D.
+  \newline
+  {\cvodes} computes both its solution and solution sensitivities with respect
+  to the advection and diffusion coefficients.
+  This program solves the problem with the option for nonstiff systems,
+  i.e. Adams method and fixed-point iteration.
+\item \id{cvsDiurnal\_FSA\_kry}
+  solves the semi-discrete form of a two-species diurnal kinetics
+  advection-diffusion PDE system in 2-D space (from \id{cvsDiurnal\_kry}).
+  \newline
+  {\cvodes} computes both its solution and solution sensitivities with respect
+  to two parameters affecting the kinetic rate terms.
+  The problem is solved with the BDF/GMRES method (i.e. using the {\sunlinsolspgmr}
+  linear solver) and the block-diagonal part of the  
+  Newton matrix as a left preconditioner.
+
+%% ASA examples
+
+\item \id{cvsRoberts\_ASAi\_dns}
+  solves a 3-species kinetics problem (from \id{cvsRoberts\_dns}).
+  \newline
+  The adjoint capability of {\cvodes} is used to compute gradients
+  of a functional of the solution with respect to the three
+  reaction rate constants appearing in the model.
+  This program solves both the forward and backward problems with the BDF method, 
+  Newton iteration with the {\sunlinsoldense} linear solver, and user-supplied
+  Jacobian routines.
+\item \id{cvsRoberts\_ASAi\_dns\_constraints}
+  is the same as \id{cvsRoberts\_ASAi\_dns} but imposes the constraint
+  $u \geq 0.0$ for all components.
+\item \id{cvsRoberts\_ASAi\_klu}
+  is the same as \id{cvsRoberts\_ASAi\_dns} but uses the
+  {\sunlinsolklu} sparse direct linear solver module.
+\item \id{cvsRoberts\_ASAi\_sps}
+  is the same as \id{cvsRoberts\_ASAi\_dns} but uses the
+  {\sunlinsolslumt} sparse direct linear solver module.
+\item \id{cvsAdvDiff\_ASAi\_bnd}
+  solves a semi-discrete 2-D advection-diffusion equation (from \id{cvsAdvDiff\_bnd}).
+  \newline
+  The adjoint capability of {\cvodes} is used to compute gradients
+  of the average (over both time and space) of the solution with respect to
+  the initial conditions.
+  This program solves both the forward and backward problems with the BDF method, 
+  Newton iteration with the {\sunlinsolband} linear solver, and user-supplied     
+  Jacobian routines.
+\item \id{cvsFoodWeb\_ASAi\_kry}
+  solves a stiff ODE system that arises from a system of partial differential
+  equations (from \id{cvsKrylovDemo\_prec}).  The PDE system is a six-species
+  food web population model, with predator-prey interaction and diffusion 
+  on the unit square in two dimensions.
+  \newline
+  The adjoint capability of {\cvodes} is used to compute gradients of the
+  average (over both time and space) of the concentration of a selected species
+  with respect to the initial conditions of all six species.
+  Both the forward and backward problems are solved with the BDF/GMRES method 
+  (i.e. using the {\sunlinsolspgmr} linear solver module) and the block-diagonal part of the  
+  Newton matrix as a left preconditioner.
+\item \id{cvsFoodWeb\_ASAp\_kry}
+  solves the same problem as \id{cvsFoodWeb\_ASAi\_kry}, but computes gradients of the
+  average over space at the {\em final time} of the concentration of a selected species
+  with respect to the initial conditions of all six species.
+
+%% Hessian computation example
+
+\item \id{cvsHessian\_ASA\_FSA}
+  is an example of using the {\em forward-over-adjoint} method for
+  computing 2nd-order derivative information, in the form of Hessian-times-vector
+  products.
+
+\end{itemize}
+
+%%
+%%-------------------------------------------------------------------------------
+%%
+
+\vspace{0.2in}\noindent 
+Supplied in the {\em srcdir}\id{/examples/cvodes/parallel} directory are
+the following seven parallel examples (using the {\nvecp} module):
+
+\begin{itemize}
+
+%% IVP integration examples
+
+\item \id{cvsAdvDiff\_non\_p}
+  solves the semi-discrete form of a 1-D advection-diffusion equation.
+  \newline
+  This program solves the problem with the option for nonstiff systems,
+  i.e. Adams method and fixed-point iteration.
+\item \id{cvsDiurnal\_kry\_p}
+  is a parallel implementation of \id{cvsDiurnal\_kry}.
+\item \id{cvsDiurnal\_kry\_bbd\_p}
+  solves the same problem as \id{cvsDiurnal\_kry\_p}, with BDF and the GMRES linear
+  solver, using a block-diagonal matrix with banded blocks as a preconditioner, 
+  generated by difference quotients, using the module {\cvbbdpre}.
+
+%% FSA examples
+
+\item \id{cvsAdvDiff\_FSA\_non\_p}
+  is a parallel version of \id{cvsAdvDiff\_FSA\_non}.
+\item \id{cvsDiurnal\_FSA\_kry\_p}
+  is a parallel version of \id{cvsDiurnal\_FSA\_kry}.
+%% ASA examples
+
+\item \id{cvsAdvDiff\_ASAp\_non\_p}
+  solves a semi-discrete 1-D advection-diffusion equation (from \id{cvsAdvDiff\_non\_p}).
+  \newline
+  The adjoint capability of {\cvodes} is used to compute gradients
+  of the average over space of the solution at the {\em final time} with
+  respect to both the initial conditions and the advection and
+  diffusion coefficients in the model.
+  This program solves both the forward and backward problems with the option 
+  for nonstiff systems, i.e. Adams method and fixed-point iteration.
+\item \id{cvsAtmDisp\_ASAi\_kry\_bbd\_p}
+  solves an adjoint sensitivity problem for an advection-diffusion PDE in 2-D 
+  or 3-D using the BDF/GMRES method and the {\cvbbdpre} preconditioner module
+  on both the forward and backward phases.
+  \newline
+  The adjoint capability of {\cvodes} is used to compute the gradient of the
+  space-time average of the squared solution norm with respect to problem 
+  parameters which parametrize a distributed volume source.
+
+\end{itemize}
+
+%%
+%%--------------------------------------------------------------------------------
+%%
+
+\vspace{0.2in}\noindent 
+Supplied in {\em srcdir}\id{/examples/cvodes/C\_openmp} is
+an example, \id{cvsAdvDiff\_bnd\_omp}, which solves the same problem as
+\id{cvsAdvDiff\_bnd} but using the OpenMP NVECTOR module.
+
+%%
+%%--------------------------------------------------------------------------------
+%%
+
+\vspace{0.2in}\noindent
+In the following sections, we give detailed descriptions of some (but
+not all) of the sensitivity analysis examples. We do not discuss the 
+examples for IVP integration; for those, the interested reader should consult
+the {\cvode} Examples document~\cite{cvode_ex}. Any {\cvode} program
+will work with {\cvodes} with only two modifications: (1) the main program
+should include the header file \id{cvodes.h} instead of \id{cvode.h}, and
+(2) the loader command must reference
+{\em builddir}\id{/lib/libsundials\_cvodes.}{\em lib} instead of
+{\em builddir}\id{/lib/libsundials\_cvode.}{\em lib}.
+
+We also give our output files for each of the examples described below, 
+but users should be cautioned that their
+results may differ slightly from these.  Differences in solution
+values may differ within the tolerances, and differences in cumulative
+counters, such as numbers of steps or Newton iterations, may differ
+from one machine environment to another by as much as 10\% to 20\%.
+
+The final section of this report describes a set of tests done with
+{\cvodes} in a parallel environment (using {\nvecp}) on a modification of
+the \id{cvsDiurnal\_kry\_p} example.
+
+In the descriptions below, we make frequent references to the {\cvodes}
+User Guide~\cite{cvodes_ug}.  All citations to specific sections
+(e.g. \S\ref{s:types}) are references to parts of that user guide, unless
+explicitly stated otherwise.
+
+\vspace{0.2in}\noindent {\bf Note}
+The examples in the {\cvodes} distribution were written in such a way as
+to compile and run for any combination of configuration options during
+the installation of {\sundials} (see Appendix \ref{c:install} in the User Guide).
+As a consequence, they contain portions of code that will not typically be present in a
+user program. For example, all example programs make use of the
+variables \id{SUNDIALS\_EXTENDED\_PRECISION} and \id{SUNDIALS\_DOUBLE\_PRECISION}
+to test if the solver libraries
+were built in extended or double precision, and use the appropriate conversion 
+specifiers in \id{printf} functions. Similarly, all forward sensitivity
+examples can be run with or without sensitivity computations enabled and,
+in the former case, with various combinations of methods and error control 
+strategies. This is achieved in these example through the program arguments.
+

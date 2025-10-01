@@ -1,0 +1,32 @@
+Nonlinear Pendulum problem:
+   method     = DIRK
+   relaxation = ON
+   reltol     = 1e-06
+   abstol     = 1e-10
+
+    step                      t                      u                      v                      e                  e err
+---------------------------------------------------------------------------------------------------------------------------
+       0  0.000000000000000e+00  1.500000000000000e+00  1.000000000000000e+00  5.846976941318602e-01  0.000000000000000e+00
+    1000  1.835585274039513e+00 -1.544806352880661e-01  2.180672011382033e+00  5.846976941318653e-01  5.107025913275720e-15
+    2000  3.588227020282686e+00 -1.703711431934417e+00  5.224111062684007e-01  5.846976941318780e-01  1.776356839400250e-14
+    3000  5.050139784662394e+00 -9.522703536883641e-01 -1.702464724355176e+00  5.846976941318914e-01  3.119726699196690e-14
+    4000  6.929333215129179e+00  6.884232622702481e-01 -1.925949944370670e+00  5.846976941318871e-01  2.686739719592879e-14
+    5000  8.487342874887878e+00  1.767308644661914e+00  2.149257684918874e-01  5.846976941318882e-01  2.797762022055394e-14
+---------------------------------------------------------------------------------------------------------------------------
+
+Final Solver Statistics:
+  Internal solver steps = 5914 (attempted = 5922)
+  Total number of error test failures = 8
+  Total RHS evals:  Fe = 0,  Fi = 27506
+  Total number of Newton iterations = 21681
+  Total number of linear solver convergence failures = 91
+  Total linear solver setups = 389
+  Total number of Jacobian evaluations = 185
+  Total RHS evals for setting up the linear system = 0
+  Total Relaxation Fn evals    = 17722
+  Total Relaxation Jac evals   = 17722
+  Total Relaxation fails       = 0
+  Total Relaxation bound fails = 0
+  Total Relaxation NLS fails   = 0
+  Total Relaxation NLS iters   = 5878
+
