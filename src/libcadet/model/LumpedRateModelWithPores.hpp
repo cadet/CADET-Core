@@ -280,6 +280,7 @@ protected:
 	IParameterParameterDependence* _filmDiffDep; //!< Film diffusion dependency on local velocity
 	
 	ReactionSystem _reaction; //!< Reaction system
+	std::vector<ReactionSystem> _reacParticle;
 
 	std::vector<linalg::BandMatrix> _jacP; //!< Particle jacobian diagonal blocks (all of them for each particle type)
 	std::vector<linalg::FactorizableBandMatrix> _jacPdisc; //!< Particle jacobian diagonal blocks (all of them for each particle type) with time derivatives from BDF method
