@@ -35,8 +35,8 @@ The resulting models are solved with state-of-the-art mathematical algorithms an
 
 - **Forum:** https://forum.cadet-web.de
 - **Source:** https://github.com/cadet/cadet-core
-- **Demo:** http://cadet-web.de
-- **Newsletter:** https://cadet-web.de/newsletter/
+
+To stay up to date on CADET news, development updates, and workshops, please subscribe to our `Newsletter <http://eepurl.com/hzN4EP>`_.
 
 Features
 --------
