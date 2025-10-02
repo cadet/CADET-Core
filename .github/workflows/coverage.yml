@@ -115,12 +115,10 @@ jobs:
         run: |
           gcovr \
             --root "${{ github.workspace }}" \
-            --filter "${{ github.workspace }}/src" \
-            --filter "${{ github.workspace }}/include" \
-            --filter "$BUILD_DIR/src" \
-            --exclude '.*ThirdParty.*' \
+            --filter "${{ github.workspace }}/(src|include|build/src)" \
+            --exclude-directories '.*ThirdParty.*' \
             --cobertura -o coverage.xml \
-            --print-summary
+            --txt=-
       
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v5
