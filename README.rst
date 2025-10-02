@@ -23,8 +23,7 @@ CADET-Core
 - **Forum:** https://forum.cadet-web.de
 - **Source:** https://github.com/cadet/cadet-core
 - **Bug reports:** https://github.com/cadet/cadet-core/issues
-- **Demo:** https://www.cadet-web.de 
-- **Newsletter:** https://cadet-web.de/newsletter/
+- **Newsletter:** http://eepurl.com/hzN4EP
 
 Installation
 ------------
