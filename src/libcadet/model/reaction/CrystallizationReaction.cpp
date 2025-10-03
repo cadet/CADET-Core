@@ -1340,7 +1340,7 @@ protected:
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-	int residualLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y, ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
+	int residualFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, StateType const* y, ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
 	{
 		ResidualType B_0 = 0.0;
 		ResidualType k_g_times_s_g = 0.0;
@@ -1533,7 +1533,7 @@ protected:
 	int residualCombinedImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
 		StateType const* yLiquid, StateType const* ySolid, ResidualType* resLiquid, ResidualType* resSolid, double factor, LinearBufferAllocator workSpace) const
 	{
-		return residualLiquidImpl<StateType, ResidualType, ParamType, double>(t, secIdx, colPos, yLiquid, resLiquid, factor, workSpace);
+		return residualFluxImpl<StateType, ResidualType, ParamType, double>(t, secIdx, colPos, 0,  yLiquid, resLiquid, factor, workSpace);
 	}
 
 	template <typename RowIterator>
@@ -2396,7 +2396,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void jacobianLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, RowIterator& jac, LinearBufferAllocator workSpace) const
+	void jacobianFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y, double factor, RowIterator& jac, LinearBufferAllocator workSpace) const
 	{
 		if (_mode.hasPBM())
 		{
@@ -2630,7 +2630,7 @@ protected:
 	template <typename RowIteratorLiquid, typename RowIteratorSolid>
 	void jacobianCombinedImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, RowIteratorLiquid& jacLiquid, RowIteratorSolid& jacSolid, LinearBufferAllocator workSpace) const
 	{
-		jacobianLiquidImpl<RowIteratorLiquid>(t, secIdx, colPos, yLiquid, factor, jacLiquid, workSpace);
+		jacobianFluxImpl<RowIteratorLiquid>(t, secIdx, colPos, 0, yLiquid, factor, jacLiquid, workSpace);
 	}
 };
 
