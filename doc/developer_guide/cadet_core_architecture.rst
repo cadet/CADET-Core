@@ -110,3 +110,34 @@ where:
   - :math:`\mathbf{y}_{n}` contains the state variables of the submodel, and :math:`\frac{\partial \mathbf{y}_{n}}{\partial t}` contains its time derivatives.
 
 - The outlet concentration :math:`\mathbf{c}_{out,n,j} \ \colon (0, T_\text{end}) \mapsto \mathbb{R}^{N_{c,n}}` of port :math:`j\in\{1,\dots , N_{out,n}\}` of submodel :math:`n` is a linear function of its state vector :math:`\mathbf{y}_n`.
+
+.. _UnitOperationStateOrdering:
+
+Unit Operation state vector ordering
+------------------------------------
+
+We refer to the solution of the spatially semi-discretized unit operation model equations as *state*.
+The order of the state vector impacts performance of the solver and has to adhere to submodule interfaces, such as binding models.
+The specific order implemented for chromatography column units is given in the figures below
+
+.. _StateVectorOrder:
+.. figure:: _images/state_vector_grm2D.png
+
+
+   State vector order of the two-dimensional general rate model, and two-dimensional lumped rate model with pores :math:`(N^{\mathrm{r}}=1)`.
+
+.. _StateVectorOrder:
+.. figure:: _images/state_vector_grm.png
+
+
+   State vector order of the general rate model, lumped rate model with pores :math:`(N^{\mathrm{r}}=1)`, and Finite Bath / Tank :math:`(N^{\mathrm{z}}=1, N^{\mathrm{r}}=1)` [1]_.
+
+.. _StateVectorOrder:
+.. figure:: _images/state_vector_lrm.png
+
+
+   State vector order of model variants with non-limiting film diffusion :math:`(k^\mathrm{f}_i \to \infty)`, such as the lumped rate model without pores [1]_.
+
+.. [#] Samuel Lewekes PhD thesis, available at: https://publications.rwth-aachen.de/record/840314
+
+Note that the finite bath / tank (CSTR) unit operation has an additional first entry that defines the tank volume.

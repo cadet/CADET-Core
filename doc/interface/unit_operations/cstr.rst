@@ -105,7 +105,8 @@ For information on model equations, refer to :ref:`cstr_model`.
    
 ``INIT_STATE``
 
-   Full state vector for initialization (optional, :math:`\texttt{INIT_C}`, :math:`\texttt{INIT_CS}`, and :math:`\texttt{INIT_VOLUME}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives)
+   Full state vector for initialization (optional, :math:`\texttt{INIT_C}`, :math:`\texttt{INIT_CS}`, and :math:`\texttt{INIT_VOLUME}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives).
+   The ordering of the state vector is defined in :ref:`UnitOperationStateOrdering`.
 
    **Unit:** :math:`various`
    
