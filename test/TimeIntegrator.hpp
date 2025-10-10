@@ -22,7 +22,6 @@
 #include <unordered_map>
 
 #include "SundialsVector.hpp"
-#include <idas/idas_impl.h>
 
 #include "cadet/cadetCompilerInfo.hpp"
 

@@ -11,7 +11,6 @@
 // =============================================================================
 
 #include <idas/idas.h>
-#include <idas/idas_impl.h>
 #include "TimeIntegrator.hpp"
 
 #include <vector>
