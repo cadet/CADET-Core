@@ -51,7 +51,7 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
 
 ``NPARTYPE``
 
-   Number of particle types.
+   Number of particle types. Defaults to 0.
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1

@@ -60,6 +60,14 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
    **Type:** double  **Range:** :math:`(0,1]`  **Length:** :math:`1 / \texttt{NRAD}`
    ================  ========================  =====================================
 
+``NPARTYPE``
+
+   Number of particle types. Defaults to 0.
+   
+   =============  =========================  =============
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
+   =============  =========================  =============
+
 ``PAR_TYPE_VOLFRAC``
 
    Volume fractions of the particle types. The volume fractions can be set homogeneous or individually along both axes. For each cell, the volume fractions have to sum to 1. 
