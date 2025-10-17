@@ -58,6 +58,15 @@ Group /input/solver
    **Type:** int  **Range:** :math:`\{ 0, \dots, 7\}`  **Length:** 1
    =============  ===================================  =============
    
+``TIMEOUT``
+
+   Timeout in seconds. Simulation is aborted if wall clock time exceeds the provided value.
+   Values less than or equal :math:`0` are ignored (i.e., no timeout is applied).
+   
+   ================  ======================  =============
+   **Type:** double  **Range:** :math:`> 0`  **Length:** 1
+   ================  ======================  =============
+   
 .. _FFSolverTime:
 
 Group /solver/time_integrator
