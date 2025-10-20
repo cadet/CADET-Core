@@ -44,7 +44,8 @@ For information on model equations, refer to :ref:`multi_channel_transport_model
 
 ``INIT_STATE``
 
-   Full state vector for initialization (optional, :math:`\texttt{INIT_C}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives)
+   Full state vector for initialization (optional, :math:`\texttt{INIT_C}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives).
+   The ordering of the state vector is defined in :ref:`UnitOperationStateOrdering`, similar to 2D models but with channels instead of radial column direction.
 
    **Unit:** :math:`various`
 

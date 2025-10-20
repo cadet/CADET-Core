@@ -122,7 +122,8 @@ For information on model equations, refer to :ref:`lumped_rate_model_without_por
    
 ``VELOCITY``
 
-   Interstitial velocity of the mobile phase (optional if :math:`\texttt{CROSS_SECTION_AREA}` is present, see Section :ref:`MUOPGRMflow`)
+   Full state vector for initialization (optional, :math:`\texttt{INIT_C}`, :math:`\texttt{INIT_CP}`, and :math:`\texttt{INIT_Q}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives).
+   The ordering of the state vector is defined in :ref:`UnitOperationStateOrdering`.
 
    **Unit:** :math:`\mathrm{m}\,\mathrm{s}^{-1}`
    
