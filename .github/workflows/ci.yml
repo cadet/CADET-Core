@@ -195,10 +195,12 @@ jobs:
           make install -j$(nproc)
       - name: Check executable
         run: |
+          continue-on-error: true
+          id: test0
           export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:$LD_LIBRARY_PATH
-          ${INSTALL_PREFIX}/bin/cadet-cli --version || true
+          ${INSTALL_PREFIX}/bin/cadet-cli --version
           ${INSTALL_PREFIX}/bin/createLWE
-          ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5 || true
+          ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5
       - name: Run CI test set I - bindings
         run: |
           continue-on-error: true
@@ -262,6 +264,7 @@ jobs:
           ${BUILD_DIR}/test/testRunner [CI]
       - name: Fail job if any tests failed
         if: |
+          steps.test0.outcome == 'failure' ||
           steps.test1.outcome == 'failure' ||
           steps.test2.outcome == 'failure' ||
           steps.test3.outcome == 'failure' ||
@@ -301,7 +304,7 @@ jobs:
           make install -j$(sysctl -n hw.logicalcpu)
       - name: Check if it runs
         run: |
-          ${INSTALL_PREFIX}/bin/cadet-cli --version || true
+          ${INSTALL_PREFIX}/bin/cadet-cli --version
           ${INSTALL_PREFIX}/bin/createLWE
-          ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5 || true
+          ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5
 
