@@ -22,7 +22,6 @@
 #include <unordered_map>
 
 #include "SundialsVector.hpp"
-#include <idas/idas_impl.h>
 
 #include "cadet/cadetCompilerInfo.hpp"
 
@@ -227,6 +226,11 @@ protected:
 	unsigned int _maxConvTestFail; //!< Maximum number of Newton iteration failures
 
 	int _curSec; //!< Index of the current section
+
+	SUNLinearSolver _linearSolver; //!< Sunlinearsolver object.
+	SUNNonlinearSolver _nonlinearSolver; //!< Sunnonlinearsolver object.
+	N_Vector _linearSolverWeight; //!< Weight vector.
+	SUNContext _sunctx; //!< Idas suncontext object
 };
 
 } // namespace test
