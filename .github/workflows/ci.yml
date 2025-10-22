@@ -187,6 +187,7 @@ jobs:
             libsuperlu-dev \
             libeigen3-dev;
       - name: Build and Install
+        id: build
         run: |
           cmake -E make_directory "${BUILD_DIR}"
           cmake -E make_directory "${INSTALL_PREFIX}"
@@ -194,22 +195,19 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" "${SRC_DIR}" -DENABLE_TESTS=ON -DNUM_MAX_AD_DIRS=160
           make install -j$(nproc)
       - name: Check executable
+        if: always() && steps.build.conclusion == 'success'
         run: |
-          continue-on-error: true
-          id: test0
           export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:$LD_LIBRARY_PATH
           ${INSTALL_PREFIX}/bin/cadet-cli --version
           ${INSTALL_PREFIX}/bin/createLWE
           ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5
       - name: Run CI test set I - bindings
+        if: always() && steps.build.conclusion == 'success'
         run: |
-          continue-on-error: true
-          id: test1
           ${BUILD_DIR}/test/testRunner [CI_binding]
       - name: Run CI test set II - sensitivities
+        if: always() && steps.build.conclusion == 'success'
         run: |
-          continue-on-error: true
-          id: test2
           ${BUILD_DIR}/test/testRunner [CI_sens1]
           ${BUILD_DIR}/test/testRunner [CI_sens2]
           ${BUILD_DIR}/test/testRunner [CI_sens3]
@@ -234,9 +232,8 @@ jobs:
           ${BUILD_DIR}/test/testRunner [CI_sens23]
           ${BUILD_DIR}/test/testRunner [CI_sens24]
       - name: Run CI test set III - crystallization
+        if: always() && steps.build.conclusion == 'success'
         run: |
-          continue-on-error: true
-          id: test3
           ${BUILD_DIR}/test/testRunner [CI_cry1]
           ${BUILD_DIR}/test/testRunner [CI_cry2]
           ${BUILD_DIR}/test/testRunner [CI_cry3]
@@ -258,18 +255,10 @@ jobs:
           ${BUILD_DIR}/test/testRunner [CI_cry19]
           ${BUILD_DIR}/test/testRunner [CI_cry20]
       - name: Run CI test set IV
+        if: always() && steps.build.conclusion == 'success'
         run: |
-          continue-on-error: true
-          id: test4
           ${BUILD_DIR}/test/testRunner [CI]
-      - name: Fail job if any tests failed
-        if: |
-          steps.test0.outcome == 'failure' ||
-          steps.test1.outcome == 'failure' ||
-          steps.test2.outcome == 'failure' ||
-          steps.test3.outcome == 'failure' ||
-          steps.test4.outcome == 'failure'
-        run: exit 1
+
   MacOS:
     runs-on: macos-latest
     strategy:
