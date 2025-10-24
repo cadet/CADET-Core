@@ -192,6 +192,70 @@ namespace model
 		return model;
 	}
 
+	IUnitOperation* selectFrustumFlowColumnUnitOperation(UnitOpIdx uoId, IParameterProvider& paramProvider)
+	{
+		IUnitOperation* model = nullptr;
+
+		std::string uoType = paramProvider.getString("UNIT_TYPE");
+
+		if (uoType == "FRUSTUM_COLUMN_MODEL_1D")
+		{
+			if (paramProvider.exists("particle_type_000"))
+			{
+				paramProvider.pushScope("discretization");
+				const std::string discName = paramProvider.getString("SPATIAL_METHOD");
+				paramProvider.popScope();
+
+				if (discName == "DG")
+					LOG(Error) << "Frustum flow not implemented for DG discretization yet, was called for unit " << uoId;
+				else if (discName != "FV")
+					LOG(Error) << "Unknown bulk discretization type " << discName << " for unit " << uoId;
+
+				paramProvider.pushScope("particle_type_000");
+
+				const bool filmDiffusion = paramProvider.getBool("HAS_FILM_DIFFUSION");
+				const bool poreDiffusion = paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false;
+				const bool surfaceDiffusion = paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false;
+
+				const std::string particleType = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType();
+
+				if (particleType == "EQUILIBRIUM_PARTICLE")
+					LOG(Error) << "Frustum flow LRM not implemented, please use GRM, was called for unit " << uoId;
+				if (particleType == "HOMOGENEOUS_PARTICLE")
+					LOG(Error) << "Frustum flow LRMP not implemented, please use GRM, was called for unit " << uoId;
+				else if (particleType == "GENERAL_RATE_PARTICLE")
+					model = createFrustumFVGRM(uoId);
+
+				paramProvider.popScope();
+			}
+			else
+				model = createRadialFVLRMP(uoId); // LRMP used for npartype = 0
+		}
+		else
+		{
+			paramProvider.pushScope("discretization");
+			const std::string discName = paramProvider.getString("SPATIAL_METHOD");
+
+			if (discName == "DG")
+				LOG(Error) << "Frustum flow not implemented for DG discretization yet, was called for unit " << uoId;
+			else if (discName == "FV")
+			{
+				if (uoType == "FRUSTUM_LUMPED_RATE_MODEL_WITHOUT_PORES")
+					LOG(Error) << "Frustum flow LRM not implemented, please use GRM, was called for unit " << uoId;
+				else if (uoType == "FRUSTUM_LUMPED_RATE_MODEL_WITH_PORES")
+					LOG(Error) << "Frustum flow LRMP not implemented, please use GRM, was called for unit " << uoId;
+				else if (uoType == "FRUSTUM_GENERAL_RATE_MODEL")
+					model = createFrustumFVGRM(uoId);
+			}
+			else
+				LOG(Error) << "Unknown bulk discretization type " << discName << " for unit " << uoId;
+
+			paramProvider.popScope();
+		}
+
+		return model;
+	}
+
 	void registerColumnModel(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx, IParameterProvider&)>>& models)
 	{
 		models[ColumnModel1D::identifier()] = selectAxialFlowColumnUnitOperation;
@@ -206,12 +270,16 @@ namespace model
 
 		typedef GeneralRateModel<parts::AxialConvectionDispersionOperator> AxialGRM;
 		typedef GeneralRateModel<parts::RadialConvectionDispersionOperator> RadialGRM;
+		typedef GeneralRateModel<parts::FrustumConvectionDispersionOperator> FrustumGRM;
 
 		models[AxialGRM::identifier()] = selectAxialFlowColumnUnitOperation;
 		models["GRM"] = selectAxialFlowColumnUnitOperation;
 
 		models[RadialGRM::identifier()] = selectRadialFlowColumnUnitOperation;
 		models["RGRM"] = selectRadialFlowColumnUnitOperation;
+
+		models[FrustumGRM::identifier()] = selectFrustumFlowColumnUnitOperation;
+		models["FGRM"] = selectFrustumFlowColumnUnitOperation;
 
 		models[GeneralRateModel2D::identifier()] = selectAxialFlowColumnUnitOperation;
 		models["GRM2D"] = selectAxialFlowColumnUnitOperation;
