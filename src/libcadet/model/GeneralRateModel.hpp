@@ -51,6 +51,12 @@ namespace
 	{
 		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_GENERAL_RATE_MODEL"; }
 	};
+
+	template <>
+	struct GeneralRateModelName<cadet::model::parts::FrustumConvectionDispersionOperator>
+	{
+		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_GENERAL_RATE_MODEL"; }
+	};
 }
 
 namespace cadet
@@ -532,9 +538,11 @@ protected:
 
 extern template class GeneralRateModel<parts::AxialConvectionDispersionOperator>;
 extern template class GeneralRateModel<parts::RadialConvectionDispersionOperator>;
+extern template class GeneralRateModel<parts::FrustumConvectionDispersionOperator>;
 
 IUnitOperation* createAxialFVGRM(UnitOpIdx uoId);
 IUnitOperation* createRadialFVGRM(UnitOpIdx uoId);
+IUnitOperation* createFrustumFVGRM(UnitOpIdx uoId);
 
 } // namespace model
 } // namespace cadet
