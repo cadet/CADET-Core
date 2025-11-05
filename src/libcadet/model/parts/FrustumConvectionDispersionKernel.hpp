@@ -45,10 +45,12 @@ template <typename T>
 struct FrustumFlowParameters
 {
 	T u;
+	T colLength;
 	active const* disp;
-	active const* cellCenters; //!< Midpoints of the cells
-	active const* cellSizes; //!< Cell sizes
-	active const* cellBounds; //!< Cell boundaries
+	active const* cellCenters; //!< Coordinates of cell midpoints
+	active const* cellBounds; //!< Coordinates of cell boundaries
+	active const* cellBoundRadiusSq; //!< Radii at cell boundaries
+	active const* cellVolume; //!< Volume of cells
 	ArrayPool* stencilMemory; //!< Provides memory for the stencil
 	int strideCell;
 	unsigned int nComp;
@@ -115,24 +117,26 @@ namespace impl
 			int wenoOrder = 1;
 			const ParamType disp = static_cast<ParamType>(p.disp[comp]);
 
+			const double pi = 3.1415926535897932384626434;
+
 			// Iterate over all cells
 			for (unsigned int col = 0; col < p.nCol; ++col)
 			{
-				const ParamType denom = static_cast<ParamType>(p.cellCenters[col]) * static_cast<ParamType>(p.cellSizes[col]);
+				const ParamType preFac = pi / static_cast<ParamType>(p.cellVolume[col]);
 
 				// ------------------- Dispersion -------------------
 
 				// Right side, leave out if we're in the last cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					const double relCoord = (static_cast<double>(p.cellBounds[col+1]) - static_cast<double>(p.cellBounds[0])) / (static_cast<double>(p.cellBounds[p.nCol - 1]) - static_cast<double>(p.cellBounds[0]));
+					const double relCoord = static_cast<double>(p.cellBounds[col+1] / p.colLength);
 					const ParamType disp_right = disp * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellBounds[col+1]));
 					if(wantRes)
-						resBulkComp[col * p.strideCell] -= disp_right * static_cast<ParamType>(p.cellBounds[col+1]) / denom * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col+1]) - static_cast<ParamType>(p.cellCenters[col]));
+						resBulkComp[col * p.strideCell] -= disp_right * preFac * static_cast<ParamType>(p.cellBoundRadiusSq[col + 1]) * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col+1]) - static_cast<ParamType>(p.cellCenters[col]));
 					// Jacobian entries
 					if (wantJac)
 					{
-						const double val = static_cast<double>(disp_right) * static_cast<double>(p.cellBounds[col+1]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col+1]) - static_cast<double>(p.cellCenters[col]));
+						const double val = static_cast<double>(disp_right) * static_cast<double>(preFac) * static_cast<double>(p.cellBoundRadiusSq[col + 1]) / (static_cast<double>(p.cellCenters[col+1]) - static_cast<double>(p.cellCenters[col]));
 						jac[0] += val;
 						jac[p.strideCell] -= val;
 					}
@@ -141,14 +145,14 @@ namespace impl
 				// Left side, leave out if we're in the first cell (boundary condition)
 				if (cadet_likely(col > 0))
 				{
-					const double relCoord = (static_cast<double>(p.cellBounds[col]) - static_cast<double>(p.cellBounds[0])) / (static_cast<double>(p.cellBounds[p.nCol - 1]) - static_cast<double>(p.cellBounds[0]));
+					const double relCoord = static_cast<double>(p.cellBounds[col] / p.colLength);
 					const ParamType disp_left = disp * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellBounds[col]));
 					if(wantRes)
-						resBulkComp[col * p.strideCell] -= disp_left * static_cast<ParamType>(p.cellBounds[col]) / denom * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col]) - static_cast<ParamType>(p.cellCenters[col-1]));
+						resBulkComp[col * p.strideCell] -= disp_left * preFac * static_cast<ParamType>(p.cellBoundRadiusSq[col]) * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col]) - static_cast<ParamType>(p.cellCenters[col-1]));
 					// Jacobian entries
 					if (wantJac)
 					{
-						const double val = static_cast<double>(disp_left) * static_cast<double>(p.cellBounds[col]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col]) - static_cast<double>(p.cellCenters[col-1]));
+						const double val = static_cast<double>(disp_left) * static_cast<double>(preFac) * static_cast<double>(p.cellBoundRadiusSq[col]) / (static_cast<double>(p.cellCenters[col]) - static_cast<double>(p.cellCenters[col-1]));
 						jac[0] += val;
 						jac[-p.strideCell] -= val;
 					}
@@ -161,8 +165,8 @@ namespace impl
 				{
 					// Remember that vm still contains the reconstructed value of the previous 
 					// cell's *right* face, which is identical to this cell's *left* face!
-					if(wantRes)
-					resBulkComp[col * p.strideCell] -= p.u / denom * vm;
+					if (wantRes)
+						resBulkComp[col * p.strideCell] -= preFac * p.u * vm;
 
 					// Jacobian entries
 					if (wantJac)
@@ -170,13 +174,13 @@ namespace impl
 						for (int i = 0; i < 2 * wenoOrder - 1; ++i)
 							// Note that we have an offset of -1 here (compared to the right cell face below), since
 							// the reconstructed value depends on the previous stencil (which has now been moved by one cell)
-							jac[(i - wenoOrder) * p.strideCell] -= static_cast<double>(p.u) / static_cast<double>(denom);
+							jac[(i - wenoOrder) * p.strideCell] -= static_cast<double>(preFac) * static_cast<double>(p.u);
 					}
 				}
 				else if (wantRes)
 				{
 					// In the first cell we need to apply the boundary condition: inflow concentration
-					resBulkComp[col * p.strideCell] -= p.u / denom * y[p.offsetToInlet + comp];
+					resBulkComp[col * p.strideCell] -= preFac * p.u * y[p.offsetToInlet + comp];
 				}
 
 				// Reconstruct concentration on this cell's right face
@@ -194,13 +198,13 @@ namespace impl
 				}
 
 				// Right side
-				if(wantRes)
-				resBulkComp[col * p.strideCell] += p.u / denom * vm;
+				if (wantRes)
+					resBulkComp[col * p.strideCell] += preFac * p.u * vm;
 				// Jacobian entries
 				if (wantJac)
 				{
 					for (int i = 0; i < 2 * wenoOrder - 1; ++i)
-						jac[(i - wenoOrder + 1) * p.strideCell] += static_cast<double>(p.u) / static_cast<double>(denom);
+						jac[(i - wenoOrder + 1) * p.strideCell] += static_cast<double>(preFac) * static_cast<double>(p.u);
 				}
 
 				// Update stencil
@@ -276,25 +280,27 @@ namespace impl
 			int wenoOrder = 1;
 			const ParamType disp = static_cast<ParamType>(p.disp[comp]);
 
+			const double pi = 3.1415926535897932384626434;
+
 			// Iterate over all cells (backwards)
 			// Note that col wraps around to unsigned int's maximum value after 0
 			for (unsigned int col = p.nCol - 1; col < p.nCol; --col)
 			{
-				const ParamType denom = static_cast<ParamType>(p.cellCenters[col]) * static_cast<ParamType>(p.cellSizes[col]);
+				const ParamType preFac = pi / static_cast<ParamType>(p.cellVolume[col]);
 
 				// ------------------- Dispersion -------------------
 
 				// Right side, leave out if we're in the first cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					const double relCoord = (static_cast<double>(p.cellBounds[col + 1]) - static_cast<double>(p.cellBounds[0])) / (static_cast<double>(p.cellBounds[p.nCol - 1]) - static_cast<double>(p.cellBounds[0]));
+					const double relCoord = static_cast<double>(p.cellBounds[col + 1] / p.colLength);
 					const ParamType disp_right = disp * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellBounds[col + 1]));
 					if (wantRes)
-						resBulkComp[col * p.strideCell] -= disp_right * static_cast<ParamType>(p.cellBounds[col + 1]) / denom * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col + 1]) - static_cast<ParamType>(p.cellCenters[col]));
+						resBulkComp[col * p.strideCell] -= disp_right * preFac * static_cast<ParamType>(p.cellBoundRadiusSq[col + 1]) * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col + 1]) - static_cast<ParamType>(p.cellCenters[col]));
 					// Jacobian entries
 					if (wantJac)
 					{
-						const double val = static_cast<double>(disp_right) * static_cast<double>(p.cellBounds[col + 1]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col + 1]) - static_cast<double>(p.cellCenters[col]));
+						const double val = static_cast<double>(disp_right) * static_cast<double>(preFac) * static_cast<double>(p.cellBoundRadiusSq[col + 1]) / (static_cast<double>(p.cellCenters[col + 1]) - static_cast<double>(p.cellCenters[col]));
 						jac[0] += val;
 						jac[p.strideCell] -= val;
 					}
@@ -303,14 +309,14 @@ namespace impl
 				// Left side, leave out if we're in the last cell (boundary condition)
 				if (cadet_likely(col > 0))
 				{
-					const double relCoord = (static_cast<double>(p.cellBounds[col]) - static_cast<double>(p.cellBounds[0])) / (static_cast<double>(p.cellBounds[p.nCol - 1]) - static_cast<double>(p.cellBounds[0]));
+					const double relCoord = static_cast<double>(p.cellBounds[col] / p.colLength);
 					const ParamType disp_left = disp * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellBounds[col]));
 					if (wantRes)
-						resBulkComp[col * p.strideCell] -= disp_left * static_cast<ParamType>(p.cellBounds[col]) / denom * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col - 1]) - static_cast<ParamType>(p.cellCenters[col]));
+						resBulkComp[col * p.strideCell] -= disp_left * preFac * static_cast<ParamType>(p.cellBoundRadiusSq[col]) * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col - 1]) - static_cast<ParamType>(p.cellCenters[col]));
 					// Jacobian entries
 					if (wantJac)
 					{
-						const double val = static_cast<double>(disp_left) * static_cast<double>(p.cellBounds[col]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col - 1]) - static_cast<double>(p.cellCenters[col]));
+						const double val = static_cast<double>(disp_left) * static_cast<double>(preFac) * static_cast<double>(p.cellBoundRadiusSq[col]) / (static_cast<double>(p.cellCenters[col - 1]) - static_cast<double>(p.cellCenters[col]));
 						jac[0] += val;
 						jac[-p.strideCell] -= val;
 					}
@@ -324,7 +330,7 @@ namespace impl
 					// Remember that vm still contains the reconstructed value of the previous 
 					// cell's *left* face, which is identical to this cell's *right* face!
 					if (wantRes)
-						resBulkComp[col * p.strideCell] += p.u / denom * vm;
+						resBulkComp[col * p.strideCell] += preFac * p.u * vm;
 
 					// Jacobian entries
 					if (wantJac)
@@ -332,13 +338,13 @@ namespace impl
 						for (int i = 0; i < 2 * wenoOrder - 1; ++i)
 							// Note that we have an offset of +1 here (compared to the left cell face below), since
 							// the reconstructed value depends on the previous stencil (which has now been moved by one cell)
-							jac[(wenoOrder - i) * p.strideCell] += static_cast<double>(p.u) / static_cast<double>(denom);
+							jac[(wenoOrder - i) * p.strideCell] += static_cast<double>(preFac) * static_cast<double>(p.u);
 					}
 				}
 				else if (wantRes)
 				{
 					// In the last cell (z = L) we need to apply the boundary condition: inflow concentration
-					resBulkComp[col * p.strideCell] += p.u / denom * y[p.offsetToInlet + comp];
+					resBulkComp[col * p.strideCell] += preFac * p.u * y[p.offsetToInlet + comp];
 				}
 
 				// Reconstruct concentration on this cell's left face
@@ -357,12 +363,12 @@ namespace impl
 
 				// Left face
 				if (wantRes)
-					resBulkComp[col * p.strideCell] -= p.u / denom * vm;
+					resBulkComp[col * p.strideCell] -= preFac * p.u * vm;
 				// Jacobian entries
 				if (wantJac)
 				{
 					for (int i = 0; i < 2 * wenoOrder - 1; ++i)
-						jac[(wenoOrder - i - 1) * p.strideCell] -= static_cast<double>(p.u) / static_cast<double>(denom);
+						jac[(wenoOrder - i - 1) * p.strideCell] -= static_cast<double>(preFac) * static_cast<double>(p.u);
 				}
 
 				// Update stencil (be careful because of wrap-around, might cause reading memory very far away [although never used])

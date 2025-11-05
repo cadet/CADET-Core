@@ -307,7 +307,7 @@ public:
 	inline const active& innerRadius() const CADET_NOEXCEPT { return _innerRadius; }
 	inline const active& outerRadius() const CADET_NOEXCEPT { return _outerRadius; }
 	active currentVelocity(double pos) const CADET_NOEXCEPT;
-	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelocity >= 0.0; }
+	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelocityCoeff >= 0.0; }
 
 	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return static_cast<double>(_cellCenters[idx]); }
 	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT { return (0.5 + idx) / _nCol; }
@@ -338,11 +338,12 @@ protected:
 	active _colLength; //!< Column length \f$ L \f$
 	active _innerRadius; //!< Inner radius
 	active _outerRadius; //!< Outer radius
+	std::vector<active> _cellVolume; //!< Outer radius
 
 	// Section dependent parameters
 	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{rad}} \f$
-	std::vector<active> _velocity; //!< Radial velocity (may be section dependent) \f$ v \f$
-	active _curVelocity; //!< Current interstitial velocity \f$ u \f$ in this time section
+	std::vector<active> _velocityCoeff; //!< Velocity coefficients (may be section dependent) \f$ v \f$
+	active _curVelocityCoeff; //!< Current interstitial velocity coefficient \f$ u \f$ in this time section
 	int _dir; //!< Current flow direction in this time section
 
 	ArrayPool _stencilMemory; //!< Provides memory for the stencil
@@ -353,8 +354,10 @@ protected:
 
 	// Grid info
 	std::vector<active> _cellCenters;
-	std::vector<active> _cellSizes;
 	std::vector<active> _cellBounds;
+	std::vector<active> _cellSizes; // Cell size or length in the considered coordinate
+	std::vector<active> _cellCenterRadiusSq; // Squared column radius at the cell centers
+	std::vector<active> _cellBoundRadiusSq; // Squared column radius at the cell boundaries
 
 	// Indexer functionality
 
