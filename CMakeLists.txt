@@ -424,9 +424,8 @@ if (ENABLE_2D_MODELS)
 	)
 endif()
 
-set(EIGEN_TARGET "")
 find_package(Eigen3 REQUIRED NO_MODULE)
-
+set(EIGEN_TARGET "Eigen3::Eigen")
 
 set(IPO_AVAILABLE OFF)
 if (ENABLE_IPO)
