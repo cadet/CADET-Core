@@ -425,17 +425,8 @@ if (ENABLE_2D_MODELS)
 endif()
 
 set(EIGEN_TARGET "")
-if (ENABLE_DG)
-	find_package(Eigen3 3.4 REQUIRED NO_MODULE)
+find_package(Eigen3 REQUIRED NO_MODULE)
 
-	# Disable DG if Eigen is not present
-	if (NOT TARGET Eigen3::Eigen)
-		message(STATUS "Disabling DG support because Eigen3 could not be found")
-		set(ENABLE_DG OFF)
-	else()
-		set(EIGEN_TARGET "Eigen3::Eigen")
-	endif()
-endif()
 
 set(IPO_AVAILABLE OFF)
 if (ENABLE_IPO)
