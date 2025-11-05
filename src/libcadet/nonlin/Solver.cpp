@@ -36,7 +36,10 @@ namespace nonlin
 			return new CompositeSolver();
 
 		// Default solver
-		return new PseudoTransientContinuationSolver();
+		CompositeSolver* cs = new CompositeSolver();
+		cs->addSubsolver(new RobustAdaptiveTrustRegionNewtonSolver());
+		cs->addSubsolver(new LevenbergMarquardtSolver());
+		return cs;
 	}
 
 } // namespace nonlin
