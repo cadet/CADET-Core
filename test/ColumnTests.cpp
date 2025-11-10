@@ -924,15 +924,15 @@ namespace column
 			cadet::test::compareJacobian(unitAna, unitAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 //				cadet::test::compareJacobianFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 
-			if (jpp.getString("UNIT_TYPE").substr(0, 6) == "RADIAL")
-				{
-					// Reverse flow
-					const bool paramSet = unitAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY_COEFF"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY_COEFF"));
-					REQUIRE(paramSet);
-					// Reverse flow
-					const bool paramSet2 = unitAD->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY_COEFF"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY_COEFF"));
-					REQUIRE(paramSet2);
-				}
+			if (jpp.getString("UNIT_TYPE").substr(0, 6) == "RADIAL" || jpp.getString("UNIT_TYPE").substr(0, 7) == "FRUSTUM")
+			{
+				// Reverse flow
+				const bool paramSet = unitAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY_COEFF"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY_COEFF"));
+				REQUIRE(paramSet);
+				// Reverse flow
+				const bool paramSet2 = unitAD->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY_COEFF"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY_COEFF"));
+				REQUIRE(paramSet2);
+			}
 			else
 			{
 				// Reverse flow
