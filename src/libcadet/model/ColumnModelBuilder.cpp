@@ -261,6 +261,7 @@ namespace model
 		models[ColumnModel1D::identifier()] = selectAxialFlowColumnUnitOperation;
 		models["COLUMN_MODEL_1D"] = selectAxialFlowColumnUnitOperation;
 		models["RADIAL_COLUMN_MODEL_1D"] = selectRadialFlowColumnUnitOperation;
+		models["FRUSTUM_COLUMN_MODEL_1D"] = selectFrustumFlowColumnUnitOperation;
 
 		models[ColumnModel2D::identifier()] = selectAxialFlowColumnUnitOperation;
 		models["COLUMN_MODEL_2D"] = selectAxialFlowColumnUnitOperation;
