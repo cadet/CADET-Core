@@ -1762,10 +1762,10 @@ void FrustumConvectionDispersionOperatorBase::equidistantCells()
 	{
 		centers[i] = (i + 0.5) * dx;
 		bounds[i + 1] = (i + 1) * dx;
-		centerRadiiSq[i] = _innerRadius + centers[i] / _colLength * (_outerRadius - _innerRadius);
-		boundRadiiSq[i + 1] = _innerRadius + bounds[i + 1] / _colLength * (_outerRadius - _innerRadius);
+		centerRadiiSq[i] = _innerRadius + (centers[i] / _colLength) * (_outerRadius - _innerRadius);
 		centerRadiiSq[i] *= centerRadiiSq[i];
-		boundRadiiSq[i] *= boundRadiiSq[i];
+		boundRadiiSq[i + 1] = _innerRadius + bounds[i + 1] / _colLength * (_outerRadius - _innerRadius);
+		boundRadiiSq[i + 1] *= boundRadiiSq[i + 1];
 	}
 
 	_cellCenterRadiusSq = std::move(centerRadiiSq);
@@ -1777,7 +1777,7 @@ void FrustumConvectionDispersionOperatorBase::equidistantCells()
 
 	for (int cell = 0; cell < _nCol; cell++)
 	{
-		_cellVolume[cell] = 1.0 / 3.0 * 3.1415926535897932384626434 * _cellSizes[cell] * (_cellBounds[cell] * _cellBounds[cell] + _cellBounds[cell + 1] * _cellBounds[cell + 1] + _cellBounds[cell] * _cellBounds[cell + 1]);
+		_cellVolume[cell] = 1.0 / 3.0 * 3.1415926535897932384626434 * _cellSizes[cell] * (_cellBoundRadiusSq[cell] + _cellBoundRadiusSq[cell + 1] + sqrt(_cellBoundRadiusSq[cell]) * sqrt(_cellBoundRadiusSq[cell + 1]));
 	}
 }
 
