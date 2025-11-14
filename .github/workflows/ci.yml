@@ -197,6 +197,7 @@ jobs:
       - name: Check executable
         if: always() && steps.build.conclusion == 'success'
         run: |
+          set -e
           export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:$LD_LIBRARY_PATH
           ${INSTALL_PREFIX}/bin/cadet-cli --version
           ${INSTALL_PREFIX}/bin/createLWE
@@ -208,52 +209,38 @@ jobs:
       - name: Run CI test set II - sensitivities
         if: always() && steps.build.conclusion == 'success'
         run: |
-          ${BUILD_DIR}/test/testRunner [CI_sens1]
-          ${BUILD_DIR}/test/testRunner [CI_sens2]
-          ${BUILD_DIR}/test/testRunner [CI_sens3]
-          ${BUILD_DIR}/test/testRunner [CI_sens4]
-          ${BUILD_DIR}/test/testRunner [CI_sens5]
-          ${BUILD_DIR}/test/testRunner [CI_sens6]
-          ${BUILD_DIR}/test/testRunner [CI_sens7]
-          ${BUILD_DIR}/test/testRunner [CI_sens8]
-          ${BUILD_DIR}/test/testRunner [CI_sens9]
-          ${BUILD_DIR}/test/testRunner [CI_sens11]
-          ${BUILD_DIR}/test/testRunner [CI_sens12]
-          ${BUILD_DIR}/test/testRunner [CI_sens13]
-          ${BUILD_DIR}/test/testRunner [CI_sens14]
-          ${BUILD_DIR}/test/testRunner [CI_sens15]
-          ${BUILD_DIR}/test/testRunner [CI_sens16]
-          ${BUILD_DIR}/test/testRunner [CI_sens17]
-          ${BUILD_DIR}/test/testRunner [CI_sens18]
-          ${BUILD_DIR}/test/testRunner [CI_sens19]
-          ${BUILD_DIR}/test/testRunner [CI_sens20]
-          ${BUILD_DIR}/test/testRunner [CI_sens21]
-          ${BUILD_DIR}/test/testRunner [CI_sens22]
-          ${BUILD_DIR}/test/testRunner [CI_sens23]
-          ${BUILD_DIR}/test/testRunner [CI_sens24]
+          failed=0
+          failed_tests=()
+          for i in {1..24}; do
+            if ! ${BUILD_DIR}/test/testRunner "[CI_sens${i}]"; then
+                echo -e "::error::Test [CI_sens${i}] failed\n"
+
+                failed=1
+                failed_tests+=("[CI_sens${i}]")
+            fi
+          done
+          if [ $failed -ne 0 ]; then
+            echo "Failed tests: ${failed_tests[*]}"
+          fi
+          exit $failed
       - name: Run CI test set III - crystallization
         if: always() && steps.build.conclusion == 'success'
         run: |
-          ${BUILD_DIR}/test/testRunner [CI_cry1]
-          ${BUILD_DIR}/test/testRunner [CI_cry2]
-          ${BUILD_DIR}/test/testRunner [CI_cry3]
-          ${BUILD_DIR}/test/testRunner [CI_cry4]
-          ${BUILD_DIR}/test/testRunner [CI_cry5]
-          ${BUILD_DIR}/test/testRunner [CI_cry6]
-          ${BUILD_DIR}/test/testRunner [CI_cry7]
-          ${BUILD_DIR}/test/testRunner [CI_cry8]
-          ${BUILD_DIR}/test/testRunner [CI_cry9]
-          ${BUILD_DIR}/test/testRunner [CI_cry10]
-          ${BUILD_DIR}/test/testRunner [CI_cry11]
-          ${BUILD_DIR}/test/testRunner [CI_cry12]
-          ${BUILD_DIR}/test/testRunner [CI_cry13]
-          ${BUILD_DIR}/test/testRunner [CI_cry14]
-          ${BUILD_DIR}/test/testRunner [CI_cry15]
-          ${BUILD_DIR}/test/testRunner [CI_cry16]
-          ${BUILD_DIR}/test/testRunner [CI_cry17]
-          ${BUILD_DIR}/test/testRunner [CI_cry18]
-          ${BUILD_DIR}/test/testRunner [CI_cry19]
-          ${BUILD_DIR}/test/testRunner [CI_cry20]
+          failed=0
+          failed_tests=()
+          for i in {1..20}; do
+            if ! ${BUILD_DIR}/test/testRunner "[CI_cry${i}]"; then
+                echo -e "::error::Test [CI_cry${i}] failed\n"
+
+                failed=1
+                failed_tests+=("[CI_cry${i}]")
+            fi
+          done
+          if [ $failed -ne 0 ]; then
+            echo "Failed tests: ${failed_tests[*]}"
+          fi
+
+          exit $failed
       - name: Run CI test set IV
         if: always() && steps.build.conclusion == 'success'
         run: |
