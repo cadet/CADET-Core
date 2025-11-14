@@ -77,10 +77,12 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 		config["NCHANNEL"] = 1;
 
 	// Geometry
-	if (uoType.substr(0, 6) == "RADIAL")
+	if (uoType.substr(0, 6) == "RADIAL" || uoType.substr(0, 7) == "FRUSTUM")
 	{
 		config["COL_RADIUS_INNER"] = 0.001;
 		config["COL_RADIUS_OUTER"] = 0.004;
+		if (uoType.substr(0, 7) == "FRUSTUM")
+			config["COL_LENGTH"] = 0.01;
 		config["VELOCITY_COEFF"] = 5.75e-4;
 	}
 	else
@@ -286,10 +288,12 @@ json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(cons
 		config["NCHANNEL"] = 3;
 
 	// Geometry
-	if (uoType.substr(0, 6) == "RADIAL")
+	if (uoType.substr(0, 6) == "RADIAL" || uoType.substr(0, 7) == "FRUSTUM")
 	{
 		config["COL_RADIUS_INNER"] = 0.001;
 		config["COL_RADIUS_OUTER"] = 0.004;
+		if (uoType.substr(0, 7) == "FRUSTUM")
+			config["COL_LENGTH"] = 0.01;
 		config["VELOCITY_COEFF"] = 5.75e-4;
 	}
 	else
@@ -429,10 +433,12 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 		config["NCHANNEL"] = 3;
 
 	// Geometry
-	if (uoType.substr(0, 6) == "RADIAL")
+	if (uoType.substr(0, 6) == "RADIAL" || uoType.substr(0, 7) == "FRUSTUM")
 	{
 		config["COL_RADIUS_INNER"] = 0.001;
 		config["COL_RADIUS_OUTER"] = 0.004;
+		if (uoType.substr(0, 7) == "FRUSTUM")
+			config["COL_LENGTH"] = 0.01;
 		config["VELOCITY_COEFF"] = 5.75e-4;
 	}
 	else
@@ -810,11 +816,13 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 				grm["NCHANNEL"] = 3;
 
 			// Geometry
-			if (uoType.substr(0, 6) == "RADIAL")
+			if (uoType.substr(0, 6) == "RADIAL" || uoType.substr(0, 7) == "FRUSTUM")
 			{
 				grm["COL_RADIUS_INNER"] = 0.001;
 				grm["COL_RADIUS_OUTER"] = 0.004;
-				grm["VELOCITY_COEFF"] = 5.75e-4;
+				if (uoType.substr(0, 7) == "FRUSTUM")
+					config["COL_LENGTH"] = 0.01;
+				config["VELOCITY_COEFF"] = 5.75e-4;
 			}
 			else
 			{
@@ -1119,10 +1127,12 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 		grm["NCHANNEL"] = 3;
 
 	// Geometry
-	if (uoType.substr(0, 6) == "RADIAL")
+	if (uoType.substr(0, 6) == "RADIAL" || uoType.substr(0, 7) == "FRUSTUM")
 	{
 		grm["COL_RADIUS_INNER"] = 0.001;
 		grm["COL_RADIUS_OUTER"] = 0.004;
+		if (uoType.substr(0, 7) == "FRUSTUM")
+			grm["COL_LENGTH"] = 0.01;
 		grm["VELOCITY_COEFF"] = 5.75e-4;
 	}
 	else
