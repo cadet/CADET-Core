@@ -1,0 +1,61 @@
+name: TestRunner
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Commit hash, branch name, or tag to run the CI pipeline for'
+        required: false
+        default: 'master'
+      test_filter:
+        description: 'testRunner arguments'
+        required: false
+        default: '[CI]'
+
+jobs:
+  Ubuntu-latest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      SRC_DIR: ${{ github.workspace }}/src
+      BUILD_DIR: ${{ github.workspace }}/build
+      INSTALL_PREFIX: ${{ github.workspace }}/install
+      BUILD_TYPE: Release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          path: src
+          ref: ${{ github.event.inputs.ref || github.ref }}
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt -y install \
+            build-essential \
+            libhdf5-dev \
+            liblapack-dev \
+            libblas-dev \
+            libtbb-dev \
+            libsuperlu-dev \
+            libeigen3-dev;
+      - name: Build and Install
+        id: build
+        run: |
+          cmake -E make_directory "${BUILD_DIR}"
+          cmake -E make_directory "${INSTALL_PREFIX}"
+          cd "${BUILD_DIR}"
+          cmake -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" "${SRC_DIR}" -DENABLE_TESTS=ON -DNUM_MAX_AD_DIRS=160
+          make install -j$(nproc)
+      - name: Check executable
+        if: always() && steps.build.conclusion == 'success'
+        run: |
+          export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:$LD_LIBRARY_PATH
+          ${INSTALL_PREFIX}/bin/cadet-cli --version
+          ${INSTALL_PREFIX}/bin/createLWE
+          ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5
+      - name: Run testRunner
+        if: always() && steps.build.conclusion == 'success'
+        run: |
+          ${BUILD_DIR}/test/testRunner "${{github.event.inputs.test_filter}}"
