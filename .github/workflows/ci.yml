@@ -202,6 +202,7 @@ jobs:
           ${INSTALL_PREFIX}/bin/cadet-cli --version
           ${INSTALL_PREFIX}/bin/createLWE
           ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5
+          (( 1 == 1 ))
       - name: Run CI test set I - bindings
         if: always() && steps.build.conclusion == 'success'
         run: |

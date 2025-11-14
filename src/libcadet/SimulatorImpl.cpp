@@ -19,9 +19,12 @@
 #include "ParamIdUtil.hpp"
 #include "SimulationTypes.hpp"
 
-#include <idas/idas.h>
-#include <idas/idas_impl.h>
 #include "SundialsVector.hpp"
+#include <idas/idas.h>
+#include <idas/idas_ls.h>
+#include <sundials/sundials_matrix.h>
+#include <sunmatrix/sunmatrix_dense.h>
+#include <sunnonlinsol/sunnonlinsol_newton.h>
 
 #include <vector>
 #include <sstream>
@@ -186,7 +189,7 @@ namespace cadet
 	 * @brief IDAS error handler function
 	 * @details Handles errors reported by the IDAS solver. See section 4.6.2 of the IDAS manual for details.
 	 */
-	void idasErrorHandler(int error_code, const char* module, const char* function, char* msg, void* eh_data)
+	void idasErrorHandler(int line, const char* function, const char* module, const char* msg, int error_code, void* eh_data, SUNContext _sct)
 	{
 //		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(eh_data);
 
@@ -223,9 +226,10 @@ namespace cadet
 			cadet::AdJacobianParams{sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections()});
 	}
 
-	int jacobianUpdateWrapper(IDAMem IDA_mem, N_Vector y, N_Vector yDot, N_Vector res, N_Vector tempv1, N_Vector tempv2, N_Vector tempv3)
+	/*
+	int jacobianUpdateWrapper(N_Vector y, N_Vector yDot, N_Vector res, N_Vector tempv1, N_Vector tempv2, N_Vector tempv3, void* userData)
 	{
-		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(IDA_mem->ida_lmem);
+		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(userData);
 		const double t = IDA_mem->ida_tn;
 		const unsigned int secIdx = sim->getCurrentSection(t);
 
@@ -234,7 +238,8 @@ namespace cadet
 		return sim->_model->jacobian(cadet::SimulationTime{ t, secIdx }, cadet::ConstSimulationState{ NVEC_DATA(y), NVEC_DATA(yDot) }, NVEC_DATA(tempv1),
 			cadet::AdJacobianParams{ sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections() });
 	}
-
+	*/
+	
 	/**
 	* @brief Change the error weights in the state vector
 	* @details This sets the error weight to 0 for the network coupling equations, duplicated inlets
@@ -316,21 +321,6 @@ namespace cadet
 */
 
 	/**
-	* @brief IDAS wrapper function to call the model's linearSolve() method
-	*/
-	int linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector y, N_Vector yDot, N_Vector res)
-	{
-		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(IDA_mem->ida_lmem);
-		const double t = IDA_mem->ida_tn;
-		const double alpha = IDA_mem->ida_cj;
-		const double tol = IDA_mem->ida_epsNewt;
-
-		LOG(Trace) << "==> Solve at t = " << t << " alpha = " << alpha << " tol = " << tol;
-
-		return sim->_model->linearSolve(t, alpha, tol, NVEC_DATA(rhs), NVEC_DATA(weight), cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)});
-	}
-
-	/**
 	* @brief IDAS wrapper function to call the model's residualSensFwd() method
 	*/
 	int residualSensWrapper(int ns, double t, N_Vector y, N_Vector yDot, N_Vector res,
@@ -361,13 +351,84 @@ namespace cadet
 			sensY, sensYdot, sensRes, sim->_vecADres, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
 	}
 
+	SUNLinearSolver_ID linearSolverGetId(SUNLinearSolver)
+	{
+		return SUNLINEARSOLVER_CUSTOM;
+	}
+
+	SUNLinearSolver_Type linearSolverGetType(SUNLinearSolver)
+	{
+		return SUNLINEARSOLVER_MATRIX_EMBEDDED;
+
+		//		return SUNLINEARSOLVER_DIRECT;
+	}
+
+	int linearSolverInitialize(SUNLinearSolver)
+	{
+		return 0;
+	}
+
+	int linearSolverSetup(SUNLinearSolver, SUNMatrix)
+	{
+		return 0;
+	}
+
+	int linearSolverSetATimes(SUNLinearSolver, void*, SUNATimesFn)
+	{
+		return 0;
+	}
+
+	int linearSolverNumIters(SUNLinearSolver)
+	{
+		return 1;
+	}
+
+	N_Vector linearSolverResidual(SUNLinearSolver)
+	{
+		return nullptr;
+	}
+
+	int linearSolverJacobian(double t, double c_j, N_Vector y, N_Vector yp, N_Vector r, SUNMatrix Jac, void* user_data, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3)
+	{
+		return 0;
+	}
+
+	int linearSolverSolve(SUNLinearSolver ls, SUNMatrix, N_Vector x, N_Vector rhs, double tol)
+	{
+		//	int linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector y, N_Vector yDot, N_Vector res)
+		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(ls->content);
+
+		double t;
+		double alpha;
+		N_Vector y;
+		N_Vector yDot;
+		N_Vector unused1;
+		N_Vector unused2;
+		N_Vector unused3;
+		void* unused4;
+		IDAGetErrWeights(sim->_idaMemBlock, sim->_linearSolverWeight);
+		IDAGetNonlinearSystemData(sim->_idaMemBlock, &t, &unused1, &unused2, &y, &yDot, &unused3, &alpha, &unused4);
+		//		const double alpha = IDA_mem->a_epsNewt;
+		LOG(Trace) << "==> Solve at t = " << t << " alpha = " << alpha << " tol = " << tol;
+
+		return sim->_model->linearSolve(t, alpha, tol, NVEC_DATA(rhs), NVEC_DATA(sim->_linearSolverWeight), cadet::ConstSimulationState{ NVEC_DATA(y), NVEC_DATA(yDot) });
+	}
+
+	int linearSolverSetScalingVectors(SUNLinearSolver ls, N_Vector weight, N_Vector)
+	{
+		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(ls->content);
+		sim->_linearSolverWeight = weight;
+		return 0;
+	}
+
+
 	Simulator::Simulator() : _model(nullptr), _solRecorder(nullptr), _idaMemBlock(nullptr), _vecStateY(nullptr),
 		_vecStateYdot(nullptr), _vecFwdYs(nullptr), _vecFwdYsDot(nullptr),
 		_relTolS(1.0e-9), _absTol(1, 1.0e-12), _relTol(1.0e-9), _initStepSize(1, 1.0e-6), _maxSteps(10000), _maxStepSize(0.0),
 		_nThreads(0), _sensErrorTestEnabled(true), _maxNewtonIter(4), _maxErrorTestFail(10), _maxConvTestFail(10),
 		_maxNewtonIterSens(4), _curSec(0), _skipConsistencyStateY(false), _skipConsistencySensitivity(false),
 		_consistentInitMode(ConsistentInitialization::Full), _consistentInitModeSens(ConsistentInitialization::Full),
-		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr)
+		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr), _linearSolver(nullptr), _nonlinearSolver(nullptr), _linearSolverWeight(nullptr), _sunctx(nullptr)
 	{
 #if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 		LOG(Debug) << "Resetting AD directions from " << ad::getDirections() << " to default " << ad::getMaxDirections();
@@ -396,9 +457,16 @@ namespace cadet
 			NVec_Destroy(_vecStateYdot);
 		if (_vecStateY)
 			NVec_Destroy(_vecStateY);
-
+		
+		if (_linearSolver)
+			SUNLinSolFreeEmpty(_linearSolver);
+		
 		if (_idaMemBlock)
 			IDAFree(&_idaMemBlock);
+
+		if (_sunctx) {
+			SUNContext_Free(&_sunctx);
+		}
 	}
 
 	void Simulator::initializeModel(IModelSystem& model)
@@ -410,9 +478,11 @@ namespace cadet
 		_model = reinterpret_cast<ISimulatableModel*>(&model);
 
 		// Allocate and initialize state vectors
+		SUNContext_Create(SUN_COMM_NULL, &_sunctx);
 		const unsigned int nDOFs = _model->numDofs();
-		_vecStateY = NVec_New(nDOFs);
-		_vecStateYdot = NVec_New(nDOFs);
+		_vecStateY = NVec_New(nDOFs, _sunctx);
+		_vecStateYdot = NVec_New(nDOFs, _sunctx);
+		_linearSolverWeight = NVec_New(nDOFs, _sunctx);
 
 		// Propagate section times if available
 		if (_sectionTimes.size() > 0)
@@ -435,11 +505,14 @@ namespace cadet
 		NVec_Const(0.0, _vecStateY);
 		NVec_Const(0.0, _vecStateYdot);
 
+		_linearSolver = SUNLinSolNewEmpty(_sunctx);
+		_nonlinearSolver = SUNNonlinSol_Newton(_vecStateY, _sunctx);
+
 		// Create IDAS internal memory
-		_idaMemBlock = IDACreate();
+		_idaMemBlock = IDACreate(_sunctx);
 
 		// IDAS Step 4.1: Specify error handler function
-		IDASetErrHandlerFn(_idaMemBlock, &idasErrorHandler, this);
+		SUNContext_PushErrHandler(_sunctx, &idasErrorHandler, this);
 
 		// IDAS Step 5: Initialize the solver
 		_model->applyInitialCondition(SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
@@ -455,31 +528,50 @@ namespace cadet
 
 		// IDAS Step 7.1: Set optional inputs
 
+		// Specify the linear solver.
+
+
+
+		_linearSolver->content = this;
+		_linearSolver->ops->gettype = linearSolverGetType;
+//		_linearSolver->ops->initialize = linearSolverInitialize;
+//		_linearSolver->ops->getid = linearSolverGetId;
+//		_linearSolver->ops->setup = linearSolverSetup;
+		_linearSolver->ops->solve = linearSolverSolve;
+//		_linearSolver->ops->setatimes = linearSolverSetATimes;
+//		_linearSolver->ops->numiters = linearSolverNumIters;
+//		_linearSolver->ops->resid = linearSolverResidual;
+//		_linearSolver->ops->setscalingvectors = linearSolverSetScalingVectors;
+		
+//		IDAMem IDA_mem = static_cast<IDAMem>(_idaMemBlock);
+
+//		IDA_mem->ida_lsolve         = &linearSolveWrapper;
+//		IDA_mem->ida_lmem           = this;
+//		IDA_mem->ida_linit          = nullptr;
+//		IDA_mem->ida_lsetup         = _modifiedNewton ? &jacobianUpdateWrapper : nullptr;
+//		IDA_mem->ida_lperf          = nullptr;
+//		IDA_mem->ida_lfree          = nullptr;
+//		IDA_mem->ida_efun           = &weightWrapper;
+//		IDA_mem->ida_user_efun      = 1;
+//#if CADET_SUNDIALS_IFACE <= 2
+//		IDA_mem->ida_setupNonNull   = false;
+//#endif
+
+		// Attach user data structure
+		IDASetUserData(_idaMemBlock, this);
+
+
 		// Set time integrator parameters
 		IDASetMaxNumSteps(_idaMemBlock, _maxSteps);
 		IDASetMaxStep(_idaMemBlock, _maxStepSize);
 		IDASetMaxNonlinIters(_idaMemBlock, _maxNewtonIter);
 		IDASetMaxErrTestFails(_idaMemBlock, _maxErrorTestFail);
 		IDASetMaxConvFails(_idaMemBlock, _maxConvTestFail);
-		IDASetSensMaxNonlinIters(_idaMemBlock, _maxNewtonIterSens);
 
-		// Specify the linear solver.
-		IDAMem IDA_mem = static_cast<IDAMem>(_idaMemBlock);
 
-		IDA_mem->ida_lsolve         = &linearSolveWrapper;
-		IDA_mem->ida_lmem           = this;
-		IDA_mem->ida_linit          = nullptr;
-		IDA_mem->ida_lsetup         = _modifiedNewton ? &jacobianUpdateWrapper : nullptr;
-		IDA_mem->ida_lperf          = nullptr;
-		IDA_mem->ida_lfree          = nullptr;
-//		IDA_mem->ida_efun           = &weightWrapper;
-//		IDA_mem->ida_user_efun      = 1;
-#if CADET_SUNDIALS_IFACE <= 2
-		IDA_mem->ida_setupNonNull   = false;
-#endif
+		IDASetLinearSolver(_idaMemBlock, _linearSolver, nullptr);
+		IDASetNonlinearSolver(_idaMemBlock, _nonlinearSolver);
 
-		// Attach user data structure
-		IDASetUserData(_idaMemBlock, this);
 
 		// Allocate memory for AD if required
 		if (_model->usesAD())
@@ -499,7 +591,7 @@ namespace cadet
 			if (!_model)
 				return;
 
-			N_Vector absTolTemp = NVec_New(_model->numDofs());
+			N_Vector absTolTemp = NVec_New(_model->numDofs(), _sunctx);
 			const unsigned int pureDofs = _model->numPureDofs();
 
 			// Check whether user has given us full absolute error for all (pure) DOFs
@@ -564,6 +656,9 @@ namespace cadet
 
 		// Activate sensitivity error control
 		IDASetSensErrCon(_idaMemBlock, _sensErrorTestEnabled);
+
+		// Set Maximum of Sens Non lin Iters
+		IDASetSensMaxNonlinIters(_idaMemBlock, _maxNewtonIterSens);
 	}
 
 	void Simulator::initializeFwdSensitivities()
