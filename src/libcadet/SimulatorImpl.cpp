@@ -227,9 +227,9 @@ namespace cadet
 	}
 
 	/*
-	int jacobianUpdateWrapper(IDAMem IDA_mem, N_Vector y, N_Vector yDot, N_Vector res, N_Vector tempv1, N_Vector tempv2, N_Vector tempv3)
+	int jacobianUpdateWrapper(N_Vector y, N_Vector yDot, N_Vector res, N_Vector tempv1, N_Vector tempv2, N_Vector tempv3, void* userData)
 	{
-		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(IDA_mem->ida_lmem);
+		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(userData);
 		const double t = IDA_mem->ida_tn;
 		const unsigned int secIdx = sim->getCurrentSection(t);
 
@@ -239,6 +239,7 @@ namespace cadet
 			cadet::AdJacobianParams{ sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections() });
 	}
 	*/
+	
 	/**
 	* @brief Change the error weights in the state vector
 	* @details This sets the error weight to 0 for the network coupling equations, duplicated inlets
@@ -357,8 +358,8 @@ namespace cadet
 
 	SUNLinearSolver_Type linearSolverGetType(SUNLinearSolver)
 	{
-		//      return SUNLINEARSOLVER_MATRIX_EMBEDDED;
-		return SUNLINEARSOLVER_ITERATIVE;
+		return SUNLINEARSOLVER_MATRIX_EMBEDDED;
+
 		//		return SUNLINEARSOLVER_DIRECT;
 	}
 
@@ -405,6 +406,7 @@ namespace cadet
 		N_Vector unused2;
 		N_Vector unused3;
 		void* unused4;
+		IDAGetErrWeights(sim->_idaMemBlock, sim->_linearSolverWeight);
 		IDAGetNonlinearSystemData(sim->_idaMemBlock, &t, &unused1, &unused2, &y, &yDot, &unused3, &alpha, &unused4);
 		//		const double alpha = IDA_mem->a_epsNewt;
 		LOG(Trace) << "==> Solve at t = " << t << " alpha = " << alpha << " tol = " << tol;
@@ -480,6 +482,7 @@ namespace cadet
 		const unsigned int nDOFs = _model->numDofs();
 		_vecStateY = NVec_New(nDOFs, _sunctx);
 		_vecStateYdot = NVec_New(nDOFs, _sunctx);
+		_linearSolverWeight = NVec_New(nDOFs, _sunctx);
 
 		// Propagate section times if available
 		if (_sectionTimes.size() > 0)
@@ -531,17 +534,14 @@ namespace cadet
 
 		_linearSolver->content = this;
 		_linearSolver->ops->gettype = linearSolverGetType;
-		_linearSolver->ops->initialize = linearSolverInitialize;
-		_linearSolver->ops->getid = linearSolverGetId;
-		_linearSolver->ops->setup = linearSolverSetup;
+//		_linearSolver->ops->initialize = linearSolverInitialize;
+//		_linearSolver->ops->getid = linearSolverGetId;
+//		_linearSolver->ops->setup = linearSolverSetup;
 		_linearSolver->ops->solve = linearSolverSolve;
-		_linearSolver->ops->setatimes = linearSolverSetATimes;
-		_linearSolver->ops->numiters = linearSolverNumIters;
-		_linearSolver->ops->resid = linearSolverResidual;
-		_linearSolver->ops->setscalingvectors = linearSolverSetScalingVectors;
-		
-		IDASetLinearSolver(_idaMemBlock, _linearSolver, nullptr);
-		IDASetNonlinearSolver(_idaMemBlock, _nonlinearSolver);
+//		_linearSolver->ops->setatimes = linearSolverSetATimes;
+//		_linearSolver->ops->numiters = linearSolverNumIters;
+//		_linearSolver->ops->resid = linearSolverResidual;
+//		_linearSolver->ops->setscalingvectors = linearSolverSetScalingVectors;
 		
 //		IDAMem IDA_mem = static_cast<IDAMem>(_idaMemBlock);
 
@@ -568,6 +568,9 @@ namespace cadet
 		IDASetMaxErrTestFails(_idaMemBlock, _maxErrorTestFail);
 		IDASetMaxConvFails(_idaMemBlock, _maxConvTestFail);
 
+
+		IDASetLinearSolver(_idaMemBlock, _linearSolver, nullptr);
+		IDASetNonlinearSolver(_idaMemBlock, _nonlinearSolver);
 
 
 		// Allocate memory for AD if required
