@@ -841,7 +841,7 @@ void RadialConvectionDispersionOperatorBase::setFlowRates(const active& in, cons
 
 	// If we have column length, interstitial velocity is given by network flow rates
 	if (_colLength > 0.0)
-		_curVelocity = _dir * in / (2.0 * pi * _colLength * colPorosity);
+		_curVelocity = _dir * in / (2.0 * pi * _colLength * colPorosity); // this coefficient is later divided by r
 }
 
 active RadialConvectionDispersionOperatorBase::currentVelocity(double pos) const CADET_NOEXCEPT
@@ -1395,7 +1395,7 @@ void FrustumConvectionDispersionOperatorBase::setFlowRates(const active& in, con
 {
 	const double pi = 3.1415926535897932384626434;
 
-	_curVelocityCoeff = _dir * in / (pi * colPorosity);
+	_curVelocityCoeff = _dir * in / (pi * colPorosity); // this coefficient is later divided by r^2
 }
 
 active FrustumConvectionDispersionOperatorBase::currentVelocity(double pos) const CADET_NOEXCEPT
