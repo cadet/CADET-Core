@@ -2121,7 +2121,7 @@
       "INIT_STEP_SIZE": 1e-06,
       "MAX_STEPS": 1000000,
       "RELTOL": 1e-08,
-      "USE_MODIFIED_NEWTON": 0
+      "USE_MODIFIED_NEWTON": 1
     }
   }
 }

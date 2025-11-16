@@ -1125,12 +1125,13 @@
                 10.0
             ]
         },
-        "time_integrator": {
-            "ABSTOL": 1e-06,
-            "ALGTOL": 1e-10,
-            "INIT_STEP_SIZE": 1e-06,
-            "MAX_STEPS": 1000000,
-            "RELTOL": 1e-06
-        }
+      "time_integrator": {
+        "USE_MODIFIED_NEWTON": 0,
+        "ABSTOL": 1e-06,
+        "ALGTOL": 1e-10,
+        "INIT_STEP_SIZE": 1e-06,
+        "MAX_STEPS": 1000000,
+        "RELTOL": 1e-06
+      }
     }
 }
