@@ -102,6 +102,9 @@ include(FeatureSummary)
 option(ENABLE_LOGGING "Enables logging" ON)
 add_feature_info(ENABLE_LOGGING ENABLE_LOGGING "Enables logging")
 
+option(ENABLE_CADETTEST_LOGGING "Enable logging for CadetTest" OFF)
+add_feature_info(ENABLE_CADETTEST_LOGGING ENABLE_CADETTEST_LOGGING "Enables logging in Testsets")
+
 option(ENABLE_BENCHMARK "Enables benchmark mode (fine-grained timing)" OFF)
 add_feature_info(ENABLE_BENCHMARK ENABLE_BENCHMARK "Enables benchmark mode (fine-grained timing)")
 
