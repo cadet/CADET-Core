@@ -68,6 +68,12 @@ public:
 	 */
 	virtual model::IBindingModel* createBindingModel(const std::string& name) const = 0;
 
+	/**
+	 * @brief Creates an IExchange object of the given @p name
+	 * @details The caller owns the returned IExchange object.
+	 * @param [in] name Name of the IExchange object
+	 * @return Object of the given IExchange @p name or @c nullptr if that name does not exist
+	 */
 	virtual model::IExchangeModel* createExchangeModel(const std::string& name) const = 0;
 
 	/**

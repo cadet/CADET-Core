@@ -115,6 +115,21 @@ For information on model equations, refer to :ref:`multi_channel_transport_model
    **Type:** int  **Range:** :math:`\{0, \dots, 3 \}`  **Length:** 1
    =============  ===================================  =============
 
+``EXCHANGE_TYPE``
+
+   Type of exchange model to be used (optional)
+
+   **Unit:** N/A
+
+   Specifies the exchange model to be applied for inter-channel transport. Possible values are:
+
+   - `LINEAR_EX`: Linear Exchange model (default)
+   - `LANGMUIR_EX`: Langmuir Exchange model
+
+   ===================  ===================================  ==============
+   **Type:** string     **Range:** {LANGMUIR_EX, LINEAR_EX}   **Length:** 1
+   ===================  ===================================  ==============
+
 ``EXCHANGE_MATRIX``
 
    Exchange matrix
@@ -137,10 +152,27 @@ For information on model equations, refer to :ref:`multi_channel_transport_model
   - :math:`\texttt{SENS_BOUNDPHASE}` *Channel from*
   - :math:`\texttt{SENS_PARTYPE}` *Channel to*
 
-   ================  ========================  ===============================================
+   ================  ========================  =====================================================================
    **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`\texttt{NCHANNEL}*\texttt{NCHANNEL}*\texttt{NCOMP}`
-   ================  ========================  ===============================================
+   ================  ========================  =====================================================================
 
+
+``SATURATION_MATRIX``
+   Maximum exchange saturation matrix (optional)
+   Only when using the Langmuir Exchange model.
+
+   **Unit:** :math:`mol~m_{channel}^{-3}`
+
+   Matrix containing maximum saturation levels :math:`q_{max,i}^{k}` for each component :math:`i` in each channel :math:`k`.
+   This parameter determines the saturation limit for the Langmuir-type exchange kinetics.
+
+   - If :math:`q_{max,i}^{k} = 0` the corresponding exchange flux will reduce to the linear exchange model.
+   - If :math:`q_{max,i}^{k} < 0` the model will describe an Anti-Langmuir behavior.
+
+   ===================  =============================  ===============================================================
+   **Type:** double     **Range:** :math:`\mathbb{R}`   **Length:** :math:`\texttt{NCHANNEL}*\texttt{NCOMP}`
+   ===================  =============================  ===============================================================
+   
 ``NCHANNEL``
 
    Number of channels :math:`ij`
@@ -202,4 +234,4 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE = MULTI_CHANNEL_TRANSPORT
    **Type:** string  **Range:** :math:`\texttt{WENO}`  **Length:** 1
    ================  ================================  =============
 
-For further discretization parameters, see also :ref:`flux_reconstruction_methods` (FV specific)), and :ref:`non_consistency_solver_parameters`.
+For further discretization parameters, see also :ref:`flux_reconstruction_methods` (FV specific), and :ref:`non_consistency_solver_parameters`.
