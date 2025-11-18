@@ -8,16 +8,10 @@ There it is used to determine transport and storage parameters of radioactive la
 The model represents main functions of vascular transport pathways: axial transport of the tracer, diffusion in axial direction, lateral exchange between compartments and storage of tracer in compartments.
 Here, the axial direction represents the length of the stem of the plant and the lateral dimension its cross section. In the MCT context, the compartments of the model class are also referred to as channels.
 
-The same model equations arise in describing other biological and technical processes outside of the field of plant sciences, where solutes are transported and exchanged between spatially separated compartments,
-for example liquid-liquid chromatography (LLC). Here, components in a mixture are separated based on their interactions with two immiscible phases of a biphasic solvent system :cite:`Morley2020`.
+The same model equations arise in describing other biological and technical processes outside of the field of plant sciences, where solutes are transported and exchanged between spatially separated compartments, for example liquid-liquid chromatography (LLC).
+Here, components in a mixture are separated based on their interactions with two immiscible phases of a biphasic solvent system :cite:`Morley2020`.
+
 The MCT model equations are given for all channels :math:`l \in \{1, \dots, N_k\}` and components :math:`i \in \{1, \dots, N_c\}` by
-.. _fig-model-class:
-.. figure:: multi_channel_transport_model_class.png
-
-    Illustration of the Multichannel Transport model class and relevant parameters. 
-    Figure taken from Jonas Bühler et al. :cite:`Buehler2014`.
-
-The MCT model equations are given by
 
 .. math::
     :label: ModelMCT
@@ -49,6 +43,12 @@ The equations are complemented by Danckwerts boundary conditions :cite:`Danckwer
         \frac{\partial c^\ell_{i,l}}{\partial z}(t, L) &= 0 & \forall t > 0.
     \end{aligned}
 
+
+.. _fig-model-class:
+.. figure:: multi_channel_transport_model_class.png
+
+    Illustration of the Multichannel Transport model class and relevant parameters. 
+    Figure taken from Jonas Bühler et al. :cite:`Buehler2014`.
 
 The MCT model describes :math:`N_k` one-dimensional spatially parallel channels (see :numref:`fig-model-class`).
 In each channel :math:`l`, molecules of different species :math:`i`, represented by a liquid phase concentration :math:`c^\ell_{i,l}`, can be transported with flux velocities :math:`v_{i,l}` while undergoing axial diffusion: :math:`D_{\text{ax},i,l}`.
@@ -97,7 +97,8 @@ For information on model parameters see :ref:`multi_channel_transport_model_conf
 
 Cross-section Areas
 ^^^^^^^^^^^^^^^^^^^
-The cross-section area :math:`A_N` is individually specified for each channel (see :numref:`fig-variable-areas`). The MCT is agnostic to the shape of these cross sections, while their ratio determines the distribution of the volumetric flow.
+The cross-section area :math:`A_N` is individually specified for each channel (see :numref:`fig-variable-areas`).
+The MCT is agnostic to the shape of these cross sections, while their ratio determines the distribution of the volumetric flow.
 
 
 .. _fig-variable-areas:
