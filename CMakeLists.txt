@@ -102,9 +102,6 @@ include(FeatureSummary)
 option(ENABLE_LOGGING "Enables logging" ON)
 add_feature_info(ENABLE_LOGGING ENABLE_LOGGING "Enables logging")
 
-option(ENABLE_CADETTEST_LOGGING "Enable logging for CadetTest" OFF)
-add_feature_info(ENABLE_CADETTEST_LOGGING ENABLE_CADETTEST_LOGGING "Enables logging in Testsets")
-
 option(ENABLE_BENCHMARK "Enables benchmark mode (fine-grained timing)" OFF)
 add_feature_info(ENABLE_BENCHMARK ENABLE_BENCHMARK "Enables benchmark mode (fine-grained timing)")
 
@@ -139,6 +136,9 @@ add_feature_info(ENABLE_CADET_TOOLS ENABLE_CADET_TOOLS "Build CADET tools")
 
 option(ENABLE_TESTS "Build CADET tests" OFF)
 add_feature_info(ENABLE_TESTS ENABLE_TESTS "Build CADET tests")
+
+option(ENABLE_CADETTEST_LOGGING "Enable logging for CadetTest" OFF)
+add_feature_info(ENABLE_CADETTEST_LOGGING ENABLE_CADETTEST_LOGGING "Enables logging in Testsets")
 
 option(ENABLE_PACKAGED_SUNDIALS "Use packaged SUNDIALS code" ON)
 add_feature_info(ENABLE_PACKAGED_SUNDIALS ENABLE_PACKAGED_SUNDIALS "Use packaged SUNDIALS code")
@@ -434,6 +434,10 @@ endif()
 find_package(Eigen3 REQUIRED NO_MODULE)
 set(EIGEN_TARGET "Eigen3::Eigen")
 
+if (ENABLE_CADETTEST_LOGGING)
+
+endif()
+
 set(IPO_AVAILABLE OFF)
 if (ENABLE_IPO)
 	include(CheckIPOSupported)
@@ -473,6 +477,10 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 	target_compile_definitions(CADET::CompileOptions INTERFACE CADET_LOGLEVEL_MIN=Trace DEBUG _DEBUG)
 else()
 	target_compile_definitions(CADET::CompileOptions INTERFACE CADET_LOGLEVEL_MIN=Warning NDEBUG)
+endif()
+
+if(ENABLE_CADETTEST_LOGGING)
+    target_compile_definitions(CADET::CompileOptions INTERFACE ENABLE_CADETTEST_LOGGING)
 endif()
 
 if (ENABLE_BENCHMARK)
