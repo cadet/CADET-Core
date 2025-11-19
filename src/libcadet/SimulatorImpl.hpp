@@ -36,7 +36,7 @@ int residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* 
 int linearSolverSolve(SUNLinearSolver ls, SUNMatrix, N_Vector x, N_Vector b, double tol);
 int linearSolverSetScalingVectors(SUNLinearSolver ls, N_Vector weight, N_Vector);
 
-int jacobianUpdateWrapper(void* IDA_mem, N_Vector y, N_Vector yDot, N_Vector res, N_Vector tempv1, N_Vector tempv2, N_Vector tempv3);
+int jacobianUpdateWrapper(SUNLinearSolver LS, SUNMatrix A);
 
 int residualSensWrapper(int ns, double t, N_Vector y, N_Vector yDot, N_Vector res, 
 		N_Vector* yS, N_Vector* ySDot, N_Vector* resS,
@@ -219,7 +219,7 @@ protected:
 
 	friend int ::cadet::linearSolverSolve(SUNLinearSolver ls, SUNMatrix, N_Vector x, N_Vector b, double tol);
 	friend int ::cadet::linearSolverSetScalingVectors(SUNLinearSolver ls, N_Vector weight, N_Vector);
-	friend int ::cadet::jacobianUpdateWrapper(void* IDA_mem, N_Vector y, N_Vector yDot, N_Vector res, N_Vector tempv1, N_Vector tempv2, N_Vector tempv3);
+	friend int ::cadet::jacobianUpdateWrapper(SUNLinearSolver ls, SUNMatrix A);
 
 //	friend int ::cadet::weightWrapper(N_Vector y, N_Vector ewt, void *user_data);
 
