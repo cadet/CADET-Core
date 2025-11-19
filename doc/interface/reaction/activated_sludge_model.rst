@@ -30,6 +30,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
    XSTO           10
    XA             11
    XMI            12
+   SI_ad  (optinal)        13
+   SS_ad  (optionl)        14
    =============  =========
 
 
@@ -43,24 +45,237 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Temperature :math:`T`.
    
+   **Unit:** :math:`°C`
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
 
 ``ASM3_V``
 
-   Reactor volume :math:`V`. Set this to the column volume since the model can't compute it itself.
+   (Optional) Reactor volume :math:`V`. If not set, the volume of the unit operation is used. It is left to the user to
+   ensure consistency between the volume set here and the unit operation volume.
 
+   **Unit:** :math:`m^3`
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\gt 0`       **Length:** 1
    ================  =============================  ========================================================
 
 ``ASM3_IO2``
 
-   Aeration oxygen input :math:`iO_2`.
+   (Optional) Aeration oxygen input :math:`iO_2`. If not set, aeration is not considered in the model.
+   
+   **Unit:** :math:`g~O_2~m^{-3}~d^{-1}`
    
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\ge 0`       **Length:** 1
+   ================  =============================  ========================================================
+
+**Stoichiometric parameters**
+
+``ASM3_INSI``
+
+   Nitrogen content of soluble inert organics :math:`i_{N,SI}`.
+   
+   **Unit:** :math:`g~N~(g~COD)^{-1}`
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`\ge 0`       **Length:** 1
+   ================  =============================  ========================================================
+
+``ASM3_INSS``
+
+   Nitrogen content of readily biodegradable substrate :math:`i_{N,SS}`.
+   
+   **Unit:** :math:`g~N~(g~COD)^{-1}`
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`\ge 0`       **Length:** 1
+   ================  =============================  ========================================================
+
+``ASM3_INXI``
+
+   Nitrogen content of inert particulate organics :math:`i_{N,XI}`.
+   
+   **Unit:** :math:`g~N~(g~COD)^{-1}`
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`\ge 0`       **Length:** 1
+   ================  =============================  ========================================================
+
+``ASM3_INXS``
+
+   Nitrogen content of slowly biodegradable substrate :math:`i_{N,XS}`.
+   
+   **Unit:** :math:`g~N~(g~COD)^{-1}`
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`\ge 0`       **Length:** 1
+   ================  =============================  ========================================================
+
+``ASM3_INBM``
+
+   Nitrogen content of biomass :math:`i_{N,BM}`.
+   
+   **Unit:** :math:`g~N~(g~COD)^{-1}`
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`\ge 0`       **Length:** 1
+   ================  =============================  ========================================================
+
+``ASM3_IVSS_XI``
+
+   VSS to COD ratio for inert particulates :math:`i_{VSS,XI}`.
+   
+   **Unit:** :math:`g~VSS~(g~COD)^{-1}`
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`\gt 0`       **Length:** 1
+   ================  =============================  ========================================================
+
+``ASM3_IVSS_XS``
+
+   VSS to COD ratio for slowly biodegradable substrate :math:`i_{VSS,XS}`.
+   
+   **Unit:** :math:`g~VSS~(g~COD)^{-1}`
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`\gt 0`       **Length:** 1
+   ================  =============================  ========================================================
+
+``ASM3_IVSS_STO``
+
+   VSS to COD ratio for storage products :math:`i_{VSS,STO}`.
+   
+   **Unit:** :math:`g~VSS~(g~COD)^{-1}`
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`\gt 0`       **Length:** 1
+   ================  =============================  ========================================================
+
+``ASM3_IVSS_BM``
+
+   VSS to COD ratio for biomass :math:`i_{VSS,BM}`.
+   
+   **Unit:** :math:`g~VSS~(g~COD)^{-1}`
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`\gt 0`       **Length:** 1
+   ================  =============================  ========================================================
+
+``ASM3_ITSS_VSS_BM``
+
+   TSS to VSS ratio for biomass :math:`i_{TSS/VSS,BM}`.
+   
+   **Unit:** :math:`g~TSS~(g~VSS)^{-1}`
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`\gt 0`       **Length:** 1
+   ================  =============================  ========================================================
+
+``ASM3_FISS_BM_PROD``
+
+   Fraction of ISS from biomass production :math:`f_{ISS,BM,prod}`.
+   
+   **Unit:** dimensionless
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`[0, 1]`      **Length:** 1
+   ================  =============================  ========================================================
+
+``ASM3_FSI``
+
+   Fraction of SI from hydrolysis :math:`f_{SI}`.
+   
+   **Unit:** dimensionless
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`[0, 1]`      **Length:** 1
+   ================  =============================  ========================================================
+
+``ASM3_FXI``
+
+   Fraction of XI from endogenous respiration :math:`f_{XI}`.
+   
+   **Unit:** dimensionless
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`[0, 1]`      **Length:** 1
+   ================  =============================  ========================================================
+
+**Yield coefficients**
+
+``ASM3_YH_AER``
+
+   Aerobic yield of heterotrophs :math:`Y_{H,aer}`.
+   
+   **Unit:** :math:`g~COD~(g~COD)^{-1}`
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`\gt 0`       **Length:** 1
+   ================  =============================  ========================================================
+
+``ASM3_YH_ANOX``
+
+   Anoxic yield of heterotrophs :math:`Y_{H,anox}`.
+   
+   **Unit:** :math:`g~COD~(g~COD)^{-1}`
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`\gt 0`       **Length:** 1
+   ================  =============================  ========================================================
+
+``ASM3_YSTO_AER``
+
+   Aerobic yield of storage :math:`Y_{STO,aer}`.
+   
+   **Unit:** :math:`g~COD~(g~COD)^{-1}`
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`\gt 0`       **Length:** 1
+   ================  =============================  ========================================================
+
+``ASM3_YSTO_ANOX``
+
+   Anoxic yield of storage :math:`Y_{STO,anox}`.
+   
+   **Unit:** :math:`g~COD~(g~COD)^{-1}`
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`\gt 0`       **Length:** 1
+   ================  =============================  ========================================================
+
+``ASM3_YA``
+
+   Yield of autotrophs :math:`Y_A`.
+   
+   **Unit:** :math:`g~COD~(g~N)^{-1}`
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`\gt 0`       **Length:** 1
+   ================  =============================  ========================================================
+
+**Adsorption fractionation (optional)**
+
+``ASM3_FSI_AD``
+
+   (Optional) Fraction of adsorbable SI :math:`f_{SI,ad}`. Only used if 15 components are defined.
+   
+   **Unit:** dimensionless
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`[0, 1]`      **Length:** 1
+   ================  =============================  ========================================================
+
+``ASM3_FSS_AD``
+
+   (Optional) Fraction of adsorbable SS :math:`f_{SS,ad}`. Only used if 15 components are defined.
+   
+   **Unit:** dimensionless
+   
+   ================  =============================  ========================================================
+   **Type:** double  **Range:** :math:`[0, 1]`      **Length:** 1
    ================  =============================  ========================================================
 
 **Maximum rates**
@@ -68,6 +283,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 ``ASM3_KH20``
 
    Hydrolysis rate constant :math:`k_H` at 20 °C.
+   
+   **Unit:** :math:`d^{-1}`
    
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
@@ -77,6 +294,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Maximum storage rate :math:`K_{STO}` at 20 °C.
 
+   **Unit:** :math:`d^{-1}`
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\gt 0`       **Length:** 1
    ================  =============================  ========================================================
@@ -85,6 +304,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Heterotrophic max. growth rate :math:`\mu_{H}` at 20 °C.
 
+   **Unit:** :math:`d^{-1}`
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
@@ -93,6 +314,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Rate constant for lysis and decay :math:`b_H` at 20 °C.
 
+   **Unit:** :math:`d^{-1}`
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
@@ -101,6 +324,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Autotrophic max. growth rate :math:`\mu_{AUT}` at 20 °C.
 
+   **Unit:** :math:`d^{-1}`
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
@@ -109,6 +334,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Rate constant :math:`b_{AUT}` for decay of autotrophs at 20 °C.
 
+   **Unit:** :math:`d^{-1}`
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
@@ -119,6 +346,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Anoxic reduction factor :math:`\eta_{HNO_3}` – heterotrophic growth.
 
+   **Unit:** dimensionless
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
@@ -127,6 +356,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Anoxic reduction factor :math:`\eta_{H_{end}}` – endogenous respiration XH.
 
+   **Unit:** dimensionless
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
@@ -135,6 +366,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Anoxic reduction factor :math:`\eta_{N_{end}}` – endogenous respiration XA.
 
+   **Unit:** dimensionless
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
@@ -145,6 +378,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Saturation/inhibition coefficient :math:`KX` for particulate COD.
 
+   **Unit:** :math:`g~COD~m_{SP}^{-3}`
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
@@ -153,6 +388,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Saturation/inhibition coefficient :math:`KHO_2` for oxygen, heterotrophic growth.
 
+   **Unit:** :math:`g~O_2~m_{SP}^{-3}`
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
@@ -161,6 +398,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Saturation/inhibition coefficient :math:`KHSS` for readily biodegradable substrates.
 
+   **Unit:** :math:`g~COD~m_{SP}^{-3}`
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
@@ -169,6 +408,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Saturation/inhibition coefficient :math:`KHNO_3` for nitrate.
 
+   **Unit:** :math:`g~N~m_{SP}^{-3}`
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
@@ -177,6 +418,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Saturation/inhibition coefficient :math:`KHNH_4` for ammonium (nutrient).
 
+   **Unit:** :math:`g~N~m_{SP}^{-3}`
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
@@ -185,6 +428,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Saturation coefficient :math:`KH_{ALK}` for alkalinity (HCO3-).
 
+   **Unit:** :math:`mol~m_{SP}^{-3}`
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
@@ -193,6 +438,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Saturation coefficient :math:`KH_{STO}` for storage products.
 
+   **Unit:** dimensionless
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
@@ -201,6 +448,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Saturation coefficient :math:`K_{NO_2}` for oxygen, autotrophic growth.
 
+   **Unit:** :math:`g~O_2~m_{SP}^{-3}`
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
@@ -209,6 +458,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Saturation coefficient :math:`K_{NNH_4}` for ammonium (substrate), autotrophic growth.
 
+   **Unit:** :math:`g~N~m_{SP}^{-3}`
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================
@@ -217,6 +468,8 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
    Saturation coefficient :math:`K_{NALK}` for alkalinity (HCO3-), autotrophic growth.
 
+   **Unit:** :math:`mol~m_{SP}^{-3}`
+   
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
    ================  =============================  ========================================================

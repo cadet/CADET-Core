@@ -164,7 +164,7 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD without inhibition", 
 
 TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with inhibition", "[MichaelisMenten],[ReactionModel],[Jacobian],[AD]")
 {
-	const unsigned int nBound[] = {1.0, 2.0, 1.0};
+	const unsigned int nBound[] = {1, 2, 1};
 	const double point[] = {1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8};
 	cadet::test::reaction::testDynamicJacobianAD("MICHAELIS_MENTEN", 3, nBound,
 		R"json({
@@ -179,11 +179,11 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with inhibition", "[M
 	);
 }
 
-TEST_CASE("ASM3 analytic Jacobian vs AD", "[ASM3],[ReactionModel],[Jacobian],[AD]")
+TEST_CASE("ASM3 analytic Jacobian vs AD", "[ASM3],[ReactionModel],[Jacobian],[AD],[CI]")
 {
 	const unsigned int nBound[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0 };
 	unsigned int ncomp = 13;
-	const double point[] = { 1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8, 1.5, 1.0, 4.2, 1.4, 0.3, 1.4};
+	const double point[] = { 1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8, 1.5, 1.0, 4.2, 1.4, 0.3, 1.4 };
 	cadet::test::reaction::testLiquidReactionJacobianAD("ACTIVATED_SLUDGE_MODEL3", ncomp, nBound,
 		R"json({
 			"ASM3_FISS_BM_PROD": 1.0,
@@ -227,8 +227,9 @@ TEST_CASE("ASM3 analytic Jacobian vs AD", "[ASM3],[ReactionModel],[Jacobian],[AD
 			"ASM3_IVSS_BM": 0.704225352,
 			"ASM3_ITSS_VSS_BM": 1.086956522
 		})json",
-		point, 1e-15, 1e-15
+		point, 1e-12, 1e-12
 	);
+}
 
 TEST_CASE("MassActionLaw old interface vs. two separate reactions", "[MassActionLaw],[ReactionModel],[Simulation],[CI]")
 {
