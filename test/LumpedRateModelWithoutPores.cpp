@@ -176,22 +176,22 @@ TEST_CASE("LRM with two component linear binding Jacobian", "[LRM],[FV],[UnitOp]
 	cadet::test::column::testJacobianAD(jpp);
 }
 
-TEST_CASE("LRM dynamic reactions Jacobian vs AD bulk", "[LRM],[FV],[Jacobian],[AD],[ReactionModel],[CI]")
+TEST_CASE("LRM dynamic reactions Jacobian vs AD bulk", "[LRM],[FV],[Jacobian],[AD],[ReactionModel],[CI],[testHere]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", true, false, false);
 }
 
-TEST_CASE("LRM dynamic reactions Jacobian vs AD modified bulk", "[LRM],[FV],[Jacobian],[AD],[ReactionModel],[CI]")
+TEST_CASE("LRM dynamic reactions Jacobian vs AD modified bulk", "[LRM],[FV],[Jacobian],[AD],[ReactionModel],[CI],[testHere]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", true, false, true);
 }
 
-TEST_CASE("LRM dynamic reactions time derivative Jacobian vs FD bulk", "[LRM],[FV],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
+TEST_CASE("LRM dynamic reactions time derivative Jacobian vs FD bulk", "[LRM],[FV],[Jacobian],[Residual],[ReactionModel],[CI],[FD],[testHere]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", true, false, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("LRM dynamic reactions time derivative Jacobian vs FD modified bulk", "[LRM],[FV],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
+TEST_CASE("LRM dynamic reactions time derivative Jacobian vs FD modified bulk", "[LRM],[FV],[Jacobian],[Residual],[ReactionModel],[CI],[FD],[testHere]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", true, false, true, 1e-6, 1e-14, 8e-4);
 }

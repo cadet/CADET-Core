@@ -20,6 +20,7 @@
 
 #include "model/UnitOperationBase.hpp"
 #include "model/particle/ParticleModel.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 #include "cadet/StrongTypes.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "model/parts/ConvectionDispersionOperatorDG.hpp"
@@ -297,6 +298,8 @@ protected:
 
 	parts::AxialConvectionDispersionOperatorBaseDG _convDispOp; //!< Convection dispersion operator base for interstitial volume transport
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
+	ReactionSystem _reaction;
+	std::vector<const ReactionSystem*> _reacParticle;
 
 	cadet::linalg::EigenSolverBase* _linearSolver; //!< Linear solver
 

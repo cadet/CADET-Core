@@ -23,55 +23,20 @@
           ],
             "INIT_LIQUID_VOLUME": 1000,
             "NCOMP": 4,
-            "REACTION_MODEL": "MICHAELIS_MENTEN",
-            "UNIT_TYPE": "CSTR",
-          "reaction_bulk": {
-            "MM_KI_C": [
-              0.0,
-              0.0,
-              2.0,
+          "UNIT_TYPE": "CSTR",
+            "NREAC_LIQUID": 1,
+          "liquid_reaction_000": {
+            "TYPE": "MICHAELIS_MENTEN",
+            "MM_KI": [
+              0,
+              0,
               3.0,
-
-              0.0,
-              0.0,
-              0.0,
-              0.0,
-
-              0.0,
-              0.0,
-              0.0,
-              0.0,
-
-              0.0,
-              0.0,
-              0.0,
-              0.0
-            ],
-            "MM_KI_UC": [
-              0.0,
-              0.0,
-              2.0,
-              3.0,
-
-              0.0,
-              0.0,
-              0.0,
-              0.0,
-
-              0.0,
-              0.0,
-              0.0,
-              0.0,
-
-              0.0,
-              0.0,
-              0.0,
-              0.0
+              2.0
             ],
             "MM_KMM": [
-              100, 0.0,0.0, 0.0
+              100
             ],
-            "MM_STOICHIOMETRY_BULK": [
+            "MM_STOICHIOMETRY": [
               -1,
               1,
               0,
