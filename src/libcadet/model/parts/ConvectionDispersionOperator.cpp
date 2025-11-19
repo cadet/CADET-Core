@@ -1271,6 +1271,9 @@ bool FrustumConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IPa
 	if (!(_innerRadius > 0.0 && _outerRadius > 0.0 && _colLength > 0.0))
 		throw InvalidParameterException("Geometry parameters COL_RADIUS_INNER, COL_RADIUS_OUTER, COL_LENGTH must be > 0.0");
 
+	if (_innerRadius > _outerRadius)
+		throw InvalidParameterException("Geometry parameters are inconsistent, model requires COL_RADIUS_INNER <= COL_RADIUS_OUTER for consistency reasons. Please check the documentation for control of the flow direction.");
+
 	// Read section dependent parameters (transport)
 
 	_velocityCoeff.clear();
@@ -1398,9 +1401,13 @@ void FrustumConvectionDispersionOperatorBase::setFlowRates(const active& in, con
 	_curVelocityCoeff = _dir * in / (pi * colPorosity); // this coefficient is later divided by r^2
 }
 
+/**
+ * @brief Returns the spatially dependent velocity
+ * @param [in] pos relative spatial position x \in [0, 1]
+ */
 active FrustumConvectionDispersionOperatorBase::currentVelocity(double pos) const CADET_NOEXCEPT
 {
-	const active radius = pos * (_outerRadius - _innerRadius);
+	const active radius = pos * (_outerRadius - _innerRadius) + _innerRadius;
 	return _curVelocityCoeff / radius / radius;
 }
 
