@@ -345,3 +345,68 @@ Note that the outlet boundary condition Eq. :eq:`BCOutletRadial` is also known 
 The complementing mass transport and binding equations for the liquid and solid phases of the porous beads are described by the same equations as for the axial GRM.
 
 For information on model parameters see :ref:`radial_flow_column_1D_config` and :ref:`particle_model_config`.
+
+Frustum device GRM
+^^^^^^^^^^^^^^^^^^
+
+The frustum GRM describes transport of solute molecules through the interstitial column volume by convective flow from the smaller to the larger radius of the frustum device ("axial" direction), band broadening caused by dispersion, mass transfer resistance through a stagnant film around the beads, pore (and surface) diffusion in the porous beads :cite:`Ma1996,Schneider1968a,Miyabe2007`, and adsorption to the inner bead surfaces.
+
+The main assumptions are:
+
+- The frustum shells of the column are homogenous in terms of interstitial volume, fluid flow, and distribution of components.
+  Thus, only one spatial coordinate in axial direction :math:`x` is needed.
+
+- The bead radii :math:`r_{p}` are much smaller than the column length :math:`H` and radius :math:`r(x) \forall x\in(0,H)`.
+  Therefore, the beads can be seen as continuously distributed inside the column (i.e., at each point there is interstitial and bead volume).
+
+- The fluids are incompressible, i.e. the velocity field :math:`\mathrm{V} \colon \mathbb{R}^3 \to \mathbb{R}^3` submits to :math:`\operatorname{div}\left( \mathrm{V} \right) \equiv 0`.
+  That is, the volumetric flow rate at the inner and outer column radius are the same.
+
+- A cross-sectional average :math:`\overline{u}(x) := \int_A \vec{u} dA` of the velocity is considered. This is a necessary assumption to derive the one-dimensionalized model.
+
+We consider axial flow through a conical frustum, where the axial coordinate from bottom to top is denoted by :math:`x \in (0, H)`.
+The frustum is filled with spherical beads of (possibly) multiple types with radius :math:`r_{p,j} \ll H` (see :numref:`ModelGRMColumn`), where :math:`j` is the particle type index.
+
+The flow-directional cross-section area is circular and varies with axial position :math:`A(x) = \pi r(x)^2`, with :math:`r(x) = r_0 + \frac{x}{H} (r_H - r_0)` being the frustum radius at axial position :math:`x`, and :math:`r_H, r_0` being the radii at the frustum top and bottom, respectively.
+
+The *averaged bulk velocity* at position :math:`x` is then given by :math:`\overline{u}(x) = \frac{Q}{A(x)} = \frac{Q}{\pi r(x)^2}`.
+
+We define the *velocity coefficient* :math:`u := \frac{Q}{\pi}`, which has units of :math:`\mathrm{m}^3/\mathrm{s}`, and expresses the scaled volumetric flow rate.
+
+The mass balance in the interstitial column volume is described by
+
+.. math::
+    :label: ModelFrustumColumnGRM
+
+    \begin{aligned}
+        \frac{\partial c}{\partial t}
+        = -\frac{u}{r(x)^2} \frac{\partial c}{\partial x}
+        + \frac{1}{r(x)^2} \frac{\partial}{\partial x} \left( D(x) r(x)^2 \frac{\partial c}{\partial x} \right)
+        &- \frac{1}{\beta_c} \sum_j d_j \frac{3}{r_{p,j}} k_{f,j,i} \left[ c^\ell_i - c^p_{j,i}(\cdot, \cdot, r_{p,j}) \right] \\
+        &+ f_{\text{react},i}^\ell\left(c^\ell\right).
+    \end{aligned}
+
+Here, :math:`c^\ell_i\colon \left[0, T_{\text{end}}\right] \times (0, H) \rightarrow \mathbb{R}^{\geq 0}` denotes the concentration in the interstitial column volume, :math:`c^p_{j,i}\colon \left[0, T_{\text{end}}\right] \times (0, H) \times (r_{c,j}, r_{p,j}) \rightarrow \mathbb{R}^{\geq 0}` the liquid phase concentration in the beads, :math:`k_{f,j,i}\geq 0` the film diffusion coefficient, :math:`D_{i}\geq 0` the dispersion coefficient, :math:`u>0` the interstitial velocity coefficient, :math:`d_j>0` the volume fraction of particle type :math:`j`, and :math:`\beta_c = \varepsilon_c / (1 - \varepsilon_c)` the column phase ratio, where :math:`\varepsilon_c\in(0,1)` is the column porosity (ratio of interstitial volume to total column volume).
+If reactions are considered, the term :math:`f_{\text{react},i}^\ell\left(c^\ell\right)` represents the net change of concentration :math:`c_i` due to reactions involving component :math:`i`.
+
+Danckwerts boundary conditions :cite:`Danckwerts1953` are applied to inlet and outlet of the column:
+
+.. math::
+    :label: BCOutletFrustum
+
+    \begin{aligned}
+        u c_{\text{in},i}(t) &= u c^\ell_i(t,0) - D_{i} \frac{\partial c^\ell_i}{\partial \rho}(t, 0) & \forall t > 0,
+    \end{aligned}
+
+.. math::
+    :label: BCInletFrustum
+
+    \begin{aligned}
+        \frac{\partial c^\ell_i}{\partial \rho}(t, \mathrm{P}) &= 0 & \forall t > 0. 
+    \end{aligned}
+
+Note that the outlet boundary condition Eq. :eq:`BCOutletFrustum` is also known as “do nothing” or natural outflow condition.
+
+The complementing mass transport and binding equations for the liquid and solid phases of the porous beads are described by the same equations as for the axial GRM.
+
+For information on model parameters see :ref:`frustum_flow_column_1D_config` and :ref:`particle_model_config`.

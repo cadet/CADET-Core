@@ -154,6 +154,7 @@ set(LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ConvectionDispersionOperator.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/AxialConvectionDispersionKernel.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/RadialConvectionDispersionKernel.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/FrustumConvectionDispersionKernel.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/reaction/ReactionModelBase.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/BindingModelBase.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/inlet/PiecewiseCubicPoly.cpp

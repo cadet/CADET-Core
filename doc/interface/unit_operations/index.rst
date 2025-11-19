@@ -10,6 +10,7 @@ Unit Operations
     outlet
     axial_flow_column_1D_config
     radial_flow_column_1D_config
+    frustum_flow_column_1D_config
     axial_flow_column_2D_config
     cstr
     multi_channel_transport_model
