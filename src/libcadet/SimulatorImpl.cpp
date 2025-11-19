@@ -225,19 +225,33 @@ namespace cadet
 			cadet::AdJacobianParams{sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections()});
 	}
 
-	/*
-	int jacobianUpdateWrapper(N_Vector y, N_Vector yDot, N_Vector res, N_Vector tempv1, N_Vector tempv2, N_Vector tempv3, void* userData)
+	/**
+	* @brief IDAS jacobian wrapper function to call the model's jacobian() method
+	*/
+
+	int jacobianUpdateWrapper(SUNLinearSolver LS, SUNMatrix A)
 	{
-		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(userData);
-		const double t = IDA_mem->ida_tn;
+		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(LS->content);
+
+		double t;
+		double alpha;
+		N_Vector y;
+		N_Vector yDot;
+		N_Vector unused1;
+		N_Vector unused2;
+		N_Vector res;
+		void* unused4;
+		IDAGetErrWeights(sim->_idaMemBlock, sim->_linearSolverWeight);
+		IDAGetNonlinearSystemData(sim->_idaMemBlock, &t, &unused1, &unused2, &y, &yDot, &res, &alpha, &unused4);
+
 		const unsigned int secIdx = sim->getCurrentSection(t);
 
 		LOG(Trace) << "==> Jacobian at t = " << t;
 
-		return sim->_model->jacobian(cadet::SimulationTime{ t, secIdx }, cadet::ConstSimulationState{ NVEC_DATA(y), NVEC_DATA(yDot) }, NVEC_DATA(tempv1),
+		return sim->_model->jacobian(cadet::SimulationTime{ t, secIdx }, cadet::ConstSimulationState{ NVEC_DATA(y), NVEC_DATA(yDot) }, NVEC_DATA(res),
 			cadet::AdJacobianParams{ sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections() });
 	}
-	*/
+	
 	
 	/**
 	* @brief Change the error weights in the state vector
@@ -367,21 +381,6 @@ namespace cadet
 		return 0;
 	}
 
-	int linearSolverSetup(SUNLinearSolver, SUNMatrix)
-	{
-		return 0;
-	}
-
-	int linearSolverSetATimes(SUNLinearSolver, void*, SUNATimesFn)
-	{
-		return 0;
-	}
-
-	int linearSolverNumIters(SUNLinearSolver)
-	{
-		return 1;
-	}
-
 	N_Vector linearSolverResidual(SUNLinearSolver)
 	{
 		return nullptr;
@@ -427,7 +426,7 @@ namespace cadet
 	Simulator::Simulator() : _model(nullptr), _solRecorder(nullptr), _idaMemBlock(nullptr), _vecStateY(nullptr),
 		_vecStateYdot(nullptr), _vecFwdYs(nullptr), _vecFwdYsDot(nullptr),
 		_relTolS(1.0e-9), _absTol(1, 1.0e-12), _relTol(1.0e-9), _initStepSize(1, 1.0e-6), _maxSteps(10000), _maxStepSize(0.0),
-		_nThreads(0), _sensErrorTestEnabled(true), _maxNewtonIter(4), _maxErrorTestFail(10), _maxConvTestFail(10),
+		_nThreads(0), _modifiedNewton(false), _sensErrorTestEnabled(true), _maxNewtonIter(4), _maxErrorTestFail(10), _maxConvTestFail(10),
 		_maxNewtonIterSens(4), _curSec(0), _skipConsistencyStateY(false), _skipConsistencySensitivity(false),
 		_consistentInitMode(ConsistentInitialization::Full), _consistentInitModeSens(ConsistentInitialization::Full),
 		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr), _linearSolver(nullptr), _sunctx(nullptr)
@@ -533,6 +532,8 @@ namespace cadet
 		_linearSolver->content = this;
 		_linearSolver->ops->gettype = linearSolverGetType;
 		_linearSolver->ops->solve = linearSolverSolve;
+		if (_modifiedNewton)
+			_linearSolver->ops->setup = jacobianUpdateWrapper;
 
 		// Attach user data structure
 		IDASetUserData(_idaMemBlock, this);
