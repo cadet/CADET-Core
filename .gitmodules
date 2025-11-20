@@ -1,0 +1,3 @@
+[submodule "ThirdParty/sundials"]
+	path = ThirdParty/sundials
+	url = https://github.com/LLNL/sundials.git
