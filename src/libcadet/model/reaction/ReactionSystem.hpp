@@ -99,6 +99,25 @@ struct ReactionSystem
 
         public:
 
+        bool hasReactions()
+        {
+            for(const auto& phasePair : _phaseMap)
+            {
+                const auto& dynReactions = phasePair.second.dynReactions;
+                if (!dynReactions.empty())
+                {
+                    for (const auto* reaction : dynReactions)
+                    {
+                        if (reaction != nullptr)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
         
         /**
          * @brief Gets const reference to dynamic reaction vector for a phase
