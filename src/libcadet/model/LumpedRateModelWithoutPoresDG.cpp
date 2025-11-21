@@ -1348,7 +1348,7 @@ namespace cadet
 			} CADET_PARFOR_END;
 
 			// restore _jacDisc pattern
-			setPattern(_jacDisc, true, _dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0));
+			setPattern(_jacDisc, true, _reaction.hasReactions());
 
 		}
 
@@ -1468,7 +1468,7 @@ namespace cadet
 			}
 
 			// reset jacobian pattern
-			setPattern(_jacDisc, true, _dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0));
+			setPattern(_jacDisc, true,_reaction.hasReactions());
 
 		}
 
@@ -1699,7 +1699,7 @@ namespace cadet
 				multiplyWithJacobian(simTime, simState, sensY, -1.0, 1.0, sensYdot);
 		
 				// Note that we have correctly negated the right hand side
-				setPattern(_jacDisc, true, _dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0));
+				setPattern(_jacDisc, true, _reaction.hasReactions());
 				//for (int entry = 0; entry < _jacDisc.nonZeros(); entry++)
 				//	_jacDisc.valuePtr()[entry] = 0.0;
 		
