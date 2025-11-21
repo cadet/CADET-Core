@@ -257,7 +257,7 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 				if (paramProvider.exists("NREAC_LIQUID"))
 				{
 					int nReactions = paramProvider.getInt("NREAC_LIQUID");
-					reactionConfSuccess = _reacParticle[par].configureDiscretization("pore",
+					reactionConfSuccess = _reacParticle[par].configureDiscretization("liquid",
 						0,
 						nReactions,
 						_nComp,
@@ -415,7 +415,7 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 			if (paramProvider.exists("NREAC_CROSS_PHASE"))
 				dynReactionConfSuccess = _reacParticle[par].configure("cross_phase", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 			if (paramProvider.exists("NREAC_LIQUID"))
-				dynReactionConfSuccess = _reacParticle[par].configure("pore", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+				dynReactionConfSuccess = _reacParticle[par].configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 			if (paramProvider.exists("NREAC_SOLID"))
 				dynReactionConfSuccess = _reacParticle[par].configure("solid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
@@ -442,7 +442,7 @@ unsigned int CSTRModel::threadLocalMemorySize() const CADET_NOEXCEPT
 	for (unsigned int parType = 0; parType < _nParType; ++parType)
 	{
 		_reacParticle[parType].setWorkspaceRequirements("cross_phase", 1, _nComp, &_strideBound[parType], lms);
-		_reacParticle[parType].setWorkspaceRequirements("pore", 1, _nComp, &_strideBound[parType], lms);
+		_reacParticle[parType].setWorkspaceRequirements("liquid", 1, _nComp, &_strideBound[parType], lms);
 		_reacParticle[parType].setWorkspaceRequirements("solid", 1, _nComp, &_strideBound[parType], lms);
 
 	}
@@ -1507,7 +1507,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 				}
 			}
 		}
-		// liquid pore reaction
+		// solid reaction
 		for (int reac = 0; reac < _reacParticle[type].getDynReactionVector("solid").size(); reac++)
 		{
 			if (_reacParticle[type].getDynReactionVector("solid")[reac])

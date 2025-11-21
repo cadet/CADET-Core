@@ -348,7 +348,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 			if (paramProvider.exists("NREAC_LIQUID"))
 			{
 				int nReactions = paramProvider.getInt("NREAC_LIQUID");
-				reactionConfSuccess = _reacParticle[par].configureDiscretization("pore",
+				reactionConfSuccess = _reacParticle[par].configureDiscretization("liquid",
 					0,
 					nReactions,
 					_disc.nComp,
@@ -614,7 +614,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configure(IParameterProvider& p
 			if (paramProvider.exists("NREAC_CROSS_PHASE"))
 				dynReactionConfSuccess = _reacParticle[par].configure("cross_phase", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 			if (paramProvider.exists("NREAC_LIQUID"))
-				dynReactionConfSuccess = _reacParticle[par].configure("pore", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+				dynReactionConfSuccess = _reacParticle[par].configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 			if (paramProvider.exists("NREAC_SOLID"))
 				dynReactionConfSuccess = _reacParticle[par].configure("solid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
@@ -634,7 +634,7 @@ unsigned int LumpedRateModelWithPores<ConvDispOperator>::threadLocalMemorySize()
 	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
 	{
 		_reacParticle[parType].setWorkspaceRequirements("cross_phase", 1, _disc.nComp, &_disc.strideBound[parType], lms);
-		_reacParticle[parType].setWorkspaceRequirements("pore", 1, _disc.nComp, &_disc.strideBound[parType], lms);
+		_reacParticle[parType].setWorkspaceRequirements("liquid", 1, _disc.nComp, &_disc.strideBound[parType], lms);
 		_reacParticle[parType].setWorkspaceRequirements("solid", 1, _disc.nComp, &_disc.strideBound[parType], lms);
 
 	}

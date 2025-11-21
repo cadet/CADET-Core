@@ -316,7 +316,7 @@ namespace cadet
 					if (paramProvider.exists("NREAC_LIQUID"))
 					{
 						int nReactions = paramProvider.getInt("NREAC_LIQUID");
-						reactionConfSuccess = _reacParticle[par].configureDiscretization("pore",
+						reactionConfSuccess = _reacParticle[par].configureDiscretization("liquid",
 							0,
 							nReactions,
 							_disc.nComp,
@@ -891,7 +891,7 @@ namespace cadet
 					if (paramProvider.exists("NREAC_CROSS_PHASE"))
 						dynReactionConfSuccess = _reacParticle[par].configure("cross_phase", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 					if (paramProvider.exists("NREAC_LIQUID"))
-						dynReactionConfSuccess = _reacParticle[par].configure("pore", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+						dynReactionConfSuccess = _reacParticle[par].configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 					if (paramProvider.exists("NREAC_SOLID"))
 						dynReactionConfSuccess = _reacParticle[par].configure("solid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
@@ -915,7 +915,7 @@ namespace cadet
 
 
 				_reacParticle[i].setWorkspaceRequirements("cross_phase", 1, _disc.nComp, &_disc.strideBound[i], lms);
-				_reacParticle[i].setWorkspaceRequirements("pore", 1, _disc.nComp, &_disc.strideBound[i], lms);
+				_reacParticle[i].setWorkspaceRequirements("liquid", 1, _disc.nComp, &_disc.strideBound[i], lms);
 				_reacParticle[i].setWorkspaceRequirements("solid", 1, _disc.nComp, &_disc.strideBound[i], lms);
 			}
 

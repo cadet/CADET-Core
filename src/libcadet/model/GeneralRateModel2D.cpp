@@ -676,7 +676,7 @@ bool GeneralRateModel2D::configureModelDiscretization(IParameterProvider& paramP
 			if (paramProvider.exists("NREAC_LIQUID"))
 			{
 				int nReactions = paramProvider.getInt("NREAC_LIQUID");
-				reactionConfSuccess = _reacParticle[par].configureDiscretization("pore",
+				reactionConfSuccess = _reacParticle[par].configureDiscretization("liquid",
 					0,
 					nReactions,
 					_disc.nComp,
@@ -1024,7 +1024,7 @@ bool GeneralRateModel2D::configure(IParameterProvider& paramProvider)
 			if (paramProvider.exists("NREAC_CROSS_PHASE"))
 				dynReactionConfSuccess = _reacParticle[par].configure("cross_phase", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 			if (paramProvider.exists("NREAC_LIQUID"))
-				dynReactionConfSuccess = _reacParticle[par].configure("pore", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+				dynReactionConfSuccess = _reacParticle[par].configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 			if (paramProvider.exists("NREAC_SOLID"))
 				dynReactionConfSuccess = _reacParticle[par].configure("solid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
@@ -1047,7 +1047,7 @@ unsigned int GeneralRateModel2D::threadLocalMemorySize() const CADET_NOEXCEPT
 			lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
 		
 		_reacParticle[i].setWorkspaceRequirements("cross_phase", 1, _disc.nComp, &_disc.strideBound[i], lms);
-		_reacParticle[i].setWorkspaceRequirements("pore", 1, _disc.nComp, &_disc.strideBound[i], lms);
+		_reacParticle[i].setWorkspaceRequirements("liquid", 1, _disc.nComp, &_disc.strideBound[i], lms);
 		_reacParticle[i].setWorkspaceRequirements("solid", 1, _disc.nComp, &_disc.strideBound[i], lms);
 	}
 	_reaction.setWorkspaceRequirements("liquid", _disc.nComp, 0, lms);
