@@ -100,8 +100,11 @@ int Gmres::solve(double tolerance, double const* weight, double const* rhs, doub
 
 	const int gsType = static_cast<typename std::underlying_type<Orthogonalization>::type>(_ortho);
 
-
-	SUNLinSol_SPGMRSetGSType(_linearSolver, gsType);
+	if (gsType==0){
+		SUNLinSol_SPGMRSetGSType(_linearSolver, 2);
+	}
+	else
+		SUNLinSol_SPGMRSetGSType(_linearSolver, gsType);
 	SUNLinSol_SPGMRSetMaxRestarts(_linearSolver, _maxRestarts);
 	SUNLinSolSetScalingVectors(_linearSolver, NV_weight, NV_weight);
 	SUNLinSolSetup(_linearSolver, nullptr);
