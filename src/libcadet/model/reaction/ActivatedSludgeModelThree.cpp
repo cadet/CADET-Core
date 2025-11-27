@@ -183,8 +183,8 @@ protected:
 	unsigned int _idxSI_ad = 13;
 	unsigned int _idxSS_ad = 14;
 
-	bool  _fractionate = false;
-
+	bool _fractionate = false;
+	bool _activeAeration = true;
 	
 
 	virtual bool configureStoich(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
@@ -198,26 +198,30 @@ protected:
 		_paramHandler.configure(paramProvider, _stoichiometry.columns(), _nComp, _nBoundStates);
 		_paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
 
-
-		_stoichiometry.resize(_nComp, 13);
-		_stoichiometry.setAll(0);
-
 		if (paramProvider.exists("ASM3_FRACTIONATE"))
 			_fractionate = paramProvider.getBool("ASM3_FRACTIONATE");
 
-		if (paramProvider.exists("ASM3_COMP_IDX")) {
+		if (_nComp < 13 && !_fractionate)
+			throw InvalidParameterException("ASM3 configuration: To use the ASM3 model the number of components must be at least 13");
+		else if (_nComp < 15 && _fractionate)
+			throw InvalidParameterException("ASM3 configuration: To use the ASM3 model with fractionation the number of components must be at least 15");
+
+		if (paramProvider.exists("ASM3_COMP_IDX")) 
+		{
 			const std::vector<uint64_t> compIdx = paramProvider.getUint64Array("ASM3_COMP_IDX");
 			if (_fractionate)
 			{
-				if (compIdx.size() != 15) {
+				if (compIdx.size() != 15) 
 					throw InvalidParameterException("ASM3 configuration: ASM3_COMP_IDX must have 15 elements");
-				}
+
 				_idxSS_ad = compIdx[13];
 				_idxSI_ad = compIdx[14];
 			}
-			else if (compIdx.size() != 13) {
+			else if (compIdx.size() != 13) 
+			{
 				throw InvalidParameterException("ASM3 configuration: ASM3_COMP_IDX must have 13 elements");
 			}
+			
 			LOG(Debug) << "ASM3_COMP_IDX set: " << compIdx;
 			_idxSO = compIdx[0];
 			_idxSS_nad = compIdx[1];
@@ -233,9 +237,29 @@ protected:
 			_idxXA = compIdx[11];
 			_idxXMI = compIdx[12];
 		}
-		else {
+		else 
+		{
 			LOG(Debug) << "ASM3_COMP_IDX not set, using defaults";
 		}
+
+		// handle optional Aeration
+		const double V = paramProvider.getDouble("ASM3_V");
+		const double IO2 = paramProvider.getDouble("ASM3_IO2");
+		
+		if ( V > 0 )
+		{
+			LOG(Debug) << "Activating reaction aeration in ASM3";
+			_activeAeration = true;
+			_stoichiometry.resize(_nComp, 13);
+		}
+		else
+		{	
+			LOG(Debug) << "Deactivating reaction aeration in ASM3";
+			_activeAeration = false;
+			_stoichiometry.resize(_nComp, 12);
+		}
+
+		_stoichiometry.setAll(0);
 
 		// parameter set ASM3h
 		const double iNSI = paramProvider.getDouble("ASM3_INSI");
@@ -300,8 +324,10 @@ protected:
 		_stoichiometry.native(_idxSO, 7) = -1;
 		_stoichiometry.native(_idxSO, 9) = -(64.0 / 14.0) * 1 / YA + 1;
 		_stoichiometry.native(_idxSO, 10) = -1 * (1 - fXI);
-		_stoichiometry.native(_idxSO, 12) = 1;
+		if (_activeAeration)
+			_stoichiometry.native(_idxSO, 12) = 1;
 
+		
 		// SS_nad
 		_stoichiometry.native(_idxSS_nad, 0) = (1 - fSI);
 		_stoichiometry.native(_idxSS_nad, 1) = -1;
@@ -395,9 +421,6 @@ protected:
 		_stoichiometry.native(_idxXMI, 10) = fXMI_BM;
 		_stoichiometry.native(_idxXMI, 11) = fXMI_BM;
 
-
-		//registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MM_STOICHIOMETRY_BULK", _stoichiometryBulk); todo
-
 		return true;
 	}
 
@@ -413,8 +436,18 @@ protected:
 		
 		const flux_t kh20		= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kh20);
 		const flux_t T		= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->T);
-		const flux_t io2		= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->io2);
-		const flux_t V		= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->V);
+		if (T < 0)
+			throw InvalidParameterException("ASM3 configuration: Temperature T must be non-negative");
+		
+		flux_t io2;
+		flux_t V;
+		if (_activeAeration)
+		{
+			io2	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->io2);
+			V = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->V);
+			if(V < 0)
+				throw InvalidParameterException("ASM3 configuration: Aeration volume V must be non-negative");
+		}
 		const flux_t k_sto20	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->k_sto20);
 		const flux_t kx		= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kx);
 		const flux_t kho2		= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kho2);
@@ -506,8 +539,8 @@ protected:
 		fluxes[11] = bAUT * etanend * SNO / (SNO + khn03) * kho2 / (SO + kho2) * XA;
 
 		// r13: Aeration
-		// TODO: is V in litres?
-		fluxes[12] = io2 / V;
+		if (_activeAeration)
+			fluxes[12] = io2 / V;
 			
 		// Add reaction terms to residual
 		_stoichiometry.multiplyVector(static_cast<flux_t*>(fluxes), factor, res);
@@ -588,10 +621,8 @@ protected:
 			SI_ad = y[_idxSI_ad];
 		}
 
-
+		// initialize jacobian
 		double d[13][15] = {};
-
-
 		// p1: Hydrolysis: kh20 * ft04 * XS/XH_S / (XS/XH_S + kx) * XH;
 		d[0][_idxXS] = kh20 * ft04
 			* XH / ((XS + XH * kx)
@@ -839,6 +870,9 @@ protected:
 		d[11][_idxXA] = bAUT * etanend
 			* SNO / (SNO + khn03)
 			* kho2 / (SO + kho2);
+		
+		//reaction13: Aeration: io2 / V;
+		// no jacobian terms
 
 
 		RowIterator curJac = jac;
