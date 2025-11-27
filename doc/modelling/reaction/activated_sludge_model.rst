@@ -311,14 +311,24 @@ And the stoichiometric equations are represented in the stoichiometric matrix :m
 
 For more information on model parameters required to define in CADET file format, see :ref:`activated_sludge_model_config`.
 
-Combining the ASM3 model
-~~~~~~~~~~~~~~~~~~~~~~~~
-
+Combining the ASM3 model within CADET
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The ASM3h model is a konkrete implementation of of the ASM framework which is aimled to be used as ASM3h in SIMBA.
-But it is also flexible to to be used in the general CADET framework.
-Here the reaction :math:`r_{13}` (aeration) is replaced by the usual interface of CADET, where the input of component is defined in the 
-inlet unit operation. In this cade the volume parameter taken into accound.
-Moreover the model can be used in any unit operation and can be combined with other implemented reaction models.
+But with different configuations it is also flexible to to be used in the general CADET framework.
+
+Active Aeration
+---------------
+In configuation of the ASM3 model, there is the option to set the volume parameter of the aeration reaction.
+This volume refers to the volume of the aeration tank.
+But we recomend to model the aeration by setting up the Inlet unit Operation and connect it to the unit operation where the ASM3 model is used.
+This way the aeration can be handled more flexible, see :ref:`inlet_operation`.
+To deactivate the aeration reaction in the ASM3 model, set the volume parameter to zero.
+
+Fractionation
+-------------
+
+TODO
+
 
 
 References
