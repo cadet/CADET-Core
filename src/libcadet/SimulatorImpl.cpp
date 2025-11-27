@@ -532,6 +532,7 @@ namespace cadet
 		_linearSolver->content = this;
 		_linearSolver->ops->gettype = linearSolverGetType;
 		_linearSolver->ops->solve = linearSolverSolve;
+		_linearSolver->ops->setscalingvectors = linearSolverSetScalingVectors;
 		if (_modifiedNewton)
 			_linearSolver->ops->setup = jacobianUpdateWrapper;
 
@@ -547,6 +548,12 @@ namespace cadet
 		IDASetMaxConvFails(_idaMemBlock, _maxConvTestFail);
 
 		IDASetLinearSolver(_idaMemBlock, _linearSolver, NULL);
+
+
+		// Specify tolerances for linear solver
+		IDASetEpsLin(_idaMemBlock, 1);
+		IDASetLSNormFactor(_idaMemBlock, 1);
+
 
 		// Allocate memory for AD if required
 		if (_model->usesAD())
