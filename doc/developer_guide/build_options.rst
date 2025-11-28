@@ -33,7 +33,7 @@ The following build arguments can be set in the cmakeSettings.json or from the c
 - ``DENABLE_STATIC_LINK_CLI``: Prefers static over dynamic linking for CADET-Core CLI.
 - ``DENABLE_TESTS``: Build the ``restRunner`` executable to evaluate the integrated tests in ``CADET-Core``.
 - ``DENABLE_ANALYTIC_JACOBIAN_CHECK``: Computes both the analytical and AD Jacobian and compares them for testing purpose.
-- ``DENABLE_THREADING``: Enables multi-threading capabilities. Parallelized code will be compiled, using the TBB library. Note that the non-parallelized code is faster compared to the parallelized code when only one thread is being used. The number of threads is specified in the filed ``N_THREADS``.
+- ``DENABLE_THREADING``: Enables multi-threading capabilities. Parallelized code will be compiled, using the TBB library. Note that the non-parallelized code is faster compared to the parallelized code when only one thread is being used. The number of threads is specified in the filed ``NTHREADS``.
 - ``DBLA_VENDOR``: Vendor for the BLAS & LAPACK library. If unset, the system library will be used. By default on Windows we use the Intel OneApi library, specified with ``Intel10_64lp_seq``. If a parallelized build is generated, this should be set to ``Intel10_64lp``.
 - ``DENABLE_LOGGING``: Enables logging functionality.
 - ``DENABLE_BENCHMARK``: Activates benchmark mode for fine-grained timing.
