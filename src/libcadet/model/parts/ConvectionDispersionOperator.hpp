@@ -237,6 +237,7 @@ protected:
 	std::vector<active> _velocity; //!< Radial velocity (may be section dependent) \f$ v \f$
 	active _curVelocity; //!< Current interstitial velocity \f$ u \f$ in this time section
 	int _dir; //!< Current flow direction in this time section
+	double _circleFraction; //!< Specifies whether the radial model is a full circle or wedge and in that case the fraction of a full circle
 
 	ArrayPool _stencilMemory; //!< Provides memory for the stencil
 

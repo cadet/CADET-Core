@@ -45,13 +45,30 @@ Group /input/model/unit_XXX - UNIT_TYPE - RADIAL_COLUMN_MODEL_1D
 
 ``COL_LENGTH``
 
-   Column length/height (optional if :math:`\texttt{VELOCITY_COEFF}` is present, see Section :ref:`MUOPGRMflow`)
+   Column length/height (optional if :math:`\texttt{VELOCITY_COEFF}` is present, see Section :ref:`MUOPGRMflow`).
+   Note that this is not the bed height in flow direction.
 
    **Unit:** :math:`\mathrm{m}`
 
    ================  ======================  =============
    **Type:** double  **Range:** :math:`> 0`  **Length:** 1
    ================  ======================  =============
+
+``COLUMN_GEOMETRY``
+
+   Optional, specifies whether the radial flow model is a full cylinder shell or a fraction, i.e. a wedge
+   
+   ================  ==========================================================  =============
+   **Type:** string  **Range:** :math:`\texttt{CYLINDER_SHELL}, \texttt{WEDGE}`  **Length:** 1
+   ================  ==========================================================  =============
+
+``CIRCLE_FRACTION``
+
+   Optional, only required for wedge geometry. Specifies the cylinder shell fraction of the wedge
+   
+   ================  ========================  =============
+   **Type:** double  **Range:** :math:`(0,1]`  **Length:** 1
+   ================  ========================  =============
 
 ``COL_POROSITY``
 

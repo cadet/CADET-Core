@@ -696,6 +696,18 @@ bool RadialConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IPar
 	_innerRadius = paramProvider.getDouble("COL_RADIUS_INNER");
 	_outerRadius = paramProvider.getDouble("COL_RADIUS_OUTER");
 
+	if (paramProvider.exists("COLUMN_GEOMETRY"))
+	{
+		std::string geom = paramProvider.getString("COLUMN_GEOMETRY");
+
+		if (!(geom == "WEDGE" || geom == "CYLINDER_SHELL"))
+			throw InvalidParameterException("COLUMN_GEOMETRY for unit" + std::to_string(unitOpIdx) + " must bei either be WEDGE or CYLINDER_SHELL");
+		else
+			_circleFraction = paramProvider.getDouble("CIRCLE_FRACTION");
+	}
+	else
+		_circleFraction = 1.0;
+
 	// Read length or set to -1
 	_colLength = -1.0;
 	if (paramProvider.exists("COL_LENGTH"))
@@ -841,7 +853,7 @@ void RadialConvectionDispersionOperatorBase::setFlowRates(const active& in, cons
 
 	// If we have column length, interstitial velocity is given by network flow rates
 	if (_colLength > 0.0)
-		_curVelocity = _dir * in / (2.0 * pi * _colLength * colPorosity); // this coefficient is later divided by r
+		_curVelocity = _dir * in / (2.0 * pi * _colLength * colPorosity * _circleFraction); // this coefficient is later divided by r
 }
 
 active RadialConvectionDispersionOperatorBase::currentVelocity(double pos) const CADET_NOEXCEPT
