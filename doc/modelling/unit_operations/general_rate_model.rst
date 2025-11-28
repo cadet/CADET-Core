@@ -311,7 +311,9 @@ The main assumptions are:
 - The fluids are incompressible, i.e. the velocity field :math:`\mathrm{V} \colon \mathbb{R}^3 \to \mathbb{R}^3` submits to :math:`\operatorname{div}\left( \mathrm{V} \right) \equiv 0`.
   That is, the volumetric flow rate at the inner and outer column radius are the same.
 
-Consider a hollow (double walled) column with inner column diameter :math:`\mathrm{P}_c>0` and outer diameter :math:`\mathrm{P}>\mathrm{P}_c`, filled with spherical beads of (possibly) multiple types with radius :math:`r_{p,j} \ll L` (see :numref:`ModelGRMColumn`), where :math:`j` is the particle type index. The mass balance in the interstitial column volume is described by
+Consider a hollow (double walled) column with inner column diameter :math:`\mathrm{P}_c>0` and outer diameter :math:`\mathrm{P}>\mathrm{P}_c`, filled with spherical beads of (possibly) multiple types with radius :math:`r_{p,j} \ll L` (see :numref:`ModelGRMColumn`), where :math:`j` is the particle type index.
+Alternatively, consider a wedge of this cylinder.
+The mass balance in the interstitial column volume is described by
 
 .. math::
     :label: ModelRadialColumnGRM
