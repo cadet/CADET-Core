@@ -19,17 +19,17 @@ TEST_CASE("MassActionLaw kinetic analytic Jacobian vs AD", "[MassActionLaw],[Rea
 {
 	const unsigned int nBound[] = {1, 2, 1};
 	const double point[] = {1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8};
-	cadet::test::reaction::testDynamicJacobianAD("MASS_ACTION_LAW", 3, nBound,
+	cadet::test::reaction::testDynamicJacobianAD("MASS_ACTION_LAW_CROSS_PHASE", 3, nBound,
 		R"json({
-			"MAL_KFWD_BULK": [1.0, 2.0, 0.4],
-			"MAL_KBWD_BULK": [0.0, 0.2, 1.5],
-			"MAL_STOICHIOMETRY_BULK": [ 1.0, -2.0,  3.0,
+			"MAL_KFWD_LIQUID": [1.0, 2.0, 0.4],
+			"MAL_KBWD_LIQUID": [0.0, 0.2, 1.5],
+			"MAL_STOICHIOMETRY_LIQUID": [ 1.0, -2.0,  3.0,
 			                           -1.0,  0.0, -2.0,
 			                            0.0,  1.0,  1.0],
-			"MAL_EXPONENTS_BULK_FWD": [ 1.2,  0.0,  0.0,
+			"MAL_EXPONENTS_LIQUID_FWD": [ 1.2,  0.0,  0.0,
 			                            0.0,  1.3,  2.2,
 			                            0.0,  1.0,  1.1],
-			"MAL_EXPONENTS_BULK_BWD": [ 0.8,  2.1,  1.0,
+			"MAL_EXPONENTS_LIQUID_BWD": [ 0.8,  2.1,  1.0,
 			                            1.3,  1.0,  0.0,
 			                            0.0,  0.0,  1.4],
 
@@ -155,7 +155,7 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD without inhibition", 
 			"MM_KMM": [1.0, 2.0, 0.4],
 			"MM_KI": [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0],
 			"MM_VMAX": [1.0, 0.2, 1.5],
-			"MM_STOICHIOMETRY_BULK": [ 1.0, -2.0,  3.0,
+			"MM_STOICHIOMETRY": [ 1.0, -2.0,  3.0,
 			                          -1.0,  0.0, -2.0,
 			                           0.0,  1.0,  1.0]
 		})json",
@@ -172,7 +172,7 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with inhibition", "[M
 			"MM_KMM": [1.0, 2.0, 0.4],
 			"MM_KI": [-1.0, 1.0, -1.0, -1.0, -1.0, -1.0, 3.0, 2.0, -1.0],
 			"MM_VMAX": [1.0, 0.2, 1.5],
-			"MM_STOICHIOMETRY_BULK": [ 1.0, -2.0,  3.0,
+			"MM_STOICHIOMETRY": [ 1.0, -2.0,  3.0,
 			                          -1.0,  0.0, -2.0,
 			                           0.0,  1.0,  1.0]
 		})json",

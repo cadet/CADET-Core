@@ -177,15 +177,18 @@ namespace reaction
 		const bool isLRM = (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES");
 		const bool isCSTR = (uoType == "CSTR");
 
-		if (!isLRM && bulk)
+		if (bulk)
 		{
-			jpp.set("REACTION_MODEL", "MASS_ACTION_LAW");
-			char const* const scopeName = "reaction_bulk";
+			const int reactionTypes = 1;
+			jpp.set("NREAC_LIQUID", reactionTypes);
+
+			char const* const scopeName = "liquid_reaction_000";
 			jpp.addScope(scopeName);
 			auto gs2 = util::makeGroupScope(jpp, scopeName);
 
-			const int nReactions = 4;
+			jpp.set("TYPE", "MASS_ACTION_LAW");
 
+			const int nReactions = 1;
 			std::vector<double> stoichMat(nReactions * nComp, 0.0);
 			std::vector<double> expFwd(nReactions * nComp, 0.0);
 			std::vector<double> expBwd(nReactions * nComp, 0.0);
@@ -198,44 +201,60 @@ namespace reaction
 			util::populate(rateFwd.data(), [](unsigned int idx) { return std::sin(0.3 + idx * 0.2) * 0.5 + 1.5; }, rateFwd.size());
 			util::populate(rateBwd.data(), [](unsigned int idx) { return std::sin(0.4 + idx * 0.4) * 0.5 + 1.6; }, rateBwd.size());
 
-			jpp.set("MAL_STOICHIOMETRY_BULK", stoichMat);
-			jpp.set("MAL_EXPONENTS_BULK_FWD", expFwd);
-			jpp.set("MAL_EXPONENTS_BULK_BWD", expBwd);
-			jpp.set("MAL_KFWD_BULK", rateFwd);
-			jpp.set("MAL_KBWD_BULK", rateBwd);
+			jpp.set("MAL_STOICHIOMETRY", stoichMat);
+			jpp.set("MAL_EXPONENTS_FWD", expFwd);
+			jpp.set("MAL_EXPONENTS_BWD", expBwd);
+			jpp.set("MAL_KFWD", rateFwd);
+			jpp.set("MAL_KBWD", rateBwd);
 		}
 
-		if (!jpp.exists("NPARTYPE"))
+		if (!jpp.exists("NPARTYPE") && !isCSTR)
 			return;
 
-		const int nParType = jpp.getInt("NPARTYPE");
+		int nParType = 0;
+		if (!isCSTR)
+			nParType = jpp.getInt("NPARTYPE");
+		else
+			nParType = jpp.getIntArray("NBOUND").size() / jpp.getInt("NCOMP");
 
-		if ((!isLRM && particle) || (isLRM && bulk))
+		if ((!isLRM && particle))
 		{
-			const int nReactions = 3;
+			const int nReactions = 1;
 
 			for (int i = 0; i < nParType; ++i)
 			{
-				if (!isCSTR)
-					jpp.pushScope("particle_type_" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i));
-
-				std::vector<int> nBound = jpp.getIntArray("NBOUND");
-				const int nTotalBound = std::accumulate(nBound.begin(), nBound.end(), 0);
-
-				std::string scope;
-				if (!isCSTR)
+				std::vector<int> nBound;
+				int nTotalBound;
+				if (isCSTR)
 				{
-					jpp.set("REACTION_MODEL", "MASS_ACTION_LAW");
-					scope = "reaction";
+					nBound = jpp.getIntArray("NBOUND");
+
+					int start = i * nComp;
+					int end = start + nComp;
+
+					nTotalBound = std::accumulate(
+						nBound.begin() + start,
+						nBound.begin() + end,
+						0
+					);
+
+					jpp.addScope("particle_type_" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i));
+					jpp.pushScope("particle_type_" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i)); // particle_type_xxx
 				}
 				else
 				{
-					jpp.set("REACTION_MODEL_PARTICLE", "MASS_ACTION_LAW");
-					scope = "reaction_particle";
+					jpp.pushScope("particle_type_" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i)); // particle_type_xxx
+					nBound = jpp.getIntArray("NBOUND");
+					nTotalBound = std::accumulate(nBound.begin(), nBound.end(), 0);
 				}
 
-				jpp.addScope(scope);
-				auto gs2 = util::makeGroupScope(jpp, scope);
+				int nReac = 1;
+				jpp.set("NREAC_CROSS_PHASE", nReac);
+
+				jpp.addScope("cross_phase_reaction_000"); //particle_type_xxx/cross_phase_reaction_000
+				auto gs3 = util::makeGroupScope(jpp, "cross_phase_reaction_000");
+
+				jpp.set("TYPE", "MASS_ACTION_LAW_CROSS_PHASE");
 
 				std::vector<double> stoichMatLiquid(nReactions * nComp, 0.0);
 				std::vector<double> expFwdLiquid(nReactions * nComp, 0.0);
@@ -291,7 +310,6 @@ namespace reaction
 					jpp.set("MAL_EXPONENTS_SOLID_BWD_MODLIQUID", expBwdSolidModLiquid);
 				}
 
-				if (!isCSTR)
 					jpp.popScope();
 			}
 		}
@@ -329,8 +347,8 @@ namespace reaction
 		for (unsigned int i = 0; i < SMAData->numDataPoints(); ++i, outletMM += nCompMM, outletSMA += nCompSMA)
 		{
 			CAPTURE(i);
-			CHECK((outletMM[0]) == cadet::test::makeApprox(outletSMA[0], relTol, absTol));
-			CHECK((outletMM[1]) == cadet::test::makeApprox(outletSMA[1], relTol, absTol));
+			CHECK((outletMM[0]) == cadet::test::makeApprox(outletSMA[0], relTol, absTol)); // supstrate
+			CHECK((outletMM[1]) == cadet::test::makeApprox(outletSMA[1], relTol, absTol)); // product
 		}
 	}
 
@@ -408,7 +426,7 @@ namespace reaction
 
 		// Evaluate with AD
 		ad::resetAd(adRes, numDofs);
-		crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY, adRes, 1.0, crm.buffer());
+		crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, crm.nComp(), adY, adRes, 1.0, crm.buffer());
 
 		// Extract Jacobian
 		jacAD.setAll(0.0);
@@ -416,7 +434,7 @@ namespace reaction
 
 		// Calculate analytic Jacobian
 		jacAna.setAll(0.0);
-		crm.model().analyticJacobianLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yState.data(), 1.0, jacAna.row(0), crm.buffer());
+		crm.model().analyticJacobianAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, crm.nComp(), yState.data(), 1.0, jacAna.row(0), crm.buffer());
 
 		delete[] adY;
 		delete[] adRes;
@@ -425,7 +443,7 @@ namespace reaction
 			[&](double const* lDir, double* res) -> void
 				{
 					std::fill_n(res, nComp, 0.0);
-					crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, res, 1.0, crm.buffer());
+					crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, crm.nComp(), lDir, res, 1.0, crm.buffer());
 				},
 			[&](double const* lDir, double* res) -> void 
 				{
@@ -437,7 +455,7 @@ namespace reaction
 			[&](double const* lDir, double* res) -> void
 				{
 					std::fill_n(res, nComp, 0.0);
-					crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, res, 1.0, crm.buffer());
+					crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, crm.nComp(), lDir, res, 1.0, crm.buffer());
 				},
 			[&](double const* lDir, double* res) -> void 
 				{

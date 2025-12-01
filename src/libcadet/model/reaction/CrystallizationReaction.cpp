@@ -1351,7 +1351,7 @@ protected:
 			StateType const* const yCrystal = y + 1;
 			ResidualType* const resCrystal = res + 1;
 
-			const StateType sParam = (cadet_likely(y[0] / y[_nComp - 1] - 1.0 > 0)) ? y[0] / y[_nComp - 1] - 1.0 : 0.0; // s = (c_0 - c_eq) / c_eq = c_0 / c_eq - 1, rewrite it to zero if s drops below 0
+			const StateType sParam = (cadet_likely(y[0] / y[_nComp - 1] - 1.0 > 0)) ? y[0] / y[_nComp - 1] - 1.0 : StateType(0.0); // s = (c_0 - c_eq) / c_eq = c_0 / c_eq - 1, rewrite it to zero if s drops below 0
 			const ParamType massDensityShapeFactor = static_cast<ParamType>(_nucleiMassDensity) * static_cast<ParamType>(_volShapeFactor);
 			k_g_times_s_g = static_cast<ParamType>(_growthRateConstant) * pow(sParam, static_cast<ParamType>(_g));
 

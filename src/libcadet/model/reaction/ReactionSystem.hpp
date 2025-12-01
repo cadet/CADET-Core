@@ -219,10 +219,10 @@ struct ReactionSystem
 					}
 
                     // Pop scope if reaction model used parameter provider
-					if (dynReaction[i]->usesParamProviderInDiscretizationConfig())
+					//if (dynReaction[i]->usesParamProviderInDiscretizationConfig())
 						paramProvider.popScope();
 				}
-
+            
             return reactionConfSuccess;
 	    }
 

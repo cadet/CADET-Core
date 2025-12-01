@@ -357,7 +357,7 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD with dummy reactio
 							porosity,
 							poreAccessFactor.data(),
 							&cbm.model(),
-							&cdrm.model()
+							nullptr
 					};
 
 			// Compare Jacobians
@@ -445,7 +445,7 @@ TEST_CASE("CellKernel Jacobian analytic vs AD with dummy reaction", "[CellKernel
 							porosity,
 							poreAccessFactor.data(),
 							&cbm.model(),
-							&cdrm.model()
+							nullptr
 					};
 
 			// Calculate Jacobian via AD
