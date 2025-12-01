@@ -92,13 +92,18 @@ public:
 	*/
 	inline void addArray(double const* row, int startDiag, int length, double factor)
 	{
-		// shift to column index to start with
-		int idx = startDiag - _row;
-
-		for (int i = 0; i < length; i++) {
-			_values[idx + i] = factor * row[i];
+		for (int i = 0; i < length; ++i)
+		{
+			int col = _row + startDiag + i;
+			for (int j = 0; j < _numNonZero; ++j)
+			{
+				if (_colIdx[j] == col)
+				{
+					_values[j] += factor * row[i];
+					break;
+				}
+			}
 		}
-
 	}
 
 	/**
@@ -123,8 +128,22 @@ public:
 	{
 		cadet_assert((col >= 0) && (col < _size));
 
-		// Try to find the element
-		// TODO: Use binary search
+		// Binary search
+		int left = 0, right = _numNonZero - 1;
+		while (left <= right)
+		{
+			int mid = (left + right) / 2;
+			if (_colIdx[mid] == col) return _values[mid];
+			if (_colIdx[mid] < col) left = mid + 1;
+			else right = mid - 1;
+		}
+
+		// if element not found
+		_matrix->coeffRef(_row, col) = 0.0;
+
+		updateOnRowChange();
+
+		// Fallback
 		for (int i = 0; i < _numNonZero; ++i)
 		{
 			if (_colIdx[i] == col)
@@ -140,12 +159,14 @@ public:
 	{
 		cadet_assert((col >= 0) && (col < _matrix->rows()));
 
-		// Try to find the element
-		// TODO: Use binary search
-		for (int i = 0; i < _numNonZero; ++i)
+		// Binary search
+		int left = 0, right = _numNonZero - 1;
+		while (left <= right)
 		{
-			if (_colIdx[i] == col)
-				return _values[i];
+			int mid = (left + right) / 2;
+			if (_colIdx[mid] == col) return _values[mid];
+			if (_colIdx[mid] < col) left = mid + 1;
+			else right = mid - 1;
 		}
 
 		// We don't have it
