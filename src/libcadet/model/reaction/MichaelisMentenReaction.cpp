@@ -128,8 +128,8 @@ public:
 	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return true; }
     virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
     {
-        return _paramHandler.cacheSize(_stoichiometryBulk.columns(), nComp, totalNumBoundStates) +
-            std::max(_stoichiometryBulk.columns() * sizeof(active),
+        return _paramHandler.cacheSize(_stoichiometry.columns(), nComp, totalNumBoundStates) +
+            std::max(_stoichiometry.columns() * sizeof(active),
                 2 * (_nComp + totalNumBoundStates) * sizeof(double));
     }
 
@@ -137,30 +137,30 @@ public:
     {
         DynamicReactionModelBase::configureModelDiscretization(paramProvider, nComp, nBound, boundOffset);
 
-        if (paramProvider.exists("MM_STOICHIOMETRY_BULK"))
+        if (paramProvider.exists("MM_STOICHIOMETRY"))
         {
-            const std::size_t numElements = paramProvider.numElements("MM_STOICHIOMETRY_BULK");
+            const std::size_t numElements = paramProvider.numElements("MM_STOICHIOMETRY");
             if (numElements % nComp != 0)
-                throw InvalidParameterException("Size of field MM_STOICHIOMETRY_BULK must be a positive multiple of NCOMP (" + std::to_string(nComp) + ")");
+                throw InvalidParameterException("Size of field MM_STOICHIOMETRY must be a positive multiple of NCOMP (" + std::to_string(nComp) + ")");
 
             const unsigned int nReactions = numElements / nComp;
 
-            _stoichiometryBulk.resize(nComp, nReactions);
+            _stoichiometry.resize(nComp, nReactions);
             _idxSubstrate.resize(nReactions);
         }
 
-        return true;
-    }
-
-    virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometryBulk.columns(); }
-    virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return 0; }
+		return true;
+	}
+	virtual unsigned int numReactions() const CADET_NOEXCEPT { return _stoichiometry.columns(); }
+	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometry.columns(); }
+	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return 0; }
 
     CADET_DYNAMICREACTIONMODEL_BOILERPLATE
 
 protected:
     ParamHandler_t _paramHandler; //!< Handles parameters and their dependence on external functions
 
-    linalg::ActiveDenseMatrix _stoichiometryBulk;
+    linalg::ActiveDenseMatrix _stoichiometry;
     std::vector<std::vector<int>> _idxSubstrate; //!< Indices of substrate components for each reaction [reaction][substrate indices]
     std::vector<std::vector<std::unordered_set<int>>> _idxCompInhibitors; //!< Indices of competitive inhibitors [reaction][substrate][inhibitor indices]
     std::vector<std::vector<std::unordered_set<int>>> _idxUncompInhibitors; //!< Indices of uncompetitive inhibitors [reaction][substrate][inhibitor indices]
@@ -188,48 +188,48 @@ protected:
 
     virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
     {
-        _paramHandler.configure(paramProvider, _stoichiometryBulk.columns(), _nComp, _nBoundStates);
+        _paramHandler.configure(paramProvider, _stoichiometry.columns(), _nComp, _nBoundStates);
         _paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
         _oldInterface = false;
 
         // handle old interface
         // - kmm is the number of reactions 
         // - kI refers to the non competative inhibition konstants
-        if ((_stoichiometryBulk.columns() > 0) && (_paramHandler.kMM().size() == _stoichiometryBulk.columns()) || (paramProvider.exists("MM_KI")))
+        if ((_stoichiometry.columns() > 0) && (_paramHandler.kMM().size() == _stoichiometry.columns()) || (paramProvider.exists("MM_KI")))
         {
             _oldInterface = true;
             LOG(Warning) << "MM_KI is only is only supported for backwards compatibility, but the implementation of Michaelis Menten kinetics has changed, please refer to the documentation for CADET version >= 5.2.0";
         }
 
         // Parameter validations
-        if ((_stoichiometryBulk.columns() > 0) && ((_paramHandler.vMax().size() < _stoichiometryBulk.columns())))
+        if ((_stoichiometry.columns() > 0) && ((_paramHandler.vMax().size() < _stoichiometry.columns())))
             throw InvalidParameterException("MM_VMAX have to have the size (number of reactions)");
 
-        if (_oldInterface && (_stoichiometryBulk.columns() > 0) && (_paramHandler.kMM().size() < _stoichiometryBulk.columns()))
+        if (_oldInterface && (_stoichiometry.columns() > 0) && (_paramHandler.kMM().size() < _stoichiometry.columns()))
             throw InvalidParameterException("MM_KMM have to have the size (number of reactions)");
 
-        if (!_oldInterface && (_stoichiometryBulk.columns() > 0) && (_paramHandler.kMM().size() < _stoichiometryBulk.columns() * _nComp))
+        if (!_oldInterface && (_stoichiometry.columns() > 0) && (_paramHandler.kMM().size() < _stoichiometry.columns() * _nComp))
             throw InvalidParameterException("MM_KMM must have the size (number of reactions) x (number of components)");
 
         // kInhibitComp and kInhibitUnComp are 3D parameters with size (number of reactions) x (number of substrates) x (number of components)
-        if (paramProvider.exists("MM_STOICHIOMETRY_BULK"))
+        if (paramProvider.exists("MM_STOICHIOMETRY"))
         {
-            const std::vector<double> s = paramProvider.getDoubleArray("MM_STOICHIOMETRY_BULK");
-            std::vector<double> KIC(_stoichiometryBulk.columns() * _nComp * _nComp); 
-            std::vector<double> KIUC(_stoichiometryBulk.columns() * _nComp * _nComp);
+            const std::vector<double> s = paramProvider.getDoubleArray("MM_STOICHIOMETRY");
+            std::vector<double> KIC(_stoichiometry.columns() * _nComp * _nComp); 
+            std::vector<double> KIUC(_stoichiometry.columns() * _nComp * _nComp);
             bool hasCompetiveInhibition = false;
             
             if (paramProvider.exists("MM_KI_C"))
             {
                 KIC = paramProvider.getDoubleArray("MM_KI_C");
-                if (KIC.size() != _stoichiometryBulk.columns() * _nComp * _nComp)
+                if (KIC.size() != _stoichiometry.columns() * _nComp * _nComp)
                     throw InvalidParameterException("MM_KI_C must have the size (number of reactions) x (number of components) x (number of components)");
             }
 
             if (paramProvider.exists("MM_KI_UC"))
             {
                 KIUC = paramProvider.getDoubleArray("MM_KI_UC");
-                if (KIUC.size() != _stoichiometryBulk.columns() * _nComp * _nComp)
+                if (KIUC.size() != _stoichiometry.columns() * _nComp * _nComp)
                     throw InvalidParameterException("MM_KI_UC must have the size (number of reactions) x (number of components) x (number of components)");
             }
             if (paramProvider.exists("MM_KI"))
@@ -239,14 +239,14 @@ protected:
             }
 
 
-            if (s.size() != _stoichiometryBulk.elements())
-                throw InvalidParameterException("MM_STOICHIOMETRY_BULK size mismatch: Expected " +
-                    std::to_string(_stoichiometryBulk.elements()) + " elements but got " + std::to_string(s.size()));
+            if (s.size() != _stoichiometry.elements())
+                throw InvalidParameterException("MM_STOICHIOMETRY size mismatch: Expected " +
+                    std::to_string(_stoichiometry.elements()) + " elements but got " + std::to_string(s.size()));
 
-            std::copy(s.begin(), s.end(), _stoichiometryBulk.data());
+            std::copy(s.begin(), s.end(), _stoichiometry.data());
 
             // Identify substrates (negative entries in stoichiometry matrix)
-            const unsigned int nReactions = static_cast<unsigned int>(_stoichiometryBulk.columns());
+            const unsigned int nReactions = static_cast<unsigned int>(_stoichiometry.columns());
             _idxSubstrate.clear();
             _idxCompInhibitors.resize(nReactions);
             _idxUncompInhibitors.resize(nReactions);
@@ -256,7 +256,7 @@ protected:
                 std::vector<int> idxSubstrateReaction_r;
                 for (unsigned int c = 0; c < _nComp; ++c)
                 {
-                    if (_stoichiometryBulk.native(c, r) < 0.0)
+                    if (_stoichiometry.native(c, r) < 0.0)
                         idxSubstrateReaction_r.push_back(static_cast<int>(c));
                 }
 
@@ -300,21 +300,21 @@ protected:
             }
         }
 
-        registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MM_STOICHIOMETRY_BULK", _stoichiometryBulk);
+        registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MM_STOICHIOMETRY", _stoichiometry);
         return true;
     }
 
-    template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
-    int residualLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
-        StateType const* y, ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
-    {
-        typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+	template <typename StateType, typename ResidualType, typename ParamType, typename FactorType>
+	int residualFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		const unsigned int nStates, StateType const* y, ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
+	{
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
         // Calculate fluxes
         typedef typename DoubleActivePromoter<StateType, ParamType>::type flux_t;
-        BufferedArray<flux_t> fluxes = workSpace.array<flux_t>(_stoichiometryBulk.columns());
+        BufferedArray<flux_t> fluxes = workSpace.array<flux_t>(_stoichiometry.columns());
 
-        for (unsigned int r = 0; r < static_cast<unsigned int>(_stoichiometryBulk.columns()); ++r)
+        for (unsigned int r = 0; r < static_cast<unsigned int>(_stoichiometry.columns()); ++r)
         {
             unsigned int nSub = _idxSubstrate[r].size();
             flux_t vProd = 1.0;
@@ -376,7 +376,7 @@ protected:
         }
 
         // Add reaction terms to residual
-        _stoichiometryBulk.multiplyVector(static_cast<flux_t*>(fluxes), factor, res);
+        _stoichiometry.multiplyVector(static_cast<flux_t*>(fluxes), factor, res);
 
         return 0;
     }
@@ -395,12 +395,12 @@ protected:
         return 0;
     }
 
-    template <typename RowIterator>
-    void jacobianLiquidImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, const RowIterator& jac, LinearBufferAllocator workSpace) const
-    {
-        typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+	template <typename RowIterator>
+	void jacobianFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y, double factor, const RowIterator& jac, LinearBufferAllocator workSpace) const
+	{
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-        for (unsigned int r = 0; r < static_cast<unsigned int>(_stoichiometryBulk.columns()); ++r)
+        for (unsigned int r = 0; r < static_cast<unsigned int>(_stoichiometry.columns()); ++r)
         {
             unsigned int nSub = _idxSubstrate[r].size();
 
@@ -583,7 +583,7 @@ protected:
                 RowIterator curJac = jac;
                 for (unsigned int row = 0; row < _nComp; ++row, ++curJac)
                 {
-                    const double colFactor = static_cast<double>(_stoichiometryBulk.native(row, r)) * factor;
+                    const double colFactor = static_cast<double>(_stoichiometry.native(row, r)) * factor;
                     curJac[static_cast<int>(comp) - static_cast<int>(row)] += colFactor * dvdy;
                 }
             }
