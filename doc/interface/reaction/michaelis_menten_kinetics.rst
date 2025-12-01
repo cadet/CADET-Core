@@ -79,14 +79,13 @@ Notes
 
 CADET Python Interface Example
 ------------------------------
-This example shows the configuration of one Michaelis-Menten reaction system in the liquid bulk phase.
+This example shows the configuration of one Michaelis-Menten reaction system in bulk liquid phase.
 The system has two components A and B, where A is the substrate and B is the product.
 In addition to that the model includes:
 
 * A Michaelis constant ``KM_a``,
 * competitive inhibition constant of ``KI_b_a`` for B inhibiting A,
 * and a maximum rate of ``vmax``
-
 
 .. code-block:: Python3
 
@@ -119,7 +118,7 @@ In addition to that the model includes:
     input.model.unit_000.reaction_liquid_000.mm_vmax = [vmax]
 
     # Stoichiometry matrix 2D array [components][reaction]
-    input.model.unit_000.reaction_liquid_000.mm_stoichiometry_bulk = [
+    input.model.unit_000.reaction_liquid_000.mm_stoichiometry = [
         [-1],
         [1] # A -> B
     ]

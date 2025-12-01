@@ -356,6 +356,9 @@ GeneralRateModel2D::~GeneralRateModel2D() CADET_NOEXCEPT
 	delete[] _disc.boundOffset;
 	delete[] _disc.strideBound;
 	delete[] _disc.nBoundBeforeType;
+
+	_reaction.clearDynamicReactionModels();
+	_reacParticle.clear();
 }
 
 unsigned int GeneralRateModel2D::numDofs() const CADET_NOEXCEPT
@@ -636,24 +639,91 @@ bool GeneralRateModel2D::configureModelDiscretization(IParameterProvider& paramP
 
 	// ==== Construct and configure dynamic bulk reaction model
 
-	_dynReactionBulk = nullptr;
-	if (paramProvider.exists("REACTION_MODEL"))
+	_dynReaction.resize(_disc.nParType, nullptr);
+
+	_reaction.clearDynamicReactionModels();
+
+	_reacParticle.clear();
+	_reacParticle.resize(_disc.nParType);
+
+
+	if (_disc.nParType > 0)
 	{
-		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
-		_dynReactionBulk = helper.createDynamicReactionModel(dynReactName);
-		if (!_dynReactionBulk)
-			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
 
-		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
-			paramProvider.pushScope("reaction_bulk");
+		for (unsigned int par = 0; par < _disc.nParType; par++)
+		{
 
-		reactionConfSuccess = reactionConfSuccess && _dynReactionBulk->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
+			char particleScope[32];
+			snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
+			paramProvider.pushScope(particleScope); // particle_type_xxx
 
-		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
-			paramProvider.popScope();
+			ReactionSystem parReaction;
+
+			if (paramProvider.exists("NREAC_CROSS_PHASE"))
+	{
+				int nReactions = paramProvider.getInt("NREAC_CROSS_PHASE");
+
+				reactionConfSuccess = _reacParticle[par].configureDiscretization("cross_phase",
+					0,
+					nReactions,
+					_disc.nComp,
+					_disc.nBound,
+					_disc.boundOffset,
+					paramProvider,
+					helper) && reactionConfSuccess;
+
+			}
+			if (paramProvider.exists("NREAC_LIQUID"))
+			{
+				int nReactions = paramProvider.getInt("NREAC_LIQUID");
+				reactionConfSuccess = _reacParticle[par].configureDiscretization("liquid",
+					0,
+					nReactions,
+					_disc.nComp,
+					_disc.nBound,
+					_disc.boundOffset,
+					paramProvider,
+					helper) && reactionConfSuccess;
+			}
+			if (paramProvider.exists("NREAC_SOLID"))
+			{
+				int nReactions = paramProvider.getInt("NREAC_SOLID");
+				reactionConfSuccess = _reacParticle[par].configureDiscretization("solid",
+					0,
+					nReactions,
+					_disc.nComp,
+					_disc.nBound,
+					_disc.boundOffset,
+					paramProvider,
+					helper) && reactionConfSuccess;
+
+			}
+			paramProvider.popScope(); // particle_type_xxx
+
+		}
+
 	}
 
-	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nCol, _disc.nRad, _dynReactionBulk);
+	bool hasBulkReaction = false;
+	if (paramProvider.exists("NREAC_LIQUID"))
+	{
+		int nReactions = paramProvider.getInt("NREAC_LIQUID");
+		hasBulkReaction = true;
+		reactionConfSuccess = _reaction.configureDiscretization("liquid",
+			0,
+			nReactions,
+			_disc.nComp,
+			_disc.nBound,
+			_disc.boundOffset,
+			paramProvider,
+			helper) && reactionConfSuccess;
+	}
+	else
+	{
+		_reaction.empty();
+	}
+
+	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nCol, _disc.nRad, hasBulkReaction);
 
 	// Setup the memory for tempState based on state vector
 	_tempState = new double[numDofs()];
@@ -939,35 +1009,25 @@ bool GeneralRateModel2D::configure(IParameterProvider& paramProvider)
 
 	// Reconfigure reaction model
 	bool dynReactionConfSuccess = true;
-	if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
-	{
-		paramProvider.pushScope("reaction_bulk");
-		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
-		paramProvider.popScope();
-	}
+	// Reconfigure reaction model
+	if (paramProvider.exists("NREAC_LIQUID"))
+		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
-	if (_singleDynReaction)
+	for (unsigned int par = 0; par < _disc.nParType; par++)
 	{
-		if (_dynReaction[0] && _dynReaction[0]->requiresConfiguration())
-		{
-			paramProvider.pushScope("particle_type_000");
-			paramProvider.pushScope("reaction");
-			dynReactionConfSuccess = dynReactionConfSuccess && _dynReaction[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep);
-			paramProvider.popScope();
-			paramProvider.popScope();
-		}
-	}
-	else
-	{
-		for (unsigned int type = 0; type < _disc.nParType; ++type)
-		{
-			if (!_dynReaction[type] || !_dynReaction[type]->requiresConfiguration())
-				continue;
+		char particleScope[32];
+		snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
 
-			paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(type).length(), '0') + std::to_string(type));
-			paramProvider.pushScope("adsorption");
-			dynReactionConfSuccess = dynReactionConfSuccess && _dynReaction[type]->configure(paramProvider, _unitOpIdx, type);
-			paramProvider.popScope();
+		if (paramProvider.exists(particleScope))
+		{
+			paramProvider.pushScope(particleScope);
+			if (paramProvider.exists("NREAC_CROSS_PHASE"))
+				dynReactionConfSuccess = _reacParticle[par].configure("cross_phase", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+			if (paramProvider.exists("NREAC_LIQUID"))
+				dynReactionConfSuccess = _reacParticle[par].configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+			if (paramProvider.exists("NREAC_SOLID"))
+				dynReactionConfSuccess = _reacParticle[par].configure("solid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+
 			paramProvider.popScope();
 		}
 	}
@@ -986,12 +1046,12 @@ unsigned int GeneralRateModel2D::threadLocalMemorySize() const CADET_NOEXCEPT
 		if (_binding[i] && _binding[i]->requiresWorkspace())
 			lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
 
-		if (_dynReaction[i] && _dynReaction[i]->requiresWorkspace())
-			lms.fitBlock(_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
+		_reacParticle[i].setWorkspaceRequirements("cross_phase", 1, _disc.nComp, &_disc.strideBound[i], lms);
+		_reacParticle[i].setWorkspaceRequirements("liquid", 1, _disc.nComp, &_disc.strideBound[i], lms);
+		_reacParticle[i].setWorkspaceRequirements("solid", 1, _disc.nComp, &_disc.strideBound[i], lms);
 	}
+	_reaction.setWorkspaceRequirements("liquid", _disc.nComp, 0, lms);
 
-	if (_dynReactionBulk && _dynReactionBulk->requiresWorkspace())
-		lms.fitBlock(_dynReactionBulk->workspaceSize(_disc.nComp, 0, nullptr));
 
 	const unsigned int maxStrideBound = *std::max_element(_disc.strideBound, _disc.strideBound + _disc.nParType);
 	lms.add<active>(_disc.nComp + maxStrideBound);
@@ -1376,12 +1436,18 @@ int GeneralRateModel2D::residualBulk(double t, unsigned int secIdx, StateType co
 		const double z = (0.5 + static_cast<double>(axialCell)) / static_cast<double>(_disc.nCol);
 
 		const ColumnPosition colPos{z, r, 0.0};
-		_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
+		for (auto i = 0; i < _reaction.getDynReactionVector("liquid").size(); i++)
+		{
+			if (!_reaction.getDynReactionVector("liquid")[i])
+				continue;
+
+		_dynReactionBulk->residualFluxAdd(t, secIdx, colPos, _disc.nComp, y, res, -1.0, tlmAlloc);
 
 		if (wantJac)
 		{
 			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideColRadialCell()), tlmAlloc);
+			_dynReactionBulk->analyticJacobianAdd(t, secIdx, colPos, _disc.nComp, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideColRadialCell()), tlmAlloc);
+		}
 		}
 	}
 
@@ -1441,7 +1507,7 @@ int GeneralRateModel2D::residualParticle(double t, unsigned int parType, unsigne
 			_parPorosity[parType],
 			_poreAccessFactor.data() + _disc.nComp * parType,
 			_binding[parType],
-			(_dynReaction[parType] && (_dynReaction[parType]->numReactionsCombined() > 0)) ? _dynReaction[parType] : nullptr
+			&_reacParticle[parType]
 		};
 
 	// Loop over particle cells

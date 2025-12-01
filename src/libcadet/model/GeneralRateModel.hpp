@@ -22,6 +22,7 @@
 #include "cadet/StrongTypes.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "model/parts/ConvectionDispersionOperator.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/SparseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
@@ -332,6 +333,9 @@ protected:
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
 	ConvDispOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
+			ReactionSystem _reaction; 
+			std::vector<ReactionSystem> _reacParticle;
+
 	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 
 	linalg::BandMatrix* _jacP; //!< Particle jacobian diagonal blocks (all of them)

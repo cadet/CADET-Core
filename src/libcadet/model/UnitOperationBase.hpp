@@ -82,7 +82,7 @@ protected:
 	std::vector<IBindingModel*> _binding; //!< Binding model
 	std::vector<IExchangeModel*> _exchange; //!< Exchange model
 	bool _singleBinding; //!< Determines whether only a single binding model is present
-	std::vector<IDynamicReactionModel*> _dynReaction; //!< Dynamic reaction model
+	std::vector<IDynamicReactionModel*> _dynReaction; //!< Dynamic reaction model in partical
 	bool _singleDynReaction; //!< Determines whether only a single dynamic reaction model is present
 
 	typedef std::unordered_map<ParameterId, active*> paramMap_t;

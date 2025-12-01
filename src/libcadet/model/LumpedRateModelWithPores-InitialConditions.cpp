@@ -401,7 +401,7 @@ void LumpedRateModelWithPores<ConvDispOperator>::consistentInitialState(const Si
 					_parPorosity[type],
 					_poreAccessFactor.data() + _disc.nComp * type,
 					_binding[type],
-					(_dynReaction[type] && (_dynReaction[type]->numReactionsCombined() > 0)) ? _dynReaction[type] : nullptr
+					 &_reacParticle[type]
 				};
 
 			const int localOffsetToParticle = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{static_cast<unsigned int>(pblk)});

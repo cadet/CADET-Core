@@ -152,7 +152,7 @@ public:
 		return true;
 	}
 	virtual unsigned int numReactions() const CADET_NOEXCEPT { return _stoichiometry.columns(); }
-	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometry.columns(); }
+	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return 0; }
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return 0; }
 
     CADET_DYNAMICREACTIONMODEL_BOILERPLATE

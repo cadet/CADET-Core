@@ -7,8 +7,7 @@ Reaction models
 Reaction models describe the (net) fluxes :math:`f_{\mathrm{react}}(c)` of a
 reaction mechanism.
 
-In this kind of mechanism, the fluxes are typically
-defined as a function of the concentration of the components involved in the reaction and the reaction parameters.
+In this kind of mechanism, the fluxes are typically defined as a function of the concentration of the components involved in the reaction and the reaction parameters.
 
 In CADET, reaction models are defined for each phase of a unit operation separately, i.e., for the liquid phase and solid phase.
 For more information on the interface specification, see :ref:`FFReaction`.
