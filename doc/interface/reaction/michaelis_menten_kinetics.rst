@@ -3,9 +3,18 @@
 Michaelis Menten kinetics
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Group /input/model/unit_XXX/reaction - REACTION_MODEL = MICHAELIS_MENTEN**
+**Group /input/model/unit_XXX(/particle_type_YYY)/phase_reaction_ZZZ/ - TYPE = MICHAELIS_MENTEN**
 
 For information on model equations, refer to :ref:`michaelis_menten_kinetics_model`.
+
+Notes
+-----
+
+- ``reaction_phase_ZZZ`` refers to one of the phase-specific raction groups listed in :ref:`FFReaction`, e.g., ``reaction_bulk_ZZZ``, ``reaction_solid_ZZZ``, or ``reaction_particle_ZZZ`` (for particle type ``YYY``).
+- Some dimensions below depend on the hosting phase of this model instance:
+   - Bulk phase or particle liquid phase: ``NVAR = NCOMP``
+   - Particle solid phase: ``NVAR = NTOTALBOUND`` (total number of bound states across all components)
+
 
 ``MM_STOICHIOMETRY_BULK``
 
@@ -18,7 +27,7 @@ For information on model equations, refer to :ref:`michaelis_menten_kinetics_mod
     **Unit:** None
    
    ================  =============================  ========================================================
-   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NREACT} \cdot \texttt{NCOMP}`
+   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NREACT} \cdot \texttt{NVAR}`
    ================  =============================  ========================================================
    
 ``MM_VMAX``
@@ -53,7 +62,7 @@ For information on model equations, refer to :ref:`michaelis_menten_kinetics_mod
     **Unit:** :math:`mol^{-1}~m^{-3}`
 
    ================  =============================  =============================================================================
-   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NREACT} \cdot \texttt{NCOMP} \cdot \texttt{NCOMP}`
+   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NREACT} \cdot \texttt{NVAR} \cdot \texttt{NVAR}`
    ================  =============================  =============================================================================
 
 ``MM_KI_UC``
@@ -65,12 +74,12 @@ For information on model equations, refer to :ref:`michaelis_menten_kinetics_mod
     **Unit:** :math:`mol^{-1}~m^{-3}`
 
    ================  =============================  =============================================================================
-   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NREACT} \cdot \texttt{NCOMP} \cdot \texttt{NCOMP}`
+   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NREACT} \cdot \texttt{NVAR} \cdot \texttt{NVAR}`
    ================  =============================  =============================================================================
 
-Example configuration
-^^^^^^^^^^^^^^^^^^^^^
-This example shows the configuration of one Michaelis-Menten reaction system in CADET-Python.
+CADET Python Interface Example
+------------------------------
+This example shows the configuration of one Michaelis-Menten reaction system in the liquid bulk phase.
 The system has two components A and B, where A is the substrate and B is the product.
 In addition to that the model includes:
 
@@ -78,18 +87,20 @@ In addition to that the model includes:
 * competitive inhibition constant of ``KI_b_a`` for B inhibiting A,
 * and a maximum rate of ``vmax``
 
+
 .. code-block:: Python3
 
    #Configure the reaction system
-    model.root.input.model.unit_001.reaction_model = 'MICHAELIS_MENTEN'
+    input.model.unit_000.NREAC_LIQUID = 1
+    input.model.unit_000.reaction_liquid_000.type = 'MICHAELIS_MENTEN'
             
     # Km values 2D array [reaction][components]
-    model.root.input.model.unit_001.reaction_bulk.mm_km = [
+    input.model.unit_000.reaction_liquid_000.mm_km = [
         [KM_a, 0.0] # A is substrate
     ]
 
     # Competitive inhibition constants - 3D array [reaction][components][components]
-    model.root.input.model.unit_001.reaction_bulk.mm_ki_c = [
+    input.model.unit_000.reaction_liquid_000.mm_ki_c = [
         [
             [0.0, KI_b_a], # Inhibition konstant for A (Product inhibtion B inhibits A)
             [0.0, 0.0],  # Inhibition konstant for B (not active)
@@ -97,7 +108,7 @@ In addition to that the model includes:
     ]
 
     # Uncompetitive inhibition constants - 3D array [reaction][components][components]
-    model.root.input.model.unit_001.reaction_bulk.mm_ki_uc = [
+    input.model.unit_000.reaction_liquid_000.mm_ki_uc = [
         [
             [0.0, 0.0], # Inhibition konstant for A (not active)
             [0.0, 0.0], # Inhibition konstant for B (not active)
@@ -105,10 +116,10 @@ In addition to that the model includes:
     ]
 
     # Vmax values 1D array [reaction]
-    model.root.input.model.unit_001.reaction_bulk.mm_vmax = [vmax]
+    input.model.unit_000.reaction_liquid_000.mm_vmax = [vmax]
 
     # Stoichiometry matrix 2D array [components][reaction]
-    model.root.input.model.unit_001.reaction_bulk.mm_stoichiometry_bulk = [
+    input.model.unit_000.reaction_liquid_000.mm_stoichiometry_bulk = [
         [-1],
         [1] # A -> B
     ]
