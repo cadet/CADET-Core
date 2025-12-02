@@ -110,7 +110,10 @@ int Gmres::solve(double tolerance, double const* weight, double const* rhs, doub
 	N_Vector NV_rhs = NVec_NewEmpty(_matrixSize);
 	NVEC_DATA(NV_rhs) = const_cast<double*>(rhs);
 
-	const int gsType = static_cast<typename std::underlying_type<Orthogonalization>::type>(_ortho);
+	const int egsType = static_cast<typename std::underlying_type<Orthogonalization>::type>(_ortho);
+
+	// sundials spgmr options differ from our interface so map them accordingly: 0 -> 2
+	const int gsType=egsType?1:2;
 
 #if CADET_SUNDIALS_IFACE == 2
 	int nIter = 0;
