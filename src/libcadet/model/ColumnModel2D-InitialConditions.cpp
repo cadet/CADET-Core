@@ -839,7 +839,8 @@ void ColumnModel2D::consistentInitialState(const SimulationTime& simTime, double
 	}
 
 	// reset jacobian pattern //@todo can this be avoided?
-	setJacobianPattern(_globalJacDisc, simTime.secIdx, _dynReactionBulk);
+	bool hasBulkReactions = _reaction.hasReactions();
+	setJacobianPattern(_globalJacDisc, simTime.secIdx, hasBulkReactions);
 }
 
 /**

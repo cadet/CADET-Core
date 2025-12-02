@@ -278,9 +278,8 @@ protected:
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
 	parts::TwoDimensionalConvectionDispersionOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
-	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
-	ReactionSystem _reaction;
-	std::vector<ReactionSystem> _reacParticle;
+	ReactionSystem _reaction; //!< Reaction system for bulk
+	std::vector<ReactionSystem> _reacParticle; //!< Reaction systems for particle bound states
 
 	linalg::BandMatrix* _jacP; //!< Particle jacobian diagonal blocks (all of them)
 	linalg::FactorizableBandMatrix* _jacPdisc; //!< Particle jacobian diagonal blocks (all of them) with time derivatives from BDF method

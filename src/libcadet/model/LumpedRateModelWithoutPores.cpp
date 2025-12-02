@@ -260,9 +260,6 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 	paramProvider.popScope();
 
 	// ==== Construct and configure dynamic reaction model
-	_dynReaction.resize(1, nullptr);
-	clearDynamicReactionModels();
-	
 	bool reactionConfSuccess = true;
 	_reaction.clearDynamicReactionModels();
 

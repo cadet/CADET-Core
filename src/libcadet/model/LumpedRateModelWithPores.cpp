@@ -75,7 +75,6 @@ LumpedRateModelWithPores<ConvDispOperator>::~LumpedRateModelWithPores() CADET_NO
 	delete[] _tempState;
 	delete _filmDiffDep;
 	_reaction.clearDynamicReactionModels();
-
 }
 
 template <typename ConvDispOperator>
@@ -166,10 +165,9 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 	clearBindingModels();
 	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
 	bool bindingConfSuccess = true;
-	clearDynamicReactionModels();
-	_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
-	bool reactionConfSuccess = true;
 
+	_reaction.clearDynamicReactionModels();
+	bool reactionConfSuccess = true;
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
 		paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
@@ -202,13 +200,6 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 				_singleBinding = !paramProvider.getInt("REACTION_PARTYPE_DEPENDENT");
 			else
 				_singleBinding = _disc.nParType == 1;
-
-			_dynReaction[parType] = helper.createDynamicReactionModel(dynReactModelName);
-			if (!_dynReaction[parType])
-				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelName);
-
-			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction", _dynReaction[parType]->usesParamProviderInDiscretizationConfig());
-			reactionConfSuccess = reactionConfSuccess && _dynReaction[parType]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + parType * _disc.nComp, _disc.boundOffset + parType * _disc.nComp) && reactionConfSuccess;
 		}
 
 		// Set particle geometry
@@ -305,8 +296,6 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 
 
 	// ==== Construct and configure dynamic reaction model
-	_dynReaction.resize(_disc.nParType, nullptr);
-
 	_reaction.clearDynamicReactionModels();
 
 	_reacParticle.clear();
@@ -1598,6 +1587,10 @@ bool LumpedRateModelWithPores<ConvDispOperator>::setParameter(const ParameterId&
 		if (model::setParameter(pId, value, _reaction.getDynReactionVector("liquid"), false))
 			return true;
 	}
+	{
+		if (model::setParameter(pId, value, _reaction.getDynReactionVector("liquid"), false))
+			return true;
+	}
 
 	return UnitOperationBase::setParameter(pId, value);
 }
@@ -1743,7 +1736,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::setSensitiveParameter(const Par
 			}
 		}
 
-		if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, std::vector<IDynamicReactionModel*> { _dynReactionBulk }, true))
+		if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, _reaction.getDynReactionVector("liquid"), false))
 		{
 			LOG(Debug) << "Found parameter " << pId << " in DynamicBulkReactionModel: Dir " << adDirection << " is set to " << adValue;
 			return true;

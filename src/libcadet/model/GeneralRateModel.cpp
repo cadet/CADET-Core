@@ -66,7 +66,7 @@ int schurComplementMultiplierGRM(void* userData, double const* x, double* z)
 
 template <typename ConvDispOperator>
 GeneralRateModel<ConvDispOperator>::GeneralRateModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_hasSurfaceDiffusion(0, false), _dynReactionBulk(nullptr),
+	_hasSurfaceDiffusion(0, false),
 	_jacP(nullptr), _jacPdisc(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacInlet(), _hasParDepSurfDiffusion(false),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _initCp(0), _initCs(0), _initState(0), _initStateDot(0)
@@ -84,7 +84,8 @@ GeneralRateModel<ConvDispOperator>::~GeneralRateModel() CADET_NOEXCEPT
 	delete[] _jacP;
 	delete[] _jacPdisc;
 
-	delete _dynReactionBulk;
+	_reaction.empty();
+	_dynReaction.clear();
 
 	clearParDepSurfDiffusion();
 }
@@ -202,7 +203,6 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
 	bool bindingConfSuccess = true;
 	clearDynamicReactionModels();
-	_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
 	bool reactionConfSuccess = true;
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
@@ -286,7 +286,6 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 			_reaction.clearDynamicReactionModels();
 			_reacParticle.clear();
 			_reacParticle.resize(_disc.nParType);
-			_dynReaction.resize(_disc.nParType, nullptr);
 
 			if (_disc.nParType > 0)
 			{
@@ -2914,7 +2913,7 @@ bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, do
 		if (_convDispOp.setParameter(pId, value))
 			return true;
 
-		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setParameter(pId, value, _reaction.getDynReactionVector("liquid"), true))
 			return true;
 	}
 
@@ -2938,7 +2937,7 @@ bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, in
 
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setParameter(pId, value, _reaction.getDynReactionVector("liquid"), true))
 			return true;
 	}
 
@@ -2956,7 +2955,7 @@ bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, bo
 
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setParameter(pId, value, _reaction.getDynReactionVector("liquid"), true))
 			return true;
 	}
 
@@ -3009,7 +3008,7 @@ void GeneralRateModel<ConvDispOperator>::setSensitiveParameterValue(const Parame
 		if (_convDispOp.setSensitiveParameterValue(_sensParams, pId, value))
 			return;
 
-		if (model::setSensitiveParameterValue(pId, value, _sensParams, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setSensitiveParameterValue(pId, value, _sensParams, _reaction.getDynReactionVector("liquid"), false))
 			return;
 	}
 
@@ -3109,7 +3108,7 @@ bool GeneralRateModel<ConvDispOperator>::setSensitiveParameter(const ParameterId
 			return true;
 		}
 
-		if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, std::vector<IDynamicReactionModel*> { _dynReactionBulk }, true))
+		if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, _reaction.getDynReactionVector("liquid"), false))
 		{
 			LOG(Debug) << "Found parameter " << pId << " in DynamicBulkReactionModel: Dir " << adDirection << " is set to " << adValue;
 			return true;

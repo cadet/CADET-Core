@@ -127,13 +127,12 @@ namespace cadet
 		{
 		public:
 
-			IParticleModel() : _binding(nullptr), _dynReaction(nullptr)
+			IParticleModel() : _binding(nullptr)
 			{
 			}
 			virtual ~IParticleModel() CADET_NOEXCEPT
 			{
 				delete _binding;
-				delete _dynReaction;
 
 				_reaction.clearDynamicReactionModels();
 			}
@@ -241,8 +240,7 @@ namespace cadet
 				IBindingModel* _binding; //!< Binding model
 				std::shared_ptr<unsigned int[]> _nBound; //!< Array with number of bound states for each component
 				bool _bindingParDep; //!< Whether the binding model parameters depend on the particle type
-				IDynamicReactionModel* _dynReaction; //!< Dynamic reaction model
-				ReactionSystem _reaction;
+				ReactionSystem _reaction; //!< Reaction system
 				bool _reactionParDep; //!< Whether the binding model parameters depend on the particle type
 		};
 

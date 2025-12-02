@@ -303,9 +303,8 @@ protected:
 	std::vector<IParticleModel*> _particles; //!< Particle dispersion operator
 
 	parts::TwoDimensionalConvectionDispersionOperatorDG _convDispOp; //!< Convection dispersion operator for interstitial volume transport
-	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
-	ReactionSystem _reaction;
-	std::vector<const ReactionSystem*> _reacParticle;
+	ReactionSystem _reaction; //!< Reaction system for bulk phase
+	std::vector<const ReactionSystem*> _reacParticle; //!< Reaction systems for particle phases
 
 	cadet::linalg::EigenSolverBase* _linearSolver; //!< Linear solver
 

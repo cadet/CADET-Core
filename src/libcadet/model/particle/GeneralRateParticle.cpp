@@ -118,7 +118,6 @@ namespace model
 
 		// ==== Construct and configure dynamic reaction model
 
-		_dynReaction = nullptr;
 		_reactionParDep = true;
 		bool reactionConfSuccess = true;
 

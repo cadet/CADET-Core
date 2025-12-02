@@ -31,7 +31,7 @@ namespace model
 {
 
 UnitOperationBase::UnitOperationBase(UnitOpIdx unitOpIdx) : _unitOpIdx(unitOpIdx), _binding(0, nullptr), _singleBinding(false),
-	_dynReaction(0, nullptr), _singleDynReaction(false), _nonlinearSolver(nullptr)
+	 _singleDynReaction(false), _nonlinearSolver(nullptr)
 {
 }
 

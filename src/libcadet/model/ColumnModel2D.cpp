@@ -317,7 +317,7 @@ namespace model
 {
 
 ColumnModel2D::ColumnModel2D(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_dynReactionBulk(nullptr), _jacInlet(),	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
+	 _jacInlet(),	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _singleRadiusInitC(true), _initCp(0), _singleRadiusInitCp(true), _initCs(0), _singleRadiusInitCs(true), _initState(0), _initStateDot(0)
 {
 }
@@ -334,7 +334,6 @@ ColumnModel2D::~ColumnModel2D() CADET_NOEXCEPT
 	_binding.clear(); // binding models are deleted in the respective particle model
 	_dynReaction.clear(); // particle reaction models are deleted in the respective particle model
 
-	delete _dynReactionBulk;
 
 	delete[] _disc.parTypeOffset;
 	delete[] _disc.nBound;
@@ -534,7 +533,6 @@ bool ColumnModel2D::configureModelDiscretization(IParameterProvider& paramProvid
 
 	// ==== Construct and configure binding and particle reaction -> done in particle model, only pointers are copied here.
 	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
-	_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
 	_reacParticle = std::vector<const ReactionSystem*>(_disc.nParType, nullptr);
 	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
 	{
@@ -549,17 +547,10 @@ bool ColumnModel2D::configureModelDiscretization(IParameterProvider& paramProvid
 				if (_singleBinding != !_particles[parType]->bindingParDep())
 					throw InvalidParameterException("Binding particle type dependence must be the same for all particle types, check field BINDING_PARTYPE_DEPENDENT");
 			}
-
-			if (_dynReaction[parType])
-			{
-				if (_singleDynReaction != !_particles[parType]->reactionParDep())
-					throw InvalidParameterException("Reaction particle type dependence must be the same for all particle types, check field REACTION_PARTYPE_DEPENDENT");
-			}
 		}
 		else // if no particle reaction or binding exists in first particle type, default to single mode
 		{
 			_singleBinding = _binding[parType] ? !_particles[parType]->bindingParDep() : true;
-			_singleDynReaction = _dynReaction[parType] ? !_particles[parType]->reactionParDep() : true;
 		}
 	}
 
