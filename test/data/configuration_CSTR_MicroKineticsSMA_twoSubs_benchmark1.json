@@ -26,24 +26,25 @@
       ],
       "INIT_LIQUID_VOLUME": 10,
       "NCOMP": 7,
-      "REACTION_MODEL": "MASS_ACTION_LAW",
+      "NREAC_LIQUID": 1,
       "UNIT_TYPE": "CSTR",
-      "reaction_bulk": {
-        "MAL_KBWD_BULK": [
+      "liquid_reaction_000": {
+        "TYPE": "MASS_ACTION_LAW",
+        "MAL_KBWD": [
           700000000.0,
           800000000.0,
           800000000.0,
           700000000.0,
           0
         ],
-        "MAL_KFWD_BULK": [
+        "MAL_KFWD": [
           1000000000.0,
           1000000000.0,
           1000000000.0,
           1000000000.0,
           120000.0
         ],
-        "MAL_STOICHIOMETRY_BULK": [
+        "MAL_STOICHIOMETRY": [
           -1,
           0,
           0,
