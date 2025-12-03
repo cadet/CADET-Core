@@ -137,6 +137,9 @@ add_feature_info(ENABLE_CADET_TOOLS ENABLE_CADET_TOOLS "Build CADET tools")
 option(ENABLE_TESTS "Build CADET tests" OFF)
 add_feature_info(ENABLE_TESTS ENABLE_TESTS "Build CADET tests")
 
+option(ENABLE_CADETTEST_LOGGING "Enable logging for CadetTest" OFF)
+add_feature_info(ENABLE_CADETTEST_LOGGING ENABLE_CADETTEST_LOGGING "Enables logging in Testsets")
+
 option(ENABLE_PACKAGED_SUNDIALS "Use packaged SUNDIALS code" ON)
 add_feature_info(ENABLE_PACKAGED_SUNDIALS ENABLE_PACKAGED_SUNDIALS "Use packaged SUNDIALS code")
 
@@ -162,6 +165,10 @@ option(CMAKE_INSTALL_RPATH_USE_LINK_PATH "Add paths to linker search and install
 add_feature_info(CMAKE_INSTALL_RPATH_USE_LINK_PATH CMAKE_INSTALL_RPATH_USE_LINK_PATH "Add paths to linker search and installed rpath")
 
 option(CODE_COVERAGE "Enable coverage reporting" OFF)
+
+option(ENABLE_TEST_RADIAL "Build TimeIntegrator and radial tests" OFF)
+add_feature_info(ENABLE_TEST_RADIAL ENABLE_TEST_RADIAL "Build TimeIntegrator and radial tests")
+
 
 if(CODE_COVERAGE)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -257,7 +264,7 @@ set_package_properties(LAPACK PROPERTIES
 if (NOT ENABLE_PACKAGED_SUNDIALS)
 	# SUNDIALS_ROOT environment variable can be used to find SUNDIALS package
 	set(SUNDIALS_PREFER_STATIC_LIBRARIES ${ENABLE_STATIC_LINK_DEPS})
-	find_package(SUNDIALS REQUIRED COMPONENTS sundials_idas sundials_nvecserial OPTIONAL_COMPONENTS sundials_nvecopenmp)
+	find_package(SUNDIALS REQUIRED COMPONENTS sundials_idas sundials_nvecserial sundials_core OPTIONAL_COMPONENTS sundials_nvecopenmp)
 	set_package_properties(SUNDIALS PROPERTIES
 		TYPE REQUIRED
 		PURPOSE "Time integration"
@@ -292,7 +299,6 @@ if (NOT ENABLE_PACKAGED_SUNDIALS)
 	endif()
 else()
 	set(SUNDIALS_FOUND TRUE)
-	set(SUNDIALS_VERSION "3.2.1")
 	set(SUNDIALS_NVEC_TARGET "SUNDIALS::sundials_nvecserial")
 	add_subdirectory(ThirdParty/sundials)
 
@@ -304,6 +310,10 @@ else()
 	add_library(SUNDIALS::sundials_nvecserial INTERFACE IMPORTED)
 	target_include_directories(SUNDIALS::sundials_nvecserial INTERFACE ThirdParty/sundials/include "${CMAKE_BINARY_DIR}/ThirdParty/sundials/include")
 	target_link_libraries(SUNDIALS::sundials_nvecserial INTERFACE sundials_nvecserial_static)
+
+	add_library(SUNDIALS::sundials_core INTERFACE IMPORTED)
+	target_include_directories(SUNDIALS::sundials_core INTERFACE ThirdParty/sundials/include "${CMAKE_BINARY_DIR}/ThirdParty/sundials/include")
+	target_link_libraries(SUNDIALS::sundials_core INTERFACE sundials_core_static)
 endif()
 
 if (ENABLE_CADET_TOOLS OR ENABLE_CADET_CLI)
@@ -424,6 +434,10 @@ endif()
 find_package(Eigen3 REQUIRED NO_MODULE)
 set(EIGEN_TARGET "Eigen3::Eigen")
 
+if (ENABLE_CADETTEST_LOGGING)
+
+endif()
+
 set(IPO_AVAILABLE OFF)
 if (ENABLE_IPO)
 	include(CheckIPOSupported)
@@ -463,6 +477,10 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 	target_compile_definitions(CADET::CompileOptions INTERFACE CADET_LOGLEVEL_MIN=Trace DEBUG _DEBUG)
 else()
 	target_compile_definitions(CADET::CompileOptions INTERFACE CADET_LOGLEVEL_MIN=Warning NDEBUG)
+endif()
+
+if(ENABLE_CADETTEST_LOGGING)
+    target_compile_definitions(CADET::CompileOptions INTERFACE ENABLE_CADETTEST_LOGGING)
 endif()
 
 if (ENABLE_BENCHMARK)
