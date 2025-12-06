@@ -111,7 +111,7 @@
         }
       },
       "discretization": {
-        "GS_TYPE": 0,
+        "GS_TYPE": 1,
         "MAX_KRYLOV": 10,
         "MAX_RESTARTS": 100,
         "NCOL": 8,
