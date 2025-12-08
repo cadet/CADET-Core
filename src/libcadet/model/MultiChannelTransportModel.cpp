@@ -532,9 +532,7 @@ bool MultiChannelTransportModel::configure(IParameterProvider& paramProvider)
 	
 	// Reconfigure exchange model
 	bool exchangeConfSuccess = true;
-	exchangeConfSuccess = _exchange[0]->configure(paramProvider, _unitOpIdx);
-	
-
+	exchangeConfSuccess = _exchange[0]->configure( paramProvider, _unitOpIdx, _parameters);
 
 	return transportSuccess && dynReactionConfSuccess && exchangeConfSuccess;
 }
