@@ -198,10 +198,10 @@ Group /input/model/unit_XXX/particle_type_XXX
    **Type:** double  **Range:** :math:`\geq 0`
    ================  =========================
 
-``\{PARAM_NAME\}_PARTYPE_DEPENDENT``
+``PARAMNAME_PARTYPE_DEPENDENT``
 	
 	Only required for parameter sensitivities of the respective parameter, defaults to 1.
-	Specifies whether or not a parameter is the same across particle types or 'dependent' on the particle type.
+	Specifies whether or not a parameter (parameter name substitutes the `PARAMNAME` prefix of field name) is the same across particle types or 'dependent' on the particle type.
 	In the first case, the parameter sensitivity should be computed jointly across particle types, by specifying this field as 0.
 	Can be specified for any of the above parameters except `NCOMP` and `NBOUND`.
 	For more information on parameter sensitivities, see :ref:`spatial_discretization_methods`.
@@ -223,10 +223,13 @@ Group /input/model/unit_XXX/particle_type_XXX/discretization
 
 ``PAR_DISC_VECTOR``
 
-   Node coordinates for the cell boundaries (ignored if :math:`\texttt{PAR_DISC_TYPE} \neq \texttt{USER_DEFINED}`). The coordinates are relative and have to include the endpoints :math:`0` and :math:`1`. They are later linearly mapped to the true radial range :math:`[r_{c,j}, r_{p,j}]`. The coordinates for each particle type are appended to one long vector in type-major ordering.
+   Node coordinates for the DG element (or FV cell) boundaries (ignored if :math:`\texttt{PAR_DISC_TYPE} \neq \texttt{USER_DEFINED}`).
+   The coordinates are relative and have to include the endpoints :math:`0` and :math:`1`.
+   They are later linearly mapped to the true radial range :math:`[r_{c,j}, r_{p,j}]`.
+   The coordinates for each particle type are appended to one long vector in type-major ordering.
    
    ================  ========================  ======================================
-   **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`\texttt{NPAR}_ + 1`
+   **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`\texttt{NELEM} + 1`
    ================  ========================  ======================================
 
 Spatial discretization - Numerical Methods
