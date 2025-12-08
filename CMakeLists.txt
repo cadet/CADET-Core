@@ -63,9 +63,12 @@ if (NOT DEFINED GIT_SHA1)
 endif()
 message(STATUS "Current git HEAD: ${GIT_REFSPEC} SHA1 ${GIT_SHA1}")
 
+# Remove pre-release suffix (cmake does not accept hyphen) to name the project
+string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" CADET_VERSION_NUM "${CADET_VERSION}")
+
 # Name of the current project
 project(CadetFramework
-	VERSION ${CADET_VERSION}
+	VERSION ${CADET_VERSION_NUM}
 	DESCRIPTION "Liquid column chromatography simulator"
 	HOMEPAGE_URL "https://github.com/cadet/cadet-core"
 	LANGUAGES CXX C)
