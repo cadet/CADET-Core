@@ -63,7 +63,7 @@ public:
 		return true;
 	}
 
-	virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx)
+	virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx,std::unordered_map<ParameterId, active*>& parameters)
 	{
 		_parameters.clear();
 		readParameterMatrix(_exchangeMatrix, paramProvider, "EXCHANGE_MATRIX", _nChannel * _nChannel * _nComp, 1); // include parameterPeaderHelp in exchange modul
