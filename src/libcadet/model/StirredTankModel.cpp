@@ -80,6 +80,7 @@ CSTRModel::~CSTRModel() CADET_NOEXCEPT
 	{
 		delete _dynReactionBulk[i];
 	}
+	_reactionSystemBulk.clearDynamicReactionModels();
 }
 
 unsigned int CSTRModel::numDofs() const CADET_NOEXCEPT
@@ -227,10 +228,11 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 	bool reactionConfSuccess = true;
 	_old_interface = false;
 	_dynReactionBulk[0] = nullptr;
-	if (paramProvider.exists("REACTION_MODEL"))
+	if (paramProvider.exists("NREAC_LIQUID"))
 	{
 		_old_interface = true;
-		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
+		paramProvider.pushScope("liquid_reaction_000");
+		const std::string dynReactName = paramProvider.getString("TYPE");
 		_dynReactionBulk[0] = helper.createDynamicReactionModel(dynReactName);
 		if (!_dynReactionBulk[0])
 			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
@@ -242,6 +244,8 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 
 		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
 			paramProvider.popScope();
+		
+		paramProvider.popScope();
 	}
 	else if (paramProvider.exists("reaction_bulk"))
 	{
@@ -304,7 +308,6 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 		}
 		paramProvider.popScope();
 	}
-
 
 	_dynReaction = std::vector<IDynamicReactionModel*>(_nParType, nullptr);
 
@@ -424,18 +427,11 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 	{
 		if (_dynReactionBulk[i] && _dynReactionBulk[i]->requiresConfiguration())
 		{
-			paramProvider.pushScope("reaction_bulk");
-			if (!_old_interface)
-			{
-				char reactionKey[32];
-				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
-				paramProvider.pushScope(reactionKey);
-			}
+			paramProvider.pushScope("liquid_reaction_000");
+			
 			dynReactionConfSuccess = _dynReactionBulk[i]->configure(paramProvider, _unitOpIdx, ParTypeIndep);
 			paramProvider.popScope();
-			
-			if(!_old_interface)
-				paramProvider.popScope();
+			paramProvider.popScope();
 		}
 	}
 
