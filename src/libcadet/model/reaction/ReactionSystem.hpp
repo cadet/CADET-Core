@@ -184,10 +184,11 @@ struct ReactionSystem
                     char reactionKey[32];
                     snprintf(reactionKey, sizeof(reactionKey), "%s_reaction_%03d", interphase_type.c_str(), i);
 
-                    paramProvider.pushScope(reactionKey);
+
+                    paramProvider.pushScope(reactionKey); //scope reaction_xxx
 
                     // Check if reaction type is specified
-					if (!paramProvider.exists("TYPE")) 
+					if (!paramProvider.exists("TYPE"))
 					{
 						paramProvider.popScope();
 						throw InvalidParameterException("Missing 'type' parameter for " + std::string(reactionKey));
@@ -200,7 +201,7 @@ struct ReactionSystem
                     // Validate reaction model creation
 					if (!dynReaction[i]) 
 					{
-						paramProvider.popScope();
+						paramProvider.popScope(); //scope reaction_xxx
 						throw InvalidParameterException("Unknown dynamic reaction model " + reactionType +
 							" for " + reactionKey);
 					}
@@ -211,16 +212,13 @@ struct ReactionSystem
                     // Handle configuration failure
 					if (!reactionConfSuccess) 
 					{
-						if (dynReaction[i]->usesParamProviderInDiscretizationConfig())
-							paramProvider.popScope();
-						paramProvider.popScope();
+						paramProvider.popScope(); //scope reaction_xxx
 						throw InvalidParameterException("Failed to configure reaction model " + reactionType +
 							" for " + reactionKey);
 					}
 
-                    // Pop scope if reaction model used parameter provider
-					if (dynReaction[i]->usesParamProviderInDiscretizationConfig())
-						paramProvider.popScope();
+
+					paramProvider.popScope(); //scope reaction_xxx
 				}
 
             return reactionConfSuccess;
