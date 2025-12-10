@@ -408,10 +408,11 @@ namespace cadet
 		IDAGetNonlinearSystemData(sim->_idaMemBlock, &t, &unused1, &unused2, &y, &yDot, &unused3, &alpha, &unused4);
 		//		const double alpha = IDA_mem->a_epsNewt;
 		LOG(Trace) << "==> Solve at t = " << t << " alpha = " << alpha << " tol = " << tol;
+		N_VScale(-1.0, rhs, rhs);
 
 		int ret = sim->_model->linearSolve(t, alpha, tol, NVEC_DATA(rhs), NVEC_DATA(sim->_linearSolverWeight), cadet::ConstSimulationState{ NVEC_DATA(y), NVEC_DATA(yDot) });
 
-		N_VScale(1.0, rhs, x);
+		N_VScale(-1.0, rhs, x);
 		return ret;
 	}
 
