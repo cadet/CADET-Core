@@ -176,9 +176,7 @@ protected:
 	std::vector<active> _initConditions; //!< Initial conditions, ordering: Liquid phase concentration, solid phase concentration, liquid volume
 	std::vector<double> _initConditionsDot; //!< Initial conditions for time derivative
 
-	std::vector <IDynamicReactionModel*> _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 	ReactionSystem _reactionSystemBulk; //!< Reaction system for bulk reactions
-	bool _old_interface; // 
 
 	class Exporter : public ISolutionExporter
 	{

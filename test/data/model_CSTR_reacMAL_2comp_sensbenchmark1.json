@@ -58,10 +58,9 @@
             "NCOMP": 2,
             "UNIT_TYPE": "CSTR",
           "USE_ANALYTIC_JACOBIAN": 0,
-          "reaction_bulk": {
-            "NREAC": 1,
-            "reaction_model_000": {
-              "REACTION_TYPE": "MASS_ACTION_LAW",
+          "NREAC_LIQUID": 1,
+          "liquid_reaction_000": {
+              "TYPE": "MASS_ACTION_LAW",
               "MAL_KBWD_BULK": [
                 3.0
               ],
@@ -72,7 +71,6 @@
                 -1,
                 1
               ]
-            }
             }
         },
         "unit_002": {

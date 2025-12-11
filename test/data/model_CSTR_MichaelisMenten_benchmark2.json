@@ -21,9 +21,10 @@
       ],
       "INIT_LIQUID_VOLUME": 1000,
       "NCOMP": 2,
-      "REACTION_MODEL": "MICHAELIS_MENTEN",
+      "NREAC_LIQUID": 1,
       "UNIT_TYPE": "CSTR",
-      "reaction_bulk": {
+      "liquid_reaction_000": {
+        "TYPE": "MICHAELIS_MENTEN",
         "MM_KI_C": [
           0,
           35,

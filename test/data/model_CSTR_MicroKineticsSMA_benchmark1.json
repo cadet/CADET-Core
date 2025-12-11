@@ -23,9 +23,10 @@
       ],
       "INIT_LIQUID_VOLUME": 1000,
       "NCOMP": 4,
-      "REACTION_MODEL": "MASS_ACTION_LAW",
+      "NREAC_LIQUID": 1,
       "UNIT_TYPE": "CSTR",
-      "reaction_bulk": {
+      "liquid_reaction_000": {
+        "TYPE": "MASS_ACTION_LAW",
         "MAL_KBWD_BULK": [
           60000.0,
           0.0
