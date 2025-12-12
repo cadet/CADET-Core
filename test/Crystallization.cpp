@@ -106,7 +106,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with initial distrib
 	pp_setup.pushScope("unit_001");
 
 	// set the discretization scheme
-	pp_setup.pushScope("reaction_bulk");
+	pp_setup.pushScope("liquid_reaction_000");
 	pp_setup.set("CRY_GROWTH_SCHEME_ORDER", 4);
 	pp_setup.popScope();
 
@@ -124,7 +124,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with initial distrib
 	pp_setup.pushScope("unit_001");
 
 	// set the discretization scheme
-	pp_setup.pushScope("reaction_bulk");
+	pp_setup.pushScope("liquid_reaction_000");
 	pp_setup.set("CRY_GROWTH_SCHEME_ORDER", 3);
 	pp_setup.popScope();
 
@@ -142,7 +142,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with primary nucleat
 	pp_setup.pushScope("unit_001");
 
 	// set the discretization scheme
-	pp_setup.pushScope("reaction_bulk");
+	pp_setup.pushScope("liquid_reaction_000");
 	pp_setup.set("CRY_GROWTH_SCHEME_ORDER", 1);
 	pp_setup.popScope();
 
@@ -160,7 +160,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with primary nucleat
 	pp_setup.pushScope("unit_001");
 
 	// set the discretization scheme
-	pp_setup.pushScope("reaction_bulk");
+	pp_setup.pushScope("liquid_reaction_000");
 	pp_setup.set("CRY_GROWTH_SCHEME_ORDER", 1);
 	pp_setup.popScope();
 
@@ -178,7 +178,7 @@ TEST_CASE("Crystallization Jacobian verification for a CSTR with primary and sec
 	pp_setup.pushScope("unit_001");
 
 	// set the discretization scheme
-	pp_setup.pushScope("reaction_bulk");
+	pp_setup.pushScope("liquid_reaction_000");
 	pp_setup.set("CRY_GROWTH_SCHEME_ORDER", 3);
 	pp_setup.popScope();
 

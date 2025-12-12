@@ -652,23 +652,24 @@
       "INIT_C": [
         0
       ],
-      "MAL_EXPONENTS_BULK_FWD": [
+      "MAL_EXPONENTS_FWD": [
         0,
         1,
         1,
         0
       ],
       "NCOMP": 1,
-      "REACTION_MODEL": "MASS_ACTION_LAW",
+      "NREAC_LIQUID": 1,
       "UNIT_TYPE": "MULTI_CHANNEL_TRANSPORT",
-      "reaction_bulk": {
-        "MAL_KBWD_BULK": [
+      "liquid_reaction_000": {
+        "TYPE": "MASS_ACTION_LAW",
+        "MAL_KBWD": [
           0
         ],
-        "MAL_KFWD_BULK": [
+        "MAL_KFWD": [
           0
         ],
-        "MAL_STOICHIOMETRY_BULK": [
+        "MAL_STOICHIOMETRY": [
           -1
         ]
       }

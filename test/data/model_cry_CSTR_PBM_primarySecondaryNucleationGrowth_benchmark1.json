@@ -362,7 +362,7 @@
           0.0
         ],
         "NCOMP": 52,
-        "REACTION_MODEL": "CRYSTALLIZATION",
+        "NREAC_LIQUID": 1,
         "CRYSTALLIZATION_MODE": 0,
         "TOTAL_POROSITY": 0.21,
         "UNIT_TYPE": "LUMPED_RATE_MODEL_WITHOUT_PORES",
@@ -434,7 +434,8 @@
             "WENO_ORDER": 2
           }
         },
-        "reaction": {
+        "liquid_reaction_000": {
+            "TYPE": "CRYSTALLIZATION",
           "CRY_A": 1.0,
           "CRY_B": 2.0,
           "CRY_BINS": [
