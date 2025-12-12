@@ -218,7 +218,7 @@
         ],
         "NCOMP": 34,
         "NPARTYPE": 1,
-        "REACTION_MODEL": "CRYSTALLIZATION",
+        "NREAC_LIQUID": 1,
         "TOTAL_POROSITY": 1.0,
         "UNIT_TYPE": "LUMPED_RATE_MODEL_WITHOUT_PORES",
         "particle_type_000": {
@@ -313,7 +313,8 @@
             "WENO_ORDER": 1
           }
         },
-        "reaction": {
+        "liquid_reaction_000": {
+            "TYPE": "CRYSTALLIZATION",
           "CRY_A": 1.0,
           "CRY_AGGREGATION_INDEX": 0,
           "CRY_AGGREGATION_RATE_CONSTANT": 5e-13,

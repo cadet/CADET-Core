@@ -630,7 +630,7 @@ void ColumnModel2D::consistentInitialState(const SimulationTime& simTime, double
 				_particles[parType]->getPorosity(),
 				_particles[parType]->getPoreAccessFactor(),
 				_binding[parType],
-				(_dynReaction[parType] && (_dynReaction[parType]->numReactionsCombined() > 0)) ? _dynReaction[parType] : nullptr
+				_reacParticle[parType]
 			};
 
 			const int localOffsetToParticle = idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ static_cast<unsigned int>(pblk) });
@@ -839,7 +839,8 @@ void ColumnModel2D::consistentInitialState(const SimulationTime& simTime, double
 	}
 
 	// reset jacobian pattern //@todo can this be avoided?
-	setJacobianPattern(_globalJacDisc, simTime.secIdx, _dynReactionBulk);
+	bool hasBulkReactions = _reaction.hasReactions();
+	setJacobianPattern(_globalJacDisc, simTime.secIdx, hasBulkReactions);
 }
 
 /**
