@@ -170,15 +170,6 @@ Group /input/model/unit_XXX/particle_type_XXX
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NCOMP}`
    =============  =========================  ==========================================
 
-``REACTION_MODEL``
-
-   Specifies the type of reaction model of each particle type (or of all particle types if length is :math:`1`).
-   The model is configured in the subgroup :math:`\texttt{reaction_particle}`, or :math:`\texttt{reaction_particle_XXX}` in case of disabled multiplexing.
-   
-   ================  ========================================  =============
-   **Type:** string  **Range:** See Section :ref:`FFReaction`  **Length:** 1
-   ================  ========================================  =============
-
 ``INIT_CP``
 
    Initial concentrations for each component in the bead liquid phase (optional, :math:`\texttt{INIT_C}` is used if left out).
@@ -216,6 +207,33 @@ Group /input/model/unit_XXX/particle_type_XXX
    =============  ============================  =============
    **Type:** int  **Range:** :math:`\{0, 1 \}`  **Length:** 1
    =============  ============================  =============
+
+``NREAC_LIQUID``
+
+   Number of liquid phase reaction models (optional, only if liquid reactions are present).
+   
+   =============  =========================  =============
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
+   =============  =========================  =============
+
+``NREAC_SOLID``
+   Number of solid phase reaction models (optional, only if solid reactions are present).
+   
+   =============  =========================  =============
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
+   =============  =========================  =============
+
+``NREAC_CROSS_PHASE``
+   Number of cross-phase reaction models (optional, only if cross-phase reactions are present).
+   
+   =============  =========================  =============
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
+   =============  =========================  =============
+
+Group /input/model/unit_XXX/phase_reaction_YYY
+----------------------------------------------
+Each reaction is specified in another subgroup `phase_reaction_YYY`, see :ref:`FFReaction`.
+
 
 Group /input/model/unit_XXX/particle_type_XXX/discretization
 ------------------------------------------------------------
