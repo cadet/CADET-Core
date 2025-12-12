@@ -759,7 +759,8 @@ protected:
 			vG_factor = vG_factor_;
 			dBp_dc = dBp_dc_;
 			dBp_dceq = dBp_dceq_;
-			dBs_dc = dBs_dc; dBs_dceq = dBs_dceq_;
+			dBs_dc = dBs_dc_;
+			dBs_dceq = dBs_dceq_;
 			dvG_dc_factor = dvG_dc_factor_;
 			dvG_dceq_factor = dvG_dceq_factor_;
 			dBs_dni_factor = dBs_dni_factor_;

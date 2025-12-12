@@ -37,7 +37,7 @@ namespace model
  * @brief Manages reaction models across different phases in a unit operation
  * 
  * The ReactionSystem organizes and manages dynamic reaction models for different
- * phases (cross_phase, pore, solid, bulk, liquid) within a unit operation.
+ * phases (cross_phase, solid, bulk, liquid) within a unit operation.
  * It handles configuration, discretization, and memory management of reaction models.
  */
 struct ReactionSystem
@@ -64,7 +64,6 @@ struct ReactionSystem
             {"cross_phase", PhaseData{}}, 
             {"solid", PhaseData{}},
             {"liquid", PhaseData{}}, // unit liquid phase
-            {"pore", PhaseData{}} // particle liquid phase
         };
 
         /**
@@ -175,21 +174,17 @@ struct ReactionSystem
             // Configure each reaction model
             for (unsigned int i = 0; i < nReac; ++i)
 				{
-                    // for finite volumen units where the particles are not handling their own reactions.  
-                    // neet to map between the unser interphase and the phase types 
-                    std::string interphase_type = phaseType;
-                    if (interphase_type == "pore")
-                        interphase_type = "liquid";
                     
                     char reactionKey[32];
-                    snprintf(reactionKey, sizeof(reactionKey), "%s_reaction_%03d", interphase_type.c_str(), i);
+                    snprintf(reactionKey, sizeof(reactionKey), "%s_reaction_%03d", phaseType.c_str(), i);
 
-                    paramProvider.pushScope(reactionKey);
+
+                    paramProvider.pushScope(reactionKey); //scope reaction_xxx
 
                     // Check if reaction type is specified
-					if (!paramProvider.exists("TYPE")) 
+					if (!paramProvider.exists("TYPE"))
 					{
-						paramProvider.popScope();
+						paramProvider.popScope(); //scope reaction_xxx
 						throw InvalidParameterException("Missing 'type' parameter for " + std::string(reactionKey));
 					}
 
@@ -200,7 +195,7 @@ struct ReactionSystem
                     // Validate reaction model creation
 					if (!dynReaction[i]) 
 					{
-						paramProvider.popScope();
+						paramProvider.popScope(); //scope reaction_xxx
 						throw InvalidParameterException("Unknown dynamic reaction model " + reactionType +
 							" for " + reactionKey);
 					}
@@ -211,16 +206,13 @@ struct ReactionSystem
                     // Handle configuration failure
 					if (!reactionConfSuccess) 
 					{
-						if (dynReaction[i]->usesParamProviderInDiscretizationConfig())
-							paramProvider.popScope();
-						paramProvider.popScope();
+						paramProvider.popScope(); //scope reaction_xxx
 						throw InvalidParameterException("Failed to configure reaction model " + reactionType +
 							" for " + reactionKey);
 					}
 
-                    // Pop scope if reaction model used parameter provider
-					if (dynReaction[i]->usesParamProviderInDiscretizationConfig())
-						paramProvider.popScope();
+
+					paramProvider.popScope(); //scope reaction_xxx
 				}
 
             return reactionConfSuccess;
@@ -249,17 +241,12 @@ struct ReactionSystem
                     continue;
 
                 // Create reaction scope key
-
-                std::string interphase_type = phaseType;
-                if (interphase_type == "pore")
-                    interphase_type = "liquid";
-
                 char reactionKey[32];
-                snprintf(reactionKey, sizeof(reactionKey), "%s_reaction_%03d", interphase_type.c_str(), reac);
+                snprintf(reactionKey, sizeof(reactionKey), "%s_reaction_%03d", phaseType.c_str(), reac);
                 paramProvider.pushScope(reactionKey); //scope reaction_xxx
 
                 // Configure the reaction model
-                dynReactionConfSuccess = dynReaction[ reac]->configure(paramProvider, unitOpIdx, parType) && dynReactionConfSuccess;
+                dynReactionConfSuccess = dynReaction[reac]->configure(paramProvider, unitOpIdx, parType) && dynReactionConfSuccess;
 
                 paramProvider.popScope();//scope reaction_xxx
             }
@@ -269,28 +256,11 @@ struct ReactionSystem
 
         /**
          * @brief Sets workspace requirements for all reaction models across all phases
+         * @param phaseType The phase type to configure
+         * @param nComp Number of components
+         * @param strideBound Stride of bound states
          * @param lms Linear memory sizer to configure workspace requirements
-         * @param nComp Number of components in the system
          */
-        void setWorkspaceRequirements(std::string phaseType, unsigned int nParType, unsigned int nComp, unsigned int const* strideBound, LinearMemorySizer& lms) const
-        {
-            auto& dynReactionVector = getDynReactionVector(phaseType);
-                
-            for (auto par = 0; par < nParType; par++)
-            {   
-                int numReacOfPartical = dynReactionVector.size();
-                int offSet = 0; // getOffsetForPhase(phaseType, par);
-
-                for (auto i = 0; i < numReacOfPartical; i++)
-                {
-                    if (dynReactionVector[i] && dynReactionVector[i]->requiresWorkspace())
-                    {
-                        lms.fitBlock(dynReactionVector[offSet+ i]->workspaceSize(nComp, strideBound[i], nullptr));
-                    }
-                }
-            }
-        }
-
         void setWorkspaceRequirements(std::string phaseType, unsigned int nComp, unsigned int const strideBound, LinearMemorySizer& lms) const
         {
             auto& dynReactionVector = getDynReactionVector(phaseType);
