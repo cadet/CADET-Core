@@ -3,158 +3,85 @@
 Mass Action Law
 ~~~~~~~~~~~~~~~
 
-**Group /input/model/unit_XXX/reaction - REACTION_MODEL = MASS_ACTION_LAW**
+**Group /input/model/unit_XXX(/particle_type_YYY)/phase_reaction_ZZZ/ - TYPE = MASS_ACTION_LAW**
 
 For information on model equations, refer to :ref:`mass_action_law_model`.
 
-``MAL_KFWD_BULK``
+Notes
+-----
 
-   Forward rate constants for bulk volume reactions (available for external functions)
+- ``reaction_phase_ZZZ`` refers to one of the phase-specific raction groups listed in :ref:`FFReaction`, e.g., ``reaction_bulk_ZZZ``, ``reaction_solid_ZZZ``, or ``reaction_particle_ZZZ`` (for particle type ``YYY``).
+- Some dimensions below depend on the hosting phase of this model instance:
+   - Bulk phase or particle liquid phase: ``NVAR = NCOMP``
+   - Particle solid phase: ``NVAR = NTOTALBOUND`` (total number of bound states across all components)
+
+``MAL_KFWD``
+
+   Forward rate constants for reactions in this phase (available for external functions)
    
    ================  =========================  ===================================
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NREACT}`
    ================  =========================  ===================================
    
-``MAL_KBWD_BULK``
+``MAL_KBWD``
 
-   Backward rate constants for bulk volume reactions (available for external functions)
+   Backward rate constants for reactions in this phase (available for external functions)
    
    ================  =========================  ===================================
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NREACT}`
    ================  =========================  ===================================
-   
-``MAL_KFWD_LIQUID``
 
-   Forward rate constants for particle liquid phase reactions (available for external functions)
-   
-   ================  =========================  ===================================
-   **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NREACT}`
-   ================  =========================  ===================================
-   
-``MAL_KBWD_LIQUID``
+``MAL_STOICHIOMETRY``
 
-   Backward rate constants for particle liquid phase reactions (available for external functions)
-   
-   ================  =========================  ===================================
-   **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NREACT}`
-   ================  =========================  ===================================
-   
-``MAL_KFWD_SOLID``
-
-   Forward rate constants for particle solid phase reactions (available for external functions)
-   
-   ================  =========================  ===================================
-   **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NREACT}`
-   ================  =========================  ===================================
-   
-``MAL_KBWD_SOLID``
-
-   Backward rate constants for particle solid phase reactions (available for external functions)
-   
-   ================  =========================  ===================================
-   **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NREACT}`
-   ================  =========================  ===================================
-   
-``MAL_STOICHIOMETRY_BULK``
-
-   Stoichiometric matrix of bulk volume reactions as :math:`\texttt{NCOMP} \times \texttt{NREACT}` matrix in row-major storage
+   Stoichiometric matrix as :math:`\texttt{NVAR} \times \texttt{NREACT}` matrix in row-major storage (phase-dependent ``NVAR``, see Notes)
    
    ================  ========================================================
-   **Type:** double  **Length:** :math:`\texttt{NCOMP} \cdot \texttt{NREACT}`
+   **Type:** double  **Length:** :math:`\texttt{NVAR} \cdot \texttt{NREACT}`
    ================  ========================================================
-   
-``MAL_EXPONENTS_BULK_FWD``
 
-   Forward exponent matrix of bulk volume reactions as :math:`\texttt{NCOMP} \times \texttt{NREACT}` matrix in row-major storage (optional, calculated from :math:`\texttt{MAL_STOICHIOMETRY_BULK}` by default)
-   
-   ================  ========================================================
-   **Type:** double  **Length:** :math:`\texttt{NCOMP} \cdot \texttt{NREACT}`
-   ================  ========================================================
-   
-``MAL_EXPONENTS_BULK_BWD``
+``MAL_EXPONENTS_FWD``
 
-   Backward exponent matrix of bulk volume reactions as :math:`\texttt{NCOMP} \times \texttt{NREACT}` matrix in row-major storage (optional, calculated from :math:`\texttt{MAL_STOICHIOMETRY_BULK}` by default)
+   Forward exponent matrix as :math:`\texttt{NVAR} \times \texttt{NREACT}` matrix in row-major storage (optional, calculated from :math:`\texttt{MAL_STOICHIOMETRY}` by default)
    
    ================  ========================================================
-   **Type:** double  **Length:** :math:`\texttt{NCOMP} \cdot \texttt{NREACT}`
+   **Type:** double  **Length:** :math:`\texttt{NVAR} \cdot \texttt{NREACT}`
    ================  ========================================================
-   
-``MAL_STOICHIOMETRY_LIQUID``
 
-   Stoichiometric matrix of particle liquid phase reactions as :math:`\texttt{NCOMP} \times \texttt{NREACT}` matrix in row-major storage
-   
-   ================  ========================================================
-   **Type:** double  **Length:** :math:`\texttt{NCOMP} \cdot \texttt{NREACT}`
-   ================  ========================================================
-   
-``MAL_EXPONENTS_LIQUID_FWD``
+``MAL_EXPONENTS_BWD``
 
-   Forward exponent matrix of particle liquid phase reactions as :math:`\texttt{NCOMP} \times \texttt{NREACT}` matrix in row-major storage (optional, calculated from :math:`\texttt{MAL_STOICHIOMETRY_LIQUID}` by default)
+   Backward exponent matrix as :math:`\texttt{NVAR} \times \texttt{NREACT}` matrix in row-major storage (optional, calculated from :math:`\texttt{MAL_STOICHIOMETRY}` by default)
    
    ================  ========================================================
-   **Type:** double  **Length:** :math:`\texttt{NCOMP} \cdot \texttt{NREACT}`
+   **Type:** double  **Length:** :math:`\texttt{NVAR} \cdot \texttt{NREACT}`
    ================  ========================================================
-   
-``MAL_EXPONENTS_LIQUID_BWD``
 
-   Backward exponent matrix of particle liquid phase reactions as :math:`\texttt{NCOMP} \times \texttt{NREACT}` matrix in row-major storage (optional, calculated from :math:`\texttt{MAL_STOICHIOMETRY_LIQUID}` by default)
-   
-   ================  ========================================================
-   **Type:** double  **Length:** :math:`\texttt{NCOMP} \cdot \texttt{NREACT}`
-   ================  ========================================================
-   
-``MAL_EXPONENTS_LIQUID_FWD_MODSOLID``
+CADET Python Interface Example
+------------------------------
+This example shows the configuration of one mass-action-law reaction system.
+The system has two components A and B, where A reactions to B.
+In addition to that the model includes:
+- A forward reaction rate constant of 1.0
+- A backward reaction rate constant of 1.0
 
-   Forward solid phase modifier exponent matrix of particle liquid phase reactions as :math:`\texttt{NTOTALBND} \times \texttt{NREACT}` matrix in row-major storage (optional, defaults to all 0)
-   
-   ================  ============================================================
-   **Type:** double  **Length:** :math:`\texttt{NTOTALBND} \cdot \texttt{NREACT}`
-   ================  ============================================================
-   
-``MAL_EXPONENTS_LIQUID_BWD_MODSOLID``
+.. code-block::
 
-   Backward solid phase modifier exponent matrix of particle liquid phase reactions as :math:`\texttt{NTOTALBND} \times \texttt{NREACT}` matrix in row-major storage (optional, defaults to all 0)
-   
-   ================  ============================================================
-   **Type:** double  **Length:** :math:`\texttt{NTOTALBND} \cdot \texttt{NREACT}`
-   ================  ============================================================
-   
-``MAL_STOICHIOMETRY_SOLID``
+# Reaction in a bulk liquid phase::
 
-   Stoichiometric matrix of particle solid phase reactions as :math:`\texttt{NTOTALBND} \times \texttt{NREACT}` matrix in row-major storage
-   
-   ================  ============================================================
-   **Type:** double  **Length:** :math:`\texttt{NTOTALBND} \cdot \texttt{NREACT}`
-   ================  ============================================================
-   
-``MAL_EXPONENTS_SOLID_FWD``
+   input.model.unit_000.NREAC_LIQUID = 1
+   input.model.unit_000.reaction_liquid_000.type = MASS_ACTION_LAW
+   input.model.unit_000.reaction_liquid_000.MAL_KFWD = [1.0]
+   input.model.unit_000.reaction_liquid_000.MAL_KBWD = [1.0]
+   input.model.unit_000.reaction_liquid_000.MAL_STOICHIOMETRY = [-1.0, 1.0] # A -> B
 
-   Forward exponent matrix of particle solid phase reactions as :math:`\texttt{NTOTALBND} \times \texttt{NREACT}` matrix in row-major storage (optional, calculated from :math:`\texttt{MAL_STOICHIOMETRY_SOLID}` by default)
-   
-   ================  ============================================================
-   **Type:** double  **Length:** :math:`\texttt{NTOTALBND} \cdot \texttt{NREACT}`
-   ================  ============================================================
-   
-``MAL_EXPONENTS_SOLID_BWD``
+# Reaction in a particle liquid phase::
 
-   Backward exponent matrix of particle solid phase reactions as :math:`\texttt{NTOTALBND} \times \texttt{NREACT}` matrix in row-major storage (optional, calculated from :math:`\texttt{MAL_STOICHIOMETRY_SOLID}` by default)
-   
-   ================  ============================================================
-   **Type:** double  **Length:** :math:`\texttt{NTOTALBND} \cdot \texttt{NREACT}`
-   ================  ============================================================
-   
-``MAL_EXPONENTS_SOLID_FWD_MODLIQUID``
+   input.model.unit_000.particle_type_000.NREAC_PORE = 1
+   input.model.unit_000.particle_type_000.reaction_liquid_000.type = MASS_ACTION_LAW
+   input.model.unit_000.particle_type_000.reaction_liquid_000.MAL_KFWD = [1.0]
+   input.model.unit_000.particle_type_000.reaction_liquid_000.MAL_KBWD = [1.0]
+   input.model.unit_000.particle_type_000.reaction_liquid_000.MAL_STOICHIOMETRY = [-1.0, 1.0] # A -> B
 
-   Forward liquid phase modifier exponent matrix of particle solid phase reactions as :math:`\texttt{NCOMP} \times \texttt{NREACT}` matrix in row-major storage (optional, defaults to all 0)
-   
-   ================  ========================================================
-   **Type:** double  **Length:** :math:`\texttt{NCOMP} \cdot \texttt{NREACT}`
-   ================  ========================================================
-   
-``MAL_EXPONENTS_SOLID_BWD_MODLIQUID``
+See also
+--------
 
-   Backward liquid phase modifier exponent matrix of particle solid phase reactions as :math:`\texttt{NCOMP} \times \texttt{NREACT}` matrix in row-major storage (optional, defaults to all 0)
-   
-   ================  ========================================================
-   **Type:** double  **Length:** :math:`\texttt{NCOMP} \cdot \texttt{NREACT}`
-   ================  ========================================================
+- Cross-phase variant: :ref:`mass_action_law_cross_phase_config` (supports liquid/solid modifiers and bulk coupling)
