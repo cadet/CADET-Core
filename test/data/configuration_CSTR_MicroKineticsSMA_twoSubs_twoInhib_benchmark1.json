@@ -36,7 +36,7 @@
         "UNIT_TYPE": "CSTR",
         "liquid_reaction_000": {
           "TYPE": "MASS_ACTION_LAW",
-          "MAL_KBWD_BULK": [
+          "MAL_KBWD": [
             7000.0,
             8000.0,
             0.0,
@@ -45,7 +45,7 @@
             3000.0,
             4000.0
           ],
-          "MAL_KFWD_BULK": [
+          "MAL_KFWD": [
             10000.0,
             10000.0,
             120.0,
@@ -54,7 +54,7 @@
             10000.0,
             10000.0
           ],
-          "MAL_STOICHIOMETRY_BULK": [
+          "MAL_STOICHIOMETRY": [
             -1,
             0,
             0,

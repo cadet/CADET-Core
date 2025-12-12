@@ -4,7 +4,7 @@ Frustum Flow Column 1D
 ======================
 
 Group /input/model/unit_XXX - UNIT_TYPE - FRUSTUM_COLUMN_MODEL_1D
-----------------------------------------------------------------
+-----------------------------------------------------------------
 
 ``UNIT_TYPE``
 
@@ -147,7 +147,7 @@ Each particle type is specified in another subgroup `particle_type_XXX`, see :re
 
 
 Group /input/model/unit_XXX/discretization - UNIT_TYPE - FRUSTUM_COLUMN_MODEL_1D
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 ``USE_ANALYTIC_JACOBIAN``
 

@@ -25,6 +25,7 @@
 #include "cadet/SolutionExporter.hpp"
 #include "model/parts/ConvectionDispersionOperatorDG.hpp"
 #include "model/particle/ParticleModel.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/SparseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
@@ -243,6 +244,8 @@ namespace cadet
 			//MatrixXd FDjac; // test purpose FD Jacobian
 
 			active _totalPorosity; //!< Total porosity \f$ \varepsilon_t \f$
+
+			ReactionSystem _reaction;
 
 			bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used
 			unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation

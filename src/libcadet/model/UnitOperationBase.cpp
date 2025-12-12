@@ -31,7 +31,7 @@ namespace model
 {
 
 UnitOperationBase::UnitOperationBase(UnitOpIdx unitOpIdx) : _unitOpIdx(unitOpIdx), _binding(0, nullptr), _singleBinding(false),
-	_dynReaction(0, nullptr), _singleDynReaction(false), _nonlinearSolver(nullptr)
+	 _singleDynReaction(false), _nonlinearSolver(nullptr)
 {
 }
 
@@ -87,18 +87,23 @@ void UnitOperationBase::clearExchangeModels() CADET_NOEXCEPT
 
 void UnitOperationBase::clearDynamicReactionModels() CADET_NOEXCEPT
 {
-	if (_singleDynReaction)
-	{
-		if (!_dynReaction.empty())
-			delete _dynReaction[0];
-	}
-	else
-	{
-		for (IDynamicReactionModel* drm : _dynReaction)
-			delete drm;
-	}
-
-	_dynReaction.clear();
+    if (_singleDynReaction)
+    {
+        if (!_reacParticle.empty() && _reacParticle[0])
+            delete _reacParticle[0];
+    }
+    else
+    {
+        for (ReactionSystem* rs : _reacParticle)
+        {
+            if (rs)
+            {
+                rs->clearDynamicReactionModels();
+                delete rs;
+            }
+        }
+    }
+    _reacParticle.clear();
 }
 
 std::unordered_map<ParameterId, double> UnitOperationBase::getAllParameterValues() const
@@ -108,7 +113,12 @@ std::unordered_map<ParameterId, double> UnitOperationBase::getAllParameterValues
 	               [](const std::pair<const ParameterId, active*>& p) { return std::make_pair(p.first, static_cast<double>(*p.second)); });
 
 	model::getAllParameterValues(data, _binding, _singleBinding);
-	model::getAllParameterValues(data, _dynReaction, _singleDynReaction);
+	
+    for (ReactionSystem* rs : _reacParticle)
+    {
+        if (rs)
+            rs->getAllParameterValues(data);
+    }
 
 	return data;
 }
@@ -123,8 +133,15 @@ double UnitOperationBase::getParameterDouble(const ParameterId& pId) const
 	double val = std::numeric_limits<double>::quiet_NaN();
 	if (model::getParameterDouble(pId, _binding, _singleBinding, val))
 		return val;
-	if (model::getParameterDouble(pId, _dynReaction, _singleDynReaction, val))
-		return val;
+    
+	for (ReactionSystem* rs : _reacParticle)
+    {
+        if (!rs)
+            continue;
+        double rsVal = rs->getParameterDouble(pId);
+        if (!std::isnan(rsVal))
+            return rsVal;
+    }
 
 	// Not found
 	return std::numeric_limits<double>::quiet_NaN();
@@ -132,15 +149,21 @@ double UnitOperationBase::getParameterDouble(const ParameterId& pId) const
 
 bool UnitOperationBase::hasParameter(const ParameterId& pId) const
 {
-	if (_parameters.find(pId) != _parameters.end())
-		return true;
+    if (_parameters.find(pId) != _parameters.end())
+        return true;
 
-	if (model::hasParameter(pId, _binding, _singleBinding))
-		return true;
-	if (model::hasParameter(pId, _dynReaction, _singleDynReaction))
-		return true;
-	
-	return false;
+    if (model::hasParameter(pId, _binding, _singleBinding))
+        return true;
+    
+    for (ReactionSystem* rs : _reacParticle)
+    {
+        if (!rs)
+            continue;
+        if (rs->hasParameter(pId))
+            return true;
+    }
+    
+    return false;
 }
 
 bool UnitOperationBase::setParameter(const ParameterId& pId, int value)
@@ -150,8 +173,11 @@ bool UnitOperationBase::setParameter(const ParameterId& pId, int value)
 
 	if (model::setParameter(pId, value, _binding, _singleBinding))
 		return true;
-	if (model::setParameter(pId, value, _dynReaction, _singleDynReaction))
-		return true;
+    for (ReactionSystem* rs : _reacParticle)
+    {
+        if (rs && rs->setParameter(pId, value))
+            return true;
+    }
 
 	return false;
 }
@@ -170,8 +196,11 @@ bool UnitOperationBase::setParameter(const ParameterId& pId, double value)
 
 	if (model::setParameter(pId, value, _binding, _singleBinding))
 		return true;
-	if (model::setParameter(pId, value, _dynReaction, _singleDynReaction))
-		return true;
+    for (ReactionSystem* rs : _reacParticle)
+    {
+        if (rs && rs->setParameter(pId, value))
+            return true;
+    }
 
 	return false;
 }
@@ -183,8 +212,11 @@ bool UnitOperationBase::setParameter(const ParameterId& pId, bool value)
 
 	if (model::setParameter(pId, value, _binding, _singleBinding))
 		return true;
-	if (model::setParameter(pId, value, _dynReaction, _singleDynReaction))
-		return true;
+    for (ReactionSystem* rs : _reacParticle)
+    {
+        if (rs && rs->setParameter(pId, value))
+            return true;
+    }
 
 	return false;
 }
@@ -204,8 +236,11 @@ void UnitOperationBase::setSensitiveParameterValue(const ParameterId& pId, doubl
 
 	if (model::setSensitiveParameterValue(pId, value, _sensParams, _binding, _singleBinding))
 		return;
-	if (model::setSensitiveParameterValue(pId, value, _sensParams, _dynReaction, _singleDynReaction))
-		return;
+    for (ReactionSystem* rs : _reacParticle)
+    {
+        if (rs && rs->setSensitiveParameterValue(pId, value, _sensParams))
+            return;
+    }
 }
 
 bool UnitOperationBase::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
@@ -230,11 +265,14 @@ bool UnitOperationBase::setSensitiveParameter(const ParameterId& pId, unsigned i
 		LOG(Debug) << "Found parameter " << pId << " in AdsorptionModel: Dir " << adDirection << " is set to " << adValue;
 		return true;
 	}
-	if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, _dynReaction, _singleDynReaction))
-	{
-		LOG(Debug) << "Found parameter " << pId << " in DynamicReactionModel: Dir " << adDirection << " is set to " << adValue;
-		return true;
-	}
+    for (ReactionSystem* rs : _reacParticle)
+    {
+        if (rs && rs->setSensitiveParameter(pId, adDirection, adValue, _sensParams))
+        {
+            LOG(Debug) << "Found parameter " << pId << " in DynamicReactionModel: Dir " << adDirection << " is set to " << adValue;
+            return true;
+        }
+    }
 
 	return false;
 }

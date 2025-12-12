@@ -16,6 +16,7 @@
 #include "model/ReactionModel.hpp"
 #include "cadet/Exceptions.hpp"
 #include "ConfigurationHelper.hpp"
+#include "SensParamUtil.hpp"
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -27,6 +28,10 @@
 #include <vector>
 #include <string>
 #include <cstdio>
+#include <limits>
+#include <cmath>
+#include <unordered_set>
+
 namespace cadet
 {
 
@@ -55,7 +60,7 @@ struct ReactionSystem
              */
             PhaseData()
             {
-                dynReactions = { nullptr };
+                dynReactions = std::vector<IDynamicReactionModel*>{};
             }
         }; 
 
@@ -98,6 +103,10 @@ struct ReactionSystem
 
         public:
 
+        /**
+         * @brief Checks if any reactions are present in the system
+         * @return True if at least one reaction exists, false otherwise
+         */
         bool hasReactions()
         {
             for(const auto& phasePair : _phaseMap)
@@ -117,6 +126,16 @@ struct ReactionSystem
             return false;
         }
 
+        /**
+         * @brief Adds a dynamic reaction model to a specific phase
+         * @param phaseType The phase type to add the reaction to
+         * @param reactionModel Pointer to the dynamic reaction model to add
+         */
+        void addReactionModel(const std::string& phaseType, IDynamicReactionModel* reactionModel)
+        {
+            auto& dynReactions = getDynReactionVector(phaseType);
+            dynReactions.push_back(reactionModel);
+        }
         
         /**
          * @brief Gets const reference to dynamic reaction vector for a phase
@@ -153,7 +172,6 @@ struct ReactionSystem
         /**
          * @brief Configures discretization for reaction models in a specific phase
          * @param phaseType The phase type to configure
-         * @param parType The particle type index
          * @param nReactions Number of reactions to configure
          * @param nComp Number of components
          * @param nBound Array of bound states per component
@@ -162,7 +180,7 @@ struct ReactionSystem
          * @param helper Configuration helper for creating reaction models
          * @return True if configuration succeeded, false otherwise
          */
-        bool configureDiscretization(std::string phaseType, unsigned int parType, unsigned int nReactions, unsigned int nComp, unsigned int* nBound, unsigned int* boundOffset,  IParameterProvider& paramProvider, const IConfigHelper& helper)
+        bool configureDiscretization(std::string phaseType, unsigned int nReactions, unsigned int nComp, unsigned int* nBound, unsigned int* boundOffset,  IParameterProvider& paramProvider, const IConfigHelper& helper)
 	    {
             auto& dynReaction = getDynReactionVector(phaseType);
             configureDimensions(phaseType, nReactions);
@@ -173,48 +191,46 @@ struct ReactionSystem
 
             // Configure each reaction model
             for (unsigned int i = 0; i < nReac; ++i)
-				{
-                    
-                    char reactionKey[32];
-                    snprintf(reactionKey, sizeof(reactionKey), "%s_reaction_%03d", phaseType.c_str(), i);
+            {                    
+                char reactionKey[32];
+                snprintf(reactionKey, sizeof(reactionKey), "%s_reaction_%03d", phaseType.c_str(), i);
 
 
-                    paramProvider.pushScope(reactionKey); //scope reaction_xxx
+                paramProvider.pushScope(reactionKey); //scope reaction_xxx
 
-                    // Check if reaction type is specified
-					if (!paramProvider.exists("TYPE"))
-					{
-						paramProvider.popScope(); //scope reaction_xxx
-						throw InvalidParameterException("Missing 'type' parameter for " + std::string(reactionKey));
-					}
+                // Check if reaction type is specified
+                if (!paramProvider.exists("TYPE"))
+                {
+                    paramProvider.popScope(); //scope reaction_xxx
+                    throw InvalidParameterException("Missing 'type' parameter for " + std::string(reactionKey));
+                }
 
-                    // Create reaction model based on type
-					std::string reactionType = paramProvider.getString("TYPE");
-					dynReaction[i] = helper.createDynamicReactionModel(reactionType);
+                // Create reaction model based on type
+                std::string reactionType = paramProvider.getString("TYPE");
+                dynReaction[i] = helper.createDynamicReactionModel(reactionType);
 
-                    // Validate reaction model creation
-					if (!dynReaction[i]) 
-					{
-						paramProvider.popScope(); //scope reaction_xxx
-						throw InvalidParameterException("Unknown dynamic reaction model " + reactionType +
-							" for " + reactionKey);
-					}
+                // Validate reaction model creation
+                if (!dynReaction[i]) 
+                {
+                    paramProvider.popScope(); //scope reaction_xxx
+                    throw InvalidParameterException("Unknown dynamic reaction model " + reactionType +
+                        " for " + reactionKey);
+                }
 
-                    // Configure the reaction model discretization
-					reactionConfSuccess = dynReaction[i]->configureModelDiscretization(paramProvider, nComp, nBound + parType * nComp, boundOffset + parType * nComp) && reactionConfSuccess;
+                // Configure the reaction model discretization
+                reactionConfSuccess = dynReaction[i]->configureModelDiscretization(paramProvider, nComp, nBound, boundOffset) && reactionConfSuccess;
 
-                    // Handle configuration failure
-					if (!reactionConfSuccess) 
-					{
-						paramProvider.popScope(); //scope reaction_xxx
-						throw InvalidParameterException("Failed to configure reaction model " + reactionType +
-							" for " + reactionKey);
-					}
+                // Handle configuration failure
+                if (!reactionConfSuccess) 
+                {
+                    paramProvider.popScope(); //scope reaction_xxx
+                    throw InvalidParameterException("Failed to configure reaction model " + reactionType +
+                        " for " + reactionKey);
+                }
 
-
-					paramProvider.popScope(); //scope reaction_xxx
-				}
-
+                paramProvider.popScope(); //scope reaction_xxx
+            }
+            
             return reactionConfSuccess;
 	    }
 
@@ -264,14 +280,13 @@ struct ReactionSystem
         void setWorkspaceRequirements(std::string phaseType, unsigned int nComp, unsigned int const strideBound, LinearMemorySizer& lms) const
         {
             auto& dynReactionVector = getDynReactionVector(phaseType);
-            for (auto i = 0; i < dynReactionVector.size(); i++)
+            for (unsigned int i = 0; i < dynReactionVector.size(); i++)
             {
                 if (dynReactionVector[i] && dynReactionVector[i]->requiresWorkspace())
                 {
                     lms.fitBlock(dynReactionVector[i]->workspaceSize(nComp, strideBound, nullptr));
                 }
             }
-
         }
 
         /**
@@ -290,8 +305,7 @@ struct ReactionSystem
 				}
                 // Clear vector and reset to safe initial state
 				dynReactionVector.clear();
-				dynReactionVector.resize(1, nullptr);
-			}
+            }
 		}
 
         /**
@@ -308,12 +322,145 @@ struct ReactionSystem
             }
         }
 
+        void getAllParameterValues(std::unordered_map<ParameterId, double>& data)
+        {
+            for (const auto& phasePair : _phaseMap)
+            {
+                const std::vector<IDynamicReactionModel*>& dynReactions = phasePair.second.dynReactions;
+                for (const auto* reaction : dynReactions)
+                {
+                    if (reaction)
+                    {
+                        const std::unordered_map<ParameterId, double> localData = reaction->getAllParameterValues();
+                        for (const auto& pair : localData)
+                            data[pair.first] = pair.second;
+                    }
+                }
+            }
+        }
+
+        double getParameterDouble(const ParameterId& pId) const
+        {
+            for (const auto& phasePair : _phaseMap)
+            {
+                const std::vector<IDynamicReactionModel*>& dynReactions = phasePair.second.dynReactions;
+                for (const auto* reaction : dynReactions)
+                {
+                    if (reaction)
+                    {
+                        active const* const val = const_cast<IDynamicReactionModel*>(reaction)->getParameter(pId);
+                        if (val)
+                        {
+                            return static_cast<double>(*val);
+                        }
+                    }
+                }
+            }
+            
+            // Not found - return NaN
+            return std::numeric_limits<double>::quiet_NaN();
+        }
+
+        bool hasParameter(const ParameterId& pId) const
+        {
+            for (const auto& phasePair : _phaseMap)
+            {
+                const std::vector<IDynamicReactionModel*>& dynReactions = phasePair.second.dynReactions;
+                for (const auto* reaction : dynReactions)
+                {
+                    if (reaction && const_cast<IDynamicReactionModel*>(reaction)->hasParameter(pId))
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        template <typename param_t>
+        bool setParameter(const ParameterId& pId, param_t value)
+        {
+            for (auto& phasePair : _phaseMap)
+            {
+                std::vector<IDynamicReactionModel*>& dynReactions = phasePair.second.dynReactions;
+                for (auto* reaction : dynReactions)
+                {
+                    if (reaction && reaction->setParameter(pId, value))
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        bool setSensitiveParameterValue(const ParameterId& pId, double value, const std::unordered_set<active*>& sensParams)
+        {
+            for (auto& phasePair : _phaseMap)
+            {
+                std::vector<IDynamicReactionModel*>& dynReactions = phasePair.second.dynReactions;
+                for (auto* reaction : dynReactions)
+                {
+                    if (!reaction)
+                        continue;
+
+                    active* const val = reaction->getParameter(pId);
+                    if (val && contains(sensParams, val))
+                    {
+                        val->setValue(value);
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        bool setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams)
+        {
+            for (auto& phasePair : _phaseMap)
+            {
+                std::vector<IDynamicReactionModel*>& dynReactions = phasePair.second.dynReactions;
+                for (auto* reaction : dynReactions)
+                {
+                    if (!reaction)
+                        continue;
+
+                    active* const paramReaction = reaction->getParameter(pId);
+                    if (paramReaction)
+                    {
+                        // Register parameter and set AD seed / direction
+                        sensParams.insert(paramReaction);
+                        paramReaction->setADValue(adDirection, adValue);
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         /**
          * @brief Default constructor - initializes phase map with default values
          */
         ReactionSystem(){ }
 
+        /**
+         * @brief Creates and configures a new ReactionSystem for each particle type
+         * @param reacParticle Vector to hold the created ReactionSystem pointers
+         */
+        static void create(std::vector<ReactionSystem*>& reacParticle)
+        {
+            for (unsigned int par = 0; par < reacParticle.size(); par++)
+            {
+                reacParticle[par] = new ReactionSystem();
+            }
+        }
+        /**
+         * @brief Destructor - cleans up dynamic reaction models
+         */
+        ~ReactionSystem()
+        {
+            clearDynamicReactionModels();
+        }
+
 	};
+
+
 
 } // namespace model
 } // namespace cadet
