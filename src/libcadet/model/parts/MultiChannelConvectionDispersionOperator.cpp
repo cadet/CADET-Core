@@ -22,7 +22,7 @@
 #include "model/parts/AxialConvectionDispersionKernel.hpp"
 #include "model/ParameterDependence.hpp"
 #include "model/exchange/LinearExchange.cpp"
-
+#include "model/exchange/LangumirExchange.cpp"
 
 #ifdef SUPERLU_FOUND
 	#include "linalg/SuperLUSparseMatrix.hpp"
@@ -827,7 +827,7 @@ bool MultiChannelConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IP
 
 	// Add parameters to map
 	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
-	registerParam3DArray(parameters, _exchangeMatrix, [=](bool multi, unsigned int channelSrc, unsigned int channelDest, unsigned comp) { return makeParamId(hashString("EXCHANGE_MATRIX"), unitOpIdx, multi ? comp : CompIndep, channelDest, channelSrc, ReactionIndep, SectionIndep); }, _nComp, _nChannel);
+
 
 	setSparsityPattern();
 

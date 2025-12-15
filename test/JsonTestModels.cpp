@@ -17,25 +17,72 @@
 
 using json = nlohmann::json;
 
+void getSpatialMethods(const std::string& spatialMethod, std::string& bulkMethod, std::string& parMethod)
+{
+	if (spatialMethod.size() == 2) {
+		// Only one method specified, use for both
+		if (spatialMethod == "DG" || spatialMethod == "FV") {
+			bulkMethod = spatialMethod;
+			parMethod = spatialMethod;
+		}
+		else
+			throw std::invalid_argument("Unknown spatial method: " + spatialMethod);
+	}
+	else if (spatialMethod.size() == 4)
+	{
+		std::string bulkCandidate = spatialMethod.substr(0, 2);
+		std::string parCandidate = spatialMethod.substr(2, 2);
+
+		if ((bulkCandidate == "DG" || bulkCandidate == "FV") &&
+			(parCandidate == "DG" || parCandidate == "FV")) {
+			bulkMethod = bulkCandidate;
+			parMethod = parCandidate;
+		}
+		else
+			throw std::invalid_argument("Unknown spatial method: " + spatialMethod);
+	}
+	else
+		throw std::invalid_argument("Invalid spatial method length: " + spatialMethod);
+}
+
 json createColumnWithSMAJson(const std::string& uoType, const std::string& spatialMethod)
 {
+	std::string bulkMethod;
+	std::string parMethod;
+	getSpatialMethods(spatialMethod, bulkMethod, parMethod);
+
 	json config;
-	config["UNIT_TYPE"] = uoType;
+	json particle;
+
+	config["UNIT_TYPE"] =
+		(uoType.size() >= 3 && uoType.compare(uoType.size() - 4, 4, "_GRM") == 0) ? uoType.substr(0, uoType.size() - 4) :
+		(uoType.size() >= 4 && uoType.compare(uoType.size() - 5, 5, "_LRMP") == 0) ? uoType.substr(0, uoType.size() - 5) :
+		uoType;
 	config["NCOMP"] = 4;
-	config["COL_DISPERSION"] = 5.75e-8;
-	config["COL_DISPERSION_RADIAL"] = 1e-6;
-	config["FILM_DIFFUSION"] = {6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6};
-	config["PAR_DIFFUSION"] = {7e-10, 6.07e-11, 6.07e-11, 6.07e-11};
-	config["PAR_SURFDIFFUSION"] = {0.0, 0.0, 0.0, 0.0};
+	config["NPARTYPE"] = 1;
+	if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
+	{
+		config["COL_DISPERSION_RADIAL"] = 1e-6;
+		config["COL_DISPERSION_AXIAL"] = 5.75e-8;
+	}
+	else
+		config["COL_DISPERSION"] = 5.75e-8;
+	particle["FILM_DIFFUSION"] = { 6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6 };
+	particle["PORE_DIFFUSION"] = { 7e-10, 6.07e-11, 6.07e-11, 6.07e-11 };
+	particle["SURFACE_DIFFUSION"] = { 0.0, 0.0, 0.0, 0.0 };
+	particle["PAR_RADIUS"] = 4.5e-5;
+	particle["PAR_POROSITY"] = 0.75;
 
 	if (uoType == "MULTI_CHANNEL_TRANSPORT")
 		config["NCHANNEL"] = 1;
 
 	// Geometry
-	if (uoType.substr(0, 6) == "RADIAL")
+	if (uoType.substr(0, 6) == "RADIAL" || uoType.substr(0, 7) == "FRUSTUM")
 	{
 		config["COL_RADIUS_INNER"] = 0.001;
 		config["COL_RADIUS_OUTER"] = 0.004;
+		if (uoType.substr(0, 7) == "FRUSTUM")
+			config["COL_LENGTH"] = 0.01;
 		config["VELOCITY_COEFF"] = 5.75e-4;
 	}
 	else
@@ -44,9 +91,7 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 		config["COL_RADIUS"] = 0.01;
 		config["VELOCITY"] = 5.75e-4;
 	}
-	config["PAR_RADIUS"] = 4.5e-5;
 	config["COL_POROSITY"] = 0.37;
-	config["PAR_POROSITY"] = 0.75;
 	config["TOTAL_POROSITY"] = 0.37 + (1.0 - 0.37) * 0.75;
 
 	if (uoType == "MULTI_CHANNEL_TRANSPORT")
@@ -57,12 +102,13 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 	}
 
 	// Initial conditions
-	config["INIT_C"] = {50.0, 0.0, 0.0, 0.0};
-	config["INIT_Q"] = {1.2e3, 0.0, 0.0, 0.0};
+	config["INIT_C"] = { 50.0, 0.0, 0.0, 0.0 };
+	particle["INIT_CP"] = {50.0, 0.0, 0.0, 0.0};
+	particle["INIT_CS"] = {1.2e3, 0.0, 0.0, 0.0};
 
 	// Adsorption
-	config["ADSORPTION_MODEL"] = std::string("STERIC_MASS_ACTION");
-	config["NBOUND"] = { 1, 1, 1, 1 };
+	particle["ADSORPTION_MODEL"] = std::string("STERIC_MASS_ACTION");
+	particle["NBOUND"] = { 1, 1, 1, 1 };
 	{
 		json ads;
 		ads["IS_KINETIC"] = 1;
@@ -71,18 +117,20 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 		ads["SMA_KD"] = {0.0, 1000.0, 1000.0, 1000.0};
 		ads["SMA_NU"] = {0.0, 4.7, 5.29, 3.7};
 		ads["SMA_SIGMA"] = {0.0, 11.83, 10.6, 10.0};
-		config["adsorption"] = ads;
+		particle["adsorption"] = ads;
 	}
 
 	// Discretization
 	{
 		json disc;
-		disc["SPATIAL_METHOD"] = spatialMethod;
+		json discPar;
+		disc["SPATIAL_METHOD"] = bulkMethod;
+		discPar["SPATIAL_METHOD"] = parMethod;
 
-		if (spatialMethod == "FV")
+		if (bulkMethod == "FV")
 		{
 			disc["NCOL"] = 16;
-			disc["NPAR"] = 4;
+			discPar["NCELLS"] = 4;
 			disc["MAX_KRYLOV"] = 0;
 			disc["GS_TYPE"] = 1;
 			disc["MAX_RESTARTS"] = 10;
@@ -99,22 +147,20 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 			{
 				disc["NCOL"] = 8;
 				disc["NRAD"] = 3;
-				disc["NPAR"] = 3;
+				discPar["NCELLS"] = 3;
 				disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
 			}
 		}
-		else if (spatialMethod == "DG")
+		else if (bulkMethod == "DG")
 		{
-			disc["PAR_EXACT_INTEGRATION"] = 1;
-
 			if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
 			{
 				disc["AX_POLYDEG"] = 2;
 				disc["AX_NELEM"] = 2;
 				disc["RAD_POLYDEG"] = 2;
 				disc["RAD_NELEM"] = 1;
-				disc["PAR_POLYDEG"] = 1;
-				disc["PAR_NELEM"] = 1;
+				discPar["PAR_POLYDEG"] = 1;
+				discPar["PAR_NELEM"] = 1;
 				disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
 			}
 			else
@@ -122,9 +168,16 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 				disc["EXACT_INTEGRATION"] = 0;
 				disc["POLYDEG"] = 4;
 				disc["NELEM"] = 2;
-				disc["PAR_POLYDEG"] = 3;
-				disc["PAR_NELEM"] = 1;
 			}
+		}
+		if (parMethod == "DG")
+		{
+			discPar["PAR_POLYDEG"] = 3;
+			discPar["PAR_NELEM"] = 1;
+		}
+		else if (parMethod == "FV")
+		{
+			discPar["NCELLS"] = 4;
 		}
 
 		if (uoType == "MULTI_CHANNEL_TRANSPORT")
@@ -132,9 +185,24 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 			disc["NCOL"] = 16;
 		}
 
-		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
+		discPar["PAR_DISC_TYPE"] = std::string("EQUIDISTANT");
 
 		disc["USE_ANALYTIC_JACOBIAN"] = true;
+
+		particle["INIT_CS"] = { 1.2e3, 0.0, 0.0, 0.0 };
+		if (uoType.find("GRM") != std::string::npos)
+		{
+			particle["HAS_FILM_DIFFUSION"] = true;
+			particle["HAS_PORE_DIFFUSION"] = true;
+			particle["HAS_SURFACE_DIFFUSION"] = true;
+		}
+		else if (uoType.find("LRMP") != std::string::npos)
+			particle["HAS_FILM_DIFFUSION"] = true;
+		else
+			particle["HAS_FILM_DIFFUSION"] = false;
+
+		particle["discretization"] = discPar;
+		config["particle_type_000"] = particle;
 
 		config["discretization"] = disc;
 	}
@@ -148,15 +216,15 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 	"VELOCITY": 5.75e-4,
 	"COL_DISPERSION": 5.75e-8,
 	"FILM_DIFFUSION": [6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6],
-	"PAR_DIFFUSION": [7e-10, 6.07e-11, 6.07e-11, 6.07e-11],
-	"PAR_SURFDIFFUSION": [0.0, 0.0, 0.0, 0.0],
+	"PORE_DIFFUSION": [7e-10, 6.07e-11, 6.07e-11, 6.07e-11],
+	"SURFACE_DIFFUSION": [0.0, 0.0, 0.0, 0.0],
 	"COL_LENGTH": 0.014,
 	"PAR_RADIUS": 4.5e-5,
 	"COL_POROSITY": 0.37,
 	"PAR_POROSITY": 0.75,
 	"TOTAL_POROSITY": 0.8425,
 	"INIT_C": [50.0, 0.0, 0.0, 0.0],
-	"INIT_Q": [1.2e3, 0.0, 0.0, 0.0],
+	"INIT_CS": [1.2e3, 0.0, 0.0, 0.0],
 	"ADSORPTION_MODEL": "STERIC_MASS_ACTION",
 	"NBOUND": [1, 1, 1, 1],
 	"adsorption":
@@ -171,8 +239,8 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 	"discretization":
 	{
 		"NCOL": 16,
-		"NPAR": 4,
-		"PAR_DISC_TYPE": "EQUIDISTANT_PAR",
+		"NCELLS": 4,
+		"PAR_DISC_TYPE": "EQUIDISTANT",
 		"USE_ANALYTIC_JACOBIAN": true,
 		"MAX_KRYLOV": 0,
 		"GS_TYPE": 1,
@@ -194,25 +262,38 @@ cadet::JsonParameterProvider createColumnWithSMA(const std::string& uoType, cons
 	return cadet::JsonParameterProvider(createColumnWithSMAJson(uoType, spatialMethod));
 }
 
-json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::string& spatialMethod)
+json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(const std::string& uoType, const std::string& spatialMethod)
 {
+	std::string bulkMethod;
+	std::string parMethod;
+	getSpatialMethods(spatialMethod, bulkMethod, parMethod);
+
 	json config;
-	config["UNIT_TYPE"] = uoType;
+	config["UNIT_TYPE"] =
+		(uoType.size() >= 3 && uoType.compare(uoType.size() - 4, 4, "_GRM") == 0) ? uoType.substr(0, uoType.size() - 4) :
+		(uoType.size() >= 4 && uoType.compare(uoType.size() - 5, 5, "_LRMP") == 0) ? uoType.substr(0, uoType.size() - 5) :
+		uoType;
 	config["NCOMP"] = 2;
-	config["COL_DISPERSION"] = 5.75e-8;
-	config["COL_DISPERSION_RADIAL"] = 1e-6;
-	config["FILM_DIFFUSION"] = {6.9e-6, 6.9e-6};
-	config["PAR_DIFFUSION"] = {7e-10, 6.07e-11};
-	config["PAR_SURFDIFFUSION"] = {1e-10, 1e-10};
+	config["NPARTYPE"] = 2;
+	config["PAR_TYPE_VOLFRAC"] = { 0.6, 0.4 };
+	if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
+	{
+		config["COL_DISPERSION_RADIAL"] = 1e-6;
+		config["COL_DISPERSION_AXIAL"] = 5.75e-8;
+	}
+	else
+		config["COL_DISPERSION"] = 5.75e-8;
 
 	if (uoType == "MULTI_CHANNEL_TRANSPORT")
 		config["NCHANNEL"] = 3;
 
 	// Geometry
-	if (uoType.substr(0, 6) == "RADIAL")
+	if (uoType.substr(0, 6) == "RADIAL" || uoType.substr(0, 7) == "FRUSTUM")
 	{
 		config["COL_RADIUS_INNER"] = 0.001;
 		config["COL_RADIUS_OUTER"] = 0.004;
+		if (uoType.substr(0, 7) == "FRUSTUM")
+			config["COL_LENGTH"] = 0.01;
 		config["VELOCITY_COEFF"] = 5.75e-4;
 	}
 	else
@@ -221,42 +302,38 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 		config["COL_RADIUS"] = 0.01;
 		config["VELOCITY"] = 5.75e-4;
 	}
-	config["PAR_RADIUS"] = 4.5e-5;
 	config["COL_POROSITY"] = 0.37;
-	config["PAR_POROSITY"] = 0.75;
-	config["TOTAL_POROSITY"] = 0.37 + (1.0 - 0.37) * 0.75;
+	config["TOTAL_POROSITY"] = 0.37 + (1.0 - 0.37) * (0.6 * 0.75 + 0.4 * 0.5);
 
-	if (uoType == "MULTI_CHANNEL_TRANSPORT")
-	{
-		config["CHANNEL_CROSS_SECTION_AREAS"] = { 1.0, 1.0, 1.0 };
-		// Channel exchange
-		config["EXCHANGE_MATRIX"] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
-	}
+	// Initial condition bulk
+	config["INIT_C"] = { 1.0, 2.0, 3.0 };
 
-	// Initial conditions
-	config["INIT_C"] = {1.0, 2.0, 3.0};
-	config["INIT_Q"] = {5.0, 6.0, 7.0};
-
-	// Adsorption
-	config["ADSORPTION_MODEL"] = std::string("LINEAR");
-	config["NBOUND"] = { 1, 1 };
+	// Particle
+	json particle;
+	particle["INIT_CS"] = { 5.0, 6.0, 7.0 };
+	particle["PAR_RADIUS"] = 4.5e-5;
+	particle["PAR_POROSITY"] = 0.75;
+	particle["FILM_DIFFUSION"] = { 6.9e-6, 6.9e-6 };
+	particle["PORE_DIFFUSION"] = { 7e-10, 6.07e-11 };
+	particle["SURFACE_DIFFUSION"] = { 1e-10, 1e-10 };
+	particle["ADSORPTION_MODEL"] = std::string("LINEAR");
+	particle["NBOUND"] = { 1, 1 };
 	{
 		json ads;
 		ads["IS_KINETIC"] = 1;
-		ads["LIN_KA"] = {12.3, 35.5, 1.59};
-		ads["LIN_KD"] = {45.0, 20.0, 10.0};
-		config["adsorption"] = ads;
+		ads["LIN_KA"] = { 12.3, 35.5, 1.59 };
+		ads["LIN_KD"] = { 45.0, 20.0, 10.0 };
+		particle["adsorption"] = ads;
 	}
 
 	// Discretization
 	{
 		json disc;
-		disc["SPATIAL_METHOD"] = spatialMethod;
+		disc["SPATIAL_METHOD"] = bulkMethod;
 
-		if (spatialMethod == "FV")
+		if (bulkMethod == "FV")
 		{
 			disc["NCOL"] = 15;
-			disc["NPAR"] = 5;
 
 			disc["MAX_KRYLOV"] = 0;
 			disc["GS_TYPE"] = 1;
@@ -270,46 +347,215 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 				disc["weno"] = weno;
 			}
 		}
-		else if (spatialMethod == "DG")
+		else if (bulkMethod == "DG")
 		{
 			disc["EXACT_INTEGRATION"] = 0;
 			disc["POLYDEG"] = 4;
 			disc["NELEM"] = 2;
-			disc["PAR_EXACT_INTEGRATION"] = 1;
-			disc["PAR_POLYDEG"] = 3;
-			disc["PAR_NELEM"] = 1;
 		}
 
 		if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
 		{
 			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
 
-			if (spatialMethod == "DG")
+			if (bulkMethod == "DG")
 			{
 				disc["AX_POLYDEG"] = 4;
 				disc["AX_NELEM"] = 2;
 				disc["RAD_POLYDEG"] = 2;
 				disc["RAD_NELEM"] = 1;
-				disc["PAR_POLYDEG"] = 3;
-				disc["PAR_NELEM"] = 1;
 			}
-			else if (spatialMethod == "FV")
+			else if (bulkMethod == "FV")
 			{
 				disc["NCOL"] = 8;
 				disc["NRAD"] = 3;
-				disc["NPAR"] = 3;
+			}
+		}
+
+	json parDisc;
+	parDisc["SPATIAL_METHOD"] = parMethod;
+	parDisc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT");
+	if (bulkMethod == "DG")
+	{
+		parDisc["PAR_POLYDEG"] = 3;
+		parDisc["PAR_NELEM"] = 1;
+	}
+	else
+		parDisc["NCELLS"] = 3;
+
+		if (uoType == "MULTI_CHANNEL_TRANSPORT")
+			disc["NCOL"] = 8;
+
+		disc["USE_ANALYTIC_JACOBIAN"] = true;
+
+		particle["discretization"] = parDisc;
+		config["discretization"] = disc;
+	}
+
+	particle["HAS_FILM_DIFFUSION"] = true;
+	particle["HAS_PORE_DIFFUSION"] = true;
+	particle["HAS_SURFACE_DIFFUSION"] = true;
+	config["particle_type_000"] = particle;
+	particle["HAS_PORE_DIFFUSION"] = false;
+	particle["HAS_SURFACE_DIFFUSION"] = false;
+	particle["PAR_POROSITY"] = 0.5;
+	config["particle_type_001"] = particle;
+
+	return config;
+}
+
+json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::string& spatialMethod)
+{
+	std::string bulkMethod;
+	std::string parMethod;
+	getSpatialMethods(spatialMethod, bulkMethod, parMethod);
+
+	json config;
+	json particle;
+	config["UNIT_TYPE"] =
+		(uoType.size() >= 3 && uoType.compare(uoType.size() - 4, 4, "_GRM") == 0) ? uoType.substr(0, uoType.size() - 4) :
+		(uoType.size() >= 4 && uoType.compare(uoType.size() - 5, 5, "_LRMP") == 0) ? uoType.substr(0, uoType.size() - 5) :
+		uoType;
+	config["NCOMP"] = 2;
+	config["NPARTYPE"] = 1;
+	if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
+	{
+		config["COL_DISPERSION_RADIAL"] = 1e-6;
+		config["COL_DISPERSION_AXIAL"] = 5.75e-8;
+	}
+	else
+		config["COL_DISPERSION"] = 5.75e-8;
+	particle["FILM_DIFFUSION"] = { 6.9e-6, 6.9e-6 };
+	particle["PORE_DIFFUSION"] = { 7e-10, 6.07e-11 };
+	particle["SURFACE_DIFFUSION"] = { 1e-10, 5e-11 };
+
+	if (uoType == "MULTI_CHANNEL_TRANSPORT")
+		config["NCHANNEL"] = 3;
+
+	// Geometry
+	if (uoType.substr(0, 6) == "RADIAL" || uoType.substr(0, 7) == "FRUSTUM")
+	{
+		config["COL_RADIUS_INNER"] = 0.001;
+		config["COL_RADIUS_OUTER"] = 0.004;
+		if (uoType.substr(0, 7) == "FRUSTUM")
+			config["COL_LENGTH"] = 0.01;
+		config["VELOCITY_COEFF"] = 5.75e-4;
+	}
+	else
+	{
+		config["COL_LENGTH"] = 0.014;
+		config["COL_RADIUS"] = 0.01;
+		config["VELOCITY"] = 5.75e-4;
+	}
+	particle["PAR_RADIUS"] = 4.5e-5;
+	config["COL_POROSITY"] = 0.37;
+	particle["PAR_POROSITY"] = 0.75;
+	config["TOTAL_POROSITY"] = 0.37 + (1.0 - 0.37) * 0.75;
+
+	if (uoType == "MULTI_CHANNEL_TRANSPORT")
+	{
+		config["CHANNEL_CROSS_SECTION_AREAS"] = { 1.0, 1.0, 1.0 };
+		// Channel exchange
+		config["EXCHANGE_MATRIX"] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+	}
+
+	// Initial conditions
+	config["INIT_C"] = { 1.0, 2.0, 3.0 };
+	particle["INIT_CS"] = { 5.0, 6.0, 7.0 };
+
+	// Adsorption
+	particle["ADSORPTION_MODEL"] = std::string("LINEAR");
+	particle["NBOUND"] = { 1, 1 };
+	{
+		json ads;
+		ads["IS_KINETIC"] = 1;
+		ads["LIN_KA"] = { 12.3, 35.5, 1.59 };
+		ads["LIN_KD"] = { 45.0, 20.0, 10.0 };
+		particle["adsorption"] = ads;
+	}
+
+	// Discretization
+	{
+		json disc;
+		json parDisc;
+		disc["SPATIAL_METHOD"] = bulkMethod;
+		parDisc["SPATIAL_METHOD"] = parMethod;
+
+		if (bulkMethod == "FV")
+		{
+			disc["NCOL"] = 15;
+
+			disc["MAX_KRYLOV"] = 0;
+			disc["GS_TYPE"] = 1;
+			disc["MAX_RESTARTS"] = 10;
+			disc["SCHUR_SAFETY"] = 1e-8;
+			{
+				json weno;
+				weno["WENO_ORDER"] = 3;
+				weno["BOUNDARY_MODEL"] = 0;
+				weno["WENO_EPS"] = 1e-10;
+				disc["weno"] = weno;
+			}
+		}
+		else if (bulkMethod == "DG")
+		{
+			disc["EXACT_INTEGRATION"] = 0;
+			disc["POLYDEG"] = 3;
+			disc["NELEM"] = 1;
+		}
+		if (parMethod == "FV")
+		{
+			parDisc["NCELLS"] = 5;
+		}
+		else if (parMethod == "DG")
+		{
+			parDisc["PAR_POLYDEG"] = 3;
+			parDisc["PAR_NELEM"] = 1;
+		}
+
+		if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
+		{
+			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+
+			if (bulkMethod == "DG")
+			{
+				disc["AX_POLYDEG"] = 4;
+				disc["AX_NELEM"] = 2;
+				disc["RAD_POLYDEG"] = 2;
+				disc["RAD_NELEM"] = 1;
+			}
+			else if (bulkMethod == "FV")
+			{
+				disc["NCOL"] = 8;
+				disc["NRAD"] = 3;
+				parDisc["NCELLS"] = 3;
 			}
 		}
 
 		if (uoType == "MULTI_CHANNEL_TRANSPORT")
 			disc["NCOL"] = 8;
 
-		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
+		parDisc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT");
 
 		disc["USE_ANALYTIC_JACOBIAN"] = true;
 
+		particle["discretization"] = parDisc;
 		config["discretization"] = disc;
 	}
+
+	particle["INIT_CS"] = { 5.0, 6.0, 7.0 };
+	if (uoType.find("GRM") != std::string::npos)
+	{
+		particle["HAS_FILM_DIFFUSION"] = true;
+		particle["HAS_PORE_DIFFUSION"] = true;
+		particle["HAS_SURFACE_DIFFUSION"] = true;
+	}
+	else if (uoType.find("LRMP") != std::string::npos)
+		particle["HAS_FILM_DIFFUSION"] = true;
+	else
+		particle["HAS_FILM_DIFFUSION"] = false;
+
+	config["particle_type_000"] = particle;
 
 	return config;
 }
@@ -535,6 +781,10 @@ cadet::JsonParameterProvider createLWE(const std::string& uoType, const std::str
 
 cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding)
 {
+	std::string bulkMethod;
+	std::string parMethod;
+	getSpatialMethods(spatialMethod, bulkMethod, parMethod);
+
 	json config;
 	// Model
 	{
@@ -544,24 +794,35 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 		// GRM - unit 000
 		{
 			json grm;
-			grm["UNIT_TYPE"] = uoType;
+			json particle;
+			grm["UNIT_TYPE"] =
+				(uoType.size() >= 3 && uoType.compare(uoType.size() - 4, 4, "_GRM") == 0) ? uoType.substr(0, uoType.size() - 4) :
+				(uoType.size() >= 4 && uoType.compare(uoType.size() - 5, 5, "_LRMP") == 0) ? uoType.substr(0, uoType.size() - 5) :
+				uoType;
 			grm["NCOMP"] = 1;
-			grm["COL_DISPERSION"] = 5.75e-8;
-			grm["COL_DISPERSION_MULTIPLEX"] = 0;
-			grm["COL_DISPERSION_RADIAL"] = 1e-6;
-			grm["FILM_DIFFUSION"] = {6.9e-6};
-			grm["PAR_DIFFUSION"] = {7e-10};
-			grm["PAR_SURFDIFFUSION"] = {0.0};
+			grm["NPARTYPE"] = 1;
+			if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
+			{
+				grm["COL_DISPERSION_RADIAL"] = 1e-6;
+				grm["COL_DISPERSION_AXIAL"] = 5.75e-8;
+			}
+			else
+				grm["COL_DISPERSION"] = 5.75e-8;
+			particle["FILM_DIFFUSION"] = { 6.9e-6 };
+			particle["PORE_DIFFUSION"] = { 7e-10 };
+			particle["SURFACE_DIFFUSION"] = { 0.0 };
 
 			if (uoType == "MULTI_CHANNEL_TRANSPORT")
 				grm["NCHANNEL"] = 3;
 
 			// Geometry
-			if (uoType.substr(0, 6) == "RADIAL")
+			if (uoType.substr(0, 6) == "RADIAL" || uoType.substr(0, 7) == "FRUSTUM")
 			{
 				grm["COL_RADIUS_INNER"] = 0.001;
 				grm["COL_RADIUS_OUTER"] = 0.004;
-				grm["VELOCITY_COEFF"] = 5.75e-4;
+				if (uoType.substr(0, 7) == "FRUSTUM")
+					config["COL_LENGTH"] = 0.01;
+				config["VELOCITY_COEFF"] = 5.75e-4;
 			}
 			else
 			{
@@ -569,10 +830,10 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 				grm["COL_RADIUS"] = 0.01;
 				grm["VELOCITY"] = 5.75e-4;
 			}
-			grm["PAR_RADIUS"] = 4.5e-5;
-			grm["PAR_CORERADIUS"] = 0.0;
+			particle["PAR_RADIUS"] = 4.5e-5;
+			particle["PAR_CORERADIUS"] = 0.0;
 			grm["COL_POROSITY"] = 0.37;
-			grm["PAR_POROSITY"] = 0.75;
+			particle["PAR_POROSITY"] = 0.75;
 			grm["TOTAL_POROSITY"] = 0.37 + (1.0 - 0.37) * 0.75;
 			if (uoType == "MULTI_CHANNEL_TRANSPORT")
 			{
@@ -582,36 +843,39 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 			}
 
 			// Initial conditions
-			grm["INIT_C"] = {0.0};
-			grm["INIT_Q"] = {0.0};
+			grm["INIT_C"] = { 0.0 };
+			particle["INIT_CS"] = { 0.0 };
 
 			// Adsorption
 			{
-				grm["ADSORPTION_MODEL"] = std::string("LINEAR");
-				grm["NBOUND"] = { 1 };
+				particle["ADSORPTION_MODEL"] = std::string("LINEAR");
+				particle["NBOUND"] = { 1 };
 
 				json ads;
 				ads["IS_KINETIC"] = (dynamicBinding ? 1 : 0);
-				ads["LIN_KA"] = {35.5};
-				ads["LIN_KD"] = {1000.0};
-				grm["adsorption"] = ads;
+				ads["LIN_KA"] = { 35.5 };
+				ads["LIN_KD"] = { 1000.0 };
+				particle["adsorption"] = ads;
 			}
 
 			// Discretization
 			{
 				json disc;
-				disc["SPATIAL_METHOD"] = spatialMethod;
+				json parDisc;
+				disc["SPATIAL_METHOD"] = bulkMethod;
+				parDisc["SPATIAL_METHOD"] = parMethod;
 
-				if (spatialMethod == "FV")
+				if (bulkMethod == "FV")
 				{
 					if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
 					{
 						disc["NRAD"] = 3;
 						disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
 					}
-					
+
 					disc["NCOL"] = 10;
-					disc["NPAR"] = 4;
+					parDisc["NCELLS"] = 4;
+					parDisc["SPATIAL_METHOD"] = parMethod;
 
 					disc["MAX_KRYLOV"] = 0;
 					disc["GS_TYPE"] = 1;
@@ -625,7 +889,7 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 						disc["weno"] = weno;
 					}
 				}
-				else if (spatialMethod == "DG")
+				else if (bulkMethod == "DG")
 				{
 					if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
 					{
@@ -641,18 +905,28 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 						disc["POLYDEG"] = 3;
 						disc["NELEM"] = 2;
 					}
-					disc["PAR_POLYDEG"] = 3;
-					disc["PAR_NELEM"] = 1;
-					disc["PAR_EXACT_INTEGRATION"] = 1;
+					parDisc["PAR_POLYDEG"] = 3;
+					parDisc["PAR_NELEM"] = 1;
 				}
 
-				disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
-
+				parDisc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT");
 				disc["USE_ANALYTIC_JACOBIAN"] = true;
-
+				particle["discretization"] = parDisc;
 				grm["discretization"] = disc;
 			}
 
+			particle["INIT_CS"] = { 0.0 };
+			if (uoType.find("GRM") != std::string::npos)
+			{
+				particle["HAS_FILM_DIFFUSION"] = true;
+				particle["HAS_PORE_DIFFUSION"] = true;
+				particle["HAS_SURFACE_DIFFUSION"] = true;
+			}
+			else if (uoType.find("LRMP") != std::string::npos)
+				particle["HAS_FILM_DIFFUSION"] = true;
+			else
+				particle["HAS_FILM_DIFFUSION"] = false;
+			grm["particle_type_000"] = particle;
 			model["unit_000"] = grm;
 		}
 
@@ -707,13 +981,13 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 					// the two unit operations with 3 ports (and we need to have 7 columns)
 
 					// Flow rates depend on the spatial method, since nodal/cell cross sections are different
-					if (spatialMethod == "FV")
+					if (bulkMethod == "FV")
 					{
 						sw["CONNECTIONS"] = { 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 7.42637597e-09,
 											 1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 2.22791279e-08,
 											 1.0, 0.0, 0.0, 2.0, -1.0, -1.0, 3.71318798e-08 };
 					}
-					else if (spatialMethod == "DG")
+					else if (bulkMethod == "DG")
 					{
 						sw["CONNECTIONS"] = { 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 2.2743276399659853e-10,
 											  1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 5.458386335918363e-09,
@@ -827,23 +1101,38 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 
 json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const std::string& uoType, const std::string& spatialMethod)
 {
+	std::string bulkMethod;
+	std::string parMethod;
+	getSpatialMethods(spatialMethod, bulkMethod, parMethod);
+
 	json grm;
-	grm["UNIT_TYPE"] = uoType;
+	json particle;
+	grm["UNIT_TYPE"] =
+		(uoType.size() >= 3 && uoType.compare(uoType.size() - 4, 4, "_GRM") == 0) ? uoType.substr(0, uoType.size() - 4) :
+		(uoType.size() >= 4 && uoType.compare(uoType.size() - 5, 5, "_LRMP") == 0) ? uoType.substr(0, uoType.size() - 5) :
+		uoType;
 	grm["NCOMP"] = 1;
-	grm["COL_DISPERSION"] = 0.002 / (100.0 * 100.0 * 60.0);
-	grm["COL_DISPERSION_MULTIPLEX"] = 0;
-	grm["COL_DISPERSION_RADIAL"] = 1e-6;
-	grm["FILM_DIFFUSION"] = { 0.01 / (100.0 * 60.0) };
-	grm["PAR_DIFFUSION"] = { 3.003e-6 };
-	grm["PAR_SURFDIFFUSION"] = { 0.0 };
+	grm["NPARTYPE"] = 1;
+	if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
+	{
+		grm["COL_DISPERSION_RADIAL"] = 1e-6;
+		grm["COL_DISPERSION_AXIAL"] = 0.002 / (100.0 * 100.0 * 60.0);
+	}
+	else
+		grm["COL_DISPERSION"] = 0.002 / (100.0 * 100.0 * 60.0);
+	particle["FILM_DIFFUSION"] = { 0.01 / (100.0 * 60.0) };
+	particle["PORE_DIFFUSION"] = { 3.003e-6 };
+	particle["SURFACE_DIFFUSION"] = { 0.0 };
 	if (uoType == "MULTI_CHANNEL_TRANSPORT")
 		grm["NCHANNEL"] = 3;
 
 	// Geometry
-	if (uoType.substr(0, 6) == "RADIAL")
+	if (uoType.substr(0, 6) == "RADIAL" || uoType.substr(0, 7) == "FRUSTUM")
 	{
 		grm["COL_RADIUS_INNER"] = 0.001;
 		grm["COL_RADIUS_OUTER"] = 0.004;
+		if (uoType.substr(0, 7) == "FRUSTUM")
+			grm["COL_LENGTH"] = 0.01;
 		grm["VELOCITY_COEFF"] = 5.75e-4;
 	}
 	else
@@ -852,9 +1141,9 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 		grm["COL_RADIUS"] = 0.01;
 		grm["VELOCITY"] = 0.5 / (100.0 * 60.0);
 	}
-	grm["PAR_RADIUS"] = 4e-5;
+	particle["PAR_RADIUS"] = 4e-5;
 	grm["COL_POROSITY"] = 0.4;
-	grm["PAR_POROSITY"] = 0.333;
+	particle["PAR_POROSITY"] = 0.333;
 	grm["TOTAL_POROSITY"] = 0.4 + (1.0 - 0.4) * 0.333;
 
 	if (uoType == "MULTI_CHANNEL_TRANSPORT")
@@ -866,41 +1155,36 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 
 	// Initial conditions
 	grm["INIT_C"] = { 0.0 };
-	grm["INIT_Q"] = { 0.0 };
 
 	// Adsorption
+	particle["ADSORPTION_MODEL"] = nonBinding ? std::string("NONE") : std::string("LINEAR");
 	if (nonBinding)
-	{
-		grm["ADSORPTION_MODEL"] = std::string("NONE");
-		grm["NBOUND"] = { 0 };
-	}
+		particle["NBOUND"] = { 0 };
 	else
-	{
-		grm["ADSORPTION_MODEL"] = std::string("LINEAR");
-		grm["NBOUND"] = { 1 };
-
-		json ads;
-		ads["IS_KINETIC"] = (dynamicBinding ? 1 : 0);
-		ads["LIN_KA"] = { 2.5 };
-		ads["LIN_KD"] = { 1.0 };
-		grm["adsorption"] = ads;
-	}
+		particle["NBOUND"] = { 1 };
+	json ads;
+	ads["IS_KINETIC"] = (dynamicBinding ? 1 : 0);
+	ads["LIN_KA"] = { 2.5 };
+	ads["LIN_KD"] = { 1.0 };
+	particle["adsorption"] = ads;
 
 	// Discretization
 	{
 		const bool model2D = uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos;
 		json disc;
-		disc["SPATIAL_METHOD"] = spatialMethod;
+		json parDisc;
+		disc["SPATIAL_METHOD"] = bulkMethod;
+		parDisc["SPATIAL_METHOD"] = parMethod;
 		if (model2D)
 			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
 
-		if (spatialMethod == "FV")
+		if (bulkMethod == "FV")
 		{
 			disc["NCOL"] = 512;
-			disc["NPAR"] = 4;
+			parDisc["NCELLS"] = 4;
 			if (model2D)
 				disc["NRAD"] = 3;
-				
+
 			disc["MAX_KRYLOV"] = 0;
 			disc["GS_TYPE"] = 1;
 			disc["MAX_RESTARTS"] = 10;
@@ -913,7 +1197,7 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 				disc["weno"] = weno;
 			}
 		}
-		else if (spatialMethod == "DG")
+		else if (bulkMethod == "DG")
 		{
 			if (model2D)
 			{
@@ -928,15 +1212,34 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 				disc["POLYDEG"] = 5;
 				disc["NELEM"] = 15;
 			}
-			disc["PAR_EXACT_INTEGRATION"] = 1;
-			disc["PAR_POLYDEG"] = 3;
-			disc["PAR_NELEM"] = 1;
+		}
+		if (parMethod == "DG")
+		{
+			parDisc["PAR_POLYDEG"] = 3;
+			parDisc["PAR_NELEM"] = 1;
+		}
+		else if (parMethod == "FV")
+		{
+			parDisc["NCELLS"] = 4;
 		}
 
-		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT_PAR");
+		parDisc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT");
 
 		disc["USE_ANALYTIC_JACOBIAN"] = true;
 
+		particle["INIT_CS"] = { 0.0 };
+		if (uoType.find("GRM") != std::string::npos)
+		{
+			particle["HAS_FILM_DIFFUSION"] = true;
+			particle["HAS_PORE_DIFFUSION"] = true;
+			particle["HAS_SURFACE_DIFFUSION"] = true;
+		}
+		else if (uoType.find("LRMP") != std::string::npos)
+			particle["HAS_FILM_DIFFUSION"] = true;
+		else
+			particle["HAS_FILM_DIFFUSION"] = false;
+		particle["discretization"] = parDisc;
+		grm["particle_type_000"] = particle;
 		grm["discretization"] = disc;
 	}
 
@@ -950,6 +1253,10 @@ cadet::JsonParameterProvider createColumnLinearBenchmark(bool dynamicBinding, bo
 
 cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType, const std::string& spatialMethod)
 {
+	std::string bulkMethod;
+	std::string parMethod;
+	getSpatialMethods(spatialMethod, bulkMethod, parMethod);
+
 	json config;
 	// Model
 	{
@@ -1010,13 +1317,13 @@ cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool non
 					// the two unit operations with 3 ports (and we need to have 7 columns)
 
 				// Flow rates depend on the spatial method, since nodal/cell cross sections are different
-				if (spatialMethod == "FV")
+				if (bulkMethod == "FV")
 				{
 					sw["CONNECTIONS"] = { 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 1.16355283e-09,
 					                      1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 3.49065850e-09,
 					                      1.0, 0.0, 0.0, 2.0, -1.0, -1.0, 5.81776417e-09 };
 				}
-				else if (spatialMethod == "DG")
+				else if (bulkMethod == "DG")
 				{
 					sw["CONNECTIONS"] = { 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 3.563380556155088e-11,
 										  1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 8.552113334772209e-10,

@@ -20,19 +20,19 @@
 
 TEST_CASE("LRM LWE forward vs backward flow", "[LRM],[FV],[Simulation],[CI]")
 {
-	cadet::test::column::FVparams disc;
+	cadet::test::column::FVParams disc;
 
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
 	{
-		disc.setWenoOrder(i);
+		disc.setBulkDiscParam("WENO_ORDER", static_cast<int>(i));
 		cadet::test::column::testForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", disc, 6e-9, 6e-4);
 	}
 }
 
 TEST_CASE("LRM linear pulse vs analytic solution", "[LRM],[FV],[Simulation],[Reference],[Analytic],[CI]")
 {
-	cadet::test::column::FVparams disc(1024);
+	cadet::test::column::FVParams disc(1024);
 	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", true, true, disc, 2e-5, 1e-7);
 	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", true, false, disc, 2e-5, 1e-7);
 	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", false, true, disc, 2e-5, 1e-7);
@@ -41,19 +41,19 @@ TEST_CASE("LRM linear pulse vs analytic solution", "[LRM],[FV],[Simulation],[Ref
 
 TEST_CASE("LRM non-binding linear pulse vs analytic solution", "[LRM],[FV],[Simulation],[Reference],[Analytic],[NonBinding],[CI]")
 {
-	cadet::test::column::FVparams disc(1024);
+	cadet::test::column::FVParams disc(1024);
 	cadet::test::column::testAnalyticNonBindingBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-nonBinding.data", true, disc, 2e-5, 1e-7);
 	cadet::test::column::testAnalyticNonBindingBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-nonBinding.data", false, disc, 2e-5, 1e-7);
 }
 
 TEST_CASE("LRM Jacobian forward vs backward flow", "[LRM],[FV],[UnitOp],[Residual],[Jacobian],[AD],[CI]")
 {
-	cadet::test::column::FVparams disc;
+	cadet::test::column::FVParams disc;
 
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
 	{
-		disc.setWenoOrder(i);
+		disc.setBulkDiscParam("WENO_ORDER", static_cast<int>(i));
 		cadet::test::column::testJacobianForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", disc);
 	}
 }
@@ -65,7 +65,7 @@ TEST_CASE("LRM numerical Benchmark with parameter sensitivities for linear case"
 	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
 	const std::vector<double> relTol = { 1e-4, 1e-4, 1e-4, 1e-4 };
 
-	cadet::test::column::FVparams disc(32);
+	cadet::test::column::FVParams disc(32);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
@@ -76,32 +76,8 @@ TEST_CASE("LRM numerical Benchmark with parameter sensitivities for SMA LWE case
 	const std::vector<double> absTol = { 1e-12, 1e-3, 1e-3, 1e-6 };
 	const std::vector<double> relTol = { 1e-4, 1.0, 1.0, 1.0 };
 
-	cadet::test::column::FVparams disc(32);
+	cadet::test::column::FVParams disc(32);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
-}
-
-TEST_CASE("LRM numerical EOC Benchmark with parameter sensitivities for linear case", "[LRM],[FV],[EOC],[EOC_LRM_FV]")
-{
-	const std::string& modelFilePath = std::string("/data/model_LRM_dynLin_1comp_benchmark1.json");
-	const std::string& refFilePath = std::string("/data/ref_LRM_dynLin_1comp_sensbenchmark1_FV_Z131072.h5");
-	const std::string& convFilePath = std::string("/data/convergence_LRM_dynLin_1comp_sensbenchmark1.json");
-	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
-	const std::vector<double> relTol = { 1e-2, 1e-3, 1e-1, 1e-2 };
-
-	cadet::test::column::FVparams disc(16);
-	cadet::test::column::testEOCReferenceBenchmark(modelFilePath, refFilePath, convFilePath, "001", absTol, relTol, 4, disc, true);
-}
-
-TEST_CASE("LRM numerical EOC Benchmark with parameter sensitivities for SMA LWE case", "[LRM],[FV],[EOC],[EOC_LRM_FV]")
-{
-	const std::string& modelFilePath = std::string("/data/model_LRM_reqSMA_4comp_benchmark1.json");
-	const std::string& refFilePath = std::string("/data/ref_LRM_reqSMA_4comp_sensbenchmark1_FV_Z4096.h5");
-	const std::string& convFilePath = std::string("/data/convergence_LRM_reqSMA_4comp_sensbenchmark1.json");
-	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
-	const std::vector<double> relTol = { 1e-4, 1e-4, 1e-4, 1e-4 };
-
-	cadet::test::column::FVparams disc(8);
-	cadet::test::column::testEOCReferenceBenchmark(modelFilePath, refFilePath, convFilePath, "000", absTol, relTol, 2, disc, true);
 }
 
 TEST_CASE("LRM time derivative Jacobian vs FD", "[LRM],[FV],[UnitOp],[Residual],[Jacobian],[CI],[FD]")

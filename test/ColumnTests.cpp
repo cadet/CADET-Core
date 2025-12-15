@@ -135,107 +135,6 @@ namespace test
 
 namespace column
 {
-
-	void FVparams::setDisc(JsonParameterProvider& jpp, const std::string unitID) const {
-
-		int level = 0;
-
-		if (jpp.exists("model"))
-		{
-			jpp.pushScope("model");
-			++level;
-		}
-		if (jpp.exists("unit_" + unitID))
-		{
-			jpp.pushScope("unit_" + unitID);
-			++level;
-		}
-
-		std::string unitType = jpp.getString("UNIT_TYPE");
-
-		jpp.pushScope("discretization");
-		jpp.set("SPATIAL_METHOD", "FV");
-
-		if (nAxCells)
-			jpp.set("NCOL", nAxCells);
-
-		if (nParCells)
-			jpp.set("NPAR", nParCells);
-
-		if (nRadCells)
-		{
-			if (unitType == "MULTI_CHANNEL_TRANSPORT")
-			{
-				jpp.popScope();
-				jpp.set("NCHANNEL", nRadCells);
-				jpp.pushScope("discretization");
-			}
-			else
-				jpp.set("NRAD", nRadCells);
-		}
-
-		if (jpp.exists("weno"))
-		{
-			jpp.pushScope("weno");
-			if (wenoOrder)
-				jpp.set("WENO_ORDER", wenoOrder);
-
-			jpp.popScope();
-		}
-		jpp.popScope();
-
-		for (int l = 0; l < level; ++l)
-			jpp.popScope();
-	}
-
-	void DGparams::setDisc(JsonParameterProvider& jpp, const std::string unitID) const {
-
-		int level = 0;
-
-		if (jpp.exists("model"))
-		{
-			jpp.pushScope("model");
-			++level;
-		}
-		if (jpp.exists("unit_" + unitID))
-		{
-			jpp.pushScope("unit_" + unitID);
-			++level;
-		}
-
-		jpp.pushScope("discretization");
-		jpp.set("SPATIAL_METHOD", "DG");
-
-		if (radPolyDeg)
-		{
-			jpp.set("RAD_POLYDEG", radPolyDeg);
-			if (radNelem)
-				jpp.set("RAD_NELEM", radNelem);
-			if (polyDeg)
-				jpp.set("AX_POLYDEG", polyDeg);
-			if (nElem)
-				jpp.set("AX_NELEM", nElem);
-		}
-		else
-		{
-			if (exactIntegration > -1)
-				jpp.set("EXACT_INTEGRATION", exactIntegration);
-			if (polyDeg)
-				jpp.set("POLYDEG", polyDeg);
-			if (nElem)
-				jpp.set("NELEM", nElem);
-		}
-		if (parNelem)
-			jpp.set("PAR_NELEM", parNelem);
-		if (parPolyDeg)
-			jpp.set("PAR_POLYDEG", parPolyDeg);
-
-		jpp.popScope();
-
-		for (int l = 0; l < level; ++l)
-			jpp.popScope();
-	}
-
 	/**
 	 * @brief Reads reference chromatograms from a test data file
 	 * @details The file format is as follows:
@@ -357,7 +256,7 @@ namespace column
 
 		jpp.pushScope("discretization");
 
-		jpp.set("NPAR", static_cast<int>(nPar));
+		jpp.set("NCELLS", static_cast<int>(nPar));
 
 		jpp.popScope();
 
@@ -424,7 +323,6 @@ namespace column
 			jpp.popScope();
 	}
 
-	// todo make copy optional for all variables
 	void setNumericalMethod(cadet::IParameterProvider& pp, nlohmann::json& setupJson, const std::string unitID, const bool copy = false)
 	{
 		// copy over numerical methods from reference file. Note that we leave out spatial and time step resolution parameters
@@ -440,14 +338,29 @@ namespace column
 
 		pp.pushScope("unit_" + unitID);
 
-		if (pp.getString("UNIT_TYPE") != "CSTR") // check for units that dont have a spatial discretization
+		// new interface for generalized 1D unit but reference file is with old unit
+		if (setupJson["model"]["unit_" + unitID]["UNIT_TYPE"] == "COLUMN_MODEL_1D" && pp.getString("UNIT_TYPE") != "COLUMN_MODEL_1D")
 		{
+			const int nParType = pp.exists("NPARTYPE") ? pp.getInt("NPARTYPE") : 1;
+
 			pp.pushScope("discretization");
+
+			for (int parType = 0; parType < nParType; parType++)
+			{
+				std::ostringstream parTypeIdxString;
+				parTypeIdxString << std::setfill('0') << std::setw(3) << std::setprecision(0) << parType;
+
+				nlohmann::json discPar = setupJson["model"]["unit_" + unitID]["particle_type_" + parTypeIdxString.str()]["discretization"];
+
+				if (pp.exists("PAR_DISC_TYPE"))
+					discPar["PAR_DISC_TYPE"] = pp.getStringArray("PAR_DISC_TYPE")[pp.getStringArray("PAR_DISC_TYPE").size() == 1 ? 0 : parType];
+
+				setupJson["model"]["unit_" + unitID]["particle_type_" + parTypeIdxString.str()]["discretization"] = discPar;
+			}
+
 			nlohmann::json discretization = setupJson["model"]["unit_" + unitID]["discretization"];
 			discretization["USE_ANALYTIC_JACOBIAN"] = 1;
 
-			if (pp.exists("NBOUND"))
-				discretization["NBOUND"] = pp.getIntArray("NBOUND"); // note: in the future this might be included somewhere else in the setup as its part of the model
 			if (pp.exists("RECONSTRUCTION"))
 				discretization["RECONSTRUCTION"] = pp.getString("RECONSTRUCTION");
 			if (pp.exists("GS_TYPE"))
@@ -460,8 +373,6 @@ namespace column
 				discretization["SCHUR_SAFETY"] = pp.getDouble("SCHUR_SAFETY");
 			if (pp.exists("PAR_DISC_TYPE"))
 				discretization["PAR_DISC_TYPE"] = pp.getStringArray("PAR_DISC_TYPE");
-			if (pp.exists("PAR_GEOM")) // note: in the future this might be included somewhere else in the setup as its part of the model
-				discretization["PAR_GEOM"] = pp.getStringArray("PAR_GEOM");
 			if (pp.exists("weno"))
 			{
 				pp.pushScope("weno");
@@ -475,8 +386,47 @@ namespace column
 			setupJson["model"]["unit_" + unitID]["discretization"] = discretization;
 			pp.popScope();
 		}
-		pp.popScope();
-		pp.popScope();
+		else
+		{
+			if (pp.getString("UNIT_TYPE") != "CSTR") // check for units that dont have a spatial discretization
+			{
+				pp.pushScope("discretization");
+				nlohmann::json discretization = setupJson["model"]["unit_" + unitID]["discretization"];
+				discretization["USE_ANALYTIC_JACOBIAN"] = 1;
+
+				if (pp.exists("NBOUND"))
+					discretization["NBOUND"] = pp.getIntArray("NBOUND"); // note: in the future this might be included somewhere else in the setup as its part of the model
+				if (pp.exists("RECONSTRUCTION"))
+					discretization["RECONSTRUCTION"] = pp.getString("RECONSTRUCTION");
+				if (pp.exists("GS_TYPE"))
+					discretization["GS_TYPE"] = pp.getInt("GS_TYPE");
+				if (pp.exists("MAX_KRYLOV"))
+					discretization["MAX_KRYLOV"] = pp.getInt("MAX_KRYLOV");
+				if (pp.exists("MAX_RESTARTS"))
+					discretization["MAX_RESTARTS"] = pp.getInt("MAX_RESTARTS");
+				if (pp.exists("SCHUR_SAFETY"))
+					discretization["SCHUR_SAFETY"] = pp.getDouble("SCHUR_SAFETY");
+				if (pp.exists("PAR_DISC_TYPE"))
+					discretization["PAR_DISC_TYPE"] = pp.getStringArray("PAR_DISC_TYPE");
+				if (pp.exists("PAR_GEOM")) // note: in the future this might be included somewhere else in the setup as its part of the model
+					discretization["PAR_GEOM"] = pp.getStringArray("PAR_GEOM");
+				if (pp.exists("weno"))
+				{
+					pp.pushScope("weno");
+					nlohmann::json weno;
+					weno["WENO_ORDER"] = pp.getInt("WENO_ORDER");
+					weno["WENO_EPS"] = pp.getDouble("WENO_EPS");
+					weno["BOUNDARY_MODEL"] = pp.getInt("BOUNDARY_MODEL");
+					discretization["weno"] = weno;
+					pp.popScope();
+				}
+				setupJson["model"]["unit_" + unitID]["discretization"] = discretization;
+				pp.popScope();
+			}
+		}
+		
+		pp.popScope(); // unit scope
+		pp.popScope(); // model scope
 
 		pp.pushScope("solver");
 		if (pp.exists("CONSISTENT_INIT_MODE"))
@@ -496,11 +446,11 @@ namespace column
 		pp.popScope();
 	}
 
-	void copySensitivities(cadet::IParameterProvider& pp, nlohmann::json& setupJson, const std::string unitID)
+	int copySensitivities(cadet::IParameterProvider& pp, nlohmann::json& setupJson, const std::string unitID)
 	{
 		// copy over sensitivity settings
 		if (!pp.exists("sensitivity"))
-			return;
+			return 0;
 
 		pp.pushScope("sensitivity");
 		nlohmann::json sens;
@@ -516,6 +466,10 @@ namespace column
 			pp.pushScope(sensParam);
 			nlohmann::json sens_param;
 			sens_param["SENS_NAME"] = pp.getString("SENS_NAME");
+			if (sens_param["SENS_NAME"] == "PAR_DIFFUSION")
+				sens_param["SENS_NAME"] = "PORE_DIFFUSION";
+			else if (sens_param["SENS_NAME"] == "PAR_SURFDIFFUSION")
+				sens_param["SENS_NAME"] = "SURFACE_DIFFUSION";
 			sens_param["SENS_COMP"] = pp.getInt("SENS_COMP");
 			sens_param["SENS_BOUNDPHASE"] = pp.getInt("SENS_BOUNDPHASE");
 			sens_param["SENS_PARTYPE"] = pp.getInt("SENS_PARTYPE");
@@ -528,6 +482,8 @@ namespace column
 
 		pp.popScope();
 		setupJson["sensitivity"] = sens;
+
+		return sens["NSENS"];
 	}
 
 	void copyMultiplexData(cadet::IParameterProvider& pp, nlohmann::json& setupJson, const std::string unitID)
@@ -535,20 +491,20 @@ namespace column
 		pp.pushScope("model");
 		pp.pushScope("unit_"+unitID);
 
+		if (pp.exists("COL_DISPERSION_MULTIPLEX"))
+			setupJson["model"]["unit_" + unitID]["COL_DISPERSION_MULTIPLEX"] = pp.getInt("COL_DISPERSION_MULTIPLEX");
+
 		if (pp.exists("FILM_DIFFUSION_MULTIPLEX"))
 			setupJson["model"]["unit_" + unitID]["FILM_DIFFUSION_MULTIPLEX"] = pp.getInt("FILM_DIFFUSION_MULTIPLEX");
 
 		if (pp.exists("ADSORPTION_MODEL_MULTIPLEX"))
 			setupJson["model"]["unit_" + unitID]["ADSORPTION_MODEL_MULTIPLEX"] = pp.getInt("ADSORPTION_MODEL_MULTIPLEX");
 
-		if (pp.exists("COL_DISPERSION_MULTIPLEX"))
-			setupJson["model"]["unit_" + unitID]["COL_DISPERSION_MULTIPLEX"] = pp.getInt("COL_DISPERSION_MULTIPLEX");
+		if (pp.exists("PORE_DIFFUSION_MULTIPLEX"))
+			setupJson["model"]["unit_" + unitID]["PORE_DIFFUSION_MULTIPLEX"] = pp.getInt("PORE_DIFFUSION_MULTIPLEX");
 
-		if (pp.exists("PAR_DIFFUSION_MULTIPLEX"))
-			setupJson["model"]["unit_" + unitID]["PAR_DIFFUSION_MULTIPLEX"] = pp.getInt("PAR_DIFFUSION_MULTIPLEX");
-
-		if (pp.exists("PAR_SURFDIFFUSION_MULTIPLEX"))
-			setupJson["model"]["unit_" + unitID]["PAR_SURFDIFFUSION_MULTIPLEX"] = pp.getInt("PAR_SURFDIFFUSION_MULTIPLEX");
+		if (pp.exists("SURFACE_DIFFUSION_MULTIPLEX"))
+			setupJson["model"]["unit_" + unitID]["SURFACE_DIFFUSION_MULTIPLEX"] = pp.getInt("SURFACE_DIFFUSION_MULTIPLEX");
 
 		if (pp.exists("PORE_ACCESSIBILITY_MULTIPLEX"))
 			setupJson["model"]["unit_" + unitID]["PORE_ACCESSIBILITY_MULTIPLEX"] = pp.getInt("PORE_ACCESSIBILITY_MULTIPLEX");
@@ -722,7 +678,7 @@ namespace column
 		}
 	}
 
-	void testForwardBackward(const char* uoType, FVparams disc, double absTol, double relTol)
+	void testForwardBackward(const char* uoType, FVParams disc, double absTol, double relTol)
 	{
 		SECTION("Forward vs backward flow (WENO=" + std::to_string(disc.getWenoOrder()) + ")")
 		{
@@ -734,7 +690,7 @@ namespace column
 		}
 	}
 
-	void testForwardBackward(const char* uoType, DGparams disc, double absTol, double relTol)
+	void testForwardBackward(const char* uoType, DGParams disc, double absTol, double relTol)
 	{
 		SECTION("Forward vs backward flow (DG integration mode " + std::to_string(disc.getIntegrationMode()) + ")")
 		{
@@ -790,12 +746,12 @@ namespace column
 		}
 	}
 
-	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, FVparams& disc, double absTol, double relTol)
+	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, FVParams& disc, double absTol, double relTol)
 	{
 		testAnalyticBenchmark(uoType, refFileRelPath, forwardFlow, dynamicBinding, disc, "FV", absTol, relTol);
 	}
 
-	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, DGparams& disc, double absTol, double relTol)
+	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, DGParams& disc, double absTol, double relTol)
 	{
 		testAnalyticBenchmark(uoType, refFileRelPath, forwardFlow, dynamicBinding, disc, "DG", absTol, relTol);
 	}
@@ -836,12 +792,12 @@ namespace column
 		}
 	}
 
-	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, FVparams& disc, double absTol, double relTol)
+	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, FVParams& disc, double absTol, double relTol)
 	{
 		testAnalyticNonBindingBenchmark(uoType, refFileRelPath, forwardFlow, disc, "FV", absTol, relTol);
 	}
 
-	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, DGparams& disc, double absTol, double relTol)
+	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, DGParams& disc, double absTol, double relTol)
 	{
 		testAnalyticNonBindingBenchmark(uoType, refFileRelPath, forwardFlow, disc, "DG", absTol, relTol);
 	}
@@ -968,15 +924,15 @@ namespace column
 			cadet::test::compareJacobian(unitAna, unitAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 //				cadet::test::compareJacobianFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 
-			if (jpp.getString("UNIT_TYPE").substr(0, 6) == "RADIAL")
-				{
-					// Reverse flow
-					const bool paramSet = unitAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY_COEFF"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY_COEFF"));
-					REQUIRE(paramSet);
-					// Reverse flow
-					const bool paramSet2 = unitAD->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY_COEFF"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY_COEFF"));
-					REQUIRE(paramSet2);
-				}
+			if (jpp.getString("UNIT_TYPE").substr(0, 6) == "RADIAL" || jpp.getString("UNIT_TYPE").substr(0, 7) == "FRUSTUM")
+			{
+				// Reverse flow
+				const bool paramSet = unitAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY_COEFF"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY_COEFF"));
+				REQUIRE(paramSet);
+				// Reverse flow
+				const bool paramSet2 = unitAD->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY_COEFF"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY_COEFF"));
+				REQUIRE(paramSet2);
+			}
 			else
 			{
 				// Reverse flow
@@ -1012,7 +968,7 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testJacobianForwardBackward(const char* uoType, FVparams disc, const double absTolFDpattern)
+	void testJacobianForwardBackward(const char* uoType, FVParams disc, const double absTolFDpattern)
 	{
 		SECTION("Forward vs backward flow Jacobian (WENO=" + std::to_string(disc.getWenoOrder()) + ")")
 		{
@@ -1024,7 +980,7 @@ namespace column
 		}
 	}
 
-	void testJacobianForwardBackward(const char* uoType, DGparams disc, const double absTolFDpattern)
+	void testJacobianForwardBackward(const char* uoType, DGParams disc, const double absTolFDpattern)
 	{
 		SECTION("Forward vs backward flow Jacobian (DG integration mode " + std::to_string(disc.getIntegrationMode()) + ")")
 		{
@@ -1047,8 +1003,8 @@ namespace column
 			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
 			const unsigned int nComp = jpp.getInt("NCOMP");
 
-			FVparams disc;
-			disc.setWenoOrder(wenoOrder);
+			FVParams disc;
+			disc.setBulkDiscParam("WENO_ORDER", static_cast<int>(wenoOrder));
 			cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp, disc);
 
 			// Obtain memory for state, Jacobian multiply direction, Jacobian column
@@ -1169,9 +1125,9 @@ namespace column
 			auto ms = util::makeOptionalGroupScope(jpp, "model");
 			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
 
-			jpp.set("PAR_SURFDIFFUSION_DEP", "LIQUID_SALT_EXPONENTIAL");
-			jpp.set("PAR_SURFDIFFUSION_EXPFACTOR", std::vector<double>{ 0.8, 1.6 });
-			jpp.set("PAR_SURFDIFFUSION_EXPARGMULT", std::vector<double>{ 1.3, 2.1 });
+			jpp.set("SURFACE_DIFFUSION_DEP", "LIQUID_SALT_EXPONENTIAL");
+			jpp.set("SURFACE_DIFFUSION_EXPFACTOR", std::vector<double>{ 0.8, 1.6 });
+			jpp.set("SURFACE_DIFFUSION_EXPARGMULT", std::vector<double>{ 1.3, 2.1 });
 		}
 
 		testArrowHeadJacobianFD(jpp, h, absTol, relTol);
@@ -1185,12 +1141,12 @@ namespace column
 			auto ms = util::makeOptionalGroupScope(jpp, "model");
 			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
 
-			jpp.set("PAR_SURFDIFFUSION_DEP", "LIQUID_SALT_EXPONENTIAL");
-			jpp.set("PAR_SURFDIFFUSION_EXPFACTOR", std::vector<double>{ 0.8, 1.6 });
-			jpp.set("PAR_SURFDIFFUSION_EXPARGMULT", std::vector<double>{ 1.3, 2.1 });
+			jpp.set("SURFACE_DIFFUSION_DEP", "LIQUID_SALT_EXPONENTIAL");
+			jpp.set("SURFACE_DIFFUSION_EXPFACTOR", std::vector<double>{ 0.8, 1.6 });
+			jpp.set("SURFACE_DIFFUSION_EXPARGMULT", std::vector<double>{ 1.3, 2.1 });
 		}
 
-		testJacobianAD(jpp);
+		testJacobianAD(jpp, 1e-14);
 	}
 
 	void testArrowHeadJacobianFD(cadet::JsonParameterProvider& jpp, double h, double absTol, double relTol)
@@ -1259,7 +1215,9 @@ namespace column
 				unit->prepareADvectors(adParams);
 
 				// Add dispersion parameter sensitivity
-				REQUIRE(unit->setSensitiveParameter(makeParamId(hashString("COL_DISPERSION"), 0, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep), 0, 1.0));
+				const bool dispSens = unit->setSensitiveParameter(makeParamId(hashString("COL_DISPERSION"), 0, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep), 0, 1.0) ||
+					unit->setSensitiveParameter(makeParamId(hashString("COL_DISPERSION_AXIAL"), 0, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep), 0, 1.0);
+				REQUIRE(dispSens);
 
 				// Obtain memory for state, Jacobian multiply direction, Jacobian column
 				const unsigned int nDof = unit->numDofs();
@@ -1648,7 +1606,7 @@ namespace column
 		return pp_setup;
 	}
 
-	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const DiscParams& disc, const bool compare_sens, const int simDataStride)
+	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const DiscParams& disc, const bool compareSens, const int simDataStride, const int outletDataStride, const int outletDataOffset)
 	{
 		const int unitOpID = std::stoi(unitID);
 
@@ -1673,16 +1631,17 @@ namespace column
 		setupJson[0]["solver"]["USER_SOLUTION_TIMES"] = pp_ref.getDoubleArray("USER_SOLUTION_TIMES");
 		pp_ref.popScope();
 
-		// copy multiplex data
+		// copy multiplex data, only for old interface. needs to be set for new particle interface with sensitivities anyways and is not overwritten by this here
 		copyMultiplexData(pp_ref, *setupJson, unitID);
 
 		// copy return data
 		copyReturnData(pp_ref, *setupJson, unitID);
 
 		// copy sensitivity setup
-		if (pp_ref.exists("sensitivity") && compare_sens)
-			copySensitivities(pp_ref, *setupJson, unitID);
-		
+		int nSens = 0;
+		if (pp_ref.exists("sensitivity") && compareSens)
+			nSens = copySensitivities(pp_ref, *setupJson, unitID);
+
 		pp_ref.popScope();
 		rd.closeFile();
 
@@ -1714,11 +1673,14 @@ namespace column
 		pp_ref.popScope();
 
 		// compare the simulation results with the reference data
-		for (unsigned int i = 0; i < ref_outlet.size(); ++i)
-			CHECK((sim_outlet[i * simDataStride]) == cadet::test::makeApprox(ref_outlet[i], relTol[0], absTol[0]));
+		for (unsigned int i = 0; i < ref_outlet.size() / outletDataStride; ++i)
+			CHECK((sim_outlet[i * simDataStride * outletDataStride + outletDataOffset]) == cadet::test::makeApprox(ref_outlet[i * outletDataStride + outletDataOffset], relTol[0], absTol[0]));
 
-		if (pp_ref.exists("sensitivity") && compare_sens)
+		if (pp_ref.exists("sensitivity") && compareSens)
 		{
+			if (nSens != absTol.size() - 1 || nSens != relTol.size() - 1)
+				throw std::out_of_range("Faulty sensitivity reference test setup: Size of abstol or reltol is not equal to NSENS + 1");
+
 			pp_ref.pushScope("sensitivity");
 
 			unsigned int sensID = 0;
@@ -1747,7 +1709,6 @@ namespace column
 		rd.closeFile();
 	}
 
-	// todo ? include L1 errors or parameterize error choice ?
 	void testEOCReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& convFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const unsigned int nDisc, const DiscParams& startDisc, const bool compare_sens)
 	{
 		const int unitOpID = std::stoi(unitID);

@@ -3,7 +3,9 @@ coverage:
     project:
       default:
         target: 55%
-
-  ignore:
-    - ".*ThirdParty.*"
-    - ".*/test/.*"
+ignore:
+    - "src/ThirdParty/*"
+    - "ThirdParty"
+    - "test"
+fixes:
+    - "build/src/::src/"

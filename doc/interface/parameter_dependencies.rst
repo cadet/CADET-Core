@@ -78,9 +78,9 @@ Currently, the dependence of surface diffusion on the particle liquid salt compo
 Group /input/model/unit_XXX
 ---------------------------
 
-``PAR_SURFDIFFUSION_DEP``
+``SURFACE_DIFFUSION_DEP``
 
-   Parameter dependence of :math:`\texttt{PAR_SURFDIFFUSION}` on the particle liquid salt component (i.e. component with index 0). Valid dependencies are:
+   Parameter dependence of :math:`\texttt{SURFACE_DIFFUSION}` on the particle liquid salt component (i.e. component with index 0). Valid dependencies are:
 
    - :math:`\texttt{NONE}` Original parameter is used unmodified.
    - :math:`\texttt{LIQUID_SALT_EXPONENTIAL}` Original parameter is modified by exponential law of liquid phase salt concentration.
@@ -93,87 +93,87 @@ Group /input/model/unit_XXX
    **Type:** string  **Length:** :math:`1 / \texttt{NPARTYPE}`
    ================  =========================================
 
-``PAR_SURFDIFFUSION_EXPFACTOR``
+``SURFACE_DIFFUSION_EXPFACTOR``
 
    Factor :math:`\texttt{p1}` in exponential law particle surface diffusion relation
    :math:`D_{s, i, m} = \tilde{D}_{s, i, m} p_{1, i, m} exp \left(p_{2, i, m} c_{0}^{p} \right)`, where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient.
-   Only required if :math:`\texttt{PAR_SURFDIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_EXPONENTIAL}`.
+   Only required if :math:`\texttt{SURFACE_DIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_EXPONENTIAL}`.
    
    ================  =========================  ===================================
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NBOUND}`
    ================  =========================  ===================================
 
-   ``PAR_SURFDIFFUSION_EXPFACTOR``
+   ``SURFACE_DIFFUSION_EXPFACTOR``
    :math:`D_{s, i, m} = \tilde{D}_{s, i, m} \left[  p_{4, i, m} \left( k_{i, m} \left( c_{0}^{p} \right) \right)^{p_{5, i, m}} p_{6, i, m} exp \left( p_{7, i, m} k_{i, m} \left( c_{0}^{p} \right) \right) \right]`
    where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient and 
    :math:`k_{i, m} \left( c_{0}^{p} \right) = p_{1, i, m}\left( c_{0}^{p} \right)^{p_{2, i, m}} + p_{3, i, m}`.
-   Only required if :math:`\texttt{PAR_SURFDIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_COLLOIDAL_AFFINITY}`.
+   Only required if :math:`\texttt{SURFACE_DIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_COLLOIDAL_AFFINITY}`.
    
    ================  =============================  ===================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NBOUND}`
    ================  =============================  ===================================
 
-``PAR_SURFDIFFUSION_EXPARGMULT``
+``SURFACE_DIFFUSION_EXPARGMULT``
 
    Factor :math:`\texttt{p2}` in exponential law particle surface diffusion relation
    :math:`D_{s, i, m} = \tilde{D}_{s, i, m} p_{1, i, m} exp \left(p_{2, i, m} c_{0}^{p} \right)`
-   where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient. Only required if :math:`\texttt{PAR_SURFDIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_EXPONENTIAL}`.
+   where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient. Only required if :math:`\texttt{SURFACE_DIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_EXPONENTIAL}`.
    
    ================  =============================  ===================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NBOUND}`
    ================  =============================  ===================================
 
-``PAR_SURFDIFFUSION_POWFACTOR``
+``SURFACE_DIFFUSION_POWFACTOR``
 
    Factor :math:`\texttt{p1}` in power law particle surface diffusion relation
    :math:`D_{s, i, m} = \tilde{D}_{s, i, m} p_{1, i, m} \left( c_{0}^{p} \right)^{p_{2, i, m}}`
-   where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient. Only required if :math:`\texttt{PAR_SURFDIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_POWER}`.
+   where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient. Only required if :math:`\texttt{SURFACE_DIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_POWER}`.
    
    ================  =========================  ===================================
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NBOUND}`
    ================  =========================  ===================================
 
-``PAR_SURFDIFFUSION_POWEXP``
+``SURFACE_DIFFUSION_POWEXP``
 
    Fjactor :math:`\texttt{p2}` in power law particle surface diffusion relation
    :math:`D_{s, i, m} = \tilde{D}_{s, i, m} p_{1, i, m} \left( c_{0}^{p} \right)^{p_{2, i, m}}`
-   where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient. Only required if :math:`\texttt{PAR_SURFDIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_POWER}`.
+   where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient. Only required if :math:`\texttt{SURFACE_DIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_POWER}`.
    
    ================  =============================  ===================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NBOUND}`
    ================  =============================  ===================================
 
-``PAR_SURFDIFFUSION_LOGKEQFACTOR``
+``SURFACE_DIFFUSION_LOGKEQFACTOR``
 
    Factor :math:`\texttt{p1}` in colloidal affinity law particle surface diffusion relation
    :math:`D_{s, i, m} = \tilde{D}_{s, i, m} \left[  p_{4, i, m} \left( k_{i, m} \left( c_{0}^{p} \right) \right)^{p_{5, i, m}} p_{6, i, m} exp \left( p_{7, i, m} k_{i, m} \left( c_{0}^{p} \right) \right) \right]`
    where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient and 
    :math:`k_{i, m} \left( c_{0}^{p} \right) = p_{1, i, m}\left( c_{0}^{p} \right)^{p_{2, i, m}} + p_{3, i, m}`.
-   Only required if :math:`\texttt{PAR_SURFDIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_COLLOIDAL_AFFINITY}`.
+   Only required if :math:`\texttt{SURFACE_DIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_COLLOIDAL_AFFINITY}`.
    
    ================  =============================  ===================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NBOUND}`
    ================  =============================  ===================================
 
-``PAR_SURFDIFFUSION_LOGKEQEXP``
+``SURFACE_DIFFUSION_LOGKEQEXP``
 
    Factor :math:`\texttt{p2}` in colloidal affinity law particle surface diffusion relation
    :math:`D_{s, i, m} = \tilde{D}_{s, i, m} \left[  p_{4, i, m} \left( k_{i, m} \left( c_{0}^{p} \right) \right)^{p_{5, i, m}} p_{6, i, m} exp \left( p_{7, i, m} k_{i, m} \left( c_{0}^{p} \right) \right) \right]`
    where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient and 
    :math:`k_{i, m} \left( c_{0}^{p} \right) = p_{1, i, m}\left( c_{0}^{p} \right)^{p_{2, i, m}} + p_{3, i, m}`.
-   Only required if :math:`\texttt{PAR_SURFDIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_COLLOIDAL_AFFINITY}`.
+   Only required if :math:`\texttt{SURFACE_DIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_COLLOIDAL_AFFINITY}`.
    
    ================  =============================  ===================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NBOUND}`
    ================  =============================  ===================================
 
-``PAR_SURFDIFFUSION_LOGKEQCONST``
+``SURFACE_DIFFUSION_LOGKEQCONST``
 
    Factor :math:`\texttt{p3}` in colloidal affinity law particle surface diffusion relation
    :math:`D_{s, i, m} = \tilde{D}_{s, i, m} \left[  p_{4, i, m} \left( k_{i, m} \left( c_{0}^{p} \right) \right)^{p_{5, i, m}} p_{6, i, m} exp \left( p_{7, i, m} k_{i, m} \left( c_{0}^{p} \right) \right) \right]`
    where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient and 
    :math:`k_{i, m} \left( c_{0}^{p} \right) = p_{1, i, m}\left( c_{0}^{p} \right)^{p_{2, i, m}} + p_{3, i, m}`.
-   Only required if :math:`\texttt{PAR_SURFDIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_COLLOIDAL_AFFINITY}`.
+   Only required if :math:`\texttt{SURFACE_DIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_COLLOIDAL_AFFINITY}`.
    
    ================  =============================  ===================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NBOUND}`

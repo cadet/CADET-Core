@@ -63,7 +63,7 @@ public:
 	 * @details If particles are lumped to a single element, the singleton particle shell dimension can be removed.
 	 * @return @c true if particles are always represented by a single element, otherwise @c false
 	 */
-	virtual bool isParticleLumped() const CADET_NOEXCEPT = 0;
+	virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Returns whether the primary coordinate is always a single element

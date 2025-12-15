@@ -93,7 +93,7 @@ For information on model equations, refer to :ref:`cstr_model`.
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
    ================  =========================  =============
    
-``INIT_Q``
+``INIT_CS``
 
    Initial concentrations for each bound state of each component in the bead solid phase of each particle type in type-component-major ordering. This field is optional and defaults to all 0.
 
@@ -105,7 +105,8 @@ For information on model equations, refer to :ref:`cstr_model`.
    
 ``INIT_STATE``
 
-   Full state vector for initialization (optional, :math:`\texttt{INIT_C}`, :math:`\texttt{INIT_Q}`, and :math:`\texttt{INIT_VOLUME}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives)
+   Full state vector for initialization (optional, :math:`\texttt{INIT_C}`, :math:`\texttt{INIT_CS}`, and :math:`\texttt{INIT_VOLUME}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives).
+   The ordering of the state vector is defined in :ref:`UnitOperationStateOrdering`.
 
    **Unit:** :math:`various`
    
@@ -140,3 +141,30 @@ For information on model equations, refer to :ref:`cstr_model`.
    ================  ========================  =====================================
    **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`\texttt{NPARTYPE}`
    ================  ========================  =====================================
+
+``NREAC_LIQUID``
+
+   Number of reactions in the bulk volume.
+
+   =============  =========================  =============
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
+   =============  =========================  =============
+
+The bulk reactions in the CSTR is defined in the following subgroup:
+
+Group /input/model/unit_XXX/liquid_reaction_YYY
+
+Reaction model in the bulk volume
+---------------------------------
+``TYPE``
+
+   Specifies the type of reaction model
+
+   ================  ========================================  =============
+   **Type:** string  **Range:** See Section :ref:`FFReaction`  **Length:** 1
+   ================  ========================================  =============
+
+Further reaction configuration are depending on the ``TYPE``.
+For information on model configuration, refer to :ref:`mass_action_law_config` or :ref:`michaelis_menten_kinetics_config`.
+
+**NOTE:** This interface will be implemented for further unit operation in the future.
