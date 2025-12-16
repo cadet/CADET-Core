@@ -387,7 +387,7 @@ TEST_CASE("Pseudo-Transient Continuation Problem 1 fixed init", "[NonlinearSolve
 	testPTCFixedInitialPoint<Problem1>();
 }
 
-TEST_CASE("Pseudo-Transient Continuation Problem 1 random inits", "[NonlinearSolver],[PTC],[CI],[Flaky]")
+TEST_CASE("Pseudo-Transient Continuation Problem 1 random inits", "[NonlinearSolver],[PTC],[Flaky]")
 {
 	testPTCRandomInitialPoint<Problem1>(5);
 }
@@ -397,7 +397,7 @@ TEST_CASE("Pseudo-Transient Continuation Single Three-Component Reaction fixed i
 	testPTCFixedInitialPoint<SingleThreeCompReaction>();
 }
 
-TEST_CASE("Pseudo-Transient Continuation Single Three-Component Reaction random inits", "[NonlinearSolver],[PTC],[CI],[Flaky]")
+TEST_CASE("Pseudo-Transient Continuation Single Three-Component Reaction random inits", "[NonlinearSolver],[PTC],[Flaky]")
 {
 	testPTCRandomInitialPoint<SingleThreeCompReaction>(5);
 }
@@ -407,12 +407,12 @@ TEST_CASE("Pseudo-Transient Continuation Three-Component Mass Action Law Reactio
 	testPTCFixedInitialPoint<ThreeCompMassActionLawReaction>();
 }
 
-TEST_CASE("Pseudo-Transient Continuation Three-Component Mass Action Law Reaction random inits", "[NonlinearSolver],[PTC],[CI],[Flaky]")
+TEST_CASE("Pseudo-Transient Continuation Three-Component Mass Action Law Reaction random inits", "[NonlinearSolver],[PTC],[Flaky]")
 {
 	testPTCRandomInitialPoint<ThreeCompMassActionLawReaction>(5);
 }
 
 TEST_CASE("Pseudo-Transient Continuation SMA fixed init", "[NonlinearSolver],[PTC],[CI]")
 {
-	//testPTCFixedInitialPoint<SMAProblem>();
+	testPTCFixedInitialPoint<SMAProblem>();
 }
