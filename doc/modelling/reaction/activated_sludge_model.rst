@@ -3,12 +3,15 @@
 Activated Sludge Model (ASM3h)
 ===============================
 
-Activated Sludge Models (ASM) are a group of reaction models published by the International Water Association (IWA)
-and mostly used for modelling biological processes in wastewater treatment plants.
+The Activated Sludge Model 3 extended (ASM3h) is a comprehensive reaction model for simulating biological 
+wastewater treatment processes. It belongs to the Activated Sludge Models (ASM) family, a set of standardized 
+models developed by the International Water Association (IWA). The ASM3h model describes the fate of 13 
+biochemical components in wastewater treatment systems.
 
-It consists of 13 components representing different species in wastewater treatment plants.
+Model Components
+~~~~~~~~~~~~~~~~
 
-The used components with their abbreviations are listed in the following table:
+The ASM3h model tracks 13 biochemical components representing species and compounds in wastewater:
 
 .. list-table::
    :header-rows: 1
@@ -43,13 +46,12 @@ The used components with their abbreviations are listed in the following table:
    * - :math:`XMI`
      - Mineral particulate matter from biomass
 
-The net flux for each of the components in the ASM is calculated with a stoichiometric
-matrix :math:`S \in \mathbb{R}^{13 \times 13}` and a reaction rate vector 
-:math:`\varphi_j(c)`, where :math:`j` is the reaction number.
-The list of reactions included in the ASM3h model is as follows:
+The net flux for each component is computed using the stoichiometric matrix :math:`S \in \mathbb{R}^{13 \times 13}` 
+and a reaction rate vector :math:`\varphi_j(c)`, where subscript :math:`j` denotes the reaction index. 
+The ASM3h model comprises 13 biochemical reactions detailed below.
 
-Reaction Rates
-~~~~~~~~~~~~~~
+Biochemical Reaction Equations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. list-table::
     :header-rows: 1
@@ -99,7 +101,10 @@ Reaction Rates
       - :math:`\frac{iO_2}{1000}`
 
 
-And the stoichiometric equations are represented in the stoichiometric matrix :math:`S`, which is given by:
+Stoichiometric Matrix
+~~~~~~~~~~~~~~~~~~~~~
+
+The stoichiometric matrix :math:`S` encodes the mass balance coefficients for each biochemical reaction:
 
 .. list-table::
     :header-rows: 1
@@ -303,34 +308,32 @@ And the stoichiometric equations are represented in the stoichiometric matrix :m
       - 0
 
 
-.. figure:: images/netzwerk.jpg
-    :width: 80%
+.. figure:: images/ASM3h+.png
+    :width: 100%
     :align: center
 
-    Network representation of the AMS3h model.
+    Network representation of the ASM3h model.
 
-For more information on model parameters required to define in CADET file format, see :ref:`activated_sludge_model_config`.
+Configuration in CADET
+~~~~~~~~~~~~~~~~~~~~~~
 
-Combining the ASM3 model within CADET
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The ASM3h model is a konkrete implementation of of the ASM framework which is aimled to be used as ASM3h in SIMBA.
-But with different configuations it is also flexible to to be used in the general CADET framework.
+For configuration details, see :ref:`activated_sludge_model_config`.
 
-Active Aeration
----------------
-In configuation of the ASM3 model, there is the option to set the volume parameter of the aeration reaction.
-This volume refers to the volume of the aeration tank.
-But we recomend to model the aeration by setting up the Inlet unit Operation and connect it to the unit operation where the ASM3 model is used.
-This way the aeration can be handled more flexible, see :ref:`inlet_operation`.
-To deactivate the aeration reaction in the ASM3 model, set the volume parameter to zero.
+Aeration Strategy
+-----------------
 
-Fractionation
--------------
+The ASM3h model includes an aeration reaction (r₁₃) that can be configured by the aeration volume parameter. 
+For flexible aeration handling, we recommend modeling aeration explicitly via the Inlet unit operation (see :ref:`inlet_operation`)
+instead of configuring the aeration volume in the model. To disable the aeration reaction, set the volume to zero.
 
-TODO
+Substrate Fractionation
+-----------------------
 
+The organic substrates in ASM3h can be fractionated into adsorbable and non-adsorbable components. This enables a flexible
+coupling with binding models when studying adsorptive interactions during biological treatment.
 
 
 References
 ~~~~~~~~~~
-- TODO
+
+TODO

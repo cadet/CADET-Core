@@ -178,7 +178,6 @@ struct ReactionSystem
                     char reactionKey[32];
                     snprintf(reactionKey, sizeof(reactionKey), "%s_reaction_%03d", phaseType.c_str(), i);
 
-
                     paramProvider.pushScope(reactionKey); //scope reaction_xxx
 
                     // Check if reaction type is specified
