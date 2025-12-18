@@ -83,10 +83,7 @@ GeneralRateModel<ConvDispOperator>::~GeneralRateModel() CADET_NOEXCEPT
 
 	delete[] _jacP;
 	delete[] _jacPdisc;
-
-	_reaction.empty();
-	_dynReaction.clear();
-
+	
 	clearParDepSurfDiffusion();
 }
 
@@ -161,7 +158,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	// Precompute offsets and total number of bound states (DOFs in solid phase)
 	_disc.nBound = new unsigned int[_disc.nComp * _disc.nParType];
 
-	for (int parType = 0; parType < _disc.nParType; parType++)
+	for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 	{
 		paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
 
@@ -205,7 +202,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	clearDynamicReactionModels();
 	bool reactionConfSuccess = true;
 
-	for (int parType = 0; parType < _disc.nParType; parType++)
+	for (unsigned int  parType = 0; parType < _disc.nParType; parType++)
 	{
 		paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
 		paramProvider.pushScope("discretization");
@@ -283,77 +280,76 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 		paramProvider.popScope();
 	}
 
-			_reaction.clearDynamicReactionModels();
-			_reacParticle.clear();
-			_reacParticle.resize(_disc.nParType);
+	_reaction.clearDynamicReactionModels();
+	_reacParticle.clear();
+	_reacParticle.resize(_disc.nParType);
 
-			if (_disc.nParType > 0)
+	if (_disc.nParType > 0)
+	{
+		for (unsigned int par = 0; par < _disc.nParType; par++)
+		{
+
+			char particleScope[32];
+			snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
+			paramProvider.pushScope(particleScope); // particle_type_xxx
+
+
+			if (paramProvider.exists("NREAC_CROSS_PHASE"))
 			{
-				for (unsigned int par = 0; par < _disc.nParType; par++)
-				{
+				int nReactions = paramProvider.getInt("NREAC_CROSS_PHASE");
 
-					char particleScope[32];
-					snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
-					paramProvider.pushScope(particleScope); // particle_type_xxx
-
-					ReactionSystem parReaction;
-
-					if (paramProvider.exists("NREAC_CROSS_PHASE"))
-					{
-						int nReactions = paramProvider.getInt("NREAC_CROSS_PHASE");
-
-						reactionConfSuccess = _reacParticle[par].configureDiscretization("cross_phase",
-							nReactions,
-							_disc.nComp,
-							_disc.nBound + par * _disc.nComp,
-							_disc.boundOffset + par * _disc.nComp,
-							paramProvider,
-							helper) && reactionConfSuccess;
-
-					}
-					if (paramProvider.exists("NREAC_LIQUID"))
-					{
-						int nReactions = paramProvider.getInt("NREAC_LIQUID");
-						reactionConfSuccess = _reacParticle[par].configureDiscretization("pore",
-							nReactions,
-							_disc.nComp,
-							_disc.nBound + par * _disc.nComp,
-							_disc.boundOffset + par * _disc.nComp,
-							paramProvider,
-							helper) && reactionConfSuccess;
-					}
-					if (paramProvider.exists("NREAC_SOLID"))
-					{
-						int nReactions = paramProvider.getInt("NREAC_SOLID");
-						reactionConfSuccess = _reacParticle[par].configureDiscretization("solid",
-							nReactions,
-							_disc.nComp,
-							_disc.nBound + par * _disc.nComp,
-							_disc.boundOffset + par * _disc.nComp,
-							paramProvider,
-							helper) && reactionConfSuccess;
-
-					}
-					paramProvider.popScope(); // particle_type_xxx
-
-				}
+				reactionConfSuccess = _reacParticle[par].configureDiscretization("cross_phase",
+					nReactions,
+					_disc.nComp,
+					_disc.nBound + par * _disc.nComp,
+					_disc.boundOffset + par * _disc.nComp,
+					paramProvider,
+					helper) && reactionConfSuccess;
 
 			}
 			if (paramProvider.exists("NREAC_LIQUID"))
 			{
 				int nReactions = paramProvider.getInt("NREAC_LIQUID");
-				reactionConfSuccess = _reaction.configureDiscretization("liquid",
+				reactionConfSuccess = _reacParticle[par].configureDiscretization("liquid",
 					nReactions,
 					_disc.nComp,
-					_disc.nBound,
-					_disc.boundOffset,
+					_disc.nBound + par * _disc.nComp,
+					_disc.boundOffset + par * _disc.nComp,
 					paramProvider,
 					helper) && reactionConfSuccess;
 			}
-			else
+			if (paramProvider.exists("NREAC_SOLID"))
 			{
-				_reaction.empty();
+				int nReactions = paramProvider.getInt("NREAC_SOLID");
+				reactionConfSuccess = _reacParticle[par].configureDiscretization("solid",
+					nReactions,
+					_disc.nComp,
+					_disc.nBound + par * _disc.nComp,
+					_disc.boundOffset + par * _disc.nComp,
+					paramProvider,
+					helper) && reactionConfSuccess;
+
 			}
+			paramProvider.popScope(); // particle_type_xxx
+
+		}
+
+	}
+	if (paramProvider.exists("NREAC_LIQUID"))
+	{
+		int nReactions = paramProvider.getInt("NREAC_LIQUID");
+		reactionConfSuccess = _reaction.configureDiscretization("liquid",
+			nReactions,
+			_disc.nComp,
+			_disc.nBound,
+			_disc.boundOffset,
+			paramProvider,
+			helper) && reactionConfSuccess;
+	}
+	else
+	{
+		_reaction.empty();
+	}
 
 	// Precompute offsets of particle type DOFs
 	_disc.parTypeOffset = new unsigned int[_disc.nParType + 1];
@@ -886,7 +882,7 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 					if (paramProvider.exists("NREAC_CROSS_PHASE"))
 						dynReactionConfSuccess = _reacParticle[par].configure("cross_phase", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 					if (paramProvider.exists("NREAC_LIQUID"))
-						dynReactionConfSuccess = _reacParticle[par].configure("pore", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+						dynReactionConfSuccess = _reacParticle[par].configure("liquid", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 					if (paramProvider.exists("NREAC_SOLID"))
 						dynReactionConfSuccess = _reacParticle[par].configure("solid", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 

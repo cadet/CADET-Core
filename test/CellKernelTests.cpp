@@ -334,7 +334,7 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD with dummy reactio
 
 		cbm.increaseBufferSize(nTotalBound * (nTotalBound + nComp + 1) * sizeof(cadet::active) + cdrm.requiredBufferSize());
 
-		using namespace cadet::model::reaction;
+		using namespace cadet::model;
 		ReactionSystem reacModel;
 		reacModel.addReactionModel("cross_phase", &cdrm.model());
 		REQUIRE(reacModel.hasReactions());
@@ -423,7 +423,7 @@ TEST_CASE("CellKernel Jacobian analytic vs AD with dummy reaction", "[CellKernel
 
 		cbm.increaseBufferSize(nTotalBound * (nTotalBound + nComp + 1) * sizeof(cadet::active) + cdrm.requiredBufferSize());
 
-		using namespace cadet::model::reaction;
+		using namespace cadet::model;
 		ReactionSystem reacModel;
 		reacModel.addReactionModel("cross_phase", &cdrm.model());
 		REQUIRE(reacModel.hasReactions());

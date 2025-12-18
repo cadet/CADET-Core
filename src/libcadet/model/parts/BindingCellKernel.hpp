@@ -87,11 +87,11 @@ namespace cell
 		if (handleMobilePhaseDerivative && wantRes)
 			std::fill(res, res + params.nComp, 0.0);
 
-		std::vector<double> invBetaP(params.nComp);
+		std::vector<ParamType> invBetaP(params.nComp);
 		for (unsigned int comp = 0; comp < params.nComp; ++comp)
 		{
-			invBetaP[comp] = (1.0 - static_cast<double>(params.porosity)) /
-				(params.poreAccessFactor ? static_cast<double>(params.poreAccessFactor[comp]) * static_cast<double>(params.porosity) : static_cast<double>(params.porosity));
+			invBetaP[comp] = (1.0 - static_cast<ParamType>(params.porosity)) /
+				(params.poreAccessFactor ? static_cast<ParamType>(params.poreAccessFactor[comp]) * static_cast<ParamType>(params.porosity) : static_cast<ParamType>(params.porosity));
 		}
 
 		// Add time derivatives
@@ -99,8 +99,6 @@ namespace cell
 		{
 			for (unsigned int comp = 0; comp < params.nComp; ++comp, ++res, ++y)
 			{
-				//const ParamType invBetaP = (1.0 - static_cast<ParamType>(params.porosity)) / (params.poreAccessFactor ? static_cast<ParamType>(params.poreAccessFactor[comp]) * static_cast<ParamType>(params.porosity) : static_cast<ParamType>(params.porosity));
-
 				// Ultimately, we need dc_{p,comp} / dt + 1 / beta_p * [ sum_i  dq_comp^i / dt ]
 				// where the bound states in the brackets are the quasi-stationary states only.
 				// Compute the sum in the brackets first, then divide by beta_p and add dc_p / dt
@@ -179,54 +177,54 @@ namespace cell
 				if (!params.reaction->getDynReactionVector("cross_phase")[ reac])
 					continue;
 
-			if (wantRes)
-			{
-				BufferedArray<ResidualType> fluxSolid = buffer.template array<ResidualType>(params.nTotalBound);
-
-				std::fill_n(static_cast<ResidualType*>(fluxSolid), params.nTotalBound, 0.0);
-					params.reaction->getDynReactionVector("cross_phase")[reac]->residualCombinedAdd(t, secIdx, colPos, y, y + params.nComp, res, static_cast<ResidualType*>(fluxSolid), -1.0, buffer);
-
-				unsigned int idx = 0;
-				for (unsigned int comp = 0; comp < params.nComp; ++comp)
+				if (wantRes)
 				{
-					for (unsigned int bnd = 0; bnd < params.nBound[comp]; ++bnd, ++idx)
-					{
-						// Add reaction term to mobile phase
-							res[static_cast<int>(comp)] += static_cast<typename DoubleActiveDemoter<ParamType, ResidualType>::type>(invBetaP[comp])* fluxSolid[idx];
+					BufferedArray<ResidualType> fluxSolid = buffer.template array<ResidualType>(params.nTotalBound);
 
-						if (!params.qsReaction[idx])
-						{
-							// Add reaction term to solid phase
-								res[idx + params.nComp] += fluxSolid[idx];
-							}
-						}
-					}
-
-			if (wantJac)
-			{
-					BufferedArray<double> fluxSolidJacobian = buffer.template array<double>(params.nTotalBound * (params.nTotalBound + params.nComp));
-					linalg::DenseMatrixView dmv(static_cast<double*>(fluxSolidJacobian), nullptr, params.nTotalBound, params.nTotalBound + params.nComp);
-					dmv.setAll(0.0);
-
-					// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-						params.reaction->getDynReactionVector("cross_phase")[ reac]->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), reinterpret_cast<double const*>(y + params.nComp), -1.0, jacBase, dmv.row(0, params.nComp), buffer);
+					std::fill_n(static_cast<ResidualType*>(fluxSolid), params.nTotalBound, 0.0);
+						params.reaction->getDynReactionVector("cross_phase")[reac]->residualCombinedAdd(t, secIdx, colPos, y, y + params.nComp, res, static_cast<ResidualType*>(fluxSolid), -1.0, buffer);
 
 					unsigned int idx = 0;
 					for (unsigned int comp = 0; comp < params.nComp; ++comp)
 					{
 						for (unsigned int bnd = 0; bnd < params.nBound[comp]; ++bnd, ++idx)
 						{
-								// Add Jacobian row to mobile  	inline void addArray(double const* row, int startDiag, int length, double factor)
-								(jacBase + comp).addArray(dmv.rowPtr(idx), -static_cast<int>(comp), dmv.columns(), invBetaP[comp]);
+							// Add reaction term to mobile phase
+								res[static_cast<int>(comp)] += static_cast<typename DoubleActiveDemoter<ParamType, ResidualType>::type>(invBetaP[comp])* fluxSolid[idx];
 
 							if (!params.qsReaction[idx])
 							{
-								// Add Jacobian row to solid phase
-								(jacBase + params.nComp + idx).addArray(dmv.rowPtr(idx), -static_cast<int>(params.nComp + idx), dmv.columns(), 1.0);
+								// Add reaction term to solid phase
+									res[idx + params.nComp] += fluxSolid[idx];
+								}
+							}
+						}
+
+					if (wantJac)
+					{
+						BufferedArray<double> fluxSolidJacobian = buffer.template array<double>(params.nTotalBound * (params.nTotalBound + params.nComp));
+						linalg::DenseMatrixView dmv(static_cast<double*>(fluxSolidJacobian), nullptr, params.nTotalBound, params.nTotalBound + params.nComp);
+						dmv.setAll(0.0);
+
+						// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+							params.reaction->getDynReactionVector("cross_phase")[ reac]->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), reinterpret_cast<double const*>(y + params.nComp), -1.0, jacBase, dmv.row(0, params.nComp), buffer);
+
+						unsigned int idx = 0;
+						for (unsigned int comp = 0; comp < params.nComp; ++comp)
+						{
+							for (unsigned int bnd = 0; bnd < params.nBound[comp]; ++bnd, ++idx)
+							{
+									// Add Jacobian row to mobile  	inline void addArray(double const* row, int startDiag, int length, double factor)
+									(jacBase + comp).addArray(dmv.rowPtr(idx), -static_cast<int>(comp), dmv.columns(), static_cast<double>(invBetaP[comp]));
+
+								if (!params.qsReaction[idx])
+								{
+									// Add Jacobian row to solid phase
+									(jacBase + params.nComp + idx).addArray(dmv.rowPtr(idx), -static_cast<int>(params.nComp + idx), dmv.columns(), 1.0);
+								}
 							}
 						}
 					}
-				}
 				}
 			}
 		}
@@ -303,7 +301,7 @@ namespace cell
 						{
 							for (unsigned int bnd = 0; bnd < params.nBound[comp]; ++bnd, ++idx)
 							{
-								(jacBase + comp).addArray(dmv.rowPtr(idx), -static_cast<int>(comp), dmv.columns(), invBetaP[comp]);
+								(jacBase + comp).addArray(dmv.rowPtr(idx), -static_cast<int>(comp), dmv.columns(), static_cast<double>(invBetaP[comp]));
 
 								if (!params.qsReaction[idx])
 								{
