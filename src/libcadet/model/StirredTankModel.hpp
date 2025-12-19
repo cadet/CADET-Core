@@ -177,6 +177,7 @@ protected:
 	std::vector<double> _initConditionsDot; //!< Initial conditions for time derivative
 
 	ReactionSystem _reactionSystemBulk; //!< Reaction system for bulk reactions
+	std::vector<ReactionSystem> _reacParticle;
 
 	class Exporter : public ISolutionExporter
 	{
