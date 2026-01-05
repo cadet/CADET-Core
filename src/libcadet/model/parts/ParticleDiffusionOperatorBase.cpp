@@ -137,8 +137,8 @@ namespace parts
 	bool ParticleDiffusionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding)
 	{
 		_reqBinding = reqBinding;
-		_hasDynamicReactions = std::any_of(reqBinding, reqBinding + nTotalBound, [](int r) { return r == 0; });;
-		_hasReqReactions = std::any_of(reqBinding, reqBinding + nTotalBound, [](int r) { return r != 0; });
+		_hasDynamicReactions = reqBinding ? std::any_of(reqBinding, reqBinding + nTotalBound, [](int r) { return r == 0; }) : false;
+		_hasReqReactions = reqBinding ? std::any_of(reqBinding, reqBinding + nTotalBound, [](int r) { return r != 0; }) : false;
 
 		// Read geometry parameters
 		_parRadius = paramProvider.getDouble("PAR_RADIUS");
