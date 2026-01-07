@@ -328,31 +328,31 @@ inline cadet::JsonParameterProvider createColumnWithTwoCompLinearBindingThreePar
 	return jpp;
 }
 
-TEST_CASE("GRM multi particle types dynamic reactions Jacobian vs AD bulk", "[GRM],[FV],[Jacobian],[AD],[ReactionModel],[ParticleType]") // toFix toFix fails on aRelease mode but not on DEBUG
+TEST_CASE("GRM multi particle types dynamic reactions Jacobian vs AD bulk", "[GRM],[FV],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesGRM();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, false, false);
 }
 
-TEST_CASE("GRM multi particle types dynamic reactions Jacobian vs AD particle", "[GRM],[Jacobian],[FV],[AD],[ReactionModel],[ParticleType]") // toFix toFix fails on aRelease mode but not on DEBUG
+TEST_CASE("GRM multi particle types dynamic reactions Jacobian vs AD particle", "[GRM],[Jacobian],[FV],[AD],[ReactionModel],[ParticleType],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesGRM();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, false);
 }
 
-TEST_CASE("GRM multi particle types dynamic reactions Jacobian vs AD modified particle", "[GRM],[FV],[Jacobian],[AD],[ReactionModel],[ParticleType]")  // toFix toFix fails on aRelease mode but not on DEBUG
+TEST_CASE("GRM multi particle types dynamic reactions Jacobian vs AD modified particle", "[GRM],[FV],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesGRM();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, true);
 }
 
-TEST_CASE("GRM multi particle types dynamic reactions Jacobian vs AD bulk and particle", "[GRM],[FV],[Jacobian],[AD],[ReactionModel],[ParticleType]") // toFix toFix fails on aRelease mode but not on DEBUG
+TEST_CASE("GRM multi particle types dynamic reactions Jacobian vs AD bulk and particle", "[GRM],[FV],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesGRM();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, false); 
 }
 
-TEST_CASE("GRM multi particle types dynamic reactions Jacobian vs AD bulk and modified particle", "[GRM],[FV],[Jacobian],[AD],[ReactionModel],[ParticleType]") // toFix fails on aRelease mode but not on DEBUG
+TEST_CASE("GRM multi particle types dynamic reactions Jacobian vs AD bulk and modified particle", "[GRM],[FV],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesGRM();
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, true);
