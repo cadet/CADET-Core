@@ -164,7 +164,7 @@ Group /input/model/unit_XXX/particle_type_XXX
 
 ``NBOUND``
 
-   Number of bound states for each component in each particle type in type-major ordering
+   Number of bound states for each component in each particle type in particle type major ordering
    
    =============  =========================  ==========================================
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NCOMP}`
@@ -172,7 +172,8 @@ Group /input/model/unit_XXX/particle_type_XXX
 
 ``REACTION_MODEL``
 
-   Specifies the type of reaction model of each particle type (or of all particle types if length is :math:`1`). The model is configured in the subgroup :math:`\texttt{reaction_particle}`, or :math:`\texttt{reaction_particle_XXX}` in case of disabled multiplexing.
+   Specifies the type of reaction model of each particle type (or of all particle types if length is :math:`1`).
+   The model is configured in the subgroup :math:`\texttt{reaction_particle}`, or :math:`\texttt{reaction_particle_XXX}` in case of disabled multiplexing.
    
    ================  ========================================  =============
    **Type:** string  **Range:** See Section :ref:`FFReaction`  **Length:** 1
@@ -180,7 +181,10 @@ Group /input/model/unit_XXX/particle_type_XXX
 
 ``INIT_CP``
 
-   Initial concentrations for each component in the bead liquid phase (optional, :math:`\texttt{INIT_C}` is used if left out). The length of this field can be :math:`\texttt{NCOMP}` (same values for each particle type) or :math:`\texttt{NPARTYPE} \cdot \texttt{NCOMP}`  Values for each particle type can only be given when :math:`\texttt{ADSORPTION_MODEL_MULTIPLEX}` is :math:`0`. The ordering is type-major.
+   Initial concentrations for each component in the bead liquid phase (optional, :math:`\texttt{INIT_C}` is used if left out).
+   The length of this field is :math:`\texttt{NCOMP}`.
+   Only in case of a 2D bulk model, the field length *can* also be :math:`\texttt{NCOMP} \cdot \texttt{NRAD}` to specify radial dependence, in which case the ordering is radial position major.
+   If :math:`\texttt{BINDING_PARTYPE_DEPENDENT}` is :math:`0`, the values across different particle types (if multiple particle types are being used) must be the same.
 
    **Unit:** :math:`\mathrm{mol}\,\mathrm{m}_{\mathrm{MP}}^{-3}`
    
@@ -190,7 +194,10 @@ Group /input/model/unit_XXX/particle_type_XXX
 
 ``INIT_CS``
 
-   Initial concentrations for each bound state of each component in the bead solid phase. If :math:`\texttt{ADSORPTION_MODEL_MULTIPLEX}` is :math:`0`, values for each particle type are required in type-component-major ordering (length is :math:`\texttt{NTOTALBND}`). If :math:`\texttt{ADSORPTION_MODEL_MULTIPLEX}` is :math:`1`, values for one particle type are required in component-major ordering (length is :math:`\sum_{i = 0}^{\texttt{NCOMP} - 1} \texttt{NBND}_i`).
+   Initial concentrations for each bound state of each component in the bead solid phase.
+   The length of this field is :math:`\texttt{NBOUND}`.
+   Only in case of a 2D bulk model, the field length *can* also be :math:`\texttt{NBOUND} \cdot \texttt{NRAD}` to specify radial dependence, in which case the ordering is radial position major.
+   If :math:`\texttt{BINDING_PARTYPE_DEPENDENT}` is :math:`0`, the values across different particle types (if multiple particle types are being used) must be the same.
 
    **Unit:** :math:`\mathrm{mol}\,\mathrm{m}_{\mathrm{SP}}^{-3}`
    
@@ -226,7 +233,7 @@ Group /input/model/unit_XXX/particle_type_XXX/discretization
    Node coordinates for the DG element (or FV cell) boundaries (ignored if :math:`\texttt{PAR_DISC_TYPE} \neq \texttt{USER_DEFINED}`).
    The coordinates are relative and have to include the endpoints :math:`0` and :math:`1`.
    They are later linearly mapped to the true radial range :math:`[r_{c,j}, r_{p,j}]`.
-   The coordinates for each particle type are appended to one long vector in type-major ordering.
+   The coordinates for each particle type are appended to one long vector in particle type major ordering.
    
    ================  ========================  ======================================
    **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`\texttt{NELEM} + 1`

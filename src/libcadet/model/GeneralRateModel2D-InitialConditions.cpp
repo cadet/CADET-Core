@@ -451,10 +451,30 @@ void GeneralRateModel2D::readInitialCondition(IParameterProvider& paramProvider)
 				throw InvalidParameterException("INIT_CP does not contain enough values for all components");
 
 			if (!_singleRadiusInitCp)
+			{
+				if (_singleBinding && parType > 0)
+				{
+					for (int entry = 0; entry < _disc.strideBound[0] * _disc.nRad; entry++)
+					{
+						if (initC.data()[entry] != _initCp.data()[_disc.nBoundBeforeType[parType - 1] + entry])
+							throw InvalidParameterException("Binding models were specified as particle type independent (see field BINDING_PARTYPE_DEPENDENT), but INIT_CP is different for particle type " + std::to_string(parType - 1) + " and " + std::to_string(parType));
+					}
+				}
+
 				for (unsigned int r = 0; r < _disc.nRad; ++r)
 					ad::copyToAd(initCp.data() + r * _disc.nComp, _initCp.data() + parType * _disc.nComp + r * _disc.nParType * _disc.nComp, _disc.nComp);
+			}
 			else
 			{
+				if (_singleBinding && parType > 0)
+				{
+					for (int entry = 0; entry < _disc.strideBound[0]; entry++)
+					{
+						if (initC.data()[entry] != _initCp.data()[_disc.nBoundBeforeType[parType - 1] + entry])
+							throw InvalidParameterException("Binding models were specified as particle type independent (see field BINDING_PARTYPE_DEPENDENT), but INIT_CP is different for particle type " + std::to_string(parType - 1) + " and " + std::to_string(parType));
+					}
+				}
+
 				for (unsigned int r = 0; r < _disc.nRad; ++r)
 					ad::copyToAd(initCp.data(), _initCp.data() + parType * _disc.nComp + r * _disc.nParType * _disc.nComp, _disc.nComp);
 			}
@@ -465,11 +485,29 @@ void GeneralRateModel2D::readInitialCondition(IParameterProvider& paramProvider)
 
 			if (!_singleRadiusInitCp)
 			{
+				if (_singleBinding && parType > 0)
+				{
+					for (int entry = 0; entry < _disc.strideBound[0] * _disc.nRad; entry++)
+					{
+						if (initC.data()[entry] != _initCp.data()[_disc.nBoundBeforeType[parType - 1] + entry])
+							throw InvalidParameterException("Binding models were specified as particle type independent (see field BINDING_PARTYPE_DEPENDENT), but INIT_CP is different for particle type " + std::to_string(parType - 1) + " and " + std::to_string(parType));
+					}
+				}
+
 				for (unsigned int r = 0; r < _disc.nRad; ++r)
 					ad::copyToAd(initC.data() + r * _disc.nComp, _initCp.data() + parType * _disc.nComp + r * _disc.nComp * _disc.nParType, _disc.nComp);
 			}
 			else
 			{
+				if (_singleBinding && parType > 0)
+				{
+					for (int entry = 0; entry < _disc.strideBound[0]; entry++)
+					{
+						if (initC.data()[entry] != _initCp.data()[_disc.nBoundBeforeType[parType - 1] + entry])
+							throw InvalidParameterException("Binding models were specified as particle type independent (see field BINDING_PARTYPE_DEPENDENT), but INIT_CP is different for particle type " + std::to_string(parType - 1) + " and " + std::to_string(parType));
+					}
+				}
+
 				for (unsigned int r = 0; r < _disc.nRad; ++r)
 					ad::copyToAd(initC.data(), _initCp.data() + parType * _disc.nComp + r * _disc.nComp * _disc.nParType, _disc.nComp);
 			}
@@ -496,11 +534,29 @@ void GeneralRateModel2D::readInitialCondition(IParameterProvider& paramProvider)
 
 		if (!_singleRadiusInitCs)
 		{
+			if (_singleBinding && parType > 0)
+			{
+				for (int entry = 0; entry < _disc.strideBound[0] * _disc.nRad; entry++)
+				{
+					if (initCs.data()[entry] != _initCs.data()[_disc.nBoundBeforeType[parType - 1] + entry])
+						throw InvalidParameterException("Binding models were specified as particle type independent (see field BINDING_PARTYPE_DEPENDENT), but INIT_CS is different for particle type " + std::to_string(parType - 1) + " and " + std::to_string(parType));
+				}
+			}
+
 			for (unsigned int r = 0; r < _disc.nRad; ++r)
 				ad::copyToAd(initCs.data() + r * _disc.strideBound[0], _initCs.data() + _disc.nBoundBeforeType[parType] + r * _disc.strideBound[_disc.nParType], _disc.strideBound[parType]);
 		}
-		else if (!_singleBinding && _singleRadiusInitCs)
+		else
 		{
+			if (_singleBinding && parType > 0)
+			{
+				for (int entry = 0; entry < _disc.strideBound[0] * _disc.nRad; entry++)
+				{
+					if (initCs.data()[entry] != _initCs.data()[_disc.nBoundBeforeType[parType - 1] + entry])
+						throw InvalidParameterException("Binding models were specified as particle type independent (see field BINDING_PARTYPE_DEPENDENT), but INIT_CS is different for particle type " + std::to_string(parType - 1) + " and " + std::to_string(parType));
+				}
+			}
+
 			for (unsigned int r = 0; r < _disc.nRad; ++r)
 				ad::copyToAd(initCs.data(), _initCs.data() + _disc.nBoundBeforeType[parType] + r * _disc.strideBound[_disc.nParType], _disc.strideBound[parType]);
 		}

@@ -452,10 +452,30 @@ void ColumnModel2D::readInitialCondition(IParameterProvider& paramProvider)
 				throw InvalidParameterException("INIT_CP does not contain enough values for all components");
 
 			if (!_singleRadiusInitCp)
+			{
+				if (_singleBinding && parType > 0)
+				{
+					for (int entry = 0; entry < _disc.strideBound[0] * _disc.radNElem; entry++)
+					{
+						if (initC.data()[entry] != _initCp.data()[_disc.nBoundBeforeType[parType - 1] + entry])
+							throw InvalidParameterException("INIT_CP is not the same across particle types but BINDING_PARTYPE_DEPENDENT is False");
+					}
+				}
+
 				for (unsigned int r = 0; r < _disc.radNElem; ++r)
 					ad::copyToAd(initCp.data() + r * _disc.nComp, _initCp.data() + parType * _disc.nComp + r * _disc.nParType * _disc.nComp, _disc.nComp);
+			}
 			else
 			{
+				if (_singleBinding && parType > 0)
+				{
+					for (int entry = 0; entry < _disc.strideBound[0]; entry++)
+					{
+						if (initC.data()[entry] != _initCp.data()[_disc.nBoundBeforeType[parType - 1] + entry])
+							throw InvalidParameterException("INIT_CP is not the same across particle types but BINDING_PARTYPE_DEPENDENT is False");
+					}
+				}
+
 				for (unsigned int r = 0; r < _disc.radNElem; ++r)
 					ad::copyToAd(initCp.data(), _initCp.data() + parType * _disc.nComp + r * _disc.nParType * _disc.nComp, _disc.nComp);
 			}
@@ -466,11 +486,29 @@ void ColumnModel2D::readInitialCondition(IParameterProvider& paramProvider)
 
 			if (!_singleRadiusInitCp)
 			{
+				if (_singleBinding && parType > 0)
+				{
+					for (int entry = 0; entry < _disc.strideBound[0] * _disc.radNElem; entry++)
+					{
+						if (initC.data()[entry] != _initCp.data()[_disc.nBoundBeforeType[parType - 1] + entry])
+							throw InvalidParameterException("INIT_CP is not the same across particle types but BINDING_PARTYPE_DEPENDENT is False");
+					}
+				}
+
 				for (unsigned int r = 0; r < _disc.radNElem; ++r)
 					ad::copyToAd(initC.data() + r * _disc.nComp, _initCp.data() + parType * _disc.nComp + r * _disc.nComp * _disc.nParType, _disc.nComp);
 			}
 			else
 			{
+				if (_singleBinding && parType > 0)
+				{
+					for (int entry = 0; entry < _disc.strideBound[0]; entry++)
+					{
+						if (initC.data()[entry] != _initCp.data()[_disc.nBoundBeforeType[parType - 1] + entry])
+							throw InvalidParameterException("INIT_CP is not the same across particle types but BINDING_PARTYPE_DEPENDENT is False");
+					}
+				}
+
 				for (unsigned int r = 0; r < _disc.radNElem; ++r)
 					ad::copyToAd(initC.data(), _initCp.data() + parType * _disc.nComp + r * _disc.nComp * _disc.nParType, _disc.nComp);
 			}
@@ -497,13 +535,31 @@ void ColumnModel2D::readInitialCondition(IParameterProvider& paramProvider)
 
 		if (!_singleRadiusInitCs)
 		{
+			if (_singleBinding && parType > 0)
+			{
+				for (int entry = 0; entry < _disc.strideBound[0] * _disc.radNElem; entry++)
+				{
+					if (initCs.data()[entry] != _initCs.data()[_disc.nBoundBeforeType[parType - 1] + entry])
+						throw InvalidParameterException("INIT_CS is not the same across particle types but BINDING_PARTYPE_DEPENDENT is False");
+				}
+			}
+
 			for (unsigned int r = 0; r < _disc.radNElem; ++r)
-				ad::copyToAd(initCs.data() + r * _disc.strideBound[parType], _initCs.data() + parType * _disc.strideBound[parType] + r * _disc.strideBound[parType] * _disc.nParType, _disc.strideBound[parType]);
+				ad::copyToAd(initCs.data() + r * _disc.strideBound[0], _initCs.data() + _disc.nBoundBeforeType[parType] + r * _disc.strideBound[_disc.nParType], _disc.strideBound[parType]);
 		}
-		else if (!_singleBinding && _singleRadiusInitCs)
+		else
 		{
+			if (_singleBinding && parType > 0)
+			{
+				for (int entry = 0; entry < _disc.strideBound[0] * _disc.radNElem; entry++)
+				{
+					if (initCs.data()[entry] != _initCs.data()[_disc.nBoundBeforeType[parType - 1] + entry])
+						throw InvalidParameterException("INIT_CS is not the same across particle types but BINDING_PARTYPE_DEPENDENT is False");
+				}
+			}
+
 			for (unsigned int r = 0; r < _disc.radNElem; ++r)
-				ad::copyToAd(initCs.data(), _initCs.data() + parType * _disc.strideBound[parType] + r * _disc.strideBound[parType] * _disc.nParType, _disc.strideBound[parType]);
+				ad::copyToAd(initCs.data(), _initCs.data() + _disc.nBoundBeforeType[parType] + r * _disc.strideBound[_disc.nParType], _disc.strideBound[parType]);
 		}
 	}
 }

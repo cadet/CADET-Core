@@ -229,7 +229,7 @@ void ColumnModel1D::readInitialCondition(IParameterProvider& paramProvider)
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 				{
 					if (initCp.data()[comp] != (_initCp.data() + (parType - 1) * _disc.nComp)[comp])
-						throw InvalidParameterException("Binding models were specified as particle type independent (see field BINDING_PARTYPE_DEPENDENT), but INIT_CP are different for particle type " + std::to_string(parType - 1) + " and " + std::to_string(parType));
+						throw InvalidParameterException("Binding models were specified as particle type independent (see field BINDING_PARTYPE_DEPENDENT), but INIT_CP is different for particle type " + std::to_string(parType - 1) + " and " + std::to_string(parType));
 				}
 			}
 		}
@@ -258,7 +258,7 @@ void ColumnModel1D::readInitialCondition(IParameterProvider& paramProvider)
 			for (unsigned int bnd = 0; bnd < _disc.strideBound[parType]; ++bnd)
 			{
 				if (initCs.data()[bnd] != (_initCs.data() + _disc.nBoundBeforeType[parType - 1])[bnd])
-					throw InvalidParameterException("Binding models were specified as particle type independent (see field BINDING_PARTYPE_DEPENDENT), but INIT_CS are different for particle type " + std::to_string(parType - 1) + " and " + std::to_string(parType));
+					throw InvalidParameterException("Binding models were specified as particle type independent (see field BINDING_PARTYPE_DEPENDENT), but INIT_CS is different for particle type " + std::to_string(parType - 1) + " and " + std::to_string(parType));
 			}
 		}
 
