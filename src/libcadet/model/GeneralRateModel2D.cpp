@@ -1634,9 +1634,10 @@ int GeneralRateModel2D::residualFlux(double t, unsigned int secIdx, StateType co
 
 		const ParamType epsP = static_cast<ParamType>(_parPorosity[type]);
 
-		const int nSec = _parDiffusion.size() / _disc.nComp / _disc.nParType; // 1 if not section dependent
-		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * nSec, type) + (nSec > 1 ? secIdx * _disc.nComp : 0);
-		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * nSec, type) + (nSec > 1 ? secIdx * _disc.nComp : 0);
+		const int nSecFD = _filmDiffusion.size() / _disc.nComp / _disc.nParType; // 1 if not section dependent
+		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * nSecFD, type) + (nSec > 1 ? secIdx * _disc.nComp : 0);
+		const int nSecPD = _parDiffusion.size() / _disc.nComp / _disc.nParType; // 1 if not section dependent
+		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * nSecPD, type) + (nSec > 1 ? secIdx * _disc.nComp : 0);
 
 		const ParamType surfaceToVolumeRatio = _parGeomSurfToVol[type] / static_cast<ParamType>(_parRadius[type]);
 		const ParamType outerAreaPerVolume = static_cast<ParamType>(_parOuterSurfAreaPerVolume[_disc.nParCellsBeforeType[type]]);
@@ -1773,9 +1774,10 @@ void GeneralRateModel2D::assembleOffdiagJac(double t, unsigned int secIdx)
 		const unsigned int typeOffset = type * _disc.nCol * _disc.nComp * _disc.nRad;
 		const double epsP = static_cast<double>(_parPorosity[type]);
 
-		const int nSec = _parDiffusion.size() / _disc.nComp / _disc.nParType; // 1 if not section dependent
-		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * nSec, type) + (nSec > 1 ? secIdx * _disc.nComp : 0);
-		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * nSec, type) + (nSec > 1 ? secIdx * _disc.nComp : 0);
+		const int nSecFD = _filmDiffusion.size() / _disc.nComp / _disc.nParType; // 1 if not section dependent
+		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _disc.nComp * nSecFD, type) + (nSec > 1 ? secIdx * _disc.nComp : 0);
+		const int nSecPD = _parDiffusion.size() / _disc.nComp / _disc.nParType; // 1 if not section dependent
+		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _disc.nComp * nSecPD, type) + (nSec > 1 ? secIdx * _disc.nComp : 0);
 
 		const double surfaceToVolumeRatio = _parGeomSurfToVol[type] / static_cast<double>(_parRadius[type]);
 		const double outerAreaPerVolume = static_cast<double>(_parOuterSurfAreaPerVolume[_disc.nParCellsBeforeType[type]]);
