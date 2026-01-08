@@ -497,12 +497,12 @@ void GeneralRateModel2D::readInitialCondition(IParameterProvider& paramProvider)
 		if (!_singleRadiusInitCs)
 		{
 			for (unsigned int r = 0; r < _disc.nRad; ++r)
-				ad::copyToAd(initCs.data() + r * _disc.strideBound[parType], _initCs.data() + parType * _disc.strideBound[parType] + r * _disc.strideBound[parType] * _disc.nParType, _disc.strideBound[parType]);
+				ad::copyToAd(initCs.data() + r * _disc.strideBound[0], _initCs.data() + _disc.nBoundBeforeType[parType] + r * _disc.strideBound[_disc.nParType], _disc.strideBound[parType]);
 		}
 		else if (!_singleBinding && _singleRadiusInitCs)
 		{
 			for (unsigned int r = 0; r < _disc.nRad; ++r)
-				ad::copyToAd(initCs.data(), _initCs.data() + parType * _disc.strideBound[parType] + r * _disc.strideBound[parType] * _disc.nParType, _disc.strideBound[parType]);
+				ad::copyToAd(initCs.data(), _initCs.data() + _disc.nBoundBeforeType[parType] + r * _disc.strideBound[_disc.nParType], _disc.strideBound[parType]);
 		}
 	}
 }
