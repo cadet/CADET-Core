@@ -613,7 +613,8 @@ void ColumnModel1D::consistentInitialState(const SimulationTime& simTime, double
 			}
 
 			// reset jacobian pattern
-			setJacobianPattern(_globalJacDisc, _disc.curSection, _dynReactionBulk);
+			bool hasBulkReaction = _reaction.hasReactions();
+			setJacobianPattern(_globalJacDisc, _disc.curSection, hasBulkReaction);
 
 		} CADET_PARFOR_END;
 	}

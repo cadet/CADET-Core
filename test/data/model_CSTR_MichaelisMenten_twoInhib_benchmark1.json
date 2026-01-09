@@ -14,13 +14,19 @@
             "MAX_RESTARTS": 10,
             "SCHUR_SAFETY": 1e-08
         },
-        "unit_000": {
-          "INIT_C": [
-            5.0,
-            0.0,
-            9.0,
-            9.0
-          ],
+      "unit_000": {
+        "INIT_C": [
+          5.0,
+          0.0,
+          9.0,
+          9.0,
+          0.001,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
             "INIT_LIQUID_VOLUME": 1000,
             "NCOMP": 4,
             "NREAC_LIQUID": 1,
@@ -72,7 +78,7 @@
             "MM_KMM": [
               100, 0.0,0.0, 0.0
             ],
-            "MM_STOICHIOMETRY_BULK": [
+            "MM_STOICHIOMETRY": [
               -1,
               1,
               0,
@@ -83,7 +89,7 @@
             ]
           }
         }
-    },
+      },
     "return": {
         "SPLIT_COMPONENTS_DATA": false,
         "SPLIT_PORTS_DATA": 0,

@@ -136,27 +136,54 @@ namespace model
 
 		// ==== Construct and configure dynamic reaction model
 
-		_dynReaction = nullptr;
 		_reactionParDep = true;
+		bool hasReaction = false;
 		bool reactionConfSuccess = true;
 
-		if (paramProvider.exists("REACTION_MODEL"))
+		_reaction.clearDynamicReactionModels();
+
+		if (paramProvider.exists("NREAC_CROSS_PHASE"))
 		{
-			const std::vector<std::string> dynReactModelNames = paramProvider.getStringArray("REACTION_MODEL");
+			hasReaction = true;
+			int nReac = paramProvider.getInt("NREAC_CROSS_PHASE");
+			reactionConfSuccess = _reaction.configureDiscretization("cross_phase",
+				nReac,
+				_nComp,
+				_nBound.get(),
+				_boundOffset,
+				paramProvider,
+				helper) && reactionConfSuccess;
 
-			if (dynReactModelNames.size() != 1)
-				throw InvalidParameterException("Field REACTION_MODEL_PARTICLES requires (only) 1 element");
+		}
+		if (paramProvider.exists("NREAC_LIQUID"))
+		{
+			hasReaction = true;
+			int nReac = paramProvider.getInt("NREAC_LIQUID");
+			reactionConfSuccess = _reaction.configureDiscretization("liquid",
+				nReac,
+				_nComp,
+				_nBound.get(),
+				_boundOffset,
+				paramProvider,
+				helper) && reactionConfSuccess;
+		}
+		if (paramProvider.exists("NREAC_SOLID"))
+		{
+			hasReaction = true;
+			int nReac = paramProvider.getInt("NREAC_SOLID");
+			reactionConfSuccess = _reaction.configureDiscretization("solid",
+				nReac,
+				_nComp,
+				_nBound.get(),
+				_boundOffset,
+				paramProvider,
+				helper) && reactionConfSuccess;
 
-			_dynReaction = helper.createDynamicReactionModel(dynReactModelNames[0]);
+		}
 
-			if (!_dynReaction)
-				throw InvalidParameterException("Unknown dynamic reaction model " + dynReactModelNames[0]);
-
-			{
-				MultiplexedScopeSelector scopeGuard(paramProvider, "reaction", _dynReaction->usesParamProviderInDiscretizationConfig());
-				reactionConfSuccess = _dynReaction->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _boundOffset) && reactionConfSuccess;
-				_reactionParDep = paramProvider.exists("REACTION_PARTYPE_DEPENDENT") ? paramProvider.getInt("REACTION_PARTYPE_DEPENDENT") : true;
-			}
+		if (!hasReaction)
+		{
+			_reaction.empty();
 		}
 
 		paramProvider.popScope(); // particle_type_{:03}
@@ -265,11 +292,13 @@ namespace model
 
 		// Reconfigure reaction model
 		bool dynReactionConfSuccess = true;
-		if (_dynReaction && _dynReaction->requiresConfiguration())
-		{
-			MultiplexedScopeSelector scopeGuard(paramProvider, "reaction", _dynReaction->requiresConfiguration());
-			dynReactionConfSuccess = _dynReaction->configure(paramProvider, unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
-		}
+
+		if (paramProvider.exists("NREAC_CROSS_PHASE"))
+			dynReactionConfSuccess = _reaction.configure("cross_phase", _parTypeIdx, unitOpIdx, paramProvider) && dynReactionConfSuccess;
+		if (paramProvider.exists("NREAC_LIQUID"))
+			dynReactionConfSuccess = _reaction.configure("liquid", _parTypeIdx, unitOpIdx, paramProvider) && dynReactionConfSuccess;
+		if (paramProvider.exists("NREAC_SOLID"))
+			dynReactionConfSuccess = _reaction.configure("solid", _parTypeIdx, unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
 		paramProvider.popScope(); // particle_type_{:03}
 
@@ -299,7 +328,7 @@ namespace model
 			getPorosity(),
 			getPoreAccessFactor(),
 			_binding,
-			(_dynReaction && (_dynReaction->numReactionsCombined() > 0)) ? _dynReaction : nullptr
+			&_reaction
 		};
 	}
 

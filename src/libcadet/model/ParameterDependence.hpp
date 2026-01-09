@@ -191,8 +191,8 @@ public:
 	 * @param [in] row Row index
 	 * @param [in,out] jac Row iterator pointing to the row of component @p comp in the underlying matrix that stores the Jacobian
 	 */
-	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::BandMatrix::RowIterator jac) const = 0;
-	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::DenseBandedRowIterator jac) const = 0;
+	virtual void analyticJacobianAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::BandMatrix::RowIterator jac) const = 0;
+	virtual void analyticJacobianAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::DenseBandedRowIterator jac) const = 0;
 
 	/**
 	 * @brief Adds the analytical Jacobian of the parameter dependence for one liquid phase cell
@@ -216,7 +216,7 @@ public:
 	 * @param [in] row Row index
 	 * @param [in,out] jac Jacobian
 	 */
-	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const = 0;
+	virtual void analyticJacobianAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const = 0;
 
 	/**
 	 * @brief Evaluates the parameter of component @p comp in the liquid phase of one combined phase cell
