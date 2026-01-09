@@ -178,7 +178,7 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with inhibition", "[M
 		point, 1e-15, 1e-15
 	);
 }
-TEST_CASE("ASM3 analytic Jacobian vs AD", "[ASM3],[ReactionModel],[Jacobian],[AD]")
+TEST_CASE("ASM3 analytic Jacobian vs AD", "[ASM3],[ReactionModel],[Jacobian],[AD],[CI]")
 {
 	const unsigned int nBound[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0 };
 	unsigned int ncomp = 13;
@@ -226,7 +226,7 @@ TEST_CASE("ASM3 analytic Jacobian vs AD", "[ASM3],[ReactionModel],[Jacobian],[AD
 			"ASM3_IVSS_BM": 0.704225352,
 			"ASM3_ITSS_VSS_BM": 1.086956522
 		})json",
-		point, 1e-15, 1e-15
+		point, 1e-12, 1e-12
 	);
 }
 

@@ -110,25 +110,29 @@ namespace
 
 
 /**
- * @brief Defines a Michaelis-Menten reaction kinetic with simple inhibition
- * @details Implements the Michaelis-Menten kinetics: \f[ \begin{align}
- *              S \nu,
- *          \end{align} \f]
- *          where \f$ S \f$ is the stoichiometric matrix and the fluxes are given by
- *          \f[ \begin{align}
- *              \nu_i = \frac{\mu_{\mathrm{max},i} c_S}{k_{\mathrm{MM},i} + c_S}.
- *          \end{align} \f]
- *          The substrate component \f$ c_S \f$ is identified by the index of the
- *          first negative entry in the stoichiometry of this reaction.
- *			In addition, the reaction might be inhibited by other components. In this
- *          case, the flux has the form
- *          \f[ \begin{align}
- *              \nu_i = \frac{\mu_{\mathrm{max},i} c_S}{k_{\mathrm{MM},i} + c_S} \cdot \frac{1}{1 + \sum_i \frac{1+ k_{\mathrm{I},i,j}}{k_{\mathrm{I},i,j} + c_{\mathrm{I},j}}}.
- *          \end{align} \f]
- *          The value of \f$ k_{\mathrm{I},i,j} \f$ decides whether component \f$ j \f$
- *          inhibits reaction \f$ i \f$. If \f$ k_{\mathrm{I},i,j} \leq 0 \f$, the component
- *          does not inhibit the reaction.
- *          Only reactions in liquid phase are supported (no solid phase or cross-phase reactions).
+ * @brief Activated Sludge Model No. 3 (ASM3) Reaction Kinetics
+ * @details Implements the ASM3 model for biological wastewater treatment with 13 liquid phase components:
+ *          - Soluble components: SO (dissolved oxygen), SS (readily biodegradable substrate), 
+ *            SNH (ammonia-nitrogen), SNO (nitrate-nitrogen), SN2 (dinitrogen gas),
+ *            SALK (alkalinity), SI (soluble inert organic matter)
+ *          - Particulate components: XI (inert particulates), XS (slowly biodegradable substrate),
+ *            XH (heterotrophic biomass), XSTO (internal storage products), XA (autotrophic biomass),
+ *            XMI (inert biomass)
+ *          - Optional adsorbed components (14-15): SI_ad, SS_ad
+ * 
+ *          The model includes 13-15 biokinetic processes:
+ *          - Hydrolysis of organic structures
+ *          - Aerobic and anoxic storage of substrate
+ *          - Aerobic and anoxic growth of heterotrophic biomass (with denitrification)
+ *          - Aerobic and anoxic endogenous respiration of heterotrophs
+ *          - Respiration of internal storage products
+ *          - Aerobic growth of autotrophic biomass (nitrification)
+ *          - Endogenous respiration of autotrophic biomass (aerobic and anoxic)
+ *          - Optional aeration and adsorbed substrate processes
+ * 
+ *          Temperature dependence is modeled using exponential correction factors (Arrhenius-type).
+ *          Component indices can be customized via ASM3_COMP_IDX parameter.
+ * 
  * @tparam ParamHandler_t Type that can add support for external function dependence
  */
 template <class ParamHandler_t>
@@ -183,8 +187,11 @@ protected:
 	unsigned int _idxSI_ad = 13; //!< SI_ad component index, default 13
 	unsigned int _idxSS_ad = 14; //!< SS_ad component index, default 14
 
-	bool _activeAeration = true;
 	bool _givenAd = true;
+	bool _activeAeration = false;
+
+	static constexpr double XH_MIN_THRESHOLD = 0.1;
+
 	
 
 	virtual bool configureStoich(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
@@ -199,20 +206,18 @@ protected:
 		_paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
 
 		if (_nComp < 13)
-			throw InvalidParameterException("ASM3 configuration: To use the ASM3 model the number of components must be at least 13");
+			throw InvalidParameterException("ASM3 configuration: To use the ASM3 the number of components must be at least 13");
 		
 		if (_nComp < 15)
 		{
-			LOG(Debug) << "ASM3 configuration: Less than 15 components defined, adsorbed components will not be used";
+			LOG(Debug) << "ASM3 configuration: Less than 15 components are defined, adsorbed components will not be used";
 			_givenAd = false;
 		}
+
 		if (paramProvider.exists("ASM3_COMP_IDX")) 
 		{
 			const std::vector<uint64_t> compIdx = paramProvider.getUint64Array("ASM3_COMP_IDX");
 			
-			if(compIdx.size() == 13)
-				_givenAd = false;
-
 			if (compIdx.size() != 15 && _givenAd == true) 
 				throw InvalidParameterException("ASM3 configuration: ASM3_COMP_IDX must have 15 elements");
 			
@@ -222,7 +227,6 @@ protected:
 			if (_nComp < compIdx.size()) 
 				throw InvalidParameterException("ASM3 configuration: ASM3_COMP_IDX has more elements than there are components defined in the system");
 
-			
 			LOG(Debug) << "ASM3_COMP_IDX set: " << compIdx;
 			
 			_idxSO = compIdx[0];
@@ -251,8 +255,20 @@ protected:
 		}
 
 		// handle optional Aeration
-		const double V = paramProvider.getDouble("ASM3_V");
-		const double IO2 = paramProvider.getDouble("ASM3_IO2");
+		double V = 0.0;
+		double IO2 = 0.0;
+		if (paramProvider.exists("ASM3_IO2") && paramProvider.exists("ASM3_V"))
+		{
+			double V = paramProvider.getDouble("ASM3_V");
+			double IO2 = paramProvider.getDouble("ASM3_IO2");
+			
+			_activeAeration = true;
+			LOG(Debug) << "Active aeration set to " << _activeAeration;
+		}
+		else
+		{	
+			LOG(Debug) << "Active aeration not set, using default (false)";
+		}
 		
 
 		_stoichiometry.resize(_nComp, 15); // option to optimize: Depending on whether adsorbed components are used or not 13/12 or 15 reactions are needed
@@ -287,13 +303,9 @@ protected:
 		double fSI_ad = 0.0;
 		double fSS_ad = 0.0;
 		if (paramProvider.exists("ASM3_FSI_AD"))
-		{
 			fSI_ad = paramProvider.getDouble("ASM3_FSI_AD");
-		}
 		if (paramProvider.exists("ASM3_FSS_AD"))
-		{
 			fSS_ad = paramProvider.getDouble("ASM3_FSS_AD");
-		}
 
 		// internal variables
 		const double fXMI_BM = fiSS_BM_prod * fXI * iVSS_BM * (iTSS_VSS_BM - 1);
@@ -335,6 +347,8 @@ protected:
 		
 		if (_activeAeration)
 			_stoichiometry.native(_idxSO, 12) = 1;
+		else
+			_stoichiometry.native(_idxSO, 12) = 0;
 
 		
 		// SS
@@ -444,8 +458,7 @@ protected:
 		typedef typename DoubleActivePromoter<StateType, ParamType>::type flux_t;
 		BufferedArray<flux_t> fluxes = workSpace.array<flux_t>(_stoichiometry.columns());
 		
-		const flux_t kh20		= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kh20);
-		const flux_t T		= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->T);
+		const flux_t T	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->T);
 		if (T < 0)
 			throw InvalidParameterException("ASM3 configuration: Temperature T must be non-negative");
 		
@@ -459,6 +472,8 @@ protected:
 			if(V < 0)
 				throw InvalidParameterException("ASM3 configuration: Aeration volume V must be non-negative");
 		}
+
+		const flux_t kh20 = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kh20);
 		const flux_t k_sto20	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->k_sto20);
 		const flux_t kx		= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kx);
 		const flux_t kho2		= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kho2);
@@ -491,8 +506,7 @@ protected:
 		StateType SO = y[_idxSO];
 		StateType SS = y[_idxSS];
 		StateType SS_ad = 0.0;
-		if (_givenAd)
-			SS_ad = y[_idxSS_ad];
+		if (_givenAd) SS_ad = y[_idxSS_ad];
 		StateType SNH = y[_idxSNH];
 		StateType SNO = y[_idxSNO];
 		// StateType SN2 = y[_idxSN2]; unused
@@ -508,10 +522,9 @@ protected:
 		
 		// p1: Hydrolysis of organic structures
 		fluxes[0] = kh20 * ft04 * (XS/XH) / ((XS/XH) + kx) * XH;
-		if (XH < 0.1)
+		if (XH < XH_MIN_THRESHOLD)
 			fluxes[0] = kh20 * ft04 * (XS/0.1) / ((XS/0.1) + kx) * XH;
 
-		
 		// p2: Aerobic storage of SS
 		fluxes[1] = k_sto * SO / (SO + kho2) * (SS) / ( ( SS + SS_ad ) + khss )  * XH;
 
@@ -520,12 +533,12 @@ protected:
 
 		// p4: Aerobic growth of heterotrophic biomass (XH)
 		fluxes[3] = muH * SO / (SO + kho2) * SNH / (SNH + khnh4) * SALK / (SALK + khalk) * ((XSTO/XH)) / (((XSTO/XH)) + khsto) * XH;
-		if (XH < 0.1)
+		if (XH < XH_MIN_THRESHOLD)
 			fluxes[3] = muH * SO / (SO + kho2) * SNH / (SNH + khnh4) * SALK / (SALK + khalk) * (XSTO / 0.1) / ((XSTO / 0.1) + khsto) * XH;
 
 		// p5: Anoxic growth of heterotrophic biomass (XH, denitrification)
 		fluxes[4] = muH * etahno3 * kho2 / (kho2 + SO) * SNH / (khnh4 + SNH) * SALK / (khalk + SALK) * (XSTO / XH) * 1 / (khsto + (XSTO / XH)) * SNO / (khn03 + SNO) * XH;
-		if (XH < 0.1)
+		if (XH < XH_MIN_THRESHOLD)
 			fluxes[4] = muH * etahno3 * kho2 / (kho2 + SO) * SNH / (khnh4 + SNH) * SALK / (khalk + SALK) * (XSTO / 0.1) * 1 / (khsto + (XSTO/0.1)) * SNO / (khn03 + SNO) * XH;
 
 		// r6: Aerobic endogenous respiration of heterotroph microorganisms (XH)
@@ -552,14 +565,22 @@ protected:
 		// r13: Aeration
 		if (_activeAeration)
 			fluxes[12] = io2 / V;
+		else
+			fluxes[12] = 0.0;
 		
-		
-		// p14: Anoxic storage of SS
-		fluxes[12] = k_sto * SO / (SO + kho2) * (SS_ad) / ( ( SS + SS_ad ) + khss )  * XH;
-
-		// p15: Aerobic storage of SS 
-		fluxes[13] = k_sto * etahno3 * kho2 / (SO + kho2) * (SS_ad) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khn03) * XH;
+		// p14: Anoxic storage of SS_ad
+		if (_givenAd)
+			fluxes[13] = k_sto * SO / (SO + kho2) * (SS_ad) / ( ( SS + SS_ad ) + khss )  * XH;
+		else
+			fluxes[13] = 0.0;
 			
+
+		// p15: Aerobic storage of SS_ad
+		if(_givenAd)
+			fluxes[14] = k_sto * etahno3 * kho2 / (SO + kho2) * (SS_ad) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khn03) * XH;
+		else
+			fluxes[14] = 0.0;
+		
 		// Add reaction terms to residual
 		_stoichiometry.multiplyVector(static_cast<flux_t*>(fluxes), factor, res);
 		return 0;
@@ -623,10 +644,10 @@ protected:
 		double SS_ad = 0.0;
 		double SNH = y[_idxSNH];
 		double SNO = y[_idxSNO];
-		double SN2 = y[_idxSN2];
+		//double SN2 = y[_idxSN2];
 		double SALK = y[_idxSALK];
-		double SI = y[_idxSI];
-		double SI_ad = 0.0;
+		//double SI = y[_idxSI];
+		//double SI_ad = 0.0;
 		double XS = y[_idxXS];
 		double XH = y[_idxXH];
 		double XSTO = y[_idxXSTO];
@@ -635,11 +656,12 @@ protected:
 		if (_givenAd)
 		{
 			SS_ad = y[_idxSS_ad];
-			SI_ad = y[_idxSI_ad];
+			//SI_ad = y[_idxSI_ad];
 		}
 
 		// initialize jacobian
 		double d[15][15] = {};
+		
 		// p1: Hydrolysis: kh20 * ft04 * XS/XH_S / (XS/XH_S + kx) * XH;
 		d[0][_idxXS] = kh20 * ft04
 			* XH / ((XS + XH * kx)
@@ -647,7 +669,7 @@ protected:
 		d[0][_idxXH] = kh20 * ft04
 			* (XS * XS) / ((XS + kx * XH)
 				* (XS + kx * XH));
-		if (XH < 0.1)
+		if (XH < XH_MIN_THRESHOLD)
 		{
 			d[0][_idxXS] = kh20 * ft04
 				* 0.1 / ((XS + 0.1 * kx) * (XS + 0.1 * kx)) * XH;
@@ -717,7 +739,7 @@ protected:
 			* SALK / (SALK + khalk)
 			* (XSTO * XSTO) / ((XSTO + khsto * XH) * (XSTO + khsto * XH));
 
-		if (XH < 0.1)
+		if (XH < XH_MIN_THRESHOLD)
 		{
 			d[3][_idxSO] = muH
 				* -kho2 / ((SO + kho2) * (SO + kho2))
@@ -783,7 +805,7 @@ protected:
 			* (XSTO * XSTO) / ((XSTO + khsto * XH) * (XSTO + khsto * XH));
 
 
-		if (XH < 0.1)
+		if (XH < XH_MIN_THRESHOLD)
 		{
 			d[4][_idxSO] = muH * etahno3
 				* -kho2 / ((kho2 + SO) * (kho2 + SO))
@@ -903,7 +925,7 @@ protected:
 			* SO / (SO + kho2)
 			* (SS_ad) / ((SS_ad + SS) + khss);
 
-		// p3: Anoxic storage of SS_ad: k_sto * etahno3 * kho2 / (SO + kho2) * ( SS_ad ) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khn03) * XH;
+		// p15: Anoxic storage of SS_ad: k_sto * etahno3 * kho2 / (SO + kho2) * ( SS_ad ) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khn03) * XH;
 		d[14][_idxSO] = k_sto * etahno3
 			* -kho2 / ((SO + kho2) * (SO + kho2))
 			* (SS_ad) / (SS_ad + SS + khss)
