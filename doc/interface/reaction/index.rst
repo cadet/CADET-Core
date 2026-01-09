@@ -8,6 +8,7 @@ Reaction models
 
     mass_action_law
     michaelis_menten_kinetics
+    activated_sludge_model
 
 Externally dependent reaction models
 ------------------------------------
