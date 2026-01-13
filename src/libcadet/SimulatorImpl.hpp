@@ -289,6 +289,7 @@ protected:
 	SUNLinearSolver _linearSolver; //!< Sunlinearsolver object.
 	N_Vector _linearSolverWeight; //!< Weight vector.
 	SUNContext _sunctx; //!< Idas suncontext object
+	bool _defaultLS; //!< use idas default linear solver
 };
 
 } // namespace cadet
