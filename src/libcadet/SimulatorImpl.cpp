@@ -1438,12 +1438,13 @@ namespace cadet
 						IDAGetSensDky(_idaMemBlock, curT, 1, _vecFwdYsDot);
 					}
 
-					// Section end time was reached (in previous step)
-					if (!writeAtUserTimes && (endTime == static_cast<double>(_sectionTimes.back())))
+
+					if (!(curT>tEnd))
 					{
-						// Write a solution for the ultimate endTime in the last section,
-						// when we write at integration times.
 						writeSolution(curT);
+
+						if (writeAtUserTimes)
+							++it;
 					}
 
 					// Notify user and check for user abort
