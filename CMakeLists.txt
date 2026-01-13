@@ -28,7 +28,7 @@ find_package(Git)
 # Write the current version number to variable
 if (GIT_FOUND)
 	if (EXISTS "${CMAKE_SOURCE_DIR}/.git")
-		execute_process(COMMAND ${GIT_EXECUTABLE} describe --abbrev=0 HEAD
+		execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --abbrev=0 HEAD
 		                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 		                OUTPUT_VARIABLE CADET_VERSION
 		                OUTPUT_STRIP_TRAILING_WHITESPACE)
