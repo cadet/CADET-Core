@@ -72,7 +72,9 @@ The following checklist describes the steps to execute sequentially for creating
 
 To ensure CADET-Core is accessible to a broad community, it is available as a Python package on conda-forge.  
 Other software, such as CADET-Process and CADET-Python, import this package.
+For pre-releases, substitute the `version` with the conda-friendly PEP 404 standard (e.g. 6.0.0a1 instead of 6.0.0-alpha.1).
 
+- [ ] If its a pre-release: add another tag with the PEP 404 version number to the pre-release commit on GitHub
 - [ ] Go to your fork of [cadet-feedstock](https://github.com/conda-forge/cadet-feedstock) or create one if it does not exist
 - [ ] Create a new branch on your fork and change the file `recipe/meta.yaml`:
   - install openSSL
@@ -82,8 +84,8 @@ Other software, such as CADET-Process and CADET-Python, import this package.
     ```
   - Update the version number and SHA256 key
   - Set the build number to zero (`build: number: 0`)
-- [ ] Open a PR onto the main branch of the conda-forge repo, and complete the automatically generated checklist
-  - Note: to check if the license file is included, check https://github.com/cadet/CADET-Core/archive/refs/tags/v{{ version }}.tar.gz if the License file is in the location specified in the meta.yml in the variable `license_file`
+- [ ] Open a PR onto the `main` branch (for a release) or the `dev` branch (pre-release) of `conda-forge/cadet-feedstock`, and complete the automatically generated checklist
+  - Note: to check if the license file is included, check the tarball (`https://github.com/cadet/CADET-Core/archive/refs/tags/v{{ version }}.tar.gz`) if the License file is in the location specified in the meta.yml in the variable `license_file`
 - [ ] Wait for the automatic checks to pass
 - [ ] Merge the pull request to trigger the conda-forge release
 - [ ] Double check if the new version of cadet-core is on conda-forge
