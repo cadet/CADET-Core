@@ -250,4 +250,4 @@ TEST_CASE("MassActionLaw one reaction vs. two separate reactions", "[MassActionL
 
 	cadet::test::column::DummyParams disc;
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
-
+}
