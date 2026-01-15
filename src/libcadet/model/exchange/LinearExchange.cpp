@@ -61,11 +61,16 @@ public:
 		return true;
 	}
 
-	virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx)
+	virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx,std::unordered_map<ParameterId, active*>& parameters)
 	{
 		_parameters.clear();
 		readParameterMatrix(_exchangeMatrix, paramProvider, "EXCHANGE_MATRIX", _nChannel * _nChannel * _nComp, 1); // TODO include parameterPeaderHelp in exchange modul
 		_crossSections = paramProvider.getDoubleArray("CHANNEL_CROSS_SECTION_AREAS");
+
+		registerParam3DArray(parameters, _exchangeMatrix, [=](bool multi, unsigned int channelSrc, unsigned int channelDest, unsigned comp)
+		{
+		return makeParamId(hashString("EXCHANGE_MATRIX"), unitOpIdx, multi ? comp : CompIndep, channelDest, channelSrc, ReactionIndep, SectionIndep);
+		}, _nComp, _nChannel);
 
 		return true;
 	}
@@ -225,13 +230,11 @@ protected:
 
 								linalg::BandedSparseRowIterator jacdest;
 								jacdest = jacBegin + offsetCur_dest;
-								jacdest[static_cast<int>(offsetCur_orig) - static_cast<int>(offsetCur_dest)] -= static_cast<double>(exchange_orig_dest_comp);
+								jacdest[static_cast<int>(offsetCur_orig) - static_cast<int>(offsetCur_dest)] -= static_cast<double>(exchange_orig_dest_comp) * static_cast<double>(_crossSections[rad_orig]) / static_cast<double>(_crossSections[rad_dest]);
 
 							}
 
-
 						}
-
 
 					}
 

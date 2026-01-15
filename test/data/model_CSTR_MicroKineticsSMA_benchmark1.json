@@ -16,37 +16,34 @@
         },
       "unit_000": {
         "INIT_C": [
-          0.001,
           500.0,
           0.0,
+          0.001,
           0.0
         ],
         "INIT_LIQUID_VOLUME": 1000,
         "NCOMP": 4,
-        "REACTION_MODEL": "MASS_ACTION_LAW",
         "UNIT_TYPE": "CSTR",
-        "reaction_bulk": {
-          "MAL_KBWD_BULK": [
-            60000.0,
-            0.0
-          ],
-          "MAL_KFWD_BULK": [
-            1000.0,
-            40000.0
-          ],
-          "MAL_STOICHIOMETRY_BULK": [
-            -1,
-            1,
-            -1,
-            0,
-            1,
-            -1,
-            0,
-            1
-          ]
-        }
+        "NREAC_LIQUID": 1,
+          "liquid_reaction_000": {
+            "TYPE": "MASS_ACTION_LAW",
+            "MAL_KBWD": [
+              60000.0,
+              0.0
+            ],
+            "MAL_KFWD": [
+              1000.0,
+              40000.0
+            ],
+            "MAL_STOICHIOMETRY": [
+              -1, 0,
+                0, 1,
+              -1, 1,
+              1, -1
+            ]
+          }
       }
-    },
+      },
     "return": {
         "SPLIT_COMPONENTS_DATA": false,
         "SPLIT_PORTS_DATA": 0,

@@ -56,20 +56,21 @@
             ],
             "INIT_LIQUID_VOLUME": 1.0,
             "NCOMP": 2,
-            "REACTION_MODEL": "MASS_ACTION_LAW",
             "UNIT_TYPE": "CSTR",
-            "USE_ANALYTIC_JACOBIAN": 0,
-            "reaction_bulk": {
-                "MAL_KBWD_BULK": [
-                    3.0
-                ],
-                "MAL_KFWD_BULK": [
-                    1.0
-                ],
-                "MAL_STOICHIOMETRY_BULK": [
-                    -1,
-                    1
-                ]
+          "USE_ANALYTIC_JACOBIAN": 0,
+            "NREAC_LIQUID": 1,
+            "liquid_reaction_000": {
+              "TYPE": "MASS_ACTION_LAW",
+              "MAL_KBWD": [
+                3.0
+              ],
+              "MAL_KFWD": [
+                1.0
+              ],
+              "MAL_STOICHIOMETRY": [
+                -1,
+                1
+              ]
             }
         },
         "unit_002": {
@@ -94,7 +95,7 @@
         "param_000": {
             "SENS_BOUNDPHASE": -1,
             "SENS_COMP": -1,
-            "SENS_NAME": "MAL_KFWD_BULK",
+            "SENS_NAME": "MAL_KFWD",
             "SENS_PARTYPE": -1,
             "SENS_REACTION": 0,
             "SENS_SECTION": -1,
@@ -103,7 +104,7 @@
         "param_001": {
             "SENS_BOUNDPHASE": -1,
             "SENS_COMP": 0,
-            "SENS_NAME": "MAL_STOICHIOMETRY_BULK",
+            "SENS_NAME": "MAL_STOICHIOMETRY",
             "SENS_PARTYPE": -1,
             "SENS_REACTION": 0,
             "SENS_SECTION": -1,

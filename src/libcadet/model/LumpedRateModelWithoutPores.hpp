@@ -21,12 +21,14 @@
 #include "UnitOperationBase.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "model/parts/ConvectionDispersionOperator.hpp"
+#include "model/particle/ParticleModel.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/SparseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
 #include "linalg/Gmres.hpp"
 #include "Memory.hpp"
 #include "model/ModelUtils.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 
 #include <array>
 #include <vector>
@@ -246,9 +248,11 @@ protected:
 	double* _tempState; //!< Temporary storage with the size of the state vector or larger if binding models require it
 
 	std::vector<active> _initC; //!< Liquid phase initial conditions
-	std::vector<active> _initQ; //!< Solid phase initial conditions
+	std::vector<active> _initCs; //!< Solid phase initial conditions
 	std::vector<double> _initState; //!< Initial conditions for state vector if given
 	std::vector<double> _initStateDot; //!< Initial conditions for time derivative
+
+	ReactionSystem _reaction;
 
 	BENCH_TIMER(_timerResidual)
 	BENCH_TIMER(_timerResidualPar)
@@ -300,7 +304,7 @@ protected:
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return false; }
 		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound > 0; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
-		virtual bool isParticleLumped() const CADET_NOEXCEPT { return true; }
+		virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return true; }
 		virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return true; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }

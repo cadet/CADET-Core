@@ -49,13 +49,6 @@ For information on model equations, refer to :ref:`cstr_model`.
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NPARTYPE} \cdot \texttt{NCOMP}`
    =============  =========================  ===========================================================
    
-``REACTION_MODEL``
-
-   Specifies the type of reaction model of the bulk volume. The model is configured in the subgroup :math:`\texttt{reaction_bulk}`.
-   
-   ================  ========================================  =============
-   **Type:** string  **Range:** See Section :ref:`FFReaction`  **Length:** 1
-   ================  ========================================  =============
    
 ``REACTION_MODEL_PARTICLES``
 
@@ -93,7 +86,7 @@ For information on model equations, refer to :ref:`cstr_model`.
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
    ================  =========================  =============
    
-``INIT_Q``
+``INIT_CS``
 
    Initial concentrations for each bound state of each component in the bead solid phase of each particle type in type-component-major ordering. This field is optional and defaults to all 0.
 
@@ -105,7 +98,8 @@ For information on model equations, refer to :ref:`cstr_model`.
    
 ``INIT_STATE``
 
-   Full state vector for initialization (optional, :math:`\texttt{INIT_C}`, :math:`\texttt{INIT_Q}`, and :math:`\texttt{INIT_VOLUME}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives)
+   Full state vector for initialization (optional, :math:`\texttt{INIT_C}`, :math:`\texttt{INIT_CS}`, and :math:`\texttt{INIT_VOLUME}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives).
+   The ordering of the state vector is defined in :ref:`UnitOperationStateOrdering`.
 
    **Unit:** :math:`various`
    
@@ -140,3 +134,24 @@ For information on model equations, refer to :ref:`cstr_model`.
    ================  ========================  =====================================
    **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`\texttt{NPARTYPE}`
    ================  ========================  =====================================
+
+``NREAC_LIQUID``
+
+   Number of liquid phase reaction models (optional, only if liquid reactions are present).
+   
+   =============  =========================  =============
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
+   =============  =========================  =============
+
+``NREAC_CROSS_PHASE``
+
+   Number of cross-phase reaction models (optional, only if cross-phase reactions are present).
+   
+   =============  =========================  =============
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
+   =============  =========================  =============
+
+
+Group /input/model/unit_XXX/phase_reaction_YYY
+----------------------------------------------
+Each reaction is specified in another subgroup `phase_reaction_YYY`, see :ref:`FFReaction`.

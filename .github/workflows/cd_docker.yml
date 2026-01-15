@@ -25,11 +25,17 @@ on:
         default: 'master'
         type: string
 
-
 jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Use the dispatch input if provided, otherwise fall back to the triggering commit
+          ref: ${{ github.event.inputs.ref || github.sha }}
+          fetch-depth: 0   # Ensure all commits are available (needed for arbitrary commit SHAs including non-default branches)
+
       - name: Get versions for Python and Process
         run: |
           git clone https://github.com/cadet/CADET-Python tmp-python
@@ -41,7 +47,7 @@ jobs:
           PROCESS_VERSION=$(grep -Po '(?<=__version__ = ")[^"]+' tmp-process/CADETProcess/__init__.py || echo "dev")
 
           CORE_TAG=${GITHUB_REF##*/}  # Strip refs/tags/v1.2.3 → v1.2.3
-          
+
           echo "PYTHON_VERSION=$PYTHON_VERSION" >> $GITHUB_ENV
           echo "PROCESS_VERSION=$PROCESS_VERSION" >> $GITHUB_ENV
           echo "CORE_TAG=$CORE_TAG" >> $GITHUB_ENV
@@ -76,6 +82,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
+          context: .
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

@@ -49,7 +49,7 @@ namespace cadet
 
 		LumpedRateModelWithoutPoresDG::LumpedRateModelWithoutPoresDG(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
 			/*_jacInlet(),*/ _analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr), _initC(0),
-			_initQ(0), _initState(0), _initStateDot(0)
+			_initCs(0), _initState(0), _initStateDot(0)
 		{
 			// Multiple particle types are not supported
 			_singleBinding = true;
@@ -95,28 +95,33 @@ namespace cadet
 			// Read discretization
 			_disc.nComp = paramProvider.getInt("NCOMP");
 
+			if (paramProvider.exists("NPARTYPE") ? paramProvider.getInt("NPARTYPE") != 1 : false)
+				throw InvalidParameterException("Number of particle types must be 1 for EQUILIBRIUM particles, i.e. LUMPED_RATE_MODEL_WITHOUT_PORES");
+
+			paramProvider.pushScope("particle_type_000");
+
+			if (paramProvider.getBool("HAS_FILM_DIFFUSION"))
+				throw InvalidParameterException("HAS_FILM_DIFFUSION must be false for LUMPED_RATE_MODEL_WITHOUT_PORES");
+			if (paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false)
+				throw InvalidParameterException("HAS_PORE_DIFFUSION must be false for LUMPED_RATE_MODEL_WITHOUT_PORES");
+			if (paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false)
+				throw InvalidParameterException("HAS_SURFACE_DIFFUSION must be false for LUMPED_RATE_MODEL_WITHOUT_PORES");
+
 			std::vector<int> nBound;
-			const bool newNBoundInterface = paramProvider.exists("NBOUND");
-
-			paramProvider.pushScope("discretization");
-
-			if (firstConfigCall)
-				_linearSolver = cadet::linalg::setLinearSolver(paramProvider.exists("LINEAR_SOLVER") ? paramProvider.getString("LINEAR_SOLVER") : "SparseLU");
-
-			if (!newNBoundInterface && paramProvider.exists("NBOUND")) // done here and in this order for backwards compatibility
-				nBound = paramProvider.getIntArray("NBOUND");
-			else
-			{
-				paramProvider.popScope();
-				nBound = paramProvider.getIntArray("NBOUND");
-				paramProvider.pushScope("discretization");
-			}
+			nBound = paramProvider.getIntArray("NBOUND");
 			if (nBound.size() < _disc.nComp)
 				throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
 
 			if (firstConfigCall)
 				_disc.nBound = new unsigned int[_disc.nComp];
 			std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound);
+
+			paramProvider.popScope();
+
+			paramProvider.pushScope("discretization");
+
+			if (firstConfigCall)
+				_linearSolver = cadet::linalg::setLinearSolver(paramProvider.exists("LINEAR_SOLVER") ? paramProvider.getString("LINEAR_SOLVER") : "SparseLU");
 
 			if (paramProvider.exists("POLYDEG"))
 				_disc.polyDeg = paramProvider.getInt("POLYDEG");
@@ -166,7 +171,7 @@ namespace cadet
 
 			// Allocate space for initial conditions
 			_initC.resize(_disc.nElem * _disc.nNodes * _disc.nComp);
-			_initQ.resize(_disc.nElem * _disc.nNodes * _disc.strideBound);
+			_initCs.resize(_disc.nElem * _disc.nNodes * _disc.strideBound);
 
 			// Create nonlinear solver for consistent initialization
 			configureNonlinearSolver(paramProvider);
@@ -197,6 +202,8 @@ namespace cadet
 			clearBindingModels();
 			_binding.push_back(nullptr);
 
+			paramProvider.pushScope("particle_type_000");
+
 			if (paramProvider.exists("ADSORPTION_MODEL"))
 				_binding[0] = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
 			else
@@ -214,24 +221,60 @@ namespace cadet
 			if (_binding[0]->usesParamProviderInDiscretizationConfig())
 				paramProvider.popScope();
 
+			paramProvider.popScope();
+
 			// ==== Construct and configure dynamic reaction model
 			bool reactionConfSuccess = true;
-			clearDynamicReactionModels();
-			_dynReaction.push_back(nullptr);
+			_reaction.clearDynamicReactionModels();
 
-			if (paramProvider.exists("REACTION_MODEL"))
+			bool hasReactions = false;
+			if (paramProvider.exists("NREAC_LIQUID"))
 			{
-				_dynReaction[0] = helper.createDynamicReactionModel(paramProvider.getString("REACTION_MODEL"));
-				if (!_dynReaction[0])
-					throw InvalidParameterException("Unknown dynamic reaction model " + paramProvider.getString("REACTION_MODEL"));
+				hasReactions = true;
+				int nReactions = paramProvider.getInt("NREAC_LIQUID");
+				reactionConfSuccess = _reaction.configureDiscretization("liquid",
+					nReactions,
+					_disc.nComp,
+					_disc.nBound,
+					_disc.boundOffset,
+					paramProvider,
+					helper) && reactionConfSuccess;
+			}
 
-				if (_dynReaction[0]->usesParamProviderInDiscretizationConfig())
-					paramProvider.pushScope("reaction");
+			if (paramProvider.exists("particle_type_000"))
+			{
+				paramProvider.pushScope("particle_type_000");
 
-				reactionConfSuccess = _dynReaction[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
+				if (paramProvider.exists("NREAC_CROSS_PHASE"))
+				{
+					hasReactions = true;
+					int nReactions = paramProvider.getInt("NREAC_CROSS_PHASE");
+					reactionConfSuccess = _reaction.configureDiscretization("cross_phase",
+						nReactions,
+						_disc.nComp,
+						_disc.nBound,
+						_disc.boundOffset,
+						paramProvider,
+						helper) && reactionConfSuccess;
+				}
+				if (paramProvider.exists("NREAC_SOLID"))
+				{
+					hasReactions = true;
+					int nReactions = paramProvider.getInt("NREAC_SOLID");
+					reactionConfSuccess = _reaction.configureDiscretization("solid",
+						nReactions,
+						_disc.nComp,
+						_disc.nBound,
+						_disc.boundOffset,
+						paramProvider,
+						helper) && reactionConfSuccess;
+				}
 
-				if (_dynReaction[0]->usesParamProviderInDiscretizationConfig())
 					paramProvider.popScope();
+			}
+			if (!hasReactions)
+			{
+				_reaction.empty();
 			}
 
 			// Setup the memory for tempState based on state vector
@@ -263,10 +306,12 @@ namespace cadet
 				_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, cadet::ParTypeIndep);
 
 				for (unsigned int i = 0; i < _disc.strideBound; ++i)
-					_parameters[initParams[i]] = _initQ.data() + i;
+					_parameters[initParams[i]] = _initCs.data() + i;
 			}
 
 			// Reconfigure binding model
+			paramProvider.pushScope("particle_type_000");
+
 			bool bindingConfSuccess = true;
 			if (_binding[0] && paramProvider.exists("adsorption") && _binding[0]->requiresConfiguration())
 			{
@@ -276,24 +321,36 @@ namespace cadet
 			}
 
 			// Reconfigure dynamic reaction model
-			bool reactionConfSuccess = true;
-			if (_dynReaction[0] && paramProvider.exists("reaction") && _dynReaction[0]->requiresConfiguration())
+			bool dynReactionConfSuccess = true;
+			bool hasReaction = false;
+			if (paramProvider.exists("NREAC_CROSS_PHASE"))
 			{
-				paramProvider.pushScope("reaction");
-				reactionConfSuccess = _dynReaction[0]->configure(paramProvider, _unitOpIdx, cadet::ParTypeIndep);
-				paramProvider.popScope();
+				dynReactionConfSuccess = _reaction.configure("cross_phase", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+				hasReaction = true;
+			}
+			if (paramProvider.exists("NREAC_SOLID"))
+			{
+				dynReactionConfSuccess = _reaction.configure("solid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+				hasReaction = true;
+
 			}
 
-			//FDjac = MatrixXd::Zero(numDofs(), numDofs()); // debug code
+			paramProvider.popScope();// particle_type_000
 
-			setPattern(_jac, true, _dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0));
-			setPattern(_jacDisc, true, _dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0));
+			if (paramProvider.exists("NREAC_LIQUID"))
+			{
+				dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+				hasReaction = true;
+			}
+
+			setPattern(_jac, true, hasReaction);
+			setPattern(_jacDisc, true, hasReaction);
 
 			// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
 			// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
 			_linearSolver->analyzePattern(_jacDisc);
 
-			return bindingConfSuccess && reactionConfSuccess;
+			return bindingConfSuccess && dynReactionConfSuccess;
 		}
 
 		unsigned int LumpedRateModelWithoutPoresDG::threadLocalMemorySize() const CADET_NOEXCEPT
@@ -304,12 +361,9 @@ namespace cadet
 			if (_binding[0] && _binding[0]->requiresWorkspace())
 				lms.addBlock(_binding[0]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound));
 
-			if (_dynReaction[0])
-			{
-				lms.addBlock(_dynReaction[0]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound));
-				lms.add<active>(_disc.strideBound);
-				lms.add<double>(_disc.strideBound * (_disc.strideBound + _disc.nComp));
-			}
+			_reaction.setWorkspaceRequirements("cross_phase", _disc.nComp, _disc.strideBound, lms);
+			_reaction.setWorkspaceRequirements("solid", _disc.nComp, _disc.strideBound, lms);
+			_reaction.setWorkspaceRequirements("liquid", _disc.nComp, _disc.strideBound, lms);
 
 			lms.commit();
 			const std::size_t resKernelSize = lms.bufferSize();
@@ -613,7 +667,7 @@ namespace cadet
 
 				if (!wantRes || _disc.newStaticJac) {
 
-					success = _convDispOp.calcStaticAnaJacobian(_jac, _jacInlet);
+					success = _convDispOp.calcTransportJacobian(_jac, _jacInlet);
 
 					_disc.newStaticJac = false;
 				}
@@ -648,7 +702,7 @@ namespace cadet
 					_totalPorosity,
 					nullptr,
 					_binding[0],
-					(_dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0)) ? _dynReaction[0] : nullptr
+					&_reaction
 				};
 
 				// Relative position of current node - needed in externally dependent adsorption kinetic
@@ -892,7 +946,7 @@ namespace cadet
 
 			for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
 				for (unsigned int node = 0; node < (_disc.exactInt ? _disc.nNodes : 1); node++) {
-					r[idxr.offsetC() + offInlet + comp * idxr.strideColComp() + node * idxr.strideColNode()] += _jacInlet(node, 0) * r[comp];
+					r[idxr.offsetC() + offInlet + comp * idxr.strideColComp() + node * idxr.strideColNode()] -= _jacInlet(node, 0) * r[comp];
 				}
 			}
 
@@ -1005,9 +1059,9 @@ namespace cadet
 				for (unsigned comp = 0; comp < _disc.nComp; ++comp)
 					stateYbulk[localOffset + comp * idxr.strideColComp()] = static_cast<double>(_initC[comp]);
 
-				// Initialize q
+				// Initialize c^s
 				for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
-					stateYbulk[localOffset + idxr.strideColLiquid() + bnd] = static_cast<double>(_initQ[bnd]);
+					stateYbulk[localOffset + idxr.strideColLiquid() + bnd] = static_cast<double>(_initCs[bnd]);
 			}
 		}
 
@@ -1029,20 +1083,22 @@ namespace cadet
 			}
 
 			const std::vector<double> initC = paramProvider.getDoubleArray("INIT_C");
-			std::vector<double> initQ;
+			std::vector<double> initCs;
 
-			if (paramProvider.exists("INIT_Q"))
-				initQ = paramProvider.getDoubleArray("INIT_Q");
+			paramProvider.pushScope("particle_type_000");
+			if (paramProvider.exists("INIT_CS"))
+				initCs = paramProvider.getDoubleArray("INIT_CS");
+			paramProvider.popScope();
 
 			if (initC.size() < _disc.nComp)
 				throw InvalidParameterException("INIT_C does not contain enough values for all components");
 
-			if ((_disc.strideBound > 0) && (initQ.size() < _disc.strideBound))
-				throw InvalidParameterException("INIT_Q does not contain enough values for all bound states");
+			if ((_disc.strideBound > 0) && (initCs.size() < _disc.strideBound))
+				throw InvalidParameterException("INIT_CS does not contain enough values for all bound states");
 
 			ad::copyToAd(initC.data(), _initC.data(), _disc.nComp);
-			if (!initQ.empty())
-				ad::copyToAd(initQ.data(), _initQ.data(), _disc.strideBound);
+			if (!initCs.empty())
+				ad::copyToAd(initCs.data(), _initCs.data(), _disc.strideBound);
 		}
 
 		/**
@@ -1156,7 +1212,7 @@ namespace cadet
 					_totalPorosity,
 					nullptr,
 					_binding[0],
-					(_dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0)) ? _dynReaction[0] : nullptr
+					nullptr
 				};
 
 				const int localOffsetToCell = idxr.offsetC() + point * idxr.strideColNode();
@@ -1283,7 +1339,7 @@ namespace cadet
 			} CADET_PARFOR_END;
 
 			// restore _jacDisc pattern
-			setPattern(_jacDisc, true, _dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0));
+			setPattern(_jacDisc, true, _reaction.hasReactions());
 
 		}
 
@@ -1403,7 +1459,7 @@ namespace cadet
 			}
 
 			// reset jacobian pattern
-			setPattern(_jacDisc, true, _dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0));
+			setPattern(_jacDisc, true,_reaction.hasReactions());
 
 		}
 
@@ -1507,9 +1563,9 @@ namespace cadet
 					for (unsigned comp = 0; comp < _disc.nComp; ++comp)
 						stateYbulk[localOffset + comp * idxr.strideColComp()] = _initC[comp].getADValue(param);
 
-					// Initialize q
+					// Initialize c^s
 					for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
-						stateYbulk[localOffset + idxr.strideColLiquid() + bnd] = _initQ[bnd].getADValue(param);
+						stateYbulk[localOffset + idxr.strideColLiquid() + bnd] = _initCs[bnd].getADValue(param);
 				}
 			}
 		}
@@ -1634,7 +1690,7 @@ namespace cadet
 				multiplyWithJacobian(simTime, simState, sensY, -1.0, 1.0, sensYdot);
 		
 				// Note that we have correctly negated the right hand side
-				setPattern(_jacDisc, true, _dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0));
+				setPattern(_jacDisc, true, _reaction.hasReactions());
 				//for (int entry = 0; entry < _jacDisc.nonZeros(); entry++)
 				//	_jacDisc.valuePtr()[entry] = 0.0;
 		

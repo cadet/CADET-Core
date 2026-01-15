@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "source": "Antonia Berger",
+    "info": "Numerical benchmark case for CADET-Core tests",
+    "name": "model_MCT2ch_dynLgmr_1comp_benchmark1.json"
+  },
+  "model": {
+    "NUNITS": 1,
+    "connections": {
+      "CONNECTIONS_INCLUDE_DYNAMIC_FLOW": 1,
+      "CONNECTIONS_INCLUDE_PORTS": 1,
+      "NSWITCHES": 1,
+      "switch_000": {
+        "CONNECTIONS": [
+        ],
+        "SECTION": 0
+      }
+    },
+    "unit_000": {
+      "CHANNEL_CROSS_SECTION_AREAS": [
+        1.0,
+        1.0
+      ],
+      "COL_DISPERSION": 4e-15,
+      "COL_LENGTH": 1.0,
+      "EXCHANGE_MATRIX": [
+        0.0,
+        1.0,
+        1.0,
+        0.0
+      ],
+      "INIT_C": [
+        1.0,
+        0.0
+      ],
+      "NCOMP": 1,
+      "UNIT_TYPE": "MULTI_CHANNEL_TRANSPORT",
+      "EXCHANGE_MODEL": "LANGMUIR_EX",
+      "SATURATION_MATRIX": [ 0, 1.0 ],
+      "VELOCITY": 1
+    }
+  },
+  "solver": {
+    "sections": {
+      "NSEC": 2,
+      "SECTION_CONTINUITY": [
+        0
+      ],
+      "SECTION_TIMES": [
+        0.0,
+        60.0
+      ]
+    }
+  }
+}
