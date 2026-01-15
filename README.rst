@@ -61,7 +61,7 @@ Therefore, we kindly ask that any publications or projects leveraging the capabi
 
 - Püttmann, A.; Schnittert, S.; Naumann, U.; von Lieres, E.: `Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography <http://dx.doi.org/10.1016/j.compchemeng.2013.04.021>`_, Computers and Chemical Engineering **56** (2013), 46–57.
 
-Additionally, to ensure reproducibility of your work, we recommend citing the zenodo doi corresponding to the specific CADET-Core release that you used.
+Additionally, to ensure reproducibility of your work, we recommend citing the `zenodo doi <https://doi.org/10.5281/zenodo.8179015>`_ corresponding to the specific CADET-Core release that you used.
 
 For a comprehensive list and guidance on citing CADET-Core publications, please refer to the publications section of the `documentation <https://cadet.github.io/master/publications.html>`_.
 
