@@ -16,10 +16,10 @@ Major additions or modifications to CADET-Core are explicitly documented here.
 * [Johannes Schmölder](https://github.com/schmoelder) (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany)
 * [Jayghosh Rao](https://github.com/jayghoshter) (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany)
 * [Jazib Hassan](https://github.com/jazib-hassan-juelich) (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany)
-* [Jan Michael Breuer](https://github.com/jbreue16) (University of Cologne, Faculty of Mathematics and Natural Sciences, Cologne, Germany and Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany): Spatial DG discretizations (LRM, LRMP, GRM), Crystallization module
+* [Jan Michael Breuer](https://github.com/jbreue16) (University of Cologne, Faculty of Mathematics and Natural Sciences, Cologne, Germany and Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany): Spatial DG discretizations (LRM, LRMP, GRM), Crystallization module, refactored/generalized chromatography units
 * [Ronald Jäpel](https://github.com/ronald-jaepel) (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany)
 * [Hannah Lanzrath](https://github.com/hannahlanzrath) (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany)
-* [Antonia Berger](https://github.com/AntoniaBerger) (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany)
+* [Antonia Berger](https://github.com/AntoniaBerger) (Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany): Refactored/generalized reactions system
 * [Wendi Zhang](https://github.com/WFlynnZ) (Rensselaer Polytechnic Institute, Chemical and Biological Engineering, Troy, New York, USA): Crystallization module
 
 ## Funding Acknowledgement
