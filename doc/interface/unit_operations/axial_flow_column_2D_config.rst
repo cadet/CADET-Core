@@ -150,13 +150,6 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
    **Type:** int  **Range:** :math:`\{0, \dots, 7 \}`  **Length:** 1
    =============  ===================================  =============
 
-``REACTION_MODEL_BULK``
-
-   Specifies the type of reaction model of the bulk volume. The model is configured in the subgroup :math:`\texttt{reaction_bulk}`.
-   
-   ================  ========================================  =============
-   **Type:** string  **Range:** See Section :ref:`FFReaction`  **Length:** 1
-   ================  ========================================  =============
 
 ``INIT_C``
 
@@ -178,6 +171,19 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
    ================  =============================  ==================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NDOF} / 2\texttt{NDOF}`
    ================  =============================  ==================================================
+
+``NREAC_LIQUID``
+
+   Number of liquid phase reaction models (optional, only if liquid reactions are present).
+   
+   =============  =========================  =============
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
+   =============  =========================  =============
+
+
+Group /input/model/unit_XXX/liquid_reaction_YYY
+-----------------------------------------------
+Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`FFReaction`.
 
 
 Group /input/model/unit_XXX/particle_type_XXX

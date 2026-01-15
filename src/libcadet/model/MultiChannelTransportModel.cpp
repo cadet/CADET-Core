@@ -317,7 +317,7 @@ namespace model
 {
 
 MultiChannelTransportModel::MultiChannelTransportModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-_dynReactionBulk{ }, _jacInlet(),
+	_jacInlet(),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _singleRadiusInitC(true), _initState(0), _initStateDot(0)
 {
@@ -326,8 +326,7 @@ _dynReactionBulk{ }, _jacInlet(),
 MultiChannelTransportModel::~MultiChannelTransportModel() CADET_NOEXCEPT
 {
 	delete[] _tempState;
-	for (auto* reac : _dynReactionBulk)
-		delete reac;
+	_reaction.clearDynamicReactionModels();
 }
 
 unsigned int MultiChannelTransportModel::numDofs() const CADET_NOEXCEPT
@@ -393,85 +392,22 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
-	_oldReactionInterface = false;
-
-	_dynReactionBulk.resize(1,nullptr);
-	if (paramProvider.exists("REACTION_MODEL"))
+	
+	_reaction.clearDynamicReactionModels();
+	if (paramProvider.exists("NREAC_LIQUID"))
 	{
-		_oldReactionInterface = true;
-		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
-		_dynReactionBulk[0] = helper.createDynamicReactionModel(dynReactName);
-		if (!_dynReactionBulk[0])
-			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
-
-		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
-			paramProvider.pushScope("reaction_bulk");
-
-		reactionConfSuccess = _dynReactionBulk[0]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
-
-		if (_dynReactionBulk[0]->usesParamProviderInDiscretizationConfig())
-			paramProvider.popScope();
+		int nReactions = paramProvider.getInt("NREAC_LIQUID");
+		reactionConfSuccess = _reaction.configureDiscretization("liquid",
+			nReactions,
+			_disc.nComp,
+			nullptr,
+			nullptr,
+			paramProvider,
+			helper) && reactionConfSuccess;
 	}
-	else if (paramProvider.exists("reaction_bulk"))
+	else
 	{
-		paramProvider.pushScope("reaction_bulk");
-
-		if (paramProvider.exists("NREAC"))
-		{
-			int nReactions = paramProvider.getInt("NREAC");
-
-			if (nReactions <= 0)
-			{
-				paramProvider.popScope();
-				throw InvalidParameterException("CSTR-Configuration: number of reaction must be positive, please check your configuration");
-			}
-			_dynReactionBulk.resize(nReactions, nullptr);
-
-			for (int i = 0; i < nReactions; ++i) {
-
-				char reactionKey[32];
-				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
-
-				if (!paramProvider.exists(reactionKey)) {
-					paramProvider.popScope();
-					throw InvalidParameterException("Missing reaction model definition for " + std::string(reactionKey));
-				}
-
-				paramProvider.pushScope(reactionKey);
-
-				if (!paramProvider.exists("REACTION_TYPE")) {
-					paramProvider.popScope();
-					throw InvalidParameterException("Missing 'type' parameter for " + std::string(reactionKey));
-				}
-
-				std::string reactionType = paramProvider.getString("REACTION_TYPE");
-				paramProvider.popScope();
-				_dynReactionBulk[i] = helper.createDynamicReactionModel(reactionType);
-
-				if (!_dynReactionBulk[i]) {
-					paramProvider.popScope();
-					throw InvalidParameterException("Unknown dynamic reaction model " + reactionType +
-						" for " + reactionKey);
-				}
-
-				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
-					paramProvider.pushScope(reactionKey);
-
-				reactionConfSuccess = _dynReactionBulk[i]->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr) && reactionConfSuccess;
-
-				if (!reactionConfSuccess) {
-					if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
-						paramProvider.popScope();
-					paramProvider.popScope();
-					throw InvalidParameterException("Failed to configure reaction model " + reactionType +
-						" for " + reactionKey);
-				}
-
-				if (_dynReactionBulk[i]->usesParamProviderInDiscretizationConfig())
-					paramProvider.popScope();
-			}
-		}
-		paramProvider.popScope();
+		_reaction.empty();
 	}
 
 	
@@ -511,24 +447,9 @@ bool MultiChannelTransportModel::configure(IParameterProvider& paramProvider)
 
 	// Reconfigure reaction model
 	bool dynReactionConfSuccess = true;
-	for(auto i = 0; i < _dynReactionBulk.size(); i++)
-	{
-		if (_dynReactionBulk[i] && _dynReactionBulk[i]->requiresConfiguration())
-		{
-			paramProvider.pushScope("reaction_bulk");
-			if (!_oldReactionInterface)
-			{
-				char reactionKey[32];
-				snprintf(reactionKey, sizeof(reactionKey), "reaction_model_%03d", i);
-				paramProvider.pushScope(reactionKey);
-			}
-			dynReactionConfSuccess = _dynReactionBulk[i]->configure(paramProvider, _unitOpIdx, ParTypeIndep) && dynReactionConfSuccess;
-			paramProvider.popScope();
-
-			if (!_oldReactionInterface)
-				paramProvider.popScope();
-		}
-	}
+	
+	if (paramProvider.exists("NREAC_LIQUID"))
+		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 	
 	// Reconfigure exchange model
 	bool exchangeConfSuccess = true;
@@ -543,10 +464,10 @@ unsigned int MultiChannelTransportModel::threadLocalMemorySize() const CADET_NOE
 	LinearMemorySizer lms;
 
 	// Memory for residualImpl()
-	for (auto i = 0; i < _dynReactionBulk.size(); i++)
+	for (auto i = 0; i < _reaction.getDynReactionVector("liquid").size(); i++)
 	{
-		if (_dynReactionBulk[i] && _dynReactionBulk[i]->requiresWorkspace())
-			lms.fitBlock(_dynReactionBulk[i]->workspaceSize(_disc.nComp, 0, nullptr));
+		if (_reaction.getDynReactionVector("liquid")[i] && _reaction.getDynReactionVector("liquid")[i]->requiresWorkspace())
+			lms.fitBlock(_reaction.getDynReactionVector("liquid")[i]->workspaceSize(_disc.nComp, 0, nullptr));
 	}
 
 	return lms.bufferSize();
@@ -816,7 +737,7 @@ int MultiChannelTransportModel::residualImpl(double t, unsigned int secIdx, Stat
 	}
 	
 
-	if (!_dynReactionBulk[0])
+	if (!_reaction.getDynReactionVector("liquid")[0])
 		return 0;
 
 	// Get offsets
@@ -833,16 +754,16 @@ int MultiChannelTransportModel::residualImpl(double t, unsigned int secIdx, Stat
 
 		const ColumnPosition colPos{z, static_cast<double>(channelCell), 0.0};
 
-		for (auto i = 0; i < _dynReactionBulk.size(); i++)
+		for (auto i = 0; i < _reaction.getDynReactionVector("liquid").size(); i++)
 		{
-			if (_dynReactionBulk[i] && (_dynReactionBulk[i]->numReactionsLiquid() > 0))
+			if (_reaction.getDynReactionVector("liquid")[i] && (_reaction.getDynReactionVector("liquid")[i]->numReactions() > 0))
 			{
-				_dynReactionBulk[i]->residualLiquidAdd(t, secIdx, colPos, yC, resC, -1.0, tlmAlloc);
+				_reaction.getDynReactionVector("liquid")[i]->residualFluxAdd(t, secIdx, colPos, _disc.nComp, yC, resC, -1.0, tlmAlloc);
 
 				if (wantJac)
 				{
 					// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-					_dynReactionBulk[i]->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(yC), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideChannelCell()), tlmAlloc);
+					_reaction.getDynReactionVector("liquid")[i]->analyticJacobianAdd(t, secIdx, colPos, _disc.nComp, reinterpret_cast<double const*>(yC), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideChannelCell()), tlmAlloc);
 				}
 			}
 		}

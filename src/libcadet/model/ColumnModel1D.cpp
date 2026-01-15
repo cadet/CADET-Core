@@ -39,6 +39,7 @@
 #include <numeric>
 #include <iterator>
 
+
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
 	#include <tbb/parallel_for.h>
@@ -56,7 +57,7 @@ constexpr double SurfVolRatioSlab = 1.0;
 
 
 ColumnModel1D::ColumnModel1D(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_globalJac(), _globalJacDisc(), _jacInlet(), _dynReactionBulk(nullptr),
+	_globalJac(), _globalJacDisc(), _jacInlet(),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _initCp(0), _initCs(0), _initState(0), _initStateDot(0)
 {
@@ -72,10 +73,9 @@ ColumnModel1D::~ColumnModel1D() CADET_NOEXCEPT
 	_particles.clear();
 
 	_binding.clear(); // binding models are deleted in the respective particle model
-	_dynReaction.clear(); // particle reaction models are deleted in the respective particle model
+	//_dynReaction.clear(); // particle reaction models are deleted in the respective particle model
 
-	delete _dynReactionBulk;
-
+	_reaction.clearDynamicReactionModels();
 	delete _linearSolver;
 }
 
@@ -313,28 +313,30 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
+	_reaction.clearDynamicReactionModels();
 
-	_dynReactionBulk = nullptr;
-	if (paramProvider.exists("REACTION_MODEL"))
+	// Bulk liquid phase reactions
+	if (paramProvider.exists("NREAC_LIQUID"))
 	{
-		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
-		_dynReactionBulk = helper.createDynamicReactionModel(dynReactName);
-		if (!_dynReactionBulk)
-			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
-
-		MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_bulk", _dynReactionBulk->usesParamProviderInDiscretizationConfig());
-		reactionConfSuccess = _dynReactionBulk->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
+		int nReactions = paramProvider.getInt("NREAC_LIQUID");
+		reactionConfSuccess = _reaction.configureDiscretization("liquid",
+			nReactions,
+			_disc.nComp,
+			_disc.nBound,
+			_disc.boundOffset,
+			paramProvider,
+			helper) && reactionConfSuccess;
+	}
+	else
+	{
+		_reaction.empty();
 	}
 
 	// ==== Construct and configure binding and particle reaction -> done in particle model, only pointers are copied here.
 	_binding = std::vector<IBindingModel*>(_disc.nParType, nullptr);
-	_dynReaction = std::vector<IDynamicReactionModel*>(_disc.nParType, nullptr);
-
 	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
 	{
 		_binding[parType] = _particles[parType]->getBinding();
-
-		_dynReaction[parType] = _particles[parType]->getReaction();
 
 		// Check if binding and reaction particle type dependence is the same for all particle types
 		if (parType > 0)
@@ -344,17 +346,10 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 				if (_singleBinding != !_particles[parType]->bindingParDep())
 					throw InvalidParameterException("Binding particle type dependence must be the same for all particle types, check field BINDING_PARTYPE_DEPENDENT");
 			}
-
-			if (_dynReaction[parType])
-			{
-				if (_singleDynReaction != !_particles[parType]->reactionParDep())
-					throw InvalidParameterException("Reaction particle type dependence must be the same for all particle types, check field REACTION_PARTYPE_DEPENDENT");
-			}
 		}
 		else // if no particle reaction or binding exists in first particle type, default to single mode
 		{
 			_singleBinding = _binding[parType] ? !_particles[parType]->bindingParDep() : true;
-			_singleDynReaction = _dynReaction[parType] ? !_particles[parType]->reactionParDep() : true;
 		}
 	}
 
@@ -480,16 +475,17 @@ bool ColumnModel1D::configure(IParameterProvider& paramProvider)
 		particleConfSuccess = particleConfSuccess && _particles[parType]->configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType]);
 	}
 
-	// Reconfigure reaction model
+	// Reconfigure bulk liquid reaction model
 	bool dynReactionConfSuccess = true;
-	if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
-	{
-		MultiplexedScopeSelector scopeGuard(paramProvider, "reaction_bulk", _dynReactionBulk->requiresConfiguration());
-		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
-	}
+	if (paramProvider.exists("NREAC_LIQUID"))
+		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
 	// jaobian pattern set after binding and particle surface diffusion are configured
-	setJacobianPattern(_globalJac, 0, _dynReactionBulk);
+	bool hasBulkReaction = false;
+	if (_reaction.getDynReactionVector("liquid")[0] != nullptr)
+		hasBulkReaction = true;
+
+	setJacobianPattern(_globalJac, 0, hasBulkReaction);
 	_globalJacDisc = _globalJac;
 	// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
 	// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
@@ -507,13 +503,9 @@ unsigned int ColumnModel1D::threadLocalMemorySize() const CADET_NOEXCEPT
 	{
 		if (_binding[i] && _binding[i]->requiresWorkspace())
 			lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
-
-		if (_dynReaction[i] && _dynReaction[i]->requiresWorkspace())
-			lms.fitBlock(_dynReaction[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
 	}
-
-	if (_dynReactionBulk && _dynReactionBulk->requiresWorkspace())
-		lms.fitBlock(_dynReactionBulk->workspaceSize(_disc.nComp, 0, nullptr));
+	// Bulk reaction
+	_reaction.setWorkspaceRequirements("liquid", _disc.nComp, 0, lms);
 
 	const unsigned int maxStrideBound = *std::max_element(_disc.strideBound, _disc.strideBound + _disc.nParType);
 	lms.add<active>(_disc.nComp + maxStrideBound);
@@ -576,7 +568,8 @@ void ColumnModel1D::notifyDiscontinuousSectionTransition(double t, unsigned int 
 	Indexer idxr(_disc);
 
 	// todo: only reset jacobian pattern if it changes, i.e. once in configuration and then only for changes in SurfDiff+kinetic binding.
- 	setJacobianPattern(_globalJac, 0, _dynReactionBulk);
+	bool hasReaction = _reaction.getDynReactionVector("liquid")[0];
+	setJacobianPattern(_globalJac, 0, hasReaction);
 	_globalJacDisc = _globalJac;
 
 	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
@@ -988,13 +981,23 @@ int ColumnModel1D::residualImpl(double t, unsigned int secIdx, StateType const* 
 		const unsigned int parType = (pblk - 1) / _disc.nPoints;
 		const unsigned int colNode = (pblk - 1) % _disc.nPoints;
 
-		linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
+		linalg::BandedEigenSparseRowIterator jacIt;
+
+		if (wantJac)
+		{
+			jacIt = linalg::BandedEigenSparseRowIterator(
+				_globalJac,
+				idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode })
+			);
+		}
+
 		model::columnPackingParameters packing
 		{
 			_parTypeVolFrac[parType + _disc.nParType * colNode],
 			_colPorosity,
 			ColumnPosition{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }
 		};
+
 
 		_particles[parType]->residual(t, secIdx,
 			y + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
@@ -1027,46 +1030,54 @@ int ColumnModel1D::residualBulk(double t, unsigned int secIdx, StateType const* 
 	if (wantRes)
 		_convDispOp.residual(*this, t, secIdx, yBase, yDotBase, resBase, typename cadet::ParamSens<ParamType>::enabled());
 
-	if (!_dynReactionBulk || (_dynReactionBulk->numReactionsLiquid() == 0))
+	if (_reaction.getDynReactionVector("liquid").size() == 0)
 		return 0;
 
 	Indexer idxr(_disc);
 	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+	StateType const* y = yBase + idxr.offsetC();
 
-	// Dynamic reactions
-	if (_dynReactionBulk) {
-
-		StateType const* y = yBase + idxr.offsetC();
-
-		if (wantJac && !wantRes) // only compute Jacobian
+	if (wantJac && !wantRes) // only compute Jacobian
+	{
+		for (unsigned int col = 0; col < _disc.nPoints; ++col, y += idxr.strideColNode())
 		{
-			for (unsigned int col = 0; col < _disc.nPoints; ++col, y += idxr.strideColNode())
+			const ColumnPosition colPos{ _convDispOp.relativeCoordinate(col), 0.0, 0.0 };
+			linalg::BandedEigenSparseRowIterator jac(_globalJac, idxr.offsetC() + col * idxr.strideColNode());
+			
+			for (auto i = 0; i < _reaction.getDynReactionVector("liquid").size(); i++)
 			{
-				const ColumnPosition colPos{ _convDispOp.relativeCoordinate(col), 0.0, 0.0 };
+				if (!_reaction.getDynReactionVector("liquid")[i])
+					continue;
 
-				linalg::BandedEigenSparseRowIterator jac(_globalJac, idxr.offsetC() + col * idxr.strideColNode());
-				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-				_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, jac, tlmAlloc);
+				_reaction.getDynReactionVector("liquid")[i]->analyticJacobianAdd(t, secIdx, colPos, _disc.nComp, reinterpret_cast<double const*>(y), -1.0, jac, tlmAlloc);
 			}
-
-			return 0;
 		}
 
-		ResidualType* res = resBase + idxr.offsetC();
+		return 0;
+	}
 
-		for (unsigned int col = 0; col < _disc.nPoints; ++col, y += idxr.strideColNode(), res += idxr.strideColNode())
+	ResidualType* res = resBase + idxr.offsetC();
+
+	for (unsigned int col = 0; col < _disc.nPoints; ++col, y += idxr.strideColNode(), res += idxr.strideColNode())
+	{
+		const ColumnPosition colPos{ _convDispOp.relativeCoordinate(col), 0.0, 0.0};
+		linalg::BandedEigenSparseRowIterator jac(_globalJac, idxr.offsetC() + col * idxr.strideColNode());
+
+		for (auto i = 0; i < _reaction.getDynReactionVector("liquid").size(); i++)
 		{
-			const ColumnPosition colPos{ _convDispOp.relativeCoordinate(col), 0.0, 0.0};
-			_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, y, res, -1.0, tlmAlloc);
+			if (!_reaction.getDynReactionVector("liquid")[i])
+				continue;
+
+			_reaction.getDynReactionVector("liquid")[i]->residualFluxAdd(t, secIdx, colPos, _disc.nComp, y, res, -1.0, tlmAlloc);
 
 			if (wantJac)
 			{
-				linalg::BandedEigenSparseRowIterator jac(_globalJac, idxr.offsetC() + col * idxr.strideColNode());
 				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-				_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, jac, tlmAlloc);
+				_reaction.getDynReactionVector("liquid")[i]->analyticJacobianAdd(t, secIdx, colPos, _disc.nComp, reinterpret_cast<double const*>(y), -1.0, jac, tlmAlloc);
 			}
 		}
 	}
+
 
 	return 0;
 }
@@ -1083,7 +1094,7 @@ parts::cell::CellParameters ColumnModel1D::makeCellResidualParams(unsigned int p
 			_particles[parType]->getPorosity(),
 			_particles[parType]->getPoreAccessFactor(),
 			_binding[parType],
-			(_dynReaction[parType] && (_dynReaction[parType]->numReactionsCombined() > 0)) ? _dynReaction[parType] : nullptr
+			nullptr
 		};
 }
 
@@ -1320,7 +1331,7 @@ bool ColumnModel1D::setParameter(const ParameterId& pId, double value)
 		if (_convDispOp.setParameter(pId, value))
 			return true;
 
-		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setParameter(pId, value, _reaction.getDynReactionVector("liquid"), false))
 			return true;
 	}
 
@@ -1351,7 +1362,7 @@ bool ColumnModel1D::setParameter(const ParameterId& pId, int value)
 
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setParameter(pId, value, _reaction.getDynReactionVector("liquid"), false))
 			return true;
 	}
 
@@ -1382,7 +1393,7 @@ bool ColumnModel1D::setParameter(const ParameterId& pId, bool value)
 
 	if (pId.unitOperation == _unitOpIdx)
 	{
-		if (model::setParameter(pId, value, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setParameter(pId, value, _reaction.getDynReactionVector("liquid"), false))
 			return true;
 	}
 
@@ -1437,7 +1448,7 @@ void ColumnModel1D::setSensitiveParameterValue(const ParameterId& pId, double va
 		if (_convDispOp.setSensitiveParameterValue(_sensParams, pId, value))
 			return;
 
-		if (model::setSensitiveParameterValue(pId, value, _sensParams, std::vector<IDynamicReactionModel*>{ _dynReactionBulk }, true))
+		if (model::setSensitiveParameterValue(pId, value, _sensParams, _reaction.getDynReactionVector("liquid"), false))
 			return;
 	}
 
@@ -1508,7 +1519,7 @@ bool ColumnModel1D::setSensitiveParameter(const ParameterId& pId, unsigned int a
 			return true;
 		}
 
-		if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, std::vector<IDynamicReactionModel*> { _dynReactionBulk }, true))
+		if (model::setSensitiveParameter(pId, adDirection, adValue, _sensParams, _reaction.getDynReactionVector("liquid"), false))
 		{
 			LOG(Debug) << "Found parameter " << pId << " in DynamicBulkReactionModel: Dir " << adDirection << " is set to " << adValue;
 			return true;

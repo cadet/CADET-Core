@@ -19,6 +19,7 @@
 #define LIBCADET_IPARTICLEMODEL_HPP_
 
 #include "model/BindingModel.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 #include "cadet/StrongTypes.hpp"
 #include "ParamIdUtil.hpp"
 #include "AutoDiff.hpp"
@@ -126,13 +127,14 @@ namespace cadet
 		{
 		public:
 
-			IParticleModel() : _binding(nullptr), _dynReaction(nullptr)
+			IParticleModel() : _binding(nullptr)
 			{
 			}
 			virtual ~IParticleModel() CADET_NOEXCEPT
 			{
 				delete _binding;
-				delete _dynReaction;
+
+				_reaction.clearDynamicReactionModels();
 			}
 
 			virtual bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp) = 0;
@@ -174,7 +176,7 @@ namespace cadet
 
 			inline IBindingModel* getBinding() const CADET_NOEXCEPT { return _binding; }
 			inline bool bindingParDep() const CADET_NOEXCEPT { return _bindingParDep; }
-			inline IDynamicReactionModel* getReaction() const CADET_NOEXCEPT { return _dynReaction; }
+			inline const ReactionSystem* getReaction() const CADET_NOEXCEPT { return &_reaction; }
 			inline bool reactionParDep() const CADET_NOEXCEPT { return _reactionParDep; }
 
 			virtual inline const active& getPorosity() const CADET_NOEXCEPT = 0;
@@ -238,7 +240,7 @@ namespace cadet
 				IBindingModel* _binding; //!< Binding model
 				std::shared_ptr<unsigned int[]> _nBound; //!< Array with number of bound states for each component
 				bool _bindingParDep; //!< Whether the binding model parameters depend on the particle type
-				IDynamicReactionModel* _dynReaction; //!< Dynamic reaction model
+				ReactionSystem _reaction; //!< Reaction system
 				bool _reactionParDep; //!< Whether the binding model parameters depend on the particle type
 		};
 

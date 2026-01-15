@@ -49,13 +49,6 @@ For information on model equations, refer to :ref:`cstr_model`.
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NPARTYPE} \cdot \texttt{NCOMP}`
    =============  =========================  ===========================================================
    
-``REACTION_MODEL``
-
-   Specifies the type of reaction model of the bulk volume. The model is configured in the subgroup :math:`\texttt{reaction_bulk}`.
-   
-   ================  ========================================  =============
-   **Type:** string  **Range:** See Section :ref:`FFReaction`  **Length:** 1
-   ================  ========================================  =============
    
 ``REACTION_MODEL_PARTICLES``
 
@@ -144,27 +137,21 @@ For information on model equations, refer to :ref:`cstr_model`.
 
 ``NREAC_LIQUID``
 
-   Number of reactions in the bulk volume.
-
+   Number of liquid phase reaction models (optional, only if liquid reactions are present).
+   
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
    =============  =========================  =============
 
-The bulk reactions in the CSTR is defined in the following subgroup:
+``NREAC_CROSS_PHASE``
 
-Group /input/model/unit_XXX/liquid_reaction_YYY
+   Number of cross-phase reaction models (optional, only if cross-phase reactions are present).
+   
+   =============  =========================  =============
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
+   =============  =========================  =============
 
-Reaction model in the bulk volume
----------------------------------
-``TYPE``
 
-   Specifies the type of reaction model
-
-   ================  ========================================  =============
-   **Type:** string  **Range:** See Section :ref:`FFReaction`  **Length:** 1
-   ================  ========================================  =============
-
-Further reaction configuration are depending on the ``TYPE``.
-For information on model configuration, refer to :ref:`mass_action_law_config` or :ref:`michaelis_menten_kinetics_config`.
-
-**NOTE:** This interface will be implemented for further unit operation in the future.
+Group /input/model/unit_XXX/phase_reaction_YYY
+----------------------------------------------
+Each reaction is specified in another subgroup `phase_reaction_YYY`, see :ref:`FFReaction`.

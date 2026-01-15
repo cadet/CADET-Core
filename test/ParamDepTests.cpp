@@ -93,7 +93,7 @@ void testLiquidJacobianAD(const char* modelName, unsigned int nComp, unsigned in
 	jacAna.resize(numDofs, numDofs);
 
 	for (unsigned int comp = 0; comp < nComp; ++comp)
-		cpd.model().analyticJacobianLiquidAdd(ColumnPosition{0.0, 0.0, 0.0}, 2.1, point, comp, factor, 0, jacAna.row(comp));
+		cpd.model().analyticJacobianAdd(ColumnPosition{0.0, 0.0, 0.0}, 2.1, point, comp, factor, 0, jacAna.row(comp));
 
 	// Enable AD
 	cadet::ad::setDirections(cadet::ad::getMaxDirections());
