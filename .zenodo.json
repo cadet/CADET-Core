@@ -3,13 +3,13 @@
   "upload_type": "software",
   "creators": [
     {
-      "name": "Leweke, Samuel",
-      "orcid": "0000-0001-9471-4511",
-      "affiliation": "Forschungszentrum Jülich"
+      "name": "Breuer, Jan Michael",
+      "orcid": "0000-0002-1999-2439",
+      "affiliation": [ "University of Cologne", "Forschungszentrum Jülich" ]
     },
     {
-      "name": "Breuer, Jan",
-      "orcid": "0000-0002-1999-2439",
+      "name": "Leweke, Samuel",
+      "orcid": "0000-0001-9471-4511",
       "affiliation": "Forschungszentrum Jülich"
     },
     {
@@ -18,13 +18,23 @@
       "affiliation": "Forschungszentrum Jülich"
     },
     {
-      "name": "Jäpel, Ronald",
-      "orcid": "0000-0002-4912-5176",
+      "name": "Berger, Antonia",
+      "orcid": "0009-0002-0207-9042",
       "affiliation": "Forschungszentrum Jülich"
     },
     {
       "name": "Lanzrath, Hannah",
       "orcid": "0000-0002-2675-9002",
+      "affiliation": "Forschungszentrum Jülich"
+    },
+    {
+      "name": "Zhang, Wendi",
+      "orcid": "0000-0002-6127-1408",
+      "affiliation": "Rensselaer Polytechnic Institute"
+    },
+    {
+      "name": "Jäpel, Ronald",
+      "orcid": "0000-0002-4912-5176",
       "affiliation": "Forschungszentrum Jülich"
     },
     {
@@ -35,16 +45,6 @@
     {
       "name": "Hassan, Jazib",
       "orcid": "0000-0003-2741-5460",
-      "affiliation": "Forschungszentrum Jülich"
-    },
-    {
-      "name": "Zhang, Wendi",
-      "orcid": "0000-0002-6127-1408",
-      "affiliation": "Rensselaer Polytechnic Institute"
-    },
-    {
-      "name": "Berger, Antonia",
-      "orcid": "0009-0002-0207-9042",
       "affiliation": "Forschungszentrum Jülich"
     },
     {
