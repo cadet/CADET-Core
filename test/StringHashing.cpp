@@ -179,7 +179,7 @@ inline uint64_t sipHashRef(char const* data, unsigned int len)
 
 using cadet::util::SipHash24;
 using cadet::util::SipHash24runtime;
-using cadet::operator "" _hash;
+using cadet::operator ""_hash;
 
 #if CADET_COMPILETIME_HASH
 
