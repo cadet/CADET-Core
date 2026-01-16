@@ -24,6 +24,7 @@ The following checklist describes the steps to execute sequentially for creating
   - Update the version number in `version.txt`, `zenodo.json` (two places), `cadet.hpp` and `cadet.doxyfile`
   - Update the authors list if needed in `CONTRIBUTING.md` and `zenodo.json`
   - Update the file format in `driver.hpp` if required
+  - Update `html_baseurl` and `smv_branch_whitelist` in the `conf.py` file to the release branch (only if stable release)
   - If the release contains all commits from `master`, merge the bump commit into `master`
 
 ---
