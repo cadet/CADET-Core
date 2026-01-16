@@ -65,12 +65,17 @@ public:
 	{
 		_parameters.clear();
 		readParameterMatrix(_exchangeMatrix, paramProvider, "EXCHANGE_MATRIX", _nChannel * _nChannel * _nComp, 1); // TODO include parameterPeaderHelp in exchange modul
-		_crossSections = paramProvider.getDoubleArray("CHANNEL_CROSS_SECTION_AREAS");
+		readScalarParameterOrArray(_crossSections, paramProvider,"CHANNEL_CROSS_SECTION_AREAS", 1);
 
 		registerParam3DArray(parameters, _exchangeMatrix, [=](bool multi, unsigned int channelSrc, unsigned int channelDest, unsigned comp)
 		{
 		return makeParamId(hashString("EXCHANGE_MATRIX"), unitOpIdx, multi ? comp : CompIndep, channelDest, channelSrc, ReactionIndep, SectionIndep);
 		}, _nComp, _nChannel);
+
+		registerParam1DArray(parameters, _crossSections, [=](bool multi, unsigned int channel)
+		{
+		return makeParamId(hashString("CHANNEL_CROSS_SECTION_AREAS"), unitOpIdx, CompIndep, channel, BoundStateIndep, ReactionIndep, SectionIndep); // particleType -> Channel
+		});
 
 		return true;
 	}
@@ -174,7 +179,7 @@ protected:
 	std::vector<int> _reactionQuasistationarity; //!< Determines whether each bound state is quasi-stationary (@c true) or not (@c false)
 
 	std::vector<active> _exchangeMatrix; //!< Matrix of exchange coeffs for the linear inter-channel transport
-	std::vector<double> _crossSections; //!< Cross sections of the channels
+	std::vector<active> _crossSections; //!< Cross sections of the channels
 
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
 

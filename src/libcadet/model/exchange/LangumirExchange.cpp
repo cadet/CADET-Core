@@ -67,8 +67,24 @@ public:
 	{
 		_parameters.clear();
 		readParameterMatrix(_exchangeMatrix, paramProvider, "EXCHANGE_MATRIX", _nChannel * _nChannel * _nComp, 1); // include parameterPeaderHelp in exchange modul
-		_crossSections = paramProvider.getDoubleArray("CHANNEL_CROSS_SECTION_AREAS");
+		readScalarParameterOrArray(_crossSections, paramProvider,"CHANNEL_CROSS_SECTION_AREAS", 1);
 		readParameterMatrix(_saturationMatrix, paramProvider, "SATURATION_MATRIX", _nChannel * _nComp, 1);
+
+		registerParam3DArray(parameters, _exchangeMatrix, [=](bool multi, unsigned int channelSrc, unsigned int channelDest, unsigned comp)
+		{
+		return makeParamId(hashString("EXCHANGE_MATRIX"), unitOpIdx, multi ? comp : CompIndep, channelDest, channelSrc, ReactionIndep, SectionIndep);
+		}, _nComp, _nChannel); // particleType -> channelDest, BoundState -> channelSrc
+
+		registerParam1DArray(parameters, _crossSections, [=](bool multi, unsigned int channel)
+		{
+		return makeParamId(hashString("CHANNEL_CROSS_SECTION_AREAS"), unitOpIdx, CompIndep, channel, BoundStateIndep, ReactionIndep, SectionIndep); // particleType -> Channel
+		});
+
+		registerParam2DArray(parameters, _saturationMatrix, [=](bool multi, unsigned int channel, unsigned int comp)
+		{
+		return makeParamId(hashString("SATURATION_MATRIX"), unitOpIdx, multi ? comp : CompIndep, channel, BoundStateIndep, ReactionIndep, SectionIndep);
+		}, _nComp); // particleType -> channel
+
 
 		return true;
 	}
@@ -176,7 +192,7 @@ protected:
 	unsigned int _nCol; //!< Number of columns
 
 	std::vector<active> _exchangeMatrix; //!< Matrix of exchange coeffs for the langmuir inter-channel transport
-	std::vector<double> _crossSections; //!< Cross sections of the channels
+	std::vector<active> _crossSections; //!< Cross sections of the channels
 	std::vector<active> _saturationMatrix; //!< Capacity of the channels -> double  ncomp x nchannel
 	//parts::MultiChannelConvectionDispersionOperator _conDis; //!< Convection dispersion operator
 
