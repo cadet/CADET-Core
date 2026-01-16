@@ -396,7 +396,7 @@ inline bool caseInsensitiveEquals(const std::string& a, const std::string& b)
 	 * @param [in] len Length of the compiletime string
 	 * @return SipHash24 value of the given compiletime string
 	 */
-	constexpr StringHash operator "" _hash(const char* str, std::size_t len)
+	constexpr StringHash operator ""_hash(const char* str, std::size_t len)
 	{
 		return util::hash::ConstString(str, len).hash();
 	}
