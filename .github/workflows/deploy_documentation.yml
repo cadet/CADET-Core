@@ -17,3 +17,8 @@ jobs:
           token: ${{ secrets.DISPATCH_DOCS }}
           repository: cadet/CADET-Website
           event-type: build_docs
+          client-payload: |
+            {
+              "cadet_core_ref": "${{ github.ref_name }}",
+              "cadet_core_sha": "${{ github.sha }}"
+            }
