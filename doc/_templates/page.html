@@ -1,17 +1,135 @@
 {% extends "!page.html" %}
 {% block body %}
-{% if current_version and latest_version and current_version != latest_version %}
-<p>
-  <strong>
-    {% if current_version.is_released %}
-    You're reading an old version of this documentation.
-    For the latest released version, please have a look at <a href="{{ vpathto(latest_version.name) }}">{{latest_version.name}}</a>.
-    {% else %}
-    You're reading the documentation for a development version.
-    For the latest released version, please have a look at <a href="{{ vpathto(latest_version.name) }}">{{latest_version.name}}</a>.
+
+{# ----------------------------
+   Helpers: parse versions
+   ---------------------------- #}
+
+{% set ns = namespace(
+  latest_stable_name = none,
+  latest_stable_major = -1,
+  latest_stable_minor = -1,
+
+  latest_pre_name = none,
+  latest_pre_major = -1,
+  latest_pre_minor = -1,
+  latest_pre_patch = -1,
+  latest_pre_stage = -1,
+  latest_pre_num = -1
+) %}
+
+{# Find newest stable maintenance branch among versions.branches (<number>.<number>.X) #}
+{% if versions and versions.branches %}
+  {% for item in versions.branches %}
+    {% set bname = item.name %}
+    {% if bname and bname.endswith(".X") and bname != "master" %}
+      {% set core = bname[1:] if bname.startswith("v") else bname %}
+      {% set parts = core.split(".") %}
+      {% if parts|length == 3 and parts[2] == "X" %}
+        {% set maj = parts[0]|int %}
+        {% set min = parts[1]|int %}
+        {% if (maj > ns.latest_stable_major) or (maj == ns.latest_stable_major and min > ns.latest_stable_minor) %}
+          {% set ns.latest_stable_name = bname %}
+          {% set ns.latest_stable_major = maj %}
+          {% set ns.latest_stable_minor = min %}
+        {% endif %}
+      {% endif %}
     {% endif %}
-  </strong>
-</p>
+  {% endfor %}
 {% endif %}
+
+{# Find newest prerelease tag among versions.tags (v<number>.<number>.<number>-alpha.<number> / beta / rc) #}
+{% if versions and versions.tags %}
+  {% for item in versions.tags %}
+    {% set tname = item.name %}
+    {% if tname and ("-alpha." in tname or "-beta." in tname or "-rc." in tname) %}
+      {% set core = tname[1:] if tname.startswith("v") else tname %}
+      {% set base_and_pre = core.split("-", 1) %}
+      {% if base_and_pre|length == 2 %}
+        {% set base = base_and_pre[0] %}
+        {% set pre = base_and_pre[1] %}
+        {% set bparts = base.split(".") %}
+        {% if bparts|length == 3 %}
+          {% set maj = bparts[0]|int %}
+          {% set min = bparts[1]|int %}
+          {% set pat = bparts[2]|int %}
+
+          {% set pparts = pre.split(".") %}
+          {% if pparts|length == 2 %}
+            {% set stage = pparts[0] %}
+            {% set pnum = pparts[1]|int %}
+
+            {# stage rank: alpha < beta < rc #}
+            {% set stage_rank = 0 %}
+            {% if stage == "beta" %}{% set stage_rank = 1 %}{% endif %}
+            {% if stage == "rc" %}{% set stage_rank = 2 %}{% endif %}
+
+            {% if
+              (maj > ns.latest_pre_major) or
+              (maj == ns.latest_pre_major and min > ns.latest_pre_minor) or
+              (maj == ns.latest_pre_major and min == ns.latest_pre_minor and pat > ns.latest_pre_patch) or
+              (maj == ns.latest_pre_major and min == ns.latest_pre_minor and pat == ns.latest_pre_patch and stage_rank > ns.latest_pre_stage) or
+              (maj == ns.latest_pre_major and min == ns.latest_pre_minor and pat == ns.latest_pre_patch and stage_rank == ns.latest_pre_stage and pnum > ns.latest_pre_num)
+            %}
+              {% set ns.latest_pre_name = tname %}
+              {% set ns.latest_pre_major = maj %}
+              {% set ns.latest_pre_minor = min %}
+              {% set ns.latest_pre_patch = pat %}
+              {% set ns.latest_pre_stage = stage_rank %}
+              {% set ns.latest_pre_num = pnum %}
+            {% endif %}
+          {% endif %}
+        {% endif %}
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
+
+{# ----------------------------
+   Current page classification
+   ---------------------------- #}
+
+{% set name = current_version.name if current_version else "" %}
+{% set is_dev = (name == "master") %}
+{% set is_prerelease = ("-alpha." in name) or ("-beta." in name) or ("-rc." in name) %}
+{% set is_stable_branch = (name.endswith(".X") and (not is_dev) and (not is_prerelease)) %}
+
+{# Fallback if no stable branch detected in versions.branches #}
+{% set latest_stable = ns.latest_stable_name if ns.latest_stable_name else "v5.1.X" %}
+
+{# ----------------------------
+   Banner output
+   ---------------------------- #}
+
+{% if is_dev %}
+<p><strong>
+  You're reading the documentation for a development version.
+  {% if latest_stable %}
+    For the latest stable documentation, please have a look at <a href="{{ vpathto(latest_stable) }}">{{ latest_stable }}</a>.
+  {% endif %}
+  {% if ns.latest_pre_name %}
+    For the latest pre-release documentation, please have a look at <a href="{{ vpathto(ns.latest_pre_name) }}">{{ ns.latest_pre_name }}</a>.
+  {% endif %}
+</strong></p>
+
+{% elif is_stable_branch %}
+<p><strong>
+  You're reading stable documentation.
+  For the development documentation, please have a look at <a href="{{ vpathto("master") }}">master</a>.
+  {% if ns.latest_pre_name %}
+    For the latest pre-release documentation, please have a look at <a href="{{ vpathto(ns.latest_pre_name) }}">{{ ns.latest_pre_name }}</a>.
+  {% endif %}
+</strong></p>
+
+{% elif is_prerelease %}
+<p><strong>
+  You're reading the documentation for pre-release ({{ name }}).
+  {% if latest_stable %}
+    For the latest stable documentation, please have a look at <a href="{{ vpathto(latest_stable) }}">{{ latest_stable }}</a>.
+  {% endif %}
+  For the development documentation, please have a look at <a href="{{ vpathto("master") }}">master</a>.
+</strong></p>
+{% endif %}
+
 {{ super() }}
-{% endblock %}%
+{% endblock %}
