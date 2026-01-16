@@ -767,7 +767,7 @@ namespace cadet
 
 			if (!paramFound)
 			{
-				LOG(Warning) << "Warning: Unkown parameter " << ids[i] << " in parameter join was ignored";
+				throw InvalidParameterException("Error: Unkown parameter " + to_string(ids[i]) + " does not exist.");
 			}
 		}
 
