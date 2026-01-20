@@ -1,0 +1,157 @@
+name: wheels
+
+on:
+  pull_request:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref (branch, tag, or SHA) to build"
+        required: true
+        default: "publish_on_pypi_test"
+
+env:
+  CACHE_VERSION: v5
+
+  VCPKG_ROOT: C:\vcpkg
+  VCPKG_TARGET_TRIPLET: x64-windows
+  VCPKG_DEFAULT_BINARY_CACHE: C:\vcpkg_binary_cache
+
+  CIBW_BEFORE_ALL_LINUX: "bash python/dependencies/build_deps_linux.sh"
+  CIBW_BEFORE_ALL_MACOS: "bash python/dependencies/build_deps_macos.sh"
+  CIBW_BEFORE_ALL_WINDOWS: "powershell -NoProfile -ExecutionPolicy Bypass -File python\\dependencies\\build_deps_windows.ps1"
+
+  CIBW_ARCHS_LINUX: "x86_64"
+  CIBW_ARCHS_WINDOWS: "AMD64"
+  CIBW_SKIP: "*-win32 *-musllinux_* *-manylinux_i686 *-manylinux2014_i686"
+  CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
+
+  CIBW_ENVIRONMENT_LINUX: >
+    CMAKE_PREFIX_PATH=/opt/cadet_deps
+    PKG_CONFIG_PATH=/opt/cadet_deps/lib/pkgconfig:/opt/cadet_deps/lib64/pkgconfig
+    LD_LIBRARY_PATH=/opt/cadet_deps/lib:/opt/cadet_deps/lib64
+
+  CIBW_ENVIRONMENT_MACOS: >
+    MACOSX_DEPLOYMENT_TARGET=15.0
+    CMAKE_PREFIX_PATH="/opt/homebrew;/usr/local"
+    Eigen3_DIR="/opt/homebrew/opt/eigen@3/share/eigen3/cmake"
+
+  CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "python -m pip install -U delvewheel && python -m delvewheel repair --analyze-existing-exes --ignore-existing --add-path \"%GITHUB_WORKSPACE%\\vcpkg_installed\\x64-windows\\bin\" -w \"{dest_dir}\" \"{wheel}\" && set \"CIBW_DEST_DIR={dest_dir}\" && python \"%GITHUB_WORKSPACE%\\python\\dependencies\\post_repair_windows.py\""
+
+  CIBW_CONFIG_SETTINGS_LINUX: "cmake.args=-DCADET_WHEEL:BOOL=ON"
+  CIBW_CONFIG_SETTINGS_MACOS: "cmake.args=-DCMAKE_PREFIX_PATH:STRING=/opt/homebrew;-DCADET_WHEEL:BOOL=ON"
+  CIBW_CONFIG_SETTINGS_WINDOWS: "cmake.args=-DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake;-DVCPKG_TARGET_TRIPLET=x64-windows;-DENABLE_STATIC_LINK_DEPS=ON;-DENABLE_STATIC_LINK_LAPACK=ON;-DCADET_WHEEL:BOOL=ON"
+
+
+
+jobs:
+  build-wheels:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || 'publish_on_pypi_test' }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Restore caches
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/cibuildwheel
+            .ci_cache/cadet_deps_linux
+            ~/Library/Caches/Homebrew
+            vcpkg_installed
+            C:\vcpkg\downloads
+            C:\vcpkg\buildtrees
+            C:\vcpkg\packages
+            C:\vcpkg_binary_cache
+            D:\vcpkg\downloads
+            D:\vcpkg\buildtrees
+            D:\vcpkg\packages
+            D:\vcpkg_binary_cache
+          key: >
+            cadet-${{ env.CACHE_VERSION }}-${{ runner.os }}-
+            deps-${{ hashFiles('python/dependencies/build_deps_linux.sh', 'python/dependencies/build_deps_macos.sh', 'python/dependencies/build_deps_windows.ps1') }}-
+            vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          restore-keys: |
+            cadet-${{ env.CACHE_VERSION }}-${{ runner.os }}-
+
+                  cadet-${{ env.CACHE_VERSION }}-${{ runner.os }}-
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v3.0.0
+        env:
+          CIBW_BUILD: "cp312-* cp313-* cp314-*"
+          CIBW_ENABLE: cpython-prerelease
+          CIBW_BUILD_VERBOSITY: "3"
+          CIBW_TEST_COMMAND: >
+            python -m cadet_core._ci.inspect_wheel
+            && python -m cadet_core._ci.smoke_cadet
+
+      - name: Save caches
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/cibuildwheel
+            .ci_cache/cadet_deps_linux
+            ~/Library/Caches/Homebrew
+            vcpkg_installed
+            C:\vcpkg\downloads
+            C:\vcpkg\buildtrees
+            C:\vcpkg\packages
+            C:\vcpkg_binary_cache
+            D:\vcpkg\downloads
+            D:\vcpkg\buildtrees
+            D:\vcpkg\packages
+            D:\vcpkg_binary_cache
+          key: >
+            cadet-${{ env.CACHE_VERSION }}-${{ runner.os }}-
+            deps-${{ hashFiles('python/dependencies/build_deps_linux.sh', 'python/dependencies/build_deps_macos.sh', 'python/dependencies/build_deps_windows.ps1') }}-
+            vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+
+      - name: Dependency report (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python -m pip install -U delvewheel
+          python -m delvewheel show (Get-ChildItem wheelhouse\*.whl | Select-Object -Last 1)
+
+      - name: Inspect final wheel (all OS)
+        if: always()
+        shell: bash
+        run: |
+          WHEEL="$(python -c "import glob,os; ws=glob.glob('wheelhouse/*.whl'); assert ws, 'no wheels in wheelhouse/'; ws=sorted(ws, key=os.path.getmtime); print(ws[-1])")"
+          echo "Inspecting: $WHEEL"
+          python python/cadet_core/_ci/inspect_wheel.py "$WHEEL"
+
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+
+            # TestPyPI upload (manual or on main)
+      - name: Upload to TestPyPI
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        run: |
+          python -m pip install -U twine
+          python -m twine upload --verbose --repository-url https://test.pypi.org/legacy/ wheelhouse/*
+        continue-on-error: true
+
