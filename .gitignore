@@ -90,3 +90,4 @@ build_DEBUG
 build_DEBUG_with_Tests
 install
 vcpkg_installed
+dist
