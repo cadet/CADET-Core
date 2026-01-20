@@ -322,6 +322,11 @@ install(CODE "MESSAGE(\"\nInstall LIBCADET\n\")")
 install(TARGETS ${LIBCADET_TARGETS} EXPORT libcadet-targets)
 install(FILES ${CMAKE_BINARY_DIR}/cadet/cadetCompilerInfo.hpp DESTINATION include/cadet)
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/cadet DESTINATION include)
+install(TARGETS libcadet_shared
+  RUNTIME DESTINATION cadet_core/.libs
+  LIBRARY DESTINATION cadet_core/.libs
+  ARCHIVE DESTINATION cadet_core/.libs
+)
 #install(EXPORT libcadet-targets DESTINATION lib NAMESPACE "CADET::" FILE CADET.cmake)
 
 # ---------------------------------------------------

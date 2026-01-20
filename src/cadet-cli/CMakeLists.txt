@@ -22,6 +22,8 @@ add_executable(cadet-cli
 	${CMAKE_SOURCE_DIR}/src/cadet-cli/SignalHandler.cpp
 )
 
+set_target_properties(cadet-cli PROPERTIES OUTPUT_NAME cadet)
+
 # ---------------------------------------------------
 #   Linking to LIBCADET and add dependencies
 # ---------------------------------------------------
@@ -61,6 +63,9 @@ endif()
 # Install the cadet-cli executable
 install(CODE "MESSAGE(\"\nInstall CADET-CLI\n\")")
 install(TARGETS cadet-cli RUNTIME)
+install(TARGETS cadet-cli
+  RUNTIME DESTINATION cadet_core/bin
+)
 
 # ---------------------------------------------------
 
