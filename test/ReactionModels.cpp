@@ -252,3 +252,14 @@ TEST_CASE("MassActionLaw one reaction vs. two separate reactions", "[MassActionL
 	cadet::test::column::DummyParams disc;
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
+
+TEST_CASE("ASM3 simulation with adsorption component vs ASM3 without adsorption component", "[CSTR],[ASM3],[ReactionModel],[Simulation],[Reference],[CI]")
+{
+	const std::string& configFilePath1 = std::string("/data/configuration_CSTR_ASM3_without_ad.json");
+	const std::string& configFilePath2 = std::string("/data/configuration_CSTR_ASM3_with_ad.json");
+
+	const double absTol = 1e-3;
+	const double relTol = 5e-4;
+
+	cadet::test::reaction::testCompareTwoSimulationReaction(configFilePath1, configFilePath2, absTol, relTol,1, 14);
+}

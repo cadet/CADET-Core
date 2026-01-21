@@ -574,6 +574,42 @@ namespace reaction
 		}
 	}
 
+	void testCompareTwoSimulationReaction(const std::string configFilePath1, const std::string configFilePath2, const double absTol, const double relTol, const int compIdx1, const int compIdx2)
+	{
+		// read json model setup file
+		const std::string setupFile1 = std::string(getTestDirectory()) + configFilePath1;
+		const std::string setupFile2 = std::string(getTestDirectory()) + configFilePath2;
+		JsonParameterProvider pp_setup_1(JsonParameterProvider::fromFile(setupFile1));
+		JsonParameterProvider pp_setup_2(JsonParameterProvider::fromFile(setupFile2));
+
+		nlohmann::json* setupJson1 = pp_setup_1.data();
+		nlohmann::json* setupJson2 = pp_setup_2.data();
+
+		// 1. simulation
+		cadet::Driver drv1;
+		drv1.configure(pp_setup_1);
+		drv1.run();
+
+		// 2. simulation
+		cadet::Driver drv2;
+		drv2.configure(pp_setup_2);
+		drv2.run();
+
+		cadet::InternalStorageUnitOpRecorder const* const Data1 = drv1.solution()->unitOperation(0);
+		cadet::InternalStorageUnitOpRecorder const* const Data2 = drv2.solution()->unitOperation(0);
+
+		double const* outlet1 = Data1->outlet();
+		double const* outlet2 = Data2->outlet();
+
+		const unsigned int nComp1 = Data1->numComponents();
+		const unsigned int nComp2 = Data2->numComponents();
+		for (unsigned int i = 0; i < Data2->numDataPoints(); ++i, outlet1 += nComp1, outlet2 += nComp2)
+		{
+			CAPTURE(i);
+			CHECK((outlet1[compIdx1]) == cadet::test::makeApprox(outlet2[compIdx2], relTol, absTol));
+		}
+	}
+
 } // namespace reaction
 } // namespace test
 } // namespace cadet
