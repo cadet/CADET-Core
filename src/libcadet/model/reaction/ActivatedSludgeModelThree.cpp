@@ -271,13 +271,14 @@ protected:
 		}
 		
 
-		_stoichiometry.resize(_nComp, 15); // option to optimize: Depending on whether adsorbed components are used or not 13/12 or 15 reactions are needed
+		_stoichiometry.resize(15, 15); // option to optimize: Depending on whether adsorbed components are used or not 13/12 or 15 reactions are needed
 		_stoichiometry.setAll(0);
 
 		// parameter set ASM3h
 		const double iNSI = paramProvider.getDouble("ASM3_INSI");
 		const double iNSS = paramProvider.getDouble("ASM3_INSS");
 		const double iNXI = paramProvider.getDouble("ASM3_INXI");
+
 		const double iNXS = paramProvider.getDouble("ASM3_INXS");
 		const double iNBM = paramProvider.getDouble("ASM3_INBM");
 
@@ -344,6 +345,8 @@ protected:
 		_stoichiometry.native(_idxSO, 7) = -1;
 		_stoichiometry.native(_idxSO, 9) = -(64.0 / 14.0) * 1 / YA + 1;
 		_stoichiometry.native(_idxSO, 10) = -1 * (1 - fXI);
+		_stoichiometry.native(_idxSO, 13) = YSTO_aer - 1;
+
 		
 		if (_activeAeration)
 			_stoichiometry.native(_idxSO, 12) = 1;
@@ -357,12 +360,10 @@ protected:
 		_stoichiometry.native(_idxSS, 2) = -1;
 
 		// SS_ad
-		if(_givenAd)
-		{
-			_stoichiometry.native(_idxSS_ad, 0) = (1 - fSI) * fSS_ad;
-			_stoichiometry.native(_idxSS_ad, 13) = -1;
-			_stoichiometry.native(_idxSS_ad, 14) = -1;
-		}
+		_stoichiometry.native(_idxSS_ad, 0) = (1 - fSI) * fSS_ad;
+		_stoichiometry.native(_idxSS_ad, 13) = -1;
+		_stoichiometry.native(_idxSS_ad, 14) = -1;
+
 
 		// SNH
 		_stoichiometry.native(_idxSNH, 0) = c1n;
@@ -375,6 +376,8 @@ protected:
 		_stoichiometry.native(_idxSNH, 9) = c10n;
 		_stoichiometry.native(_idxSNH, 10) = c11n;
 		_stoichiometry.native(_idxSNH, 11) = c12n;
+		_stoichiometry.native(_idxSNH, 13) = c2n;
+		_stoichiometry.native(_idxSNH, 14) = c3n;
 
 		// SNO
 		_stoichiometry.native(_idxSNO, 2) = c3no;
@@ -383,6 +386,8 @@ protected:
 		_stoichiometry.native(_idxSNO, 8) = c9no;
 		_stoichiometry.native(_idxSNO, 9) = c10no;
 		_stoichiometry.native(_idxSNO, 11) = c12no;
+		_stoichiometry.native(_idxSNO, 14) = c3no;
+
 
 		// SN2
 		_stoichiometry.native(_idxSN2, 2) = -c3no;
@@ -390,6 +395,9 @@ protected:
 		_stoichiometry.native(_idxSN2, 6) = -c7no;
 		_stoichiometry.native(_idxSN2, 8) = -c9no;
 		_stoichiometry.native(_idxSN2, 11) = -c12no;
+		_stoichiometry.native(_idxSN2, 14) = -c3no;
+
+
 
 		// SALK
 		_stoichiometry.native(_idxSALK, 0) = c1a;
@@ -403,13 +411,14 @@ protected:
 		_stoichiometry.native(_idxSALK, 9) = c10a;
 		_stoichiometry.native(_idxSALK, 10) = c11a;
 		_stoichiometry.native(_idxSALK, 11) = c12a;
+		_stoichiometry.native(_idxSALK, 12) = c2a;
+		_stoichiometry.native(_idxSALK, 13) = c3a;
 
 		// SI
 		_stoichiometry.native(_idxSI, 0) = fSI * (1 - fSI_ad);
 
 		//SI_ad
-		if(_givenAd)
-			_stoichiometry.native(_idxSI_ad, 0) = fSI * fSI_ad;
+		_stoichiometry.native(_idxSI_ad, 0) = fSI * fSI_ad;
 
 		// XI
 		_stoichiometry.native(_idxXI, 5) = fXI;
@@ -426,6 +435,7 @@ protected:
 		_stoichiometry.native(_idxXH, 5) = -1;
 		_stoichiometry.native(_idxXH, 6) = -1;
 
+
 		// XSTO
 		_stoichiometry.native(_idxXSTO, 1) = YSTO_aer;
 		_stoichiometry.native(_idxXSTO, 2) = YSTO_anox;
@@ -433,6 +443,8 @@ protected:
 		_stoichiometry.native(_idxXSTO, 4) = -1 / YH_anox;
 		_stoichiometry.native(_idxXSTO, 7) = -1;
 		_stoichiometry.native(_idxXSTO, 8) = -1;
+		_stoichiometry.native(_idxXSTO, 13) = YSTO_aer;
+		_stoichiometry.native(_idxXSTO, 14) = YSTO_anox;
 
 		// XA
 		_stoichiometry.native(_idxXA, 9) = 1;
@@ -676,32 +688,32 @@ protected:
 			d[0][_idxXH] = 0.0;
 		}
 
-		// p2: Aerobic storage of SS: k_sto * SO / (SO + kho2) * ( SS_ad + SS ) / ( ( SS_ad + SS ) + khss )  * XH;
+		// p2: Aerobic storage of SS: k_sto * SO / (SO + kho2) * ( SS ) / ( ( SS_ad + SS ) + khss )  * XH;
 		d[1][_idxSO] = k_sto
 			* (SS_ad + SS) / ((SS_ad + SS) + khss)
 			* kho2 / ((SO + kho2) * (SO + kho2)) * XH;
 		d[1][_idxSS_ad] = k_sto
 				* SO / (SO + kho2)
-				* khss / ((SS_ad + SS + khss) * (SS_ad + SS + khss)) * XH;
+				* -SS / ((SS_ad + SS + khss) * (SS_ad + SS + khss)) * XH;
 		d[1][_idxSS] = k_sto
 			* SO / (SO + kho2)
-			* khss / ((SS_ad + SS + khss) * (SS_ad + SS + khss)) * XH;
+			* (khss + SS_ad) / ((SS_ad + SS + khss) * (SS_ad + SS + khss)) * XH;
 		d[1][_idxXH] = k_sto
 			* SO / (SO + kho2)
 			* (SS_ad + SS) / ((SS_ad + SS) + khss);
 
-		// p3: Anoxic storage of SS: k_sto * etahno3 * kho2 / (SO + kho2) * ( SS_ad + SS ) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khn03) * XH;
+		// p3: Anoxic storage of SS: k_sto * etahno3 * kho2 / (SO + kho2) * ( SS ) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khn03) * XH;
 		d[2][_idxSO] = k_sto * etahno3
 			* -kho2 / ((SO + kho2) * (SO + kho2))
 			* (SS_ad + SS) / (SS_ad + SS + khss)
 			* SNO / (SNO + khn03) * XH;
 		d[2][_idxSS_ad] = k_sto * etahno3
 				* kho2 / (SO + kho2)
-				* khss / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
+				* -SS / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
 				* SNO / (SNO + khn03) * XH;
 		d[2][_idxSS] = k_sto * etahno3
 			* kho2 / (SO + kho2)
-			* khss / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
+			* (khss + SS_ad)  / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
 			* SNO / (SNO + khn03) * XH;
 		d[2][_idxSNO] = k_sto * etahno3
 			* kho2 / (SO + kho2)
@@ -918,9 +930,9 @@ protected:
 		d[13][_idxSS_ad] = k_sto
 				* SO / (SO + kho2)
 				* (khss * SS) / ((SS_ad + SS + khss) * (SS_ad + SS + khss)) * XH;
-		d[13][_idxSS] = - k_sto
+		d[13][_idxSS] = k_sto
 			* SO / (SO + kho2)
-			* (khss * SS_ad) / ((SS_ad + SS + khss) * (SS_ad + SS + khss)) * XH;
+			* (-SS_ad) / ((SS_ad + SS + khss) * (SS_ad + SS + khss)) * XH;
 		d[13][_idxXH] = k_sto
 			* SO / (SO + kho2)
 			* (SS_ad) / ((SS_ad + SS) + khss);
@@ -934,9 +946,9 @@ protected:
 				* kho2 / (SO + kho2)
 				* (khss * SS) / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
 				* SNO / (SNO + khn03) * XH;
-		d[14][_idxSS] = - k_sto * etahno3
+		d[14][_idxSS] = k_sto * etahno3
 			* kho2 / (SO + kho2)
-			* (khss) / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
+			* (-SS_ad) / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
 			* SNO / (SNO + khn03) * XH;
 		d[14][_idxSNO] = k_sto * etahno3
 			* kho2 / (SO + kho2)
