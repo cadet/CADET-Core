@@ -205,6 +205,17 @@ namespace reaction
 	 */
 	void testTimeDerivativeJacobianDynamicReactionsFD(const std::string& uoType, const std::string& spatialMethod, bool bulk, bool particle, bool particleModifiers, double h, double absTol, double relTol);
 
+	/**
+	 * @brief Compares two simulations (1 and 2) wrt specific components
+	 * @param [in] configFilePathMM relative file path to 1. configuration file
+	 * @param [in] configFilePathSMA relative file path to 2. configuration file
+	 * @param [in] absTol Absolute error tolerance
+	 * @param [in] relTol Relative error tolerance
+	 * @param [in] comIdx compare index component
+	 */
+	void testCompareTwoSimulationReaction(const std::string configFilePath1, const std::string configFilePath2, const double absTol, const double relTol, const int compIdx1, const int compIdx2);
+
+
 } // namespace reaction
 } // namespace test
 } // namespace cadet
