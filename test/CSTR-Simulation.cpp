@@ -223,7 +223,7 @@ TEST_CASE("CSTR vs analytic solution (V constant) with quasi-stationary linear b
 	cadet::test::setFlowRates(jpp, 0, 0.1, 0.1, 0.0);
 	cadet::test::addLinearBindingModel(jpp, false, {0.1}, {10.0});
 
-	const double sqrt2501 = std::sqrt(2501.0);
+//	const double sqrt2501 = std::sqrt(2501.0);
 	runSim(jpp, [=](double t) {  
 			return -std::expm1(-10.0 / 101.0 * t);
 		}, 

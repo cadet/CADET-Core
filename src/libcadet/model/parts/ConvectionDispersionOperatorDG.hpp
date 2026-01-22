@@ -336,7 +336,7 @@ namespace cadet
 				 */
 				Eigen::MatrixXd DGjacobianDispBlock(unsigned int elementIdx)
 				{
-					int offC = 0; // inlet DOFs not included in Jacobian
+//					int offC = 0; // inlet DOFs not included in Jacobian
 
 					Eigen::MatrixXd dispBlock;
 
