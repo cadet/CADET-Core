@@ -413,7 +413,7 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 			if (paramProvider.exists("NREAC_SOLID"))
 				dynReactionConfSuccess = _reacParticle[par]->configure("solid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
-				paramProvider.popScope(); // particle_type_xxx
+			paramProvider.popScope(); // particle_type_xxx
 		}
 	}
 
