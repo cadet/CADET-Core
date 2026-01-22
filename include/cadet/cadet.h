@@ -1006,6 +1006,12 @@ extern "C"
 		 */
 		cdtResult (*getTimeSim)(cdtDriver* drv, double* timeSim);
 
+		
+		cdtResult (*initializeSimulation)(cdtDriver* drv, cdtParameterProvider const* paramProvider);
+		cdtResult (*setState)(cdtDriver* drv, double* state, int nStates);
+		cdtResult (*setUnitState)(cdtDriver* drv, int unitOpId, double const* state, int nStates);
+		cdtResult (*performSimulationStep)(cdtDriver* drv, double tEnd, double* tReached);
+
 	} cdtAPIv010000;
 
 	/**

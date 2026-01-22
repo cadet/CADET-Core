@@ -1056,8 +1056,92 @@ namespace v1
 		
 		cdtOK;
 	}
+
+	cdtResult setState(cdtDriver* drv, double* state, int nStates)
+	{
+		Driver* const realDrv = drv->driver;
+		if(!realDrv)
+			return cdtErrorInvalidInputs;
+		if(!state)
+			return cdtErrorInvalidInputs;
+
+		cadet::ISimulator* const sim = realDrv->simulator();
+		if(!sim)
+		{
+       		LOG(Error) << "C-API: Simulator not initialized. Call initializeSimulation() first.";
+        	return cdtError;
+		}
+		try
+		{
+			unsigned int len = 0;
+			double* simState = const_cast<double*>(sim->getLastSolution(len));
+
+			if(static_cast<int>(len) != nStates)
+			{
+				LOG(Error) << "C-API: State size mismatch: expected " << len << ", got " << nStates;
+            	return cdtErrorInvalidInputs;
+			}
+			LOG(Debug) << "C-API: Set full system state(" << nStates << " values)";
+
+		}
+		catch(const std::exception& e)
+		{
+			LOG(Error) << "C-API: Setting state failed: " << e.what();
+			return cdtError;
+		}
+
+		return cdtOK;
+
+	}
+
+
+	cdtResult setUnitState(cdtDriver* drv, int unitOpId, double const* state, int nStates)
+	{
+		Driver* const realDrv = drv->driver;
+		if(!realDrv)
+			return cdtErrorInvalidInputs;
+		if(!state)
+			return cdtErrorInvalidInputs;
+
+		cadet::ISimulator* const sim = realDrv->simulator();
+		if(!sim)
+		{
+       		LOG(Error) << "C-API: Simulator not initialized. Call initializeSimulation() first.";
+        	return cdtError;
+		}
+		try
+		{
+			unsigned int slicesStart;
+			unsigned int slicesEnd;
+
+			std::tie(slicesStart,slicesEnd) = sim->model()->getModelStateOffsets(unitOpId);
+
+			const unsigned int unitStateSize = slicesEnd - slicesEnd;
+			if (static_cast<int>(unitStateSize) != nStates)
+			{
+				LOG(Error) << "C-API: Unit state size mismatch for unit " << unitOpId 
+						<< ": expected " << unitStateSize << ", got " << nStates;
+				return cdtErrorInvalidInputs;
+			}
+			unsigned int len = 0;
+			double* simState = const_cast<double*>(sim->getLastSolution(len));
+			//todo sim->reinitialize()
+			//todo update _ystateDot
+
+			std::copy(state, state + nStates, simState + slicesStart);
+
+			LOG(Debug) << "C-API: Set state for unit " << unitOpId 
+            << " (" << nStates << " values at offset " << slicesStart << ")";
+
+		}
+		catch(const std::exception& e)
+		{
+        LOG(Error) << "C-API: Setting unit state failed: " << e.what();
+        return cdtError;
+		}
+	}
 	
-	cdtResult stepSimulation(cdtDriver* drv, double tEnd, double* tReached)
+	cdtResult performSimulationStep(cdtDriver* drv, double tEnd, double* tReached)
 	{
 		Driver* const realDrv = drv->driver;
 		
@@ -1065,7 +1149,7 @@ namespace v1
 			return cdtErrorInvalidInputs;
 		
 		cadet::ISimulator* const sim = realDrv->simulator();
-		
+
 		if(!sim)
 		{
 			LOG(Error)<< "C-API: Failed to create simulator during initalisation";
@@ -1102,6 +1186,7 @@ namespace v1
 		return cdtOK;
 		
 	}
+
 
 }  // namespace v1
 
@@ -1176,6 +1261,11 @@ extern "C"
 		ptr->getSolutionTimes = &cadet::api::v1::getSolutionTimes;
 
 		ptr->getTimeSim = &cadet::api::v1::getTimeSim;
+
+		ptr->initializeSimulation = &cadet::api::v1::initializeSimulation;
+		ptr->setState = &cadet::api::v1::setState;
+		ptr->setUnitState = &cadet::api::v1::setUnitState;
+		ptr->performSimulationStep = &cadet::api::v1::performSimulationStep;
 
 		return cdtOK;
 	}
