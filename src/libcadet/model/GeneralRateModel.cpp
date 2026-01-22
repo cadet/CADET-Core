@@ -901,10 +901,10 @@ unsigned int GeneralRateModel<ConvDispOperator>::threadLocalMemorySize() const C
 		if (_binding[i] && _binding[i]->requiresWorkspace())
 			lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
 
-			// Reactions in particle
-			_reacParticle[i]->setWorkspaceRequirements("cross_phase",  _disc.nComp, _disc.strideBound[i], lms);
-			_reacParticle[i]->setWorkspaceRequirements("liquid", _disc.nComp, _disc.strideBound[i], lms);
-			_reacParticle[i]->setWorkspaceRequirements("solid",  _disc.nComp, _disc.strideBound[i], lms);
+		// Reactions in particle
+		_reacParticle[i]->setWorkspaceRequirements("cross_phase",  _disc.nComp, _disc.strideBound[i], lms);
+		_reacParticle[i]->setWorkspaceRequirements("liquid", _disc.nComp, _disc.strideBound[i], lms);
+		_reacParticle[i]->setWorkspaceRequirements("solid",  _disc.nComp, _disc.strideBound[i], lms);
 	}
 	// Reactions in liquid bulk
 	_reaction.setWorkspaceRequirements("liquid", _disc.nComp, 0, lms);
