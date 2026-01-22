@@ -802,7 +802,8 @@ bool GeneralRateModel2D::configure(IParameterProvider& paramProvider)
 		bool parDiffParTypeDep = paramProvider.exists("PORE_DIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getInt("PORE_DIFFUSION_PARTYPE_DEPENDENT") : true;
 		if (parType > 0)
 			tmpMode = _parDiffusionMode;
-			_parDiffusionMode = readAndRegisterMultiplexCompSecParam(paramProvider, _parameters, _parDiffusion, "PORE_DIFFUSION", _disc.nComp, parType, parDiffParTypeDep, _unitOpIdx, _parDiffusion.size());
+
+		_parDiffusionMode = readAndRegisterMultiplexCompSecParam(paramProvider, _parameters, _parDiffusion, "PORE_DIFFUSION", _disc.nComp, parType, parDiffParTypeDep, _unitOpIdx, _parDiffusion.size());
 		if (parType > 0 && tmpMode != _parDiffusionMode)
 			throw InvalidParameterException("Inconsistent pore diffusion multiplex mode accross particle types " + std::to_string(parType - 1) + " and " + std::to_string(parType));
 
