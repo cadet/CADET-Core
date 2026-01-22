@@ -174,7 +174,7 @@ class CADET_API ISimulator
 {
 public:
 
-	virtual ~ISimulator() CADET_NOEXCEPT { }
+	virtual ~ISimulator() CADET_NOEXCEPT;
 
 	//! \brief Sets a parameter sensitive
 	//!
@@ -726,6 +726,23 @@ public:
 	 * @param[in] nc Object to receive notifications or @c nullptr to disable notifications
 	 */
 	virtual void setNotificationCallback(INotificationCallback* nc) CADET_NOEXCEPT = 0;
+
+	virtual void  prepareIntegrator() = 0;
+
+	/**
+     * @brief Performs one integration step until target time
+     * @details Integrates the system from its current state until @p tEnd. This allows
+     *          for step-by-step execution of simulations. The simulator must be initialized
+     *          before calling this method (via initializeModel() and applyInitialCondition()).
+     *          
+     *          Note: This does not perform consistent initialization or section transitions.
+     *          Use integrate() for full simulation with automatic section handling.
+     * 
+     * @param [in] tEnd Target time for this integration step
+     * @param [out] tReached Actually reached time (may differ from tEnd due to solver constraints)
+     * @return @c 0 on success, negative error code otherwise
+     */
+    virtual int integrateStep(double tEnd, double& tReached) = 0;
 };
 
 } // namespace cadet

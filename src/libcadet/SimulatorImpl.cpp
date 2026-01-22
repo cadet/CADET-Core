@@ -169,6 +169,10 @@ namespace
 
 namespace cadet
 {
+    ISimulator::~ISimulator() CADET_NOEXCEPT
+    {
+    }
+
 	namespace log
 	{
 		inline std::ostream& operator<<(std::ostream& os, const N_Vector& nv)
@@ -1750,5 +1754,143 @@ namespace cadet
 	{
 		_notification = nc;
 	}
+	
+	
+	void Simulator::prepareIntegrator()
+	{
 
+#ifdef CADET_PARALLELIZE
+	#ifdef CADET_TBB_GLOBALCTRL
+		tbb::global_control tbbGlobalControl(tbb::global_control::max_allowed_parallelism, (_nThreads > 0) ? _nThreads : tbb::this_task_arena::max_concurrency());
+	#else
+		tbb::task_scheduler_init init(tbb::task_scheduler_init::deferred);
+		if (_nThreads > 0)
+			init.initialize(_nThreads);
+		else
+			init.initialize(tbb::task_scheduler_init::default_num_threads());
+	#endif
+		_model->setupParallelization(tbb::this_task_arena::max_concurrency());
+#else
+		_model->setupParallelization(1);
+#endif
+
+		// Set number of threads in SUNDIALS OpenMP-enabled implementation
+#ifdef CADET_SUNDIALS_OPENMP
+		if (_vecStateY)
+			NVec_SetThreads(_vecStateY, _nThreads);
+		if (_vecStateYdot)
+			NVec_SetThreads(_vecStateYdot, _nThreads);
+
+		for (unsigned int i = 0; i < _sensitiveParams.slices(); ++i)
+		{
+			NVec_SetThreads(_vecFwdYs[i], _nThreads);
+			NVec_SetThreads(_vecFwdYsDot[i], _nThreads);
+		}
+#endif
+
+		// Set number of AD directions
+		// @todo This is problematic if multiple Simulators are run concurrently!
+#if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
+		LOG(Debug) << "Setting AD directions from " << ad::getDirections() << " to " << numSensitivityAdDirections() + _model->requiredADdirs();
+		if (numSensitivityAdDirections() + _model->requiredADdirs() > ad::getMaxDirections())
+			throw InvalidParameterException("Requested " + std::to_string(numSensitivityAdDirections() + _model->requiredADdirs()) + " AD directions, but only "
+				+ std::to_string(ad::getMaxDirections()) + " are supported");
+
+		ad::setDirections(numSensitivityAdDirections() + _model->requiredADdirs());
+#endif
+
+		// Setup AD vectors by model
+		_model->prepareADvectors(AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()});
+
+		if (_solRecorder)
+		{
+			_solRecorder->notifyIntegrationStart(NVEC_LENGTH(_vecStateY), _sensitiveParams.slices(), _solutionTimes.size());
+			_model->reportSolutionStructure(*_solRecorder);
+		}
+
+
+		double startTime = static_cast<double>(_sectionTimes[0]);
+		_curSec = 0;
+
+		// Update Jacobian
+		_model->notifyDiscontinuousSectionTransition(startTime, _curSec, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()});
+
+
+		// Compute consistent initial values
+		LOG(Debug) << "---====--- CONSISTENCY ---====--- ";
+		const double consPrev = _model->residualNorm(SimulationTime{startTime, _curSec}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
+		LOG(Debug) << " ==========> Consistency error prev: " << consPrev;
+
+		const bool wantSensitivities = _sensitiveParams.slices() > 0;
+		if (wantSensitivities && !_skipConsistencySensitivity && 
+			(_consistentInitModeSens != ConsistentInitialization::None))
+		{
+			const ConsistentInitialization mode = currentConsistentInitMode(_consistentInitModeSens, 0);
+			
+			if (mode == ConsistentInitialization::Full)
+			{
+				std::vector<double*> sensY = convertNVectorToStdVectorPtrs<double*>(_vecFwdYs, _sensitiveParams.slices());
+				std::vector<double*> sensYdot = convertNVectorToStdVectorPtrs<double*>(_vecFwdYsDot, _sensitiveParams.slices());
+				_model->consistentInitialSensitivity(SimulationTime{startTime, 0}, 
+					ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, 
+					sensY, sensYdot, _vecADres, _vecADy);
+			}
+			else if (mode == ConsistentInitialization::Lean)
+			{
+				std::vector<double*> sensY = convertNVectorToStdVectorPtrs<double*>(_vecFwdYs, _sensitiveParams.slices());
+				std::vector<double*> sensYdot = convertNVectorToStdVectorPtrs<double*>(_vecFwdYsDot, _sensitiveParams.slices());
+				_model->leanConsistentInitialSensitivity(SimulationTime{startTime, 0}, 
+					ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, 
+					sensY, sensYdot, _vecADres, _vecADy);
+			}
+		}
+			_skipConsistencySensitivity = false;
+
+			// IDAS Step 5.2: Re-initialization of the solver
+			IDAReInit(_idaMemBlock, startTime, _vecStateY, _vecStateYdot);
+			if (wantSensitivities)
+				IDASensReInit(_idaMemBlock, IDA_STAGGERED, _vecFwdYs, _vecFwdYsDot);
+			
+    		const double stepSize = _initStepSize.size() > 1 ? _initStepSize[0] : _initStepSize[0];
+			IDASetInitStep(_idaMemBlock, stepSize);
+
+			LOG(Info) << "Integration prepared successfully at t = " << startTime;
+
+	}
+
+	int Simulator::integrateStep(double tEnd, double& tReached)
+	{
+		if(!_idaMemBlock)
+		{
+			LOG(Error) << "IDAS not initialed.";
+			return -1;
+		}
+
+		const int solverFlag = IDASolve(_idaMemBlock,tEnd, &tReached,_vecStateY, _vecStateYdot, IDA_NORMAL);
+		
+		//todo sensitivities updaten
+		//todo handle section transitions
+		switch (solverFlag)
+		{
+		case IDA_SUCCESS:
+			_lastIntTime = tReached;
+			LOG(Debug) << "Step successful: t" << tReached;
+			return 0;
+        
+		case IDA_TSTOP_RETURN:
+            _lastIntTime = tReached;
+            LOG(Debug) << "Reached stop time: t = " << tReached;
+            return 0;
+        
+        case IDA_ROOT_RETURN:
+            _lastIntTime = tReached;
+            LOG(Warning) << "Root found at t = " << tReached;
+            return 1;  // Positive return indicates root
+        
+        default:
+            LOG(Error) << "IDASolve failed with code " << solverFlag 
+                       << ": " << getIDAReturnFlagName(solverFlag);
+            return solverFlag;
+		}
+	}
 } // namespace cadet

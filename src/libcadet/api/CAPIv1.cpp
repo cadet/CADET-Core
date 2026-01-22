@@ -1020,6 +1020,89 @@ namespace v1
 		return cdtOK;
 	}
 
+	cdtResult initializeSimulation(cdtDriver* drv, cdtParameterProvider const* paramProvider)
+	{
+		Driver* const realDrv = drv->driver;
+
+		if(!realDrv)
+			return cdtErrorInvalidInputs;
+		
+		if (!paramProvider)
+			return cdtErrorInvalidInputs;
+		
+		try
+		{
+			CallbackParameterProvider cpp(*paramProvider);
+			realDrv->configure(cpp);
+
+			cadet::ISimulator* const sim = realDrv->simulator();
+			
+			if(!sim)
+			{
+				LOG(Error)<< "C-API: Failed to create simulator during initalisation";
+				return cdtError;
+			}
+
+			sim->prepareIntegrator();
+
+			LOG(Info) << "C-API: Simulation initialized successfully";
+
+		}
+		catch(const std::exception& e)
+		{
+			LOG(Error) << "C-API: Initialization failed: " << e.what();
+			return cdtError;
+		}
+		
+		cdtOK;
+	}
+	
+	cdtResult stepSimulation(cdtDriver* drv, double tEnd, double* tReached)
+	{
+		Driver* const realDrv = drv->driver;
+		
+		if(!realDrv)
+			return cdtErrorInvalidInputs;
+		
+		cadet::ISimulator* const sim = realDrv->simulator();
+		
+		if(!sim)
+		{
+			LOG(Error)<< "C-API: Failed to create simulator during initalisation";
+			return cdtError;
+		}
+		try
+		{
+			double reached = 0.0;
+			const int result = sim->integrateStep(tEnd, reached);
+
+			if(tReached)
+				*tReached = reached;
+			
+			LOG(Debug)<< "C-API: Integrated to time " << reached;
+
+			if(result < 0)
+			{
+				LOG(Error) << "C-API: Integration step failed with code " << result;
+				return cdtError;
+			}
+
+			if(result > 0)
+				LOG(Debug) << "Root found at t = " << reached;
+			else
+				LOG(Debug) << "Integrated to t = " << reached;
+
+		}
+		catch(const std::exception& e)
+		{
+			LOG(Error) << "C-API: Initialization failed: " << e.what();
+			return cdtError;
+		}
+
+		return cdtOK;
+		
+	}
+
 }  // namespace v1
 
 }  // namespace api
