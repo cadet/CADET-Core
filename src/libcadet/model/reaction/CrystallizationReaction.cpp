@@ -1340,7 +1340,7 @@ protected:
 		{
 			// if we solve the mass balance, then we have the solubility entry (last state entry) and the solute entry (first position), which is why we advance the pointer.
 			StateType const* const yCrystal = y + 1;
-			ResidualType* const resCrystal = res + 1;
+//			ResidualType* const resCrystal = res + 1;
 
 			const StateType sParam = (cadet_likely(y[0] / y[_nComp - 1] - 1.0 > 0)) ? y[0] / y[_nComp - 1] - 1.0 : StateType(0.0); // s = (c_0 - c_eq) / c_eq = c_0 / c_eq - 1, rewrite it to zero if s drops below 0
 			const ParamType massDensityShapeFactor = static_cast<ParamType>(_nucleiMassDensity) * static_cast<ParamType>(_volShapeFactor);
@@ -2421,7 +2421,7 @@ protected:
 
 			// the jacobian has a shape: (_nComp) x (_nComp), undefined ones are 0.0.
 			// the first loop i iterates over rows, the second loop j iterates over columns. The offset i is used to move the jac index to 0 at the beginning of iterating over j.
-			int binIdx_i = 0;
+//			int binIdx_i = 0;
 			int binIdx_j = 0;
 
 			// Q_c, mass balance, independent of the discretization method

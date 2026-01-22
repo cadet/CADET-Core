@@ -759,7 +759,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configure(UnitOpIdx unitOpIdx
 	updateRadialDisc();
 
 	// compute DG operators that depend on radial geometry and dispersion after updateRadialDisc
-	const int comp = 0;
+//	const int comp = 0;
 	for (unsigned int rElem = 0; rElem < _radNElem; rElem++)
 	{
 		// todo ? use active types for column radius sensitivity
@@ -1277,7 +1277,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 			});
 
 		/* axial dispersion block */
-		const active* const curAxialDispersion = getSectionDependentSlice(_axialDispersion, _radNElem * _nComp, 0);
+//		const active* const curAxialDispersion = getSectionDependentSlice(_axialDispersion, _radNElem * _nComp, 0);
 
 		MatrixXd gStarZ = MatrixXd::Zero(Np, 5 * Np);
 

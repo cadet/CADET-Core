@@ -672,7 +672,7 @@ void ColumnModel1D::extractJacobianFromAD(active const* const adRes, unsigned in
 	/* Extract bulk phase equations entries */
 	const int lowerBandwidth = (_disc.exactInt) ? 2 * _disc.nNodes * idxr.strideColNode() : _disc.nNodes * idxr.strideColNode();
 	const int upperBandwidth = lowerBandwidth;
-	const int stride = lowerBandwidth + 1 + upperBandwidth;
+//	const int stride = lowerBandwidth + 1 + upperBandwidth;
 	int diagDir = lowerBandwidth;
 	const int bulkDoFs = idxr.offsetCp() - idxr.offsetC();
 	const int eqOffset = 0;

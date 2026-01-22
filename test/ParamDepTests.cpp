@@ -69,7 +69,7 @@ ConfiguredParameterDependence ConfiguredParameterDependence::create(const char* 
 	{
 		boundOffset[i] = boundOffset[i-1] + nBound[i-1];
 	}
-	const unsigned int totalBoundStates = boundOffset[nComp - 1] + nBound[nComp - 1];
+//	const unsigned int totalBoundStates = boundOffset[nComp - 1] + nBound[nComp - 1];
 
 	// Configure
 	cadet::JsonParameterProvider jpp(config);

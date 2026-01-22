@@ -217,7 +217,7 @@ protected:
             const std::vector<double> s = paramProvider.getDoubleArray("MM_STOICHIOMETRY");
             std::vector<double> KIC(_stoichiometry.columns() * _nComp * _nComp); 
             std::vector<double> KIUC(_stoichiometry.columns() * _nComp * _nComp);
-            bool hasCompetiveInhibition = false;
+//            bool hasCompetiveInhibition = false;
             
             if (paramProvider.exists("MM_KI_C"))
             {
