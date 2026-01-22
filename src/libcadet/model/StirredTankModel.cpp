@@ -1854,7 +1854,6 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 
 	// Handle actual ODE DOFs
 	double const* const c = simState.vecStateY + _nComp;
-	double const* const q = simState.vecStateY + 2 * _nComp;
 	const double v = simState.vecStateY[2 * _nComp + _totalBound];
 	const double timeV = v;
 	const double vSolid = static_cast<double>(_constSolidVolume);
@@ -1866,13 +1865,10 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 	{
 		r[i] = timeV * s[i]; // dRes / dcDot
 
-		double qSum = 0.0;
 		for (unsigned int type = 0; type < _nParType; ++type)
 		{
-			double const* const qi = q + _offsetParType[type] + _boundOffset[type * _nComp + i];
 			const unsigned int localOffset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
 			const double vSolidParVolFrac = vSolid * static_cast<double>(_parTypeVolFrac[type]);
-			double qSumType = 0.0;
 			for (unsigned int j = 0; j < _nBound[type * _nComp + i]; ++j)
 			{
 				r[i] += vSolidParVolFrac * s[localOffset + j]; // dRes / d_qDot
@@ -1881,10 +1877,7 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 				// + _boundOffset[i]: Moves over bound states of previous components
 				// + j: Moves to current bound state j of component i
 
-				qSumType += qi[j];
 			}
-
-			qSum += static_cast<double>(_parTypeVolFrac[type]) * qSumType;
 		}
 		r[i] += c[i] * s[_nComp + _totalBound]; // dRes / dvLiquidDot
 	}
@@ -1948,7 +1941,6 @@ template <typename MatrixType>
 void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSimulationState& simState, MatrixType& mat)
 {	
 	double const* const c = simState.vecStateY + _nComp;
-	double const* const q = simState.vecStateY + 2 * _nComp;
 	const double v = simState.vecStateY[2 * _nComp + _totalBound];
 	const double timeV = v * alpha;
 	const double timeVSolid = static_cast<double>(_constSolidVolume) * alpha;
@@ -1960,10 +1952,8 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 	{
 		mat.native(i, i) += timeV; // dRes / dcDot
 
-		double qSum = 0.0;
 		for (unsigned int type = 0; type < _nParType; ++type)
 		{
-			double const* const qi = q + _offsetParType[type] + _boundOffset[type * _nComp + i];
 			const unsigned int localOffset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
 			const double vSolidParVolFrac = timeVSolid * static_cast<double>(_parTypeVolFrac[type]);
 			for (unsigned int j = 0; j < _nBound[type * _nComp + i]; ++j)

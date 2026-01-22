@@ -1510,9 +1510,9 @@ namespace parts
 		const active* const invBetaP = &_invBetaP[0];
 
 		// (global) strides
-		unsigned int selem = _nParNode * strideParNode();
-		unsigned int sNode = strideParNode();
-		unsigned int sComp = 1u;
+//		unsigned int selem = _nParNode * strideParNode();
+//		unsigned int sNode = strideParNode();
+//		unsigned int sComp = 1u;
 		unsigned int nNodes = _nParNode;
 
 		/* Special case */

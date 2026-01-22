@@ -156,7 +156,7 @@ namespace cadet
 
 			virtual bool preConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const
 			{
-				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+				_paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 				return true;
 			}
 
