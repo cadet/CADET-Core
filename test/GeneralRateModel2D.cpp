@@ -53,7 +53,7 @@ TEST_CASE("GRM2D numerical reference test for a three zone linear binding GRM wi
 	const std::vector<double> relTol = { 1E-12 };
 
 	cadet::test::column::FVParams disc;
-	const int simDataStride = 12; // number of radial ports
+//	const int simDataStride = 12; // number of radial ports
 }
 
 TEST_CASE("GRM2D analytical reference test for a three zone linear binding GRM with surface diffusion", "[GRM2D],[FV],[Simulation],[Reference],[Analytical],[CI]")

@@ -241,12 +241,12 @@ namespace cadet
 				for (int comp = 0; comp < _nComp; ++comp)
 				{
 					const double cp_val = yCp[comp];
-					const int n_pts = _porePhaseConc[comp].size();
+//					const int n_pts = _porePhaseConc[comp].size();
 
 					for (int bnd = 0; bnd < _nBoundStates[comp]; ++bnd, ++bndIdx)
 					{
 						const auto& coeffs = _splineParams[bndIdx];
-						const int n_param = coeffs.size();
+//						const int n_param = coeffs.size();
 
 						const int idx = find_closest(cp_val, _porePhaseConc[comp]);
 						const double h = cp_val - _porePhaseConc[comp][idx];

@@ -879,7 +879,7 @@ namespace column
 		REQUIRE(nullptr != mb);
 
 		// Use some test case parameters
-		const unsigned int nComp = jpp.getInt("NCOMP");
+//		const unsigned int nComp = jpp.getInt("NCOMP");
 
 		cadet::IUnitOperation* const unitAna = unitoperation::createAndConfigureUnit(jpp, *mb);
 		cadet::IUnitOperation* const unitAD = unitoperation::createAndConfigureUnit(jpp, *mb);
@@ -1001,7 +1001,7 @@ namespace column
 		{
 			// Use some test case parameters
 			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
-			const unsigned int nComp = jpp.getInt("NCOMP");
+//			const unsigned int nComp = jpp.getInt("NCOMP");
 
 			FVParams disc;
 			disc.setBulkDiscParam("WENO_ORDER", static_cast<int>(wenoOrder));
@@ -1361,7 +1361,7 @@ namespace column
 					unsigned int numPassed = 0;
 					for (unsigned int i = 0; i < nDataPoints; ++i, ++outlet, ++outletL, ++outletR)
 					{
-						const double cmpVal = *outlet;
+//						const double cmpVal = *outlet;
 						const double fdVal = ((*outletR) - (*outletL)) / actStepSize;
 						const unsigned int comp = (i % (nComp * nPorts)) % nComp;
 						const unsigned int port = (i % (nComp * nPorts)) / nComp;
@@ -1902,7 +1902,7 @@ namespace column
 		JsonParameterProvider pp_setup(JsonParameterProvider::fromFile(setupFile));
 
 		// adjust numerical parameters
-		nlohmann::json* setupJson = pp_setup.data();
+//		nlohmann::json* setupJson = pp_setup.data();
 
 		// run simulation
 		Driver drv;

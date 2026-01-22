@@ -109,7 +109,7 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
 		double dxMin = std::numeric_limits<double>::max();
 		double dxMax = 0.0;
 		double rMax = 0.0;           // max stretching ratio
-		double jumpMax = 0.0;        // max sudden jump indicator
+//		double jumpMax = 0.0;        // max sudden jump indicator
 
 		// Check if grid is equidistant
 		const double firstWidth = static_cast<double>(_cellFaces[1] - _cellFaces[0]);
@@ -777,7 +777,7 @@ bool RadialConvectionDispersionOperatorBase::configureModelDiscretization(IParam
 		double dxMin = std::numeric_limits<double>::max();
 		double dxMax = 0.0;
 		double rMax = 0.0;           // max stretching ratio
-		double jumpMax = 0.0;        // max sudden jump indicator
+//		double jumpMax = 0.0;        // max sudden jump indicator
 
 		// Check if grid is equidistant
 		const double firstWidth = static_cast<double>(_cellFaces[1] - _cellFaces[0]);
