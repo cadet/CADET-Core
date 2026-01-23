@@ -120,7 +120,7 @@ jobs:
           cd eigen
           mkdir build
           cd build
-          cmake ../code/eigen-3.4.0 -DCMAKE_INSTALL_PREFIX="../install"
+          cmake ../code/eigen-3.4.0 -DCMAKE_INSTALL_PREFIX="../install" -DCMAKE_CXX_FLAGS="/bigobj /O2"
           cmake --build . --target install
       - name: Build and Install
         run: |
