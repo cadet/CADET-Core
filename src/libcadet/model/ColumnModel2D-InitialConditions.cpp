@@ -734,11 +734,9 @@ void ColumnModel2D::consistentInitialState(const SimulationTime& simTime, double
 
 							// Extract Jacobian from AD
 							// Read particle Jacobian entries from dedicated AD directions
-							int offsetParticleTypeDirs = adJac.adDirOffset + requiredADdirs();
+							int offsetParticleTypeDirs = adJac.adDirOffset + requiredADdirs() + idxr.strideParBlock(parType);
 							const active* const adRes = adJac.adRes;
 
-							for (unsigned int parType = 0; parType < _disc.nParType; parType++)
-							{
 								for (unsigned int par = 0; par < _disc.nBulkPoints; par++)
 								{
 									const int eqOffset_res = idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ par });
@@ -751,8 +749,6 @@ void ColumnModel2D::consistentInitialState(const SimulationTime& simTime, double
 										}
 									}
 								}
-								offsetParticleTypeDirs += idxr.strideParBlock(parType);
-							}
 
 							// Extract Jacobian from full Jacobian
 							mat.setAll(0.0);

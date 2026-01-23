@@ -454,24 +454,20 @@ void ColumnModel1D::consistentInitialState(const SimulationTime& simTime, double
 
 						// Extract Jacobian from AD
 						// Read particle Jacobian entries from dedicated AD directions
-						int offsetParticleTypeDirs = adJac.adDirOffset + _convDispOp.requiredADdirs();
+						int offsetParticleTypeDirs = adJac.adDirOffset + _convDispOp.requiredADdirs() + idxr.strideParBlock(type);
 						const active* const adRes = adJac.adRes;
 
-						for (unsigned int type = 0; type < _disc.nParType; type++)
+						for (unsigned int par = 0; par < _disc.nPoints; par++)
 						{
-							for (unsigned int par = 0; par < _disc.nPoints; par++)
+							const int eqOffset_res = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par });
+							const int eqOffset_mat = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par });
+							for (unsigned int phase = 0; phase < idxr.strideParBlock(type); phase++)
 							{
-								const int eqOffset_res = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par });
-								const int eqOffset_mat = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par });
-								for (unsigned int phase = 0; phase < idxr.strideParBlock(type); phase++)
+								for (unsigned int phaseTo = 0; phaseTo < idxr.strideParBlock(type); phaseTo++)
 								{
-									for (unsigned int phaseTo = 0; phaseTo < idxr.strideParBlock(type); phaseTo++)
-									{
-										_globalJac.coeffRef(eqOffset_mat + phase, eqOffset_mat + phaseTo) = adRes[eqOffset_res + phase].getADValue(offsetParticleTypeDirs + phaseTo);
-									}
+									_globalJac.coeffRef(eqOffset_mat + phase, eqOffset_mat + phaseTo) = adRes[eqOffset_res + phase].getADValue(offsetParticleTypeDirs + phaseTo);
 								}
 							}
-							offsetParticleTypeDirs += idxr.strideParBlock(type);
 						}
 
 						// Extract Jacobian from full Jacobian
