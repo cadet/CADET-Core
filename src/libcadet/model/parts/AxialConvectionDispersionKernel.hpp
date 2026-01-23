@@ -378,6 +378,7 @@ int residualKernelAxial(const SimulationTime& simTime, StateType const* y, doubl
 
 void sparsityPatternAxial(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, Weno& weno);
 void sparsityPatternAxial(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, HighResolutionKoren& koren);
+void sparsityPatternAxial(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, UpwindNonEquidistant& upwindNEq);
 
 } // namespace convdisp
 } // namespace parts
