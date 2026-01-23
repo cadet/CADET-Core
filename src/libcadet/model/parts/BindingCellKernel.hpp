@@ -191,20 +191,20 @@ namespace cell
 					// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
 					params.dynReaction->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y - params.nComp), reinterpret_cast<double const*>(y), -1.0, jacBase, dmv.row(0, params.nComp), buffer);
 
-					unsigned int idx = 0;
+					unsigned int idx2 = 0;
 					for (unsigned int comp = 0; comp < params.nComp; ++comp)
 					{
 						const double invBetaP = (1.0 - static_cast<double>(params.porosity)) / (params.poreAccessFactor ? static_cast<double>(params.poreAccessFactor[comp]) * static_cast<double>(params.porosity) : static_cast<double>(params.porosity));
 
-						for (unsigned int bnd = 0; bnd < params.nBound[comp]; ++bnd, ++idx)
+						for (unsigned int bnd = 0; bnd < params.nBound[comp]; ++bnd, ++idx2)
 						{
 							// Add Jacobian row to mobile phase
-							(jacBase + comp).addArray(dmv.rowPtr(idx), -static_cast<int>(comp), dmv.columns(), invBetaP);
+							(jacBase + comp).addArray(dmv.rowPtr(idx2), -static_cast<int>(comp), dmv.columns(), invBetaP);
 
-							if (!params.qsReaction[idx])
+							if (!params.qsReaction[idx2])
 							{
 								// Add Jacobian row to solid phase
-								(jacBase + params.nComp + idx).addArray(dmv.rowPtr(idx), -static_cast<int>(params.nComp + idx), dmv.columns(), 1.0);
+								(jacBase + params.nComp + idx2).addArray(dmv.rowPtr(idx2), -static_cast<int>(params.nComp + idx2), dmv.columns(), 1.0);
 							}
 						}
 					}
