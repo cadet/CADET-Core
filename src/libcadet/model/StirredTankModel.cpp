@@ -1468,7 +1468,6 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 						-1.0, jacFlux.row(0), jacFlux.row(_nComp), subAlloc);
 
 					idx = 0;
-					const double liquidFactor = static_cast<double>(vsolid) * static_cast<double>(_parTypeVolFrac[type]);
 					for (unsigned int comp = 0; comp < _nComp; ++comp)
 					{
 						// Add bulk part of reaction to mobile phase Jacobian
@@ -1478,8 +1477,8 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 						for (unsigned int bnd = 0; bnd < _nBound[type * _nComp + comp]; ++bnd, ++idx)
 						{
 							// Add Jacobian row to mobile phase
-							jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + idx, 0, 1, _nComp, comp, 0);
-							jacFlux.addSubmatrixTo(_jac, liquidFactor, _nComp + idx, _nComp, 1, _strideBound[type], comp, _nComp + _offsetParType[type]);
+							jacFlux.addSubmatrixTo(_jac, static_cast<double>(liquidFactor), _nComp + idx, 0, 1, _nComp, comp, 0);
+							jacFlux.addSubmatrixTo(_jac, static_cast<double>(liquidFactor), _nComp + idx, _nComp, 1, _strideBound[type], comp, _nComp + _offsetParType[type]);
 
 							if (!qsReaction[idx])
 							{
@@ -1795,10 +1794,10 @@ void CSTRModel::consistentInitialSensitivity(const SimulationTime& simTime, cons
 				continue;
 
 			double* const localQdot = sensYdot + 2 * _nComp + _offsetParType[type];
-			int const* const localMask = mask.mask + _offsetParType[type];
+			int const* const localMask2 = mask.mask + _offsetParType[type];
 			for (unsigned int i = 0; i < _strideBound[type]; ++i)
 			{
-				if (!localMask[i])
+				if (!localMask2[i])
 					continue;
 
 				const unsigned int idx = _nComp + _offsetParType[type] + i;

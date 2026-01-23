@@ -209,18 +209,18 @@ namespace cell
 						// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
 							params.reaction->getDynReactionVector("cross_phase")[ reac]->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), reinterpret_cast<double const*>(y + params.nComp), -1.0, jacBase, dmv.row(0, params.nComp), buffer);
 
-						unsigned int idx = 0;
+						unsigned int idx2 = 0;
 						for (unsigned int comp = 0; comp < params.nComp; ++comp)
 						{
-							for (unsigned int bnd = 0; bnd < params.nBound[comp]; ++bnd, ++idx)
+							for (unsigned int bnd = 0; bnd < params.nBound[comp]; ++bnd, ++idx2)
 							{
 									// Add Jacobian row to mobile  	inline void addArray(double const* row, int startDiag, int length, double factor)
-									(jacBase + comp).addArray(dmv.rowPtr(idx), -static_cast<int>(comp), dmv.columns(), static_cast<double>(invBetaP[comp]));
+									(jacBase + comp).addArray(dmv.rowPtr(idx2), -static_cast<int>(comp), dmv.columns(), static_cast<double>(invBetaP[comp]));
 
-								if (!params.qsReaction[idx])
+								if (!params.qsReaction[idx2])
 								{
 									// Add Jacobian row to solid phase
-									(jacBase + params.nComp + idx).addArray(dmv.rowPtr(idx), -static_cast<int>(params.nComp + idx), dmv.columns(), 1.0);
+									(jacBase + params.nComp + idx2).addArray(dmv.rowPtr(idx2), -static_cast<int>(params.nComp + idx2), dmv.columns(), 1.0);
 								}
 							}
 						}
@@ -296,17 +296,17 @@ namespace cell
 					// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
 						params.reaction->getDynReactionVector("solid")[reac]->analyticJacobianAdd(t, secIdx, colPos, params.nTotalBound, reinterpret_cast<double const*>(y + params.nComp), -1.0, dmv.row(0, params.nComp), buffer);
 
-						unsigned int idx = 0;
+						unsigned int idx2 = 0;
 						for (unsigned int comp = 0; comp < params.nComp; ++comp)
 						{
-							for (unsigned int bnd = 0; bnd < params.nBound[comp]; ++bnd, ++idx)
+							for (unsigned int bnd = 0; bnd < params.nBound[comp]; ++bnd, ++idx2)
 							{
-								(jacBase + comp).addArray(dmv.rowPtr(idx), -static_cast<int>(comp), dmv.columns(), static_cast<double>(invBetaP[comp]));
+								(jacBase + comp).addArray(dmv.rowPtr(idx2), -static_cast<int>(comp), dmv.columns(), static_cast<double>(invBetaP[comp]));
 
-								if (!params.qsReaction[idx])
+								if (!params.qsReaction[idx2])
 								{
 									// Add Jacobian row to solid phase
-									(jacBase + params.nComp + idx).addArray(dmv.rowPtr(idx), -static_cast<int>(params.nComp + idx), dmv.columns(), 1.0);
+									(jacBase + params.nComp + idx2).addArray(dmv.rowPtr(idx2), -static_cast<int>(params.nComp + idx2), dmv.columns(), 1.0);
 								}
 							}
 						}
