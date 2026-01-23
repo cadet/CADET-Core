@@ -6,28 +6,55 @@ USER root
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+# Install dependencies without Eigen3 for which v5 is not yet available on apt
 RUN apt-get update && \
-    apt-get -y install build-essential cmake libhdf5-dev libsuperlu-dev intel-mkl git git-lfs libeigen3-dev && \
+    apt-get -y install \
+        build-essential \
+        cmake \
+        libhdf5-dev \
+        libsuperlu-dev \
+        intel-mkl \
+        git \
+        git-lfs && \
     apt-get clean
 
+# --- Build and install Eigen3 v5 manually ---
+ENV EIGEN_INSTALL_PREFIX=/usr/local/eigen5
+RUN git clone https://gitlab.com/libeigen/eigen.git && \
+    cd eigen && \
+    git fetch origin && \
+    git checkout --detach origin/5.0 && \
+    cmake -S . -B build \
+        -DCMAKE_INSTALL_PREFIX="${EIGEN_INSTALL_PREFIX}" \
+        -DEIGEN_BUILD_BLAS=OFF \
+        -DEIGEN_BUILD_LAPACK=OFF \
+        -DBUILD_TESTING=OFF && \
+    cmake --install build
+
+# Add Eigen to CMAKE_PREFIX_PATH
+ENV CMAKE_PREFIX_PATH="${EIGEN_INSTALL_PREFIX}:${CMAKE_PREFIX_PATH}"
+
+# Copy and build CADET-Core
 COPY . CADET-Core
 WORKDIR CADET-Core
-
 RUN mkdir -p build
-
 WORKDIR build
 
 SHELL ["/bin/bash", "-c"]
 
 ENV MKLROOT=/opt/intel/mkl
 
-RUN cmake -DCMAKE_INSTALL_PREFIX="../install" -DENABLE_STATIC_LINK_DEPS=ON -DENABLE_STATIC_LINK_LAPACK=ON -DBLA_VENDOR=Intel10_64lp_seq ../
+RUN cmake -DCMAKE_INSTALL_PREFIX="../install" \
+          -DENABLE_STATIC_LINK_DEPS=ON \
+          -DENABLE_STATIC_LINK_LAPACK=ON \
+          -DBLA_VENDOR=Intel10_64lp_seq ../
 
 RUN make -j $(lscpu | grep 'CPU(s)' | head -n 1 | cut -d ':' -f2 | tr -d ' ') install
 
 RUN /cadet/CADET-Core/install/bin/createLWE -o /cadet/CADET-Core/install/bin/LWE.h5
 RUN /cadet/CADET-Core/install/bin/cadet-cli /cadet/CADET-Core/install/bin/LWE.h5
 
+# ---------------- Deploy stage ----------------
 FROM condaforge/miniforge3:${MINIFORGE_VERSION} AS deploy
 COPY --from=build /cadet/CADET-Core/install /cadet/CADET-Core/install
 COPY --from=build /usr/lib/x86_64-linux-gnu/libsz.so.2 /cadet/CADET-Core/install/lib

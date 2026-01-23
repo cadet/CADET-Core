@@ -44,8 +44,19 @@ jobs:
             libblas-dev \
             libtbb-dev \
             libsuperlu-dev \
-            libeigen3-dev \
             gcovr;  # for generating code coverage
+      - name: Build Eigen
+        run: |
+          git clone https://gitlab.com/libeigen/eigen.git
+          cd eigen
+          git fetch origin
+          git checkout --detach origin/5.0
+          cmake -S . -B build \
+            -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+            -DEIGEN_BUILD_BLAS=OFF \
+            -DEIGEN_BUILD_LAPACK=OFF \
+            -DBUILD_TESTING=OFF
+          cmake --install build
       - name: Build and Install
         run: |
           cmake -E make_directory "${BUILD_DIR}"
