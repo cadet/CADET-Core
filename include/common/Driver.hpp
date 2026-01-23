@@ -333,8 +333,8 @@ public:
 				// Convert to ParameterIds
 				std::vector<cadet::ParameterId> sensParams;
 				sensParams.reserve(sensName.size());
-				for (std::size_t i = 0; i < sensName.size(); ++i)
-					sensParams.push_back(cadet::makeParamId(sensName[i], sensUnit[i], sensComp[i], sensParType[i], sensBoundState[i], sensReaction[i], sensSection[i]));
+				for (std::size_t sensIdx = 0; sensIdx < sensName.size(); ++sensIdx)
+					sensParams.push_back(cadet::makeParamId(sensName[sensIdx], sensUnit[sensIdx], sensComp[sensIdx], sensParType[sensIdx], sensBoundState[sensIdx], sensReaction[sensIdx], sensSection[sensIdx]));
 
 				double sensTol = 1e-05;
 				if (pp.exists("SENS_ABSTOL"))
@@ -593,7 +593,6 @@ public:
 			const std::vector<double const*> lastY = _sim->getLastSensitivities(len);
 			const std::vector<double const*> lastYdot = _sim->getLastSensitivityDerivatives(len);
 
-			std::ostringstream oss;
 			for (std::size_t i = 0; i < lastY.size(); ++i)
 			{
 				oss.str("");
@@ -624,14 +623,14 @@ public:
 
 			const int nSens = lastSens.size();
 
-			for (int i = 0; i < nSens; i++)
+			for (int sensIdx = 0; sensIdx < nSens; sensIdx++)
 			{
 				oss.str("");
-				oss << std::setfill('0') << std::setw(3) << std::setprecision(0) << i;
+				oss << std::setfill('0') << std::setw(3) << std::setprecision(0) << sensIdx;
 				writer.pushGroup("param_" + oss.str());
 				writer.pushGroup(unitID);
-				writer.template vector<double>("LAST_SENS_Y", sliceEnd - sliceStart, lastSens[i] + sliceStart);
-				writer.template vector<double>("LAST_SENS_YDOT", sliceEnd - sliceStart, lastSensdot[i] + sliceStart);
+				writer.template vector<double>("LAST_SENS_Y", sliceEnd - sliceStart, lastSens[sensIdx] + sliceStart);
+				writer.template vector<double>("LAST_SENS_YDOT", sliceEnd - sliceStart, lastSensdot[sensIdx] + sliceStart);
 				writer.popGroup();
 				writer.popGroup();
 			}

@@ -119,7 +119,6 @@ namespace model
 			_nBound = std::make_shared<unsigned int[]>(_nComp, 0);
 		else
 		{
-			std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
 			if (nBound.size() != _nComp)
 				throw InvalidParameterException("Field NBOUND does not contain NCOMP = " + std::to_string(_nComp) + " entries for particle type " + std::to_string(_parTypeIdx));
 
