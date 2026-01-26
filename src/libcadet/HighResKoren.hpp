@@ -82,7 +82,7 @@ public:
 	 * @param [in] cellIdx Index of the current cell
 	 * @param [in] numCells Number of cells
 	 * @param [in] w Stencil that contains 3 volume averages from which the cell face values are reconstructed centered at the 
-	 *               current cell (i.e., index 0 is the current cell, -2 the next to previous cell, 2 the next but one cell)
+	 *               current cell (i.e., index 0 is the current cell, -1 is the previous cell, 1 is the next cell)
 	 * @param [out] result Reconstructed cell face value
 	 * @tparam StateType Type of the state variables
 	 * @tparam StencilType Type of the stencil (can be a dedicated class with overloaded operator[] or a simple pointer)

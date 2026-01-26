@@ -39,6 +39,7 @@ class IModel;
 
 class Weno;
 class HighResolutionKoren;
+class UpwindNonEquidistant;
 
 namespace model
 {
@@ -105,6 +106,7 @@ public:
 	inline unsigned int nCol() const CADET_NOEXCEPT { return _nCol; }
 	inline Weno const* weno() const CADET_NOEXCEPT { return _weno; }
 	inline HighResolutionKoren const* koren() const CADET_NOEXCEPT { return _koren; }
+	inline UpwindNonEquidistant const* upwindNonEquidistant() const CADET_NOEXCEPT { return _upwindNonEquidistant; }
 
 	unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
 	unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
@@ -130,6 +132,7 @@ protected:
 	// Section dependent parameters
 	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{ax}} \f$
 	std::vector<active> _velocity; //!< Interstitial velocity (may be section dependent) \f$ u \f$
+	std::vector<active> _cellFaces; //TODO: double check if this is correct, also if we use this then no need for _nCol
 	active _curVelocity; //!< Current interstitial velocity \f$ u \f$ in this time section
 	int _dir; //!< Current flow direction in this time section
 
@@ -137,6 +140,7 @@ protected:
 	double* _reconstrDerivatives; //!< Holds derivatives of the reconstruction scheme
 	Weno* _weno; //!< The WENO scheme implementation
 	HighResolutionKoren* _koren; //!< The High Resolution Koren scheme implementation
+	UpwindNonEquidistant* _upwindNonEquidistant;
 
 	bool _dispersionCompIndep; //!< Determines whether dispersion is component independent
 
@@ -235,6 +239,7 @@ protected:
 	// Section dependent parameters
 	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{rad}} \f$
 	std::vector<active> _velocity; //!< Radial velocity (may be section dependent) \f$ v \f$
+	std::vector<active> _cellFaces; //TODO: double check if this is correct, also if we use this then no need for _nCol
 	active _curVelocity; //!< Current interstitial velocity \f$ u \f$ in this time section
 	int _dir; //!< Current flow direction in this time section
 	double _circleFraction; //!< Specifies whether the radial model is a full circle or wedge and in that case the fraction of a full circle
@@ -344,6 +349,7 @@ protected:
 	// Section dependent parameters
 	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{rad}} \f$
 	std::vector<active> _velocityCoeff; //!< Velocity coefficients (may be section dependent) \f$ v \f$
+	std::vector<active> _cellFaces; //TODO: double check if this is correct, also if we use this then no need for _nCol
 	active _curVelocityCoeff; //!< Current interstitial velocity coefficient \f$ u \f$ in this time section
 	int _dir; //!< Current flow direction in this time section
 
