@@ -138,6 +138,7 @@ protected:
 
 	ArrayPool _stencilMemory; //!< Provides memory for the stencil
 	double* _reconstrDerivatives; //!< Holds derivatives of the reconstruction scheme
+	bool _gridEquidistant; //!< Determines whether the grid is equidistant
 	Weno* _weno; //!< The WENO scheme implementation
 	HighResolutionKoren* _koren; //!< The High Resolution Koren scheme implementation
 	UpwindNonEquidistant* _upwindNonEquidistant;

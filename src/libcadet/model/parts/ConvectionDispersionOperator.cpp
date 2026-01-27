@@ -30,6 +30,7 @@
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
 
+#include <Eigen/Dense>
 #include <algorithm>
 #include <cmath>
 
@@ -73,6 +74,9 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
 	_nCol = nCol;
 	_strideCell = strideCell;
 
+	_colLength = paramProvider.getDouble("COL_LENGTH");
+	const double h = static_cast<double>(_colLength) / static_cast<double>(_nCol);
+
 	if (paramProvider.exists("COL_DISPERSION_DEP"))
 	{
 		const std::string paramDepName = paramProvider.getString("COL_DISPERSION_DEP");
@@ -89,8 +93,35 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
 
 	const std::string recType = paramProvider.exists("RECONSTRUCTION") ? paramProvider.getString("RECONSTRUCTION") : "WENO";
 
+	if (paramProvider.exists("GRID_FACES"))
+	{
+		readScalarParameterOrArray(_cellFaces, paramProvider, "GRID_FACES", 1);
+		if (_cellFaces.size() != (_nCol + 1))
+			throw InvalidParameterException("Number of elements in field GRID_FACES inconsistent with NCOL (expected " + std::to_string(_nCol + 1) + " but got " + std::to_string(_cellFaces.size()) + ")");
+
+		// Check if grid is equidistant
+		double i = 0;
+		_gridEquidistant = std::all_of(
+			_cellFaces.begin(), _cellFaces.end(),
+			[&](const active& val) {
+				return std::abs(static_cast<double>(val) - h * i++) < 1e-14;
+			}
+		);
+	}
+	else
+	{
+		_gridEquidistant = true;
+		_cellFaces.resize(_nCol + 1);
+
+		for (std::size_t i = 0; i <= _nCol; ++i)
+			_cellFaces[i] = active(h * i);
+	}
+
 	if (recType == "WENO")
 	{
+		if (!_gridEquidistant)
+			throw InvalidParameterException("WENO reconstruction not supported on non-equidistant grids, please use"); // todo: enter nonEq options
+
 		// Read WENO settings and apply them
 		paramProvider.pushScope("weno");
 
@@ -119,15 +150,7 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
 	}
 	else if (recType == "UPWIND_NON_EQUIDISTANT")
 	{
-		// Read upwind on nonuniform grid settings and apply them
-		paramProvider.pushScope("upwindNonEquidistant");
-
 		_upwindNonEquidistant = new UpwindNonEquidistant();
-		readScalarParameterOrArray(_cellFaces, paramProvider, "GRID", 1);
-
-		// TODO: Validate grid: last value = column length, first value = 0
-
-		paramProvider.popScope();
 
 		_reconstrDerivatives = new double[UpwindNonEquidistant::maxStencilSize()];
 		_stencilMemory.resize(sizeof(active) * UpwindNonEquidistant::maxStencilSize());
@@ -148,9 +171,6 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
  */
 bool AxialConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
-	// Read geometry parameters
-	_colLength = paramProvider.getDouble("COL_LENGTH");
-
 	// Read cross section area or set to -1
 	_crossSection = -1.0;
 	if (paramProvider.exists("CROSS_SECTION_AREA"))
