@@ -228,7 +228,9 @@ protected:
 	 * @param [out] tReached Actually reached time
 	 * @return 0 on success, negative error code otherwise
 	 */
-	int integrateStep(double tEnd, double& tReached);
+	virtual int integrateStep(double tEnd, double& tReached);
+
+	int reinitialize(double currentTime);
 
 	friend int ::cadet::residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* userData);
 

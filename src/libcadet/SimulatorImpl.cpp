@@ -1858,6 +1858,100 @@ namespace cadet
 
 	}
 
+	int Simulator::reinitialize(double currentTime)
+	{
+		if(!_idaMemBlock)
+		{
+			LOG(Error) << "IDAS not initilied";
+			return -1;
+		}
+		try
+		{
+			_curSec = getCurrentSection(currentTime);
+			
+			_model->notifyDiscontinuousSectionTransition(currentTime, _curSec,
+            ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
+            AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()});
+
+			if (!_skipConsistencyStateY && (_consistentInitMode != ConsistentInitialization::None))
+			{
+				const ConsistentInitialization mode = currentConsistentInitMode(_consistentInitMode, _curSec);
+				
+				if (mode == ConsistentInitialization::Full)
+				{
+					LOG(Debug) << "Performing full consistent initialization";
+					_model->consistentInitialConditions(SimulationTime{currentTime, _curSec},
+						SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
+						AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()}, _algTol);
+				}
+				else if (mode == ConsistentInitialization::Lean)
+				{
+					LOG(Debug) << "Performing lean consistent initialization";
+					_model->leanConsistentInitialConditions(SimulationTime{currentTime, _curSec},
+						SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
+						AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()}, _algTol);
+				}
+			}
+
+        const bool wantSensitivities = _sensitiveParams.slices() > 0;
+        if (wantSensitivities && !_skipConsistencySensitivity && 
+            (_consistentInitModeSens != ConsistentInitialization::None))
+        {
+            const ConsistentInitialization mode = currentConsistentInitMode(_consistentInitModeSens, _curSec);
+            
+            if (mode == ConsistentInitialization::Full)
+            {
+                std::vector<double*> sensY = convertNVectorToStdVectorPtrs<double*>(_vecFwdYs, _sensitiveParams.slices());
+                std::vector<double*> sensYdot = convertNVectorToStdVectorPtrs<double*>(_vecFwdYsDot, _sensitiveParams.slices());
+                _model->consistentInitialSensitivity(SimulationTime{currentTime, _curSec},
+                    ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
+                    sensY, sensYdot, _vecADres, _vecADy);
+            }
+            else if (mode == ConsistentInitialization::Lean)
+            {
+                std::vector<double*> sensY = convertNVectorToStdVectorPtrs<double*>(_vecFwdYs, _sensitiveParams.slices());
+                std::vector<double*> sensYdot = convertNVectorToStdVectorPtrs<double*>(_vecFwdYsDot, _sensitiveParams.slices());
+                _model->leanConsistentInitialSensitivity(SimulationTime{currentTime, _curSec},
+                    ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
+                    sensY, sensYdot, _vecADres, _vecADy);
+            }
+        }
+
+		int solverFlag = IDAReInit(_idaMemBlock, currentTime, _vecStateY, _vecStateYdot);
+		if (solverFlag < 0)
+        {
+            LOG(Error) << "IDAReInit failed with code " << solverFlag;
+            return solverFlag;
+        }
+
+		if (wantSensitivities)
+        {
+            int solverFlag = IDASensReInit(_idaMemBlock, IDA_STAGGERED, _vecFwdYs, _vecFwdYsDot);
+            if (solverFlag < 0)
+            {
+                LOG(Error) << "IDASensReInit failed with code " << solverFlag;
+                return solverFlag;
+            }
+        }
+
+		const double stepSize = _initStepSize.size() > _curSec ? _initStepSize[_curSec] : _initStepSize[0];
+        IDASetInitStep(_idaMemBlock, stepSize);
+
+        _lastIntTime = currentTime;
+        
+        LOG(Info) << "Reinitialization successful at t = " << currentTime;
+
+		}
+		catch(const std::exception& e)
+		{
+			LOG(Error) << "Reinitialization failed: " << e.what();
+        	return -1;
+		}
+
+		return 0;
+
+	}
+
 	int Simulator::integrateStep(double tEnd, double& tReached)
 	{
 		if(!_idaMemBlock)

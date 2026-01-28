@@ -727,6 +727,7 @@ public:
 	 */
 	virtual void setNotificationCallback(INotificationCallback* nc) CADET_NOEXCEPT = 0;
 
+	
 	virtual void  prepareIntegrator() = 0;
 
 	/**
@@ -743,6 +744,8 @@ public:
      * @return @c 0 on success, negative error code otherwise
      */
     virtual int integrateStep(double tEnd, double& tReached) = 0;
+
+	virtual int reinitialize(double currentTime) = 0;
 };
 
 } // namespace cadet
