@@ -24,6 +24,7 @@
 #include <idas/idas_ls.h>
 #include <sundials/sundials_matrix.h>
 #include <sunmatrix/sunmatrix_dense.h>
+#include <sunlinsol/sunlinsol_spgmr.h>
 
 #include <vector>
 #include <sstream>
@@ -423,13 +424,13 @@ namespace cadet
 	}
 
 
-	Simulator::Simulator() : _model(nullptr), _solRecorder(nullptr), _idaMemBlock(nullptr), _vecStateY(nullptr),
+	Simulator::Simulator(unsigned int solver) : _model(nullptr), _solRecorder(nullptr), _idaMemBlock(nullptr), _vecStateY(nullptr),
 		_vecStateYdot(nullptr), _vecFwdYs(nullptr), _vecFwdYsDot(nullptr),
 		_relTolS(1.0e-9), _absTol(1, 1.0e-12), _relTol(1.0e-9), _initStepSize(1, 1.0e-6), _maxSteps(10000), _maxStepSize(0.0),
 		_nThreads(0), _modifiedNewton(false), _sensErrorTestEnabled(true), _maxNewtonIter(4), _maxErrorTestFail(10), _maxConvTestFail(10),
 		_maxNewtonIterSens(4), _curSec(0), _skipConsistencyStateY(false), _skipConsistencySensitivity(false),
 		_consistentInitMode(ConsistentInitialization::Full), _consistentInitModeSens(ConsistentInitialization::Full),
-		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr), _linearSolver(nullptr), _sunctx(nullptr)
+		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr), _linearSolver(nullptr), _sunctx(nullptr), _linSolverType(solver), _jacobian(NULL)
 	{
 #if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 		LOG(Debug) << "Resetting AD directions from " << ad::getDirections() << " to default " << ad::getMaxDirections();
@@ -528,14 +529,10 @@ namespace cadet
 
 		// Specify the linear solver.
 
-		_linearSolver = SUNLinSolNewEmpty(_sunctx);
-		_linearSolver->content = this;
-		_linearSolver->ops->gettype = linearSolverGetType;
-		_linearSolver->ops->solve = linearSolverSolve;
-		_linearSolver->ops->setscalingvectors = linearSolverSetScalingVectors;
-		if (_modifiedNewton)
-			_linearSolver->ops->setup = jacobianUpdateWrapper;
+		
+		setIDALinearSolver();
 
+		
 		// Attach user data structure
 		IDASetUserData(_idaMemBlock, this);
 
@@ -547,13 +544,7 @@ namespace cadet
 		IDASetMaxErrTestFails(_idaMemBlock, _maxErrorTestFail);
 		IDASetMaxConvFails(_idaMemBlock, _maxConvTestFail);
 
-		IDASetLinearSolver(_idaMemBlock, _linearSolver, NULL);
-
-
-		// Specify tolerances for linear solver
-		IDASetEpsLin(_idaMemBlock, 1);
-		IDASetLSNormFactor(_idaMemBlock, 1);
-
+		
 
 		// Allocate memory for AD if required
 		if (_model->usesAD())
@@ -562,6 +553,51 @@ namespace cadet
 			_vecADy = new active[nDOFs];
 		}
 	}
+
+	void Simulator::setLinearSolver(unsigned int solver)
+	{
+		if (solver > 9 || solver < 0)
+		{
+			LOG(Warning) << "Warning: Unkown solver int " << solver << " given. Using default Solver.";
+			solver = 0;
+		}
+		_linSolverType = solver;	
+	}
+
+
+	void Simulator::setIDALinearSolver()
+	{
+
+		const unsigned int nDOFs = _model->numDofs();
+		switch (_linSolverType)
+		{
+			case(0):
+			{
+				_linearSolver = SUNLinSolNewEmpty(_sunctx);
+				_linearSolver->content = this;
+				_linearSolver->ops->gettype = linearSolverGetType;
+				_linearSolver->ops->solve = linearSolverSolve;
+				_linearSolver->ops->setscalingvectors = linearSolverSetScalingVectors;
+				if (_modifiedNewton)
+					_linearSolver->ops->setup = jacobianUpdateWrapper;
+				break;
+			}
+			case(1):
+			{
+				_linearSolver = SUNLinSol_SPGMR(_vecStateY, SUN_PREC_NONE, 0, _sunctx);
+			}
+		}
+		IDASetLinearSolver(_idaMemBlock, _linearSolver, NULL);
+
+
+		if (_linSolverType ==0)
+		{
+			// Specify tolerances for linear solver
+			IDASetEpsLin(_idaMemBlock, 1);
+			IDASetLSNormFactor(_idaMemBlock, 1);
+		}
+	}
+
 
 	void Simulator::updateMainErrorTolerances()
 	{

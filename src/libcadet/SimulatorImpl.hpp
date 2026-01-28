@@ -55,7 +55,7 @@ class Simulator : public ISimulator
 {
 public:
 
-	Simulator();
+	Simulator(unsigned int solver = 0);
 
 	virtual ~Simulator() CADET_NOEXCEPT;
 
@@ -78,6 +78,9 @@ public:
 	virtual void setSectionTimes(const std::vector<double>& sectionTimes, const std::vector<bool>& sectionContinuity);
 
 	virtual void initializeModel(IModelSystem& model);
+
+	virtual void setLinearSolver(unsigned int solver);
+	virtual void setIDALinearSolver();
 
 	virtual void applyInitialCondition();
 	virtual void setInitialCondition(IParameterProvider& paramProvider);
@@ -289,7 +292,8 @@ protected:
 	SUNLinearSolver _linearSolver; //!< Sunlinearsolver object.
 	N_Vector _linearSolverWeight; //!< Weight vector.
 	SUNContext _sunctx; //!< Idas suncontext object
-	bool _defaultLS; //!< use idas default linear solver
+	unsigned int _linSolverType; //!< which linear solver to Use
+	SUNMatrix _jacobian; 
 };
 
 } // namespace cadet
