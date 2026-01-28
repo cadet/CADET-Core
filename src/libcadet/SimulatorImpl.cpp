@@ -25,6 +25,7 @@
 #include <sundials/sundials_matrix.h>
 #include <sunmatrix/sunmatrix_dense.h>
 #include <sunlinsol/sunlinsol_spgmr.h>
+#include <sunlinsol/sunlinsol_sptfqmr.h>
 
 #include <vector>
 #include <sstream>
@@ -584,13 +585,22 @@ namespace cadet
 			}
 			case(1):
 			{
+				_modifiedNewton = true;
 				_linearSolver = SUNLinSol_SPGMR(_vecStateY, SUN_PREC_NONE, 0, _sunctx);
+				break;
+			}
+			case(2):
+			{
+
+				_modifiedNewton = true;
+				_linearSolver = SUNLinSol_SPTFQMR(_vecStateY, SUN_PREC_NONE, 0, _sunctx);
+				break;
 			}
 		}
 		IDASetLinearSolver(_idaMemBlock, _linearSolver, NULL);
 
 
-		if (_linSolverType ==0)
+		if (_linSolverType == 0)
 		{
 			// Specify tolerances for linear solver
 			IDASetEpsLin(_idaMemBlock, 1);
