@@ -9,6 +9,7 @@
 //  your option, any later version) which accompanies this distribution, and
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
+#include <fstream>
 
 #include "cadet/Exceptions.hpp"
 #include "cadet/SolutionRecorder.hpp"
@@ -1858,133 +1859,181 @@ namespace cadet
 
 	}
 
-	int Simulator::reinitialize(double currentTime)
-	{
-		if(!_idaMemBlock)
-		{
-			LOG(Error) << "IDAS not initilied";
-			return -1;
-		}
-		try
-		{
-			_curSec = getCurrentSection(currentTime);
-			
-			_model->notifyDiscontinuousSectionTransition(currentTime, _curSec,
-            ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
-            AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()});
+int Simulator::reinitialize(double currentTime)
+{
+    //std::ofstream logFile("cadet_setstate.log", std::ios_base::app);
 
-			if (!_skipConsistencyStateY && (_consistentInitMode != ConsistentInitialization::None))
-			{
-				const ConsistentInitialization mode = currentConsistentInitMode(_consistentInitMode, _curSec);
-				
-				if (mode == ConsistentInitialization::Full)
-				{
-					LOG(Debug) << "Performing full consistent initialization";
-					_model->consistentInitialConditions(SimulationTime{currentTime, _curSec},
-						SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
-						AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()}, _algTol);
-				}
-				else if (mode == ConsistentInitialization::Lean)
-				{
-					LOG(Debug) << "Performing lean consistent initialization";
-					_model->leanConsistentInitialConditions(SimulationTime{currentTime, _curSec},
-						SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
-						AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()}, _algTol);
-				}
-			}
+	if (!_idaMemBlock)
+    {
+        //logFile << "IDAS not initialized";
+        return -1;
+    }
 
-        const bool wantSensitivities = _sensitiveParams.slices() > 0;
-        if (wantSensitivities && !_skipConsistencySensitivity && 
-            (_consistentInitModeSens != ConsistentInitialization::None))
+    try
+    {
+        // Determine current section
+        _curSec = 0;
+        for (unsigned int i = 0; i < _sectionTimes.size() - 1; ++i)
         {
-            const ConsistentInitialization mode = currentConsistentInitMode(_consistentInitModeSens, _curSec);
-            
-            if (mode == ConsistentInitialization::Full)
+            if (currentTime >= static_cast<double>(_sectionTimes[i]) && 
+                currentTime < static_cast<double>(_sectionTimes[i + 1]))
             {
-                std::vector<double*> sensY = convertNVectorToStdVectorPtrs<double*>(_vecFwdYs, _sensitiveParams.slices());
-                std::vector<double*> sensYdot = convertNVectorToStdVectorPtrs<double*>(_vecFwdYsDot, _sensitiveParams.slices());
-                _model->consistentInitialSensitivity(SimulationTime{currentTime, _curSec},
-                    ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
-                    sensY, sensYdot, _vecADres, _vecADy);
-            }
-            else if (mode == ConsistentInitialization::Lean)
-            {
-                std::vector<double*> sensY = convertNVectorToStdVectorPtrs<double*>(_vecFwdYs, _sensitiveParams.slices());
-                std::vector<double*> sensYdot = convertNVectorToStdVectorPtrs<double*>(_vecFwdYsDot, _sensitiveParams.slices());
-                _model->leanConsistentInitialSensitivity(SimulationTime{currentTime, _curSec},
-                    ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
-                    sensY, sensYdot, _vecADres, _vecADy);
+                _curSec = i;
+                break;
             }
         }
+        
+       //logFile << "Reinitializing at t = " << currentTime << " in section " << _curSec;
+        
+        // Get pointers to state vectors
+        double* yData = NVEC_DATA(_vecStateY);
+        double* yDotData = NVEC_DATA(_vecStateYdot);
+        
+        //logFile << "Before reinit: y[2]=" << yData[2] << ", y[3]=" << yData[3];
 
-		int solverFlag = IDAReInit(_idaMemBlock, currentTime, _vecStateY, _vecStateYdot);
-		if (solverFlag < 0)
+        // Zero yDot
+        const unsigned int numDof = numDofs();
+        for (unsigned int i = 0; i < numDof; ++i)
+            yDotData[i] = 0.0;
+
+        // Notify model about section/time change
+        _model->notifyDiscontinuousSectionTransition(
+            currentTime, 
+            _curSec,
+            ConstSimulationState{yData, yDotData},
+            AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()}
+        );
+
+        //logFile << "After notify: y[2]=" << yData[2] << ", y[3]=" << yData[3];
+
+        // Use LEAN consistent initialization - this only fixes algebraic variables
+        // and computes yDot, but does NOT modify the differential variables (concentrations)
+        _model->leanConsistentInitialConditions(
+            SimulationTime{currentTime, _curSec}, 
+            SimulationState{yData, yDotData},
+            AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()}, 
+            _algTol
+        );
+
+        //logFile << "After leanConsistentInit: y[2]=" << yData[2] << ", y[3]=" << yData[3];
+
+        // IDAS Reinitialization
+        int solverFlag = IDAReInit(_idaMemBlock, currentTime, _vecStateY, _vecStateYdot);
+        if (solverFlag != IDA_SUCCESS)
         {
-            LOG(Error) << "IDAReInit failed with code " << solverFlag;
+            //logFile << "IDAReInit failed with code " << solverFlag;
             return solverFlag;
         }
 
-		if (wantSensitivities)
+        //logFile << "After IDAReInit: y[2]=" << yData[2] << ", y[3]=" << yData[3];
+
+        // Handle sensitivities
+        const bool wantSensitivities = _sensitiveParams.slices() > 0;
+        if (wantSensitivities)
         {
-            int solverFlag = IDASensReInit(_idaMemBlock, IDA_STAGGERED, _vecFwdYs, _vecFwdYsDot);
-            if (solverFlag < 0)
+            solverFlag = IDASensReInit(_idaMemBlock, IDA_STAGGERED, _vecFwdYs, _vecFwdYsDot);
+            if (solverFlag != IDA_SUCCESS)
             {
-                LOG(Error) << "IDASensReInit failed with code " << solverFlag;
+                //logFile << "IDASensReInit failed with code " << solverFlag;
                 return solverFlag;
             }
         }
 
-		const double stepSize = _initStepSize.size() > _curSec ? _initStepSize[_curSec] : _initStepSize[0];
+        // Set step size
+        const double stepSize = _initStepSize.size() > _curSec ? _initStepSize[_curSec] : _initStepSize[0];
         IDASetInitStep(_idaMemBlock, stepSize);
+        
+        // Increase max steps
+        IDASetMaxNumSteps(_idaMemBlock, 100000);
+
+        // Set stop time
+        const double tEnd = static_cast<double>(_sectionTimes.back());
+        if (tEnd > currentTime)
+        {
+            IDASetStopTime(_idaMemBlock, tEnd);
+        }
 
         _lastIntTime = currentTime;
         
-        LOG(Info) << "Reinitialization successful at t = " << currentTime;
+        //logFile << "Reinitialization successful at t = " << currentTime;
+    }
+    catch (const std::exception& e)
+    {
+        //logFile << "Reinitialization failed: " << e.what();
+        return -1;
+    }
 
-		}
-		catch(const std::exception& e)
-		{
-			LOG(Error) << "Reinitialization failed: " << e.what();
-        	return -1;
-		}
-
-		return 0;
-
-	}
+    return 0;
+}
 
 	int Simulator::integrateStep(double tEnd, double& tReached)
 	{
 		if(!_idaMemBlock)
 		{
-			LOG(Error) << "IDAS not initialed.";
+			LOG(Error) << "IDAS not initialized.";
 			return -1;
 		}
-
-		const int solverFlag = IDASolve(_idaMemBlock,tEnd, &tReached,_vecStateY, _vecStateYdot, IDA_NORMAL);
 		
-		//todo sensitivities updaten
-		//todo handle section transitions
+		// Get current time from IDAS
+		double currentTime = 0.0;
+		IDAGetCurrentTime(_idaMemBlock, &currentTime);
+		
+		// Check if tEnd is too close to current time
+		const double minTimeStep = 1e-12;
+		if (std::abs(tEnd - currentTime) < minTimeStep)
+		{
+			LOG(Warning) << "tEnd (" << tEnd << ") too close to current time (" << currentTime 
+						<< "). Skipping integration step.";
+			tReached = currentTime;
+			return 0;
+		}
+
+		// Check if tEnd is in the past
+		if (tEnd <= currentTime)
+		{
+			LOG(Warning) << "tEnd (" << tEnd << ") is not greater than current time (" << currentTime 
+						<< "). Skipping integration step.";
+			tReached = currentTime;
+			return 0;
+		}
+
+		const double stepSize = _initStepSize.size() > _curSec ? _initStepSize[_curSec] : _initStepSize[0];
+		IDASetInitStep(_idaMemBlock, stepSize);
+		
+		// Set stop time
+		IDASetStopTime(_idaMemBlock, tEnd);
+
+		const int solverFlag = IDASolve(_idaMemBlock, tEnd, &tReached, _vecStateY, _vecStateYdot, IDA_NORMAL);
+		
+		// Extract sensitivity information if available
+		const bool wantSensitivities = _sensitiveParams.slices() > 0;
+		if (wantSensitivities && (solverFlag == IDA_SUCCESS || solverFlag == IDA_TSTOP_RETURN))
+		{
+			IDAGetSens(_idaMemBlock, &tReached, _vecFwdYs);
+			IDAGetSensDky(_idaMemBlock, tReached, 1, _vecFwdYsDot);
+		}
+		
 		switch (solverFlag)
 		{
 		case IDA_SUCCESS:
 			_lastIntTime = tReached;
-			LOG(Debug) << "Step successful: t" << tReached;
+			LOG(Debug) << "Step successful: t = " << tReached;
 			return 0;
-        
+			
 		case IDA_TSTOP_RETURN:
-            _lastIntTime = tReached;
-            LOG(Debug) << "Reached stop time: t = " << tReached;
-            return 0;
-        
-        case IDA_ROOT_RETURN:
-            _lastIntTime = tReached;
-            LOG(Warning) << "Root found at t = " << tReached;
-            return 1;  // Positive return indicates root
-        
-        default:
-            LOG(Error) << "IDASolve failed with code " << solverFlag 
-                       << ": " << getIDAReturnFlagName(solverFlag);
-            return solverFlag;
+			_lastIntTime = tReached;
+			LOG(Debug) << "Reached stop time: t = " << tReached;
+			return 0;
+			
+		case IDA_ROOT_RETURN:
+			_lastIntTime = tReached;
+			LOG(Warning) << "Root found at t = " << tReached;
+			return 1;
+			
+		default:
+			LOG(Error) << "IDASolve failed with code " << solverFlag 
+					<< ": " << getIDAReturnFlagName(solverFlag);
+			return solverFlag;
 		}
 	}
 } // namespace cadet

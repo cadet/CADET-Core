@@ -235,7 +235,7 @@ protected:
 	 * @param [in] currentTime Current simulation time
 	 * @return 0 on success, negative error code otherwise
 	 */
-	virtual int reinitialize(double currentTime);
+	virtual int reinitialize(double currentTime) override;
 
 	friend int ::cadet::residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* userData);
 

@@ -874,6 +874,9 @@ extern "C"
 		 */
 		cdtResult (*getSensitivityDerivativeVolume)(cdtDriver* drv, int unitOpId, int sensIdx, double const** time, double const** data, int* nTime);
 
+		
+		cdtResult (*getNumberOfStates)(cdtDriver* drv, unsigned int* nStates);
+		
 		/**
 		 * @brief Returns the last state of the simulation
 		 * @details Before this function is called, a simulation has to be run successfully.
@@ -1009,7 +1012,7 @@ extern "C"
 		cdtResult (*initializeSimulation)(cdtDriver* drv, cdtParameterProvider const* paramProvider);
 		cdtResult (*performSimulationStep)(cdtDriver* drv, double tEnd, double* tReached);
 		cdtResult (*endSimulation)(cdtDriver* drv);
-		cdtResult (*setState)(cdtDriver* drv, double const* state, int nStates);
+		cdtResult (*setState)(cdtDriver* drv, double const* state, double currentState, int nStates);
 		cdtResult (*setUnitState)(cdtDriver* drv, int unitOpId, double const* state, int nStates);
 
 	} cdtAPIv010000;
