@@ -13,6 +13,9 @@
 # Name of the current project
 project(CadetLibrary CXX C)
 
+# Wheel build
+option(CADET_WHEEL "Option for building wheels" OFF)
+
 # Git integration
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/VersionInfo.cpp.in" "${CMAKE_CURRENT_BINARY_DIR}/VersionInfo.cpp" ESCAPE_QUOTES @ONLY)
 
@@ -294,6 +297,7 @@ if (LAPACK_FOUND)
 	set_target_properties(libcadet_shared PROPERTIES OUTPUT_NAME cadet)
 	target_link_libraries (libcadet_shared PUBLIC CADET::CompileOptions CADET::LibOptions PRIVATE CADET::AD libcadet_nonlinalg_static SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${TBB_TARGET} ${EIGEN_TARGET})
 
+
 	list(APPEND LIBCADET_TARGETS libcadet_nonlinalg_static libcadet_object libcadet_static libcadet_shared)
 
 	unset(LIB_LAPACK_DEFINE)
@@ -312,17 +316,42 @@ unset(LIBCADET_NONLINALG_SOURCES)
 unset(LIBCADET_NONLINALG_SPARSE_SOURCES)
 unset(LIBCADET_SOURCES)
 
+
 # ---------------------------------------------------
 #   Set installation related stuff
 # ---------------------------------------------------
 
 list(REMOVE_ITEM LIBCADET_TARGETS libcadet_object)
 
-install(CODE "MESSAGE(\"\nInstall LIBCADET\n\")")
-install(TARGETS ${LIBCADET_TARGETS} EXPORT libcadet-targets)
+if (CADET_WHEEL)
+  install(CODE "MESSAGE(\"\nInstall LIBCADET for wheels\n\")")
+
+  #no static libs
+  install(TARGETS libcadet_shared
+  EXPORT libcadet-targets
+  LIBRARY DESTINATION cadet_core/lib
+  RUNTIME DESTINATION cadet_core/bin
+  )
+
+
+  if (UNIX AND NOT APPLE)
+	set_target_properties(libcadet_shared PROPERTIES
+	BUILD_WITH_INSTALL_RPATH ON
+	INSTALL_RPATH "$ORIGIN"
+  )
+endif()
+
+
+else ()
+  install(CODE "MESSAGE(\"\nInstall LIBCADET\n\")")
+  install(TARGETS ${LIBCADET_TARGETS} EXPORT libcadet-targets)
+endif ()
+
 install(FILES ${CMAKE_BINARY_DIR}/cadet/cadetCompilerInfo.hpp DESTINATION include/cadet)
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/cadet DESTINATION include)
 #install(EXPORT libcadet-targets DESTINATION lib NAMESPACE "CADET::" FILE CADET.cmake)
+
+
 
 # ---------------------------------------------------
 unset(LIBCADET_TARGETS)
