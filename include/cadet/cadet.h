@@ -1008,6 +1008,7 @@ extern "C"
 
 		cdtResult (*initializeSimulation)(cdtDriver* drv, cdtParameterProvider const* paramProvider);
 		cdtResult (*performSimulationStep)(cdtDriver* drv, double tEnd, double* tReached);
+		cdtResult (*endSimulation)(cdtDriver* drv);
 		cdtResult (*setState)(cdtDriver* drv, double const* state, int nStates);
 		cdtResult (*setUnitState)(cdtDriver* drv, int unitOpId, double const* state, int nStates);
 

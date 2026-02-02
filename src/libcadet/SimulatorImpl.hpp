@@ -220,7 +220,7 @@ protected:
 	 * @details Performs all initialization steps normally done in integrate(),
 	 *          but stops before the actual time integration loop.
 	 */
-	void prepareIntegrator();
+	virtual void prepareIntegrator();
 
 	/**
 	 * @brief Performs one integration step until target time
@@ -230,7 +230,12 @@ protected:
 	 */
 	virtual int integrateStep(double tEnd, double& tReached);
 
-	int reinitialize(double currentTime);
+	/**
+	 * @brief Reinitializes the integrator at the given time
+	 * @param [in] currentTime Current simulation time
+	 * @return 0 on success, negative error code otherwise
+	 */
+	virtual int reinitialize(double currentTime);
 
 	friend int ::cadet::residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* userData);
 

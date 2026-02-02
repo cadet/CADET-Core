@@ -1058,84 +1058,95 @@ namespace v1
 	
 	cdtResult performSimulationStep(cdtDriver* drv, double tEnd, double* tReached)
 	{
-		LOG(Info) << "C-API: performSimulationStep START with tEnd = " << tEnd;
-		
 		Driver* const realDrv = drv->driver;
 		
-		if(!realDrv)
+		if (!realDrv)
 		{
-			LOG(Error) << "C-API: realDrv is null";
+			LOG(Error) << "C-API: Invalid driver pointer";
 			return cdtErrorInvalidInputs;
 		}
 		
-		LOG(Info) << "C-API: realDrv OK: " << static_cast<void*>(realDrv);
-		
 		try
 		{
-			LOG(Info) << "C-API: About to call simulator()";
 			cadet::ISimulator* const sim = realDrv->simulator();
 			
-			LOG(Info) << "C-API: simulator() returned: " << static_cast<void*>(sim);
-			
-			if(!sim)
+			if (!sim)
 			{
-				LOG(Error) << "C-API: sim is nullptr";
+				LOG(Error) << "C-API: Simulator not initialized";
 				return cdtError;
 			}
 
-			LOG(Info) << "C-API: About to call integrateStep";
 			double reached = 0.0;
 			const int result = sim->integrateStep(tEnd, reached);
 
-			LOG(Info) << "C-API: integrateStep returned: " << result << ", reached: " << reached;
-
-			if(tReached)
+			if (tReached)
 				*tReached = reached;
 			
-			if(result < 0)
+			if (result < 0)
 			{
 				LOG(Error) << "C-API: Integration step failed with code " << result;
 				return cdtError;
 			}
 
-			if(result > 0)
+			if (result > 0)
 				LOG(Info) << "C-API: Root found at t = " << reached;
 			else
 				LOG(Info) << "C-API: Integrated to t = " << reached;
 		}
 		catch(const std::exception& e)
 		{
-			LOG(Error) << "C-API: Exception: " << e.what();
+			LOG(Error) << "C-API: Exception in performSimulationStep: " << e.what();
 			return cdtError;
 		}
 
 		LOG(Info) << "C-API: performSimulationStep END";
 		return cdtOK;
-		
+
 	}
-	cdtResult setState(cdtDriver* drv, double const* state, int nStates)
+
+	cdtResult endSimulation(cdtDriver* drv)
 	{
 		Driver* const realDrv = drv->driver;
 		if(!realDrv)
 			return cdtErrorInvalidInputs;
-		if(!state)
+
+		try
+		{
+			realDrv->clear();
+		}
+		catch(const std::exception& e)
+		{
+			LOG(Error) << "C-API: Ending simulation failed " << e.what();
+        	return cdtError;
+		}
+		
+		return cdtOK;
+	}
+
+	cdtResult setState(cdtDriver* drv, double const* state, int nStates)
+	{
+		Driver* const realDrv = drv->driver;
+		if (!realDrv)
+			return cdtErrorInvalidInputs;
+		if (!state)
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
-		if(!sim)
+		if (!sim)
 		{
-       		LOG(Error) << "C-API: Simulator not initialized. Call initializeSimulation() first.";
-        	return cdtError;
+			LOG(Error) << "C-API: Simulator not initialized. Call initializeSimulation() first.";
+			return cdtError;
 		}
+		
 		try
 		{
 			unsigned int len = 0;
 			double* simState = const_cast<double*>(sim->getLastSolution(len));
 
-			if(static_cast<int>(len) != nStates)
+			if (static_cast<int>(len) != nStates)
 			{
 				LOG(Error) << "C-API: State size mismatch: expected " << len << ", got " << nStates;
-            	return cdtErrorInvalidInputs;
+				return cdtErrorInvalidInputs;
 			}
 			LOG(Debug) << "C-API: Set full system state(" << nStates << " values)";
 
@@ -1155,25 +1166,26 @@ namespace v1
 	cdtResult setUnitState(cdtDriver* drv, int unitOpId, double const* state, int nStates)
 	{
 		Driver* const realDrv = drv->driver;
-		if(!realDrv)
+		if (!realDrv)
 			return cdtErrorInvalidInputs;
-		if(!state)
+		if (!state)
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
-		if(!sim)
+		if (!sim)
 		{
-       		LOG(Error) << "C-API: Simulator not initialized. Call initializeSimulation() first.";
-        	return cdtError;
+			LOG(Error) << "C-API: Simulator not initialized. Call initializeSimulation() first.";
+			return cdtError;
 		}
+		
 		try
 		{
-			unsigned int slicesStart;
-			unsigned int slicesEnd;
+			unsigned int sliceStart;
+			unsigned int sliceEnd;
 
-			std::tie(slicesStart,slicesEnd) = sim->model()->getModelStateOffsets(unitOpId);
+			std::tie(sliceStart,sliceEnd) = sim->model()->getModelStateOffsets(unitOpId);
 
-			const unsigned int unitStateSize = slicesEnd - slicesStart;
+			const unsigned int unitStateSize = sliceEnd - sliceStart;
 			if (static_cast<int>(unitStateSize) != nStates)
 			{
 				LOG(Error) << "C-API: Unit state size mismatch for unit " << unitOpId 
@@ -1184,7 +1196,7 @@ namespace v1
 			double* simState = const_cast<double*>(sim->getLastSolution(len));
 			//todo update _ystateDot
 
-			std::copy(state, state + nStates, simState + slicesStart);
+			std::copy(state, state + nStates, simState + sliceStart);
 
 			double currentTime = 0.0; //todo get current time
 			const int result = sim->reinitialize(currentTime);
@@ -1195,7 +1207,7 @@ namespace v1
         	}
 
 			LOG(Debug) << "C-API: Set state for unit " << unitOpId 
-            << " (" << nStates << " values at offset " << slicesStart << ")";
+            << " (" << nStates << " values at offset " << sliceStart << ")";
 
 		}
 		catch(const std::exception& e)
@@ -1286,6 +1298,7 @@ extern "C"
 
 		ptr->initializeSimulation = &cadet::api::v1::initializeSimulation;
 		ptr->performSimulationStep = &cadet::api::v1::performSimulationStep;
+		ptr->endSimulation = &cadet::api::v1::endSimulation;
 		ptr->setState = &cadet::api::v1::setState;
 		ptr->setUnitState = &cadet::api::v1::setUnitState;
 
