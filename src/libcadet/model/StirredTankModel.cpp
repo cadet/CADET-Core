@@ -355,7 +355,7 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 		registerScalarSectionDependentParam(hashString("FLOWRATE_FILTER"), _parameters, _flowRateFilter, _unitOpIdx, ParTypeIndep);
 
 	if (_totalBound > 0)
-		registerParam1DArray(_parameters, _parTypeVolFrac, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
+		registerParam1DArray(_parameters, _parTypeVolFrac, [=, this](bool multi, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
 
 	// Register initial conditions parameters
 	for (unsigned int i = 0; i < _nComp; ++i)
