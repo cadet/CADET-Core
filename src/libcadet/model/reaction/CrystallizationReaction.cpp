@@ -535,15 +535,15 @@ protected:
 	template<typename ParamType>
 	struct HRKorenParams : public ReconstructionParams<ParamType>
 	{
-		ParamType r_x_i = 0.0;
-		ParamType phi = 0.0;
-		ParamType F_i = 0.0;
+		ParamType r_x_i;
+		ParamType phi;
+		ParamType F_i;
 
 		std::vector<ParamType> A_coeff;
 		std::vector<ParamType> R_coeff;
 
 		HRKorenParams(const std::vector<active>& binSizes)
-			: r_x_i(r_x_i), phi(phi), F_i(F_i), A_coeff(binSizes.size() - 1), R_coeff(binSizes.size() - 1)
+			: r_x_i(0.0), phi(0.0), F_i(0.0), A_coeff(binSizes.size() - 1), R_coeff(binSizes.size() - 1)
 		{
 			// calculate the coefficients
 			for (int i = 1; i + 1 < binSizes.size(); ++i)
