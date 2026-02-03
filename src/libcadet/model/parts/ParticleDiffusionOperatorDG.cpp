@@ -35,7 +35,7 @@ namespace parts
 	/**
 	 * @brief Creates a ParticleDiffusionOperatorDG
 	 */
-	ParticleDiffusionOperatorDG::ParticleDiffusionOperatorDG() : _localFlux(nullptr), _deltaR(nullptr), _Ir(nullptr), _DGjacParDispBlocks(nullptr), _minus_InvMM_ST(nullptr), _parInvMM(nullptr)
+	ParticleDiffusionOperatorDG::ParticleDiffusionOperatorDG() : _deltaR(nullptr), _minus_InvMM_ST(nullptr), _parInvMM(nullptr), _Ir(nullptr), _DGjacParDispBlocks(nullptr), _localFlux(nullptr)
 	{
 	}
 
