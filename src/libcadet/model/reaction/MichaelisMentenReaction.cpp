@@ -195,7 +195,7 @@ protected:
         // handle old interface
         // - kmm is the number of reactions 
         // - kI refers to the non competative inhibition konstants
-        if ((_stoichiometry.columns() > 0) && (_paramHandler.kMM().size() == _stoichiometry.columns()) || (paramProvider.exists("MM_KI")))
+        if (((_stoichiometry.columns() > 0) && (_paramHandler.kMM().size() == _stoichiometry.columns())) || (paramProvider.exists("MM_KI")))
         {
             _oldInterface = true;
             LOG(Warning) << "MM_KI is only is only supported for backwards compatibility, but the implementation of Michaelis Menten kinetics has changed, please refer to the documentation for CADET version >= 5.2.0";
