@@ -102,8 +102,8 @@ namespace cadet
 			std::vector<int> _bndStateOffset;
 
 			// Storage for trained ANN curves for spline fitting
-			std::vector< std::vector<double> > _splineParams; // [_totBoundStates][coeffs]
 			std::vector< std::vector<double> > _porePhaseConc; // [_nComp][coeffs]
+			std::vector< std::vector<double> > _splineParams; // [_totBoundStates][coeffs]
 
 			/***************************************************************************************************/
 			size_t find_closest(double x, const std::vector<double>& m_x) const
