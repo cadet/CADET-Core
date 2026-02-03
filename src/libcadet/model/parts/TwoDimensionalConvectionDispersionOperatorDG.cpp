@@ -454,8 +454,8 @@ namespace parts
 /**
  * @brief Creates a TwoDimensionalConvectionDispersionOperatorDG
  */
-TwoDimensionalConvectionDispersionOperatorDG::TwoDimensionalConvectionDispersionOperatorDG() : _colPorosities(0), _dir(0), _dispersionDep(nullptr),
-_radLiftMCyl(nullptr), _transMrCyl(nullptr), _invTransMrCyl(nullptr), _SrCyl(nullptr), _jacConvection(nullptr), _jacAxDispersion(nullptr), _jacRadDispersion(nullptr)
+TwoDimensionalConvectionDispersionOperatorDG::TwoDimensionalConvectionDispersionOperatorDG() : _radLiftMCyl(nullptr), _transMrCyl(nullptr), _invTransMrCyl(nullptr), _SrCyl(nullptr),
+	_jacConvection(nullptr), _jacAxDispersion(nullptr), _jacRadDispersion(nullptr), _colPorosities(0), _dir(0), _dispersionDep(nullptr)
 {
 }
 
