@@ -45,7 +45,7 @@ public:
 	 * @brief Creates the HighResolutionKoren scheme
 	 * @details The max order is 2. 
 	 */
-	HighResolutionKoren(): _epsilon(), _order(2) { }
+	HighResolutionKoren(): _order(2), _epsilon() { }
 
 	/**
     * @brief Returns the maximum order \f$ r \f$ of the implemented schemes
