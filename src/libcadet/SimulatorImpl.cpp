@@ -1608,7 +1608,7 @@ namespace cadet
 		if (paramProvider.exists("RELTOL_SENS"))
 			_relTolS = paramProvider.getDouble("RELTOL_SENS");
 		else
-			_relTolS = _relTol;
+			_relTolS = 1e-6;
 
 		if (paramProvider.exists("ERRORTEST_SENS"))
 			_sensErrorTestEnabled = paramProvider.getBool("ERRORTEST_SENS");
