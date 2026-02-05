@@ -111,13 +111,13 @@ public:
 	inline const active& currentVelocity(int idx) const CADET_NOEXCEPT { return _curVelocity[idx]; }
 	inline const active& columnPorosity(int idx) const CADET_NOEXCEPT { return _colPorosities[idx]; }
 
-	inline const int axNNodes() const { return _axNNodes; }
-	inline const int axNElem() const { return _axNElem; }
-	inline const int radNNodes() const { return _radNNodes; }
-	inline const int radNElem() const { return _radNElem; }
-	inline const int elemNPoints() const { return _elemNPoints; }
-	inline const unsigned int axNPoints() const { return _axNPoints; }
-	inline const unsigned int radNPoints() const { return _radNPoints; }
+	inline int axNNodes() const { return _axNNodes; }
+	inline int axNElem() const { return _axNElem; }
+	inline int radNNodes() const { return _radNNodes; }
+	inline int radNElem() const { return _radNElem; }
+	inline int elemNPoints() const { return _elemNPoints; }
+	inline unsigned int axNPoints() const { return _axNPoints; }
+	inline unsigned int radNPoints() const { return _radNPoints; }
 
 	double relativeAxialCoordinate(unsigned int idx) const
 	{
