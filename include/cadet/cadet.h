@@ -1014,6 +1014,7 @@ extern "C"
 		cdtResult (*endSimulation)(cdtDriver* drv);
 		cdtResult (*setState)(cdtDriver* drv, double const* state, double currentState, int nStates);
 		cdtResult (*setUnitState)(cdtDriver* drv, int unitOpId, double const* state, int nStates);
+		cdtResult (*setBulkState)(cdtDriver* drv, int unitOpId, double time, double const* state, int nStates);
 
 	} cdtAPIv010000;
 

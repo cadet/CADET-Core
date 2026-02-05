@@ -50,6 +50,8 @@ public:
 	 */
 	virtual UnitOpIdx unitOperationId() const CADET_NOEXCEPT = 0;
 
+	virtual unsigned int numComponents() const CADET_NOEXCEPT = 0; 
+
 	/**
 	 * @brief Returns the name of this unit operation model
 	 * @return Name of this unit operation model

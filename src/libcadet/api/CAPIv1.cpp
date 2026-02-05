@@ -1175,7 +1175,7 @@ namespace v1
 				return cdtErrorInvalidInputs;
 			}
 
-			std::copy(state, state + nStates, simState);
+			std::copy(state, state + nStates, simState); // in frist, in last, dest
 
 			//logFile << "C-API setState: After copy simState[2]=" << simState[2] << ", simState[3]=" << simState[3] << std::endl;
 
@@ -1252,6 +1252,53 @@ namespace v1
 
 	return cdtOK;
 	
+	}
+
+	cdtResult setBulkState(cdtDriver* drv, int unitOpId, double time, double const* state, int nStates)
+	{		
+		Driver* const realDrv = drv->driver;
+		if (!realDrv)
+		{
+			return cdtErrorInvalidInputs;
+		}
+		if (!state)
+		{
+			return cdtErrorInvalidInputs;
+		}
+
+		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+		{
+			return cdtError;
+		}
+		
+		try
+		{
+		
+			unsigned int sliceStart;
+			unsigned int sliceEnd;
+			std::tie(sliceStart, sliceEnd) = sim->model()->getModelStateOffsets(unitOpId);
+			
+			unsigned len = 0;
+			double* simState = const_cast<double*>(sim->getLastSolution(len));
+			
+			auto unit = sim->model()->getUnitOperationModel(unitOpId);
+			unsigned OffsetToBulk = unit->numComponents();
+			std::copy(state, state + nStates, simState + sliceStart + OffsetToBulk);
+
+			const int result = sim->reinitialize(time);
+			
+			if (result < 0)
+				return cdtError;
+
+		}
+		catch(const std::exception& e)
+		{
+        	LOG(Error) << "C-API: Setting bulk state failed: " << e.what();
+			return cdtError;
+		}
+
+		return cdtOK;
 	}
 	
 
@@ -1336,6 +1383,7 @@ extern "C"
 		ptr->endSimulation = &cadet::api::v1::endSimulation;
 		ptr->setState = &cadet::api::v1::setState;
 		ptr->setUnitState = &cadet::api::v1::setUnitState;
+		ptr->setBulkState = &cadet::api::v1::setBulkState;
 
 		return cdtOK;
 	}
