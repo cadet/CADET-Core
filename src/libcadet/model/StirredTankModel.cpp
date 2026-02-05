@@ -592,7 +592,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 	double* const c = vecStateY + _nComp;
 	const double vLiquid = c[_nComp + _totalBound];
 	const double vSolid = static_cast<double>(_constSolidVolume);
-	const double porosity = static_cast<const double>(vLiquid) / (vSolid + static_cast<const double>(vLiquid));
+	const double porosity = vLiquid / (vSolid + vLiquid);
 
 
 	// Check if liquid volume is 0
