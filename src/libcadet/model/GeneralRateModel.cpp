@@ -1314,8 +1314,6 @@ int GeneralRateModel<ConvDispOperator>::residualBulk(double t, unsigned int secI
 	else
 		_convDispOp.jacobian(*this, t, secIdx, yBase, nullptr, nullptr);
 
-		return 0;
-
 	// Get offsets
 	Indexer idxr(_disc);
 	StateType const* y = yBase + idxr.offsetC();
