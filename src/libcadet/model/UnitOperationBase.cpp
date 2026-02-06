@@ -12,6 +12,7 @@
 
 #include "model/UnitOperationBase.hpp"
 #include "model/BindingModel.hpp"
+#include "model/ExchangeModel.hpp"
 #include "model/ReactionModel.hpp"
 #include "SimulationTypes.hpp"
 
