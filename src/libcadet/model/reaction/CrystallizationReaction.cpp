@@ -159,7 +159,7 @@ namespace detail
 					int k = (i > j) ? i + 1 : j + 1;
 
 					iIndex[i * binCenters.size() + j] = -1;        // -1 indicates there is no match
-					for (k; k < binCenters.size(); ++k)
+					for ( ; k < binCenters.size(); ++k)
 					{
 						if ((sumVolumeCubeRoot > bins[k]) && (sumVolumeCubeRoot <= bins[k + 1]))
 						{
