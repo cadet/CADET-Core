@@ -1203,7 +1203,7 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 		// We, hence, assume that this doesn't happen and simply
 		// do nothing leaving the initial conditions in place.
 
-		typename linalg::DenseMatrix::RowIterator itRow = _jacFact.row(0);
+//		typename linalg::DenseMatrix::RowIterator itRow = _jacFact.row(0);
 
 		const double denom = vDot + flowOut;
 		if (denom == 0.0)
