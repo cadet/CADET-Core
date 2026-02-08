@@ -784,7 +784,7 @@ void ColumnModel2D::notifyDiscontinuousSectionTransition(double t, unsigned int 
 	_disc.newStaticJac = true;
 
 	// ConvectionDispersionOperator tells us whether flow direction has changed
-	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx));
+	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx)){};
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
