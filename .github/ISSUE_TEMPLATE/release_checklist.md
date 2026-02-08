@@ -73,7 +73,7 @@ The following checklist describes the steps to execute sequentially for creating
 
 To ensure CADET-Core is accessible to a broad community, it is available as a Python package on conda-forge.  
 Other software, such as CADET-Process and CADET-Python, import this package.
-For pre-releases, substitute the `version` with the conda-friendly PEP 404 standard (e.g. 6.0.0a1 instead of 6.0.0-alpha.1).
+For pre-releases, substitute the `version` with the conda-friendly PEP 404 standard in the following (e.g. 6.0.0a1 instead of 6.0.0-alpha.1).
 
 - [ ] If its a pre-release: add another tag with the PEP 404 version number to the pre-release commit on GitHub
 - [ ] Go to your fork of [cadet-feedstock](https://github.com/conda-forge/cadet-feedstock) or create one if it does not exist
@@ -90,6 +90,13 @@ For pre-releases, substitute the `version` with the conda-friendly PEP 404 stand
 - [ ] Wait for the automatic checks to pass
 - [ ] Merge the pull request to trigger the conda-forge release
 - [ ] Double check if the new version of cadet-core is on conda-forge
+
+## Release of binaries on PyPi
+
+Additionally, CADET-Core is released on PyPi.
+
+- [ ] Check if the workflow `wheels.yml` was successfully executed (triggered by the GitHub tag)
+- [ ] Check availability of the package on [pypi.org/project/CADET-Core/](https://pypi.org/project/CADET-Core/)
 
 ## Follow-up
 - [ ] Check if the documentation for the new version was deployed correctly: https://cadet.github.io/
