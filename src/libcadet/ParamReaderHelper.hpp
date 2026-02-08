@@ -295,6 +295,8 @@ namespace cadet
 			cadet_assert(false);
 			break;
 		}
+		cadet_assert(false);
+		return nullptr;
 	}
 
 	/**
@@ -340,6 +342,8 @@ namespace cadet
 			cadet_assert(false);
 			break;
 		}
+		cadet_assert(false);
+		return nullptr;
 	}
 
 	/**
