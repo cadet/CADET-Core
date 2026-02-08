@@ -112,7 +112,7 @@ namespace cadet
 				inline const double* LGLnodes() const CADET_NOEXCEPT { return &_nodes[0]; }
 				inline const active& currentVelocity() const CADET_NOEXCEPT { return _curVelocity; }
 				inline const active* currentDispersion(const int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_colDispersion, _nComp, secIdx); }
-				inline const bool dispersionCompIndep() const CADET_NOEXCEPT { return _dispersionCompIndep; }
+				inline bool dispersionCompIndep() const CADET_NOEXCEPT { return _dispersionCompIndep; }
 
 				inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
 				inline unsigned int nelements() const CADET_NOEXCEPT { return _nElem; }
@@ -336,7 +336,7 @@ namespace cadet
 				 */
 				Eigen::MatrixXd DGjacobianDispBlock(unsigned int elementIdx)
 				{
-					int offC = 0; // inlet DOFs not included in Jacobian
+//					int offC = 0; // inlet DOFs not included in Jacobian
 
 					Eigen::MatrixXd dispBlock;
 

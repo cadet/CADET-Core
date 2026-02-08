@@ -802,7 +802,8 @@ bool GeneralRateModel2D::configure(IParameterProvider& paramProvider)
 		bool parDiffParTypeDep = paramProvider.exists("PORE_DIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getInt("PORE_DIFFUSION_PARTYPE_DEPENDENT") : true;
 		if (parType > 0)
 			tmpMode = _parDiffusionMode;
-			_parDiffusionMode = readAndRegisterMultiplexCompSecParam(paramProvider, _parameters, _parDiffusion, "PORE_DIFFUSION", _disc.nComp, parType, parDiffParTypeDep, _unitOpIdx, _parDiffusion.size());
+
+		_parDiffusionMode = readAndRegisterMultiplexCompSecParam(paramProvider, _parameters, _parDiffusion, "PORE_DIFFUSION", _disc.nComp, parType, parDiffParTypeDep, _unitOpIdx, _parDiffusion.size());
 		if (parType > 0 && tmpMode != _parDiffusionMode)
 			throw InvalidParameterException("Inconsistent pore diffusion multiplex mode accross particle types " + std::to_string(parType - 1) + " and " + std::to_string(parType));
 
@@ -855,9 +856,9 @@ bool GeneralRateModel2D::configure(IParameterProvider& paramProvider)
 	updateRadialDisc();
 
 	// Register initial conditions parameters
-	registerParam1DArray(_parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
+	registerParam1DArray(_parameters, _initC, [=, this](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
 	if (_disc.nRad > 1)
-		registerParam2DArray(_parameters, _initC, [=](bool multi, unsigned int rad, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, rad, SectionIndep); }, _disc.nComp);
+		registerParam2DArray(_parameters, _initC, [=, this](bool multi, unsigned int rad, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, rad, SectionIndep); }, _disc.nComp);
 
 	if (_singleBinding)
 	{
@@ -875,9 +876,9 @@ bool GeneralRateModel2D::configure(IParameterProvider& paramProvider)
 	}
 	else
 	{
-		registerParam2DArray(_parameters, _initCp, [=](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, _disc.nComp);
+		registerParam2DArray(_parameters, _initCp, [=, this](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, _disc.nComp);
 		if (_disc.nRad > 1)
-			registerParam3DArray(_parameters, _initCp, [=](bool multi, unsigned int rad, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, type, BoundStateIndep, rad, SectionIndep); }, _disc.nComp, _disc.nParType);
+			registerParam3DArray(_parameters, _initCp, [=, this](bool multi, unsigned int rad, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, type, BoundStateIndep, rad, SectionIndep); }, _disc.nComp, _disc.nParType);
 	}
 
 	if (!_binding.empty())

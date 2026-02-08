@@ -789,13 +789,13 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 			_parameters[makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, i, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parTypeVolFrac[i];
 	}
 	else
-		registerParam2DArray(_parameters, _parTypeVolFrac, [=](bool multi, unsigned cell, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, cell); }, _disc.nParType);
+		registerParam2DArray(_parameters, _parTypeVolFrac, [=, this](bool multi, unsigned cell, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, cell); }, _disc.nParType);
 
 	// Calculate the particle radial discretization variables (_parCellSize, _parCenterRadius, etc.)
 	updateRadialDisc();
 
 	// Register initial conditions parameters
-	registerParam1DArray(_parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
+	registerParam1DArray(_parameters, _initC, [=, this](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
 
 	if (_singleBinding)
 	{
@@ -803,7 +803,7 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 			_parameters[makeParamId(hashString("INIT_CP"), _unitOpIdx, c, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_initCp[c];
 	}
 	else
-		registerParam2DArray(_parameters, _initCp, [=](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, _disc.nComp);
+		registerParam2DArray(_parameters, _initCp, [=, this](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, _disc.nComp);
 
 
 	if (!_binding.empty())
@@ -901,10 +901,10 @@ unsigned int GeneralRateModel<ConvDispOperator>::threadLocalMemorySize() const C
 		if (_binding[i] && _binding[i]->requiresWorkspace())
 			lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
 
-			// Reactions in particle
-			_reacParticle[i]->setWorkspaceRequirements("cross_phase",  _disc.nComp, _disc.strideBound[i], lms);
-			_reacParticle[i]->setWorkspaceRequirements("liquid", _disc.nComp, _disc.strideBound[i], lms);
-			_reacParticle[i]->setWorkspaceRequirements("solid",  _disc.nComp, _disc.strideBound[i], lms);
+		// Reactions in particle
+		_reacParticle[i]->setWorkspaceRequirements("cross_phase",  _disc.nComp, _disc.strideBound[i], lms);
+		_reacParticle[i]->setWorkspaceRequirements("liquid", _disc.nComp, _disc.strideBound[i], lms);
+		_reacParticle[i]->setWorkspaceRequirements("solid",  _disc.nComp, _disc.strideBound[i], lms);
 	}
 	// Reactions in liquid bulk
 	_reaction.setWorkspaceRequirements("liquid", _disc.nComp, 0, lms);
