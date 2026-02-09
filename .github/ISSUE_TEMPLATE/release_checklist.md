@@ -73,7 +73,7 @@ The following checklist describes the steps to execute sequentially for creating
 
 To ensure CADET-Core is accessible to a broad community, it is available as a Python package on conda-forge.  
 Other software, such as CADET-Process and CADET-Python, import this package.
-For pre-releases, substitute the `version` with the conda-friendly PEP 404 standard (e.g. 6.0.0a1 instead of 6.0.0-alpha.1).
+For pre-releases, substitute the `version` with the conda-friendly PEP 404 standard in the following (e.g. 6.0.0a1 instead of 6.0.0-alpha.1).
 
 - [ ] If its a pre-release: add another tag with the PEP 404 version number to the pre-release commit on GitHub
 - [ ] Go to your fork of [cadet-feedstock](https://github.com/conda-forge/cadet-feedstock) or create one if it does not exist
@@ -91,8 +91,16 @@ For pre-releases, substitute the `version` with the conda-friendly PEP 404 stand
 - [ ] Merge the pull request to trigger the conda-forge release
 - [ ] Double check if the new version of cadet-core is on conda-forge
 
+## Release of binaries on PyPi
+
+Additionally, CADET-Core is released on PyPi.
+
+- [ ] Check if the workflow `wheels.yml` was successfully executed (triggered by the GitHub tag)
+- [ ] Check availability of the package on [pypi.org/project/CADET-Core/](https://pypi.org/project/CADET-Core/)
+
 ## Follow-up
 - [ ] Check if the documentation for the new version was deployed correctly: https://cadet.github.io/
+- [ ] Check whether a version bump of the [CADET metapackage](https://github.com/cadet/CADET-Metapackage) is required. A bump is only necessary if the set of explicitly compatible CADET-Core and CADET-Process versions changes. This applies when a new CADET-Core release has feature parity with CADET-Process, or when a patch release is issued for a Core version that is already shipped as compatible in the metapackage.
 - [ ] Create or update a CADET forum post announcing the release, including release notes
 - [ ] If this release checklist was updated, add these changes to the corresponding issue template
 
