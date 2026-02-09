@@ -71,8 +71,9 @@ public:
 	TwoDimensionalConvectionDispersionOperatorDG();
 	~TwoDimensionalConvectionDispersionOperatorDG() CADET_NOEXCEPT;
 
-	void setFlowRates(int compartment, const active& in, const active& out) CADET_NOEXCEPT;
-	void setFlowRates(active const* in, active const* out) CADET_NOEXCEPT;
+	void setFlowRates(int compartment, const active& in, const active& out);
+	void setFlowRates(active const* in, active const* out);
+
 
 	bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const unsigned int nComp, const unsigned int radNodeStride);
 	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);

@@ -824,12 +824,12 @@ bool TwoDimensionalConvectionDispersionOperatorDG::notifyDiscontinuousSectionTra
  * @param [in] in Total volumetric inlet flow rate
  * @param [in] out Total volumetric outlet flow rate
  */
-void TwoDimensionalConvectionDispersionOperatorDG::setFlowRates(int compartment, const active& in, const active& out) CADET_NOEXCEPT
+void TwoDimensionalConvectionDispersionOperatorDG::setFlowRates(int compartment, const active& in, const active& out)
 {
 	_curVelocity[compartment] = _dir[compartment] * in / (_elementCrossSections[compartment] * _colPorosities[compartment]);
 }
 
-void TwoDimensionalConvectionDispersionOperatorDG::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
+void TwoDimensionalConvectionDispersionOperatorDG::setFlowRates(active const* in, active const* out)
 {
 	for (unsigned int radElem = 0; radElem < _radNElem; ++radElem)
 	{
