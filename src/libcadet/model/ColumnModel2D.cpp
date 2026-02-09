@@ -378,9 +378,9 @@ bool ColumnModel2D::configureModelDiscretization(IParameterProvider& paramProvid
 
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
-	_disc.nParType = paramProvider.getInt("NPARTYPE");
-	if (_disc.nParType < 0)
+	if (paramProvider.getInt("NPARTYPE") < 0)
 		throw InvalidParameterException("Number of particle types must be >= 0!");
+	_disc.nParType = paramProvider.getInt("NPARTYPE");
 
 	if (_disc.nParType == 0 && paramProvider.exists("particle_type_000"))
 		throw InvalidParameterException("NPARTYPE is set to 0, but group particle_type_000 exists.");
