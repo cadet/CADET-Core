@@ -100,6 +100,7 @@ Additionally, CADET-Core is released on PyPi.
 
 ## Follow-up
 - [ ] Check if the documentation for the new version was deployed correctly: https://cadet.github.io/
+- [ ] Check whether a version bump of the [CADET metapackage](https://github.com/cadet/CADET-Metapackage) is required. A bump is only necessary if the set of explicitly compatible CADET-Core and CADET-Process versions changes. This applies when a new CADET-Core release has feature parity with CADET-Process, or when a patch release is issued for a Core version that is already shipped as compatible in the metapackage.
 - [ ] Create or update a CADET forum post announcing the release, including release notes
 - [ ] If this release checklist was updated, add these changes to the corresponding issue template
 
