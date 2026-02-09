@@ -98,8 +98,14 @@ public:
 	inline const active& currentVelocity(double pos) const CADET_NOEXCEPT { return _curVelocity; }
 	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelocity >= 0.0; }
 
-	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return static_cast<double>(_colLength) / _nCol * (idx + 0.5); }
-	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT { return (0.5 + idx) / _nCol; }
+	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT
+	{
+		if (_cellFaces.empty())
+			return static_cast<double>(_colLength) / _nCol * (idx + 0.5);
+		return static_cast<double>(_cellFaces[idx] + _cellFaces[idx + 1]) * 0.5;
+	}
+
+	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT { return cellCenter(idx) / static_cast<double>(_colLength); }
 	inline const active& currentVelocity() const CADET_NOEXCEPT { return _curVelocity; }
 
 	inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
@@ -132,7 +138,7 @@ protected:
 	// Section dependent parameters
 	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{ax}} \f$
 	std::vector<active> _velocity; //!< Interstitial velocity (may be section dependent) \f$ u \f$
-	std::vector<active> _cellFaces; //TODO: double check if this is correct, also if we use this then no need for _nCol
+	std::vector<active> _cellFaces;
 	active _curVelocity; //!< Current interstitial velocity \f$ u \f$ in this time section
 	int _dir; //!< Current flow direction in this time section
 
@@ -240,7 +246,7 @@ protected:
 	// Section dependent parameters
 	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{rad}} \f$
 	std::vector<active> _velocity; //!< Radial velocity (may be section dependent) \f$ v \f$
-	std::vector<active> _cellFaces; //TODO: double check if this is correct, also if we use this then no need for _nCol
+	std::vector<active> _cellFaces; //!< Radial positions of cell faces (length nCol+1)
 	active _curVelocity; //!< Current interstitial velocity \f$ u \f$ in this time section
 	int _dir; //!< Current flow direction in this time section
 	double _circleFraction; //!< Specifies whether the radial model is a full circle or wedge and in that case the fraction of a full circle
@@ -350,7 +356,7 @@ protected:
 	// Section dependent parameters
 	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{rad}} \f$
 	std::vector<active> _velocityCoeff; //!< Velocity coefficients (may be section dependent) \f$ v \f$
-	std::vector<active> _cellFaces; //TODO: double check if this is correct, also if we use this then no need for _nCol
+	std::vector<active> _cellFaces;
 	active _curVelocityCoeff; //!< Current interstitial velocity coefficient \f$ u \f$ in this time section
 	int _dir; //!< Current flow direction in this time section
 
