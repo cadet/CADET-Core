@@ -271,7 +271,11 @@ protected:
 		}
 		
 
-		_stoichiometry.resize(15, 15); // option to optimize: Depending on whether adsorbed components are used or not 13/12 or 15 reactions are needed
+		_stoichiometry.resize(15, 15); //componentes x reactions // option to optimize: Depending on whether adsorbed components are used or not 13/12 or 15 reactions are needed
+		
+		if (_givenAd)
+			_stoichiometry.resize(13, 13);
+		
 		_stoichiometry.setAll(0);
 
 		// parameter set ASM3h
@@ -360,9 +364,12 @@ protected:
 		_stoichiometry.native(_idxSS, 2) = -1;
 
 		// SS_ad
-		_stoichiometry.native(_idxSS_ad, 0) = (1 - fSI) * fSS_ad;
-		_stoichiometry.native(_idxSS_ad, 13) = -1;
-		_stoichiometry.native(_idxSS_ad, 14) = -1;
+		if (_givenAd)
+		{
+			_stoichiometry.native(_idxSS_ad, 0) = (1 - fSI) * fSS_ad;
+			_stoichiometry.native(_idxSS_ad, 13) = -1;
+			_stoichiometry.native(_idxSS_ad, 14) = -1;
+		}
 
 
 		// SNH
@@ -376,9 +383,11 @@ protected:
 		_stoichiometry.native(_idxSNH, 9) = c10n;
 		_stoichiometry.native(_idxSNH, 10) = c11n;
 		_stoichiometry.native(_idxSNH, 11) = c12n;
-		_stoichiometry.native(_idxSNH, 13) = c2n;
-		_stoichiometry.native(_idxSNH, 14) = c3n;
-
+		if(_givenAd)
+		{
+			_stoichiometry.native(_idxSNH, 13) = c2n;
+			_stoichiometry.native(_idxSNH, 14) = c3n;
+		}
 		// SNO
 		_stoichiometry.native(_idxSNO, 2) = c3no;
 		_stoichiometry.native(_idxSNO, 4) = c5no;
@@ -386,8 +395,8 @@ protected:
 		_stoichiometry.native(_idxSNO, 8) = c9no;
 		_stoichiometry.native(_idxSNO, 9) = c10no;
 		_stoichiometry.native(_idxSNO, 11) = c12no;
-		_stoichiometry.native(_idxSNO, 14) = c3no;
-
+		if (_givenAd)
+			_stoichiometry.native(_idxSNO, 14) = c3no;
 
 		// SN2
 		_stoichiometry.native(_idxSN2, 2) = -c3no;
@@ -395,7 +404,8 @@ protected:
 		_stoichiometry.native(_idxSN2, 6) = -c7no;
 		_stoichiometry.native(_idxSN2, 8) = -c9no;
 		_stoichiometry.native(_idxSN2, 11) = -c12no;
-		_stoichiometry.native(_idxSN2, 14) = -c3no;
+		if(_givenAd)
+			_stoichiometry.native(_idxSN2, 14) = -c3no;
 
 
 
@@ -412,13 +422,15 @@ protected:
 		_stoichiometry.native(_idxSALK, 10) = c11a;
 		_stoichiometry.native(_idxSALK, 11) = c12a;
 		_stoichiometry.native(_idxSALK, 12) = c2a;
-		_stoichiometry.native(_idxSALK, 13) = c3a;
+		if (_givenAd)
+			_stoichiometry.native(_idxSALK, 13) = c3a;
 
 		// SI
 		_stoichiometry.native(_idxSI, 0) = fSI * (1 - fSI_ad);
 
 		//SI_ad
-		_stoichiometry.native(_idxSI_ad, 0) = fSI * fSI_ad;
+		if(_givenAd)
+			_stoichiometry.native(_idxSI_ad, 0) = fSI * fSI_ad;
 
 		// XI
 		_stoichiometry.native(_idxXI, 5) = fXI;
@@ -443,8 +455,12 @@ protected:
 		_stoichiometry.native(_idxXSTO, 4) = -1 / YH_anox;
 		_stoichiometry.native(_idxXSTO, 7) = -1;
 		_stoichiometry.native(_idxXSTO, 8) = -1;
-		_stoichiometry.native(_idxXSTO, 13) = YSTO_aer;
-		_stoichiometry.native(_idxXSTO, 14) = YSTO_anox;
+		if(_givenAd)
+		{
+			_stoichiometry.native(_idxXSTO, 13) = YSTO_aer;
+			_stoichiometry.native(_idxXSTO, 14) = YSTO_anox;
+		}
+
 
 		// XA
 		_stoichiometry.native(_idxXA, 9) = 1;
@@ -583,15 +599,11 @@ protected:
 		// p14: Anoxic storage of SS_ad
 		if (_givenAd)
 			fluxes[13] = k_sto * SO / (SO + kho2) * (SS_ad) / ( ( SS + SS_ad ) + khss )  * XH;
-		else
-			fluxes[13] = 0.0;
-			
+
 
 		// p15: Aerobic storage of SS_ad
 		if(_givenAd)
 			fluxes[14] = k_sto * etahno3 * kho2 / (SO + kho2) * (SS_ad) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khn03) * XH;
-		else
-			fluxes[14] = 0.0;
 		
 		// Add reaction terms to residual
 		_stoichiometry.multiplyVector(static_cast<flux_t*>(fluxes), factor, res);
@@ -672,7 +684,11 @@ protected:
 		}
 
 		// initialize jacobian
-		double d[15][15] = {};
+		double d;
+		if (_givenAd)
+			d[15][15] = {};
+		else
+			d[13][13] = {};
 		
 		// p1: Hydrolysis: kh20 * ft04 * XS/XH_S / (XS/XH_S + kx) * XH;
 		d[0][_idxXS] = kh20 * ft04
@@ -692,9 +708,12 @@ protected:
 		d[1][_idxSO] = k_sto
 			* (SS_ad + SS) / ((SS_ad + SS) + khss)
 			* kho2 / ((SO + kho2) * (SO + kho2)) * XH;
-		d[1][_idxSS_ad] = k_sto
-				* SO / (SO + kho2)
-				* -SS / ((SS_ad + SS + khss) * (SS_ad + SS + khss)) * XH;
+		if (_givenAd)
+		{
+			d[1][_idxSS_ad] = k_sto
+							* SO / (SO + kho2)
+							* -SS / ((SS_ad + SS + khss) * (SS_ad + SS + khss)) * XH;
+		}
 		d[1][_idxSS] = k_sto
 			* SO / (SO + kho2)
 			* (khss + SS_ad) / ((SS_ad + SS + khss) * (SS_ad + SS + khss)) * XH;
@@ -707,10 +726,14 @@ protected:
 			* -kho2 / ((SO + kho2) * (SO + kho2))
 			* (SS_ad + SS) / (SS_ad + SS + khss)
 			* SNO / (SNO + khn03) * XH;
-		d[2][_idxSS_ad] = k_sto * etahno3
-				* kho2 / (SO + kho2)
-				* -SS / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
-				* SNO / (SNO + khn03) * XH;
+		if(_givenAd)
+		{
+			d[2][_idxSS_ad] = k_sto * etahno3
+							* kho2 / (SO + kho2)
+							* -SS / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
+							* SNO / (SNO + khn03) * XH;
+		}
+		
 		d[2][_idxSS] = k_sto * etahno3
 			* kho2 / (SO + kho2)
 			* (khss + SS_ad)  / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
@@ -922,43 +945,51 @@ protected:
 		
 		//reaction13: Aeration: io2 / V;
 		// no jacobian terms
+		if  (_givenAd)
+		{
+			// p14: Aerobic storage of SS_ad: k_sto * SO / (SO + kho2) * ( SS_ad ) / ( ( SS_ad + SS ) + khss )  * XH;
+			d[13][_idxSO] = k_sto
+						* (SS_ad) / ((SS_ad + SS) + khss)
+						* kho2 / ((SO + kho2) * (SO + kho2)) * XH;
 
-		// p14: Aerobic storage of SS_ad: k_sto * SO / (SO + kho2) * ( SS_ad ) / ( ( SS_ad + SS ) + khss )  * XH;
-		d[13][_idxSO] = k_sto
-			* (SS_ad) / ((SS_ad + SS) + khss)
-			* kho2 / ((SO + kho2) * (SO + kho2)) * XH;
-		d[13][_idxSS_ad] = k_sto
-				* SO / (SO + kho2)
-				* (khss * SS) / ((SS_ad + SS + khss) * (SS_ad + SS + khss)) * XH;
-		d[13][_idxSS] = k_sto
-			* SO / (SO + kho2)
-			* (-SS_ad) / ((SS_ad + SS + khss) * (SS_ad + SS + khss)) * XH;
-		d[13][_idxXH] = k_sto
-			* SO / (SO + kho2)
-			* (SS_ad) / ((SS_ad + SS) + khss);
+			d[13][_idxSS_ad] = k_sto
+						* SO / (SO + kho2)
+						* (khss * SS) / ((SS_ad + SS + khss) * (SS_ad + SS + khss)) * XH;
 
-		// p15: Anoxic storage of SS_ad: k_sto * etahno3 * kho2 / (SO + kho2) * ( SS_ad ) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khn03) * XH;
-		d[14][_idxSO] = k_sto * etahno3
-			* -kho2 / ((SO + kho2) * (SO + kho2))
-			* (SS_ad) / (SS_ad + SS + khss)
-			* SNO / (SNO + khn03) * XH;
-		d[14][_idxSS_ad] = k_sto * etahno3
+			d[13][_idxSS] = k_sto
+						* SO / (SO + kho2)
+						* (-SS_ad) / ((SS_ad + SS + khss) * (SS_ad + SS + khss)) * XH;
+			d[13][_idxXH] = k_sto
+						* SO / (SO + kho2)
+						* (SS_ad) / ((SS_ad + SS) + khss);
+		}
+		
+		if  (_givenAd)
+		{
+			// p15: Anoxic storage of SS_ad: k_sto * etahno3 * kho2 / (SO + kho2) * ( SS_ad ) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khn03) * XH;
+			d[14][_idxSO] = k_sto * etahno3
+				* -kho2 / ((SO + kho2) * (SO + kho2))
+				* (SS_ad) / (SS_ad + SS + khss)
+				* SNO / (SNO + khn03) * XH;
+
+			d[14][_idxSS_ad] = k_sto * etahno3
 				* kho2 / (SO + kho2)
 				* (khss * SS) / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
 				* SNO / (SNO + khn03) * XH;
-		d[14][_idxSS] = k_sto * etahno3
-			* kho2 / (SO + kho2)
-			* (-SS_ad) / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
-			* SNO / (SNO + khn03) * XH;
-		d[14][_idxSNO] = k_sto * etahno3
-			* kho2 / (SO + kho2)
-			* (SS_ad) / ((SS_ad + SS) + khss)
-			* khn03 / ((SNO + khn03) * (SNO + khn03)) * XH;
-		d[14][_idxXH] = k_sto * etahno3
-			* kho2 / (SO + kho2)
-			* (SS_ad) / ((SS_ad + SS) + khss)
-			* SNO / (SNO + khn03);
 
+			d[14][_idxSS] = k_sto * etahno3
+				* kho2 / (SO + kho2)
+				* (-SS_ad) / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
+				* SNO / (SNO + khn03) * XH;
+			d[14][_idxSNO] = k_sto * etahno3
+				* kho2 / (SO + kho2)
+				* (SS_ad) / ((SS_ad + SS) + khss)
+				* khn03 / ((SNO + khn03) * (SNO + khn03)) * XH;
+			d[14][_idxXH] = k_sto * etahno3
+				* kho2 / (SO + kho2)
+				* (SS_ad) / ((SS_ad + SS) + khss)
+				* SNO / (SNO + khn03);
+		}
 
 		RowIterator curJac = jac;
 		for (size_t rIdx = 0; rIdx < _stoichiometry.columns(); rIdx++)
