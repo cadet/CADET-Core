@@ -360,6 +360,7 @@ namespace reaction
 		// Calculate analytic Jacobian
 		cadet::linalg::DenseMatrix jacAna;
 		jacAna.resize(numDofs, numDofs);
+		jacAna.setAll(0.0);
 		crm.model().analyticJacobianCombinedAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, yState.data(), yState.data() + crm.nComp(), 1.0, jacAna.row(0), jacAna.row(crm.nComp()), crm.buffer());
 
 		cadet::test::checkJacobianPatternFD(
