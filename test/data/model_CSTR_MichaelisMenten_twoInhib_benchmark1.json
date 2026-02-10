@@ -14,39 +14,82 @@
             "MAX_RESTARTS": 10,
             "SCHUR_SAFETY": 1e-08
         },
-        "unit_000": {
-          "INIT_C": [
-            5.0,
-            0.0,
-            9.0,
-            9.0
-          ],
+      "unit_000": {
+        "INIT_C": [
+          5.0,
+          0.0,
+          9.0,
+          9.0,
+          0.001,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
             "INIT_LIQUID_VOLUME": 1000,
             "NCOMP": 4,
-            "REACTION_MODEL": "MICHAELIS_MENTEN",
+            "NREAC_LIQUID": 1,
             "UNIT_TYPE": "CSTR",
-            "reaction_bulk": {
-                "MM_KI": [
-                    0,
-                    0,
-                    3.0,
-                    2.0
-                ],
-                "MM_KMM": [
-                    100
-                ],
-              "MM_STOICHIOMETRY_BULK": [
-                -1,
-                1,
-                0,
-                0
-              ],
-                "MM_VMAX": [
-                    40
-                ]
-            }
+          "liquid_reaction_000": {
+            "TYPE": "MICHAELIS_MENTEN",
+            "MM_KI_C": [
+              0.0,
+              0.0,
+              2.0,
+              3.0,
+
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "MM_KI_UC": [
+              0.0,
+              0.0,
+              2.0,
+              3.0,
+
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "MM_KMM": [
+              100, 0.0,0.0, 0.0
+            ],
+            "MM_STOICHIOMETRY": [
+              -1,
+              1,
+              0,
+              0
+            ],
+            "MM_VMAX": [
+              40
+            ]
+          }
         }
-    },
+      },
     "return": {
         "SPLIT_COMPONENTS_DATA": false,
         "SPLIT_PORTS_DATA": 0,

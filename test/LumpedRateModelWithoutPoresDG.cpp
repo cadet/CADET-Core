@@ -19,19 +19,19 @@
 
 TEST_CASE("LRM_DG LWE forward vs backward flow", "[LRM],[DG],[DG1D],[Simulation],[CI]")
 {
-	cadet::test::column::DGparams disc;
+	cadet::test::column::DGParams disc;
 
 	// Test all integration modes
 	for (int i = 0; i <= 1; i++)
 	{
-		disc.setIntegrationMode(i);
+		disc.setBulkDiscParam("EXACT_INTEGRATION", i);
 		cadet::test::column::testForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", disc, 6e-9, 6e-2);
 	}
 }
 
 TEST_CASE("LRM_DG linear pulse vs analytic solution", "[LRM],[DG],[DG1D],[Simulation],[Analytic],[CI]")
 {
-	cadet::test::column::DGparams disc;
+	cadet::test::column::DGParams disc;
 	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", true, true, disc, 2e-5, 1e-7);
 	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", true, false, disc, 2e-5, 1e-7);
 	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", false, true, disc, 2e-5, 1e-7);
@@ -40,19 +40,19 @@ TEST_CASE("LRM_DG linear pulse vs analytic solution", "[LRM],[DG],[DG1D],[Simula
 
 TEST_CASE("LRM_DG non-binding linear pulse vs analytic solution", "[LRM],[DG],[DG1D],[Simulation],[Analytic],[NonBinding],[CI]")
 {
-	cadet::test::column::DGparams disc;
+	cadet::test::column::DGParams disc;
 	cadet::test::column::testAnalyticNonBindingBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-nonBinding.data", true, disc, 2e-5, 1e-7);
 	cadet::test::column::testAnalyticNonBindingBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-nonBinding.data", false, disc, 2e-5, 1e-7);
 }
 
 //TEST_CASE("LRM_DG Jacobian forward vs backward flow", "[LRM],[DG],[DG1D],[UnitOp],[Residual],[Jacobian],[AD],[fix]")
 //{
-//	cadet::test::column::DGparams disc;
+//	cadet::test::column::DGParams disc;
 //
 //	// Test all integration modes
 //	for (int i = 0; i < 2; i++)
 //	{
-//		disc.setIntegrationMode(i);
+//		disc.setBulkDiscParam("EXACT_INTEGRATION", i);
 //		cadet::test::column::testJacobianForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", disc, std::numeric_limits<float>::epsilon() * 100.0);
 //	}
 //}
@@ -64,7 +64,7 @@ TEST_CASE("LRM_DG numerical Benchmark with parameter sensitivities for linear ca
 	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 
-	cadet::test::column::DGparams disc(0, 3, 8);
+	cadet::test::column::DGParams disc(0, 3, 8);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
@@ -75,7 +75,7 @@ TEST_CASE("LRM_DG numerical Benchmark with parameter sensitivities for SMA LWE c
 	const std::vector<double> absTol = { 1e-8, 1e-6, 1e-6, 1e-12 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 
-	cadet::test::column::DGparams disc(0, 3, 8);
+	cadet::test::column::DGParams disc(0, 3, 8);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 

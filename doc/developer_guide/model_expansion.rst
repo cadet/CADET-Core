@@ -45,7 +45,7 @@ The first, model independent steps are:
 
 1. Add ``NewModel.cpp`` and ``NewModel.hpp`` files in ``src\libcadet\model`` folder (copy and rename existing ones). Note that we'll call the new model "NewModel" from here on, so make sure to substitute this with the actual name of your model.
 2. Add ``${CMAKE_SOURCE_DIR}/src/libcadet/model/NewModel.cpp`` to the ``src/libcadet/CMakeLists.txt``
-3. (Optional) In the root/CMakeLists.txt file, you can add a build option to make building your new model optional. This enables building CADET versions with and without the new extension. This can be done, e.g., when additional dependencies are required or when build time should be reduced. See e.g. ``ENABLE_GRM_2D`` or ``ENABLE_DG``.
+3. (Optional) In the root/CMakeLists.txt file, you can add a build option to make building your new model optional. This enables building CADET versions with and without the new extension. This can be done, e.g., when additional dependencies are required or when build time should be reduced.
 4. Add new model to ModelBuilder (in ModelBuilderImpl.cpp, just like the other models are included):
 5. Rename everything to the new model
    a. Change the ``identifier()`` function in the ``NewModel.hpp`` to return a new unique model name (here: "NewModel")

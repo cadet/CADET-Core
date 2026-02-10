@@ -21,9 +21,7 @@
 #include "cadet/cadetCompilerInfo.hpp"
 #include "common/CompilerSpecific.hpp"
 
-#ifdef ENABLE_DG
-	#include <Eigen/Core>
-#endif
+#include <Eigen/Core>
 
 #include <type_traits>
 
@@ -169,41 +167,39 @@ namespace cadet
 	struct ActiveRefOrDouble<const double> { typedef const double type; };
 }
 
-#ifdef ENABLE_DG
-	namespace Eigen {
+namespace Eigen {
 
-		template<> struct NumTraits<cadet::active>
-			: NumTraits<double> // permits to get the epsilon, dummy_precision, lowest, highest functions
-		{
-			typedef cadet::active Real;
-			typedef cadet::active NonInteger;
-			typedef cadet::active Nested;
+	template<> struct NumTraits<cadet::active>
+		: NumTraits<double> // permits to get the epsilon, dummy_precision, lowest, highest functions
+	{
+		typedef cadet::active Real;
+		typedef cadet::active NonInteger;
+		typedef cadet::active Nested;
 
-			enum {
-				IsComplex = 0,
-				IsInteger = 0,
-				IsSigned = 1,
-				RequireInitialization = 1,
-				ReadCost = 1,
-				AddCost = 3,
-				MulCost = 3
-			};
+		enum {
+			IsComplex = 0,
+			IsInteger = 0,
+			IsSigned = 1,
+			RequireInitialization = 1,
+			ReadCost = 1,
+			AddCost = 3,
+			MulCost = 3
 		};
+	};
 
-			// specify return types concerning active double scalar operations for eigen
-			template<>
-			struct ScalarBinaryOpTraits<cadet::active, cadet::active, internal::scalar_product_op<cadet::active, cadet::active>> {
-				typedef cadet::active ReturnType;
-			};
-			template<>
-			struct ScalarBinaryOpTraits<cadet::active, double, internal::scalar_product_op<cadet::active, double>> {
-				typedef cadet::active ReturnType;
-			};
-			template<>
-			struct ScalarBinaryOpTraits<double, cadet::active, internal::scalar_product_op<double, cadet::active>> {
-				typedef cadet::active ReturnType;
-			};
-	}
-#endif
+		// specify return types concerning active double scalar operations for eigen
+		template<>
+		struct ScalarBinaryOpTraits<cadet::active, cadet::active, internal::scalar_product_op<cadet::active, cadet::active>> {
+			typedef cadet::active ReturnType;
+		};
+		template<>
+		struct ScalarBinaryOpTraits<cadet::active, double, internal::scalar_product_op<cadet::active, double>> {
+			typedef cadet::active ReturnType;
+		};
+		template<>
+		struct ScalarBinaryOpTraits<double, cadet::active, internal::scalar_product_op<double, cadet::active>> {
+			typedef cadet::active ReturnType;
+		};
+}
 
 #endif  // LIBCADET_AUTODIFF_HPP_

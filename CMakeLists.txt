@@ -28,7 +28,7 @@ find_package(Git)
 # Write the current version number to variable
 if (GIT_FOUND)
 	if (EXISTS "${CMAKE_SOURCE_DIR}/.git")
-		execute_process(COMMAND ${GIT_EXECUTABLE} describe --abbrev=0 HEAD
+		execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --abbrev=0 HEAD
 		                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 		                OUTPUT_VARIABLE CADET_VERSION
 		                OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -63,9 +63,12 @@ if (NOT DEFINED GIT_SHA1)
 endif()
 message(STATUS "Current git HEAD: ${GIT_REFSPEC} SHA1 ${GIT_SHA1}")
 
+# Remove pre-release suffix (cmake does not accept hyphen) to name the project
+string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" CADET_VERSION_NUM "${CADET_VERSION}")
+
 # Name of the current project
 project(CadetFramework
-	VERSION ${CADET_VERSION}
+	VERSION ${CADET_VERSION_NUM}
 	DESCRIPTION "Liquid column chromatography simulator"
 	HOMEPAGE_URL "https://github.com/cadet/cadet-core"
 	LANGUAGES CXX C)
@@ -117,9 +120,6 @@ add_feature_info(ENABLE_DEBUG_THREADING ENABLE_DEBUG_THREADING "Use multi-thread
 option(ENABLE_2D_MODELS "Build 2D models (e.g., 2D general rate model, multichannel transport)" ON)
 add_feature_info(ENABLE_2D_MODELS ENABLE_2D_MODELS "Build 2D models (e.g., 2D general rate model, multichannel transport)")
 
-option(ENABLE_DG "Build DG variants of models" ON)
-add_feature_info(ENABLE_DG ENABLE_DG "Build DG variants of models")
-
 option(ENABLE_SUNDIALS_OPENMP "Prefer OpenMP vector implementation of SUNDIALS if available (for large problems)" OFF)
 add_feature_info(ENABLE_SUNDIALS_OPENMP ENABLE_SUNDIALS_OPENMP "Prefer OpenMP vector implementation of SUNDIALS if available (for large problems)")
 
@@ -169,7 +169,7 @@ option(CODE_COVERAGE "Enable coverage reporting" OFF)
 if(CODE_COVERAGE)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         message(STATUS "Enabling coverage flags")
-        add_compile_options(-g --coverage)
+        add_compile_options(-g --coverage -O1 -fprofile-abs-path)
         add_link_options(--coverage)
     else()
         message(WARNING "Coverage only supported with GCC/Clang")
@@ -424,18 +424,8 @@ if (ENABLE_2D_MODELS)
 	)
 endif()
 
-set(EIGEN_TARGET "")
-if (ENABLE_DG)
-	find_package(Eigen3 3.4 REQUIRED NO_MODULE)
-
-	# Disable DG if Eigen is not present
-	if (NOT TARGET Eigen3::Eigen)
-		message(STATUS "Disabling DG support because Eigen3 could not be found")
-		set(ENABLE_DG OFF)
-	else()
-		set(EIGEN_TARGET "Eigen3::Eigen")
-	endif()
-endif()
+find_package(Eigen3 REQUIRED NO_MODULE)
+set(EIGEN_TARGET "Eigen3::Eigen")
 
 set(IPO_AVAILABLE OFF)
 if (ENABLE_IPO)
@@ -664,12 +654,10 @@ if (ENABLE_2D_MODELS)
 	endif()
 endif()
 
-if (ENABLE_DG)
-	message("Found Eigen3: ${Eigen3_FOUND}")
-	if (TARGET Eigen3::Eigen)
-		message("  Version ${Eigen3_VERSION}")
-		message("  Includes ${Eigen3_INCLUDE_DIRS}")
-	endif()
+message("Found Eigen3: ${Eigen3_FOUND}")
+if (TARGET Eigen3::Eigen)
+	message("  Version ${Eigen3_VERSION}")
+	message("  Includes ${Eigen3_INCLUDE_DIRS}")
 endif()
 
 message("Found HDF5: ${HDF5_FOUND}")

@@ -21,6 +21,7 @@
 #include "cadet/ParameterId.hpp"
 #include <limits>
 #include "Memory.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 
 
 namespace cadet

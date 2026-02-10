@@ -1,68 +1,75 @@
 {
-  "title": "CADET-Core: Version 5.0.3",
+  "title": "CADET-Core: Version 6.0.0-alpha.1",
   "upload_type": "software",
   "creators": [
-    { 
-      "name": "Leweke, Samuel", 
-      "orcid": "0000-0001-9471-4511", 
+    {
+      "name": "Breuer, Jan Michael",
+      "orcid": "0000-0002-1999-2439",
+      "affiliation": [ "University of Cologne", "Forschungszentrum Jülich" ]
+    },
+    {
+      "name": "Leweke, Samuel",
+      "orcid": "0000-0001-9471-4511",
       "affiliation": "Forschungszentrum Jülich"
     },
-    { 
-      "name": "Breuer, Jan", 
-      "orcid": "0000-0002-1999-2439", 
+    {
+      "name": "Schmölder, Johannes",
+      "orcid": "0000-0003-0446-7209",
       "affiliation": "Forschungszentrum Jülich"
     },
-    { 
-      "name": "Schmölder, Johannes", 
-      "orcid": "0000-0003-0446-7209", 
+    {
+      "name": "Berger, Antonia",
+      "orcid": "0009-0002-0207-9042",
       "affiliation": "Forschungszentrum Jülich"
     },
-    { 
-      "name": "Jäpel, Ronald", 
-      "orcid": "0000-0002-4912-5176", 
+    {
+      "name": "Lanzrath, Hannah",
+      "orcid": "0000-0002-2675-9002",
       "affiliation": "Forschungszentrum Jülich"
     },
-    { 
-      "name": "Lanzrath, Hannah", 
-      "orcid": "0000-0002-2675-9002", 
-      "affiliation": "Forschungszentrum Jülich"
-    },
-    { 
-      "name": "Rao, Jayghosh", 
-      "orcid": "0000-0002-1216-9394", 
-      "affiliation": "Forschungszentrum Jülich"
-    },
-    { 
-      "name": "Hassan, Jazib", 
-      "orcid": "0000-0003-2741-5460", 
-      "affiliation": "Forschungszentrum Jülich"
-    },
-    { 
-      "name": "Zhang, Wendi", 
-      "orcid": "0000-0002-6127-1408", 
+    {
+      "name": "Zhang, Wendi",
+      "orcid": "0000-0002-6127-1408",
       "affiliation": "Rensselaer Polytechnic Institute"
     },
-    { 
-      "name": "Berger, Antonia", 
-      "orcid": "0009-0002-0207-9042", 
+    {
+      "name": "Jäpel, Ronald",
+      "orcid": "0000-0002-4912-5176",
       "affiliation": "Forschungszentrum Jülich"
     },
-    { 
-      "name": "Heymann, William", 
-      "orcid": "0000-0002-5093-0797", 
+    {
+      "name": "Rao, Jayghosh",
+      "orcid": "0000-0002-1216-9394",
       "affiliation": "Forschungszentrum Jülich"
     },
-    { 
-      "name": "von Lieres, Eric", 
-      "orcid": "0000-0002-0309-8408", 
+    {
+      "name": "Hassan, Jazib",
+      "orcid": "0000-0003-2741-5460",
+      "affiliation": "Forschungszentrum Jülich"
+    },
+    {
+      "name": "Heymann, William",
+      "orcid": "0000-0002-5093-0797",
+      "affiliation": "Forschungszentrum Jülich"
+    },
+    {
+      "name": "von Lieres, Eric",
+      "orcid": "0000-0002-0309-8408",
       "affiliation": "Forschungszentrum Jülich"
     }
   ],
   "license": "GPL-3.0",
   "keywords": [
-   "modeling","simulation", "biotechnology", "process", "chromatography", "CADET", "general rate model", "C++"
+    "modeling",
+    "simulation",
+    "biotechnology",
+    "process",
+    "chromatography",
+    "CADET",
+    "general rate model",
+    "C++"
   ],
-  "version": "5.0.3",
+  "version": "6.0.0-alpha.1",
   "access_right": "open",
   "communities": [
     { "identifier": "open-source" }

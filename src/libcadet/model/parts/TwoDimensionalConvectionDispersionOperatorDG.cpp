@@ -126,7 +126,7 @@ cadet::model::MultiplexMode readAndRegisterMultiplexParam(cadet::IParameterProvi
 	const cadet::StringHash nameHash = cadet::hashStringRuntime(name);
 	switch (mode)
 	{
-		case cadet::model::MultiplexMode::Independent:
+		case cadet::model::MultiplexMode::Independent: // nSec = 1
 		case cadet::model::MultiplexMode::Section:
 			{
 				std::vector<cadet::active> p(nComp * radNElem * nSec);
@@ -139,14 +139,14 @@ cadet::model::MultiplexMode readAndRegisterMultiplexParam(cadet::IParameterProvi
 					parameters[cadet::makeParamId(nameHash, uoi, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, (mode == cadet::model::MultiplexMode::Independent) ? cadet::SectionIndep : s)] = &values[s * radNElem * nComp];
 			}
 			break;
-		case cadet::model::MultiplexMode::Component:
+		case cadet::model::MultiplexMode::Component: // nSec = 1
 		case cadet::model::MultiplexMode::ComponentSection:
 			{
 				std::vector<cadet::active> p(nComp * radNElem * nSec);
 				for (unsigned int s = 0; s < nSec; ++s)
 				{
-					for (unsigned int i = 0; i < nComp; ++i)
-						std::copy(values.begin() + s * nComp, values.begin() + (s+1) * nComp, p.begin() + i * nComp + s * nComp * radNElem);
+					for (unsigned int r = 0; r < radNElem; ++r)
+						std::copy(values.begin() + s * nComp, values.begin() + (s+1) * nComp, p.begin() + r * nComp + s * nComp * radNElem);
 				}
 
 				values = std::move(p);
@@ -158,23 +158,23 @@ cadet::model::MultiplexMode readAndRegisterMultiplexParam(cadet::IParameterProvi
 				}
 			}
 			break;
-		case cadet::model::MultiplexMode::Radial:
+		case cadet::model::MultiplexMode::Radial: // nSec = 1
 		case cadet::model::MultiplexMode::RadialSection:
 			{
 				std::vector<cadet::active> p(nComp * radNElem * nSec);
-				for (unsigned int i = 0; i < radNElem * nSec; ++i)
-					std::fill(p.begin() + i * nComp, p.begin() + (i+1) * nComp, values[i]);
+				for (unsigned int idx = 0; idx < radNElem * nSec; ++idx)
+					std::fill(p.begin() + idx * nComp, p.begin() + (idx+1) * nComp, values[idx]);
 
 				values = std::move(p);
 
 				for (unsigned int s = 0; s < nSec; ++s)
 				{
-					for (unsigned int i = 0; i < radNElem; ++i)
-						parameters[cadet::makeParamId(nameHash, uoi, cadet::CompIndep, i, cadet::BoundStateIndep, cadet::ReactionIndep, (mode == cadet::model::MultiplexMode::Radial) ? cadet::SectionIndep : s)] = &values[s * radNElem * nComp + i * nComp];
+					for (unsigned int r = 0; r < radNElem; ++r)
+						parameters[cadet::makeParamId(nameHash, uoi, cadet::CompIndep, r, cadet::BoundStateIndep, cadet::ReactionIndep, (mode == cadet::model::MultiplexMode::Radial) ? cadet::SectionIndep : s)] = &values[s * radNElem * nComp + r * nComp];
 				}
 			}
 			break;
-		case cadet::model::MultiplexMode::ComponentRadial:
+		case cadet::model::MultiplexMode::ComponentRadial: // nSec = 1
 		case cadet::model::MultiplexMode::ComponentRadialSection:
 			cadet::registerParam3DArray(parameters, values, [=](bool multi, unsigned int sec, unsigned int compartment, unsigned int comp) { return cadet::makeParamId(nameHash, uoi, comp, compartment, cadet::BoundStateIndep, cadet::ReactionIndep, multi ? sec : cadet::SectionIndep); }, nComp, radNElem);
 			break;
@@ -744,7 +744,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configure(UnitOpIdx unitOpIdx
 
 	_dir = std::vector<int>(_radNElem, 1);
 
-	_axialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _axialDispersion, "COL_DISPERSION", _nComp, _radNElem, unitOpIdx);
+	_axialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _axialDispersion, "COL_DISPERSION_AXIAL", _nComp, _radNElem, unitOpIdx);
 	_radialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _radialDispersion, "COL_DISPERSION_RADIAL", _nComp, _radNElem, unitOpIdx);
 
 	// Add parameters to map
@@ -973,11 +973,6 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 			Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> _cDot(yDot + offsetC + comp, _axNPoints * _radNPoints, InnerStride<Dynamic>(_radNodeStride));
 			Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> _cRes(res + offsetC + comp, _axNPoints * _radNPoints, InnerStride<Dynamic>(_radNodeStride));
 			_cRes = _cDot.template cast<ResidualType>();
-		}
-		else
-		{
-			Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> _cRes(res + offsetC + comp, _axNPoints * _radNPoints, InnerStride<Dynamic>(_radNodeStride));
-			_cRes.setZero();
 		}
 
 		for (unsigned int zEidx = 0; zEidx < _axNElem; zEidx++)
@@ -1441,6 +1436,23 @@ void TwoDimensionalConvectionDispersionOperatorDG::addAxElemBlockToJac(const Eig
 	}
 }
 /**
+ * @brief inserts an element block for all components to the system Jacobian
+ * @detail the element block has axNNodes * radNNodes rows and arbitrary number of columns
+ * @param [in] block to be added
+ * @param [in] jacobian jacobian matrix
+ * @param [in] offRow offset to first considered row
+ * @param [in] offColumn column to row offset
+ * @param [in] depElem number of elements the element block element depends on
+ */
+void TwoDimensionalConvectionDispersionOperatorDG::insertAxElemBlockToJac(const Eigen::MatrixXd& block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int offColumn, const int depElem, const active* const compFac)
+{
+	auto insertEntry = [&jacobian](int row, int col, double value) {
+		jacobian.coeffRef(row, col) = value;
+		};
+
+	addAxElemBlockToJac(block, offRow, offColumn, depElem, insertEntry, compFac);
+}
+/**
  * @brief adds an element block for all components to the system Jacobian
  * @detail the element block has axNNodes * radNNodes rows and arbitrary number of columns
  * @param [in] block to be added
@@ -1536,6 +1548,23 @@ void TwoDimensionalConvectionDispersionOperatorDG::addRadElemBlockToJac(const Ei
 	addRadElemBlockToJac(block, offRow, nLeftRadElemDep, depElem, addEntry);
 }
 /**
+ * @brief inserts an element block for all components to the system Jacobian
+ * @detail the element block has axNNodes * radNNodes rows and arbitrary number of columns
+ * @param [in] block to be added
+ * @param [in] jacobian jacobian matrix times -1.0
+ * @param [in] offRow offset to first considered row
+ * @param [in] nLeftRadElemDep number of left radial elements this block depends on
+ * @param [in] depElem number of elements the element block element depends on
+ */
+void TwoDimensionalConvectionDispersionOperatorDG::insertRadElemBlockToJac(const Eigen::MatrixXd* block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int nLeftRadElemDep, const int depElem)
+{
+	auto insertEntry = [&jacobian](int row, int col, double value) {
+		jacobian.coeffRef(row, col) = value;
+		};
+
+	addRadElemBlockToJac(block, offRow, nLeftRadElemDep, depElem, insertEntry);
+}
+/**
  * @brief adds an element block for all components to the system Jacobian
  * @detail the element block has axNNodes * radNNodes rows and arbitrary number of columns
  * @param [in] block to be added
@@ -1625,9 +1654,10 @@ void TwoDimensionalConvectionDispersionOperatorDG::convDispJacPattern(std::vecto
  * @brief Assembles the transport Jacobian
  * @param [in] jacobian Jacobian matrix of unit in sparse format
  * @param [in] jacInlet Inlet Jacobian matrix
+ * @param [in] addJac determines whether the Jacobian entrties are added to the matrix, or overwrite existing entries
  * @param [in] bulkOffset Offset to first entry of bulk phase in unit Jacobian, defaults to 0
  */
-bool TwoDimensionalConvectionDispersionOperatorDG::assembleConvDispJacobian(Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset)
+bool TwoDimensionalConvectionDispersionOperatorDG::assembleConvDispJacobian(Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const bool addJac, const int bulkOffset)
 {
 	const int Np = _elemNPoints; //<! number of points per 2D element
 	const int uAxElem = std::min(5, static_cast<int>(_axNElem)); // number of unique axial Jacobian blocks (per radial element)
@@ -1644,6 +1674,29 @@ bool TwoDimensionalConvectionDispersionOperatorDG::assembleConvDispJacobian(Eige
 
 		for (int rElem = 0; rElem < _radNElem; rElem++, curDax += _nComp, curDrad += _nComp)
 		{
+			const int nRightAxElemDep = std::min(2, static_cast<int>(_axNElem) - 1 - zElem); //<! number of right axial elements, this element depends on
+			const int nLeftAxElemDep = std::min(2, zElem); //<! number of left axial elements, this element depends on
+			const int offSetRow = bulkOffset + zElem * _axElemStride + rElem * _radElemStride;
+			const int offSetColumnToRow = -nLeftAxElemDep * _axElemStride;
+
+			/* handle axial dispersion Jacobian */
+			{
+				int uAxBlockIdx = zElem; // unique block index
+				if (zElem > 2)
+				{
+					if (zElem + 2 == _axNElem || _axNElem == 4) // next element is last element or special case of four elements
+						uAxBlockIdx = 3;
+					else if (zElem + 1 == _axNElem) // this element is the last element and we have at least five elements
+						uAxBlockIdx = 4;
+					else // this element has at least two neighbours in each axial direction
+						uAxBlockIdx = 2;
+				}
+				if (addJac)
+					addAxElemBlockToJac(-_jacAxDispersion[rElem * uAxElem + uAxBlockIdx].block(0, Np * (2 - nLeftAxElemDep), Np, Np * (nLeftAxElemDep + 1 + nRightAxElemDep)), jacobian, offSetRow, offSetColumnToRow, nLeftAxElemDep + 1 + nRightAxElemDep, curDax);
+				else
+					insertAxElemBlockToJac(-_jacAxDispersion[rElem * uAxElem + uAxBlockIdx].block(0, Np * (2 - nLeftAxElemDep), Np, Np * (nLeftAxElemDep + 1 + nRightAxElemDep)), jacobian, offSetRow, offSetColumnToRow, nLeftAxElemDep + 1 + nRightAxElemDep, curDax);
+			}
+
 			/* handle axial convection Jacobian */
 
 			// inlet Jacobian
@@ -1661,34 +1714,16 @@ bool TwoDimensionalConvectionDispersionOperatorDG::assembleConvDispJacobian(Eige
 					}
 				}
 			}
-			// "inner" Jacobian
-			const int nRightAxElemDep = std::min(2, static_cast<int>(_axNElem) - 1 - zElem); //<! number of right axial elements, this element depends on
-			const int nLeftAxElemDep = std::min(2, zElem); //<! number of left axial elements, this element depends on
-			const int offSetRow = bulkOffset + zElem * _axElemStride + rElem * _radElemStride;
-			const int offSetColumnToRow = -nLeftAxElemDep * _axElemStride;
-
+			// "inner" Jacobian convection part is always added since its a subset of the dispersion pattern
 			addAxElemBlockToJac(-_jacConvection[rElem].block(0, Np * (2 - nLeftAxElemDep), Np, Np * (nLeftAxElemDep + 1 + nRightAxElemDep)), jacobian, offSetRow, offSetColumnToRow, nLeftAxElemDep + 1 + nRightAxElemDep);
-
-			/* handle axial dispersion Jacobian */
-			{
-				int uAxBlockIdx = zElem; // unique block index
-				if (zElem > 2)
-				{
-					if (zElem + 2 == _axNElem || _axNElem == 4) // next element is last element or special case of four elements
-						uAxBlockIdx = 3;
-					else if (zElem + 1 == _axNElem) // this element is the last element and we have at least five elements
-						uAxBlockIdx = 4;
-					else // this element has at least two neighbours in each axial direction
-						uAxBlockIdx = 2;
-				}
-
-				addAxElemBlockToJac(-_jacAxDispersion[rElem * uAxElem + uAxBlockIdx].block(0, Np * (2 - nLeftAxElemDep), Np, Np * (nLeftAxElemDep + 1 + nRightAxElemDep)), jacobian, offSetRow, offSetColumnToRow, nLeftAxElemDep + 1 + nRightAxElemDep, curDax);
-			}
 
 			/* handle radial dispersion Jacobian */
 			const int nLeftRadElem = std::min(2, rElem);
 			const int nRightRadElem = std::min(2, static_cast<int>(_radNElem) - 1 - rElem);
-			addRadElemBlockToJac(_jacRadDispersion + rElem * _nComp, jacobian, offSetRow, nLeftRadElem, nLeftRadElem + 1 + nRightRadElem);
+			if (addJac)
+				addRadElemBlockToJac(_jacRadDispersion + rElem * _nComp, jacobian, offSetRow, nLeftRadElem, nLeftRadElem + 1 + nRightRadElem);
+			else
+				insertRadElemBlockToJac(_jacRadDispersion + rElem * _nComp, jacobian, offSetRow, nLeftRadElem, nLeftRadElem + 1 + nRightRadElem);
 		}
 	}
 
@@ -1822,7 +1857,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::setParameter(const ParameterI
 		}
 	}
 
-	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _radNElem, value, nullptr);
+	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION_AXIAL"), _axialDispersionMode, _axialDispersion, _nComp, _radNElem, value, nullptr);
 	if (ad)
 		return true;
 
@@ -1868,7 +1903,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::setSensitiveParameterValue(co
 		}
 	}
 
-	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _radNElem, value, &sensParams);
+	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION_AXIAL"), _axialDispersionMode, _axialDispersion, _nComp, _radNElem, value, &sensParams);
 	if (ad)
 		return true;
 
@@ -1915,7 +1950,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::setSensitiveParameter(std::un
 		}
 	}
 
-	const bool ad = multiplexParameterAD(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _radNElem, adDirection, adValue, sensParams);
+	const bool ad = multiplexParameterAD(pId, hashString("COL_DISPERSION_AXIAL"), _axialDispersionMode, _axialDispersion, _nComp, _radNElem, adDirection, adValue, sensParams);
 	if (ad)
 		return true;
 

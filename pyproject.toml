@@ -1,0 +1,38 @@
+[build-system]
+requires = ["scikit-build-core>=0.10"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "CADET-Core"
+dynamic = ["version"]
+description = "CADET-Core: The heart of CADET. A modular, fast, and accurate modeling and simulation framework for biotechnology processes."
+readme = "README.rst"
+requires-python = ">=3.9"
+license = { file = "LICENSE.txt" }
+authors = [{ name = "CADET Developers" }]
+keywords = ["CADET", "chromatography", "simulation", "bioprocess"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: C++",
+  "Topic :: Scientific/Engineering",
+]
+
+[project.urls]
+Homepage = "https://cadet.github.io/"
+Source = "https://github.com/cadet/CADET-Core"
+Documentation = "https://cadet.github.io/"
+
+[project.scripts]
+cadet-core = "cadet_core._paths:run_cadet"
+
+[tool.scikit-build]
+minimum-version = "0.10"
+wheel.packages = ["python/cadet_core"]
+
+[tool.scikit-build.metadata]
+version.provider = "scikit_build_core.metadata.regex"
+version.input = "version.txt"
+version.regex = "^(?P<value>[^\\s]+)\\s*$"

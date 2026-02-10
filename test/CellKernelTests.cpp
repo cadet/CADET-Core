@@ -18,6 +18,7 @@
 #include "Logging.hpp"
 
 #include "model/parts/BindingCellKernel.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "BindingModelTests.hpp"
 #include "ReactionModelTests.hpp"
@@ -331,9 +332,15 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD with dummy reactio
 				"NONE", nComp, nBound, R"json({})json"
 			);
 
-			cbm.increaseBufferSize(nTotalBound * (nTotalBound + nComp + 1) * sizeof(cadet::active) + cdrm.requiredBufferSize());
+		cbm.increaseBufferSize(nTotalBound * (nTotalBound + nComp + 1) * sizeof(cadet::active) + cdrm.requiredBufferSize());
 
-			// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		using namespace cadet::model;
+		ReactionSystem reacModel;
+		reacModel.addReactionModel("cross_phase", &cdrm.model());
+		REQUIRE(reacModel.hasReactions());
+
+
+		// Obtain memory for state, Jacobian multiply direction, Jacobian column
 			const unsigned int nDof = nComp + nTotalBound;
 			std::vector<double> y(nDof, 0.0);
 			std::vector<double> yDot(nDof, 0.0);
@@ -357,7 +364,7 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD with dummy reactio
 							porosity,
 							poreAccessFactor.data(),
 							&cbm.model(),
-							&cdrm.model()
+							&reacModel
 					};
 
 			// Compare Jacobians
@@ -414,9 +421,14 @@ TEST_CASE("CellKernel Jacobian analytic vs AD with dummy reaction", "[CellKernel
 				"NONE", nComp, nBound, R"json({})json"
 			);
 
-			cbm.increaseBufferSize(nTotalBound * (nTotalBound + nComp + 1) * sizeof(cadet::active) + cdrm.requiredBufferSize());
+		cbm.increaseBufferSize(nTotalBound * (nTotalBound + nComp + 1) * sizeof(cadet::active) + cdrm.requiredBufferSize());
 
-			// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		using namespace cadet::model;
+		ReactionSystem reacModel;
+		reacModel.addReactionModel("cross_phase", &cdrm.model());
+		REQUIRE(reacModel.hasReactions());
+
+		// Obtain memory for state, Jacobian multiply direction, Jacobian column
 			const unsigned int nDof = nComp + nTotalBound;
 			std::vector<double> y(nDof, 0.0);
 			std::vector<double> yDot(nDof, 0.0);
@@ -445,7 +457,7 @@ TEST_CASE("CellKernel Jacobian analytic vs AD with dummy reaction", "[CellKernel
 							porosity,
 							poreAccessFactor.data(),
 							&cbm.model(),
-							&cdrm.model()
+							&reacModel
 					};
 
 			// Calculate Jacobian via AD

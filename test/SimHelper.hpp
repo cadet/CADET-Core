@@ -40,7 +40,7 @@ namespace test
 
 	/**
 	 * @brief Sets the initial conditions of a CSTR
-	 * @details Overwrites the INIT_C, INIT_Q, and INIT_VOLUME fields of the given ParameterProvider.
+	 * @details Overwrites the INIT_C, INIT_CS, and INIT_VOLUME fields of the given ParameterProvider.
 	 * @param [in,out] jpp ParameterProvider
 	 * @param [in] c Initial liquid phase concentration
 	 * @param [in] q Initial bound phase concentration
@@ -50,7 +50,7 @@ namespace test
 
 	/**
 	 * @brief Sets the initial conditions of a column
-	 * @details Overwrites the INIT_C, INIT_CP, and INIT_Q fields of the given ParameterProvider.
+	 * @details Overwrites the INIT_C, INIT_CP, and INIT_CS fields of the given ParameterProvider.
 	 * @param [in,out] jpp ParameterProvider
 	 * @param [in] c Initial liquid phase concentration
 	 * @param [in] cp Initial bead liquid phase concentration

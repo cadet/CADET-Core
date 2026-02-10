@@ -19,17 +19,17 @@ TEST_CASE("MassActionLaw kinetic analytic Jacobian vs AD", "[MassActionLaw],[Rea
 {
 	const unsigned int nBound[] = {1, 2, 1};
 	const double point[] = {1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8};
-	cadet::test::reaction::testDynamicJacobianAD("MASS_ACTION_LAW", 3, nBound,
+	cadet::test::reaction::testDynamicJacobianAD("MASS_ACTION_LAW_CROSS_PHASE", 3, nBound,
 		R"json({
-			"MAL_KFWD_BULK": [1.0, 2.0, 0.4],
-			"MAL_KBWD_BULK": [0.0, 0.2, 1.5],
-			"MAL_STOICHIOMETRY_BULK": [ 1.0, -2.0,  3.0,
+			"MAL_KFWD_LIQUID": [1.0, 2.0, 0.4],
+			"MAL_KBWD_LIQUID": [0.0, 0.2, 1.5],
+			"MAL_STOICHIOMETRY_LIQUID": [ 1.0, -2.0,  3.0,
 			                           -1.0,  0.0, -2.0,
 			                            0.0,  1.0,  1.0],
-			"MAL_EXPONENTS_BULK_FWD": [ 1.2,  0.0,  0.0,
+			"MAL_EXPONENTS_LIQUID_FWD": [ 1.2,  0.0,  0.0,
 			                            0.0,  1.3,  2.2,
 			                            0.0,  1.0,  1.1],
-			"MAL_EXPONENTS_BULK_BWD": [ 0.8,  2.1,  1.0,
+			"MAL_EXPONENTS_LIQUID_BWD": [ 0.8,  2.1,  1.0,
 			                            1.3,  1.0,  0.0,
 			                            0.0,  0.0,  1.4],
 
@@ -77,7 +77,6 @@ TEST_CASE("MassActionLaw kinetic analytic Jacobian vs AD", "[MassActionLaw],[Rea
 		point, 1e-15, 1e-15
 	);
 }
-
 TEST_CASE("CSTR with MAL reaction numerical Benchmark with parameter sensitivities", "[CSTR],[MassActionLaw],[ReactionModel],[Simulation],[Reference],[Sensitivity],[CI_sens16]")
 {
 	std::string modelFilePath = std::string("/data/model_CSTR_reacMAL_2comp_sensbenchmark1.json");
@@ -85,11 +84,11 @@ TEST_CASE("CSTR with MAL reaction numerical Benchmark with parameter sensitiviti
 	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12 };
 	const std::vector<double> relTol = { 1e-6, 1e-6, 1e-6 };
 
-	cadet::test::column::Dummyparams disc;
+	cadet::test::column::DummyParams disc;
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
-TEST_CASE("MichaelisMenten kinetic and specific mass action law micro-kinetics yield same result", "[MichaelisMenten],[ReactionModel],[Simulation],[CI]")
+TEST_CASE("MichaelisMenten kinetic and specific mass action law micro-kinetics yield same result", "[CSTR],[MassActionLaw],[MichaelisMenten],[ReactionModel],[Simulation],[CI]")
 {
 	const std::string& configFilePath1 = std::string("/data/model_CSTR_MichaelisMenten_benchmark1.json");
 	const std::string& configFilePath2 = std::string("/data/model_CSTR_MicroKineticsSMA_benchmark1.json");
@@ -100,7 +99,18 @@ TEST_CASE("MichaelisMenten kinetic and specific mass action law micro-kinetics y
 	cadet::test::reaction::testMichaelisMentenToSMAMicroKinetic(configFilePath1, configFilePath2, absTol, relTol);
 }
 
-TEST_CASE("MichaelisMenten kinetic with two inhibitors and specific mass action law micro-kinetics yield same result", "[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI]")
+TEST_CASE("MichaelisMenten kinetic with two substrates and specific mass action law micro-kinetics yield same result", "[CSTR],[MassActionLaw],[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI]")
+{
+	const std::string& configFilePath1 = std::string("/data/configuration_CSTR_MichaelisMenten_twoSubs_benchmark1.json");
+	const std::string& configFilePath2 = std::string("/data/configuration_CSTR_MicroKineticsSMA_twoSubs_benchmark1.json");
+
+	const double absTol = 1e-3;
+	const double relTol = 5e-4;
+
+	cadet::test::reaction::testMichaelisMentenToSMAMicroKinetic(configFilePath1, configFilePath2, absTol, relTol);
+}
+
+TEST_CASE("MichaelisMenten kinetic with two non-inhibitors and specific mass action law micro-kinetics yield same result", "[CSTR],[MassActionLaw],[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI]")
 {
 	const std::string& configFilePath1 = std::string("/data/model_CSTR_MichaelisMenten_twoInhib_benchmark1.json");
 	const std::string& configFilePath2 = std::string("/data/model_CSTR_MicroKineticsSMA_twoInhib_benchmark1.json");
@@ -108,10 +118,22 @@ TEST_CASE("MichaelisMenten kinetic with two inhibitors and specific mass action 
 	const double absTol = 1e-3;
 	const double relTol = 5e-4;
 
-	cadet::test::reaction::testMichaelisMentenToSMAInhibitionMicroKinetic(configFilePath1, configFilePath2, absTol, relTol);
+	cadet::test::reaction::testMichaelisMentenToSMAMicroKinetic(configFilePath1, configFilePath2, absTol, relTol);
 }
 
-TEST_CASE("MichaelisMenten kinetic and numerical reference with Crank-Nicolson yield same result", "[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI]")
+
+TEST_CASE("MichaelisMenten kinetic with two non-inhibitors and two substrates and specific mass action law micro-kinetics yield same result", "[CSTR],[MassActionLaw],[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI]")
+{
+	const std::string& configFilePath1 = std::string("/data/configuration_CSTR_MichaelisMenten_twoSubs_twoInhib_benchmark1.json");
+	const std::string& configFilePath2 = std::string("/data/configuration_CSTR_MichaelisMenten_twoSubs_twoInhib_benchmark1.json");
+
+	const double absTol = 1e-3;
+	const double relTol = 5e-4;
+
+	cadet::test::reaction::testMichaelisMentenToSMAMicroKinetic(configFilePath1, configFilePath2, absTol, relTol);
+}
+
+TEST_CASE("MichaelisMenten kinetic and numerical reference with Crank-Nicolson yield same result", "[CSTR],[MassActionLaw],[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI]")
 {
 	const std::string& configFileRelPath = std::string("/data/model_CSTR_MichaelisMenten_benchmark2.json");
 	const std::string& refFileRelPath = std::string("/data/ref_CSTR_MichaelisMenten_benchmark2.h5");
@@ -132,7 +154,7 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD without inhibition", 
 			"MM_KMM": [1.0, 2.0, 0.4],
 			"MM_KI": [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0],
 			"MM_VMAX": [1.0, 0.2, 1.5],
-			"MM_STOICHIOMETRY_BULK": [ 1.0, -2.0,  3.0,
+			"MM_STOICHIOMETRY": [ 1.0, -2.0,  3.0,
 			                          -1.0,  0.0, -2.0,
 			                           0.0,  1.0,  1.0]
 		})json",
@@ -149,13 +171,14 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with inhibition", "[M
 			"MM_KMM": [1.0, 2.0, 0.4],
 			"MM_KI": [-1.0, 1.0, -1.0, -1.0, -1.0, -1.0, 3.0, 2.0, -1.0],
 			"MM_VMAX": [1.0, 0.2, 1.5],
-			"MM_STOICHIOMETRY_BULK": [ 1.0, -2.0,  3.0,
+			"MM_STOICHIOMETRY": [ 1.0, -2.0,  3.0,
 			                          -1.0,  0.0, -2.0,
 			                           0.0,  1.0,  1.0]
 		})json",
 		point, 1e-15, 1e-15
 	);
 }
+
 TEST_CASE("ASM3 analytic Jacobian vs AD", "[ASM3],[ReactionModel],[Jacobian],[AD]")
 {
 	const unsigned int nBound[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0 };
@@ -206,4 +229,25 @@ TEST_CASE("ASM3 analytic Jacobian vs AD", "[ASM3],[ReactionModel],[Jacobian],[AD
 		})json",
 		point, 1e-15, 1e-15
 	);
+
+TEST_CASE("MassActionLaw old interface vs. two separate reactions", "[MassActionLaw],[ReactionModel],[Simulation],[CI]")
+{
+	std::string modelFilePath = std::string("/data/model_CSTR_reacMAL_3comp_nreac_2.json");
+	std::string refFilePath = std::string("/data/ref_CSTR_reacMAL_3comp_one_type_old_interface.h5");
+	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12 };
+	const std::vector<double> relTol = { 1e-6, 1e-6, 1e-6 };
+
+	cadet::test::column::DummyParams disc;
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
+}
+
+TEST_CASE("MassActionLaw one reaction vs. two separate reactions", "[MassActionLaw],[ReactionModel],[Simulation],[CI]")
+{
+	std::string modelFilePath = std::string("/data/model_CSTR_reacMAL_3comp_nreac_2.json");
+	std::string refFilePath = std::string("/data/ref_CSTR_reacMAL_3comp_nreac_1.h5");
+	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12 };
+	const std::vector<double> relTol = { 1e-6, 1e-6, 1e-6 };
+
+	cadet::test::column::DummyParams disc;
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }

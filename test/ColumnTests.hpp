@@ -21,11 +21,11 @@
 #include <limits>
 #include <string>
 #include "AutoDiff.hpp"
+#include "common/JsonParameterProvider.hpp"
 
 namespace cadet
 {
 
-class JsonParameterProvider;
 class IUnitOperation;
 
 namespace test
@@ -33,76 +33,464 @@ namespace test
 
 namespace column
 {
-	struct DiscParams {
-		int nAxCells;
-		int nParCells;
+	class JsonDiscScopeManager {
+	private:
+		JsonParameterProvider& jpp_;
+		int levels_;
+		bool inDiscretization_;
+
+	public:
+		JsonDiscScopeManager(JsonParameterProvider& jpp, const std::string& unitID)
+			: jpp_(jpp), levels_(0), inDiscretization_(false) {
+			if (jpp_.exists("model")) {
+				jpp_.pushScope("model");
+				++levels_;
+			}
+			if (jpp_.exists("unit_" + unitID)) {
+				jpp_.pushScope("unit_" + unitID);
+				++levels_;
+			}
+		}
+
+		~JsonDiscScopeManager() {
+			if (inDiscretization_) {
+				jpp_.popScope(); // Exit discretization
+			}
+			for (int i = 0; i < levels_; ++i) {
+				jpp_.popScope();
+			}
+		}
+
+		std::string getUnitType() const {
+			return jpp_.getString("UNIT_TYPE");
+		}
+
+		void enterDiscretization() {
+			if (!inDiscretization_) {
+				if (jpp_.exists("discretization")) {
+					jpp_.pushScope("discretization");
+					inDiscretization_ = true;
+				}
+			}
+		}
+
+		void exitDiscretization() {
+			if (inDiscretization_) {
+				jpp_.popScope();
+				inDiscretization_ = false;
+			}
+		}
+
+		JsonParameterProvider& getProvider() { return jpp_; }
+	};
+
+	class BulkDiscretization {
+	public:
+		virtual ~BulkDiscretization() = default;
+		virtual int getNAxCells() const = 0;
+		virtual std::string getDiscType() const = 0;
+		virtual std::unique_ptr<BulkDiscretization> clone() const = 0;
+		virtual void setBulkParameters(JsonParameterProvider& jpp, const std::string& unitType, JsonDiscScopeManager& manager) const
+		{
+			for (const auto& [name, val] : stringParams_) jpp.set(name, val);
+			for (const auto& [name, val] : doubleParams_) jpp.set(name, val);
+			for (const auto& [name, val] : intParams_) jpp.set(name, val);
+		}
+
+		virtual void setDiscParam(const std::string& name, const std::string& value) {
+			stringParams_.emplace_back(name, value);
+		}
+		virtual void setDiscParam(const std::string& name, double value) {
+			doubleParams_.emplace_back(name, value);
+		}
+		virtual void setDiscParam(const std::string& name, int value) {
+			intParams_.emplace_back(name, value);
+		}
+
+	private:
+		std::vector<std::pair<std::string, std::string>> stringParams_;
+		std::vector<std::pair<std::string, double>> doubleParams_;
+		std::vector<std::pair<std::string, int>> intParams_;
+	};
+
+	class ParticleDiscretization {
+	public:
+		virtual ~ParticleDiscretization() = default;
+		virtual int getNParCells() const = 0;
+		virtual std::string getDiscType() const = 0;
+		virtual std::unique_ptr<ParticleDiscretization> clone() const = 0;
+		virtual void setParticleParameters(JsonParameterProvider& jpp) const
+		{
+			for (const auto& [name, val] : stringParams_) jpp.set(name, val);
+			for (const auto& [name, val] : doubleParams_) jpp.set(name, val);
+			for (const auto& [name, val] : intParams_) jpp.set(name, val);
+		}
+
+		virtual void setDiscParam(const std::string& name, const std::string& value) {
+			stringParams_.emplace_back(name, value);
+		}
+		virtual void setDiscParam(const std::string& name, double value) {
+			doubleParams_.emplace_back(name, value);
+		}
+		virtual void setDiscParam(const std::string& name, int value) {
+			intParams_.emplace_back(name, value);
+		}
+
+	private:
+		std::vector<std::pair<std::string, std::string>> stringParams_;
+		std::vector<std::pair<std::string, double>> doubleParams_;
+		std::vector<std::pair<std::string, int>> intParams_;
+	};
+
+	class BulkFV : public BulkDiscretization {
+	private:
+		int nAxCells_;
+		int wenoOrder_;
+		int nRadCells_;
+
+	public:
+		BulkFV(int nAxCells = 0, int wenoOrder = 0, int nRadCells = 0)
+			: nAxCells_(nAxCells), wenoOrder_(wenoOrder), nRadCells_(nRadCells) {
+		}
+
+		void setDiscParam(const std::string& name, int value) {
+			if (name == "WENO_ORDER")
+				wenoOrder_ = value;
+			else if (name == "NCHANNEL" || name == "NRAD")
+				nRadCells_ = value;
+			else if (name == "NCOL")
+				nRadCells_ = value;
+			else
+				BulkDiscretization::setDiscParam(name, value);
+		}
+
+		std::string getDiscType() const override { return "FV"; }
+
+		int getNAxCells() const override { return nAxCells_; }
+
+		void setBulkParameters(JsonParameterProvider& jpp, const std::string& unitType, JsonDiscScopeManager& manager) const
+		{
+			BulkDiscretization::setBulkParameters(jpp, unitType, manager);
+
+			jpp.set("SPATIAL_METHOD", "FV");
+
+			if (nAxCells_) jpp.set("NCOL", nAxCells_);
+
+			if (nRadCells_) {
+				if (unitType == "MULTI_CHANNEL_TRANSPORT") {
+					manager.exitDiscretization();
+					jpp.set("NCHANNEL", nRadCells_);
+					manager.enterDiscretization();
+				}
+				else {
+					jpp.set("NRAD", nRadCells_);
+				}
+			}
+
+			if (jpp.exists("weno") && wenoOrder_) {
+				jpp.pushScope("weno");
+				jpp.set("WENO_ORDER", wenoOrder_);
+				jpp.popScope();
+			}
+		}
+
+		std::unique_ptr<BulkDiscretization> clone() const override {
+			return std::make_unique<BulkFV>(nAxCells_, wenoOrder_, nRadCells_);
+		}
+		int getWenoOrder() const { return wenoOrder_; }
+	};
+
+	class BulkDG : public BulkDiscretization {
+	private:
+		int exactIntegration_;
+		int polyDeg_;
+		int nElem_;
+		int radPolyDeg_;
+		int radNelem_;
+
+	public:
+		BulkDG(int exactIntegration = -1, int polyDeg = 0, int nElem = 0, int radPolyDeg = 0, int radNelem = 0)
+			: exactIntegration_(exactIntegration), polyDeg_(polyDeg), nElem_(nElem),
+			radPolyDeg_(radPolyDeg), radNelem_(radNelem) {
+		}
+
+		void setDiscParam(const std::string& name, int value) {
+			if (name == "EXACT_INTEGRATION")
+				exactIntegration_ = value;
+			else if (name == "POLYDEG")
+				polyDeg_ = value;
+			else if (name == "NELEM")
+				nElem_ = value;
+			else if (name == "RAD_POLYDEG")
+				radPolyDeg_ = value;
+			else if (name == "RAD_NELEM")
+				radNelem_ = value;
+			else
+				BulkDiscretization::setDiscParam(name, value);
+		}
+
+		std::string getDiscType() const override { return "DG"; }
+
+		int getNAxCells() const override { return nElem_; }
+
+		void setBulkParameters(JsonParameterProvider& jpp, const std::string& unitType, JsonDiscScopeManager& manager) const
+		{
+			BulkDiscretization::setBulkParameters(jpp, unitType, manager);
+
+			jpp.set("SPATIAL_METHOD", "DG");
+
+			if (radPolyDeg_) {
+				jpp.set("RAD_POLYDEG", radPolyDeg_);
+				if (radNelem_) jpp.set("RAD_NELEM", radNelem_);
+				if (polyDeg_) jpp.set("AX_POLYDEG", polyDeg_);
+				if (nElem_) jpp.set("AX_NELEM", nElem_);
+			}
+			else {
+				if (exactIntegration_ > -1) jpp.set("EXACT_INTEGRATION", exactIntegration_);
+				if (polyDeg_) jpp.set("POLYDEG", polyDeg_);
+				if (nElem_) jpp.set("NELEM", nElem_);
+			}
+		}
+
+		std::unique_ptr<BulkDiscretization> clone() const override {
+			return std::make_unique<BulkDG>(exactIntegration_, polyDeg_, nElem_, radPolyDeg_, radNelem_);
+		}
+		int getIntegrationMode() const { return exactIntegration_; }
+	};
+
+	class ParticleFV : public ParticleDiscretization {
+	private:
+		int nParCells_;
+
+	public:
+		ParticleFV(int nParCells = 0) : nParCells_(nParCells) {}
+
+		void setDiscParam(const std::string& name, int value) {
+			if (name == "NCELLS")
+				nParCells_ = value;
+			else
+				ParticleDiscretization::setDiscParam(name, value);
+		}
+
+		std::string getDiscType() const override { return "FV"; }
+
+		int getNParCells() const override { return nParCells_; }
+
+		void setParticleParameters(JsonParameterProvider& jpp) const
+		{
+			ParticleDiscretization::setParticleParameters(jpp);
+
+			if (nParCells_) {
+				jpp.set("NCELLS", nParCells_);
+			}
+		}
+
+		std::unique_ptr<ParticleDiscretization> clone() const override {
+			return std::make_unique<ParticleFV>(nParCells_);
+		}
+	};
+
+	class ParticleDG : public ParticleDiscretization {
+	private:
+		int parPolyDeg_;
+		int parNelem_;
+
+	public:
+		ParticleDG(int parPolyDeg = 0, int parNelem = 0)
+			: parPolyDeg_(parPolyDeg), parNelem_(parNelem) {
+		}
+
+		void setDiscParam(const std::string& name, int value) {
+			if (name == "POLYDEG" || name == "PAR_POLYDEG")
+				parPolyDeg_ = value;
+			else if (name == "NELEM" || name == "PAR_NELEM")
+				parNelem_ = value;
+			else
+				ParticleDiscretization::setDiscParam(name, value);
+		}
+
+		std::string getDiscType() const override { return "DG"; }
+
+		int getNParCells() const override { return parNelem_; }
+
+		void setParticleParameters(JsonParameterProvider& jpp) const
+		{
+			ParticleDiscretization::setParticleParameters(jpp);
+
+			if (parPolyDeg_)
+			{
+				jpp.set("SPATIAL_METHOD", "DG");
+				jpp.set("PAR_POLYDEG", parPolyDeg_);
+				jpp.set("PAR_NELEM", parNelem_);
+			}
+		}
+
+		std::unique_ptr<ParticleDiscretization> clone() const override {
+			return std::make_unique<ParticleDG>(parPolyDeg_, parNelem_);
+		}
+	};
+
+	// Dummy implementations
+	class DummyBulk : public BulkDiscretization {
+	public:
+		int getNAxCells() const override { return 0; }
+		std::unique_ptr<BulkDiscretization> clone() const override {
+			return std::make_unique<DummyBulk>();
+		}
+		std::string getDiscType() const override { return "NONE"; }
+	};
+
+	class DummyParticle : public ParticleDiscretization {
+	public:
+		int getNParCells() const override { return 0; }
+		std::unique_ptr<ParticleDiscretization> clone() const override {
+			return std::make_unique<DummyParticle>();
+		}
+		std::string getDiscType() const override { return "NONE"; }
+	};
+
+	// Main DiscParams class that combines bulk and particle discretization
+	class DiscParams {
+	protected:
+		std::unique_ptr<BulkDiscretization> bulkDisc_;
+		std::unique_ptr<ParticleDiscretization> particleDisc_;
+
+	public:
+		DiscParams(std::unique_ptr<BulkDiscretization> bulkDisc = nullptr,
+			std::unique_ptr<ParticleDiscretization> particleDisc = nullptr)
+			: bulkDisc_(bulkDisc ? std::move(bulkDisc) : std::make_unique<DummyBulk>()),
+			particleDisc_(particleDisc ? std::move(particleDisc) : std::make_unique<DummyParticle>()) {
+		}
+
+		// Copy constructor
+		DiscParams(const DiscParams& other)
+			: bulkDisc_(other.bulkDisc_->clone()),
+			particleDisc_(other.particleDisc_->clone()) {
+		}
+
+		// Assignment operator
+		DiscParams& operator=(const DiscParams& other) {
+			if (this != &other) {
+				bulkDisc_ = other.bulkDisc_->clone();
+				particleDisc_ = other.particleDisc_->clone();
+			}
+			return *this;
+		}
 
 		virtual ~DiscParams() = default;
 
-		virtual int getNAxCells() const = 0;
-		virtual int getNParCells() const = 0;
+		virtual int getNAxCells() const { return bulkDisc_->getNAxCells(); }
+		virtual int getNParCells() const { return particleDisc_->getNParCells(); }
 
-		virtual void setDisc(JsonParameterProvider& jpp, const std::string unitID = "000") const = 0;
-	};
-
-	struct Dummyparams : public DiscParams {
-
-		int getNAxCells() const override { return 0; }
-		int getNParCells() const override { return 0; }
-
-		void setDisc(JsonParameterProvider& jpp, const std::string unitID = "000") const
+		virtual void setDisc(JsonParameterProvider& jpp, const std::string unitID = "000") const
 		{
-			// No discretization to be set
+			JsonDiscScopeManager manager(jpp, unitID);
+			std::string unitType = manager.getUnitType();
+
+			manager.enterDiscretization();
+			jpp.set("SPATIAL_METHOD", bulkDisc_->getDiscType());
+			bulkDisc_->setBulkParameters(manager.getProvider(), unitType, manager);
+			manager.exitDiscretization();
+
+			int parType = 0;
+			while (jpp.exists("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType)))
+			{
+				jpp.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
+				manager.enterDiscretization();
+				jpp.set("SPATIAL_METHOD", particleDisc_->getDiscType());
+				particleDisc_->setParticleParameters(jpp);
+				manager.exitDiscretization();
+				jpp.popScope();
+				parType++;
+			}
+		}
+
+		void setBulkDiscParam(const std::string paramName, std::string value) { bulkDisc_->setDiscParam(paramName, value); }
+		void setBulkDiscParam(const std::string paramName, double value) { bulkDisc_->setDiscParam(paramName, value); }
+		void setBulkDiscParam(const std::string paramName, int value) { bulkDisc_->setDiscParam(paramName, value); }
+		void setParticleDiscParam(const std::string paramName, std::string value) { particleDisc_->setDiscParam(paramName, value); }
+		void setParticleDiscParam(const std::string paramName, double value) { particleDisc_->setDiscParam(paramName, value); }
+		void setParticleDiscParam(const std::string paramName, int value) { particleDisc_->setDiscParam(paramName, value); }
+
+		std::string getBulkDiscType() const {
+			return bulkDisc_->getDiscType();
+		}
+
+		std::string getParDiscType() const {
+			return particleDisc_->getDiscType();
+		}
+
+		// Getters for direct access to discretization objects
+		const BulkDiscretization* getBulkDisc() const { return bulkDisc_.get(); }
+		const ParticleDiscretization* getParticleDisc() const { return particleDisc_.get(); }
+	};
+
+	inline std::unique_ptr<DiscParams> createFVFVParams(int nAxCells, int nParCells, int wenoOrder = 0, int nRadCells = 0) {
+		return std::make_unique<DiscParams>(
+			std::make_unique<BulkFV>(nAxCells, wenoOrder, nRadCells),
+			std::make_unique<ParticleFV>(nParCells)
+		);
+	}
+
+	inline std::unique_ptr<DiscParams> createFVDGParams(int nAxCells, int wenoOrder, int nRadCells,
+		int parPolyDeg, int parNelem) {
+		return std::make_unique<DiscParams>(
+			std::make_unique<BulkFV>(nAxCells, wenoOrder, nRadCells),
+			std::make_unique<ParticleDG>(parPolyDeg, parNelem)
+		);
+	}
+
+	inline std::unique_ptr<DiscParams> createDGFVParams(int exactIntegration, int polyDeg, int nElem,
+		int radPolyDeg, int radNelem, int nParCells) {
+		return std::make_unique<DiscParams>(
+			std::make_unique<BulkDG>(exactIntegration, polyDeg, nElem, radPolyDeg, radNelem),
+			std::make_unique<ParticleFV>(nParCells)
+		);
+	}
+
+	inline std::unique_ptr<DiscParams> createDGDGParams(int exactIntegration, int polyDeg, int nElem,
+		int radPolyDeg, int radNelem,
+		int parPolyDeg, int parNelem) {
+		return std::make_unique<DiscParams>(
+			std::make_unique<BulkDG>(exactIntegration, polyDeg, nElem, radPolyDeg, radNelem),
+			std::make_unique<ParticleDG>(parPolyDeg, parNelem)
+		);
+	}
+
+	using DummyParams = DiscParams; // Uses default dummy implementations
+
+	class FVParams : public DiscParams {
+	public:
+		FVParams() : DiscParams(std::make_unique<BulkFV>(), std::make_unique<ParticleFV>()) {}
+		FVParams(int nCol) : DiscParams(std::make_unique<BulkFV>(nCol), std::make_unique<ParticleFV>()) {}
+		FVParams(int nCol, int nPar) : DiscParams(std::make_unique<BulkFV>(nCol), std::make_unique<ParticleFV>(nPar)) {}
+		FVParams(int nCol, int nPar, int wenoOrder)
+			: DiscParams(std::make_unique<BulkFV>(nCol, wenoOrder), std::make_unique<ParticleFV>(nPar)) {
+		}
+		FVParams(int nCol, int nPar, int wenoOrder, int nRad)
+			: DiscParams(std::make_unique<BulkFV>(nCol, wenoOrder, nRad), std::make_unique<ParticleFV>(nPar)) {
+		}
+		int getWenoOrder() const {
+			return static_cast<const BulkFV*>(bulkDisc_.get())->getWenoOrder();
 		}
 	};
 
-	struct FVparams : public DiscParams {
-		int nAxCells;
-		int nParCells;
-		int wenoOrder;
-		int nRadCells;
-
-		FVparams() : nAxCells(0), nParCells(0), wenoOrder(0), nRadCells(0) {}
-		FVparams(int nCol)
-			: nAxCells(nCol), nParCells(0), wenoOrder(0), nRadCells(0) {}
-		FVparams(int nCol, int nPar)
-			: nAxCells(nCol), nParCells(nPar), wenoOrder(0), nRadCells(0) {}
-		FVparams(int nCol, int nPar, int wenoOrder)
-			: nAxCells(nCol), nParCells(nPar), wenoOrder(wenoOrder), nRadCells(0) {}
-		FVparams(int nCol, int nPar, int wenoOrder, int nRad)
-			: nAxCells(nCol), nParCells(nPar), wenoOrder(wenoOrder), nRadCells(nRad) {}
-
-		int getNAxCells() const override { return nAxCells; }
-		int getNParCells() const override { return nParCells; }
-		void setWenoOrder(int order) { wenoOrder = order; }
-		int getWenoOrder() { return wenoOrder; }
-		void setNRad(int nRad) { nRadCells = nRad; }
-		void setDisc(JsonParameterProvider& jpp, const std::string unitID = "000") const override;
-	};
-
-	struct DGparams : public DiscParams {
-		int exactIntegration;
-		int polyDeg;
-		int nElem;
-		int parPolyDeg;
-		int parNelem;
-		int radPolyDeg;
-		int radNelem;
-
-		DGparams() : exactIntegration(-1), polyDeg(0), nElem(0), parPolyDeg(0), parNelem(0), radPolyDeg(0), radNelem(0) {}
-		DGparams(int exact, int poly, int elem)
-			: exactIntegration(exact), polyDeg(poly), nElem(elem), parPolyDeg(0), parNelem(0), radPolyDeg(0), radNelem(0) {}
-		DGparams(int exact, int poly, int elem, int parPolyDeg, int parNelem)
-			: exactIntegration(exact), polyDeg(poly), nElem(elem), parPolyDeg(parPolyDeg), parNelem(parNelem), radPolyDeg(0), radNelem(0) {}
-		DGparams(int exact, int poly, int elem, int parPolyDeg, int parNelem, int radPolyDeg, int radNelem)
-			: exactIntegration(exact), polyDeg(poly), nElem(elem), parPolyDeg(parPolyDeg), parNelem(parNelem), radPolyDeg(radPolyDeg), radNelem(radNelem) {
+	class DGParams : public DiscParams {
+	public:
+		DGParams() : DiscParams(std::make_unique<BulkDG>(), std::make_unique<ParticleDG>()) {}
+		DGParams(int exact, int poly, int elem)
+			: DiscParams(std::make_unique<BulkDG>(exact, poly, elem), std::make_unique<ParticleDG>()) {
 		}
-
-		int getNAxCells() const override { return nElem; }
-		int getNParCells() const override { return parNelem; }
-		void setIntegrationMode(int integrationMode) { exactIntegration = integrationMode; }
-		int getIntegrationMode() { return exactIntegration; }
-		void setDisc(JsonParameterProvider& jpp, const std::string unitID = "000") const override;
+		DGParams(int exact, int poly, int elem, int parPolyDeg, int parNelem)
+			: DiscParams(std::make_unique<BulkDG>(exact, poly, elem), std::make_unique<ParticleDG>(parPolyDeg, parNelem)) {
+		}
+		DGParams(int exact, int poly, int elem, int parPolyDeg, int parNelem, int radPolyDeg, int radNelem)
+			: DiscParams(std::make_unique<BulkDG>(exact, poly, elem, radPolyDeg, radNelem),
+				std::make_unique<ParticleDG>(parPolyDeg, parNelem)) {
+		}
+		int getIntegrationMode() const {
+			return static_cast<const BulkDG*>(bulkDisc_.get())->getIntegrationMode();
+		}
 	};
 
 	/**
@@ -112,7 +500,7 @@ namespace column
 	 * @param [in] nCol Number of axial cells
 	 * @param [in] unitID unit operation ID
 	 */
-	void setNumAxialCells(cadet::JsonParameterProvider& jpp, unsigned int nCol, std::string unitID="000");
+	void setNumAxialCells(JsonParameterProvider& jpp, unsigned int nCol, std::string unitID="000");
 
 	/**
 	 * @brief Sets the WENO order in a configuration of a column-like unit operation
@@ -120,13 +508,13 @@ namespace column
 	 * @param [in,out] jpp ParameterProvider to change the WENO order in
 	 * @param [in] order Target order
 	 */
-	void setWenoOrder(cadet::JsonParameterProvider& jpp, int order);
+	void setWenoOrder(JsonParameterProvider& jpp, int order);
 
 	/**
 	 * @brief Reverses the flow of a column-like unit operation
 	 * @param [in,out] jpp ParameterProvider to change the flow direction in
 	 */
-	void reverseFlow(cadet::JsonParameterProvider& jpp);
+	void reverseFlow(JsonParameterProvider& jpp);
 
 	/**
 	 * @brief Infers cross section area of column model from interstitial velocity
@@ -139,7 +527,7 @@ namespace column
 	 * @param [in] useTotalPorosity Determines whether TOTAL_POROSITY is used (@c true) or COL_POROSITY (@c false)
 	 * @param [in] dir Flow direction in unit operation (@c 0 removes field, @c 1 standard direction, @c -1 flow reversal) 
 	 */
-	void setCrossSectionArea(cadet::JsonParameterProvider& jpp, bool useTotalPorosity, int dir);
+	void setCrossSectionArea(JsonParameterProvider& jpp, bool useTotalPorosity, int dir);
 
 	/**
 	 * @brief Returns the offset to the flux part in the local state vector
@@ -167,8 +555,8 @@ namespace column
 	 * @param [in] relTol Relative error tolerance
 	 */
 	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, DiscParams& disc, const std::string method, double absTol, double relTol);
-	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, FVparams& disc, double absTol, double relTol);
-	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, DGparams& disc, double absTol, double relTol);
+	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, DGParams& disc, double absTol, double relTol);
+	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, FVParams& disc, double absTol, double relTol);
 
 	/**
 	 * @brief Runs a simulation test comparing against (semi-)analytic single component pulse injection reference data
@@ -182,8 +570,8 @@ namespace column
 	 * @param [in] relTol Relative error tolerance
 	 */
 	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, DiscParams& disc, const std::string method, double absTol, double relTol);
-	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, FVparams& disc, double absTol, double relTol);
-	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, DGparams& disc, double absTol, double relTol);
+	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, DGParams& disc, double absTol, double relTol);
+	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, FVParams& disc, double absTol, double relTol);
 
 
 	/**
@@ -193,9 +581,9 @@ namespace column
 	 * @param [in] absTol Absolute error tolerance
 	 * @param [in] relTol Relative error tolerance
 	 */
-	void testForwardBackward(const char* uoType, FVparams disc, double absTol, double relTol);
-	void testForwardBackward(const char* uoType, DGparams disc, double absTol, double relTol);
-	void testForwardBackward(cadet::JsonParameterProvider jpp, double absTol, double relTol);
+	void testForwardBackward(const char* uoType, FVParams disc, double absTol, double relTol);
+	void testForwardBackward(const char* uoType, DGParams disc, double absTol, double relTol);
+	void testForwardBackward(JsonParameterProvider jpp, double absTol, double relTol);
 
 	/**
 	 * @brief Checks the full Jacobian against AD and FD pattern switching
@@ -205,7 +593,7 @@ namespace column
 	 * @param [in] absTolAD absolute tolerance when comparing the AD Jacobians. Deviation from default only advised when values are numerically challenging, i.e. are at least 1E+10
 	 * @param [in] flowRate flow rate, needs to be specified for 2D units, where velocity is derived from flow rates.
 	 */
-	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern = 0.0, const double absTolAD = std::numeric_limits<float>::epsilon() * 100.0, const cadet::active* flowRate = nullptr);
+	void testJacobianAD(JsonParameterProvider& jpp, const double absTolFDpattern = 0.0, const double absTolAD = std::numeric_limits<float>::epsilon() * 100.0, const cadet::active* flowRate = nullptr);
 
 	/**
 	 * @brief Checks the full Jacobian against AD and FD pattern switching in case of variable surface diffusion coefficient
@@ -224,9 +612,9 @@ namespace column
 	 * @param [in] disc spatial discretization parameters
 	 * @param [in] absTolFDpattern absolute tolerance when comparing the sign in the FD Jacobian pattern
 	 */
-	void testJacobianForwardBackward(const char* uoType, FVparams disc, const double absTolFDpattern = 0.0);
-	void testJacobianForwardBackward(const char* uoType, DGparams disc, const double absTolFDpattern = 0.0);
-	void testJacobianForwardBackward(cadet::JsonParameterProvider& jpp, const double absTolFDpattern = 0.0);
+	void testJacobianForwardBackward(const char* uoType, FVParams disc, const double absTolFDpattern = 0.0);
+	void testJacobianForwardBackward(const char* uoType, DGParams disc, const double absTolFDpattern = 0.0);
+	void testJacobianForwardBackward(JsonParameterProvider& jpp, const double absTolFDpattern = 0.0);
 
 	/**
 	 * @brief Checks the full Jacobian against FD switching from forward to backward flow and back
@@ -281,7 +669,7 @@ namespace column
 	 * @param [in] absTol Absolute error tolerance
 	 * @param [in] relTol Relative error tolerance
 	 */
-	void testArrowHeadJacobianFD(cadet::JsonParameterProvider& jpp, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
+	void testArrowHeadJacobianFD(JsonParameterProvider& jpp, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
 
 	/**
 	 * @brief Checks the bottom macro row and right macro column of the Jacobian against FD in case of variable surface diffusion coefficient
@@ -301,7 +689,7 @@ namespace column
 	 * @param [in] absTol Absolute error tolerance
 	 * @param [in] relTol Relative error tolerance
 	 */
-	void testFwdSensJacobians(cadet::JsonParameterProvider jpp, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0, const bool hasBinding=true);
+	void testFwdSensJacobians(JsonParameterProvider jpp, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0, const bool hasBinding=true);
 
 	/**
 	 * @brief Checks the forward sensitivity solution against finite differences
@@ -388,8 +776,11 @@ namespace column
 	 * @param [in] relTol Relative error tolerance
 	 * @param [in] disc Numerical discretization parameters
 	 * @param [in] compare_sens Specifies whether sensitivities are included
+	 * @param [in] simDataStride strides in simulation data (eg stride over radial ports), only applied to simulation data
+	 * @param [in] outletDataStride strides in outlet data (eg stride over nComp), applied to simulation and reference data
+	 * @param [in] outletDataOffset offset to outlet data entry (eg to specific component), applied to simulation and reference data
 	 */
-	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const cadet::test::column::DiscParams& disc, const bool compare_sens = false, const int simDataStride = 1);
+	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const cadet::test::column::DiscParams& disc, const bool compare_sens = false, const int simDataStride = 1, const int outletDataStride = 1, const int outletDataOffset = 0);
 
 	/**
 	 * @brief Runs an EOC test comparing against numerical reference data (outlet data)

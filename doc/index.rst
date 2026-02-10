@@ -10,6 +10,9 @@
 .. image:: https://github.com/cadet/cadet-core/actions/workflows/ci.yml/badge.svg?branch=master
    :target: https://github.com/cadet/cadet-core/actions/workflows/ci.yml?query=branch%3Amaster
 
+.. image:: https://joss.theoj.org/papers/282a9ec56a0680e51ed4f1fa8fda3650/status.svg
+   :target: https://joss.theoj.org/papers/282a9ec56a0680e51ed4f1fa8fda3650
+
 .. image:: https://anaconda.org/conda-forge/cadet/badges/downloads.svg
    :target: https://anaconda.org/conda-forge/cadet
 
@@ -32,8 +35,8 @@ The resulting models are solved with state-of-the-art mathematical algorithms an
 
 - **Forum:** https://forum.cadet-web.de
 - **Source:** https://github.com/cadet/cadet-core
-- **Demo:** http://cadet-web.de
-- **Newsletter:** https://cadet-web.de/newsletter/
+
+To stay up to date on CADET news, development updates, and workshops, please subscribe to our `Newsletter <http://eepurl.com/hzN4EP>`_.
 
 Features
 --------

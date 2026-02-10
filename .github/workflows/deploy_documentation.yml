@@ -1,8 +1,11 @@
 name: "Trigger for dispatching CADET-Website"
+
 on:
   push:
     branches:
       - 'master'
+      - 'chore/developer_guide'
+  workflow_dispatch:
 
 jobs:
   dispatch_docs:
@@ -12,5 +15,10 @@ jobs:
         uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.DISPATCH_DOCS }}
-          repository: modsim/CADET-Website
+          repository: cadet/CADET-Website
           event-type: build_docs
+          client-payload: |
+            {
+              "cadet_core_ref": "${{ github.ref_name }}",
+              "cadet_core_sha": "${{ github.sha }}"
+            }

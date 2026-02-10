@@ -455,7 +455,7 @@ int AxialConvectionDispersionOperatorBaseDG::residualImpl(const IModel& model, d
 * @brief analytically calculates the (static) state jacobian
 * @return 1 if jacobain estimation fits the predefined pattern of the jacobian, 0 if not.
 */
-int AxialConvectionDispersionOperatorBaseDG::calcStaticAnaJacobian(Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset) {
+int AxialConvectionDispersionOperatorBaseDG::calcTransportJacobian(Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset) {
 
 	// DG convection dispersion Jacobian
 	if (_exactInt)
@@ -472,7 +472,7 @@ int AxialConvectionDispersionOperatorBaseDG::calcStaticAnaJacobian(Eigen::Sparse
  * @brief calculates the number of entris for the DG convection dispersion jacobian
  * @note only dispersion entries are relevant for jacobian NNZ as the convection entries are a subset of these
  */
-unsigned int AxialConvectionDispersionOperatorBaseDG::nConvDispEntries(bool pureNNZ) {
+unsigned int AxialConvectionDispersionOperatorBaseDG::nJacEntries(bool pureNNZ) {
 
 	if (_exactInt) {
 		if (pureNNZ) {
@@ -690,8 +690,6 @@ bool AxialConvectionDispersionOperatorBaseDG::setSensitiveParameter(std::unorder
 
 	return true;
 }
-
-// @todo: radial flow DG
 
 /**
  * @brief Creates an ConvectionDispersionOperatorDG

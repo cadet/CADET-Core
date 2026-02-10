@@ -527,10 +527,11 @@
             ],
             "INIT_VOLUME": 0.0005,
             "NCOMP": 96,
-            "REACTION_MODEL": "CRYSTALLIZATION",
+            "NREAC_LIQUID": 1,
             "UNIT_TYPE": "CSTR",
             "USE_ANALYTIC_JACOBIAN": 1,
-            "reaction_bulk": {
+            "liquid_reaction_000": {
+                "TYPE": "CRYSTALLIZATION",
                 "CRY_AGGREGATION_INDEX": 3,
                 "CRY_AGGREGATION_RATE_CONSTANT": 1.0,
                 "CRY_BINS": [

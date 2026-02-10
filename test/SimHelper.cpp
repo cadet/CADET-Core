@@ -35,7 +35,7 @@ namespace test
 		jpp.set("INIT_C", c);
 		jpp.set("INIT_LIQUID_VOLUME", v);
 		if (!q.empty())
-			jpp.set("INIT_Q", q);
+			jpp.set("INIT_CS", q);
 	}
 
 	void setInitialConditions(cadet::JsonParameterProvider& jpp, const std::vector<double>& c, const std::vector<double>& cp, const std::vector<double>& q)
@@ -46,7 +46,7 @@ namespace test
 		if (!cp.empty())
 			jpp.set("INIT_CP", cp);
 		if (!q.empty())
-			jpp.set("INIT_Q", q);
+			jpp.set("INIT_CS", q);
 	}
 
 	void setFlowRates(cadet::JsonParameterProvider& jpp, unsigned int secIdx, double in, double out, double filter)
@@ -201,9 +201,24 @@ namespace test
 		auto ms = util::makeOptionalGroupScope(jpp, "model");
 		auto us = util::makeOptionalGroupScope(jpp, "unit_000");
 
-		jpp.pushScope("adsorption");
-		jpp.set("IS_KINETIC", isKinetic);
-		jpp.popScope();
+		if (!jpp.exists("adsorption"))
+		{
+			const int nParType = jpp.getInt("NPARTYPE");
+			for (int i = 0; i < nParType; ++i)
+			{
+				jpp.pushScope("particle_type_" + std::string(3 - (i + 1), '0') + std::to_string(i));
+				jpp.pushScope("adsorption");
+				jpp.set("IS_KINETIC", isKinetic);
+				jpp.popScope();
+				jpp.popScope();
+			}
+		}
+		else
+		{
+			jpp.pushScope("adsorption");
+			jpp.set("IS_KINETIC", isKinetic);
+			jpp.popScope();
+		}
 	}
 
 	void addSensitivity(cadet::JsonParameterProvider& jpp, const std::string& name, const ParameterId& id, double absTol)
