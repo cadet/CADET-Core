@@ -95,8 +95,9 @@ namespace cadet
 			// Read discretization
 			_disc.nComp = paramProvider.getInt("NCOMP");
 
-			if (paramProvider.exists("NPARTYPE") ? paramProvider.getInt("NPARTYPE") != 1 : false)
-				throw InvalidParameterException("Number of particle types must be 1 for EQUILIBRIUM particles, i.e. LUMPED_RATE_MODEL_WITHOUT_PORES");
+			const int nPartype = paramProvider.getInt("NPARTYPE");
+			if (nPartype != 1)
+				throw InvalidParameterException("Number of particle types must be 1 for LUMPED_RATE_MODEL_WITHOUT_PORES, i.e. particles without film diffusion");
 
 			paramProvider.pushScope("particle_type_000");
 
