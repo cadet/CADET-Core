@@ -713,7 +713,7 @@ protected:
 
 		// p2: Aerobic storage of SS: k_sto * SO / (SO + kho2) * ( SS ) / ( ( SS_ad + SS ) + khss )  * XH;
 		d[1][_idxSO] = k_sto
-			* (SS_ad + SS) / ((SS_ad + SS) + khss)
+			* (SS) / ((SS_ad + SS) + khss)
 			* kho2 / ((SO + kho2) * (SO + kho2)) * XH;
 		if (_givenAd)
 		{
@@ -727,12 +727,12 @@ protected:
 			* (khss + SS_ad) / ((SS_ad + SS + khss) * (SS_ad + SS + khss)) * XH;
 		d[1][_idxXH] = k_sto
 			* SO / (SO + kho2)
-			* (SS_ad + SS) / ((SS_ad + SS) + khss);
+			* (SS) / ((SS_ad + SS) + khss);
 
 		// p3: Anoxic storage of SS: k_sto * etahno3 * kho2 / (SO + kho2) * ( SS ) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khn03) * XH;
 		d[2][_idxSO] = k_sto * etahno3
 			* -kho2 / ((SO + kho2) * (SO + kho2))
-			* (SS_ad + SS) / (SS_ad + SS + khss)
+			* (SS) / (SS_ad + SS + khss)
 			* SNO / (SNO + khn03) * XH;
 		if(_givenAd)
 		{
@@ -748,11 +748,11 @@ protected:
 			* SNO / (SNO + khn03) * XH;
 		d[2][_idxSNO] = k_sto * etahno3
 			* kho2 / (SO + kho2)
-			* (SS_ad + SS) / ((SS_ad + SS) + khss)
+			* (SS) / ((SS_ad + SS) + khss)
 			* khn03 / ((SNO + khn03) * (SNO + khn03)) * XH;
 		d[2][_idxXH] = k_sto * etahno3
 			* kho2 / (SO + kho2)
-			* (SS_ad + SS) / ((SS_ad + SS) + khss)
+			* (SS) / ((SS_ad + SS) + khss)
 			* SNO / (SNO + khn03);
 
 		// p4: Aerobic growth: muH * SO / (SO + kho2) * SNH / (SNH + khnh4) * SALK / (SALK + khalk) * (XSTO/XH_S) / ((XSTO/XH_S) + khsto) * XH;
@@ -960,13 +960,12 @@ protected:
 		if  (_givenAd)
 		{
 			// p14: Aerobic storage of SS_ad: k_sto * SO / (SO + kho2) * ( SS_ad ) / ( ( SS_ad + SS ) + khss )  * XH;
-			d[13][_idxSO] = k_sto
-						* (SS_ad) / ((SS_ad + SS) + khss)
-						* kho2 / ((SO + kho2) * (SO + kho2)) * XH;
+			d[13][_idxSO] = k_sto * kho2 / ((SO + kho2) * (SO + kho2)) * XH
+						* (SS_ad) / ((SS_ad + SS) + khss);
 
 			d[13][_idxSS_ad] = k_sto
 						* SO / (SO + kho2)
-						* (khss * SS) / ((SS_ad + SS + khss) * (SS_ad + SS + khss)) * XH;
+						* (khss + SS) / ((SS_ad + SS + khss) * (SS_ad + SS + khss)) * XH;
 
 			d[13][_idxSS] = k_sto
 						* SO / (SO + kho2)
@@ -974,10 +973,7 @@ protected:
 			d[13][_idxXH] = k_sto
 						* SO / (SO + kho2)
 						* (SS_ad) / ((SS_ad + SS) + khss);
-		}
-		
-		if  (_givenAd)
-		{
+
 			// p15: Anoxic storage of SS_ad: k_sto * etahno3 * kho2 / (SO + kho2) * ( SS_ad ) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khn03) * XH;
 			d[14][_idxSO] = k_sto * etahno3
 				* -kho2 / ((SO + kho2) * (SO + kho2))
@@ -986,7 +982,7 @@ protected:
 
 			d[14][_idxSS_ad] = k_sto * etahno3
 				* kho2 / (SO + kho2)
-				* (khss * SS) / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
+				* (khss + SS) / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
 				* SNO / (SNO + khn03) * XH;
 
 			d[14][_idxSS] = k_sto * etahno3

@@ -181,13 +181,14 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with inhibition", "[M
 
 TEST_CASE("ASM3 analytic Jacobian vs AD", "[ASM3],[ReactionModel],[Jacobian],[AD],[CI]")
 {
-	const unsigned int nBound[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0 };
-	unsigned int ncomp = 13;
-	const double point[] = { 1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8, 1.5, 1.0, 4.2, 1.4, 0.3, 1.4 };
+	const unsigned int nBound[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0,0,0 };
+	unsigned int ncomp = 15;
+	const double point[] = { 1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8, 1.5, 1.0, 4.2, 1.4, 0.3, 1.4, 1.0, 2.0 };
 	cadet::test::reaction::testLiquidReactionJacobianAD("ACTIVATED_SLUDGE_MODEL3", ncomp, nBound,
 		R"json({
 			"ASM3_FISS_BM_PROD": 1.0,
 			"ASM3_FSI": 0.0,
+			"ASM3_FSI_AD": 0.5,
 			"ASM3_YH_AER": 0.8,
 			"ASM3_YH_ANOX": 0.65,
 			"ASM3_YSTO_AER": 0.8375,
