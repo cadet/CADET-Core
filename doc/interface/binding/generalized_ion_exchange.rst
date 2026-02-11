@@ -3,7 +3,7 @@
 Generalized Ion Exchange
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = GENERALIZED_ION_EXCHANGE**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = GENERALIZED_ION_EXCHANGE**
 
 For information on model equations, refer to :ref:`generalized_ion_exchange_model`.
 

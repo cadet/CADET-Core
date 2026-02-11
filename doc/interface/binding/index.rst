@@ -39,13 +39,13 @@ In this case, the entries in their parameters that correspond to non-binding com
 Multiple particle types
 -----------------------
 
-The group that contains the parameters of a binding model in unit operation with index ``XXX`` reads ``/input/model/unit_XXX/adsorption``.
+The group that contains the parameters of a binding model in unit operation with index ``XXX`` reads ``/input/model/unit_XXX/particle_type_ZZZ/adsorption``.
 This is valid for models with a single particle type.
 If a model has multiple particle types, it may have a different binding model in each type.
-The parameters are then placed in the group ``/input/model/unit_XXX/adsorption_YYY`` instead, where ``YYY`` denotes the index of the particle type.
+The parameters are then placed in the group ``/input/model/unit_XXX/particle_type_ZZZ/adsorption_YYY`` instead, where ``YYY`` denotes the index of the particle type.
 
-Note that, in any case, ``/input/model/unit_XXX/adsorption_000`` contains the parameters of the first (and possibly sole) particle type.
-This group also takes precedence over a possibly existing ``/input/model/unit_XXX/adsorption`` group.
+Note that, in any case, ``/input/model/unit_XXX/particle_type_ZZZ/adsorption_000`` contains the parameters of the first (and possibly sole) particle type.
+This group also takes precedence over a possibly existing ``/input/model/unit_XXX/particle_type_ZZZ/adsorption`` group.
 
 .. toctree::
     :maxdepth: 2

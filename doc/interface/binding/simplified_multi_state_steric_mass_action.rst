@@ -3,7 +3,7 @@
 Simplified Multi-State Steric Mass Action
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = SIMPLIFIED_MULTISTATE_STERIC_MASS_ACTION**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = SIMPLIFIED_MULTISTATE_STERIC_MASS_ACTION**
 
 For information on model equations, refer to :ref:`simplified_multi_state_steric_mass_action_model`.
 

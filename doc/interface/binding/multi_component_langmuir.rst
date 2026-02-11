@@ -3,7 +3,7 @@
 Multi Component Langmuir
 ========================
 
-**Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_LANGMUIR**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_LANGMUIR**
 
 For information on model equations, refer to :ref:`multi_component_langmuir_model`.
 
