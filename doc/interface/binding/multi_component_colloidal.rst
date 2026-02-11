@@ -3,7 +3,7 @@
 Multi Component Colloidal
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_COLLOIDAL**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_COLLOIDAL**
 
 
 ``IS_KINETIC``

@@ -3,7 +3,7 @@
 Linear
 ~~~~~~
 
-**Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = LINEAR**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = LINEAR**
 
 For information on model equations, refer to :ref:`linear_model`.
 

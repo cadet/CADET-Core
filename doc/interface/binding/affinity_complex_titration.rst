@@ -3,7 +3,7 @@
 Affinity Complex Titration
 ==========================
 
-**Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = AFFINITY_COMPLEX_TITRATION**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = AFFINITY_COMPLEX_TITRATION**
 
 For information on model equations, refer to :ref:`affinity_complex_titration`. The first component should be pH. 
 
