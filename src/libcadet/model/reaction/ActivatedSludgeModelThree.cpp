@@ -699,7 +699,8 @@ protected:
 		{
 			d[0][_idxXS] = kh20 * ft_hydrolysis
 				* XH_MIN_THRESHOLD / ((XS + XH_MIN_THRESHOLD * kx) * (XS + XH_MIN_THRESHOLD * kx)) * XH;
-			d[0][_idxXH] = 0.0;
+			d[0][_idxXH] = kh20 * ft_hydrolysis
+				* XH_MIN_THRESHOLD / ((XS + XH_MIN_THRESHOLD * kx) * (XS + XH_MIN_THRESHOLD * kx));
 		}
 		else
 		{
@@ -762,23 +763,23 @@ protected:
 				* -kho2 / ((SO + kho2) * (SO + kho2))
 				* SNH / (SNH + khnh4)
 				* SALK / (SALK + khalk)
-				* (XSTO / XH_MIN_THRESHOLD) / ((XSTO / XH_MIN_THRESHOLD) + khsto) * XH_MIN_THRESHOLD;
+				* (XSTO / XH_MIN_THRESHOLD) / ((XSTO / XH_MIN_THRESHOLD) + khsto) * XH;
 			d[3][_idxSNH] = muH
 				* SO / (SO + kho2)
 				* khnh4 / ((SNH + khnh4) * (SNH + khnh4))
 				* SALK / (SALK + khalk)
-				* (XSTO / XH_MIN_THRESHOLD) / ((XSTO / XH_MIN_THRESHOLD) + khsto) * XH_MIN_THRESHOLD;
+				* (XSTO / XH_MIN_THRESHOLD) / ((XSTO / XH_MIN_THRESHOLD) + khsto) * XH;
 			d[3][_idxSALK] = muH
 				* SO / (SO + kho2)
 				* SNH / (SNH + khnh4)
 				* khalk / ((SALK + khalk) * (SALK + khalk))
-				* (XSTO / XH_MIN_THRESHOLD) / ((XSTO / XH_MIN_THRESHOLD) + khsto) * XH_MIN_THRESHOLD;
+				* (XSTO / XH_MIN_THRESHOLD) / ((XSTO / XH_MIN_THRESHOLD) + khsto) * XH;
 			d[3][_idxXSTO] = muH
 				* SO / (SO + kho2)
 				* SNH / (SNH + khnh4)
 				* SALK / (SALK + khalk)
-				* (khsto * XH_MIN_THRESHOLD) / ((XSTO + khsto * XH_MIN_THRESHOLD) * (XSTO + khsto * XH_MIN_THRESHOLD)) * XH_MIN_THRESHOLD;
-			d[3][_idxXH] = 0.0;
+				* (khsto * XH_MIN_THRESHOLD) / ((XSTO + khsto * XH_MIN_THRESHOLD) * (XSTO + khsto * XH_MIN_THRESHOLD)) * XH;
+			d[3][_idxXH] = muH * SO / (SO + kho2) * SNH / (SNH + khnh4) * SALK / (SALK + khalk) * (XSTO / XH_MIN_THRESHOLD) / ((XSTO / XH_MIN_THRESHOLD) + khsto);
 		}
 		else
 		{
