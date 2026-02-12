@@ -30,6 +30,7 @@ The input group for parameters of single reactions is given by ``phase_reaction_
 
     mass_action_law
     michaelis_menten_kinetics
+    activated_sludge_model
 
 
 Cross Phase Reactions
