@@ -105,7 +105,7 @@ Group /solver/time_integrator
    
 ``INIT_STEP_SIZE``
 
-   Initial time integrator step size for each section or one value for all sections (0.0: IDAS default value), see IDAS guide 4.5, p.\ 36f.
+   Initial time integrator step size for each section or one value for all sections (0.0: IDAS default value), see `IDAS <https://sundials.readthedocs.io/en/latest/idas/Usage/SIM.html#idas-usage-sim-user-callable-optional-input>` documentation.
 
    **Unit:** :math:`\mathrm{s}`
    
@@ -115,7 +115,7 @@ Group /solver/time_integrator
    
 ``MAX_STEPS``
 
-   Maximum number of timesteps taken by IDAS (0: IDAS default = 500), see IDAS guide Sec.~4.5
+   Maximum number of timesteps taken by IDAS (0: IDAS default = 500), see `IDAS <https://sundials.readthedocs.io/en/latest/idas/Usage/SIM.html#idas-usage-sim-user-callable-optional-input>` documentation.
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
@@ -123,7 +123,7 @@ Group /solver/time_integrator
    
 ``MAX_STEP_SIZE``
 
-   Maximum size of timesteps taken by IDAS (optional, defaults to unlimited 0.0), see IDAS guide Sec.~4.5
+   Maximum size of timesteps taken by IDAS (optional, defaults to unlimited 0.0), see `IDAS <https://sundials.readthedocs.io/en/latest/idas/Usage/SIM.html#idas-usage-sim-user-callable-optional-input>` documentation.
 
    **Unit:** :math:`\mathrm{s}`
    
