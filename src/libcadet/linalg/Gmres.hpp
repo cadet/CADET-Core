@@ -20,15 +20,13 @@
 
 #include "cadet/cadetCompilerInfo.hpp"
 #include "cadet/Exceptions.hpp"
+#include <sundials/sundials_types.h>
 
 #include <functional>
 
 // Forward declare SUNDIALS types
-#if CADET_SUNDIALS_IFACE == 2
-	typedef struct _SpgmrMemRec SpgmrMemRec;
-#elif CADET_SUNDIALS_IFACE == 3
-	typedef struct _generic_SUNLinearSolver *SUNLinearSolver;
-#endif
+
+typedef struct _generic_SUNLinearSolver *SUNLinearSolver;
 
 typedef struct _generic_N_Vector *N_Vector;
 
@@ -197,11 +195,8 @@ public:
 
 protected:
 
-#if CADET_SUNDIALS_IFACE == 2
-	SpgmrMemRec* _mem; //!< SUNDIALS memory
-#elif CADET_SUNDIALS_IFACE == 3
+	SUNContext _sunctx;
 	SUNLinearSolver _linearSolver; //!< SUNDIALS linear solver object
-#endif
 	Orthogonalization _ortho; //!< Orthogonalization method
 	unsigned int _maxRestarts; //!< Maximum number of restarts
 	unsigned int _matrixSize; //!< Size of the square matrix
