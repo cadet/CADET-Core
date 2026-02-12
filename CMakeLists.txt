@@ -140,7 +140,7 @@ add_feature_info(ENABLE_CADET_TOOLS ENABLE_CADET_TOOLS "Build CADET tools")
 option(ENABLE_TESTS "Build CADET tests" OFF)
 add_feature_info(ENABLE_TESTS ENABLE_TESTS "Build CADET tests")
 
-option(ENABLE_PACKAGED_SUNDIALS "Use packaged SUNDIALS code" ON)
+option(ENABLE_PACKAGED_SUNDIALS "Use packaged SUNDIALS code" OFF)
 add_feature_info(ENABLE_PACKAGED_SUNDIALS ENABLE_PACKAGED_SUNDIALS "Use packaged SUNDIALS code")
 
 option(ENABLE_IPO "Enable interprocedural optimization if compiler supports it" ${DEFAULT_IPO_ENABLED})
@@ -427,6 +427,7 @@ endif()
 find_package(Eigen3 REQUIRED NO_MODULE)
 set(EIGEN_TARGET "Eigen3::Eigen")
 
+
 set(IPO_AVAILABLE OFF)
 if (ENABLE_IPO)
 	include(CheckIPOSupported)
@@ -466,6 +467,10 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 	target_compile_definitions(CADET::CompileOptions INTERFACE CADET_LOGLEVEL_MIN=Trace DEBUG _DEBUG)
 else()
 	target_compile_definitions(CADET::CompileOptions INTERFACE CADET_LOGLEVEL_MIN=Warning NDEBUG)
+endif()
+
+if(ENABLE_CADETTEST_LOGGING)
+    target_compile_definitions(CADET::CompileOptions INTERFACE ENABLE_CADETTEST_LOGGING)
 endif()
 
 if (ENABLE_BENCHMARK)
