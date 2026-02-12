@@ -117,8 +117,10 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
 	_disc.nParType = paramProvider.exists("NPARTYPE") ? paramProvider.getInt("NPARTYPE") : 0;
-	if (_disc.nParType < 0)
-		throw InvalidParameterException("Number of particle types must be >= 0!");
+
+// TODO: This shall be reversed when changing from unsigned to signed int  
+//	if (_disc.nParType < 0)
+//		throw InvalidParameterException("Number of particle types must be >= 0!");
 
 	if (_disc.nParType == 0 && paramProvider.exists("particle_type_000"))
 		throw InvalidParameterException("NPARTYPE is set to 0, but group particle_type_000 exists.");
@@ -421,7 +423,7 @@ bool ColumnModel1D::configure(IParameterProvider& paramProvider)
 				_parameters[makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, i, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parTypeVolFrac[i];
 		}
 		else
-			registerParam2DArray(_parameters, _parTypeVolFrac, [=](bool multi, unsigned cell, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, cell); }, _disc.nParType);
+			registerParam2DArray(_parameters, _parTypeVolFrac, [=, this](bool multi, unsigned cell, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, cell); }, _disc.nParType);
 	}
 	else if (_disc.nParType == 1)
 		_parTypeVolFrac = std::vector<active>(_disc.nPoints, 1.0);
@@ -431,7 +433,7 @@ bool ColumnModel1D::configure(IParameterProvider& paramProvider)
 	_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colPorosity;
 
 	// Register initial conditions parameters
-	registerParam1DArray(_parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
+	registerParam1DArray(_parameters, _initC, [=, this](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
 
 	if (_singleBinding)
 	{
@@ -439,7 +441,7 @@ bool ColumnModel1D::configure(IParameterProvider& paramProvider)
 			_parameters[makeParamId(hashString("INIT_CP"), _unitOpIdx, c, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_initCp[c];
 	}
 	else
-		registerParam2DArray(_parameters, _initCp, [=](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, _disc.nComp);
+		registerParam2DArray(_parameters, _initCp, [=, this](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, _disc.nComp);
 
 
 	if (!_binding.empty())
@@ -672,7 +674,7 @@ void ColumnModel1D::extractJacobianFromAD(active const* const adRes, unsigned in
 	/* Extract bulk phase equations entries */
 	const int lowerBandwidth = (_disc.exactInt) ? 2 * _disc.nNodes * idxr.strideColNode() : _disc.nNodes * idxr.strideColNode();
 	const int upperBandwidth = lowerBandwidth;
-	const int stride = lowerBandwidth + 1 + upperBandwidth;
+//	const int stride = lowerBandwidth + 1 + upperBandwidth;
 	int diagDir = lowerBandwidth;
 	const int bulkDoFs = idxr.offsetCp() - idxr.offsetC();
 	const int eqOffset = 0;

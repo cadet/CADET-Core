@@ -372,16 +372,16 @@ json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(cons
 			}
 		}
 
-	json parDisc;
-	parDisc["SPATIAL_METHOD"] = parMethod;
-	parDisc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT");
-	if (bulkMethod == "DG")
-	{
-		parDisc["PAR_POLYDEG"] = 3;
-		parDisc["PAR_NELEM"] = 1;
-	}
-	else
-		parDisc["NCELLS"] = 3;
+		json parDisc;
+		parDisc["SPATIAL_METHOD"] = parMethod;
+		parDisc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT");
+		if (bulkMethod == "DG")
+		{
+			parDisc["PAR_POLYDEG"] = 3;
+			parDisc["PAR_NELEM"] = 1;
+		}
+		else
+			parDisc["NCELLS"] = 3;
 
 		if (uoType == "MULTI_CHANNEL_TRANSPORT")
 			disc["NCOL"] = 8;
