@@ -166,6 +166,10 @@ add_feature_info(CMAKE_INSTALL_RPATH_USE_LINK_PATH CMAKE_INSTALL_RPATH_USE_LINK_
 
 option(CODE_COVERAGE "Enable coverage reporting" OFF)
 
+option(ENABLE_TEST_RADIAL "Build TimeIntegrator and radial tests" OFF)
+add_feature_info(ENABLE_TEST_RADIAL ENABLE_TEST_RADIAL "Build TimeIntegrator and radial tests")
+
+
 if(CODE_COVERAGE)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         message(STATUS "Enabling coverage flags")
