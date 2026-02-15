@@ -12,11 +12,11 @@
 
 /**
  * @file 
- * Implements the High Resolution Koren method
+ * Implements a non-equidistant upwind scheme
  */
 
-#ifndef LIBCADET_HIGHRESKOREN_HPP_
-#define LIBCADET_HIGHRESKOREN_HPP_
+#ifndef UPWINDNEQUIDISTANT
+#define UPWINDNEQUIDISTANT
 
 #include "AutoDiff.hpp"
 #include "MathUtil.hpp"
@@ -30,46 +30,35 @@ namespace cadet
 {
 
 /**
- * @brief Implements the High Resolution Koren scheme for convection
- * @details This scheme uses a van Leer flux limiter to help the scheme
- * to stay in the TVD region. The limiter uses a smoothness monitor to
- * monitor the smoothness of the solution and adjust the scheme between
- * first and second order. \varepsilon in the van Leer flux limiter is
- * set to 1e-10. The BOUNDARY_MODEL is set to 0. 
+ * @brief Implements a non-equidistant upwind scheme
  */
-class HighResolutionKoren
+class UpwindNonEquidistant
 {
 public:
 
 	/**
-	 * @brief Creates the HighResolutionKoren scheme
-	 * @details The max order is 2. 
+	 * @brief Creates the UpwindNonEquidistant scheme
+	 * @details The max order is 1. 
 	 */
-	HighResolutionKoren(): _epsilon(), _order(2) { }
-
-	/**
-    * @brief Returns the maximum order \f$ r \f$ of the implemented schemes
-    * @return Maximum WENO order \f$ r \f$
-    */
-	CADET_CONSTEXPR static inline unsigned int maxOrder() CADET_NOEXCEPT { return 2; }
+	UpwindNonEquidistant(): _epsilon(), _order(1) { }
 
 	/**
 	 * @brief Returns the maximum stencil size for the implemented schemes
 	 * @return Maximum stencil size
 	 */
-	CADET_CONSTEXPR static inline unsigned int maxStencilSize() CADET_NOEXCEPT { return 2 * maxOrder() - 1; }
+	CADET_CONSTEXPR static inline unsigned int maxStencilSize() CADET_NOEXCEPT { return 1; }
 
 	/**
 	 * @brief Reconstructs a cell face value from volume averages
 	 * @param [in] cellIdx Index of the current cell
 	 * @param [in] numCells Number of cells
-	 * @param [in] w Stencil that contains 3 volume averages from which the cell face values are reconstructed centered at the 
-	 *               current cell (i.e., index 0 is the current cell, -2 the next to previous cell, 2 the next but one cell)
+	 * @param [in] w Stencil that contains just 1 volume average from which the cell face values are reconstructed centered at the 
+	 *               current cell (i.e., index 0 is the current cell)
 	 * @param [out] result Reconstructed cell face value
-	 * @param [out] Dvm Gradient of the reconstructed cell face value. The array needs to be of size 3, which are the derivatives of right face flux wrt n_{i-1}, n_{i}, n_{i+1}. 
+	 * @param [out] Dvm Gradient of the reconstructed cell face value. The array needs to be of size 1, which is the derivatives of right face flux wrt n_{i}. 
 	 * @tparam StateType Type of the state variables
 	 * @tparam StencilType Type of the stencil (can be a dedicated class with overloaded operator[] or a simple pointer)
-	 * @return Order of the scheme that was used in the computation: 2 or 1
+	 * @return Order of the scheme that was used in the computation: 1
 	 */
 	template <typename StateType, typename StencilType>
 	int reconstruct(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result, double* const Dvm)
@@ -81,12 +70,12 @@ public:
 	 * @brief Reconstructs a cell face value from volume averages
 	 * @param [in] cellIdx Index of the current cell
 	 * @param [in] numCells Number of cells
-	 * @param [in] w Stencil that contains 3 volume averages from which the cell face values are reconstructed centered at the 
-	 *               current cell (i.e., index 0 is the current cell, -1 is the previous cell, 1 is the next cell)
+	 * @param [in] w Stencil that contains just 1 volume average from which the cell face values are reconstructed centered at the
+	 *               current cell (i.e., index 0 is the current cell)
 	 * @param [out] result Reconstructed cell face value
 	 * @tparam StateType Type of the state variables
 	 * @tparam StencilType Type of the stencil (can be a dedicated class with overloaded operator[] or a simple pointer)
-	 * @return Order of the scheme that was used in the computation: 2 or 1
+	 * @return Order of the scheme that was used in the computation: 1
 	 */
 	template <typename StateType, typename StencilType>
 	int reconstruct(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result)
@@ -95,31 +84,19 @@ public:
 	}
 
 	/**
-    * @brief Sets the \f$ \varepsilon \f$ of the WENO emthod (prevents division by zero in the weights)
-    * @param [in] HR Koren \f$ \varepsilon \f$
-    */
-	inline void epsilon(double eps) { _epsilon = eps; }
-
-	/**
-	 * @brief Returns the \f$ \varepsilon \f$ of the HR Koren emthod (prevents division by zero in the weights)
-	 * @return HR Koren \f$ \varepsilon \f$
-	 */
-	inline double epsilon() const CADET_NOEXCEPT { return _epsilon; }
-
-	/**
 	 * @brief Sets the order
-	 * @param [in] order Order of the HR Koren method
+	 * @param [in] order Order of the upwind scheme
 	 */
 	inline void order(int order)
 	{
-		cadet_assert(order <= 2);
+		cadet_assert(order <= 1);
 		cadet_assert(order > 0);
 		_order = order;
 	}
 
 	/**
-	 * @brief Returns the HR Koren order
-	 * @return Order of the HR Koren method
+	 * @brief Returns the upwind scheme order
+	 * @return Order of the upwind scheme method
 	 */
 	inline int order() const CADET_NOEXCEPT { return _order; }
 
@@ -137,7 +114,7 @@ public:
 
 	/**
 	 * @brief Returns the size of the stencil (i.e., the number of required elements)
-	 * @return Size of the stencil. Either 3 or 1. 
+	 * @return Size of the stencil
 	 */
 	inline unsigned int stencilSize() const CADET_NOEXCEPT { return 2 * _order - 1; }
 
@@ -147,14 +124,14 @@ private:
       * @brief Reconstructs a cell face value from volume averages
       * @param [in] cellIdx Index of the current cell
       * @param [in] numCells Number of cells
-      * @param [in] w Stencil that contains 3 volume averages from which the cell face values are reconstructed centered at the
-      *               current cell (i.e., index 0 is the current cell, -2 the next to previous cell, 2 the next but one cell)
+	  * @param [in] w Stencil that contains just 1 volume average from which the cell face values are reconstructed centered at the
+	  *               current cell (i.e., index 0 is the current cell)
       * @param [out] result Reconstructed cell face value
-      * @param [out] Dvm Gradient of the reconstructed cell face value. The array needs to be of size 3, which are the derivatives of right face flux wrt c_{i-1}, c_{i}, c_{i+1}.
+      * @param [out] Dvm Gradient of the reconstructed cell face value. The array needs to be of size 1, which is the derivatives of right face flux wrt n_{i}
       * @tparam StateType Type of the state variables
       * @tparam StencilType Type of the stencil (can be a dedicated class with overloaded operator[] or a simple pointer)
       * @tparam wantJac Determines if the gradient is computed (@c true) or not (@c false)
-      * @return Order of the scheme that was used in the computation: 2 or 1
+      * @return Order of the scheme that was used in the computation: 1
       */
 
 	template <typename StateType, typename StencilType, bool wantJac>
@@ -166,8 +143,8 @@ private:
 #endif
 
 		// This very statement selects the max. order for the current column cell
-		// order = min(maxOrderleft, maxOrderright). It can be either 1 or 2 depending on the cellIdx. 
-		const int order = std::min(std::min(static_cast<int>(cellIdx) + 1, _order), std::min(static_cast<int>(numCells - cellIdx), _order));
+		// For upwind scheme it is 1
+		const int order = 1;
 
 		// upwind scheme when order=1
 		if (order == 1)
@@ -211,11 +188,11 @@ private:
 		return order;
 	}
 
-	int _order; //!< Selected order: 2 or 1 for HR Koren
-	double _epsilon; //!< Small number preventing divsion by zero
+	int _order; //!< todo delete
+	double _epsilon; //!< todo delete
 
 };
 
 } // namespace cadet
 
-#endif  // LIBCADET_HIGHRESKOREN_HPP_
+#endif  // UPWINDNEQUIDISTANT
