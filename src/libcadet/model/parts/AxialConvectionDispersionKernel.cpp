@@ -18,7 +18,6 @@
 #include "model/parts/AxialConvectionDispersionKernel.hpp"
 #include "Weno.hpp"
 #include "HighResKoren.hpp"
-#include "UpwindNonEquidistant.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"
 
 namespace cadet
@@ -172,11 +171,6 @@ void sparsityPatternAxial(linalg::SparsityPatternRowIterator itBegin, unsigned i
 void sparsityPatternAxial(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, HighResolutionKoren& koren)
 {
 	impl::sparsityPatternAxial(itBegin, nComp, nCol, strideCell, u, koren);
-}
-
-void sparsityPatternAxial(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, UpwindNonEquidistant& upwind)
-{
-	impl::sparsityPatternAxial(itBegin, nComp, nCol, strideCell, u, upwind);
 }
 
 } // namespace convdisp

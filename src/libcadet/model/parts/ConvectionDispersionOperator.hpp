@@ -39,7 +39,6 @@ class IModel;
 
 class Weno;
 class HighResolutionKoren;
-class UpwindNonEquidistant;
 
 namespace model
 {
@@ -112,7 +111,6 @@ public:
 	inline unsigned int nCol() const CADET_NOEXCEPT { return _nCol; }
 	inline Weno const* weno() const CADET_NOEXCEPT { return _weno; }
 	inline HighResolutionKoren const* koren() const CADET_NOEXCEPT { return _koren; }
-	inline UpwindNonEquidistant const* upwindNonEquidistant() const CADET_NOEXCEPT { return _upwindNonEquidistant; }
 
 	unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
 	unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
@@ -147,7 +145,6 @@ protected:
 	bool _gridEquidistant; //!< Determines whether the grid is equidistant
 	Weno* _weno; //!< The WENO scheme implementation
 	HighResolutionKoren* _koren; //!< The High Resolution Koren scheme implementation
-	UpwindNonEquidistant* _upwindNonEquidistant;
 
 	bool _dispersionCompIndep; //!< Determines whether dispersion is component independent
 

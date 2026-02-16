@@ -26,6 +26,9 @@
 #include "model/ParameterDependence.hpp"
 #include "model/UnitOperation.hpp"
 
+#include <algorithm>
+#include <cmath>
+
 namespace cadet
 {
 
@@ -64,6 +67,13 @@ struct AxialFlowParameters
 
 namespace impl
 {
+	template <class FaceContainerType>
+	struct ReverseFaceAccessor
+	{
+		const FaceContainerType& faces;
+		inline auto operator[](unsigned int idx) const -> decltype(faces[0]) { return faces[faces.size() - 1 - idx]; }
+	};
+
 	template <typename StateType, typename ResidualType, typename ParamType, typename ReconstrType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 	int residualForwardsAxialFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const AxialFlowParameters<ParamType, ReconstrType>& p)
 	{
@@ -203,7 +213,16 @@ namespace impl
 				}
 
 				// Reconstruct concentration on this cell's right face
-				if (wantJac)
+				// Non equidistant grid
+				if (nonEqGrid)
+				{
+					if (wantJac)
+						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives, *p.cellFaces);
+					else
+						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, *p.cellFaces);
+				}
+				// Equadistant grid
+				else if (wantJac)
 					wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives);
 				else
 					wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm);
@@ -373,7 +392,16 @@ namespace impl
 				}
 
 				// Reconstruct concentration on this cell's left face
-				if (wantJac)
+				if (nonEqGrid)
+				{
+					const ReverseFaceAccessor<std::vector<active>> reverseFaces{ *p.cellFaces };
+					const unsigned int flowCellIdx = p.nCol - 1 - col;
+					if (wantJac)
+						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(flowCellIdx, p.nCol, stencil, vm, p.reconstructionDerivatives, reverseFaces);
+					else
+						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(flowCellIdx, p.nCol, stencil, vm, reverseFaces);
+				}
+				else if (wantJac)
 					wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives);
 				else
 					wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm);
@@ -422,7 +450,6 @@ int residualKernelAxial(const SimulationTime& simTime, StateType const* y, doubl
 
 void sparsityPatternAxial(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, Weno& weno);
 void sparsityPatternAxial(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, HighResolutionKoren& koren);
-void sparsityPatternAxial(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, UpwindNonEquidistant& upwindNEq);
 
 } // namespace convdisp
 } // namespace parts

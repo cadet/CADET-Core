@@ -16,7 +16,6 @@
 #include "Stencil.hpp"
 #include "Weno.hpp"
 #include "HighResKoren.hpp"
-#include "UpwindNonEquidistant.hpp"
 #include "ParamReaderHelper.hpp"
 #include "AdUtils.hpp"
 #include "SimulationTypes.hpp"
@@ -46,7 +45,7 @@ namespace parts
 /**
  * @brief Creates an AxialConvectionDispersionOperatorBase
  */
-AxialConvectionDispersionOperatorBase::AxialConvectionDispersionOperatorBase() : _reconstrDerivatives(nullptr), _weno(nullptr), _koren(nullptr), _upwindNonEquidistant(nullptr), _dispersionDep(nullptr)
+AxialConvectionDispersionOperatorBase::AxialConvectionDispersionOperatorBase() : _reconstrDerivatives(nullptr), _weno(nullptr), _koren(nullptr), _dispersionDep(nullptr)
 {
 }
 
@@ -57,7 +56,6 @@ AxialConvectionDispersionOperatorBase::~AxialConvectionDispersionOperatorBase() 
 	delete[] _reconstrDerivatives;
 	delete _weno;
 	delete _koren;
-	delete _upwindNonEquidistant;
 }
 
 /**
@@ -128,9 +126,6 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
 
 	if (recType == "WENO")
 	{
-		if (!_gridEquidistant)
-			throw InvalidParameterException("WENO reconstruction not supported on non-equidistant grids, please use"); // todo: enter nonEq options
-
 		// Read WENO settings and apply them
 		paramProvider.pushScope("weno");
 
@@ -157,12 +152,9 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
 		_reconstrDerivatives = new double[HighResolutionKoren::maxStencilSize()];
 		_stencilMemory.resize(sizeof(active) * HighResolutionKoren::maxStencilSize());
 	}
-	else if (recType == "UPWIND_NON_EQUIDISTANT")
+	else
 	{
-		_upwindNonEquidistant = new UpwindNonEquidistant();
-
-		_reconstrDerivatives = new double[UpwindNonEquidistant::maxStencilSize()];
-		_stencilMemory.resize(sizeof(active) * UpwindNonEquidistant::maxStencilSize());
+		throw InvalidParameterException("Unknown reconstruction type in field RECONSTRUCTION");
 	}
 
 	paramProvider.popScope();
@@ -441,26 +433,6 @@ int AxialConvectionDispersionOperatorBase::residualImpl(const IModel& model, dou
 
 		return convdisp::residualKernelAxial<StateType, ResidualType, ParamType, HighResolutionKoren, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
 	}
-	else if (_upwindNonEquidistant)
-	{
-		convdisp::AxialFlowParameters<ParamType, UpwindNonEquidistant> fp{
-			u,
-			d_c,
-			_reconstrDerivatives,
-			_upwindNonEquidistant,
-			&_stencilMemory,
-			strideColCell(),
-			_nComp,
-			0u,
-			_nComp,
-			_dispersionDep,
-			model,
-			_gridEquidistant,
-			&_cellFaces
-		};
-
-		return convdisp::residualKernelAxial<StateType, ResidualType, ParamType, UpwindNonEquidistant, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
-	}
 
 	return 0;
 }
@@ -526,10 +498,6 @@ unsigned int AxialConvectionDispersionOperatorBase::jacobianLowerBandwidth() con
 	{
 		return std::max(_koren->lowerBandwidth() + 1u, 1u) * strideColCell();
 	}
-	else if (_upwindNonEquidistant)
-	{
-		return std::max(_upwindNonEquidistant->lowerBandwidth() + 1u, 1u) * strideColCell();   // needed for upwind?
-	}
 
 	// Only dispersion
 	return strideColCell();
@@ -545,10 +513,6 @@ unsigned int AxialConvectionDispersionOperatorBase::jacobianUpperBandwidth() con
 	else if (_koren)
 	{
 		return std::max(_koren->upperBandwidth(), 1u) * strideColCell();
-	}
-	else if (_upwindNonEquidistant)
-	{
-		return std::max(_upwindNonEquidistant->lowerBandwidth(), 1u) * strideColCell();   // needed for upwind?
 	}
 
 	// Only dispersion

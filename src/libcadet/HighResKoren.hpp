@@ -25,6 +25,9 @@
 #include "cadet/Exceptions.hpp"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <vector>
 
 namespace cadet
 {
@@ -75,6 +78,18 @@ public:
 	int reconstruct(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result, double* const Dvm)
 	{
 		return reconstruct<StateType, StencilType, true>(cellIdx, numCells, w, result, Dvm);
+	}
+
+	template <typename StateType, typename StencilType, typename FaceContainerType>
+	int reconstruct(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result, double* const Dvm, const FaceContainerType& cellFaces)
+	{
+		return reconstructNonEqImpl<StateType, StencilType, FaceContainerType, true>(cellIdx, numCells, w, result, Dvm, cellFaces);
+	}
+
+	template <typename StateType, typename StencilType, typename FaceContainerType>
+	int reconstruct(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result, const FaceContainerType& cellFaces)
+	{
+		return reconstructNonEqImpl<StateType, StencilType, FaceContainerType, false>(cellIdx, numCells, w, result, nullptr, cellFaces);
 	}
 
 	/**
@@ -157,6 +172,7 @@ private:
       * @return Order of the scheme that was used in the computation: 2 or 1
       */
 
+	// Reconstruct for non-equidistant grids
 	template <typename StateType, typename StencilType, bool wantJac>
 	int reconstruct(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result, double* const Dvm)
 	{
@@ -208,6 +224,66 @@ private:
 			}
 		}
 
+		return order;
+	}
+
+	template <typename FaceContainerType>
+	static inline auto cellWidthsFromFacesNonEq(unsigned int cellIdx, unsigned int numCells, const FaceContainerType& cellFaces)
+	{
+		const auto hCol = cellFaces[cellIdx + 1] - cellFaces[cellIdx];
+		auto hLeft = hCol;
+		auto hRight = hCol;
+		if (cellIdx > 0)
+			hLeft = cellFaces[cellIdx] - cellFaces[cellIdx - 1];
+		if (cellIdx + 1 < numCells)
+			hRight = cellFaces[cellIdx + 2] - cellFaces[cellIdx + 1];
+		return std::array<decltype(hCol), 3>{hLeft, hCol, hRight};
+	}
+
+
+	template <typename StateType, typename StencilType, typename FaceContainerType, bool wantJac>
+	int reconstructNonEqImpl(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result, double* const Dvm, const FaceContainerType& cellFaces)
+	{
+		const auto h = cellWidthsFromFacesNonEq(cellIdx, numCells, cellFaces);
+		int order = std::min(std::min(static_cast<int>(cellIdx) + 1, _order), std::min(static_cast<int>(numCells - cellIdx), _order));
+		order = std::max(order, 1);
+		if (order <= 1)
+		{
+			result = w[0];
+			if (wantJac)
+				Dvm[0] = 1.0;
+			return order;
+		}
+
+		const auto A = (h[1] + h[2]) / (h[1] + h[0]);
+		const auto R = (h[1] + h[2]) / h[1];
+		const auto num = w[0] - w[-1] + _epsilon;
+		const auto den = w[1] - w[0] + _epsilon;
+		const auto r = A * num / den;
+
+		double phi = 0.0;
+		double dPhiDm1 = 0.0;
+		double dPhiD0 = 0.0;
+		double dPhiDp1 = 0.0;
+		if (r > 0.0)
+		{
+			phi = static_cast<double>(r / (R - 1.0 + r));
+			const auto drDm1 = -A / den;
+			const auto drD0 = A * (den + num) / (den * den);
+			const auto drDp1 = -A * num / (den * den);
+			const auto dPhiDr = (R - 1.0) / ((R - 1.0 + r) * (R - 1.0 + r));
+			dPhiDm1 = static_cast<double>(dPhiDr * drDm1);
+			dPhiD0 = static_cast<double>(dPhiDr * drD0);
+			dPhiDp1 = static_cast<double>(dPhiDr * drDp1);
+		}
+
+		result = w[0] + phi * (w[1] - w[0]);
+		if (wantJac)
+		{
+			Dvm[0] = static_cast<double>(dPhiDm1 * (w[1] - w[0]));
+			Dvm[1] = static_cast<double>(1.0 + dPhiD0 * (w[1] - w[0]) - phi);
+			Dvm[2] = static_cast<double>(dPhiDp1 * (w[1] - w[0]) + phi);
+		}
 		return order;
 	}
 
