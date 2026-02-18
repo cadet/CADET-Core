@@ -38,10 +38,10 @@ Group /input/model/unit_XXX
    **Type:** String  **Range:** :math:`\texttt{ CRYSTALLIZATION }`  **Length:** 1
    ================  =============================================  =============
 
-Group /input/model/unit_XXX/reaction_bulk - REACTION_MODEL = CRYSTALLIZATION - UNIT_TYPE = CSTR
+Group /input/model/unit_XXX/liquid_reaction_000 - REACTION_MODEL = CRYSTALLIZATION - UNIT_TYPE = CSTR
 -----------------------------------------------------------------------------------------------
 
-*The following parameters need to be specified under Group /input/model/unit_XXX/reaction/reaction_bulk/ for CSTR units, and Group /input/model/unit_XXX/reaction/reaction/ for transport units like the LRM.*
+*The following parameters need to be specified under Group /input/model/unit_XXX/liquid_reaction_000/*
 
 ``CRY_MODE``
 
