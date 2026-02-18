@@ -282,7 +282,7 @@ namespace cadet
 			if (firstConfigCall)
 				_tempState = new double[numDofs()];
 
-			return bindingConfSuccess && reactionConfSuccess;
+			return transportSuccess && bindingConfSuccess && reactionConfSuccess;
 		}
 
 		bool LumpedRateModelWithoutPoresDG::configure(IParameterProvider& paramProvider)
@@ -488,7 +488,7 @@ namespace cadet
 
 			const int lowerBandwidth = (_disc.exactInt) ? 2 * _disc.nNodes * idxr.strideColNode() : _disc.nNodes * idxr.strideColNode();
 			const int upperBandwidth = lowerBandwidth;
-			const int stride = lowerBandwidth + 1 + upperBandwidth;
+//			const int stride = lowerBandwidth + 1 + upperBandwidth;
 
 			int diagDir = lowerBandwidth;
 			const int nRows = _jac.rows();
@@ -1221,8 +1221,8 @@ namespace cadet
 
 				// Get pointer to q variables in cell
 				double* const qShell = vecStateY + localOffsetToCell + localOffsetInCell;
-				active* const localAdRes = adJac.adRes ? adJac.adRes + localOffsetToCell : nullptr;
-				active* const localAdY = adJac.adY ? adJac.adY + localOffsetToCell : nullptr;
+//				active* const localAdRes = adJac.adRes ? adJac.adRes + localOffsetToCell : nullptr;
+//				active* const localAdY = adJac.adY ? adJac.adY + localOffsetToCell : nullptr;
 
 				const ColumnPosition colPos{ z, 0.0, 0.0 };
 

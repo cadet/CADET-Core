@@ -323,8 +323,8 @@ namespace reaction
 		JsonParameterProvider pp_setup_MM(JsonParameterProvider::fromFile(setupFileMM));
 		JsonParameterProvider pp_setup_SMA(JsonParameterProvider::fromFile(setupFileSMA));
 
-		nlohmann::json* setupJsonMM = pp_setup_MM.data();
-		nlohmann::json* setupJsonSMA = pp_setup_SMA.data();
+//		nlohmann::json* setupJsonMM = pp_setup_MM.data();
+//		nlohmann::json* setupJsonSMA = pp_setup_SMA.data();
 
 		// MM simulation
 		cadet::Driver drvMM;

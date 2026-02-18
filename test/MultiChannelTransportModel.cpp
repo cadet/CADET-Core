@@ -305,7 +305,7 @@ TEST_CASE("MCT with two channels and without exchange yields same result on both
 	CHECK(nComp == 1);
 	CHECK(nPorts == 2);
 
-	const unsigned int nDataPoints = fwdData->numDataPoints() * nComp * nPorts;
+//	const unsigned int nDataPoints = fwdData->numDataPoints() * nComp * nPorts;
 	double const* const time = drv.solution()->time();
 	double const* outlet = fwdData->outlet();
 	for (int i = 0; i < fwdData->numDataPoints(); ++i, outlet += 2)
@@ -348,7 +348,7 @@ TEST_CASE("Two MCTs with two channels and forward/backward exchange yield same o
 	CHECK(nComp == 1);
 	CHECK(nPorts == 2);
 
-	const unsigned int nDataPoints = FwdExData->numDataPoints() * nComp * nPorts;
+//	const unsigned int nDataPoints = FwdExData->numDataPoints() * nComp * nPorts;
 	double const* const time = drvFwdEx.solution()->time();
 	double const* FwdOutlet = FwdExData->outlet();
 	double const* BwdOutlet = BwdExData->outlet();
@@ -383,7 +383,7 @@ TEST_CASE("MCT with two channels and forward/backward flow yields same result at
 	CHECK(nComp == 1);
 	CHECK(nPorts == 2);
 
-	const unsigned int nDataPoints = MixFlowData->numDataPoints() * nComp * nPorts;
+//	const unsigned int nDataPoints = MixFlowData->numDataPoints() * nComp * nPorts;
 	double const* const time = drvMixFlow.solution()->time();
 	double const* MixFlowOutlet = MixFlowData->outlet();
 
@@ -427,13 +427,13 @@ TEST_CASE("Two MCT's with forward/backward flow yield same result", "[MCT],[Simu
 	CHECK(nComp == 1);
 	CHECK(nPorts == 1);
 
-	const unsigned int nDataPoints = FwdFlowData->numDataPoints() * nComp * nPorts;
+//	const unsigned int nDataPoints = FwdFlowData->numDataPoints() * nComp * nPorts;
 	double const* const time = drvFwdFlow.solution()->time();
 	double const* FwdFlowOutlet = FwdFlowData->outlet();
 	double const* BwdFlowOutlet = BwdFlowData->outlet();
 
-	double const* BwdFlowBulk = BwdFlowData->bulk();
-	double const* FwdFlowBulk = FwdFlowData->bulk();
+//	double const* BwdFlowBulk = BwdFlowData->bulk();
+//	double const* FwdFlowBulk = FwdFlowData->bulk(); 
 
 	for (int i = 0; i < FwdFlowData->numDataPoints(); ++i, ++FwdFlowOutlet, ++BwdFlowOutlet)
 	{

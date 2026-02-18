@@ -454,8 +454,8 @@ namespace parts
 /**
  * @brief Creates a TwoDimensionalConvectionDispersionOperatorDG
  */
-TwoDimensionalConvectionDispersionOperatorDG::TwoDimensionalConvectionDispersionOperatorDG() : _colPorosities(0), _dir(0), _dispersionDep(nullptr),
-_radLiftMCyl(nullptr), _transMrCyl(nullptr), _invTransMrCyl(nullptr), _SrCyl(nullptr), _jacConvection(nullptr), _jacAxDispersion(nullptr), _jacRadDispersion(nullptr)
+TwoDimensionalConvectionDispersionOperatorDG::TwoDimensionalConvectionDispersionOperatorDG() : _radLiftMCyl(nullptr), _transMrCyl(nullptr), _invTransMrCyl(nullptr), _SrCyl(nullptr),
+	_jacConvection(nullptr), _jacAxDispersion(nullptr), _jacRadDispersion(nullptr), _colPorosities(0), _dir(0), _dispersionDep(nullptr)
 {
 }
 
@@ -759,7 +759,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configure(UnitOpIdx unitOpIdx
 	updateRadialDisc();
 
 	// compute DG operators that depend on radial geometry and dispersion after updateRadialDisc
-	const int comp = 0;
+//	const int comp = 0;
 	for (unsigned int rElem = 0; rElem < _radNElem; rElem++)
 	{
 		// todo ? use active types for column radius sensitivity
@@ -824,12 +824,12 @@ bool TwoDimensionalConvectionDispersionOperatorDG::notifyDiscontinuousSectionTra
  * @param [in] in Total volumetric inlet flow rate
  * @param [in] out Total volumetric outlet flow rate
  */
-void TwoDimensionalConvectionDispersionOperatorDG::setFlowRates(int compartment, const active& in, const active& out) CADET_NOEXCEPT
+void TwoDimensionalConvectionDispersionOperatorDG::setFlowRates(int compartment, const active& in, const active& out)
 {
 	_curVelocity[compartment] = _dir[compartment] * in / (_elementCrossSections[compartment] * _colPorosities[compartment]);
 }
 
-void TwoDimensionalConvectionDispersionOperatorDG::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
+void TwoDimensionalConvectionDispersionOperatorDG::setFlowRates(active const* in, active const* out)
 {
 	for (unsigned int radElem = 0; radElem < _radNElem; ++radElem)
 	{
@@ -1277,7 +1277,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 			});
 
 		/* axial dispersion block */
-		const active* const curAxialDispersion = getSectionDependentSlice(_axialDispersion, _radNElem * _nComp, 0);
+//		const active* const curAxialDispersion = getSectionDependentSlice(_axialDispersion, _radNElem * _nComp, 0);
 
 		MatrixXd gStarZ = MatrixXd::Zero(Np, 5 * Np);
 

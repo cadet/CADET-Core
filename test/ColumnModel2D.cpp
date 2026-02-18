@@ -27,8 +27,8 @@ void test2DColumnJacobian(const std::string relModelFilePath, const int maxAxEle
 
 	// get the number of radial ports
 	jpp.pushScope("model");
-	const int nUnits = jpp.getInt("NUNITS"); // there is one column and (nUnits-1) inlets, one per radial port
-	const int columnIdx = 0;
+//	const int nUnits = jpp.getInt("NUNITS"); // there is one column and (nUnits-1) inlets, one per radial port
+//	const int columnIdx = 0;
 	const std::string unitID = "000";
 
 	// we need to set flowRates for 2D models for the JacobianAD test, since velocity is only set with a call to the setFlowRate function,

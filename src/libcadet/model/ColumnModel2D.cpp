@@ -379,8 +379,10 @@ bool ColumnModel2D::configureModelDiscretization(IParameterProvider& paramProvid
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
 	_disc.nParType = paramProvider.exists("NPARTYPE") ? paramProvider.getInt("NPARTYPE") : 0;
-	if (_disc.nParType < 0)
-		throw InvalidParameterException("Number of particle types must be >= 0!");
+
+// TODO: This shall be reversed when changing from unsigned to signed int
+//	if (_disc.nParType < 0)
+//		throw InvalidParameterException("Number of particle types must be >= 0!");
 
 	if (_disc.nParType == 0 && paramProvider.exists("particle_type_000"))
 		throw InvalidParameterException("NPARTYPE is set to 0, but group particle_type_000 exists.");
@@ -600,9 +602,9 @@ bool ColumnModel2D::configure(IParameterProvider& paramProvider)
 	}
 
 	// Register initial conditions parameters
-	registerParam1DArray(_parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
+	registerParam1DArray(_parameters, _initC, [=, this](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
 	if (_disc.radNElem > 1)
-		registerParam2DArray(_parameters, _initC, [=](bool multi, unsigned int rad, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, rad, SectionIndep); }, _disc.nComp);
+		registerParam2DArray(_parameters, _initC, [=, this](bool multi, unsigned int rad, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, rad, SectionIndep); }, _disc.nComp);
 
 	if (_singleBinding)
 	{
@@ -620,9 +622,9 @@ bool ColumnModel2D::configure(IParameterProvider& paramProvider)
 	}
 	else
 	{
-		registerParam2DArray(_parameters, _initCp, [=](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, _disc.nComp);
+		registerParam2DArray(_parameters, _initCp, [=, this](bool multi, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, type, BoundStateIndep, ReactionIndep, SectionIndep); }, _disc.nComp);
 		if (_disc.radNElem > 1)
-			registerParam3DArray(_parameters, _initCp, [=](bool multi, unsigned int rad, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, type, BoundStateIndep, rad, SectionIndep); }, _disc.nComp, _disc.nParType);
+			registerParam3DArray(_parameters, _initCp, [=, this](bool multi, unsigned int rad, unsigned int type, unsigned int comp) { return makeParamId(hashString("INIT_CP"), _unitOpIdx, comp, type, BoundStateIndep, rad, SectionIndep); }, _disc.nComp, _disc.nParType);
 	}
 
 	if (!_binding.empty())
@@ -784,7 +786,7 @@ void ColumnModel2D::notifyDiscontinuousSectionTransition(double t, unsigned int 
 	_disc.newStaticJac = true;
 
 	// ConvectionDispersionOperator tells us whether flow direction has changed
-	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx));
+	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx)){};
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{

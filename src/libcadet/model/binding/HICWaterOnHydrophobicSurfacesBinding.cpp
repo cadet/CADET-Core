@@ -120,7 +120,7 @@ public:
 
 	virtual bool preConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const
 	{
-		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		_paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 		return true;
 	}
 
@@ -187,7 +187,7 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			const ParamType qMax = static_cast<ParamType>(_p->qMax[i]);
+//			const ParamType qMax = static_cast<ParamType>(_p->qMax[i]);
 			const ParamType kD = static_cast<ParamType>(_p->kD[i]);
 			const ParamType kA = static_cast<ParamType>(_p->kA[i]);
 			const ParamType nu = static_cast<ParamType>(_p->nu[i]);

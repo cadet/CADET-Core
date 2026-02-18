@@ -159,7 +159,7 @@ namespace detail
 					int k = (i > j) ? i + 1 : j + 1;
 
 					iIndex[i * binCenters.size() + j] = -1;        // -1 indicates there is no match
-					for (k; k < binCenters.size(); ++k)
+					for ( ; k < binCenters.size(); ++k)
 					{
 						if ((sumVolumeCubeRoot > bins[k]) && (sumVolumeCubeRoot <= bins[k + 1]))
 						{
@@ -232,7 +232,7 @@ class CrystallizationReaction : public IDynamicReactionModel
 {
 public:
 
-	CrystallizationReaction() : _nComp(0), _nBins(0), _bins(0), _binCenters(0), _binSizes(0), _agg(nullptr), _frag(nullptr), _reconstruction(nullptr), _jacParams(nullptr) { }
+	CrystallizationReaction() : _nComp(0), _nBins(0), _bins(0), _binCenters(0), _binSizes(0), _jacParams(nullptr), _reconstruction(nullptr), _frag(nullptr), _agg(nullptr) { }
 	virtual ~CrystallizationReaction() CADET_NOEXCEPT
 	{
 		if (_agg)
@@ -535,15 +535,15 @@ protected:
 	template<typename ParamType>
 	struct HRKorenParams : public ReconstructionParams<ParamType>
 	{
-		ParamType r_x_i = 0.0;
-		ParamType phi = 0.0;
-		ParamType F_i = 0.0;
+		ParamType r_x_i;
+		ParamType phi;
+		ParamType F_i;
 
 		std::vector<ParamType> A_coeff;
 		std::vector<ParamType> R_coeff;
 
 		HRKorenParams(const std::vector<active>& binSizes)
-			: r_x_i(r_x_i), phi(phi), F_i(F_i), A_coeff(binSizes.size() - 1), R_coeff(binSizes.size() - 1)
+			: r_x_i(0.0), phi(0.0), F_i(0.0), A_coeff(binSizes.size() - 1), R_coeff(binSizes.size() - 1)
 		{
 			// calculate the coefficients
 			for (int i = 1; i + 1 < binSizes.size(); ++i)
@@ -1340,7 +1340,7 @@ protected:
 		{
 			// if we solve the mass balance, then we have the solubility entry (last state entry) and the solute entry (first position), which is why we advance the pointer.
 			StateType const* const yCrystal = y + 1;
-			ResidualType* const resCrystal = res + 1;
+//			ResidualType* const resCrystal = res + 1;
 
 			const StateType sParam = (cadet_likely(y[0] / y[_nComp - 1] - 1.0 > 0)) ? y[0] / y[_nComp - 1] - 1.0 : StateType(0.0); // s = (c_0 - c_eq) / c_eq = c_0 / c_eq - 1, rewrite it to zero if s drops below 0
 			const ParamType massDensityShapeFactor = static_cast<ParamType>(_nucleiMassDensity) * static_cast<ParamType>(_volShapeFactor);
@@ -2421,7 +2421,7 @@ protected:
 
 			// the jacobian has a shape: (_nComp) x (_nComp), undefined ones are 0.0.
 			// the first loop i iterates over rows, the second loop j iterates over columns. The offset i is used to move the jac index to 0 at the beginning of iterating over j.
-			int binIdx_i = 0;
+//			int binIdx_i = 0;
 			int binIdx_j = 0;
 
 			// Q_c, mass balance, independent of the discretization method
