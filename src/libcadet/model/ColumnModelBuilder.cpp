@@ -26,12 +26,12 @@ namespace model
 
 		if (uoType == "COLUMN_MODEL_1D")
 		{
-			if (paramProvider.exists("particle_type_000"))
-			{
-				paramProvider.pushScope("discretization");
-				const std::string discName = paramProvider.getString("SPATIAL_METHOD");
-				paramProvider.popScope();
+			paramProvider.pushScope("discretization");
+			const std::string discName = paramProvider.getString("SPATIAL_METHOD");
+			paramProvider.popScope();
 
+			if (paramProvider.getInt("NPARTYPE") > 0)
+			{
 				paramProvider.pushScope("particle_type_000");
 
 				bool filmDiffusion = true;
@@ -65,8 +65,18 @@ namespace model
 
 				paramProvider.popScope();
 			}
-			else
+			else if (discName == "DG")
+			{
 				model = new ColumnModel1D(uoId);
+			}
+			else if (discName == "FV")
+			{
+				model = createAxialFVLRM(uoId); // LRM used for npartype = 0
+			}
+			else
+			{
+				throw InvalidParameterException("Unknown bulk discretization type " + discName + " for unit " + std::to_string(uoId));
+			}
 		}
 #ifdef ENABLE_2D_MODELS
 		else if (uoType.find("_2D") != std::string::npos)
@@ -101,6 +111,9 @@ namespace model
 #endif
 		else
 		{
+			if (paramProvider.getInt("NPARTYPE") < 1)
+				throw InvalidParameterException("NPARTYPE must be at least 1 for unit operation " + uoType);
+
 			paramProvider.pushScope("discretization");
 			const std::string discName = paramProvider.getString("SPATIAL_METHOD");
 			paramProvider.popScope();
@@ -136,7 +149,7 @@ namespace model
 
 		if (uoType == "RADIAL_COLUMN_MODEL_1D")
 		{
-			if (paramProvider.exists("particle_type_000"))
+			if (paramProvider.getInt("NPARTYPE") > 0)
 			{
 				paramProvider.pushScope("discretization");
 				const std::string discName = paramProvider.getString("SPATIAL_METHOD");
@@ -165,7 +178,7 @@ namespace model
 				paramProvider.popScope();
 			}
 			else
-				model = createRadialFVLRMP(uoId); // LRMP used for npartype = 0
+				model = createRadialFVLRM(uoId); // LRM used for npartype = 0
 		}
 		else
 		{

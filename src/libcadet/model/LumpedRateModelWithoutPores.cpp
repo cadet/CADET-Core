@@ -162,28 +162,38 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
-	const int nPartype = paramProvider.getInt("NPARTYPE");
-	if (nPartype != 1)
-		throw InvalidParameterException("Number of particle types must be 1 for LUMPED_RATE_MODEL_WITHOUT_PORES, i.e. particles without film diffusion");
+	const int nPartype = paramProvider.exists("NPARTYPE") ? paramProvider.getInt("NPARTYPE") : 0;
 
-	paramProvider.pushScope("particle_type_000");
+	if (nPartype != 0)
+	{
+		if (nPartype != 1)
+			throw InvalidParameterException("Number of particle types must be 1 for LUMPED_RATE_MODEL_WITHOUT_PORES, i.e. particles without film diffusion");
 
-	if (paramProvider.getBool("HAS_FILM_DIFFUSION"))
-		throw InvalidParameterException("HAS_FILM_DIFFUSION must be false for LUMPED_RATE_MODEL_WITHOUT_PORES");
-	if (paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false)
-		throw InvalidParameterException("HAS_PORE_DIFFUSION must be false for LUMPED_RATE_MODEL_WITHOUT_PORES");
-	if (paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false)
-		throw InvalidParameterException("HAS_SURFACE_DIFFUSION must be false for LUMPED_RATE_MODEL_WITHOUT_PORES");
+		paramProvider.pushScope("particle_type_000");
 
-	std::vector<int> nBound;
-	nBound = paramProvider.getIntArray("NBOUND");
-	if (nBound.size() < _disc.nComp)
-		throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
+		if (paramProvider.getBool("HAS_FILM_DIFFUSION"))
+			throw InvalidParameterException("HAS_FILM_DIFFUSION must be false for LUMPED_RATE_MODEL_WITHOUT_PORES");
+		if (paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false)
+			throw InvalidParameterException("HAS_PORE_DIFFUSION must be false for LUMPED_RATE_MODEL_WITHOUT_PORES");
+		if (paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false)
+			throw InvalidParameterException("HAS_SURFACE_DIFFUSION must be false for LUMPED_RATE_MODEL_WITHOUT_PORES");
 
-	_disc.nBound = new unsigned int[_disc.nComp];
-	std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound);
+		std::vector<int> nBound;
+		nBound = paramProvider.getIntArray("NBOUND");
+		if (nBound.size() < _disc.nComp)
+			throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
 
-	paramProvider.popScope();
+		_disc.nBound = new unsigned int[_disc.nComp];
+		std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound);
+
+		paramProvider.popScope();
+	}
+	else
+	{
+		_disc.nBound = new unsigned int[_disc.nComp];
+		std::fill_n(_disc.nBound, _disc.nComp, 0);
+	}
+
 	paramProvider.pushScope("discretization");
 
 	_disc.nCol = paramProvider.getInt("NCOL");
@@ -238,27 +248,34 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 	// ==== Construct and configure binding model
 	clearBindingModels();
 	_binding.push_back(nullptr);
-
-	paramProvider.pushScope("particle_type_000");
-
-	if (paramProvider.exists("ADSORPTION_MODEL"))
-		_binding[0] = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
-	else
-		_binding[0] = helper.createBindingModel("NONE");
-
-	if (!_binding[0])
-		throw InvalidParameterException("Unknown binding model " + paramProvider.getString("ADSORPTION_MODEL"));
-
 	bool bindingConfSuccess = true;
-	if (_binding[0]->usesParamProviderInDiscretizationConfig())
-		paramProvider.pushScope("adsorption");
 
-	bindingConfSuccess = _binding[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
+	if (paramProvider.exists("particle_type_000"))
+	{
+		paramProvider.pushScope("particle_type_000");
 
-	if (_binding[0]->usesParamProviderInDiscretizationConfig())
+		if (paramProvider.exists("ADSORPTION_MODEL"))
+			_binding[0] = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
+		else
+			_binding[0] = helper.createBindingModel("NONE");
+
+		if (!_binding[0])
+			throw InvalidParameterException("Unknown binding model " + paramProvider.getString("ADSORPTION_MODEL"));
+
+		if (_binding[0]->usesParamProviderInDiscretizationConfig())
+			paramProvider.pushScope("adsorption");
+
+		bindingConfSuccess = _binding[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
+
+		if (_binding[0]->usesParamProviderInDiscretizationConfig())
+			paramProvider.popScope();
+
 		paramProvider.popScope();
-
-	paramProvider.popScope();
+	}
+	else
+	{
+		_binding[0] = helper.createBindingModel("NONE");
+	}
 
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
@@ -336,7 +353,7 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configure(IParameterProvider
 	for (unsigned int i = 0; i < _disc.nComp; ++i)
 		_parameters[makeParamId(hashString("INIT_C"), _unitOpIdx, i, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = _initC.data() + i;
 
-	if (_binding[0])
+	if (paramProvider.getInt("NPARTYPE") > 0 && _binding[0])
 	{
 		std::vector<ParameterId> initParams(_disc.strideBound);
 		_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, cadet::ParTypeIndep);
@@ -345,26 +362,29 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configure(IParameterProvider
 			_parameters[initParams[i]] = _initCs.data() + i;
 	}
 
-	// Reconfigure binding model
-	paramProvider.pushScope("particle_type_000"); // particle_type_000
-
+	// Reconfigure binding and reaction model
 	bool bindingConfSuccess = true;
-	if (_binding[0] && paramProvider.exists("adsorption") && _binding[0]->requiresConfiguration())
+	bool dynReactionConfSuccess = true;
+
+	if (paramProvider.exists("particle_type_000"))
 	{
-		paramProvider.pushScope("adsorption");
-		bindingConfSuccess = _binding[0]->configure(paramProvider, _unitOpIdx, cadet::ParTypeIndep);
-		paramProvider.popScope();
+		paramProvider.pushScope("particle_type_000"); // particle_type_000
+
+		if (_binding[0] && paramProvider.exists("adsorption") && _binding[0]->requiresConfiguration())
+		{
+			paramProvider.pushScope("adsorption");
+			bindingConfSuccess = _binding[0]->configure(paramProvider, _unitOpIdx, cadet::ParTypeIndep);
+			paramProvider.popScope();
+		}
+
+		if (paramProvider.exists("NREAC_CROSS_PHASE"))
+			dynReactionConfSuccess = _reaction.configure("cross_phase", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+		if (paramProvider.exists("NREAC_SOLID"))
+			dynReactionConfSuccess = _reaction.configure("solid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+
+		paramProvider.popScope();// particle_type_000
 	}
 
-	// Reconfigure reaction model
-	bool dynReactionConfSuccess = true;
-	if (paramProvider.exists("NREAC_CROSS_PHASE"))
-		dynReactionConfSuccess = _reaction.configure("cross_phase", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
-	if (paramProvider.exists("NREAC_SOLID"))
-		dynReactionConfSuccess = _reaction.configure("solid", 0, _unitOpIdx, paramProvider)&& dynReactionConfSuccess;
-	
-	paramProvider.popScope();// particle_type_000
-	
 	if (paramProvider.exists("NREAC_LIQUID"))
 		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
@@ -1098,11 +1118,13 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::readInitialCondition(IParame
 	const std::vector<double> initC = paramProvider.getDoubleArray("INIT_C");
 
 	std::vector<double> initCs;
-	paramProvider.pushScope("particle_type_000");
-	if (paramProvider.exists("INIT_CS"))
-		initCs = paramProvider.getDoubleArray("INIT_CS");
-	paramProvider.popScope();
-
+	if (paramProvider.exists("particle_type_000"))
+	{
+		paramProvider.pushScope("particle_type_000");
+		if (paramProvider.exists("INIT_CS"))
+			initCs = paramProvider.getDoubleArray("INIT_CS");
+		paramProvider.popScope();
+	}
 	if (initC.size() < _disc.nComp)
 		throw InvalidParameterException("INIT_C does not contain enough values for all components");
 
