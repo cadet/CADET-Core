@@ -30,7 +30,7 @@ namespace
 	constexpr double ln10 = 2.30258509299404568402;
 	constexpr double minSaltConcentration = 1e-30;
 	constexpr double softplusTransitionFactor = 20.0;
-	constexpr double minApparentCapacity = 1e-12;
+	constexpr double minApparentCapacity = 1e-20;
 
 	template <typename T>
 	inline T stableActGate(T const& eta, T const& pKa, T const& saltAxis)
@@ -107,13 +107,7 @@ namespace
 			{ "type": "ScalarComponentDependentParameter", "varName": "kD", "confName": "ACT_KD"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "qMax", "confName": "ACT_QMAX"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "etaA", "confName": "ACT_ETAA"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "etaG", "confName": "ACT_ETAG"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "pKaA", "confName": "ACT_PKAA"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "pKaG", "confName": "ACT_PKAG"}
-		],
-	"constantParameters":
-		[
-			{ "type": "ScalarBoolParameter", "varName": "usePSalt", "confName": "ACT_USE_P_SALT"}
+			{ "type": "ScalarComponentDependentParameter", "varName": "etaG", "confName": "ACT_ETAG"}
 		]
 }
 </codegen>*/
@@ -140,8 +134,8 @@ namespace cadet
 
 		inline bool AffinityComplexTitrationParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
-			if ((_kA.size() != _kD.size()) || (_kA.size() != _qMax.size()) || (_kA.size() < nComp) || (_kA.size() != _etaA.size()) || (_kA.size() != _pKaA.size()) || (_kA.size() != _etaG.size()) || (_kA.size() != _pKaG.size()))
-				throw InvalidParameterException("ACT_KA, ACT_KD, ACT_QMAX, ACT_ETAA, ACT_PKAA, ACT_ETAG and ACT_PKAG have to have the same size");
+			if ((_kA.size() != _kD.size()) || (_kA.size() != _qMax.size()) || (_kA.size() < nComp) || (_kA.size() != _etaA.size()) || (_kA.size() != _etaG.size()))
+				throw InvalidParameterException("ACT_KA, ACT_KD, ACT_QMAX, ACT_ETAA and ACT_ETAG have to have the same size");
 
 			return true;
 		}
@@ -150,8 +144,8 @@ namespace cadet
 
 		inline bool ExtAffinityComplexTitrationParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
-			if ((_kA.size() != _kD.size()) || (_kA.size() != _qMax.size()) || (_kA.size() < nComp) || (_kA.size() != _etaA.size()) || (_kA.size() != _pKaA.size()) || (_kA.size() != _etaG.size()) || (_kA.size() != _pKaG.size()))
-				throw InvalidParameterException("ACT_KA, ACT_KD, ACT_QMAX, ACT_ETAA, ACT_PKAA, ACT_ETAG and ACT_PKAG have to have the same size");
+			if ((_kA.size() != _kD.size()) || (_kA.size() != _qMax.size()) || (_kA.size() < nComp) || (_kA.size() != _etaA.size()) || (_kA.size() != _etaG.size()))
+				throw InvalidParameterException("ACT_KA, ACT_KD, ACT_QMAX, ACT_ETAA and ACT_ETAG have to have the same size");
 
 			return true;
 		}
@@ -164,9 +158,9 @@ namespace cadet
 		class AffinityComplexTitrationBindingBase : public ParamHandlerBindingModelBase<ParamHandler_t>
 		{
 		public:
+			AffinityComplexTitrationBindingBase() : _useSaltConc(false) {}
 
-			AffinityComplexTitrationBindingBase() { }
-			virtual ~AffinityComplexTitrationBindingBase() CADET_NOEXCEPT { }
+			virtual ~AffinityComplexTitrationBindingBase() CADET_NOEXCEPT {}
 
 			static const char* identifier() { return ParamHandler_t::identifier(); }
 
@@ -176,12 +170,54 @@ namespace cadet
 
 				// Guarantee that pH is not a bound speies
 				if (nBound[0] != 0)
-					throw InvalidParameterException("Affinity complex titration binding model requires the first component (pSalt or salt concentration) to be non-binding");
+					throw InvalidParameterException("Affinity complex titration binding model requires the first component (selected salt axis) to be non-binding");
 
 				for (int i = 0; i < nComp; ++i)
 				{
 					if (nBound[i] > 1)
 						throw InvalidParameterException("Currently the ACT isotherm model supports at most one bound state per component");
+				}
+
+				if (paramProvider.exists("ACT_USE_SALT_CONC"))
+					_useSaltConc = paramProvider.getBool("ACT_USE_SALT_CONC");
+
+				if (!_useSaltConc)
+				{
+					_cMidA.clear();
+					_cMidG.clear();
+
+					if (!paramProvider.exists("ACT_PKAA") || !paramProvider.exists("ACT_PKAG"))
+						throw InvalidParameterException("ACT_USE_SALT_CONC=false requires ACT_PKAA and ACT_PKAG");
+
+					const std::vector<double> pKaA = paramProvider.getDoubleArray("ACT_PKAA");
+					const std::vector<double> pKaG = paramProvider.getDoubleArray("ACT_PKAG");
+					if ((pKaA.size() < nComp) || (pKaG.size() < nComp))
+						throw InvalidParameterException("ACT_PKAA and ACT_PKAG must have at least NCOMP entries");
+
+					_pKaA.assign(pKaA.begin(), pKaA.begin() + nComp);
+					_pKaG.assign(pKaG.begin(), pKaG.begin() + nComp);
+				}
+				else
+				{
+					_pKaA.clear();
+					_pKaG.clear();
+
+					if (!paramProvider.exists("ACT_CMID_A") || !paramProvider.exists("ACT_CMID_G"))
+						throw InvalidParameterException("ACT_USE_SALT_CONC=true requires ACT_CMID_A and ACT_CMID_G");
+
+					const std::vector<double> cMidA = paramProvider.getDoubleArray("ACT_CMID_A");
+					const std::vector<double> cMidG = paramProvider.getDoubleArray("ACT_CMID_G");
+					if ((cMidA.size() < nComp) || (cMidG.size() < nComp))
+						throw InvalidParameterException("ACT_CMID_A and ACT_CMID_G must have at least NCOMP entries");
+
+					_cMidA.assign(cMidA.begin(), cMidA.begin() + nComp);
+					_cMidG.assign(cMidG.begin(), cMidG.begin() + nComp);
+
+					for (unsigned int i = 0; i < nComp; ++i)
+					{
+						if ((cMidA[i] < 0.0) || (cMidG[i] < 0.0))
+							throw InvalidParameterException("ACT_CMID_A and ACT_CMID_G entries must be >= 0 for ACT_USE_SALT_CONC=true");
+					}
 				}
 
 				return res;
@@ -197,6 +233,12 @@ namespace cadet
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
+			bool _useSaltConc;
+			std::vector<double> _pKaA;
+			std::vector<double> _pKaG;
+			std::vector<double> _cMidA;
+			std::vector<double> _cMidG;
+
 			// In the follwing the class method the binding model mass transfer behavior is implemented. 
 			template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
 			int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
@@ -211,7 +253,7 @@ namespace cadet
 				// Protein fluxes
 				ResidualType qSum = 0.0;
 				unsigned int bndIdx = 0;
-				const CpStateParamType saltAxis = _paramHandler.usePSalt().get() ? yCp[0] : -log(yCp[0] + static_cast<ParamType>(minSaltConcentration)) / static_cast<ParamType>(ln10);
+				const CpStateParamType saltAxis = !_useSaltConc ? yCp[0] : -log(yCp[0] + static_cast<ParamType>(minSaltConcentration)) / static_cast<ParamType>(ln10);
 				const ParamType saltAxisParam = static_cast<ParamType>(saltAxis);
 				for (int i = 0; i < _nComp; ++i)
 				{
@@ -235,8 +277,8 @@ namespace cadet
 						continue;
 
 					// Residual
-					const ParamType pKaAaxis = static_cast<ParamType>(p->pKaA[i]);
-					const ParamType pKaGaxis = static_cast<ParamType>(p->pKaG[i]);
+					const ParamType pKaAaxis = !_useSaltConc ? static_cast<ParamType>(_pKaA[i]) : -log(static_cast<ParamType>(_cMidA[i]) + static_cast<ParamType>(minSaltConcentration)) / static_cast<ParamType>(ln10);
+					const ParamType pKaGaxis = !_useSaltConc ? static_cast<ParamType>(_pKaG[i]) : -log(static_cast<ParamType>(_cMidG[i]) + static_cast<ParamType>(minSaltConcentration)) / static_cast<ParamType>(ln10);
 					const ResParamType f_A = stableActGate(static_cast<ParamType>(p->etaA[i]), pKaAaxis, saltAxisParam);
 					const ResParamType f_G = stableActGate(static_cast<ParamType>(p->etaG[i]), pKaGaxis, saltAxisParam);
 
@@ -263,8 +305,8 @@ namespace cadet
 				// Protein flux
 				double qsum = 0.0;
 				int bndIdx = 0;
-				const double saltAxis = _paramHandler.usePSalt().get() ? yCp[0] : -std::log(yCp[0] + minSaltConcentration) / ln10;
-				const double dSaltAxis_dC0 = _paramHandler.usePSalt().get() ? 1.0 : -1.0 / ((yCp[0] + minSaltConcentration) * ln10);
+				const double saltAxis = !_useSaltConc ? yCp[0] : -std::log(yCp[0] + minSaltConcentration) / ln10;
+				const double dSaltAxis_dC0 = !_useSaltConc ? 1.0 : -1.0 / ((yCp[0] + minSaltConcentration) * ln10);
 				for (int i = 0; i < _nComp; ++i)
 				{
 					// Skip components without bound states
@@ -285,8 +327,8 @@ namespace cadet
 						continue;
 
 					// local variables to aid the calculation of the jacobian
-					const double pKaAaxis = static_cast<double>(p->pKaA[i]);
-					const double pKaGaxis = static_cast<double>(p->pKaG[i]);
+					const double pKaAaxis = !_useSaltConc ? _pKaA[i] : -std::log(_cMidA[i] + minSaltConcentration) / ln10;
+					const double pKaGaxis = !_useSaltConc ? _pKaG[i] : -std::log(_cMidG[i] + minSaltConcentration) / ln10;
 					const double f_A = stableActGate(static_cast<double>(p->etaA[i]), pKaAaxis, saltAxis);
 					const double f_G = stableActGate(static_cast<double>(p->etaG[i]), pKaGaxis, saltAxis);
 
@@ -307,7 +349,7 @@ namespace cadet
 					jac[i - bndIdx - offsetCp] = -kA_times_fG * qFree_eff;
 					// Getting to c_{p,i}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +i to c_{p,i}.
 					//                     This means jac[i - bndIdx - offsetCp] corresponds to c_{p,i}.
-
+					
 					// dres_i / d(salt axis), the first component is the selected salt representation
 					jac[-bndIdx - offsetCp] = -(qmax_times_ka * f_G * f_A_deriv * dqFreeEff_dqFree + static_cast<double>(p->kA[i]) * f_G_deriv * qFree_eff) * yCp[i] * dSaltAxis_dC0;
 
