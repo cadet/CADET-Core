@@ -22,6 +22,7 @@
       "TOTAL_POROSITY": 0.8425,
       "UNIT_TYPE": "LUMPED_RATE_MODEL_WITHOUT_PORES",
       "VELOCITY": 0.000575,
+      "NPARTYPE": 1,
       "particle_type_000": {
         "HAS_FILM_DIFFUSION": false,
         "HAS_PORE_DIFFUSION": false,

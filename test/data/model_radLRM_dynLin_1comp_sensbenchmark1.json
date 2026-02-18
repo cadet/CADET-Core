@@ -65,6 +65,7 @@
         "COL_DISPERSION": 5.75e-08,
         "COL_RADIUS_INNER": 0.01,
         "COL_RADIUS_OUTER": 0.2,
+        "NPARTYPE": 1,
         "INIT_C": [
           0.0
         ],

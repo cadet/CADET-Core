@@ -62,6 +62,7 @@
           0.0
         ],
         "VELOCITY": 0.03333333333333333,
+        "NPARTYPE": 1,
         "particle_type_000": {
           "HAS_FILM_DIFFUSION": false,
           "HAS_PORE_DIFFUSION": false,
