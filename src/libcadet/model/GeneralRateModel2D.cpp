@@ -398,7 +398,7 @@ bool GeneralRateModel2D::configureModelDiscretization(IParameterProvider& paramP
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
-	_disc.nParType = paramProvider.exists("NPARTYPE");
+	_disc.nParType = paramProvider.getInt("NPARTYPE");
 	if (_disc.nParType < 1)
 		throw InvalidParameterException("Number of particle types must be >= 1 for the GENERAL_RATE_MODEL with arrow-head Finite Volume discretization");
 
