@@ -67,6 +67,7 @@
         "COL_POROSITY": 0.8,
         "COL_RADIUS_INNER": 0.01,
         "COL_RADIUS_OUTER": 0.2,
+        "NPARTYPE": 1,
         "particle_type_000": {
           "HAS_FILM_DIFFUSION": true,
           "HAS_PORE_DIFFUSION": false,
