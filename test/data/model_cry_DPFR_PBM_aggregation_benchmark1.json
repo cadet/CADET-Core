@@ -220,7 +220,7 @@
         "NPARTYPE": 1,
         "NREAC_LIQUID": 1,
         "TOTAL_POROSITY": 1.0,
-        "UNIT_TYPE": "LUMPED_RATE_MODEL_WITHOUT_PORES",
+        "UNIT_TYPE": "COLUMN_MODEL_1D",
         "particle_type_000": {
           "HAS_FILM_DIFFUSION": false,
           "HAS_PORE_DIFFUSION": false,

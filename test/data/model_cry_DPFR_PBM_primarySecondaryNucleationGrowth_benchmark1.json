@@ -249,7 +249,7 @@
             }
         },
       "unit_001": {
-        "UNIT_TYPE": "LUMPED_RATE_MODEL_WITHOUT_PORES",
+        "UNIT_TYPE": "COLUMN_MODEL_1D",
         "NPARTYPE": 1,
         "COL_DISPERSION": 4.2e-05,
         "COL_LENGTH": 0.47,
