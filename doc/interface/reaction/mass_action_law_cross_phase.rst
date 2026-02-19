@@ -3,7 +3,7 @@
 Mass Action Law Cross Phase
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Group /input/model/unit_XXX(/particle_type_YYY)/phase_reaction_ZZZ/ - REACTION_MODEL = MASS_ACTION_LAW_CROSS_PHASE**
+**Group /input/model/unit_XXX(/particle_type_YYY)/phase_reaction_ZZZ/ - TYPE = MASS_ACTION_LAW_CROSS_PHASE**
 
 For information on model equations, refer to :ref:`mass_action_law_model_cross_phase`.
 
@@ -125,21 +125,21 @@ Examples
 
 Cross-phase reaction that consumes one bulk and one liquid component and produces a solid state (one reaction)::
 
-   input.model.unit_000.reaction_cross_phase_000.NREAC_CROSS_PHASE = 1
-   input.model.unit_000.reaction_cross_phase_000.type = MASS_ACTION_LAW_CROSS_PHASE
-   input.model.unit_000.reaction_cross_phase_000.reaction_model_000.MAL_KFWD_LIQUID = [1.0]
-   input.model.unit_000.reaction_cross_phase_000.reaction_model_000.MAL_KFWD_SOLID = [1.0]
-   input.model.unit_000.reaction_cross_phase_000.reaction_model_000.MAL_STOICHIOMETRY_LIQUID = [... length NCOMP*1 ...]
-   input.model.unit_000.reaction_cross_phase_000.reaction_model_000.MAL_STOICHIOMETRY_SOLID = [... length NTOTALBND*1 ...]
+   input.model.unit_000.cross_phase_reaction_000.NREAC_CROSS_PHASE = 1
+   input.model.unit_000.cross_phase_reaction_000.type = MASS_ACTION_LAW_CROSS_PHASE
+   input.model.unit_000.cross_phase_reaction_000.MAL_KFWD_LIQUID = [1.0]
+   input.model.unit_000.cross_phase_reaction_000.MAL_KFWD_SOLID = [1.0]
+   input.model.unit_000.cross_phase_reaction_000.MAL_STOICHIOMETRY_LIQUID = [... length NCOMP*1 ...]
+   input.model.unit_000.cross_phase_reaction_000.MAL_STOICHIOMETRY_SOLID = [... length NTOTALBND*1 ...]
 
 Cross-Phase reaction in a particle::
 
-   input.model.unit_000.particle_type_000.reaction_cross_phase_000.NREAC_CROSS_PHASE = 1
-   input.model.unit_000.particle_type_000.reaction_cross_phase_000.type = MASS_ACTION_LAW_CROSS_PHASE
-   input.model.unit_000.particle_type_000.reaction_cross_phase_000.reaction_model_000.MAL_KFWD_LIQUID = [1.0]
-   input.model.unit_000.particle_type_000.reaction_cross_phase_000.reaction_model_000.MAL_KFWD_SOLID = [1.0]
-   input.model.unit_000.particle_type_000.reaction_cross_phase_000.reaction_model_000.MAL_STOICHIOMETRY_LIQUID = [... length NCOMP*1 ...]
-   input.model.unit_000.particle_type_000.reaction_cross_phase_000.reaction_model_000.MAL_STOICHIOMETRY_SOLID = [... length NTOTALBND*1 ...]
+   input.model.unit_000.particle_type_000.cross_phase_reaction_000.NREAC_CROSS_PHASE = 1
+   input.model.unit_000.particle_type_000.cross_phase_reaction_000.type = MASS_ACTION_LAW_CROSS_PHASE
+   input.model.unit_000.particle_type_000.cross_phase_reaction_000.MAL_KFWD_LIQUID = [1.0]
+   input.model.unit_000.particle_type_000.cross_phase_reaction_000.MAL_KFWD_SOLID = [1.0]
+   input.model.unit_000.particle_type_000.cross_phase_reaction_000.MAL_STOICHIOMETRY_LIQUID = [... length NCOMP*1 ...]
+   input.model.unit_000.particle_type_000.cross_phase_reaction_000.MAL_STOICHIOMETRY_SOLID = [... length NTOTALBND*1 ...]
 
 
 

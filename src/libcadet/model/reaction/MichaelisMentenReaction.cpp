@@ -361,8 +361,6 @@ protected:
                 const unsigned int kmmIdx = getKmmParamIndex(r, static_cast<unsigned int>(j), _oldInterface);
                 const flux_t kMM_j = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kMM[kmmIdx]);
 
-
-
                 // Calculate substrate contribution to production rate
                 const flux_t numerator = y[j];
                 const flux_t denominator = (kMM_j * (1.0 + compInhSum)) + y[j] * (1.0 + uncompInhSum);

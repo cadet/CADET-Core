@@ -10,7 +10,7 @@ For information on model equations, refer to :ref:`mass_action_law_model`.
 Notes
 -----
 
-- ``reaction_phase_ZZZ`` refers to one of the phase-specific raction groups listed in :ref:`FFReaction`, e.g., ``reaction_bulk_ZZZ``, ``reaction_solid_ZZZ``, or ``reaction_particle_ZZZ`` (for particle type ``YYY``).
+- ``phase_reaction_ZZZ`` refers to one of the phase-specific raction groups listed in :ref:`FFReaction`, e.g., ``liquid_reaction_ZZZ``, ``solid_reaction_ZZZ``.
 - Some dimensions below depend on the hosting phase of this model instance:
    - Bulk phase or particle liquid phase: ``NVAR = NCOMP``
    - Particle solid phase: ``NVAR = NTOTALBOUND`` (total number of bound states across all components)
