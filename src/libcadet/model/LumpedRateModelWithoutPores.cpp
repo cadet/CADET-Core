@@ -162,7 +162,7 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
-	const int nPartype = paramProvider.exists("NPARTYPE") ? paramProvider.getInt("NPARTYPE") : 0;
+	const int nPartype = paramProvider.getInt("NPARTYPE");
 
 	if (nPartype != 0)
 	{
