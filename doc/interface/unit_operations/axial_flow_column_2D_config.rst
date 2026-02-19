@@ -311,7 +311,7 @@ Finite Volumes
    Number of particle (radial) discretization cells for each particle type
 
    =============  =========================  =========================================
-   **Type:** int  **Range:** :math:`\geq 1`  **Length:** :math:`1 / \texttt{NPARTYPE}`
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** :math:`1 / \texttt{NPARTYPE}`
    =============  =========================  =========================================
 
 ``LINEAR_SOLVER_BULK``

@@ -116,7 +116,7 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
 
-	_disc.nParType = paramProvider.exists("NPARTYPE") ? paramProvider.getInt("NPARTYPE") : 0;
+	_disc.nParType = paramProvider.getInt("NPARTYPE");
 	if (_disc.nParType < 0)
 		throw InvalidParameterException("Number of particle types must be >= 0!");
 

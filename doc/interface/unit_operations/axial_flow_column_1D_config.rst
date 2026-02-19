@@ -54,7 +54,7 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
    Number of particle types.
    
    =============  =========================  =============
-   **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
    =============  =========================  =============
 
 ``PAR_TYPE_VOLFRAC``
