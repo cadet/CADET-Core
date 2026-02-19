@@ -49,23 +49,6 @@ For information on model equations, refer to :ref:`cstr_model`.
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NPARTYPE} \cdot \texttt{NCOMP}`
    =============  =========================  ===========================================================
    
-   
-``REACTION_MODEL_PARTICLES``
-
-   Specifies the type of reaction model of each particle type (or of all particle types if length is 1). The model is configured in the subgroup :math:`\texttt{reaction_particle}`, or :math:`\texttt{reaction_particle_XXX}` in case of disabled multiplexing.
-   
-   ================  ========================================  =========================================
-   **Type:** string  **Range:** See Section :ref:`FFReaction`  **Length:** :math:`1 / \texttt{NPARTYPE}`
-   ================  ========================================  =========================================
-   
-``REACTION_MODEL_PARTICLES_MULTIPLEX``
-
-   Multiplexing mode of :math:`\texttt{REACTION_MODEL_PARTICLES}`. If set to 0, each particle type has a different reaction model and the length of :math:`\texttt{REACTION_MODEL_PARTICLES}` is :math:`\texttt{NPARTYPE}`. If set to 1, all particle types share the same reaction model and the length of :math:`\texttt{REACTION_MODEL_PARTICLES}` is 1.  This field is optional and inferred from the length of :math:`\texttt{REACTION_MODEL_PARTICLES}` if left out.
-   
-   =============  ===========================  =============
-   **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1
-   =============  ===========================  =============
-   
 ``INIT_C``
 
    Initial concentrations for each component in the mobile phase

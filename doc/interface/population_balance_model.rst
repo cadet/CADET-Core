@@ -30,15 +30,15 @@ Group /input/model/unit_XXX
    **Type:** int  **Range:** :math:`\geq 3`  **Length:** 1
    =============  =========================  =============
 
-``REACTION_MODEL``
+``NREAC_LIQUID``
 
-   The crystallization code is implemented as a reaction module, which is why crystallization needs to be specified here
+   Number of liquid phase reaction models (optional, only if liquid reactions are present).
 
-   ================  =============================================  =============
-   **Type:** String  **Range:** :math:`\texttt{ CRYSTALLIZATION }`  **Length:** 1
-   ================  =============================================  =============
+   =============  =========================  =============
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
+   =============  =========================  =============
 
-Group /input/model/unit_XXX/liquid_reaction_000 - REACTION_MODEL = CRYSTALLIZATION - UNIT_TYPE = CSTR
+Group /input/model/unit_XXX/liquid_reaction_000 - TYPE = CRYSTALLIZATION - UNIT_TYPE = CSTR
 -----------------------------------------------------------------------------------------------
 
 *The following parameters need to be specified under Group /input/model/unit_XXX/liquid_reaction_000/*
