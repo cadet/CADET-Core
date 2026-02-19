@@ -558,11 +558,11 @@
         "NCOMP": 102,
         "CONST_SOLID_VOLUME": 0.0,
         "NREAC_LIQUID": 1,
-        "CRYSTALLIZATION_MODE": 0,
         "UNIT_TYPE": "CSTR",
         "USE_ANALYTIC_JACOBIAN": 1,
         "liquid_reaction_000": {
           "TYPE": "CRYSTALLIZATION",
+          "CRY_MODE": 1,
           "CRY_A": 1.0,
           "CRY_B": 2.0,
           "CRY_BINS": [

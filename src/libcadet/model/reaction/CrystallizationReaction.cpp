@@ -265,10 +265,7 @@ public:
 
 	virtual bool configure(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
-		if (paramProvider.exists("CRY_MODE"))
-			_mode.SetMode(paramProvider.getInt("CRY_MODE"));
-		else
-			_mode.SetMode(1); // For backwards compatibility: PBM as default
+		_mode.SetMode(paramProvider.getInt("CRY_MODE"));
 
 		if (_mode.hasPBM())
 		{
