@@ -17,14 +17,6 @@
 #include "ReactionModelTests.hpp"
 #include "JsonTestModels.hpp"
 #include "Utils.hpp"
-
-// todo add a meaningful backward flow test
-
-// todo find analytical solution with linear binding
-
-// todo find analytical solution without binding
-
-// todo add (more) numerical reference (and EOC) tests
  
 TEST_CASE("Radial LRMP numerical Benchmark with parameter sensitivities for linear case", "[RadLRMP],[Simulation],[Reference],[Sensitivity],[CI_sens13]")
 {

@@ -17,14 +17,6 @@
 #include "Utils.hpp"
 #include "JsonTestModels.hpp"
 
-// todo add a meaningful backward flow test
-
-// todo find analytical solution with linear binding
-
-// todo find analytical solution without binding
-
-// todo add (more) numerical reference (and EOC) tests
-
 TEST_CASE("Radial LRM numerical Benchmark with parameter sensitivities for linear case", "[RadLRM],[Simulation],[Reference],[Sensitivity],[CI_sens12]")
 {
 	const std::string& modelFilePath = std::string("/data/model_radLRM_dynLin_1comp_sensbenchmark1.json");
