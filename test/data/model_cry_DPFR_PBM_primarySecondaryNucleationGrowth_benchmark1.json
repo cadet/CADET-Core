@@ -310,7 +310,6 @@
         ],
         "NCOMP": 52,
         "NREAC_LIQUID": 1,
-        "CRYSTALLIZATION_MODE": 0,
         "TOTAL_POROSITY": 0.21,
         "particle_type_000": {
           "HAS_FILM_DIFFUSION": false,
@@ -387,7 +386,8 @@
           }
         },
         "liquid_reaction_000": {
-            "TYPE": "CRYSTALLIZATION",
+          "TYPE": "CRYSTALLIZATION",
+          "CRY_MODE": 1,
           "CRY_A": 1.0,
           "CRY_B": 2.0,
           "CRY_BINS": [
