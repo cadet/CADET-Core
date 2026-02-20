@@ -51,7 +51,9 @@ on:
         type: string
 
 jobs:
+
   Win64:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: windows-latest
     strategy:
       fail-fast: true
@@ -156,6 +158,7 @@ jobs:
           path: ${{ github.workspace }}/cadet-${{ runner.os }}.zip
 
   Ubuntu-latest:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -256,6 +259,7 @@ jobs:
           ${BUILD_DIR}/test/testRunner [CI]
 
   MacOS:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: macos-latest
     strategy:
       fail-fast: true
