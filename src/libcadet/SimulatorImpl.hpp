@@ -36,7 +36,7 @@ int residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* 
 int linearSolverSolve(SUNLinearSolver ls, SUNMatrix, N_Vector x, N_Vector b, double tol);
 int linearSolverSetScalingVectors(SUNLinearSolver ls, N_Vector weight, N_Vector);
 
-int jacobianUpdateWrapper(SUNLinearSolver LS, SUNMatrix A);
+int jacobianUpdateWrapper(SUNLinearSolver LS, SUNMatrix);
 
 int residualSensWrapper(int ns, double t, N_Vector y, N_Vector yDot, N_Vector res, 
 		N_Vector* yS, N_Vector* ySDot, N_Vector* resS,
@@ -293,7 +293,8 @@ protected:
 	N_Vector _linearSolverWeight; //!< Weight vector.
 	SUNContext _sunctx; //!< Idas suncontext object
 	unsigned int _linSolverType; //!< which linear solver to Use
-	SUNMatrix _jacobian; 
+	SUNMatrix _jacobian; //!< empty dummy jacobian
+	double _nonLinCoeff; //!< Idas nonlinearsolver coefficient
 };
 
 } // namespace cadet

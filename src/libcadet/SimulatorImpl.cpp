@@ -376,6 +376,21 @@ namespace cadet
 		return SUNLINEARSOLVER_MATRIX_EMBEDDED;
 	}
 
+	SUNLinearSolver_Type linearSolverGetModifiedNewtonType(SUNLinearSolver)
+	{
+		return SUNLINEARSOLVER_DIRECT;
+	}
+
+	int jacfct(sunrealtype, sunrealtype, N_Vector, N_Vector, N_Vector, SUNMatrix, void*, N_Vector, N_Vector, N_Vector)
+	{
+		return 0;
+	}
+
+	int zeroMatrFct(SUNMatrix)
+	{
+		return 0;
+	}
+
 	/**
 	* @brief solver function for our model system
 	* @details This is the main function that the linear solver object calls at each evaluation of the system
@@ -407,10 +422,10 @@ namespace cadet
 
 		IDAGetNonlinearSystemData(sim->_idaMemBlock, &t, &unused1, &unused2, &y, &yDot, &unused3, &alpha, &unused4);
 		
-		LOG(Trace) << "==> Solve at t = " << t << " alpha = " << alpha << " tol = " << tol;
+		LOG(Trace) << "==> Solve at t = " << t << " alpha = " << alpha << " tol = " << sim->_nonLinCoeff;
 
 		N_VScale(-1.0, rhs, rhs);
-		const int ret = sim->_model->linearSolve(t, alpha, tol, NVEC_DATA(rhs), NVEC_DATA(sim->_linearSolverWeight), cadet::ConstSimulationState{ NVEC_DATA(y), NVEC_DATA(yDot) });
+		const int ret = sim->_model->linearSolve(t, alpha, sim->_nonLinCoeff, NVEC_DATA(rhs), NVEC_DATA(sim->_linearSolverWeight), cadet::ConstSimulationState{ NVEC_DATA(y), NVEC_DATA(yDot) });
 		N_VScale(-1.0, rhs, x);
 		return ret;
 	}
@@ -432,7 +447,8 @@ namespace cadet
 		_nThreads(0), _modifiedNewton(false), _sensErrorTestEnabled(true), _maxNewtonIter(4), _maxErrorTestFail(10), _maxConvTestFail(10),
 		_maxNewtonIterSens(4), _curSec(0), _skipConsistencyStateY(false), _skipConsistencySensitivity(false),
 		_consistentInitMode(ConsistentInitialization::Full), _consistentInitModeSens(ConsistentInitialization::Full),
-		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr), _linearSolver(nullptr), _sunctx(nullptr), _linSolverType(solver), _jacobian(NULL)
+		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr), _linearSolver(nullptr),
+		_sunctx(nullptr), _linSolverType(solver), _jacobian(NULL), _nonLinCoeff(0.33)
 	{
 #if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 		LOG(Debug) << "Resetting AD directions from " << ad::getDirections() << " to default " << ad::getMaxDirections();
@@ -541,7 +557,7 @@ namespace cadet
 		IDASetMaxErrTestFails(_idaMemBlock, _maxErrorTestFail);
 		IDASetMaxConvFails(_idaMemBlock, _maxConvTestFail);
 
-		
+		IDASetNonlinConvCoef(_idaMemBlock, _nonLinCoeff);
 
 		// Allocate memory for AD if required
 		if (_model->usesAD())
@@ -579,11 +595,19 @@ namespace cadet
 			{
 				_linearSolver = SUNLinSolNewEmpty(_sunctx);
 				_linearSolver->content = this;
-				_linearSolver->ops->gettype = linearSolverGetType;
 				_linearSolver->ops->solve = linearSolverSolve;
 				_linearSolver->ops->setscalingvectors = linearSolverSetScalingVectors;
 				if (_modifiedNewton)
+				{
+					_linearSolver->ops->gettype = linearSolverGetModifiedNewtonType;
 					_linearSolver->ops->setup = jacobianUpdateWrapper;
+				    _jacobian = SUNMatNewEmpty(_sunctx);
+					_jacobian->ops->zero = zeroMatrFct;
+				}
+				else
+				{
+					_linearSolver->ops->gettype = linearSolverGetType;
+				}
 				break;
 			}
 			case(1):
@@ -600,7 +624,7 @@ namespace cadet
 				break;
 			}
 		}
-		IDASetLinearSolver(_idaMemBlock, _linearSolver, NULL);
+		IDASetLinearSolver(_idaMemBlock, _linearSolver, _jacobian);
 
 
 		if (_linSolverType == 0)
@@ -608,6 +632,8 @@ namespace cadet
 			// Specify tolerances for linear solver
 			IDASetEpsLin(_idaMemBlock, 1);
 			IDASetLSNormFactor(_idaMemBlock, 1);
+			if (_modifiedNewton)
+				IDASetJacFn(_idaMemBlock,jacfct);
 		}
 	}
 
