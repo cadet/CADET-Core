@@ -11,7 +11,7 @@
 # =============================================================================
  
 # Require a fairly new cmake version
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.14)
 
 # Prohibit in-source build
 set(CMAKE_DISABLE_SOURCE_CHANGES ON)
@@ -140,8 +140,8 @@ add_feature_info(ENABLE_CADET_TOOLS ENABLE_CADET_TOOLS "Build CADET tools")
 option(ENABLE_TESTS "Build CADET tests" OFF)
 add_feature_info(ENABLE_TESTS ENABLE_TESTS "Build CADET tests")
 
-option(ENABLE_PACKAGED_SUNDIALS "Use packaged SUNDIALS code" ON)
-add_feature_info(ENABLE_PACKAGED_SUNDIALS ENABLE_PACKAGED_SUNDIALS "Use packaged SUNDIALS code")
+option(ENABLE_CADETTEST_LOGGING "Enable logging for CadetTest" OFF)
+add_feature_info(ENABLE_CADETTEST_LOGGING ENABLE_CADETTEST_LOGGING "Enables logging in Testsets")
 
 option(ENABLE_IPO "Enable interprocedural optimization if compiler supports it" ${DEFAULT_IPO_ENABLED})
 add_feature_info(ENABLE_IPO ENABLE_IPO "Enable interprocedural optimization if compiler supports it")
@@ -165,6 +165,10 @@ option(CMAKE_INSTALL_RPATH_USE_LINK_PATH "Add paths to linker search and install
 add_feature_info(CMAKE_INSTALL_RPATH_USE_LINK_PATH CMAKE_INSTALL_RPATH_USE_LINK_PATH "Add paths to linker search and installed rpath")
 
 option(CODE_COVERAGE "Enable coverage reporting" OFF)
+
+option(ENABLE_TEST_RADIAL "Build TimeIntegrator and radial tests" OFF)
+add_feature_info(ENABLE_TEST_RADIAL ENABLE_TEST_RADIAL "Build TimeIntegrator and radial tests")
+
 
 if(CODE_COVERAGE)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -256,58 +260,81 @@ set_package_properties(LAPACK PROPERTIES
 	TYPE RECOMMENDED
 	PURPOSE "Solution of dense linear systems"
 )
+	
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
-if (NOT ENABLE_PACKAGED_SUNDIALS)
-	# SUNDIALS_ROOT environment variable can be used to find SUNDIALS package
-	set(SUNDIALS_PREFER_STATIC_LIBRARIES ${ENABLE_STATIC_LINK_DEPS})
-	find_package(SUNDIALS REQUIRED COMPONENTS sundials_idas sundials_nvecserial OPTIONAL_COMPONENTS sundials_nvecopenmp)
-	set_package_properties(SUNDIALS PROPERTIES
-		TYPE REQUIRED
-		PURPOSE "Time integration"
-	)
+find_package(SUNDIALS 7.0.0 QUIET)
 
-	# Check whether OpenMP is available in SUNDIAL'S NVECTOR module
-	set(SUNDIALS_NVEC_TARGET "SUNDIALS::sundials_nvecserial")
-	if (SUNDIALS_sundials_nvecopenmp_LIBRARY AND ENABLE_SUNDIALS_OPENMP)
-		# Prefer OpenMP over serial version
-		set(SUNDIALS_NVEC_TARGET "SUNDIALS::sundials_nvecopenmp")
+if(NOT SUNDIALS_FOUND)
+	message(STATUS "SUNDIALS not found, try downloading via FetchContent.")
+	include(FetchContent)
+	set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
 
-		get_target_property(SUNDIALS_IFACE_COMP_DEF SUNDIALS::sundials_nvecopenmp INTERFACE_COMPILE_DEFINITIONS)
-		if (SUNDIALS_IFACE_COMP_DEF)
-			list(APPEND SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_OPENMP")
-		else()
-			set(SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_OPENMP")
-		endif()
-		set_target_properties(SUNDIALS::sundials_nvecopenmp PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${SUNDIALS_IFACE_COMP_DEF}")
-		unset(SUNDIALS_IFACE_COMP_DEF)
+	# SUNDIALS-spezifische Optionen
+
+	set(BUILD_ARKODE OFF)
+	set(BUILD_CVODE OFF)
+	set(BUILD_CVODES OFF)
+	set(BUILD_KINSOL OFF)
+	set(EXAMPLES_ENABLE_C OFF CACHE BOOL "" FORCE)
+	set(EXAMPLES_ENABLE_CXX OFF CACHE BOOL "" FORCE)
+	set(EXAMPLES_ENABLE OFF CACHE BOOL "" FORCE)
+ 
+	if(GIT_FOUND)
+		FetchContent_Declare(
+			sundials
+			GIT_REPOSITORY https://github.com/LLNL/sundials.git
+			GIT_TAG        v7.6.0
+		)
+	else()
+		message(STATUS "Git not found, loading directly via URL")
+		FetchContent_Declare(
+			sundials
+			URL https://github.com/LLNL/sundials/archive/refs/tags/v7.6.0.tar.gz
+			DOWNLOAD_EXTRACT_TIMESTAMP FALSE
+		)
 	endif()
-
-	# Determine SUNDIALS interface version
-	if (SUNDIALS_FOUND)
-		get_target_property(SUNDIALS_IFACE_COMP_DEF SUNDIALS::sundials_idas INTERFACE_COMPILE_DEFINITIONS)
-		if (SUNDIALS_IFACE_COMP_DEF)
-			list(APPEND SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_IFACE=${SUNDIALS_VERSION_MAJOR}")
-		else()
-			set(SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_IFACE=${SUNDIALS_VERSION_MAJOR}")
-		endif()
-		set_target_properties(SUNDIALS::sundials_idas PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${SUNDIALS_IFACE_COMP_DEF}")
-		unset(SUNDIALS_IFACE_COMP_DEF)
-	endif()
-else()
+    
+	FetchContent_MakeAvailable(sundials)
 	set(SUNDIALS_FOUND TRUE)
-	set(SUNDIALS_VERSION "3.2.1")
-	set(SUNDIALS_NVEC_TARGET "SUNDIALS::sundials_nvecserial")
-	add_subdirectory(ThirdParty/sundials)
-
-	add_library(SUNDIALS::sundials_idas INTERFACE IMPORTED)
-	target_link_libraries(SUNDIALS::sundials_idas INTERFACE sundials_idas_static)
-	target_include_directories(SUNDIALS::sundials_idas INTERFACE ThirdParty/sundials/include ThirdParty/sundials/src "${CMAKE_BINARY_DIR}/ThirdParty/sundials/include")
-	set_target_properties(SUNDIALS::sundials_idas PROPERTIES INTERFACE_COMPILE_DEFINITIONS "CADET_SUNDIALS_IFACE=3")
-
-	add_library(SUNDIALS::sundials_nvecserial INTERFACE IMPORTED)
-	target_include_directories(SUNDIALS::sundials_nvecserial INTERFACE ThirdParty/sundials/include "${CMAKE_BINARY_DIR}/ThirdParty/sundials/include")
-	target_link_libraries(SUNDIALS::sundials_nvecserial INTERFACE sundials_nvecserial_static)
+	set(SUNDIALS_VERSION "7.6.0")
 endif()
+# SUNDIALS_ROOT environment variable can be used to find SUNDIALS package
+set(SUNDIALS_PREFER_STATIC_LIBRARIES ${ENABLE_STATIC_LINK_DEPS})
+	
+
+# Check whether OpenMP is available in SUNDIAL'S NVECTOR module
+set(SUNDIALS_NVEC_TARGET "SUNDIALS::sundials_nvecserial")
+if (SUNDIALS_sundials_nvecopenmp_LIBRARY AND ENABLE_SUNDIALS_OPENMP)
+	# Prefer OpenMP over serial version
+	set(SUNDIALS_NVEC_TARGET "SUNDIALS::sundials_nvecopenmp")
+
+	get_target_property(SUNDIALS_IFACE_COMP_DEF SUNDIALS::sundials_nvecopenmp INTERFACE_COMPILE_DEFINITIONS)
+	if (SUNDIALS_IFACE_COMP_DEF)
+		list(APPEND SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_OPENMP")
+	else()
+		set(SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_OPENMP")
+	endif()
+	set_target_properties(SUNDIALS::sundials_nvecopenmp PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${SUNDIALS_IFACE_COMP_DEF}")
+	unset(SUNDIALS_IFACE_COMP_DEF)
+endif()
+
+if(NOT TARGET SUNDIALS::sundials_idas)
+	add_library(SUNDIALS::sundials_idas INTERFACE IMPORTED)
+	target_link_libraries(SUNDIALS::sundials_idas INTERFACE SUNDIALS::idas)
+endif()
+
+if(NOT TARGET SUNDIALS::sundials_nvecserial)
+	add_library(SUNDIALS::sundials_nvecserial INTERFACE IMPORTED)
+	target_link_libraries(SUNDIALS::sundials_nvecserial INTERFACE SUNDIALS::nvecserial)
+endif()
+
+if(NOT TARGET SUNDIALS::sundials_core)
+	add_library(SUNDIALS::sundials_core INTERFACE IMPORTED)
+	target_link_libraries(SUNDIALS::sundials_core INTERFACE SUNDIALS::core)
+endif()
+
+
 
 if (ENABLE_CADET_TOOLS OR ENABLE_CADET_CLI)
 	set(HDF5_USE_STATIC_LIBRARIES ${ENABLE_STATIC_LINK_DEPS})
@@ -427,6 +454,7 @@ endif()
 find_package(Eigen3 REQUIRED NO_MODULE)
 set(EIGEN_TARGET "Eigen3::Eigen")
 
+
 set(IPO_AVAILABLE OFF)
 if (ENABLE_IPO)
 	include(CheckIPOSupported)
@@ -466,6 +494,10 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 	target_compile_definitions(CADET::CompileOptions INTERFACE CADET_LOGLEVEL_MIN=Trace DEBUG _DEBUG)
 else()
 	target_compile_definitions(CADET::CompileOptions INTERFACE CADET_LOGLEVEL_MIN=Warning NDEBUG)
+endif()
+
+if(ENABLE_CADETTEST_LOGGING)
+    target_compile_definitions(CADET::CompileOptions INTERFACE ENABLE_CADETTEST_LOGGING)
 endif()
 
 if (ENABLE_BENCHMARK)
@@ -625,17 +657,11 @@ if (TBB_FOUND)
 	message("  Libs ${TBB_LIBRARIES}")
 endif()
 
-if (ENABLE_PACKAGED_SUNDIALS)
+if (SUNDIALS_FOUND)
 	message("Found SUNDIALS: ${SUNDIALS_FOUND}")
 	message("  Version ${SUNDIALS_VERSION}")
-	message("  Packaged")
-else()
-	message("Found SUNDIALS: ${SUNDIALS_FOUND}")
-	if (SUNDIALS_FOUND)
-		message("  Version ${SUNDIALS_VERSION}")
-		message("  Includes ${SUNDIALS_INCLUDE_DIRS}")
-		message("  Libs ${SUNDIALS_LIBRARIES}")
-	endif()
+	message("  Includes ${SUNDIALS_SOURCE_DIR}")
+	message("  Libs ${SUNDIALS_BINARY_DIR}")
 endif()
 
 if (ENABLE_2D_MODELS)

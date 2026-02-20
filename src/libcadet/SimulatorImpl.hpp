@@ -22,7 +22,6 @@
 #include <unordered_map>
 
 #include "SundialsVector.hpp"
-#include <idas/idas_impl.h>
 
 #include "cadet/Simulator.hpp"
 #include "AutoDiff.hpp"
@@ -34,9 +33,10 @@ namespace cadet
 
 int residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* userData);
 
-int linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector yCur, N_Vector yDotCur, N_Vector resCur);
+int linearSolverSolve(SUNLinearSolver ls, SUNMatrix, N_Vector x, N_Vector b, double tol);
+int linearSolverSetScalingVectors(SUNLinearSolver ls, N_Vector weight, N_Vector);
 
-int jacobianUpdateWrapper(IDAMem IDA_mem, N_Vector y, N_Vector yDot, N_Vector res, N_Vector tempv1, N_Vector tempv2, N_Vector tempv3);
+int jacobianUpdateWrapper(SUNLinearSolver LS, SUNMatrix);
 
 int residualSensWrapper(int ns, double t, N_Vector y, N_Vector yDot, N_Vector res, 
 		N_Vector* yS, N_Vector* ySDot, N_Vector* resS,
@@ -55,7 +55,7 @@ class Simulator : public ISimulator
 {
 public:
 
-	Simulator();
+	Simulator(unsigned int solver = 0);
 
 	virtual ~Simulator() CADET_NOEXCEPT;
 
@@ -78,6 +78,9 @@ public:
 	virtual void setSectionTimes(const std::vector<double>& sectionTimes, const std::vector<bool>& sectionContinuity);
 
 	virtual void initializeModel(IModelSystem& model);
+
+	virtual void setLinearSolver(unsigned int solver);
+	virtual void setIDALinearSolver();
 
 	virtual void applyInitialCondition();
 	virtual void setInitialCondition(IParameterProvider& paramProvider);
@@ -217,9 +220,9 @@ protected:
 
 	friend int ::cadet::residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* userData);
 
-	friend int ::cadet::linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector yCur, N_Vector yDotCur, N_Vector resCur);
-
-	friend int ::cadet::jacobianUpdateWrapper(IDAMem IDA_mem, N_Vector y, N_Vector yDot, N_Vector res, N_Vector tempv1, N_Vector tempv2, N_Vector tempv3);
+	friend int ::cadet::linearSolverSolve(SUNLinearSolver ls, SUNMatrix, N_Vector x, N_Vector b, double tol);
+	friend int ::cadet::linearSolverSetScalingVectors(SUNLinearSolver ls, N_Vector weight, N_Vector);
+	friend int ::cadet::jacobianUpdateWrapper(SUNLinearSolver ls, SUNMatrix A);
 
 //	friend int ::cadet::weightWrapper(N_Vector y, N_Vector ewt, void *user_data);
 
@@ -232,6 +235,7 @@ protected:
 	ISolutionRecorder* _solRecorder;
 
 	void* _idaMemBlock; //!< IDAS internal memory
+
 
 	/**
 	 * @brief Determines whether the transition from section i to section i+1 is continuous.
@@ -285,6 +289,12 @@ protected:
 	double _lastIntTime; //!< Last simulation duration
 
 	INotificationCallback* _notification; //!< Callback handler for notifications
+	SUNLinearSolver _linearSolver; //!< Sunlinearsolver object.
+	N_Vector _linearSolverWeight; //!< Weight vector.
+	SUNContext _sunctx; //!< Idas suncontext object
+	unsigned int _linSolverType; //!< which linear solver to Use
+	SUNMatrix _jacobian; //!< empty dummy jacobian
+	double _nonLinCoeff; //!< Idas nonlinearsolver coefficient
 };
 
 } // namespace cadet

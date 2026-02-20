@@ -31,7 +31,7 @@ endif()
 add_executable(testLogging testLogging.cpp)
 target_link_libraries(testLogging PRIVATE CADET::CompileOptions)
 
-if (NOT WIN32)
+if (ENABLE_TEST_RADIAL)
 	add_executable(testRadialKernel testRadialKernel.cpp TimeIntegrator.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/Logging.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/AutoDiff.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/ParameterDependenceBase.cpp)
 	target_link_libraries(testRadialKernel PRIVATE CADET::CompileOptions CADET::AD SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${EIGEN_TARGET} )
 	target_include_directories(testRadialKernel PRIVATE ${CMAKE_SOURCE_DIR}/test ${CMAKE_BINARY_DIR}/src/libcadet)
