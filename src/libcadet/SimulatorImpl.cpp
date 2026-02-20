@@ -376,16 +376,31 @@ namespace cadet
 		return SUNLINEARSOLVER_MATRIX_EMBEDDED;
 	}
 
+	/**
+	* @brief returns type for the sundials linear solver interface
+	* @details set type of our solver to DIRECT so idas uses the modified Newton approach. Therefore a jacobian matrix is needed.
+	*	on the type of the matrix
+	*/
 	SUNLinearSolver_Type linearSolverGetModifiedNewtonType(SUNLinearSolver)
 	{
 		return SUNLINEARSOLVER_DIRECT;
 	}
 
+
+	/**
+	* @brief returns successfull calculation for jacobian
+	* @details dummy function to tell idas, a new jacobian was successfull calculated.
+	*/
 	int jacfct(sunrealtype, sunrealtype, N_Vector, N_Vector, N_Vector, SUNMatrix, void*, N_Vector, N_Vector, N_Vector)
 	{
 		return 0;
 	}
 
+
+	/**
+	* @brief returns successfull setting of empty matrix
+	* @details dummy function to tell idas, the coefficents of a matrix were set to 0.
+	*/
 	int zeroMatrFct(SUNMatrix)
 	{
 		return 0;
@@ -394,12 +409,14 @@ namespace cadet
 	/**
 	* @brief solver function for our model system
 	* @details This is the main function that the linear solver object calls at each evaluation of the system
-	*     due to sundials >= v4 using a default interface for linear solver, in theory the function parameters
-	*     are written in way that it should solve a generic Ax = b system with a tolerance factor tol that is scaled
-	*     down from the newton convergence factor epsnewton by the system size and some other scaling factors. In theory 
-	*     could be set to 0.33. In v3 the solution only needed to be written to rhs, therefore the scale to x.
-	*     For some reasons, the rhs values are
-	*     negatet in v7 compared to v3. Should work even without scaling to the negative.
+	*     due to sundials >= v4 using a default interface for linear solver, the function solves a generic 
+	*     Ax = b system with a tolerance factor tol that is scaled down from the newton convergence factor 
+	*     epsnewton=0.33 by the system size and safety factor. Due to our solver implementing modified newton
+	*     idas needs to see a direct linear solver. Otherwise it would not call the jacobian update function.
+	*     In this case idas submits a tolerance of 0, so we need to hard save this convergence factor on our
+	*     simulation object because internaly we use a gmres iterative solver for our schur-matrices.
+	*     In v3 the solution only needed to be written to rhs, therefore the scale to x.
+	*     For some reasons, the rhs values are negated in v7 compared to v3.
 	* @param [in] ls  linear solver object
 	* @param [in] null SUNMatrix not used
 	* @param [in  x nvector x input guess
@@ -424,9 +441,8 @@ namespace cadet
 		
 		LOG(Trace) << "==> Solve at t = " << t << " alpha = " << alpha << " tol = " << sim->_nonLinCoeff;
 
-		N_VScale(-1.0, rhs, rhs);
 		const int ret = sim->_model->linearSolve(t, alpha, sim->_nonLinCoeff, NVEC_DATA(rhs), NVEC_DATA(sim->_linearSolverWeight), cadet::ConstSimulationState{ NVEC_DATA(y), NVEC_DATA(yDot) });
-		N_VScale(-1.0, rhs, x);
+		N_VScale(1.0, rhs, x);
 		return ret;
 	}
 
@@ -583,7 +599,11 @@ namespace cadet
 	* @details depending on _linsolverType the choosen solver will be set. 0 is the default value with our own one.
 	*		SUNLinSolNewEmpty creates an Linear Solver object that satisfy the structure of idas solvers. Every function
 	*       that is not set is automaticaly NULL. In case of our Linear solver, Epslin and lsNormfac are both set to 1.0,
-	*       so that the IDASNewton solver won't scale down the newton factore from 0.33. 
+	*       so that the IDASNewton solver won't scale down the newton factore from 0.33 (not neccessary anymore because
+	*       the newton tolerance is now hard set within the solver function). In case of modified Newton
+	*		we set our Linear Solver to Direct so that we make use of the modified Newton approach.
+	*       In the future, Idas might update the convergence test. In this case it might be necessary to set our solver
+	*       to MATRIX_ITERATIVE or ITERATIVE, so that we can make use of the modified Newton approach.
 	*/
 	void Simulator::setIDALinearSolver()
 	{
