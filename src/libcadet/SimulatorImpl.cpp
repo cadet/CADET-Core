@@ -226,33 +226,6 @@ namespace cadet
 		return sim->_model->residualWithJacobian(cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res),
 			cadet::AdJacobianParams{sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections()});
 	}
-
-	/**
-	* @brief IDAS jacobian wrapper function to call the model's jacobian() method
-	*/
-
-	int jacobianUpdateWrapper(SUNLinearSolver LS, SUNMatrix)
-	{
-		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(LS->content);
-
-		double t;
-		double alpha;
-		N_Vector y;
-		N_Vector yDot;
-		N_Vector unused1;
-		N_Vector unused2;
-		N_Vector res;
-		void* unused4;
-		IDAGetNonlinearSystemData(sim->_idaMemBlock, &t, &unused1, &unused2, &y, &yDot, &res, &alpha, &unused4);
-
-		const unsigned int secIdx = sim->getCurrentSection(t);
-
-		LOG(Trace) << "==> Jacobian at t = " << t;
-
-		return sim->_model->jacobian(cadet::SimulationTime{ t, secIdx }, cadet::ConstSimulationState{ NVEC_DATA(y), NVEC_DATA(yDot) }, NVEC_DATA(res),
-			cadet::AdJacobianParams{ sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections() });
-	}
-	
 	
 	/**
 	* @brief Change the error weights in the state vector
@@ -334,33 +307,9 @@ namespace cadet
 	}
 */
 
-	/**
-	* @brief IDAS wrapper function to call the model's linearSolve() method
-	*/
-	int linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector y, N_Vector yDot, N_Vector res)
-	{
-		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(IDA_mem->ida_lmem);
-		const double t = IDA_mem->ida_tn;
-		const double alpha = IDA_mem->ida_cj;
-		const double tol = IDA_mem->ida_epsNewt;
-
-		LOG(Trace) << "==> Solve at t = " << t << " alpha = " << alpha << " tol = " << tol;
-		if (sim->_notification)
-		{
-			const unsigned int secIdx = sim->getCurrentSection(t);
-
-			sim->_stoppedByCallback = !sim->_notification->timeIntegrationLinearSolve(secIdx, t, NVEC_DATA(y), NVEC_DATA(yDot));
-
-			if (sim->_stoppedByCallback)
-				return IDA_TOO_MUCH_WORK;
-		}
-
-		return sim->_model->linearSolve(t, alpha, tol, NVEC_DATA(rhs), NVEC_DATA(weight), cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)});
-	}
-
-	/**
+/**
 	* @brief IDAS wrapper function to call the model's residualSensFwd() method
-	*/
+*/
 	int residualSensWrapper(int ns, double t, N_Vector y, N_Vector yDot, N_Vector res,
 			N_Vector* yS, N_Vector* ySDot, N_Vector* resS,
 			void *userData, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3)
@@ -425,21 +374,37 @@ namespace cadet
 		N_Vector yDot;
 		N_Vector unused1;
 		N_Vector unused2;
-		N_Vector unused3;
+		N_Vector res;
 		void* unused4;
 
-		IDAGetNonlinearSystemData(sim->_idaMemBlock, &t, &unused1, &unused2, &y, &yDot, &unused3, &alpha, &unused4);
+		IDAGetNonlinearSystemData(sim->_idaMemBlock, &t, &unused1, &unused2, &y, &yDot, &res, &alpha, &unused4);
 		
+		if (sim->_modifiedNewton)
+		{
+			const unsigned int secIdx = sim->getCurrentSection(t);
+			double vgl = sim->_alpha / alpha;
+			if (vgl < 0.6 || vgl > 1.666666667)
+			{
+				sim->_model->jacobian(cadet::SimulationTime{ t, secIdx }, cadet::ConstSimulationState{ NVEC_DATA(y), NVEC_DATA(yDot) }, NVEC_DATA(res),
+					cadet::AdJacobianParams{ sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections() });
+				sim->_alpha = alpha;
+			}
+		}
+
+
 		LOG(Trace) << "==> Solve at t = " << t << " alpha = " << alpha << " tol = " << tol;
 
 		if (sim->_notification)
 		{
 			const unsigned int secIdx = sim->getCurrentSection(t);
-			if (!sim->_notification->timeIntegrationLinearSolve(secIdx, t, NVEC_DATA(y), NVEC_DATA(yDot)))
+
+			sim->_stoppedByCallback = !sim->_notification->timeIntegrationLinearSolve(secIdx, t, NVEC_DATA(y), NVEC_DATA(yDot));
+
+			if (sim->_stoppedByCallback)
 				return IDA_TOO_MUCH_WORK;
 		}
 
-		const int ret = sim->_model->linearSolve(t, alpha, sim->_nonLinCoeff, NVEC_DATA(rhs), NVEC_DATA(sim->_linearSolverWeight), cadet::ConstSimulationState{ NVEC_DATA(y), NVEC_DATA(yDot) });
+		const int ret = sim->_model->linearSolve(t, alpha, tol, NVEC_DATA(rhs), NVEC_DATA(sim->_linearSolverWeight), cadet::ConstSimulationState{ NVEC_DATA(y), NVEC_DATA(yDot) });
 		N_VScale(1.0, rhs, x);
 		return ret;
 	}
@@ -462,7 +427,7 @@ namespace cadet
 		_maxNewtonIterSens(4), _curSec(0), _skipConsistencyStateY(false), _skipConsistencySensitivity(false),
 		_consistentInitMode(ConsistentInitialization::Full), _consistentInitModeSens(ConsistentInitialization::Full),
 		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr), _linearSolver(nullptr),
-		_sunctx(nullptr), _linSolverType(solver), _jacobian(NULL), _nonLinCoeff(0.33), _alpha(-1)
+		_sunctx(nullptr), _linSolverType(solver), _nonLinCoeff(0.33), _alpha(-1)
 	{
 #if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 		LOG(Debug) << "Resetting AD directions from " << ad::getDirections() << " to default " << ad::getMaxDirections();
@@ -571,7 +536,7 @@ namespace cadet
 		IDASetMaxErrTestFails(_idaMemBlock, _maxErrorTestFail);
 		IDASetMaxConvFails(_idaMemBlock, _maxConvTestFail);
 
-		
+		IDASetNonlinConvCoef(_idaMemBlock, _nonLinCoeff);
 
 		// Allocate memory for AD if required
 		if (_model->usesAD())
@@ -609,11 +574,9 @@ namespace cadet
 			{
 				_linearSolver = SUNLinSolNewEmpty(_sunctx);
 				_linearSolver->content = this;
-				_linearSolver->ops->gettype = linearSolverGetType;
 				_linearSolver->ops->solve = linearSolverSolve;
 				_linearSolver->ops->setscalingvectors = linearSolverSetScalingVectors;
-				if (_modifiedNewton)
-					_linearSolver->ops->setup = jacobianUpdateWrapper;
+				_linearSolver->ops->gettype = linearSolverGetType;
 				break;
 			}
 			case(1):
