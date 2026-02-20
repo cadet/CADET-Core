@@ -54,6 +54,14 @@ namespace cadet
 		}
 
 		/**
+		 * @brief Resets the total elapsed time to @c 0.0
+		 */
+		void reset()
+		{
+			_totalElapsed = 0.0;
+		}
+
+		/**
 		 * @brief Returns the total elapsed time between all start() and stop() calls in seconds
 		 * @return Total elapsed time in seconds
 		 */
