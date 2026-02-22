@@ -102,26 +102,28 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
 		h = static_cast<double>(_colLength) / static_cast<double>(_nCol);
 
 		const double lastFace = static_cast<double>(_cellFaces.back());
-		if (std::abs(lastFace - static_cast<double>(_colLength)) > 1e-14)
+		if (std::abs(lastFace - static_cast<double>(_colLength)) > 1e-12)
 			throw InvalidParameterException("Last entry of GRID_FACES must match COL_LENGTH");
 
 
 		// Check if grid is equidistant
-		double i = 0;
-		_gridEquidistant = std::all_of(
-			_cellFaces.begin(), _cellFaces.end(),
-			[&](const active& val) {
-				return std::abs(static_cast<double>(val) - h * i++) < 1e-14;
+		const double firstWidth = static_cast<double>(_cellFaces[1] - _cellFaces[0]);
+		const double widthTol = 1e-10 * std::max(1.0, std::abs(firstWidth));
+		_gridEquidistant = true;
+		for (unsigned int i = 1; i < _nCol; ++i)
+		{
+			const double curWidth = static_cast<double>(_cellFaces[i + 1] - _cellFaces[i]);
+			if (std::abs(curWidth - firstWidth) > widthTol)
+			{
+				_gridEquidistant = false;
+				break;
 			}
-		);
+		}
 	}
 	else
 	{
 		_gridEquidistant = true;
-		_cellFaces.resize(_nCol + 1);
-
-		for (std::size_t i = 0; i <= _nCol; ++i)
-			_cellFaces[i] = active(h * i);
+		_cellFaces.clear();
 	}
 
 	if (recType == "WENO")
@@ -389,6 +391,8 @@ int AxialConvectionDispersionOperatorBase::residualImpl(const IModel& model, dou
 	const ParamType h = static_cast<ParamType>(_colLength) / static_cast<double>(_nCol);
 //	const int strideCell = strideColCell();
 
+	const std::vector<active>* const cellFacesPtr = _cellFaces.empty() ? nullptr : &_cellFaces;
+
 	if (_weno)
 	{
 		convdisp::AxialFlowParameters<ParamType, Weno> fp{
@@ -406,7 +410,7 @@ int AxialConvectionDispersionOperatorBase::residualImpl(const IModel& model, dou
 			_dispersionDep,
 			model,
 			_gridEquidistant,
-			&_cellFaces
+			cellFacesPtr
 		};
 
 		return convdisp::residualKernelAxial<StateType, ResidualType, ParamType, Weno, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
@@ -428,7 +432,7 @@ int AxialConvectionDispersionOperatorBase::residualImpl(const IModel& model, dou
 			_dispersionDep,
 			model,
 			_gridEquidistant,
-			&_cellFaces
+			cellFacesPtr
 		};
 
 		return convdisp::residualKernelAxial<StateType, ResidualType, ParamType, HighResolutionKoren, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
