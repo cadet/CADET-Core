@@ -22,8 +22,6 @@
  * ---------------------------------------------------------------------
  *
  */
-#define _USE_MATH_DEFINES 
-#define M_PI       3.14159265358979323846   // pi
 
 #ifndef TK_SPLINE_H
 #define TK_SPLINE_H
@@ -910,13 +908,16 @@ std::vector<double> solve_cubic(double a, double b, double c, double d,
             z[1] = -0.5*z[0];       // double root
         }
     } else if(discr>0) {
+
+        const double pi = 3.1415926535897932384626434;
+
         // three real roots: via trigonometric solution
         z.resize(3);
         double ac = (1.0/3.0) * acos( q/(p*sqrt(p)) );
         double sq = 2.0*sqrt(p);
         z[0] = sq * cos(ac);
-        z[1] = sq * cos(ac-2.0*M_PI/3.0);
-        z[2] = sq * cos(ac-4.0*M_PI/3.0);
+        z[1] = sq * cos(ac-2.0*pi/3.0);
+        z[2] = sq * cos(ac-4.0*pi/3.0);
     } else if (discr<0.0) {
         // single real root: via Cardano's fromula
         z.resize(1);
