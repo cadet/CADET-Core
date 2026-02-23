@@ -828,6 +828,11 @@ bool MultiChannelConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IP
 	// Add parameters to map
 	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
 
+	registerParam1DArray(parameters, _crossSections, [=](bool multi, unsigned int channel)
+	{
+		return makeParamId(hashString("CHANNEL_CROSS_SECTION_AREAS"), unitOpIdx, CompIndep, channel, BoundStateIndep, ReactionIndep, SectionIndep);
+	});
+
 
 	setSparsityPattern();
 
@@ -1215,6 +1220,13 @@ bool MultiChannelConvectionDispersionOperator::setParameter(const ParameterId& p
 		}
 	}
 
+	if ((pId.name == hashString("CHANNEL_CROSS_SECTION_AREAS")) && (pId.component == CompIndep) && (pId.boundState == BoundStateIndep) && (pId.reaction == ReactionIndep) && (pId.section == SectionIndep))
+	{
+		const unsigned int channel = static_cast<unsigned int>(pId.particleType);
+		if (channel < _nChannel)
+			_crossSections[channel].setValue(value);
+	}
+
 	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _nChannel, value, nullptr);
 	if (ad)
 		return true;
@@ -1245,6 +1257,13 @@ bool MultiChannelConvectionDispersionOperator::setSensitiveParameterValue(const 
 			for (unsigned int i = 0; i < _nChannel; ++i)
 				_velocity[i].setValue(value);
 		}
+	}
+
+	if ((pId.name == hashString("CHANNEL_CROSS_SECTION_AREAS")) && (pId.component == CompIndep) && (pId.boundState == BoundStateIndep) && (pId.reaction == ReactionIndep) && (pId.section == SectionIndep))
+	{
+		const unsigned int channel = static_cast<unsigned int>(pId.particleType);
+		if ((channel < _nChannel) && contains(sensParams, &_crossSections[channel]))
+			_crossSections[channel].setValue(value);
 	}
 
 	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _nChannel, value, &sensParams);
@@ -1278,6 +1297,16 @@ bool MultiChannelConvectionDispersionOperator::setSensitiveParameter(std::unorde
 			sensParams.insert(&_velocity[0]);
 			for (unsigned int i = 0; i < _nChannel; ++i)
 				_velocity[i].setADValue(adDirection, adValue);
+		}
+	}
+
+	if ((pId.name == hashString("CHANNEL_CROSS_SECTION_AREAS")) && (pId.component == CompIndep) && (pId.boundState == BoundStateIndep) && (pId.reaction == ReactionIndep) && (pId.section == SectionIndep))
+	{
+		const unsigned int channel = static_cast<unsigned int>(pId.particleType);
+		if (channel < _nChannel)
+		{
+			sensParams.insert(&_crossSections[channel]);
+			_crossSections[channel].setADValue(adDirection, adValue);
 		}
 	}
 
