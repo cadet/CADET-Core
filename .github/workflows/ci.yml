@@ -186,6 +186,12 @@ jobs:
             libblas-dev \
             libtbb-dev \
             libsuperlu-dev \
+      - name: Show compiler versions
+        run: |
+          which gcc
+          which g++
+          gcc --version
+          g++ --version
       - name: Build Eigen
         run: |
           git clone https://gitlab.com/libeigen/eigen.git
