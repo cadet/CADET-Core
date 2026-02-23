@@ -47,8 +47,12 @@ namespace cadet
 
 		inline bool SplineParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
-			if (_kKin.size() < nComp)
-				throw InvalidParameterException("ML_KKIN has to have NCOMP entries");
+			int nTotBnd = 0;
+			for (int comp = 0; comp < nComp; comp++)
+				nTotBnd += nBoundStates[comp];
+
+			if (_kKin.size() < nTotBnd)
+				throw InvalidParameterException("ML_KKIN has to have NTOTALNBND entries");
 
 			return true;
 		}
@@ -57,8 +61,12 @@ namespace cadet
 
 		inline bool ExtSplineParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
-			if (_kKin.size() < nComp)
-				throw InvalidParameterException("ML_KKIN has to have NCOMP entries");
+			int nTotBnd = 0;
+			for (int comp = 0; comp < nComp; comp++)
+				nTotBnd += nBoundStates[comp];
+
+			if (_kKin.size() < nTotBnd)
+				throw InvalidParameterException("ML_KKIN has to have NTOTALNBND entries");
 
 			return true;
 		}
@@ -69,9 +77,7 @@ namespace cadet
 		{
 		public:
 
-			SplineBindingBase() :pore_phase_concentration(),
-				Spline_parameters(),
-				solid_phase_concentration() {}
+			SplineBindingBase() :_porePhaseConc(), _splineParams() {}
 
 			virtual ~SplineBindingBase() CADET_NOEXCEPT { }
 
@@ -92,11 +98,12 @@ namespace cadet
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_reactionQuasistationarity;
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
+			int _totBoundStates;
+			std::vector<int> _bndStateOffset;
 
-			// Storage for trained ANN curve for spline fitting
-			std::vector<double> pore_phase_concentration;
-			std::vector<double> Spline_parameters;
-			std::vector<double> solid_phase_concentration;
+			// Storage for trained ANN curves for spline fitting
+			std::vector< std::vector<double> > _splineParams; // [_totBoundStates][coeffs]
+			std::vector< std::vector<double> > _porePhaseConc; // [_nComp][coeffs]
 
 			/***************************************************************************************************/
 			size_t find_closest(double x, const std::vector<double>& m_x) const
@@ -109,24 +116,53 @@ namespace cadet
 			{
 				const bool result = ParamHandlerBindingModelBase<ParamHandler_t>::configureImpl(paramProvider, unitOpIdx, parTypeIdx);
 
+				_totBoundStates = 0;
+				_bndStateOffset.resize(_nComp + 1);
+				_bndStateOffset[0] = 0;
+
+				for (int comp = 0; comp < _nComp + 1; ++comp)
+				{
+					if (comp > 0)
+						_bndStateOffset[comp] = _bndStateOffset[comp - 1] + _nBoundStates[comp - 1];
+				}
+				_totBoundStates = _bndStateOffset[_nComp];
+
 				// Input parameters
 
 				// Read some ML parameters
-				paramProvider.pushScope("model_weights");
-				paramProvider.pushScope("spline_input_parameters");
+				paramProvider.pushScope("spline_model_parameters");
 
-				solid_phase_concentration = paramProvider.getDoubleArray("Q_VALS");
-				pore_phase_concentration = paramProvider.getDoubleArray("C_VALS");
+				_splineParams.resize(_totBoundStates);
+				_porePhaseConc.resize(_nComp);
 
-				tk::spline s;
-				s.set_boundary(tk::spline::second_deriv, 0.0,
-					tk::spline::first_deriv, 0.0);
-				s.set_points(pore_phase_concentration, solid_phase_concentration, tk::spline::cspline);
-				s.make_monotonic();
-				Spline_parameters = s.coeff();
+				std::vector<double> solidPhaseConc; // Temporary storage for solid phase concentration values for current component and bound state
 
-				paramProvider.popScope(); // model_weights
-				paramProvider.popScope(); // adsorption
+				for (int comp = 0; comp < _nComp; ++comp)
+				{
+					if (_nBoundStates[comp] == 0)
+						continue;
+
+					_porePhaseConc[comp] = paramProvider.getDoubleArray(std::format("C_VALS_COMP_{:03}", comp));
+
+					for (int bnd = 0; bnd < _nBoundStates[comp]; ++bnd)
+					{
+						if (_nBoundStates[comp] == 1 && paramProvider.exists(std::format("CS_VALS_COMP_{:03}", comp)))
+							solidPhaseConc = paramProvider.getDoubleArray(std::format("CS_VALS_COMP_{:03}", comp));
+						else
+						{
+							std::string inputName = std::format("CS_VALS_COMP_{:03}", comp);
+							solidPhaseConc = paramProvider.getDoubleArray(inputName + std::format("_BND_{:03}", bnd));
+						}
+
+						tk::spline s;
+						s.set_boundary(tk::spline::second_deriv, 0.0,
+							tk::spline::first_deriv, 0.0);
+						s.set_points(_porePhaseConc[comp], solidPhaseConc, tk::spline::cspline);
+						s.make_monotonic();
+						_splineParams[_bndStateOffset[comp] + bnd] = s.coeff();
+					}
+				}
+				paramProvider.popScope(); // spline_model_parameters
 
 				return result;
 			}
@@ -135,117 +171,102 @@ namespace cadet
 			int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
 				CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
 			{
+				// Implements -kKin * (f(c_p) - q) = kKin * (q - f(c_p)) where f is the spline model
+
 				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-				// We have to implement -kKin * (f(c_p) - q) = kKin * (q - f(c_p))
-				// where f is the ML model
-
-				// y points to q
-				// yCp points to c_p
-				// Use workSpace to obtain scratch memory
-
-				// Get a vector of doubles for the result of the ML model
-				BufferedArray<CpStateType> qMLarray = workSpace.array<CpStateType>(_nComp);
+				BufferedArray<CpStateType> qMLarray = workSpace.array<CpStateType>(_totBoundStates);
 				CpStateType* const qML = static_cast<CpStateType*>(qMLarray);
 
-				// Run the ML model on the c_p
-				mlModel<CpStateType>(qML, yCp, workSpace);
+				splineModel<CpStateType>(qML, yCp, workSpace);
 
-				// Compute res = kKin * (q - f(c_p))
-				unsigned int bndIdx = 0;
-				for (int i = 0; i < _nComp; ++i)
+				int bndIdx = 0;
+
+				for (int comp = 0; comp < _nComp; ++comp)
 				{
-					// Skip components without bound states (bound state index bndIdx is not advanced)
-					if (_nBoundStates[i] == 0)
-						continue;
-
-					// Residual: kKin * (q - f(c_p))
-					res[bndIdx] = static_cast<ParamType>(p->kKin[i]) * (y[bndIdx] - qML[bndIdx]);
-
-					// Next bound component
-					++bndIdx;
+					for (int bnd = 0; bnd < _nBoundStates[comp]; ++bnd, ++bndIdx)
+					{
+						res[bndIdx] = static_cast<ParamType>(p->kKin[bndIdx]) * (y[bndIdx] - qML[bndIdx]);
+					}
 				}
 
 				return 0;
 			}
 
 			template <typename StateType>
-			void mlModel(StateType* q, StateType const* cp, LinearBufferAllocator workSpace) const
+			void splineModel(StateType* q, StateType const* cp, LinearBufferAllocator workSpace) const
 			{
-				// JAZIB: Here goes the ML model
-				// Fill q array (output) using cp array (input)
-				/* ***************************************************
-				****Forward propagation of the neural network********
-				******************************************************/
+				int bndIdx = 0;
 
-				const size_t n = pore_phase_concentration.size();
-				
-				const size_t n_param = Spline_parameters.size();
-				
-				const size_t idx = find_closest(static_cast<double>(cp[0]), pore_phase_concentration);
+				for (int comp = 0; comp < _nComp; ++comp)
+				{
+					for (int bnd = 0; bnd < _nBoundStates[comp]; ++bnd, ++bndIdx)
+					{
+						const auto& coeffs = _splineParams[bndIdx];
+						const int n_param = coeffs.size();
+						const int n_pts = _porePhaseConc[comp].size();
 
-				const StateType h = cp[0] - pore_phase_concentration[idx];
+						const double cp_val = static_cast<double>(cp[comp]);
+						const int idx = find_closest(cp_val, _porePhaseConc[comp]);
+						const double h = cp_val - _porePhaseConc[comp][idx];
 
-				if (cp[0] < pore_phase_concentration[0]) {
-					// extrapolation to the left
-					q[0] = (Spline_parameters[1] * h + Spline_parameters[2]) * h + Spline_parameters[3];
-				}
-				else if (cp[0] >= pore_phase_concentration[n - 1]) {
-					// extrapolation to the right
-					q[0] = (Spline_parameters[n_param - 3] * h + Spline_parameters[n_param - 2]) * h + Spline_parameters[n_param - 1];
-				}
-				else {
-					// interpolation
-					q[0] = ((Spline_parameters[4 * idx] * h + Spline_parameters[4 * idx + 1]) * h + Spline_parameters[4 * idx + 2]) * h + Spline_parameters[4 * idx + 3];
-					//First_derivative = (3.0 * layer_0_kernel0[4 * idx] * h + 2.0 * layer_0_kernel0[4 * idx + 1]) * h + layer_0_kernel0[4 * idx + 2];
+						if (cp_val < _porePhaseConc[comp][0])
+						{
+							q[bndIdx] = (coeffs[1] * h + coeffs[2]) * h + coeffs[3];
+						}
+						else if (cp_val >= _porePhaseConc[comp][n_pts - 1])
+						{
+							q[bndIdx] = (coeffs[n_param - 3] * h + coeffs[n_param - 2]) * h + coeffs[n_param - 1];
+						}
+						else
+						{
+							q[bndIdx] = ((coeffs[4 * idx] * h + coeffs[4 * idx + 1]) * h + coeffs[4 * idx + 2]) * h + coeffs[4 * idx + 3];
+						}
+					}
 				}
 			}
 
 			template <typename RowIterator>
-			void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
+			void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
+				double const* y, double const* yCp, int offsetCp,
+				RowIterator jac, LinearBufferAllocator workSpace) const
 			{
-				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+				// Implements the Jacobian of -kKin * (f(c_p) - q) wrt. c_p and q where f is the spline model
 
-				// We have to implement Jacobian of -kKin * (f(c_p) - q) wrt. c_p and q
-				// where f is the ML model
+				typename ParamHandler_t::ParamsHandle const p =
+					_paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-				// y points to q
-				// yCp points to c_p
-				// Use workSpace to obtain scratch memory
+				int bndIdx = 0;
 
-				unsigned int bndIdx = 0;
-				for (int i = 0; i < _nComp; ++i)
+				for (int comp = 0; comp < _nComp; ++comp)
 				{
-					// Skip components without bound states (bound state index bndIdx is not advanced)
-					if (_nBoundStates[i] == 0)
-						continue;
+					const double cp_val = yCp[comp];
+					const int n_pts = _porePhaseConc[comp].size();
 
-					const double kkin = static_cast<double>(p->kKin[i]);
-
-					for (int j = 0; j < _nComp; ++j)
+					for (int bnd = 0; bnd < _nBoundStates[comp]; ++bnd, ++bndIdx)
 					{
-						const double pore_val = yCp[0];
+						const auto& coeffs = _splineParams[bndIdx];
+						const int n_param = coeffs.size();
 
-						const size_t n = pore_phase_concentration.size();
+						const int idx = find_closest(cp_val, _porePhaseConc[comp]);
+						const double h = cp_val - _porePhaseConc[comp][idx];
 
-						const size_t idx = find_closest(pore_val, pore_phase_concentration);
+						// derivative dq/dcp
+						const double dq_dcp =
+							(3.0 * coeffs[4 * idx] * h + 2.0 * coeffs[4 * idx + 1]) * h + coeffs[4 * idx + 2];
 
-						const double h = yCp[0] - pore_phase_concentration[idx];
+						// derivative wrt q_i
+						jac[0] = static_cast<double>(p->kKin[bndIdx]);
 
-						const double First_derivative = (3.0 * Spline_parameters[4 * idx] * h + 2.0 * Spline_parameters[4 * idx + 1]) * h + Spline_parameters[4 * idx + 2];
+						// derivative wrt c_p for the same component
+						// -bnd - _bndStateOffset[comp] - offsetCp shifts to cp entry of current component
+						jac[-bnd - _bndStateOffset[comp] - offsetCp] = -static_cast<double>(p->kKin[bndIdx]) * dq_dcp;
 
-						jac[j - bndIdx - offsetCp] = -kkin * First_derivative;
-
+						++jac; // advance to next row
 					}
-
-					// dres_i / dq_i
-					jac[0] = kkin;
-
-					// Advance to next flux and Jacobian row
-					++bndIdx;
-					++jac;
 				}
 			}
+
 		};
 
 		typedef SplineBindingBase<SplineParamHandler> SplineBinding;
