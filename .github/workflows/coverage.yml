@@ -27,11 +27,20 @@ jobs:
       BUILD_DIR: ${{ github.workspace }}/build
       INSTALL_PREFIX: ${{ github.workspace }}/install
       BUILD_TYPE: RelWithDebInfo 
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-          ref: ${{ github.event.inputs.ref || github.ref }}
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+        ref: ${{ github.event.inputs.ref || github.ref }}
+    - name: Install GCC-14
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-14 g++-14
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 60
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 60
+        gcc --version
+        g++ --version
+
       - name: Install Dependencies
         run: |
           sudo apt-get update

@@ -177,16 +177,26 @@ jobs:
           submodules: true
           path: src
           ref: ${{ github.event.inputs.ref || github.ref }}
-      - name: Install Dependencies
+
+      - name: Install GCC-14
         run: |
           sudo apt-get update
-          sudo apt -y install \
+          sudo apt-get install -y gcc-14 g++-14
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 60
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 60
+          gcc --version
+          g++ --version
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get install -y \
             build-essential \
             libhdf5-dev \
             liblapack-dev \
             libblas-dev \
             libtbb-dev \
-            libsuperlu-dev \
+            libsuperlu-dev;
+
       - name: Build Eigen
         run: |
           git clone https://gitlab.com/libeigen/eigen.git
@@ -205,7 +215,13 @@ jobs:
           cmake -E make_directory "${BUILD_DIR}"
           cmake -E make_directory "${INSTALL_PREFIX}"
           cd "${BUILD_DIR}"
-          cmake -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" "${SRC_DIR}" -DENABLE_TESTS=ON -DNUM_MAX_AD_DIRS=160
+          cmake \
+            -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+            -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+            -DEIGEN3_DIR="${INSTALL_PREFIX}/eigen" \
+            "${SRC_DIR}" \
+            -DENABLE_TESTS=ON \
+            -DNUM_MAX_AD_DIRS=160
           make install -j$(nproc)
       - name: Check executable
         if: always() && steps.build.conclusion == 'success'
@@ -226,10 +242,10 @@ jobs:
           failed_tests=()
           for i in {1..24}; do
             if ! ${BUILD_DIR}/test/testRunner "[CI_sens${i}]"; then
-                echo -e "::error::Test [CI_sens${i}] failed\n"
+              echo -e "::error::Test [CI_sens${i}] failed\n"
 
-                failed=1
-                failed_tests+=("[CI_sens${i}]")
+              failed=1
+              failed_tests+=("[CI_sens${i}]")
             fi
           done
           if [ $failed -ne 0 ]; then
@@ -243,10 +259,10 @@ jobs:
           failed_tests=()
           for i in {1..20}; do
             if ! ${BUILD_DIR}/test/testRunner "[CI_cry${i}]"; then
-                echo -e "::error::Test [CI_cry${i}] failed\n"
+              echo -e "::error::Test [CI_cry${i}] failed\n"
 
-                failed=1
-                failed_tests+=("[CI_cry${i}]")
+              failed=1
+              failed_tests+=("[CI_cry${i}]")
             fi
           done
           if [ $failed -ne 0 ]; then
