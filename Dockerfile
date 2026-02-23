@@ -9,6 +9,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Install dependencies without Eigen3 for which v5 is not yet available on apt
 RUN apt-get update && \
     apt-get -y install \
+        gcc-14 g++-14 \
         build-essential \
         cmake \
         libhdf5-dev \
@@ -16,7 +17,9 @@ RUN apt-get update && \
         intel-mkl \
         git \
         git-lfs && \
-    apt-get clean
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100 && \
+    rm -rf /var/lib/apt/lists/*
 
 # --- Build and install Eigen3 v5 manually ---
 ENV EIGEN_INSTALL_PREFIX=/usr/local/eigen5
