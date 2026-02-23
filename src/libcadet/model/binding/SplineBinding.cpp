@@ -1,8 +1,8 @@
 // =============================================================================
 //  CADET
 //  
-//  Copyright © 2008-2021: The CADET Authors
-//            Please see the AUTHORS and CONTRIBUTORS file.
+//  Copyright © 2008-present: The CADET-Core Authors
+//            Please see the AUTHORS.md file.
 //  
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
@@ -20,7 +20,6 @@
 #include "SimulationTypes.hpp"
 #include "AdUtils.hpp"
 #include "model/binding/spline.h"
-//#include <iostream>
 #include <functional>
 #include <unordered_map>
 #include <string>
@@ -94,8 +93,9 @@ namespace cadet
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
-			std::vector<double> pore_phase_concentration; //Defining these vectors to store trained ANN curve for spline fitting
-			std::vector<double> Spline_parameters;  //Defining these vectors to store trained ANN curve for spline fitting
+			// Storage for trained ANN curve for spline fitting
+			std::vector<double> pore_phase_concentration;
+			std::vector<double> Spline_parameters;
 			std::vector<double> solid_phase_concentration;
 
 			/***************************************************************************************************/
@@ -109,7 +109,7 @@ namespace cadet
 			{
 				const bool result = ParamHandlerBindingModelBase<ParamHandler_t>::configureImpl(paramProvider, unitOpIdx, parTypeIdx);
 
-				//Input parameters
+				// Input parameters
 
 				// Read some ML parameters
 				paramProvider.pushScope("model_weights");
@@ -146,7 +146,7 @@ namespace cadet
 
 				// Get a vector of doubles for the result of the ML model
 				BufferedArray<CpStateType> qMLarray = workSpace.array<CpStateType>(_nComp);
-				CpStateType* const qML = static_cast<CpStateType*>(qMLarray); //double const* qML
+				CpStateType* const qML = static_cast<CpStateType*>(qMLarray);
 
 				// Run the ML model on the c_p
 				mlModel<CpStateType>(qML, yCp, workSpace);
@@ -177,7 +177,7 @@ namespace cadet
 				/* ***************************************************
 				****Forward propagation of the neural network********
 				******************************************************/
-				//				const double factor = 1 / (1 - 0.69);
+
 				const size_t n = pore_phase_concentration.size();
 				
 				const size_t n_param = Spline_parameters.size();
@@ -191,7 +191,7 @@ namespace cadet
 					q[0] = (Spline_parameters[1] * h + Spline_parameters[2]) * h + Spline_parameters[3];
 				}
 				else if (cp[0] >= pore_phase_concentration[n - 1]) {
-					// extrapolatwdwyvd ion to the right
+					// extrapolation to the right
 					q[0] = (Spline_parameters[n_param - 3] * h + Spline_parameters[n_param - 2]) * h + Spline_parameters[n_param - 1];
 				}
 				else {
@@ -205,7 +205,7 @@ namespace cadet
 			void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
 			{
 				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
-				//std::cout << "Time is : " << t << "\n";
+
 				// We have to implement Jacobian of -kKin * (f(c_p) - q) wrt. c_p and q
 				// where f is the ML model
 
@@ -224,7 +224,6 @@ namespace cadet
 
 					for (int j = 0; j < _nComp; ++j)
 					{
-						//						const double factor = 1 / (1 - 0.69);
 						const double pore_val = yCp[0];
 
 						const size_t n = pore_phase_concentration.size();
@@ -233,14 +232,8 @@ namespace cadet
 
 						const double h = yCp[0] - pore_phase_concentration[idx];
 
-						//						std::vector< std::vector<double> >dout(1, std::vector<double>(1));
-						//						dout[0][0] = 0.0;
-
 						const double First_derivative = (3.0 * Spline_parameters[4 * idx] * h + 2.0 * Spline_parameters[4 * idx + 1]) * h + Spline_parameters[4 * idx + 2];
 
-						//						dout[0][0] =  factor * First_derivative; //*keq
-												// dres_i / dc_{p,j} = -kkin[i] * df_i / dc_{p,j}
-												//dout[0][0] = keq * 148.422 / (1 + keq * yCp[0] * yCp[0]);
 						jac[j - bndIdx - offsetCp] = -kkin * First_derivative;
 
 					}
