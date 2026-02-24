@@ -235,8 +235,8 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE = MULTI_CHANNEL_TRANSPORT
 
    Type of reconstruction method for FV fluxes
 
-   ================  ================================  =============
-   **Type:** string  **Range:** :math:`\texttt{WENO}`  **Length:** 1
-   ================  ================================  =============
+   ================  =======================================  =============
+   **Type:** string  **Range:** :math:`\texttt{WENO, KOREN}`  **Length:** 1
+   ================  =======================================  =============
 
-For further discretization parameters, see also :ref:`flux_reconstruction_methods` (FV specific), and :ref:`non_consistency_solver_parameters`.
+For further discretization parameters, see also :ref:`flux_reconstruction_methods`, and :ref:`non_consistency_solver_parameters`.

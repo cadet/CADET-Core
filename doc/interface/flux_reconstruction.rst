@@ -3,8 +3,23 @@
 Flux reconstruction methods
 ===========================
 
-Group /input/model/unit_XXX/discretization/reconstruction = WENO
------------------------------------------------------------------
+
+Group /input/model/unit_XXX/discretization
+------------------------------------------
+
+``GRID_FACES``
+
+    Optional, required only for non-equidistant grids.
+    An array specifying the coordinates of all grid faces, which are used for reconstruction.
+    The array length must equal the number of grid faces, i.e., number of grid cells plus one, and the column boundaries must be included.
+
+   ================  =========================  ============================
+   **Type:** double  **Range:** :math:`[0, L]`  **Length:** :math:`NCOL + 1`
+   ================  =========================  ============================
+
+
+Group /input/model/unit_XXX/discretization/weno - RECONSTRUCTION = WENO
+-----------------------------------------------------------------------
 
 ``BOUNDARY_MODEL``
 
@@ -20,11 +35,11 @@ Group /input/model/unit_XXX/discretization/reconstruction = WENO
 ``WENO_EPS``
 
     WENO :math:`\varepsilon`, a small regularization parameter added to the nonlinear weight denominator to prevent division by zero and improve numerical condition for small smoothness indicators.
-    Default value :math:`1e-10`.
+    A default value :math:`1e-10` often works well.
 
-    ================  ==================================  =============
-    **Type:** double  **Range:** :math:`\mathbb{R}^{>0}`  **Length:** 1
-    ================  ==================================  =============
+    ================  =====================  =============
+    **Type:** double  **Range:** :math:`>0`  **Length:** 1
+    ================  =====================  =============
 
 ``WENO_ORDER``
 
@@ -39,36 +54,16 @@ Group /input/model/unit_XXX/discretization/reconstruction = WENO
    =============  ==============================  =============
 
 
-``GRID_FACES``
-
-    Optional, required only for non-equidistant grids.
-    An array specifying the coordinates of all grid faces, which are used for reconstruction.
-    The array length must equal the number of grid faces, i.e., one more than the number of grid cells, and the column boundaries must be included.
-
-   ================  =========================  ============================
-   **Type:** double  **Range:** :math:`[0, L]`  **Length:** :math:`NCOL + 1`
-   ================  =========================  ============================
-
-Group /input/model/unit_XXX/discretization/reconstruction = KOREN
------------------------------------------------------------------
+Group /input/model/unit_XXX/discretization/koren - RECONSTRUCTION = KOREN
+-------------------------------------------------------------------------
 
 The Koren scheme implemented in CADET intrinsically uses a van Leer flux limiter and has a theoretical convergence order between 1 and 2 depending on the smoothness of the solution.
 
 ``KOREN_EPS``
 
    Sets :math:`\varepsilon` in the van Leer flux limiter, a small numerical parameter added to the slope-ratio denominator to prevent division by zero and improve numerical condition when gradients are very small.
-   Default value :math:`1e-10`.
+   A default value :math:`1e-10` often works well.
 
-   ================  ========================  =============
-   **Type:** double  **Range:** :math:`\qe 0`  **Length:** 1
-   ================  ========================  =============
-
-   ``GRID_FACES``
-
-    Optional, required only for non-equidistant grids.
-    An array specifying the coordinates of all grid faces, which are used for reconstruction.
-    The array length must equal the number of grid faces, i.e., one more than the number of grid cells, and the column boundaries must be included.
-
-   ================  =========================  ============================
-   **Type:** double  **Range:** :math:`[0, L]`  **Length:** :math:`NCOL + 1`
-   ================  =========================  ============================
+   ================  ======================  =============
+   **Type:** double  **Range:** :math:`> 0`  **Length:** 1
+   ================  ======================  =============
