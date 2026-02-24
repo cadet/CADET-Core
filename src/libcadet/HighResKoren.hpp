@@ -38,7 +38,7 @@ namespace cadet
  * to stay in the TVD region. The limiter uses a smoothness monitor to
  * monitor the smoothness of the solution and adjust the scheme between
  * first and second order. \varepsilon in the van Leer flux limiter is
- * set to 1e-10. The BOUNDARY_MODEL is set to 0. 
+ * set to 1e-10.
  */
 class HighResolutionKoren
 {
