@@ -104,7 +104,8 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
 		const double lastFace = static_cast<double>(_cellFaces.back());
 		if (std::abs(lastFace - static_cast<double>(_colLength)) > 1e-12)
 			throw InvalidParameterException("Last entry of GRID_FACES must match COL_LENGTH");
-
+		if (_cellFaces[0] > 1e-15)
+			throw InvalidParameterException("First entry of GRID_FACES must be zero");
 
 		// Check if grid is equidistant
 		const double firstWidth = static_cast<double>(_cellFaces[1] - _cellFaces[0]);
