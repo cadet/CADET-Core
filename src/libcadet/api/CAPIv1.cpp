@@ -726,18 +726,6 @@ namespace v1
 	CADET_API_GET_VOLUME(SolutionDerivative, solutionDotConfig, volumeDot,,)
 	CADET_API_GET_VOLUME(SensitivityDerivative, sensitivityDotConfig, sensVolumeDot, CADET_COMMA int sensIdx, sensIdx)
 
-	cdtResult getNumberOfStates(cdtDriver* drv, unsigned int* nDofs)
-	{
-		Driver* const realDrv = drv->driver;
-		if (!realDrv)
-			return cdtErrorInvalidInputs;
-		
-		cadet::ISimulator* const sim = realDrv->simulator();
-		*nDofs = sim->numDofs(); //? = numStates
-
-		return cdtOK;
-	}
-
 
 	cdtResult getLastState(cdtDriver* drv, double const** state, int* nStates)
 	{
@@ -1192,7 +1180,6 @@ extern "C"
 		ptr->getSensitivityDerivativeFlux = &cadet::api::v1::getSensitivityDerivativeFlux;
 		ptr->getSensitivityDerivativeVolume = &cadet::api::v1::getSensitivityDerivativeVolume;
 
-		ptr->getNumberOfStates = &cadet::api::v1::getNumberOfStates;
 		ptr->getLastState = &cadet::api::v1::getLastState;
 		ptr->getLastStateTimeDerivative = &cadet::api::v1::getLastStateTimeDerivative;
 		ptr->getLastUnitState = &cadet::api::v1::getLastUnitState;
@@ -1207,7 +1194,6 @@ extern "C"
 		ptr->getParticleCoordinates = &cadet::api::v1::getParticleCoordinates;
 
 		ptr->getSolutionTimes = &cadet::api::v1::getSolutionTimes;
-
 		ptr->getTimeSim = &cadet::api::v1::getTimeSim;
 
 		return cdtOK;
@@ -1217,7 +1203,7 @@ extern "C"
 
 extern "C"
 {
-	CADET_API cdtResult cdtGetAPIv010001(cdtAPIv010001* ptr)
+	CADET_API cdtResult cdtGetAPIv010000_ext1(cdtAPIv010000_ext1* ptr)
 	{
 		if (!ptr)
 			return cdtErrorInvalidInputs;

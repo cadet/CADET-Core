@@ -875,8 +875,6 @@ extern "C"
 		cdtResult (*getSensitivityDerivativeVolume)(cdtDriver* drv, int unitOpId, int sensIdx, double const** time, double const** data, int* nTime);
 
 		
-		cdtResult (*getNumberOfStates)(cdtDriver* drv, unsigned int* nStates);
-		
 		/**
 		 * @brief Returns the last state of the simulation
 		 * @details Before this function is called, a simulation has to be run successfully.
@@ -1019,7 +1017,7 @@ extern "C"
 		cdtResult (*performSimulationStep)(cdtDriver* drv, double tEnd, double* tReached);
 		cdtResult (*endSimulation)(cdtDriver* drv);
 
-	} cdtAPIv010001;
+	} cdtAPIv010000_ext1;
 
 
 	/**
@@ -1034,7 +1032,7 @@ extern "C"
 	 * @param[out] ptr      Pointer to a matching function pointer struct that is populated if the API is available
 	 * @return     Success (>= 0) if the API is available, otherwise error (< 0)
 	 */
-	CADET_API cdtResult cdtGetAPIv010001(cdtAPIv010001* ptr);
+	CADET_API cdtResult cdtGetAPIv010000_ext1(cdtAPIv010000_ext1* ptr);
 
 }
 
