@@ -1135,174 +1135,6 @@ namespace v1
 		return cdtOK;
 	}
 
-	cdtResult setState(cdtDriver* drv, double const* state, double currentTime, int nStates)
-	{
-		//std::ofstream logFile("cadet_setstate.log", std::ios_base::app); // Anhängen
-
-		//logFile << "C-API setState called with currentTime=" << currentTime << ", nStates=" << nStates << std::endl;
-		
-		Driver* const realDrv = drv->driver;
-		if (!realDrv)
-		{
-			//logFile << "C-API setState: Invalid driver" << std::endl;
-			return cdtErrorInvalidInputs;
-		}
-		if (!state)
-		{
-			//logFile << "C-API setState: Invalid state pointer" << std::endl;
-			return cdtErrorInvalidInputs;
-		}
-
-		cadet::ISimulator* const sim = realDrv->simulator();
-		if (!sim)
-		{
-			//logFile << "C-API: Simulator not initialized. Call initializeSimulation() first." << std::endl;
-			return cdtError;
-		}
-		
-		try
-		{
-			unsigned int len = 0;
-			double* simState = const_cast<double*>(sim->getLastSolution(len));
-
-			//logFile << "C-API setState: simState len=" << len << ", input nStates=" << nStates << std::endl;
-			//logFile << "C-API setState: Input state[2]=" << state[2] << ", state[3]=" << state[3] << std::endl;
-			//logFile << "C-API setState: Before copy simState[2]=" << simState[2] << ", simState[3]=" << simState[3] << std::endl;
-
-			if (static_cast<int>(len) != nStates)
-			{
-				//logFile << "C-API: State size mismatch: expected " << len << ", got " << nStates << std::endl;
-				return cdtErrorInvalidInputs;
-			}
-
-			std::copy(state, state + nStates, simState); // in frist, in last, dest
-
-			//logFile << "C-API setState: After copy simState[2]=" << simState[2] << ", simState[3]=" << simState[3] << std::endl;
-
-			//logFile << "C-API setState: Calling reinitialize(" << currentTime << ")" << std::endl;
-			const int result = sim->reinitialize(currentTime);
-			if (result < 0)
-			{
-				//logFile << "C-API: Reinitialization after setState failed with code " << result << std::endl;
-				return cdtError;
-			}
-
-			//logFile << "C-API: Set full system state (" << nStates << " values) at t=" << currentTime << " - SUCCESS" << std::endl;
-		}
-		catch(const std::exception& e)
-		{
-			//logFile << "C-API: Setting state failed: " << e.what() << std::endl;
-			return cdtError;
-		}
-
-		return cdtOK;
-	}
-
-	cdtResult setUnitState(cdtDriver* drv, int unitOpId, double const* state, int nStates)
-	{
-		Driver* const realDrv = drv->driver;
-		if (!realDrv)
-			return cdtErrorInvalidInputs;
-		if (!state)
-			return cdtErrorInvalidInputs;
-
-		cadet::ISimulator* const sim = realDrv->simulator();
-		if (!sim)
-		{
-			LOG(Error) << "C-API: Simulator not initialized. Call initializeSimulation() first.";
-			return cdtError;
-		}
-		
-		try
-		{
-			unsigned int sliceStart;
-			unsigned int sliceEnd;
-
-			std::tie(sliceStart,sliceEnd) = sim->model()->getModelStateOffsets(unitOpId);
-
-			const unsigned int unitStateSize = sliceEnd - sliceStart;
-			if (static_cast<int>(unitStateSize) != nStates)
-			{
-				LOG(Error) << "C-API: Unit state size mismatch for unit " << unitOpId 
-						<< ": expected " << unitStateSize << ", got " << nStates;
-				return cdtErrorInvalidInputs;
-			}
-			unsigned int len = 0;
-			double* simState = const_cast<double*>(sim->getLastSolution(len));
-			//todo update _ystateDot
-
-			std::copy(state, state + nStates, simState + sliceStart);
-
-			const int result = 0.0; //sim->reinitialize(currentTime);
-			if (result < 0)
-        	{
-            LOG(Error) << "C-API: Reinitialization after setUnitState failed";
-            return cdtError;
-        	}
-
-			LOG(Debug) << "C-API: Set state for unit " << unitOpId 
-            << " (" << nStates << " values at offset " << sliceStart << ")";
-
-		}
-		catch(const std::exception& e)
-		{
-        LOG(Error) << "C-API: Setting unit state failed: " << e.what();
-        return cdtError;
-		}
-
-	return cdtOK;
-	
-	}
-
-	cdtResult setBulkState(cdtDriver* drv, int unitOpId, double time, double const* state, int nStates)
-	{		
-		Driver* const realDrv = drv->driver;
-		if (!realDrv)
-		{
-			return cdtErrorInvalidInputs;
-		}
-		if (!state)
-		{
-			return cdtErrorInvalidInputs;
-		}
-
-		cadet::ISimulator* const sim = realDrv->simulator();
-		if (!sim)
-		{
-			return cdtError;
-		}
-		
-		try
-		{
-		
-			unsigned int sliceStart;
-			unsigned int sliceEnd;
-			std::tie(sliceStart, sliceEnd) = sim->model()->getModelStateOffsets(unitOpId);
-			
-			unsigned len = 0;
-			double* simState = const_cast<double*>(sim->getLastSolution(len));
-			
-			auto unit = sim->model()->getUnitOperationModel(unitOpId);
-			unsigned OffsetToBulk = unit->numComponents();
-			std::copy(state, state + nStates, simState + sliceStart + OffsetToBulk);
-
-			const int result = sim->reinitialize(time);
-			
-			if (result < 0)
-				return cdtError;
-
-		}
-		catch(const std::exception& e)
-		{
-        	LOG(Error) << "C-API: Setting bulk state failed: " << e.what();
-			return cdtError;
-		}
-
-		return cdtOK;
-	}
-	
-
-
 }  // namespace v1
 
 }  // namespace api
@@ -1378,15 +1210,23 @@ extern "C"
 
 		ptr->getTimeSim = &cadet::api::v1::getTimeSim;
 
-		ptr->initializeSimulation = &cadet::api::v1::initializeSimulation;
-		ptr->performSimulationStep = &cadet::api::v1::performSimulationStep;
-		ptr->endSimulation = &cadet::api::v1::endSimulation;
-		ptr->setState = &cadet::api::v1::setState;
-		ptr->setUnitState = &cadet::api::v1::setUnitState;
-		ptr->setBulkState = &cadet::api::v1::setBulkState;
-
 		return cdtOK;
 	}
 
+}
+
+extern "C"
+{
+	CADET_API cdtResult cdtGetAPIv010001(cdtAPIv010001* ptr)
+	{
+		if (!ptr)
+			return cdtErrorInvalidInputs;
+
+		ptr->initializeSimulation = &cadet::api::v1::initializeSimulation;
+		ptr->performSimulationStep = &cadet::api::v1::performSimulationStep;
+		ptr->endSimulation = &cadet::api::v1::endSimulation;
+
+		return cdtOK;
+	}
 }
 

@@ -1009,14 +1009,18 @@ extern "C"
 		 */
 		cdtResult (*getTimeSim)(cdtDriver* drv, double* timeSim);
 
+
+	} cdtAPIv010000;
+
+
+	typedef struct
+	{
 		cdtResult (*initializeSimulation)(cdtDriver* drv, cdtParameterProvider const* paramProvider);
 		cdtResult (*performSimulationStep)(cdtDriver* drv, double tEnd, double* tReached);
 		cdtResult (*endSimulation)(cdtDriver* drv);
-		cdtResult (*setState)(cdtDriver* drv, double const* state, double currentState, int nStates);
-		cdtResult (*setUnitState)(cdtDriver* drv, int unitOpId, double const* state, int nStates);
-		cdtResult (*setBulkState)(cdtDriver* drv, int unitOpId, double time, double const* state, int nStates);
 
-	} cdtAPIv010000;
+	} cdtAPIv010001;
+
 
 	/**
 	 * @brief      Queries API version 1.0.0, which is returned as a struct of function pointers
@@ -1024,6 +1028,13 @@ extern "C"
 	 * @return     Success (>= 0) if the API is available, otherwise error (< 0)
 	 */
 	CADET_API cdtResult cdtGetAPIv010000(cdtAPIv010000* ptr);
+
+	/**
+	 * @brief      Queries API version 1.0.1, which is returned as a struct of function pointers
+	 * @param[out] ptr      Pointer to a matching function pointer struct that is populated if the API is available
+	 * @return     Success (>= 0) if the API is available, otherwise error (< 0)
+	 */
+	CADET_API cdtResult cdtGetAPIv010001(cdtAPIv010001* ptr);
 
 }
 
