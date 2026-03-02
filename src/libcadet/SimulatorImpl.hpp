@@ -215,6 +215,28 @@ protected:
 	 */
 	void updateMainErrorTolerances();
 
+	/**
+	 * @brief Prepares the simulator for step-by-step integration
+	 * @details Performs all initialization steps normally done in integrate(),
+	 *          but stops before the actual time integration loop.
+	 */
+	virtual void prepareIntegrator();
+
+	/**
+	 * @brief Performs one integration step until target time
+	 * @param [in] tEnd Target time
+	 * @param [out] tReached Actually reached time
+	 * @return 0 on success, negative error code otherwise
+	 */
+	virtual int integrateStep(double tEnd, double& tReached);
+
+	/**
+	 * @brief Reinitializes the integrator at the given time
+	 * @param [in] currentTime Current simulation time
+	 * @return 0 on success, negative error code otherwise
+	 */
+	virtual int reinitialize(double currentTime) override;
+
 	friend int ::cadet::residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* userData);
 
 	friend int ::cadet::linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector yCur, N_Vector yDotCur, N_Vector resCur);

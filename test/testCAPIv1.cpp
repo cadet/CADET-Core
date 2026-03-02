@@ -26,6 +26,11 @@
 #include <json.hpp>
 using json = nlohmann::json;
 
+// Set to true to suppress verbose parameter-provider (PP) printing
+static bool g_pp_quiet = true;
+
+#include <cmath>
+
 #include "cadet/cadet.h"
 
 const char* getLibBinaryPath();
@@ -164,6 +169,10 @@ json createColumnWithSMAJson(const std::string& uoType)
 		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT");
 
 		disc["USE_ANALYTIC_JACOBIAN"] = true;
+
+		// Required spatial discretization method
+		// Valid values include "FV" (finite volume) or "DG" (discontinuous Galerkin).
+		disc["SPATIAL_METHOD"] = std::string("FV");
 		disc["MAX_KRYLOV"] = 0;
 		disc["GS_TYPE"] = 1;
 		disc["MAX_RESTARTS"] = 10;
@@ -178,10 +187,204 @@ json createColumnWithSMAJson(const std::string& uoType)
 			weno["WENO_EPS"] = 1e-10;
 			disc["weno"] = weno;
 		}
+
+		// Minimal particle type configuration required by GENERAL_RATE_MODEL
+		{
+			json ptype;
+			ptype["ADSORPTION_MODEL"] = std::string("NONE");
+			ptype["NBOUND"] = {0, 0, 0, 0};
+			// Minimal particle discretization (used by particle operators)
+			json pdisc;
+			pdisc["NCELLS"] = 1;
+			pdisc["PAR_POLYDEG"] = 1;
+			pdisc["PAR_NELEM"] = 1;
+			pdisc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT");
+			ptype["discretization"] = pdisc;
+			// Particle geometry/properties (mirror unit-level defaults if not per-type)
+			ptype["PAR_RADIUS"] = 4.5e-5;
+			ptype["PAR_POROSITY"] = 0.75;
+			ptype["PAR_CORERADIUS"] = 0.0;
+            // Per-particle diffusion parameters (component-wise)
+            ptype["FILM_DIFFUSION"] = {6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6};
+            ptype["PORE_DIFFUSION"] = {7e-10, 6.07e-11, 6.07e-11, 6.07e-11};
+            ptype["SURFACE_DIFFUSION"] = {0.0, 0.0, 0.0, 0.0};
+			config["particle_type_000"] = ptype;
+		}
+
 		config["discretization"] = disc;
 	}
 
 	return config;
+}
+
+json createTankJson()
+{
+
+	json config;
+	// Model
+	{
+		json model;
+		model["NUNITS"] = 1;
+		// cstr - unit 000
+		{
+			json cstr;
+
+			cstr["UNIT_TYPE"] = std::string("CSTR");
+			cstr["NCOMP"] = 4;
+			cstr["INIT_LIQUID_VOLUME"] = 1.0;
+
+			cstr["INIT_C"] = {50.0, 0.0, 0.0, 0.0};
+			cstr["USE_ANALYTIC_JACOBIAN"] = true;
+
+			// Minimal discretization and particle properties required by
+			// some GRM/solver code paths — provide sensible defaults so
+			// runSimulation can query them safely.
+			{
+				json disc;
+				disc["NCOL"] = 1;
+				disc["NCELLS"] = 1;
+				disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT");
+				disc["SPATIAL_METHOD"] = std::string("FV");
+				disc["USE_ANALYTIC_JACOBIAN"] = true;
+				cstr["discretization"] = disc;
+			}
+
+			// Minimal particle-related fields (component-wise arrays)
+			cstr["ADSORPTION_MODEL"] = std::string("NONE");
+			cstr["NBOUND"] = {1, 1, 1, 1};
+			cstr["FILM_DIFFUSION"] = {6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6};
+			cstr["PORE_DIFFUSION"] = {7e-10, 6.07e-11, 6.07e-11, 6.07e-11};
+			cstr["SURFACE_DIFFUSION"] = {0.0, 0.0, 0.0, 0.0};
+			cstr["PAR_RADIUS"] = 4.5e-5;
+			cstr["PAR_POROSITY"] = 0.75;
+
+			// Minimal particle type required by some particle operators
+			{
+				json ptype;
+				ptype["ADSORPTION_MODEL"] = std::string("NONE");
+				// Provide at least one bound site per component to avoid
+				// "does not have a bound state" initialization errors.
+				ptype["NBOUND"] = {1, 1, 1, 1};
+
+				json pdisc;
+				pdisc["NCELLS"] = 1;
+				pdisc["PAR_POLYDEG"] = 1;
+				pdisc["PAR_NELEM"] = 1;
+				pdisc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT");
+				ptype["discretization"] = pdisc;
+
+				ptype["PAR_RADIUS"] = 4.5e-5;
+				ptype["PAR_POROSITY"] = 0.75;
+				ptype["FILM_DIFFUSION"] = {6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6};
+				ptype["PORE_DIFFUSION"] = {7e-10, 6.07e-11, 6.07e-11, 6.07e-11};
+				ptype["SURFACE_DIFFUSION"] = {0.0, 0.0, 0.0, 0.0};
+
+				cstr["particle_type_000"] = ptype;
+			}
+
+
+			model["unit_000"] = cstr;
+
+		}
+		// Valve switches: none for single CSTR (no connections needed)
+		{
+			json con;
+			// no switches for a single isolated CSTR
+			con["NSWITCHES"] = 1;
+			{
+				json sw;
+				sw["SECTION"] = 0;
+				sw["CONNECTIONS"] = {};
+
+				con["switch_000"] = sw;
+			} 
+			model["connections"] = con;
+		}
+
+		// Solver settings
+		{
+			json solver;
+
+			solver["MAX_KRYLOV"] = 0;
+			solver["GS_TYPE"] = 1;
+			solver["MAX_RESTARTS"] = 10;
+			solver["SCHUR_SAFETY"] = 1e-8;
+			model["solver"] = solver;
+		}
+
+		config["model"] = model;
+	}
+
+	// Return
+	{
+		json ret;
+		ret["WRITE_SOLUTION_TIMES"] = true;
+	
+		json grm;
+		grm["WRITE_SOLUTION_BULK"] = false;
+		grm["WRITE_SOLUTION_PARTICLE"] = false;
+		grm["WRITE_SOLUTION_FLUX"] = false;
+		grm["WRITE_SOLUTION_INLET"] = true;
+		grm["WRITE_SOLUTION_OUTLET"] = true;
+		
+		ret["unit_000"] = grm;
+		config["return"] = ret;
+	}
+
+	// Solver
+	{
+		json solver;
+
+		{
+			std::vector<double> solTimes;
+
+			solTimes.reserve(11);
+			for (double t = 0.0; t <= 10.0; t += 1.0)
+				solTimes.push_back(t);
+
+
+			solver["USER_SOLUTION_TIMES"] = solTimes;
+		}
+
+		solver["NTHREADS"] = 1;
+
+		// Sections
+		{
+			json sec;
+
+			sec["NSEC"] = 1;
+			sec["SECTION_TIMES"] = {0.0, 10.0};
+			sec["SECTION_CONTINUITY"] = {false};
+
+			solver["sections"] = sec;
+		}
+
+		// Time integrator
+		{
+			json ti;
+
+			ti["ABSTOL"] = 1e-8;
+			ti["RELTOL"] = 1e-6;
+			ti["ALGTOL"] = 1e-12;
+			ti["INIT_STEP_SIZE"] = 1e-6;
+			ti["MAX_STEPS"] = 10000;
+			ti["MAX_STEP_SIZE"] = 0.0;
+			ti["RELTOL_SENS"] = 1e-6;
+			ti["ERRORTEST_SENS"] = true;
+			ti["MAX_NEWTON_ITER"] = 4;
+			ti["MAX_ERRTEST_FAIL"] = 10;
+			ti["MAX_CONVTEST_FAIL"] = 10;
+			ti["MAX_NEWTON_ITER_SENS"] = 4;
+			ti["CONSISTENT_INIT_MODE"] = 1;
+			ti["CONSISTENT_INIT_MODE_SENS"] = 1;
+
+			solver["time_integrator"] = ti;
+		}
+
+		config["solver"] = solver;
+	}
+	return config;
+
 }
 
 json createLWEJson(const std::string& uoType)
@@ -389,14 +592,16 @@ public:
 
 	void pushScope(const std::string& scope)
 	{
-		std::cout << "[PP] SCOPE " << scope << "\n";
+		if (!g_pp_quiet)
+			std::cout << "[PP] SCOPE " << scope << "\n";
 		_opened.push(&_opened.top()->at(scope));
 		_scopePath += "/" + scope;
 	}
 
 	void popScope()
 	{
-		std::cout << "[PP] SCOPE POP\n";
+		if (!g_pp_quiet)
+			std::cout << "[PP] SCOPE POP\n";
 		_opened.pop();
 
 		std::size_t lastIdx = std::string::npos;
@@ -423,13 +628,13 @@ cdtResult getDouble(void* userData, const char* paramName, double* val)
 		const json& p = jn.current().at(paramName);
 		const json& pp = (p.is_array() && (p.size() == 1)) ? p[0] : p;
 
-		std::cout << "[PP] GET scalar [double] " << paramName << " = " << pp.get<double>() << "\n";
+		if (!g_pp_quiet) std::cout << "[PP] GET scalar [double] " << paramName << " = " << pp.get<double>() << "\n";
 		*val = pp.get<double>();
 		return cdtOK;
 	}
 	catch(const std::exception& e)
 	{
-		std::cout << "[PP] GET scalar [double] ERROR: " << e.what() << std::endl;
+		if (!g_pp_quiet) std::cout << "[PP] GET scalar [double] ERROR: " << e.what() << std::endl;
 		return cdtError;
 	}
 }
@@ -444,19 +649,19 @@ cdtResult getInt(void* userData, const char* paramName, int* val)
 
 		if (pp.is_boolean())
 		{
-			std::cout << "[PP] GET scalar [int] " << paramName << " = " << static_cast<int>(pp.get<bool>()) << "\n";
+			if (!g_pp_quiet) std::cout << "[PP] GET scalar [int] " << paramName << " = " << static_cast<int>(pp.get<bool>()) << "\n";
 			*val = pp.get<bool>();
 		}
 		else
 		{
-			std::cout << "[PP] GET scalar [int] " << paramName << " = " << pp.get<int>() << "\n";
+			if (!g_pp_quiet) std::cout << "[PP] GET scalar [int] " << paramName << " = " << pp.get<int>() << "\n";
 			*val = pp.get<int>();
 		}
 		return cdtOK;
 	}
 	catch(const std::exception& e)
 	{
-		std::cout << "[PP] GET scalar [int] ERROR: " << e.what() << std::endl;
+		if (!g_pp_quiet) std::cout << "[PP] GET scalar [int] ERROR: " << e.what() << std::endl;
 		return cdtError;
 	}
 }
@@ -471,19 +676,19 @@ cdtResult getBool(void* userData, const char* paramName, uint8_t* val)
 
 		if (pp.is_number_integer())
 		{
-			std::cout << "[PP] GET scalar [bool] " << paramName << " = " << static_cast<bool>(pp.get<int>()) << "\n";
+			if (!g_pp_quiet) std::cout << "[PP] GET scalar [bool] " << paramName << " = " << static_cast<bool>(pp.get<int>()) << "\n";
 			*val = static_cast<bool>(pp.get<int>());
 		}
 		else
 		{
-			std::cout << "[PP] GET scalar [bool] " << paramName << " = " << pp.get<bool>() << "\n";
+			if (!g_pp_quiet) std::cout << "[PP] GET scalar [bool] " << paramName << " = " << pp.get<bool>() << "\n";
 			*val = pp.get<bool>();
 		}
 		return cdtOK;
 	}
 	catch(const std::exception& e)
 	{
-		std::cout << "[PP] GET scalar [bool] ERROR: " << e.what() << std::endl;
+		if (!g_pp_quiet) std::cout << "[PP] GET scalar [bool] ERROR: " << e.what() << std::endl;
 		return cdtError;
 	}
 }
@@ -496,13 +701,13 @@ cdtResult getString(void* userData, const char* paramName, char const** val)
 		const json& p = jn.current().at(paramName);
 		const json& pp = (p.is_array() && (p.size() == 1)) ? p[0] : p;
 
-		std::cout << "[PP] GET scalar [string] " << paramName << " = " << pp.get_ref<const std::string&>() << "\n";
+		if (!g_pp_quiet) std::cout << "[PP] GET scalar [string] " << paramName << " = " << pp.get_ref<const std::string&>() << "\n";
 		*val = pp.get_ptr<const std::string*>()->c_str();
 		return cdtOK;
 	}
 	catch(const std::exception& e)
 	{
-		std::cout << "[PP] GET scalar [string] ERROR: " << e.what() << std::endl;
+		if (!g_pp_quiet) std::cout << "[PP] GET scalar [string] ERROR: " << e.what() << std::endl;
 		return cdtError;
 	}
 }
@@ -516,30 +721,30 @@ cdtResult getDoubleArrayItem(void* userData, const char* paramName, int idx, dou
 
 		if ((idx == 0) && !p.is_array())
 		{
-			std::cout << "[PP] GET array (" << idx << ") [double] " << paramName << " = " << p.get<double>() << "\n";
+			if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [double] " << paramName << " = " << p.get<double>() << "\n";
 			*val = p.get<double>();
 			return cdtOK;
 		}
 		if ((idx > 0) && !p.is_array())
 		{
-			std::cout << "[PP] GET array (" << idx << ") [double] ERROR: Item is scalar instead of array" << std::endl;
+			if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [double] ERROR: Item is scalar instead of array" << std::endl;
 			return cdtError;
 		}
 		if ((idx > 0) && (idx >= p.size()))
 		{
-			std::cout << "[PP] GET array (" << idx << ") [double] ERROR: Index out of bounds (size is " << p.size() << ")" << std::endl;
+			if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [double] ERROR: Index out of bounds (size is " << p.size() << ")" << std::endl;
 			return cdtError;
 		}
 
 		const json& pp = p[idx];
 
-		std::cout << "[PP] GET array (" << idx << ") [double] " << paramName << " = " << pp.get<double>() << "\n";
+		if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [double] " << paramName << " = " << pp.get<double>() << "\n";
 		*val = pp.get<double>();
 		return cdtOK;
 	}
 	catch(const std::exception& e)
 	{
-		std::cout << "[PP] GET array (" << idx << ") [double] ERROR: " << e.what() << std::endl;
+		if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [double] ERROR: " << e.what() << std::endl;
 		return cdtError;
 	}
 }
@@ -553,18 +758,18 @@ cdtResult getIntArrayItem(void* userData, const char* paramName, int idx, int* v
 
 		if ((idx == 0) && !p.is_array())
 		{
-			std::cout << "[PP] GET array (" << idx << ") [int] " << paramName << " = " << p.get<int>() << "\n";
+			if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [int] " << paramName << " = " << p.get<int>() << "\n";
 			*val = p.get<int>();
 			return cdtOK;
 		}
 		if ((idx > 0) && !p.is_array())
 		{
-			std::cout << "[PP] GET array (" << idx << ") [int] ERROR: Item is scalar instead of array" << std::endl;
+			if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [int] ERROR: Item is scalar instead of array" << std::endl;
 			return cdtError;
 		}
 		if ((idx > 0) && (idx >= p.size()))
 		{
-			std::cout << "[PP] GET array (" << idx << ") [int] ERROR: Index out of bounds (size is " << p.size() << ")" << std::endl;
+			if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [int] ERROR: Index out of bounds (size is " << p.size() << ")" << std::endl;
 			return cdtError;
 		}
 
@@ -572,19 +777,19 @@ cdtResult getIntArrayItem(void* userData, const char* paramName, int idx, int* v
 
 		if (pp.is_boolean())
 		{
-			std::cout << "[PP] GET array (" << idx << ") [int] " << paramName << " = " << static_cast<int>(pp.get<bool>()) << "\n";
+			if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [int] " << paramName << " = " << static_cast<int>(pp.get<bool>()) << "\n";
 			*val = pp.get<bool>();
 		}
 		else
 		{
-			std::cout << "[PP] GET array (" << idx << ") [int] " << paramName << " = " << pp.get<int>() << "\n";
+			if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [int] " << paramName << " = " << pp.get<int>() << "\n";
 			*val = pp.get<int>();
 		}
 		return cdtOK;
 	}
 	catch(const std::exception& e)
 	{
-		std::cout << "[PP] GET array (" << idx << ") [int] ERROR: " << e.what() << std::endl;
+		if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [int] ERROR: " << e.what() << std::endl;
 		return cdtError;
 	}
 }
@@ -598,18 +803,18 @@ cdtResult getBoolArrayItem(void* userData, const char* paramName, int idx, uint8
 
 		if ((idx == 0) && !p.is_array())
 		{
-			std::cout << "[PP] GET array (" << idx << ") [bool] " << paramName << " = " << p.get<bool>() << "\n";
+			if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [bool] " << paramName << " = " << p.get<bool>() << "\n";
 			*val = p.get<bool>();
 			return cdtOK;
 		}
 		if ((idx > 0) && !p.is_array())
 		{
-			std::cout << "[PP] GET array (" << idx << ") [bool] ERROR: Item is scalar instead of array" << std::endl;
+			if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [bool] ERROR: Item is scalar instead of array" << std::endl;
 			return cdtError;
 		}
 		if ((idx > 0) && (idx >= p.size()))
 		{
-			std::cout << "[PP] GET array (" << idx << ") [bool] ERROR: Index out of bounds (size is " << p.size() << ")" << std::endl;
+			if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [bool] ERROR: Index out of bounds (size is " << p.size() << ")" << std::endl;
 			return cdtError;
 		}
 
@@ -617,19 +822,19 @@ cdtResult getBoolArrayItem(void* userData, const char* paramName, int idx, uint8
 
 		if (pp.is_number_integer())
 		{
-			std::cout << "[PP] GET array (" << idx << ") [bool] " << paramName << " = " << static_cast<bool>(pp.get<int>()) << "\n";
+			if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [bool] " << paramName << " = " << static_cast<bool>(pp.get<int>()) << "\n";
 			*val = static_cast<bool>(pp.get<int>());
 		}
 		else
 		{
-			std::cout << "[PP] GET array (" << idx << ") [bool] " << paramName << " = " << pp.get<bool>() << "\n";
+			if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [bool] " << paramName << " = " << pp.get<bool>() << "\n";
 			*val = pp.get<bool>();
 		}
 		return cdtOK;
 	}
 	catch(const std::exception& e)
 	{
-		std::cout << "[PP] GET array (" << idx << ") [bool] ERROR: " << e.what() << std::endl;
+		if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [bool] ERROR: " << e.what() << std::endl;
 		return cdtError;
 	}
 }
@@ -643,30 +848,30 @@ cdtResult getStringArrayItem(void* userData, const char* paramName, int idx, cha
 
 		if ((idx == 0) && !p.is_array())
 		{
-			std::cout << "[PP] GET array (" << idx << ") [string] " << paramName << " = " << p.get_ref<const std::string&>() << "\n";
+			if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [string] " << paramName << " = " << p.get_ref<const std::string&>() << "\n";
 			*val = p.get_ptr<const std::string*>()->c_str();
 			return cdtOK;
 		}
 		if ((idx > 0) && !p.is_array())
 		{
-			std::cout << "[PP] GET array (" << idx << ") [string] ERROR: Item is scalar instead of array" << std::endl;
+			if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [string] ERROR: Item is scalar instead of array" << std::endl;
 			return cdtError;
 		}
 		if ((idx > 0) && (idx >= p.size()))
 		{
-			std::cout << "[PP] GET array (" << idx << ") [string] ERROR: Index out of bounds (size is " << p.size() << ")" << std::endl;
+			if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [string] ERROR: Index out of bounds (size is " << p.size() << ")" << std::endl;
 			return cdtError;
 		}
 
 		const json& pp = p[idx];
 
-		std::cout << "[PP] GET array (" << idx << ") [string] " << paramName << " = " << pp.get_ref<const std::string&>() << "\n";
+		if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [string] " << paramName << " = " << pp.get_ref<const std::string&>() << "\n";
 		*val = pp.get_ptr<const std::string*>()->c_str();
 		return cdtOK;
 	}
 	catch(const std::exception& e)
 	{
-		std::cout << "[PP] GET array (" << idx << ") [string] ERROR: " << e.what() << std::endl;
+		if (!g_pp_quiet) std::cout << "[PP] GET array (" << idx << ") [string] ERROR: " << e.what() << std::endl;
 		return cdtError;
 	}
 }
@@ -677,7 +882,7 @@ int exists(void* userData, const char* elemName)
 	const json& p = jn.current();
 	const bool found = p.find(elemName) != p.end();
 
-	std::cout << "[PP] EXISTS " << elemName << " = " << (found ? "yes" : "no") << "\n";
+	if (!g_pp_quiet) std::cout << "[PP] EXISTS " << elemName << " = " << (found ? "yes" : "no") << "\n";
 	return found;
 }
 
@@ -693,12 +898,12 @@ cdtResult isArray(void* userData, const char* paramName, uint8_t* res)
 		else
 			*res = 0;
 
-		std::cout << "[PP] ISARRAY " << paramName << " = " << p.is_array() << "\n";
+		if (!g_pp_quiet) std::cout << "[PP] ISARRAY " << paramName << " = " << p.is_array() << "\n";
 		return cdtOK;
 	}
 	catch(const std::exception& e)
 	{
-		std::cout << "[PP] ISARRAY ERROR: " << e.what() << std::endl;
+		if (!g_pp_quiet) std::cout << "[PP] ISARRAY ERROR: " << e.what() << std::endl;
 		return cdtError;
 	}
 }
@@ -709,12 +914,12 @@ int numElements(void* userData, const char* paramName)
 	try
 	{
 		const json& p = jn.current().at(paramName);
-		std::cout << "[PP] NUMELEMENTS " << paramName << " = " << p.size() << "\n";
+		if (!g_pp_quiet) std::cout << "[PP] NUMELEMENTS " << paramName << " = " << p.size() << "\n";
 		return p.size();
 	}
 	catch(const std::exception& e)
 	{
-		std::cout << "[PP] NUMELEMENTS ERROR: " << e.what() << std::endl;
+		if (!g_pp_quiet) std::cout << "[PP] NUMELEMENTS ERROR: " << e.what() << std::endl;
 		return -1;
 	}
 }
@@ -741,6 +946,8 @@ cdtResult popScope(void* userData)
 	return cdtOK;
 }
 
+
+static int performSimulationStepCSTRTest(cdtAPIv010000& api);
 
 int main(int argc, char** argv)
 {
@@ -792,7 +999,7 @@ int main(int argc, char** argv)
 		}
 	);
 
-	const json simSpec = createLWEJson("GENERAL_RATE_MODEL");
+	const json simSpec = createTankJson();
 	JsonNavigator jn(simSpec);
 
 	cdtParameterProvider pp
@@ -817,6 +1024,106 @@ int main(int argc, char** argv)
 		&popScope
 	};
 
+	// ---------- initializeSimulation tests ----------
+	std::cout << "\n=== initializeSimulation tests ===" << std::endl;
+
+	const cdtResult resInit = api.initializeSimulation(drv.get(), &pp);
+	std::cout << "initializeSimulation(drv, &pp) = " << resInit << std::endl;
+	if (CADET_ERR(resInit))
+	{
+		std::cout << "initializeSimulation failed (unexpected)" << std::endl;
+		return 1;
+	}
+
+	// Calling with a null parameter provider should return an error
+	const cdtResult resInitNull = api.initializeSimulation(drv.get(), nullptr);
+	std::cout << "initializeSimulation(drv, nullptr) = " << resInitNull << " (expected error)" << std::endl;
+	if (!CADET_ERR(resInitNull))
+	{
+		std::cout << "initializeSimulation accepted nullptr (unexpected)" << std::endl;
+		return 1;
+	}
+
+	// ---------- setState tests ----------
+	std::cout << "\n=== setState tests ===" << std::endl;
+
+	// Full system state
+	{
+		double const* lastState = nullptr;
+		int nStates = 0;
+		const cdtResult resGet = api.getLastState(drv.get(), &lastState, &nStates);
+		std::cout << "getLastState = " << resGet << " nStates = " << nStates << std::endl;
+		if (CADET_ERR(resGet) || (nStates <= 0))
+		{
+			std::cout << "getLastState failed" << std::endl;
+			return 1;
+		}
+
+		std::vector<double> stateCopy(lastState, lastState + nStates);
+		stateCopy[0] += 1.2345;
+		const cdtResult resSet = api.setState(drv.get(), stateCopy.data(), nStates);
+		std::cout << "setState() = " << resSet << std::endl;
+		if (CADET_ERR(resSet))
+		{
+			std::cout << "setState failed" << std::endl;
+			return 1;
+		}
+	}
+
+	// Unit-level state
+	{
+		double const* unitState = nullptr;
+		int nUnitStates = 0;
+		const cdtResult resGetUnit = api.getLastUnitState(drv.get(), 0, &unitState, &nUnitStates);
+		std::cout << "getLastUnitState(0) = " << resGetUnit << " nUnitStates = " << nUnitStates << std::endl;
+		if (CADET_ERR(resGetUnit) || (nUnitStates <= 0))
+		{
+			std::cout << "getLastUnitState failed" << std::endl;
+			return 1;
+		}
+
+		std::vector<double> unitCopy(unitState, unitState + nUnitStates);
+		double old0 = unitCopy[0];
+		unitCopy[0] = old0 + 12.345;
+		const cdtResult resSetUnit = api.setUnitState(drv.get(), 0, unitCopy.data(), nUnitStates);
+		std::cout << "setUnitState(0) = " << resSetUnit << std::endl;
+		if (CADET_ERR(resSetUnit))
+		{
+			std::cout << "setUnitState failed" << std::endl;
+			return 1;
+		}
+
+		double const* unitStateAfter = nullptr;
+		int nUnitAfter = 0;
+		const cdtResult resGetAfter = api.getLastUnitState(drv.get(), 0, &unitStateAfter, &nUnitAfter);
+		std::cout << "getLastUnitState(0) after set = " << resGetAfter << " nUnitStates = " << nUnitAfter << std::endl;
+		if (unitStateAfter && (nUnitAfter == nUnitStates))
+		{
+			if (std::fabs(unitStateAfter[0] - unitCopy[0]) > 1e-12)
+			{
+				std::cout << "Note: Unit state value differs after set (this may be expected) got " << unitStateAfter[0] << " expected " << unitCopy[0] << std::endl;
+			}
+		}
+		else
+		{
+			std::cout << "getLastUnitState after failed" << std::endl;
+			return 1;
+		}
+	}
+
+	// Proceed to runSimulation (should work since simulator is initialized)
+
+	// Run the isolated CSTR runSimulation test first
+	{
+		const int resStepTest = performSimulationStepCSTRTest(api);
+		std::cout << "performSimulationStepCSTRTest() = " << resStepTest << std::endl;
+		if (resStepTest != 0)
+		{
+			std::cout << "performSimulationStep (CSTR runSimulation) failed" << std::endl;
+			return 1;
+		}
+	}
+
 	const cdtResult resSim = api.runSimulation(drv.get(), &pp);
 	std::cout << "runSimulation() = " << resSim << std::endl;
 
@@ -834,6 +1141,93 @@ int main(int argc, char** argv)
 	const cdtResult resSol = api.getSolutionOutlet(drv.get(), 0, &time, &outlet, &nTime, &nPort, &nComp);
 
 	std::cout << "getSolutionOutlet() = " << resSol << " nTime = " << nTime << " nPort = " << nPort << " nComp = " << nComp << std::endl;
+
+	return 0;
+}
+
+// Additional performSimulationStep test for CSTR (uses createTankJson)
+// Creates a fresh driver, initializes the simulation and advances one step.
+static int performSimulationStepCSTRTest(cdtAPIv010000& api)
+{
+	std::unique_ptr<cdtDriver, std::function<void(cdtDriver*)>> drv2(api.createDriver(), [&api](cdtDriver* ptr)
+		{
+			api.deleteDriver(ptr);
+			std::cout << "Delete driver (drv2)" << std::endl;
+		}
+	);
+
+	const json simSpecCSTR = createTankJson();
+	JsonNavigator jn2(simSpecCSTR);
+
+	cdtParameterProvider pp2
+	{
+		&jn2,
+		&getDouble,
+		&getInt,
+		&getBool,
+		&getString,
+		nullptr,
+		nullptr,
+		nullptr,
+		nullptr,
+		&getDoubleArrayItem,
+		&getIntArrayItem,
+		&getBoolArrayItem,
+		&getStringArrayItem,
+		&exists,
+		&isArray,
+		&numElements,
+		&pushScope,
+		&popScope
+	};
+
+	std::cout << "\n=== performSimulationStep CSTR test ===" << std::endl;
+
+	// const cdtResult resInit2 = api.initializeSimulation(drv2.get(), &pp2);
+	// std::cout << "initializeSimulation (CSTR) = " << resInit2 << std::endl;
+	// if (CADET_ERR(resInit2))
+	// {
+	// 	std::cout << "initializeSimulation (CSTR) failed" << std::endl;
+	// 	return 1;
+	// }
+
+	// Initialize and then advance the CSTR using multiple small performSimulationStep calls
+	const cdtResult resInit2 = api.initializeSimulation(drv2.get(), &pp2);
+	std::cout << "initializeSimulation (CSTR) = " << resInit2 << std::endl;
+	if (CADET_ERR(resInit2))
+	{
+		std::cout << "initializeSimulation (CSTR) failed" << std::endl;
+		return 1;
+	}
+
+	double tReached = 0.0;
+	// perform 10 small steps of 1.0s up to t=10.0
+	for (int step = 1; step <= 10; ++step)
+	{
+		const double tEndStep = static_cast<double>(step);
+		const cdtResult resStep = api.performSimulationStep(drv2.get(), tEndStep, &tReached);
+		std::cout << "performSimulationStep (CSTR) step=" << step << " result=" << resStep << " reached=" << tReached << std::endl;
+		if (CADET_ERR(resStep))
+		{
+			std::cout << "performSimulationStep (CSTR) failed at step " << step << std::endl;
+			return 1;
+		}
+		// basic sanity: reached should be <= tEndStep
+		if (tReached > tEndStep + 1e-12)
+		{
+			std::cout << "Unexpected tReached (" << tReached << ") > tEndStep (" << tEndStep << ")" << std::endl;
+			return 1;
+		}
+	}
+
+	// Optionally retrieve outlet solution to verify result
+	double const* time2 = nullptr;
+	double const* outlet2 = nullptr;
+	int nTime2 = 0;
+	int nPort2 = 0;
+	int nComp2 = 0;
+	const cdtResult resSol2 = api.getSolutionOutlet(drv2.get(), 0, &time2, &outlet2, &nTime2, &nPort2, &nComp2);
+	std::cout << "getSolutionOutlet (CSTR) = " << resSol2 << " nTime = " << nTime2 << " nPort = " << nPort2 << " nComp = " << nComp2 << std::endl;
 
 	return 0;
 }

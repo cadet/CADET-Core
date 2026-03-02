@@ -9,6 +9,7 @@
 //  your option, any later version) which accompanies this distribution, and
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
+#include <fstream>
 
 #include "cadet/Exceptions.hpp"
 #include "cadet/SolutionRecorder.hpp"
@@ -169,6 +170,10 @@ namespace
 
 namespace cadet
 {
+    ISimulator::~ISimulator() CADET_NOEXCEPT
+    {
+    }
+
 	namespace log
 	{
 		inline std::ostream& operator<<(std::ostream& os, const N_Vector& nv)
@@ -1750,5 +1755,341 @@ namespace cadet
 	{
 		_notification = nc;
 	}
+	
+	
+	void Simulator::prepareIntegrator()
+	{
 
+#ifdef CADET_PARALLELIZE
+	#ifdef CADET_TBB_GLOBALCTRL
+		tbb::global_control tbbGlobalControl(tbb::global_control::max_allowed_parallelism, (_nThreads > 0) ? _nThreads : tbb::this_task_arena::max_concurrency());
+	#else
+		tbb::task_scheduler_init init(tbb::task_scheduler_init::deferred);
+		if (_nThreads > 0)
+			init.initialize(_nThreads);
+		else
+			init.initialize(tbb::task_scheduler_init::default_num_threads());
+	#endif
+		_model->setupParallelization(tbb::this_task_arena::max_concurrency());
+#else
+		_model->setupParallelization(1);
+#endif
+
+		// Set number of threads in SUNDIALS OpenMP-enabled implementation
+#ifdef CADET_SUNDIALS_OPENMP
+		if (_vecStateY)
+			NVec_SetThreads(_vecStateY, _nThreads);
+		if (_vecStateYdot)
+			NVec_SetThreads(_vecStateYdot, _nThreads);
+
+		for (unsigned int i = 0; i < _sensitiveParams.slices(); ++i)
+		{
+			NVec_SetThreads(_vecFwdYs[i], _nThreads);
+			NVec_SetThreads(_vecFwdYsDot[i], _nThreads);
+		}
+#endif
+
+		// Set number of AD directions
+		// @todo This is problematic if multiple Simulators are run concurrently!
+#if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
+		LOG(Debug) << "Setting AD directions from " << ad::getDirections() << " to " << numSensitivityAdDirections() + _model->requiredADdirs();
+		if (numSensitivityAdDirections() + _model->requiredADdirs() > ad::getMaxDirections())
+			throw InvalidParameterException("Requested " + std::to_string(numSensitivityAdDirections() + _model->requiredADdirs()) + " AD directions, but only "
+				+ std::to_string(ad::getMaxDirections()) + " are supported");
+
+		ad::setDirections(numSensitivityAdDirections() + _model->requiredADdirs());
+#endif
+
+		// Setup AD vectors by model
+		_model->prepareADvectors(AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()});
+
+		if (_solRecorder)
+		{
+			_solRecorder->notifyIntegrationStart(NVEC_LENGTH(_vecStateY), _sensitiveParams.slices(), _solutionTimes.size());
+			_model->reportSolutionStructure(*_solRecorder);
+		}
+
+
+		double startTime = static_cast<double>(_sectionTimes[0]);
+		_curSec = 0;
+
+		// Update Jacobian
+		_model->notifyDiscontinuousSectionTransition(startTime, _curSec, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()});
+
+
+		// Compute consistent initial values
+		LOG(Debug) << "---====--- CONSISTENCY ---====--- ";
+		const double consPrev = _model->residualNorm(SimulationTime{startTime, _curSec}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
+		LOG(Debug) << " ==========> Consistency error prev: " << consPrev;
+
+		if (!_skipConsistencyStateY && (_consistentInitMode != ConsistentInitialization::None))
+		{
+			const ConsistentInitialization mode = currentConsistentInitMode(_consistentInitMode, 0);
+			if (mode == ConsistentInitialization::Full)
+			{
+				_model->consistentInitialConditions( SimulationTime{startTime, _curSec}, SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, 
+				AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()}, _algTol);
+			}
+			else if (mode == ConsistentInitialization::Lean)
+			{
+				_model->leanConsistentInitialConditions( SimulationTime{startTime, _curSec}, SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, 
+				AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()}, _algTol);
+			}
+		}
+		_skipConsistencyStateY = false;
+
+		const bool wantSensitivities = _sensitiveParams.slices() > 0;
+		if (wantSensitivities && !_skipConsistencySensitivity && 
+			(_consistentInitModeSens != ConsistentInitialization::None))
+		{
+			const ConsistentInitialization mode = currentConsistentInitMode(_consistentInitModeSens, 0);
+			
+			if (mode == ConsistentInitialization::Full)
+			{
+				std::vector<double*> sensY = convertNVectorToStdVectorPtrs<double*>(_vecFwdYs, _sensitiveParams.slices());
+				std::vector<double*> sensYdot = convertNVectorToStdVectorPtrs<double*>(_vecFwdYsDot, _sensitiveParams.slices());
+				_model->consistentInitialSensitivity(SimulationTime{startTime, 0}, 
+					ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, 
+					sensY, sensYdot, _vecADres, _vecADy);
+			}
+			else if (mode == ConsistentInitialization::Lean)
+			{
+				std::vector<double*> sensY = convertNVectorToStdVectorPtrs<double*>(_vecFwdYs, _sensitiveParams.slices());
+				std::vector<double*> sensYdot = convertNVectorToStdVectorPtrs<double*>(_vecFwdYsDot, _sensitiveParams.slices());
+				_model->leanConsistentInitialSensitivity(SimulationTime{startTime, 0}, 
+					ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, 
+					sensY, sensYdot, _vecADres, _vecADy);
+			}
+		}
+			_skipConsistencySensitivity = false;
+
+			// IDAS Step 5.2: Re-initialization of the solver
+			IDAReInit(_idaMemBlock, startTime, _vecStateY, _vecStateYdot);
+			if (wantSensitivities)
+				IDASensReInit(_idaMemBlock, IDA_STAGGERED, _vecFwdYs, _vecFwdYsDot);
+			
+    		const double stepSize = _initStepSize.size() > 1 ? _initStepSize[0] : _initStepSize[0];
+			IDASetInitStep(_idaMemBlock, stepSize);
+
+			LOG(Info) << "Integration prepared successfully at t = " << startTime;
+
+	}
+
+	int Simulator::reinitialize(double currentTime)
+	{
+		//std::ofstream logFile("cadet_setstate.log", std::ios_base::app);
+
+		if (!_idaMemBlock)
+		{
+			//logFile << "IDAS not initialized";
+			return -1;
+		}
+
+		try
+		{
+			// Determine current section
+			_curSec = 0;
+			for (unsigned int i = 0; i < _sectionTimes.size() - 1; ++i)
+			{
+				if (currentTime >= static_cast<double>(_sectionTimes[i]) && 
+					currentTime < static_cast<double>(_sectionTimes[i + 1]))
+				{
+					_curSec = i;
+					break;
+				}
+			}
+			
+		//logFile << "Reinitializing at t = " << currentTime << " in section " << _curSec;
+			
+			// Get pointers to state vectors
+			double* yData = NVEC_DATA(_vecStateY);
+			double* yDotData = NVEC_DATA(_vecStateYdot);
+			
+			//logFile << "Before reinit: y[2]=" << yData[2] << ", y[3]=" << yData[3];
+
+			// Zero yDot
+			const unsigned int numDof = numDofs();
+			for (unsigned int i = 0; i < numDof; ++i)
+				yDotData[i] = 0.0;
+
+			// Notify model about section/time change
+			_model->notifyDiscontinuousSectionTransition(
+				currentTime, 
+				_curSec,
+				ConstSimulationState{yData, yDotData},
+				AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()}
+			);
+
+			//logFile << "After notify: y[2]=" << yData[2] << ", y[3]=" << yData[3];
+
+			// Use LEAN consistent initialization - this only fixes algebraic variables
+			// and computes yDot, but does NOT modify the differential variables (concentrations)
+			_model->leanConsistentInitialConditions(
+				SimulationTime{currentTime, _curSec}, 
+				SimulationState{yData, yDotData},
+				AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()}, 
+				_algTol
+			);
+
+			//logFile << "After leanConsistentInit: y[2]=" << yData[2] << ", y[3]=" << yData[3];
+
+			// IDAS Reinitialization
+			int solverFlag = IDAReInit(_idaMemBlock, currentTime, _vecStateY, _vecStateYdot);
+			if (solverFlag != IDA_SUCCESS)
+			{
+				//logFile << "IDAReInit failed with code " << solverFlag;
+				return solverFlag;
+			}
+
+			//logFile << "After IDAReInit: y[2]=" << yData[2] << ", y[3]=" << yData[3];
+
+			// Handle sensitivities
+			const bool wantSensitivities = _sensitiveParams.slices() > 0;
+			if (wantSensitivities)
+			{
+				solverFlag = IDASensReInit(_idaMemBlock, IDA_STAGGERED, _vecFwdYs, _vecFwdYsDot);
+				if (solverFlag != IDA_SUCCESS)
+				{
+					//logFile << "IDASensReInit failed with code " << solverFlag;
+					return solverFlag;
+				}
+			}
+
+			// Set step size
+			const double stepSize = _initStepSize.size() > _curSec ? _initStepSize[_curSec] : _initStepSize[0];
+			IDASetInitStep(_idaMemBlock, stepSize);
+			
+			// Increase max steps
+			IDASetMaxNumSteps(_idaMemBlock, 100000);
+
+			// Set stop time
+			const double tEnd = static_cast<double>(_sectionTimes.back());
+			if (tEnd > currentTime)
+			{
+				IDASetStopTime(_idaMemBlock, tEnd);
+			}
+
+			_lastIntTime = currentTime;
+			
+			//logFile << "Reinitialization successful at t = " << currentTime;
+		}
+		catch (const std::exception& e)
+		{
+			//logFile << "Reinitialization failed: " << e.what();
+			return -1;
+		}
+
+		return 0;
+	}
+
+	int Simulator::integrateStep(double tEnd, double& tReached)
+	{
+		if(!_idaMemBlock)
+		{
+			LOG(Error) << "IDAS not initialized.";
+			return -1;
+		}
+		
+		// Get current time from IDAS
+		double curT = 0.0;
+		IDAGetCurrentTime(_idaMemBlock, &curT);
+
+		// Check if tEnd is too close to current time
+		const double minTimeStep = 1e-12;
+		if (std::abs(tEnd - curT) < minTimeStep)
+		{
+			LOG(Warning) << "tEnd (" << tEnd << ") too close to current time (" << curT 
+						<< "). Skipping integration step.";
+			tReached = curT;
+			return 0;
+		}
+
+		// Check if tEnd is in the past
+		if (tEnd <= curT)
+		{
+			LOG(Warning) << "tEnd (" << tEnd << ") is not greater than current time (" << curT 
+						<< "). Skipping integration step.";
+			tReached = curT;
+			return 0;
+		}
+
+		while (curT < tEnd)
+		{	
+			// Determine the current section
+			_curSec = getNextSection(curT, _curSec);
+			
+			//make sure we're not past the last section
+			if (_curSec >= _sectionTimes.size() - 1)
+			{
+				_curSec = _sectionTimes.size() - 2;
+				LOG(Warning) << "Section index capped to " << _curSec;
+			}
+
+			// Determine continuous time slice
+			// This is a continuous section transition, so we don't need to
+			// restart the integrator and just integrate for a longer time
+			unsigned int skip = 1;
+			for (std::size_t i = _curSec; i < _sectionTimes.size() - 2; ++i)
+			{
+				if (!_sectionContinuity[i])
+					break;
+				++skip;
+			}
+			
+			// Ensure we don't go out of bounds
+			const std::size_t nextSecIdx = std::min(static_cast<std::size_t>(_curSec + skip), _sectionTimes.size() - 1);
+			const double secEndTime = static_cast<double>(_sectionTimes[nextSecIdx]);
+			const double endTime = std::min(secEndTime, tEnd);
+
+			LOG(Debug) << " ###### INTEGRATION sec " << _curSec << " from " << curT << " to " << endTime;
+
+			const double stepSize = _initStepSize.size() > _curSec ? _initStepSize[_curSec] : _initStepSize[0];
+			IDASetInitStep(_idaMemBlock, stepSize);
+			IDASetStopTime(_idaMemBlock, endTime);
+
+			// Use endTime for IDASolve, not tEnd
+			const int solverFlag = IDASolve(_idaMemBlock, endTime, &tReached, _vecStateY, _vecStateYdot, IDA_NORMAL);
+			
+			// Extract sensitivity information if available
+			const bool wantSensitivities = _sensitiveParams.slices() > 0;
+			if (wantSensitivities && (solverFlag == IDA_SUCCESS || solverFlag == IDA_TSTOP_RETURN))
+			{
+				IDAGetSens(_idaMemBlock, &tReached, _vecFwdYs);
+				IDAGetSensDky(_idaMemBlock, tReached, 1, _vecFwdYsDot);
+			}
+
+			if (solverFlag == IDA_ROOT_RETURN)
+			{
+				_lastIntTime = tReached;
+				LOG(Warning) << "Root found at t = " << tReached;
+				return 1;
+			}
+
+			if (solverFlag != IDA_SUCCESS && solverFlag != IDA_TSTOP_RETURN)
+			{
+				LOG(Error) << "IDASolve failed with code " << solverFlag
+						<< ": " << getIDAReturnFlagName(solverFlag);
+				return solverFlag;
+			}
+
+			_lastIntTime = tReached;
+			curT = tReached;
+
+			// Reached tEnd, we're done
+			if (curT >= tEnd - minTimeStep)
+				break;
+
+			// We stopped at a section boundary and reinitialize for next section
+			const int initResult = reinitialize(curT);
+			if (initResult != 0)
+			{
+				LOG(Error) << "Reinitialization at section boundary t = " << curT << " failed";
+				return -1;
+			}
+		}
+
+		tReached = curT;
+		return 0;
+		
+	}
 } // namespace cadet
