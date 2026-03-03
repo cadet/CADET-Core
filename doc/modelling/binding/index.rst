@@ -59,16 +59,16 @@ All three approaches are equivalent in rapid equilibrium (``IS_KINETIC = 0``) bu
 2. A linear driving force approximation is based on the equilibrium concentration :math:`q^*` for given :math:`c`.
     For example :math:`q^*= \frac{q_m k_{eq} c}{1 + k_{eq} c}` in the Langmuir model.
     Here, :math:`\frac{dq}{dt}` is proportional to the actual difference from equilibrium, i.e. :math:`\frac{dq}{dt} = k_{kin}(q^*-q)`.
-    Note that, the sign of :math:`\frac{dq}{dt}` causes the resulting flux to act towards the equilibrium.
+    Note that the sign of :math:`\frac{dq}{dt}` causes the resulting flux to act towards the equilibrium.
     In CADET, this approach is denoted by ``LDF``, for example in ``MULTI_COMPONENT_LANGMUIR_LDF``.
 
-3. An alterniative linear driving force approximation is based on the equilibrium concentration :math:`c^*` for given :math:`q`.
+3. An alternative linear driving force approximation is based on the equilibrium concentration :math:`c^*` for given :math:`q`.
     For example :math:`c^*=\frac{q}{k_{eq} \left(q_{m}-q\right)}` in the Langmuir model.
     Here, :math:`\frac{dq}{dt}` is proportional to the actual difference from equilibrium concentrations, i.e. :math:`\frac{dq}{dt} = k_{kin}(c-c^*)`.
-    Note that, the sign of :math:`\frac{dq}{dt}` causes the resulting flux to act towards the equilibrium.
+    Note that the sign of :math:`\frac{dq}{dt}` causes the resulting flux to act towards the equilibrium.
     In CADET, this approach is denoted by ``LDF_LIQUID_PHASE``, for example in ``MULTI_COMPONENT_LANGMUIR_LDF_LIQUID_PHASE``.    For example :math:`c^*=\frac{q}{k_{eq} \left(q_{m}-q\right)}` in the Langmuir model.
     Here, :math:`\frac{dq}{dt}` is proportional to the actual difference from equilibrium concentrations, i.e. :math:`\frac{dq}{dt} = k_{kin}(c-c^*)`.
-    Note that, the sign of :math:`\frac{dq}{dt}` causes the resulting flux to act towards the equilibrium.
+    Note that the sign of :math:`\frac{dq}{dt}` causes the resulting flux to act towards the equilibrium.
     In CADET, this approach is denoted by ``LDF_LIQUID_PHASE``, for example in ``MULTI_COMPONENT_LANGMUIR_LDF_LIQUID_PHASE``.
 
 In both LDF examples, the original rate constants :math:`k_a` and :math:`k_d` are replaced by the equilibrium contant :math:`k_{eq}=\frac{k_a}{k_d}`.
