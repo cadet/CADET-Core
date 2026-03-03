@@ -26,6 +26,8 @@
 #include "cadet/cadet.hpp"
 
 #include "common/SolutionRecorderImpl.hpp"
+#include "common/MultiCallback.hpp"
+#include "common/TimeoutCallback.hpp"
 
 namespace cadet
 {
@@ -182,6 +184,7 @@ public:
 	Driver() : _sim(nullptr), _builder(nullptr), _storage(nullptr), _writeLastState(false), _writeLastStateSens(false)
 	{
 		_builder = cadetCreateModelBuilder();
+		_callbacks.addCallback(&_timeout);
 	}
 
 	~Driver() CADET_NOEXCEPT
@@ -236,15 +239,26 @@ public:
 			cadetDestroySimulator(_sim);
 
 		_sim = cadetCreateSimulator();
+		_sim->setNotificationCallback(&_callbacks);
 
 		// Configure main solver parameters
 		pp.pushScope("solver");
 		_sim->configure(pp);
-		
+
 		// Configure section times
 		std::vector<double> secTimes;
 		std::vector<bool> secCont;
 		extractSectionTimes(pp, secTimes, secCont);
+
+		// Set timeout if provided, otherwise keep previously set timeout
+		if (pp.exists("TIMEOUT"))
+		{
+			const double timeoutSec = pp.getDouble("TIMEOUT");
+			if (timeoutSec > 0.0)
+				_timeout.setTimeout(timeoutSec);
+			else
+				_timeout.setTimeout(-1.0);
+		}
 
 		pp.popScope(); // solver scope
 
@@ -734,10 +748,20 @@ public:
 	inline cadet::InternalStorageSystemRecorder* solution() CADET_NOEXCEPT { return _storage; }
 	inline cadet::InternalStorageSystemRecorder const* solution() const CADET_NOEXCEPT { return _storage; }
 
+	void clearCallbacks() CADET_NOEXCEPT {
+		_callbacks.clear();
+		_callbacks.addCallback(&_timeout);
+	}
+
+	void addCallback(cadet::INotificationCallback* cb) { _callbacks.addCallback(cb); }
+
+	void setTimeout(double seconds) { _timeout.setTimeout(seconds); }
 protected:
 	cadet::ISimulator* _sim; //!< Simulator owned by this driver
 	cadet::IModelBuilder* _builder; //!< Model builder owned by this driver
 	cadet::InternalStorageSystemRecorder* _storage; //!< Storage for results
+	cadet::MultiCallback _callbacks; //!< Callbacks considered during time integration
+	cadet::TimeoutCallback _timeout; //!< Timeout for simulations
 
 	bool _writeLastState;
 	std::vector<UnitOpIdx> _writeLastStateUnitId;
