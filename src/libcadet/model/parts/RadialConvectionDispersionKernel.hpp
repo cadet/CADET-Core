@@ -31,6 +31,7 @@ namespace cadet
 {
 
 class IModel;
+class HighResolutionKoren;
 
 namespace model
 {
@@ -41,7 +42,7 @@ namespace parts
 namespace convdisp
 {
 
-template <typename T>
+template <typename T, typename Reconstruction_t>
 struct RadialFlowParameters
 {
 	T u;
@@ -49,6 +50,8 @@ struct RadialFlowParameters
 	active const* cellCenters; //!< Midpoints of the cells
 	active const* cellSizes; //!< Cell sizes
 	active const* cellBounds; //!< Cell boundaries
+	double* reconstructionDerivatives; //!< Holds derivatives of the reconstruction scheme
+	Reconstruction_t* reconstruction; //!< The reconstruction scheme implementation
 	ArrayPool* stencilMemory; //!< Provides memory for the stencil
 	int strideCell;
 	unsigned int nComp;
@@ -62,13 +65,12 @@ struct RadialFlowParameters
 
 namespace impl
 {
-	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes = true>
-	int residualForwardsRadialFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const RadialFlowParameters<ParamType>& p)
+	template <typename StateType, typename ResidualType, typename ParamType, typename Reconstruction_t, typename RowIteratorType, bool wantJac, bool wantRes = true>
+	int residualForwardsRadialFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const RadialFlowParameters<ParamType, Reconstruction_t>& p)
 	{
 		// The stencil caches parts of the state vector for better spatial coherence
 		typedef CachingStencil<StateType, ArrayPool> StencilType;
-//		StencilType stencil(std::max(p.weno->stencilSize(), 3u), *p.stencilMemory, std::max(p.weno->order() - 1, 1));
-		StencilType stencil(std::max(1u, 3u), *p.stencilMemory, std::max(1 - 1, 1));
+		StencilType stencil(std::max(p.reconstruction->stencilSize(), 3u), *p.stencilMemory, std::max(p.reconstruction->order() - 1, 1));
 
 		// The RowIterator is always centered on the main diagonal.
 		// This means that jac[0] is the main diagonal, jac[-1] is the first lower diagonal,
@@ -102,17 +104,17 @@ namespace impl
 			}
 
 			// Fill stencil (left side with zeros, right side with states)
-			for (int i = -std::max(1, 2) + 1; i < 0; ++i)
+			for (int i = -std::max(p.reconstruction->order(), 2) + 1; i < 0; ++i)
 				stencil[i] = 0.0;
-			for (int i = 0; i < std::max(1, 2); ++i)
+			for (int i = 0; i < std::max(p.reconstruction->order(), 2); ++i)
 				stencil[i] = yBulkComp[i * p.strideCell];
 
-			// Reset WENO output
+			// Reset reconstruction output
 			StateType vm(0.0); // reconstructed value
-//			if (wantJac)
-//				std::fill(p.wenoDerivatives, p.wenoDerivatives + p.weno->stencilSize(), 0.0);
+			if (wantJac)
+				std::fill(p.reconstructionDerivatives, p.reconstructionDerivatives + p.reconstruction->stencilSize(), 0.0);
 
-			int wenoOrder = 1;
+			int wenoOrder = 0;
 			const ParamType d_rad = static_cast<ParamType>(p.d_rad[comp]);
 
 			// Iterate over all cells
@@ -170,7 +172,7 @@ namespace impl
 						for (int i = 0; i < 2 * wenoOrder - 1; ++i)
 							// Note that we have an offset of -1 here (compared to the right cell face below), since
 							// the reconstructed value depends on the previous stencil (which has now been moved by one cell)
-							jac[(i - wenoOrder) * p.strideCell] -= static_cast<double>(p.u) / static_cast<double>(denom);
+							jac[(i - wenoOrder) * p.strideCell] -= static_cast<double>(p.u) / static_cast<double>(denom) * p.reconstructionDerivatives[i];
 					}
 				}
 				else if (wantRes)
@@ -181,17 +183,9 @@ namespace impl
 
 				// Reconstruct concentration on this cell's right face
 				if (wantJac)
-				{
-					wenoOrder = 1;
-					vm = stencil[0];
-					// wenoOrder = p.weno->template reconstruct<StateType, StencilType>(p.wenoEpsilon, col, p.nCol, stencil, vm, p.wenoDerivatives);
-				}
+					wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives);
 				else
-				{
-					wenoOrder = 1;
-					vm = stencil[0];
-					// wenoOrder = p.weno->template reconstruct<StateType, StencilType>(p.wenoEpsilon, col, p.nCol, stencil, vm);
-				}
+					wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm);
 
 				// Right side
 				if(wantRes)
@@ -200,11 +194,11 @@ namespace impl
 				if (wantJac)
 				{
 					for (int i = 0; i < 2 * wenoOrder - 1; ++i)
-						jac[(i - wenoOrder + 1) * p.strideCell] += static_cast<double>(p.u) / static_cast<double>(denom);
+						jac[(i - wenoOrder + 1) * p.strideCell] += static_cast<double>(p.u) / static_cast<double>(denom) * p.reconstructionDerivatives[i];
 				}
 
 				// Update stencil
-				const unsigned int shift = std::max(1, 2);
+				const unsigned int shift = std::max(p.reconstruction->order(), 2);
 				if (cadet_likely(col + shift < p.nCol))
 					stencil.advance(yBulkComp[(col + shift) * p.strideCell]);
 				else
@@ -223,13 +217,12 @@ namespace impl
 		return 0;
 	}
 
-	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes = true>
-	int residualBackwardsRadialFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const RadialFlowParameters<ParamType>& p)
+	template <typename StateType, typename ResidualType, typename ParamType, typename Reconstruction_t, typename RowIteratorType, bool wantJac, bool wantRes = true>
+	int residualBackwardsRadialFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const RadialFlowParameters<ParamType, Reconstruction_t>& p)
 	{
 		// The stencil caches parts of the state vector for better spatial coherence
 		typedef CachingStencil<StateType, ArrayPool> StencilType;
-		//		StencilType stencil(std::max(p.weno->stencilSize(), 3u), *p.stencilMemory, std::max(p.weno->order() - 1, 1));
-		StencilType stencil(std::max(1u, 3u), *p.stencilMemory, std::max(1 - 1, 1));
+		StencilType stencil(std::max(p.reconstruction->stencilSize(), 3u), *p.stencilMemory, std::max(p.reconstruction->order() - 1, 1));
 
 		// The RowIterator is always centered on the main diagonal.
 		// This means that jac[0] is the main diagonal, jac[-1] is the first lower diagonal,
@@ -263,17 +256,17 @@ namespace impl
 			}
 
 			// Fill stencil (left side with zeros, right side with states)
-			for (int i = -std::max(1, 2) + 1; i < 0; ++i)
+			for (int i = -std::max(p.reconstruction->order(), 2) + 1; i < 0; ++i)
 				stencil[i] = 0.0;
-			for (int i = 0; i < std::max(1, 2); ++i)
+			for (int i = 0; i < std::max(p.reconstruction->order(), 2); ++i)
 				stencil[i] = yBulkComp[(p.nCol - static_cast<unsigned int>(i) - 1) * p.strideCell];
 
-			// Reset WENO output
+			// Reset reconstruction output
 			StateType vm(0.0); // reconstructed value
-			//			if (wantJac)
-			//				std::fill(p.wenoDerivatives, p.wenoDerivatives + p.weno->stencilSize(), 0.0);
+			if (wantJac)
+				std::fill(p.reconstructionDerivatives, p.reconstructionDerivatives + p.reconstruction->stencilSize(), 0.0);
 
-			int wenoOrder = 1;
+			int wenoOrder = 0;
 			const ParamType d_rad = static_cast<ParamType>(p.d_rad[comp]);
 
 			// Iterate over all cells (backwards)
@@ -332,7 +325,7 @@ namespace impl
 						for (int i = 0; i < 2 * wenoOrder - 1; ++i)
 							// Note that we have an offset of +1 here (compared to the left cell face below), since
 							// the reconstructed value depends on the previous stencil (which has now been moved by one cell)
-							jac[(wenoOrder - i) * p.strideCell] += static_cast<double>(p.u) / static_cast<double>(denom);
+							jac[(wenoOrder - i) * p.strideCell] += static_cast<double>(p.u) / static_cast<double>(denom) * p.reconstructionDerivatives[i];
 					}
 				}
 				else if (wantRes)
@@ -343,17 +336,9 @@ namespace impl
 
 				// Reconstruct concentration on this cell's left face
 				if (wantJac)
-				{
-					wenoOrder = 1;
-					vm = stencil[0];
-					//					wenoOrder = p.weno->template reconstruct<StateType, StencilType>(p.wenoEpsilon, col, p.nCol, stencil, vm, p.wenoDerivatives);
-				}
+					wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives);
 				else
-				{
-					wenoOrder = 1;
-					vm = stencil[0];
-					//					wenoOrder = p.weno->template reconstruct<StateType, StencilType>(p.wenoEpsilon, col, p.nCol, stencil, vm);
-				}
+					wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm);
 
 				// Left face
 				if (wantRes)
@@ -362,11 +347,11 @@ namespace impl
 				if (wantJac)
 				{
 					for (int i = 0; i < 2 * wenoOrder - 1; ++i)
-						jac[(wenoOrder - i - 1) * p.strideCell] -= static_cast<double>(p.u) / static_cast<double>(denom);
+						jac[(wenoOrder - i - 1) * p.strideCell] -= static_cast<double>(p.u) / static_cast<double>(denom) * p.reconstructionDerivatives[i];
 				}
 
 				// Update stencil (be careful because of wrap-around, might cause reading memory very far away [although never used])
-				const unsigned int shift = std::max(1, 2);
+				const unsigned int shift = std::max(p.reconstruction->order(), 2);
 				if (cadet_likely(col - shift < p.nCol))
 					stencil.advance(yBulkComp[(col - shift) * p.strideCell]);
 				else
@@ -388,16 +373,23 @@ namespace impl
 } // namespace impl
 
 
-template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes = true>
-int residualKernelRadial(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const RadialFlowParameters<ParamType>& p)
+template <typename StateType, typename ResidualType, typename ParamType, typename Reconstruction_t, typename RowIteratorType, bool wantJac, bool wantRes = true>
+int residualKernelRadial(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const RadialFlowParameters<ParamType, Reconstruction_t>& p)
 {
+	// Inform the reconstruction scheme which face it will reconstruct at each cell
+	// (right face for forward/outward flow, left face for backward/inward flow).
+	// This is required for the non-equidistant correction to select the correct
+	// face coordinate; it is a no-op when the equidistant path is active.
+	p.reconstruction->setForwardFlow(static_cast<double>(p.u) >= 0.0);
+
 	if (p.u >= 0.0)
-		return impl::residualForwardsRadialFlow<StateType, ResidualType, ParamType, RowIteratorType, wantJac, wantRes>(simTime, y, yDot, res, jacBegin, p);
+		return impl::residualForwardsRadialFlow<StateType, ResidualType, ParamType, Reconstruction_t, RowIteratorType, wantJac, wantRes>(simTime, y, yDot, res, jacBegin, p);
 	else
-		return impl::residualBackwardsRadialFlow<StateType, ResidualType, ParamType, RowIteratorType, wantJac, wantRes>(simTime, y, yDot, res, jacBegin, p);
+		return impl::residualBackwardsRadialFlow<StateType, ResidualType, ParamType, Reconstruction_t, RowIteratorType, wantJac, wantRes>(simTime, y, yDot, res, jacBegin, p);
 }
 
 void sparsityPatternRadial(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, Weno& weno);
+void sparsityPatternRadial(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, HighResolutionKoren& koren);
 
 } // namespace convdisp
 } // namespace parts

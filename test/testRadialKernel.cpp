@@ -18,6 +18,7 @@
 #include "linalg/BandMatrix.hpp"
 #include "Memory.hpp"
 #include "AutoDiff.hpp"
+#include "Weno.hpp"
 #include "model/paramdep/DummyParameterDependence.cpp"
 #include "Dummies.hpp"
 
@@ -54,8 +55,8 @@ class RadialFlowModel : public cadet::test::IDiffEqModel
 {
 public:
 	RadialFlowModel(int nComp, int nCol) : _nComp(nComp), _nCol(nCol),
-		_params{0.0, nullptr, nullptr, nullptr, nullptr, nullptr, 0, 0, 0, 0, 0, nullptr, _dummyModel},
-		_stencilMemory(sizeof(cadet::active) * 5)
+		_params{0.0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 0, 0, 0, 0, 0, nullptr, _dummyModel},
+		_stencilMemory(sizeof(cadet::active) * cadet::Weno::maxStencilSize())
 	{
 		const int nPureDof = _nCol * _nComp;
 		_jacDisc.resize(nPureDof, 2 * nComp, 2 * nComp);
@@ -73,6 +74,8 @@ public:
 		_params.cellBounds = _cellBounds.data();
 		_params.cellCenters = _cellCenters.data();
 		_params.cellSizes = _cellSizes.data();
+		_params.reconstructionDerivatives = _wenoDerivatives;
+		_params.reconstruction = &_weno;
 		_params.stencilMemory = &_stencilMemory;
 		_params.offsetToBulk = _nComp;
 		_params.nCol = _nCol;
@@ -163,7 +166,7 @@ public:
 		for (int i = 0; i < _nComp; ++i)
 			res[i] = vecStateY[i] - inlet(time, secIdx, i);
 
-		const int ret = cadet::model::parts::convdisp::residualKernelRadial<double, double, double, cadet::linalg::BandMatrix::RowIterator, true>(
+		const int ret = cadet::model::parts::convdisp::residualKernelRadial<double, double, double, cadet::Weno, cadet::linalg::BandMatrix::RowIterator, true>(
 			cadet::SimulationTime{time, static_cast<unsigned int>(secIdx)},
 			vecStateY, vecStateYdot, res, _jac.row(0), _params
 		);
@@ -437,7 +440,9 @@ protected:
 	int _nCol;
 
 	DummyModel _dummyModel;
-	cadet::model::parts::convdisp::RadialFlowParameters<double> _params;
+	cadet::model::parts::convdisp::RadialFlowParameters<double, cadet::Weno> _params;
+	cadet::Weno _weno;
+	double _wenoDerivatives[cadet::Weno::maxStencilSize()];
 	cadet::linalg::BandMatrix _jac;
 	cadet::linalg::FactorizableBandMatrix _jacDisc;
 
