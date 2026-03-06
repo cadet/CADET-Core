@@ -13,6 +13,10 @@ Group /input/model/unit_XXX/discretization
     An array specifying the coordinates of all grid faces, which are used for reconstruction.
     The array length must equal the number of grid faces, i.e., number of grid cells plus one, and the column boundaries must be included.
 
+    .. note::
+        - large ratios of adjacent cells sizes **may** reduce reconstruction accuracy. Recommendation :math:`r = max(Δx_{i+1}/Δx_i, Δx_i/Δx_{i+1}) < 3`.
+        - Avoid large ratios :math:`Δx_{max} / Δx_{min}`, which **might** cause stiff ODE systems and thus slow, unstable time integration.
+
    ================  =========================  ============================
    **Type:** double  **Range:** :math:`[0, L]`  **Length:** :math:`NCOL + 1`
    ================  =========================  ============================
