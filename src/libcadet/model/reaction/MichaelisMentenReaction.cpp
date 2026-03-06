@@ -37,7 +37,8 @@
             
             { "type": "ComponentDependentReactionDependentParameter", "varName": "kInhibitComp", "confName": "MM_KI_C"},
             { "type": "ComponentDependentReactionDependentParameter", "varName": "kInhibitUnComp", "confName": "MM_KI_UC"},
-            { "type": "ComponentDependentReactionDependentParameter", "varName": "kInhibit", "confName": "MM_KI"}
+            { "type": "ComponentDependentReactionDependentParameter", "varName": "kInhibit", "confName": "MM_KI"},
+            { "type": "ComponentDependentReactionDependentParameter", "varName": "KPrefactor", "confName": "MM_PRE_K"}
         ]
 }
 </codegen>*/
@@ -186,6 +187,13 @@ protected:
             return reaction;
     }
 
+    // Helper function to calculate the parameter index for pre_k value
+    inline unsigned int getPreKParamIndex(unsigned int reaction, int substrate) const
+    {
+        // Calculate 2D parameter index: (reaction, substrate)
+        return (reaction * _nComp + static_cast<unsigned int>(substrate));
+    }
+
     virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
     {
         _paramHandler.configure(paramProvider, _stoichiometry.columns(), _nComp, _nBoundStates);
@@ -211,13 +219,19 @@ protected:
         if (!_oldInterface && (_stoichiometry.columns() > 0) && (_paramHandler.kMM().size() < _stoichiometry.columns() * _nComp))
             throw InvalidParameterException("MM_KMM must have the size (number of reactions) x (number of components)");
 
+        /*
+        if (!_oldInterface && (_stoichiometry.columns() > 0) && (_paramHandler.pre_k().size() < _stoichiometry.columns() * _nComp))
+            throw InvalidParameterException("MM_PRE_K must have the size (number of reactions) x (number of components)");
+        */
+
         // kInhibitComp and kInhibitUnComp are 3D parameters with size (number of reactions) x (number of substrates) x (number of components)
         if (paramProvider.exists("MM_STOICHIOMETRY"))
         {
             const std::vector<double> s = paramProvider.getDoubleArray("MM_STOICHIOMETRY");
             std::vector<double> KIC(_stoichiometry.columns() * _nComp * _nComp); 
             std::vector<double> KIUC(_stoichiometry.columns() * _nComp * _nComp);
-//            bool hasCompetiveInhibition = false;
+            std::vector<double> PRE_K(_stoichiometry.columns() * _nComp);
+            bool hasCompetiveInhibition = false;
             
             if (paramProvider.exists("MM_KI_C"))
             {
@@ -237,8 +251,14 @@ protected:
                 KIUC = paramProvider.getDoubleArray("MM_KI");
                 KIC = paramProvider.getDoubleArray("MM_KI");
             }
-
-
+            
+            if (paramProvider.exists("MM_PRE_K"))
+            {
+                PRE_K = paramProvider.getDoubleArray("MM_PRE_K");
+                if (PRE_K.size() != _stoichiometry.columns() * _nComp)
+                    throw InvalidParameterException("MM_PRE_K must have the size (number of reactions) x (number of components) ");
+            }
+            
             if (s.size() != _stoichiometry.elements())
                 throw InvalidParameterException("MM_STOICHIOMETRY size mismatch: Expected " +
                     std::to_string(_stoichiometry.elements()) + " elements but got " + std::to_string(s.size()));
@@ -248,16 +268,21 @@ protected:
             // Identify substrates (negative entries in stoichiometry matrix)
             const unsigned int nReactions = static_cast<unsigned int>(_stoichiometry.columns());
             _idxSubstrate.clear();
+
             _idxCompInhibitors.resize(nReactions);
             _idxUncompInhibitors.resize(nReactions);
+            
 
             for (unsigned int r = 0; r < nReactions; ++r)
             {
                 std::vector<int> idxSubstrateReaction_r;
+
                 for (unsigned int c = 0; c < _nComp; ++c)
                 {
                     if (_stoichiometry.native(c, r) < 0.0)
                         idxSubstrateReaction_r.push_back(static_cast<int>(c));
+                    
+                    const unsigned int paramIdx = getPreKParamIndex(r, c);
                 }
 
                 if (idxSubstrateReaction_r.empty())
@@ -299,7 +324,6 @@ protected:
 
             }
         }
-
         registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MM_STOICHIOMETRY", _stoichiometry);
         return true;
     }
@@ -318,7 +342,18 @@ protected:
         {
             unsigned int nSub = _idxSubstrate[r].size();
             flux_t vProd = 1.0;
-
+            flux_t preProd = 1.0;
+            for (unsigned int rowIdx = 0; rowIdx < static_cast<unsigned int>(_stoichiometry.rows()); ++rowIdx)
+            {
+                if (p->KPrefactor.size() != 0) 
+                {
+                    unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(rowIdx));
+                    flux_t pre_k_j = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->KPrefactor[prekIdx]);
+                    bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
+                    if (pre_k_j != 0 && !isSubstrate)
+                        preProd *= pre_k_j * y[rowIdx];
+                }
+            }
             // Product over all substrates
             for (unsigned int subIdx = 0; subIdx < nSub; ++subIdx)
             {
@@ -330,13 +365,11 @@ protected:
                 {
                     const unsigned int paramIdx = getInhibitionParamIndex(r, j, static_cast<unsigned int>(k), _oldInterface);
 
-
                     flux_t kIC = 0.0;
                     if (!_oldInterface)
                         kIC = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kInhibitComp[paramIdx]);
                     else
                         kIC = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kInhibit[paramIdx]);
-
 
                     compInhSum += y[k] / kIC;
                 }
@@ -370,7 +403,7 @@ protected:
 
             // Multiplication with vMax
             const flux_t vMax = static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->vMax[r]);
-            fluxes[r] = vMax * vProd;
+            fluxes[r] = preProd * vMax * vProd;
         }
 
         // Add reaction terms to residual
@@ -406,6 +439,7 @@ protected:
             std::vector<double> substratValues(nSub);    // Values for each substrate term
             std::vector<double> compInhSums(nSub, 0.0);  // Competitive inhibition sums
             std::vector<double> uncompInhSums(nSub, 0.0); // Uncompetitive inhibition sums
+
             double flux = 1.0; // Total flux
 
             // Calculate inhibition sums and substrate values
@@ -457,10 +491,21 @@ protected:
                 substratValues[subIdx] = subValue;
                 flux *= subValue;
             }
-
+			//  Calculate pre-factor product
+            double preProd = 1.0;
+            for (unsigned int rowIdx = 0; rowIdx < static_cast<unsigned int>(_stoichiometry.rows()); ++rowIdx)
+            {
+                if (p->KPrefactor.size() != 0) {
+                    unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(rowIdx));
+                    double pre_k_j = static_cast<double>(p->KPrefactor[prekIdx]);
+                    bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
+                    if (pre_k_j != 0 && !isSubstrate)
+                        preProd *= pre_k_j * y[rowIdx];
+                }
+            }
             // Multiplication with vMax
             const double vMax = static_cast<double>(p->vMax[r]);
-            flux *= vMax;
+            flux *= preProd * vMax;
 
             // Calculate Jacobian derivatives for all components
             for (unsigned int comp = 0; comp < _nComp; ++comp)
@@ -574,6 +619,17 @@ protected:
                     }
                 }
 
+				// Check for pre-factor contribution
+                if (!isSubstrate)
+                {
+                    if (p->KPrefactor.size() != 0) {
+                        unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(comp));
+                        double pre_k_j = static_cast<double>(p->KPrefactor[prekIdx]);
+                        if (pre_k_j != 0.0)
+                            dvdy += flux / y[comp];
+                    }
+                
+                }
                 if (std::abs(dvdy) < 1e-12)
                     continue;
 

@@ -38,15 +38,16 @@ Notes
     **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NREACT}`
     ================  =============================  ===================================
 
-``MM_KM``
+``MM_KMM``
     Michaelis constant :math:`K_{\mathrm{M}_{i,j}}` for reaction :math:`j` and substrate :math:`i`.
     This constant represents the substrate concentration at which the reaction rate is half of its maximum value.
+    Input as reaction index major.
 
     **Unit:** :math:`~mol^{-1}~m^{-3}`
 
-    ================  =============================  ===================================
-    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NREACT}`
-    ================  =============================  ===================================
+    ================  =============================  ======================================================
+    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NREACT} \cdot \texttt{NVAR}`
+    ================  =============================  ======================================================
 
 ``MM_KI_C``
     Inhibition constant for competitive inhibition :math:`K^{c}_{I_{k}}`.
@@ -67,9 +68,20 @@ Notes
 
     **Unit:** :math:`mol^{-1}~m^{-3}`
 
-    ================  =============================  =============================================================================
+    ================  =============================  ===========================================================================
     **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NREACT} \cdot \texttt{NVAR} \cdot \texttt{NVAR}`
-    ================  =============================  =============================================================================
+    ================  =============================  ===========================================================================
+
+``MM_PRE_K``
+    (Optinal) Factor (:math:`\neq 0`) before component for multiplying with Michaelis-Menten kinetics.
+    The index :math:`k` corresponds to the component acting on reaction :math:`j`. Note that components acting as substrates can not defined as prefactor components.
+    Input as reaction index major.
+
+    **Unit:** None
+
+    ================  =============================  ======================================================
+    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NREACT} \cdot \texttt{NVAR}`
+    ================  =============================  ======================================================
 
 CADET Python Interface Example
 ------------------------------
