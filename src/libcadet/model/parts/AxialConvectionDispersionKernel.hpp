@@ -26,6 +26,9 @@
 #include "model/ParameterDependence.hpp"
 #include "model/UnitOperation.hpp"
 
+#include <algorithm>
+#include <cmath>
+
 namespace cadet
 {
 
@@ -57,16 +60,25 @@ struct AxialFlowParameters
 	unsigned int offsetToBulk; //!< Offset to the first component of the first bulk cell in the local state vector
 	IParameterParameterDependence* parDep;
 	const IModel& model;
+	bool gridEquidistant;
+	std::vector<active> const* cellFaces; //!< Positions of the cell faces for non-equidistant grids
 };
 
 
 namespace impl
 {
+	template <class FaceContainerType>
+	struct ReverseFaceAccessor
+	{
+		const FaceContainerType& faces;
+		inline auto operator[](unsigned int idx) const -> decltype(faces[0]) { return faces[faces.size() - 1 - idx]; }
+	};
+
 	template <typename StateType, typename ResidualType, typename ParamType, typename ReconstrType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 	int residualForwardsAxialFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const AxialFlowParameters<ParamType, ReconstrType>& p)
 	{
-		// h is the size of the cell
-		const ParamType h2 = p.h * p.h;
+		// True if the grid cell faces are provided and gridEquidistant is set to be false. 
+		const bool nonEqGrid = p.cellFaces && !p.gridEquidistant;
 
 		// The stencil caches parts of the state vector for better spatial coherence
 		typedef CachingStencil<StateType, ArrayPool> StencilType;
@@ -81,6 +93,7 @@ namespace impl
 
 		ResidualType* const resBulk = wantRes ? res + p.offsetToBulk : nullptr;
 		StateType const* const yBulk = y + p.offsetToBulk;
+		const ParamType colLength = nonEqGrid ? static_cast<ParamType>(p.cellFaces->back()) : static_cast<ParamType>(0.0); // length of the column, needed for parameter dependence in non-equidistant grids
 
 		for (unsigned int comp = 0; comp < p.nComp; ++comp)
 		{
@@ -120,35 +133,53 @@ namespace impl
 			// Iterate over all cells
 			for (unsigned int col = 0; col < p.nCol; ++col)
 			{
+				const ParamType hCol = nonEqGrid ? static_cast<ParamType>((*p.cellFaces)[col + 1] - (*p.cellFaces)[col]) : p.h;              // size of the current cell
+				const ParamType invHCol = static_cast<ParamType>(p.u) / hCol;
+
 				// ------------------- Dispersion -------------------
 
 				// Right side, leave out if we're in the last cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					const double relCoord = static_cast<double>(col + 1) / p.nCol;
+					const ParamType hRight = nonEqGrid ? static_cast<ParamType>((*p.cellFaces)[col + 2] - (*p.cellFaces)[col + 1]) : p.h;     // size of the right cell
+					const ParamType deltaZ = nonEqGrid ? static_cast<ParamType>(0.5) * (hCol + hRight) : p.h;                                 // size of the distance between the centers in upwind direction, needed for non-equidistant grids
+					const double relCoord = nonEqGrid ?
+						static_cast<double>((*p.cellFaces)[col + 1]) / static_cast<double>(colLength) :
+						static_cast<double>(col + 1) / p.nCol;                                                                                // relative coordinate of the cell face for parameter dependence
+
 					const ParamType d_ax_right = d_ax * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+					
+					const ParamType coeff = d_ax_right / (hCol * deltaZ);
+
 					if (wantRes)
-						resBulkComp[col * p.strideCell] -= d_ax_right / h2 * (stencil[1] - stencil[0]);
-					// Jacobian entries
+						resBulkComp[col * p.strideCell] -= coeff * (stencil[1] - stencil[0]);
 					if (wantJac)
 					{
-						jac[0] += static_cast<double>(d_ax_right) / static_cast<double>(h2);
-						jac[p.strideCell] -= static_cast<double>(d_ax_right) / static_cast<double>(h2);
+						const double coeffJac = static_cast<double>(coeff);
+						jac[0] += coeffJac;
+						jac[p.strideCell] -= coeffJac;
 					}
 				}
 
 				// Left side, leave out if we're in the first cell (boundary condition)
 				if (cadet_likely(col > 0))
 				{
-					const double relCoord = static_cast<double>(col) / p.nCol;
+					const ParamType hLeft = nonEqGrid ? static_cast<ParamType>((*p.cellFaces)[col] - (*p.cellFaces)[col - 1]) : p.h;
+					const ParamType deltaZ = nonEqGrid ? static_cast<ParamType>(0.5) * (hLeft + hCol) : p.h;
+					const double relCoord = nonEqGrid ?
+						static_cast<double>((*p.cellFaces)[col]) / static_cast<double>(colLength) :
+						static_cast<double>(col) / p.nCol;
+
 					const ParamType d_ax_left = d_ax * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+
+					const ParamType coeff = d_ax_left / (hCol * deltaZ);
 					if (wantRes)
-						resBulkComp[col * p.strideCell] -= d_ax_left / h2 * (stencil[-1] - stencil[0]);
-					// Jacobian entries
+						resBulkComp[col * p.strideCell] -= coeff * (stencil[-1] - stencil[0]);
 					if (wantJac)
 					{
-						jac[0] += static_cast<double>(d_ax_left) / static_cast<double>(h2);
-						jac[-p.strideCell] -= static_cast<double>(d_ax_left) / static_cast<double>(h2);
+						const double coeffJac = static_cast<double>(coeff);
+						jac[0] += coeffJac;
+						jac[-p.strideCell] -= coeffJac;
 					}
 				}
 
@@ -160,7 +191,7 @@ namespace impl
 					// Remember that vm still contains the reconstructed value of the previous 
 					// cell's *right* face, which is identical to this cell's *left* face!
 					if (wantRes)
-						resBulkComp[col * p.strideCell] -= p.u / p.h * vm;
+						resBulkComp[col * p.strideCell] -= (nonEqGrid ? invHCol : static_cast<ParamType>(p.u) / p.h) * vm;
 
 					// Jacobian entries
 					if (wantJac)
@@ -168,29 +199,39 @@ namespace impl
 						for (int i = 0; i < 2 * wenoOrder - 1; ++i)
 							// Note that we have an offset of -1 here (compared to the right cell face below), since
 							// the reconstructed value depends on the previous stencil (which has now been moved by one cell)
-							jac[(i - wenoOrder) * p.strideCell] -= static_cast<double>(p.u) / static_cast<double>(p.h) * p.reconstructionDerivatives[i];
+							jac[(i - wenoOrder) * p.strideCell] -= (nonEqGrid ? static_cast<double>(invHCol) : static_cast<double>(p.u) / static_cast<double>(p.h)) * p.reconstructionDerivatives[i];
 					}
 				}
 				else if (wantRes)
 				{
 					// In the first cell we need to apply the boundary condition: inflow concentration
-					resBulkComp[col * p.strideCell] -= p.u / p.h * y[p.offsetToInlet + comp];
+					resBulkComp[col * p.strideCell] -= (nonEqGrid ? invHCol : static_cast<ParamType>(p.u) / p.h) * y[p.offsetToInlet + comp];
 				}
 
 				// Reconstruct concentration on this cell's right face
-				if (wantJac)
-					wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives);
+				if (nonEqGrid)
+				{
+					if (wantJac)
+						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives, *p.cellFaces);
+					else
+						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, *p.cellFaces);
+				}
 				else
-					wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm);
+				{
+					if (wantJac)
+						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives);
+					else
+						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm);
+				}
 
 				// Right side
 				if (wantRes)
-					resBulkComp[col * p.strideCell] += p.u / p.h * vm;
+					resBulkComp[col * p.strideCell] += (nonEqGrid ? invHCol : static_cast<ParamType>(p.u) / p.h) * vm;
 				// Jacobian entries
 				if (wantJac)
 				{
 					for (int i = 0; i < 2 * wenoOrder - 1; ++i)
-						jac[(i - wenoOrder + 1) * p.strideCell] += static_cast<double>(p.u) / static_cast<double>(p.h) * p.reconstructionDerivatives[i];
+						jac[(i - wenoOrder + 1) * p.strideCell] += (nonEqGrid ? static_cast<double>(invHCol) : static_cast<double>(p.u) / static_cast<double>(p.h)) * p.reconstructionDerivatives[i];
 				}
 
 				// Update stencil
@@ -208,7 +249,7 @@ namespace impl
 			}
 		}
 
-		// Film diffusion with flux into beads is added in residualFlux() function
+		// Note: film diffusion with flux into beads is added in residualFlux() function
 
 		return 0;
 	}
@@ -216,7 +257,7 @@ namespace impl
 	template <typename StateType, typename ResidualType, typename ParamType, typename ReconstrType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 	int residualBackwardsAxialFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const AxialFlowParameters<ParamType, ReconstrType>& p)
 	{
-		const ParamType h2 = p.h * p.h;
+		const bool nonEqGrid = p.cellFaces && !p.gridEquidistant;
 
 		// The stencil caches parts of the state vector for better spatial coherence
 		typedef CachingStencil<StateType, ArrayPool> StencilType;
@@ -231,6 +272,7 @@ namespace impl
 
 		ResidualType* const resBulk = wantRes ? res + p.offsetToBulk : nullptr;
 		StateType const* const yBulk = y + p.offsetToBulk;
+		const ParamType colLength = nonEqGrid ? static_cast<ParamType>(p.cellFaces->back()) : static_cast<ParamType>(0.0);
 
 		for (unsigned int comp = 0; comp < p.nComp; ++comp)
 		{
@@ -271,35 +313,51 @@ namespace impl
 			// Note that col wraps around to unsigned int's maximum value after 0
 			for (unsigned int col = p.nCol - 1; col < p.nCol; --col)
 			{
+				const ParamType hCol = nonEqGrid ? static_cast<ParamType>((*p.cellFaces)[col + 1] - (*p.cellFaces)[col]) : p.h;
+				const ParamType invHCol = static_cast<ParamType>(p.u) / hCol;
+
 				// ------------------- Dispersion -------------------
 
 				// Right side, leave out if we're in the first cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					const double relCoord = static_cast<double>(col + 1) / p.nCol;
+					const ParamType hRight = nonEqGrid ? static_cast<ParamType>((*p.cellFaces)[col + 2] - (*p.cellFaces)[col + 1]) : p.h;
+					const ParamType deltaZ = nonEqGrid ? static_cast<ParamType>(0.5) * (hCol + hRight) : p.h;
+					const double relCoord = nonEqGrid ?
+						static_cast<double>((*p.cellFaces)[col + 1]) / static_cast<double>(colLength) :
+						static_cast<double>(col + 1) / p.nCol;
 					const ParamType d_ax_right = d_ax * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+					
+					const ParamType coeff = d_ax_right / (hCol * deltaZ);
 					if (wantRes)
-						resBulkComp[col * p.strideCell] -= d_ax_right / h2 * (stencil[-1] - stencil[0]);
-					// Jacobian entries
+						resBulkComp[col * p.strideCell] -= coeff * (stencil[-1] - stencil[0]);
 					if (wantJac)
 					{
-						jac[0] += static_cast<double>(d_ax_right) / static_cast<double>(h2);
-						jac[p.strideCell] -= static_cast<double>(d_ax_right) / static_cast<double>(h2);
+						const double coeffJac = static_cast<double>(coeff);
+						jac[0] += coeffJac;
+						jac[p.strideCell] -= coeffJac;
 					}
 				}
 
 				// Left side, leave out if we're in the last cell (boundary condition)
 				if (cadet_likely(col > 0))
 				{
-					const double relCoord = static_cast<double>(col) / p.nCol;
+					const ParamType hLeft = nonEqGrid ? static_cast<ParamType>((*p.cellFaces)[col] - (*p.cellFaces)[col - 1]) : p.h;
+					const ParamType deltaZ = nonEqGrid ? static_cast<ParamType>(0.5) * (hLeft + hCol) : p.h;
+					const double relCoord = nonEqGrid ?
+						static_cast<double>((*p.cellFaces)[col]) / static_cast<double>(colLength) :
+						static_cast<double>(col) / p.nCol;
+
 					const ParamType d_ax_left = d_ax * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+
+					const ParamType coeff = d_ax_left / (hCol * deltaZ);
 					if (wantRes)
-						resBulkComp[col * p.strideCell] -= d_ax_left / h2 * (stencil[1] - stencil[0]);
-					// Jacobian entries
+						resBulkComp[col * p.strideCell] -= coeff * (stencil[1] - stencil[0]);
 					if (wantJac)
 					{
-						jac[0] += static_cast<double>(d_ax_left) / static_cast<double>(h2);
-						jac[-p.strideCell] -= static_cast<double>(d_ax_left) / static_cast<double>(h2);
+						const double coeffJac = static_cast<double>(coeff);
+						jac[0] += coeffJac;
+						jac[-p.strideCell] -= coeffJac;
 					}
 				}
 
@@ -311,7 +369,7 @@ namespace impl
 					// Remember that vm still contains the reconstructed value of the previous 
 					// cell's *left* face, which is identical to this cell's *right* face!
 					if (wantRes)
-						resBulkComp[col * p.strideCell] += p.u / p.h * vm;
+						resBulkComp[col * p.strideCell] += (nonEqGrid ? invHCol : static_cast<ParamType>(p.u) / p.h) * vm;
 
 					// Jacobian entries
 					if (wantJac)
@@ -319,29 +377,41 @@ namespace impl
 						for (int i = 0; i < 2 * wenoOrder - 1; ++i)
 							// Note that we have an offset of +1 here (compared to the left cell face below), since
 							// the reconstructed value depends on the previous stencil (which has now been moved by one cell)
-							jac[(wenoOrder - i) * p.strideCell] += static_cast<double>(p.u) / static_cast<double>(p.h) * p.reconstructionDerivatives[i];					
+							jac[(wenoOrder - i) * p.strideCell] += (nonEqGrid ? static_cast<double>(invHCol) : static_cast<double>(p.u) / static_cast<double>(p.h)) * p.reconstructionDerivatives[i];
 					}
 				}
 				else if (wantRes)
 				{
 					// In the last cell (z = L) we need to apply the boundary condition: inflow concentration
-					resBulkComp[col * p.strideCell] += p.u / p.h * y[p.offsetToInlet + comp];
+					resBulkComp[col * p.strideCell] += (nonEqGrid ? invHCol : static_cast<ParamType>(p.u) / p.h) * y[p.offsetToInlet + comp];
 				}
 
 				// Reconstruct concentration on this cell's left face
-				if (wantJac)
-					wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives);
+				if (nonEqGrid)
+				{
+					const ReverseFaceAccessor<std::vector<active>> reverseFaces{ *p.cellFaces };
+					const unsigned int flowCellIdx = p.nCol - 1 - col;
+					if (wantJac)
+						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(flowCellIdx, p.nCol, stencil, vm, p.reconstructionDerivatives, reverseFaces);
+					else
+						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(flowCellIdx, p.nCol, stencil, vm, reverseFaces);
+				}
 				else
-					wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm);
+				{
+					if (wantJac)
+						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives);
+					else
+						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm);
+				}
 
 				// Left face
 				if (wantRes)
-					resBulkComp[col * p.strideCell] -= p.u / p.h * vm;
+					resBulkComp[col * p.strideCell] -= invHCol * vm;
 				// Jacobian entries
 				if (wantJac)
 				{
 					for (int i = 0; i < 2 * wenoOrder - 1; ++i)
-						jac[(wenoOrder - i - 1) * p.strideCell] -= static_cast<double>(p.u) / static_cast<double>(p.h) * p.reconstructionDerivatives[i];
+						jac[(wenoOrder - i - 1) * p.strideCell] -= static_cast<double>(invHCol) * p.reconstructionDerivatives[i];
 				}
 
 				// Update stencil (be careful because of wrap-around, might cause reading memory very far away [although never used])
@@ -359,7 +429,7 @@ namespace impl
 			}
 		}
 
-		// Film diffusion with flux into beads is added in residualFlux() function
+		// Note: film diffusion with flux into beads is added in residualFlux() function
 
 		return 0;
 	}
