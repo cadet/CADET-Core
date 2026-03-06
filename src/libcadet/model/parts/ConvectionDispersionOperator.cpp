@@ -107,18 +107,52 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
 		if (_cellFaces[0] > 1e-15)
 			throw InvalidParameterException("First entry of GRID_FACES must be zero");
 
+		// --- Grid diagnostics ---
+		double dxMin = std::numeric_limits<double>::max();
+		double dxMax = 0.0;
+		double rMax = 0.0;           // max stretching ratio
+		double jumpMax = 0.0;        // max sudden jump indicator
+
 		// Check if grid is equidistant
 		const double firstWidth = static_cast<double>(_cellFaces[1] - _cellFaces[0]);
 		const double widthTol = 1e-10 * std::max(1.0, std::abs(firstWidth));
 		_gridEquidistant = true;
+
+		double prevWidth = firstWidth;
+		dxMin = std::min(dxMin, prevWidth);
+		dxMax = std::max(dxMax, prevWidth);
+
 		for (unsigned int i = 1; i < _nCol; ++i)
 		{
 			const double curWidth = static_cast<double>(_cellFaces[i + 1] - _cellFaces[i]);
+
+			dxMin = std::min(dxMin, curWidth);
+			dxMax = std::max(dxMax, curWidth);
+
+			// Check equidistance
 			if (std::abs(curWidth - firstWidth) > widthTol)
-			{
 				_gridEquidistant = false;
-				break;
-			}
+
+			// --- Stretching ratio ---
+			const double r = std::max(curWidth / prevWidth, prevWidth / curWidth);
+			rMax = std::max(rMax, r);
+
+			prevWidth = curWidth;
+		}
+
+		// --- Warning 1: cell stretching ratio ---
+		if (rMax > 3.0)
+		{
+			LOG(Warning) << "GRID_FACES contains strongly stretched neighboring cells (max recommended ratio = "
+				<< rMax << "). WENO reconstruction on highly stretched grids may lose accuracy or stability.";
+		}
+
+		// --- Warning 3: extreme cell size variance might cause stiffness ---
+		const double sizeRatio = dxMax / dxMin;
+		if (sizeRatio > 1e6)
+		{
+			LOG(Warning) << "GRID_FACES contains cells spanning a very large size range (max/min ratio = "
+				<< sizeRatio << "). This may lead to stiff ODE systems and slow or unstable time integration.";
 		}
 	}
 	else
