@@ -193,7 +193,7 @@ Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`
 
    **Unit:** :math:`\mathrm{m}^{2}`
 
-   Defines the cross section area of each channel
+   Defines the cross section area of each channel. The :math:`\texttt{SENS_PARTYPE}` field is used for indexing the channel when specifying parameter sensitivities.
 
    ================  ====================== ======================================
    **Type:** double  **Range:** :math:`> 0`  **Length:** :math:`\texttt{NCHANNEL}`
