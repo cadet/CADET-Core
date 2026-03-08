@@ -73,6 +73,7 @@ namespace impl
 		const FaceContainerType& faces;
 		inline auto operator[](unsigned int idx) const -> decltype(faces[0]) { return faces[faces.size() - 1 - idx]; }
 	};
+#define CADET_REVERSE_FACE_ACCESSOR_DEFINED
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename ReconstrType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 	int residualForwardsAxialFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const AxialFlowParameters<ParamType, ReconstrType>& p)
