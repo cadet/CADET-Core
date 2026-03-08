@@ -420,7 +420,7 @@ struct AxialFlow
 
 struct RadialFlow
 {
-	typedef cadet::model::parts::convdisp::RadialFlowParameters<double> Params;
+	typedef cadet::model::parts::convdisp::RadialFlowParameters<double, cadet::Weno> Params;
 
 	static void sparsityPattern(cadet::linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, cadet::Weno& weno)
 	{
@@ -429,13 +429,13 @@ struct RadialFlow
 
 	static void residual(double const* y, double const* yDot, double* res, const Params& fp)
 	{
-		cadet::model::parts::convdisp::residualKernelRadial<double, double, double, cadet::linalg::BandedSparseRowIterator, false>(cadet::SimulationTime{0.0, 0u}, y, yDot, res, cadet::linalg::BandedSparseRowIterator(), fp);
+		cadet::model::parts::convdisp::residualKernelRadial<double, double, double, cadet::Weno, cadet::linalg::BandedSparseRowIterator, false>(cadet::SimulationTime{0.0, 0u}, y, yDot, res, cadet::linalg::BandedSparseRowIterator(), fp);
 	}
 
 	template <typename IteratorType>
 	static void residualWithJacobian(double const* y, double const* yDot, double* res, IteratorType jacBegin, const Params& fp)
 	{
-		cadet::model::parts::convdisp::residualKernelRadial<double, double, double, IteratorType, true>(cadet::SimulationTime{0.0, 0u}, y, yDot, res, jacBegin, fp);
+		cadet::model::parts::convdisp::residualKernelRadial<double, double, double, cadet::Weno, IteratorType, true>(cadet::SimulationTime{0.0, 0u}, y, yDot, res, jacBegin, fp);
 	}
 
 	std::unique_ptr<cadet::model::IParameterParameterDependence> parDep;
@@ -469,6 +469,8 @@ struct RadialFlow
 			centers.data(),
 			sizes.data(),
 			bounds.data(),
+			wenoDerivatives,
+			weno,
 			stencilMemory,
 			strideCell,
 			static_cast<unsigned int>(nComp),
@@ -476,7 +478,9 @@ struct RadialFlow
 			0u,
 			static_cast<unsigned int>(nComp),
 			parDep.get(),
-			DummyModel()
+			DummyModel(),
+			true,
+			nullptr
 		};
 	}
 };

@@ -215,6 +215,8 @@ public:
 
 	inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
 	inline unsigned int nCol() const CADET_NOEXCEPT { return _nCol; }
+	inline Weno const* weno() const CADET_NOEXCEPT { return _weno; }
+	inline HighResolutionKoren const* koren() const CADET_NOEXCEPT { return _koren; }
 
 	unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
 	unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
@@ -231,6 +233,7 @@ protected:
 	int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
 
 	void equidistantCells();
+	void customCells(const std::vector<active>& cellFaces);
 
 	unsigned int _nComp; //!< Number of components
 	unsigned int _nCol; //!< Number of axial cells
@@ -249,6 +252,10 @@ protected:
 	double _circleFraction; //!< Specifies whether the radial model is a full circle or wedge and in that case the fraction of a full circle
 
 	ArrayPool _stencilMemory; //!< Provides memory for the stencil
+	double* _reconstrDerivatives; //!< Holds derivatives of the reconstruction scheme
+	bool _gridEquidistant; //!< Determines whether the grid is equidistant
+	Weno* _weno; //!< The WENO scheme implementation
+	HighResolutionKoren* _koren; //!< The High Resolution Koren scheme implementation
 
 	bool _dispersionCompIndep; //!< Determines whether dispersion is component independent
 
