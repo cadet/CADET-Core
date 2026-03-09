@@ -69,15 +69,12 @@ struct RadialFlowParameters
 
 namespace impl
 {
-#ifndef CADET_REVERSE_FACE_ACCESSOR_DEFINED
-#define CADET_REVERSE_FACE_ACCESSOR_DEFINED
 	template <class FaceContainerType>
-	struct ReverseFaceAccessor
+	struct ReverseFaceAccessorRadial
 	{
 		const FaceContainerType& faces;
 		inline auto operator[](unsigned int idx) const -> decltype(faces[0]) { return faces[faces.size() - 1 - idx]; }
 	};
-#endif
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename ReconstrType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 	int residualForwardsRadialFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const RadialFlowParameters<ParamType, ReconstrType>& p)
@@ -366,7 +363,7 @@ namespace impl
 				// Reconstruct concentration on this cell's left face
 				if (nonEqGrid)
 				{
-					const ReverseFaceAccessor<std::vector<active>> reverseFaces{ *p.cellFaces };
+					const ReverseFaceAccessorRadial<std::vector<active>> reverseFaces{ *p.cellFaces };
 					const unsigned int flowCellIdx = p.nCol - 1 - col;
 					if (wantJac)
 						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(flowCellIdx, p.nCol, stencil, vm, p.reconstructionDerivatives, reverseFaces);
