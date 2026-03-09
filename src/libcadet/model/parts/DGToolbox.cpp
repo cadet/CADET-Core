@@ -153,7 +153,7 @@ void legendrePolynomialAndDerivative(const int polyDeg, double& leg, double& leg
  * @param [in, out] weights Legendre Gauss quadrature weights
  * @param [in] invertWeights specifies if weights should be inverted
  */
-void lgNodesWeights(const unsigned int polyDeg, VectorXd& nodes, VectorXd& weights, bool invertWeights = true)
+void lgNodesWeights(const unsigned int polyDeg, VectorXd& nodes, VectorXd& weights, bool invertWeights)
 {
 	const double pi = 3.1415926535897932384626434;
 
@@ -393,6 +393,18 @@ Eigen::MatrixXd mMatrix(const unsigned int polyDeg, const Eigen::VectorXd nodes,
 	return invMMatrix(polyDeg, nodes, alpha, beta).inverse();
 }
 /**
+ * @brief calculates the weighted mass matrix M^{(0,1)} for radial DG integrals
+ * @detail For integrals of the form \int_E \ell_i(\xi) \ell_j(\xi) (1 + \xi) d\xi
+ *         Used to construct radial weighted mass matrix: M_rho = (delta_rho/2) * M^{(0,1)} + rho_i * M^{(0,0)}
+ * @param [in] polyDeg polynomial degree
+ * @param [in] nodes polynomial interpolation nodes
+ */
+Eigen::MatrixXd weightedMMatrix(const unsigned int polyDeg, const Eigen::VectorXd nodes)
+{
+	// M^{(0,1)} uses alpha=0, beta=1 to get (1+xi) weighting
+	return mMatrix(polyDeg, nodes, 0.0, 1.0);
+}
+/**
  * @brief calculates the derivative of the Vandermonde matrix of the normalized Legendre polynomials
  * @param [in] polyDeg polynomial degree
  * @param [in] a Jacobi polynomial parameter
@@ -530,10 +542,317 @@ void writeDGCoordinates(double* coords, const int nElem, const int nNodes, const
 {
 	for (unsigned int i = 0; i < nElem; i++) {
 		for (unsigned int j = 0; j < nNodes; j++) {
-			// mapping 
+			// mapping
 			coords[i * nNodes + j] = leftElemBndries[i] + 0.5 * (length / nElem) * (1.0 + DGnodes[j]);
 		}
 	}
+}
+
+/**
+ * @brief calculates a variable coefficient mass matrix via numerical quadrature
+ * @detail Computes integrals of the form \int_E f(\xi) \ell_i(\xi) \ell_j(\xi) d\xi
+ *         where f(\xi) is given by its values at LGL nodes.
+ *         Uses Gauss-Legendre quadrature with nQuadPoints for exact integration.
+ * @param [in] polyDeg polynomial degree
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] coeffAtNodes coefficient values f evaluated at LGL nodes
+ * @param [in] nQuadPoints number of Gauss quadrature points (default: polyDeg + 2 for safety)
+ */
+Eigen::MatrixXd varCoeffMMatrix(const unsigned int polyDeg, const Eigen::VectorXd LGLnodes,
+                                 const Eigen::VectorXd coeffAtNodes, const int nQuadPoints)
+{
+	const unsigned int nNodes = polyDeg + 1;
+	const int nQuad = (nQuadPoints < 0) ? static_cast<int>(polyDeg + 2) : nQuadPoints;
+
+	// Get Gauss-Legendre quadrature points and weights
+	Eigen::VectorXd quadNodes = Eigen::VectorXd::Zero(nQuad);
+	Eigen::VectorXd quadWeights = Eigen::VectorXd::Zero(nQuad);
+	lgNodesWeights(nQuad - 1, quadNodes, quadWeights, false);
+
+	// Evaluate Lagrange basis functions at quadrature points
+	Eigen::MatrixXd basisAtQuad(nNodes, nQuad);
+	for (unsigned int j = 0; j < nNodes; j++) {
+		basisAtQuad.row(j) = evalLagrangeBasis(j, LGLnodes, quadNodes);
+	}
+
+	// Interpolate coefficient to quadrature points: f(quad_k) = sum_j coeff_j * ell_j(quad_k)
+	Eigen::VectorXd coeffAtQuad = Eigen::VectorXd::Zero(nQuad);
+	for (int k = 0; k < nQuad; k++) {
+		for (unsigned int j = 0; j < nNodes; j++) {
+			coeffAtQuad[k] += coeffAtNodes[j] * basisAtQuad(j, k);
+		}
+	}
+
+	// Compute mass matrix: M_ij = sum_k w_k * f(quad_k) * ell_i(quad_k) * ell_j(quad_k)
+	Eigen::MatrixXd massMatrix = Eigen::MatrixXd::Zero(nNodes, nNodes);
+	for (unsigned int i = 0; i < nNodes; i++) {
+		for (unsigned int j = 0; j < nNodes; j++) {
+			for (int k = 0; k < nQuad; k++) {
+				massMatrix(i, j) += quadWeights[k] * coeffAtQuad[k] * basisAtQuad(i, k) * basisAtQuad(j, k);
+			}
+		}
+	}
+
+	return massMatrix;
+}
+
+/**
+ * @brief calculates a variable coefficient stiffness matrix via numerical quadrature
+ * @detail Computes integrals of the form \int_E f(\xi) \ell'_i(\xi) \ell'_j(\xi) d\xi
+ *         where f(\xi) is given by its values at LGL nodes.
+ *         Used for dispersion terms with spatially varying D(x).
+ * @param [in] polyDeg polynomial degree
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] coeffAtNodes coefficient values f evaluated at LGL nodes
+ * @param [in] nQuadPoints number of Gauss quadrature points (default: polyDeg + 2 for safety)
+ */
+Eigen::MatrixXd varCoeffStiffnessMatrix(const unsigned int polyDeg, const Eigen::VectorXd LGLnodes,
+                                         const Eigen::VectorXd coeffAtNodes, const int nQuadPoints)
+{
+	const unsigned int nNodes = polyDeg + 1;
+	const int nQuad = (nQuadPoints < 0) ? static_cast<int>(polyDeg + 2) : nQuadPoints;
+
+	// Get Gauss-Legendre quadrature points and weights
+	Eigen::VectorXd quadNodes = Eigen::VectorXd::Zero(nQuad);
+	Eigen::VectorXd quadWeights = Eigen::VectorXd::Zero(nQuad);
+	lgNodesWeights(nQuad - 1, quadNodes, quadWeights, false);
+
+	// Evaluate Lagrange basis functions at quadrature points
+	Eigen::MatrixXd basisAtQuad(nNodes, nQuad);
+	for (unsigned int j = 0; j < nNodes; j++) {
+		basisAtQuad.row(j) = evalLagrangeBasis(j, LGLnodes, quadNodes);
+	}
+
+	// Get derivative matrix and compute derivatives at quadrature points
+	Eigen::MatrixXd D = derivativeMatrix(polyDeg, LGLnodes);
+	// basisDerAtQuad(i, k) = sum_m D(m, i) * basisAtQuad(m, k) = d(ell_i)/d(xi) at quad_k
+	Eigen::MatrixXd basisDerAtQuad = D.transpose() * basisAtQuad;
+
+	// Interpolate coefficient to quadrature points
+	Eigen::VectorXd coeffAtQuad = Eigen::VectorXd::Zero(nQuad);
+	for (int k = 0; k < nQuad; k++) {
+		for (unsigned int j = 0; j < nNodes; j++) {
+			coeffAtQuad[k] += coeffAtNodes[j] * basisAtQuad(j, k);
+		}
+	}
+
+	// Compute stiffness matrix: S_ij = sum_k w_k * f(quad_k) * ell'_i(quad_k) * ell'_j(quad_k)
+	Eigen::MatrixXd stiffMatrix = Eigen::MatrixXd::Zero(nNodes, nNodes);
+	for (unsigned int i = 0; i < nNodes; i++) {
+		for (unsigned int j = 0; j < nNodes; j++) {
+			for (int k = 0; k < nQuad; k++) {
+				stiffMatrix(i, j) += quadWeights[k] * coeffAtQuad[k] * basisDerAtQuad(i, k) * basisDerAtQuad(j, k);
+			}
+		}
+	}
+
+	return stiffMatrix;
+}
+
+/**
+ * @brief calculates a mixed variable coefficient matrix for film diffusion terms
+ * @detail Computes integrals of the form \int_E f(\xi) \ell_i(\xi) \ell_j(\xi) g(\xi) d\xi
+ *         Used for radial film diffusion where k_f/rho terms appear.
+ * @param [in] polyDeg polynomial degree
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] coeff1AtNodes first coefficient values evaluated at LGL nodes
+ * @param [in] coeff2AtNodes second coefficient values evaluated at LGL nodes (optional, default ones)
+ * @param [in] nQuadPoints number of Gauss quadrature points (default: polyDeg + 3)
+ */
+Eigen::MatrixXd varCoeffMMatrixProduct(const unsigned int polyDeg, const Eigen::VectorXd LGLnodes,
+                                        const Eigen::VectorXd coeff1AtNodes,
+                                        const Eigen::VectorXd coeff2AtNodes,
+                                        const int nQuadPoints)
+{
+	const unsigned int nNodes = polyDeg + 1;
+	const int nQuad = (nQuadPoints < 0) ? static_cast<int>(polyDeg + 3) : nQuadPoints;
+
+	// Handle default second coefficient (all ones)
+	Eigen::VectorXd coeff2 = coeff2AtNodes;
+	if (coeff2AtNodes.size() == 0) {
+		coeff2 = Eigen::VectorXd::Ones(nNodes);
+	}
+
+	// Get Gauss-Legendre quadrature points and weights
+	Eigen::VectorXd quadNodes = Eigen::VectorXd::Zero(nQuad);
+	Eigen::VectorXd quadWeights = Eigen::VectorXd::Zero(nQuad);
+	lgNodesWeights(nQuad - 1, quadNodes, quadWeights, false);
+
+	// Evaluate Lagrange basis functions at quadrature points
+	Eigen::MatrixXd basisAtQuad(nNodes, nQuad);
+	for (unsigned int j = 0; j < nNodes; j++) {
+		basisAtQuad.row(j) = evalLagrangeBasis(j, LGLnodes, quadNodes);
+	}
+
+	// Interpolate both coefficients to quadrature points
+	Eigen::VectorXd coeff1AtQuad = Eigen::VectorXd::Zero(nQuad);
+	Eigen::VectorXd coeff2AtQuad = Eigen::VectorXd::Zero(nQuad);
+	for (int k = 0; k < nQuad; k++) {
+		for (unsigned int j = 0; j < nNodes; j++) {
+			coeff1AtQuad[k] += coeff1AtNodes[j] * basisAtQuad(j, k);
+			coeff2AtQuad[k] += coeff2[j] * basisAtQuad(j, k);
+		}
+	}
+
+	// Compute mass matrix: M_ij = sum_k w_k * f(quad_k) * g(quad_k) * ell_i(quad_k) * ell_j(quad_k)
+	Eigen::MatrixXd massMatrix = Eigen::MatrixXd::Zero(nNodes, nNodes);
+	for (unsigned int i = 0; i < nNodes; i++) {
+		for (unsigned int j = 0; j < nNodes; j++) {
+			for (int k = 0; k < nQuad; k++) {
+				massMatrix(i, j) += quadWeights[k] * coeff1AtQuad[k] * coeff2AtQuad[k] * basisAtQuad(i, k) * basisAtQuad(j, k);
+			}
+		}
+	}
+
+	return massMatrix;
+}
+
+
+/**
+ * @brief evaluates the derivative of the jth Lagrange basis function at given nodes
+ * @detail Uses the formula: dL_j/dξ(x) = sum_{m≠j} [1/(ξ_j - ξ_m) * prod_{k≠j,m} (x - ξ_k)/(ξ_j - ξ_k)]
+ * @param [in] j index of Lagrange basis function
+ * @param [in] baseNodes interpolation nodes of Lagrange basis
+ * @param [in] evalNodes evaluation nodes in [-1, 1]
+ */
+VectorXd evalLagrangeBasisDerivative(const int j, const VectorXd baseNodes, const VectorXd evalNodes)
+{
+	const int nIntNodes = baseNodes.size();
+	const int nEvalNodes = evalNodes.size();
+	VectorXd evalDerEll = VectorXd::Zero(nEvalNodes);
+
+	for (int k = 0; k < nEvalNodes; k++)
+	{
+		double sumTerms = 0.0;
+		for (int m = 0; m < nIntNodes; m++)
+		{
+			if (m != j)
+			{
+				double term = 1.0 / (baseNodes[j] - baseNodes[m]);
+				for (int p = 0; p < nIntNodes; p++)
+				{
+					if (p != j && p != m)
+					{
+						term *= (evalNodes[k] - baseNodes[p]) / (baseNodes[j] - baseNodes[p]);
+					}
+				}
+				sumTerms += term;
+			}
+		}
+		evalDerEll[k] = sumTerms;
+	}
+
+	return evalDerEll;
+}
+
+/**
+ * @brief computes radial dispersion matrix S_g for a single cell with variable D(rho)
+ * @detail For radial DG: S_g[i,j] = ∫ dL_i/dξ * L_j * ρ(ξ) * D(ρ(ξ)) dξ
+ *         where ρ(ξ) = rho_left + (delta_rho/2) * (1 + ξ)
+ *         Uses Gauss-Legendre quadrature for numerical integration.
+ * @param [in] polyDeg polynomial degree
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] rho_left left boundary of cell in physical space
+ * @param [in] delta_rho cell width in physical space
+ * @param [in] dispAtNodes dispersion coefficient D evaluated at physical node positions
+ * @param [in] nQuadPoints number of Gauss quadrature points (default: polyDeg + 2, use higher for nonlinear D)
+ */
+MatrixXd radialDispersionMatrix(const unsigned int polyDeg, const VectorXd LGLnodes,
+                                 const double rho_left, const double delta_rho,
+                                 const VectorXd dispAtNodes, const int nQuadPoints)
+{
+	const unsigned int nNodes = polyDeg + 1;
+	const int nQuad = (nQuadPoints < 0) ? static_cast<int>(polyDeg + 2) : nQuadPoints;
+
+	// Get Gauss-Legendre quadrature points and weights
+	VectorXd quadNodes = VectorXd::Zero(nQuad);
+	VectorXd quadWeights = VectorXd::Zero(nQuad);
+	lgNodesWeights(nQuad - 1, quadNodes, quadWeights, false);
+
+	// Evaluate Lagrange basis and derivatives at quadrature points
+	MatrixXd basisAtQuad(nNodes, nQuad);
+	MatrixXd basisDerAtQuad(nNodes, nQuad);
+	for (unsigned int j = 0; j < nNodes; j++) {
+		basisAtQuad.row(j) = evalLagrangeBasis(j, LGLnodes, quadNodes);
+		basisDerAtQuad.row(j) = evalLagrangeBasisDerivative(j, LGLnodes, quadNodes);
+	}
+
+	// Interpolate dispersion coefficient to quadrature points
+	VectorXd dispAtQuad = VectorXd::Zero(nQuad);
+	for (int k = 0; k < nQuad; k++) {
+		for (unsigned int j = 0; j < nNodes; j++) {
+			dispAtQuad[k] += dispAtNodes[j] * basisAtQuad(j, k);
+		}
+	}
+
+	// Compute S_g matrix: S_g[i,j] = sum_k w_k * dL_i(quad_k) * L_j(quad_k) * rho(quad_k) * D(rho(quad_k))
+	MatrixXd S_g = MatrixXd::Zero(nNodes, nNodes);
+	for (unsigned int i = 0; i < nNodes; i++) {
+		for (unsigned int j = 0; j < nNodes; j++) {
+			for (int k = 0; k < nQuad; k++) {
+				// Map reference coordinate to physical radius: rho = rho_left + (delta_rho/2) * (1 + xi)
+				double rho_k = rho_left + 0.5 * delta_rho * (1.0 + quadNodes[k]);
+				double weight_factor = quadWeights[k] * rho_k * dispAtQuad[k];
+				S_g(i, j) += weight_factor * basisDerAtQuad(i, k) * basisAtQuad(j, k);
+			}
+		}
+	}
+
+	return S_g;
+}
+
+/**
+ * @brief computes radial film diffusion mass matrix M_K for a single cell with variable k_f(rho)
+ * @detail For radial DG: M_K[i,j] = ∫ L_i * L_j * ρ(ξ) * k_f(ρ(ξ)) dξ
+ *         where ρ(ξ) = rho_left + (delta_rho/2) * (1 + ξ)
+ *         Uses Gauss-Legendre quadrature for numerical integration.
+ * @param [in] polyDeg polynomial degree
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] rho_left left boundary of cell in physical space
+ * @param [in] delta_rho cell width in physical space
+ * @param [in] kfAtNodes film diffusion coefficient k_f evaluated at physical node positions
+ * @param [in] nQuadPoints number of Gauss quadrature points (default: polyDeg + 2, use higher for nonlinear k_f)
+ */
+MatrixXd radialFilmDiffusionMatrix(const unsigned int polyDeg, const VectorXd LGLnodes,
+                                    const double rho_left, const double delta_rho,
+                                    const VectorXd kfAtNodes, const int nQuadPoints)
+{
+	const unsigned int nNodes = polyDeg + 1;
+	const int nQuad = (nQuadPoints < 0) ? static_cast<int>(polyDeg + 2) : nQuadPoints;
+
+	// Get Gauss-Legendre quadrature points and weights
+	VectorXd quadNodes = VectorXd::Zero(nQuad);
+	VectorXd quadWeights = VectorXd::Zero(nQuad);
+	lgNodesWeights(nQuad - 1, quadNodes, quadWeights, false);
+
+	// Evaluate Lagrange basis at quadrature points
+	MatrixXd basisAtQuad(nNodes, nQuad);
+	for (unsigned int j = 0; j < nNodes; j++) {
+		basisAtQuad.row(j) = evalLagrangeBasis(j, LGLnodes, quadNodes);
+	}
+
+	// Interpolate k_f coefficient to quadrature points
+	VectorXd kfAtQuad = VectorXd::Zero(nQuad);
+	for (int k = 0; k < nQuad; k++) {
+		for (unsigned int j = 0; j < nNodes; j++) {
+			kfAtQuad[k] += kfAtNodes[j] * basisAtQuad(j, k);
+		}
+	}
+
+	// Compute M_K matrix: M_K[i,j] = sum_k w_k * L_i(quad_k) * L_j(quad_k) * rho(quad_k) * k_f(rho(quad_k))
+	MatrixXd M_K = MatrixXd::Zero(nNodes, nNodes);
+	for (unsigned int i = 0; i < nNodes; i++) {
+		for (unsigned int j = 0; j < nNodes; j++) {
+			for (int k = 0; k < nQuad; k++) {
+				// Map reference coordinate to physical radius: rho = rho_left + (delta_rho/2) * (1 + xi)
+				double rho_k = rho_left + 0.5 * delta_rho * (1.0 + quadNodes[k]);
+				double weight_factor = quadWeights[k] * rho_k * kfAtQuad[k];
+				M_K(i, j) += weight_factor * basisAtQuad(i, k) * basisAtQuad(j, k);
+			}
+		}
+	}
+
+	return M_K;
 }
 
 

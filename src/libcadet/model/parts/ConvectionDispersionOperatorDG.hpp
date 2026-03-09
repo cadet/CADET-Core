@@ -92,7 +92,7 @@ namespace cadet
 				int calcTransportJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset = 0);
 				typedef Eigen::Triplet<double> T;
 				void convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset = 0);
-				unsigned int nJacEntries(bool pureNNZ = false);
+				unsigned int nConvDispEntries(bool pureNNZ = false);
 				void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 				void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset = 0);
 
@@ -131,6 +131,7 @@ namespace cadet
 				unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
 				unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
 				double inletJacobianFactor() const CADET_NOEXCEPT;
+				unsigned int nJacEntries(bool pureNNZ);
 
 				// @todo use more efficient seed vectors. currently, we treat the jacobian as banded, but the pattern is actually more sparse when multiple components are considered
 				// (note that active type directions are limited)
@@ -1191,8 +1192,709 @@ namespace cadet
 			};
 
 
-			//// todo radial flow DG
-			//class RadialConvectionDispersionOperatorBaseDG { };
+			/**
+			 * @brief Radial convection dispersion transport operator using DG discretization
+			 * @details Implements the radial transport equation
+			 *
+			 * @f[\begin{align}
+				\frac{\partial c_i}{\partial t} &= -\frac{u}{\rho} \frac{\partial c_i}{\partial \rho} + \frac{1}{\rho} \frac{\partial}{\partial \rho}\left( D_{\rho,i} \rho \frac{\partial c_i}{\partial \rho} \right) \\
+			\end{align} @f]
+			 * with Danckwerts boundary conditions
+			 * @f[ \begin{align}
+			 u c_{\text{in},i}(t) &= u c_i(t,\rho_{in}) - D_{\rho,i} \frac{\partial c_i}{\partial \rho}(t,\rho_{in}) \\
+			 \frac{\partial c_i}{\partial \rho}(t,\rho_{out}) &= 0
+			 \end{align} @f]
+			 *
+			 * Key difference from axial: Uses cell-dependent weighted mass matrices M_rho[i] = (delta_rho/2) * M^{(0,1)} + rho_i * M^{(0,0)}
+			 *
+			 * This class does not store the Jacobian. It only fills existing matrices given to its residual() functions.
+			 */
+			class RadialConvectionDispersionOperatorBaseDG
+			{
+			public:
+
+				RadialConvectionDispersionOperatorBaseDG();
+				~RadialConvectionDispersionOperatorBaseDG() CADET_NOEXCEPT;
+
+				void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
+
+				bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, int polynomial_integration_mode, unsigned int nelements, unsigned int polyDeg, unsigned int strideNode);
+				bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
+				bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, Eigen::MatrixXd& jacInlet);
+
+				int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac);
+				int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac);
+				int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity);
+				int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity);
+				int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity);
+				int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
+
+				int calcTransportJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset = 0);
+				typedef Eigen::Triplet<double> T;
+				void convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset = 0);
+				unsigned int nConvDispEntries(bool pureNNZ = false);
+				void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
+				void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset = 0);
+
+				// Geometry accessors
+				inline const active& columnLength() const CADET_NOEXCEPT { return _colLength; }
+				inline const active& innerRadius() const CADET_NOEXCEPT { return _innerRadius; }
+				inline const active& outerRadius() const CADET_NOEXCEPT { return _outerRadius; }
+				active currentVelocity(double pos) const CADET_NOEXCEPT;
+				inline active currentVelocity() const CADET_NOEXCEPT { return currentVelocity(0.0); }
+				inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelocity >= 0.0; }
+
+				inline double elemLeftBound(unsigned int idx) const CADET_NOEXCEPT
+				{
+					return static_cast<double>(_innerRadius) + idx * static_cast<double>(_deltaRho);
+				}
+				double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT
+				{
+					const double rho = static_cast<double>(_innerRadius) +
+						(floor(idx / _nNodes) * static_cast<double>(_deltaRho) +
+						 0.5 * static_cast<double>(_deltaRho) * (1.0 + _nodes[idx % _nNodes]));
+					return (rho - static_cast<double>(_innerRadius)) /
+						   (static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius));
+				}
+
+				inline const double* LGLnodes() const CADET_NOEXCEPT { return &_nodes[0]; }
+				inline const active& currentVelocityCoeff() const CADET_NOEXCEPT { return _curVelocity; }
+				inline const active* currentDispersion(const int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_colDispersion, _nComp, secIdx); }
+				inline const bool dispersionCompIndep() const CADET_NOEXCEPT { return _dispersionCompIndep; }
+
+				inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
+				inline unsigned int nelements() const CADET_NOEXCEPT { return _nElem; }
+				inline unsigned int nNodes() const CADET_NOEXCEPT { return _nNodes; }
+				inline unsigned int nPoints() const CADET_NOEXCEPT { return _nPoints; }
+				inline bool exactInt() const CADET_NOEXCEPT { return true; }  // Radial DG always uses exact integration
+
+				// Indexer functionality
+				inline int strideColElement() const CADET_NOEXCEPT { return static_cast<int>(_strideElem); }
+				inline int strideColNode() const CADET_NOEXCEPT { return static_cast<int>(_strideNode); }
+				inline int strideColComp() const CADET_NOEXCEPT { return 1; }
+				inline int offsetC() const CADET_NOEXCEPT { return _nComp; }
+
+				unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
+				unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
+				double inletJacobianFactor() const CADET_NOEXCEPT;
+				unsigned int nJacEntries(bool pureNNZ);
+
+				// Radial DG always uses exact integration (4 * nNodes stencil)
+				int requiredADdirs() const CADET_NOEXCEPT { return 4 * _nNodes * strideColNode() + 1; }
+
+				// Accessors for mass matrices (needed for rLRMP film diffusion)
+				inline const Eigen::MatrixXd& invMRho(unsigned int cell) const CADET_NOEXCEPT { return _invMM_rho[cell]; }
+				inline const Eigen::MatrixXd& M00() const CADET_NOEXCEPT { return _M00; }
+				inline const Eigen::MatrixXd& M01() const CADET_NOEXCEPT { return _M01; }
+				inline double deltaRho() const CADET_NOEXCEPT { return static_cast<double>(_deltaRho); }
+
+				/**
+				 * @brief Computes the weighted mass matrix M_rho for a given cell
+				 * @detail M_rho = (delta_rho/2) * M01 + rho_left * M00
+				 */
+				inline Eigen::MatrixXd MRho(unsigned int cell) const
+				{
+					const double rho_left = elemLeftBound(cell);
+					return (static_cast<double>(_deltaRho) / 2.0) * _M01 + rho_left * _M00;
+				}
+
+				bool setParameter(const ParameterId& pId, double value);
+				bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
+				bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& id, double value);
+
+			protected:
+
+				// Discretization parameters
+				unsigned int _nComp;      //!< Number of components
+				unsigned int _polyDeg;    //!< DG polynomial degree
+				unsigned int _nElem;      //!< Number of radial elements
+				unsigned int _nNodes;     //!< Nodes per element
+				unsigned int _nPoints;    //!< Total radial discrete points
+
+				unsigned int _strideNode; //!< Stride between nodes
+				unsigned int _strideElem; //!< Stride between elements
+
+				// Radial geometry
+				active _colLength;        //!< Column height L
+				active _innerRadius;      //!< Inner radius rho_inner
+				active _outerRadius;      //!< Outer radius rho_outer
+				active _deltaRho;         //!< Element spacing (uniform grid)
+
+				// Standard DG matrices (in reference space)
+				Eigen::VectorXd _nodes;       //!< LGL nodes in [-1, 1]
+				Eigen::MatrixXd _polyDerM;    //!< Polynomial derivative matrix D
+				Eigen::VectorXd _invWeights;  //!< Inverse LGL quadrature weights (collocation)
+				Eigen::MatrixXd _invMM;       //!< Inverse standard mass matrix M^{(0,0)}^{-1}
+				Eigen::MatrixXd _M00;         //!< Standard mass matrix M^{(0,0)}
+				Eigen::MatrixXd _M01;         //!< Weighted mass matrix M^{(0,1)}
+
+				// Cell-dependent matrices for radial geometry
+				std::vector<Eigen::MatrixXd> _invMM_rho;    //!< Per-cell inverse weighted mass matrix M_rho^{-1}[cell]
+				std::vector<Eigen::MatrixXd> _S_g;          //!< Per-cell stiffness matrix D^T * M_rho [cell]
+				std::vector<double> _rhoNodeCoords;         //!< Physical radial coordinates of all DG nodes
+				std::vector<double> _rhoCellBounds;         //!< Cell boundary positions (rho at interfaces)
+
+				// Per-cell Jacobian blocks
+				std::vector<Eigen::MatrixXd> _DGjacRadDispBlocks;  //!< Cell-dependent dispersion Jacobian blocks
+				std::vector<Eigen::MatrixXd> _DGjacRadConvBlocks;  //!< Cell-dependent convection Jacobian blocks
+
+				// Auxiliary state for dispersion
+				active* _auxState;        //!< Auxiliary variable g = d c / d rho
+				active* _subsState;       //!< Substitute variable
+				Eigen::Vector<active, Eigen::Dynamic> _surfaceFlux;  //!< Interface flux values
+				Eigen::Vector<active, 4> _boundary;  //!< Boundary values
+
+				// Section dependent parameters
+				std::vector<active> _colDispersion;  //!< Radial dispersion D_rho
+				std::vector<active> _velocity;       //!< Velocity coefficient (section dependent)
+				active _curVelocity;                 //!< Current velocity coefficient u = Q/(2*pi*L)
+				int _dir;                            //!< Flow direction
+
+				int _curSection;
+				bool _newStaticJac;
+
+				bool _dispersionCompIndep;
+				IParameterParameterDependence* _dispersionDep;
+
+				// Variable dispersion support
+				bool _variableDispersion;                           //!< Flag indicating spatially-varying dispersion
+				bool _overintegrate;                                //!< Use 3p/2 quadrature for nonlinear coefficients
+				std::vector<Eigen::VectorXd> _dispersionAtNodes;    //!< Per-cell dispersion values at DG nodes [cell][node]
+				std::vector<double> _dispersionAtInterfaces;        //!< Dispersion values at cell interfaces [nElem+1]
+
+				/* ===================================================================================
+				 *  Helper functions for radial DG
+				 * =================================================================================== */
+
+				/**
+				 * @brief Computes cell-dependent weighted mass matrices and stiffness matrices
+				 * @param [in] dispersion base dispersion coefficient (used when not variable)
+				 */
+				void computeCellDependentMatrices(double dispersion = 1.0);
+
+				/**
+				 * @brief Updates dispersion values at nodes and interfaces for variable D(rho)
+				 * @param [in] model reference to the model (needed for parameter dependence evaluation)
+				 * @param [in] secIdx current section index
+				 * @param [in] comp component index
+				 */
+				void updateDispersionValues(const IModel& model, unsigned int secIdx, unsigned int comp);
+
+				/**
+				 * @brief Recomputes S_g matrices for variable dispersion
+				 * @detail Uses quadrature integration with dispersion values at DG nodes
+				 */
+				void recomputeDispersionMatrices();
+
+				/**
+				 * @brief Computes radial node coordinates in physical space
+				 */
+				void computeRadialNodeCoordinates();
+
+				/**
+				 * @brief Calculates the convection part of the radial DG Jacobian for a specific cell
+				 * @param [in] cellIdx cell index
+				 */
+				Eigen::MatrixXd DGjacobianConvBlockRadial(unsigned int cellIdx);
+
+				/**
+				 * @brief Calculates the dispersion part of the radial DG Jacobian for a specific cell
+				 * @param [in] cellIdx cell index
+				 */
+				Eigen::MatrixXd DGjacobianDispBlockRadial(unsigned int cellIdx);
+
+				/**
+				 * @brief Calculates the auxiliary G block for a specific cell
+				 * @param [in] cellIdx cell index
+				 */
+				Eigen::MatrixXd getGBlockRadial(unsigned int cellIdx);
+
+				/**
+				 * @brief Calculates the radial DG Jacobian (exact integration only)
+				 */
+				void calcConvDispRadialDGSEMJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int offC);
+
+				/* ===================================================================================
+				 *  Radial DG residual helper functions
+				 * =================================================================================== */
+
+				/**
+				 * @brief Computes volume integral for radial DG with cell-dependent stiffness
+				 */
+				template<typename StateType, typename ResidualType>
+				void volumeIntegralRadial(unsigned int cellIdx,
+					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state,
+					Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>>& stateDer);
+
+				/**
+				 * @brief Computes surface integral for radial DG with rho-weighting
+				 */
+				template<typename StateType, typename ResidualType>
+				void surfaceIntegralRadial(unsigned int cellIdx,
+					const StateType* state, ResidualType* stateDer,
+					unsigned int strideNode_state, unsigned int strideElem_state,
+					unsigned int strideNode_stateDer, unsigned int strideElem_stateDer);
+
+				/**
+				 * @brief Computes numerical flux for auxiliary equation (central flux)
+				 */
+				template<typename StateType>
+				void InterfaceFluxAuxiliaryRadial(const StateType* C, unsigned int strideNode, unsigned int strideElem);
+
+				/**
+				 * @brief Computes numerical flux for main equation (convection + dispersion)
+				 */
+				template<typename StateType, typename ParamType>
+				void InterfaceFluxRadial(const StateType* C, ParamType dispersion);
+
+				/**
+				 * @brief Calculates boundary values for radial Danckwerts conditions
+				 */
+				template<typename StateType>
+				void calcBoundaryValuesRadial() {
+					// g_l left boundary (inlet for forward flow)
+					_boundary[2] = -reinterpret_cast<StateType*>(_auxState)[0];
+					// g_r right boundary (outlet for forward flow)
+					_boundary[3] = -reinterpret_cast<StateType*>(_auxState)[_nPoints - 1];
+				}
+
+				/* ===================================================================================
+				 *  Radial DG residual template implementations
+				 * =================================================================================== */
+
+				/**
+				 * @brief Computes volume integral for auxiliary equation: g -= D * c
+				 */
+				template<typename StateType, typename ResidualType>
+				void volumeIntegralAuxRadial(
+					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state,
+					Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>>& stateDer) {
+
+					for (unsigned int elem = 0; elem < _nElem; elem++) {
+						if constexpr (std::is_same_v<StateType, double>) {
+							if constexpr (std::is_same_v<ResidualType, double>) {
+								stateDer.segment(elem * _nNodes, _nNodes) -= _polyDerM * state.segment(elem * _nNodes, _nNodes);
+							}
+							else {
+								stateDer.segment(elem * _nNodes, _nNodes) -= (_polyDerM * state.segment(elem * _nNodes, _nNodes)).template cast<ResidualType>();
+							}
+						}
+						else {
+							stateDer.segment(elem * _nNodes, _nNodes) -= _polyDerM.template cast<active>() * state.segment(elem * _nNodes, _nNodes);
+						}
+					}
+				}
+
+				/**
+				 * @brief Computes volume integral for main equation with radial stiffness
+				 * @detail Uses cell-dependent S_g[cell] = D^T * M_rho for dispersion term
+				 */
+				template<typename StateType, typename ResidualType, typename ParamType>
+				void volumeIntegralMainRadial(const StateType* c, ResidualType* res, const StateType* g, ParamType d_rad) {
+					const double deltaRho = static_cast<double>(_deltaRho);
+
+					for (unsigned int elem = 0; elem < _nElem; elem++) {
+						// Convection term: M_rho^{-1} * D^T * M^{(0,0)} * u * c
+						// Dispersion term: -M_rho^{-1} * S_g * g
+
+						for (unsigned int node = 0; node < _nNodes; node++) {
+							ResidualType convSum = 0.0;
+							ResidualType dispSum = 0.0;
+
+							for (unsigned int j = 0; j < _nNodes; j++) {
+								// Convection: D^T * M00 * c
+								double DtM00_entry = 0.0;
+								for (unsigned int k = 0; k < _nNodes; k++) {
+									DtM00_entry += _polyDerM(k, node) * _M00(k, j);
+								}
+								convSum += static_cast<ResidualType>(_invMM_rho[elem](node, j) * DtM00_entry * _curVelocity * c[elem * _strideElem + j * _strideNode]);
+
+								// Dispersion: S_g * g (S_g = D^T * M_rho, already computed)
+								dispSum += static_cast<ResidualType>(_invMM_rho[elem](node, j) * _S_g[elem](j, j) * d_rad * g[elem * _nNodes + j]);
+							}
+
+							res[elem * _strideElem + node * _strideNode] += static_cast<ResidualType>((2.0 / deltaRho) * (convSum - dispSum));
+						}
+					}
+				}
+
+				/**
+				 * @brief Computes surface integral for auxiliary equation with radial geometry
+				 * @detail Exact integration: g -= M^{-1} * B * [c - c*]
+				 */
+				template<typename StateType, typename ResidualType>
+				void surfaceIntegralAuxRadial(const StateType* state, ResidualType* stateDer,
+					unsigned int strideNode_state, unsigned int strideElem_state,
+					unsigned int strideNode_stateDer, unsigned int strideElem_stateDer) {
+
+					for (unsigned int elem = 0; elem < _nElem; elem++) {
+						// M^{-1} B [state - state*]
+						for (unsigned int node = 0; node < _nNodes; node++) {
+							stateDer[elem * strideElem_stateDer + node * strideNode_stateDer]
+								-= static_cast<ResidualType>(_invMM(node, 0) * (state[elem * strideElem_state] - _surfaceFlux[elem])
+									- _invMM(node, _polyDeg) * (state[elem * strideElem_state + _polyDeg * strideNode_state] - _surfaceFlux[elem + 1]));
+						}
+					}
+				}
+
+				/**
+				 * @brief Computes surface integral for main equation with radial weighting
+				 * @detail Exact integration: Dc -= (2/Δρ) * M_ρ^{-1} * B * h*
+				 *         Note: This version is not used - surfaceIntegralMainRadialImpl is used instead
+				 */
+				template<typename StateType, typename ResidualType, typename ParamType>
+				void surfaceIntegralMainRadial(ResidualType* res, ParamType d_rad) {
+					const double deltaRho = static_cast<double>(_deltaRho);
+
+					for (unsigned int elem = 0; elem < _nElem; elem++) {
+						for (unsigned int node = 0; node < _nNodes; node++) {
+							// Left face: -M_rho^{-1}[:, 0] * h*_left
+							res[elem * _strideElem + node * _strideNode]
+								-= static_cast<ResidualType>((2.0 / deltaRho) * _invMM_rho[elem](node, 0) * _surfaceFlux[elem]);
+
+							// Right face: +M_rho^{-1}[:, N] * h*_right
+							res[elem * _strideElem + node * _strideNode]
+								+= static_cast<ResidualType>((2.0 / deltaRho) * _invMM_rho[elem](node, _nNodes - 1) * _surfaceFlux[elem + 1]);
+						}
+					}
+				}
+
+				/**
+				 * @brief Computes auxiliary flux c* (central average)
+				 */
+				template<typename StateType>
+				void InterfaceFluxAuxiliaryRadialImpl(const StateType* C, unsigned int strideNode, unsigned int strideElem) {
+					// c* = 0.5 * (c_left + c_right) at interior interfaces
+					for (unsigned int elem = 1; elem < _nElem; elem++) {
+						_surfaceFlux[elem] = 0.5 * (C[elem * strideElem - strideNode] + C[elem * strideElem]);
+					}
+
+					// Boundary fluxes
+					_surfaceFlux[0] = C[0];  // Left boundary: just use interior value
+					_surfaceFlux[_nElem] = C[_nElem * strideElem - strideNode];  // Right boundary
+				}
+
+				/**
+				 * @brief Computes numerical fluxes c* and g* for radial DG
+				 * @detail Following CADET-Julia pattern:
+				 *   - c*: upwind convection flux
+				 *   - g*: central average for interior, Danckwerts for inlet, zero for outlet
+				 *   - u = v * rho_inlet for forward flow (velocity × boundary radius)
+				 * @param [in] C concentration state
+				 * @param [in] d_rad base dispersion coefficient (used if not variable dispersion)
+				 * @param [out] c_star concentration flux at interfaces
+				 * @param [out] g_star gradient flux at interfaces
+				 * @param [out] d_rad_i dispersion at interfaces
+				 */
+				template<typename StateType, typename ParamType>
+				void computeNumericalFluxesRadial(const StateType* C, ParamType d_rad,
+					std::vector<StateType>& c_star, std::vector<StateType>& g_star, std::vector<double>& d_rad_i) {
+
+					StateType* g = reinterpret_cast<StateType*>(_auxState);
+					const double deltaRho = static_cast<double>(_deltaRho);
+
+					unsigned int strideNode = _strideNode;
+					unsigned int strideElem = _nNodes * strideNode;
+					unsigned int strideNode_g = 1u;
+					unsigned int strideElem_g = _nNodes * strideNode_g;
+
+					// Velocity coefficient (NOT multiplied by ρ - matches FV implementation)
+					// _curVelocity = Q/(2πL), and actual velocity v(ρ) = _curVelocity/ρ
+					// The flux is u_coeff * c (constant), not ρ*v*c
+					const double u = static_cast<double>(_curVelocity);
+
+					// Dispersion at interfaces: use pre-computed values if variable, otherwise constant
+					if (_variableDispersion) {
+						for (unsigned int i = 0; i <= _nElem; i++) {
+							d_rad_i[i] = _dispersionAtInterfaces[i];
+						}
+					} else {
+						for (unsigned int i = 0; i <= _nElem; i++) {
+							d_rad_i[i] = static_cast<double>(d_rad);
+						}
+					}
+
+					// Interior interfaces
+					for (unsigned int elem = 1; elem < _nElem; elem++) {
+						// c*: upwind flux
+						if (_curVelocity >= 0.0) {
+							c_star[elem] = C[elem * strideElem - strideNode];  // from left
+						} else {
+							c_star[elem] = C[elem * strideElem];  // from right
+						}
+						// g*: central average
+						g_star[elem] = 0.5 * (g[elem * strideElem_g - strideNode_g] + g[elem * strideElem_g]);
+					}
+
+					// Boundary interfaces
+					// Note: _boundary[0] is of type 'active', so we use static_cast<StateType> directly
+					// to preserve AD tracking when StateType is 'active'
+					// g is now in REFERENCE coordinates (dc/dξ), not physical (dc/dρ)
+					// Danckwerts BC: u*c_in = u*c - ρ*D*(2/Δρ)*g_ref
+					// => g_ref = u*(c - c_in)*Δρ / (2*ρ*D)
+					if (_curVelocity >= 0.0) {
+						// Inlet at left (rho_inner)
+						c_star[0] = static_cast<StateType>(_boundary[0]);  // inlet concentration
+						const double rho_inlet = _rhoCellBounds[0];
+						if (std::abs(d_rad_i[0]) > 1e-30 && std::abs(rho_inlet) > 1e-30) {
+							g_star[0] = static_cast<StateType>(u * deltaRho / (2.0 * rho_inlet * d_rad_i[0]))
+							          * (C[0] - static_cast<StateType>(_boundary[0]));
+						} else {
+							g_star[0] = StateType(0.0);
+						}
+
+						// Outlet at right (rho_outer) - zero flux BC (g* = 0)
+						c_star[_nElem] = C[_nElem * strideElem - strideNode];
+						g_star[_nElem] = StateType(0.0);
+					} else {
+						// Inlet at right for backward flow
+						c_star[_nElem] = static_cast<StateType>(_boundary[0]);
+						const double rho_inlet = _rhoCellBounds[_nElem];
+						if (std::abs(d_rad_i[_nElem]) > 1e-30 && std::abs(rho_inlet) > 1e-30) {
+							g_star[_nElem] = static_cast<StateType>(u * deltaRho / (2.0 * rho_inlet * d_rad_i[_nElem]))
+							               * (C[_nElem * strideElem - strideNode] - static_cast<StateType>(_boundary[0]));
+						} else {
+							g_star[_nElem] = StateType(0.0);
+						}
+
+						// Outlet at left for backward flow - zero flux BC
+						c_star[0] = C[0];
+						g_star[0] = StateType(0.0);
+					}
+				}
+
+				/**
+				 * @brief Computes surface integral for main equation (CADET-Julia pattern)
+				 * @detail Exact integration: Dc -= (2/Δρ) * M_ρ^{-1} * [
+				 *           [:, 0] * (-u * c*[left] + rho[left] * D[left] * g*[left]) +
+				 *           [:, N] * (u * c*[right] - rho[right] * D[right] * g*[right])
+				 *         ]
+				 * @param [in,out] res pointer to residual for current component
+				 * @param [in] strideNode stride between nodes in res
+				 * @param [in] strideElem stride between elements in res
+				 */
+				template<typename StateType, typename ResidualType>
+				void surfaceIntegralMainRadialImpl(ResidualType* res,
+					const std::vector<StateType>& c_star, const std::vector<StateType>& g_star,
+					const std::vector<double>& d_rad_i, double u,
+					unsigned int strideNode, unsigned int strideElem) {
+
+					const double deltaRho = static_cast<double>(_deltaRho);
+
+					for (unsigned int elem = 0; elem < _nElem; elem++) {
+						double rho_left = _rhoCellBounds[elem];
+						double rho_right = _rhoCellBounds[elem + 1];
+
+						// Flux F = u*c - ρ*D*(2/Δρ)*g_ref  (g_star is in reference coords)
+						// Left face contribution: -F* = -u*c* + ρ*D*(2/Δρ)*g*
+						ResidualType left_flux = static_cast<ResidualType>(
+							-u * c_star[elem] + rho_left * d_rad_i[elem] * (2.0 / deltaRho) * g_star[elem]
+						);
+
+						// Right face contribution: F* = u*c* - ρ*D*(2/Δρ)*g*
+						ResidualType right_flux = static_cast<ResidualType>(
+							u * c_star[elem + 1] - rho_right * d_rad_i[elem + 1] * (2.0 / deltaRho) * g_star[elem + 1]
+						);
+
+						// Surface integral: res += M_ρ^{-1} * B * F* (strong form correction)
+						for (unsigned int node = 0; node < _nNodes; node++) {
+							res[elem * strideElem + node * strideNode]
+								+= static_cast<ResidualType>(
+									_invMM_rho[elem](node, 0) * left_flux +
+									_invMM_rho[elem](node, _nNodes - 1) * right_flux
+								);
+						}
+					}
+				}
+
+				/**
+				 * @brief Computes volume integral for main equation (CADET-Julia pattern)
+				 * @detail Dc += (2/Δρ) * M_ρ^{-1} * (D^T * M^{(0,0)} * u * c - S_g * g)
+				 *         For constant dispersion: S_g = D^T * M_ρ, multiply by d_rad
+				 *         For variable dispersion: S_g already includes D(ρ), don't multiply by d_rad
+				 * @param [in] c pointer to concentration for current component
+				 * @param [in,out] res pointer to residual for current component
+				 * @param [in] g auxiliary variable (single component, stride 1)
+				 * @param [in] strideNode_c stride between nodes in c
+				 * @param [in] strideElem_c stride between elements in c
+				 * @param [in] strideNode_res stride between nodes in res
+				 * @param [in] strideElem_res stride between elements in res
+				 */
+				template<typename StateType, typename ResidualType>
+				void volumeIntegralMainRadialImpl(const StateType* c, ResidualType* res, const StateType* g, double u, double d_rad,
+					unsigned int strideNode_c, unsigned int strideElem_c,
+					unsigned int strideNode_res, unsigned int strideElem_res) {
+					const double deltaRho = static_cast<double>(_deltaRho);
+
+					// For variable dispersion, d_rad is already baked into S_g
+					const double dispFactor = _variableDispersion ? 1.0 : d_rad;
+
+					for (unsigned int elem = 0; elem < _nElem; elem++) {
+						// Precompute D^T * M^{(0,0)} * c for this element
+						Eigen::VectorXd DtM00_c = Eigen::VectorXd::Zero(_nNodes);
+						for (unsigned int i = 0; i < _nNodes; i++) {
+							for (unsigned int j = 0; j < _nNodes; j++) {
+								double DtM00_ij = 0.0;
+								for (unsigned int k = 0; k < _nNodes; k++) {
+									DtM00_ij += _polyDerM(k, i) * _M00(k, j);
+								}
+								DtM00_c(i) += DtM00_ij * static_cast<double>(c[elem * strideElem_c + j * strideNode_c]);
+							}
+						}
+
+						// Precompute S_g * g for this element (g has stride 1)
+						Eigen::VectorXd Sg_g = Eigen::VectorXd::Zero(_nNodes);
+						for (unsigned int i = 0; i < _nNodes; i++) {
+							for (unsigned int j = 0; j < _nNodes; j++) {
+								Sg_g(i) += _S_g[elem](i, j) * static_cast<double>(g[elem * _nNodes + j]);
+							}
+						}
+
+						// Apply M_ρ^{-1} and add to residual
+						// NOTE: No (2/Δρ) factor here - coordinate transforms cancel in weak form
+						// See: ∫(dL/dρ)*F*dρ = ∫(2/Δρ)*(dL/dξ)*F*(Δρ/2)*dξ = ∫(dL/dξ)*F*dξ
+						for (unsigned int node = 0; node < _nNodes; node++) {
+							double conv_term = 0.0;
+							double disp_term = 0.0;
+
+							for (unsigned int j = 0; j < _nNodes; j++) {
+								conv_term += _invMM_rho[elem](node, j) * DtM00_c(j);
+								disp_term += _invMM_rho[elem](node, j) * Sg_g(j);
+							}
+
+							// Sign: res = dc/dt - M_ρ^{-1} * D * F for strong form DG
+							res[elem * strideElem_res + node * strideNode_res]
+								-= static_cast<ResidualType>(u * conv_term - dispFactor * disp_term);
+						}
+					}
+				}
+
+				/* ===================================================================================
+				 *  Main radial DG residualImpl template implementation
+				 * =================================================================================== */
+
+				/**
+				 * @brief Main residual implementation for radial DG
+				 * @detail Following CADET-Julia radialresidualImpl! pattern:
+				 *   1. Initialize residual with time derivative dc/dt
+				 *   2. For each component:
+				 *      a. Compute auxiliary variable g = dc/drho via volume + surface integrals
+				 *      b. Scale g by (2/Δρ)
+				 *      c. Compute numerical fluxes c*, g*
+				 *      d. Compute main equation Dc via surface + volume integrals
+				 */
+				template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+				int residualImpl(const IModel& model, double t, unsigned int secIdx,
+					StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin) {
+
+					const double deltaRho = static_cast<double>(_deltaRho);
+
+					// Working strides
+					unsigned int strideNode = _strideNode;
+					unsigned int strideElem = _nNodes * strideNode;
+					unsigned int strideNode_g = 1u;
+					unsigned int strideElem_g = _nNodes;
+
+					// Loop over all components (like axial DG)
+					for (unsigned int comp = 0; comp < _nComp; comp++) {
+
+						// Get dispersion coefficient for this component (section-dependent)
+						ParamType d_rad = static_cast<ParamType>(getSectionDependentSlice(_colDispersion, _nComp, secIdx)[comp]);
+
+						// Pointer to bulk DOFs for this component (skip inlet DOFs)
+						StateType const* yBulk = y + offsetC() + comp;
+
+						// Pointer to bulk residual for this component
+						ResidualType* resBulk = res + offsetC() + comp;
+
+						// ============================================================
+						// Step 0: Initialize residual with time derivative dc/dt
+						// ============================================================
+						if (yDot) {
+							for (unsigned int i = 0; i < _nPoints; i++) {
+								resBulk[i * strideNode] = static_cast<ResidualType>(yDot[offsetC() + comp + i * strideNode]);
+							}
+						} else {
+							for (unsigned int i = 0; i < _nPoints; i++) {
+								resBulk[i * strideNode] = ResidualType(0.0);
+							}
+						}
+
+						// Set inlet boundary concentration for this component
+						if constexpr (std::is_same_v<StateType, active>) {
+							_boundary[0] = y[comp];  // AD tracking preserved
+						} else {
+							_boundary[0] = static_cast<active>(y[comp]);
+						}
+
+						// Update variable dispersion values if needed
+						if (_variableDispersion && _newStaticJac) {
+							auto* mutableThis = const_cast<RadialConvectionDispersionOperatorBaseDG*>(this);
+							mutableThis->updateDispersionValues(model, secIdx, comp);
+							mutableThis->recomputeDispersionMatrices();
+						}
+
+						// Auxiliary state g for this component
+						StateType* g = reinterpret_cast<StateType*>(_auxState);
+
+						// ============================================================
+						// Step 1: Compute auxiliary variable g = dc/drho
+						// ============================================================
+
+						// Zero out g
+						for (unsigned int i = 0; i < _nPoints; i++) {
+							g[i] = StateType(0.0);
+						}
+
+						// Create Eigen maps for volume integral
+						Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> yMap(
+							yBulk, _nPoints, InnerStride<Dynamic>(strideNode));
+						Eigen::Map<Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> gMap(
+							g, _nPoints, InnerStride<Dynamic>(strideNode_g));
+
+						// Volume integral: g -= D * c
+						volumeIntegralAuxRadial<StateType, StateType>(yMap, gMap);
+
+						// Compute auxiliary flux c* (central average for interior)
+						InterfaceFluxAuxiliaryRadialImpl<StateType>(yBulk, strideNode, strideElem);
+
+						// Surface integral for g
+						surfaceIntegralAuxRadial<StateType, StateType>(yBulk, g, strideNode, strideElem, strideNode_g, strideElem_g);
+
+						// Note: g is in reference coordinates (dc/dξ)
+						// The (2/Δρ) scaling for physical gradient is handled implicitly
+						// through the S_g matrix which includes the coordinate transform
+
+						// ============================================================
+						// Step 2: Compute numerical fluxes c* and g*
+						// ============================================================
+
+						std::vector<StateType> c_star(_nElem + 1);
+						std::vector<StateType> g_star(_nElem + 1);
+						std::vector<double> d_rad_i(_nElem + 1);
+
+						computeNumericalFluxesRadial<StateType, ParamType>(yBulk, d_rad, c_star, g_star, d_rad_i);
+
+						// Velocity coefficient (NOT multiplied by ρ - matches FV implementation)
+						const double u = static_cast<double>(_curVelocity);
+
+						// ============================================================
+						// Step 3: Compute main equation residual (convection + dispersion)
+						// ============================================================
+
+						// Surface integral: res -= (2/Δρ) * M_ρ^{-1} * [flux terms]
+						surfaceIntegralMainRadialImpl<StateType, ResidualType>(resBulk, c_star, g_star, d_rad_i, u,
+							strideNode, strideElem);
+
+						// Volume integral: res += (2/Δρ) * M_ρ^{-1} * (convection - dispersion)
+						volumeIntegralMainRadialImpl<StateType, ResidualType>(yBulk, resBulk, g, u, static_cast<double>(d_rad),
+							strideNode, strideElem, strideNode, strideElem);
+
+					} // end component loop
+
+					return 0;
+				}
+			};
 
 			/**
 			 * @brief Convection dispersion transport operator
@@ -1282,10 +1984,10 @@ namespace cadet
 			};
 
 			extern template class ConvectionDispersionOperatorDG<AxialConvectionDispersionOperatorBaseDG>;
-			//extern template class ConvectionDispersionOperatorDG<RadialConvectionDispersionOperatorBaseDG>; // todo radial flow DG
+			extern template class ConvectionDispersionOperatorDG<RadialConvectionDispersionOperatorBaseDG>;
 
 			typedef ConvectionDispersionOperatorDG<AxialConvectionDispersionOperatorBaseDG> AxialConvectionDispersionOperatorDG;
-			//typedef ConvectionDispersionOperatorDG<RadialConvectionDispersionOperatorBaseDG> RadialConvectionDispersionOperatorDG; // todo radial flow DG
+			typedef ConvectionDispersionOperatorDG<RadialConvectionDispersionOperatorBaseDG> RadialConvectionDispersionOperatorDG;
 
 		} // namespace parts
 	} // namespace model
