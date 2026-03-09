@@ -79,9 +79,6 @@ namespace impl
 	template <typename StateType, typename ResidualType, typename ParamType, typename ReconstrType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 	int residualForwardsRadialFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const RadialFlowParameters<ParamType, ReconstrType>& p)
 	{
-		// True if the grid cell faces are provided and gridEquidistant is set to be false.
-		const bool nonEqGrid = p.cellFaces && !p.gridEquidistant;
-
 		// The stencil caches parts of the state vector for better spatial coherence
 		typedef CachingStencil<StateType, ArrayPool> StencilType;
 		StencilType stencil(std::max(p.reconstruction->stencilSize(), 3u), *p.stencilMemory, std::max(p.reconstruction->order() - 1, 1));
@@ -196,7 +193,7 @@ namespace impl
 				}
 
 				// Reconstruct concentration on this cell's right face
-				if (nonEqGrid)
+				if (!p.gridEquidistant)
 				{
 					if (wantJac)
 						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives, *p.cellFaces);
@@ -244,8 +241,6 @@ namespace impl
 	template <typename StateType, typename ResidualType, typename ParamType, typename ReconstrType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 	int residualBackwardsRadialFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const RadialFlowParameters<ParamType, ReconstrType>& p)
 	{
-		const bool nonEqGrid = p.cellFaces && !p.gridEquidistant;
-
 		// The stencil caches parts of the state vector for better spatial coherence
 		typedef CachingStencil<StateType, ArrayPool> StencilType;
 		StencilType stencil(std::max(p.reconstruction->stencilSize(), 3u), *p.stencilMemory, std::max(p.reconstruction->order() - 1, 1));
@@ -361,7 +356,7 @@ namespace impl
 				}
 
 				// Reconstruct concentration on this cell's left face
-				if (nonEqGrid)
+				if (!p.gridEquidistant)
 				{
 					const ReverseFaceAccessorRadial<std::vector<active>> reverseFaces{ *p.cellFaces };
 					const unsigned int flowCellIdx = p.nCol - 1 - col;
