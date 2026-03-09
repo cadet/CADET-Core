@@ -36,7 +36,8 @@ namespace cadet
 namespace model
 {
 
-int ColumnModel1D::multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue)
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue)
 {
 	if (_singleBinding)
 	{
@@ -79,7 +80,8 @@ int ColumnModel1D::multiplexInitialConditions(const cadet::ParameterId& pId, uns
 	return 0;
 }
 
-int ColumnModel1D::multiplexInitialConditions(const cadet::ParameterId& pId, double val, bool checkSens)
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::multiplexInitialConditions(const cadet::ParameterId& pId, double val, bool checkSens)
 {
 	if (_singleBinding)
 	{
@@ -130,7 +132,8 @@ int ColumnModel1D::multiplexInitialConditions(const cadet::ParameterId& pId, dou
 	return 0;
 }
 
-void ColumnModel1D::applyInitialCondition(const SimulationState& simState) const
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::applyInitialCondition(const SimulationState& simState) const
 {
 	Indexer idxr(_disc);
 
@@ -186,7 +189,8 @@ void ColumnModel1D::applyInitialCondition(const SimulationState& simState) const
 	}
 }
 
-void ColumnModel1D::readInitialCondition(IParameterProvider& paramProvider)
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::readInitialCondition(IParameterProvider& paramProvider)
 {
 	_initState.clear();
 	_initStateDot.clear();
@@ -312,7 +316,8 @@ void ColumnModel1D::readInitialCondition(IParameterProvider& paramProvider)
  * @param [in] errorTol Error tolerance for algebraic equations
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void ColumnModel1D::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -661,7 +666,8 @@ void ColumnModel1D::consistentInitialState(const SimulationTime& simTime, double
  * @param [in] vecStateY Consistently initialized state vector
  * @param [in,out] vecStateYdot On entry, residual without taking time derivatives into account. On exit, consistent state time derivatives.
  */
-void ColumnModel1D::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem)
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -807,7 +813,8 @@ void ColumnModel1D::consistentInitialTimeDerivative(const SimulationTime& simTim
  * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
  * @param [in] errorTol Error tolerance for algebraic equations
  */
-void ColumnModel1D::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -895,7 +902,8 @@ void ColumnModel1D::leanConsistentInitialState(const SimulationTime& simTime, do
  * @param [in,out] vecStateYdot On entry, inconsistent state time derivatives. On exit, partially consistent state time derivatives.
  * @param [in] res On entry, residual without taking time derivatives into account. The data is overwritten during execution of the function.
  */
-void ColumnModel1D::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -924,7 +932,8 @@ void ColumnModel1D::leanConsistentInitialTimeDerivative(double t, double const* 
 
 }
 
-void ColumnModel1D::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
 {
 	Indexer idxr(_disc);
 	for (std::size_t param = 0; param < vecSensY.size(); ++param)
@@ -1017,7 +1026,8 @@ void ColumnModel1D::initializeSensitivityStates(const std::vector<double*>& vecS
  * @param [in] adRes Pointer to residual vector of AD datatypes with parameter sensitivities
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void ColumnModel1D::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
@@ -1192,7 +1202,8 @@ void ColumnModel1D::consistentInitialSensitivity(const SimulationTime& simTime, 
 	}
 }
 
-void ColumnModel1D::solveBulkTimeDerivativeSystem(const SimulationTime& simTime, double* const rhs) {
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::solveBulkTimeDerivativeSystem(const SimulationTime& simTime, double* const rhs) {
 
 	Indexer idxr(_disc);
 
@@ -1277,7 +1288,8 @@ void ColumnModel1D::solveBulkTimeDerivativeSystem(const SimulationTime& simTime,
  * @param [in] adRes Pointer to residual vector of AD datatypes with parameter sensitivities
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
-void ColumnModel1D::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
