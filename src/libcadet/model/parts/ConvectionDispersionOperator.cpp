@@ -73,7 +73,6 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
 	_strideCell = strideCell;
 
 	_colLength = paramProvider.getDouble("COL_LENGTH");
-	double h = static_cast<double>(_colLength) / static_cast<double>(_nCol);
 
 	if (paramProvider.exists("COL_DISPERSION_DEP"))
 	{
@@ -93,13 +92,12 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
 
 	if (paramProvider.exists("GRID_FACES"))
 	{
-		// user can provide cell faces instead of number of cells, then we determine the number of cells and whether the grid is equidistant from that
 		readScalarParameterOrArray(_cellFaces, paramProvider, "GRID_FACES", 1);
 		if (_cellFaces.size() < 5)
 			throw InvalidParameterException("Number of elements in field GRID_FACES must be at least 5");    // We need at least 5 faces to be able to apply the WENO35 reconstruction at the first and last cell
 
-		_nCol = static_cast<unsigned int>(_cellFaces.size() - 1);
-		h = static_cast<double>(_colLength) / static_cast<double>(_nCol);
+		if (_cellFaces.size() != _nCol + 1)
+			throw InvalidParameterException("Number of elements in field GRID_FACES must be NCOL + 1");
 
 		const double lastFace = static_cast<double>(_cellFaces.back());
 		if (std::abs(lastFace - static_cast<double>(_colLength)) > 1e-12)
@@ -158,7 +156,11 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
 	else
 	{
 		_gridEquidistant = true;
-		_cellFaces.clear();
+		const double h = static_cast<double>(_colLength) / static_cast<double>(_nCol);
+		_cellFaces.resize(_nCol + 1);
+
+		for (int i = 0; i <= _nCol; ++i)
+			_cellFaces[i] = i * h;
 	}
 
 	if (recType == "WENO")
