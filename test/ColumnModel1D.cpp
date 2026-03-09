@@ -20,6 +20,7 @@
 #include "ParticleHelper.hpp"
 #include "ReactionModelTests.hpp"
 #include "JsonTestModels.hpp"
+#include "SimHelper.hpp"
 #include "Utils.hpp"
 #include "common/Driver.hpp"
 
@@ -734,4 +735,386 @@ TEST_CASE("Column_1D as LRMP multi particle types dynamic reactions time derivat
 {
 	cadet::JsonParameterProvider jpp = createLRMPColumnWithTwoCompLinearBindingThreeParticleTypes();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 8e-4);
+}
+
+// ============================================================================
+// Radial Column_1D DG Tests
+// ============================================================================
+
+TEST_CASE("Radial Column_1D as GRM transport Jacobian", "[RadialColumn_1D],[DG],[UnitOp],[Jacobian]")
+{
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "RADIAL_COLUMN_MODEL_1D_GRM", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial Column_1D as GRM time derivative Jacobian vs FD", "[RadialColumn_1D],[DG],[UnitOp],[Residual],[Jacobian]")
+{
+	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_COLUMN_MODEL_1D_GRM", "DG");
+}
+
+TEST_CASE("Radial Column_1D as GRM inlet DOF Jacobian", "[RadialColumn_1D],[DG],[UnitOp],[Jacobian],[Inlet]")
+{
+	cadet::test::column::testInletDofJacobian("RADIAL_COLUMN_MODEL_1D_GRM", "DG");
+}
+
+TEST_CASE("Radial Column_1D as GRM with two component linear binding Jacobian", "[RadialColumn_1D],[DG],[UnitOp],[Jacobian]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_COLUMN_MODEL_1D_GRM", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial Column_1D as LRMP transport Jacobian", "[RadialColumn_1D],[DG],[UnitOp],[Jacobian]")
+{
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "RADIAL_COLUMN_MODEL_1D_LRMP", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial Column_1D as LRMP time derivative Jacobian vs FD", "[RadialColumn_1D],[DG],[UnitOp],[Residual],[Jacobian]")
+{
+	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_COLUMN_MODEL_1D_LRMP", "DG");
+}
+
+TEST_CASE("Radial Column_1D as LRMP inlet DOF Jacobian", "[RadialColumn_1D],[DG],[UnitOp],[Jacobian],[Inlet]")
+{
+	cadet::test::column::testInletDofJacobian("RADIAL_COLUMN_MODEL_1D_LRMP", "DG");
+}
+
+TEST_CASE("Radial Column_1D as LRMP with two component linear binding Jacobian", "[RadialColumn_1D],[DG],[UnitOp],[Jacobian]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_COLUMN_MODEL_1D_LRMP", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial Column_1D as GRM sensitivity Jacobians", "[RadialColumn_1D],[DG],[UnitOp],[Sensitivity]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_COLUMN_MODEL_1D_GRM", "DG");
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7);
+}
+
+TEST_CASE("Radial Column_1D as LRMP sensitivity Jacobians", "[RadialColumn_1D],[DG],[UnitOp],[Sensitivity]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_COLUMN_MODEL_1D_LRMP", "DG");
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7);
+}
+
+TEST_CASE("Radial Column_1D as GRM consistent initialization with linear binding", "[RadialColumn_1D],[DG],[ConsistentInit]")
+{
+	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-12);
+}
+
+TEST_CASE("Radial Column_1D as LRMP consistent initialization with linear binding", "[RadialColumn_1D],[DG],[ConsistentInit]")
+{
+	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12);
+}
+
+TEST_CASE("Radial Column_1D as GRM dynamic reactions Jacobian vs AD bulk", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ReactionModel]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_COLUMN_MODEL_1D_GRM", "DG", true, false, false, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial Column_1D as GRM dynamic reactions Jacobian vs AD particle", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ReactionModel]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_COLUMN_MODEL_1D_GRM", "DG", false, true, false, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial Column_1D as GRM dynamic reactions Jacobian vs AD bulk and particle", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ReactionModel]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_COLUMN_MODEL_1D_GRM", "DG", true, true, false, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial Column_1D as LRMP dynamic reactions Jacobian vs AD bulk", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ReactionModel]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", true, false, false, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial Column_1D as LRMP dynamic reactions Jacobian vs AD particle", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ReactionModel]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", false, true, false, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial Column_1D as LRMP dynamic reactions Jacobian vs AD bulk and particle", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ReactionModel]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", true, true, false, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial Column_1D as GRM dynamic binding with surf diff par dep Jacobian vs AD", "[RadialColumn_1D],[DG],[UnitOp],[Jacobian],[ParameterDependence]")
+{
+	cadet::test::column::testJacobianADVariableParSurfDiff("RADIAL_COLUMN_MODEL_1D_GRM", "DG", true);
+}
+
+TEST_CASE("Radial Column_1D as GRM rapid-equilibrium binding with surf diff par dep Jacobian vs AD", "[RadialColumn_1D],[DG],[UnitOp],[Jacobian],[ParameterDependence]")
+{
+	cadet::test::column::testJacobianADVariableParSurfDiff("RADIAL_COLUMN_MODEL_1D_GRM", "DG", false);
+}
+
+// ============================================================================
+// Radial Column_1D DG Particle Type Tests
+// ============================================================================
+
+TEST_CASE("Radial Column_1D as GRM LWE one vs two identical particle types match", "[RadialColumn_1D],[DG],[Simulation],[ParticleType]")
+{
+	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("RADIAL_COLUMN_MODEL_1D_GRM", "DG", 2e-8, 5e-5);
+}
+
+TEST_CASE("Radial Column_1D as GRM LWE separate identical particle types match", "[RadialColumn_1D],[DG],[Simulation],[ParticleType]")
+{
+	cadet::test::particle::testSeparateIdenticalParticleTypes("RADIAL_COLUMN_MODEL_1D_GRM", "DG", 2e-8, 5e-5);
+}
+
+TEST_CASE("Radial Column_1D as GRM linear binding single particle matches particle distribution", "[RadialColumn_1D],[DG],[Simulation],[ParticleType]")
+{
+	cadet::test::particle::testLinearMixedParticleTypes("RADIAL_COLUMN_MODEL_1D_GRM", "DG", 5e-8, 5e-5);
+}
+
+TEST_CASE("Radial Column_1D as GRM multiple particle types Jacobian analytic vs AD", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ParticleType]")
+{
+	cadet::test::particle::testJacobianMixedParticleTypes("RADIAL_COLUMN_MODEL_1D_GRM", "DG", 5e-12);
+}
+
+TEST_CASE("Radial Column_1D as GRM multiple particle types time derivative Jacobian vs FD", "[RadialColumn_1D],[DG],[UnitOp],[Residual],[Jacobian],[ParticleType]")
+{
+	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("RADIAL_COLUMN_MODEL_1D_GRM", "DG", 1e-6, 0.0, 9e-4);
+}
+
+TEST_CASE("Radial Column_1D as GRM multiple spatially dependent particle types Jacobian analytic vs AD", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ParticleType]")
+{
+	cadet::test::particle::testJacobianSpatiallyMixedParticleTypes("RADIAL_COLUMN_MODEL_1D_GRM", "DG", 1e-11);
+}
+
+TEST_CASE("Radial Column_1D as GRM linear binding single particle matches spatially dependent particle distribution", "[RadialColumn_1D],[DG],[Simulation],[ParticleType]")
+{
+	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("RADIAL_COLUMN_MODEL_1D_GRM", "DG", 5e-8, 5e-5);
+}
+
+TEST_CASE("Radial Column_1D as LRMP LWE one vs two identical particle types match", "[RadialColumn_1D],[DG],[Simulation],[ParticleType]")
+{
+	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", 2.2e-8, 6e-5);
+}
+
+TEST_CASE("Radial Column_1D as LRMP LWE separate identical particle types match", "[RadialColumn_1D],[DG],[Simulation],[ParticleType]")
+{
+	cadet::test::particle::testSeparateIdenticalParticleTypes("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", 2e-8, 5e-5);
+}
+
+TEST_CASE("Radial Column_1D as LRMP linear binding single particle matches particle distribution", "[RadialColumn_1D],[DG],[Simulation],[ParticleType]")
+{
+	cadet::test::particle::testLinearMixedParticleTypes("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", 5e-8, 5e-5);
+}
+
+TEST_CASE("Radial Column_1D as LRMP multiple particle types Jacobian analytic vs AD", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ParticleType]")
+{
+	cadet::test::particle::testJacobianMixedParticleTypes("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", 5e-12);
+}
+
+TEST_CASE("Radial Column_1D as LRMP multiple particle types time derivative Jacobian vs FD", "[RadialColumn_1D],[DG],[UnitOp],[Residual],[Jacobian],[ParticleType]")
+{
+	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", 1e-6, 0.0, 9e-4);
+}
+
+TEST_CASE("Radial Column_1D as LRMP multiple spatially dependent particle types Jacobian analytic vs AD", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ParticleType]")
+{
+	cadet::test::particle::testJacobianSpatiallyMixedParticleTypes("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", 1e-11);
+}
+
+TEST_CASE("Radial Column_1D as LRMP linear binding single particle matches spatially dependent particle distribution", "[RadialColumn_1D],[DG],[Simulation],[ParticleType]")
+{
+	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", 5e-8, 5e-5);
+}
+
+// ============================================================================
+// Radial Column_1D DG Multi Particle Type Dynamic Reaction Tests
+// ============================================================================
+
+inline cadet::JsonParameterProvider createRadial1DGRMColumnWithThreeParticleTypes()
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_COLUMN_MODEL_1D_GRM", "DG");
+
+	const double parVolFrac[] = { 0.3, 0.6, 0.1 };
+	const double parFactor[] = { 0.9, 0.8 };
+	cadet::test::particle::extendModelToManyParticleTypes(jpp, 3, parFactor, parVolFrac);
+
+	return jpp;
+}
+
+TEST_CASE("Radial Column_1D as GRM multi particle types dynamic reactions Jacobian vs AD bulk", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, false, false);
+}
+
+TEST_CASE("Radial Column_1D as GRM multi particle types dynamic reactions Jacobian vs AD particle", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, false);
+}
+
+TEST_CASE("Radial Column_1D as GRM multi particle types dynamic reactions Jacobian vs AD modified particle", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, true);
+}
+
+TEST_CASE("Radial Column_1D as GRM multi particle types dynamic reactions Jacobian vs AD bulk and particle", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, false);
+}
+
+TEST_CASE("Radial Column_1D as GRM multi particle types dynamic reactions Jacobian vs AD bulk and modified particle", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, true);
+}
+
+TEST_CASE("Radial Column_1D as GRM multi particle types dynamic reactions time derivative Jacobian vs FD bulk", "[RadialColumn_1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, false, false, 1e-6, 1e-14, 9e-4);
+}
+
+TEST_CASE("Radial Column_1D as GRM multi particle types dynamic reactions time derivative Jacobian vs FD particle", "[RadialColumn_1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, false, 1e-6, 1e-14, 9e-4);
+}
+
+TEST_CASE("Radial Column_1D as GRM multi particle types dynamic reactions time derivative Jacobian vs FD modified particle", "[RadialColumn_1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, true, 1e-6, 1e-14, 9e-4);
+}
+
+TEST_CASE("Radial Column_1D as GRM multi particle types dynamic reactions time derivative Jacobian vs FD bulk and particle", "[RadialColumn_1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, false, 1e-6, 1e-14, 9e-4);
+}
+
+TEST_CASE("Radial Column_1D as GRM multi particle types dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[RadialColumn_1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 9e-4);
+}
+
+inline cadet::JsonParameterProvider createRadial1DLRMPColumnWithThreeParticleTypes()
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_COLUMN_MODEL_1D_LRMP", "DG");
+
+	const double parVolFrac[] = { 0.3, 0.6, 0.1 };
+	const double parFactor[] = { 0.9, 0.8 };
+	cadet::test::particle::extendModelToManyParticleTypes(jpp, 3, parFactor, parVolFrac);
+
+	return jpp;
+}
+
+TEST_CASE("Radial Column_1D as LRMP multi particle types dynamic reactions Jacobian vs AD bulk", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, false, false);
+}
+
+TEST_CASE("Radial Column_1D as LRMP multi particle types dynamic reactions Jacobian vs AD particle", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, false);
+}
+
+TEST_CASE("Radial Column_1D as LRMP multi particle types dynamic reactions Jacobian vs AD modified particle", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, true);
+}
+
+TEST_CASE("Radial Column_1D as LRMP multi particle types dynamic reactions Jacobian vs AD bulk and particle", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, false);
+}
+
+TEST_CASE("Radial Column_1D as LRMP multi particle types dynamic reactions Jacobian vs AD bulk and modified particle", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, true);
+}
+
+TEST_CASE("Radial Column_1D as LRMP multi particle types dynamic reactions time derivative Jacobian vs FD bulk", "[RadialColumn_1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, false, false, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("Radial Column_1D as LRMP multi particle types dynamic reactions time derivative Jacobian vs FD particle", "[RadialColumn_1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, false, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("Radial Column_1D as LRMP multi particle types dynamic reactions time derivative Jacobian vs FD modified particle", "[RadialColumn_1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, true, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("Radial Column_1D as LRMP multi particle types dynamic reactions time derivative Jacobian vs FD bulk and particle", "[RadialColumn_1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, false, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("Radial Column_1D as LRMP multi particle types dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[RadialColumn_1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType]")
+{
+	cadet::JsonParameterProvider jpp = createRadial1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 8e-4);
+}
+
+// ============================================================================
+// Radial Column_1D DG Variable Coefficient Tests
+// Note: The analytic Jacobian does not support variable dispersion (it uses
+// constant per-component D). These tests verify the time derivative Jacobian
+// (which is correct) and that the model runs correctly with variable coefficients.
+// The AD Jacobian correctly handles variable dispersion.
+// ============================================================================
+
+TEST_CASE("Radial Column_1D as GRM variable dispersion (RADIAL_POWER_LAW) time derivative Jacobian vs FD", "[RadialColumn_1D],[DG],[Jacobian],[ParameterDependence],[VarCoeff]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_COLUMN_MODEL_1D_GRM", "DG");
+	{
+		auto ms = cadet::test::util::makeOptionalGroupScope(jpp, "model");
+		auto us = cadet::test::util::makeOptionalGroupScope(jpp, "unit_000");
+
+		jpp.set("COL_DISPERSION_DEP", "RADIAL_POWER_LAW");
+		jpp.set("COL_DISPERSION_DEP_FACTOR", 0.5);
+		jpp.set("COL_DISPERSION_DEP_EXPONENT", 1.0);
+	}
+	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_COLUMN_MODEL_1D_GRM", "DG");
+}
+
+TEST_CASE("Radial Column_1D as LRMP variable dispersion (RADIAL_POWER_LAW) time derivative Jacobian vs FD", "[RadialColumn_1D],[DG],[Jacobian],[ParameterDependence],[VarCoeff]")
+{
+	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_COLUMN_MODEL_1D_LRMP", "DG");
+}
+
+TEST_CASE("Radial Column_1D as GRM variable dispersion (RADIAL_RECIPROCAL_POWER_LAW) time derivative Jacobian vs FD", "[RadialColumn_1D],[DG],[Jacobian],[ParameterDependence],[VarCoeff]")
+{
+	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_COLUMN_MODEL_1D_GRM", "DG");
+}
+
+TEST_CASE("Radial Column_1D as LRMP variable dispersion (RADIAL_RECIPROCAL_POWER_LAW) time derivative Jacobian vs FD", "[RadialColumn_1D],[DG],[Jacobian],[ParameterDependence],[VarCoeff]")
+{
+	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_COLUMN_MODEL_1D_LRMP", "DG");
+}
+
+TEST_CASE("Radial Column_1D as GRM variable dispersion + surf diff par dep combined Jacobian vs AD", "[RadialColumn_1D],[DG],[Jacobian],[ParameterDependence],[VarCoeff]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_COLUMN_MODEL_1D_GRM", "DG");
+	cadet::test::setBindingMode(jpp, true);
+	{
+		auto ms = cadet::test::util::makeOptionalGroupScope(jpp, "model");
+		auto us = cadet::test::util::makeOptionalGroupScope(jpp, "unit_000");
+
+		jpp.set("SURFACE_DIFFUSION_DEP", "LIQUID_SALT_EXPONENTIAL");
+		jpp.set("SURFACE_DIFFUSION_EXPFACTOR", std::vector<double>{ 0.8, 1.6 });
+		jpp.set("SURFACE_DIFFUSION_EXPARGMULT", std::vector<double>{ 1.3, 2.1 });
+	}
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
