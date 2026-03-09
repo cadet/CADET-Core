@@ -89,12 +89,14 @@ namespace parts
 
 		// Read particle discretization mode and default to "EQUIDISTANT"
 		_parDiscMode = ParticleDiscretizationMode::Equidistant;
-		std::string pdt = paramProvider.getString("PAR_DISC_TYPE");
-
-		if (pdt == "EQUIVOLUME")
-			_parDiscMode = ParticleDiscretizationMode::Equivolume;
-		else if (pdt == "USER_DEFINED")
-			_parDiscMode = ParticleDiscretizationMode::UserDefined;
+		if (paramProvider.exists("PAR_DISC_TYPE"))
+		{
+			std::string pdt = paramProvider.getString("PAR_DISC_TYPE");
+			if (pdt == "EQUIVOLUME")
+				_parDiscMode = ParticleDiscretizationMode::Equivolume;
+			else if (pdt == "USER_DEFINED")
+				_parDiscMode = ParticleDiscretizationMode::UserDefined;
+		}
 
 		if (paramProvider.exists("PAR_DISC_VECTOR"))
 		{

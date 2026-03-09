@@ -7,6 +7,9 @@
 #include "model/GeneralRateModel.hpp"
 #include "model/LumpedRateModelWithoutPores.hpp"
 #include "model/LumpedRateModelWithoutPoresDG.hpp"
+#include "model/RadialLumpedRateModelWithoutPoresDG.hpp"
+#include "model/RadialLumpedRateModelWithPoresDG.hpp"
+#include "model/RadialGeneralRateModelDG.hpp"
 #include "model/LumpedRateModelWithPores.hpp"
 #include "CompileTimeConfig.hpp"
 #include "LoggingUtils.hpp"
@@ -61,13 +64,13 @@ namespace model
 						model = createAxialFVGRM(uoId);
 				}
 				else
-					model = new ColumnModel1D(uoId);
+					model = new ColumnModel1D<>(uoId);
 
 				paramProvider.popScope();
 			}
 			else if (discName == "DG")
 			{
-				model = new ColumnModel1D(uoId);
+				model = new ColumnModel1D<>(uoId);
 			}
 			else if (discName == "FV")
 			{
@@ -123,7 +126,7 @@ namespace model
 				if (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES")
 					model = new LumpedRateModelWithoutPoresDG(uoId);
 				else if (uoType == "LUMPED_RATE_MODEL_WITH_PORES" || uoType == "GENERAL_RATE_MODEL")
-					model = new ColumnModel1D(uoId);
+					model = new ColumnModel1D<>(uoId);
 			}
 			else if (discName == "FV")
 			{
@@ -155,11 +158,6 @@ namespace model
 				const std::string discName = paramProvider.getString("SPATIAL_METHOD");
 				paramProvider.popScope();
 
-				if (discName == "DG")
-					LOG(Error) << "Radial flow not implemented for DG discretization yet, was called for unit " << uoId;
-				else if (discName != "FV")
-					LOG(Error) << "Unknown bulk discretization type " << discName << " for unit " << uoId;
-
 				paramProvider.pushScope("particle_type_000");
 
 				const bool filmDiffusion = paramProvider.getBool("HAS_FILM_DIFFUSION");
@@ -168,17 +166,38 @@ namespace model
 
 				const std::string particleType = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType();
 
-				if (particleType == "EQUILIBRIUM_PARTICLE")
-					model = createRadialFVLRM(uoId);
-				if (particleType == "HOMOGENEOUS_PARTICLE")
-					model = createRadialFVLRMP(uoId);
-				else if (particleType == "GENERAL_RATE_PARTICLE")
-					model = createRadialFVGRM(uoId);
+				if (discName == "DG")
+				{
+					model = new ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG>(uoId);
+				}
+				else if (discName == "FV")
+				{
+					if (particleType == "EQUILIBRIUM_PARTICLE")
+						model = createRadialFVLRM(uoId);
+					else if (particleType == "HOMOGENEOUS_PARTICLE")
+						model = createRadialFVLRMP(uoId);
+					else if (particleType == "GENERAL_RATE_PARTICLE")
+						model = createRadialFVGRM(uoId);
+					else
+						LOG(Error) << "Unknown particle type " << particleType << " for unit " << uoId;
+				}
+				else
+					LOG(Error) << "Unknown bulk discretization type " << discName << " for unit " << uoId;
 
 				paramProvider.popScope();
 			}
 			else
-				model = createRadialFVLRM(uoId); // LRM used for npartype = 0
+			{
+				// LRM used for npartype = 0
+				paramProvider.pushScope("discretization");
+				const std::string discName = paramProvider.exists("SPATIAL_METHOD") ? paramProvider.getString("SPATIAL_METHOD") : "FV";
+				paramProvider.popScope();
+
+				if (discName == "DG")
+					model = new ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG>(uoId);
+				else
+					model = createRadialFVLRM(uoId);
+			}
 		}
 		else
 		{
@@ -186,7 +205,16 @@ namespace model
 			const std::string discName = paramProvider.getString("SPATIAL_METHOD");
 
 			if (discName == "DG")
-				LOG(Error) << "Radial flow not implemented for DG discretization yet, was called for unit " << uoId;
+			{
+				if (uoType == "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES")
+					model = new RadialLumpedRateModelWithoutPoresDG(uoId);
+				else if (uoType == "RADIAL_LUMPED_RATE_MODEL_WITH_PORES")
+					model = new RadialLumpedRateModelWithPoresDG(uoId);
+				else if (uoType == "RADIAL_GENERAL_RATE_MODEL")
+					model = new RadialGeneralRateModelDG(uoId);
+				else
+					LOG(Error) << "Radial DG only supports LRM, LRMP, and GRM currently for unit " << uoId;
+			}
 			else if (discName == "FV")
 			{
 				if (uoType == "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES")
@@ -271,7 +299,7 @@ namespace model
 
 	void registerColumnModel(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx, IParameterProvider&)>>& models)
 	{
-		models[ColumnModel1D::identifier()] = selectAxialFlowColumnUnitOperation;
+		models[ColumnModel1D<>::identifier()] = selectAxialFlowColumnUnitOperation;
 		models["COLUMN_MODEL_1D"] = selectAxialFlowColumnUnitOperation;
 		models["RADIAL_COLUMN_MODEL_1D"] = selectRadialFlowColumnUnitOperation;
 		models["FRUSTUM_COLUMN_MODEL_1D"] = selectFrustumFlowColumnUnitOperation;
@@ -316,6 +344,16 @@ namespace model
 
 		models[RadialLRM::identifier()] = selectRadialFlowColumnUnitOperation;
 		models["RLRM"] = selectRadialFlowColumnUnitOperation;
+
+		// DG-specific model registrations
+		models[RadialLumpedRateModelWithoutPoresDG::identifier()] = selectRadialFlowColumnUnitOperation;
+		models["RLRM_DG"] = selectRadialFlowColumnUnitOperation;
+
+		models[RadialLumpedRateModelWithPoresDG::identifier()] = selectRadialFlowColumnUnitOperation;
+		models["RLRMP_DG"] = selectRadialFlowColumnUnitOperation;
+
+		models[RadialGeneralRateModelDG::identifier()] = selectRadialFlowColumnUnitOperation;
+		models["RGRM_DG"] = selectRadialFlowColumnUnitOperation;
 	}
 
 }  // namespace model
