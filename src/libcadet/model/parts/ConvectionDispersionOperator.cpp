@@ -740,6 +740,9 @@ bool RadialConvectionDispersionOperatorBase::configureModelDiscretization(IParam
 	_nCol = nCol;
 	_strideCell = strideCell;
 
+	_innerRadius = paramProvider.getDouble("COL_RADIUS_INNER");
+	_outerRadius = paramProvider.getDouble("COL_RADIUS_OUTER");
+
 	if (paramProvider.exists("COL_DISPERSION_DEP"))
 	{
 		const std::string paramDepName = paramProvider.getString("COL_DISPERSION_DEP");
@@ -762,31 +765,74 @@ bool RadialConvectionDispersionOperatorBase::configureModelDiscretization(IParam
 		if (_cellFaces.size() < 5)
 			throw InvalidParameterException("Number of elements in field GRID_FACES must be at least 5");    // We need at least 5 faces to be able to apply the WENO35 reconstruction at the first and last cell
 
-		_nCol = static_cast<unsigned int>(_cellFaces.size() - 1);
+		if (_cellFaces.size() != _nCol + 1)
+			throw InvalidParameterException("Number of elements in field GRID_FACES must be NCOL + 1");
 
-		const double firstFace = static_cast<double>(_cellFaces[0]);
-		const double lastFace = static_cast<double>(_cellFaces.back());
-		if (lastFace <= firstFace)
-			throw InvalidParameterException("Last entry of GRID_FACES must be greater than first entry");
+		// Check if first and last coordinate of cell faces match the inner and outer radius, respectively
+		if (std::abs(static_cast<double>(_cellFaces.back()) - static_cast<double>(_outerRadius)) > 1e-14)
+			throw InvalidParameterException("Last entry of GRID_FACES must be COL_RADIUS_OUTER");
+		if (std::abs(static_cast<double>(_cellFaces.front()) - static_cast<double>(_innerRadius)) > 1e-14)
+			throw InvalidParameterException("First entry of GRID_FACES must be COL_RADIUS_INNER");
 
+		// --- Grid diagnostics ---
+		double dxMin = std::numeric_limits<double>::max();
+		double dxMax = 0.0;
+		double rMax = 0.0;           // max stretching ratio
+		double jumpMax = 0.0;        // max sudden jump indicator
+
+		// Check if grid is equidistant
 		const double firstWidth = static_cast<double>(_cellFaces[1] - _cellFaces[0]);
+		const double widthTol = 1e-10 * std::max(1.0, std::abs(firstWidth));
 		_gridEquidistant = true;
 
-		for (unsigned int i = 0; i < _nCol; ++i)
+		double prevWidth = firstWidth;
+		dxMin = std::min(dxMin, prevWidth);
+		dxMax = std::max(dxMax, prevWidth);
+
+		for (unsigned int i = 1; i < _nCol; ++i)
 		{
 			const double curWidth = static_cast<double>(_cellFaces[i + 1] - _cellFaces[i]);
-			if (std::abs(curWidth - firstWidth) > 1e-10 * firstWidth)
-			{
+
+			dxMin = std::min(dxMin, curWidth);
+			dxMax = std::max(dxMax, curWidth);
+
+			// Check equidistance
+			if (std::abs(curWidth - firstWidth) > widthTol)
 				_gridEquidistant = false;
-				break;
+
+			// --- Stretching ratio ---
+			const double r = std::max(curWidth / prevWidth, prevWidth / curWidth);
+			rMax = std::max(rMax, r);
+
+			prevWidth = curWidth;
 			}
+
+
+		// --- Warning 1: cell stretching ratio ---
+		if (rMax > 3.0)
+		{
+			LOG(Warning) << "GRID_FACES contains strongly stretched neighboring cells (max recommended ratio = "
+				<< rMax << "). WENO reconstruction on highly stretched grids may lose accuracy or stability.";
 		}
+
+		// --- Warning 3: extreme cell size variance might cause stiffness ---
+		const double sizeRatio = dxMax / dxMin;
+		if (sizeRatio > 1e6)
+		{
+			LOG(Warning) << "GRID_FACES contains cells spanning a very large size range (max/min ratio = "
+				<< sizeRatio << "). This may lead to stiff ODE systems and slow or unstable time integration.";
+	}
 	}
 	else
 	{
 		_gridEquidistant = true;
 		_cellFaces.clear();
 	}
+
+	if (!_cellFaces.empty())
+		customCells(_cellFaces);
+	else
+		equidistantCells();
 
 	if (recType == "WENO")
 	{
@@ -827,9 +873,6 @@ bool RadialConvectionDispersionOperatorBase::configureModelDiscretization(IParam
 bool RadialConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
 	// Read geometry parameters
-	_innerRadius = paramProvider.getDouble("COL_RADIUS_INNER");
-	_outerRadius = paramProvider.getDouble("COL_RADIUS_OUTER");
-
 	if (paramProvider.exists("COLUMN_GEOMETRY"))
 	{
 		std::string geom = paramProvider.getString("COLUMN_GEOMETRY");
@@ -933,11 +976,6 @@ bool RadialConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IPar
 	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
 	parameters[makeParamId(hashString("COL_RADIUS_INNER"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_innerRadius;
 	parameters[makeParamId(hashString("COL_RADIUS_OUTER"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_outerRadius;
-
-	if (!_cellFaces.empty())
-		customCells(_cellFaces);
-	else
-		equidistantCells();
 
 	return true;
 }
