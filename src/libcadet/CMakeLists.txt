@@ -97,6 +97,7 @@ set(LIBCADET_BINDINGMODEL_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/MultiComponentSpreadingBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/GeneralizedIonExchangeBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/ColloidalBinding.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/CollodialParticleAdsorptionBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/FreundlichLDFBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/LangmuirLDFBinding.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/LangmuirLDFCBinding.cpp

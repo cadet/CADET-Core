@@ -39,6 +39,7 @@ namespace cadet
 			void registerMultiComponentSpreadingModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerGeneralizedIonExchangeModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerColloidalModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
+			void registerColloidalParticleAdsorptionModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerFreundlichLDFModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);
 			void registerLangmuirLDFModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);
 			void registerLangmuirLDFCModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);
@@ -73,6 +74,7 @@ namespace cadet
 		model::binding::registerMultiComponentSpreadingModel(_bindingModels);
 		model::binding::registerGeneralizedIonExchangeModel(_bindingModels);
 		model::binding::registerColloidalModel(_bindingModels);
+		model::binding::registerColloidalParticleAdsorptionModel(_bindingModels);
 		model::binding::registerFreundlichLDFModel(_bindingModels);
 		model::binding::registerLangmuirLDFModel(_bindingModels);
 		model::binding::registerLangmuirLDFCModel(_bindingModels);
