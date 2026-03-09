@@ -232,6 +232,17 @@ namespace particle
 	 */
 	void testArrowHeadJacobianSpatiallyMixedParticleTypes(const std::string& uoType, double h, double absTol, double relTol);
 
+	/**
+	 * @brief Checks the bottom macro row and right macro column of the Jacobian against FD for a model with multiple particle types
+	 * @details Uses centered finite differences to check the flux part of the Jacobian.
+	 * @param [in] uoType Unit operation type
+	 * @param [in] spatialMethod Spatial discretization method ("FV" or "DG")
+	 * @param [in] h Step size of centered finite differences
+	 * @param [in] absTol Absolute error tolerance
+	 * @param [in] relTol Relative error tolerance
+	 */
+	void testArrowHeadJacobianSpatiallyMixedParticleTypes(const std::string& uoType, const std::string& spatialMethod, double h, double absTol, double relTol);
+
 } // namespace particle
 } // namespace test
 } // namespace cadet
