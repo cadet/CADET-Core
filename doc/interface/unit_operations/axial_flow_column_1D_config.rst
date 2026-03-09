@@ -161,7 +161,7 @@ For further information on the choice of discretization methods and their parame
 
 ``SPATIAL_METHOD``
 
-   Spatial discretization method. Optional, defaults to :math:`\texttt{FV}`
+   Spatial discretization method
 
    ================  ===============================================  =============
    **Type:** string  **Range:** :math:`\{\texttt{FV}, \texttt{DG}\}`  **Length:** 1
