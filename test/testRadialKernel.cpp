@@ -15,6 +15,7 @@
 #include "Logging.hpp"
 
 #include "model/parts/RadialConvectionDispersionKernel.hpp"
+#include "Weno.hpp"
 #include "linalg/BandMatrix.hpp"
 #include "Memory.hpp"
 #include "AutoDiff.hpp"
@@ -54,7 +55,7 @@ class RadialFlowModel : public cadet::test::IDiffEqModel
 {
 public:
 	RadialFlowModel(int nComp, int nCol) : _nComp(nComp), _nCol(nCol),
-		_params{0.0, nullptr, nullptr, nullptr, nullptr, nullptr, 0, 0, 0, 0, 0, nullptr, _dummyModel},
+		_params{0.0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 0, 0, 0, 0, 0, nullptr, _dummyModel, true, nullptr},
 		_stencilMemory(sizeof(cadet::active) * 5)
 	{
 		const int nPureDof = _nCol * _nComp;
@@ -80,12 +81,19 @@ public:
 		_params.offsetToInlet = 0;
 		_params.strideCell = _nComp;
 		_params.parDep = new cadet::model::ConstantOneParameterParameterDependence();
+		_weno.order(1);
+		_weno.boundaryTreatment(0);
+		_weno.epsilon(1e-6);
+		_reconstrDerivatives = new double[cadet::Weno::maxStencilSize()];
+		_params.reconstruction = &_weno;
+		_params.reconstructionDerivatives = _reconstrDerivatives;
 	}
 
 	virtual ~RadialFlowModel() CADET_NOEXCEPT
 	{
 		if (_params.parDep)
 			delete _params.parDep;
+		delete[] _reconstrDerivatives;
 	}
 
 	int numPureDofs() const CADET_NOEXCEPT { return _nComp * _nCol; }
@@ -163,7 +171,7 @@ public:
 		for (int i = 0; i < _nComp; ++i)
 			res[i] = vecStateY[i] - inlet(time, secIdx, i);
 
-		const int ret = cadet::model::parts::convdisp::residualKernelRadial<double, double, double, cadet::linalg::BandMatrix::RowIterator, true>(
+		const int ret = cadet::model::parts::convdisp::residualKernelRadial<double, double, double, cadet::Weno, cadet::linalg::BandMatrix::RowIterator, true>(
 			cadet::SimulationTime{time, static_cast<unsigned int>(secIdx)},
 			vecStateY, vecStateYdot, res, _jac.row(0), _params
 		);
@@ -437,7 +445,7 @@ protected:
 	int _nCol;
 
 	DummyModel _dummyModel;
-	cadet::model::parts::convdisp::RadialFlowParameters<double> _params;
+	cadet::model::parts::convdisp::RadialFlowParameters<double, cadet::Weno> _params;
 	cadet::linalg::BandMatrix _jac;
 	cadet::linalg::FactorizableBandMatrix _jacDisc;
 
@@ -446,6 +454,8 @@ protected:
 	std::vector<cadet::active> _cellSizes;
 	std::vector<cadet::active> _cellBounds;
 	cadet::ArrayPool _stencilMemory;
+	cadet::Weno _weno;
+	double* _reconstrDerivatives;
 
 	std::vector<double> _solTimes;
 	std::vector<double> _solution;
