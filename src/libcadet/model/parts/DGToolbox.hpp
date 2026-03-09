@@ -73,6 +73,15 @@ ParamType mapPhysToRef(const std::vector<ParamType> deltaX, const unsigned int e
  */
 void lglNodesWeights(const unsigned int polyDeg, Eigen::VectorXd& nodes, Eigen::VectorXd& invWeights, bool invertWeights = true);
 /**
+ * @brief computes the Legendre-Gauss nodes and quadrature weights
+ * @detail Gauss quadrature exactly integrates polynomials up to degree 2N-1 with N points
+ * @param [in] polyDeg polynomial degree (N-1 where N is number of points)
+ * @param [in, out] nodes Legendre Gauss nodes
+ * @param [in, out] weights Legendre Gauss quadrature weights
+ * @param [in] invertWeights specifies if weights should be inverted
+ */
+void lgNodesWeights(const unsigned int polyDeg, Eigen::VectorXd& nodes, Eigen::VectorXd& weights, bool invertWeights = true);
+/**
  * @brief computes the Legendre polynomial and its derivative
  * @param [in] polyDeg polynomial degree
  * @param [in, out] leg Legendre polynomial
@@ -116,6 +125,52 @@ Eigen::MatrixXd invMMatrix(const unsigned int polyDeg, const Eigen::VectorXd nod
  */
 Eigen::MatrixXd mMatrix(const unsigned int polyDeg, const Eigen::VectorXd nodes, const double alpha, const double beta);
 /**
+ * @brief calculates the weighted mass matrix M^{(0,1)} for radial DG integrals
+ * @detail For integrals of the form \int_E \ell_i(\xi) \ell_j(\xi) (1 + \xi) d\xi
+ *         Used to construct radial weighted mass matrix: M_rho = (delta_rho/2) * M^{(0,1)} + rho_i * M^{(0,0)}
+ * @param [in] polyDeg polynomial degree
+ * @param [in] nodes polynomial interpolation nodes
+ */
+Eigen::MatrixXd weightedMMatrix(const unsigned int polyDeg, const Eigen::VectorXd nodes);
+/**
+ * @brief calculates a variable coefficient mass matrix via numerical quadrature
+ * @detail Computes integrals of the form \int_E f(\xi) \ell_i(\xi) \ell_j(\xi) d\xi
+ *         where f(\xi) is given by its values at LGL nodes.
+ *         Uses Gauss-Legendre quadrature with nQuadPoints for exact integration.
+ * @param [in] polyDeg polynomial degree
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] coeffAtNodes coefficient values f evaluated at LGL nodes
+ * @param [in] nQuadPoints number of Gauss quadrature points (default: polyDeg + 2 for safety)
+ */
+Eigen::MatrixXd varCoeffMMatrix(const unsigned int polyDeg, const Eigen::VectorXd LGLnodes,
+                                 const Eigen::VectorXd coeffAtNodes, const int nQuadPoints = -1);
+/**
+ * @brief calculates a variable coefficient stiffness matrix via numerical quadrature
+ * @detail Computes integrals of the form \int_E f(\xi) \ell'_i(\xi) \ell'_j(\xi) d\xi
+ *         where f(\xi) is given by its values at LGL nodes.
+ *         Used for dispersion terms with spatially varying D(x).
+ * @param [in] polyDeg polynomial degree
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] coeffAtNodes coefficient values f evaluated at LGL nodes
+ * @param [in] nQuadPoints number of Gauss quadrature points (default: polyDeg + 2 for safety)
+ */
+Eigen::MatrixXd varCoeffStiffnessMatrix(const unsigned int polyDeg, const Eigen::VectorXd LGLnodes,
+                                         const Eigen::VectorXd coeffAtNodes, const int nQuadPoints = -1);
+/**
+ * @brief calculates a mixed variable coefficient matrix for film diffusion terms
+ * @detail Computes integrals of the form \int_E f(\xi) \ell_i(\xi) \ell_j(\xi) g(\xi) d\xi
+ *         Used for radial film diffusion where k_f/rho terms appear.
+ * @param [in] polyDeg polynomial degree
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] coeff1AtNodes first coefficient values evaluated at LGL nodes
+ * @param [in] coeff2AtNodes second coefficient values evaluated at LGL nodes (optional, default ones)
+ * @param [in] nQuadPoints number of Gauss quadrature points (default: polyDeg + 3)
+ */
+Eigen::MatrixXd varCoeffMMatrixProduct(const unsigned int polyDeg, const Eigen::VectorXd LGLnodes,
+                                        const Eigen::VectorXd coeff1AtNodes,
+                                        const Eigen::VectorXd coeff2AtNodes = Eigen::VectorXd(),
+                                        const int nQuadPoints = -1);
+/**
  * @brief calculates a specific second order nodal stiffness matrix
  * @detail for integrals including terms of the form (1 - \xi)^\alpha (1 + \xi)^\beta. Computation via transformation to the respective Jacobi polynomial
  * @param [in] polyDeg polynomial degree
@@ -157,6 +212,41 @@ Eigen::MatrixXd liftingMatrix(const unsigned int size);
  * @param [in] evalNodes evaluation nodes in [-1, 1]
  */
 Eigen::VectorXd evalLagrangeBasis(const int j, const Eigen::VectorXd baseNodes, const Eigen::VectorXd evalNodes);
+/**
+ * @brief evaluates the derivative of the jth Lagrange basis function at given nodes
+ * @param [in] j index of Lagrange basis function
+ * @param [in] baseNodes interpolation nodes of Lagrange basis
+ * @param [in] evalNodes evaluation nodes in [-1, 1]
+ */
+Eigen::VectorXd evalLagrangeBasisDerivative(const int j, const Eigen::VectorXd baseNodes, const Eigen::VectorXd evalNodes);
+/**
+ * @brief computes radial dispersion matrix S_g for a single cell with variable D(rho)
+ * @detail For radial DG: S_g[i,j] = ∫ dL_i/dξ * L_j * ρ(ξ) * D(ρ(ξ)) dξ
+ *         where ρ(ξ) = rho_left + (delta_rho/2) * (1 + ξ)
+ * @param [in] polyDeg polynomial degree
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] rho_left left boundary of cell in physical space
+ * @param [in] delta_rho cell width in physical space
+ * @param [in] dispAtNodes dispersion coefficient D evaluated at physical node positions
+ * @param [in] nQuadPoints number of Gauss quadrature points (default: polyDeg + 2, use higher for nonlinear D)
+ */
+Eigen::MatrixXd radialDispersionMatrix(const unsigned int polyDeg, const Eigen::VectorXd LGLnodes,
+                                        const double rho_left, const double delta_rho,
+                                        const Eigen::VectorXd dispAtNodes, const int nQuadPoints = -1);
+/**
+ * @brief computes radial film diffusion mass matrix M_K for a single cell with variable k_f(rho)
+ * @detail For radial DG: M_K[i,j] = ∫ L_i * L_j * ρ(ξ) * k_f(ρ(ξ)) dξ
+ *         where ρ(ξ) = rho_left + (delta_rho/2) * (1 + ξ)
+ * @param [in] polyDeg polynomial degree
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] rho_left left boundary of cell in physical space
+ * @param [in] delta_rho cell width in physical space
+ * @param [in] kfAtNodes film diffusion coefficient k_f evaluated at physical node positions
+ * @param [in] nQuadPoints number of Gauss quadrature points (default: polyDeg + 2, use higher for nonlinear k_f)
+ */
+Eigen::MatrixXd radialFilmDiffusionMatrix(const unsigned int polyDeg, const Eigen::VectorXd LGLnodes,
+                                           const double rho_left, const double delta_rho,
+                                           const Eigen::VectorXd kfAtNodes, const int nQuadPoints = -1);
 /**
  * @brief evaluates the jth Lagrange basis functions at given nodes
  * @param [in, out] coords DG coordinate array

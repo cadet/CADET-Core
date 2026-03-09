@@ -1934,6 +1934,104 @@ namespace column
 		rd.closeFile();
 	}
 
+	// Read the last entry of solver.sections.SECTION_TIMES from the benchmark JSON.
+	static double readTEnd(const std::string& setupFile)
+	{
+		JsonParameterProvider jpp(JsonParameterProvider::fromFile(setupFile));
+		jpp.pushScope("solver");
+		jpp.pushScope("sections");
+		const std::vector<double> times = jpp.getDoubleArray("SECTION_TIMES");
+		REQUIRE(!times.empty());
+		return times.back();
+	}
+
+	void testRadialDGConvergence(
+		const std::string& modelFileRelPath,
+		const std::string& unitID,
+		int polyDeg,
+		int startN,
+		int nLevels,
+		double expectedOrder,
+		double orderTol)
+	{
+		REQUIRE(nLevels >= 3);
+		REQUIRE(startN > 0);
+		REQUIRE(polyDeg >= 1);
+
+		const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
+		const int unitOpID = std::stoi(unitID);
+
+		const int nTimePoints = 200;
+		const double tEnd = readTEnd(setupFile);
+		std::vector<double> outputTimes(nTimePoints);
+		for (int i = 0; i < nTimePoints; ++i)
+			outputTimes[i] = tEnd * (i + 1) / nTimePoints;
+
+		std::vector<double> prevOutlet;
+		std::vector<double> errors(nLevels - 1);
+
+		for (int lvl = 0; lvl < nLevels; ++lvl)
+		{
+			const int nElem = startN * (1 << lvl);
+
+			JsonParameterProvider jpp(JsonParameterProvider::fromFile(setupFile));
+
+			jpp.pushScope("solver");
+			jpp.set("USER_SOLUTION_TIMES", outputTimes);
+			jpp.popScope();
+
+			{
+				int l = 0;
+				if (jpp.exists("model")) { jpp.pushScope("model"); ++l; }
+				if (jpp.exists("unit_" + unitID)) { jpp.pushScope("unit_" + unitID); ++l; }
+				jpp.pushScope("discretization");
+				jpp.set("POLYDEG", polyDeg);
+				jpp.set("NELEM", nElem);
+				jpp.popScope();
+				for (int i = 0; i < l; ++i)
+					jpp.popScope();
+			}
+
+			cadet::Driver drv;
+			drv.configure(jpp);
+			drv.run();
+
+			cadet::InternalStorageUnitOpRecorder const* const simData = drv.solution()->unitOperation(unitOpID);
+			REQUIRE(simData->numDataPoints() == static_cast<unsigned int>(nTimePoints));
+
+			const std::size_t nOut = simData->numDataPoints() * simData->numComponents();
+			std::vector<double> currOutlet(simData->outlet(), simData->outlet() + nOut);
+
+			if (lvl > 0)
+			{
+				REQUIRE(currOutlet.size() == prevOutlet.size());
+				double err = 0.0;
+				for (std::size_t i = 0; i < currOutlet.size(); ++i)
+				{
+					const double diff = prevOutlet[i] - currOutlet[i];
+					err += diff * diff;
+				}
+				errors[lvl - 1] = std::sqrt(err / currOutlet.size());
+			}
+
+			prevOutlet = std::move(currOutlet);
+		}
+
+		int nChecks = 0;
+		for (int k = 0; k < nLevels - 2; ++k)
+		{
+			if (errors[k + 1] < 1e-15)
+				continue;
+			const double eoc = std::log2(errors[k] / errors[k + 1]);
+			CAPTURE(k);
+			CAPTURE(eoc);
+			CAPTURE(expectedOrder);
+			CHECK(eoc >= expectedOrder - orderTol);
+			++nChecks;
+		}
+		REQUIRE(nChecks > 0);
+	}
+
 } // namespace column
 } // namespace test
 } // namespace cadet

@@ -20,6 +20,7 @@
 
 #include <limits>
 #include <string>
+#include <vector>
 #include "AutoDiff.hpp"
 #include "common/JsonParameterProvider.hpp"
 
@@ -501,6 +502,28 @@ namespace column
 	 * @param [in] unitID unit operation ID
 	 */
 	void setNumAxialCells(JsonParameterProvider& jpp, unsigned int nCol, std::string unitID="000");
+
+	/**
+	 * @brief Runs an EOC convergence test for a radial DG scheme using self-convergence
+	 * @details Runs the model at startN, 2*startN, 4*startN, ... elements and computes the
+	 *          order of convergence from consecutive L2 differences on the outlet time series.
+	 * @param [in] modelFileRelPath Relative path to the radial DG model JSON file
+	 * @param [in] unitID ID of the column unit operation (e.g. "001")
+	 * @param [in] polyDeg Polynomial degree (POLYDEG)
+	 * @param [in] startN Coarsest number of DG elements at level 0
+	 * @param [in] nLevels Number of refinement levels (>= 3)
+	 * @param [in] expectedOrder Expected convergence order (polyDeg + 1 for DG)
+	 * @param [in] orderTol Tolerance subtracted from expectedOrder before checking
+	 */
+	void testRadialDGConvergence(
+		const std::string& modelFileRelPath,
+		const std::string& unitID,
+		int polyDeg,
+		int startN,
+		int nLevels,
+		double expectedOrder,
+		double orderTol
+	);
 
 	/**
 	 * @brief Sets the WENO order in a configuration of a column-like unit operation
