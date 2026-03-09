@@ -805,7 +805,7 @@ bool RadialConvectionDispersionOperatorBase::configureModelDiscretization(IParam
 			rMax = std::max(rMax, r);
 
 			prevWidth = curWidth;
-			}
+		}
 
 
 		// --- Warning 1: cell stretching ratio ---
@@ -821,18 +821,16 @@ bool RadialConvectionDispersionOperatorBase::configureModelDiscretization(IParam
 		{
 			LOG(Warning) << "GRID_FACES contains cells spanning a very large size range (max/min ratio = "
 				<< sizeRatio << "). This may lead to stiff ODE systems and slow or unstable time integration.";
-	}
+		}
+		computeCellCentersAndSizes(_cellFaces);
 	}
 	else
 	{
 		_gridEquidistant = true;
 		_cellFaces.clear();
-	}
-
-	if (!_cellFaces.empty())
-		customCells(_cellFaces);
-	else
 		equidistantCells();
+		computeCellCentersAndSizes(_cellFaces);
+	}
 
 	if (recType == "WENO")
 	{
@@ -1114,7 +1112,7 @@ int RadialConvectionDispersionOperatorBase::residualImpl(const IModel& model, do
 			d_rad,
 			_cellCenters.data(),
 			_cellSizes.data(),
-			_cellBounds.data(),
+			_cellFaces.data(),
 			_reconstrDerivatives,
 			_weno,
 			&_stencilMemory,
@@ -1137,7 +1135,7 @@ int RadialConvectionDispersionOperatorBase::residualImpl(const IModel& model, do
 			d_rad,
 			_cellCenters.data(),
 			_cellSizes.data(),
-			_cellBounds.data(),
+			_cellFaces.data(),
 			_reconstrDerivatives,
 			_koren,
 			&_stencilMemory,
@@ -1421,34 +1419,27 @@ bool RadialConvectionDispersionOperatorBase::setSensitiveParameter(std::unordere
 void RadialConvectionDispersionOperatorBase::equidistantCells()
 {
 	const active dr = (_outerRadius - _innerRadius) / _nCol;
-	std::vector<active> centers(_nCol, 0.0);
-	_cellSizes = std::vector<active>(_nCol, dr);
-	std::vector<active> bounds(_nCol + 1, 0.0);
+	std::vector<active> faces(_nCol + 1, 0.0);
 
 	for (unsigned int i = 0; i < _nCol; ++i)
 	{
-		centers[i] = (i + 0.5) * dr + _innerRadius;
-		bounds[i] = i * dr + _innerRadius;
+		faces[i] = i * dr + _innerRadius;
 	}
-	bounds[_nCol] = _outerRadius;
+	faces[_nCol] = _outerRadius;
 
-	_cellCenters = std::move(centers);
-	_cellBounds = std::move(bounds);
+	_cellFaces = std::move(faces);
 }
 
-void RadialConvectionDispersionOperatorBase::customCells(const std::vector<active>& cellFaces)
+void RadialConvectionDispersionOperatorBase::computeCellCentersAndSizes(const std::vector<active>& cellFaces)
 {
 	_cellSizes.resize(cellFaces.size() - 1);
 	_cellCenters.resize(cellFaces.size() - 1);
-	_cellBounds.resize(cellFaces.size());
 
 	for (unsigned int i = 0; i < cellFaces.size() - 1; ++i)
 	{
 		_cellSizes[i] = cellFaces[i + 1] - cellFaces[i];
 		_cellCenters[i] = (cellFaces[i] + cellFaces[i + 1]) * 0.5;
-		_cellBounds[i] = cellFaces[i];
 	}
-	_cellBounds[cellFaces.size() - 1] = cellFaces.back();
 }
 
 /**
@@ -1725,8 +1716,8 @@ int FrustumConvectionDispersionOperatorBase::residualImpl(const IModel& model, d
 		length,
 		d_rad,
 		_cellCenters.data(),
-		_cellBounds.data(),
-		_cellBoundRadiusSq.data(),
+		_cellFaces.data(),
+		_cellFaceRadiusSq.data(),
 		_cellVolume.data(),
 		&_stencilMemory,
 		strideColCell(),
@@ -2000,31 +1991,31 @@ void FrustumConvectionDispersionOperatorBase::equidistantCells()
 	const active dx = _colLength / _nCol;
 	std::vector<active> centers(_nCol, 0.0);
 	_cellSizes = std::vector<active>(_nCol, dx);
-	std::vector<active> bounds(_nCol + 1, 0.0);
+	std::vector<active> faces(_nCol + 1, 0.0);
 	std::vector<active> centerRadiiSq(_nCol, 0.0);
-	std::vector<active> boundRadiiSq(_nCol + 1, 0.0);
-	boundRadiiSq[0] = _innerRadius * _innerRadius;
+	std::vector<active> faceRadiiSq(_nCol + 1, 0.0);
+	faceRadiiSq[0] = _innerRadius * _innerRadius;
 
 	for (unsigned int i = 0; i < _nCol; ++i)
 	{
 		centers[i] = (i + 0.5) * dx;
-		bounds[i + 1] = (i + 1) * dx;
+		faces[i + 1] = (i + 1) * dx;
 		centerRadiiSq[i] = _innerRadius + (centers[i] / _colLength) * (_outerRadius - _innerRadius);
 		centerRadiiSq[i] *= centerRadiiSq[i];
-		boundRadiiSq[i + 1] = _innerRadius + bounds[i + 1] / _colLength * (_outerRadius - _innerRadius);
-		boundRadiiSq[i + 1] *= boundRadiiSq[i + 1];
+		faceRadiiSq[i + 1] = _innerRadius + faces[i + 1] / _colLength * (_outerRadius - _innerRadius);
+		faceRadiiSq[i + 1] *= faceRadiiSq[i + 1];
 	}
 
 	_cellCenterRadiusSq = std::move(centerRadiiSq);
-	_cellBoundRadiusSq = std::move(boundRadiiSq);
+	_cellFaceRadiusSq = std::move(faceRadiiSq);
 	_cellCenters = std::move(centers);
-	_cellBounds = std::move(bounds);
+	_cellFaces = std::move(faces);
 
 	_cellVolume.resize(_nCol);
 
 	for (int cell = 0; cell < _nCol; cell++)
 	{
-		_cellVolume[cell] = 1.0 / 3.0 * 3.1415926535897932384626434 * _cellSizes[cell] * (_cellBoundRadiusSq[cell] + _cellBoundRadiusSq[cell + 1] + sqrt(_cellBoundRadiusSq[cell]) * sqrt(_cellBoundRadiusSq[cell + 1]));
+		_cellVolume[cell] = 1.0 / 3.0 * 3.1415926535897932384626434 * _cellSizes[cell] * (_cellFaceRadiusSq[cell] + _cellFaceRadiusSq[cell + 1] + sqrt(_cellFaceRadiusSq[cell]) * sqrt(_cellFaceRadiusSq[cell + 1]));
 	}
 }
 
