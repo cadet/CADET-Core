@@ -24,7 +24,9 @@
 #include <string>
 #include <vector>
 #include <cmath>
+#include <numbers>
 
+using std::numbers::pi;
 /*<codegen>
 {
 	"name": "ColloidalParticleAdsorptionParamHandler",
@@ -116,17 +118,13 @@ inline bool ExtColloidalParticleAdsorptionParamHandler::validateConfig(unsigned 
  * @details Implements the CPA model by Briskot et al. (2021) for protein adsorption
  *          on ion exchange resins. The model describes adsorption in the linear and
  *          nonlinear regime using:
- *          - Protein-adsorber interaction via Parsegian-Gingell double-layer theory
- *          - Protein-protein interaction via Yukawa lattice model
+ *          - Protein-adsorber
+ *          - Protein-protein
  *          - Steric blocking via scaled-particle theory (hard-disc ASF)
  *
  *          Kinetic formulation: dq_{v,i}/dt = k_{kin,i} * (K_{v,i} * c_{p,i} - q_{v,i})
  *
  *          Multiple bound states are not supported.
- *          Components without bound state (i.e., non-binding components) are supported.
- *          The first component (index 0) is salt (ionic strength source).
- *          The second component (index 1) can optionally be pH.
- *          Both must be non-binding.
  * @tparam ParamHandler_t Type that can add support for external function dependence
  */
 template <class ParamHandler_t>
@@ -294,7 +292,7 @@ protected:
 			static_cast<double>(T));
 
 		// beta_{i,j} (Eq. 22): e^2 / (4*pi*eps*eps0)
-		const ParamType elecPrefactor = e * e / (4.0 * M_PI * eps * eps0);
+		const ParamType elecPrefactor = e * e / (4.0 * pi * eps * eps0);
 
 		// Theta = pi * N_A * sum_j(a_j^2 * q_j)
 		StateParamType Theta = 0.0;
@@ -317,7 +315,7 @@ protected:
 
 			++bndIdx;
 		}
-		Theta = Theta * (M_PI * NA);
+		Theta = Theta * (pi * NA);
 
 		// D_hex^2 = 2*sqrt(3) / (3 * N_A * sum_j(q_j))
 		StateParamType Dhex = 0.0;
@@ -340,7 +338,7 @@ protected:
 
 			// 1. Protein surface potential psi_{0,i} (Eq. 14)
 			//    psi_i = (2*k_b*T/e) * asinh(Z_i*e^2 / (8*pi*a_i^2*eps*eps0*kappa*k_b*T))
-			const ParamType psiArg = Zi * e * e / (8.0 * M_PI * a_i * a_i * eps * eps0 * kappa * kbT);
+			const ParamType psiArg = Zi * e * e / (8.0 * pi * a_i * a_i * eps * eps0 * kappa * kbT);
 			const ParamType psi_i = (2.0 * kbT / e) * log(psiArg + sqrt(psiArg * psiArg + 1.0));
 
 			// 2. Protein-adsorber interaction: u_{A,i}(delta_{m,i}) (Eq. 18, 19)
@@ -349,7 +347,7 @@ protected:
 			//        - (psi_A^2 + psi_i^2) * ln(1 - exp(-2*kappa*z)) ]
 
 			const ParamType ekz = exp(-kappa * dm_i);
-			const ParamType uA_i = M_PI * a_i * eps * eps0 * (
+			const ParamType uA_i = pi * a_i * eps * eps0 * (
 				2.0 * psiA * psi_i * log((1.0 + ekz) / (1.0 - ekz))
 				- (psiA * psiA + psi_i * psi_i) * log(1.0 - ekz * ekz)
 			);
@@ -372,9 +370,9 @@ protected:
 			if (std::abs(static_cast<double>(Theta)) < 1.0)
 			{
 				const StateParamType oneMinusTheta = 1.0 - Theta;
-				const StateParamType nom1 = M_PI * a_i * a_i * sumQSurface * NA
-					+ 2.0 * M_PI * a_i * sumAjQj * NA;
-				const StateParamType nom2 = M_PI * a_i * a_i
+				const StateParamType nom1 = pi * a_i * a_i * sumQSurface * NA
+					+ 2.0 * pi * a_i * sumAjQj * NA;
+				const StateParamType nom2 = pi * a_i * a_i
 					* (sumAjQj * NA) * (sumAjQj * NA);
 
 				B_i = oneMinusTheta * exp(-nom1 / oneMinusTheta - nom2 / (oneMinusTheta * oneMinusTheta));
@@ -412,14 +410,14 @@ protected:
 				++bndIdx2;
 			}
 
-			const StateParamType denom = 1.0 - exp(-(3.0 * std::sqrt(3.0) / (2.0 * M_PI)) * kappa * Dhex);
+			const StateParamType denom = 1.0 - exp(-(3.0 * std::sqrt(3.0) / (2.0 * pi)) * kappa * Dhex);
 
 			if (std::abs(static_cast<double>(denom)) > 1e-30)
 			{
 				ulat_i = 3.0 * std::sqrt(3.0) * Dhex * NA
 					* exp(-kappa * Dhex) / denom
 					* betaQSum;
-			}
+			} 
 
 			// 6.  K_{v,i} = K_{H,i} * B_i(Theta) * exp(-u_{lat,i} / (k_b*T))
 			//    Residual: k_{kin,i} * (K_{v,i} * c_{p,i} - q_{v,i})
