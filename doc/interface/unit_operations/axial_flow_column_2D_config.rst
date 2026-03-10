@@ -330,9 +330,11 @@ Finite Volumes
 
    Type of reconstruction method for fluxes
 
-   ================  ================================  =============
-   **Type:** string  **Range:** :math:`\texttt{WENO}`  **Length:** 1
-   ================  ================================  =============
+   ================  =======================================  =============
+   **Type:** string  **Range:** :math:`\texttt{WENO, KOREN}`  **Length:** 1
+   ================  =======================================  =============
+
+   For further information on discretization parameters for reconstruction methods, see also :ref:`flux_reconstruction_methods` (FV specific).
 
 ``GS_TYPE``
 

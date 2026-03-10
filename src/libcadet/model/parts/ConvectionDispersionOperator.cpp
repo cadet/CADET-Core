@@ -29,6 +29,7 @@
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
 
+#include <Eigen/Dense>
 #include <algorithm>
 #include <cmath>
 
@@ -71,6 +72,8 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
 	_nCol = nCol;
 	_strideCell = strideCell;
 
+	_colLength = paramProvider.getDouble("COL_LENGTH");
+
 	if (paramProvider.exists("COL_DISPERSION_DEP"))
 	{
 		const std::string paramDepName = paramProvider.getString("COL_DISPERSION_DEP");
@@ -86,6 +89,79 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
 	paramProvider.pushScope("discretization");
 
 	const std::string recType = paramProvider.exists("RECONSTRUCTION") ? paramProvider.getString("RECONSTRUCTION") : "WENO";
+
+	if (paramProvider.exists("GRID_FACES"))
+	{
+		readScalarParameterOrArray(_cellFaces, paramProvider, "GRID_FACES", 1);
+		if (_cellFaces.size() < 5)
+			throw InvalidParameterException("Number of elements in field GRID_FACES must be at least 5");    // We need at least 5 faces to be able to apply the WENO35 reconstruction at the first and last cell
+
+		if (_cellFaces.size() != _nCol + 1)
+			throw InvalidParameterException("Number of elements in field GRID_FACES must be NCOL + 1");
+
+		const double lastFace = static_cast<double>(_cellFaces.back());
+		if (std::abs(lastFace - static_cast<double>(_colLength)) > 1e-12)
+			throw InvalidParameterException("Last entry of GRID_FACES must match COL_LENGTH");
+		if (_cellFaces[0] > 1e-15)
+			throw InvalidParameterException("First entry of GRID_FACES must be zero");
+
+		// --- Grid diagnostics ---
+		double dxMin = std::numeric_limits<double>::max();
+		double dxMax = 0.0;
+		double rMax = 0.0;           // max stretching ratio
+		double jumpMax = 0.0;        // max sudden jump indicator
+
+		// Check if grid is equidistant
+		const double firstWidth = static_cast<double>(_cellFaces[1] - _cellFaces[0]);
+		const double widthTol = 1e-10 * std::max(1.0, std::abs(firstWidth));
+		_gridEquidistant = true;
+
+		double prevWidth = firstWidth;
+		dxMin = std::min(dxMin, prevWidth);
+		dxMax = std::max(dxMax, prevWidth);
+
+		for (unsigned int i = 1; i < _nCol; ++i)
+		{
+			const double curWidth = static_cast<double>(_cellFaces[i + 1] - _cellFaces[i]);
+
+			dxMin = std::min(dxMin, curWidth);
+			dxMax = std::max(dxMax, curWidth);
+
+			// Check equidistance
+			if (std::abs(curWidth - firstWidth) > widthTol)
+				_gridEquidistant = false;
+
+			// --- Stretching ratio ---
+			const double r = std::max(curWidth / prevWidth, prevWidth / curWidth);
+			rMax = std::max(rMax, r);
+
+			prevWidth = curWidth;
+		}
+
+		// --- Warning 1: cell stretching ratio ---
+		if (rMax > 3.0)
+		{
+			LOG(Warning) << "GRID_FACES contains strongly stretched neighboring cells (max recommended ratio = "
+				<< rMax << "). WENO reconstruction on highly stretched grids may lose accuracy or stability.";
+		}
+
+		// --- Warning 3: extreme cell size variance might cause stiffness ---
+		const double sizeRatio = dxMax / dxMin;
+		if (sizeRatio > 1e6)
+		{
+			LOG(Warning) << "GRID_FACES contains cells spanning a very large size range (max/min ratio = "
+				<< sizeRatio << "). This may lead to stiff ODE systems and slow or unstable time integration.";
+		}
+	}
+	else
+	{
+		_gridEquidistant = true;
+		const double h = static_cast<double>(_colLength) / static_cast<double>(_nCol);
+		_cellFaces.resize(_nCol + 1);
+
+		for (int i = 0; i <= _nCol; ++i)
+			_cellFaces[i] = i * h;
+	}
 
 	if (recType == "WENO")
 	{
@@ -115,6 +191,10 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
 		_reconstrDerivatives = new double[HighResolutionKoren::maxStencilSize()];
 		_stencilMemory.resize(sizeof(active) * HighResolutionKoren::maxStencilSize());
 	}
+	else
+	{
+		throw InvalidParameterException("Unknown reconstruction type in field RECONSTRUCTION");
+	}
 
 	paramProvider.popScope();
 
@@ -131,9 +211,6 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
  */
 bool AxialConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
-	// Read geometry parameters
-	_colLength = paramProvider.getDouble("COL_LENGTH");
-
 	// Read cross section area or set to -1
 	_crossSection = -1.0;
 	if (paramProvider.exists("CROSS_SECTION_AREA"))
@@ -351,6 +428,8 @@ int AxialConvectionDispersionOperatorBase::residualImpl(const IModel& model, dou
 	const ParamType h = static_cast<ParamType>(_colLength) / static_cast<double>(_nCol);
 //	const int strideCell = strideColCell();
 
+	const std::vector<active>* const cellFacesPtr = _cellFaces.empty() ? nullptr : &_cellFaces;
+
 	if (_weno)
 	{
 		convdisp::AxialFlowParameters<ParamType, Weno> fp{
@@ -366,7 +445,9 @@ int AxialConvectionDispersionOperatorBase::residualImpl(const IModel& model, dou
 			0u,
 			_nComp,
 			_dispersionDep,
-			model
+			model,
+			_gridEquidistant,
+			cellFacesPtr
 		};
 
 		return convdisp::residualKernelAxial<StateType, ResidualType, ParamType, Weno, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
@@ -386,7 +467,9 @@ int AxialConvectionDispersionOperatorBase::residualImpl(const IModel& model, dou
 			0u,
 			_nComp,
 			_dispersionDep,
-			model
+			model,
+			_gridEquidistant,
+			cellFacesPtr
 		};
 
 		return convdisp::residualKernelAxial<StateType, ResidualType, ParamType, HighResolutionKoren, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);

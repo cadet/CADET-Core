@@ -25,6 +25,9 @@
 #include "cadet/Exceptions.hpp"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <vector>
 
 namespace cadet
 {
@@ -104,6 +107,18 @@ public:
 	int reconstruct(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result)
 	{
 		return reconstruct<StateType, StencilType, false>(cellIdx, numCells, w, result, nullptr);
+	}
+
+	template <typename StateType, typename StencilType, typename FaceContainerType>
+	int reconstruct(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result, double* const Dvm, const FaceContainerType& cellFaces)
+	{
+		return reconstructNonEq<StateType, StencilType, FaceContainerType, true>(cellIdx, numCells, w, result, Dvm, cellFaces);
+	}
+
+	template <typename StateType, typename StencilType, typename FaceContainerType>
+	int reconstruct(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result, const FaceContainerType& cellFaces)
+	{
+		return reconstructNonEq<StateType, StencilType, FaceContainerType, false>(cellIdx, numCells, w, result, nullptr, cellFaces);
 	}
 
 	/**
@@ -204,6 +219,8 @@ private:
 	 * @tparam wantJac Determines if the gradient is computed (@c true) or not (@c false)
 	 * @return Order of the WENO scheme that was used in the computation
 	 */
+
+	// Reconstruct for equidistant grids
 	template <typename StateType, typename StencilType, bool wantJac>
 	int reconstruct(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result, double* const Dvm)
 	{
@@ -388,6 +405,261 @@ private:
 		_intermediateValues.destroy<StateType>();
 		return order;
 	}
+
+	template <typename FaceContainerType>
+	static inline auto cellWidths3FromFaces(unsigned int cellIdx, unsigned int numCells, const FaceContainerType& cellFaces)
+	{
+		const auto hCol = cellFaces[cellIdx + 1] - cellFaces[cellIdx];
+		auto hLeft = hCol;
+		auto hRight = hCol;
+		if (cellIdx > 0)
+			hLeft = cellFaces[cellIdx] - cellFaces[cellIdx - 1];
+		if (cellIdx + 1 < numCells)
+			hRight = cellFaces[cellIdx + 2] - cellFaces[cellIdx + 1];
+		return std::array<decltype(hCol), 3>{hLeft, hCol, hRight};
+	}
+
+	template <typename FaceContainerType>
+	static inline auto cellWidths5FromFaces(unsigned int cellIdx, unsigned int numCells, const FaceContainerType& cellFaces)
+	{
+		const auto hCol = cellFaces[cellIdx + 1] - cellFaces[cellIdx];
+		auto hm2 = hCol;
+		auto hm1 = hCol;
+		auto hp1 = hCol;
+		auto hp2 = hCol;
+
+		if (cellIdx > 1)
+			hm2 = cellFaces[cellIdx - 1] - cellFaces[cellIdx - 2];
+		if (cellIdx > 0)
+			hm1 = cellFaces[cellIdx] - cellFaces[cellIdx - 1];
+		if (cellIdx + 1 < numCells)
+			hp1 = cellFaces[cellIdx + 2] - cellFaces[cellIdx + 1];
+		if (cellIdx + 2 < numCells)
+			hp2 = cellFaces[cellIdx + 3] - cellFaces[cellIdx + 2];
+
+		return std::array<decltype(hCol), 5>{hm2, hm1, hCol, hp1, hp2};
+	}
+
+
+	template <typename StateType, typename StencilType, typename FaceContainerType, bool wantJac>
+	int reconstructNonEq(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result, double* const Dvm, const FaceContainerType& cellFaces)
+	{
+		int order = std::min(std::min(static_cast<int>(cellIdx) + 1, _order), std::min(static_cast<int>(numCells - cellIdx), _order));
+		order = std::max(order, 1);
+		if (order <= 1)
+		{
+			result = StateType(w[0]);
+			if (wantJac)
+				Dvm[0] = 1.0;
+			return order;
+		}
+
+		if (order == 2)
+		{
+			const auto hRaw = cellWidths3FromFaces(cellIdx, numCells, cellFaces);
+			const StateType hm1 = static_cast<StateType>(hRaw[0]);
+			const StateType h0 = static_cast<StateType>(hRaw[1]);
+			const StateType hp1 = static_cast<StateType>(hRaw[2]);
+			const StateType wm1 = static_cast<StateType>(w[-1]);
+			const StateType w0 = static_cast<StateType>(w[0]);
+			const StateType wp1 = static_cast<StateType>(w[1]);
+			const auto hs = hm1 + h0 + hp1;
+			const auto hl = hm1 + h0;
+			const auto hr = h0 + hp1;
+			const auto q0c = hp1 / hr;
+			const auto q1c = 1.0 + h0 / hl;
+			const auto C0 = hl / hs;
+			const auto C1 = 1.0 - C0;
+
+			const auto d0 = wp1 - w0;
+			const auto d1 = w0 - wm1;
+			const auto IS0c = (2.0 * h0 / hr) * (2.0 * h0 / hr);
+			const auto IS1c = (2.0 * h0 / hl) * (2.0 * h0 / hl);
+			const auto IS0 = IS0c * d0 * d0;
+			const auto IS1 = IS1c * d1 * d1;
+			const auto a0 = C0 / ((_epsilon + IS0) * (_epsilon + IS0));
+			const auto a1 = C1 / ((_epsilon + IS1) * (_epsilon + IS1));
+			const auto W0 = a0 / (a0 + a1);
+			const auto W1 = 1.0 - W0;
+
+			const auto q0 = q0c * w0 + (1.0 - q0c) * wp1;
+			const auto q1 = q1c * w0 + (1.0 - q1c) * wm1;
+			result = StateType(W0 * q0 + W1 * q1);
+
+			if (wantJac)
+			{
+				const auto dq0_d0 = q0c;
+				const auto dq0_dp1 = 1.0 - q0c;
+				const auto dq1_d0 = q1c;
+				const auto dq1_dm1 = 1.0 - q1c;
+
+				const auto dIS0_d0 = -2.0 * IS0c * d0;
+				const auto dIS0_dp1 = 2.0 * IS0c * d0;
+				const auto dIS1_d0 = 2.0 * IS1c * d1;
+				const auto dIS1_dm1 = -2.0 * IS1c * d1;
+
+				const auto da0_d0 = -2.0 * C0 * (1.0 / ((_epsilon + IS0) * (_epsilon + IS0) * (_epsilon + IS0))) * dIS0_d0;
+				const auto da0_dp1 = -2.0 * C0 * (1.0 / ((_epsilon + IS0) * (_epsilon + IS0) * (_epsilon + IS0))) * dIS0_dp1;
+				const auto da1_d0 = -2.0 * C1 * (1.0 / ((_epsilon + IS1) * (_epsilon + IS1) * (_epsilon + IS1))) * dIS1_d0;
+				const auto da1_dm1 = -2.0 * C1 * (1.0 / ((_epsilon + IS1) * (_epsilon + IS1) * (_epsilon + IS1))) * dIS1_dm1;
+
+				const auto aSum = a0 + a1;
+				const auto dW0_d0 = (da0_d0 * aSum - a0 * (da0_d0 + da1_d0)) / (aSum * aSum);
+				const auto dW0_dp1 = (da0_dp1 * aSum - a0 * da0_dp1) / (aSum * aSum);
+				const auto dW0_dm1 = (-a0 * da1_dm1) / (aSum * aSum);
+				const auto dW1_d0 = -dW0_d0;
+				const auto dW1_dp1 = -dW0_dp1;
+				const auto dW1_dm1 = -dW0_dm1;
+
+				Dvm[0] = static_cast<double>(dW0_dm1 * q0 + W0 * 0.0 + dW1_dm1 * q1 + W1 * dq1_dm1);
+				Dvm[1] = static_cast<double>(dW0_d0 * q0 + W0 * dq0_d0 + dW1_d0 * q1 + W1 * dq1_d0);
+				Dvm[2] = static_cast<double>(dW0_dp1 * q0 + W0 * dq0_dp1 + dW1_dp1 * q1 + W1 * 0.0);
+			}
+			return order;
+		}
+
+		const auto hRaw = cellWidths5FromFaces(cellIdx, numCells, cellFaces);
+
+		const StateType hm2 = static_cast<StateType>(hRaw[0]);
+		const StateType hm1 = static_cast<StateType>(hRaw[1]);
+		const StateType h0 = static_cast<StateType>(hRaw[2]);
+		const StateType hp1 = static_cast<StateType>(hRaw[3]);
+		const StateType hp2 = static_cast<StateType>(hRaw[4]);
+
+		const StateType wm2 = static_cast<StateType>(w[-2]);
+		const StateType wm1 = static_cast<StateType>(w[-1]);
+		const StateType w0 = static_cast<StateType>(w[0]);
+		const StateType wp1 = static_cast<StateType>(w[1]);
+		const StateType wp2 = static_cast<StateType>(w[2]);
+
+		const auto dsum = hm2 + hm1 + h0 + hp1 + hp2;
+		const auto dI0 = hm2 + hm1 + h0;
+		const auto dI1 = hm1 + h0 + hp1;
+		const auto dI2 = h0 + hp1 + hp2;
+
+		const auto q0c1 = hp1 * (dI2 - h0) / (dI2 - hp2) / dI2;
+		const auto q0c2 = hp1 * h0 / dI2 / (dI2 - h0);
+		const auto q1c1 = h0 * (dI1 - hp1) / dI1 / (dI1 - hm1);
+		const auto q1c2 = h0 * hp1 / dI1 / (dI1 - hp1);
+		const auto q2c1 = h0 * (dI0 - hm2) / dI0 / (dI0 - h0);
+		const auto q2c2 = 1.0 + h0 / (hm1 + h0) + h0 / dI0;
+
+		const auto C0 = dI0 * (dI0 - hm2) / dsum / (dsum - hm2);
+		const auto C1 = dI0 / dsum * (dI2 - h0) / (hm1 + dI2) * (1.0 + (dsum - hm2) / (dsum - hp2));
+		const auto C2 = hp1 * (hp1 + hp2) / dsum / (dsum - hp2);
+
+		const auto IS0pre = 4.0 * (h0 / dI2) * (h0 / dI2);
+		const auto IS0c1 = IS0pre * (10.0 * h0 * h0 + hp1 * (h0 + hp1)) / ((hp1 + hp2) * (hp1 + hp2));
+		const auto IS0c2 = IS0pre * (20.0 * h0 * h0 + 2.0 * hp1 * (h0 + hp1) + (2.0 * hp1 + h0) * dI2) / ((hp1 + hp2) * (h0 + hp1));
+		const auto IS0c3 = IS0pre * (10.0 * h0 * h0 + (2.0 * dI2 - hp2) * (dI2 + hp1)) / ((h0 + hp1) * (h0 + hp1));
+
+		const auto IS1pre = 4.0 * (h0 / dI1) * (h0 / dI1);
+		const auto IS1c1 = IS1pre * (10.0 * h0 * h0 + hp1 * (h0 + hp1)) / ((hm1 + h0) * (hm1 + h0));
+		const auto IS1c2 = IS1pre * (20.0 * h0 * h0 - hp1 * hm1 - (h0 + hp1) * (h0 + hm1)) / ((h0 + hp1) * (h0 + hm1));
+		const auto IS1c3 = IS1pre * (10.0 * h0 * h0 + hm1 * (hm1 + h0)) / ((h0 + hp1) * (h0 + hp1));
+
+		const auto IS2pre = 4.0 * (h0 / dI0) * (h0 / dI0);
+		const auto IS2c1 = IS2pre * (10.0 * h0 * h0 + hm1 * (hm1 + h0)) / ((hm2 + hm1) * (hm2 + hm1));
+		const auto IS2c2 = IS2pre * (20.0 * h0 * h0 + 2.0 * hm1 * (hm1 + h0) + dI0 * (2.0 * hm1 + h0)) / ((hm1 + h0) * (hm2 + hm1));
+		const auto IS2c3 = IS2pre * (10.0 * h0 * h0 + (2.0 * dI0 - hm2) * (dI0 + hm1)) / ((hm1 + h0) * (hm1 + h0));
+
+		const auto dm2 = wm2;
+		const auto dm1 = wm1;
+		const auto d0 = w0;
+		const auto dp1 = wp1;
+		const auto dp2 = wp2;
+
+		const auto IS0 = IS0c1 * (dp2 - dp1) * (dp2 - dp1) + IS0c2 * (dp2 - dp1) * (d0 - dp1) + IS0c3 * (d0 - dp1) * (d0 - dp1);
+		const auto IS1 = IS1c1 * (dm1 - d0) * (dm1 - d0) + IS1c2 * (dp1 - d0) * (dm1 - d0) + IS1c3 * (dp1 - d0) * (dp1 - d0);
+		const auto IS2 = IS2c1 * (dm2 - dm1) * (dm2 - dm1) + IS2c2 * (d0 - dm1) * (dm2 - dm1) + IS2c3 * (d0 - dm1) * (d0 - dm1);
+
+		const auto a0 = C0 / ((_epsilon + IS0) * (_epsilon + IS0));
+		const auto a1 = C1 / ((_epsilon + IS1) * (_epsilon + IS1));
+		const auto a2 = C2 / ((_epsilon + IS2) * (_epsilon + IS2));
+		const auto aSum = a0 + a1 + a2;
+		const auto W0 = a0 / aSum;
+		const auto W1 = a1 / aSum;
+		const auto W2 = 1.0 - W0 - W1;
+
+		const auto q0 = dp1 + q0c1 * (d0 - dp1) + q0c2 * (dp1 - dp2);
+		const auto q1 = d0 + q1c1 * (dp1 - d0) + q1c2 * (d0 - dm1);
+		const auto q2 = dm1 + q2c1 * (dm2 - dm1) + q2c2 * (d0 - dm1);
+		result = StateType(W0 * q0 + W1 * q1 + W2 * q2);
+
+		if (wantJac)
+		{
+			const auto dIS0_dp2 = 2.0 * IS0c1 * (dp2 - dp1) + IS0c2 * (d0 - dp1);
+			const auto dIS0_dp1 = -2.0 * IS0c1 * (dp2 - dp1) + IS0c2 * (2.0 * dp1 - dp2 - d0) - 2.0 * IS0c3 * (d0 - dp1);
+			const auto dIS0_d0 = IS0c2 * (dp2 - dp1) + 2.0 * IS0c3 * (d0 - dp1);
+
+			const auto dIS1_dp1 = IS1c2 * (dm1 - d0) + 2.0 * IS1c3 * (dp1 - d0);
+			const auto dIS1_d0 = -2.0 * IS1c1 * (dm1 - d0) + IS1c2 * (2.0 * d0 - dp1 - dm1) - 2.0 * IS1c3 * (dp1 - d0);
+			const auto dIS1_dm1 = 2.0 * IS1c1 * (dm1 - d0) + IS1c2 * (dp1 - d0);
+
+			const auto dIS2_d0 = IS2c2 * (dm2 - dm1) + 2.0 * IS2c3 * (d0 - dm1);
+			const auto dIS2_dm1 = -2.0 * IS2c1 * (dm2 - dm1) + IS2c2 * (2.0 * dm1 - d0 - dm2) - 2.0 * IS2c3 * (d0 - dm1);
+			const auto dIS2_dm2 = 2.0 * IS2c1 * (dm2 - dm1) + IS2c2 * (d0 - dm1);
+
+			const auto da0_dp2 = -2.0 * C0 * (1.0 / ((_epsilon + IS0) * (_epsilon + IS0) * (_epsilon + IS0))) * dIS0_dp2;
+			const auto da0_dp1 = -2.0 * C0 * (1.0 / ((_epsilon + IS0) * (_epsilon + IS0) * (_epsilon + IS0))) * dIS0_dp1;
+			const auto da0_d0 = -2.0 * C0 * (1.0 / ((_epsilon + IS0) * (_epsilon + IS0) * (_epsilon + IS0))) * dIS0_d0;
+
+			const auto da1_dp1 = -2.0 * C1 * (1.0 / ((_epsilon + IS1) * (_epsilon + IS1) * (_epsilon + IS1))) * dIS1_dp1;
+			const auto da1_d0 = -2.0 * C1 * (1.0 / ((_epsilon + IS1) * (_epsilon + IS1) * (_epsilon + IS1))) * dIS1_d0;
+			const auto da1_dm1 = -2.0 * C1 * (1.0 / ((_epsilon + IS1) * (_epsilon + IS1) * (_epsilon + IS1))) * dIS1_dm1;
+
+			const auto da2_d0 = -2.0 * C2 * (1.0 / ((_epsilon + IS2) * (_epsilon + IS2) * (_epsilon + IS2))) * dIS2_d0;
+			const auto da2_dm1 = -2.0 * C2 * (1.0 / ((_epsilon + IS2) * (_epsilon + IS2) * (_epsilon + IS2))) * dIS2_dm1;
+			const auto da2_dm2 = -2.0 * C2 * (1.0 / ((_epsilon + IS2) * (_epsilon + IS2) * (_epsilon + IS2))) * dIS2_dm2;
+
+			const auto zero = aSum * 0.0;
+			const auto invASum2 = 1.0 / (aSum * aSum);
+
+			const auto sumDa_dp2 = da0_dp2 + zero + zero;
+			const auto sumDa_dp1 = da0_dp1 + da1_dp1 + zero;
+			const auto sumDa_d0 = da0_d0 + da1_d0 + da2_d0;
+			const auto sumDa_dm1 = zero + da1_dm1 + da2_dm1;
+			const auto sumDa_dm2 = zero + zero + da2_dm2;
+
+			const auto dW0_dp2 = (da0_dp2 * aSum - a0 * sumDa_dp2) * invASum2;
+			const auto dW0_dp1 = (da0_dp1 * aSum - a0 * sumDa_dp1) * invASum2;
+			const auto dW0_d0 = (da0_d0 * aSum - a0 * sumDa_d0) * invASum2;
+			const auto dW0_dm1 = (zero * aSum - a0 * sumDa_dm1) * invASum2;
+			const auto dW0_dm2 = (zero * aSum - a0 * sumDa_dm2) * invASum2;
+
+			const auto dW1_dp2 = (zero * aSum - a1 * sumDa_dp2) * invASum2;
+			const auto dW1_dp1 = (da1_dp1 * aSum - a1 * sumDa_dp1) * invASum2;
+			const auto dW1_d0 = (da1_d0 * aSum - a1 * sumDa_d0) * invASum2;
+			const auto dW1_dm1 = (da1_dm1 * aSum - a1 * sumDa_dm1) * invASum2;
+			const auto dW1_dm2 = (zero * aSum - a1 * sumDa_dm2) * invASum2;
+
+			const auto dW2_dp2 = -dW0_dp2 - dW1_dp2;
+			const auto dW2_dp1 = -dW0_dp1 - dW1_dp1;
+			const auto dW2_d0 = -dW0_d0 - dW1_d0;
+			const auto dW2_dm1 = -dW0_dm1 - dW1_dm1;
+			const auto dW2_dm2 = -dW0_dm2 - dW1_dm2;
+
+			const auto dq0_dp2 = -q0c2;
+			const auto dq0_dp1 = 1.0 - q0c1 + q0c2;
+			const auto dq0_d0 = q0c1;
+
+			const auto dq1_dp1 = q1c1;
+			const auto dq1_d0 = 1.0 - q1c1 + q1c2;
+			const auto dq1_dm1 = -q1c2;
+
+			const auto dq2_d0 = q2c2;
+			const auto dq2_dm1 = 1.0 - q2c1 - q2c2;
+			const auto dq2_dm2 = q2c1;
+
+			Dvm[0] = static_cast<double>(dW0_dm2 * q0 + dW1_dm2 * q1 + dW2_dm2 * q2 + W2 * dq2_dm2);
+			Dvm[1] = static_cast<double>(dW0_dm1 * q0 + dW1_dm1 * q1 + dW2_dm1 * q2 + W1 * dq1_dm1 + W2 * dq2_dm1);
+			Dvm[2] = static_cast<double>(dW0_d0 * q0 + dW1_d0 * q1 + dW2_d0 * q2 + W0 * dq0_d0 + W1 * dq1_d0 + W2 * dq2_d0);
+			Dvm[3] = static_cast<double>(dW0_dp1 * q0 + dW1_dp1 * q1 + dW2_dp1 * q2 + W0 * dq0_dp1 + W1 * dq1_dp1);
+			Dvm[4] = static_cast<double>(dW0_dp2 * q0 + dW1_dp2 * q1 + dW2_dp2 * q2 + W0 * dq0_dp2);
+		}
+		return order;
+	}
+
 
 	double _epsilon; //!< Small number preventing divsion by zero
 	int _order; //!< Selected WENO order

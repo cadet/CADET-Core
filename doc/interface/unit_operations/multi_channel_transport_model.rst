@@ -193,7 +193,7 @@ Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`
 
    **Unit:** :math:`\mathrm{m}^{2}`
 
-   Defines the cross section area of each channel
+   Defines the cross section area of each channel. The :math:`\texttt{SENS_PARTYPE}` field is used for indexing the channel when specifying parameter sensitivities.
 
    ================  ====================== ======================================
    **Type:** double  **Range:** :math:`> 0`  **Length:** :math:`\texttt{NCHANNEL}`
@@ -235,8 +235,8 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE = MULTI_CHANNEL_TRANSPORT
 
    Type of reconstruction method for FV fluxes
 
-   ================  ================================  =============
-   **Type:** string  **Range:** :math:`\texttt{WENO}`  **Length:** 1
-   ================  ================================  =============
+   ================  =======================================  =============
+   **Type:** string  **Range:** :math:`\texttt{WENO, KOREN}`  **Length:** 1
+   ================  =======================================  =============
 
-For further discretization parameters, see also :ref:`flux_reconstruction_methods` (FV specific), and :ref:`non_consistency_solver_parameters`.
+For further discretization parameters, see also :ref:`flux_reconstruction_methods`, and :ref:`non_consistency_solver_parameters`.
