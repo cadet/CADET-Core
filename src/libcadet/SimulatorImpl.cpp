@@ -2012,19 +2012,11 @@ namespace cadet
 			tReached = curT;
 			return 0;
 		}
+		
+		_curSec = getCurrentSection(curT);
 
 		while (curT < tEnd)
 		{	
-			// Determine the current section
-			_curSec = getNextSection(curT, _curSec);
-			
-			//make sure we're not past the last section
-			if (_curSec >= _sectionTimes.size() - 1)
-			{
-				_curSec = _sectionTimes.size() - 2;
-				LOG(Warning) << "Section index capped to " << _curSec;
-			}
-
 			// Determine continuous time slice
 			// This is a continuous section transition, so we don't need to
 			// restart the integrator and just integrate for a longer time
@@ -2036,7 +2028,7 @@ namespace cadet
 				++skip;
 			}
 			
-			// Ensure we don't go out of bounds
+			// Ensure to get section end time if tEnd < secEndTime
 			const std::size_t nextSecIdx = std::min(static_cast<std::size_t>(_curSec + skip), _sectionTimes.size() - 1);
 			const double secEndTime = static_cast<double>(_sectionTimes[nextSecIdx]);
 			const double endTime = std::min(secEndTime, tEnd);
@@ -2081,6 +2073,10 @@ namespace cadet
 
 			// We stopped at a section boundary and reinitialize for next section
 			const int initResult = reinitialize(curT);
+
+			// Determine the next section
+			_curSec = getNextSection(curT, _curSec);
+
 			if (initResult != 0)
 			{
 				LOG(Error) << "Reinitialization at section boundary t = " << curT << " failed";

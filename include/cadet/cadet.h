@@ -1028,7 +1028,7 @@ extern "C"
 	CADET_API cdtResult cdtGetAPIv010000(cdtAPIv010000* ptr);
 
 	/**
-	 * @brief      Queries API version 1.0.1, which is returned as a struct of function pointers
+	 * @brief      Queries API extention for version 1.0.0, which is returned as a struct of function pointers
 	 * @param[out] ptr      Pointer to a matching function pointer struct that is populated if the API is available
 	 * @return     Success (>= 0) if the API is available, otherwise error (< 0)
 	 */
