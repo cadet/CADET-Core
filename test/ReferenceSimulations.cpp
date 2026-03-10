@@ -79,3 +79,14 @@ TEST_CASE("Reference test: FV WENO3 non-equidistant grid", "[Column_1D],[FV_WENO
 	cadet::test::column::FVParams disc(128);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
+
+TEST_CASE("Reference test: spline binding single component", "[Column_1D],[SplineBinding],[Simulation],[CI]")
+{
+	std::string modelFilePath = std::string("/data/config_COL1D_GRM_spline_knots_shallow_7.json");
+	std::string refFilePath = std::string("/data/ref_COL1D_GRM_spline_knots_shallow_7.h5");
+	const std::vector<double> absTol = { 5e-7 };
+	const std::vector<double> relTol = { 1e-5};
+
+	cadet::test::column::FVParams disc(100, 15, 3);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
