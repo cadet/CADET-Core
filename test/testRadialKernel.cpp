@@ -15,6 +15,8 @@
 #include "Logging.hpp"
 
 #include "model/parts/RadialConvectionDispersionKernel.hpp"
+#include "Weno.hpp"
+#include "HighResKoren.hpp"
 #include "linalg/BandMatrix.hpp"
 #include "Memory.hpp"
 #include "AutoDiff.hpp"
@@ -50,11 +52,12 @@
 	};
 #endif
 
+template <typename Reconstruction_t>
 class RadialFlowModel : public cadet::test::IDiffEqModel
 {
 public:
 	RadialFlowModel(int nComp, int nCol) : _nComp(nComp), _nCol(nCol),
-		_params{0.0, nullptr, nullptr, nullptr, nullptr, nullptr, 0, 0, 0, 0, 0, nullptr, _dummyModel},
+		_params{0.0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 0, 0, 0, 0, 0, nullptr, _dummyModel, true, nullptr},
 		_stencilMemory(sizeof(cadet::active) * 5)
 	{
 		const int nPureDof = _nCol * _nComp;
@@ -80,12 +83,19 @@ public:
 		_params.offsetToInlet = 0;
 		_params.strideCell = _nComp;
 		_params.parDep = new cadet::model::ConstantOneParameterParameterDependence();
+		_reconstrDerivatives = new double[Reconstruction_t::maxStencilSize()];
+		_params.reconstruction = &_reconstr;
+		_params.reconstructionDerivatives = _reconstrDerivatives;
 	}
+
+	void configureReconstruction(int order, int boundaryTreatment, double epsilon);
+
 
 	virtual ~RadialFlowModel() CADET_NOEXCEPT
 	{
 		if (_params.parDep)
 			delete _params.parDep;
+		delete[] _reconstrDerivatives;
 	}
 
 	int numPureDofs() const CADET_NOEXCEPT { return _nComp * _nCol; }
@@ -163,7 +173,7 @@ public:
 		for (int i = 0; i < _nComp; ++i)
 			res[i] = vecStateY[i] - inlet(time, secIdx, i);
 
-		const int ret = cadet::model::parts::convdisp::residualKernelRadial<double, double, double, cadet::linalg::BandMatrix::RowIterator, true>(
+		const int ret = cadet::model::parts::convdisp::residualKernelRadial<double, double, double, Reconstruction_t, cadet::linalg::BandMatrix::RowIterator, true>(
 			cadet::SimulationTime{time, static_cast<unsigned int>(secIdx)},
 			vecStateY, vecStateYdot, res, _jac.row(0), _params
 		);
@@ -437,7 +447,7 @@ protected:
 	int _nCol;
 
 	DummyModel _dummyModel;
-	cadet::model::parts::convdisp::RadialFlowParameters<double> _params;
+	cadet::model::parts::convdisp::RadialFlowParameters<double, Reconstruction_t> _params;
 	cadet::linalg::BandMatrix _jac;
 	cadet::linalg::FactorizableBandMatrix _jacDisc;
 
@@ -446,6 +456,8 @@ protected:
 	std::vector<cadet::active> _cellSizes;
 	std::vector<cadet::active> _cellBounds;
 	cadet::ArrayPool _stencilMemory;
+	Reconstruction_t _reconstr;
+	double* _reconstrDerivatives;
 
 	std::vector<double> _solTimes;
 	std::vector<double> _solution;
@@ -506,6 +518,61 @@ protected:
 	}
 };
 
+// Specialization: configure Weno reconstruction
+template <>
+void RadialFlowModel<cadet::Weno>::configureReconstruction(int order, int boundaryTreatment, double epsilon)
+{
+	_reconstr.order(order);
+	_reconstr.boundaryTreatment(boundaryTreatment);
+	_reconstr.epsilon(epsilon);
+}
+
+// Specialization: configure Koren reconstruction
+template <>
+void RadialFlowModel<cadet::HighResolutionKoren>::configureReconstruction(int order, int /* boundaryTreatment */, double epsilon)
+{
+	_reconstr.order(order);
+	_reconstr.epsilon(epsilon);
+}
+
+
+template <typename Reconstruction_t>
+void runTest(const std::string& name, int reconstrOrder, int nCol = 1250)
+{
+	const double tEnd = 10.0;
+	std::vector<double> secTimes = {0.0, tEnd};
+	std::vector<double> solTimes(101, 0.0);
+
+	for (int i = 0; i < static_cast<int>(solTimes.size()); ++i)
+		solTimes[i] = i * 0.1;
+
+	RadialFlowModel<Reconstruction_t> model(1, nCol);
+	model.configureReconstruction(reconstrOrder, 0, 1e-6);
+
+	cadet::test::TimeIntegrator sim;
+	sim.configureTimeIntegrator(1e-6, 1e-8, 1e-4, 100000, 0.0);
+	sim.setSectionTimes(secTimes);
+	sim.setSolutionTimes(solTimes);
+	sim.initializeModel(model);
+
+	sim.integrate();
+
+	const std::string fileName = "radial_" + name + ".h5";
+	cadet::io::HDF5Writer writer;
+	writer.openFile(fileName, "co");
+	writer.vector("SOLUTION_TIMES", model.solutionTimes());
+	const std::vector<std::size_t> dims = {model.solutionTimes().size(), static_cast<std::size_t>(model.numCol()), static_cast<std::size_t>(model.numComp())};
+	writer.template tensor<double>("SOLUTION", 3, dims.data(), model.solution());
+	writer.template matrix<double>("SOLUTION_INLET", model.solutionTimes().size(), model.numComp(), model.solutionInlet());
+	writer.template matrix<double>("SOLUTION_OUTLET", model.solutionTimes().size(), model.numComp(), model.solutionOutlet());
+	writer.template tensor<double>("REF", 3, dims.data(), model.referenceSolution());
+	writer.template matrix<double>("REF_OUTLET", model.solutionTimes().size(), model.numComp(), model.referenceOutlet());
+	writer.template vector<double>("COORDS", model.coordinates());
+	writer.closeFile();
+
+	std::cout << "Wrote " << fileName << " (" << name << ", nCol=" << nCol << ")" << std::endl;
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -517,44 +584,13 @@ int main(int argc, char* argv[])
 	cadet::setLogLevel(logLevel);
 #endif
 
-#if 1
+	// Test WENO orders 1, 2, 3
+	runTest<cadet::Weno>("weno1", 1);
+	runTest<cadet::Weno>("weno2", 2);
+	runTest<cadet::Weno>("weno3", 3);
 
-	const double tEnd = 10.0;
-	std::vector<double> secTimes = {0.0, tEnd};
-	std::vector<double> solTimes(101, 0.0);
+	// Test Koren
+	runTest<cadet::HighResolutionKoren>("koren", 2);
 
-	for (int i = 0; i < solTimes.size(); ++i)
-		solTimes[i] = i * 0.1;
-
-#elif 0
-	const double tEnd = 10.0;
-	std::vector<double> secTimes = {0.0, tEnd};
-	std::vector<double> solTimes(101, 0.0);
-
-	for (int i = 0; i < 101; ++i)
-		solTimes[i] = i * 0.1;
-#endif
-
-	RadialFlowModel model(1, 1250);
-
-	cadet::test::TimeIntegrator sim;	
-	sim.configureTimeIntegrator(1e-6, 1e-8, 1e-4, 100000, 0.0);
-	sim.setSectionTimes(secTimes);
-	sim.setSolutionTimes(solTimes);
-	sim.initializeModel(model);
-
-	sim.integrate();
-
-	cadet::io::HDF5Writer writer;
-	writer.openFile("radial.h5", "co");
-	writer.vector("SOLUTION_TIMES", model.solutionTimes());
-	const std::vector<std::size_t> dims = {model.solutionTimes().size(), static_cast<std::size_t>(model.numCol()), static_cast<std::size_t>(model.numComp())};
-	writer.template tensor<double>("SOLUTION", 3, dims.data(), model.solution());
-	writer.template matrix<double>("SOLUTION_INLET", model.solutionTimes().size(), model.numComp(), model.solutionInlet());
-	writer.template matrix<double>("SOLUTION_OUTLET", model.solutionTimes().size(), model.numComp(), model.solutionOutlet());
-	writer.template tensor<double>("REF", 3, dims.data(), model.referenceSolution());
-	writer.template matrix<double>("REF_OUTLET", model.solutionTimes().size(), model.numComp(), model.referenceOutlet());
-	writer.template vector<double>("COORDS", model.coordinates());
-	writer.closeFile();
 	return 0;
 }

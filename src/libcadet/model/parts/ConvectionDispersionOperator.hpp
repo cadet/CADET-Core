@@ -215,6 +215,8 @@ public:
 
 	inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
 	inline unsigned int nCol() const CADET_NOEXCEPT { return _nCol; }
+	inline Weno const* weno() const CADET_NOEXCEPT { return _weno; }
+	inline HighResolutionKoren const* koren() const CADET_NOEXCEPT { return _koren; }
 
 	unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
 	unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
@@ -231,6 +233,7 @@ protected:
 	int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
 
 	void equidistantCells();
+	void computeCellCentersAndSizes(const std::vector<active>& cellFaces);
 
 	unsigned int _nComp; //!< Number of components
 	unsigned int _nCol; //!< Number of axial cells
@@ -243,21 +246,24 @@ protected:
 	// Section dependent parameters
 	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{rad}} \f$
 	std::vector<active> _velocity; //!< Radial velocity (may be section dependent) \f$ v \f$
-	std::vector<active> _cellFaces; //!< Radial positions of cell faces (length nCol+1)
 	active _curVelocity; //!< Current interstitial velocity \f$ u \f$ in this time section
 	int _dir; //!< Current flow direction in this time section
 	double _circleFraction; //!< Specifies whether the radial model is a full circle or wedge and in that case the fraction of a full circle
 
 	ArrayPool _stencilMemory; //!< Provides memory for the stencil
+	double* _reconstrDerivatives; //!< Holds derivatives of the reconstruction scheme
+	bool _gridEquidistant; //!< Determines whether the grid is equidistant
+	Weno* _weno; //!< The WENO scheme implementation
+	HighResolutionKoren* _koren; //!< The High Resolution Koren scheme implementation
 
 	bool _dispersionCompIndep; //!< Determines whether dispersion is component independent
 
 	IParameterParameterDependence* _dispersionDep;
 
 	// Grid info
-	std::vector<active> _cellCenters;
-	std::vector<active> _cellSizes;
-	std::vector<active> _cellBounds;
+	std::vector<active> _cellCenters; //!< Positions of cell centers (length nCol)
+	std::vector<active> _cellFaces; //!< Positions of cell faces (length nCol+1)
+	std::vector<active> _cellSizes; //!< Cell sizes (length nCol)
 
 	// Indexer functionality
 
@@ -353,7 +359,6 @@ protected:
 	// Section dependent parameters
 	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{rad}} \f$
 	std::vector<active> _velocityCoeff; //!< Velocity coefficients (may be section dependent) \f$ v \f$
-	std::vector<active> _cellFaces;
 	active _curVelocityCoeff; //!< Current interstitial velocity coefficient \f$ u \f$ in this time section
 	int _dir; //!< Current flow direction in this time section
 
@@ -365,10 +370,10 @@ protected:
 
 	// Grid info
 	std::vector<active> _cellCenters;
-	std::vector<active> _cellBounds;
+	std::vector<active> _cellFaces;
 	std::vector<active> _cellSizes; // Cell size or length in the considered coordinate
 	std::vector<active> _cellCenterRadiusSq; // Squared column radius at the cell centers
-	std::vector<active> _cellBoundRadiusSq; // Squared column radius at the cell boundaries
+	std::vector<active> _cellFaceRadiusSq; // Squared column radius at the cell boundaries
 
 	// Indexer functionality
 

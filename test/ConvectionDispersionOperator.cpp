@@ -18,6 +18,7 @@
 #include "model/parts/AxialConvectionDispersionKernel.hpp"
 #include "model/parts/RadialConvectionDispersionKernel.hpp"
 #include "Weno.hpp"
+#include "HighResKoren.hpp"
 #include "AdUtils.hpp"
 #include "SimulationTypes.hpp"
 #include "ModelBuilderImpl.hpp"
@@ -418,24 +419,25 @@ struct AxialFlow
 	}
 };
 
+template <typename Reconstruction_t = cadet::Weno>
 struct RadialFlow
 {
-	typedef cadet::model::parts::convdisp::RadialFlowParameters<double> Params;
+	typedef cadet::model::parts::convdisp::RadialFlowParameters<double, Reconstruction_t> Params;
 
-	static void sparsityPattern(cadet::linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, cadet::Weno& weno)
+	static void sparsityPattern(cadet::linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, Reconstruction_t& reconstr)
 	{
-		cadet::model::parts::convdisp::sparsityPatternRadial(itBegin, nComp, nCol, strideCell, u, weno);
+		cadet::model::parts::convdisp::sparsityPatternRadial(itBegin, nComp, nCol, strideCell, u, reconstr);
 	}
 
 	static void residual(double const* y, double const* yDot, double* res, const Params& fp)
 	{
-		cadet::model::parts::convdisp::residualKernelRadial<double, double, double, cadet::linalg::BandedSparseRowIterator, false>(cadet::SimulationTime{0.0, 0u}, y, yDot, res, cadet::linalg::BandedSparseRowIterator(), fp);
+		cadet::model::parts::convdisp::residualKernelRadial<double, double, double, Reconstruction_t, cadet::linalg::BandedSparseRowIterator, false>(cadet::SimulationTime{0.0, 0u}, y, yDot, res, cadet::linalg::BandedSparseRowIterator(), fp);
 	}
 
 	template <typename IteratorType>
 	static void residualWithJacobian(double const* y, double const* yDot, double* res, IteratorType jacBegin, const Params& fp)
 	{
-		cadet::model::parts::convdisp::residualKernelRadial<double, double, double, IteratorType, true>(cadet::SimulationTime{0.0, 0u}, y, yDot, res, jacBegin, fp);
+		cadet::model::parts::convdisp::residualKernelRadial<double, double, double, Reconstruction_t, IteratorType, true>(cadet::SimulationTime{0.0, 0u}, y, yDot, res, jacBegin, fp);
 	}
 
 	std::unique_ptr<cadet::model::IParameterParameterDependence> parDep;
@@ -449,19 +451,19 @@ struct RadialFlow
 		parDep.reset(paramDepFactory.createParameterDependence("CONSTANT_ONE"));
 	}
 
-	Params makeParams(double u, cadet::active const* d_rad, double h, double* wenoDerivatives, cadet::Weno* weno, cadet::ArrayPool* stencilMemory, int strideCell, int nComp, int nCol)
+	Params makeParams(double u, cadet::active const* d_rad, double h, double* reconstrDerivatives, Reconstruction_t* reconstr, cadet::ArrayPool* stencilMemory, int strideCell, int nComp, int nCol)
 	{
-		centers.resize(10);
-		sizes.resize(10);
-		bounds.resize(11);
+		centers.resize(nCol);
+		sizes.resize(nCol);
+		bounds.resize(nCol + 1);
 
-		for (int i = 0; i < 10; ++i)
+		for (int i = 0; i < nCol; ++i)
 		{
 			centers[i] = (i + 1.5) * h;
 			sizes[i] = h;
 			bounds[i] = (i + 1) * h;
 		}
-		bounds.back() = 11 * h;
+		bounds.back() = (nCol + 1) * h;
 
 		return Params {
 			u,
@@ -469,6 +471,8 @@ struct RadialFlow
 			centers.data(),
 			sizes.data(),
 			bounds.data(),
+			reconstrDerivatives,
+			reconstr,
 			stencilMemory,
 			strideCell,
 			static_cast<unsigned int>(nComp),
@@ -476,7 +480,9 @@ struct RadialFlow
 			0u,
 			static_cast<unsigned int>(nComp),
 			parDep.get(),
-			DummyModel()
+			DummyModel(),
+			true,
+			nullptr
 		};
 	}
 };
@@ -717,13 +723,13 @@ TEST_CASE("RadialConvectionDispersionKernel Jacobian sparsity pattern vs FD", "[
 	{
 		// Test all WENO orders
 		for (unsigned int i = 1; i <= 1; ++i)
-			testBulkJacobianSparsityWeno<RadialFlow>(i, true);
+			testBulkJacobianSparsityWeno<RadialFlow<>>(i, true);
 	}
 	SECTION("Backward flow")
 	{
 		// Test all WENO orders
 		for (unsigned int i = 1; i <= 1; ++i)
-			testBulkJacobianSparsityWeno<RadialFlow>(i, false);
+			testBulkJacobianSparsityWeno<RadialFlow<>>(i, false);
 	}
 }
 
@@ -733,12 +739,190 @@ TEST_CASE("RadialConvectionDispersionKernel Jacobian sparse vs banded", "[Operat
 	{
 		// Test all WENO orders
 		for (unsigned int i = 1; i <= 1; ++i)
-			testBulkJacobianSparseBandedWeno<RadialFlow>(i, true);
+			testBulkJacobianSparseBandedWeno<RadialFlow<>>(i, true);
 	}
 	SECTION("Backward flow")
 	{
 		// Test all WENO orders
 		for (unsigned int i = 1; i <= 1; ++i)
-			testBulkJacobianSparseBandedWeno<RadialFlow>(i, false);
+			testBulkJacobianSparseBandedWeno<RadialFlow<>>(i, false);
+	}
+}
+
+
+template <typename FlowType>
+void testBulkJacobianSparsityKoren(bool forwardFlow)
+{
+	SECTION("Koren")
+	{
+		int nComp = 3;
+		int nCol = 20;
+
+		const double u = (forwardFlow ? 1e-3 : -1e-3);
+		const std::vector<cadet::active> d_c(nComp, 1e-6);
+		const double h = 1e-3 / nCol;
+		const int strideCell = nComp;
+
+		cadet::ArrayPool stencilMemory(sizeof(double) * cadet::HighResolutionKoren::maxStencilSize());
+		std::vector<double> reconstrDerivatives(cadet::HighResolutionKoren::maxStencilSize(), 0.0);
+
+		cadet::HighResolutionKoren koren;
+		koren.epsilon(1e-12);
+		koren.order(2);
+
+		FlowType ft;
+		typename FlowType::Params fp = ft.makeParams(
+			u,
+			d_c.data(),
+			h,
+			reconstrDerivatives.data(),
+			&koren,
+			&stencilMemory,
+			strideCell,
+			nComp,
+			nCol
+		);
+
+		// Obtain sparsity pattern
+		cadet::linalg::SparsityPattern pattern(nComp * nCol, std::max(koren.lowerBandwidth() + 1u, 1u) + 1u + std::max(koren.upperBandwidth(), 1u));
+		FlowType::sparsityPattern(pattern.row(0), nComp, nCol, strideCell, u, koren);
+
+		// Obtain memory for state, Jacobian columns
+		const int nDof = nComp + nComp * nCol;
+		std::vector<double> y(nDof, 0.0);
+		std::vector<double> jacCol1(nDof, 0.0);
+		std::vector<double> jacCol2(nDof, 0.0);
+
+		// Fill state vector with some values
+		cadet::test::util::populate(y.data() + nComp, [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof - nComp);
+
+		for (int col = 0; col < pattern.rows(); ++col)
+		{
+			const double ref = y[nComp + col];
+
+			// Central finite differences
+			y[nComp + col] = ref * (1.0 + 1e-6);
+			FlowType::residual(y.data(), nullptr, jacCol1.data(), fp);
+
+			y[nComp + col] = ref * (1.0 - 1e-6);
+			FlowType::residual(y.data(), nullptr, jacCol2.data(), fp);
+
+			y[nComp + col] = ref;
+
+			for (int row = 0; row < pattern.rows(); ++row)
+			{
+				const double fd = (jacCol1[row + nComp] - jacCol2[row + nComp]) / (2.0 * ref * 1e-6);
+				const bool isFDnonZero = (fd != 0.0);
+
+				CAPTURE(row);
+				CAPTURE(col);
+				CAPTURE(isFDnonZero);
+				// Koren limiter is nonlinear: pattern is a conservative superset.
+				// Check that every FD nonzero is covered by the pattern.
+				if (isFDnonZero)
+					CHECK(pattern.isNonZero(row, col));
+			}
+		}
+	}
+}
+
+template <typename FlowType>
+void testBulkJacobianSparseBandedKoren(bool forwardFlow)
+{
+	SECTION("Koren")
+	{
+		int nComp = 3;
+		int nCol = 20;
+
+		const double u = (forwardFlow ? 1e-3 : -1e-3);
+		const std::vector<cadet::active> d_c(nComp, 1e-6);
+		const double h = 1e-3 / nCol;
+		const int strideCell = nComp;
+
+		cadet::ArrayPool stencilMemory(sizeof(double) * cadet::HighResolutionKoren::maxStencilSize());
+		std::vector<double> reconstrDerivatives(cadet::HighResolutionKoren::maxStencilSize(), 0.0);
+
+		cadet::HighResolutionKoren koren;
+		koren.epsilon(1e-12);
+		koren.order(2);
+
+		FlowType ft;
+		typename FlowType::Params fp = ft.makeParams(
+			u,
+			d_c.data(),
+			h,
+			reconstrDerivatives.data(),
+			&koren,
+			&stencilMemory,
+			strideCell,
+			nComp,
+			nCol
+		);
+
+		// Obtain sparsity pattern
+		const unsigned int lowerBandwidth = std::max(koren.lowerBandwidth() + 1u, 1u);
+		const unsigned int upperBandwidth = std::max(koren.upperBandwidth(), 1u);
+		cadet::linalg::SparsityPattern pattern(nComp * nCol, lowerBandwidth + 1u + upperBandwidth);
+		FlowType::sparsityPattern(pattern.row(0), nComp, nCol, strideCell, u, koren);
+
+		// Obtain memory for state
+		const int nDof = nComp + nComp * nCol;
+		std::vector<double> y(nDof, 0.0);
+		std::vector<double> res(nDof, 0.0);
+
+		// Fill state vector with some values
+		cadet::test::util::populate(y.data() + nComp, [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof - nComp);
+
+		// Populate sparse matrix
+		cadet::linalg::CompressedSparseMatrix sparseMat(pattern);
+		FlowType::template residualWithJacobian<cadet::linalg::BandedSparseRowIterator>(y.data(), nullptr, res.data(), sparseMat.row(0), fp);
+
+		// Populate dense matrix
+		cadet::linalg::BandMatrix bandMat;
+		if (forwardFlow)
+			bandMat.resize(nComp * nCol, lowerBandwidth * strideCell, upperBandwidth * strideCell);
+		else
+			bandMat.resize(nComp * nCol, upperBandwidth * strideCell, lowerBandwidth * strideCell);
+
+		FlowType::template residualWithJacobian<cadet::linalg::BandMatrix::RowIterator>(y.data(), nullptr, res.data(), bandMat.row(0), fp);
+
+		for (int col = 0; col < bandMat.rows(); ++col)
+		{
+			for (int row = 0; row < bandMat.rows(); ++row)
+			{
+				CAPTURE(row);
+				CAPTURE(col);
+
+				const int diagonal = col - row;
+				if ((diagonal <= static_cast<int>(bandMat.upperBandwidth())) && (-diagonal <= static_cast<int>(bandMat.lowerBandwidth())))
+					CHECK(bandMat(row, diagonal) == sparseMat(row, col));
+				else
+					CHECK(0.0 == sparseMat(row, col));
+			}
+		}
+	}
+}
+
+TEST_CASE("RadialConvectionDispersionKernel Koren Jacobian sparsity pattern vs FD", "[Operator],[RadialFlow],[Residual],[Jacobian],[SparseMatrix],[Koren]")
+{
+	SECTION("Forward flow")
+	{
+		testBulkJacobianSparsityKoren<RadialFlow<cadet::HighResolutionKoren>>(true);
+	}
+	SECTION("Backward flow")
+	{
+		testBulkJacobianSparsityKoren<RadialFlow<cadet::HighResolutionKoren>>(false);
+	}
+}
+
+TEST_CASE("RadialConvectionDispersionKernel Koren Jacobian sparse vs banded", "[Operator],[RadialFlow],[Jacobian],[SparseMatrix],[Koren]")
+{
+	SECTION("Forward flow")
+	{
+		testBulkJacobianSparseBandedKoren<RadialFlow<cadet::HighResolutionKoren>>(true);
+	}
+	SECTION("Backward flow")
+	{
+		testBulkJacobianSparseBandedKoren<RadialFlow<cadet::HighResolutionKoren>>(false);
 	}
 }

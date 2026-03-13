@@ -183,11 +183,9 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE - RADIAL_COLUMN_MODEL_1D
 Spatial discretization - Numerical Methods
 ------------------------------------------
 
-CADET offers a 1st order upwind FV method for radial flow chromatography
-
 ``SPATIAL_METHOD``
 
-   Spatial discretization method. Optional, defaults to :math:`\texttt{FV}`
+   Spatial discretization method
 
    ================  ==================================  =============
    **Type:** string  **Range:** :math:`\{\texttt{FV}\}`  **Length:** 1
@@ -200,6 +198,16 @@ CADET offers a 1st order upwind FV method for radial flow chromatography
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
    =============  =========================  =============
+
+``RECONSTRUCTION``
+
+   Type of reconstruction method for fluxes
+   
+   ================  =======================================  =============
+   **Type:** string  **Range:** :math:`\texttt{WENO, KOREN}`  **Length:** 1
+   ================  =======================================  =============
+
+   For further information on discretization parameters for reconstruction methods, see also :ref:`flux_reconstruction_methods` (FV specific).
 
 The following FV discretization parameters are only required if particles are present:
 

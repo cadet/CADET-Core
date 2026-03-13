@@ -139,8 +139,8 @@ public:
 	 */
 	inline void order(int order)
 	{
-		cadet_assert(order <= static_cast<int>(maxOrder()));
-		cadet_assert(order > 0);
+		if (order <= 0 || order > static_cast<int>(maxOrder()))
+			throw InvalidParameterException("WENO Order specified as " + std::to_string(order) + " but must be > 0 and <= " + std::to_string(static_cast<int>(maxOrder())));
 		_order = order;
 	}
 	
