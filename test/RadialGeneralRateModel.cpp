@@ -319,3 +319,31 @@ TEST_CASE("Radial GRM multi particle types dynamic reactions time derivative Jac
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesRadGRM();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 9e-4);
 }
+
+// ============================================================
+// Radial GRM_DG Gaussian pulse EOC convergence tests
+// Parameters from CADET-Julia test12 radial flow:
+//   rin=0.1, rout=1.1, v=2/60 m/s, D=1e-4, eps_c=0.6,
+//   eps_p=0.5, Rp=1e-4, kf=1e-3, Dp=1e-5
+// ============================================================
+
+TEST_CASE("Radial GRM_DG polyDeg 1 EOC convergence", "[RadGRM],[DG],[Convergence],[EOC]")
+{
+	cadet::test::column::testRadialDGConvergence(
+		"/data/model_radGRM_DG_gaussianPulse_1comp_eocbenchmark.json", "001",
+		1, 2, 3, 2.0, 0.5);
+}
+
+TEST_CASE("Radial GRM_DG polyDeg 2 EOC convergence", "[RadGRM],[DG],[Convergence],[EOC]")
+{
+	cadet::test::column::testRadialDGConvergence(
+		"/data/model_radGRM_DG_gaussianPulse_1comp_eocbenchmark.json", "001",
+		2, 2, 3, 3.0, 0.5);
+}
+
+TEST_CASE("Radial GRM_DG polyDeg 3 EOC convergence", "[RadGRM],[DG],[Convergence],[EOC]")
+{
+	cadet::test::column::testRadialDGConvergence(
+		"/data/model_radGRM_DG_gaussianPulse_1comp_eocbenchmark.json", "001",
+		3, 2, 3, 4.0, 0.5);
+}

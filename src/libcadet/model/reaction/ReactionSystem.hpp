@@ -107,7 +107,7 @@ struct ReactionSystem
          * @brief Checks if any reactions are present in the system
          * @return True if at least one reaction exists, false otherwise
          */
-        bool hasReactions()
+        bool hasReactions() const
         {
             for(const auto& phasePair : _phaseMap)
             {
