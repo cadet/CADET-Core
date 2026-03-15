@@ -43,7 +43,7 @@ namespace parts
  * @brief Creates an AxialConvectionDispersionOperatorBaseDG
  */
 AxialConvectionDispersionOperatorBaseDG::AxialConvectionDispersionOperatorBaseDG() :
-	_dispersionDep(nullptr), _DGjacAxDispBlocks(nullptr), _auxState(nullptr), _subsState(nullptr)
+	_DGjacAxDispBlocks(nullptr), _auxState(nullptr), _subsState(nullptr), _dispersionDep(nullptr)
 {
 }
 

@@ -71,8 +71,9 @@ public:
 	TwoDimensionalConvectionDispersionOperatorDG();
 	~TwoDimensionalConvectionDispersionOperatorDG() CADET_NOEXCEPT;
 
-	void setFlowRates(int compartment, const active& in, const active& out) CADET_NOEXCEPT;
-	void setFlowRates(active const* in, active const* out) CADET_NOEXCEPT;
+	void setFlowRates(int compartment, const active& in, const active& out);
+	void setFlowRates(active const* in, active const* out);
+
 
 	bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const unsigned int nComp, const unsigned int radNodeStride);
 	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
@@ -111,13 +112,13 @@ public:
 	inline const active& currentVelocity(int idx) const CADET_NOEXCEPT { return _curVelocity[idx]; }
 	inline const active& columnPorosity(int idx) const CADET_NOEXCEPT { return _colPorosities[idx]; }
 
-	inline const int axNNodes() const { return _axNNodes; }
-	inline const int axNElem() const { return _axNElem; }
-	inline const int radNNodes() const { return _radNNodes; }
-	inline const int radNElem() const { return _radNElem; }
-	inline const int elemNPoints() const { return _elemNPoints; }
-	inline const unsigned int axNPoints() const { return _axNPoints; }
-	inline const unsigned int radNPoints() const { return _radNPoints; }
+	inline int axNNodes() const { return _axNNodes; }
+	inline int axNElem() const { return _axNElem; }
+	inline int radNNodes() const { return _radNNodes; }
+	inline int radNElem() const { return _radNElem; }
+	inline int elemNPoints() const { return _elemNPoints; }
+	inline unsigned int axNPoints() const { return _axNPoints; }
+	inline unsigned int radNPoints() const { return _radNPoints; }
 
 	double relativeAxialCoordinate(unsigned int idx) const
 	{

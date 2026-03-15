@@ -355,7 +355,7 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 		registerScalarSectionDependentParam(hashString("FLOWRATE_FILTER"), _parameters, _flowRateFilter, _unitOpIdx, ParTypeIndep);
 
 	if (_totalBound > 0)
-		registerParam1DArray(_parameters, _parTypeVolFrac, [=](bool multi, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
+		registerParam1DArray(_parameters, _parTypeVolFrac, [=, this](bool multi, unsigned int type) { return makeParamId(hashString("PAR_TYPE_VOLFRAC"), _unitOpIdx, CompIndep, type, BoundStateIndep, ReactionIndep, SectionIndep); });
 
 	// Register initial conditions parameters
 	for (unsigned int i = 0; i < _nComp; ++i)
@@ -413,7 +413,7 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 			if (paramProvider.exists("NREAC_SOLID"))
 				dynReactionConfSuccess = _reacParticle[par]->configure("solid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
-				paramProvider.popScope(); // particle_type_xxx
+			paramProvider.popScope(); // particle_type_xxx
 		}
 	}
 
@@ -592,7 +592,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 	double* const c = vecStateY + _nComp;
 	const double vLiquid = c[_nComp + _totalBound];
 	const double vSolid = static_cast<double>(_constSolidVolume);
-	const double porosity = static_cast<const double>(vLiquid) / (vSolid + static_cast<const double>(vLiquid));
+	const double porosity = vLiquid / (vSolid + vLiquid);
 
 
 	// Check if liquid volume is 0
@@ -1203,7 +1203,7 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 		// We, hence, assume that this doesn't happen and simply
 		// do nothing leaving the initial conditions in place.
 
-		typename linalg::DenseMatrix::RowIterator itRow = _jacFact.row(0);
+//		typename linalg::DenseMatrix::RowIterator itRow = _jacFact.row(0);
 
 		const double denom = vDot + flowOut;
 		if (denom == 0.0)
@@ -1854,7 +1854,6 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 
 	// Handle actual ODE DOFs
 	double const* const c = simState.vecStateY + _nComp;
-	double const* const q = simState.vecStateY + 2 * _nComp;
 	const double v = simState.vecStateY[2 * _nComp + _totalBound];
 	const double timeV = v;
 	const double vSolid = static_cast<double>(_constSolidVolume);
@@ -1866,13 +1865,10 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 	{
 		r[i] = timeV * s[i]; // dRes / dcDot
 
-		double qSum = 0.0;
 		for (unsigned int type = 0; type < _nParType; ++type)
 		{
-			double const* const qi = q + _offsetParType[type] + _boundOffset[type * _nComp + i];
 			const unsigned int localOffset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
 			const double vSolidParVolFrac = vSolid * static_cast<double>(_parTypeVolFrac[type]);
-			double qSumType = 0.0;
 			for (unsigned int j = 0; j < _nBound[type * _nComp + i]; ++j)
 			{
 				r[i] += vSolidParVolFrac * s[localOffset + j]; // dRes / d_qDot
@@ -1881,10 +1877,7 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 				// + _boundOffset[i]: Moves over bound states of previous components
 				// + j: Moves to current bound state j of component i
 
-				qSumType += qi[j];
 			}
-
-			qSum += static_cast<double>(_parTypeVolFrac[type]) * qSumType;
 		}
 		r[i] += c[i] * s[_nComp + _totalBound]; // dRes / dvLiquidDot
 	}
@@ -1948,7 +1941,6 @@ template <typename MatrixType>
 void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSimulationState& simState, MatrixType& mat)
 {	
 	double const* const c = simState.vecStateY + _nComp;
-	double const* const q = simState.vecStateY + 2 * _nComp;
 	const double v = simState.vecStateY[2 * _nComp + _totalBound];
 	const double timeV = v * alpha;
 	const double timeVSolid = static_cast<double>(_constSolidVolume) * alpha;
@@ -1960,10 +1952,8 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 	{
 		mat.native(i, i) += timeV; // dRes / dcDot
 
-		double qSum = 0.0;
 		for (unsigned int type = 0; type < _nParType; ++type)
 		{
-			double const* const qi = q + _offsetParType[type] + _boundOffset[type * _nComp + i];
 			const unsigned int localOffset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
 			const double vSolidParVolFrac = timeVSolid * static_cast<double>(_parTypeVolFrac[type]);
 			for (unsigned int j = 0; j < _nBound[type * _nComp + i]; ++j)

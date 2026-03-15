@@ -315,7 +315,7 @@ namespace model
 			active const* const filmDiff = _parDiffOp->getFilmDiffusion(secIdx);
 			const ParamType invBetaC = 1.0 / static_cast<ParamType>(packing.colPorosity) - 1.0;
 			const ParamType jacCF_val = invBetaC * static_cast<ParamType>(surfaceToVolumeRatio());
-			const ParamType jacPF_val = -1.0 / static_cast<ParamType>(getPorosity());
+//			const ParamType jacPF_val = -1.0 / static_cast<ParamType>(getPorosity());
 
 			// Add flux to column void / bulk volume
 			for (unsigned int comp = 0; comp < _nComp; ++comp)

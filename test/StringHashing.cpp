@@ -162,7 +162,7 @@ int siphashRefMain( uint8_t *out, const uint8_t *in, uint64_t inlen, const uint8
 
 inline uint64_t sipHashRef(char const* data, unsigned int len)
 {
-    uint8_t in[MAXLEN], out[HASHLEN], k[KEYLEN];
+    uint8_t out[HASHLEN], k[KEYLEN];
 
     for (int i = 0; i < KEYLEN; ++i)
         k[i] = 0;
@@ -179,7 +179,7 @@ inline uint64_t sipHashRef(char const* data, unsigned int len)
 
 using cadet::util::SipHash24;
 using cadet::util::SipHash24runtime;
-using cadet::operator "" _hash;
+using cadet::operator ""_hash;
 
 #if CADET_COMPILETIME_HASH
 
