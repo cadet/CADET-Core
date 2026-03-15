@@ -20,7 +20,7 @@
 #include "Logging.hpp"
 
 #include "common/Driver.hpp"
-
+#include <fstream>
 
 #define CADET_XSTR(a) #a
 #define CADET_STR(a) CADET_XSTR(a)
@@ -772,15 +772,15 @@ namespace v1
 		cadet::ISimulator* const sim = realDrv->simulator();
 		unsigned int len = 0;
 
-		unsigned int sliceStart;
 		unsigned int sliceEnd;
+		unsigned int sliceStart;
 		std::tie(sliceStart, sliceEnd) = sim->model()->getModelStateOffsets(unitOpId);
 
 		if (state)
 			*state = sim->getLastSolution(len) + sliceStart;
 
 		if (nStates)
-			*nStates = sliceEnd - sliceStart;
+			*nStates = sliceEnd - sliceEnd;
 
 		return cdtOK;
 	}
@@ -1020,6 +1020,109 @@ namespace v1
 		return cdtOK;
 	}
 
+	cdtResult initializeSimulation(cdtDriver* drv, cdtParameterProvider const* paramProvider)
+	{
+		Driver* const realDrv = drv->driver;
+		if (!realDrv)
+			return cdtErrorInvalidInputs;
+		if (!paramProvider)
+			return cdtErrorInvalidInputs;
+
+		try
+		{
+			LOG(Info) << "C-API: Configuring driver";
+			CallbackParameterProvider cpp(*paramProvider);
+			realDrv->configure(cpp);
+			
+			LOG(Info) << "C-API: Getting simulator";
+			cadet::ISimulator* const sim = realDrv->simulator();
+			if(!sim)
+			{
+				LOG(Error) << "C-API: Failed to create simulator after configure";
+				return cdtError;
+			}
+
+			LOG(Info) << "C-API: Preparing integrator";
+			sim->prepareIntegrator();
+			
+			LOG(Info) << "C-API: Simulation initialized successfully";
+		}
+		catch(const std::exception& e)
+		{
+			LOG(Error) << "C-API: Initialization failed: " << e.what();
+			return cdtError;
+		}
+
+		return cdtOK;
+	}
+	
+	cdtResult performSimulationStep(cdtDriver* drv, double tEnd, double* tReached)
+	{
+		Driver* const realDrv = drv->driver;
+		
+		if (!realDrv)
+		{
+			LOG(Error) << "C-API: Invalid driver pointer";
+			return cdtErrorInvalidInputs;
+		}
+		
+		try
+		{
+			cadet::ISimulator* const sim = realDrv->simulator();
+			
+			if (!sim)
+			{
+				LOG(Error) << "C-API: Simulator not initialized";
+				return cdtError;
+			}
+
+			double reached = 0.0;
+			const int result = sim->integrateStep(tEnd, reached);
+
+			if (tReached)
+				*tReached = reached;
+			
+			if (result < 0)
+			{
+				LOG(Error) << "C-API: Integration step failed with code " << result;
+				return cdtError;
+			}
+
+			if (result > 0)
+				LOG(Info) << "C-API: Root found at t = " << reached;
+			else
+				LOG(Info) << "C-API: Integrated to t = " << reached;
+		}
+		catch(const std::exception& e)
+		{
+			LOG(Error) << "C-API: Exception in performSimulationStep: " << e.what();
+			return cdtError;
+		}
+
+		LOG(Info) << "C-API: performSimulationStep END";
+		return cdtOK;
+
+	}
+
+	cdtResult endSimulation(cdtDriver* drv)
+	{
+		Driver* const realDrv = drv->driver;
+		if(!realDrv)
+			return cdtErrorInvalidInputs;
+
+		try
+		{
+			realDrv->clear();
+		}
+		catch(const std::exception& e)
+		{
+			LOG(Error) << "C-API: Ending simulation failed " << e.what();
+        	return cdtError;
+		}
+		
+		return cdtOK;
+	}
+
 }  // namespace v1
 
 }  // namespace api
@@ -1091,11 +1194,25 @@ extern "C"
 		ptr->getParticleCoordinates = &cadet::api::v1::getParticleCoordinates;
 
 		ptr->getSolutionTimes = &cadet::api::v1::getSolutionTimes;
-
 		ptr->getTimeSim = &cadet::api::v1::getTimeSim;
 
 		return cdtOK;
 	}
 
+}
+
+extern "C"
+{
+	CADET_API cdtResult cdtGetAPIv010000_ext1(cdtAPIv010000_ext1* ptr)
+	{
+		if (!ptr)
+			return cdtErrorInvalidInputs;
+
+		ptr->initializeSimulation = &cadet::api::v1::initializeSimulation;
+		ptr->performSimulationStep = &cadet::api::v1::performSimulationStep;
+		ptr->endSimulation = &cadet::api::v1::endSimulation;
+
+		return cdtOK;
+	}
 }
 
