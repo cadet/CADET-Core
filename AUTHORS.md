@@ -21,6 +21,7 @@ Major additions or modifications to CADET-Core are explicitly documented here.
 * [Hannah Lanzrath](https://github.com/hannahlanzrath)[![ORCID iD](https://orcid.org/sites/default/files/images/orcid_16x16.png)](https://orcid.org/0000-0002-2675-9002)[^1][^2]
 * [Antonia Berger](https://github.com/AntoniaBerger)[![ORCID iD](https://orcid.org/sites/default/files/images/orcid_16x16.png)](https://orcid.org/0009-0002-0207-9042)[^1][^2]: Refactored/generalized reactions system
 * [Wendi Zhang](https://github.com/WFlynnZ)[![ORCID iD](https://orcid.org/sites/default/files/images/orcid_16x16.png)](https://orcid.org/0000-0002-6127-1408)[^4]: Crystallization module
+* [Yuvraj Singh Rathore](https://github.com/Yuvraj2710)[^1]
 
 [^1]: Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany
 [^2]: RWTH Aachen University, Computational Systems Biotechnology, Aachen, Germany
