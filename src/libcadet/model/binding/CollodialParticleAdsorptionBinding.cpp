@@ -45,8 +45,7 @@ using std::numbers::pi;
 			{ "type": "ScalarComponentDependentParameter", "varName": "compCharge", "confName": "CPA_COMP_CHARGE"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "latCharge", "confName": "CPA_COMP_LAT_CHARGE"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "deltaM", "confName": "CPA_DELTA_M"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "deltaStar", "confName": "CPA_DELTA_STAR"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "kKin", "confName": "CPA_KKIN"}
+			{ "type": "ScalarComponentDependentParameter", "varName": "deltaStar", "confName": "CPA_DELTA_STAR"}
 		],
 	"constantParameters":
 		[
@@ -70,7 +69,6 @@ using std::numbers::pi;
  CPA_COMP_LAT_CHARGE:     Lateral charge Z_{lat,i} [-] (per component)
  CPA_DELTA_M:             Location of energy minimum delta_{m,i} [m] (per component)
  CPA_DELTA_STAR:          Thickness of interaction boundary layer delta*_i [m] (per component)
- CPA_KKIN:                Kinetic rate constant k_{kin,i} [1/s] (per component)
  CPA_USE_PH:              Whether pH is a mobile phase component (bool)
 */
 
@@ -89,7 +87,6 @@ inline bool ColloidalParticleAdsorptionParamHandler::validateConfig(unsigned int
 		|| (_compRadius.size() != _adSurfaceArea.size())
 		|| (_compRadius.size() != _deltaM.size())
 		|| (_compRadius.size() != _deltaStar.size())
-		|| (_compRadius.size() != _kKin.size())
 		|| (_compRadius.size() < nComp))
 		throw InvalidParameterException("CPA component-dependent parameters must all have the same size (nComp)");
 
@@ -105,7 +102,6 @@ inline bool ExtColloidalParticleAdsorptionParamHandler::validateConfig(unsigned 
 		|| (_compRadius.size() != _adSurfaceArea.size())
 		|| (_compRadius.size() != _deltaM.size())
 		|| (_compRadius.size() != _deltaStar.size())
-		|| (_compRadius.size() != _kKin.size())
 		|| (_compRadius.size() < nComp))
 		throw InvalidParameterException("CPA component-dependent parameters must all have the same size (nComp)");
 
@@ -168,7 +164,7 @@ protected:
 
 	
 	/**
-	 * @brief Solve for adsorber surface potential psi_{0,A} using Newton-Raphson
+	 * @brief Solve for adsorber surface potential psi_{0,A} using Newton
 	 * @details Solves the neutrality condition sigma_{I,A}(psi) = sigma_D(psi)
 	 *          
 	 */
@@ -334,9 +330,8 @@ protected:
 			const ParamType Zlat_i   = static_cast<ParamType>(p->latCharge[i]);
 			const ParamType dm_i     = static_cast<ParamType>(p->deltaM[i]);
 			const ParamType dstar_i  = static_cast<ParamType>(p->deltaStar[i]);
-			const ParamType kKin_i   = static_cast<ParamType>(p->kKin[i]);
 
-			// 1. Protein surface potential psi_{0,i} (Eq. 14)
+			// 1. Protein surface potential psi_{0,i}
 			//    psi_i = (2*k_b*T/e) * asinh(Z_i*e^2 / (8*pi*a_i^2*eps*eps0*kappa*k_b*T))
 			const ParamType psiArg = Zi * e * e / (8.0 * pi * a_i * a_i * eps * eps0 * kappa * kbT);
 			const ParamType psi_i = (2.0 * kbT / e) * log(psiArg + sqrt(psiArg * psiArg + 1.0));
@@ -353,12 +348,12 @@ protected:
 			);
 
 			// 3. K_{H,i} (Eq. 10)
-			//    K_{H,i} = A_{s,i} * (delta*_i - delta_{m,i}) * (k_b*T / u_{A,i})
+			//    K_{H,i} = (k_b*T / u_{A,i})
 			//              * (1 - exp(-u_{A,i} / (k_b*T)))
 
 			ParamType KH_i = 0.0;
 			if (std::abs(static_cast<double>(uA_i)) > 1e-30)
-				KH_i = As_i * (dstar_i - dm_i) * (kbT / uA_i) * (1.0 - exp(-uA_i / kbT));
+				KH_i =(kbT / uA_i) * (1.0 - exp(-uA_i / kbT));
 
 			// 4. B_i(Theta)
 			//    Eq. (28): Hard-disc ASF
@@ -419,11 +414,15 @@ protected:
 					* betaQSum;
 			} 
 
-			// 6.  K_{v,i} = K_{H,i} * B_i(Theta) * exp(-u_{lat,i} / (k_b*T))
-			//    Residual: k_{kin,i} * (K_{v,i} * c_{p,i} - q_{v,i})
-			//    Eq. (11)
-			const StateParamType Kv_i = KH_i * B_i * exp(-ulat_i / kbT);
+			// 6.  K_{v,i} =  As_i * (dstar_i - dm_i) * K_{H,i} * B_i(Theta) * exp(-u_{lat,i} / (k_b*T))
+			const StateParamType Kv_i =  As_i * (dstar_i - dm_i) * KH_i * B_i * exp(-ulat_i / kbT);
 
+			// 7. k_{kin,i} =  D_i /Delta^2_i  * 1/2 (u_A,i(detla_m,i)/k_bT)^2 * (cosh(u_A,i(detla_m,i)//k_bT)-1))^{-1}
+			const double D_i = 1; //TODO D_i is the diffusion coeffizent -> how to get this from the unit operation?
+			const ParamType kKin_i_star =  D_i / ( 2*(dstar_i - dm_i)*(dstar_i - dm_i) );
+			const ParamType kKin_i = kKin_i_star * (uA_i/kbT)*(uA_i/kbT) * 1/(cosh(uA_i/kbT)-1);
+			
+			//res: k_{kin,i} * (K_{v,i} * c_{p,i} - q_{v,i})
 			res[bndIdx] = kKin_i * (Kv_i * yCp[i] - y[bndIdx]);
 
 			++bndIdx;
