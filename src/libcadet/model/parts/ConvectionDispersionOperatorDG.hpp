@@ -92,7 +92,7 @@ namespace cadet
 				int calcTransportJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset = 0);
 				typedef Eigen::Triplet<double> T;
 				void convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset = 0);
-				unsigned int nConvDispEntries(bool pureNNZ = false);
+				unsigned int nJacEntries(bool pureNNZ = false);
 				void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 				void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset = 0);
 
@@ -131,7 +131,6 @@ namespace cadet
 				unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
 				unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
 				double inletJacobianFactor() const CADET_NOEXCEPT;
-				unsigned int nJacEntries(bool pureNNZ);
 
 				// @todo use more efficient seed vectors. currently, we treat the jacobian as banded, but the pattern is actually more sparse when multiple components are considered
 				// (note that active type directions are limited)
@@ -1232,7 +1231,6 @@ namespace cadet
 				int calcTransportJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset = 0);
 				typedef Eigen::Triplet<double> T;
 				void convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset = 0);
-				unsigned int nConvDispEntries(bool pureNNZ = false);
 				void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 				void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset = 0);
 

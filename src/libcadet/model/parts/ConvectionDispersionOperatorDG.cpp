@@ -950,15 +950,15 @@ void ConvectionDispersionOperatorDG<Operator>::extractJacobianFromAD(active cons
 template <typename Operator>
 double ConvectionDispersionOperatorDG<Operator>::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
 {
-	const int lowerBandwidth = _baseOp.jacobianLowerBandwidth();
-	const int upperBandwidth = lowerBandwidth;
-	const int diagDir = lowerBandwidth;
+	// todo implement this function
+	//// Column
+	//const double maxDiffCol = ad::compareBandedJacobianWithAd(adRes + offsetC(), adDirOffset, _jacC.lowerBandwidth(), _jacC);
+	//LOG(Debug) << "-> Col block diff: " << maxDiffCol;
 
-	// Column block
-	const double maxDiffCol = ad::compareBandedEigenJacobianWithAd(adRes + offsetC(), adDirOffset, diagDir, lowerBandwidth, upperBandwidth, 0, _jacC.rows(), _jacC, 0);
-	LOG(Debug) << "-> Col block diff: " << maxDiffCol;
+	//return maxDiffCol;
 
-	return maxDiffCol;
+	LOG(Debug) << "checkAnalyticJacobianAgainstAd not implemented in ConvectionDispersionOperatorDG";
+	return 1;
 }
 
 #endif
@@ -1640,16 +1640,6 @@ unsigned int RadialConvectionDispersionOperatorBaseDG::nJacEntries(bool pureNNZ)
 	}
 	return _nComp * _nNodes * _nNodes + _nNodes // convection entries
 		+ _nComp * ((3u * _nElem - 2u) * _nNodes * _nNodes + (2u * _nElem - 3u) * _nNodes); // dispersion entries
-}
-
-unsigned int RadialConvectionDispersionOperatorBaseDG::nConvDispEntries(bool pureNNZ)
-{
-	// Similar pattern to axial but with radial geometry
-	if (!pureNNZ)
-		return _nComp * (2 * jacobianLowerBandwidth() + 1);
-
-	// Pure non-zero count
-	return _nComp * _nPoints * (2 * _nNodes + 1);
 }
 
 void RadialConvectionDispersionOperatorBaseDG::convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset)
