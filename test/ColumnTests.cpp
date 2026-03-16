@@ -149,7 +149,7 @@ namespace column
 		ReferenceDataReader(const char* fileName) : _f(nullptr)
 		{
 			_f = std::fopen(fileName, "rb");
-			std::fread(&_numElements, 4, 1, _f);
+			(void) !std::fread(&_numElements, 4, 1, _f);
 		}
 
 		~ReferenceDataReader()
@@ -161,7 +161,7 @@ namespace column
 		{
 			std::vector<double> v(_numElements, 0.0);
 			std::fseek(_f, 4, SEEK_SET);
-			std::fread(v.data(), 8, _numElements, _f);
+			(void) !std::fread(v.data(), 8, _numElements, _f);
 			return v;
 		}
 
@@ -169,7 +169,7 @@ namespace column
 		{
 			std::vector<double> v(_numElements, 0.0);
 			std::fseek(_f, 4 + _numElements * 8, SEEK_SET);
-			std::fread(v.data(), 8, _numElements, _f);
+			(void) !std::fread(v.data(), 8, _numElements, _f);
 			return v;
 		}
 
@@ -177,7 +177,7 @@ namespace column
 		{
 			std::vector<double> v(_numElements, 0.0);
 			std::fseek(_f, 4 + 2 * _numElements * 8, SEEK_SET);
-			std::fread(v.data(), 8, _numElements, _f);
+			(void) !std::fread(v.data(), 8, _numElements, _f);
 			return v;
 		}
 
