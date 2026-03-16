@@ -94,6 +94,7 @@ public:
 	virtual void notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac);
 
 	virtual void useAnalyticJacobian(const bool analyticJac);
+	unsigned int numAdDirsForJacobian() const CADET_NOEXCEPT;
 
 	virtual void reportSolution(ISolutionRecorder& recorder, double const* const solution) const;
 	virtual void reportSolutionStructure(ISolutionRecorder& recorder) const;

@@ -223,3 +223,21 @@ TEST_CASE("Radial LRM_DG polyDeg 5 EOC convergence", "[RadLRM],[DG],[Convergence
 		"/data/model_radLRM_DG_gaussianPulse_1comp_eocbenchmark.json", "001",
 		5, 4, 4, 6.0, 0.5);
 }
+
+// ============================================================
+// Radial LRM_DG Langmuir binding EOC convergence tests
+// ============================================================
+
+TEST_CASE("Radial LRM_DG Langmuir polyDeg 3 EOC convergence", "[RadLRM],[DG],[Convergence],[EOC],[Langmuir]")
+{
+	cadet::test::column::testRadialDGConvergence(
+		"/data/model_radLRM_DG_langmuir_1comp_eocbenchmark.json", "001",
+		3, 4, 4, 4.0, 0.5);
+}
+
+TEST_CASE("Radial LRM_DG Langmuir polyDeg 4 EOC convergence", "[RadLRM],[DG],[Convergence],[EOC],[Langmuir]")
+{
+	cadet::test::column::testRadialDGConvergence(
+		"/data/model_radLRM_DG_langmuir_1comp_eocbenchmark.json", "001",
+		4, 4, 4, 5.0, 0.5);
+}

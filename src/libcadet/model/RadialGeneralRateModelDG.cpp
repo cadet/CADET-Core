@@ -70,10 +70,12 @@ RadialGeneralRateModelDG::~RadialGeneralRateModelDG() CADET_NOEXCEPT
 		delete pm;
 	_particles.clear();
 
-	delete[] _disc.nBound;
-	delete[] _disc.boundOffset;
-	delete[] _disc.nParPoints;
-	delete[] _disc.parTypeOffset;
+	for (IDynamicReactionModel* drm : _dynReaction)
+		delete drm;
+	_dynReaction.clear();
+
+	// Note: _disc.nBound, _disc.boundOffset, _disc.nParPoints, _disc.parTypeOffset
+	// are freed by ~Discretization() — do NOT delete them here.
 }
 
 unsigned int RadialGeneralRateModelDG::numDofs() const CADET_NOEXCEPT
@@ -208,7 +210,7 @@ bool RadialGeneralRateModelDG::configureModelDiscretization(IParameterProvider& 
 			throw InvalidParameterException("Failed to create particle model for type " + std::to_string(parType));
 
 		// Configure particle model discretization (expects paramProvider at unit_001 scope)
-		if (!_particles[parType]->configureModelDiscretization(paramProvider, helper, _disc.nComp, parType, _disc.nParType, _disc.nComp))
+		if (!_particles[parType]->configureModelDiscretization(paramProvider, helper, _disc.nComp, parType, _disc.nParType, 1))
 			throw InvalidParameterException("Failed to configure particle model discretization for type " + std::to_string(parType));
 
 		_disc.nParPoints[parType] = _particles[parType]->nDiscPoints();
@@ -425,37 +427,29 @@ unsigned int RadialGeneralRateModelDG::requiredADdirs() const CADET_NOEXCEPT
 	return _jacobianAdDirs;
 }
 
+unsigned int RadialGeneralRateModelDG::numAdDirsForJacobian() const CADET_NOEXCEPT
+{
+	// Bulk uses banded seeding; each particle type gets dedicated dense directions (one per block).
+	// All particle blocks of the same type share the same directions since they have identical structure.
+	Indexer idxr(_disc);
+	unsigned int sumParBlockStride = 0;
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
+		sumParBlockStride += idxr.strideParBlock(type);
+
+	return _convDispOp.requiredADdirs() + sumParBlockStride;
+}
+
 void RadialGeneralRateModelDG::useAnalyticJacobian(const bool analyticJac)
 {
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 	_analyticJac = analyticJac;
 	if (!_analyticJac)
-	{
-		// AD Jacobian required - compute from conv-disp bandwidth
-		const unsigned int bulkBandwidth = _convDispOp.requiredADdirs();
-		// Particle phase has local coupling within each particle
-		unsigned int maxParStride = 0;
-		for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
-		{
-			const unsigned int parStride = _disc.nParPoints[parType] * (_disc.nComp + _disc.strideBound);
-			maxParStride = std::max(maxParStride, parStride);
-		}
-		// Film diffusion couples bulk and particle surface
-		_jacobianAdDirs = std::max(bulkBandwidth, 2 * _disc.nNodes * maxParStride + 1);
-	}
+		_jacobianAdDirs = numAdDirsForJacobian();
 	else
 		_jacobianAdDirs = 0;
 #else
-	// Use AD Jacobian if analytic Jacobian is to be checked
 	_analyticJac = false;
-	const unsigned int bulkBandwidth = _convDispOp.requiredADdirs();
-	unsigned int maxParStride = 0;
-	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
-	{
-		const unsigned int parStride = _disc.nParPoints[parType] * (_disc.nComp + _disc.strideBound);
-		maxParStride = std::max(maxParStride, parStride);
-	}
-	_jacobianAdDirs = std::max(bulkBandwidth, 2 * _disc.nNodes * maxParStride + 1);
+	_jacobianAdDirs = numAdDirsForJacobian();
 #endif
 }
 
@@ -535,7 +529,9 @@ int RadialGeneralRateModelDG::residual(const SimulationTime& simTime, const Cons
 				return retCode;
 			}
 			else
+			{
 				return residualImpl<double, double, double, true>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
+			}
 		}
 		else
 		{
@@ -605,6 +601,28 @@ int RadialGeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateT
 	if (wantJac) {
 		if (!wantRes || _disc.newStaticJac) {
 			_convDispOp.calcTransportJacobian(_jac, _jacInlet, 0);
+
+			// Particle diffusion jacobian
+			for (unsigned int colNode = 0; colNode < _disc.nPoints; ++colNode)
+			{
+				for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
+				{
+					const unsigned int offsetLocalCp = idxr.offsetCp(parType) - idxr.offsetC() + colNode * idxr.strideParBlock(parType);
+					_particles[parType]->calcParticleDiffJacobian(secIdx, colNode, offsetLocalCp, _jac);
+				}
+			}
+
+			// Film diffusion coupling jacobian
+			for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
+			{
+				_particles[parType]->calcFilmDiffJacobian(secIdx,
+					idxr.offsetCp(parType) - idxr.offsetC(),  // particle DOF offset in _jac
+					0,                                         // bulk DOF offset in _jac
+					_disc.nPoints, _disc.nParType,
+					static_cast<double>(_colPorosity),
+					&_parTypeVolFrac[0], _jac);
+			}
+
 			_disc.newStaticJac = false;
 		}
 	}
@@ -633,7 +651,9 @@ int RadialGeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateT
 		{
 			LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
-			linalg::BandedEigenSparseRowIterator jacIt(_jac, idxr.offsetCp(parType) - idxr.offsetC() + colNode * idxr.strideParBlock(parType));
+			linalg::BandedEigenSparseRowIterator jacIt;
+			if (wantJac)
+				jacIt = linalg::BandedEigenSparseRowIterator(_jac, idxr.offsetCp(parType) - idxr.offsetC() + colNode * idxr.strideParBlock(parType));
 
 			// Get column packing parameters (porosity, volume fraction, position)
 			model::columnPackingParameters packing
@@ -687,18 +707,9 @@ int RadialGeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateT
 
 	BENCH_STOP(_timerResidualPar);
 
-	// Add time derivatives for bulk phase
-	if (wantRes && yDot_)
-	{
-		for (unsigned int node = 0; node < _disc.nPoints; ++node)
-		{
-			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-			{
-				const unsigned int bulkIdx = idxr.offsetC() + comp + node * idxr.strideColNode();
-				res_[bulkIdx] += yDot_[bulkIdx];
-			}
-		}
-	}
+	// Handle inlet DOFs, which are simply copied to res
+	for (unsigned int i = 0; i < _disc.nComp; ++i)
+		res_[i] = y_[i];
 
 	return 0;
 }
@@ -788,10 +799,12 @@ void RadialGeneralRateModelDG::multiplyWithDerivativeJacobian(const SimulationTi
 		}
 	}
 
-	// Particle phase: dcp/dt + Fp * sum_j dq_j/dt
+	// Particle phase: dcp/dt + invBetaP * sum_j dq_j/dt
 	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
 	{
 		const double invBetaP = 1.0 / static_cast<double>(_particles[parType]->getPorosity()) - 1.0;
+		IBindingModel* const parBinding = _particles[parType]->getBinding();
+		int const* const qsReaction = parBinding ? parBinding->reactionQuasiStationarity() : nullptr;
 
 		for (unsigned int colNode = 0; colNode < _disc.nPoints; ++colNode)
 		{
@@ -799,27 +812,27 @@ void RadialGeneralRateModelDG::multiplyWithDerivativeJacobian(const SimulationTi
 			{
 				const unsigned int parOffset = idxr.offsetCp(parType) + colNode * idxr.strideParBlock(parType) + parNode * idxr.strideParNode(parType);
 
+				// Mobile phase: dcp/dt + invBetaP * sum dq/dt (all bound states, regardless of QS)
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 				{
 					const unsigned int cpIdx = parOffset + comp;
 					ret[cpIdx] = sDot[cpIdx];
 
-					// Add bound state contributions
-					if (_binding[parType] && !_binding[parType]->reactionQuasiStationarity()[comp])
+					for (unsigned int bnd = 0; bnd < _disc.nBound[comp]; ++bnd)
 					{
-						for (unsigned int bnd = 0; bnd < _disc.nBound[comp]; ++bnd)
-						{
-							const unsigned int qIdx = parOffset + _disc.nComp + _disc.boundOffset[comp] + bnd;
-							ret[cpIdx] += invBetaP * sDot[qIdx];
-						}
+						const unsigned int qIdx = parOffset + _disc.nComp + _disc.boundOffset[comp] + bnd;
+						ret[cpIdx] += invBetaP * sDot[qIdx];
 					}
 				}
 
-				// Bound states: dq/dt
+				// Bound states: dq/dt only for non-quasi-stationary states
 				for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
 				{
 					const unsigned int qIdx = parOffset + _disc.nComp + bnd;
-					ret[qIdx] = sDot[qIdx];
+					if (qsReaction && qsReaction[bnd])
+						ret[qIdx] = 0.0;
+					else
+						ret[qIdx] = sDot[qIdx];
 				}
 			}
 		}
@@ -886,9 +899,20 @@ int RadialGeneralRateModelDG::linearSolve(double t, double alpha, double tol, do
 		_factorizeJacobian = false;
 	}
 
-	// Solve
+	// Solve pure DOFs (bulk + particle)
 	Eigen::Map<Eigen::VectorXd> r(rhs + idxr.offsetC(), numPureDofs());
 	r = _linearSolver->solve(r);
+
+	// Apply inlet Jacobian contribution: propagate inlet coupling into bulk DOFs
+	unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
+
+	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+	{
+		for (unsigned int node = 0; node < _disc.nNodes; ++node)
+		{
+			rhs[idxr.offsetC() + offInlet + node * idxr.strideColNode() + comp] -= _jacInlet(node, 0) * rhs[comp];
+		}
+	}
 
 	return 0;
 }
@@ -911,20 +935,22 @@ void RadialGeneralRateModelDG::assembleDiscretizedJacobian(double alpha, const I
 	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
 	{
 		const double invBetaP = 1.0 / static_cast<double>(_particles[parType]->getPorosity()) - 1.0;
+		IBindingModel* const parBinding = _particles[parType]->getBinding();
+		int const* const qsReaction = parBinding ? parBinding->reactionQuasiStationarity() : nullptr;
 		const unsigned int poreOffset = _disc.nPoints * _disc.nComp + _disc.parTypeOffset[parType];
 
 		for (unsigned int colNode = 0; colNode < _disc.nPoints; ++colNode)
 		{
 			for (unsigned int parNode = 0; parNode < _disc.nParPoints[parType]; ++parNode)
 			{
-				const unsigned int parOffset = poreOffset + colNode * idxr.strideParBlock(parType) - _disc.parTypeOffset[parType] + parNode * idxr.strideParNode(parType);
+				const unsigned int parOffset = poreOffset + colNode * idxr.strideParBlock(parType) + parNode * idxr.strideParNode(parType);
 
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 				{
 					const unsigned int cpIdx = parOffset + comp;
 					_jacDisc.coeffRef(cpIdx, cpIdx) += alpha;
 
-					// Coupling with bound states
+					// Coupling with all bound states (regardless of QS)
 					for (unsigned int bnd = 0; bnd < _disc.nBound[comp]; ++bnd)
 					{
 						const unsigned int qIdx = parOffset + _disc.nComp + _disc.boundOffset[comp] + bnd;
@@ -932,9 +958,12 @@ void RadialGeneralRateModelDG::assembleDiscretizedJacobian(double alpha, const I
 					}
 				}
 
-				// Bound state time derivatives
+				// Bound state time derivatives (only for non-quasi-stationary states)
 				for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
 				{
+					if (qsReaction && qsReaction[bnd])
+						continue;
+
 					const unsigned int qIdx = parOffset + _disc.nComp + bnd;
 					_jacDisc.coeffRef(qIdx, qIdx) += alpha;
 				}
@@ -945,23 +974,84 @@ void RadialGeneralRateModelDG::assembleDiscretizedJacobian(double alpha, const I
 
 void RadialGeneralRateModelDG::prepareADvectors(const AdJacobianParams& adJac) const
 {
-	ad::prepareAdVectorSeedsForBandMatrix(adJac.adY + Indexer(_disc).offsetC(), adJac.adDirOffset, numPureDofs(), _jac.outerSize(), 0, numPureDofs());
+	if (!adJac.adY)
+		return;
+
+	Indexer idxr(_disc);
+
+	// 1) Seed bulk phase with banded seeding
+	// Radial DG always uses exact integration: bandwidth = 2 * nNodes * strideColNode
+	const int lowerBandwidth = 2 * _disc.nNodes * idxr.strideColNode();
+	const int upperBandwidth = lowerBandwidth;
+	const int bulkRows = _disc.nPoints * _disc.nComp;
+	ad::prepareAdVectorSeedsForBandMatrix(adJac.adY + _disc.nComp, adJac.adDirOffset, bulkRows, lowerBandwidth, upperBandwidth, lowerBandwidth);
+
+	// 2) Seed each particle block with dense per-block seeding
+	// All particle blocks of the same type share the same AD directions
+	unsigned int adDirOffset = adJac.adDirOffset + _convDispOp.requiredADdirs();
+
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
+	{
+		for (unsigned int colNode = 0; colNode < _disc.nPoints; ++colNode)
+		{
+			active* adVec = adJac.adY + idxr.offsetCp(type) + colNode * idxr.strideParBlock(type);
+
+			for (int eq = 0; eq < idxr.strideParBlock(type); ++eq)
+			{
+				adVec[eq].fillADValue(adJac.adDirOffset, 0.0);
+				adVec[eq].setADValue(adDirOffset + eq, 1.0);
+			}
+		}
+		if (type < _disc.nParType - 1u)
+			adDirOffset += idxr.strideParBlock(type);
+	}
 }
 
 void RadialGeneralRateModelDG::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
 {
 	Indexer idxr(_disc);
-	const int nDOFs = numPureDofs();
-	const double* const adVec = reinterpret_cast<const double*>(adRes) + idxr.offsetC();
+	const active* const adVec = adRes + idxr.offsetC();
 
-	for (int row = 0; row < _jac.rows(); row++)
+	// 1) Extract bulk phase entries (banded)
+	const int lowerBandwidth = 2 * _disc.nNodes * idxr.strideColNode();
+	const int upperBandwidth = lowerBandwidth;
+	const int diagDir = lowerBandwidth;
+	const int bulkDoFs = _disc.nPoints * _disc.nComp;
+	ad::extractBandedBlockEigenJacobianFromAd(adVec, adDirOffset, diagDir, lowerBandwidth, upperBandwidth, 0, bulkDoFs, _jac);
+
+	// 2) Extract particle phase entries (dense per block)
+	int offsetParticleTypeDirs = adDirOffset + _convDispOp.requiredADdirs();
+
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
 	{
-		for (Eigen::SparseMatrix<double, RowMajor>::InnerIterator it(_jac, row); it; ++it)
+		for (unsigned int colNode = 0; colNode < _disc.nPoints; ++colNode)
 		{
-			const int col = it.col();
-			it.valueRef() = adVec[row * (adDirOffset + nDOFs + 1) + adDirOffset + col];
+			const int eqOffset = idxr.offsetCp(type) - idxr.offsetC() + colNode * idxr.strideParBlock(type);
+
+			for (int phase = 0; phase < idxr.strideParBlock(type); ++phase)
+			{
+				for (int phaseTo = 0; phaseTo < idxr.strideParBlock(type); ++phaseTo)
+				{
+					_jac.coeffRef(eqOffset + phase, eqOffset + phaseTo) = adRes[idxr.offsetCp(type) + colNode * idxr.strideParBlock(type) + phase].getADValue(offsetParticleTypeDirs + phaseTo);
+				}
+			}
 		}
+		offsetParticleTypeDirs += idxr.strideParBlock(type);
 	}
+
+	// 3) Analytically compute film diffusion coupling entries (outlier bands)
+	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
+	{
+		_particles[parType]->calcFilmDiffJacobian(_disc.curSection >= 0 ? _disc.curSection : 0,
+			idxr.offsetCp(parType) - idxr.offsetC(),  // particle DOF offset in _jac
+			0,                                         // bulk DOF offset in _jac
+			_disc.nPoints, _disc.nParType,
+			static_cast<double>(_colPorosity),
+			&_parTypeVolFrac[0], _jac, true);          // outliersOnly=true
+	}
+
+	if (!_jac.isCompressed())
+		_jac.makeCompressed();
 }
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
@@ -1103,8 +1193,9 @@ void RadialGeneralRateModelDG::consistentInitialState(const SimulationTime& simT
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
-	// Apply initial conditions
-	applyInitialCondition(SimulationState{ vecStateY, nullptr });
+	// Note: Do NOT call applyInitialCondition() here!
+	// Initial conditions are set by readInitialCondition() earlier.
+	// The system has already set inlet DOFs via solveCouplingDOF() before this call.
 
 	// Solve for consistent initial state if binding is quasi-stationary
 	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
@@ -1249,7 +1340,7 @@ void RadialGeneralRateModelDG::particleJacPattern(std::vector<T>& tripletList, u
 
 		for (unsigned int colNode = 0; colNode < _disc.nPoints; ++colNode)
 		{
-			const unsigned int localParOffset = bulkOffset + parOffset + colNode * idxr.strideParBlock(parType) - _disc.parTypeOffset[parType];
+			const unsigned int localParOffset = bulkOffset + parOffset + colNode * idxr.strideParBlock(parType);
 			const unsigned int bulkNodeOffset = colNode * idxr.strideColNode();
 
 			_particles[parType]->setParJacPattern(tripletList, localParOffset, bulkNodeOffset, colNode, secIdx);
@@ -1281,7 +1372,7 @@ void RadialGeneralRateModelDG::stateDerPattern(std::vector<T>& tripletList)
 		{
 			for (unsigned int parNode = 0; parNode < _disc.nParPoints[parType]; ++parNode)
 			{
-				const unsigned int localParOffset = bulkOffset + parOffset + colNode * idxr.strideParBlock(parType) - _disc.parTypeOffset[parType] + parNode * idxr.strideParNode(parType);
+				const unsigned int localParOffset = bulkOffset + parOffset + colNode * idxr.strideParBlock(parType) + parNode * idxr.strideParNode(parType);
 
 				// Pore phase time derivative and coupling to bound states
 				for (unsigned int comp = 0; comp < _disc.nComp; comp++)

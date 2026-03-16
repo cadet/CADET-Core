@@ -1247,13 +1247,22 @@ bool RadialConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, IP
 			_dispersionCompIndep = false;
 	}
 
+	// Expand _colDispersion to make it component dependent (same as axial operator)
 	if (_dispersionCompIndep)
 	{
-		if (_colDispersion.size() > 1)
+		std::vector<active> expanded(_colDispersion.size() * _nComp);
+		for (std::size_t i = 0; i < _colDispersion.size(); ++i)
+			std::fill(expanded.begin() + i * _nComp, expanded.begin() + (i + 1) * _nComp, _colDispersion[i]);
+		_colDispersion = std::move(expanded);
+	}
+
+	if (_dispersionCompIndep)
+	{
+		if (_colDispersion.size() > _nComp)
 		{
 			// Section-dependent, component-independent
-			for (unsigned int i = 0; i < _colDispersion.size(); ++i)
-				registerParam1DArray(parameters, _colDispersion, [=](bool multi, unsigned int sec) { return makeParamId(hashString("COL_DISPERSION"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, (multi ? sec : SectionIndep)); });
+			for (std::size_t i = 0; i < _colDispersion.size() / _nComp; ++i)
+				parameters[makeParamId(hashString("COL_DISPERSION"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, i)] = &_colDispersion[i * _nComp];
 		}
 		else
 		{
@@ -1598,15 +1607,28 @@ void RadialConvectionDispersionOperatorBaseDG::multiplyWithDerivativeJacobian(co
 {
 	double const* localSdot = sDot + offsetC();
 	double* localRet = ret + offsetC();
+	const int gapelement = strideColNode() - static_cast<int>(_nComp) * strideColComp();
 
-	for (unsigned int i = 0; i < _nPoints * _nComp; ++i)
-		localRet[i] = localSdot[i];
+	for (unsigned int i = 0; i < _nPoints; ++i, localRet += gapelement, localSdot += gapelement)
+	{
+		for (unsigned int j = 0; j < _nComp; ++j, ++localRet, ++localSdot)
+		{
+			*localRet = (*localSdot);
+		}
+	}
 }
 
 void RadialConvectionDispersionOperatorBaseDG::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset)
 {
-	for (unsigned int i = 0; i < _nPoints * _nComp; ++i)
-		jacDisc.coeffRef(blockOffset + i, blockOffset + i) += alpha;
+	const int gapelement = strideColNode() - static_cast<int>(_nComp) * strideColComp();
+	linalg::BandedEigenSparseRowIterator jac(jacDisc, blockOffset);
+
+	for (unsigned int point = 0; point < _nPoints; ++point, jac+=gapelement) {
+		for (unsigned int comp = 0; comp < _nComp; ++comp, ++jac) {
+			// dc_b / dt in transport equation
+			jac[0] += alpha;
+		}
+	}
 }
 
 unsigned int RadialConvectionDispersionOperatorBaseDG::nJacEntries(bool pureNNZ)
@@ -1644,7 +1666,7 @@ void RadialConvectionDispersionOperatorBaseDG::convDispJacPattern(std::vector<T>
 			for (int diag = -lowerBW; diag <= static_cast<int>(upperBW); ++diag)
 			{
 				const int col = row + diag;
-				if (col >= bulkOffset && col < static_cast<int>(bulkOffset + _nPoints * _nComp))
+				if (col >= bulkOffset && col < static_cast<int>(bulkOffset + _nPoints * _strideNode))
 					tripletList.push_back(T(row, col, 0.0));
 			}
 		}
@@ -1848,7 +1870,11 @@ Eigen::MatrixXd RadialConvectionDispersionOperatorBaseDG::DGjacobianDispBlockRad
 	dispBlock.block(0, _nNodes, _nNodes, _nNodes + 2) =
 	    -halfDeltaRho * (_invMM_rho[cellIdx] * _S_g[cellIdx] * G_curr);
 
-	// Left surface: -0.5 * rho_left * invMM_rho[:,0] * (G_prev[N-1,:] + G_curr[0,:])
+	// Left surface dispersion: res += invMM_rho[:,0] * rho_left * d * (2/dR) * g*
+	// g* = 0.5*(g_prev[N-1] + g_curr[0])
+	// dg/dc = -(dR/2)*G, so dg*/dc = -(dR/2)*0.5*(G_prev[N-1,:] + G_curr[0,:])
+	// d(res)/dc = invMM_rho[:,0] * rho_left * d * (2/dR) * (-(dR/2)*0.5) * (G_prev + G_curr)
+	//           = -0.5 * rho_left * invMM_rho[:,0] * d * (G_prev[N-1,:] + G_curr[0,:])
 	// G_prev[N-1,:] placed at dispBlock cols 0..N+1
 	// G_curr[0,:]   placed at dispBlock cols N..2N+1
 	if (cellIdx > 0)
@@ -1860,7 +1886,11 @@ Eigen::MatrixXd RadialConvectionDispersionOperatorBaseDG::DGjacobianDispBlockRad
 		    0.5 * rho_left * _invMM_rho[cellIdx].col(0) * G_curr.row(0);
 	}
 
-	// Right surface: +0.5 * rho_right * invMM_rho[:,N-1] * (G_curr[N-1,:] + G_next[0,:])
+	// Right surface dispersion: res += invMM_rho[:,N-1] * (-rho_right * d * (2/dR) * g*)
+	// g* = 0.5*(g_curr[N-1] + g_next[0])
+	// dg/dc = -(dR/2)*G, so dg*/dc = -(dR/2)*0.5*(G_curr[N-1,:] + G_next[0,:])
+	// d(res)/dc = invMM_rho[:,N-1] * (-rho_right * d * (2/dR)) * (-(dR/2)*0.5) * (G_curr + G_next)
+	//           = +0.5 * rho_right * invMM_rho[:,N-1] * d * (G_curr[N-1,:] + G_next[0,:])
 	// G_curr[N-1,:] placed at dispBlock cols N..2N+1
 	// G_next[0,:]   placed at dispBlock cols 2N..3N+1
 	if (cellIdx < _nElem - 1)
@@ -2026,6 +2056,7 @@ void RadialConvectionDispersionOperatorBaseDG::calcConvDispRadialDGSEMJacobian(E
 			}
 		}
 	}
+
 }
 
 }  // namespace parts

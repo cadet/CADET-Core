@@ -1724,29 +1724,29 @@ namespace cadet
 				void volumeIntegralMainRadialImpl(const StateType* c, ResidualType* res, const StateType* g, double u, double d_rad,
 					unsigned int strideNode_c, unsigned int strideElem_c,
 					unsigned int strideNode_res, unsigned int strideElem_res) {
-					const double deltaRho = static_cast<double>(_deltaRho);
 
 					// For variable dispersion, d_rad is already baked into S_g
 					const double dispFactor = _variableDispersion ? 1.0 : d_rad;
 
 					for (unsigned int elem = 0; elem < _nElem; elem++) {
 						// Precompute D^T * M^{(0,0)} * c for this element
-						Eigen::VectorXd DtM00_c = Eigen::VectorXd::Zero(_nNodes);
+						// Use ResidualType to preserve AD derivatives
+						std::vector<ResidualType> DtM00_c(_nNodes, ResidualType(0.0));
 						for (unsigned int i = 0; i < _nNodes; i++) {
 							for (unsigned int j = 0; j < _nNodes; j++) {
 								double DtM00_ij = 0.0;
 								for (unsigned int k = 0; k < _nNodes; k++) {
 									DtM00_ij += _polyDerM(k, i) * _M00(k, j);
 								}
-								DtM00_c(i) += DtM00_ij * static_cast<double>(c[elem * strideElem_c + j * strideNode_c]);
+								DtM00_c[i] += static_cast<ResidualType>(DtM00_ij * c[elem * strideElem_c + j * strideNode_c]);
 							}
 						}
 
 						// Precompute S_g * g for this element (g has stride 1)
-						Eigen::VectorXd Sg_g = Eigen::VectorXd::Zero(_nNodes);
+						std::vector<ResidualType> Sg_g(_nNodes, ResidualType(0.0));
 						for (unsigned int i = 0; i < _nNodes; i++) {
 							for (unsigned int j = 0; j < _nNodes; j++) {
-								Sg_g(i) += _S_g[elem](i, j) * static_cast<double>(g[elem * _nNodes + j]);
+								Sg_g[i] += static_cast<ResidualType>(_S_g[elem](i, j) * g[elem * _nNodes + j]);
 							}
 						}
 
@@ -1754,17 +1754,17 @@ namespace cadet
 						// NOTE: No (2/Δρ) factor here - coordinate transforms cancel in weak form
 						// See: ∫(dL/dρ)*F*dρ = ∫(2/Δρ)*(dL/dξ)*F*(Δρ/2)*dξ = ∫(dL/dξ)*F*dξ
 						for (unsigned int node = 0; node < _nNodes; node++) {
-							double conv_term = 0.0;
-							double disp_term = 0.0;
+							ResidualType conv_term = ResidualType(0.0);
+							ResidualType disp_term = ResidualType(0.0);
 
 							for (unsigned int j = 0; j < _nNodes; j++) {
-								conv_term += _invMM_rho[elem](node, j) * DtM00_c(j);
-								disp_term += _invMM_rho[elem](node, j) * Sg_g(j);
+								conv_term += static_cast<ResidualType>(_invMM_rho[elem](node, j)) * DtM00_c[j];
+								disp_term += static_cast<ResidualType>(_invMM_rho[elem](node, j)) * Sg_g[j];
 							}
 
 							// Sign: res = dc/dt - M_ρ^{-1} * D * F for strong form DG
 							res[elem * strideElem_res + node * strideNode_res]
-								-= static_cast<ResidualType>(u * conv_term - dispFactor * disp_term);
+								-= static_cast<ResidualType>(u) * conv_term - static_cast<ResidualType>(dispFactor) * disp_term;
 						}
 					}
 				}

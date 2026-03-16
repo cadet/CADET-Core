@@ -11,6 +11,7 @@
 // =============================================================================
 
 #include <catch.hpp>
+#include <limits>
 
 #include "ColumnTests.hpp"
 #include "ParticleHelper.hpp"
@@ -318,6 +319,32 @@ TEST_CASE("Radial GRM multi particle types dynamic reactions time derivative Jac
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesRadGRM();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 9e-4);
+}
+
+// ============================================================================
+// Radial GRM_DG Tests
+// ============================================================================
+
+TEST_CASE("Radial GRM_DG transport Jacobian", "[RadGRM],[DG],[UnitOp],[Jacobian]")
+{
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "RADIAL_GENERAL_RATE_MODEL", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial GRM_DG time derivative Jacobian vs FD", "[RadGRM],[DG],[UnitOp],[Residual],[Jacobian]")
+{
+	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_GENERAL_RATE_MODEL", "DG");
+}
+
+TEST_CASE("Radial GRM_DG inlet DOF Jacobian", "[RadGRM],[DG],[UnitOp],[Jacobian],[Inlet]")
+{
+	cadet::test::column::testInletDofJacobian("RADIAL_GENERAL_RATE_MODEL", "DG");
+}
+
+TEST_CASE("Radial GRM_DG with two component linear binding Jacobian", "[RadGRM],[DG],[UnitOp],[Jacobian]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_GENERAL_RATE_MODEL", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
 // ============================================================

@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <functional>
 
+
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
 #include <tbb/parallel_for.h>
@@ -482,26 +483,23 @@ namespace cadet
 
 		void RadialLumpedRateModelWithPoresDG::useAnalyticJacobian(const bool analyticJac)
 		{
+			// rLRMP DG Jacobian has block structure (bulk-pore coupling via film diffusion).
+			// Custom graph coloring: bulk DOFs use banded coloring (period from conv-disp),
+			// pore DOFs reuse colors across cells (only cell-local conflicts).
+			// Total colors = bulkPeriod + nNodes * parStride, fits within max AD directions.
+			const unsigned int bulkPeriod = 4 * _disc.nNodes * _disc.nComp + 1;
+			const unsigned int parStride = _disc.nComp + _disc.strideBound;
+			const unsigned int nColors = bulkPeriod + _disc.nNodes * parStride;
+
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 			_analyticJac = analyticJac;
 			if (!_analyticJac)
-			{
-				// AD Jacobian required - compute from conv-disp bandwidth
-				// The bulk phase uses conv-disp structure, pore phase has local coupling
-				// Total bandwidth: conv-disp bandwidth for bulk + pore local coupling
-				const unsigned int bulkBandwidth = _convDispOp.requiredADdirs();
-				const unsigned int parStride = _disc.nComp + _disc.strideBound;
-				// Film diffusion couples bulk and pore within each cell, doubling effective bandwidth
-				_jacobianAdDirs = std::max(bulkBandwidth, 2 * _disc.nNodes * parStride + 1);
-			}
+				_jacobianAdDirs = nColors;
 			else
 				_jacobianAdDirs = 0;
 #else
-			// Use AD Jacobian if analytic Jacobian is to be checked
 			_analyticJac = false;
-			const unsigned int bulkBandwidth = _convDispOp.requiredADdirs();
-			const unsigned int parStride = _disc.nComp + _disc.strideBound;
-			_jacobianAdDirs = std::max(bulkBandwidth, 2 * _disc.nNodes * parStride + 1);
+			_jacobianAdDirs = nColors;
 #endif
 		}
 
@@ -647,13 +645,17 @@ namespace cadet
 		{
 			Indexer idxr(_disc);
 
+			bool success = true;
+
 			// Compute Jacobian if requested
 			if (wantJac) {
 				if (!wantRes || _disc.newStaticJac) {
-					// TODO: Implement analytic Jacobian computation
-					// For now, just rely on AD
+					success = _convDispOp.calcTransportJacobian(_jac, _jacInlet);
 					_disc.newStaticJac = false;
 				}
+
+				if (cadet_unlikely(!success))
+					LOG(Error) << "Jacobian pattern did not fit the Jacobian estimation";
 			}
 
 			// Initialize residual to zero
@@ -707,20 +709,62 @@ namespace cadet
 
 					if (wantRes)
 					{
-						// Add film transfer to bulk phase residual
-						// dc/dt = convDisp - Fc * filmTerm
+						// Film is a sink on bulk: res_c += Fc * filmTerm  (=>  dc/dt = transport - Fc*film)
 						for (unsigned int node = 0; node < _disc.nNodes; ++node)
 						{
 							const unsigned int bulkIdx = idxr.offsetC() + comp + (cellOffset + node) * idxr.strideColNode();
-							res_[bulkIdx] -= Fc * filmTerm[node];
+							res_[bulkIdx] += Fc * filmTerm[node];
 						}
 
-						// Add film transfer to pore phase residual
-						// dcp/dt = filmTerm / eps_p - Fp * dq/dt
+						// Film is a source for pore: res_cp += yDot - filmTerm/epsP  (=> dcp/dt = film/epsP)
+						// handleMobilePhaseDerivative=false below so we add yDot manually here.
 						for (unsigned int node = 0; node < _disc.nNodes; ++node)
 						{
 							const unsigned int poreIdx = idxr.offsetCp() + comp + (cellOffset + node) * idxr.strideParNode();
-							res_[poreIdx] += filmTerm[node] / (epsP * static_cast<ParamType>(poreAccFactor[comp]));
+							if (yDot_)
+								res_[poreIdx] += static_cast<ResidualType>(yDot_[poreIdx]);
+							res_[poreIdx] -= filmTerm[node] / (epsP * static_cast<ParamType>(poreAccFactor[comp]));
+						}
+					}
+
+					// Film diffusion Jacobian entries
+					if (wantJac)
+					{
+						const double FcQd = static_cast<double>(Fc) * static_cast<double>(Q);
+						const double invEpsPAcc = 1.0 / (static_cast<double>(epsP) * static_cast<double>(poreAccFactor[comp]));
+						const int poreOffset = _disc.nPoints * _disc.nComp;
+
+						for (unsigned int node = 0; node < _disc.nNodes; ++node)
+						{
+							// Bulk row index (in pure DOF space, 0-indexed)
+							const int bulkRow = (cellOffset + node) * idxr.strideColNode() + comp;
+
+							// Pore row index
+							const int poreRow = poreOffset + (cellOffset + node) * idxr.strideParNode() + comp;
+
+							for (unsigned int node2 = 0; node2 < _disc.nNodes; ++node2)
+							{
+								const double filmCoeff = _filmDiffCoupling[cell](node, node2);
+								if (std::abs(filmCoeff) < 1e-30)
+									continue;
+
+								// Bulk col (same comp, different node in cell)
+								const int bulkCol = (cellOffset + node2) * idxr.strideColNode() + comp;
+								// Pore col
+								const int poreCol = poreOffset + (cellOffset + node2) * idxr.strideParNode() + comp;
+
+								// Bulk row: d(res_c)/d(c) += Fc * Q * filmCoeff
+								linalg::BandedEigenSparseRowIterator jacBulk(_jac, bulkRow);
+								jacBulk[bulkCol - bulkRow] += FcQd * filmCoeff;
+								// Bulk row: d(res_c)/d(cp) += -Fc * Q * filmCoeff
+								jacBulk[poreCol - bulkRow] += -FcQd * filmCoeff;
+
+								// Pore row: d(res_cp)/d(c) -= Q / (epsP * poreAccFactor) * filmCoeff
+								linalg::BandedEigenSparseRowIterator jacPore(_jac, poreRow);
+								jacPore[bulkCol - poreRow] += -static_cast<double>(Q) * invEpsPAcc * filmCoeff;
+								// Pore row: d(res_cp)/d(cp) += Q / (epsP * poreAccFactor) * filmCoeff
+								jacPore[poreCol - poreRow] += static_cast<double>(Q) * invEpsPAcc * filmCoeff;
+							}
 						}
 					}
 				}
@@ -759,7 +803,7 @@ namespace cadet
 					ResidualType* const localRes = res_ + idxr.offsetCp() + idxr.strideParNode() * blk;
 					double const* const localYdot = yDot_ ? yDot_ + idxr.offsetCp() + idxr.strideParNode() * blk : nullptr;
 
-					parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
+					parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false>(
 						t, secIdx, ColumnPosition{ z, 0.0, 0.0 }, localY, localYdot, localRes, jacIt, cellResParams, threadLocalMem.get()
 					);
 				}
@@ -772,29 +816,9 @@ namespace cadet
 
 			} CADET_PARFOR_END;
 
-			// Add time derivatives
-			if (wantRes && yDot_)
-			{
-				// Bulk phase: dc/dt
-				for (unsigned int node = 0; node < _disc.nPoints; ++node)
-				{
-					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-					{
-						const unsigned int bulkIdx = idxr.offsetC() + comp + node * idxr.strideColNode();
-						res_[bulkIdx] += yDot_[bulkIdx];
-					}
-				}
-
-				// Pore phase: dcp/dt + Fp * dq/dt is already handled in bindingKernel
-				for (unsigned int node = 0; node < _disc.nPoints; ++node)
-				{
-					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-					{
-						const unsigned int poreIdx = idxr.offsetCp() + comp + node * idxr.strideParNode();
-						res_[poreIdx] += yDot_[poreIdx];
-					}
-				}
-			}
+			// Handle inlet DOFs, which are simply copied to res
+			for (unsigned int i = 0; i < _disc.nComp; ++i)
+				res_[i] = y_[i];
 
 			return 0;
 		}
@@ -970,9 +994,22 @@ namespace cadet
 				_factorizeJacobian = false;
 			}
 
-			// Solve
+			// Solve pure DOFs (bulk + pore)
 			Eigen::Map<Eigen::VectorXd> r(rhs + idxr.offsetC(), numPureDofs());
 			r = _linearSolver->solve(r);
+
+			// Apply inlet Jacobian contribution: propagate inlet coupling into bulk DOFs
+			// rhs[0..nComp-1] contains the inlet values (set by system coupling)
+			// The first cell's bulk nodes depend on the inlet via _jacInlet
+			unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
+
+			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+			{
+				for (unsigned int node = 0; node < _disc.nNodes; ++node)
+				{
+					rhs[idxr.offsetC() + offInlet + node * idxr.strideColNode() + comp] -= _jacInlet(node, 0) * rhs[comp];
+				}
+			}
 
 			return 0;
 		}
@@ -1021,21 +1058,71 @@ namespace cadet
 
 		void RadialLumpedRateModelWithPoresDG::prepareADvectors(const AdJacobianParams& adJac) const
 		{
-			ad::prepareAdVectorSeedsForBandMatrix(adJac.adY + Indexer(_disc).offsetC(), adJac.adDirOffset, numPureDofs(), _jac.outerSize(), 0, numPureDofs());
+			// Custom graph coloring for rLRMP DG block-structured Jacobian.
+			// Bulk DOFs: banded coloring with period = 4*nNodes*nComp + 1
+			// Pore DOFs: cell-local coloring offset by bulkPeriod
+			active* const adY = adJac.adY + Indexer(_disc).offsetC();
+			const int nPD = numPureDofs();
+			const int nBulk = _disc.nPoints * _disc.nComp;
+			const int bulkPeriod = 4 * _disc.nNodes * _disc.nComp + 1;
+			const int parStride = _disc.nComp + _disc.strideBound;
+
+			for (int i = 0; i < nPD; ++i)
+			{
+				adY[i].fillADValue(adJac.adDirOffset, 0.0);
+
+				int color;
+				if (i < nBulk)
+				{
+					// Bulk DOF: standard banded coloring
+					color = i % bulkPeriod;
+				}
+				else
+				{
+					// Pore DOF: cell-local coloring (reuse colors across cells)
+					const int poreIdx = i - nBulk;
+					const int point = poreIdx / parStride;
+					const int d = poreIdx % parStride;
+					const int nodeInCell = point % _disc.nNodes;
+					color = bulkPeriod + nodeInCell * parStride + d;
+				}
+
+				adY[i].setADValue(adJac.adDirOffset + color, 1.0);
+			}
 		}
 
 		void RadialLumpedRateModelWithPoresDG::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
 		{
 			Indexer idxr(_disc);
-			const int nDOFs = numPureDofs();
-			const double* const adVec = reinterpret_cast<const double*>(adRes) + idxr.offsetC();
+			const active* const adVec = adRes + idxr.offsetC();
+			const int nPD = numPureDofs();
+			const int nBulk = _disc.nPoints * _disc.nComp;
+			const int bulkPeriod = 4 * _disc.nNodes * _disc.nComp + 1;
+			const int parStride = _disc.nComp + _disc.strideBound;
 
-			for (int row = 0; row < _jac.rows(); row++)
+			// Extract Jacobian using the same graph coloring as prepareADvectors.
+			for (int row = 0; row < nPD; ++row)
 			{
-				for (Eigen::SparseMatrix<double, RowMajor>::InnerIterator it(_jac, row); it; ++it)
+				for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(_jac, row); it; ++it)
 				{
 					const int col = it.col();
-					it.valueRef() = adVec[row * (adDirOffset + nDOFs + 1) + adDirOffset + col];
+					int color;
+					if (col < nBulk)
+					{
+						color = col % bulkPeriod;
+					}
+					else
+					{
+						const int poreIdx = col - nBulk;
+						const int point = poreIdx / parStride;
+						const int d = poreIdx % parStride;
+						const int nodeInCell = point % _disc.nNodes;
+						color = bulkPeriod + nodeInCell * parStride + d;
+					}
+
+					const double val = adVec[row].getADValue(adDirOffset + color);
+					if (val != 0.0)
+						it.valueRef() = val;
 				}
 			}
 		}
@@ -1151,8 +1238,10 @@ namespace cadet
 		{
 			BENCH_SCOPE(_timerConsistentInit);
 
-			// Apply initial conditions
-			applyInitialCondition(SimulationState{ vecStateY, nullptr });
+			// Note: Do NOT call applyInitialCondition() here!
+			// Initial conditions are set by readInitialCondition() earlier.
+			// The system has already set inlet DOFs via solveCouplingDOF() before this call.
+			// Calling applyInitialCondition() would zero out those inlet DOFs.
 
 			// Solve for consistent initial state if binding is quasi-stationary
 			if (_binding[0] && _binding[0]->hasQuasiStationaryReactions())
@@ -1165,8 +1254,19 @@ namespace cadet
 		{
 			BENCH_SCOPE(_timerConsistentInit);
 
-			// Set time derivatives to zero initially
-			std::fill_n(vecStateYdot, numDofs(), 0.0);
+			// Compute residual with yDot = nullptr (skip time derivative terms)
+			// to get the spatial residual: res = f(y)
+			double* const res = _tempState;
+			residualImpl<double, double, double, false, true>(simTime.t, simTime.secIdx, vecStateY, nullptr, res, threadLocalMem);
+
+			// The equations are: 0 = yDot + f(y), so yDot = -f(y) = -res
+			const unsigned int nDof = numDofs();
+			for (unsigned int i = 0; i < nDof; ++i)
+				vecStateYdot[i] = -res[i];
+
+			// Inlet DOFs have no time derivative
+			for (unsigned int i = 0; i < _disc.nComp; ++i)
+				vecStateYdot[i] = 0.0;
 		}
 
 		void RadialLumpedRateModelWithPoresDG::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
@@ -1192,7 +1292,15 @@ namespace cadet
 
 		void RadialLumpedRateModelWithPoresDG::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
 		{
-			std::fill_n(vecStateYdot, numDofs(), 0.0);
+			// Compute residual with yDot = nullptr (skip time derivative terms)
+			residualImpl<double, double, double, false, true>(t, 0u, vecStateY, nullptr, res, threadLocalMem);
+
+			const unsigned int nDof = numDofs();
+			for (unsigned int i = 0; i < nDof; ++i)
+				vecStateYdot[i] = -res[i];
+
+			for (unsigned int i = 0; i < _disc.nComp; ++i)
+				vecStateYdot[i] = 0.0;
 		}
 
 		void RadialLumpedRateModelWithPoresDG::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,

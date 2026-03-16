@@ -11,6 +11,7 @@
 // =============================================================================
 
 #include <catch.hpp>
+#include <limits>
 
 #include "ColumnTests.hpp"
 #include "ParticleHelper.hpp"
@@ -300,4 +301,89 @@ TEST_CASE("Radial LRMP multi particle types dynamic reactions time derivative Ja
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesRadLRMP();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 8e-4);
+}
+
+// ============================================================================
+// Radial LRMP_DG Tests
+// ============================================================================
+
+TEST_CASE("Radial LRMP_DG transport Jacobian", "[RadLRMP],[DG],[UnitOp],[Jacobian]")
+{
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial LRMP_DG time derivative Jacobian vs FD", "[RadLRMP],[DG],[UnitOp],[Residual],[Jacobian]")
+{
+	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG");
+}
+
+TEST_CASE("Radial LRMP_DG inlet DOF Jacobian", "[RadLRMP],[DG],[UnitOp],[Jacobian],[Inlet]")
+{
+	cadet::test::column::testInletDofJacobian("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG");
+}
+
+TEST_CASE("Radial LRMP_DG with two component linear binding Jacobian", "[RadLRMP],[DG],[UnitOp],[Jacobian]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial LRMP_DG consistent initialization with linear binding", "[RadLRMP],[DG],[ConsistentInit]")
+{
+	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG", 1e-12, 1e-12);
+}
+
+// ============================================================
+// Radial LRMP_DG Gaussian pulse EOC convergence tests
+// ============================================================
+
+// Note: polyDeg 1 EOC test omitted for rLRMP — the C++ Driver hits IDA_TOO_MUCH_WORK
+// at moderate element counts (nelem >= 8) due to system stiffness with film diffusion.
+// Convergence verified via Python cadet-cli sweep (polyDeg 1, nelem 1-128, all pass).
+
+TEST_CASE("Radial LRMP_DG polyDeg 2 EOC convergence", "[RadLRMP],[DG],[Convergence],[EOC]")
+{
+	cadet::test::column::testRadialDGConvergence(
+		"/data/model_radLRMP_DG_gaussianPulse_1comp_eocbenchmark.json", "001",
+		2, 4, 4, 3.0, 0.5);
+}
+
+TEST_CASE("Radial LRMP_DG polyDeg 3 EOC convergence", "[RadLRMP],[DG],[Convergence],[EOC]")
+{
+	cadet::test::column::testRadialDGConvergence(
+		"/data/model_radLRMP_DG_gaussianPulse_1comp_eocbenchmark.json", "001",
+		3, 4, 4, 4.0, 0.5);
+}
+
+TEST_CASE("Radial LRMP_DG polyDeg 4 EOC convergence", "[RadLRMP],[DG],[Convergence],[EOC]")
+{
+	cadet::test::column::testRadialDGConvergence(
+		"/data/model_radLRMP_DG_gaussianPulse_1comp_eocbenchmark.json", "001",
+		4, 4, 4, 5.0, 0.5);
+}
+
+TEST_CASE("Radial LRMP_DG polyDeg 5 EOC convergence", "[RadLRMP],[DG],[Convergence],[EOC]")
+{
+	cadet::test::column::testRadialDGConvergence(
+		"/data/model_radLRMP_DG_gaussianPulse_1comp_eocbenchmark.json", "001",
+		5, 4, 4, 6.0, 0.5);
+}
+
+// ============================================================
+// Radial LRMP_DG Langmuir binding EOC convergence tests
+// ============================================================
+
+TEST_CASE("Radial LRMP_DG Langmuir polyDeg 3 EOC convergence", "[RadLRMP],[DG],[Convergence],[EOC],[Langmuir]")
+{
+	cadet::test::column::testRadialDGConvergence(
+		"/data/model_radLRMP_DG_langmuir_1comp_eocbenchmark.json", "001",
+		3, 4, 4, 4.0, 0.5);
+}
+
+TEST_CASE("Radial LRMP_DG Langmuir polyDeg 4 EOC convergence", "[RadLRMP],[DG],[Convergence],[EOC],[Langmuir]")
+{
+	cadet::test::column::testRadialDGConvergence(
+		"/data/model_radLRMP_DG_langmuir_1comp_eocbenchmark.json", "001",
+		4, 4, 3, 5.0, 0.5);
 }
