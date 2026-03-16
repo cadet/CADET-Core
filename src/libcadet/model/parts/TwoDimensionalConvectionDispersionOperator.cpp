@@ -683,6 +683,7 @@ bool TwoDimensionalConvectionDispersionOperator::configureModelDiscretization(IP
 	_nCol = nCol;
 	_nRad = nRad;
 	_hasDynamicReactions = dynamicReactions;
+	_colLength = paramProvider.getDouble("COL_LENGTH");
 
 	// TODO: Add support for parameter dependent dispersion
 	_dispersionDep = helper.createParameterParameterDependence("CONSTANT_ONE");
@@ -694,6 +695,10 @@ bool TwoDimensionalConvectionDispersionOperator::configureModelDiscretization(IP
 	_weno.order(paramProvider.getInt("WENO_ORDER"));
 	_weno.boundaryTreatment(paramProvider.getInt("BOUNDARY_MODEL"));
 	_weno.epsilon(paramProvider.getDouble("WENO_EPS"));
+	const double h = static_cast<double>(_colLength) / static_cast<double>(_nCol);
+	_axialEdges.resize(_nCol + 1);
+	for (int i = 0; i <= _nCol; ++i)
+		_axialEdges[i] = i * h;
 	paramProvider.popScope();
 
 	// Read solver settings
@@ -753,7 +758,6 @@ bool TwoDimensionalConvectionDispersionOperator::configureModelDiscretization(IP
 bool TwoDimensionalConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
 	// Read geometry parameters
-	_colLength = paramProvider.getDouble("COL_LENGTH");
 	if (paramProvider.exists("COL_RADIUS"))
     {
         _colRadius = paramProvider.getDouble("COL_RADIUS");
@@ -1009,6 +1013,7 @@ int TwoDimensionalConvectionDispersionOperator::residualImpl(const IModel& model
 	for (unsigned int i = 0; i < _nRad; ++i)
 	{
 		active const* const d_c = getSectionDependentSlice(_axialDispersion, _nRad * _nComp, secIdx) + i * _nComp;
+		const std::vector<active>* const cellFacesPtr = _axialEdges.empty() ? nullptr : &_axialEdges;
 
 		convdisp::AxialFlowParameters<ParamType, Weno> fp{
 			static_cast<ParamType>(_curVelocity[i]),
@@ -1023,7 +1028,9 @@ int TwoDimensionalConvectionDispersionOperator::residualImpl(const IModel& model
 			_nComp * i,                        // Offset to the first component of the inlet DOFs in the local state vector
 			_nComp * (_nRad + i),              // Offset to the first component of the first bulk cell in the local state vector
 			_dispersionDep,
-			model
+			model,
+			true,
+			cellFacesPtr
 		};
 
 		if (wantJac)

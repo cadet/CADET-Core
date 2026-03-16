@@ -14,10 +14,10 @@
 
 #include "ColumnTests.hpp"
 
-TEST_CASE("Reference test: FV KOREN", "[Column_1D],[FV_KOREN],[Simulation],[CI]")
+TEST_CASE("Reference test: Radial FV KOREN", "[Column_1D],[radFV_KOREN],[Simulation],[CI],[numRef]")
 {
-	std::string modelFilePath = std::string("/data/config_axKOREN_eq_N128.json");
-	std::string refFilePath = std::string("/data/ref_axKOREN_eq_N128.h5");
+	std::string modelFilePath = std::string("/data/config_radKOREN_eq_Z128.json");
+	std::string refFilePath = std::string("/data/ref_radKOREN_eq_Z128.h5");
 	const std::vector<double> absTol = { 5e-10 };
 	const std::vector<double> relTol = { 1e-4 };
 
@@ -25,10 +25,10 @@ TEST_CASE("Reference test: FV KOREN", "[Column_1D],[FV_KOREN],[Simulation],[CI]"
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("Reference test: FV KOREN non-equidistant grid", "[Column_1D],[FV_KOREN],[Simulation],[CI]")
+TEST_CASE("Reference test: Radial FV KOREN non-equidistant grid", "[Column_1D],[radFV_KOREN],[Simulation],[CI],[numRef]")
 {
-	std::string modelFilePath = std::string("/data/config_axKOREN_noneq_N128.json");
-	std::string refFilePath = std::string("/data/ref_axKOREN_noneq_N128.h5");
+	std::string modelFilePath = std::string("/data/config_radKOREN_nonEq_Z128.json");
+	std::string refFilePath = std::string("/data/ref_radKOREN_nonEq_Z128.h5");
 	const std::vector<double> absTol = { 5e-10 };
 	const std::vector<double> relTol = { 1e-4 };
 
@@ -36,10 +36,10 @@ TEST_CASE("Reference test: FV KOREN non-equidistant grid", "[Column_1D],[FV_KORE
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("Reference test: FV WENO2", "[Column_1D],[FV_WENO2],[Simulation],[CI]")
+TEST_CASE("Reference test: Radial FV WENO2", "[Column_1D],[radFV_WENO2],[Simulation],[CI],[numRef]")
 {
-	std::string modelFilePath = std::string("/data/config_axWENO2_eq_N128.json");
-	std::string refFilePath = std::string("/data/ref_axWENO2_eq_N128.h5");
+	std::string modelFilePath = std::string("/data/config_radWENO2_eq_Z128.json");
+	std::string refFilePath = std::string("/data/ref_radWENO2_eq_Z128.h5");
 	const std::vector<double> absTol = { 5e-10 };
 	const std::vector<double> relTol = { 1e-4 };
 
@@ -47,10 +47,21 @@ TEST_CASE("Reference test: FV WENO2", "[Column_1D],[FV_WENO2],[Simulation],[CI]"
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("Reference test: FV WENO2 non-equidistant grid", "[Column_1D],[FV_WENO2],[Simulation],[CI]")
+TEST_CASE("Reference test: Radial FV WENO2 non-equidistant grid", "[Column_1D],[radFV_WENO2],[Simulation],[CI],[numRef]")
 {
-	std::string modelFilePath = std::string("/data/config_axWENO2_noneq_N128.json");
-	std::string refFilePath = std::string("/data/ref_axWENO2_noneq_N128.h5");
+	std::string modelFilePath = std::string("/data/config_radWENO2_nonEq_Z128.json");
+	std::string refFilePath = std::string("/data/ref_radWENO2_nonEq_Z128.h5");
+	const std::vector<double> absTol = { 1e-7 };
+	const std::vector<double> relTol = { 1e-4 };
+
+	cadet::test::column::FVParams disc(128);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
+TEST_CASE("Reference test: Radial FV WENO3", "[Column_1D],[radFV_WENO3],[Simulation],[CI],[numRef]")
+{
+	std::string modelFilePath = std::string("/data/config_radWENO3_eq_Z128.json");
+	std::string refFilePath = std::string("/data/ref_radWENO3_eq_Z128.h5");
 	const std::vector<double> absTol = { 5e-12 };
 	const std::vector<double> relTol = { 1e-6 };
 
@@ -58,10 +69,10 @@ TEST_CASE("Reference test: FV WENO2 non-equidistant grid", "[Column_1D],[FV_WENO
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("Reference test: FV WENO3", "[Column_1D],[FV_WENO3],[Simulation],[CI]")
+TEST_CASE("Reference test: Radial FV WENO3 non-equidistant grid", "[Column_1D],[radFV_WENO3],[Simulation],[CI],[numRef]")
 {
-	std::string modelFilePath = std::string("/data/config_axWENO3_eq_N128.json");
-	std::string refFilePath = std::string("/data/ref_axWENO3_eq_N128.h5");
+	std::string modelFilePath = std::string("/data/config_radWENO3_nonEq_Z128.json");
+	std::string refFilePath = std::string("/data/ref_radWENO3_nonEq_Z128.h5");
 	const std::vector<double> absTol = { 5e-12 };
 	const std::vector<double> relTol = { 1e-6 };
 
@@ -69,10 +80,65 @@ TEST_CASE("Reference test: FV WENO3", "[Column_1D],[FV_WENO3],[Simulation],[CI]"
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("Reference test: FV WENO3 non-equidistant grid", "[Column_1D],[FV_WENO3],[Simulation],[CI]")
+TEST_CASE("Reference test: FV KOREN", "[Column_1D],[FV_KOREN],[Simulation],[CI],[numRef]")
 {
-	std::string modelFilePath = std::string("/data/config_axWENO3_noneq_N128.json");
-	std::string refFilePath = std::string("/data/ref_axWENO3_noneq_N128.h5");
+	std::string modelFilePath = std::string("/data/config_axKOREN_eq_Z128.json");
+	std::string refFilePath = std::string("/data/ref_axKOREN_eq_Z128.h5");
+	const std::vector<double> absTol = { 5e-10 };
+	const std::vector<double> relTol = { 1e-4 };
+
+	cadet::test::column::FVParams disc(128);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
+TEST_CASE("Reference test: FV KOREN non-equidistant grid", "[Column_1D],[FV_KOREN],[Simulation],[CI],[numRef]")
+{
+	std::string modelFilePath = std::string("/data/config_axKOREN_nonEq_Z128.json");
+	std::string refFilePath = std::string("/data/ref_axKOREN_nonEq_Z128.h5");
+	const std::vector<double> absTol = { 5e-10 };
+	const std::vector<double> relTol = { 1e-4 };
+
+	cadet::test::column::FVParams disc(128);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
+TEST_CASE("Reference test: FV WENO2", "[Column_1D],[FV_WENO2],[Simulation],[CI],[numRef]")
+{
+	std::string modelFilePath = std::string("/data/config_axWENO2_eq_Z128.json");
+	std::string refFilePath = std::string("/data/ref_axWENO2_eq_Z128.h5");
+	const std::vector<double> absTol = { 5e-10 };
+	const std::vector<double> relTol = { 1e-4 };
+
+	cadet::test::column::FVParams disc(128);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
+TEST_CASE("Reference test: FV WENO2 non-equidistant grid", "[Column_1D],[FV_WENO2],[Simulation],[CI],[numRef]")
+{
+	std::string modelFilePath = std::string("/data/config_axWENO2_nonEq_Z128.json");
+	std::string refFilePath = std::string("/data/ref_axWENO2_nonEq_Z128.h5");
+	const std::vector<double> absTol = { 5e-12 };
+	const std::vector<double> relTol = { 1e-6 };
+
+	cadet::test::column::FVParams disc(128);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
+TEST_CASE("Reference test: FV WENO3", "[Column_1D],[FV_WENO3],[Simulation],[CI],[numRef]")
+{
+	std::string modelFilePath = std::string("/data/config_axWENO3_eq_Z128.json");
+	std::string refFilePath = std::string("/data/ref_axWENO3_eq_Z128.h5");
+	const std::vector<double> absTol = { 5e-12 };
+	const std::vector<double> relTol = { 1e-6 };
+
+	cadet::test::column::FVParams disc(128);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
+TEST_CASE("Reference test: FV WENO3 non-equidistant grid", "[Column_1D],[FV_WENO3],[Simulation],[CI],[numRef]")
+{
+	std::string modelFilePath = std::string("/data/config_axWENO3_nonEq_Z128.json");
+	std::string refFilePath = std::string("/data/ref_axWENO3_nonEq_Z128.h5");
 	const std::vector<double> absTol = { 5e-12 };
 	const std::vector<double> relTol = { 1e-6 };
 
