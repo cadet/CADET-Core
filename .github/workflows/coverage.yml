@@ -138,6 +138,7 @@ jobs:
             --filter "${{ github.workspace }}/(src|include|build/src)" \
             --exclude-directories '.*ThirdParty.*' \
             --cobertura -o coverage.xml \
+            --gcov-executable gcov-14 \
             --txt=-
       
       - name: Upload Coverage to Codecov
