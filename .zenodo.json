@@ -5,7 +5,7 @@
     {
       "name": "Breuer, Jan Michael",
       "orcid": "0000-0002-1999-2439",
-      "affiliation": [ "University of Cologne", "Forschungszentrum Jülich" ]
+      "affiliation": "University of Cologne; Forschungszentrum Jülich "
     },
     {
       "name": "Leweke, Samuel",
@@ -20,12 +20,12 @@
     {
       "name": "Berger, Antonia",
       "orcid": "0009-0002-0207-9042",
-      "affiliation": "Forschungszentrum Jülich"
+      "affiliation": "Forschungszentrum Jülich; RWTH Aachen University"
     },
     {
       "name": "Lanzrath, Hannah",
       "orcid": "0000-0002-2675-9002",
-      "affiliation": "Forschungszentrum Jülich"
+      "affiliation": "Forschungszentrum Jülich; RWTH Aachen University"
     },
     {
       "name": "Zhang, Wendi",
@@ -40,7 +40,7 @@
     {
       "name": "von Lieres, Eric",
       "orcid": "0000-0002-0309-8408",
-      "affiliation": "Forschungszentrum Jülich"
+      "affiliation": "Forschungszentrum Jülich; RWTH Aachen University"
     }
   ],
   "license": "GPL-3.0",
