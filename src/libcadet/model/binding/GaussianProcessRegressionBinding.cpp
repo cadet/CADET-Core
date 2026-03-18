@@ -98,7 +98,7 @@ namespace cadet
 			std::vector<double> solid_phase_concentration;
 			std::vector<double> Kernel_Mat;
 			std::vector<double> K_inv_y;
-			double* offset;
+	double offset;
 			std::string kernel_name ;
 			unsigned int ndim;
 			/***************************************************************************************************/
@@ -127,31 +127,29 @@ namespace cadet
 					//kernel_name = "MLP";
 
 				std::vector<double> test_pt = { 0.0 };
+		std::vector<double> matCp(_nComp, 0.0);
 
 				GP::GPR_Class gp(solid_phase_concentration.size(), solid_phase_concentration.size(), ndim,
 					GPR_parameters[0], GPR_parameters[1], GPR_parameters[2], GPR_parameters[3], GPR_parameters[4],
 					GPR_parameters[5], GPR_parameters[6],
 					kernel_name);
+
 				if (kernel_name == "MLP")
 				{
-					gp.MLP_kernel(pore_phase_concentration.size(), pore_phase_concentration.size(), ndim,
-						pore_phase_concentration.data(), pore_phase_concentration.data(), kernel_m.data());
+			gp.MLP_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data());
 				}
 				else if (kernel_name == "RBF")
 				{
-					gp.RBF_kernel(pore_phase_concentration.data(), pore_phase_concentration.data(),
-						kernel_m.data(), pore_phase_concentration.size());
+			gp.RBF_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data());
 				}
 				else if (kernel_name == "RBF_Linear")
 				{
-					gp.RBF_Linear_Kernel(pore_phase_concentration.data(), pore_phase_concentration.data(), kernel_m.data(),
-						pore_phase_concentration.size());
+			gp.RBF_Linear_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data());
 				}
 				
-				gp.kernel_inv_y(pore_phase_concentration.data(), solid_phase_concentration.data(), kernel_m.data(), K_inv_y_temp.data());
+		gp.kernel_inv_y(solid_phase_concentration.data(), kernel_m.data(), K_inv_y_temp.data());
 
-				offset = gp.prediction(pore_phase_concentration.data(), solid_phase_concentration.data(),
-					test_pt.data(), kernel_m.data(), K_inv_y_temp.data(), kernel_name);
+		offset = gp.prediction(pore_phase_concentration.data(), test_pt.data(), K_inv_y_temp.data());
 				
 				K_inv_y = K_inv_y_temp;
 				Kernel_Mat = kernel_m;
@@ -213,19 +211,18 @@ namespace cadet
 				{
 					matCp[i]  = static_cast<double>(cp[0]);
 				}
+
 				GP::GPR_Class gp(solid_phase_concentration.size(), solid_phase_concentration.size(), ndim,
 					GPR_parameters[0], GPR_parameters[1], GPR_parameters[2], GPR_parameters[3], GPR_parameters[4],
 					GPR_parameters[5], GPR_parameters[6],
 					kernel_name);
 
-								
-				prediction = gp.prediction(pore_phase_concentration.data(), solid_phase_concentration.data(),
-					matCp.data(), Kernel_Mat.data(), K_inv_y.data(), kernel_name);
+		double prediction = gp.prediction(pore_phase_concentration.data(), matCp.data(), K_inv_y.data());
 
-
+		// todo make this actually multi-component
 				for (unsigned int i = 0; i < _nComp; i++)
 				{
-					q[i] = prediction[i] - offset[0];
+			q[i] = prediction - offset;
 				}
 				
 			}
@@ -255,12 +252,19 @@ namespace cadet
 					GPR_parameters[0], GPR_parameters[1], GPR_parameters[2], GPR_parameters[3], GPR_parameters[4],
 					GPR_parameters[5], GPR_parameters[6],
 					kernel_name);
+
 				if (kernel_name == "MLP")
-					gp.MLP_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data(), jacobian.data());
+		{
+			gp.MLP_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data());
+		}
 				else if (kernel_name == "RBF")
-					gp.RBF_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data(), jacobian.data(), _nComp);
+		{
+			gp.RBF_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data());
+		}
 				else if (kernel_name == "RBF_Linear")
-					gp.RBF_Linear_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data(), jacobian.data(),_nComp);
+		{
+			gp.RBF_Linear_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data());
+		}
 
 				unsigned int bndIdx = 0;
 				for (int i = 0; i < _nComp; ++i)
@@ -294,7 +298,7 @@ namespace cadet
 
 		namespace binding
 		{
-			void registerGPRModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings)
+	void registerGaussianProcessRegressionModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings)
 			{
 				bindings[GPRBinding::identifier()] = []() { return new GPRBinding(); };
 				bindings[ExternalGPRBinding::identifier()] = []() { return new ExternalGPRBinding(); };
