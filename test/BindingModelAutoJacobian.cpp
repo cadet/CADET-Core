@@ -35,17 +35,17 @@ namespace cadet
 	public:
 		BindingWithoutJacobian() { }
 
-		virtual const char* name() const CADET_NOEXCEPT { return "BindingWithoutJacobian"; }
-		virtual bool dependsOnTime() const CADET_NOEXCEPT { return false; }
+		virtual const char* name() const CADET_NOEXCEPT override { return "BindingWithoutJacobian"; }
+		virtual bool dependsOnTime() const CADET_NOEXCEPT override { return false; }
 
 		virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx) override { return true; }
-		virtual bool hasSalt() const CADET_NOEXCEPT { return false; }
-		virtual bool supportsMultistate() const CADET_NOEXCEPT { return true; }
-		virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
+		virtual bool hasSalt() const CADET_NOEXCEPT override { return false; }
+		virtual bool supportsMultistate() const CADET_NOEXCEPT override { return true; }
+		virtual bool supportsNonBinding() const CADET_NOEXCEPT override { return true; }
 
 		CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE
 	protected:
-		virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return false; }
+		virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT override { return false; }
 
 		template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
 		int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
@@ -77,17 +77,17 @@ namespace cadet
 	public:
 		BindingWithJacobian() { }
 
-		virtual const char* name() const CADET_NOEXCEPT { return "BindingWithJacobian"; }
-		virtual bool dependsOnTime() const CADET_NOEXCEPT { return false; }
+		virtual const char* name() const CADET_NOEXCEPT override { return "BindingWithJacobian"; }
+		virtual bool dependsOnTime() const CADET_NOEXCEPT override { return false; }
 
 		virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx) override { return true; }
-		virtual bool hasSalt() const CADET_NOEXCEPT { return false; }
-		virtual bool supportsMultistate() const CADET_NOEXCEPT { return true; }
-		virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
+		virtual bool hasSalt() const CADET_NOEXCEPT override { return false; }
+		virtual bool supportsMultistate() const CADET_NOEXCEPT override { return true; }
+		virtual bool supportsNonBinding() const CADET_NOEXCEPT override { return true; }
 
 		CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE
 	protected:
-		virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return true; }
+		virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT override { return true; }
 
 		template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
 		int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,

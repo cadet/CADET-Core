@@ -28,25 +28,25 @@
  */
 #define CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE                                                                                \
 	virtual int flux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,                             \
-		active const* yCp, active* res, LinearBufferAllocator workSpace, WithParamSensitivity) const                           \
+		active const* yCp, active* res, LinearBufferAllocator workSpace, WithParamSensitivity) const override                           \
 	{                                                                                                                          \
 		return fluxImpl<active, active, active, active>(t, secIdx, colPos, y, yCp, res, workSpace);                            \
 	}                                                                                                                          \
 	                                                                                                                           \
 	virtual int flux(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,                             \
-		active const* yCp, active* res, LinearBufferAllocator workSpace, WithoutParamSensitivity) const                        \
+		active const* yCp, active* res, LinearBufferAllocator workSpace, WithoutParamSensitivity) const override                        \
 	{                                                                                                                          \
 		return fluxImpl<active, active, active, double>(t, secIdx, colPos, y, yCp, res, workSpace);                            \
 	}                                                                                                                          \
 	                                                                                                                           \
 	virtual int flux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                             \
-		double const* yCp, active* res, LinearBufferAllocator workSpace) const                                                 \
+		double const* yCp, active* res, LinearBufferAllocator workSpace) const override                                                 \
 	{                                                                                                                          \
 		return fluxImpl<double, double, active, active>(t, secIdx, colPos, y, yCp, res, workSpace);                            \
 	}                                                                                                                          \
 	                                                                                                                           \
 	virtual int flux(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                             \
-		double const* yCp, double* res, LinearBufferAllocator workSpace) const                                                 \
+		double const* yCp, double* res, LinearBufferAllocator workSpace) const override                                                 \
 	{                                                                                                                          \
 		return fluxImpl<double, double, double, double>(t, secIdx, colPos, y, yCp, res, workSpace);                            \
 	}
@@ -63,19 +63,19 @@
  */
 #define CADET_BINDINGMODEL_JACOBIAN_BOILERPLATE                                                                     \
 	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,     \
-		int offsetCp, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const                   \
+		int offsetCp, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const override                   \
 	{                                                                                                               \
 		jacobianImpl(t, secIdx, colPos, y, y - offsetCp, offsetCp, jac, workSpace);                                 \
 	}                                                                                                               \
 																													\
 	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,     \
-		int offsetCp, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const                    \
+		int offsetCp, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const override                    \
 	{                                                                                                               \
 		jacobianImpl(t, secIdx, colPos, y, y - offsetCp, offsetCp, jac, workSpace);                                 \
 	}																												\
 																													\
 	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,		\
-		int offsetCp, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const              \
+		int offsetCp, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const override              \
 	{                                                                                                               \
 		jacobianImpl(t, secIdx, colPos, y, y - offsetCp, offsetCp, jac, workSpace);                                 \
 	}

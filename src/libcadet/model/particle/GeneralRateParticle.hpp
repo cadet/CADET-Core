@@ -90,7 +90,7 @@ namespace parts
 		bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp) override;
 		bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound) override;
 
-		void updateRadialDisc() { _parDiffOp->updateRadialDisc(); }
+		void updateRadialDisc() override { _parDiffOp->updateRadialDisc(); }
 
 		parts::cell::CellParameters makeCellResidualParams(int const* qsReaction, unsigned int const* nBound) const override;
 
@@ -112,7 +112,7 @@ namespace parts
 
 		inline const active& getPorosity() const CADET_NOEXCEPT  override { return _parDiffOp->getPorosity(); }
 		inline const active* getPoreAccessFactor() const CADET_NOEXCEPT  override { return _parDiffOp->getPoreAccessFactor(); }
-		inline const active* getFilmDiffusion(const unsigned int secIdx) const CADET_NOEXCEPT { return _parDiffOp->getFilmDiffusion(secIdx);  }
+		inline const active* getFilmDiffusion(const unsigned int secIdx) const CADET_NOEXCEPT override { return _parDiffOp->getFilmDiffusion(secIdx);  }
 
 		inline int nDiscPoints() const CADET_NOEXCEPT  override { return _parDiffOp->nDiscPoints(); }
 		inline int strideParBlock() const CADET_NOEXCEPT  override { return nDiscPoints() * stridePoint(); }
@@ -160,7 +160,7 @@ namespace parts
 				return true;
 		}
 
-		virtual bool isParticleLumped() const CADET_NOEXCEPT { return false; }
+		virtual bool isParticleLumped() const CADET_NOEXCEPT override { return false; }
 
 	protected:
 

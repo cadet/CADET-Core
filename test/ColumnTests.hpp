@@ -153,7 +153,7 @@ namespace column
 			: nAxCells_(nAxCells), wenoOrder_(wenoOrder), nRadCells_(nRadCells) {
 		}
 
-		void setDiscParam(const std::string& name, int value) {
+		void setDiscParam(const std::string& name, int value) override {
 			if (name == "WENO_ORDER")
 				wenoOrder_ = value;
 			else if (name == "NCHANNEL" || name == "NRAD")
@@ -168,7 +168,7 @@ namespace column
 
 		int getNAxCells() const override { return nAxCells_; }
 
-		void setBulkParameters(JsonParameterProvider& jpp, const std::string& unitType, JsonDiscScopeManager& manager) const
+		void setBulkParameters(JsonParameterProvider& jpp, const std::string& unitType, JsonDiscScopeManager& manager) const override
 		{
 			BulkDiscretization::setBulkParameters(jpp, unitType, manager);
 
@@ -214,7 +214,7 @@ namespace column
 			radPolyDeg_(radPolyDeg), radNelem_(radNelem) {
 		}
 
-		void setDiscParam(const std::string& name, int value) {
+		void setDiscParam(const std::string& name, int value) override {
 			if (name == "EXACT_INTEGRATION")
 				exactIntegration_ = value;
 			else if (name == "POLYDEG")
@@ -233,7 +233,7 @@ namespace column
 
 		int getNAxCells() const override { return nElem_; }
 
-		void setBulkParameters(JsonParameterProvider& jpp, const std::string& unitType, JsonDiscScopeManager& manager) const
+		void setBulkParameters(JsonParameterProvider& jpp, const std::string& unitType, JsonDiscScopeManager& manager) const override
 		{
 			BulkDiscretization::setBulkParameters(jpp, unitType, manager);
 
@@ -265,7 +265,7 @@ namespace column
 	public:
 		ParticleFV(int nParCells = 0) : nParCells_(nParCells) {}
 
-		void setDiscParam(const std::string& name, int value) {
+		void setDiscParam(const std::string& name, int value) override {
 			if (name == "NCELLS")
 				nParCells_ = value;
 			else
@@ -276,7 +276,7 @@ namespace column
 
 		int getNParCells() const override { return nParCells_; }
 
-		void setParticleParameters(JsonParameterProvider& jpp) const
+		void setParticleParameters(JsonParameterProvider& jpp) const override
 		{
 			ParticleDiscretization::setParticleParameters(jpp);
 
@@ -300,7 +300,7 @@ namespace column
 			: parPolyDeg_(parPolyDeg), parNelem_(parNelem) {
 		}
 
-		void setDiscParam(const std::string& name, int value) {
+		void setDiscParam(const std::string& name, int value) override {
 			if (name == "POLYDEG" || name == "PAR_POLYDEG")
 				parPolyDeg_ = value;
 			else if (name == "NELEM" || name == "PAR_NELEM")
@@ -313,7 +313,7 @@ namespace column
 
 		int getNParCells() const override { return parNelem_; }
 
-		void setParticleParameters(JsonParameterProvider& jpp) const
+		void setParticleParameters(JsonParameterProvider& jpp) const override
 		{
 			ParticleDiscretization::setParticleParameters(jpp);
 
