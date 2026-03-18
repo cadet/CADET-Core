@@ -107,15 +107,11 @@ protected:
 	{
 		const bool result = ParamHandlerBindingModelBase<ParamHandler_t>::configureImpl(paramProvider, unitOpIdx, parTypeIdx);
 
-		//Input parameters
-
-		// Read some ML parameters
-		paramProvider.pushScope("training_data");
-
+		// Input parameters
 		solid_phase_concentration = paramProvider.getDoubleArray("CS_VALS");
 		pore_phase_concentration = paramProvider.getDoubleArray("CP_VALS");
 		GPR_parameters = paramProvider.getDoubleArray("TRAINED_PARAMS");
-		kernel_name = paramProvider.getString("KERNAL");
+		kernel_name = paramProvider.getString("KERNEL");
 		if (paramProvider.getInt("NDIM") > 0)
 			ndim = paramProvider.getInt("NDIM");
 		else
@@ -123,8 +119,6 @@ protected:
 
 		if (kernel_name != "MLP" && kernel_name != "RBF" && kernel_name != "RBF_Linear" && kernel_name != "MLP_Linear")
 			throw InvalidParameterException("Unsupported kernel specified for GPR. Supported kernels are: MLP, RBF, RBF_Linear, MLP_Linear");
-
-		paramProvider.popScope(); // training_data
 
 		std::vector<double> kernel_m(solid_phase_concentration.size() * solid_phase_concentration.size(), 0.0);
 		std::vector<double> K_inv_y_temp(solid_phase_concentration.size(), 0.0);
