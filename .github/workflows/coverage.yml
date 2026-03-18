@@ -28,7 +28,7 @@ jobs:
       INSTALL_PREFIX: ${{ github.workspace }}/install
       BUILD_TYPE: RelWithDebInfo 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: true
           ref: "${{ github.event.inputs.ref || github.ref }}"
