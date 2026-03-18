@@ -122,6 +122,7 @@ protected:
 
 		std::vector<double> kernel_m(solid_phase_concentration.size() * solid_phase_concentration.size(), 0.0);
 		std::vector<double> K_inv_y_temp(solid_phase_concentration.size(), 0.0);
+		K_inv_y = K_inv_y_temp;
 
 		std::vector<double> test_pt = { 0.0 };
 		std::vector<double> matCp(_nComp, 0.0);
