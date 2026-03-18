@@ -24,7 +24,7 @@ jobs:
       INSTALL_PREFIX: ${{ github.workspace }}/install
       BUILD_TYPE: Release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: true
           path: src
