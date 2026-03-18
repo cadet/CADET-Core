@@ -151,6 +151,9 @@ namespace cadet
 							solidPhaseConc = paramProvider.getDoubleArray(inputName + std::format("_BND_{:03}", bnd));
 						}
 
+						if (solidPhaseConc.size() != _porePhaseConc[comp].size())
+							throw InvalidParameterException("CS_VALS and CP_VALS must have the same number of entries");
+
 						tk::spline s;
 						s.set_boundary(tk::spline::second_deriv, 0.0,
 							tk::spline::first_deriv, 0.0);
