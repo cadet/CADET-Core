@@ -76,3 +76,4 @@ This group also takes precedence over a possibly existing ``/input/model/unit_XX
     multi_component_colloidal
     affinity_complex_titration
     spline_interpolation
+    gaussian_process_regression
