@@ -170,7 +170,7 @@ jobs:
       SRC_DIR: ${{ github.workspace }}/src
       BUILD_DIR: ${{ github.workspace }}/build
       INSTALL_PREFIX: ${{ github.workspace }}/install
-      BUILD_TYPE: Release
+      BUILD_TYPE: Release-strict
     steps:
       - uses: actions/checkout@v4
         with:
