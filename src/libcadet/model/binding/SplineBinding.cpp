@@ -32,7 +32,7 @@
 	"externalName": "ExtSplineParamHandler",
 	"parameters":
 		[
-			{ "type": "ScalarComponentDependentParameter", "varName": "kKin", "confName": "ML_KKIN"}
+			{ "type": "ScalarComponentDependentParameter", "varName": "kKin", "confName": "SPLINE_KKIN"}
 		]
 }
 </codegen>*/
@@ -43,7 +43,7 @@ namespace cadet
 	namespace model
 	{
 
-		inline const char* SplineParamHandler::identifier() CADET_NOEXCEPT { return "SPLINE"; }
+		inline const char* SplineParamHandler::identifier() CADET_NOEXCEPT { return "SPLINE_INTERPOLATION"; }
 
 		inline bool SplineParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
@@ -52,12 +52,12 @@ namespace cadet
 				nTotBnd += nBoundStates[comp];
 
 			if (_kKin.size() < nTotBnd)
-				throw InvalidParameterException("ML_KKIN has to have NTOTALNBND entries");
+				throw InvalidParameterException("SPLINE_KKIN has to have NTOTALNBND entries");
 
 			return true;
 		}
 
-		inline const char* ExtSplineParamHandler::identifier() CADET_NOEXCEPT { return "EXT_SPLINE"; }
+		inline const char* ExtSplineParamHandler::identifier() CADET_NOEXCEPT { return "EXT_SPLINE_INTERPOLATION"; }
 
 		inline bool ExtSplineParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
@@ -66,7 +66,7 @@ namespace cadet
 				nTotBnd += nBoundStates[comp];
 
 			if (_kKin.size() < nTotBnd)
-				throw InvalidParameterException("ML_KKIN has to have NTOTALNBND entries");
+				throw InvalidParameterException("SPLINE_KKIN has to have NTOTALNBND entries");
 
 			return true;
 		}
@@ -129,9 +129,6 @@ namespace cadet
 
 				// Input parameters
 
-				// Read some ML parameters
-				paramProvider.pushScope("spline_model_parameters");
-
 				_splineParams.resize(_totBoundStates);
 				_porePhaseConc.resize(_nComp);
 
@@ -142,7 +139,7 @@ namespace cadet
 					if (_nBoundStates[comp] == 0)
 						continue;
 
-					_porePhaseConc[comp] = paramProvider.getDoubleArray(std::format("C_VALS_COMP_{:03}", comp));
+					_porePhaseConc[comp] = paramProvider.getDoubleArray(std::format("CP_VALS_COMP_{:03}", comp));
 
 					for (int bnd = 0; bnd < _nBoundStates[comp]; ++bnd)
 					{
@@ -154,6 +151,9 @@ namespace cadet
 							solidPhaseConc = paramProvider.getDoubleArray(inputName + std::format("_BND_{:03}", bnd));
 						}
 
+						if (solidPhaseConc.size() != _porePhaseConc[comp].size())
+							throw InvalidParameterException("CS_VALS and CP_VALS must have the same number of entries");
+
 						tk::spline s;
 						s.set_boundary(tk::spline::second_deriv, 0.0,
 							tk::spline::first_deriv, 0.0);
@@ -162,7 +162,6 @@ namespace cadet
 						_splineParams[_bndStateOffset[comp] + bnd] = s.coeff();
 					}
 				}
-				paramProvider.popScope(); // spline_model_parameters
 
 				return result;
 			}

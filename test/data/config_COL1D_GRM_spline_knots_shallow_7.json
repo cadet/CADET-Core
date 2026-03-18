@@ -85,7 +85,7 @@
                 }
             },
             "particle_type_000": {
-                "ADSORPTION_MODEL": "SPLINE",
+                "ADSORPTION_MODEL": "SPLINE_INTERPOLATION",
                 "FILM_DIFFUSION": [
                     6.38748621e-06
                 ],
@@ -106,30 +106,28 @@
                 "PORE_DIFFUSION": [
                     5.50724638e-12
                 ],
-                "adsorption": {
-                    "IS_KINETIC": 1,
-                    "ML_KKIN": 1.0,
-                    "spline_model_parameters": {
-                        "CS_VALS_COMP_000_BND_000": [
-                            1.29198742,
-                            76.84778516,
-                            110.14325476,
-                            141.59781958,
-                            165.80146634,
-                            181.33282173,
-                            190.23846417
-                        ],
-                        "C_VALS_COMP_000": [
-                            0.0,
-                            0.19219219,
-                            0.37837838,
-                            0.75075075,
-                            1.5015015,
-                            3.003003,
-                            6.0
-                        ]
-                    }
-                },
+              "adsorption": {
+                "IS_KINETIC": 1,
+                "SPLINE_KKIN": 1.0,
+                "CS_VALS_COMP_000_BND_000": [
+                  1.29198742,
+                  76.84778516,
+                  110.14325476,
+                  141.59781958,
+                  165.80146634,
+                  181.33282173,
+                  190.23846417
+                ],
+                "CP_VALS_COMP_000": [
+                  0.0,
+                  0.19219219,
+                  0.37837838,
+                  0.75075075,
+                  1.5015015,
+                  3.003003,
+                  6.0
+                ]
+              },
                 "discretization": {
                     "NCELLS": 15,
                     "PAR_DISC_TYPE": "EQUIDISTANT_PAR",
