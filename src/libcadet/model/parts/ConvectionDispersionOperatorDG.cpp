@@ -1141,8 +1141,19 @@ bool RadialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPar
 
 	_newStaticJac = true;
 
-	// Initialize standard DG matrices
-	dgtoolbox::lglNodesWeights(_polyDeg, _nodes, _invWeights, true);
+	// Initialize standard DG matrices (select node type, default CGL for radial)
+	if (paramProvider.exists("NODE_TYPE"))
+	{
+		const std::string nodeType = paramProvider.getString("NODE_TYPE");
+		if (nodeType == "CGL" || nodeType == "CHEBYSHEV_GAUSS_LOBATTO")
+			dgtoolbox::cglNodesWeights(_polyDeg, _nodes, _invWeights, true);
+		else if (nodeType == "LGL" || nodeType == "LEGENDRE_GAUSS_LOBATTO")
+			dgtoolbox::lglNodesWeights(_polyDeg, _nodes, _invWeights, true);
+		else
+			throw InvalidParameterException("Unknown NODE_TYPE '" + nodeType + "'. Supported: LGL, CGL");
+	}
+	else
+		dgtoolbox::cglNodesWeights(_polyDeg, _nodes, _invWeights, true);
 	_invMM = dgtoolbox::invMMatrix(_polyDeg, _nodes);
 	_polyDerM = dgtoolbox::derivativeMatrix(_polyDeg, _nodes);
 
@@ -1192,12 +1203,12 @@ bool RadialConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, IP
 	_outerRadius = paramProvider.getDouble("COL_RADIUS_OUTER");
 	_deltaRho = (_outerRadius - _innerRadius) / static_cast<double>(_nElem);
 
-	// COL_LENGTH is optional for radial models
-	// For pure radial flow, use r_out - r_in as the characteristic length
+	// COL_LENGTH is optional for radial models.
+	// When not set, VELOCITY_COEFF is used directly (like FV radial operator).
+	// When set, network flow rate is converted to velocity via Q / (2*pi*L*eps).
+	_colLength = -1.0;
 	if (paramProvider.exists("COL_LENGTH"))
 		_colLength = paramProvider.getDouble("COL_LENGTH");
-	else
-		_colLength = _outerRadius - _innerRadius;
 
 	// Compute radial node coordinates
 	computeRadialNodeCoordinates();
@@ -1218,6 +1229,11 @@ bool RadialConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, IP
 	if (paramProvider.exists("VELOCITY_COEFF"))
 	{
 		readScalarParameterOrArray(_velocity, paramProvider, "VELOCITY_COEFF", 1);
+	}
+
+	if (_velocity.empty() && (_colLength <= 0.0))
+	{
+		throw InvalidParameterException("At least one of COL_LENGTH and VELOCITY_COEFF has to be set");
 	}
 
 	_dir = 1;
@@ -1290,12 +1306,23 @@ bool RadialConvectionDispersionOperatorBaseDG::notifyDiscontinuousSectionTransit
 {
 	_curSection = secIdx;
 
-	// Set current velocity coefficient (u = Q / (2 * pi * L * epsilon))
-	// For radial flow, this is later divided by radius to get local velocity
-	if (_velocity.size() == 1)
-		_curVelocity = _dir * _velocity[0];
-	else
-		_curVelocity = _dir * _velocity[secIdx];
+	const int dirOld = _dir;
+
+	if (_colLength <= 0.0)
+	{
+		// Use the provided velocity coefficient directly
+		_curVelocity = getSectionDependentScalar(_velocity, secIdx);
+		_dir = (_curVelocity >= 0.0) ? 1 : -1;
+	}
+	else if (!_velocity.empty())
+	{
+		// Use network flow rate but take direction from velocity coefficient
+		_dir = (getSectionDependentScalar(_velocity, secIdx) >= 0.0) ? 1 : -1;
+
+		// _curVelocity has correct magnitude but previous direction, so flip if necessary
+		if (dirOld * _dir < 0)
+			_curVelocity *= -1.0;
+	}
 
 	_newStaticJac = true;
 
@@ -1601,6 +1628,7 @@ void RadialConvectionDispersionOperatorBaseDG::setFlowRates(const active& in, co
 
 	if (_colLength > 0.0)
 		_curVelocity = _dir * in / (2.0 * pi * _colLength * colPorosity);
+
 }
 
 void RadialConvectionDispersionOperatorBaseDG::multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const
@@ -1724,10 +1752,11 @@ Eigen::MatrixXd RadialConvectionDispersionOperatorBaseDG::DGjacobianConvBlockRad
 	//   Forward flow: col 0 = inlet/prev-element last node, cols 1..N = current element
 	//   Backward flow: cols 0..N-1 = current element, col N = outlet/next-element first node
 	//
-	// Derived from residualImpl: res -= u*invMM_rho*D^T*M00*c + surface flux corrections.
-	// No (2/deltaRho) factor here -- coordinate transforms cancel in the volume integral.
+	// From residualImpl: res -= (2/dR) * invMM_rho * D^T * M00 * u * c  +  (2/dR) * surface fluxes
+	// The (2/dR) factor comes from M_rho_physical = (dR/2) * M_rho_code.
 
 	Eigen::MatrixXd convBlock = Eigen::MatrixXd::Zero(_nNodes, _nNodes + 1);
+	const double invHalfDeltaRho = 2.0 / static_cast<double>(_deltaRho);
 
 	const Eigen::MatrixXd volContrib = _invMM_rho[cellIdx] * (_polyDerM.transpose() * _M00);
 
@@ -1736,22 +1765,11 @@ Eigen::MatrixXd RadialConvectionDispersionOperatorBaseDG::DGjacobianConvBlockRad
 		// Volume: cols 1..N map to current element nodes 0..N-1
 		convBlock.block(0, 1, _nNodes, _nNodes) -= volContrib;
 
-		if (cellIdx == 0)
-		{
-			// Danckwerts inlet BC: left_flux[0] = u*c[0,0] - 2*u*c_inlet
-			// d(left_flux)/d(c_inlet)/u = -2  =>  col 0 = -2*invMM_rho[:,0]
-			// d(left_flux)/d(c[0,0])/u = +1 added to col 1 (= current node 0)
-			convBlock.block(0, 0, _nNodes, 1) = -2.0 * _invMM_rho[cellIdx].col(0);
-			convBlock.block(0, 1, _nNodes, 1) += _invMM_rho[cellIdx].col(0);
-		}
-		else
-		{
-			// Upwind left flux from prev element's last node
-			convBlock.block(0, 0, _nNodes, 1) = -_invMM_rho[cellIdx].col(0);
-		}
+		// Left surface: c* = c_in (inlet) or c* = c[e-1,N-1] (upwind)
+		// Both give d(left_flux)/d(c*)/u = -1, so col 0 = -invMM_rho[:,0]
+		convBlock.block(0, 0, _nNodes, 1) = -_invMM_rho[cellIdx].col(0);
 
 		// Right surface: c_star[e+1] = c[e,N-1] (upwind), contributes +invMM_rho[:,N-1] at col N
-		// Same for all forward-flow elements (including last: g_star[nElem]=0 so no dispersion)
 		convBlock.block(0, _nNodes, _nNodes, 1) += _invMM_rho[cellIdx].col(_nNodes - 1);
 	}
 	else // Backward (inward) flow
@@ -1760,25 +1778,14 @@ Eigen::MatrixXd RadialConvectionDispersionOperatorBaseDG::DGjacobianConvBlockRad
 		convBlock.block(0, 0, _nNodes, _nNodes) -= volContrib;
 
 		// Left surface: c_star[e] = c[e,0] (upwind from right), contributes -invMM_rho[:,0] at col 0
-		// Same for all backward-flow elements (including element 0: g_star[0]=0 so no dispersion)
 		convBlock.block(0, 0, _nNodes, 1) -= _invMM_rho[cellIdx].col(0);
 
-		if (cellIdx == _nElem - 1)
-		{
-			// Danckwerts inlet BC: right_flux[nElem] = 2*u*c_inlet - u*c[last,N-1]
-			// d(right_flux)/d(c_inlet)/u = +2  =>  col N = +2*invMM_rho[:,N-1]
-			// d(right_flux)/d(c[last,N-1])/u = -1 added to col N-1
-			convBlock.block(0, _nNodes - 1, _nNodes, 1) -= _invMM_rho[cellIdx].col(_nNodes - 1);
-			convBlock.block(0, _nNodes, _nNodes, 1) = 2.0 * _invMM_rho[cellIdx].col(_nNodes - 1);
-		}
-		else
-		{
-			// Upwind right flux to next element's first node
-			convBlock.block(0, _nNodes, _nNodes, 1) = _invMM_rho[cellIdx].col(_nNodes - 1);
-		}
+		// Right surface: c* = c_in (inlet at last elem) or c* = c[e+1,0] (upwind)
+		// Both give d(right_flux)/d(c*)/u = +1, so col N = +invMM_rho[:,N-1]
+		convBlock.block(0, _nNodes, _nNodes, 1) = _invMM_rho[cellIdx].col(_nNodes - 1);
 	}
 
-	return convBlock;
+	return invHalfDeltaRho * convBlock;
 }
 
 Eigen::MatrixXd RadialConvectionDispersionOperatorBaseDG::getGBlockRadial(unsigned int cellIdx)
@@ -1834,20 +1841,22 @@ Eigen::MatrixXd RadialConvectionDispersionOperatorBaseDG::DGjacobianDispBlockRad
 	//   cols N..2N+1  : current element nodes + ghosts (prev last / next first)
 	//   cols 2N..3N+1 : next element nodes + ghost
 	//
-	// Derived from residualImpl:
-	//   res -= d * invMM_rho * S_g * g_ref      (volume, no 2/deltaRho factor)
-	//   res += invMM_rho[:,0]  * (-u*c* + rho_L*d*(2/dR)*g*_L)  (left surface)
-	//   res += invMM_rho[:,N-1]* ( u*c* - rho_R*d*(2/dR)*g*_R)  (right surface)
-	// where g_ref = auxiliary in reference coords, g* = 0.5*(g_left + g_right).
+	// From residualImpl:
+	//   res -= (2/dR)^2 * d * invMM_rho * S_g * g      (volume)
+	//   res -= (2/dR)^2 * rho_L * d * invMM_rho[:,0] * g*_L   (left surface)
+	//   res += (2/dR)^2 * rho_R * d * invMM_rho[:,N-1] * g*_R (right surface)
+	// where g = auxiliary variable, g* = 0.5*(g_left + g_right).
 	//
-	// getGBlockRadial(e) = -(2/deltaRho) * dg_ref_e/dc, so:
-	//   dg_ref_e/dc = -(deltaRho/2) * G_e
-	//
-	// The (2/deltaRho) from surface fluxes and (deltaRho/2) from dg/dc cancel,
-	// leaving clean factor 0.5 in surface terms.
+	// getGBlockRadial(e) returns G = -(2/dR) * dg/dc, so dg/dc = -(dR/2)*G.
+	// Substituting dg/dc into d(res)/dc:
+	//   volume:  -(2/dR)^2 * invMM_rho * S_g * (-(dR/2)*G) = +(2/dR) * invMM_rho * S_g * G
+	//   left:    -(2/dR)^2 * rho_L * invMM_rho[:,0] * 0.5*(-(dR/2))*(G_prev+G_curr)
+	//          = +(2/dR) * 0.5 * rho_L * invMM_rho[:,0] * (G_prev+G_curr)
+	//   right:   +(2/dR)^2 * rho_R * invMM_rho[:,N-1] * 0.5*(-(dR/2))*(G_curr+G_next)
+	//          = -(2/dR) * 0.5 * rho_R * invMM_rho[:,N-1] * (G_curr+G_next)
 
 	const double deltaRho = static_cast<double>(_deltaRho);
-	const double halfDeltaRho = 0.5 * deltaRho;
+	const double invHalfDeltaRho = 2.0 / deltaRho;
 	const double rho_left = _rhoCellBounds[cellIdx];
 	const double rho_right = _rhoCellBounds[cellIdx + 1];
 
@@ -1855,41 +1864,28 @@ Eigen::MatrixXd RadialConvectionDispersionOperatorBaseDG::DGjacobianDispBlockRad
 
 	Eigen::MatrixXd G_curr = getGBlockRadial(cellIdx);
 
-	// Volume: -(deltaRho/2) * invMM_rho * S_g * G_curr
-	// G_curr has N+2 cols; placed at dispBlock cols N..2N+1
+	// Volume: +(2/dR) * invMM_rho * S_g * G_curr
 	dispBlock.block(0, _nNodes, _nNodes, _nNodes + 2) =
-	    -halfDeltaRho * (_invMM_rho[cellIdx] * _S_g[cellIdx] * G_curr);
+	    invHalfDeltaRho * (_invMM_rho[cellIdx] * _S_g[cellIdx] * G_curr);
 
-	// Left surface dispersion: res += invMM_rho[:,0] * rho_left * d * (2/dR) * g*
-	// g* = 0.5*(g_prev[N-1] + g_curr[0])
-	// dg/dc = -(dR/2)*G, so dg*/dc = -(dR/2)*0.5*(G_prev[N-1,:] + G_curr[0,:])
-	// d(res)/dc = invMM_rho[:,0] * rho_left * d * (2/dR) * (-(dR/2)*0.5) * (G_prev + G_curr)
-	//           = -0.5 * rho_left * invMM_rho[:,0] * d * (G_prev[N-1,:] + G_curr[0,:])
-	// G_prev[N-1,:] placed at dispBlock cols 0..N+1
-	// G_curr[0,:]   placed at dispBlock cols N..2N+1
+	// Left surface: +(2/dR) * 0.5 * rho_L * invMM_rho[:,0] * (G_prev[N-1,:] + G_curr[0,:])
 	if (cellIdx > 0)
 	{
 		Eigen::MatrixXd G_prev = getGBlockRadial(cellIdx - 1);
-		dispBlock.block(0, 0, _nNodes, _nNodes + 2) -=
-		    0.5 * rho_left * _invMM_rho[cellIdx].col(0) * G_prev.row(_nNodes - 1);
-		dispBlock.block(0, _nNodes, _nNodes, _nNodes + 2) -=
-		    0.5 * rho_left * _invMM_rho[cellIdx].col(0) * G_curr.row(0);
+		dispBlock.block(0, 0, _nNodes, _nNodes + 2) +=
+		    invHalfDeltaRho * 0.5 * rho_left * _invMM_rho[cellIdx].col(0) * G_prev.row(_nNodes - 1);
+		dispBlock.block(0, _nNodes, _nNodes, _nNodes + 2) +=
+		    invHalfDeltaRho * 0.5 * rho_left * _invMM_rho[cellIdx].col(0) * G_curr.row(0);
 	}
 
-	// Right surface dispersion: res += invMM_rho[:,N-1] * (-rho_right * d * (2/dR) * g*)
-	// g* = 0.5*(g_curr[N-1] + g_next[0])
-	// dg/dc = -(dR/2)*G, so dg*/dc = -(dR/2)*0.5*(G_curr[N-1,:] + G_next[0,:])
-	// d(res)/dc = invMM_rho[:,N-1] * (-rho_right * d * (2/dR)) * (-(dR/2)*0.5) * (G_curr + G_next)
-	//           = +0.5 * rho_right * invMM_rho[:,N-1] * d * (G_curr[N-1,:] + G_next[0,:])
-	// G_curr[N-1,:] placed at dispBlock cols N..2N+1
-	// G_next[0,:]   placed at dispBlock cols 2N..3N+1
+	// Right surface: -(2/dR) * 0.5 * rho_R * invMM_rho[:,N-1] * (G_curr[N-1,:] + G_next[0,:])
 	if (cellIdx < _nElem - 1)
 	{
 		Eigen::MatrixXd G_next = getGBlockRadial(cellIdx + 1);
-		dispBlock.block(0, _nNodes, _nNodes, _nNodes + 2) +=
-		    0.5 * rho_right * _invMM_rho[cellIdx].col(_nNodes - 1) * G_curr.row(_nNodes - 1);
-		dispBlock.block(0, 2 * _nNodes, _nNodes, _nNodes + 2) +=
-		    0.5 * rho_right * _invMM_rho[cellIdx].col(_nNodes - 1) * G_next.row(0);
+		dispBlock.block(0, _nNodes, _nNodes, _nNodes + 2) -=
+		    invHalfDeltaRho * 0.5 * rho_right * _invMM_rho[cellIdx].col(_nNodes - 1) * G_curr.row(_nNodes - 1);
+		dispBlock.block(0, 2 * _nNodes, _nNodes, _nNodes + 2) -=
+		    invHalfDeltaRho * 0.5 * rho_right * _invMM_rho[cellIdx].col(_nNodes - 1) * G_next.row(0);
 	}
 
 	return dispBlock;
