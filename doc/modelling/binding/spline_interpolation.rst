@@ -50,5 +50,13 @@ If :math:`c^p_{i}` lies outside the tabulated concentration range, the model ext
 
 - at :math:`c^p_i > \operatorname{max}\left(\vec{c}^p_{i}\right)`, the first derivative is set to zero, resulting in a flat continuation beyond the boundary.
 
+Parameter sensitivities
+***********************
+
+Sensitivities for the spline interpolation data :math:`\vec{c}^p_{i}, \vec{c}^s_{i,m}` are currently not available.
+Sensitivities for the kinetic constant :math:`k^{\mathrm{kin}}_{i,m}` are enabled.
+
+CADET-Core interface
+********************
 
 For more information on model parameters required to define in CADET file format, see :ref:`spline_interpolation_config`.
