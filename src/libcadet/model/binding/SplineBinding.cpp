@@ -251,7 +251,18 @@ namespace cadet
 
 						double dq_dcp = 0.0;
 
-						dq_dcp = (3.0 * coeffs[4 * idx] * h + 2.0 * coeffs[4 * idx + 1]) * h + coeffs[4 * idx + 2];
+						if (cp_val < _porePhaseConc[comp][0])
+						{
+							dq_dcp = 2.0 * coeffs[1] * h + coeffs[2];
+						}
+						else if (cp_val >= _porePhaseConc[comp][n_pts - 1])
+						{
+							dq_dcp = 2.0 * coeffs[n_param - 3] * h + coeffs[n_param - 2];
+						}
+						else
+						{
+							dq_dcp = (3.0 * coeffs[4 * idx] * h + 2.0 * coeffs[4 * idx + 1]) * h + coeffs[4 * idx + 2];
+						}
 
 						jac[0] = static_cast<double>(p->kKin[bndIdx]);
 						jac[comp - bnd - _bndStateOffset[comp] - offsetCp] =
