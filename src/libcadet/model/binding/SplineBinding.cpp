@@ -85,10 +85,12 @@ namespace cadet
 
 			virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return true; }
 
+			virtual bool requiresWorkspace() const CADET_NOEXCEPT { return true; }
+
 			virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 			{
 				return ParamHandlerBindingModelBase<ParamHandler_t>::workspaceSize(nComp, totalNumBoundStates, nBoundStates)
-					+ sizeof(active) * nComp + alignof(active);  // Add the memory for the qML buffer
+					+ sizeof(active) * nComp + alignof(active); // work space for the qSpline buffer
 			}
 
 			CADET_BINDINGMODELBASE_BOILERPLATE
@@ -128,7 +130,6 @@ namespace cadet
 				_totBoundStates = _bndStateOffset[_nComp];
 
 				// Input parameters
-
 				_splineParams.resize(_totBoundStates);
 				_porePhaseConc.resize(_nComp);
 
@@ -174,10 +175,10 @@ namespace cadet
 
 				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-				BufferedArray<CpStateType> qMLarray = workSpace.array<CpStateType>(_totBoundStates);
-				CpStateType* const qML = static_cast<CpStateType*>(qMLarray);
+				BufferedArray<CpStateType> qSplineArray = workSpace.array<CpStateType>(_totBoundStates);
+				CpStateType* const qSpline = static_cast<CpStateType*>(qSplineArray);
 
-				splineModel<CpStateType>(qML, yCp, workSpace);
+				splineModel<CpStateType>(qSpline, yCp, workSpace);
 
 				int bndIdx = 0;
 
@@ -185,7 +186,7 @@ namespace cadet
 				{
 					for (int bnd = 0; bnd < _nBoundStates[comp]; ++bnd, ++bndIdx)
 					{
-						res[bndIdx] = static_cast<ParamType>(p->kKin[bndIdx]) * (y[bndIdx] - qML[bndIdx]);
+						res[bndIdx] = static_cast<ParamType>(p->kKin[bndIdx]) * (y[bndIdx] - qSpline[bndIdx]);
 					}
 				}
 
