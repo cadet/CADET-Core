@@ -106,7 +106,7 @@ namespace cadet
 			std::vector< std::vector<double> > _splineParams; // [_totBoundStates][coeffs]
 
 			/***************************************************************************************************/
-			size_t find_closest(double x, const std::vector<double>& m_x) const
+			size_t find_interval(double x, const std::vector<double>& m_x) const
 			{
 				const std::vector<double>::const_iterator it = std::upper_bound(m_x.begin(), m_x.end(), x);
 				return std::max(int(it - m_x.begin()) - 1, 0);
@@ -206,7 +206,7 @@ namespace cadet
 						const int n_pts = _porePhaseConc[comp].size();
 
 						const double cp_val = static_cast<double>(cp[comp]);
-						const int idx = find_closest(cp_val, _porePhaseConc[comp]);
+						const int idx = find_interval(cp_val, _porePhaseConc[comp]);
 						const double h = cp_val - _porePhaseConc[comp][idx];
 
 						if (cp_val < _porePhaseConc[comp][0])
@@ -247,7 +247,7 @@ namespace cadet
 						const auto& coeffs = _splineParams[bndIdx];
 //						const int n_param = coeffs.size();
 
-						const int idx = find_closest(cp_val, _porePhaseConc[comp]);
+						const int idx = find_interval(cp_val, _porePhaseConc[comp]);
 						const double h = cp_val - _porePhaseConc[comp][idx];
 
 						// derivative dq/dcp
