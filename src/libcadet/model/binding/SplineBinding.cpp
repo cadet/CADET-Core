@@ -51,8 +51,8 @@ namespace cadet
 			for (int comp = 0; comp < nComp; comp++)
 				nTotBnd += nBoundStates[comp];
 
-			if (_kKin.size() < nTotBnd)
-				throw InvalidParameterException("SPLINE_KKIN has to have NTOTALNBND entries");
+			if (_kKin.size() != nTotBnd)
+				throw InvalidParameterException("SPLINE_KKIN has to have NTOTALBND entries");
 
 			return true;
 		}
@@ -65,8 +65,8 @@ namespace cadet
 			for (int comp = 0; comp < nComp; comp++)
 				nTotBnd += nBoundStates[comp];
 
-			if (_kKin.size() < nTotBnd)
-				throw InvalidParameterException("SPLINE_KKIN has to have NTOTALNBND entries");
+			if (_kKin.size() != nTotBnd)
+				throw InvalidParameterException("SPLINE_KKIN has to have NTOTALBND entries");
 
 			return true;
 		}
@@ -232,8 +232,7 @@ namespace cadet
 			{
 				// Implements the Jacobian of -kKin * (f(c_p) - q) wrt. c_p and q where f is the spline model
 
-				typename ParamHandler_t::ParamsHandle const p =
-					_paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 				int bndIdx = 0;
 
