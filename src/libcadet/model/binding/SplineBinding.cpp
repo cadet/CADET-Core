@@ -205,15 +205,14 @@ namespace cadet
 						const int n_param = coeffs.size();
 						const int n_pts = _porePhaseConc[comp].size();
 
-						const double cp_val = static_cast<double>(cp[comp]);
-						const int idx = find_interval(cp_val, _porePhaseConc[comp]);
-						const double h = cp_val - _porePhaseConc[comp][idx];
+						const int idx = find_interval(static_cast<double>(cp[comp]), _porePhaseConc[comp]);
+						const StateType h = cp[comp] - _porePhaseConc[comp][idx];
 
-						if (cp_val < _porePhaseConc[comp][0])
+						if (cp[comp] < _porePhaseConc[comp][0])
 						{
 							q[bndIdx] = (coeffs[1] * h + coeffs[2]) * h + coeffs[3];
 						}
-						else if (cp_val >= _porePhaseConc[comp][n_pts - 1])
+						else if (cp[comp] >= _porePhaseConc[comp][n_pts - 1])
 						{
 							q[bndIdx] = (coeffs[n_param - 3] * h + coeffs[n_param - 2]) * h + coeffs[n_param - 1];
 						}
