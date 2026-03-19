@@ -239,28 +239,25 @@ namespace cadet
 				for (int comp = 0; comp < _nComp; ++comp)
 				{
 					const double cp_val = yCp[comp];
-//					const int n_pts = _porePhaseConc[comp].size();
+					const int n_pts = _porePhaseConc[comp].size();
 
 					for (int bnd = 0; bnd < _nBoundStates[comp]; ++bnd, ++bndIdx)
 					{
 						const auto& coeffs = _splineParams[bndIdx];
-//						const int n_param = coeffs.size();
+						const int n_param = coeffs.size();
 
 						const int idx = find_interval(cp_val, _porePhaseConc[comp]);
 						const double h = cp_val - _porePhaseConc[comp][idx];
 
-						// derivative dq/dcp
-						const double dq_dcp =
-							(3.0 * coeffs[4 * idx] * h + 2.0 * coeffs[4 * idx + 1]) * h + coeffs[4 * idx + 2];
+						double dq_dcp = 0.0;
 
-						// derivative wrt q_i
+						dq_dcp = (3.0 * coeffs[4 * idx] * h + 2.0 * coeffs[4 * idx + 1]) * h + coeffs[4 * idx + 2];
+
 						jac[0] = static_cast<double>(p->kKin[bndIdx]);
+						jac[comp - bnd - _bndStateOffset[comp] - offsetCp] =
+							-static_cast<double>(p->kKin[bndIdx]) * dq_dcp;
 
-						// derivative wrt c_p for the same component
-						// -bnd - _bndStateOffset[comp] - offsetCp shifts to cp entry of current component
-						jac[-bnd - _bndStateOffset[comp] - offsetCp] = -static_cast<double>(p->kKin[bndIdx]) * dq_dcp;
-
-						++jac; // advance to next row
+						++jac;
 					}
 				}
 			}
