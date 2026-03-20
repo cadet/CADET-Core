@@ -176,11 +176,17 @@ namespace cadet
 					if (cadet_unlikely(exponents.native(c, r) != 0.0))
 					{
 						const double exponentValue = static_cast<double>(exponents.native(c, r));
-						const double v = pow(y[c], exponentValue);
+
+						double v  = 0.0;
+						if (static_cast<double>(y[c]) > 0.0)
+							v = pow(y[c], exponentValue);
 						for (unsigned int j = 0; j < c; ++j)
 							fluxGrad[j] *= v;
 
-						fluxGrad[c] *= exponentValue * pow(y[c], exponentValue - 1.0);
+						if (static_cast<double>(y[c]) > 0.0)
+							fluxGrad[c] *= exponentValue * pow(y[c], exponentValue - 1.0);
+						else
+							fluxGrad[c] *= 0.0;
 
 						for (unsigned int j = c + 1; j < nComp; ++j)
 							fluxGrad[j] *= v;
@@ -226,11 +232,16 @@ namespace cadet
 					if (cadet_unlikely(expLiquid.native(c, r) != 0.0))
 					{
 						const double exponentValue = static_cast<double>(expLiquid.native(c, r));
-						const double v = pow(yLiquid[c], exponentValue);
+						double v = 0.0;
+						if (static_cast<double>(yLiquid[c]) > 0.0)
+							v = pow(yLiquid[c], exponentValue);
+
 						for (unsigned int j = 0; j < c; ++j)
 							fluxGrad[j] *= v;
-
-						fluxGrad[c] *= exponentValue * pow(yLiquid[c], exponentValue - 1.0);
+						if (static_cast<double>(yLiquid[c]) > 0.0)
+							fluxGrad[c] *= exponentValue * pow(yLiquid[c], exponentValue - 1.0);
+						else
+							fluxGrad[c]*= 0.0;
 
 						for (unsigned int j = c + 1; j < nComp + nTotalBoundStates; ++j)
 							fluxGrad[j] *= v;
@@ -243,11 +254,17 @@ namespace cadet
 					if (cadet_unlikely(expSolid.native(c, r) != 0.0))
 					{
 						const double exponentValue = static_cast<double>(expSolid.native(c, r));
-						const double v = pow(ySolid[c], exponentValue);
+						double v = 0.0;
+						if (static_cast<double>(ySolid[c]) > 0.0)
+							v = pow(ySolid[c], exponentValue);
+
 						for (unsigned int j = 0; j < nComp + c; ++j)
 							fluxGrad[j] *= v;
 
-						fluxGrad[nComp + c] *= exponentValue * pow(ySolid[c], exponentValue - 1.0);
+						if (static_cast<double>(ySolid[c]) > 0.0)
+							fluxGrad[nComp + c] *= exponentValue * pow(ySolid[c], exponentValue - 1.0);
+						else
+							fluxGrad[nComp + c]*= 0.0;
 
 						for (unsigned int j = c + 1; j < nTotalBoundStates; ++j)
 							fluxGrad[nComp + j] *= v;
