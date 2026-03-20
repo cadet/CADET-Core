@@ -1055,17 +1055,8 @@ namespace v1
 		return cdtOK;
 	}
 
-}  // namespace v1
-
-}  // namespace api
-
-}  // namespace cadet
-
-
-extern "C"
-{
-
-	CADET_API cdtResult cdtGetAPIv010000(cdtAPIv010000* ptr)
+	template <typename cdtAPIv1_x>
+	cdtResult cdtGetAPIv1_x(cdtAPIv1_x* ptr)
 	{
 		if (!ptr)
 			return cdtErrorInvalidInputs;
@@ -1129,9 +1120,32 @@ extern "C"
 
 		ptr->getTimeSim = &cadet::api::v1::getTimeSim;
 
+		return cdtOK;
+	}
+
+}  // namespace v1
+
+}  // namespace api
+
+}  // namespace cadet
+
+
+extern "C"
+{
+
+	CADET_API cdtResult cdtGetAPIv010000(cdtAPIv010000* ptr)
+	{
+		return cadet::api::v1::cdtGetAPIv1_x(ptr);
+	}
+
+	CADET_API cdtResult cdtGetAPIv1_1_0a_1(cdtAPIv1_1_0a_1* ptr)
+	{
+		if (!ptr)
+			return cdtErrorInvalidInputs;
+
 		ptr->setTimeout = &cadet::api::v1::setTimeout;
 
-		return cdtOK;
+		return cadet::api::v1::cdtGetAPIv1_x(ptr);
 	}
 
 }
