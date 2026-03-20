@@ -1133,7 +1133,7 @@ namespace v1
 extern "C"
 {
 
-	CADET_API cdtResult cdtGetAPIv1_1_0(cdtAPIv1_1_0* ptr)
+	CADET_API cdtResult cdtGetAPIv1_0_0(cdtAPIv1_0_0* ptr)
 	{
 		return cadet::api::v1::cdtGetAPIv1_x(ptr);
 	}

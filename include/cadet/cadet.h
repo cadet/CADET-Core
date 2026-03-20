@@ -1054,14 +1054,14 @@ extern "C"
 		 */
 		cdtResult (*getTimeSim)(cdtDriver* drv, double* timeSim);
 
-	} cdtAPIv1_1_0;
+	} cdtAPIv1_0_0;
 
 	/**
 	 * @brief      Queries API version 1.0.0, which is returned as a struct of function pointers
 	 * @param[out] ptr      Pointer to a matching function pointer struct that is populated if the API is available
 	 * @return     Success (>= 0) if the API is available, otherwise error (< 0)
 	 */
-	CADET_API cdtResult cdtGetAPIv1_1_0(cdtAPIv1_1_0* ptr);
+	CADET_API cdtResult cdtGetAPIv1_0_0(cdtAPIv1_0_0* ptr);
 
 	/**
 	 * Holds function pointers to API version 1
