@@ -51,6 +51,12 @@ namespace
 	{
 		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES"; }
 	};
+
+	template <>
+	struct LumpedRateModelWithoutPoresName<cadet::model::parts::FrustumConvectionDispersionOperatorBase>
+	{
+		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_LUMPED_RATE_MODEL_WITHOUT_PORES"; }
+	};
 }
 
 namespace cadet
@@ -356,6 +362,7 @@ protected:
 
 IUnitOperation* createAxialFVLRM(UnitOpIdx uoId);
 IUnitOperation* createRadialFVLRM(UnitOpIdx uoId);
+IUnitOperation* createFrustumFVLRM(UnitOpIdx uoId);
 
 } // namespace model
 } // namespace cadet

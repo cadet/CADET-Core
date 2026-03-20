@@ -2048,6 +2048,13 @@ IUnitOperation* createRadialFVLRM(UnitOpIdx uoId)
 	return new RadialLRM(uoId);
 }
 
+IUnitOperation* createFrustumFVLRM(UnitOpIdx uoId)
+{
+	typedef LumpedRateModelWithoutPores<parts::FrustumConvectionDispersionOperatorBase> FrustumLRM;
+
+	return new FrustumLRM(uoId);
+}
+
 }  // namespace model
 
 }  // namespace cadet
