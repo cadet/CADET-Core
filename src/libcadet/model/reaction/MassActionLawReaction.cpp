@@ -171,11 +171,17 @@ namespace
 			if (cadet_unlikely(exponents.native(c, r) != 0.0))
 			{
 				const double exponentValue = static_cast<double>(exponents.native(c, r));
-				const double v = pow(y[c], exponentValue);
+				double v  = 0.0;
+				if (static_cast<double>(y[c]) > 0.0)
+					v = pow(y[c], exponentValue);
+
 				for (unsigned int j = 0; j < c; ++j)
 					fluxGrad[j] *= v;
 
-				fluxGrad[c] *= exponentValue * pow(y[c], exponentValue - 1.0);
+				if (static_cast<double>(y[c]) > 0.0)
+					fluxGrad[c] *= exponentValue * pow(y[c], exponentValue - 1.0);
+				else
+					fluxGrad[c] *= 0.0;
 
 				for (unsigned int j = c + 1; j < nComp; ++j)
 					fluxGrad[j] *= v;
