@@ -47,6 +47,7 @@ env:
 
 jobs:
   build-wheels:
+    if: ${{ github.event_name != 'push' || !contains(github.ref_name, '-') }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -141,6 +142,7 @@ jobs:
           path: wheelhouse/*.whl
 
   pypi-publish:
+    if: ${{ github.event_name != 'push' || !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
     needs: [build-wheels]
     permissions:
