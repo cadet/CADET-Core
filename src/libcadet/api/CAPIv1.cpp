@@ -1133,12 +1133,12 @@ namespace v1
 extern "C"
 {
 
-	CADET_API cdtResult cdtGetAPIv010000(cdtAPIv010000* ptr)
+	CADET_API cdtResult cdtGetAPIv1_1_0(cdtAPIv1_1_0* ptr)
 	{
 		return cadet::api::v1::cdtGetAPIv1_x(ptr);
 	}
 
-	CADET_API cdtResult cdtGetAPIv1_1_0a_1(cdtAPIv1_1_0a_1* ptr)
+	CADET_API cdtResult cdtGetAPIv1_1_0a1(cdtAPIv1_1_0a1* ptr)
 	{
 		if (!ptr)
 			return cdtErrorInvalidInputs;
