@@ -233,16 +233,16 @@ namespace model
 				const std::string particleType = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType();
 
 				if (particleType == "EQUILIBRIUM_PARTICLE")
-					LOG(Error) << "Frustum flow LRM not implemented, please use GRM, was called for unit " << uoId;
+					model = createFrustumFVLRM(uoId);
 				if (particleType == "HOMOGENEOUS_PARTICLE")
-					LOG(Error) << "Frustum flow LRMP not implemented, please use GRM, was called for unit " << uoId;
+					model = createFrustumFVLRMP(uoId);
 				else if (particleType == "GENERAL_RATE_PARTICLE")
 					model = createFrustumFVGRM(uoId);
 
 				paramProvider.popScope();
 			}
 			else
-				model = createRadialFVLRMP(uoId); // LRMP used for npartype = 0
+				model = createFrustumFVLRM(uoId); // LRMP used for npartype = 0
 		}
 		else
 		{
@@ -254,9 +254,9 @@ namespace model
 			else if (discName == "FV")
 			{
 				if (uoType == "FRUSTUM_LUMPED_RATE_MODEL_WITHOUT_PORES")
-					LOG(Error) << "Frustum flow LRM not implemented, please use GRM, was called for unit " << uoId;
+					model = createFrustumFVLRM(uoId);
 				else if (uoType == "FRUSTUM_LUMPED_RATE_MODEL_WITH_PORES")
-					LOG(Error) << "Frustum flow LRMP not implemented, please use GRM, was called for unit " << uoId;
+					model = createFrustumFVLRMP(uoId);
 				else if (uoType == "FRUSTUM_GENERAL_RATE_MODEL")
 					model = createFrustumFVGRM(uoId);
 			}

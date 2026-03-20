@@ -1855,6 +1855,7 @@ namespace model
 // Template instantiations
 template class LumpedRateModelWithPores<parts::AxialConvectionDispersionOperator>;
 template class LumpedRateModelWithPores<parts::RadialConvectionDispersionOperator>;
+template class LumpedRateModelWithPores<parts::FrustumConvectionDispersionOperator>;
 
 IUnitOperation* createAxialFVLRMP(UnitOpIdx uoId)
 {
@@ -1868,6 +1869,13 @@ IUnitOperation* createRadialFVLRMP(UnitOpIdx uoId)
 	typedef LumpedRateModelWithPores<parts::RadialConvectionDispersionOperator> RadialLRMP;
 
 	return new RadialLRMP(uoId);
+}
+
+IUnitOperation* createFrustumFVLRMP(UnitOpIdx uoId)
+{
+	typedef LumpedRateModelWithPores<parts::FrustumConvectionDispersionOperator> FrustumLRMP;
+
+	return new FrustumLRMP(uoId);
 }
 
 }  // namespace model
