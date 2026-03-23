@@ -28,21 +28,21 @@
 namespace
 {
 	constexpr double ln10 = 2.30258509299404568402;
-	constexpr double minSaltConcentration = 1e-30;
+	constexpr double minIonConcentration = 1e-30;
 	constexpr double softplusTransitionFactor = 20.0;
 	constexpr double minApparentCapacity = 1e-20;
 
 	template <typename T>
-	inline T stableActGate(T const& eta, T const& pKa, T const& saltAxis)
+	inline T stableActGate(T const& eta, T const& pKa, T const& IonAxis)
 	{
 		using std::pow;
-		return 1.0 / (1.0 + pow(10.0, eta * (pKa - saltAxis)));
+		return 1.0 / (1.0 + pow(10.0, eta * (pKa - IonAxis)));
 	}
 
 	template <>
-	inline double stableActGate<double>(double const& eta, double const& pKa, double const& saltAxis)
+	inline double stableActGate<double>(double const& eta, double const& pKa, double const& IonAxis)
 	{
-		const double x = ln10 * eta * (pKa - saltAxis);
+		const double x = ln10 * eta * (pKa - IonAxis);
 		if (x > 0.0)
 		{
 			const double e = std::exp(-x);
@@ -53,7 +53,7 @@ namespace
 		return 1.0 / (1.0 + e);
 	}
 
-	inline double stableActGateDerivSalt(double const eta, double const gate)
+	inline double stableActGateDerivIon(double const eta, double const gate)
 	{
 		return ln10 * eta * gate * (1.0 - gate);
 	}
@@ -159,7 +159,7 @@ namespace cadet
 		class AffinityComplexTitrationBindingBase : public ParamHandlerBindingModelBase<ParamHandler_t>
 		{
 		public:
-			AffinityComplexTitrationBindingBase() : _useSaltConc(false) {}
+			AffinityComplexTitrationBindingBase() : _useIonConc(false) {}
 
 			virtual ~AffinityComplexTitrationBindingBase() CADET_NOEXCEPT {}
 
@@ -179,10 +179,27 @@ namespace cadet
 						throw InvalidParameterException("Currently the ACT isotherm model supports at most one bound state per component");
 				}
 
-				if (paramProvider.exists("ACT_USE_ION_CONC"))
-					_useSaltConc = paramProvider.getBool("ACT_USE_ION_CONC");
+				const auto getBoolWithFallback = [&](const char* primaryName, const char* fallbackName, bool defaultValue)
+					{
+						if (paramProvider.exists(primaryName))
+							return paramProvider.getBool(primaryName);
+						if (paramProvider.exists(fallbackName))
+							return paramProvider.getBool(fallbackName);
+						return defaultValue;
+					};
 
-				if (!_useSaltConc)
+				const auto getDoubleArrayWithFallback = [&](const char* primaryName, const char* fallbackName) -> std::vector<double>
+					{
+						if (paramProvider.exists(primaryName))
+							return paramProvider.getDoubleArray(primaryName);
+						if (paramProvider.exists(fallbackName))
+							return paramProvider.getDoubleArray(fallbackName);
+						return std::vector<double>();
+					};
+
+				_useIonConc = getBoolWithFallback("ACT_USE_ION_CONC", "EXT_ACT_USE_ION_CONC", false);
+
+				if (!_useIonConc)
 				{
 					_cMidA.clear();
 					_cMidG.clear();
@@ -234,7 +251,7 @@ namespace cadet
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
-			bool _useSaltConc;
+			bool _useIonConc;
 			std::vector<double> _pKaA;
 			std::vector<double> _pKaG;
 			std::vector<double> _cMidA;
@@ -254,8 +271,8 @@ namespace cadet
 				// Protein fluxes
 				ResidualType qSum = 0.0;
 				unsigned int bndIdx = 0;
-				const CpStateParamType saltAxis = !_useSaltConc ? yCp[0] : -log(yCp[0] + static_cast<ParamType>(minSaltConcentration)) / static_cast<ParamType>(ln10);
-				const ParamType saltAxisParam = static_cast<ParamType>(saltAxis);
+				const CpStateParamType IonAxis = !_useIonConc ? yCp[0] : -log(yCp[0] + static_cast<ParamType>(minIonConcentration)) / static_cast<ParamType>(ln10);
+				const ParamType IonAxisParam = static_cast<ParamType>(IonAxis);
 				for (int i = 0; i < _nComp; ++i)
 				{
 					// Skip components without bound states (bound state index bndIdx is not advanced)
@@ -278,10 +295,10 @@ namespace cadet
 						continue;
 
 					// Residual
-					const ParamType pKaAaxis = !_useSaltConc ? static_cast<ParamType>(_pKaA[i]) : -log(static_cast<ParamType>(_cMidA[i]) + static_cast<ParamType>(minSaltConcentration)) / static_cast<ParamType>(ln10);
-					const ParamType pKaGaxis = !_useSaltConc ? static_cast<ParamType>(_pKaG[i]) : -log(static_cast<ParamType>(_cMidG[i]) + static_cast<ParamType>(minSaltConcentration)) / static_cast<ParamType>(ln10);
-					const ResParamType f_A = stableActGate(static_cast<ParamType>(p->etaA[i]), pKaAaxis, saltAxisParam);
-					const ResParamType f_G = stableActGate(static_cast<ParamType>(p->etaG[i]), pKaGaxis, saltAxisParam);
+					const ParamType pKaAaxis = !_useIonConc ? static_cast<ParamType>(_pKaA[i]) : -log(static_cast<ParamType>(_cMidA[i]) + static_cast<ParamType>(minIonConcentration)) / static_cast<ParamType>(ln10);
+					const ParamType pKaGaxis = !_useIonConc ? static_cast<ParamType>(_pKaG[i]) : -log(static_cast<ParamType>(_cMidG[i]) + static_cast<ParamType>(minIonConcentration)) / static_cast<ParamType>(ln10);
+					const ResParamType f_A = stableActGate(static_cast<ParamType>(p->etaA[i]), pKaAaxis, IonAxisParam);
+					const ResParamType f_G = stableActGate(static_cast<ParamType>(p->etaG[i]), pKaGaxis, IonAxisParam);
 
 					const ResParamType qApp = static_cast<ParamType>(p->qMax[i]) * f_A;
 					const ResParamType qFree_local = qApp - qSum;
@@ -306,8 +323,9 @@ namespace cadet
 				// Protein flux
 				double qsum = 0.0;
 				int bndIdx = 0;
-				const double saltAxis = !_useSaltConc ? yCp[0] : -std::log(yCp[0] + minSaltConcentration) / ln10;
-				const double dSaltAxis_dC0 = !_useSaltConc ? 1.0 : -1.0 / ((yCp[0] + minSaltConcentration) * ln10);
+				const double IonAxis = !_useIonConc ? yCp[0] : -std::log(yCp[0] + minIonConcentration) / ln10;
+				const double dIonAxis_dC0 = !_useIonConc ? 1.0 : -1.0 / ((yCp[0] + minIonConcentration) * ln10);
+
 				for (int i = 0; i < _nComp; ++i)
 				{
 					// Skip components without bound states
@@ -327,32 +345,56 @@ namespace cadet
 					if (_nBoundStates[i] == 0)
 						continue;
 
-					// local variables to aid the calculation of the jacobian
-					const double pKaAaxis = !_useSaltConc ? _pKaA[i] : -std::log(_cMidA[i] + minSaltConcentration) / ln10;
-					const double pKaGaxis = !_useSaltConc ? _pKaG[i] : -std::log(_cMidG[i] + minSaltConcentration) / ln10;
-					const double f_A = stableActGate(static_cast<double>(p->etaA[i]), pKaAaxis, saltAxis);
-					const double f_G = stableActGate(static_cast<double>(p->etaG[i]), pKaGaxis, saltAxis);
+					// Local variables to aid the calculation of the Jacobian
+					const double pKaAaxis = !_useIonConc ? _pKaA[i] : -std::log(_cMidA[i] + minIonConcentration) / ln10;
+					const double pKaGaxis = !_useIonConc ? _pKaG[i] : -std::log(_cMidG[i] + minIonConcentration) / ln10;
 
-					const double f_A_deriv = stableActGateDerivSalt(static_cast<double>(p->etaA[i]), f_A);
-					const double f_G_deriv = stableActGateDerivSalt(static_cast<double>(p->etaG[i]), f_G);
+					const double f_A = stableActGate(static_cast<double>(p->etaA[i]), pKaAaxis, IonAxis);
+					const double f_G = stableActGate(static_cast<double>(p->etaG[i]), pKaGaxis, IonAxis);
+
+					const double f_A_deriv = stableActGateDerivIon(static_cast<double>(p->etaA[i]), f_A);
+					const double f_G_deriv = stableActGateDerivIon(static_cast<double>(p->etaG[i]), f_G);
 
 					const double qApp = static_cast<double>(p->qMax[i]) * f_A;
 					const double qFree_local = qApp - qsum;
 					const double qScale = (qApp > minApparentCapacity) ? qApp : minApparentCapacity;
 					const double beta = softplusTransitionFactor / qScale;
+					const double bx = beta * qFree_local;
 					const double qFree_eff = softplusScaled(qFree_local, beta);
-					const double dqFreeEff_dqFree = sigmoid(beta * qFree_local);
+					const double dqFreeEff_dqFree = sigmoid(bx);
 
-					const double qmax_times_ka = static_cast<double>(p->kA[i]) * static_cast<double>(p->qMax[i]);
-					const double kA_times_fG = static_cast<double>(p->kA[i]) * f_G;
+					const double kA_i = static_cast<double>(p->kA[i]);
+					const double kD_i = static_cast<double>(p->kD[i]);
+					const double qMax_i = static_cast<double>(p->qMax[i]);
+
+					const double kA_times_fG = kA_i * f_G;
 
 					// dres_i / dc_{p,i}
 					jac[i - bndIdx - offsetCp] = -kA_times_fG * qFree_eff;
 					// Getting to c_{p,i}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +i to c_{p,i}.
 					//                     This means jac[i - bndIdx - offsetCp] corresponds to c_{p,i}.
 
-					// dres_i / d(salt axis), the first component is the selected salt representation
-					jac[-bndIdx - offsetCp] = -(qmax_times_ka * f_G * f_A_deriv * dqFreeEff_dqFree + static_cast<double>(p->kA[i]) * f_G_deriv * qFree_eff) * yCp[i] * dSaltAxis_dC0;
+					// dres_i / d(Ion axis), including the beta(qApp(IonAxis)) dependence
+					const double dqApp_dIonAxis = qMax_i * f_A_deriv;
+
+					double dsoftplus_dbeta = 0.0;
+					double dbeta_dIonAxis = 0.0;
+
+					if (qApp > minApparentCapacity)
+					{
+						const double logTerm = (bx > 0.0)
+							? (bx + std::log1p(std::exp(-bx)))
+							: std::log1p(std::exp(bx));
+
+						dsoftplus_dbeta = (beta * qFree_local * dqFreeEff_dqFree - logTerm) / (beta * beta);
+						dbeta_dIonAxis = -(beta / qApp) * dqApp_dIonAxis;
+					}
+
+					const double dqFreeEff_dIonAxis =
+						dqFreeEff_dqFree * dqApp_dIonAxis + dsoftplus_dbeta * dbeta_dIonAxis;
+
+					jac[-bndIdx - offsetCp] =
+						-kA_i * yCp[i] * (f_G_deriv * qFree_eff + f_G * dqFreeEff_dIonAxis) * dIonAxis_dC0;
 
 					// Fill dres_i / dq_j
 					int bndIdx2 = 0;
@@ -370,7 +412,7 @@ namespace cadet
 					}
 
 					// Add to dres_i / dq_i, part 2
-					jac[0] += static_cast<double>(p->kD[i]);
+					jac[0] += kD_i;
 
 					// Advance to next flux and Jacobian row
 					++bndIdx;

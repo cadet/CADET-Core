@@ -112,14 +112,3 @@ The first component is either ion concentration (:math:`c_{\mathrm{H}^+}`, :math
 ===================  =========================  =========================================
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
 ===================  =========================  =========================================
-
-
-``ACT_OMEGA``
-   Optional. Exponent :math:`\omega_j` that can be applied to :math:`f_{G,j}` and main component concentration :math:`c`.
-   Default is :math:`1`.
-
-**Unit:** :math:`1`
-
-===================  =============================  ==================================
-**Type:** double     **Range:** :math:`\mathbb{R}`   **Length:** NCOMP
-===================  =============================  ==================================

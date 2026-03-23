@@ -3,10 +3,10 @@
 Affinity Complex Titration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The affinity complex titration (ACT) isotherm is a modified Langmuir isotherm where both the binding capacity and equilibrium constant are dependent on pH via a Hill-type relationship :cite:`Zhang2025ACT`. 
-pH, rather than the proton concentration, is treated as a mobile phase modulator with a concentration. Multiple bound state is not supported. 
-The current implementation requires the first component to be pH and non-binding. Although the original derivation and the equation shown below is based on pH, the mobile phase modulator can also be any type of salt. 
-The ACT isotherm reads:
+The affinity complex titration (ACT) isotherm is a modified Langmuir isotherm where both the binding capacity and equilibrium constant are dependent on pH or ion concentration via a Hill-type relationship :cite:`Zhang2025ACT`. 
+pH or ion concentration is treated as a mobile phase modulator. Multiple bound state is not supported. 
+The current implementation requires the first component to be non-binding. Although the original derivation and the equation shown below is based on pH, the mobile phase modulator can also be any type of ion, see :cite:`Zhang2025ACT` Appendix for more information.
+The ACT isotherm for pH is given as:
 
 .. math::
 
