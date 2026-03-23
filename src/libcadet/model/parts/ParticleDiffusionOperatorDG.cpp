@@ -479,19 +479,20 @@ namespace parts
 		return true && success;
 	}
 	/**
-	 * @brief calculates the physical radial/particle coordinates of the DG discretization with double! interface nodes
+	 * @brief calculates the physical radial/particle coordinates of the DG discretization with according interface node duplicates
 	 */
 	int ParticleDiffusionOperatorDG::writeParticleCoordinates(double* coords) const
 	{
-		active const* const pcr = _parCenterRadius.data();
+		double r_L = static_cast<double>(_parCoreRadius);
 
-		// Note that the DG particle shells are oppositely ordered compared to the FV particle shells
-		for (unsigned int par = 0; par < _nParPoints; par++) {
+		for (unsigned int elem = 0; elem < _nParElem; elem++)
+		{
+			r_L = elem > 0 ? r_L + static_cast<double>(_deltaR[elem - 1]) : r_L;
 
-			unsigned int cell = std::floor(par / _nParNode);
-
-			double r_L = static_cast<double>(pcr[cell]) - 0.5 * static_cast<double>(_deltaR[cell]);
-			coords[par] = r_L + 0.5 * static_cast<double>(_deltaR[cell]) * (1.0 + _parNodes[par % _nParNode]);
+			for (unsigned int node = 0; node < _nParNode; node++, coords++)
+			{
+				coords[0] = r_L + 0.5 * static_cast<double>(_deltaR[elem]) * (1.0 + _parNodes[node]);
+			}
 		}
 
 		return _nParPoints;
