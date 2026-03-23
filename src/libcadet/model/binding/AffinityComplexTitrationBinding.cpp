@@ -132,7 +132,7 @@ namespace
 
 /* Parameter description
  ------------------------
- All these parameters also need to be defined for pH/pIon, but not used in the computation. 
+ All these parameters also need to be defined for pH/pIon, but not used in the computation.
  kA = Adsorption rate
  kD = Desorption rate
  qMax = Binding apacity
@@ -271,8 +271,9 @@ namespace cadet
 				// Protein fluxes
 				ResidualType qSum = 0.0;
 				unsigned int bndIdx = 0;
+				//const CpStateParamType IonAxis = !_useIonConc ? yCp[0] : -log(yCp[0] + static_cast<ParamType>(minIonConcentration)) / static_cast<ParamType>(ln10);
+				//const ParamType IonAxisParam = static_cast<ParamType>(IonAxis);
 				const CpStateParamType IonAxis = !_useIonConc ? yCp[0] : -log(yCp[0] + static_cast<ParamType>(minIonConcentration)) / static_cast<ParamType>(ln10);
-				const ParamType IonAxisParam = static_cast<ParamType>(IonAxis);
 				for (int i = 0; i < _nComp; ++i)
 				{
 					// Skip components without bound states (bound state index bndIdx is not advanced)
@@ -288,17 +289,26 @@ namespace cadet
 
 				// the first component is ion conc or negative log ion conc
 				bndIdx = 0;
-				for (int i = 0; i < _nComp; ++i)
+				for (unsigned int i = 0; i < _nComp; ++i)
 				{
 					// Skip components without bound states (bound state index bndIdx is not advanced)
 					if (_nBoundStates[i] == 0)
 						continue;
 
 					// Residual
-					const ParamType pKaAaxis = !_useIonConc ? static_cast<ParamType>(_pKaA[i]) : -log(static_cast<ParamType>(_cMidA[i]) + static_cast<ParamType>(minIonConcentration)) / static_cast<ParamType>(ln10);
-					const ParamType pKaGaxis = !_useIonConc ? static_cast<ParamType>(_pKaG[i]) : -log(static_cast<ParamType>(_cMidG[i]) + static_cast<ParamType>(minIonConcentration)) / static_cast<ParamType>(ln10);
-					const ResParamType f_A = stableActGate(static_cast<ParamType>(p->etaA[i]), pKaAaxis, IonAxisParam);
-					const ResParamType f_G = stableActGate(static_cast<ParamType>(p->etaG[i]), pKaGaxis, IonAxisParam);
+					const CpStateParamType pKaAaxis = !_useIonConc
+						? static_cast<CpStateParamType>(_pKaA[i])
+						: -log(static_cast<CpStateParamType>(_cMidA[i]) + static_cast<CpStateParamType>(minIonConcentration)) / static_cast<CpStateParamType>(ln10);
+
+					const CpStateParamType pKaGaxis = !_useIonConc
+						? static_cast<CpStateParamType>(_pKaG[i])
+						: -log(static_cast<CpStateParamType>(_cMidG[i]) + static_cast<CpStateParamType>(minIonConcentration)) / static_cast<CpStateParamType>(ln10);
+
+					const CpStateParamType etaAaxis = static_cast<CpStateParamType>(p->etaA[i]);
+					const CpStateParamType etaGaxis = static_cast<CpStateParamType>(p->etaG[i]);
+
+					const ResParamType f_A = stableActGate(etaAaxis, pKaAaxis, IonAxis);
+					const ResParamType f_G = stableActGate(etaGaxis, pKaGaxis, IonAxis);
 
 					const ResParamType qApp = static_cast<ParamType>(p->qMax[i]) * f_A;
 					const ResParamType qFree_local = qApp - qSum;
