@@ -1860,7 +1860,8 @@ CADET_BINDINGTEST("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITRATION"
 	        "ACT_ETAA": [0.0, 1.81],
 	        "ACT_ETAG": [0.0, 2.28],
 	        "ACT_PKAA": [0.0, 2.07],
-            "ACT_PKAG": [0.0, 5.29]
+            "ACT_PKAG": [0.0, 5.29],
+            "ACT_USE_ION_CONC": 0 
 	)json", \
 	R"json( "ACT_KA": [1.0, 1.0, 1386.9],
 	        "ACT_KD": [1.0, 1.0, 1.0],
@@ -1868,7 +1869,8 @@ CADET_BINDINGTEST("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITRATION"
 	        "ACT_ETAA": [0.0, 0.0, 1.81],
 	        "ACT_ETAG": [0.0, 0.0, 2.28],
 	        "ACT_PKAA": [0.0, 0.0, 2.07],
-            "ACT_PKAG": [0.0, 0.0, 5.29]
+            "ACT_PKAG": [0.0, 0.0, 5.29],
+            "ACT_USE_ION_CONC": 0 
 	)json", \
 	R"json( "EXT_ACT_KA": [0.0, 0.0],
 	        "EXT_ACT_KA_T": [1.0, 1386.9],
@@ -1897,7 +1899,8 @@ CADET_BINDINGTEST("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITRATION"
 	        "EXT_ACT_PKAG": [0.0, 0.0],
 	        "EXT_ACT_PKAG_T": [0.0, 5.29],
 	        "EXT_ACT_PKAG_TT": [0.0, 0.0],
-	        "EXT_ACT_PKAG_TTT": [0.0, 0.0]
+	        "EXT_ACT_PKAG_TTT": [0.0, 0.0],
+            "EXT_ACT_USE_ION_CONC": 0 
 	)json", \
 	R"json( "EXT_ACT_KA": [0.0, 0.0, 0.0],
 	        "EXT_ACT_KA_T": [1.0, 1.0, 1386.9],
@@ -1926,7 +1929,8 @@ CADET_BINDINGTEST("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITRATION"
 	        "EXT_ACT_PKAG": [0.0, 0.0, 0.0],
 	        "EXT_ACT_PKAG_T": [0.0, 0.0, 5.29],
 	        "EXT_ACT_PKAG_TT": [0.0, 0.0, 0.0],
-	        "EXT_ACT_PKAG_TTT": [0.0, 0.0, 0.0]
+	        "EXT_ACT_PKAG_TTT": [0.0, 0.0, 0.0],
+            "EXT_ACT_USE_ION_CONC": 0 
 	)json", \
 	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_USED, CADET_COMPARE_BINDING_VS_NONBINDING)
 

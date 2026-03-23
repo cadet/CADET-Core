@@ -114,14 +114,14 @@ namespace
 
 /* Parameter description
  ------------------------
- All these parameters also need to be defined for pH
+ All these parameters also need to be defined for pH/pIon, but not used in the computation. 
  kA = Adsorption rate
  kD = Desorption rate
  qMax = Binding apacity
- etaA = Slope for the binding capacity changes against pH
- pKaA = Center for the binding capacity changes against pH
- etaG = Slope for the equilibrium constant changes against pH
- pKaG = Center for the equilibrium constant changes against pH
+ etaA = Slope for the binding capacity changes against pH/pIon
+ pKaA = Center for the binding capacity changes against pH/pIon
+ etaG = Slope for the equilibrium constant changes against pH/pIon
+ pKaG = Center for the equilibrium constant changes against pH/pIon
  omega = Exponent that can be optionally applied to fG and concentration c
 */
 
@@ -169,7 +169,7 @@ namespace cadet
 			{
 				const bool res = BindingModelBase::configureModelDiscretization(paramProvider, nComp, nBound, boundOffset);
 
-				// Guarantee that pH is not a bound speies
+				// Guarantee that the first component is not a bound speies
 				if (nBound[0] != 0)
 					throw InvalidParameterException("Affinity complex titration binding model requires the first component to be non-binding");
 
@@ -269,7 +269,7 @@ namespace cadet
 					++bndIdx;
 				}
 
-				// the first component is pH
+				// the first component is ion conc or negative log ion conc
 				bndIdx = 0;
 				for (int i = 0; i < _nComp; ++i)
 				{
