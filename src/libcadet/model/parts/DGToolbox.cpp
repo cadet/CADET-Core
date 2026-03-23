@@ -113,6 +113,67 @@ void lglNodesWeights(const unsigned int polyDeg, VectorXd& nodes, VectorXd& invW
 	invWeights = invWeights.cwiseInverse();
 }
 /**
+ * @brief computes the Chebyshev-Gauss-Lobatto nodes and Clenshaw-Curtis quadrature weights
+ * @param [in] polyDeg polynomial degree
+ * @param [in, out] nodes Chebyshev Gauss Lobatto nodes
+ * @param [in, out] invWeights Clenshaw-Curtis quadrature weights
+ * @param [in] invertWeights specifies if weights should be inverted
+ */
+void cglNodesWeights(const unsigned int polyDeg, VectorXd& nodes, VectorXd& invWeights, bool invertWeights)
+{
+	const double pi = 3.1415926535897932384626434;
+	const unsigned int N = polyDeg;
+
+	if (N == 0)
+		throw std::invalid_argument("Polynomial degree must be at least 1 !");
+
+	// CGL nodes: x_j = -cos(pi * j / N), j = 0, ..., N
+	for (unsigned int j = 0; j <= N; j++)
+		nodes[j] = -std::cos(pi * j / N);
+
+	// Clenshaw-Curtis weights via DCT-based formula
+	// w_0 = w_N = 1/(N^2 - 1) for even N, 1/N^2 for odd N
+	// Interior weights computed from the closed-form formula
+	for (unsigned int j = 0; j <= N; j++)
+	{
+		double w = 0.0;
+		for (unsigned int k = 1; k <= N / 2; k++)
+		{
+			double b = (k == N / 2 && N % 2 == 0) ? 1.0 : 2.0;
+			w += b / (4.0 * k * k - 1.0) * std::cos(2.0 * pi * k * j / N);
+		}
+		invWeights[j] = (1.0 - w) * 2.0 / N;
+		if (j == 0 || j == N)
+			invWeights[j] *= 0.5;
+	}
+
+	if (invertWeights)
+		invWeights = invWeights.cwiseInverse();
+}
+/**
+ * @brief computes the Chebyshev-Gauss (interior) nodes and quadrature weights
+ * @param [in] polyDeg polynomial degree (N where N+1 is number of points)
+ * @param [in, out] nodes Chebyshev Gauss nodes
+ * @param [in, out] weights Chebyshev Gauss quadrature weights
+ * @param [in] invertWeights specifies if weights should be inverted
+ */
+void cgNodesWeights(const unsigned int polyDeg, VectorXd& nodes, VectorXd& weights, bool invertWeights)
+{
+	const double pi = 3.1415926535897932384626434;
+	const unsigned int N = polyDeg + 1; // number of points
+
+	// CG nodes: x_j = -cos((2j+1)/(2N) * pi), j = 0, ..., N-1
+	for (unsigned int j = 0; j < N; j++)
+		nodes[j] = -std::cos((2.0 * j + 1.0) / (2.0 * N) * pi);
+
+	// Chebyshev-Gauss quadrature weights: w_j = pi / N
+	for (unsigned int j = 0; j < N; j++)
+		weights[j] = pi / N;
+
+	if (invertWeights)
+		weights = weights.cwiseInverse();
+}
+/**
  * @brief computes the Legendre polynomial and its derivative
  * @param [in] polyDeg polynomial degree
  * @param [in, out] leg Legendre polynomial

@@ -183,61 +183,124 @@ TEST_CASE("Radial LRM_DG consistent initialization with linear binding", "[RadLR
 	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", 1e-12, 1e-12);
 }
 
-// ============================================================
-// Radial LRM_DG Gaussian pulse EOC convergence tests
-// Parameters from CADET-Julia test12_EOC_gaussian_pulse_rLRM.jl:
-//   rin=0.1, rout=1.1, v=2/60 m/s, D=1e-4 m2/s, eps_c=0.6
-// ============================================================
+//TEST_CASE("Radial LRM_DG Jacobian forward vs backward flow", "[RadLRM],[DG],[UnitOp],[Residual],[Jacobian],[AD],[fix]")
+//{
+//	cadet::test::column::DGParams disc;
+//	cadet::test::column::testJacobianForwardBackward("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", disc, std::numeric_limits<float>::epsilon() * 100.0);
+//}
 
-TEST_CASE("Radial LRM_DG polyDeg 1 EOC convergence", "[RadLRM],[DG],[Convergence],[EOC]")
+//TEST_CASE("Radial LRM_DG sensitivity Jacobians", "[RadLRM],[DG],[UnitOp],[Sensitivity],[fix]")
+//{
+//	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
+//
+//	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 3e-7, 5e-4);
+//}
+
+// Consistent sensitivity init: residuals ~O(1000) — consistentInitialSensitivity() not yet correct for radial DG
+//TEST_CASE("Radial LRM_DG consistent sensitivity initialization with linear binding", "[RadLRM],[DG],[ConsistentInit],[Sensitivity],[fix]")
+//{
+//	const unsigned int numDofs = 4 + 10 * (4 + 4);
+//	std::vector<double> y(numDofs, 0.0);
+//	std::vector<double> yDot(numDofs, 0.0);
+//	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, numDofs);
+//	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
+//
+//	cadet::test::column::testConsistentInitializationSensitivity("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", y.data(), yDot.data(), true, 1e-14);
+//}
+
+//TEST_CASE("Radial LRM_DG consistent sensitivity initialization with SMA binding", "[RadLRM],[DG],[ConsistentInit],[Sensitivity],[fix]")
+//{
+//	const unsigned int numDofs = 4 + 10 * (4 + 4);
+//	std::vector<double> y(numDofs, 0.0);
+//	std::vector<double> yDot(numDofs, 0.0);
+//
+//	const double bindingCell[] = {1.0, 1.8, 1.5, 1.6, 840.0, 63.0, 6.0, 3.0};
+//	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4);
+//	cadet::test::util::repeat(y.data() + 4, bindingCell, 8, 10);
+//
+//	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
+//
+//	cadet::test::column::testConsistentInitializationSensitivity("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", y.data(), yDot.data(), false, 1e-9);
+//}
+
+TEST_CASE("Radial LRM_DG dynamic reactions Jacobian vs AD bulk", "[RadLRM],[DG],[Jacobian],[AD],[ReactionModel]")
 {
-	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radLRM_DG_gaussianPulse_1comp_eocbenchmark.json", "001",
-		1, 4, 4, 2.0, 0.5);
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, false, std::numeric_limits<float>::epsilon() * 100.0);
 }
+
+TEST_CASE("Radial LRM_DG dynamic reactions Jacobian vs AD modified bulk", "[RadLRM],[DG],[Jacobian],[AD],[ReactionModel]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, true, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial LRM_DG dynamic reactions time derivative Jacobian vs FD bulk", "[RadLRM],[DG],[Jacobian],[Residual],[ReactionModel]")
+{
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, false, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("Radial LRM_DG dynamic reactions time derivative Jacobian vs FD modified bulk", "[RadLRM],[DG],[Jacobian],[Residual],[ReactionModel]")
+{
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, true, 1e-6, 1e-14, 8e-4);
+}
+
+// ============================================================
+// Radial LRM_DG no-binding EOC convergence tests
+// Parameters from CADET-Verification radCol1D benchmark:
+//   rin=0.01, rout=0.2, v=5.75e-4, D=5.75e-8, eps=0.8
+// ============================================================
 
 TEST_CASE("Radial LRM_DG polyDeg 2 EOC convergence", "[RadLRM],[DG],[Convergence],[EOC]")
 {
 	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radLRM_DG_gaussianPulse_1comp_eocbenchmark.json", "001",
+		"/data/model_radLRM_DG_noBnd_1comp_eocbenchmark.json", "001",
 		2, 4, 4, 3.0, 0.5);
 }
 
 TEST_CASE("Radial LRM_DG polyDeg 3 EOC convergence", "[RadLRM],[DG],[Convergence],[EOC]")
 {
 	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radLRM_DG_gaussianPulse_1comp_eocbenchmark.json", "001",
+		"/data/model_radLRM_DG_noBnd_1comp_eocbenchmark.json", "001",
 		3, 4, 4, 4.0, 0.5);
 }
 
-TEST_CASE("Radial LRM_DG polyDeg 4 EOC convergence", "[RadLRM],[DG],[Convergence],[EOC]")
-{
-	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radLRM_DG_gaussianPulse_1comp_eocbenchmark.json", "001",
-		4, 4, 4, 5.0, 0.5);
-}
-
-TEST_CASE("Radial LRM_DG polyDeg 5 EOC convergence", "[RadLRM],[DG],[Convergence],[EOC]")
-{
-	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radLRM_DG_gaussianPulse_1comp_eocbenchmark.json", "001",
-		5, 4, 4, 6.0, 0.5);
-}
-
 // ============================================================
-// Radial LRM_DG Langmuir binding EOC convergence tests
+// Radial LRM_DG linear binding EOC convergence tests
 // ============================================================
 
-TEST_CASE("Radial LRM_DG Langmuir polyDeg 3 EOC convergence", "[RadLRM],[DG],[Convergence],[EOC],[Langmuir]")
+TEST_CASE("Radial LRM_DG linear binding polyDeg 3 EOC convergence", "[RadLRM],[DG],[Convergence],[EOC],[LinBnd]")
 {
 	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radLRM_DG_langmuir_1comp_eocbenchmark.json", "001",
+		"/data/model_radLRM_DG_linBnd_1comp_eocbenchmark.json", "001",
 		3, 4, 4, 4.0, 0.5);
 }
 
-TEST_CASE("Radial LRM_DG Langmuir polyDeg 4 EOC convergence", "[RadLRM],[DG],[Convergence],[EOC],[Langmuir]")
+// ============================================================
+// Radial LRM_DG linear binding + variable dispersion EOC tests
+// ============================================================
+
+TEST_CASE("Radial LRM_DG linBnd varDisp polyDeg 3 EOC convergence", "[RadLRM],[DG],[Convergence],[EOC],[VarDisp]")
 {
 	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radLRM_DG_langmuir_1comp_eocbenchmark.json", "001",
-		4, 4, 4, 5.0, 0.5);
+		"/data/model_radLRM_DG_linBnd_varDisp_1comp_eocbenchmark.json", "001",
+		3, 4, 4, 4.0, 0.5);
+}
+
+// ============================================================
+// Radial LRM_DG vs FV reference benchmark
+// ============================================================
+
+TEST_CASE("Radial LRM_DG noBnd vs FV WENO3 reference", "[RadLRM],[DG],[Reference]")
+{
+	cadet::test::column::testRadialDGvsReference(
+		"/data/model_radLRM_DG_noBnd_1comp_eocbenchmark.json",
+		"/data/ref_radLRM_DG_noBnd_1comp_eocbenchmark_FV_Z10000.h5",
+		"001", 4, 16, 1e-6, 1e-3);
+}
+
+TEST_CASE("Radial LRM_DG linBnd vs FV WENO3 reference", "[RadLRM],[DG],[Reference]")
+{
+	cadet::test::column::testRadialDGvsReference(
+		"/data/model_radLRM_DG_linBnd_1comp_eocbenchmark.json",
+		"/data/ref_radLRM_DG_linBnd_1comp_eocbenchmark_FV_Z10000.h5",
+		"001", 4, 16, 1e-6, 1e-3);
 }

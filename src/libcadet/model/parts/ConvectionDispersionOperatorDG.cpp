@@ -1241,6 +1241,10 @@ bool RadialConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, IP
 	// Register velocity coefficient
 	registerScalarSectionDependentParam(hashString("VELOCITY_COEFF"), parameters, _velocity, unitOpIdx, ParTypeIndep);
 
+	// Register radii
+	parameters[makeParamId(hashString("COL_RADIUS_INNER"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_innerRadius;
+	parameters[makeParamId(hashString("COL_RADIUS_OUTER"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_outerRadius;
+
 	// Read dispersion coefficient
 	readScalarParameterOrArray(_colDispersion, paramProvider, "COL_DISPERSION", 1);
 	if (paramProvider.exists("COL_DISPERSION_MULTIPLEX"))

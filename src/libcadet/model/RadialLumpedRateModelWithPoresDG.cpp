@@ -241,27 +241,26 @@ namespace cadet
 
 			paramProvider.pushScope("particle_type_000");
 
-			if (paramProvider.exists("adsorption_model"))
 			{
-				bool bindingConfSuccess = true;
-				paramProvider.pushScope("adsorption");
+				std::string bindModelName = "NONE";
+				if (paramProvider.exists("ADSORPTION_MODEL"))
+					bindModelName = paramProvider.getString("ADSORPTION_MODEL");
 
-				const std::string bindModelName = paramProvider.getString("ADSORPTION_MODEL");
 				_binding[0] = helper.createBindingModel(bindModelName);
 				if (!_binding[0])
 					throw InvalidParameterException("Unknown binding model " + bindModelName);
 
-				bindingConfSuccess = _binding[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
-
-				paramProvider.popScope();
-
-				if (!bindingConfSuccess)
-					throw InvalidParameterException("Failed to configure binding model for particle type 000");
-			}
-			else
-			{
-				_binding[0] = helper.createBindingModel("NONE");
-				_binding[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
+				if (bindModelName != "NONE" && paramProvider.exists("adsorption"))
+				{
+					paramProvider.pushScope("adsorption");
+					if (!_binding[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset))
+						throw InvalidParameterException("Failed to configure binding model for particle type 000");
+					paramProvider.popScope();
+				}
+				else
+				{
+					_binding[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
+				}
 			}
 
 			// ==== Configure dynamic reaction model
@@ -400,39 +399,22 @@ namespace cadet
 
 		void RadialLumpedRateModelWithPoresDG::computeFilmDiffusionMatrices()
 		{
-			const unsigned int nNodes = _disc.nNodes;
-			const double deltaRho = static_cast<double>(_convDispOp.columnLength()) / _disc.nElem;
-
-			// Get film diffusion coefficient (use first component for now)
-			const active kf = _filmDiffusion.size() > 0 ? _filmDiffusion[0] : active(1.0);
-
 			for (unsigned int cell = 0; cell < _disc.nElem; ++cell)
 			{
-				const double rho_left = _convDispOp.elemLeftBound(cell);
-
 				if (!_variableFilmDiff)
 				{
-					// Constant k_f: M_K = k_f * M_rho
-					_M_K[cell] = static_cast<double>(kf) * _convDispOp.MRho(cell);
+					// Constant k_f: invMRho * MRho = I analytically.
+					// Use identity directly to avoid numerical roundoff from invMRho * MRho.
+					// k_f is applied per-component in the residual.
+					_M_K[cell] = _convDispOp.MRho(cell);
+					_filmDiffCoupling[cell] = Eigen::MatrixXd::Identity(_disc.nNodes, _disc.nNodes);
 				}
 				else
 				{
-					// Variable k_f: use radialFilmDiffusionMatrix from DGToolbox
-					Eigen::VectorXd kfAtNodes(_disc.nNodes);
-					for (unsigned int node = 0; node < nNodes; ++node)
-					{
-						kfAtNodes[node] = static_cast<double>(kf); // Will be updated per-component
-					}
-					// Convert LGLnodes to Eigen::VectorXd
-					Eigen::VectorXd LGLnodes_eigen(_disc.nNodes);
-					for (unsigned int i = 0; i < _disc.nNodes; ++i)
-						LGLnodes_eigen[i] = _convDispOp.LGLnodes()[i];
-					_M_K[cell] = parts::dgtoolbox::radialFilmDiffusionMatrix(
-						_disc.polyDeg, LGLnodes_eigen, rho_left, deltaRho, kfAtNodes);
+					// Variable k_f: placeholder, will be recomputed per-component in updateFilmDiffusionValues
+					_M_K[cell] = _convDispOp.MRho(cell);
+					_filmDiffCoupling[cell] = _convDispOp.invMRho(cell) * _M_K[cell];
 				}
-
-				// Precompute M_ρ^{-1} * M_K for each cell
-				_filmDiffCoupling[cell] = _convDispOp.invMRho(cell) * _M_K[cell];
 			}
 		}
 
@@ -648,8 +630,9 @@ namespace cadet
 			bool success = true;
 
 			// Compute Jacobian if requested
+			const bool recomputeJac = wantJac && (!wantRes || _disc.newStaticJac);
 			if (wantJac) {
-				if (!wantRes || _disc.newStaticJac) {
+				if (recomputeJac) {
 					success = _convDispOp.calcTransportJacobian(_jac, _jacInlet);
 					_disc.newStaticJac = false;
 				}
@@ -675,13 +658,17 @@ namespace cadet
 			const ParamType epsP = static_cast<ParamType>(_parPorosity);
 
 			const active* const poreAccFactor = _poreAccessFactor.data();
+			const active* const filmDiffSlice = getSectionDependentSlice(_filmDiffusion, _disc.nComp, secIdx);
 
 			// Process each component
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
-				// Update film diffusion if variable
+				// Update film diffusion coupling matrices for this component
 				if (_variableFilmDiff)
 					updateFilmDiffusionValues(secIdx, comp);
+
+				// Per-component k_f for constant case (variable case already baked into _filmDiffCoupling)
+				const ParamType kf_comp = static_cast<ParamType>(filmDiffSlice[comp]);
 
 				// Process each cell
 				for (unsigned int cell = 0; cell < _disc.nElem; ++cell)
@@ -698,14 +685,17 @@ namespace cadet
 						cp_cell[node] = y_[idxr.offsetCp() + comp + (cellOffset + node) * idxr.strideParNode()];
 					}
 
-					// Compute film diffusion term: filmDiff = Q * M_ρ^{-1} * M_K * (c - cp)
+					// Compute film diffusion term: filmDiff = Q * k_f * M_ρ^{-1} * M_K * (c - cp)
+					// For constant k_f: _filmDiffCoupling = invMRho * M_rho = I, so k_f is applied here
+					// For variable k_f: _filmDiffCoupling already includes k_f from updateFilmDiffusionValues
 					Eigen::Matrix<StateType, Eigen::Dynamic, 1> diff_cp = c_cell - cp_cell;
 					Eigen::Matrix<StateType, Eigen::Dynamic, 1> filmTermState = _filmDiffCoupling[cell].template cast<StateType>() * diff_cp;
 
-					// Scale by Q and convert to ResidualType (element-wise to handle AD types)
+					// Scale by Q * k_f (constant case) or Q (variable case, k_f already in coupling)
 					Eigen::Matrix<ResidualType, Eigen::Dynamic, 1> filmTerm(_disc.nNodes);
+					const ParamType filmScale = _variableFilmDiff ? Q : (Q * kf_comp);
 					for (unsigned int node = 0; node < _disc.nNodes; ++node)
-						filmTerm[node] = filmTermState[node] * Q;
+						filmTerm[node] = filmTermState[node] * filmScale;
 
 					if (wantRes)
 					{
@@ -727,11 +717,15 @@ namespace cadet
 						}
 					}
 
-					// Film diffusion Jacobian entries
-					if (wantJac)
+					// Film diffusion Jacobian entries (only recompute when transport Jacobian is recomputed,
+					// to avoid accumulating += entries on every residual call)
+					if (recomputeJac)
 					{
-						const double FcQd = static_cast<double>(Fc) * static_cast<double>(Q);
-						const double invEpsPAcc = 1.0 / (static_cast<double>(epsP) * static_cast<double>(poreAccFactor[comp]));
+						// For constant k_f: k_f factored out of _filmDiffCoupling, apply here
+					// For variable k_f: k_f already in _filmDiffCoupling, scale = 1
+					const double kf_jac = _variableFilmDiff ? 1.0 : static_cast<double>(filmDiffSlice[comp]);
+						const double FcQd = static_cast<double>(Fc) * static_cast<double>(Q) * kf_jac;
+						const double QkfInvEpsPAcc = static_cast<double>(Q) * kf_jac / (static_cast<double>(epsP) * static_cast<double>(poreAccFactor[comp]));
 						const int poreOffset = _disc.nPoints * _disc.nComp;
 
 						for (unsigned int node = 0; node < _disc.nNodes; ++node)
@@ -753,17 +747,17 @@ namespace cadet
 								// Pore col
 								const int poreCol = poreOffset + (cellOffset + node2) * idxr.strideParNode() + comp;
 
-								// Bulk row: d(res_c)/d(c) += Fc * Q * filmCoeff
+								// Bulk row: d(res_c)/d(c) += Fc * Q * k_f * filmCoeff
 								linalg::BandedEigenSparseRowIterator jacBulk(_jac, bulkRow);
 								jacBulk[bulkCol - bulkRow] += FcQd * filmCoeff;
-								// Bulk row: d(res_c)/d(cp) += -Fc * Q * filmCoeff
+								// Bulk row: d(res_c)/d(cp) += -Fc * Q * k_f * filmCoeff
 								jacBulk[poreCol - bulkRow] += -FcQd * filmCoeff;
 
-								// Pore row: d(res_cp)/d(c) -= Q / (epsP * poreAccFactor) * filmCoeff
+								// Pore row: d(res_cp)/d(c) -= Q * k_f / (epsP * poreAccFactor) * filmCoeff
 								linalg::BandedEigenSparseRowIterator jacPore(_jac, poreRow);
-								jacPore[bulkCol - poreRow] += -static_cast<double>(Q) * invEpsPAcc * filmCoeff;
-								// Pore row: d(res_cp)/d(cp) += Q / (epsP * poreAccFactor) * filmCoeff
-								jacPore[poreCol - poreRow] += static_cast<double>(Q) * invEpsPAcc * filmCoeff;
+								jacPore[bulkCol - poreRow] += -QkfInvEpsPAcc * filmCoeff;
+								// Pore row: d(res_cp)/d(cp) += Q * k_f / (epsP * poreAccFactor) * filmCoeff
+								jacPore[poreCol - poreRow] += QkfInvEpsPAcc * filmCoeff;
 							}
 						}
 					}
@@ -895,7 +889,7 @@ namespace cadet
 		void RadialLumpedRateModelWithPoresDG::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
 		{
 			Indexer idxr(_disc);
-			const double invBetaP = 1.0 / static_cast<double>(_parPorosity) - 1.0;
+			const active* const poreAccFactor = _poreAccessFactor.data();
 
 			std::fill_n(ret, numDofs(), 0.0);
 
@@ -909,7 +903,7 @@ namespace cadet
 				}
 			}
 
-			// Pore phase: dcp/dt + Fp * sum_j dq_j/dt
+			// Pore phase: dcp/dt + invBetaP * sum_j dq_j/dt (always, regardless of quasi-stationarity)
 			for (unsigned int node = 0; node < _disc.nPoints; ++node)
 			{
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
@@ -917,20 +911,24 @@ namespace cadet
 					const unsigned int cpIdx = idxr.offsetCp() + comp + node * idxr.strideParNode();
 					ret[cpIdx] = sDot[cpIdx];
 
-					// Add bound state contributions
-					if (_binding[0] && !_binding[0]->reactionQuasiStationarity()[comp])
+					// Add bound state contributions (always present in cp equation, even for quasi-stationary)
+					const double invBetaP = (1.0 - static_cast<double>(_parPorosity)) /
+						(static_cast<double>(poreAccFactor[comp]) * static_cast<double>(_parPorosity));
+
+					for (unsigned int bnd = 0; bnd < _disc.nBound[comp]; ++bnd)
 					{
-						for (unsigned int bnd = 0; bnd < _disc.nBound[comp]; ++bnd)
-						{
-							const unsigned int qIdx = idxr.offsetCp() + idxr.strideParLiquid() + _disc.boundOffset[comp] + bnd + node * idxr.strideParNode();
-							ret[cpIdx] += invBetaP * sDot[qIdx];
-						}
+						const unsigned int qIdx = idxr.offsetCp() + idxr.strideParLiquid() + _disc.boundOffset[comp] + bnd + node * idxr.strideParNode();
+						ret[cpIdx] += invBetaP * sDot[qIdx];
 					}
 				}
 
-				// Bound states: dq/dt
+				// Bound states: dq/dt (only for kinetic, not quasi-stationary)
+				int const* const qsMask = _binding[0] ? _binding[0]->reactionQuasiStationarity() : nullptr;
 				for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
 				{
+					if (qsMask && qsMask[bnd])
+						continue;
+
 					const unsigned int qIdx = idxr.offsetCp() + idxr.strideParLiquid() + bnd + node * idxr.strideParNode();
 					ret[qIdx] = sDot[qIdx];
 				}
@@ -1018,7 +1016,7 @@ namespace cadet
 		{
 			_jacDisc = _jac;
 
-			const double invBetaP = 1.0 / static_cast<double>(_parPorosity) - 1.0;
+			const active* const poreAccFactor = _poreAccessFactor.data();
 
 			// Add time derivatives to bulk phase
 			for (unsigned int node = 0; node < _disc.nPoints; ++node)
@@ -1032,6 +1030,8 @@ namespace cadet
 
 			// Add time derivatives to pore phase
 			const unsigned int poreOffset = _disc.nPoints * _disc.nComp;
+			int const* const qsMask = _binding[0] ? _binding[0]->reactionQuasiStationarity() : nullptr;
+
 			for (unsigned int node = 0; node < _disc.nPoints; ++node)
 			{
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
@@ -1039,7 +1039,10 @@ namespace cadet
 					const unsigned int cpIdx = poreOffset + comp + node * idxr.strideParNode();
 					_jacDisc.coeffRef(cpIdx, cpIdx) += alpha;
 
-					// Coupling with bound states
+					// Coupling with bound states (always present, even for quasi-stationary)
+					const double invBetaP = (1.0 - static_cast<double>(_parPorosity)) /
+						(static_cast<double>(poreAccFactor[comp]) * static_cast<double>(_parPorosity));
+
 					for (unsigned int bnd = 0; bnd < _disc.nBound[comp]; ++bnd)
 					{
 						const unsigned int qIdx = poreOffset + idxr.strideParLiquid() + _disc.boundOffset[comp] + bnd + node * idxr.strideParNode();
@@ -1047,9 +1050,12 @@ namespace cadet
 					}
 				}
 
-				// Bound states
+				// Bound states (only kinetic, not quasi-stationary)
 				for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
 				{
+					if (qsMask && qsMask[bnd])
+						continue;
+
 					const unsigned int qIdx = poreOffset + idxr.strideParLiquid() + bnd + node * idxr.strideParNode();
 					_jacDisc.coeffRef(qIdx, qIdx) += alpha;
 				}
@@ -1145,9 +1151,15 @@ namespace cadet
 			for (unsigned int i = 0; i < _disc.nPoints * _disc.nComp; ++i)
 				simState.vecStateY[idxr.offsetC() + i] = static_cast<double>(_initC[i]);
 
-			// Pore phase
-			for (unsigned int i = 0; i < _disc.nPoints * _disc.nComp; ++i)
-				simState.vecStateY[idxr.offsetCp() + i] = static_cast<double>(_initCp[i]);
+			// Pore phase (cp is interleaved with q in memory: [cp0, q0, cp1, q1, ...])
+			for (unsigned int node = 0; node < _disc.nPoints; ++node)
+			{
+				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+				{
+					simState.vecStateY[idxr.offsetCp() + comp + node * idxr.strideParNode()] =
+						static_cast<double>(_initCp[node * _disc.nComp + comp]);
+				}
+			}
 
 			// Solid phase
 			for (unsigned int node = 0; node < _disc.nPoints; ++node)
@@ -1246,7 +1258,78 @@ namespace cadet
 			// Solve for consistent initial state if binding is quasi-stationary
 			if (_binding[0] && _binding[0]->hasQuasiStationaryReactions())
 			{
-				// TODO: Implement quasi-stationary binding initialization
+				Indexer idxr(_disc);
+				int const* const qsMask = _binding[0]->reactionQuasiStationarity();
+
+				// For each collocation point, solve the algebraic binding equations: flux(cp, q) = 0
+				for (unsigned int node = 0; node < _disc.nPoints; ++node)
+				{
+					double* const localState = vecStateY + idxr.offsetCp() + node * idxr.strideParNode();
+					double* const localQ = localState + _disc.nComp;
+					const double z = _convDispOp.relativeCoordinate(node);
+
+					// Newton iteration for the quasi-stationary binding equations
+					std::vector<double> fluxRes(_disc.strideBound, 0.0);
+					for (int iter = 0; iter < 100; ++iter)
+					{
+						LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+
+						// Compute binding flux: flux(q, cp) where y=q, yCp=cp
+						std::fill(fluxRes.begin(), fluxRes.end(), 0.0);
+						_binding[0]->flux(simTime.t, simTime.secIdx, ColumnPosition{z, 0.0, 0.0},
+							localQ, localState, fluxRes.data(), tlmAlloc);
+
+						// Check convergence
+						double maxRes = 0.0;
+						for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
+						{
+							if (qsMask[bnd])
+								maxRes = std::max(maxRes, std::abs(fluxRes[bnd]));
+						}
+						if (maxRes < errorTol)
+							break;
+
+						// Get Jacobian dflux/dq
+						// analyticJacobian writes to a row iterator starting at the solid phase
+						// We need a dense matrix for the Newton solve
+						Eigen::MatrixXd jacQ(_disc.strideBound, _disc.strideBound);
+						jacQ.setZero();
+
+						// Use AD or FD to compute Jacobian of flux w.r.t. q
+						const double eps = 1e-8;
+						std::vector<double> fluxPert(_disc.strideBound);
+						for (unsigned int j = 0; j < _disc.strideBound; ++j)
+						{
+							if (!qsMask[j])
+								continue;
+
+							const double orig = localQ[j];
+							localQ[j] = orig + eps;
+
+							std::fill(fluxPert.begin(), fluxPert.end(), 0.0);
+							LinearBufferAllocator tlmAlloc2 = threadLocalMem.get();
+							_binding[0]->flux(simTime.t, simTime.secIdx, ColumnPosition{z, 0.0, 0.0},
+								localQ, localState, fluxPert.data(), tlmAlloc2);
+
+							for (unsigned int i = 0; i < _disc.strideBound; ++i)
+								jacQ(i, j) = (fluxPert[i] - fluxRes[i]) / eps;
+
+							localQ[j] = orig;
+						}
+
+						// Solve jacQ * delta = -flux for quasi-stationary states only
+						Eigen::VectorXd rhs(_disc.strideBound);
+						for (unsigned int i = 0; i < _disc.strideBound; ++i)
+							rhs(i) = -fluxRes[i];
+
+						Eigen::VectorXd delta = jacQ.fullPivLu().solve(rhs);
+						for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
+						{
+							if (qsMask[bnd])
+								localQ[bnd] += delta(bnd);
+						}
+					}
+				}
 			}
 		}
 
@@ -1254,15 +1337,44 @@ namespace cadet
 		{
 			BENCH_SCOPE(_timerConsistentInit);
 
+			Indexer idxr(_disc);
+
 			// Compute residual with yDot = nullptr (skip time derivative terms)
 			// to get the spatial residual: res = f(y)
 			double* const res = _tempState;
 			residualImpl<double, double, double, false, true>(simTime.t, simTime.secIdx, vecStateY, nullptr, res, threadLocalMem);
 
-			// The equations are: 0 = yDot + f(y), so yDot = -f(y) = -res
+			// The system is M * yDot = -res(y, yDot=nullptr), where M is the mass matrix:
+			//   Bulk: M_c = I         => yDot_c = -res_c
+			//   Solid: M_q = I        => yDot_q = -res_q
+			//   Pore: M_cp = [I  B]   => yDot_cp + B * yDot_q = -res_cp
+			// where B = diag(invBetaP). Thus: yDot_cp = -res_cp - B * yDot_q
 			const unsigned int nDof = numDofs();
 			for (unsigned int i = 0; i < nDof; ++i)
 				vecStateYdot[i] = -res[i];
+
+			// Apply M^{-1} correction for cp-q coupling
+			if (_disc.strideBound > 0)
+			{
+				const active* const poreAccFactor = _poreAccessFactor.data();
+				for (unsigned int node = 0; node < _disc.nPoints; ++node)
+				{
+					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+					{
+						const double invBetaP = (1.0 - static_cast<double>(_parPorosity)) /
+							(static_cast<double>(poreAccFactor[comp]) * static_cast<double>(_parPorosity));
+
+						const unsigned int cpIdx = idxr.offsetCp() + comp + node * idxr.strideParNode();
+
+						for (unsigned int bnd = 0; bnd < _disc.nBound[comp]; ++bnd)
+						{
+							const unsigned int qIdx = idxr.offsetCp() + idxr.strideParLiquid() + _disc.boundOffset[comp] + bnd + node * idxr.strideParNode();
+							// yDot_cp -= invBetaP * yDot_q (where yDot_q = -res_q)
+							vecStateYdot[cpIdx] -= invBetaP * vecStateYdot[qIdx];
+						}
+					}
+				}
+			}
 
 			// Inlet DOFs have no time derivative
 			for (unsigned int i = 0; i < _disc.nComp; ++i)
@@ -1292,12 +1404,36 @@ namespace cadet
 
 		void RadialLumpedRateModelWithPoresDG::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
 		{
+			Indexer idxr(_disc);
+
 			// Compute residual with yDot = nullptr (skip time derivative terms)
 			residualImpl<double, double, double, false, true>(t, 0u, vecStateY, nullptr, res, threadLocalMem);
 
 			const unsigned int nDof = numDofs();
 			for (unsigned int i = 0; i < nDof; ++i)
 				vecStateYdot[i] = -res[i];
+
+			// Apply M^{-1} correction for cp-q coupling
+			if (_disc.strideBound > 0)
+			{
+				const active* const poreAccFactor = _poreAccessFactor.data();
+				for (unsigned int node = 0; node < _disc.nPoints; ++node)
+				{
+					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+					{
+						const double invBetaP = (1.0 - static_cast<double>(_parPorosity)) /
+							(static_cast<double>(poreAccFactor[comp]) * static_cast<double>(_parPorosity));
+
+						const unsigned int cpIdx = idxr.offsetCp() + comp + node * idxr.strideParNode();
+
+						for (unsigned int bnd = 0; bnd < _disc.nBound[comp]; ++bnd)
+						{
+							const unsigned int qIdx = idxr.offsetCp() + idxr.strideParLiquid() + _disc.boundOffset[comp] + bnd + node * idxr.strideParNode();
+							vecStateYdot[cpIdx] -= invBetaP * vecStateYdot[qIdx];
+						}
+					}
+				}
+			}
 
 			for (unsigned int i = 0; i < _disc.nComp; ++i)
 				vecStateYdot[i] = 0.0;

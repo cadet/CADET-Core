@@ -526,6 +526,29 @@ namespace column
 	);
 
 	/**
+	 * @brief Compares a radial DG simulation against an FV reference solution stored in HDF5
+	 * @details Loads the DG model JSON, sets DG discretization (polyDeg, nElem), runs the simulation
+	 *          using the USER_SOLUTION_TIMES from the reference HDF5, and checks that the outlet
+	 *          matches the reference within the given tolerances.
+	 * @param [in] modelFileRelPath Relative path to the radial DG model JSON file
+	 * @param [in] refFileRelPath Relative path to the FV reference HDF5 file
+	 * @param [in] unitID ID of the column unit operation (e.g. "001")
+	 * @param [in] polyDeg Polynomial degree for DG
+	 * @param [in] nElem Number of DG elements
+	 * @param [in] absTol Absolute tolerance for comparison
+	 * @param [in] relTol Relative tolerance for comparison
+	 */
+	void testRadialDGvsReference(
+		const std::string& modelFileRelPath,
+		const std::string& refFileRelPath,
+		const std::string& unitID,
+		int polyDeg,
+		int nElem,
+		double absTol,
+		double relTol
+	);
+
+	/**
 	 * @brief Sets the WENO order in a configuration of a column-like unit operation
 	 * @details Overwrites the WENO_ORDER field in the weno group of the given ParameterProvider.
 	 * @param [in,out] jpp ParameterProvider to change the WENO order in

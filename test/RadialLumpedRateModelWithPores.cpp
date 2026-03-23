@@ -335,7 +335,8 @@ TEST_CASE("Radial LRMP_DG consistent initialization with linear binding", "[RadL
 }
 
 // ============================================================
-// Radial LRMP_DG Gaussian pulse EOC convergence tests
+// Radial LRMP_DG no-binding EOC convergence tests
+// Parameters from CADET-Verification radCol1D benchmark
 // ============================================================
 
 // Note: polyDeg 1 EOC test omitted for rLRMP — the C++ Driver hits IDA_TOO_MUCH_WORK
@@ -345,29 +346,58 @@ TEST_CASE("Radial LRMP_DG consistent initialization with linear binding", "[RadL
 TEST_CASE("Radial LRMP_DG polyDeg 2 EOC convergence", "[RadLRMP],[DG],[Convergence],[EOC]")
 {
 	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radLRMP_DG_gaussianPulse_1comp_eocbenchmark.json", "001",
+		"/data/model_radLRMP_DG_noBnd_1comp_eocbenchmark.json", "001",
 		2, 4, 4, 3.0, 0.5);
 }
 
 TEST_CASE("Radial LRMP_DG polyDeg 3 EOC convergence", "[RadLRMP],[DG],[Convergence],[EOC]")
 {
 	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radLRMP_DG_gaussianPulse_1comp_eocbenchmark.json", "001",
+		"/data/model_radLRMP_DG_noBnd_1comp_eocbenchmark.json", "001",
 		3, 4, 4, 4.0, 0.5);
 }
 
 TEST_CASE("Radial LRMP_DG polyDeg 4 EOC convergence", "[RadLRMP],[DG],[Convergence],[EOC]")
 {
 	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radLRMP_DG_gaussianPulse_1comp_eocbenchmark.json", "001",
+		"/data/model_radLRMP_DG_noBnd_1comp_eocbenchmark.json", "001",
 		4, 4, 4, 5.0, 0.5);
 }
 
 TEST_CASE("Radial LRMP_DG polyDeg 5 EOC convergence", "[RadLRMP],[DG],[Convergence],[EOC]")
 {
 	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radLRMP_DG_gaussianPulse_1comp_eocbenchmark.json", "001",
+		"/data/model_radLRMP_DG_noBnd_1comp_eocbenchmark.json", "001",
 		5, 4, 4, 6.0, 0.5);
+}
+
+// ============================================================
+// Radial LRMP_DG linear binding EOC convergence tests
+// ============================================================
+
+TEST_CASE("Radial LRMP_DG linear binding polyDeg 3 EOC convergence", "[RadLRMP],[DG],[Convergence],[EOC],[LinBnd]")
+{
+	cadet::test::column::testRadialDGConvergence(
+		"/data/model_radLRMP_DG_linBnd_1comp_eocbenchmark.json", "001",
+		3, 4, 4, 4.0, 0.5);
+}
+
+TEST_CASE("Radial LRMP_DG linear binding polyDeg 4 EOC convergence", "[RadLRMP],[DG],[Convergence],[EOC],[LinBnd]")
+{
+	cadet::test::column::testRadialDGConvergence(
+		"/data/model_radLRMP_DG_linBnd_1comp_eocbenchmark.json", "001",
+		4, 4, 3, 5.0, 0.5);
+}
+
+// ============================================================
+// Radial LRMP_DG linear binding + variable dispersion EOC tests
+// ============================================================
+
+TEST_CASE("Radial LRMP_DG linBnd varDisp polyDeg 3 EOC convergence", "[RadLRMP],[DG],[Convergence],[EOC],[VarDisp]")
+{
+	cadet::test::column::testRadialDGConvergence(
+		"/data/model_radLRMP_DG_linBnd_varDisp_1comp_eocbenchmark.json", "001",
+		3, 4, 4, 4.0, 0.7);
 }
 
 // ============================================================
@@ -377,13 +407,26 @@ TEST_CASE("Radial LRMP_DG polyDeg 5 EOC convergence", "[RadLRMP],[DG],[Convergen
 TEST_CASE("Radial LRMP_DG Langmuir polyDeg 3 EOC convergence", "[RadLRMP],[DG],[Convergence],[EOC],[Langmuir]")
 {
 	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radLRMP_DG_langmuir_1comp_eocbenchmark.json", "001",
+		"/data/model_radLRMP_DG_langBnd_1comp_eocbenchmark.json", "001",
 		3, 4, 4, 4.0, 0.5);
 }
 
-TEST_CASE("Radial LRMP_DG Langmuir polyDeg 4 EOC convergence", "[RadLRMP],[DG],[Convergence],[EOC],[Langmuir]")
+// ============================================================
+// Radial LRMP_DG vs FV reference benchmark
+// ============================================================
+
+TEST_CASE("Radial LRMP_DG noBnd vs FV WENO3 reference", "[RadLRMP],[DG],[Reference]")
 {
-	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radLRMP_DG_langmuir_1comp_eocbenchmark.json", "001",
-		4, 4, 3, 5.0, 0.5);
+	cadet::test::column::testRadialDGvsReference(
+		"/data/model_radLRMP_DG_noBnd_1comp_eocbenchmark.json",
+		"/data/ref_radLRMP_DG_noBnd_1comp_eocbenchmark_FV_Z10000.h5",
+		"001", 4, 16, 1e-6, 1e-3);
+}
+
+TEST_CASE("Radial LRMP_DG linBnd vs FV WENO3 reference", "[RadLRMP],[DG],[Reference]")
+{
+	cadet::test::column::testRadialDGvsReference(
+		"/data/model_radLRMP_DG_linBnd_1comp_eocbenchmark.json",
+		"/data/ref_radLRMP_DG_linBnd_1comp_eocbenchmark_FV_Z10000.h5",
+		"001", 4, 16, 1e-6, 1e-3);
 }

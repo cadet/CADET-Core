@@ -250,24 +250,26 @@ bool RadialGeneralRateModelDG::configureModelDiscretization(IParameterProvider& 
 		const std::string parGroup = "particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType);
 		paramProvider.pushScope(parGroup);
 
-		if (paramProvider.exists("adsorption_model"))
 		{
-			paramProvider.pushScope("adsorption");
+			std::string bindModelName = "NONE";
+			if (paramProvider.exists("ADSORPTION_MODEL"))
+				bindModelName = paramProvider.getString("ADSORPTION_MODEL");
 
-			const std::string bindModelName = paramProvider.getString("ADSORPTION_MODEL");
 			_binding[parType] = helper.createBindingModel(bindModelName);
 			if (!_binding[parType])
 				throw InvalidParameterException("Unknown binding model " + bindModelName);
 
-			if (!_binding[parType]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset))
-				throw InvalidParameterException("Failed to configure binding model for particle type " + std::to_string(parType));
-
-			paramProvider.popScope();
-		}
-		else
-		{
-			_binding[parType] = helper.createBindingModel("NONE");
-			_binding[parType]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
+			if (bindModelName != "NONE" && paramProvider.exists("adsorption"))
+			{
+				paramProvider.pushScope("adsorption");
+				if (!_binding[parType]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset))
+					throw InvalidParameterException("Failed to configure binding model for particle type " + std::to_string(parType));
+				paramProvider.popScope();
+			}
+			else
+			{
+				_binding[parType]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
+			}
 		}
 
 		paramProvider.popScope();
@@ -409,6 +411,15 @@ bool RadialGeneralRateModelDG::configure(IParameterProvider& paramProvider)
 
 	// Configure convection-dispersion operator
 	const bool transportSuccess = _convDispOp.configure(_unitOpIdx, paramProvider, _parameters);
+
+	// Precompute film diffusion coupling matrices for radial ρ-weighting correction
+	// For constant k_f, M_ρ^{-1} * M_rho = I (k_f applied per-component in residual)
+	_filmDiffCoupling.resize(_disc.nElem);
+	for (unsigned int cell = 0; cell < _disc.nElem; ++cell)
+	{
+		// invMRho * MRho = I analytically. Use identity directly to avoid numerical roundoff.
+		_filmDiffCoupling[cell] = Eigen::MatrixXd::Identity(_disc.nNodes, _disc.nNodes);
+	}
 
 	// Set Jacobian pattern
 	setPattern(_jac, false);
@@ -613,6 +624,7 @@ int RadialGeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateT
 			}
 
 			// Film diffusion coupling jacobian
+			// First let particle model add point-wise entries (correct for axial, need correction for radial)
 			for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
 			{
 				_particles[parType]->calcFilmDiffJacobian(secIdx,
@@ -621,6 +633,67 @@ int RadialGeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateT
 					_disc.nPoints, _disc.nParType,
 					static_cast<double>(_colPorosity),
 					&_parTypeVolFrac[0], _jac);
+			}
+
+			// Correct bulk-side film diffusion Jacobian for radial ρ-weighting
+			// The particle model added point-wise diagonal entries to bulk rows.
+			// For radial DG, bulk rows need M_K off-diagonal coupling within each cell.
+			for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
+			{
+				const active* const filmDiff = _particles[parType]->getFilmDiffusion(secIdx);
+				const double invBetaC = 1.0 / static_cast<double>(_colPorosity) - 1.0;
+				const double surfToVol = static_cast<double>(_particles[parType]->surfaceToVolumeRatio());
+				const unsigned int nParPoints = _particles[parType]->nDiscPoints();
+				const unsigned int strideParPt = (_particles[parType]->strideParBlock() / _particles[parType]->nDiscPoints());
+				const int cpOffset = idxr.offsetCp(parType) - idxr.offsetC();
+
+				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+				{
+					const double kf = static_cast<double>(filmDiff[comp]);
+
+					for (unsigned int cell = 0; cell < _disc.nElem; ++cell)
+					{
+						const unsigned int cellOffset = cell * _disc.nNodes;
+
+						for (unsigned int node = 0; node < _disc.nNodes; ++node)
+						{
+							const unsigned int colNode = cellOffset + node;
+							const double volFrac = static_cast<double>(_parTypeVolFrac[parType + _disc.nParType * colNode]);
+							const double scale = kf * invBetaC * surfToVol * volFrac;
+
+							const int bulkRow = colNode * idxr.strideColNode() + comp;
+							linalg::BandedEigenSparseRowIterator jacBulk(_jac, bulkRow);
+
+							// Undo point-wise diagonal entry (already added by particle model)
+							jacBulk[0] -= scale;
+
+							// Add M_K-based entries for all nodes in this cell
+							for (unsigned int node2 = 0; node2 < _disc.nNodes; ++node2)
+							{
+								const double filmCoeff = _filmDiffCoupling[cell](node, node2);
+								if (std::abs(filmCoeff) < 1e-30)
+									continue;
+
+								const unsigned int colNode2 = cellOffset + node2;
+								const int bulkCol = colNode2 * idxr.strideColNode() + comp;
+
+								// d(res_c)/d(c): += scale * filmCoeff
+								jacBulk[bulkCol - bulkRow] += scale * filmCoeff;
+
+								// d(res_c)/d(cp_surface): undo point-wise and redo with coupling
+								// Point-wise entry was at cp_surface of same node, M_K couples to cp_surface of all nodes in cell
+								const int cpCol = cpOffset + colNode2 * idxr.strideParBlock(parType)
+									+ (nParPoints - 1) * strideParPt + comp;
+								jacBulk[cpCol - bulkRow] += -scale * filmCoeff;
+							}
+
+							// Undo point-wise d(res_c)/d(cp_surface) diagonal (was added by particle model)
+							const int cpColSelf = cpOffset + colNode * idxr.strideParBlock(parType)
+								+ (nParPoints - 1) * strideParPt + comp;
+							jacBulk[cpColSelf - bulkRow] += scale; // undo the -= that particle model did
+						}
+					}
+				}
 			}
 
 			_disc.newStaticJac = false;
@@ -706,6 +779,59 @@ int RadialGeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateT
 	}
 
 	BENCH_STOP(_timerResidualPar);
+
+	// Correct bulk film diffusion for radial ρ-weighting
+	// The particle model added point-wise: res_c += invBetaC * surfToVol * volFrac * k_f * (c - cp_surface)
+	// For radial DG, the correct weak form requires M_ρ^{-1} * M_K coupling:
+	//   res_c += invBetaC * surfToVol * volFrac * k_f * Σ_j filmDiffCoupling(i,j) * (c_j - cp_surface_j)
+	// We undo the point-wise term and redo with M_K coupling.
+	if (wantRes)
+	{
+		for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
+		{
+			const active* const filmDiff = _particles[parType]->getFilmDiffusion(secIdx);
+			const ParamType invBetaC = 1.0 / static_cast<ParamType>(_colPorosity) - 1.0;
+			const ParamType surfToVol = static_cast<ParamType>(_particles[parType]->surfaceToVolumeRatio());
+			const unsigned int nParPoints = _particles[parType]->nDiscPoints();
+			const unsigned int strideParPt = (_particles[parType]->strideParBlock() / _particles[parType]->nDiscPoints());
+
+			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+			{
+				const ParamType kf = static_cast<ParamType>(filmDiff[comp]);
+
+				for (unsigned int cell = 0; cell < _disc.nElem; ++cell)
+				{
+					const unsigned int cellOffset = cell * _disc.nNodes;
+
+					// Collect (c - cp_surface) for all nodes in this cell
+					Eigen::Matrix<StateType, Eigen::Dynamic, 1> diff(_disc.nNodes);
+					for (unsigned int node = 0; node < _disc.nNodes; ++node)
+					{
+						const unsigned int colNode = cellOffset + node;
+						const StateType c_bulk = y_[idxr.offsetC() + comp + colNode * idxr.strideColNode()];
+						const StateType cp_surf = y_[idxr.offsetCp(parType) + comp + colNode * idxr.strideParBlock(parType)
+							+ (nParPoints - 1) * strideParPt];
+						diff[node] = c_bulk - cp_surf;
+					}
+
+					// Apply M_K coupling: corrected = filmDiffCoupling * diff
+					Eigen::Matrix<StateType, Eigen::Dynamic, 1> corrected = _filmDiffCoupling[cell].template cast<StateType>() * diff;
+
+					for (unsigned int node = 0; node < _disc.nNodes; ++node)
+					{
+						const unsigned int colNode = cellOffset + node;
+						const ParamType volFrac = static_cast<ParamType>(_parTypeVolFrac[parType + _disc.nParType * colNode]);
+						const ParamType scale = kf * invBetaC * surfToVol * volFrac;
+
+						// Undo point-wise: subtract what particle model added
+						res_[idxr.offsetC() + comp + colNode * idxr.strideColNode()] -= scale * diff[node];
+						// Redo with M_K coupling
+						res_[idxr.offsetC() + comp + colNode * idxr.strideColNode()] += scale * corrected[node];
+					}
+				}
+			}
+		}
+	}
 
 	// Handle inlet DOFs, which are simply copied to res
 	for (unsigned int i = 0; i < _disc.nComp; ++i)

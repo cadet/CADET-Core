@@ -253,6 +253,12 @@ protected:
 	active _colPorosity; //!< Column porosity (external porosity)
 	std::vector<active> _parTypeVolFrac; //!< Particle type volume fractions
 
+	// Film diffusion correction matrices for radial ρ-weighting (per cell)
+	// The particle model adds point-wise film diff to bulk residual, which is
+	// incorrect for radial DG. These matrices store M_ρ^{-1} * M_rho = I
+	// (for constant k_f) to apply the correct weak-form coupling.
+	std::vector<Eigen::MatrixXd> _filmDiffCoupling; //!< Precomputed M_ρ^{-1} * M_rho per cell
+
 	bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used
 	unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation
 	bool _factorizeJacobian; //!< Determines whether the Jacobian needs to be factorized

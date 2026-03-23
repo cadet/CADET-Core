@@ -73,6 +73,24 @@ ParamType mapPhysToRef(const std::vector<ParamType> deltaX, const unsigned int e
  */
 void lglNodesWeights(const unsigned int polyDeg, Eigen::VectorXd& nodes, Eigen::VectorXd& invWeights, bool invertWeights = true);
 /**
+ * @brief computes the Chebyshev-Gauss-Lobatto nodes and Clenshaw-Curtis quadrature weights
+ * @detail CGL nodes include endpoints +-1: x_j = -cos(pi*j/N), j=0,...,N
+ * @param [in] polyDeg polynomial degree
+ * @param [in, out] nodes Chebyshev Gauss Lobatto nodes
+ * @param [in, out] invWeights Clenshaw-Curtis quadrature weights
+ * @param [in] invertWeights specifies if weights should be inverted
+ */
+void cglNodesWeights(const unsigned int polyDeg, Eigen::VectorXd& nodes, Eigen::VectorXd& invWeights, bool invertWeights = true);
+/**
+ * @brief computes the Chebyshev-Gauss (interior) nodes and quadrature weights
+ * @detail CG nodes do not include endpoints: x_j = -cos((2j+1)/(2N+2) * pi), j=0,...,N
+ * @param [in] polyDeg polynomial degree (N where N+1 is number of points)
+ * @param [in, out] nodes Chebyshev Gauss nodes
+ * @param [in, out] weights Chebyshev Gauss quadrature weights
+ * @param [in] invertWeights specifies if weights should be inverted
+ */
+void cgNodesWeights(const unsigned int polyDeg, Eigen::VectorXd& nodes, Eigen::VectorXd& weights, bool invertWeights = true);
+/**
  * @brief computes the Legendre-Gauss nodes and quadrature weights
  * @detail Gauss quadrature exactly integrates polynomials up to degree 2N-1 with N points
  * @param [in] polyDeg polynomial degree (N-1 where N is number of points)

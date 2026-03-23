@@ -1624,38 +1624,25 @@ namespace cadet
 						g_star[elem] = 0.5 * (g[elem * strideElem_g - strideNode_g] + g[elem * strideElem_g]);
 					}
 
-					// Boundary interfaces
-					// Note: _boundary[0] is of type 'active', so we use static_cast<StateType> directly
-					// to preserve AD tracking when StateType is 'active'
-					// g is now in REFERENCE coordinates (dc/dξ), not physical (dc/dρ)
-					// Danckwerts BC: u*c_in = u*c - ρ*D*(2/Δρ)*g_ref
-					// => g_ref = u*(c - c_in)*Δρ / (2*ρ*D)
+					// Boundary interfaces — Danckwerts BC (matches axial DG pattern)
+					// Inlet: F* = u*c_in  (prescribed total flux, no dispersion)
+					//   => c* = c_in (upwind), g* = 0
+					// Outlet: F* = u*c  (outflow, zero diffusive gradient)
+					//   => c* = c_interior (upwind), g* = 0
 					if (_curVelocity >= 0.0) {
 						// Inlet at left (rho_inner)
-						c_star[0] = static_cast<StateType>(_boundary[0]);  // inlet concentration
-						const double rho_inlet = _rhoCellBounds[0];
-						if (std::abs(d_rad_i[0]) > 1e-30 && std::abs(rho_inlet) > 1e-30) {
-							g_star[0] = static_cast<StateType>(u * deltaRho / (2.0 * rho_inlet * d_rad_i[0]))
-							          * (C[0] - static_cast<StateType>(_boundary[0]));
-						} else {
-							g_star[0] = StateType(0.0);
-						}
+						c_star[0] = static_cast<StateType>(_boundary[0]);
+						g_star[0] = StateType(0.0);
 
-						// Outlet at right (rho_outer) - zero flux BC (g* = 0)
+						// Outlet at right (rho_outer)
 						c_star[_nElem] = C[_nElem * strideElem - strideNode];
 						g_star[_nElem] = StateType(0.0);
 					} else {
 						// Inlet at right for backward flow
 						c_star[_nElem] = static_cast<StateType>(_boundary[0]);
-						const double rho_inlet = _rhoCellBounds[_nElem];
-						if (std::abs(d_rad_i[_nElem]) > 1e-30 && std::abs(rho_inlet) > 1e-30) {
-							g_star[_nElem] = static_cast<StateType>(u * deltaRho / (2.0 * rho_inlet * d_rad_i[_nElem]))
-							               * (C[_nElem * strideElem - strideNode] - static_cast<StateType>(_boundary[0]));
-						} else {
-							g_star[_nElem] = StateType(0.0);
-						}
+						g_star[_nElem] = StateType(0.0);
 
-						// Outlet at left for backward flow - zero flux BC
+						// Outlet at left for backward flow
 						c_star[0] = C[0];
 						g_star[0] = StateType(0.0);
 					}
@@ -1678,29 +1665,31 @@ namespace cadet
 					unsigned int strideNode, unsigned int strideElem) {
 
 					const double deltaRho = static_cast<double>(_deltaRho);
+					const double invHalfDeltaRho = 2.0 / deltaRho;
 
 					for (unsigned int elem = 0; elem < _nElem; elem++) {
 						double rho_left = _rhoCellBounds[elem];
 						double rho_right = _rhoCellBounds[elem + 1];
 
-						// Flux F = u*c - ρ*D*(2/Δρ)*g_ref  (g_star is in reference coords)
-						// Left face contribution: -F* = -u*c* + ρ*D*(2/Δρ)*g*
+						// Physical flux F = u*c + ρ*D*(2/Δρ)*g  (g = -dc/dξ from aux eq)
+						// Left face contribution: -F* = -u*c* - ρ*D*(2/Δρ)*g*
 						ResidualType left_flux = static_cast<ResidualType>(
-							-u * c_star[elem] + rho_left * d_rad_i[elem] * (2.0 / deltaRho) * g_star[elem]
+							-u * c_star[elem] - rho_left * d_rad_i[elem] * invHalfDeltaRho * g_star[elem]
 						);
 
-						// Right face contribution: F* = u*c* - ρ*D*(2/Δρ)*g*
+						// Right face contribution: F* = u*c* + ρ*D*(2/Δρ)*g*
 						ResidualType right_flux = static_cast<ResidualType>(
-							u * c_star[elem + 1] - rho_right * d_rad_i[elem + 1] * (2.0 / deltaRho) * g_star[elem + 1]
+							u * c_star[elem + 1] + rho_right * d_rad_i[elem + 1] * invHalfDeltaRho * g_star[elem + 1]
 						);
 
-						// Surface integral: res += M_ρ^{-1} * B * F* (strong form correction)
+						// Surface integral: res += (2/Δρ) * M_ρ^{-1} * B * F*
+						// The (2/Δρ) comes from dividing by M_ρ^{phys} = (Δρ/2)*M_ρ^{code}
 						for (unsigned int node = 0; node < _nNodes; node++) {
 							res[elem * strideElem + node * strideNode]
-								+= static_cast<ResidualType>(
+								+= static_cast<ResidualType>(invHalfDeltaRho * (
 									_invMM_rho[elem](node, 0) * left_flux +
 									_invMM_rho[elem](node, _nNodes - 1) * right_flux
-								);
+								));
 						}
 					}
 				}
@@ -1723,12 +1712,14 @@ namespace cadet
 					unsigned int strideNode_c, unsigned int strideElem_c,
 					unsigned int strideNode_res, unsigned int strideElem_res) {
 
+					const double deltaRho = static_cast<double>(_deltaRho);
+					const double invHalfDeltaRho = 2.0 / deltaRho;
+
 					// For variable dispersion, d_rad is already baked into S_g
 					const double dispFactor = _variableDispersion ? 1.0 : d_rad;
 
 					for (unsigned int elem = 0; elem < _nElem; elem++) {
 						// Precompute D^T * M^{(0,0)} * c for this element
-						// Use ResidualType to preserve AD derivatives
 						std::vector<ResidualType> DtM00_c(_nNodes, ResidualType(0.0));
 						for (unsigned int i = 0; i < _nNodes; i++) {
 							for (unsigned int j = 0; j < _nNodes; j++) {
@@ -1748,9 +1739,11 @@ namespace cadet
 							}
 						}
 
-						// Apply M_ρ^{-1} and add to residual
-						// NOTE: No (2/Δρ) factor here - coordinate transforms cancel in weak form
-						// See: ∫(dL/dρ)*F*dρ = ∫(2/Δρ)*(dL/dξ)*F*(Δρ/2)*dξ = ∫(dL/dξ)*F*dξ
+						// Apply (2/Δρ) * M_ρ^{-1} to volume integral terms
+						// The outer (2/Δρ) comes from dividing by M_ρ^{phys} = (Δρ/2)*M_ρ^{code}
+						// Convection: (2/Δρ) * invMrho * D^T * M00 * u * c
+						// Dispersion: (2/Δρ) * invMrho * (2/Δρ) * S_g * D * g
+						//   The inner (2/Δρ) on dispersion comes from ∂c/∂ρ = (2/Δρ)*g
 						for (unsigned int node = 0; node < _nNodes; node++) {
 							ResidualType conv_term = ResidualType(0.0);
 							ResidualType disp_term = ResidualType(0.0);
@@ -1760,9 +1753,13 @@ namespace cadet
 								disp_term += static_cast<ResidualType>(_invMM_rho[elem](node, j)) * Sg_g[j];
 							}
 
-							// Sign: res = dc/dt - M_ρ^{-1} * D * F for strong form DG
+							// Volume integral (weak form)
+							// F = u*c + ρ*D*(2/Δρ)*g since g = -dc/dξ
 							res[elem * strideElem_res + node * strideNode_res]
-								-= static_cast<ResidualType>(u) * conv_term - static_cast<ResidualType>(dispFactor) * disp_term;
+								-= static_cast<ResidualType>(invHalfDeltaRho) * (
+									static_cast<ResidualType>(u) * conv_term
+									+ static_cast<ResidualType>(dispFactor * invHalfDeltaRho) * disp_term
+								);
 						}
 					}
 				}
