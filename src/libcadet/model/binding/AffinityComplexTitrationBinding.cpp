@@ -204,27 +204,27 @@ namespace cadet
 					_cMidA.clear();
 					_cMidG.clear();
 
-					if (!paramProvider.exists("ACT_PKAA") || !paramProvider.exists("ACT_PKAG"))
-						throw InvalidParameterException("ACT_USE_ION_CONC=false requires ACT_PKAA and ACT_PKAG");
+					const std::vector<double> pKaA = getDoubleArrayWithFallback(paramProvider, "ACT_PKAA", "EXT_ACT_PKAA");
+					const std::vector<double> pKaG = getDoubleArrayWithFallback(paramProvider, "ACT_PKAG", "EXT_ACT_PKAG");
 
-					const std::vector<double> pKaA = paramProvider.getDoubleArray("ACT_PKAA");
-					const std::vector<double> pKaG = paramProvider.getDoubleArray("ACT_PKAG");
+					if (pKaA.empty() || pKaG.empty())
+						throw InvalidParameterException("ACT_USE_ION_CONC=false requires ACT_PKAA and ACT_PKAG");
 					if ((pKaA.size() < nComp) || (pKaG.size() < nComp))
 						throw InvalidParameterException("ACT_PKAA and ACT_PKAG must have at least NCOMP entries");
 
 					_pKaA.assign(pKaA.begin(), pKaA.begin() + nComp);
 					_pKaG.assign(pKaG.begin(), pKaG.begin() + nComp);
+
 				}
 				else
 				{
 					_pKaA.clear();
 					_pKaG.clear();
 
-					if (!paramProvider.exists("ACT_CMID_A") || !paramProvider.exists("ACT_CMID_G"))
+					const std::vector<double> cMidA = getDoubleArrayWithFallback(paramProvider, "ACT_CMID_A", "EXT_ACT_CMID_A");
+					const std::vector<double> cMidG = getDoubleArrayWithFallback(paramProvider, "ACT_CMID_G", "EXT_ACT_CMID_G");
+					if (cMidA.empty() || cMidG.empty())
 						throw InvalidParameterException("ACT_USE_ION_CONC=true requires ACT_CMID_A and ACT_CMID_G");
-
-					const std::vector<double> cMidA = paramProvider.getDoubleArray("ACT_CMID_A");
-					const std::vector<double> cMidG = paramProvider.getDoubleArray("ACT_CMID_G");
 					if ((cMidA.size() < nComp) || (cMidG.size() < nComp))
 						throw InvalidParameterException("ACT_CMID_A and ACT_CMID_G must have at least NCOMP entries");
 
