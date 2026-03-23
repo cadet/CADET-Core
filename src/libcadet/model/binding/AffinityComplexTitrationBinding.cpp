@@ -96,7 +96,7 @@ namespace
 		return e / (1.0 + e);
 	}
 
-	inline bool getBoolWithFallback(IParameterProvider& paramProvider, const char* primaryName, const char* fallbackName, bool defaultValue)
+	inline bool getBoolWithFallback(cadet::IParameterProvider& paramProvider, const char* primaryName, const char* fallbackName, bool defaultValue)
 	{
 		if (paramProvider.exists(primaryName))
 			return paramProvider.getBool(primaryName);
@@ -105,7 +105,7 @@ namespace
 		return defaultValue;
 	}
 
-	inline std::vector<double> getDoubleArrayWithFallback(IParameterProvider& paramProvider, const char* primaryName, const char* fallbackName)
+	inline std::vector<double> getDoubleArrayWithFallback(cadet::IParameterProvider& paramProvider, const char* primaryName, const char* fallbackName)
 	{
 		if (paramProvider.exists(primaryName))
 			return paramProvider.getDoubleArray(primaryName);
