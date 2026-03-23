@@ -5,8 +5,8 @@ Affinity Complex Titration
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = AFFINITY_COMPLEX_TITRATION**
 
-For information on model equations, refer to :ref:`affinity_complex_titration`. The first component should be pH. 
-
+For information on model equations, refer to :ref:`affinity_complex_titration`. 
+The first component is either ion concentration (:math:`c_{\mathrm{H}^+}`, :math:`c_{\mathrm{Na}^+}`) or negative log ion concentration (:math:`\mathrm{pH}`, :math:`\mathrm{pNa}`).
 
 ``IS_KINETIC``
    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 =
@@ -16,6 +16,18 @@ For information on model equations, refer to :ref:`affinity_complex_titration`. 
 
 ===================  =========================  =========================================
 **Type:** int        **Range:** {0,1}  		    **Length:** 1/NTOTALBND
+===================  =========================  =========================================
+
+``ACT_USE_SALT_CONC``
+   Optional. Selects to use either ion concentration or negative log ion concentration as the first component. 
+
+   * ``False``: input is negative log ion concentration :math:`\mathrm{pIon}`; use ``ACT_PKAA`` / ``ACT_PKAG``.
+   * ``True``: input is ion concentration :math:`c_{\mathrm{Ion}^{n+}}`; use ``ACT_CMID_A`` / ``ACT_CMID_G``.
+
+   Default is False. 
+
+===================  =========================  =========================================
+**Type:** bool       **Range:** {False, True}   **Length:** 1
 ===================  =========================  =========================================
 
 ``ACT_KA``
@@ -46,7 +58,7 @@ For information on model equations, refer to :ref:`affinity_complex_titration`. 
 ===================  =========================  ================================== 
 
 ``ACT_ETAA``
-   Hill-type coefficients denoting the slope for the binding capacity changes as a function of pH changes
+   Hill-type coefficients denoting the slope for the binding capacity changes as a function of pH/pIon changes
 
 **Unit:** :math:`1`
 
@@ -55,7 +67,7 @@ For information on model equations, refer to :ref:`affinity_complex_titration`. 
 ===================  =============================  ================================== 
 
 ``ACT_ETAG``
-   Hill-type coefficients denoting the slope for the equilibrium constant changes as a function of pH changes
+   Hill-type coefficients denoting the slope for the equilibrium constant changes as a function of pH/pIon changes
 
 **Unit:** :math:`1`
 
@@ -64,7 +76,7 @@ For information on model equations, refer to :ref:`affinity_complex_titration`. 
 ===================  =============================  ================================== 
 
 ``ACT_PKAA``
-   Center point for the binding capacity changes as a function of pH changes
+   Center point for the binding capacity changes as a function of pH/pIon changes
 
 **Unit:** :math:`1`
 
@@ -73,10 +85,41 @@ For information on model equations, refer to :ref:`affinity_complex_titration`. 
 ===================  ==============================  ================================== 
 
 ``ACT_PKAG``
-   Center point for the equilibrium constant changes as a function of pH changes
+   Center point for the equilibrium constant changes as a function of pH/pIon changes
 
 **Unit:** :math:`1`
 
 ===================  ==============================  ==================================
 **Type:** double     **Range:** :math:`\mathbb{R}`   **Length:** NCOMP
 ===================  ==============================  ================================== 
+
+``ACT_CMID_A``
+   Midpoint ion concentration for the binding capacity changes. 
+   Only used when ``ACT_USE_ION_CONC = True``.
+
+**Unit:** :math:`mol~m_{MP}^{-3}`
+
+===================  =========================  =========================================
+**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
+===================  =========================  =========================================
+
+``ACT_CMID_G``
+   Midpoint ion concentration for the equilibrium constant changes.
+   Only used when ``ACT_USE_ION_CONC = True``.
+
+**Unit:** :math:`mol~m_{MP}^{-3}`
+
+===================  =========================  =========================================
+**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
+===================  =========================  =========================================
+
+
+``ACT_OMEGA``
+   Optional. Exponent :math:`\omega_j` that can be applied to :math:`f_{G,j}` and main component concentration :math:`c`.
+   Default is :math:`1`.
+
+**Unit:** :math:`1`
+
+===================  =============================  ==================================
+**Type:** double     **Range:** :math:`\mathbb{R}`   **Length:** NCOMP
+===================  =============================  ==================================
