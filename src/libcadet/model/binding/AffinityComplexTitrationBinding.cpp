@@ -95,6 +95,24 @@ namespace
 		const double e = std::exp(x);
 		return e / (1.0 + e);
 	}
+
+	inline bool getBoolWithFallback(IParameterProvider& paramProvider, const char* primaryName, const char* fallbackName, bool defaultValue)
+	{
+		if (paramProvider.exists(primaryName))
+			return paramProvider.getBool(primaryName);
+		if (paramProvider.exists(fallbackName))
+			return paramProvider.getBool(fallbackName);
+		return defaultValue;
+	}
+
+	inline std::vector<double> getDoubleArrayWithFallback(IParameterProvider& paramProvider, const char* primaryName, const char* fallbackName)
+	{
+		if (paramProvider.exists(primaryName))
+			return paramProvider.getDoubleArray(primaryName);
+		if (paramProvider.exists(fallbackName))
+			return paramProvider.getDoubleArray(fallbackName);
+		return std::vector<double>();
+	}
 }
 
 /*<codegen>
@@ -169,7 +187,7 @@ namespace cadet
 			{
 				const bool res = BindingModelBase::configureModelDiscretization(paramProvider, nComp, nBound, boundOffset);
 
-				// Guarantee that the first component is not a bound speies
+				// Guarantee that the first component is not a bound species
 				if (nBound[0] != 0)
 					throw InvalidParameterException("Affinity complex titration binding model requires the first component to be non-binding");
 
@@ -179,25 +197,7 @@ namespace cadet
 						throw InvalidParameterException("Currently the ACT isotherm model supports at most one bound state per component");
 				}
 
-				const auto getBoolWithFallback = [&](const char* primaryName, const char* fallbackName, bool defaultValue)
-					{
-						if (paramProvider.exists(primaryName))
-							return paramProvider.getBool(primaryName);
-						if (paramProvider.exists(fallbackName))
-							return paramProvider.getBool(fallbackName);
-						return defaultValue;
-					};
-
-				const auto getDoubleArrayWithFallback = [&](const char* primaryName, const char* fallbackName) -> std::vector<double>
-					{
-						if (paramProvider.exists(primaryName))
-							return paramProvider.getDoubleArray(primaryName);
-						if (paramProvider.exists(fallbackName))
-							return paramProvider.getDoubleArray(fallbackName);
-						return std::vector<double>();
-					};
-
-				_useIonConc = getBoolWithFallback("ACT_USE_ION_CONC", "EXT_ACT_USE_ION_CONC", false);
+				_useIonConc = getBoolWithFallback(paramProvider, "ACT_USE_ION_CONC", "EXT_ACT_USE_ION_CONC", false);
 
 				if (!_useIonConc)
 				{
