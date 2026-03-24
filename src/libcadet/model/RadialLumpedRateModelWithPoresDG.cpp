@@ -387,6 +387,21 @@ namespace cadet
 			// Configure convection-dispersion operator
 			const bool transportSuccess = _convDispOp.configure(_unitOpIdx, paramProvider, _parameters);
 
+			// Register initial condition parameters
+			for (unsigned int i = 0; i < _disc.nComp; ++i)
+				_parameters[makeParamId(hashString("INIT_C"), _unitOpIdx, i, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = _initC.data() + i;
+
+			for (unsigned int i = 0; i < _disc.nComp; ++i)
+				_parameters[makeParamId(hashString("INIT_CP"), _unitOpIdx, i, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = _initCp.data() + i;
+
+			if (_binding[0] && _disc.strideBound > 0)
+			{
+				std::vector<ParameterId> initParams(_disc.strideBound);
+				_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, ParTypeIndep);
+				for (unsigned int i = 0; i < _disc.strideBound; ++i)
+					_parameters[initParams[i]] = _initCs.data() + i;
+			}
+
 			// Compute initial film diffusion matrices (constant k_f case)
 			computeFilmDiffusionMatrices();
 
@@ -1064,6 +1079,9 @@ namespace cadet
 
 		void RadialLumpedRateModelWithPoresDG::prepareADvectors(const AdJacobianParams& adJac) const
 		{
+			if (!adJac.adY)
+				return;
+
 			// Custom graph coloring for rLRMP DG block-structured Jacobian.
 			// Bulk DOFs: banded coloring with period = 4*nNodes*nComp + 1
 			// Pore DOFs: cell-local coloring offset by bulkPeriod
@@ -1390,10 +1408,112 @@ namespace cadet
 		void RadialLumpedRateModelWithPoresDG::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 			std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 		{
-			for (unsigned int i = 0; i < vecSensY.size(); ++i)
+			BENCH_SCOPE(_timerConsistentInit);
+
+			Indexer idxr(_disc);
+
+			for (std::size_t param = 0; param < vecSensY.size(); ++param)
 			{
-				std::fill_n(vecSensY[i], numDofs(), 0.0);
-				std::fill_n(vecSensYdot[i], numDofs(), 0.0);
+				double* const sensY = vecSensY[param];
+				double* const sensYdot = vecSensYdot[param];
+
+				// Copy parameter derivative -dF / dp from AD
+				for (unsigned int i = _disc.nComp; i < numDofs(); ++i)
+					sensYdot[i] = -adRes[i].getADValue(param);
+
+				// Add -dF/dy * s = -J * s to sensYdot
+				multiplyWithJacobian(simTime, simState, sensY, -1.0, 1.0, sensYdot);
+
+				// Now sensYdot = -(J * s + dF/dp), which is the RHS of M * sDot = RHS
+				// Build mass matrix in _jacDisc and solve
+
+				// Zero _jacDisc
+				double* entries = _jacDisc.valuePtr();
+				for (unsigned int nz = 0; nz < _jacDisc.nonZeros(); ++nz)
+					entries[nz] = 0.0;
+
+				// Bulk: dc/dt => identity on diagonal
+				for (unsigned int node = 0; node < _disc.nPoints; ++node)
+				{
+					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+					{
+						const unsigned int idx = comp + node * idxr.strideColNode();
+						_jacDisc.coeffRef(idx, idx) += 1.0;
+					}
+				}
+
+				// Pore phase mass matrix entries
+				const active* const poreAccFactor = _poreAccessFactor.data();
+				int const* const qsMask = _binding[0] ? _binding[0]->reactionQuasiStationarity() : nullptr;
+				const unsigned int poreOffset = _disc.nPoints * _disc.nComp;
+
+				for (unsigned int node = 0; node < _disc.nPoints; ++node)
+				{
+					// cp rows: dcp/dt + invBetaP * sum(dq/dt)
+					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+					{
+						const unsigned int cpIdx = poreOffset + comp + node * idxr.strideParNode();
+						const double invBetaP = (1.0 - static_cast<double>(_parPorosity)) /
+							(static_cast<double>(poreAccFactor[comp]) * static_cast<double>(_parPorosity));
+						_jacDisc.coeffRef(cpIdx, cpIdx) += 1.0;
+
+						for (unsigned int bnd = 0; bnd < _disc.nBound[comp]; ++bnd)
+						{
+							const unsigned int qIdx = poreOffset + idxr.strideParLiquid() + _disc.boundOffset[comp] + bnd + node * idxr.strideParNode();
+							_jacDisc.coeffRef(cpIdx, qIdx) += invBetaP;
+						}
+					}
+
+					// q rows: dq/dt for kinetic states only
+					for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
+					{
+						if (qsMask && qsMask[bnd])
+							continue;
+
+						const unsigned int qIdx = poreOffset + idxr.strideParLiquid() + bnd + node * idxr.strideParNode();
+						_jacDisc.coeffRef(qIdx, qIdx) += 1.0;
+					}
+
+					// For QS states: overwrite with algebraic Jacobian row
+					if (_binding[0] && _binding[0]->hasQuasiStationaryReactions())
+					{
+						for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
+						{
+							if (!qsMask[bnd])
+								continue;
+
+							const unsigned int qIdx = poreOffset + idxr.strideParLiquid() + bnd + node * idxr.strideParNode();
+
+							for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(_jac, qIdx); it; ++it)
+								_jacDisc.coeffRef(qIdx, it.col()) = it.value();
+
+							sensYdot[idxr.offsetC() + qIdx] = 0.0;
+						}
+					}
+				}
+
+				// Factorize and solve
+				const unsigned int pureDofs = numPureDofs();
+				_linearSolver->analyzePattern(_jacDisc);
+				_linearSolver->factorize(_jacDisc);
+				if (_linearSolver->info() != Eigen::Success)
+				{
+					LOG(Error) << "Factorize failed in consistentInitialSensitivity";
+				}
+
+				Eigen::Map<Eigen::VectorXd> sDot(sensYdot + idxr.offsetC(), pureDofs);
+				sDot = _linearSolver->solve(sDot);
+				if (_linearSolver->info() != Eigen::Success)
+				{
+					LOG(Error) << "Solve failed in consistentInitialSensitivity";
+				}
+
+				// Inlet DOFs have no time derivative
+				for (unsigned int i = 0; i < _disc.nComp; ++i)
+					sensYdot[i] = 0.0;
+
+				// Reset Jacobian pattern for normal operation
+				setPattern(_jacDisc, true, _dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0));
 			}
 		}
 

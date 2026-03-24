@@ -457,6 +457,9 @@ namespace cadet
 
 		void RadialLumpedRateModelWithoutPoresDG::prepareADvectors(const AdJacobianParams& adJac) const
 		{
+			if (!adJac.adY)
+				return;
+
 			Indexer idxr(_disc);
 			// Radial DG always uses exact integration, so bandwidth is 2 * nNodes * stride
 			int lowerBandwidth = 2 * _disc.nNodes * idxr.strideColNode();
@@ -1256,26 +1259,132 @@ namespace cadet
 		void RadialLumpedRateModelWithoutPoresDG::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 			std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 		{
-			// For now, initialize sensitivities to zero
-			// TODO: Implement full sensitivity calculation for quasi-stationary binding
+			BENCH_SCOPE(_timerConsistentInit);
+
 			Indexer idxr(_disc);
 
 			for (std::size_t param = 0; param < vecSensY.size(); ++param)
 			{
+				double* const sensY = vecSensY[param];
 				double* const sensYdot = vecSensYdot[param];
-				double* const sensCdot = sensYdot + idxr.offsetC();
-				double* const sensQdot = sensCdot + idxr.strideColLiquid();
 
-				for (unsigned int point = 0; point < _disc.nPoints; ++point)
+				// Copy parameter derivative -dF / dp from AD
+				for (unsigned int i = _disc.nComp; i < numDofs(); ++i)
+					sensYdot[i] = -adRes[i].getADValue(param);
+
+				// Step 1: Solve algebraic equations (QS binding)
+				if (_binding[0] && _binding[0]->hasQuasiStationaryReactions())
 				{
-					const unsigned int localOffset = point * idxr.strideColNode();
-					double* const localSensCdot = sensCdot + localOffset;
-					double* const localSensQdot = sensQdot + localOffset;
+					int const* const qsMask = _binding[0]->reactionQuasiStationarity();
+					const linalg::ConstMaskArray mask{qsMask, static_cast<int>(_disc.strideBound)};
+					const int probSize = linalg::numMaskActive(mask);
 
-					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-						localSensCdot[comp] = 0.0;
+					for (unsigned int node = 0; node < _disc.nPoints; ++node)
+					{
+						const unsigned int jacRowOffset = idxr.strideColNode() * node + static_cast<unsigned int>(idxr.strideColLiquid());
+						const int localQOffset = idxr.offsetC() + node * idxr.strideColNode() + idxr.strideColLiquid();
 
-					std::fill(localSensQdot, localSensQdot + _disc.strideBound, 0.0);
+						// Reuse memory of sparse Jacobian for dense matrix
+						linalg::DenseMatrixView jacobianMatrix(_jacDisc.valuePtr() + node * _disc.strideBound * _disc.strideBound, _jacDisc.innerIndexPtr() + node * _disc.strideBound, probSize, probSize);
+
+						LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+
+						BufferedArray<double> rhsBuffer = tlmAlloc.array<double>(probSize);
+						double* const rhs = static_cast<double*>(rhsBuffer);
+
+						BufferedArray<double> rhsUnmaskedBuffer = tlmAlloc.array<double>(_disc.strideBound);
+						double* const rhsUnmasked = static_cast<double*>(rhsUnmaskedBuffer);
+
+						double* const maskedMultiplier = _tempState + idxr.offsetC() + node * idxr.strideColNode();
+
+						// Extract subproblem Jacobian from full Jacobian
+						jacobianMatrix.setAll(0.0);
+						linalg::copyMatrixSubset(_jac, mask, mask, jacRowOffset, jacRowOffset, jacobianMatrix);
+
+						// Construct right hand side
+						linalg::selectVectorSubset(sensYdot + localQOffset, mask, rhs);
+
+						// Zero out masked elements
+						std::copy_n(sensY + localQOffset - idxr.strideColLiquid(), idxr.strideColNode(), maskedMultiplier);
+						linalg::fillVectorSubset(maskedMultiplier + _disc.nComp, mask, 0.0);
+
+						// Assemble right hand side
+						Eigen::Map<Eigen::VectorXd> maskedMultiplier_vec(maskedMultiplier, idxr.strideColNode());
+						Eigen::Map<Eigen::VectorXd> rhsUnmasked_vec(rhsUnmasked, _disc.strideBound);
+						rhsUnmasked_vec = _jac.block(jacRowOffset, jacRowOffset - static_cast<int>(_disc.nComp), _disc.strideBound, idxr.strideColNode()) * maskedMultiplier_vec;
+						linalg::vectorSubsetAdd(rhsUnmasked, mask, -1.0, 1.0, rhs);
+
+						// Precondition
+						double* const scaleFactors = _tempState + idxr.offsetC() + node * idxr.strideColNode();
+						jacobianMatrix.rowScaleFactors(scaleFactors);
+						jacobianMatrix.scaleRows(scaleFactors);
+
+						// Solve
+						jacobianMatrix.factorize();
+						jacobianMatrix.solve(scaleFactors, rhs);
+
+						// Write back
+						linalg::applyVectorSubset(rhs, mask, sensY + localQOffset);
+					}
+				}
+
+				// Step 2: Compute the correct time derivative
+				// Add -J * s to -dF/dp
+				multiplyWithJacobian(simTime, simState, sensY, -1.0, 1.0, sensYdot);
+
+				// Build mass matrix in _jacDisc
+				double* entries = _jacDisc.valuePtr();
+				for (unsigned int nz = 0; nz < _jacDisc.nonZeros(); nz++)
+					entries[nz] = 0.0;
+
+				// dc/dt terms on diagonal
+				{
+					const int gapNode = idxr.strideColNode() - static_cast<int>(_disc.nComp) * idxr.strideColComp();
+					linalg::BandedEigenSparseRowIterator jac(_jacDisc, 0);
+					for (unsigned int i = 0; i < _disc.nPoints; ++i, jac += gapNode)
+					{
+						for (unsigned int j = 0; j < _disc.nComp; ++j, ++jac)
+							jac[0] += 1.0;
+					}
+				}
+
+				const double invBeta = 1.0 / static_cast<double>(_totalPorosity) - 1.0;
+				for (unsigned int col = 0; col < _disc.nPoints; ++col)
+				{
+					linalg::BandedEigenSparseRowIterator jac(_jacDisc, idxr.strideColNode() * col);
+					addTimeDerivativeToJacobianNode(jac, idxr, 1.0, invBeta);
+
+					// Overwrite rows for QS states with algebraic Jacobian
+					if (_binding[0] && _binding[0]->hasQuasiStationaryReactions())
+					{
+						linalg::BandedEigenSparseRowIterator jacSolidOrig(_jac, idxr.strideColNode() * col + idxr.strideColLiquid());
+						linalg::BandedEigenSparseRowIterator jacSolid(_jacDisc, idxr.strideColNode() * col + idxr.strideColLiquid());
+
+						int const* const mask = _binding[0]->reactionQuasiStationarity();
+						double* const qShellDot = sensYdot + idxr.offsetC() + col * idxr.strideColNode() + idxr.strideColLiquid();
+
+						for (unsigned int i = 0; i < _disc.strideBound; ++i, ++jacSolid, ++jacSolidOrig)
+						{
+							if (!mask[i])
+								continue;
+
+							jacSolid.copyRowFrom(jacSolidOrig);
+							qShellDot[i] = 0.0;
+						}
+					}
+				}
+
+				_linearSolver->factorize(_jacDisc);
+				if (_linearSolver->info() != Eigen::Success)
+				{
+					LOG(Error) << "Factorize failed in consistentInitialSensitivity";
+				}
+
+				Eigen::Map<Eigen::VectorXd> sensYdot_vec(sensYdot + idxr.offsetC(), numPureDofs());
+				sensYdot_vec = _linearSolver->solve(sensYdot_vec);
+				if (_linearSolver->info() != Eigen::Success)
+				{
+					LOG(Error) << "Solve failed in consistentInitialSensitivity";
 				}
 			}
 		}

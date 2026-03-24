@@ -26,6 +26,7 @@
 #include "linalg/Subset.hpp"
 #include "model/parts/BindingCellKernel.hpp"
 #include "model/parts/DGToolbox.hpp"
+#include "Memory.hpp"
 
 #include "AdUtils.hpp"
 
@@ -56,7 +57,7 @@ RadialGeneralRateModelDG::RadialGeneralRateModelDG(UnitOpIdx unitOpIdx) : UnitOp
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _initState(0), _initStateDot(0)
 {
-	// Multiple particle types are supported
+	// Will be set to true if nParType == 1 (or BINDING_PARTYPE_DEPENDENT is 0) during configure
 	_singleBinding = false;
 	_singleDynReaction = false;
 }
@@ -255,6 +256,11 @@ bool RadialGeneralRateModelDG::configureModelDiscretization(IParameterProvider& 
 			if (paramProvider.exists("ADSORPTION_MODEL"))
 				bindModelName = paramProvider.getString("ADSORPTION_MODEL");
 
+			if (paramProvider.exists("BINDING_PARTYPE_DEPENDENT"))
+				_singleBinding = !paramProvider.getInt("BINDING_PARTYPE_DEPENDENT");
+			else
+				_singleBinding = _disc.nParType == 1;
+
 			_binding[parType] = helper.createBindingModel(bindModelName);
 			if (!_binding[parType])
 				throw InvalidParameterException("Unknown binding model " + bindModelName);
@@ -376,19 +382,34 @@ bool RadialGeneralRateModelDG::configure(IParameterProvider& paramProvider)
 	}
 
 	// Configure binding models
-	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
+	if (_singleBinding)
 	{
-		if (_binding[parType] && _binding[parType]->requiresConfiguration())
+		if (_binding[0] && _binding[0]->requiresConfiguration())
 		{
-			const std::string parGroup = "particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType);
-			paramProvider.pushScope(parGroup);
+			paramProvider.pushScope("particle_type_000");
 			paramProvider.pushScope("adsorption");
-
-			if (!_binding[parType]->configure(paramProvider, _unitOpIdx, parType))
-				throw InvalidParameterException("Failed to configure binding model for particle type " + std::to_string(parType));
-
+			if (!_binding[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep))
+				throw InvalidParameterException("Failed to configure binding model for single particle type");
 			paramProvider.popScope();
 			paramProvider.popScope();
+		}
+	}
+	else
+	{
+		for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
+		{
+			if (_binding[parType] && _binding[parType]->requiresConfiguration())
+			{
+				const std::string parGroup = "particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType);
+				paramProvider.pushScope(parGroup);
+				paramProvider.pushScope("adsorption");
+
+				if (!_binding[parType]->configure(paramProvider, _unitOpIdx, parType))
+					throw InvalidParameterException("Failed to configure binding model for particle type " + std::to_string(parType));
+
+				paramProvider.popScope();
+				paramProvider.popScope();
+			}
 		}
 	}
 
@@ -412,6 +433,10 @@ bool RadialGeneralRateModelDG::configure(IParameterProvider& paramProvider)
 	// Configure convection-dispersion operator
 	const bool transportSuccess = _convDispOp.configure(_unitOpIdx, paramProvider, _parameters);
 
+	// Register initial condition parameters
+	for (unsigned int i = 0; i < _disc.nComp; ++i)
+		_parameters[makeParamId(hashString("INIT_C"), _unitOpIdx, i, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = _initC.data() + i;
+
 	// Precompute film diffusion coupling matrices for radial ρ-weighting correction
 	// For constant k_f, M_ρ^{-1} * M_rho = I (k_f applied per-component in residual)
 	_filmDiffCoupling.resize(_disc.nElem);
@@ -430,7 +455,29 @@ bool RadialGeneralRateModelDG::configure(IParameterProvider& paramProvider)
 
 unsigned int RadialGeneralRateModelDG::threadLocalMemorySize() const CADET_NOEXCEPT
 {
-	return 0;
+	LinearMemorySizer lms;
+
+	// Memory for residualImpl() - binding workspace
+	for (unsigned int i = 0; i < _disc.nParType; ++i)
+	{
+		if (_binding[i] && _binding[i]->requiresWorkspace())
+			lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound));
+	}
+
+	// Memory for cross-phase reactions in particle (via BindingCellKernel)
+	lms.add<active>(_disc.nComp + _disc.strideBound);
+	lms.add<double>((_disc.strideBound + _disc.nComp) * (_disc.strideBound + _disc.nComp));
+
+	lms.commit();
+	const std::size_t resImplSize = lms.bufferSize();
+
+	// Memory for consistentInitialState()
+	LinearMemorySizer lms2;
+	lms2.add<double>(_disc.strideBound);  // fluxRes
+	lms2.add<double>(_disc.strideBound);  // fluxPert
+	lms2.commit();
+
+	return std::max(resImplSize, lms2.bufferSize());
 }
 
 unsigned int RadialGeneralRateModelDG::requiredADdirs() const CADET_NOEXCEPT
@@ -1060,7 +1107,8 @@ void RadialGeneralRateModelDG::assembleDiscretizedJacobian(double alpha, const I
 	// Add time derivatives to particle phases
 	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
 	{
-		const double invBetaP = 1.0 / static_cast<double>(_particles[parType]->getPorosity()) - 1.0;
+		const double porosity = static_cast<double>(_particles[parType]->getPorosity());
+		active const* const poreAccFactor = _particles[parType]->getPoreAccessFactor();
 		IBindingModel* const parBinding = _particles[parType]->getBinding();
 		int const* const qsReaction = parBinding ? parBinding->reactionQuasiStationarity() : nullptr;
 		const unsigned int poreOffset = _disc.nPoints * _disc.nComp + _disc.parTypeOffset[parType];
@@ -1074,6 +1122,7 @@ void RadialGeneralRateModelDG::assembleDiscretizedJacobian(double alpha, const I
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 				{
 					const unsigned int cpIdx = parOffset + comp;
+					const double invBetaP = (1.0 - porosity) / (static_cast<double>(poreAccFactor[comp]) * porosity);
 					_jacDisc.coeffRef(cpIdx, cpIdx) += alpha;
 
 					// Coupling with all bound states (regardless of QS)
@@ -1319,16 +1368,86 @@ void RadialGeneralRateModelDG::consistentInitialState(const SimulationTime& simT
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
-	// Note: Do NOT call applyInitialCondition() here!
-	// Initial conditions are set by readInitialCondition() earlier.
-	// The system has already set inlet DOFs via solveCouplingDOF() before this call.
+	Indexer idxr(_disc);
 
 	// Solve for consistent initial state if binding is quasi-stationary
 	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
 	{
-		if (_binding[parType] && _binding[parType]->hasQuasiStationaryReactions())
+		if (!_binding[parType] || !_binding[parType]->hasQuasiStationaryReactions())
+			continue;
+
+		int const* const qsMask = _binding[parType]->reactionQuasiStationarity();
+
+		for (unsigned int colNode = 0; colNode < _disc.nPoints; ++colNode)
 		{
-			// TODO: Implement quasi-stationary binding initialization
+			const double z = _convDispOp.relativeCoordinate(colNode);
+
+			for (unsigned int parNode = 0; parNode < _disc.nParPoints[parType]; ++parNode)
+			{
+				const unsigned int parOffset = idxr.offsetCp(parType) + colNode * idxr.strideParBlock(parType) + parNode * idxr.strideParNode(parType);
+				double* const localState = vecStateY + parOffset;
+				double* const localQ = localState + _disc.nComp;
+				const double r = _particles[parType]->relativeCoordinate(parNode);
+
+				LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+				if (!_binding[parType]->preConsistentInitialState(simTime.t, simTime.secIdx, ColumnPosition{z, 0.0, r}, localQ, localState, tlmAlloc))
+					continue;
+
+				// Newton iteration: solve flux(cp, q) = 0 for q
+				std::vector<double> fluxRes(_disc.strideBound, 0.0);
+				for (int iter = 0; iter < 100; ++iter)
+				{
+					LinearBufferAllocator tlmAlloc2 = threadLocalMem.get();
+
+					std::fill(fluxRes.begin(), fluxRes.end(), 0.0);
+					_binding[parType]->flux(simTime.t, simTime.secIdx, ColumnPosition{z, 0.0, r},
+						localQ, localState, fluxRes.data(), tlmAlloc2);
+
+					double maxRes = 0.0;
+					for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
+					{
+						if (qsMask[bnd])
+							maxRes = std::max(maxRes, std::abs(fluxRes[bnd]));
+					}
+					if (maxRes < errorTol)
+						break;
+
+					// FD Jacobian dflux/dq
+					Eigen::MatrixXd jacQ(_disc.strideBound, _disc.strideBound);
+					jacQ.setZero();
+					const double eps = 1e-8;
+					std::vector<double> fluxPert(_disc.strideBound);
+					for (unsigned int j = 0; j < _disc.strideBound; ++j)
+					{
+						if (!qsMask[j])
+							continue;
+
+						const double orig = localQ[j];
+						localQ[j] = orig + eps;
+
+						std::fill(fluxPert.begin(), fluxPert.end(), 0.0);
+						LinearBufferAllocator tlmAlloc3 = threadLocalMem.get();
+						_binding[parType]->flux(simTime.t, simTime.secIdx, ColumnPosition{z, 0.0, r},
+							localQ, localState, fluxPert.data(), tlmAlloc3);
+
+						for (unsigned int i = 0; i < _disc.strideBound; ++i)
+							jacQ(i, j) = (fluxPert[i] - fluxRes[i]) / eps;
+
+						localQ[j] = orig;
+					}
+
+					Eigen::VectorXd rhs(_disc.strideBound);
+					for (unsigned int i = 0; i < _disc.strideBound; ++i)
+						rhs(i) = -fluxRes[i];
+
+					Eigen::VectorXd delta = jacQ.fullPivLu().solve(rhs);
+					for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
+					{
+						if (qsMask[bnd])
+							localQ[bnd] += delta(bnd);
+					}
+				}
+			}
 		}
 	}
 }
@@ -1337,8 +1456,114 @@ void RadialGeneralRateModelDG::consistentInitialTimeDerivative(const SimulationT
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
-	// Set time derivatives to zero initially
-	std::fill_n(vecStateYdot, numDofs(), 0.0);
+	Indexer idxr(_disc);
+
+	// Negate residual: yDot = -f(y)
+	const unsigned int nDof = numDofs();
+	for (unsigned int i = 0; i < nDof; ++i)
+		vecStateYdot[i] = -vecStateYdot[i];
+
+	// Build mass matrix in _jacDisc and solve M * yDot = -f(y)
+	// Zero the Jacobian
+	double* entries = _jacDisc.valuePtr();
+	for (unsigned int nz = 0; nz < _jacDisc.nonZeros(); ++nz)
+		entries[nz] = 0.0;
+
+	// Bulk: dc/dt => identity on diagonal
+	for (unsigned int node = 0; node < _disc.nPoints; ++node)
+	{
+		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+		{
+			const unsigned int idx = comp + node * idxr.strideColNode();
+			_jacDisc.coeffRef(idx, idx) += 1.0;
+		}
+	}
+
+	// Particle mass matrix entries
+	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
+	{
+		const double porosity = static_cast<double>(_particles[parType]->getPorosity());
+		active const* const poreAccFactor = _particles[parType]->getPoreAccessFactor();
+		IBindingModel* const parBinding = _particles[parType]->getBinding();
+		int const* const qsReaction = parBinding ? parBinding->reactionQuasiStationarity() : nullptr;
+		const unsigned int poreOffset = _disc.nPoints * _disc.nComp + _disc.parTypeOffset[parType];
+
+		for (unsigned int colNode = 0; colNode < _disc.nPoints; ++colNode)
+		{
+			for (unsigned int parNode = 0; parNode < _disc.nParPoints[parType]; ++parNode)
+			{
+				const unsigned int parOffset = poreOffset + colNode * idxr.strideParBlock(parType) + parNode * idxr.strideParNode(parType);
+
+				// cp rows: dcp/dt + invBetaP * sum(dq/dt)
+				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+				{
+					const unsigned int cpIdx = parOffset + comp;
+					const double invBetaP = (1.0 - porosity) / (static_cast<double>(poreAccFactor[comp]) * porosity);
+					_jacDisc.coeffRef(cpIdx, cpIdx) += 1.0;
+
+					for (unsigned int bnd = 0; bnd < _disc.nBound[comp]; ++bnd)
+					{
+						const unsigned int qIdx = parOffset + _disc.nComp + _disc.boundOffset[comp] + bnd;
+						_jacDisc.coeffRef(cpIdx, qIdx) += invBetaP;
+					}
+				}
+
+				// q rows: dq/dt for kinetic states only
+				for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
+				{
+					if (qsReaction && qsReaction[bnd])
+						continue;
+
+					const unsigned int qIdx = parOffset + _disc.nComp + bnd;
+					_jacDisc.coeffRef(qIdx, qIdx) += 1.0;
+				}
+
+				// For quasi-stationary states: copy algebraic Jacobian row from _jac
+				if (parBinding && parBinding->hasQuasiStationaryReactions())
+				{
+					for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
+					{
+						if (!qsReaction[bnd])
+							continue;
+
+						const unsigned int qIdx = parOffset + _disc.nComp + bnd;
+
+						// Copy entries from _jac row to _jacDisc row
+						// Cannot use copyRowFrom because _jac and _jacDisc may have different sparsity patterns
+						for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(_jac, qIdx); it; ++it)
+							_jacDisc.coeffRef(qIdx, it.col()) = it.value();
+
+						// RHS for QS states: 0 (correct for time-independent binding like LINEAR)
+						const unsigned int stateQIdx = idxr.offsetCp(parType) + colNode * idxr.strideParBlock(parType) + parNode * idxr.strideParNode(parType) + _disc.nComp + bnd;
+						vecStateYdot[stateQIdx] = 0.0;
+					}
+				}
+			}
+		}
+	}
+
+	// Factorize and solve
+	const unsigned int pureDofs = numPureDofs();
+	_linearSolver->analyzePattern(_jacDisc);
+	_linearSolver->factorize(_jacDisc);
+	if (_linearSolver->info() != Eigen::Success)
+	{
+		LOG(Error) << "Factorize failed in consistentInitialTimeDerivative";
+	}
+
+	Eigen::Map<Eigen::VectorXd> yDot(vecStateYdot + idxr.offsetC(), pureDofs);
+	yDot = _linearSolver->solve(yDot);
+	if (_linearSolver->info() != Eigen::Success)
+	{
+		LOG(Error) << "Solve failed in consistentInitialTimeDerivative";
+	}
+
+	// Inlet DOFs have no time derivative
+	for (unsigned int i = 0; i < _disc.nComp; ++i)
+		vecStateYdot[i] = 0.0;
+
+	// Reset Jacobian pattern for normal operation
+	setPattern(_jacDisc, true);
 }
 
 void RadialGeneralRateModelDG::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
@@ -1350,10 +1575,120 @@ void RadialGeneralRateModelDG::initializeSensitivityStates(const std::vector<dou
 void RadialGeneralRateModelDG::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
-	for (unsigned int i = 0; i < vecSensY.size(); ++i)
+	BENCH_SCOPE(_timerConsistentInit);
+
+	Indexer idxr(_disc);
+
+	for (std::size_t param = 0; param < vecSensY.size(); ++param)
 	{
-		std::fill_n(vecSensY[i], numDofs(), 0.0);
-		std::fill_n(vecSensYdot[i], numDofs(), 0.0);
+		double* const sensY = vecSensY[param];
+		double* const sensYdot = vecSensYdot[param];
+
+		// Copy parameter derivative -dF / dp from AD
+		for (unsigned int i = _disc.nComp; i < numDofs(); ++i)
+			sensYdot[i] = -adRes[i].getADValue(param);
+
+		// Add -dF/dy * s = -J * s to sensYdot
+		multiplyWithJacobian(simTime, simState, sensY, -1.0, 1.0, sensYdot);
+
+		// Now sensYdot = -(J * s + dF/dp), which is the RHS of M * sDot = RHS
+		// Build mass matrix in _jacDisc (same as consistentInitialTimeDerivative)
+		double* entries = _jacDisc.valuePtr();
+		for (unsigned int nz = 0; nz < _jacDisc.nonZeros(); ++nz)
+			entries[nz] = 0.0;
+
+		// Bulk: dc/dt => identity on diagonal
+		for (unsigned int node = 0; node < _disc.nPoints; ++node)
+		{
+			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+			{
+				const unsigned int idx = comp + node * idxr.strideColNode();
+				_jacDisc.coeffRef(idx, idx) += 1.0;
+			}
+		}
+
+		// Particle mass matrix entries
+		for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
+		{
+			const double porosity = static_cast<double>(_particles[parType]->getPorosity());
+			active const* const poreAccFactor = _particles[parType]->getPoreAccessFactor();
+			IBindingModel* const parBinding = _particles[parType]->getBinding();
+			int const* const qsReaction = parBinding ? parBinding->reactionQuasiStationarity() : nullptr;
+			const unsigned int poreOffset = _disc.nPoints * _disc.nComp + _disc.parTypeOffset[parType];
+
+			for (unsigned int colNode = 0; colNode < _disc.nPoints; ++colNode)
+			{
+				for (unsigned int parNode = 0; parNode < _disc.nParPoints[parType]; ++parNode)
+				{
+					const unsigned int parOffset = poreOffset + colNode * idxr.strideParBlock(parType) + parNode * idxr.strideParNode(parType);
+
+					// cp rows: dcp/dt + invBetaP * sum(dq/dt)
+					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+					{
+						const unsigned int cpIdx = parOffset + comp;
+						const double invBetaP = (1.0 - porosity) / (static_cast<double>(poreAccFactor[comp]) * porosity);
+						_jacDisc.coeffRef(cpIdx, cpIdx) += 1.0;
+
+						for (unsigned int bnd = 0; bnd < _disc.nBound[comp]; ++bnd)
+						{
+							const unsigned int qIdx = parOffset + _disc.nComp + _disc.boundOffset[comp] + bnd;
+							_jacDisc.coeffRef(cpIdx, qIdx) += invBetaP;
+						}
+					}
+
+					// q rows: dq/dt for kinetic states only
+					for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
+					{
+						if (qsReaction && qsReaction[bnd])
+							continue;
+
+						const unsigned int qIdx = parOffset + _disc.nComp + bnd;
+						_jacDisc.coeffRef(qIdx, qIdx) += 1.0;
+					}
+
+					// For quasi-stationary states: copy algebraic Jacobian row from _jac
+					if (parBinding && parBinding->hasQuasiStationaryReactions())
+					{
+						for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
+						{
+							if (!qsReaction[bnd])
+								continue;
+
+							const unsigned int qIdx = parOffset + _disc.nComp + bnd;
+
+							for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(_jac, qIdx); it; ++it)
+								_jacDisc.coeffRef(qIdx, it.col()) = it.value();
+
+							// RHS for QS states: 0
+							sensYdot[idxr.offsetC() + qIdx] = 0.0;
+						}
+					}
+				}
+			}
+		}
+
+		// Factorize and solve
+		const unsigned int pureDofs = numPureDofs();
+		_linearSolver->analyzePattern(_jacDisc);
+		_linearSolver->factorize(_jacDisc);
+		if (_linearSolver->info() != Eigen::Success)
+		{
+			LOG(Error) << "Factorize failed in consistentInitialSensitivity";
+		}
+
+		Eigen::Map<Eigen::VectorXd> sDot(sensYdot + idxr.offsetC(), pureDofs);
+		sDot = _linearSolver->solve(sDot);
+		if (_linearSolver->info() != Eigen::Success)
+		{
+			LOG(Error) << "Solve failed in consistentInitialSensitivity";
+		}
+
+		// Inlet DOFs have no time derivative
+		for (unsigned int i = 0; i < _disc.nComp; ++i)
+			sensYdot[i] = 0.0;
+
+		// Reset Jacobian pattern for normal operation
+		setPattern(_jacDisc, true);
 	}
 }
 
@@ -1364,7 +1699,8 @@ void RadialGeneralRateModelDG::leanConsistentInitialState(const SimulationTime& 
 
 void RadialGeneralRateModelDG::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
-	std::fill_n(vecStateYdot, numDofs(), 0.0);
+	SimulationTime simTime{t, 0u};
+	consistentInitialTimeDerivative(simTime, vecStateY, vecStateYdot, threadLocalMem);
 }
 
 void RadialGeneralRateModelDG::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,

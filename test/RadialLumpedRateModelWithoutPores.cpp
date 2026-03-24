@@ -156,6 +156,16 @@ TEST_CASE("Radial LRM dynamic reactions time derivative Jacobian vs FD modified 
 // Radial LRM_DG Tests
 // ============================================================================
 
+TEST_CASE("Radial LRM_DG numerical Benchmark for linear case", "[RadLRM],[DG],[Simulation],[Reference]")
+{
+	const std::string& modelFilePath = std::string("/data/model_radLRM_dynLin_1comp_sensbenchmark1.json");
+	const std::string& refFilePath = std::string("/data/ref_radLRM_dynLin_1comp_sensbenchmark1_DG_P3Z16.h5");
+	const std::vector<double> absTol = { 1e-12 };
+	const std::vector<double> relTol = { 1e-5 };
+	cadet::test::column::DGParams disc(0, 3, 16);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
 TEST_CASE("Radial LRM_DG transport Jacobian", "[RadLRM],[DG],[UnitOp],[Jacobian]")
 {
 	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
@@ -183,32 +193,34 @@ TEST_CASE("Radial LRM_DG consistent initialization with linear binding", "[RadLR
 	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", 1e-12, 1e-12);
 }
 
-//TEST_CASE("Radial LRM_DG Jacobian forward vs backward flow", "[RadLRM],[DG],[UnitOp],[Residual],[Jacobian],[AD],[fix]")
+// Forward vs backward flow: pre-existing issue in radial DG conv-disp operator with reversed flow
+//TEST_CASE("Radial LRM_DG Jacobian forward vs backward flow", "[RadLRM],[DG],[UnitOp],[Residual],[Jacobian],[AD]")
 //{
 //	cadet::test::column::DGParams disc;
 //	cadet::test::column::testJacobianForwardBackward("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", disc, std::numeric_limits<float>::epsilon() * 100.0);
 //}
 
-//TEST_CASE("Radial LRM_DG sensitivity Jacobians", "[RadLRM],[DG],[UnitOp],[Sensitivity],[fix]")
-//{
-//	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
-//
-//	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 3e-7, 5e-4);
-//}
+TEST_CASE("Radial LRM_DG sensitivity Jacobians", "[RadLRM],[DG],[UnitOp],[Sensitivity]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
 
-// Consistent sensitivity init: residuals ~O(1000) — consistentInitialSensitivity() not yet correct for radial DG
-//TEST_CASE("Radial LRM_DG consistent sensitivity initialization with linear binding", "[RadLRM],[DG],[ConsistentInit],[Sensitivity],[fix]")
-//{
-//	const unsigned int numDofs = 4 + 10 * (4 + 4);
-//	std::vector<double> y(numDofs, 0.0);
-//	std::vector<double> yDot(numDofs, 0.0);
-//	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, numDofs);
-//	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
-//
-//	cadet::test::column::testConsistentInitializationSensitivity("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", y.data(), yDot.data(), true, 1e-14);
-//}
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 3e-7, 5e-4);
+}
 
-//TEST_CASE("Radial LRM_DG consistent sensitivity initialization with SMA binding", "[RadLRM],[DG],[ConsistentInit],[Sensitivity],[fix]")
+TEST_CASE("Radial LRM_DG consistent sensitivity initialization with linear binding", "[RadLRM],[DG],[ConsistentInit],[Sensitivity]")
+{
+	// DG: createColumnWithTwoCompLinearBinding uses POLYDEG=3, NELEM=1 => nPoints=4, nComp=2, strideBound=2
+	const unsigned int numDofs = 2 + 4 * (2 + 2);
+	std::vector<double> y(numDofs, 0.0);
+	std::vector<double> yDot(numDofs, 0.0);
+	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, numDofs);
+	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
+
+	cadet::test::column::testConsistentInitializationSensitivity("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", y.data(), yDot.data(), true, 1e-14);
+}
+
+// SMA sensitivity init: pre-existing failure (also fails in FV radial models)
+//TEST_CASE("Radial LRM_DG consistent sensitivity initialization with SMA binding", "[RadLRM],[DG],[ConsistentInit],[Sensitivity]")
 //{
 //	const unsigned int numDofs = 4 + 10 * (4 + 4);
 //	std::vector<double> y(numDofs, 0.0);
