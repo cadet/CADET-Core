@@ -23,6 +23,7 @@
 #include "linalg/CompressedSparseMatrix.hpp"
 #include "Memory.hpp"
 #include "Weno.hpp"
+#include "HighResKoren.hpp"
 #include "model/ParameterMultiplexing.hpp"
 #include "SimulationTypes.hpp"
 #include "ConfigurationHelper.hpp"
@@ -166,11 +167,12 @@ protected:
 
 	IParameterParameterDependence* _dispersionDep;
 
+	bool _gridEquidistant; //!< Determines whether the axial grid is equidistant
 	ArrayPool _stencilMemory; //!< Provides memory for the stencil
 	std::vector<active> _cellFaces; //!< Positions of cell faces (length nCol+1)
-	double* _wenoDerivatives; //!< Holds derivatives of the WENO scheme
-	Weno _weno; //!< The WENO scheme implementation
-	double _wenoEpsilon; //!< The @f$ \varepsilon @f$ of the WENO scheme (prevents division by zero)
+	double* _reconstrDerivatives; //!< Holds derivatives of the reconstruction scheme
+	Weno* _weno; //!< The WENO scheme implementation (mutually exclusive with _koren)
+	HighResolutionKoren* _koren; //!< The Koren scheme implementation (mutually exclusive with _weno)
 
 	linalg::CompressedSparseMatrix _jacC; //!< Jacobian
 	LinearSolver* _linearSolver; //!< Solves linear system with time discretized Jacobian
