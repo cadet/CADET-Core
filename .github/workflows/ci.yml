@@ -273,6 +273,7 @@ jobs:
       - name: Run CI test set IV
         if: always() && steps.build.conclusion == 'success'
         run: |
+          catchsegv ${BUILD_DIR}/test/testRunner "Reference test: 2DGRM FV KOREN" || true
           ${BUILD_DIR}/test/testRunner [CI]
 
   MacOS:
