@@ -111,12 +111,17 @@ protected:
 		const ParamType relPos = static_cast<ParamType>(colPos.axial);
 
 		// rho = rInner + length * relPos
-		// p_new = val * base * (rInner / rho)^exponent
-		//       = val * base * (rInner / (rInner + length * relPos))^exponent
+		// p_new = base * (rInner / rho)^exponent
+		//       = base * (rInner / (rInner + length * relPos))^exponent
+		// Note: val (= u/rho from the kernel) is intentionally NOT multiplied here.
+		// This dependence models a purely geometric variation D(rho) = D0 * (rin/rho)^k,
+		// not a velocity-dependent one. The kernel already passes val for POWER_LAW
+		// (axial, D proportional to u^k), but for radial geometry the 1/rho scaling is built
+		// into the position-based ratio, so multiplying by val would double-count.
 		const ParamType rho = static_cast<ParamType>(_rInner) + static_cast<ParamType>(_length) * relPos;
 		const ParamType ratio = static_cast<ParamType>(_rInner) / rho;
 
-		return val * static_cast<ParamType>(_base) * pow(ratio, static_cast<ParamType>(_exponent));
+		return static_cast<ParamType>(_base) * pow(ratio, static_cast<ParamType>(_exponent));
 	}
 
 };
