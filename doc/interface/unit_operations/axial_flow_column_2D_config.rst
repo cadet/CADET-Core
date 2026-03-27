@@ -334,6 +334,17 @@ Finite Volumes
    **Type:** string  **Range:** :math:`\texttt{WENO, KOREN}`  **Length:** 1
    ================  =======================================  =============
 
+``AXIAL_GRID_FACES``
+
+   Optional, required only for non-equidistant axial grids.
+   An array specifying the coordinates of all axial grid faces.
+   The first entry must be 0 and the last entry must equal ``COL_LENGTH``.
+   See :ref:`flux_reconstruction_methods` for details and recommendations on grid stretching ratios.
+
+   ================  =========================  ============================
+   **Type:** double  **Range:** :math:`[0, L]`  **Length:** :math:`NCOL + 1`
+   ================  =========================  ============================
+
    For further information on discretization parameters for reconstruction methods, see also :ref:`flux_reconstruction_methods` (FV specific).
 
 ``GS_TYPE``

@@ -14,7 +14,8 @@ Group /input/model/unit_XXX/discretization
     The array length must equal the number of grid faces, i.e., number of grid cells plus one, and the column boundaries must be included.
 
     .. note::
-        - large ratios of adjacent cells sizes **may** reduce reconstruction accuracy. Recommendation :math:`r = max(Δx_{i+1}/Δx_i, Δx_i/Δx_{i+1}) < 3`.
+        - For the 2D General Rate Model (``GENERAL_RATE_MODEL_2D``), this parameter is called ``AXIAL_GRID_FACES`` to distinguish it from the radial direction.
+        - Large ratios of adjacent cells sizes **may** reduce reconstruction accuracy. Recommendation :math:`r = max(Δx_{i+1}/Δx_i, Δx_i/Δx_{i+1}) < 3`.
         - Avoid large ratios :math:`Δx_{max} / Δx_{min}`, which **might** cause stiff ODE systems and thus slow, unstable time integration.
 
    ================  =========================  ============================
