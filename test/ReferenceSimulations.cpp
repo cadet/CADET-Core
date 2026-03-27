@@ -146,6 +146,77 @@ TEST_CASE("Reference test: FV WENO3 non-equidistant grid", "[Column_1D],[FV_WENO
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
+// MCT FV variant reference tests
+TEST_CASE("Reference test: MCT FV KOREN", "[MCT],[FV_KOREN],[Simulation],[CI],[numRef]")
+{
+	std::string modelFilePath = std::string("/data/config_MCT_KOREN_eq_Z128.json");
+	std::string refFilePath = std::string("/data/ref_MCT_KOREN_eq_Z128.h5");
+	const std::vector<double> absTol = { 5e-10 };
+	const std::vector<double> relTol = { 1e-4 };
+
+	cadet::test::column::FVParams disc(128);
+	disc.setBulkDiscParam("NCHANNEL", 1);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
+TEST_CASE("Reference test: MCT FV KOREN non-equidistant grid", "[MCT],[FV_KOREN],[Simulation],[CI],[numRef]")
+{
+	std::string modelFilePath = std::string("/data/config_MCT_KOREN_nonEq_Z128.json");
+	std::string refFilePath = std::string("/data/ref_MCT_KOREN_nonEq_Z128.h5");
+	const std::vector<double> absTol = { 5e-10 };
+	const std::vector<double> relTol = { 1e-4 };
+
+	cadet::test::column::FVParams disc(128);
+	disc.setBulkDiscParam("NCHANNEL", 1);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
+TEST_CASE("Reference test: MCT FV WENO3 non-equidistant grid", "[MCT],[FV_WENO3],[Simulation],[CI],[numRef]")
+{
+	std::string modelFilePath = std::string("/data/config_MCT_WENO3_nonEq_Z128.json");
+	std::string refFilePath = std::string("/data/ref_MCT_WENO3_nonEq_Z128.h5");
+	const std::vector<double> absTol = { 5e-12 };
+	const std::vector<double> relTol = { 1e-6 };
+
+	cadet::test::column::FVParams disc(128);
+	disc.setBulkDiscParam("NCHANNEL", 1);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
+// 2DGRM FV variant reference tests
+TEST_CASE("Reference test: 2DGRM FV KOREN", "[GRM2D],[FV_KOREN],[Simulation],[CI],[numRef]")
+{
+	std::string modelFilePath = std::string("/data/config_2DGRM_KOREN_eq_Z128.json");
+	std::string refFilePath = std::string("/data/ref_2DGRM_KOREN_eq_Z128.h5");
+	const std::vector<double> absTol = { 5e-10 };
+	const std::vector<double> relTol = { 1e-4 };
+
+	cadet::test::column::FVParams disc(128);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
+TEST_CASE("Reference test: 2DGRM FV KOREN non-equidistant grid", "[GRM2D],[FV_KOREN],[Simulation],[CI],[numRef]")
+{
+	std::string modelFilePath = std::string("/data/config_2DGRM_KOREN_nonEq_Z128.json");
+	std::string refFilePath = std::string("/data/ref_2DGRM_KOREN_nonEq_Z128.h5");
+	const std::vector<double> absTol = { 5e-10 };
+	const std::vector<double> relTol = { 1e-4 };
+
+	cadet::test::column::FVParams disc(128);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
+TEST_CASE("Reference test: 2DGRM FV WENO3 non-equidistant grid", "[GRM2D],[FV_WENO3],[Simulation],[CI],[numRef]")
+{
+	std::string modelFilePath = std::string("/data/config_2DGRM_WENO3_nonEq_Z128.json");
+	std::string refFilePath = std::string("/data/ref_2DGRM_WENO3_nonEq_Z128.h5");
+	const std::vector<double> absTol = { 5e-12 };
+	const std::vector<double> relTol = { 1e-6 };
+
+	cadet::test::column::FVParams disc(128);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
 TEST_CASE("Reference test: spline binding single component", "[Column_1D],[SplineBinding],[Simulation],[CI]")
 {
 	std::string modelFilePath = std::string("/data/config_COL1D_GRM_spline_knots_shallow_7.json");

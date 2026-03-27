@@ -696,20 +696,20 @@ bool TwoDimensionalConvectionDispersionOperator::configureModelDiscretization(IP
 
 	const std::string recType = paramProvider.exists("RECONSTRUCTION") ? paramProvider.getString("RECONSTRUCTION") : "WENO";
 
-	if (paramProvider.exists("GRID_FACES"))
+	if (paramProvider.exists("AXIAL_GRID_FACES"))
 	{
-		readScalarParameterOrArray(_axialEdges, paramProvider, "GRID_FACES", 1);
+		readScalarParameterOrArray(_axialEdges, paramProvider, "AXIAL_GRID_FACES", 1);
 		if (_axialEdges.size() < 5)
-			throw InvalidParameterException("Number of elements in field GRID_FACES must be at least 5");
+			throw InvalidParameterException("Number of elements in field AXIAL_GRID_FACES must be at least 5");
 
 		if (_axialEdges.size() != _nCol + 1)
-			throw InvalidParameterException("Number of elements in field GRID_FACES must be NCOL + 1");
+			throw InvalidParameterException("Number of elements in field AXIAL_GRID_FACES must be NCOL + 1");
 
 		const double lastFace = static_cast<double>(_axialEdges.back());
 		if (std::abs(lastFace - static_cast<double>(_colLength)) > 1e-12)
-			throw InvalidParameterException("Last entry of GRID_FACES must match COL_LENGTH");
+			throw InvalidParameterException("Last entry of AXIAL_GRID_FACES must match COL_LENGTH");
 		if (_axialEdges[0] > 1e-15)
-			throw InvalidParameterException("First entry of GRID_FACES must be zero");
+			throw InvalidParameterException("First entry of AXIAL_GRID_FACES must be zero");
 
 		// Check if grid is equidistant
 		const double firstWidth = static_cast<double>(_axialEdges[1] - _axialEdges[0]);
@@ -739,14 +739,14 @@ bool TwoDimensionalConvectionDispersionOperator::configureModelDiscretization(IP
 
 		if (rMax > 3.0)
 		{
-			LOG(Warning) << "GRID_FACES contains strongly stretched neighboring cells (max ratio = "
+			LOG(Warning) << "AXIAL_GRID_FACES contains strongly stretched neighboring cells (max ratio = "
 				<< rMax << "). Reconstruction on highly stretched grids may lose accuracy or stability.";
 		}
 
 		const double sizeRatio = dxMax / dxMin;
 		if (sizeRatio > 1e6)
 		{
-			LOG(Warning) << "GRID_FACES contains cells spanning a very large size range (max/min ratio = "
+			LOG(Warning) << "AXIAL_GRID_FACES contains cells spanning a very large size range (max/min ratio = "
 				<< sizeRatio << "). This may lead to stiff ODE systems and slow or unstable time integration.";
 		}
 	}
