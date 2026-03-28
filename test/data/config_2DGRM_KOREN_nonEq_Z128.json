@@ -255,9 +255,6 @@
                 "PORE_DIFFUSION": [
                     0.0
                 ],
-                "SURFACE_DIFFUSION": [
-                    0.0
-                ],
                 "ADSORPTION_MODEL": "NONE"
             },
             "PAR_TYPE_VOLFRAC": 1.0
