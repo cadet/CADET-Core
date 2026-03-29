@@ -6,7 +6,7 @@ Affinity Complex Titration
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = AFFINITY_COMPLEX_TITRATION**
 
 For information on model equations, refer to :ref:`affinity_complex_titration`. 
-The first component is either ion concentration (:math:`c_{\mathrm{H}^+}`, :math:`c_{\mathrm{Na}^+}`) or negative log ion concentration (:math:`\mathrm{pH}`, :math:`\mathrm{pNa}`).
+The first component is either ion concentration (:math:`c_{\mathrm{H}^+}`, :math:`c_{\mathrm{Na}^+}` etc.) or negative log ion concentration (:math:`\mathrm{pH}`, :math:`\mathrm{pNa}` etc.).
 
 ``IS_KINETIC``
    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 =
@@ -96,8 +96,9 @@ The first component is either ion concentration (:math:`c_{\mathrm{H}^+}`, :math
 ``ACT_CMID_A``
    Midpoint ion concentration for the binding capacity changes. 
    Only used when ``ACT_USE_ION_CONC = True``.
+   Users should ensure that its unit is consistent with the first component. 
 
-**Unit:** :math:`mol~m_{MP}^{-3}`
+**Recommended Unit:** :math:`mol~m_{MP}^{-3}`
 
 ===================  =========================  =========================================
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
@@ -106,8 +107,9 @@ The first component is either ion concentration (:math:`c_{\mathrm{H}^+}`, :math
 ``ACT_CMID_G``
    Midpoint ion concentration for the equilibrium constant changes.
    Only used when ``ACT_USE_ION_CONC = True``.
+   Users should ensure that its unit is consistent with the first component. 
 
-**Unit:** :math:`mol~m_{MP}^{-3}`
+**Recommended Unit:** :math:`mol~m_{MP}^{-3}`
 
 ===================  =========================  =========================================
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP

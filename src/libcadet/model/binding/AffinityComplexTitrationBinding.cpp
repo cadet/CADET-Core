@@ -25,32 +25,28 @@
 #include <string>
 #include <vector>
 
+// Helper functions and constants for the AffinityComplexTitrationBinding model
 namespace
 {
 	constexpr double ln10 = 2.30258509299404568402;
 	constexpr double minIonConcentration = 1e-30;
-	constexpr double softplusTransitionFactor = 20.0;
+	constexpr double softplusTransitionFactor = 100.0;
 	constexpr double minApparentCapacity = 1e-20;
 
+	// Here we use a numerically stable implementation of the logistic function f to avoid potential over and underflow.
 	template <typename T>
-	inline T stableActGate(T const& eta, T const& pKa, T const& IonAxis)
+	inline T stableActGate(T const& eta, T const& pKa, T const& saltAxis)
 	{
-		using std::pow;
-		return 1.0 / (1.0 + pow(10.0, eta * (pKa - IonAxis)));
-	}
-
-	template <>
-	inline double stableActGate<double>(double const& eta, double const& pKa, double const& IonAxis)
-	{
-		const double x = ln10 * eta * (pKa - IonAxis);
-		if (x > 0.0)
+		using std::exp;
+		const T x = static_cast<T>(ln10) * eta * (pKa - saltAxis);
+		if (x > static_cast<T>(0.0))
 		{
-			const double e = std::exp(-x);
-			return e / (1.0 + e);
+			const T e = exp(-x);
+			return e / (static_cast<T>(1.0) + e);
 		}
 
-		const double e = std::exp(x);
-		return 1.0 / (1.0 + e);
+		const T e = exp(x);
+		return static_cast<T>(1.0) / (static_cast<T>(1.0) + e);
 	}
 
 	inline double stableActGateDerivIon(double const eta, double const gate)
@@ -58,42 +54,35 @@ namespace
 		return ln10 * eta * gate * (1.0 - gate);
 	}
 
+	// The softplus function is used to ensure that the apparent binding capacity does not become negative, which will cause IDAS to linger. 
+	// It happens for certain param sets that decrease the capacity too abruptly in a multicomponent system. 
+	// The transition factor beta determines how close to zero the apparent capacity can get before the function starts to deviate from the identity function.
+	// An emipirical value of 100 is chosen here, which means that the apparent capacity can get as low as 1/100 = 1% of x before the softplus function starts to significantly increase it.
+	// Approximation error near the clamp is roughly ln2 / beta = 0.7% x.
 	template <typename T>
 	inline T softplusScaled(T const& x, T const& beta)
 	{
 		using std::exp;
 		using std::log;
-		return log(1.0 + exp(beta * x)) / beta;
-	}
+		const T bx = beta * x;
+		if (bx > static_cast<T>(0.0))
+			return (bx + log(static_cast<T>(1.0) + exp(-bx))) / beta;
 
-	template <>
-	inline double softplusScaled<double>(double const& x, double const& beta)
-	{
-		const double bx = beta * x;
-		if (bx > 0.0)
-			return (bx + std::log1p(std::exp(-bx))) / beta;
-
-		return std::log1p(std::exp(bx)) / beta;
+		return log(static_cast<T>(1.0) + exp(bx)) / beta;
 	}
 
 	template <typename T>
 	inline T sigmoid(T const& x)
 	{
 		using std::exp;
-		return 1.0 / (1.0 + exp(-x));
-	}
-
-	template <>
-	inline double sigmoid<double>(double const& x)
-	{
-		if (x >= 0.0)
+		if (x >= static_cast<T>(0.0))
 		{
-			const double e = std::exp(-x);
-			return 1.0 / (1.0 + e);
+			const T e = exp(-x);
+			return static_cast<T>(1.0) / (static_cast<T>(1.0) + e);
 		}
 
-		const double e = std::exp(x);
-		return e / (1.0 + e);
+		const T e = exp(x);
+		return e / (static_cast<T>(1.0) + e);
 	}
 
 	inline bool getBoolWithFallback(cadet::IParameterProvider& paramProvider, const char* primaryName, const char* fallbackName, bool defaultValue)
@@ -140,7 +129,6 @@ namespace
  pKaA = Center for the binding capacity changes against pH/pIon
  etaG = Slope for the equilibrium constant changes against pH/pIon
  pKaG = Center for the equilibrium constant changes against pH/pIon
- omega = Exponent that can be optionally applied to fG and concentration c
 */
 
 namespace cadet
@@ -197,8 +185,10 @@ namespace cadet
 						throw InvalidParameterException("Currently the ACT isotherm model supports at most one bound state per component");
 				}
 
+				// Read parameters related to ion concentration handling
 				_useIonConc = getBoolWithFallback(paramProvider, "ACT_USE_ION_CONC", "EXT_ACT_USE_ION_CONC", false);
 
+				// Read either pKa or cMid parameters depending on the value of _useIonConc
 				if (!_useIonConc)
 				{
 					_cMidA.clear();
@@ -271,9 +261,8 @@ namespace cadet
 				// Protein fluxes
 				ResidualType qSum = 0.0;
 				unsigned int bndIdx = 0;
-				//const CpStateParamType IonAxis = !_useIonConc ? yCp[0] : -log(yCp[0] + static_cast<ParamType>(minIonConcentration)) / static_cast<ParamType>(ln10);
-				//const ParamType IonAxisParam = static_cast<ParamType>(IonAxis);
 				const CpStateParamType IonAxis = !_useIonConc ? yCp[0] : -log(yCp[0] + static_cast<ParamType>(minIonConcentration)) / static_cast<ParamType>(ln10);
+
 				for (int i = 0; i < _nComp; ++i)
 				{
 					// Skip components without bound states (bound state index bndIdx is not advanced)
