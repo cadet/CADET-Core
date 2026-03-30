@@ -170,6 +170,28 @@ By default, the following initial conditions are applied for all :math:`z \in [0
 See Table :ref:`axial_flow_column_1D_config` and :ref:`particle_model_config`.
 
 
+.. _MUOPGRMMultiParticleTypes:
+
+Multiple particle types
+^^^^^^^^^^^^^^^^^^^^^^^
+
+A particle type has its own set of mass transfer parameters :math:`\varepsilon_{p,j}`, :math:`D_{p,j}`, :math:`D_{s,j}`, etc (see Eq. :eq:`ModelBead`) and its own binding model :math:`f_{\mathrm{ads}}` (including a possibly differing number of bound states).
+This allows, for example, modeling of particle size distributions or potential applications with differently functionalized beads (e.g., immobilized enzymes).
+
+The distribution of the particle types is governed by their volume fractions :math:`d_j` in Eq.
+ :eq:`ModelColumn`. The volume fractions have to sum to :math:`1`:
+
+.. math::
+
+    \begin{aligned}
+        \sum_{j=0}^{N_{\text{partype}} - 1} d_j = 1.
+    \end{aligned}
+
+The particle type volume fractions can be spatially constant throughout the column, or depend on the position inside the column bulk volume.
+In the latter case, the user can specify a set of volume fractions for each discretized finite volume cell.
+This allows, for example, the placement of smaller particles near the frits.  
+
+
 .. _MUOPGRMParticleGeometry:
 
 Particle Geometry
@@ -205,27 +227,6 @@ For slabs, the factor :math:`3 / r_{p,j}` in (see Eq. (:eq:`ModelColumn`)) chang
         \left[\frac{\partial^2}{\partial r^2} + \frac{2}{r} \frac{\partial }{\partial r} \right] \quad \rightarrow \quad \frac{\partial^2}{\partial r^2}.
     \end{aligned}
 
-
-.. _MUOPGRMMultiParticleTypes:
-
-Multiple particle types
-^^^^^^^^^^^^^^^^^^^^^^^
-
-A particle type has its own set of mass transfer parameters :math:`\varepsilon_{p,j}`, :math:`D_{p,j}`, :math:`D_{s,j}`, etc (see Eq. :eq:`ModelBead`) and its own binding model :math:`f_{\mathrm{ads}}` (including a possibly differing number of bound states).
-This allows, for example, modeling of particle size distributions or potential applications with differently functionalized beads (e.g., immobilized enzymes).
-
-The distribution of the particle types is governed by their volume fractions :math:`d_j` in Eq.
- :eq:`ModelColumn`. The volume fractions have to sum to :math:`1`:
-
-.. math::
-
-    \begin{aligned}
-        \sum_{j=0}^{N_{\text{partype}} - 1} d_j = 1.
-    \end{aligned}
-
-The particle type volume fractions can be spatially constant throughout the column, or depend on the position inside the column bulk volume.
-In the latter case, the user can specify a set of volume fractions for each discretized finite volume cell.
-This allows, for example, the placement of smaller particles near the frits.  
 
 .. _MUOPGRMSizeExclusion:
 
@@ -291,7 +292,23 @@ The final behavior for radial flow models is controlled by the interplay of colu
 - If :math:`u` is given and :math:`L` is not, the provided interstitial velocity coefficient is used to calculate the interstitial velocity field.
 
 
-For information on model parameters see :ref:`axial_flow_column_1D_config` and :ref:`particle_model_config`.
+For information on model parameters see :ref:`axial_flow_column_1D_config` and :ref:`particle_model_config`.  
+
+
+.. _MUOPGRMColumnGeometry:
+
+Column Geometry
+~~~~~~~~~~~~~~~
+
+In the model above, a cylindrical axial flow column is considered, see figure :numref:`GeometryGRMAxialColumn`.
+Other geometries are being used, and CADET-Core additionally supports cylindrical radial flow and frustum columns.
+
+
+.. _GeometryGRMAxialColumn:
+.. figure:: geometry_axial_flow_column.png
+
+	Axial flow cylindrical column geometry
+
 
 .. _MUOPGRMradialFlow:
 
@@ -299,6 +316,12 @@ Radial flow GRM
 ^^^^^^^^^^^^^^^
 
 The radial flow GRM describes transport of solute molecules through the interstitial column volume by radial convective flow, band broadening caused by radial dispersion, mass transfer resistance through a stagnant film around the beads, pore (and surface) diffusion in the porous beads :cite:`Ma1996,Schneider1968a,Miyabe2007`, and adsorption to the inner bead surfaces.
+Figure :numref:`GeometryGRMRadialColumn` shows the geometry of the radial flow column.
+
+.. _GeometryGRMRadialColumn: 
+.. figure:: geometry_radial_flow_column.png
+
+	Radial flow cylindrical column geometry
 
 The main assumptions are:
 
@@ -352,6 +375,12 @@ Frustum device GRM
 ^^^^^^^^^^^^^^^^^^
 
 The frustum GRM describes transport of solute molecules through the interstitial column volume by convective flow from the smaller to the larger radius of the frustum device ("axial" direction), band broadening caused by dispersion, mass transfer resistance through a stagnant film around the beads, pore (and surface) diffusion in the porous beads :cite:`Ma1996,Schneider1968a,Miyabe2007`, and adsorption to the inner bead surfaces.
+Figure :numref:`GeometryGRMFrustumColumn` shows the geometry of the frustum column.
+
+.. _GeometryGRMFrustumColumn: 
+.. figure:: geometry_frustum_column.png
+
+	Frustum column geometry
 
 The main assumptions are:
 
