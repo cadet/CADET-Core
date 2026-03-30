@@ -212,6 +212,11 @@ TEST_CASE("Radial LRMP dynamic reactions time derivative Jacobian vs FD bulk", "
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "FV", true, false, false, 1e-6, 1e-14, 8e-4);
 }
 
+TEST_CASE("Radial LRMP dynamic binding with film diff par dep Jacobian vs AD", "[RadLRMP],[FV],[UnitOp],[Residual],[Jacobian],[ParameterDependence],[CI]")
+{
+	cadet::test::column::testJacobianADVariableFilmDiff("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "FV", true);
+}
+
 TEST_CASE("Radial LRMP dynamic reactions time derivative Jacobian vs FD particle", "[RadLRMP],[Jacobian],[Residual],[ReactionModel],[FD]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "FV", false, true, false, 1e-6, 1e-14, 8e-4);

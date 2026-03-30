@@ -361,6 +361,7 @@ protected:
 	// Vectorial parameters
 	std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$
 	MultiplexMode _filmDiffusionMode;
+	IParameterParameterDependence* _filmDiffDep; //!< Film diffusion dependency on position
 	std::vector<active> _parDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
 	MultiplexMode _parDiffusionMode;
 	std::vector<active> _parSurfDiffusion; //!< Particle surface diffusion coefficient \f$ D_s \f$

@@ -1252,6 +1252,30 @@ namespace column
 		testJacobianAD(jpp, 1e-14);
 	}
 
+	void testJacobianADVariableFilmDiff(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding)
+	{
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
+		setBindingMode(jpp, dynamicBinding);
+		{
+			auto ms = util::makeOptionalGroupScope(jpp, "model");
+			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
+
+			const double velocityCoeff = jpp.getDouble("VELOCITY_COEFF"); // 5.75e-4
+
+			auto ps = util::makeOptionalGroupScope(jpp, "particle_type_000");
+
+			const double filmDiff = jpp.getDoubleArray("FILM_DIFFUSION")[0];
+			const double fdDepExp = 1.0 / 3.0;
+			const double fdDepBase = filmDiff / std::pow(velocityCoeff, fdDepExp);
+
+			jpp.set("FILM_DIFFUSION_DEP_BASE", fdDepBase);
+			jpp.set("FILM_DIFFUSION_DEP_EXPONENT", fdDepExp);
+			jpp.set("FILM_DIFFUSION_DEP_ABS", true);
+		}
+
+		testJacobianAD(jpp, 1e-14);
+	}
+
 	void testArrowHeadJacobianFD(cadet::JsonParameterProvider& jpp, double h, double absTol, double relTol)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
