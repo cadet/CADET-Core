@@ -1221,6 +1221,30 @@ TEST_CASE("Frustum Column_1D as GRM transport Jacobian", "[FrustumColumn1D],[DG]
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0, std::numeric_limits<float>::epsilon() * 100.0, flowRate);
 }
 
+TEST_CASE("Radial Column_1D as GRM variable dispersion + surf diff par dep combined Jacobian vs AD", "[RadialColumn_1D],[DG],[Jacobian],[ParameterDependence],[VarCoeff]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_COLUMN_MODEL_1D_GRM", "DG");
+	cadet::test::setBindingMode(jpp, true);
+	{
+		auto ms = cadet::test::util::makeOptionalGroupScope(jpp, "model");
+		auto us = cadet::test::util::makeOptionalGroupScope(jpp, "unit_000");
+
+		jpp.set("SURFACE_DIFFUSION_DEP", "LIQUID_SALT_EXPONENTIAL");
+		jpp.set("SURFACE_DIFFUSION_EXPFACTOR", std::vector<double>{ 0.8, 1.6 });
+		jpp.set("SURFACE_DIFFUSION_EXPARGMULT", std::vector<double>{ 1.3, 2.1 });
+	}
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial Column_1D as LRMP variable film diffusion (RADIAL_POWER_LAW) time derivative Jacobian vs FD", "[RadialColumn_1D],[DG],[Jacobian],[ParameterDependence],[VarCoeff],[FilmDiff]")
+{
+	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_COLUMN_MODEL_1D_LRMP", "DG");
+}
+
+TEST_CASE("Radial Column_1D as GRM variable film diffusion (RADIAL_POWER_LAW) time derivative Jacobian vs FD", "[RadialColumn_1D],[DG],[Jacobian],[ParameterDependence],[VarCoeff],[FilmDiff]")
+{
+	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_COLUMN_MODEL_1D_GRM", "DG");
+}
 TEST_CASE("Frustum Column_1D as GRM LWE forward vs backward flow", "[FrustumColumn1D],[DG],[DG1D],[Simulation],[CI]")
 {
 	cadet::test::column::DGParams disc;
