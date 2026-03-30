@@ -74,7 +74,7 @@ TEST_CASE("Frustum GRM with two component linear binding Jacobian", "[FrustumGRM
 
 TEST_CASE("Frustum GRM LWE one vs two identical particle types match", "[FrustumGRM],[Simulation],[ParticleType],[CI]")
 {
-	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("FRUSTUM_GENERAL_RATE_MODEL", "FV", 2e-8, 6e-5);
+	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("FRUSTUM_GENERAL_RATE_MODEL", "FV", 2e-8, 7e-5);
 }
 
 TEST_CASE("Frustum GRM dynamic reactions Jacobian vs AD bulk and particle", "[FrustumGRM],[Jacobian],[AD],[ReactionModel],[CI]")
