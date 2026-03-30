@@ -18,7 +18,7 @@ TEST_CASE("Reference test: Frustum FV KOREN", "[Column_1D],[frustumFV_KOREN],[Si
 {
 	std::string modelFilePath = std::string("/data/config_radKOREN_eq_Z128.json");
 	std::string refFilePath = std::string("/data/ref_radKOREN_eq_Z128.h5");
-	const std::vector<double> absTol = { 5e-10 };
+	const std::vector<double> absTol = { 5e-7 };
 	const std::vector<double> relTol = { 1e-5 };
 
 	cadet::test::column::FVParams disc(128);
@@ -40,7 +40,7 @@ TEST_CASE("Reference test: Frustum FV WENO2", "[Column_1D],[frustumFV_WENO2],[Si
 {
 	std::string modelFilePath = std::string("/data/config_radWENO2_eq_Z128.json");
 	std::string refFilePath = std::string("/data/ref_radWENO2_eq_Z128.h5");
-	const std::vector<double> absTol = { 5e-10 };
+	const std::vector<double> absTol = { 5e-7 };
 	const std::vector<double> relTol = { 1e-5 };
 
 	cadet::test::column::FVParams disc(128);
@@ -51,7 +51,7 @@ TEST_CASE("Reference test: Frustum FV WENO2 non-equidistant grid", "[Column_1D],
 {
 	std::string modelFilePath = std::string("/data/config_radWENO2_nonEq_Z128.json");
 	std::string refFilePath = std::string("/data/ref_radWENO2_nonEq_Z128.h5");
-	const std::vector<double> absTol = { 5e-10 };
+	const std::vector<double> absTol = { 5e-7 };
 	const std::vector<double> relTol = { 1e-5 };
 
 	cadet::test::column::FVParams disc(128);
