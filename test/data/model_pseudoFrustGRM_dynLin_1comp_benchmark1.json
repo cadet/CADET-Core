@@ -85,7 +85,7 @@
           "weno": {
             "BOUNDARY_MODEL": 0,
             "WENO_EPS": 1e-10,
-            "WENO_ORDER": 1
+            "WENO_ORDER": 3
           }
         },
         "particle_type_000": {

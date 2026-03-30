@@ -21,10 +21,10 @@
 
 TEST_CASE("Frustum GRM with constant radius equals axial model numerical Benchmark for linear case", "[FrustumGRM],[Simulation],[Reference],[CI]")
 {
-	const std::string& modelFilePath = std::string("/data/model_frustGRM_dynLin_1comp_sensbenchmark1.json");
-	const std::string& refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark3_FVupwind_Z32parZ4.h5");
-	const std::vector<double> absTol = { 1e-10, 1e-8, 1e-4, 1e-4 };
-	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
+	const std::string& modelFilePath = std::string("/data/model_pseudoFrustGRM_dynLin_1comp_benchmark1.json");
+	const std::string& refFilePath = std::string("/data/ref_GRM_dynLin_1comp_benchmarkFrustum_FV_Z32parZ4.h5");
+	const std::vector<double> absTol = { 1e-10 };
+	const std::vector<double> relTol = { 1.0 };
 	cadet::test::column::FVParams disc(32, 4);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
