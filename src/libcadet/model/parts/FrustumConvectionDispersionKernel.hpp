@@ -292,7 +292,7 @@ namespace impl
 					const double relCoord = static_cast<double>(p.cellFaces[col]) / static_cast<double>(colLength);
 					const ParamType dispLeft = disp * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep,
 						static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellFaceRadiusSq[col]));
-					const ParamType coeff = dispLeft * preFac * static_cast<ParamType>(p.cellFaceRadiusSq[col]) / (static_cast<ParamType>(p.cellCenters[col - 1]) - static_cast<ParamType>(p.cellCenters[col]));
+                    const ParamType coeff = dispLeft * preFac * static_cast<ParamType>(p.cellFaceRadiusSq[col]) / (static_cast<ParamType>(p.cellCenters[col]) - static_cast<ParamType>(p.cellCenters[col - 1]));
 					if (wantRes)
 						resBulkComp[col * p.strideCell] -= coeff * (stencil[1] - stencil[0]);
 					if (wantJac)
