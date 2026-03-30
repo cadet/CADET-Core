@@ -81,3 +81,8 @@ TEST_CASE("Frustum GRM dynamic reactions Jacobian vs AD bulk and particle", "[Fr
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("FRUSTUM_GENERAL_RATE_MODEL", "FV", true, true, false);
 }
+
+TEST_CASE("Frustum GRM dynamic binding with film diff par dep Jacobian vs AD", "[FrustumGRM],[FV],[UnitOp],[Residual],[Jacobian],[ParameterDependence],[CI]")
+{
+	cadet::test::column::testJacobianADVariableFilmDiff("FRUSTUM_GENERAL_RATE_MODEL", "FV", true);
+}

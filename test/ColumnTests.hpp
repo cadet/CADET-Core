@@ -615,6 +615,7 @@ namespace column
 	 * @param [in] dynamicBinding Determines whether dynamic binding is used
 	 */
 	void testJacobianADVariableParSurfDiff(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding);
+	void testJacobianADVariableFilmDiff(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding);
 
 	/**
 	 * @brief Checks the full Jacobian against AD and FD pattern switching from forward to backward flow and back
