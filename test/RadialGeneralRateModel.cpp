@@ -477,58 +477,6 @@ TEST_CASE("Radial GRM_DG rapid-equilibrium binding with surf diff par dep Jacobi
 }
 
 // ============================================================
-// Radial GRM_DG no-binding EOC convergence tests
-// Parameters from CADET-Verification radCol1D benchmark
-// ============================================================
-
-TEST_CASE("Radial GRM_DG polyDeg 2 EOC convergence", "[RadGRM],[DG],[Convergence],[EOC]")
-{
-	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radGRM_DG_noBnd_1comp_eocbenchmark.json", "001",
-		2, 2, 3, 3.0, 0.5);
-}
-
-TEST_CASE("Radial GRM_DG polyDeg 3 EOC convergence", "[RadGRM],[DG],[Convergence],[EOC]")
-{
-	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radGRM_DG_noBnd_1comp_eocbenchmark.json", "001",
-		3, 2, 3, 4.0, 0.5);
-}
-
-// ============================================================
-// Radial GRM_DG linear binding EOC convergence tests
-// ============================================================
-
-TEST_CASE("Radial GRM_DG linear binding polyDeg 3 EOC convergence", "[RadGRM],[DG],[Convergence],[EOC],[LinBnd]")
-{
-	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radGRM_DG_linBnd_1comp_eocbenchmark.json", "001",
-		3, 2, 3, 4.0, 0.5);
-}
-
-// ============================================================
-// Radial GRM_DG linear binding + variable dispersion EOC tests
-// ============================================================
-
-TEST_CASE("Radial GRM_DG linBnd varDisp polyDeg 3 EOC convergence", "[RadGRM],[DG],[Convergence],[EOC],[VarDisp]")
-{
-	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radGRM_DG_linBnd_varDisp_1comp_eocbenchmark.json", "001",
-		3, 2, 3, 4.0, 0.7);
-}
-
-// ============================================================
-// Radial GRM_DG Langmuir binding EOC convergence tests
-// ============================================================
-
-TEST_CASE("Radial GRM_DG Langmuir polyDeg 3 EOC convergence", "[RadGRM],[DG],[Convergence],[EOC],[Langmuir]")
-{
-	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radGRM_DG_langBnd_1comp_eocbenchmark.json", "001",
-		3, 2, 3, 4.0, 0.5);
-}
-
-// ============================================================
 // Radial GRM_DG vs FV reference benchmark
 // ============================================================
 

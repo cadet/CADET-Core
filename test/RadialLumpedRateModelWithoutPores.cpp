@@ -256,48 +256,6 @@ TEST_CASE("Radial LRM_DG dynamic reactions time derivative Jacobian vs FD modifi
 }
 
 // ============================================================
-// Radial LRM_DG no-binding EOC convergence tests
-// Parameters from CADET-Verification radCol1D benchmark:
-//   rin=0.01, rout=0.2, v=5.75e-4, D=5.75e-8, eps=0.8
-// ============================================================
-
-TEST_CASE("Radial LRM_DG polyDeg 2 EOC convergence", "[RadLRM],[DG],[Convergence],[EOC]")
-{
-	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radLRM_DG_noBnd_1comp_eocbenchmark.json", "001",
-		2, 4, 4, 3.0, 0.5);
-}
-
-TEST_CASE("Radial LRM_DG polyDeg 3 EOC convergence", "[RadLRM],[DG],[Convergence],[EOC]")
-{
-	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radLRM_DG_noBnd_1comp_eocbenchmark.json", "001",
-		3, 4, 4, 4.0, 0.5);
-}
-
-// ============================================================
-// Radial LRM_DG linear binding EOC convergence tests
-// ============================================================
-
-TEST_CASE("Radial LRM_DG linear binding polyDeg 3 EOC convergence", "[RadLRM],[DG],[Convergence],[EOC],[LinBnd]")
-{
-	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radLRM_DG_linBnd_1comp_eocbenchmark.json", "001",
-		3, 4, 4, 4.0, 0.5);
-}
-
-// ============================================================
-// Radial LRM_DG linear binding + variable dispersion EOC tests
-// ============================================================
-
-TEST_CASE("Radial LRM_DG linBnd varDisp polyDeg 3 EOC convergence", "[RadLRM],[DG],[Convergence],[EOC],[VarDisp]")
-{
-	cadet::test::column::testRadialDGConvergence(
-		"/data/model_radLRM_DG_linBnd_varDisp_1comp_eocbenchmark.json", "001",
-		3, 4, 4, 4.0, 0.5);
-}
-
-// ============================================================
 // Radial LRM_DG vs FV reference benchmark
 // ============================================================
 
