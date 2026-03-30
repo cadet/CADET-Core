@@ -434,6 +434,15 @@ TEST_CASE("Radial LRMP_DG dynamic reactions time derivative Jacobian vs FD bulk 
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG", true, true, true, 1e-6, 1e-14, 8e-4);
 }
 
+// Note: Particle type tests (LWE matching, multi-particle Jacobian, spatially dependent)
+// are not applicable to rLRMP_DG — standalone radial DG models only support NPARTYPE=1.
+// These tests are covered by the FV radial models and will be available when rLRMP_DG
+// is refactored into ColumnModel1D.
+
+// Note: Flux Jacobian (ArrowHead) tests require the ColumnModel1D state vector layout
+// with separate flux DOFs. Standalone radial DG models use a different DOF structure.
+// These tests will be available after refactoring into ColumnModel1D.
+
 // ============================================================
 // Radial LRMP_DG no-binding EOC convergence tests
 // Parameters from CADET-Verification radCol1D benchmark

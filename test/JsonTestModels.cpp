@@ -821,8 +821,8 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 				grm["COL_RADIUS_INNER"] = 0.001;
 				grm["COL_RADIUS_OUTER"] = 0.004;
 				if (uoType.substr(0, 7) == "FRUSTUM")
-					config["COL_LENGTH"] = 0.01;
-				config["VELOCITY_COEFF"] = 5.75e-4;
+					grm["COL_LENGTH"] = 0.01;
+				grm["VELOCITY_COEFF"] = 5.75e-4;
 			}
 			else
 			{

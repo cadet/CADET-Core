@@ -56,14 +56,16 @@ constexpr double SurfVolRatioCylinder = 2.0;
 constexpr double SurfVolRatioSlab = 1.0;
 
 
-ColumnModel1D::ColumnModel1D(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
+template <typename ConvDispOperator>
+ColumnModel1D<ConvDispOperator>::ColumnModel1D(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
 	_globalJac(), _globalJacDisc(), _jacInlet(),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _initCp(0), _initCs(0), _initState(0), _initStateDot(0)
 {
 }
 
-ColumnModel1D::~ColumnModel1D() CADET_NOEXCEPT
+template <typename ConvDispOperator>
+ColumnModel1D<ConvDispOperator>::~ColumnModel1D() CADET_NOEXCEPT
 {
 	delete[] _tempState;
 
@@ -79,7 +81,8 @@ ColumnModel1D::~ColumnModel1D() CADET_NOEXCEPT
 	delete _linearSolver;
 }
 
-unsigned int ColumnModel1D::numDofs() const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+unsigned int ColumnModel1D<ConvDispOperator>::numDofs() const CADET_NOEXCEPT
 {
 	// Column bulk DOFs: nPoints * nComp
 	// Particle DOFs: nPoints * nParType particles each having nComp (liquid phase) + sum boundStates (solid phase) DOFs
@@ -88,7 +91,8 @@ unsigned int ColumnModel1D::numDofs() const CADET_NOEXCEPT
 	return _disc.nPoints * _disc.nComp + _disc.parTypeOffset[_disc.nParType] + _disc.nComp;
 }
 
-unsigned int ColumnModel1D::numPureDofs() const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+unsigned int ColumnModel1D<ConvDispOperator>::numPureDofs() const CADET_NOEXCEPT
 {
 	// Column bulk DOFs: nPoints * nComp
 	// Particle DOFs: nPoints particles each having nComp (liquid phase) + sum boundStates (solid phase) DOFs
@@ -97,7 +101,8 @@ unsigned int ColumnModel1D::numPureDofs() const CADET_NOEXCEPT
 }
 
 
-bool ColumnModel1D::usesAD() const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+bool ColumnModel1D<ConvDispOperator>::usesAD() const CADET_NOEXCEPT
 {
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	// We always need AD if we want to check the analytical Jacobian
@@ -108,7 +113,8 @@ bool ColumnModel1D::usesAD() const CADET_NOEXCEPT
 #endif
 }
 
-bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
+template <typename ConvDispOperator>
+bool ColumnModel1D<ConvDispOperator>::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
 	// Read unit type as name to allow model configuration via GRM, LRMP. Here, the particle types are set correspondingly
 	std::string unitName = paramProvider.getString("UNIT_TYPE");
@@ -174,7 +180,7 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 			throw InvalidParameterException("Unit type was specified as " + unitName + ", but group " + parGroup + " is missing");
 		paramProvider.pushScope(parGroup);
 
-		if (unitName == "COLUMN_MODEL_1D")
+		if (unitName == "COLUMN_MODEL_1D" || unitName == "RADIAL_COLUMN_MODEL_1D")
 		{
 			const bool filmDiffusion = paramProvider.getBool("HAS_FILM_DIFFUSION");
 			const bool poreDiffusion = paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false;
@@ -197,7 +203,7 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 				particleType = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType();
 			}
 
-			if (unitName == "GENERAL_RATE_MODEL")
+			if (unitName == "GENERAL_RATE_MODEL" || unitName == "RADIAL_GENERAL_RATE_MODEL")
 			{
 				particleType = particleType == "NONE" ? "GENERAL_RATE_PARTICLE" : particleType;
 
@@ -206,7 +212,7 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 				else
 					throw InvalidParameterException("Unit type was specified as " + unitName + ", which is inconsistent with specified particle model " + particleType);
 			}
-			else if (unitName == "LUMPED_RATE_MODEL_WITH_PORES")
+			else if (unitName == "LUMPED_RATE_MODEL_WITH_PORES" || unitName == "RADIAL_LUMPED_RATE_MODEL_WITH_PORES")
 			{
 				particleType = particleType == "NONE" ? "HOMOGENEOUS_PARTICLE" : particleType;
 
@@ -309,6 +315,9 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 	unsigned int strideColNode = _disc.nComp;
 	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, polynomial_integration_mode, _disc.nElem, _disc.polyDeg, strideColNode);
 
+	// Sync exactInt with operator's actual mode (radial DG always uses exact integration regardless of user config)
+	_disc.exactInt = _convDispOp.exactInt();
+
 	_disc.curSection = -1;
 
 	// ==== Construct and configure dynamic reaction model
@@ -373,7 +382,8 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 	return transportSuccess && particleConfSuccess && reactionConfSuccess;
 }
  
-bool ColumnModel1D::configure(IParameterProvider& paramProvider)
+template <typename ConvDispOperator>
+bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvider)
 {
 	_parameters.clear();
 
@@ -494,7 +504,8 @@ bool ColumnModel1D::configure(IParameterProvider& paramProvider)
 	return transportSuccess && particleConfSuccess && dynReactionConfSuccess;
 }
 
-unsigned int ColumnModel1D::threadLocalMemorySize() const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+unsigned int ColumnModel1D<ConvDispOperator>::threadLocalMemorySize() const CADET_NOEXCEPT
 {
 	LinearMemorySizer lms;
 
@@ -533,7 +544,8 @@ unsigned int ColumnModel1D::threadLocalMemorySize() const CADET_NOEXCEPT
 	return lms.bufferSize();
 }
 
-unsigned int ColumnModel1D::numAdDirsForJacobian() const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+unsigned int ColumnModel1D<ConvDispOperator>::numAdDirsForJacobian() const CADET_NOEXCEPT
 {
 	// The global DG Jacobian is banded around the main diagonal and has additional (also banded) entries for film diffusion.
 	// To feasibly seed and reconstruct the Jacobian, we create dedicated active directions for the bulk and each particle type (see @ todo)
@@ -548,7 +560,8 @@ unsigned int ColumnModel1D::numAdDirsForJacobian() const CADET_NOEXCEPT
 	return _convDispOp.requiredADdirs() + sumParBandwidth;
 }
 
-void ColumnModel1D::useAnalyticJacobian(const bool analyticJac)
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::useAnalyticJacobian(const bool analyticJac)
 {
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 	_analyticJac = analyticJac;
@@ -563,7 +576,8 @@ void ColumnModel1D::useAnalyticJacobian(const bool analyticJac)
 #endif
 }
 
-void ColumnModel1D::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
 	Indexer idxr(_disc);
 
@@ -582,25 +596,29 @@ void ColumnModel1D::notifyDiscontinuousSectionTransition(double t, unsigned int 
 	_disc.curSection = secIdx;
 }
 
-void ColumnModel1D::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 {
 	_convDispOp.setFlowRates(in[0], out[0], _colPorosity);
 }
 
-void ColumnModel1D::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
 {
 	Exporter expr(_disc, *this, solution);
 	recorder.beginUnitOperation(_unitOpIdx, *this, expr);
 	recorder.endUnitOperation();
 }
 
-void ColumnModel1D::reportSolutionStructure(ISolutionRecorder& recorder) const
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::reportSolutionStructure(ISolutionRecorder& recorder) const
 {
 	Exporter expr(_disc, *this, nullptr);
 	recorder.unitOperationStructure(_unitOpIdx, *this, expr);
 }
 
-unsigned int ColumnModel1D::requiredADdirs() const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+unsigned int ColumnModel1D<ConvDispOperator>::requiredADdirs() const CADET_NOEXCEPT
 {
 	const unsigned int numDirsBinding = maxBindingAdDirs();
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
@@ -611,7 +629,8 @@ unsigned int ColumnModel1D::requiredADdirs() const CADET_NOEXCEPT
 #endif
 }
 
-void ColumnModel1D::prepareADvectors(const AdJacobianParams& adJac) const
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::prepareADvectors(const AdJacobianParams& adJac) const
 {
 	// Early out if AD is disabled
 	if (!adJac.adY)
@@ -631,7 +650,7 @@ void ColumnModel1D::prepareADvectors(const AdJacobianParams& adJac) const
 	// We have differing Jacobian structures for exact integration and collocation DG scheme, i.e. we need different seed vectors
 	// collocation DG: 2 * N_n * (N_c + N_q) + 1 = total bandwidth (main diagonal entries maximally depend on the next and last N_n liquid phase entries of same component)
 	//    ex. int. DG: 4 * N_n * (N_c + N_q) + 1 = total bandwidth (main diagonal entries maximally depend on the next and last 2*N_n liquid phase entries of same component)
-	const int lowerBandwidth = (_disc.exactInt) ? 2 * _disc.nNodes * idxr.strideColNode() : _disc.nNodes * idxr.strideColNode();
+	const int lowerBandwidth = static_cast<int>(_convDispOp.jacobianLowerBandwidth());
 	const int upperBandwidth = lowerBandwidth;
 	const int bulkRows = idxr.offsetCp() - idxr.offsetC();
 	ad::prepareAdVectorSeedsForBandMatrix(adJac.adY + _disc.nComp, adJac.adDirOffset, bulkRows, lowerBandwidth, upperBandwidth, lowerBandwidth);
@@ -663,14 +682,15 @@ void ColumnModel1D::prepareADvectors(const AdJacobianParams& adJac) const
  * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
  * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
  */
-void ColumnModel1D::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
 {
 	Indexer idxr(_disc);
 
 	const active* const adVec = adRes + idxr.offsetC();
 
 	/* Extract bulk phase equations entries */
-	const int lowerBandwidth = (_disc.exactInt) ? 2 * _disc.nNodes * idxr.strideColNode() : _disc.nNodes * idxr.strideColNode();
+	const int lowerBandwidth = static_cast<int>(_convDispOp.jacobianLowerBandwidth());
 	const int upperBandwidth = lowerBandwidth;
 //	const int stride = lowerBandwidth + 1 + upperBandwidth;
 	int diagDir = lowerBandwidth;
@@ -719,14 +739,15 @@ void ColumnModel1D::extractJacobianFromAD(active const* const adRes, unsigned in
  * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
  * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
  */
-void ColumnModel1D::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
 {
 	Indexer idxr(_disc);
 
 	const active* const adVec = adRes + idxr.offsetC();
 
 	/* Extract bulk phase equations entries */
-	const int lowerBandwidth = (_disc.exactInt) ? 2 * _disc.nNodes * idxr.strideColNode() : _disc.nNodes * idxr.strideColNode();
+	const int lowerBandwidth = static_cast<int>(_convDispOp.jacobianLowerBandwidth());
 	const int upperBandwidth = lowerBandwidth;
 	const int stride = lowerBandwidth + 1 + upperBandwidth;
 	int diagDir = lowerBandwidth;
@@ -814,7 +835,8 @@ void ColumnModel1D::checkAnalyticJacobianAgainstAd(active const* const adRes, un
 
 #endif
 
-int ColumnModel1D::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -826,7 +848,8 @@ int ColumnModel1D::jacobian(const SimulationTime& simTime, const ConstSimulation
 		return residualWithJacobian(simTime, ConstSimulationState{ simState.vecStateY, nullptr }, nullptr, adJac, threadLocalMem);
 }
 
-int ColumnModel1D::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -834,7 +857,8 @@ int ColumnModel1D::residual(const SimulationTime& simTime, const ConstSimulation
 	return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 }
 
-int ColumnModel1D::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -844,7 +868,8 @@ int ColumnModel1D::residualWithJacobian(const SimulationTime& simTime, const Con
 	return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
 }
 
-int ColumnModel1D::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
 	const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity)
 {
 	if (updateJacobian)
@@ -942,8 +967,9 @@ int ColumnModel1D::residual(const SimulationTime& simTime, const ConstSimulation
 	}
 }
 
+template <typename ConvDispOperator>
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-int ColumnModel1D::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
+int ColumnModel1D<ConvDispOperator>::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	if (wantRes)
 	{
@@ -1024,8 +1050,9 @@ int ColumnModel1D::residualImpl(double t, unsigned int secIdx, StateType const* 
 	return 0;
 }
 
+template <typename ConvDispOperator>
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-int ColumnModel1D::residualBulk(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
+int ColumnModel1D<ConvDispOperator>::residualBulk(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
 	if (wantRes)
 		_convDispOp.residual(*this, t, secIdx, yBase, yDotBase, resBase, typename cadet::ParamSens<ParamType>::enabled());
@@ -1082,7 +1109,8 @@ int ColumnModel1D::residualBulk(double t, unsigned int secIdx, StateType const* 
 	return 0;
 }
 
-parts::cell::CellParameters ColumnModel1D::makeCellResidualParams(unsigned int parType, int const* qsReaction) const
+template <typename ConvDispOperator>
+parts::cell::CellParameters ColumnModel1D<ConvDispOperator>::makeCellResidualParams(unsigned int parType, int const* qsReaction) const
 {
 	return parts::cell::CellParameters
 		{
@@ -1098,7 +1126,8 @@ parts::cell::CellParameters ColumnModel1D::makeCellResidualParams(unsigned int p
 		};
 }
 
-int ColumnModel1D::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
@@ -1107,7 +1136,8 @@ int ColumnModel1D::residualSensFwdWithJacobian(const SimulationTime& simTime, co
 	return residual(simTime, simState, nullptr, adJac, threadLocalMem, true, true);
 }
 
-int ColumnModel1D::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
@@ -1115,7 +1145,8 @@ int ColumnModel1D::residualSensFwdAdOnly(const SimulationTime& simTime, const Co
 	return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem);
 }
 
-int ColumnModel1D::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
@@ -1165,7 +1196,8 @@ int ColumnModel1D::residualSensFwdCombine(const SimulationTime& simTime, const C
  * @param [in] beta Factor @f$ \beta @f$ in front of @f$ z @f$
  * @param [in,out] ret Vector @f$ z @f$ which stores the result of the operation
  */
-void ColumnModel1D::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
 {
 	Indexer idxr(_disc);
 
@@ -1185,7 +1217,7 @@ void ColumnModel1D::multiplyWithJacobian(const SimulationTime& simTime, const Co
 	unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
 
 	for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
-		for (unsigned int node = 0; node < (_disc.exactInt ? _disc.nNodes : 1); node++) {
+		for (unsigned int node = 0; node < static_cast<unsigned int>(_jacInlet.rows()); node++) {
 			ret[idxr.offsetC() + offInlet + comp * idxr.strideColComp() + node * idxr.strideColNode()] += alpha * _jacInlet(node, 0) * yS[comp];
 		}
 	}
@@ -1200,7 +1232,8 @@ void ColumnModel1D::multiplyWithJacobian(const SimulationTime& simTime, const Co
  * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
  * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
  */
-void ColumnModel1D::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
 {
 	Indexer idxr(_disc);
 
@@ -1242,7 +1275,8 @@ void ColumnModel1D::multiplyWithDerivativeJacobian(const SimulationTime& simTime
 	std::fill_n(ret, _disc.nComp, 0.0);
 }
 
-void ColumnModel1D::setExternalFunctions(IExternalFunction** extFuns, unsigned int size)
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::setExternalFunctions(IExternalFunction** extFuns, unsigned int size)
 {
 	for (IBindingModel* bm : _binding)
 	{
@@ -1251,7 +1285,8 @@ void ColumnModel1D::setExternalFunctions(IExternalFunction** extFuns, unsigned i
 	}
 }
 
-unsigned int ColumnModel1D::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+unsigned int ColumnModel1D<ConvDispOperator>::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 {
 	// Inlets are duplicated so need to be accounted for
 	if (_convDispOp.forwardFlow())
@@ -1262,28 +1297,33 @@ unsigned int ColumnModel1D::localOutletComponentIndex(unsigned int port) const C
 		return _disc.nComp;
 }
 
-unsigned int ColumnModel1D::localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+unsigned int ColumnModel1D<ConvDispOperator>::localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 {
 	// Always 0 due to dedicated inlet DOFs
 	return 0;
 }
 
-unsigned int ColumnModel1D::localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+unsigned int ColumnModel1D<ConvDispOperator>::localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT
 {
 	return 1;
 }
 
-unsigned int ColumnModel1D::localInletComponentStride(unsigned int port) const CADET_NOEXCEPT
+template <typename ConvDispOperator>
+unsigned int ColumnModel1D<ConvDispOperator>::localInletComponentStride(unsigned int port) const CADET_NOEXCEPT
 {
 	return 1;
 }
 
-void ColumnModel1D::expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut)
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut)
 {
 	// @todo Write this function
 }
 
-bool ColumnModel1D::setParameter(const ParameterId& pId, double value)
+template <typename ConvDispOperator>
+bool ColumnModel1D<ConvDispOperator>::setParameter(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
@@ -1338,7 +1378,8 @@ bool ColumnModel1D::setParameter(const ParameterId& pId, double value)
 	return UnitOperationBase::setParameter(pId, value);
 }
 
-bool ColumnModel1D::setParameter(const ParameterId& pId, int value)
+template <typename ConvDispOperator>
+bool ColumnModel1D<ConvDispOperator>::setParameter(const ParameterId& pId, int value)
 {
 	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
 		return false;
@@ -1369,7 +1410,8 @@ bool ColumnModel1D::setParameter(const ParameterId& pId, int value)
 	return UnitOperationBase::setParameter(pId, value);
 }
 
-bool ColumnModel1D::setParameter(const ParameterId& pId, bool value)
+template <typename ConvDispOperator>
+bool ColumnModel1D<ConvDispOperator>::setParameter(const ParameterId& pId, bool value)
 {
 	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
 		return false;
@@ -1400,7 +1442,8 @@ bool ColumnModel1D::setParameter(const ParameterId& pId, bool value)
 	return UnitOperationBase::setParameter(pId, value);
 }
 
-void ColumnModel1D::setSensitiveParameterValue(const ParameterId& pId, double value)
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::setSensitiveParameterValue(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
@@ -1455,7 +1498,8 @@ void ColumnModel1D::setSensitiveParameterValue(const ParameterId& pId, double va
 	return UnitOperationBase::setSensitiveParameterValue(pId, value);
 }
 
-bool ColumnModel1D::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
+template <typename ConvDispOperator>
+bool ColumnModel1D<ConvDispOperator>::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
@@ -1529,7 +1573,8 @@ bool ColumnModel1D::setSensitiveParameter(const ParameterId& pId, unsigned int a
 	return UnitOperationBase::setSensitiveParameter(pId, adDirection, adValue);
 }
 
-std::unordered_map<ParameterId, double> ColumnModel1D::getAllParameterValues() const
+template <typename ConvDispOperator>
+std::unordered_map<ParameterId, double> ColumnModel1D<ConvDispOperator>::getAllParameterValues() const
 {
 	std::unordered_map<ParameterId, double> data = UnitOperationBase::getAllParameterValues();
 
@@ -1541,7 +1586,8 @@ std::unordered_map<ParameterId, double> ColumnModel1D::getAllParameterValues() c
 	return data;
 }
 
-double ColumnModel1D::getParameterDouble(const ParameterId& pId) const
+template <typename ConvDispOperator>
+double ColumnModel1D<ConvDispOperator>::getParameterDouble(const ParameterId& pId) const
 {
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
@@ -1553,7 +1599,8 @@ double ColumnModel1D::getParameterDouble(const ParameterId& pId) const
 	return UnitOperationBase::getParameterDouble(pId);
 }
 
-bool ColumnModel1D::hasParameter(const ParameterId& pId) const
+template <typename ConvDispOperator>
+bool ColumnModel1D<ConvDispOperator>::hasParameter(const ParameterId& pId) const
 {
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
@@ -1564,14 +1611,16 @@ bool ColumnModel1D::hasParameter(const ParameterId& pId) const
 	return UnitOperationBase::hasParameter(pId);
 }
 
-int ColumnModel1D::Exporter::writeMobilePhase(double* buffer) const
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::Exporter::writeMobilePhase(double* buffer) const
 {
 	const int blockSize = numMobilePhaseDofs();
 	std::copy_n(_idx.c(_data), blockSize, buffer);
 	return blockSize;
 }
 
-int ColumnModel1D::Exporter::writeSolidPhase(double* buffer) const
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::Exporter::writeSolidPhase(double* buffer) const
 {
 	int numWritten = 0;
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
@@ -1583,7 +1632,8 @@ int ColumnModel1D::Exporter::writeSolidPhase(double* buffer) const
 	return numWritten;
 }
 
-int ColumnModel1D::Exporter::writeParticleMobilePhase(double* buffer) const
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::Exporter::writeParticleMobilePhase(double* buffer) const
 {
 	int numWritten = 0;
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
@@ -1595,7 +1645,8 @@ int ColumnModel1D::Exporter::writeParticleMobilePhase(double* buffer) const
 	return numWritten;
 }
 
-int ColumnModel1D::Exporter::writeSolidPhase(unsigned int parType, double* buffer) const
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::Exporter::writeSolidPhase(unsigned int parType, double* buffer) const
 {
 	cadet_assert(parType < _disc.nParType);
 
@@ -1613,7 +1664,8 @@ int ColumnModel1D::Exporter::writeSolidPhase(unsigned int parType, double* buffe
 	return _disc.nPoints * _disc.nParPoints[parType] * _disc.strideBound[parType];
 }
 
-int ColumnModel1D::Exporter::writeParticleMobilePhase(unsigned int parType, double* buffer) const
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::Exporter::writeParticleMobilePhase(unsigned int parType, double* buffer) const
 {
 	cadet_assert(parType < _disc.nParType);
 
@@ -1631,30 +1683,35 @@ int ColumnModel1D::Exporter::writeParticleMobilePhase(unsigned int parType, doub
 	return _disc.nPoints * _disc.nParPoints[parType] * _disc.nComp;
 }
 
-int ColumnModel1D::Exporter::writeParticleFlux(double* buffer) const
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::Exporter::writeParticleFlux(double* buffer) const
 {
 	return 0;
 }
 
-int ColumnModel1D::Exporter::writeParticleFlux(unsigned int parType, double* buffer) const
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::Exporter::writeParticleFlux(unsigned int parType, double* buffer) const
 {
 	return 0;
 }
 
-int ColumnModel1D::Exporter::writeInlet(unsigned int port, double* buffer) const
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::Exporter::writeInlet(unsigned int port, double* buffer) const
 {
 	cadet_assert(port == 0);
 	std::copy_n(_data, _disc.nComp, buffer);
 	return _disc.nComp;
 }
 
-int ColumnModel1D::Exporter::writeInlet(double* buffer) const
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::Exporter::writeInlet(double* buffer) const
 {
 	std::copy_n(_data, _disc.nComp, buffer);
 	return _disc.nComp;
 }
 
-int ColumnModel1D::Exporter::writeOutlet(unsigned int port, double* buffer) const
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::Exporter::writeOutlet(unsigned int port, double* buffer) const
 {
 	cadet_assert(port == 0);
 
@@ -1666,7 +1723,8 @@ int ColumnModel1D::Exporter::writeOutlet(unsigned int port, double* buffer) cons
 	return _disc.nComp;
 }
 
-int ColumnModel1D::Exporter::writeOutlet(double* buffer) const
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::Exporter::writeOutlet(double* buffer) const
 {
 	if (_model._convDispOp.forwardFlow())
 		std::copy_n(&_idx.c(_data, _disc.nPoints - 1, 0), _disc.nComp, buffer);
@@ -1682,3 +1740,12 @@ int ColumnModel1D::Exporter::writeOutlet(double* buffer) const
 
 #include "model/ColumnModel1D-InitialConditions.cpp"
 #include "model/ColumnModel1D-LinearSolver.cpp"
+
+namespace cadet
+{
+namespace model
+{
+template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseDG>;
+template class ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG>;
+}  // namespace model
+}  // namespace cadet

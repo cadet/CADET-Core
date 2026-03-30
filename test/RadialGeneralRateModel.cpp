@@ -17,6 +17,7 @@
 #include "ParticleHelper.hpp"
 #include "ReactionModelTests.hpp"
 #include "JsonTestModels.hpp"
+#include "SimHelper.hpp"
 #include "Utils.hpp"
 
 
@@ -453,6 +454,26 @@ TEST_CASE("Radial GRM_DG dynamic reactions time derivative Jacobian vs FD bulk a
 TEST_CASE("Radial GRM_DG dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[RadGRM],[DG],[Jacobian],[Residual],[ReactionModel]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", "DG", true, true, true, 1e-6, 1e-14, 9e-4);
+}
+
+// Note: Particle type tests (LWE matching, multi-particle Jacobian, spatially dependent)
+// and flux Jacobian (ArrowHead) tests require the ColumnModel1D state vector layout
+// with separate flux DOFs and unified particle management. Multi-particle AD tests also
+// exceed the 80 AD direction compile-time limit for DG with 3 particle types.
+// These tests will be available after refactoring into ColumnModel1D.
+
+// ============================================================
+// Radial GRM_DG surface diffusion parameter dependence tests
+// ============================================================
+
+TEST_CASE("Radial GRM_DG dynamic binding with surf diff par dep Jacobian vs AD", "[RadGRM],[DG],[UnitOp],[Residual],[Jacobian],[ParameterDependence]")
+{
+	cadet::test::column::testJacobianADVariableParSurfDiff("RADIAL_GENERAL_RATE_MODEL", "DG", true);
+}
+
+TEST_CASE("Radial GRM_DG rapid-equilibrium binding with surf diff par dep Jacobian vs AD", "[RadGRM],[DG],[UnitOp],[Residual],[Jacobian],[ParameterDependence]")
+{
+	cadet::test::column::testJacobianADVariableParSurfDiff("RADIAL_GENERAL_RATE_MODEL", "DG", false);
 }
 
 // ============================================================

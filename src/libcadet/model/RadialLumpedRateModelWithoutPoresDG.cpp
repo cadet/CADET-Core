@@ -936,12 +936,12 @@ namespace cadet
 
 			paramProvider.pushScope("particle_type_000");
 
-			if (paramProvider.exists("INIT_Q"))
+			if (paramProvider.exists("INIT_CS"))
 			{
-				const std::vector<double> initQ = paramProvider.getDoubleArray("INIT_Q");
+				const std::vector<double> initQ = paramProvider.getDoubleArray("INIT_CS");
 
 				if (initQ.size() < _disc.strideBound)
-					throw InvalidParameterException("INIT_Q does not contain enough values");
+					throw InvalidParameterException("INIT_CS does not contain enough values");
 
 				ad::copyToAd(initQ.data(), _initCs.data(), _disc.strideBound);
 			}

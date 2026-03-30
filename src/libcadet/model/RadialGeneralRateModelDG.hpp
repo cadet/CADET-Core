@@ -15,8 +15,8 @@
  * Defines the radial general rate model (rGRM) using Discontinuous Galerkin (DG) discretization.
  */
 
-#ifndef LIBCADET_RADIALGENERALRATEMODELWITHPORESDG_HPP_
-#define LIBCADET_RADIALGENERALRATEMODELWITHPORESDG_HPP_
+#ifndef LIBCADET_RADIALGENERALRATEMODELDG_HPP_
+#define LIBCADET_RADIALGENERALRATEMODELDG_HPP_
 
 #include "model/UnitOperationBase.hpp"
 #include "model/particle/ParticleModel.hpp"
@@ -401,4 +401,4 @@ protected:
 } // namespace model
 } // namespace cadet
 
-#endif  // LIBCADET_RADIALGENERALRATEMODELWITHPORESDG_HPP_
+#endif  // LIBCADET_RADIALGENERALRATEMODELDG_HPP_

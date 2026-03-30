@@ -102,7 +102,7 @@
                 "INIT_CP": [
                     0.0
                 ],
-                "INIT_Q": [
+                "INIT_CS": [
                     0.0
                 ],
                 "discretization": {

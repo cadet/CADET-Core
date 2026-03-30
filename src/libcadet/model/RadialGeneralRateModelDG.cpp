@@ -1342,7 +1342,7 @@ void RadialGeneralRateModelDG::readInitialCondition(IParameterProvider& paramPro
 		// Solid phase
 		if (_disc.strideBound > 0)
 		{
-			std::vector<double> initCs = paramProvider.getDoubleArray("INIT_Q");
+			std::vector<double> initCs = paramProvider.getDoubleArray("INIT_CS");
 			const unsigned int nTotalPar = _disc.nPoints * _disc.nParPoints[parType];
 
 			if (initCs.size() >= nTotalPar * _disc.strideBound)

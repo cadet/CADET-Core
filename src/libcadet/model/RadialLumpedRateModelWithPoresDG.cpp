@@ -1220,6 +1220,8 @@ namespace cadet
 				}
 			}
 
+			paramProvider.pushScope("particle_type_000");
+
 			// Pore phase initial conditions
 			if (paramProvider.exists("INIT_CP"))
 			{
@@ -1247,7 +1249,7 @@ namespace cadet
 			// Solid phase initial conditions
 			if (_disc.strideBound > 0)
 			{
-				std::vector<double> initCs = paramProvider.getDoubleArray("INIT_Q");
+				std::vector<double> initCs = paramProvider.getDoubleArray("INIT_CS");
 				if (initCs.size() >= _disc.nPoints * _disc.strideBound)
 				{
 					for (unsigned int i = 0; i < _disc.nPoints * _disc.strideBound; ++i)
@@ -1262,6 +1264,8 @@ namespace cadet
 					}
 				}
 			}
+
+			paramProvider.popScope();
 		}
 
 		void RadialLumpedRateModelWithPoresDG::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)

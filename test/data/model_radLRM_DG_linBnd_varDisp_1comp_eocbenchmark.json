@@ -73,7 +73,7 @@
             "INIT_C": [
                 0.0
             ],
-            "INIT_Q": [
+            "INIT_CS": [
                 0.0
             ],
             "particle_type_000": {

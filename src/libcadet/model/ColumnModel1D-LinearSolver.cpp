@@ -107,7 +107,8 @@ namespace model
  * @param [in] simState State of the simulation (state vector and its time derivatives) at which the Jacobian is evaluated
  * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
  */
-int ColumnModel1D::linearSolve(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
+template <typename ConvDispOperator>
+int ColumnModel1D<ConvDispOperator>::linearSolve(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
 	const ConstSimulationState& simState)
 {
 	BENCH_SCOPE(_timerLinearSolve);
@@ -144,7 +145,7 @@ int ColumnModel1D::linearSolve(double t, double alpha, double outerTol, double* 
 	unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
 
 	for (int comp = 0; comp < _disc.nComp; comp++) {
-		for (int node = 0; node < (_disc.exactInt ? _disc.nNodes : 1); node++) {
+		for (int node = 0; node < static_cast<int>(_jacInlet.rows()); node++) {
 			r[idxr.offsetC() + offInlet + comp * idxr.strideColComp() + node * idxr.strideColNode()] -= _jacInlet(node, 0) * r[comp];
 		}
 	}
@@ -178,7 +179,8 @@ int ColumnModel1D::linearSolve(double t, double alpha, double outerTol, double* 
  *
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  */
-void ColumnModel1D::assembleDiscretizedGlobalJacobian(double alpha, Indexer idxr) {
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::assembleDiscretizedGlobalJacobian(double alpha, Indexer idxr) {
 
 	/* add static (per section) jacobian without inlet */
 	_globalJacDisc = _globalJac;
@@ -217,7 +219,8 @@ void ColumnModel1D::assembleDiscretizedGlobalJacobian(double alpha, Indexer idxr
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  * @param [in] parType Index of the particle type
  */
-void ColumnModel1D::addTimeDerivativeToJacobianParticleShell(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, unsigned int parType)
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::addTimeDerivativeToJacobianParticleShell(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, unsigned int parType)
 {
 	parts::cell::addTimeDerivativeToJacobianParticleShell<linalg::BandedEigenSparseRowIterator, true>(jac, alpha, static_cast<double>(_particles[parType]->getPorosity()), _disc.nComp, _disc.nBound + _disc.nComp * parType,
 		_particles[parType]->getPoreAccessFactor(), _disc.strideBound[parType], _disc.boundOffset + _disc.nComp * parType, _binding[parType]->reactionQuasiStationarity());
