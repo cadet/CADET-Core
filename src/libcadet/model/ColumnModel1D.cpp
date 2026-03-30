@@ -24,6 +24,7 @@
 #include "model/ReactionModel.hpp"
 #include "model/ParameterDependence.hpp"
 #include "model/parts/BindingCellKernel.hpp"
+#include "model/parts/DGToolbox.hpp"
 #include "SimulationTypes.hpp"
 #include "linalg/Norms.hpp"
 #include "linalg/Subset.hpp"
@@ -38,6 +39,7 @@
 #include <functional>
 #include <numeric>
 #include <iterator>
+#include <type_traits>
 
 
 #include "ParallelSupport.hpp"
@@ -59,6 +61,7 @@ constexpr double SurfVolRatioSlab = 1.0;
 template <typename ConvDispOperator>
 ColumnModel1D<ConvDispOperator>::ColumnModel1D(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
 	_globalJac(), _globalJacDisc(), _jacInlet(),
+	_filmDiffDep(nullptr), _variableFilmDiff(false),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _initCp(0), _initCs(0), _initState(0), _initStateDot(0)
 {
@@ -68,6 +71,7 @@ template <typename ConvDispOperator>
 ColumnModel1D<ConvDispOperator>::~ColumnModel1D() CADET_NOEXCEPT
 {
 	delete[] _tempState;
+	delete _filmDiffDep;
 
 	for (IParticleModel* pm : _particles)
 		delete pm;
@@ -310,6 +314,40 @@ bool ColumnModel1D<ConvDispOperator>::configureModelDiscretization(IParameterPro
 	unsigned int strideColNode = _disc.nComp;
 	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nElem, _disc.polyDeg, strideColNode);
 
+	// ==== Film diffusion parameter dependence (M_K coupling for exact integration DG)
+	_variableFilmDiff = false;
+	if (_disc.nParType > 0 && paramProvider.exists("particle_type_000"))
+	{
+		paramProvider.pushScope("particle_type_000");
+		if (paramProvider.exists("FILM_DIFFUSION_DEP"))
+		{
+			const std::string paramDepName = paramProvider.getString("FILM_DIFFUSION_DEP");
+			_filmDiffDep = helper.createParameterParameterDependence(paramDepName);
+			if (!_filmDiffDep)
+				throw InvalidParameterException("Unknown parameter dependence " + paramDepName + " in FILM_DIFFUSION_DEP");
+
+			_filmDiffDep->configureModelDiscretization(paramProvider);
+			_variableFilmDiff = (paramDepName != "CONSTANT_ONE" && paramDepName != "IDENTITY" && paramDepName != "NONE");
+		}
+		else
+		{
+			_filmDiffDep = helper.createParameterParameterDependence("CONSTANT_ONE");
+		}
+		paramProvider.popScope();
+	}
+
+	// Allocate M_K coupling matrices (used when _variableFilmDiff is true)
+	if (_variableFilmDiff)
+	{
+		_filmDiffCoupling.resize(_disc.nElem);
+		_filmDiffAtNodes.resize(_disc.nElem);
+		for (unsigned int cell = 0; cell < _disc.nElem; ++cell)
+		{
+			_filmDiffCoupling[cell] = Eigen::MatrixXd::Identity(_disc.nNodes, _disc.nNodes);
+			_filmDiffAtNodes[cell] = Eigen::VectorXd::Zero(_disc.nNodes);
+		}
+	}
+
 	_disc.curSection = -1;
 
 	// ==== Construct and configure dynamic reaction model
@@ -470,6 +508,23 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
 		particleConfSuccess = particleConfSuccess && _particles[parType]->configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType]);
+	}
+
+	// Configure film diffusion parameter dependence
+	if (_filmDiffDep && _disc.nParType > 0)
+	{
+		paramProvider.pushScope("particle_type_000");
+		if (paramProvider.exists("film_diffusion"))
+		{
+			paramProvider.pushScope("film_diffusion");
+			_filmDiffDep->configure(paramProvider, _unitOpIdx, ParTypeIndep, BoundStateIndep, "FILM_DIFFUSION_DEP");
+			paramProvider.popScope();
+		}
+		else
+		{
+			_filmDiffDep->configure(paramProvider, _unitOpIdx, ParTypeIndep, BoundStateIndep, "FILM_DIFFUSION_DEP");
+		}
+		paramProvider.popScope();
 	}
 
 	// Reconfigure bulk liquid reaction model
@@ -1028,6 +1083,10 @@ int ColumnModel1D<ConvDispOperator>::residualImpl(double t, unsigned int secIdx,
 
 	BENCH_STOP(_timerResidualPar);
 
+	// Apply M_K film diffusion correction for variable film diffusion with exact integration DG
+	if (_variableFilmDiff && wantRes)
+		applyFilmDiffMKCorrection<StateType, ResidualType, ParamType>(secIdx, y, res);
+
 	// Handle inlet DOFs, which are simply copied to the residual
 	for (unsigned int i = 0; i < _disc.nComp; ++i)
 	{
@@ -1035,6 +1094,114 @@ int ColumnModel1D<ConvDispOperator>::residualImpl(double t, unsigned int secIdx,
 	}
 
 	return 0;
+}
+
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::updateFilmDiffCoupling(unsigned int secIdx, unsigned int comp)
+{
+	if (!_variableFilmDiff || !_filmDiffDep)
+		return;
+
+	// Only radial DG operators support M_K film diffusion coupling
+	if constexpr (std::is_same_v<ConvDispOperator, parts::RadialConvectionDispersionOperatorBaseDG>)
+	{
+		// Get base film diffusion coefficient from first particle type
+		const active* filmDiff = _particles[0]->getFilmDiffusion(secIdx);
+		const double baseKf = static_cast<double>(filmDiff[comp]);
+
+		const double deltaRho = static_cast<double>(_convDispOp.columnLength()) / static_cast<double>(_disc.nElem);
+
+		Eigen::Map<const Eigen::VectorXd> lglNodes(_convDispOp.LGLnodes(), _disc.nNodes);
+
+		for (unsigned int cell = 0; cell < _disc.nElem; ++cell)
+		{
+			const double rho_left = _convDispOp.elemLeftBound(cell);
+
+			// Evaluate k_f at each node using parameter dependence
+			for (unsigned int node = 0; node < _disc.nNodes; ++node)
+			{
+				const double relPos = _convDispOp.relativeCoordinate(cell * _disc.nNodes + node);
+
+				_filmDiffAtNodes[cell][node] = _filmDiffDep->getValue(
+					*this, ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, baseKf);
+			}
+
+			// Compute M_K = integral(L_i * L_j * rho * k_f drho) using DGToolbox
+			Eigen::MatrixXd M_K = parts::dgtoolbox::radialFilmDiffusionMatrix(
+				_disc.polyDeg, lglNodes, rho_left, deltaRho, _filmDiffAtNodes[cell]);
+
+			// Coupling matrix: invMRho * M_K
+			_filmDiffCoupling[cell] = _convDispOp.invMRho(cell) * M_K;
+		}
+	}
+}
+
+template <typename ConvDispOperator>
+template <typename StateType, typename ResidualType, typename ParamType>
+void ColumnModel1D<ConvDispOperator>::applyFilmDiffMKCorrection(unsigned int secIdx, StateType const* y, ResidualType* res)
+{
+	if (!_variableFilmDiff || _disc.nParType == 0)
+		return;
+
+	Indexer idxr(_disc);
+
+	// Get scaling factors (same as particle model uses)
+	const double invBetaC = 1.0 / static_cast<double>(_colPorosity) - 1.0;
+	const double surfToVol = static_cast<double>(_particles[0]->surfaceToVolumeRatio());
+	const double jacCF_val = invBetaC * surfToVol;
+	const double parPorosity = static_cast<double>(_particles[0]->getPorosity());
+	const double jacPF_val = -surfToVol / parPorosity;
+
+	const active* filmDiff = _particles[0]->getFilmDiffusion(secIdx);
+	const active* poreAccFactor = _particles[0]->getPoreAccessFactor();
+
+	for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+	{
+		const double kf = static_cast<double>(filmDiff[comp]);
+
+		// Update M_K coupling for this component
+		updateFilmDiffCoupling(secIdx, comp);
+
+		for (unsigned int cell = 0; cell < _disc.nElem; ++cell)
+		{
+			const unsigned int cellOffset = cell * _disc.nNodes;
+
+			for (unsigned int i = 0; i < _disc.nNodes; ++i)
+			{
+				const unsigned int bulkIdx = idxr.offsetC() + (cellOffset + i) * idxr.strideColNode() + comp;
+				// For parType 0 only (variable film diffusion applied to first particle type)
+				const unsigned int parIdx = idxr.offsetCp(ParticleTypeIndex{0}, ParticleIndex{cellOffset + i}) + comp;
+				const double volFrac = static_cast<double>(_parTypeVolFrac[0 + _disc.nParType * (cellOffset + i)]);
+
+				// The particle model already added: kf * (c_i - cp_i) pointwise
+				// We need: sum_j coupling[i,j] * (c_j - cp_j)
+				// Correction = sum_j coupling[i,j] * (c_j - cp_j) - kf * (c_i - cp_i)
+
+				ResidualType correction = ResidualType(0.0);
+				for (unsigned int j = 0; j < _disc.nNodes; ++j)
+				{
+					const unsigned int bulkJ = idxr.offsetC() + (cellOffset + j) * idxr.strideColNode() + comp;
+					const unsigned int parJ = idxr.offsetCp(ParticleTypeIndex{0}, ParticleIndex{cellOffset + j}) + comp;
+
+					const double couplingIJ = _filmDiffCoupling[cell](i, j);
+					const ResidualType diff_j = static_cast<ResidualType>(y[bulkJ]) - static_cast<ResidualType>(y[parJ]);
+
+					correction += couplingIJ * diff_j;
+				}
+
+				// Subtract the pointwise contribution already added by particle model
+				const ResidualType diff_i = static_cast<ResidualType>(y[bulkIdx]) - static_cast<ResidualType>(y[parIdx]);
+				correction -= kf * diff_i;
+
+				// Apply correction to bulk residual
+				res[bulkIdx] += static_cast<ResidualType>(jacCF_val * volFrac) * correction;
+
+				// Apply correction to particle residual
+				const double poreAcc = static_cast<double>(poreAccFactor[comp]);
+				res[parIdx] += static_cast<ResidualType>(jacPF_val / poreAcc) * correction;
+			}
+		}
+	}
 }
 
 template <typename ConvDispOperator>
