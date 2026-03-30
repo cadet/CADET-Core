@@ -89,4 +89,4 @@ Note that in case of reversed flow, the chromatogram is returned at the unit ope
 Note that, contrary to the standard general rate model as presented in Section :ref:`general_rate_model_model`, the interstitial flow rate is always given by the volumetric flow rate.
 The velocity parameter only determines the flow direction.
 
-For information on model parameters see :ref:`2d_general_rate_model_config`.
+For information on model parameters see :ref:`axial_flow_column_2D_config` and :ref:`particle_model_config`.

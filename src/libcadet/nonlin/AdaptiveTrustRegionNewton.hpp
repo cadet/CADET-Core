@@ -349,7 +349,7 @@ namespace nonlin
 			// Convergence test
 			if (errNorm <= errTol)
 			{
-				// Solution is x + dx = x - (-dx)
+				// Solution is x + dx = x + (-dx)
 				// Note that we have to negate dx here since we didn't do that when solving with the Jacobian above
 				for (unsigned int i = 0; i < size; ++i)
 					point[i] -= dx[i];

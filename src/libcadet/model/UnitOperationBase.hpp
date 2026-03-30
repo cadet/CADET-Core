@@ -19,6 +19,7 @@
 #define LIBCADET_UNITOPERATIONBASE_HPP_
 
 #include "model/UnitOperation.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 #include "AutoDiff.hpp"
 #include "ParamIdUtil.hpp"
 #include "nonlin/Solver.hpp"
@@ -82,7 +83,7 @@ protected:
 	std::vector<IBindingModel*> _binding; //!< Binding model
 	std::vector<IExchangeModel*> _exchange; //!< Exchange model
 	bool _singleBinding; //!< Determines whether only a single binding model is present
-	std::vector<IDynamicReactionModel*> _dynReaction; //!< Dynamic reaction model
+	std::vector<ReactionSystem*> _reacParticle; //!< Reaction systems for particle bound states
 	bool _singleDynReaction; //!< Determines whether only a single dynamic reaction model is present
 
 	typedef std::unordered_map<ParameterId, active*> paramMap_t;

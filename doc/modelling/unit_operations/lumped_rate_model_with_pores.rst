@@ -53,7 +53,7 @@ By default, the following initial conditions are applied for all :math:`z \in [0
 This model can also be used to simulate :ref:`MUOPGRMSizeExclusion`.
 For the specification of flow rate and direction, the same holds as for the general rate model (see Section :ref:`MUOPGRMflow`).
 
-For information on model parameters see :ref:`lumped_rate_model_with_pores_config`.
+For information on model parameters see :ref:`axial_flow_column_1D_config` and :ref:`particle_model_config`.
 
 Radial flow LRMP
 ^^^^^^^^^^^^^^^^
@@ -91,4 +91,4 @@ The equations are complemented by Eq. :eq:`ModelParticleLRMP` and the Danckwerts
 
 The complementing binding equations are described by the same equations as for the axial LRMP.
 
-For information on model parameters see :ref:`radial_flow_models_config` in addition to :ref:`lumped_rate_model_with_pores_config`.
+For information on model parameters see :ref:`radial_flow_column_1D_config` and :ref:`particle_model_config`.

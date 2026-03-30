@@ -32,7 +32,7 @@ add_executable(testLogging testLogging.cpp)
 target_link_libraries(testLogging PRIVATE CADET::CompileOptions)
 
 if (NOT WIN32)
-	add_executable(testRadialKernel testRadialKernel.cpp TimeIntegrator.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/Logging.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/AutoDiff.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/ParameterDependenceBase.cpp)
+	add_executable(testRadialKernel testRadialKernel.cpp TimeIntegrator.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/Logging.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/AutoDiff.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/ParameterDependenceBase.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/Weno.cpp)
 	target_link_libraries(testRadialKernel PRIVATE CADET::CompileOptions CADET::AD SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${EIGEN_TARGET} )
 	target_include_directories(testRadialKernel PRIVATE ${CMAKE_SOURCE_DIR}/test ${CMAKE_BINARY_DIR}/src/libcadet)
 
@@ -61,16 +61,15 @@ if (ENABLE_2D_MODELS)
 	list(APPEND TEST_ADDITIONAL_SOURCES SparseFactorizableMatrix.cpp TwoDimConvectionDispersionOperator.cpp)
 endif()
 
-if (ENABLE_DG)
-	list(APPEND TEST_ADDITIONAL_SOURCES GeneralRateModelDG.cpp LumpedRateModelWithPoresDG.cpp LumpedRateModelWithoutPoresDG.cpp)
-	if (ENABLE_2D_MODELS)
-		list(APPEND TEST_ADDITIONAL_SOURCES LumpedRateModelWithPoresDG2D.cpp)
-	endif()
+list(APPEND TEST_ADDITIONAL_SOURCES ColumnModel1D.cpp LumpedRateModelWithoutPoresDG.cpp)
+if (ENABLE_2D_MODELS)
+	list(APPEND TEST_ADDITIONAL_SOURCES ColumnModel2D.cpp)
 endif()
 
 add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp UnitOperationTests.cpp SimHelper.cpp ParticleHelper.cpp
 	GeneralRateModel.cpp GeneralRateModel2D.cpp LumpedRateModelWithPores.cpp LumpedRateModelWithoutPores.cpp
 	RadialGeneralRateModel.cpp RadialLumpedRateModelWithPores.cpp RadialLumpedRateModelWithoutPores.cpp
+	FrustumGeneralRateModel.cpp
 	MultiChannelTransportModel.cpp
 	Crystallization.cpp
 	CSTR-Residual.cpp CSTR-Simulation.cpp
@@ -81,6 +80,8 @@ add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp Unit
 	ParamDepTests.cpp ParameterDependencies.cpp
 	ModelSystem.cpp
 	BandMatrix.cpp DenseMatrix.cpp SparseMatrix.cpp StringHashing.cpp LogUtils.cpp AD.cpp Subset.cpp Graph.cpp
+	NonlinearSolvers.cpp
+	ReferenceSimulations.cpp
 	"${CMAKE_CURRENT_BINARY_DIR}/Paths_$<CONFIG>.cpp" "${CMAKE_SOURCE_DIR}/src/io/JsonParameterProvider.cpp"
 	${TEST_ADDITIONAL_SOURCES}
 	$<TARGET_OBJECTS:libcadet_object>)

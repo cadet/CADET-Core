@@ -156,6 +156,7 @@ protected:
 
 	active _colLength; //!< Column length \f$ L \f$
 	active _colRadius; //!< Column radius \f$ r_c \f$
+	std::vector<active> _axialEdges; //!< Positions of axial cell faces (length nCol+1)
 	std::vector<active> _radialEdges; //!< Boundaries of the radial compartments
 	std::vector<active> _radialCenters; //!< Center of each radial compartment
 //	std::vector<active> _radialCentroids; //!< Center of mass of each radial compartment

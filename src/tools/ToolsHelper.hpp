@@ -49,8 +49,9 @@ inline void split(const std::string& s, const char delim, std::vector<std::strin
 template <class ProgramOptions_t>
 inline void addMiscToCmdLine(TCLAP::CmdLine& cmd, ProgramOptions_t& opts)
 {
-	cmd >> (new TCLAP::ValueArg<int>("", "par", "Number of particle cells (default: 4)", false, 4, "Value"))->storeIn(&opts.nPar);
-	cmd >> (new TCLAP::ValueArg<int>("", "col", "Number of axial cells (default: 10)", false, 10, "Value"))->storeIn(&opts.nCol);
+	cmd >> (new TCLAP::ValueArg<int>("", "polydeg", "Spatial method polynomial degree (0: FV, > 0: DG)", false, 3, "Value"))->storeIn(&opts.polyDeg);
+	cmd >> (new TCLAP::ValueArg<int>("", "ncol", "Number of axial elements (default: 3)", false, 3, "Value"))->storeIn(&opts.nCol);
+	cmd >> (new TCLAP::ValueArg<int>("", "npar", "Number of particle elements (default: 1)", false, 1, "Value"))->storeIn(&opts.nCol);
 
 	cmd >> (new TCLAP::SwitchArg("", "solverTimes", "Save all solver timesteps"))->storeIn(&opts.solverTimes);
 	cmd >> (new TCLAP::SwitchArg("k", "kinetic", "Kinetic adsorption model used (default: quasi-stationary)"))->storeIn(&opts.isKinetic);

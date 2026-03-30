@@ -24,7 +24,7 @@ This simplifies using the frontend.
 The package includes a ``Cadet`` class which serves as a generic HDF5 frontend.
 
 As an example, we consider setting the external porosity for the column model (``unit_001``).
-From :ref:`file format <general_rate_model_config>`, the path for this is ``/input/model/unit_001/COL_POROSITY``.
+From :ref:`file format <axial_flow_column_1D_config>`, the path for this is ``/input/model/unit_001/COL_POROSITY``.
 In the Python frontend, this becomes:
 
 .. code-block:: Python3
@@ -86,7 +86,7 @@ General Rate Model
 We now add a second unit operation, the column model.
 For the :ref:`general rate model model <general_rate_model_model>`, we set the ``unit_type`` parameter of the corresponding unit operation model to ``GENERAL_RATE_MODEL``.
 In this group, we set the parameters related to transport and column geometry.
-For a more detailed description of the parameters and their units, see the :ref:`corresponding file format <general_rate_model_config>`.
+For a more detailed description of the parameters and their units, see the :ref:`corresponding file format <axial_flow_column_1D_config>`.
 
 .. literalinclude:: examples/breakthrough.py
     :lines: 20-34

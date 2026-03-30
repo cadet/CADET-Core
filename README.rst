@@ -7,6 +7,9 @@ CADET-Core
 .. image:: https://github.com/cadet/cadet-core/actions/workflows/ci.yml/badge.svg?branch=master
    :target: https://github.com/cadet/cadet-core/actions/workflows/ci.yml?query=branch%3Amaster
 
+.. image:: https://joss.theoj.org/papers/282a9ec56a0680e51ed4f1fa8fda3650/status.svg
+   :target: https://joss.theoj.org/papers/282a9ec56a0680e51ed4f1fa8fda3650
+
 .. image:: https://anaconda.org/conda-forge/cadet/badges/downloads.svg
    :target: https://anaconda.org/conda-forge/cadet
 
@@ -20,8 +23,8 @@ CADET-Core
 - **Forum:** https://forum.cadet-web.de
 - **Source:** https://github.com/cadet/cadet-core
 - **Bug reports:** https://github.com/cadet/cadet-core/issues
-- **Demo:** https://www.cadet-web.de 
-- **Newsletter:** https://cadet-web.de/newsletter/
+
+To stay up to date on CADET news, development updates, and workshops, please subscribe to our `Newsletter <http://eepurl.com/hzN4EP>`_.
 
 Installation
 ------------
@@ -42,6 +45,8 @@ Therefore, we kindly ask that any publications or projects leveraging the capabi
 
 **General:**
 
+- Leweke, S.; Breuer, J.; Schmölder, J.; Jäpel, R.; Lanzrath, H.; Rao, J.; Hassan, J.; Zhang, W.; Berger, A.; Heymann, W.; von Lieres, E.: `CADET-Core 5.0: High-Performance Solver for Advanced Biotechnology Process Modeling <https://doi.org/10.21105/joss.07881>`_, Journal of Open Source Software **10** (2025), 7881.
+
 - Leweke, S.; von Lieres, E.: `Chromatography Analysis and Design Toolkit (CADET) <https://doi.org/10.1016/j.compchemeng.2018.02.025>`_, Computers and Chemical Engineering **113** (2018), 274–294.
 
 - von Lieres, E.; Andersson, J.: `A fast and accurate solver for the general rate model of column liquid chromatography <https://doi.org/10.1016/j.compchemeng.2010.03.008>`_, Computers and Chemical Engineering **34,8** (2010), 1180–1191.
@@ -56,7 +61,7 @@ Therefore, we kindly ask that any publications or projects leveraging the capabi
 
 - Püttmann, A.; Schnittert, S.; Naumann, U.; von Lieres, E.: `Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography <http://dx.doi.org/10.1016/j.compchemeng.2013.04.021>`_, Computers and Chemical Engineering **56** (2013), 46–57.
 
-Additionally, to ensure reproducibility of your work, we recommend citing the zenodo doi corresponding to the specific CADET-Core release that you used.
+Additionally, to ensure reproducibility of your work, we recommend citing the `zenodo doi <https://doi.org/10.5281/zenodo.8179015>`_ corresponding to the specific CADET-Core release that you used.
 
 For a comprehensive list and guidance on citing CADET-Core publications, please refer to the publications section of the `documentation <https://cadet.github.io/master/publications.html>`_.
 

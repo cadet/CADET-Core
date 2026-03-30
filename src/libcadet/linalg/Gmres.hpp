@@ -44,8 +44,8 @@ namespace linalg
  */
 enum class Orthogonalization : unsigned int
 {
-	ClassicalGramSchmidt = 0,
-	ModifiedGramSchmidt = 1, 
+	ModifiedGramSchmidt = 1,
+	ClassicalGramSchmidt = 2,
 };
 
 /**
@@ -57,7 +57,7 @@ inline Orthogonalization toOrthogonalization(unsigned int ortho)
 {
 	switch(ortho)
 	{
-		case static_cast<typename std::underlying_type<Orthogonalization>::type>(Orthogonalization::ClassicalGramSchmidt):
+		case 0u:
 			return Orthogonalization::ClassicalGramSchmidt;
 		case static_cast<typename std::underlying_type<Orthogonalization>::type>(Orthogonalization::ModifiedGramSchmidt):
 			return Orthogonalization::ModifiedGramSchmidt;

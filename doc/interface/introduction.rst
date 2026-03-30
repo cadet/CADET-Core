@@ -131,7 +131,7 @@ Note that all components of component dependent datasets have to be section depe
    * - FILM_DIFFUSION
      - ✓
      - ✓
-   * - PAR_DIFFUSION
+   * - PORE_DIFFUSION
      - ✓
      - ✓
    * - PAR_SURDIFFUSION

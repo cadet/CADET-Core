@@ -22,7 +22,7 @@
 #include "model/parts/AxialConvectionDispersionKernel.hpp"
 #include "model/ParameterDependence.hpp"
 #include "model/exchange/LinearExchange.cpp"
-
+#include "model/exchange/LangumirExchange.cpp"
 
 #ifdef SUPERLU_FOUND
 	#include "linalg/SuperLUSparseMatrix.hpp"
@@ -682,6 +682,8 @@ bool MultiChannelConvectionDispersionOperator::configureModelDiscretization(IPar
 	_nCol = nCol;
 	_nChannel = nChannel;
 	_hasDynamicReactions = dynamicReactions;
+	_colLength = paramProvider.getDouble("COL_LENGTH");
+
 	paramProvider.pushScope("discretization");
 
 	_dispersionDep = helper.createParameterParameterDependence("CONSTANT_ONE");
@@ -691,6 +693,10 @@ bool MultiChannelConvectionDispersionOperator::configureModelDiscretization(IPar
 	_weno.order(paramProvider.getInt("WENO_ORDER"));
 	_weno.boundaryTreatment(paramProvider.getInt("BOUNDARY_MODEL"));
 	_weno.epsilon(paramProvider.getDouble("WENO_EPS"));
+	const double h = static_cast<double>(_colLength) / static_cast<double>(_nCol);
+	_cellFaces.resize(_nCol + 1);
+	for (int i = 0; i <= _nCol; ++i)
+		_cellFaces[i] = i * h;
 	paramProvider.popScope();
 
 	// Read solver settings
@@ -745,7 +751,6 @@ bool MultiChannelConvectionDispersionOperator::configureModelDiscretization(IPar
 bool MultiChannelConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
 	// Read geometry parameters
-	_colLength = paramProvider.getDouble("COL_LENGTH");
 	const std::vector<double> initCrossSections = paramProvider.getDoubleArray("CHANNEL_CROSS_SECTION_AREAS");
 	ad::copyToAd(initCrossSections.data(), _crossSections.data(), _nChannel);
 	readParameterMatrix(_exchangeMatrix, paramProvider, "EXCHANGE_MATRIX", _nChannel * _nChannel * _nComp, 1); // include parameterPeaderHelp in exchange modul
@@ -827,7 +832,12 @@ bool MultiChannelConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IP
 
 	// Add parameters to map
 	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
-	registerParam3DArray(parameters, _exchangeMatrix, [=](bool multi, unsigned int channelSrc, unsigned int channelDest, unsigned comp) { return makeParamId(hashString("EXCHANGE_MATRIX"), unitOpIdx, multi ? comp : CompIndep, channelDest, channelSrc, ReactionIndep, SectionIndep); }, _nComp, _nChannel);
+
+	registerParam1DArray(parameters, _crossSections, [=](bool multi, unsigned int channel)
+	{
+		return makeParamId(hashString("CHANNEL_CROSS_SECTION_AREAS"), unitOpIdx, CompIndep, channel, BoundStateIndep, ReactionIndep, SectionIndep);
+	});
+
 
 	setSparsityPattern();
 
@@ -986,6 +996,7 @@ int MultiChannelConvectionDispersionOperator::residualImpl(const IModel& model, 
 	for (unsigned int i = 0; i < _nChannel; ++i)
 	{
 		active const* const d_c = getSectionDependentSlice(_axialDispersion, _nChannel * _nComp, secIdx) + i * _nComp;
+		const std::vector<active>* const cellFacesPtr = _cellFaces.empty() ? nullptr : &_cellFaces;
 
 		convdisp::AxialFlowParameters<ParamType, cadet::Weno> fp{
 			static_cast<ParamType>(_curVelocity[i]),
@@ -1000,7 +1011,9 @@ int MultiChannelConvectionDispersionOperator::residualImpl(const IModel& model, 
 			_nComp * i,                        // Offset to the first component of the inlet DOFs in the local state vector
 			_nComp * (_nChannel + i),          // Offset to the first component of the first bulk cell in the local state vector
 			_dispersionDep,
-			model
+			model,
+			true,
+			cellFacesPtr
 		};
 
 		if (wantJac)
@@ -1008,8 +1021,6 @@ int MultiChannelConvectionDispersionOperator::residualImpl(const IModel& model, 
 		else
 			convdisp::residualKernelAxial<StateType, ResidualType, ParamType, cadet::Weno, linalg::BandedSparseRowIterator, false>(SimulationTime{t, secIdx}, y, yDot, res, _jacC.row(i * _nComp), fp);
 	}
-
-	
 
 	if (cadet_unlikely(_nChannel <= 1)) {
 		return 0;
@@ -1215,6 +1226,13 @@ bool MultiChannelConvectionDispersionOperator::setParameter(const ParameterId& p
 		}
 	}
 
+	if ((pId.name == hashString("CHANNEL_CROSS_SECTION_AREAS")) && (pId.component == CompIndep) && (pId.boundState == BoundStateIndep) && (pId.reaction == ReactionIndep) && (pId.section == SectionIndep))
+	{
+		const unsigned int channel = static_cast<unsigned int>(pId.particleType);
+		if (channel < _nChannel)
+			_crossSections[channel].setValue(value);
+	}
+
 	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _nChannel, value, nullptr);
 	if (ad)
 		return true;
@@ -1245,6 +1263,13 @@ bool MultiChannelConvectionDispersionOperator::setSensitiveParameterValue(const 
 			for (unsigned int i = 0; i < _nChannel; ++i)
 				_velocity[i].setValue(value);
 		}
+	}
+
+	if ((pId.name == hashString("CHANNEL_CROSS_SECTION_AREAS")) && (pId.component == CompIndep) && (pId.boundState == BoundStateIndep) && (pId.reaction == ReactionIndep) && (pId.section == SectionIndep))
+	{
+		const unsigned int channel = static_cast<unsigned int>(pId.particleType);
+		if ((channel < _nChannel) && contains(sensParams, &_crossSections[channel]))
+			_crossSections[channel].setValue(value);
 	}
 
 	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _nChannel, value, &sensParams);
@@ -1278,6 +1303,16 @@ bool MultiChannelConvectionDispersionOperator::setSensitiveParameter(std::unorde
 			sensParams.insert(&_velocity[0]);
 			for (unsigned int i = 0; i < _nChannel; ++i)
 				_velocity[i].setADValue(adDirection, adValue);
+		}
+	}
+
+	if ((pId.name == hashString("CHANNEL_CROSS_SECTION_AREAS")) && (pId.component == CompIndep) && (pId.boundState == BoundStateIndep) && (pId.reaction == ReactionIndep) && (pId.section == SectionIndep))
+	{
+		const unsigned int channel = static_cast<unsigned int>(pId.particleType);
+		if (channel < _nChannel)
+		{
+			sensParams.insert(&_crossSections[channel]);
+			_crossSections[channel].setADValue(adDirection, adValue);
 		}
 	}
 

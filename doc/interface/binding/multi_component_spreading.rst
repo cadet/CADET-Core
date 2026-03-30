@@ -3,7 +3,7 @@
 Multi Component Spreading
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_SPREADING**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_SPREADING**
 
 For information on model equations, refer to :ref:`multi_component_spreading_model`.
 

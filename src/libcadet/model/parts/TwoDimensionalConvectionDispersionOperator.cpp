@@ -138,65 +138,65 @@ cadet::model::MultiplexMode readAndRegisterMultiplexParam(cadet::IParameterProvi
 	const cadet::StringHash nameHash = cadet::hashStringRuntime(name);
 	switch (mode)
 	{
-		case cadet::model::MultiplexMode::Independent:
-		case cadet::model::MultiplexMode::Section:
-			{
-				std::vector<cadet::active> p(nComp * nRad * nSec);
-				for (unsigned int s = 0; s < nSec; ++s)
-					std::fill(p.begin() + s * nRad * nComp, p.begin() + (s+1) * nRad * nComp, values[s]);
+	case cadet::model::MultiplexMode::Independent: // nSec = 1
+	case cadet::model::MultiplexMode::Section:
+	{
+		std::vector<cadet::active> p(nComp * nRad * nSec);
+		for (unsigned int s = 0; s < nSec; ++s)
+			std::fill(p.begin() + s * nRad * nComp, p.begin() + (s + 1) * nRad * nComp, values[s]);
 
-				values = std::move(p);
+		values = std::move(p);
 
-				for (unsigned int s = 0; s < nSec; ++s)
-					parameters[cadet::makeParamId(nameHash, uoi, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, (mode == cadet::model::MultiplexMode::Independent) ? cadet::SectionIndep : s)] = &values[s * nRad * nComp];
-			}
-			break;
-		case cadet::model::MultiplexMode::Component:
-		case cadet::model::MultiplexMode::ComponentSection:
-			{
-				std::vector<cadet::active> p(nComp * nRad * nSec);
-				for (unsigned int s = 0; s < nSec; ++s)
-				{
-					for (unsigned int i = 0; i < nComp; ++i)
-						std::copy(values.begin() + s * nComp, values.begin() + (s+1) * nComp, p.begin() + i * nComp + s * nComp * nRad);
-				}
+		for (unsigned int s = 0; s < nSec; ++s)
+			parameters[cadet::makeParamId(nameHash, uoi, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, (mode == cadet::model::MultiplexMode::Independent) ? cadet::SectionIndep : s)] = &values[s * nRad * nComp];
+	}
+	break;
+	case cadet::model::MultiplexMode::Component: // nSec = 1
+	case cadet::model::MultiplexMode::ComponentSection:
+	{
+		std::vector<cadet::active> p(nComp * nRad * nSec);
+		for (unsigned int s = 0; s < nSec; ++s)
+		{
+			for (unsigned int r = 0; r < nRad; ++r)
+				std::copy(values.begin() + s * nComp, values.begin() + (s + 1) * nComp, p.begin() + r * nComp + s * nComp * nRad);
+		}
 
-				values = std::move(p);
+		values = std::move(p);
 
-				for (unsigned int s = 0; s < nSec; ++s)
-				{
-					for (unsigned int i = 0; i < nComp; ++i)
-						parameters[cadet::makeParamId(nameHash, uoi, i, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, (mode == cadet::model::MultiplexMode::Component) ? cadet::SectionIndep : s)] = &values[s * nRad * nComp + i];
-				}
-			}
-			break;
-		case cadet::model::MultiplexMode::Radial:
-		case cadet::model::MultiplexMode::RadialSection:
-			{
-				std::vector<cadet::active> p(nComp * nRad * nSec);
-				for (unsigned int i = 0; i < nRad * nSec; ++i)
-					std::fill(p.begin() + i * nComp, p.begin() + (i+1) * nComp, values[i]);
+		for (unsigned int s = 0; s < nSec; ++s)
+		{
+			for (unsigned int i = 0; i < nComp; ++i)
+				parameters[cadet::makeParamId(nameHash, uoi, i, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, (mode == cadet::model::MultiplexMode::Component) ? cadet::SectionIndep : s)] = &values[s * nRad * nComp + i];
+		}
+	}
+	break;
+	case cadet::model::MultiplexMode::Radial: // nSec = 1
+	case cadet::model::MultiplexMode::RadialSection:
+	{
+		std::vector<cadet::active> p(nComp * nRad * nSec);
+		for (unsigned int idx = 0; idx < nRad * nSec; ++idx)
+			std::fill(p.begin() + idx * nComp, p.begin() + (idx + 1) * nComp, values[idx]);
 
-				values = std::move(p);
+		values = std::move(p);
 
-				for (unsigned int s = 0; s < nSec; ++s)
-				{
-					for (unsigned int i = 0; i < nRad; ++i)
-						parameters[cadet::makeParamId(nameHash, uoi, cadet::CompIndep, i, cadet::BoundStateIndep, cadet::ReactionIndep, (mode == cadet::model::MultiplexMode::Radial) ? cadet::SectionIndep : s)] = &values[s * nRad * nComp + i * nComp];
-				}
-			}
-			break;
-		case cadet::model::MultiplexMode::ComponentRadial:
-		case cadet::model::MultiplexMode::ComponentRadialSection:
-			cadet::registerParam3DArray(parameters, values, [=](bool multi, unsigned int sec, unsigned int compartment, unsigned int comp) { return cadet::makeParamId(nameHash, uoi, comp, compartment, cadet::BoundStateIndep, cadet::ReactionIndep, multi ? sec : cadet::SectionIndep); }, nComp, nRad);
-			break;
-		case cadet::model::MultiplexMode::Axial:
-		case cadet::model::MultiplexMode::AxialRadial:
-		case cadet::model::MultiplexMode::Type:
-		case cadet::model::MultiplexMode::ComponentType:
-		case cadet::model::MultiplexMode::ComponentSectionType:
-			cadet_assert(false);
-			break;
+		for (unsigned int s = 0; s < nSec; ++s)
+		{
+			for (unsigned int r = 0; r < nRad; ++r)
+				parameters[cadet::makeParamId(nameHash, uoi, cadet::CompIndep, r, cadet::BoundStateIndep, cadet::ReactionIndep, (mode == cadet::model::MultiplexMode::Radial) ? cadet::SectionIndep : s)] = &values[s * nRad * nComp + r * nComp];
+		}
+	}
+	break;
+	case cadet::model::MultiplexMode::ComponentRadial: // nSec = 1
+	case cadet::model::MultiplexMode::ComponentRadialSection:
+		cadet::registerParam3DArray(parameters, values, [=](bool multi, unsigned int sec, unsigned int compartment, unsigned int comp) { return cadet::makeParamId(nameHash, uoi, comp, compartment, cadet::BoundStateIndep, cadet::ReactionIndep, multi ? sec : cadet::SectionIndep); }, nComp, nRad);
+		break;
+	case cadet::model::MultiplexMode::Axial:
+	case cadet::model::MultiplexMode::AxialRadial:
+	case cadet::model::MultiplexMode::Type:
+	case cadet::model::MultiplexMode::ComponentType:
+	case cadet::model::MultiplexMode::ComponentSectionType:
+		cadet_assert(false);
+		break;
 	}
 
 	return mode;
@@ -683,6 +683,7 @@ bool TwoDimensionalConvectionDispersionOperator::configureModelDiscretization(IP
 	_nCol = nCol;
 	_nRad = nRad;
 	_hasDynamicReactions = dynamicReactions;
+	_colLength = paramProvider.getDouble("COL_LENGTH");
 
 	// TODO: Add support for parameter dependent dispersion
 	_dispersionDep = helper.createParameterParameterDependence("CONSTANT_ONE");
@@ -694,6 +695,10 @@ bool TwoDimensionalConvectionDispersionOperator::configureModelDiscretization(IP
 	_weno.order(paramProvider.getInt("WENO_ORDER"));
 	_weno.boundaryTreatment(paramProvider.getInt("BOUNDARY_MODEL"));
 	_weno.epsilon(paramProvider.getDouble("WENO_EPS"));
+	const double h = static_cast<double>(_colLength) / static_cast<double>(_nCol);
+	_axialEdges.resize(_nCol + 1);
+	for (int i = 0; i <= _nCol; ++i)
+		_axialEdges[i] = i * h;
 	paramProvider.popScope();
 
 	// Read solver settings
@@ -753,7 +758,6 @@ bool TwoDimensionalConvectionDispersionOperator::configureModelDiscretization(IP
 bool TwoDimensionalConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
 	// Read geometry parameters
-	_colLength = paramProvider.getDouble("COL_LENGTH");
 	if (paramProvider.exists("COL_RADIUS"))
     {
         _colRadius = paramProvider.getDouble("COL_RADIUS");
@@ -871,7 +875,7 @@ bool TwoDimensionalConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, 
 
 	_dir = std::vector<int>(_nRad, 1);
 
-	_axialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _axialDispersion, "COL_DISPERSION", _nComp, _nRad, unitOpIdx);
+	_axialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _axialDispersion, "COL_DISPERSION_AXIAL", _nComp, _nRad, unitOpIdx);
 	_radialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _radialDispersion, "COL_DISPERSION_RADIAL", _nComp, _nRad, unitOpIdx);
 
 	// Add parameters to map
@@ -1009,6 +1013,7 @@ int TwoDimensionalConvectionDispersionOperator::residualImpl(const IModel& model
 	for (unsigned int i = 0; i < _nRad; ++i)
 	{
 		active const* const d_c = getSectionDependentSlice(_axialDispersion, _nRad * _nComp, secIdx) + i * _nComp;
+		const std::vector<active>* const cellFacesPtr = _axialEdges.empty() ? nullptr : &_axialEdges;
 
 		convdisp::AxialFlowParameters<ParamType, Weno> fp{
 			static_cast<ParamType>(_curVelocity[i]),
@@ -1023,7 +1028,9 @@ int TwoDimensionalConvectionDispersionOperator::residualImpl(const IModel& model
 			_nComp * i,                        // Offset to the first component of the inlet DOFs in the local state vector
 			_nComp * (_nRad + i),              // Offset to the first component of the first bulk cell in the local state vector
 			_dispersionDep,
-			model
+			model,
+			true,
+			cellFacesPtr
 		};
 
 		if (wantJac)
@@ -1362,7 +1369,7 @@ bool TwoDimensionalConvectionDispersionOperator::setParameter(const ParameterId&
 		}
 	}
 
-	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _nRad, value, nullptr);
+	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION_AXIAL"), _axialDispersionMode, _axialDispersion, _nComp, _nRad, value, nullptr);
 	if (ad)
 		return true;
 
@@ -1408,7 +1415,7 @@ bool TwoDimensionalConvectionDispersionOperator::setSensitiveParameterValue(cons
 		}
 	}
 
-	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _nRad, value, &sensParams);
+	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION_AXIAL"), _axialDispersionMode, _axialDispersion, _nComp, _nRad, value, &sensParams);
 	if (ad)
 		return true;
 
@@ -1455,7 +1462,7 @@ bool TwoDimensionalConvectionDispersionOperator::setSensitiveParameter(std::unor
 		}
 	}
 
-	const bool ad = multiplexParameterAD(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _nRad, adDirection, adValue, sensParams);
+	const bool ad = multiplexParameterAD(pId, hashString("COL_DISPERSION_AXIAL"), _axialDispersionMode, _axialDispersion, _nComp, _nRad, adDirection, adValue, sensParams);
 	if (ad)
 		return true;
 

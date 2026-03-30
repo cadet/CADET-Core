@@ -167,6 +167,7 @@ protected:
 	IParameterParameterDependence* _dispersionDep;
 
 	ArrayPool _stencilMemory; //!< Provides memory for the stencil
+	std::vector<active> _cellFaces; //!< Positions of cell faces (length nCol+1)
 	double* _wenoDerivatives; //!< Holds derivatives of the WENO scheme
 	Weno _weno; //!< The WENO scheme implementation
 	double _wenoEpsilon; //!< The @f$ \varepsilon @f$ of the WENO scheme (prevents division by zero)

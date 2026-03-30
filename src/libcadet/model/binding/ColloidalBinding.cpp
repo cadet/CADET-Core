@@ -289,7 +289,10 @@ protected:
 					}
 
 					const ParamType radSum = static_cast<ParamType>(p->radius[i]) + static_cast<ParamType>(p->radius[j]);
-					S_i += y[bndIdx2] * sqrt(bpp_i * bpp_j) * radSum * exp(-kappa * (R - radSum));
+					if (bpp_i * bpp_j > 1e-16)
+					{
+						S_i += y[bndIdx2] * sqrt(bpp_i * bpp_j) * radSum * exp(-kappa * (R - radSum));
+					}
 
 					// Next bound component
 					++bndIdx2;
@@ -419,6 +422,8 @@ protected:
 				double S_i_sum = 0.0;
 				double S_i_dPh = 0.0;
 				double S_i_dSalt = 0.0;
+				bool bpp_treshold = false;
+
 				int bndIdx2 = 0;
 				for (int j = _startIdx; j < _nComp; ++j)
 				{
@@ -449,6 +454,7 @@ protected:
 					if (phEnabled)
 						S_i_dPh += S_temp * 0.5 / sqrtBpp_ij * (bpp_i * bpp_j_dPh + bpp_i_dPh * bpp_j);
 
+					bpp_treshold = bpp_i * bpp_j > 1e-16;
 					++bndIdx2;
 				}
 
@@ -456,7 +462,11 @@ protected:
 				S_i_dSalt += Sfactor_dSalt * S_i_sum;
 				S_i_dPh *= Sfactor;
 
-				const double S_i = Sfactor * S_i_sum;
+				double S_i = 0.0;
+				if(bpp_treshold)
+				{
+					S_i = Sfactor * S_i_sum;
+				}
 				const double commonFactor = static_cast<double>(p->kKin[i]) * y[bndIdx] * exp(S_i - logKeq);
 
 				// dres_i / dc_{p,0} (salt)

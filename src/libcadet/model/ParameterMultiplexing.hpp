@@ -62,220 +62,252 @@ namespace model
 	}
 
 	/**
-	 * @brief Reads, multiplexes, and registers a parameter that may depend on particle type
-	 * @details Reads the fiels NAME from the IParameterProvider. The multiplexing behavior is inferred from 
-	 *          the length of the field NAME.
-	 *          
-	 *          Depending on the (inferred) mode, the read parameter values are multiplexed to a size of nParType.
-	 *          In case of multiplexing, only the first instance of the parameter is registered. 
-	 * 
-	 * @param [in] paramProvider ParameterProvider
-	 * @param [in] parameters Map to register the parameters in
-	 * @param [out] values Array to store the read parameters in
-	 * @param [in] name Name of the parameter
-	 * @param [in] nParType Number of particle types
-	 * @param [in] uoi Unit operation index
-	 * @return @c true if the parameter is multiplexed (single value), otherwise @c false
-	 */
-	bool readAndRegisterMultiplexTypeParam(IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, std::vector<active>& values, const std::string& name, unsigned int nParType, UnitOpIdx uoi);
-
-	/**
-	 * @brief Sets the value of a multiplexed parameter that may depend on particle type
-	 * @details Sets the value of a parameter and multiplexes the value onto all parameter instances.
-	 *          The parameter array is expected to have a size of nParType.
-	 *          
-	 *          In case of multiplexing, the given value is applied to all parameter instances.
-	 *          
+	 * @brief For a specific particle type: Sets the value of a multiplexed parameter that may depend on particle type
+	 *          The parameter array is expected to have a size of 1.
+	 *
 	 *          This function optionally checks whether the specified parameter is listed as sensitive. It uses the first
 	 *          parameter group / instance to check the @p sensParams set.
-	 * 
+	 *
 	 * @param [in] pId ParameterID
 	 * @param [in] nameHash Hash of the parameter name
-	 * @param [in] mode Multiplexing mode as obtained by readAndRegisterMultiplexTypeParam()
-	 * @param [in,out] data Array with parameters whose values are updated
+	 * @param [in] parTypeDep true if parameter is particle type dependent
+	 * @param [in,out] parameter whose values are updated
+	 * @param [in] parTypeIdx index of the current particle type
 	 * @param [in] val Value to apply to the parameter(s)
 	 * @param [in] sensParams If not @c nullptr, the set is checked for the specified parameter.
 	 *                        If it is not contained in the set, the value is not applied to the parameter.
 	 * @return @c true if the value has been applied, or @c false otherwise
 	 */
-	bool multiplexTypeParameterValue(const ParameterId& pId, StringHash nameHash, bool mode, std::vector<active>& data, double value, std::unordered_set<active*> const* sensParams);
+	bool setTypeParameterValue(const ParameterId& pId, StringHash nameHash, bool parTypeDep, active& parameter, unsigned int parTypeIdx, double value, std::unordered_set<active*> const* sensParams);
 
 	/**
-	 * @brief Sets AD info of a multiplexed parameter that may depend on particle type
+	 * @brief For a specific particle type: Sets AD info of a multiplexed parameter that may depend on particle type
 	 * @details Sets the AD direction and seed value of a parameter and multiplexes the info onto all parameter instances.
 	 *          The parameter array is expected to have a size of nParType.
-	 *          
+	 *
 	 *          In case of multiplexing, the given AD info is applied to all parameter instances.
-	 *          
+	 *
 	 *          The first parameter group / instance is added to the @p sensParams set in order to mark the parameter as sensitive.
-	 * 
+	 *
 	 * @param [in] pId ParameterID
 	 * @param [in] nameHash Hash of the parameter name
-	 * @param [in] mode Multiplexing mode as obtained by readAndRegisterMultiplexTypeParam()
-	 * @param [in,out] data Array with parameters whose AD info are updated
+	 * @param [in] parTypeDep true if parameter is particle type dependent
+	 * @param [in,out] parameter whose values are updated
+	 * @param [in] parTypeIdx index of the current particle type
 	 * @param [in] adDirection AD direction
 	 * @param [in] adValue AD seed value
 	 * @param [in,out] sensParams The parameter(s) are marked sensitive by adding them to this set
 	 * @return @c true if the parameter has been found, or @c false otherwise
 	 */
-	bool multiplexTypeParameterAD(const ParameterId& pId, StringHash nameHash, bool mode, std::vector<active>& data, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams);
+	bool setTypeParameterValueAD(const ParameterId& pId, StringHash nameHash, bool parTypeDep, active& parameter, unsigned int parTypeIdx, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams);
 
 	/**
 	 * @brief Reads, multiplexes, and registers a parameter that depends on particle type, component, and (optionally) section
 	 * @details Reads the fiels NAME and NAME_MULTIPLEX (if available) from the IParameterProvider. If NAME_MULTIPLEX is missing,
 	 *          the multiplexing behavior is inferred from the length of the field NAME.
-	 *          
+	 *
 	 *          Depending on the (inferred) mode, the read parameter values are multiplexed to a size of nComp * nParType, or
 	 *          nComp * nParType * nSections. The ordering is section-type-major.
-	 *          
+	 *
 	 *          In case of multiplexing, only the first group of parameters is registered. For example, if one value for all
 	 *          components in each particle type is given (read array of size nParType), the first component of each particle
 	 *          type is registered.
-	 * 
+	 *
 	 * @param [in] paramProvider ParameterProvider
 	 * @param [in] parameters Map to register the parameters in
 	 * @param [out] values Array to store the read parameters in
 	 * @param [in] name Name of the parameter
-	 * @param [in] nParType Number of particle types
 	 * @param [in] nComp Number of components
+	 * @param [in] parTypeIndex index of the considered particle type
+	 * @param [in] parTypeDep particle type dependence of parameter
 	 * @param [in] uoi Unit operation index
+	 * @param [in] valTypeOffset optional offset in value vector to current particle type
 	 * @return Inferred or read multiplexing mode
 	 */
-	MultiplexMode readAndRegisterMultiplexCompTypeSecParam(IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, std::vector<active>& values, const std::string& name, unsigned int nParType, unsigned int nComp, UnitOpIdx uoi);
+	MultiplexMode readAndRegisterMultiplexCompSecParam(IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, std::vector<active>& values, const std::string& name, unsigned int nComp, unsigned int parTypeIdx, const bool parTypeDep, UnitOpIdx uoi, const int valTypeOffset=0);
 
 	/**
-	 * @brief Sets the value of a multiplexed parameter that depends on particle type, component, and (optionally) section
-	 * @details Sets the value of a parameter and multiplexes the value onto all parameter instances.
-	 *          The parameter array is expected to have a size of nComp * nParType, or nComp * nParType * nSections.
-	 *          The ordering is section-type-major.
-	 *          
-	 *          In case of multiplexing, the given value is applied to all parameter instances. For example, if one parameter for all
-	 *          components in each particle type is given, the value is applied to all components of the specified particle type.
-	 *          
-	 *          This function optionally checks whether the specified parameter is listed as sensitive. It uses the first
-	 *          parameter group / instance to check the @p sensParams set.
-	 * 
-	 * @param [in] pId ParameterID
-	 * @param [in] nameHash Hash of the parameter name
-	 * @param [in] mode Multiplexing mode as obtained by readAndRegisterMultiplexCompTypeSecParam()
-	 * @param [in,out] data Array with parameters whose values are updated
-	 * @param [in] nParType Number of particle types
-	 * @param [in] nComp Number of components
-	 * @param [in] val Value to apply to the parameter(s)
-	 * @param [in] sensParams If not @c nullptr, the set is checked for the specified parameter.
-	 *                        If it is not contained in the set, the value is not applied to the parameter.
-	 * @return @c true if the value has been applied, or @c false otherwise
-	 */
-	bool multiplexCompTypeSecParameterValue(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data, unsigned int nParType, unsigned int nComp, double value, std::unordered_set<active*> const* sensParams);
-
-	/**
-	 * @brief Sets AD info of a multiplexed parameter that depends on particle type, component, and (optionally) section
-	 * @details Sets the AD direction and seed value of a parameter and multiplexes the info onto all parameter instances.
-	 *          The parameter array is expected to have a size of nComp * nParType, or nComp * nParType * nSections.
-	 *          The ordering is section-type-major.
-	 *          
-	 *          In case of multiplexing, the given AD info is applied to all parameter instances. For example, if one parameter for all
-	 *          components in each particle type is given, the AD info is applied to all components of the specified particle type.
-	 *          
-	 *          The first parameter group / instance is added to the @p sensParams set in order to mark the parameter as sensitive.
-	 * 
-	 * @param [in] pId ParameterID
-	 * @param [in] nameHash Hash of the parameter name
-	 * @param [in] mode Multiplexing mode as obtained by readAndRegisterMultiplexCompTypeSecParam()
-	 * @param [in,out] data Array with parameters whose AD info are updated
-	 * @param [in] nParType Number of particle types
-	 * @param [in] nComp Number of components
-	 * @param [in] adDirection AD direction
-	 * @param [in] adValue AD seed value
-	 * @param [in,out] sensParams The parameter(s) are marked sensitive by adding them to this set
-	 * @return @c true if the parameter has been found, or @c false otherwise
-	 */
-	bool multiplexCompTypeSecParameterAD(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data, unsigned int nParType, unsigned int nComp, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams);
-
-	/**
-	 * @brief Reads, multiplexes, and registers a parameter that depends on particle type, component, bound state, and (optionally) section
+	 * @brief For a specific particle type: Reads, multiplexes, and registers a parameter that depends on particle type, component, bound state, and (optionally) section
 	 * @details Reads the fiels NAME and NAME_MULTIPLEX (if available) from the IParameterProvider. If NAME_MULTIPLEX is missing,
 	 *          the multiplexing behavior is inferred from the length of the field NAME.
-	 *          
+	 *
 	 *          Depending on the (inferred) mode, the read parameter values are multiplexed to a size of nTotalBound, or
 	 *          nTotalBound * nSections. The ordering is section-type-component-major.
-	 *          
+	 *
 	 *          In case of multiplexing, only the first group of parameters is registered. See readAndRegisterMultiplexCompTypeSecParam().
-	 *          
+	 *
 	 *          Components and bound states are treated together, that is, a parameter cannot be set independent of bound state
 	 *          but dependent on component (and vice versa). If the parameter is particle type independent, the same number of
 	 *          bound states per component is expected in all particle types (i.e., same binding model in all types).
-	 * 
+	 *
 	 * @param [in] paramProvider ParameterProvider
 	 * @param [in] parameters Map to register the parameters in
 	 * @param [out] values Array to store the read parameters in
 	 * @param [in] name Name of the parameter
-	 * @param [in] nParType Number of particle types
 	 * @param [in] nComp Number of components
-	 * @param [in] strideBound Array with number of bound states per particle type (additional last element is total number of bound states)
+	 * @param [in] strideBound Number of bound states this particle type
 	 * @param [in] nBound Array with number of bound states per component and particle type in type-major ordering
+	 * @param [in] nBoundBeforeType Array with number of bound states before a particle type
+	 * @param [in] parTypeIndex index of the considered particle type
+	 * @param [in] parTypeDep particle type dependence of parameter
 	 * @param [in] uoi Unit operation index
+	 * @param [in] valTypeOffset optional offset in value vector to current particle type
 	 * @return Inferred or read multiplexing mode
 	 */
-	MultiplexMode readAndRegisterMultiplexBndCompTypeSecParam(IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, std::vector<active>& values, const std::string& name,
-		unsigned int nParType, unsigned int nComp, unsigned int const* strideBound, unsigned int const* nBound, UnitOpIdx uoi);
+	MultiplexMode readAndRegisterMultiplexBndCompSecParam(IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, std::vector<active>& values, const std::string& name,
+		unsigned int nComp, unsigned strideBound, unsigned int const* nBound, const unsigned int parTypeIdx, const bool parTypeDep, UnitOpIdx uoi, const int valTypeOffset = 0);
+
+/* For particle type specific particle models: only read/register one particle type */
 
 	/**
-	 * @brief Sets the value of a multiplexed parameter that depends on particle type, component, bound state, and (optionally) section
+	 * @brief For a specific particle type: Sets the value of a multiplexed parameter that may depend on particle type
 	 * @details Sets the value of a parameter and multiplexes the value onto all parameter instances.
-	 *          The parameter array is expected to have a size of nTotalBound, or nTotalBound * nSections.
-	 *          The ordering is section-type-component-major.
-	 *          
-	 *          In case of multiplexing, the given value is applied to all parameter instances. See multiplexCompTypeSecParameterValue().
-	 *          
+	 *          The parameter array is expected to have a size of nParType.
+	 *
+	 *          In case of multiplexing, the given value is applied to all parameter instances.
+	 *
 	 *          This function optionally checks whether the specified parameter is listed as sensitive. It uses the first
 	 *          parameter group / instance to check the @p sensParams set.
-	 * 
+	 *
 	 * @param [in] pId ParameterID
 	 * @param [in] nameHash Hash of the parameter name
-	 * @param [in] mode Multiplexing mode as obtained by readAndRegisterMultiplexCompTypeSecParam()
+	 * @param [in] mode Multiplexing mode as obtained by readAndRegisterMultiplexTypeParam()
 	 * @param [in,out] data Array with parameters whose values are updated
-	 * @param [in] nParType Number of particle types
-	 * @param [in] nComp Number of components
-	 * @param [in] strideBound Array with number of bound states per particle type (additional last element is total number of bound states)
-	 * @param [in] nBound Array with number of bound states per component and particle type in type-major ordering
-	 * @param [in] boundOffset Array with offset to component in bound-phase (cumulative sum of nBound per particle type) per particle type in type-major ordering
-	 * @param [in] boundOffset Array with number of bound states before a particle type (cumulative sum of strideBound)
+	 * @param [in] parTypeIdx index of the current particle type
 	 * @param [in] val Value to apply to the parameter(s)
 	 * @param [in] sensParams If not @c nullptr, the set is checked for the specified parameter.
 	 *                        If it is not contained in the set, the value is not applied to the parameter.
 	 * @return @c true if the value has been applied, or @c false otherwise
 	 */
-	bool multiplexBndCompTypeSecParameterValue(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data,
-		unsigned int nParType, unsigned int nComp, unsigned int const* strideBound, unsigned int const* nBound, unsigned int const* boundOffset, unsigned int const* nBoundBeforeType, double value, std::unordered_set<active*> const* sensParams);
+	bool singleTypeMultiplexTypeParameterValue(const ParameterId& pId, StringHash nameHash, bool mode, active& data, unsigned int parTypeIdx, double value, std::unordered_set<active*> const* sensParams);
 
 	/**
-	 * @brief Sets AD info of a multiplexed parameter that depends on particle type, component, bound state, and (optionally) section
+	 * @brief For a specific particle type: Sets AD info of a multiplexed parameter that may depend on particle type
+	 * @details Sets the AD direction and seed value of a parameter and multiplexes the info onto all parameter instances.
+	 *          The parameter array is expected to have a size of nParType.
+	 *
+	 *          In case of multiplexing, the given AD info is applied to all parameter instances.
+	 *
+	 *          The first parameter group / instance is added to the @p sensParams set in order to mark the parameter as sensitive.
+	 *
+	 * @param [in] pId ParameterID
+	 * @param [in] nameHash Hash of the parameter name
+	 * @param [in] mode Multiplexing mode as obtained by readAndRegisterMultiplexTypeParam()
+	 * @param [in,out] data Array with parameters whose AD info are updated
+	 * @param [in] parTypeIdx index of the current particle type
+	 * @param [in] adDirection AD direction
+	 * @param [in] adValue AD seed value
+	 * @param [in,out] sensParams The parameter(s) are marked sensitive by adding them to this set
+	 * @return @c true if the parameter has been found, or @c false otherwise
+	 */
+	bool singleTypeMultiplexTypeParameterAD(const ParameterId& pId, StringHash nameHash, bool mode, active& data, unsigned int parTypeIdx, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams);
+
+	/**
+	 * @brief For a specific particle type: Sets the value of a multiplexed parameter that depends on particle type, component, and (optionally) section
+	 * @details Sets the value of a parameter and multiplexes the value onto all parameter instances.
+	 *          The parameter array is expected to have a size of nComp * nParType, or nComp * nParType * nSections.
+	 *          The ordering is section-type-major.
+	 *
+	 *          In case of multiplexing, the given value is applied to all parameter instances. For example, if one parameter for all
+	 *          components in each particle type is given, the value is applied to all components of the specified particle type.
+	 *
+	 *          This function optionally checks whether the specified parameter is listed as sensitive. It uses the first
+	 *          parameter group / instance to check the @p sensParams set.
+	 *
+	 * @param [in] pId ParameterID
+	 * @param [in] nameHash Hash of the parameter name
+	 * @param [in] mode Multiplexing mode as obtained by readAndRegisterMultiplexCompTypeSecParam()
+	 * @param [in,out] data Array with parameters whose values are updated
+	 * @param [in] nComp Number of components
+	 * @param [in] parTypeIdx index of current particle type
+	 * @param [in] val Value to apply to the parameter(s)
+	 * @param [in] sensParams If not @c nullptr, the set is checked for the specified parameter.
+	 *                        If it is not contained in the set, the value is not applied to the parameter.
+	 * @param [in] valTypeOffset optional offset in value vector to current particle type
+	 * @return @c true if the value has been applied, or @c false otherwise
+	 */
+	bool singleTypeMultiplexCompTypeSecParameterValue(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data, unsigned int nComp, unsigned int parTypeIdx, double value, std::unordered_set<active*> const* sensParams, const int valTypeOffset = 0);
+
+	/**
+	 * @brief For a specific particle type: Sets AD info of a multiplexed parameter that depends on particle type, component, and (optionally) section
+	 * @details Sets the AD direction and seed value of a parameter and multiplexes the info onto all parameter instances.
+	 *          The parameter array is expected to have a size of nComp * nParType, or nComp * nParType * nSections.
+	 *          The ordering is section-type-major.
+	 *
+	 *          In case of multiplexing, the given AD info is applied to all parameter instances. For example, if one parameter for all
+	 *          components in each particle type is given, the AD info is applied to all components of the specified particle type.
+	 *
+	 *          The first parameter group / instance is added to the @p sensParams set in order to mark the parameter as sensitive.
+	 *
+	 * @param [in] pId ParameterID
+	 * @param [in] nameHash Hash of the parameter name
+	 * @param [in] mode Multiplexing mode as obtained by readAndRegisterMultiplexCompTypeSecParam()
+	 * @param [in,out] data Array with parameters whose AD info are updated
+	 * @param [in] nComp Number of components
+	 * @param [in] parTypeIndex index of the considered particle type
+	 * @param [in] adDirection AD direction
+	 * @param [in] adValue AD seed value
+	 * @param [in,out] sensParams The parameter(s) are marked sensitive by adding them to this set
+	 * @param [in] valTypeOffset optional offset in value vector to current particle type
+	 * @return @c true if the parameter has been found, or @c false otherwise
+	 */
+	bool singleTypeMultiplexCompTypeSecParameterAD(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data, unsigned int nComp, unsigned int parTypeIdx, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams, const int valTypeOffset = 0);
+
+	/**
+	 * @brief For a specific particle type: Sets the value of a multiplexed parameter that depends on particle type, component, bound state, and (optionally) section
+	 * @details Sets the value of a parameter and multiplexes the value onto all parameter instances.
+	 *          The parameter array is expected to have a size of nTotalBound, or nTotalBound * nSections.
+	 *          The ordering is section-type-component-major.
+	 *
+	 *          In case of multiplexing, the given value is applied to all parameter instances. See multiplexCompTypeSecParameterValue().
+	 *
+	 *          This function optionally checks whether the specified parameter is listed as sensitive. It uses the first
+	 *          parameter group / instance to check the @p sensParams set.
+	 *
+	 * @param [in] pId ParameterID
+	 * @param [in] nameHash Hash of the parameter name
+	 * @param [in] mode Multiplexing mode as obtained by readAndRegisterMultiplexCompTypeSecParam()
+	 * @param [in,out] data Array with parameters whose values are updated
+	 * @param [in] nComp Number of components
+	 * @param [in] strideBound Array with number of bound states per particle type (additional last element is total number of bound states)
+	 * @param [in] boundOffset Array with offset to component in bound-phase (cumulative sum of nBound per particle type) for this particle type
+	 * @param [in] parTypeIndex index of the considered particle type
+	 * @param [in] val Value to apply to the parameter(s)
+	 * @param [in] sensParams If not @c nullptr, the set is checked for the specified parameter.
+	 *                        If it is not contained in the set, the value is not applied to the parameter.
+	 * @param [in] valTypeOffset optional offset in value vector to current particle type
+	 * @return @c true if the value has been applied, or @c false otherwise
+	 */
+	bool singleTypeMultiplexBndCompTypeSecParameterValue(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data,
+		unsigned int nComp, unsigned int strideBound, unsigned int const* boundOffset, unsigned int parTypeIdx, double value, std::unordered_set<active*> const* sensParams, const int valTypeOffset = 0);
+
+	/**
+	 * @brief For a specific particle type: Sets AD info of a multiplexed parameter that depends on particle type, component, bound state, and (optionally) section
 	 * @details Sets the AD direction and seed value of a parameter and multiplexes the info onto all parameter instances.
 	 *          The parameter array is expected to have a size of nTotalBound, or nTotalBound * nSections.
 	 *          The ordering is section-type-component-major.
-	 *          
+	 *
 	 *          In case of multiplexing, the given AD info is applied to all parameter instances. See multiplexCompTypeSecParameterAD().
-	 *          
+	 *
 	 *          The first parameter group / instance is added to the @p sensParams set in order to mark the parameter as sensitive.
-	 * 
+	 *
 	 * @param [in] pId ParameterID
 	 * @param [in] nameHash Hash of the parameter name
 	 * @param [in] mode Multiplexing mode as obtained by readAndRegisterMultiplexCompTypeSecParam()
 	 * @param [in,out] data Array with parameters whose AD info are updated
 	 * @param [in] nParType Number of particle types
 	 * @param [in] nComp Number of components
-	 * @param [in] strideBound Array with number of bound states per particle type (additional last element is total number of bound states)
-	 * @param [in] nBound Array with number of bound states per component and particle type in type-major ordering
-	 * @param [in] boundOffset Array with offset to component in bound-phase (cumulative sum of nBound per particle type) per particle type in type-major ordering
-	 * @param [in] nBoundBeforeType Array with number of bound states before a particle type (cumulative sum of strideBound)
+	 * @param [in] strideBound Array with number of bound states
+	 * @param [in] boundOffset Array with offset to component in bound-phase (cumulative sum of nBound per particle type) for this particle type
+	 * @param [in] parTypeIdx index of the current particle type
 	 * @param [in] adDirection AD direction
 	 * @param [in] adValue AD seed value
 	 * @param [in,out] sensParams The parameter(s) are marked sensitive by adding them to this set
+	 * @param [in] valTypeOffset optional offset in value vector to current particle type
 	 * @return @c true if the parameter has been found, or @c false otherwise
 	 */
-	bool multiplexBndCompTypeSecParameterAD(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data,
-		unsigned int nParType, unsigned int nComp, unsigned int const* strideBound, unsigned int const* nBound, unsigned int const* boundOffset, unsigned int const* nBoundBeforeType, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams);
+	bool singleTypeMultiplexBndCompTypeSecParameterAD(const ParameterId& pId, StringHash nameHash, MultiplexMode mode, std::vector<active>& data,
+		unsigned int nComp, unsigned int strideBound, unsigned int const* boundOffset, unsigned int parTypeIdx, unsigned int adDirection, double adValue, std::unordered_set<active*>& sensParams, const int valTypeOffset = 0);
 
 } // namespace model
 

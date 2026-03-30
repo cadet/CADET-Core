@@ -27,6 +27,7 @@
 #include "Memory.hpp"
 #include "model/ModelUtils.hpp"
 #include "model/ParameterMultiplexing.hpp"
+#include "reaction/ReactionSystem.hpp"
 
 #include <array>
 #include <vector>
@@ -203,7 +204,7 @@ protected:
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
 	parts::MultiChannelConvectionDispersionOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
-	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
+	ReactionSystem _reaction;
 	std::vector<IExchangeModel*> _exchange; //!< Exchange transition model
 
 	linalg::DoubleSparseMatrix _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
@@ -263,7 +264,7 @@ protected:
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return false; }
 		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return false; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
-		virtual bool isParticleLumped() const CADET_NOEXCEPT { return false; }
+		virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return false; }
 		virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return true; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }

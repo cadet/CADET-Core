@@ -15,25 +15,14 @@ project(CadetTools CXX C)
 
 set(TOOLS_TARGETS)
 
+# Wheel build
+option(CADET_WHEEL "Option for building wheels" OFF)
+
 # Add the executables
 if (HDF5_FOUND)
+
 	add_executable(createLWE createLWE.cpp)
 	list(APPEND TOOLS_TARGETS createLWE)
-
-	add_executable(createSCLin createSCLin.cpp)
-	list(APPEND TOOLS_TARGETS createSCLin)
-
-	add_executable(createSCLinStep createSCLinStep.cpp)
-	list(APPEND TOOLS_TARGETS createSCLinStep)
-
-	add_executable(createMCLin createMCLin.cpp)
-	list(APPEND TOOLS_TARGETS createMCLin)
-
-	add_executable(createSCLang createSCLang.cpp)
-	list(APPEND TOOLS_TARGETS createSCLang)
-
-	add_executable(createConvBenchmark createConvBenchmark.cpp)
-	list(APPEND TOOLS_TARGETS createConvBenchmark)
 
 	add_executable(convertFile convertFile.cpp ${CMAKE_SOURCE_DIR}/src/io/FileIO.cpp FormatConverter.cpp ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml/pugixml.cpp)
 	target_include_directories(convertFile PRIVATE ${CMAKE_SOURCE_DIR}/ThirdParty/pugixml ${CMAKE_SOURCE_DIR}/ThirdParty/json)
@@ -51,8 +40,26 @@ endforeach()
 
 # ---------------------------------------------------
 
-install(CODE "MESSAGE(\"\nInstall CADET Tools\n\")")
-install(TARGETS ${TOOLS_TARGETS} RUNTIME)
+if (CADET_WHEEL)
+  install(CODE "MESSAGE(\"\nInstall CADET Tools for wheels\n\")")
+
+  if (APPLE)
+    set_target_properties(${TOOLS_TARGETS} PROPERTIES
+      BUILD_WITH_INSTALL_RPATH ON
+      INSTALL_RPATH "@loader_path/../lib;@loader_path/../.dylibs"
+    )
+  elseif (UNIX)  # UNIX AND NOT APPLE
+    set_target_properties(${TOOLS_TARGETS} PROPERTIES
+      BUILD_WITH_INSTALL_RPATH ON
+      INSTALL_RPATH "$ORIGIN/../lib"
+    )
+  endif()
+
+  install(TARGETS ${TOOLS_TARGETS} RUNTIME DESTINATION cadet_core/bin)
+else()
+	install(CODE "MESSAGE(\"\nInstall CADET Tools\n\")")
+	install(TARGETS ${TOOLS_TARGETS} RUNTIME)
+endif()
 
 # ---------------------------------------------------
 

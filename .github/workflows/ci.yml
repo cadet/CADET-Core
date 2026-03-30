@@ -4,6 +4,8 @@ on:
   push:
     paths-ignore:
       - 'doc/**'
+      - 'doc/ISSUE_TEMPLATE'
+      - 'doc/PULL_REQUEST_TEMPLATE'
       - '.zenodo.json'
       - 'AUTHORS.md'
       - 'BUILD-LINUX.md'
@@ -22,8 +24,11 @@ on:
       - master
       - dev
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
       - 'doc/**'
+      - 'doc/ISSUE_TEMPLATE'
+      - 'doc/PULL_REQUEST_TEMPLATE'
       - '.zenodo.json'
       - 'AUTHORS.md'
       - 'BUILD-LINUX.md'
@@ -46,9 +51,10 @@ on:
         default: 'master'
         type: string
 
-
 jobs:
+
   Win64:
+    if: github.event.pull_request == null || github.event.pull_request.draft == false
     runs-on: windows-latest
     strategy:
       fail-fast: true
@@ -58,7 +64,7 @@ jobs:
       BUILD_DIR: ${{ github.workspace }}/build
       INSTALL_PREFIX: ${{ github.workspace }}/cadet
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: true
           path: src
@@ -69,7 +75,7 @@ jobs:
         run: |
           $MSVC_VERSION = cl 2>&1 | Select-String -Pattern 'Version (\d\d\.\d\d)' | % { $_.matches.groups[1].Value }
           echo "version=$MSVC_VERSION" >> $Env:GITHUB_OUTPUT
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         id: cache
         with:
           path: |
@@ -83,8 +89,6 @@ jobs:
           $base_dir = $($env:BASE_DIR.Replace('\', '/'))
           nuget install inteltbb.devel.win -Version 2021.8.0.25874
           nuget install intelmkl.static.win-x64 -Version 2023.0.0.25930
-          Invoke-WebRequest -Uri "https://gitlab.com/libeigen/eigen/-/archive/master/eigen-master.zip" -OutFile eigen.zip
-          7z x eigen.zip
       - name: Build UMFPACK and HDF5 and Eigen3
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
@@ -111,12 +115,12 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX="${base_dir}\suitesparse\install" -DBLA_VENDOR=Intel10_64lp_seq -DBLA_STATIC=ON -G "Ninja" -DCMAKE_C_FLAGS="/GL" -DCMAKE_STATIC_LINKER_FLAGS="/LTCG" -DCMAKE_BUILD_TYPE=Release -DBUILD_METIS=OFF ..\suitesparse-metis-for-windows-e8d953dffb8a99aa8b65ff3ff03e12a3ed72f90c\
           ninja install
           cd "${env:BASE_DIR}"
-          Invoke-WebRequest -Uri "https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.zip" -OutFile eigen.zip
+          Invoke-WebRequest -Uri "https://gitlab.com/libeigen/eigen/-/archive/5.0/eigen-5.0.zip" -OutFile eigen.zip
           7z x eigen.zip -oeigen\code -y
           cd eigen
           mkdir build
           cd build
-          cmake ../code/eigen-3.4.0 -DCMAKE_INSTALL_PREFIX="../install"
+          cmake ../code/eigen-5.0 -DCMAKE_INSTALL_PREFIX="../install" -DCMAKE_CXX_FLAGS="/bigobj /O2"
           cmake --build . --target install
       - name: Build and Install
         run: |
@@ -148,12 +152,14 @@ jobs:
           .\createLWE.exe
           .\cadet-cli.exe LWE.h5
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cadet-${{ runner.os }}
           retention-days: 5
           path: ${{ github.workspace }}/cadet-${{ runner.os }}.zip
+
   Ubuntu-latest:
+    if: github.event.pull_request == null || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -164,85 +170,113 @@ jobs:
       SRC_DIR: ${{ github.workspace }}/src
       BUILD_DIR: ${{ github.workspace }}/build
       INSTALL_PREFIX: ${{ github.workspace }}/install
-      BUILD_TYPE: Release
+      BUILD_TYPE: Release-strict
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: true
           path: src
           ref: ${{ github.event.inputs.ref || github.ref }}
-      - name: Install Dependencies
+
+      - name: Install GCC-14
         run: |
           sudo apt-get update
-          sudo apt -y install \
+          sudo apt-get install -y gcc-14 g++-14
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 60
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 60
+          gcc --version
+          g++ --version
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get install -y \
             build-essential \
             libhdf5-dev \
             liblapack-dev \
             libblas-dev \
             libtbb-dev \
-            libsuperlu-dev \
-            libeigen3-dev;
+            libsuperlu-dev;
+
+      - name: Build Eigen
+        run: |
+          git clone https://gitlab.com/libeigen/eigen.git
+          cd eigen
+          git fetch origin
+          git checkout --detach origin/5.0
+          cmake -S . -B build \
+            -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+            -DEIGEN_BUILD_BLAS=OFF \
+            -DEIGEN_BUILD_LAPACK=OFF \
+            -DBUILD_TESTING=OFF
+          cmake --install build
       - name: Build and Install
+        id: build
         run: |
           cmake -E make_directory "${BUILD_DIR}"
           cmake -E make_directory "${INSTALL_PREFIX}"
           cd "${BUILD_DIR}"
-          cmake -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" "${SRC_DIR}" -DENABLE_TESTS=ON -DNUM_MAX_AD_DIRS=160
+          cmake \
+            -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+            -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+            -DEIGEN3_DIR="${INSTALL_PREFIX}/eigen" \
+            "${SRC_DIR}" \
+            -DENABLE_TESTS=ON \
+            -DNUM_MAX_AD_DIRS=160
           make install -j$(nproc)
       - name: Check executable
+        if: always() && steps.build.conclusion == 'success'
         run: |
+          set -e
           export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:$LD_LIBRARY_PATH
-          ${INSTALL_PREFIX}/bin/cadet-cli --version || true
+          ${INSTALL_PREFIX}/bin/cadet-cli --version
           ${INSTALL_PREFIX}/bin/createLWE
-          ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5 || true
+          ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5
       - name: Run CI test set I - bindings
+        if: always() && steps.build.conclusion == 'success'
         run: |
           ${BUILD_DIR}/test/testRunner [CI_binding]
       - name: Run CI test set II - sensitivities
+        if: always() && steps.build.conclusion == 'success'
         run: |
-          set -e
-          ${BUILD_DIR}/test/testRunner [CI_sens1]
-          ${BUILD_DIR}/test/testRunner [CI_sens2]
-          ${BUILD_DIR}/test/testRunner [CI_sens3]
-          ${BUILD_DIR}/test/testRunner [CI_sens4]
-          ${BUILD_DIR}/test/testRunner [CI_sens5]
-          ${BUILD_DIR}/test/testRunner [CI_sens6]
-          ${BUILD_DIR}/test/testRunner [CI_sens7]
-          ${BUILD_DIR}/test/testRunner [CI_sens8]
-          ${BUILD_DIR}/test/testRunner [CI_sens9]
-          ${BUILD_DIR}/test/testRunner [CI_sens11]
-          ${BUILD_DIR}/test/testRunner [CI_sens12]
-          ${BUILD_DIR}/test/testRunner [CI_sens13]
-          ${BUILD_DIR}/test/testRunner [CI_sens14]
-          ${BUILD_DIR}/test/testRunner [CI_sens15]
-          ${BUILD_DIR}/test/testRunner [CI_sens16]
+          failed=0
+          failed_tests=()
+          for i in {1..24}; do
+            if ! ${BUILD_DIR}/test/testRunner "[CI_sens${i}]"; then
+              echo -e "::error::Test [CI_sens${i}] failed\n"
+
+              failed=1
+              failed_tests+=("[CI_sens${i}]")
+            fi
+          done
+          if [ $failed -ne 0 ]; then
+            echo "Failed tests: ${failed_tests[*]}"
+          fi
+          exit $failed
       - name: Run CI test set III - crystallization
+        if: always() && steps.build.conclusion == 'success'
         run: |
-          set -e
-          ${BUILD_DIR}/test/testRunner [CI_cry1]
-          ${BUILD_DIR}/test/testRunner [CI_cry2]
-          ${BUILD_DIR}/test/testRunner [CI_cry3]
-          ${BUILD_DIR}/test/testRunner [CI_cry4]
-          ${BUILD_DIR}/test/testRunner [CI_cry5]
-          ${BUILD_DIR}/test/testRunner [CI_cry6]
-          ${BUILD_DIR}/test/testRunner [CI_cry7]
-          ${BUILD_DIR}/test/testRunner [CI_cry8]
-          ${BUILD_DIR}/test/testRunner [CI_cry9]
-          ${BUILD_DIR}/test/testRunner [CI_cry10]
-          ${BUILD_DIR}/test/testRunner [CI_cry11]
-          ${BUILD_DIR}/test/testRunner [CI_cry12]
-          ${BUILD_DIR}/test/testRunner [CI_cry13]
-          ${BUILD_DIR}/test/testRunner [CI_cry14]
-          ${BUILD_DIR}/test/testRunner [CI_cry15]
-          ${BUILD_DIR}/test/testRunner [CI_cry16]
-          ${BUILD_DIR}/test/testRunner [CI_cry17]
-          ${BUILD_DIR}/test/testRunner [CI_cry18]
-          ${BUILD_DIR}/test/testRunner [CI_cry19]
-          ${BUILD_DIR}/test/testRunner [CI_cry20]
+          failed=0
+          failed_tests=()
+          for i in {1..20}; do
+            if ! ${BUILD_DIR}/test/testRunner "[CI_cry${i}]"; then
+              echo -e "::error::Test [CI_cry${i}] failed\n"
+
+              failed=1
+              failed_tests+=("[CI_cry${i}]")
+            fi
+          done
+          if [ $failed -ne 0 ]; then
+            echo "Failed tests: ${failed_tests[*]}"
+          fi
+
+          exit $failed
       - name: Run CI test set IV
+        if: always() && steps.build.conclusion == 'success'
         run: |
           ${BUILD_DIR}/test/testRunner [CI]
+
   MacOS:
+    if: github.event.pull_request == null || github.event.pull_request.draft == false
     runs-on: macos-latest
     strategy:
       fail-fast: true
@@ -255,7 +289,7 @@ jobs:
       INSTALL_PREFIX: ${{ github.workspace }}/install
       BUILD_TYPE: Release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: true
           path: src
@@ -276,7 +310,7 @@ jobs:
           make install -j$(sysctl -n hw.logicalcpu)
       - name: Check if it runs
         run: |
-          ${INSTALL_PREFIX}/bin/cadet-cli --version || true
+          ${INSTALL_PREFIX}/bin/cadet-cli --version
           ${INSTALL_PREFIX}/bin/createLWE
-          ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5 || true
+          ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5
 

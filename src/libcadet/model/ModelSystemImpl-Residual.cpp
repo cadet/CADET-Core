@@ -532,6 +532,18 @@ int ModelSystem::residual(const SimulationTime& simTime, const ConstSimulationSt
 		}
 
 		_errorIndicator[i] = m->residual(simTime, applyOffset(simState, offset), res + offset, _threadLocalStorage);
+
+		bool hasNonFinite = false;
+		for (int j = 0; j < _dofs[i]; j++)
+		{
+			hasNonFinite |= !std::isfinite(res[j]);
+		}
+		if (hasNonFinite)
+		{
+			LOG(Warning) << "Residual has NAN or infinite value in unit " << i;
+			_errorIndicator[i] = 1; // recoverable error break;
+		}
+
 	} CADET_PARFOR_END;
 
 	// Handle connections
@@ -566,6 +578,17 @@ int ModelSystem::residualWithJacobian(const SimulationTime& simTime, const Const
 
 		_errorIndicator[i] = m->residualWithJacobian(simTime, applyOffset(simState, offset),
 			res + offset, applyOffset(adJac, offset), _threadLocalStorage);
+
+		bool hasNonFinite = false;
+		for (int j = 0; j < _dofs[i]; j++)
+		{
+			hasNonFinite |= !std::isfinite(res[j]);
+		}
+		if (hasNonFinite)
+		{
+			LOG(Warning) << "Residual has NAN or infinite value in unit " << i;
+			_errorIndicator[i] = 1; // recoverable error break;
+		}
 
 	} CADET_PARFOR_END;
 

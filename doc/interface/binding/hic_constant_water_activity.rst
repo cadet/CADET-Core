@@ -3,7 +3,7 @@
 HIC Constant Water Activity
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = HIC_CONSTANT_WATER_ACTIVITY**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = HIC_CONSTANT_WATER_ACTIVITY**
 
 For information on model equations, refer to :ref:`hic_constant_water_activity_model`.
 

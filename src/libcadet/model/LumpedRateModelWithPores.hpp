@@ -29,6 +29,7 @@
 #include "Memory.hpp"
 #include "model/ModelUtils.hpp"
 #include "ParameterMultiplexing.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 
 #include <array>
 #include <vector>
@@ -50,6 +51,12 @@ namespace
 	struct LumpedRateModelWithPoresName<cadet::model::parts::RadialConvectionDispersionOperator>
 	{
 		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_LUMPED_RATE_MODEL_WITH_PORES"; }
+	};
+
+	template <>
+	struct LumpedRateModelWithPoresName<cadet::model::parts::FrustumConvectionDispersionOperator>
+	{
+		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_LUMPED_RATE_MODEL_WITH_PORES"; }
 	};
 }
 
@@ -275,8 +282,9 @@ protected:
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
 	ConvDispOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
-	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 	IParameterParameterDependence* _filmDiffDep; //!< Film diffusion dependency on local velocity
+
+	ReactionSystem _reaction; //!< Reaction system for bulk
 
 	std::vector<linalg::BandMatrix> _jacP; //!< Particle jacobian diagonal blocks (all of them for each particle type)
 	std::vector<linalg::FactorizableBandMatrix> _jacPdisc; //!< Particle jacobian diagonal blocks (all of them for each particle type) with time derivatives from BDF method
@@ -313,7 +321,7 @@ protected:
 
 	std::vector<active> _initC; //!< Liquid bulk phase initial conditions
 	std::vector<active> _initCp; //!< Liquid particle phase initial conditions
-	std::vector<active> _initQ; //!< Solid phase initial conditions
+	std::vector<active> _initCs; //!< Solid phase initial conditions
 	std::vector<double> _initState; //!< Initial conditions for state vector if given
 	std::vector<double> _initStateDot; //!< Initial conditions for time derivative
 
@@ -393,7 +401,7 @@ protected:
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return true; }
 		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound[_disc.nParType] > 0; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
-		virtual bool isParticleLumped() const CADET_NOEXCEPT { return true; }
+		virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return true; }
 		virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return true; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
@@ -450,9 +458,11 @@ protected:
 
 extern template class LumpedRateModelWithPores<parts::AxialConvectionDispersionOperator>;
 extern template class LumpedRateModelWithPores<parts::RadialConvectionDispersionOperator>;
+extern template class LumpedRateModelWithPores<parts::FrustumConvectionDispersionOperator>;
 
 IUnitOperation* createAxialFVLRMP(UnitOpIdx uoId);
 IUnitOperation* createRadialFVLRMP(UnitOpIdx uoId);
+IUnitOperation* createFrustumFVLRMP(UnitOpIdx uoId);
 
 } // namespace model
 } // namespace cadet

@@ -53,7 +53,7 @@ namespace particle
 	/**
 	 * @brief Extends a model to multiple particle types by replicating the first type
 	 * @details Modifies the double-valued parameters of the replicated particle types by a factor given in @p paramFactors.
-	            The source particle type retains a factor of @c 1.0 that is not included in @p paramFactors, which has length @c nTypes-1.
+				The source particle type retains a factor of @c 1.0 that is not included in @p paramFactors, which has length @c nTypes-1.
 	 * @param [in,out] jpp ParameterProvider to extend
 	 * @param [in] unit Index of unit operation
 	 * @param [in] nTypes Total number of particle types

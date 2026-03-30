@@ -82,11 +82,11 @@ protected:
 /**
  * @brief Inserts implementations of all parameter() and analyticJacobian() method variants
  * @details An IParameterStateDependence implementation has to provide liquidParameter(), combinedParameterLiquid(),
- *          combinedParameterSolid(), analyticJacobianLiquidAdd(), analyticJacobianCombinedAddLiquid(), and
+ *          combinedParameterSolid(), analyticJacobianAdd(), analyticJacobianCombinedAddLiquid(), and
  *          analyticJacobianCombinedAddSolid() methods for different variants of state and parameter type.
  *          This macro saves some time by providing those implementations. It assumes that the implementation
  *          provides templatized liquidParameterImpl(), combinedParameterLiquidImpl(),
- *          combinedParameterSolidImpl(), analyticJacobianLiquidAddImpl(), analyticJacobianCombinedAddLiquidImpl(),
+ *          combinedParameterSolidImpl(), analyticJacobianAddImpl(), analyticJacobianCombinedAddLiquidImpl(),
  *          and analyticJacobianCombinedAddSolidImpl() functions that realize all required variants.
  *          
  *          The implementation is inserted inline in the class declaration.
@@ -112,14 +112,14 @@ protected:
 		return liquidParameterImpl<double, double>(colPos, param, y, comp);                                                                                                                                                 \
 	}                                                                                                                                                                                                                       \
                                                                                                                                                                                                                             \
-	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::BandMatrix::RowIterator jac) const                                     \
+	virtual void analyticJacobianAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::BandMatrix::RowIterator jac) const                                     \
 	{                                                                                                                                                                                                                       \
-		analyticJacobianLiquidAddImpl(colPos, param, y, comp, factor, offset, jac);                                                                                                                                         \
+		analyticJacobianAddImpl(colPos, param, y, comp, factor, offset, jac);                                                                                                                                         \
 	}                                                                                                                                                                                                                       \
                                                                                                                                                                                                                             \
-	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::DenseBandedRowIterator jac) const                                      \
+	virtual void analyticJacobianAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::DenseBandedRowIterator jac) const                                      \
 	{                                                                                                                                                                                                                       \
-		analyticJacobianLiquidAddImpl(colPos, param, y, comp, factor, offset, jac);                                                                                                                                         \
+		analyticJacobianAddImpl(colPos, param, y, comp, factor, offset, jac);                                                                                                                                         \
 	}                                                                                                                                                                                                                       \
                                                                                                                                                                                                                             \
 	virtual active combinedParameterLiquid(const ColumnPosition& colPos, const active& param, active const* yLiquid, active const* ySolid, int comp) const                                                                  \

@@ -62,7 +62,7 @@ Here, :math:`\frac{dq}{dt}` is proportional to the actual difference from equili
 Note that, the sign of :math:`\frac{dq}{dt}` causes the resulting flux to act towards the equilibrium.
 In CADET, this approach is denoted by ``LDF``, for example in ``MULTI_COMPONENT_LANGMUIR_LDF``.
 
-3. An alterniative linear driving force approximation is based on the equilibrium concentration :math:`c^*` for given :math:`q`.
+3. An alternative linear driving force approximation is based on the equilibrium concentration :math:`c^*` for given :math:`q`.
 For example :math:`c^*=\frac{q}{k_{eq} \left(q_{m}-q\right)}` in the Langmuir model.
 Here, :math:`\frac{dq}{dt}` is proportional to the actual difference from equilibrium concentrations, i.e. :math:`\frac{dq}{dt} = k_{kin}(c-c^*)`.
 Note that, the sign of :math:`\frac{dq}{dt}` causes the resulting flux to act towards the equilibrium.
@@ -297,6 +297,11 @@ The models also differ in whether a mobile phase modifier (e.g., salt) is suppor
      - ×
      - ✓
      - ×
+   * - :ref:`spline_interpolation`
+     - ×
+     - ×
+     - ✓
+     - ✓
 
 
 .. toctree::

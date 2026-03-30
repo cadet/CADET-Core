@@ -58,7 +58,7 @@ public:
 		for (int c = 0; c < _nComp; ++c)
 		{
 			for (unsigned int bp = 0; bp < _nBoundStates[c]; ++bp, ++ctr)
-				params[ctr] = makeParamId(hashString("INIT_Q"), unitOpIdx, c, parTypeIdx, bp, ReactionIndep, SectionIndep);
+				params[ctr] = makeParamId(hashString("INIT_CS"), unitOpIdx, c, parTypeIdx, bp, ReactionIndep, SectionIndep);
 		}
 	}
 
@@ -131,11 +131,9 @@ public:
 	{
 	}
 
-#ifdef ENABLE_DG
 	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const
 	{
 	}
-#endif
 
 	virtual void timeDerivativeQuasiStationaryFluxes(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yCp, double const* y, double* dResDt, LinearBufferAllocator workSpace) const { }
 

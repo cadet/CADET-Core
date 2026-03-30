@@ -29,6 +29,7 @@ class IExternalFunction;
 
 	namespace model
 	{
+		class IParticleModel;
 		class IBindingModel;
 		class IExchangeModel;
 		class IDynamicReactionModel;
@@ -52,6 +53,14 @@ public:
 	virtual IInletProfile* createInletProfile(const std::string& type) const = 0;
 
 	/**
+	 * @brief Creates an IParticleModel object of the given @p name
+	 * @details The caller owns the returned IParticleModel object.
+	 * @param [in] name Name of the IParticleModel
+	 * @return Pointer to the created IParticleModel or nullptr if name does not exist
+	 */
+	virtual model::IParticleModel* createParticleModel(const std::string& name) const = 0;
+
+	/**
 	 * @brief Creates an IBindingModel object of the given @p name
 	 * @details The caller owns the returned IBindingModel object.
 	 * @param [in] name Name of the IBindingModel object
@@ -59,8 +68,20 @@ public:
 	 */
 	virtual model::IBindingModel* createBindingModel(const std::string& name) const = 0;
 
+	/**
+	 * @brief Creates an IExchange object of the given @p name
+	 * @details The caller owns the returned IExchange object.
+	 * @param [in] name Name of the IExchange object
+	 * @return Object of the given IExchange @p name or @c nullptr if that name does not exist
+	 */
 	virtual model::IExchangeModel* createExchangeModel(const std::string& name) const = 0;
 
+	/**
+	 * @brief Checks if a particle model with the given @p name exists
+	 * @param [in] name Name of the IParticleModel
+	 * @return true if such a model exists, false otherwise
+	 */
+	virtual bool isValidParticleModel(const std::string& name) const = 0;
 
 	/**
 	 * @brief Checks if there is an IBindingModel of the given @p name

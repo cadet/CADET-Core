@@ -650,7 +650,7 @@
       ],
       "NCOMP": 1,
       "TOTAL_POROSITY": 1,
-      "UNIT_TYPE": "LUMPED_RATE_MODEL_WITHOUT_PORES"
+      "UNIT_TYPE": "COLUMN_MODEL_1D"
     },
     "unit_002": {
       "NCOMP": 1,

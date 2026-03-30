@@ -71,8 +71,9 @@ public:
 	TwoDimensionalConvectionDispersionOperatorDG();
 	~TwoDimensionalConvectionDispersionOperatorDG() CADET_NOEXCEPT;
 
-	void setFlowRates(int compartment, const active& in, const active& out) CADET_NOEXCEPT;
-	void setFlowRates(active const* in, active const* out) CADET_NOEXCEPT;
+	void setFlowRates(int compartment, const active& in, const active& out);
+	void setFlowRates(active const* in, active const* out);
+
 
 	bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const unsigned int nComp, const unsigned int radNodeStride);
 	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
@@ -89,13 +90,15 @@ public:
 	bool computeConvDispJacobianBlocks();
 	template <typename Action>
 	void addAxElemBlockToJac(const Eigen::MatrixXd& block, const int offRow, const int offColumn, const int depElem, Action addEntry, const active* const compFac = nullptr);
+	void insertAxElemBlockToJac(const Eigen::MatrixXd& block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int offColumn, const int depElem, const active* const compFac = nullptr);
 	void addAxElemBlockToJac(const Eigen::MatrixXd& block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int offColumn, const int depElem, const active* const compFac = nullptr);
 	void addAxElemBlockToJac(const Eigen::MatrixXd& block, std::vector<T>& tripletList, const int offRow, const int offColumn, const int depElem);
 	template <typename Action>
 	void addRadElemBlockToJac(const Eigen::MatrixXd* block, const int offRow, const int nLeftRadElemDep, const int depElem, Action addEntry);
+	void insertRadElemBlockToJac(const Eigen::MatrixXd* block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int nLeftRadElemDep, const int depElem);
 	void addRadElemBlockToJac(const Eigen::MatrixXd* block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int nLeftRadElemDep, const int depElem);
 	void addRadElemBlockToJac(const Eigen::MatrixXd* block, std::vector<T>& tripletList, const int offRow, const int nLeftRadElemDep, const int depElem);
-	bool assembleConvDispJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset = 0);
+	bool assembleConvDispJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const bool addJac, const int bulkOffset = 0);
 
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 	void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset = 0);
@@ -109,13 +112,13 @@ public:
 	inline const active& currentVelocity(int idx) const CADET_NOEXCEPT { return _curVelocity[idx]; }
 	inline const active& columnPorosity(int idx) const CADET_NOEXCEPT { return _colPorosities[idx]; }
 
-	inline const int axNNodes() const { return _axNNodes; }
-	inline const int axNElem() const { return _axNElem; }
-	inline const int radNNodes() const { return _radNNodes; }
-	inline const int radNElem() const { return _radNElem; }
-	inline const int elemNPoints() const { return _elemNPoints; }
-	inline const unsigned int axNPoints() const { return _axNPoints; }
-	inline const unsigned int radNPoints() const { return _radNPoints; }
+	inline int axNNodes() const { return _axNNodes; }
+	inline int axNElem() const { return _axNElem; }
+	inline int radNNodes() const { return _radNNodes; }
+	inline int radNElem() const { return _radNElem; }
+	inline int elemNPoints() const { return _elemNPoints; }
+	inline unsigned int axNPoints() const { return _axNPoints; }
+	inline unsigned int radNPoints() const { return _radNPoints; }
 
 	double relativeAxialCoordinate(unsigned int idx) const
 	{

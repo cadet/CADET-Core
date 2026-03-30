@@ -73,7 +73,7 @@ namespace cadet
 		if (it == _paramStateDeps.end())
 		{
 			// ParameterDependence was not found
-			return nullptr;
+			throw InvalidParameterException("Parameter state dependence " + name + " does not exist.");
 		}
 
 		// Call factory function (thanks to type erasure of std::function we can store 
@@ -87,7 +87,7 @@ namespace cadet
 		if (it == _paramParamDeps.end())
 		{
 			// ParameterDependence was not found
-			return nullptr;
+			throw InvalidParameterException("Parameter parameter dependence " + name + " does not exist.");
 		}
 
 		// Call factory function (thanks to type erasure of std::function we can store 
