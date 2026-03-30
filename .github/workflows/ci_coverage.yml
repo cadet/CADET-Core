@@ -45,16 +45,14 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt -y install \
             build-essential \
             libhdf5-dev \
             liblapack-dev \
             libblas-dev \
             libtbb-dev \
             libsuperlu-dev \
-            python3-pip
-          python3 -m pip install --upgrade pip
-          python3 -m pip install "gcovr>=8"
+            gcovr
 
       - name: Build Eigen
         run: |
