@@ -1078,3 +1078,13 @@ TEST_CASE("Radial Column_1D as GRM variable dispersion + surf diff par dep combi
 	}
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
+
+TEST_CASE("Radial Column_1D as LRMP variable film diffusion (RADIAL_POWER_LAW) time derivative Jacobian vs FD", "[RadialColumn_1D],[DG],[Jacobian],[ParameterDependence],[VarCoeff],[FilmDiff]")
+{
+	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_COLUMN_MODEL_1D_LRMP", "DG");
+}
+
+TEST_CASE("Radial Column_1D as GRM variable film diffusion (RADIAL_POWER_LAW) time derivative Jacobian vs FD", "[RadialColumn_1D],[DG],[Jacobian],[ParameterDependence],[VarCoeff],[FilmDiff]")
+{
+	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_COLUMN_MODEL_1D_GRM", "DG");
+}
