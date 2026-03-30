@@ -1,4 +1,4 @@
-name: ci_coverage
+name: CI_coverage
 
 on:
   pull_request:
