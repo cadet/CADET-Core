@@ -1031,8 +1031,6 @@ namespace cadet
 
 				// Get pointer to q variables in cell
 				double* const qShell = vecStateY + localOffsetToCell + localOffsetInCell;
-				active* const localAdRes = adJac.adRes ? adJac.adRes + localOffsetToCell : nullptr;
-				active* const localAdY = adJac.adY ? adJac.adY + localOffsetToCell : nullptr;
 
 				const ColumnPosition colPos{ rho, 0.0, 0.0 };
 

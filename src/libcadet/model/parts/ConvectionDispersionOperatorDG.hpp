@@ -1589,17 +1589,11 @@ namespace cadet
 					std::vector<StateType>& c_star, std::vector<StateType>& g_star, std::vector<double>& d_rad_i) {
 
 					StateType* g = reinterpret_cast<StateType*>(_auxState);
-					const double deltaRho = static_cast<double>(_deltaRho);
 
 					unsigned int strideNode = _strideNode;
 					unsigned int strideElem = _nNodes * strideNode;
 					unsigned int strideNode_g = 1u;
 					unsigned int strideElem_g = _nNodes * strideNode_g;
-
-					// Velocity coefficient (NOT multiplied by ρ - matches FV implementation)
-					// _curVelocity = Q/(2πL), and actual velocity v(ρ) = _curVelocity/ρ
-					// The flux is u_coeff * c (constant), not ρ*v*c
-					const double u = static_cast<double>(_curVelocity);
 
 					// Dispersion at interfaces: use pre-computed values if variable, otherwise constant
 					if (_variableDispersion) {
