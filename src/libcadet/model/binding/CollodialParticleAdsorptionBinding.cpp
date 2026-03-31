@@ -39,7 +39,6 @@ using std::numbers::pi;
 			{ "type": "ScalarParameter", "varName": "surfaceDensity", "confName": "CPA_SURFACE_DENSITY"},
 			{ "type": "ScalarParameter", "varName": "chargeFullLigand", "confName": "CPA_CHARGE_FULL_LIGAND"},
 			{ "type": "ScalarParameter", "varName": "pKLigand", "confName": "CPA_PK_LIGAND"},
-			{ "type": "ScalarParameter", "varName": "pH", "confName": "CPA_PH"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "adSurfaceArea", "confName": "CPA_SURFACE_AREA"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "compRadius", "confName": "CPA_PROTEIN_RADIUS"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "compCharge", "confName": "CPA_COMP_CHARGE"},
@@ -49,7 +48,8 @@ using std::numbers::pi;
 		],
 	"constantParameters":
 		[
-			{ "type": "ScalarBoolParameter", "varName": "usePh", "confName": "CPA_USE_PH"}
+			{ "type": "ScalarBoolParameter", "varName": "phIdx", "confName": "CPA_PH_IDX"},
+			{ "type": "ScalarBoolParameter", "varName": "isKinetic", "confName": "CPA_IS_KINETIC"}
 		]
 }
 </codegen>*/
@@ -133,6 +133,13 @@ public:
 
 	static const char* identifier() { return ParamHandler_t::identifier(); }
 
+	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
+	{
+		const bool res = BindingModelBase::configureModelDiscretization(paramProvider, nComp, nBound, boundOffset);
+
+		return res;
+	}
+
 	virtual void timeDerivativeQuasiStationaryFluxes(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yCp, double const* y, double* dResDt, LinearBufferAllocator workSpace) const
 	{
 		if (!this->hasQuasiStationaryReactions())
@@ -143,6 +150,11 @@ public:
 
 		// TODO: Compute time derivative of quasi-stationary fluxes
 	}
+
+	virtual bool hasSalt() const CADET_NOEXCEPT { return false; }
+	virtual bool supportsMultistate() const CADET_NOEXCEPT { return false; }
+	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return false; }
+	virtual bool hasQuasiStationaryReactions() const CADET_NOEXCEPT { return false; }
 
 	CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE
 
@@ -160,54 +172,57 @@ protected:
 	const double _vacuumPermi 	= 8.8541878128e-12;  // vacuumPermittivity eps_0 [F/m]
 	
 	int _startIdx;
-	int _MAXITER = 100;
+	const int _MAXITER = 100; // for newtoniteration in solvePsiAdsorber()
 
+	int _idxpH = 0;
 	
 	/**
 	 * @brief Solve for adsorber surface potential psi_{0,A} using Newton
 	 * @details Solves the neutrality condition sigma_{I,A}(psi) = sigma_D(psi)
-	 *          
 	 */
-	inline double solvePsiAdsorber(double pH, double kappa, double GammaL,
-		double zetaL, double pKL, double eps, double T) const
+	template <typename CpStateType, typename ParamType> //TODO psi param type or double
+	ParamType solvePsiAdsorber(CpStateType pH, ParamType kappa, ParamType GammaL,
+		ParamType zetaL, ParamType pKL, ParamType eps, ParamType T) const
 	{
+		using StateParamType = typename DoubleActivePromoter<CpStateType, ParamType>::type;
+
 		const double e = _elemCharge;
 		const double kb = _boltzmann;
 		const double eps0 = _vacuumPermi;
 		const double NA = _avogadroNum;
 
-		double psi = -0.01; // Initial guess
+		ParamType psi = -0.01; // Initial guess
 		for (int iter = 0; iter < _MAXITER; ++iter)
 		{
 			// pH at surface: pH_0 = pH + (e * psi) / (ln(10) * k_b * T)
-			const double pH0 = pH + (e * psi) / (std::log(10.0) * kb * T);
+			const StateParamType pH0 = pH + (e * psi) / (std::log(10.0) * kb * T);
 
 			// lhs: sigma_{I,A} = e * N_A * Gamma_L * [zeta_L - 1/(1 + 10^{pK_L - pH_0})]
-			const double lhs = e * NA * GammaL * (zetaL - 1.0 / (1.0 + std::pow(10.0, pKL- pH0)));
+			const ParamType lhs = e * NA * GammaL * (zetaL - 1.0 / (1.0 + pow(10.0, static_cast<double>(pKL - pH0))));
 
 			// rhs: sigma_D = 2 * eps * eps0 * kappa * (k_b*T/e) * sinh(e*psi/(2*k_b*T))
-			const double sinArg = e  / (2.0 * kb * T);
-			const double rhs = 2.0 * eps * eps0 * kappa * (kb * T / e) * std::sinh( sinArg * psi);
+			const ParamType sinArg = e  / (2.0 * kb * T);
+			const ParamType rhs = 2.0 * eps * eps0 * kappa * (kb * T / e) * sinh(sinArg * psi);
 
-			const double F = lhs - rhs;
+			const ParamType F = lhs - rhs;
 
 			// Derivatives for Newton step
 			// dlhs/dpsi = -e*NA*GammaL * b * 10^{pKL-pH0} / (1 + 10^{pKL-pH0})^2
 			// where b = e/(ln10*kb*T) = d(pH0)/d(psi) * ln10
-			const double b = e / (std::log(10.0) * kb * T);
-			const double expTerm = std::pow(10.0, pKL - pH0);
-			const double dlhs = -e * NA * GammaL * b * expTerm / ((1.0 + expTerm) * (1.0 + expTerm));
+			const ParamType b = e / (std::log(10.0) * kb * T);
+			const double expTerm = std::pow(10.0, static_cast<double>(pKL - pH0));
+			const ParamType dlhs = -e * NA * GammaL * b * expTerm / ((1.0 + expTerm) * (1.0 + expTerm));
 
-			const double drhs = 2.0 * eps * eps0 * kappa * (kb * T / e) * std::cosh(sinArg * psi) * sinArg;
-			const double dF = dlhs - drhs;
+			const ParamType drhs = 2.0 * eps * eps0 * kappa * (kb * T / e) * cosh(sinArg * psi) * sinArg;
+			const ParamType dF = dlhs - drhs;
 
-			if (std::abs(dF) < 1e-30)
+			if (abs(dF) < 1e-30)
 				break;
 
-			const double delta = -F / dF;
+			const ParamType delta = -F / dF;
 			psi += delta;
 
-			if (std::abs(delta) < 1e-15 * (1.0 + std::abs(psi)))
+			if (abs(delta) < 1e-15 * (1.0 + abs(psi)))
 				break;
 		}
 		return psi;
@@ -221,28 +236,22 @@ protected:
 
 		//TODO ph modelling
 		//TODO add is_kinetic
-		// if (_nComp <= 1) 
-		// 	throw InvalidParameterException("No protein component present");
 
-		// if (_nBoundStates[0] != 0)
-		// 	throw InvalidParameterException("Salt component (index 0) must be non-binding (NBOUND = 0)");
 
-		// if (_paramHandler.usePh().get() && (_nComp <= 2))
-		// 	throw InvalidParameterException("No protein component present (existing two components are salt and PH)");
+		if (_nComp <= 1)
+			throw InvalidParameterException("CPA model: To use PH as a state at least two components need to present");
 
-		// if (_paramHandler.usePh().get()) 
-		// {
-		// 	_startIdx = 2;
-		// 	if (_nBoundStates[1] != 0)
-		// 		throw InvalidParameterException("PH pseudocomponent (index 1) must be non-binding (NBOUND = 0)");
-		// }
+		if(paramProvider.exists("CPA_PH_IDX"))// default index is 0
+			_idxpH = paramProvider.getInt("CPA_PH_IDX");
+
+		if (_nBoundStates[_idxpH] != 0)
+		 	throw InvalidParameterException("PH component must be non-binding (NBOUND = 0)");
 
 		for (int i = 0; i < _nComp; ++i)
 		{
 			if (_nBoundStates[i] > 1)
 				throw InvalidParameterException("Binding model supports at most one bound state per component");
 		}
-
 
 		return res;
 	}
@@ -271,23 +280,20 @@ protected:
 		const ParamType GammaL  = static_cast<ParamType>(p->surfaceDensity);
 		const ParamType zetaL   = static_cast<ParamType>(p->chargeFullLigand);
 		const ParamType pKL     = static_cast<ParamType>(p->pKLigand);
-		const ParamType pH_val  = static_cast<ParamType>(p->pH);
+
+		const CpStateType pH_val  = yCp[_idxpH];
 
 		// kappa = sqrt(2 * e^2 * I_m * N_A / (k_b * T * eps * eps0))
-		// Eq. (13)
 		const ParamType kappa = sqrt(2.0 * e * e * Im * NA
 			/ (kb * T * eps * eps0));
 
 		const ParamType kbT = kb * T;
 
-		// Solve adsorber surface potential psi_{0,A} (Eqs. 12, 15, 16, 17)
-		const double psiA = solvePsiAdsorber(
-			static_cast<double>(pH_val), static_cast<double>(kappa),
-			static_cast<double>(GammaL), static_cast<double>(zetaL),
-			static_cast<double>(pKL), static_cast<double>(eps),
-			static_cast<double>(T));
+		// Solve adsorber surface potential psi_{0,A}
+		const ParamType psiA = solvePsiAdsorber(
+			pH_val, kappa, GammaL, zetaL, pKL, eps, T);
 
-		// beta_{i,j} (Eq. 22): e^2 / (4*pi*eps*eps0)
+		// beta_{i,j}: e^2 / (4*pi*eps*eps0)
 		const ParamType elecPrefactor = e * e / (4.0 * pi * eps * eps0);
 
 		// Theta = pi * N_A * sum_j(a_j^2 * q_j)
@@ -336,7 +342,7 @@ protected:
 			const ParamType psiArg = Zi * e * e / (8.0 * pi * a_i * a_i * eps * eps0 * kappa * kbT);
 			const ParamType psi_i = (2.0 * kbT / e) * log(psiArg + sqrt(psiArg * psiArg + 1.0));
 
-			// 2. Protein-adsorber interaction: u_{A,i}(delta_{m,i}) (Eq. 18, 19)
+			// 2. Protein-adsorber interaction: u_{A,i}(delta_{m,i})
 			//    u_{A,i}(z) = pi * a_i * eps * eps0 *
 			//      [ 2*psi_A*psi_i * ln((1+exp(-kappa*z))/(1-exp(-kappa*z)))
 			//        - (psi_A^2 + psi_i^2) * ln(1 - exp(-2*kappa*z)) ]
@@ -356,7 +362,7 @@ protected:
 				KH_i =(kbT / uA_i) * (1.0 - exp(-uA_i / kbT));
 
 			// 4. B_i(Theta)
-			//    Eq. (28): Hard-disc ASF
+			//    Hard-disc ASF
 			//    B_i = (1 - Theta) * exp(
 			//      -(pi*a_i^2 * sum_j(q_j*N_A) + 2*pi*a_i * sum_j(a_j*q_j*N_A)) / (1 - Theta)
 			//      - pi*a_i^2 * (sum_j(a_j*q_j*N_A))^2 / (1 - Theta)^2 )
@@ -373,7 +379,7 @@ protected:
 				B_i = oneMinusTheta * exp(-nom1 / oneMinusTheta - nom2 / (oneMinusTheta * oneMinusTheta));
 			}
 
-			// 5. u_{lat,i} (Eq. 23)
+			// 5. u_{lat,i} 
 			//    u_{lat,i} = 3*sqrt(3)*D_hex*N_A
 			//                * exp(-kappa*D_hex) / (1 - exp(-3*sqrt(3)/(2*pi)*kappa*D_hex))
 			//                * sum_j(q_j * beta_{i,j})
@@ -418,8 +424,8 @@ protected:
 			const StateParamType Kv_i =  As_i * (dstar_i - dm_i) * KH_i * B_i * exp(-ulat_i / kbT);
 
 			// 7. k_{kin,i} =  D_i /Delta^2_i  * 1/2 (u_A,i(detla_m,i)/k_bT)^2 * (cosh(u_A,i(detla_m,i)//k_bT)-1))^{-1}
-			const double D_i = 1; //TODO D_i is the diffusion coeffizent -> how to get this from the unit operation?
-			const ParamType kKin_i_star =  D_i / ( 2*(dstar_i - dm_i)*(dstar_i - dm_i) );
+			const double D_i = 1; //TODO D_i is the (pore) diffusion coeffizent -> how to get this from the unit operation?
+			const ParamType kKin_i_star =  D_i / (2 * (dstar_i - dm_i)*(dstar_i - dm_i));
 			const ParamType kKin_i = kKin_i_star * (uA_i/kbT)*(uA_i/kbT) * 1/(cosh(uA_i/kbT)-1);
 			
 			//res: k_{kin,i} * (K_{v,i} * c_{p,i} - q_{v,i})
