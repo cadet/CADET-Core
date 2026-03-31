@@ -14,8 +14,9 @@ coverage:
         target: auto
 
 ignore:
-  - ".*/ThirdParty/.*"
-  - ".*/test/.*"
+    - "src/ThirdParty/*"
+    - "ThirdParty"
+    - "test"
 
 fixes:
   - "build/src/::src/"
