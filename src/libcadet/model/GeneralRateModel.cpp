@@ -67,7 +67,7 @@ int schurComplementMultiplierGRM(void* userData, double const* x, double* z)
 template <typename ConvDispOperator>
 GeneralRateModel<ConvDispOperator>::GeneralRateModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
 	_hasSurfaceDiffusion(0, false),
-	_jacP(nullptr), _jacPdisc(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacInlet(), _hasParDepSurfDiffusion(false), _filmDiffDep(nullptr),
+	_jacP(nullptr), _jacPdisc(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacInlet(), _filmDiffDep(nullptr), _hasParDepSurfDiffusion(false),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _initCp(0), _initCs(0), _initState(0), _initStateDot(0)
 {
