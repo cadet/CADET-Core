@@ -1,11 +1,11 @@
-name: test-coverage
+name: CI_coverage
 
 on:
+  pull_request :
+    types : [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
-      - test/coverage
-    tags:
-      - 'v*'         # for version tags
+      - master
   workflow_dispatch:
     inputs:
       ref:
@@ -147,4 +147,5 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: cadet/CADET-Core
           files: coverage.xml
+          fail_ci_if_error : true
 
