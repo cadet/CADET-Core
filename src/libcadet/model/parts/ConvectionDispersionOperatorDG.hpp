@@ -1776,8 +1776,6 @@ namespace cadet
 				int residualImpl(const IModel& model, double t, unsigned int secIdx,
 					StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin) {
 
-					const double deltaRho = static_cast<double>(_deltaRho);
-
 					// Working strides
 					unsigned int strideNode = _strideNode;
 					unsigned int strideElem = _nNodes * strideNode;

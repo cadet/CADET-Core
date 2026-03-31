@@ -1082,8 +1082,8 @@ template class ConvectionDispersionOperatorDG<RadialConvectionDispersionOperator
  * @brief Creates a RadialConvectionDispersionOperatorBaseDG
  */
 RadialConvectionDispersionOperatorBaseDG::RadialConvectionDispersionOperatorBaseDG() :
-	_dispersionDep(nullptr), _auxState(nullptr), _subsState(nullptr),
-	_variableDispersion(false), _overintegrate(false)
+	_auxState(nullptr), _subsState(nullptr),
+	_dispersionDep(nullptr), _variableDispersion(false), _overintegrate(false)
 {
 }
 
