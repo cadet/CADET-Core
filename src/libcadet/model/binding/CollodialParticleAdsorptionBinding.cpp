@@ -128,7 +128,7 @@ class ColloidalParticleAdsorptionBindingBase : public ParamHandlerBindingModelBa
 {
 public:
 
-	ColloidalParticleAdsorptionBindingBase() : _startIdx(1) { }
+	ColloidalParticleAdsorptionBindingBase(){ }
 	virtual ~ColloidalParticleAdsorptionBindingBase() CADET_NOEXCEPT { }
 
 	static const char* identifier() { return ParamHandler_t::identifier(); }
@@ -171,9 +171,7 @@ protected:
 	const double _boltzmann     = 1.380649e-23;      // boltzmann constant k_b [J/K]
 	const double _vacuumPermi 	= 8.8541878128e-12;  // vacuumPermittivity eps_0 [F/m]
 	
-	int _startIdx;
 	const int _MAXITER = 100; // for newtoniteration in solvePsiAdsorber()
-
 	int _idxpH = 0;
 	
 	/**
@@ -262,8 +260,8 @@ protected:
 	{
 		using std::log;
 
-		//using CpStateParamType = typename DoubleActivePromoter<CpStateType, ParamType>::type;
-		using StateParamType = typename DoubleActivePromoter<StateType, ParamType>::type;
+		using CpStateParamType = typename DoubleActivePromoter<CpStateType, ParamType>::type;
+		//using StateParamType = typename DoubleActivePromoter<StateType, ParamType>::type;
 
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
@@ -297,19 +295,19 @@ protected:
 		const ParamType elecPrefactor = e * e / (4.0 * pi * eps * eps0);
 
 		// Theta = pi * N_A * sum_j(a_j^2 * q_j)
-		StateParamType Theta = 0.0;
-		StateParamType sumQSurface = 0.0;
-		StateParamType sumAjQj = 0.0;
+		CpStateParamType Theta = 0.0;
+		CpStateParamType sumQSurface = 0.0;
+		CpStateParamType sumAjQj = 0.0;
 
 		int bndIdx = 0;
-		for (int i = _startIdx; i < _nComp; ++i)
+		for (int i = 0; i < _nComp; ++i)
 		{
 			if (_nBoundStates[i] == 0)
 				continue;
 
 			const ParamType a_i  = static_cast<ParamType>(p->compRadius[i]);
 			const ParamType As_i = static_cast<ParamType>(p->adSurfaceArea[i]);
-			const StateParamType q_i = y[bndIdx] / As_i;
+			const CpStateParamType q_i = yCp[bndIdx] / As_i;
 
 			Theta       += a_i * a_i * q_i;
 			sumQSurface += q_i;
@@ -320,12 +318,12 @@ protected:
 		Theta = Theta * (pi * NA);
 
 		// D_hex^2 = 2*sqrt(3) / (3 * N_A * sum_j(q_j))
-		StateParamType Dhex = 0.0;
+		CpStateParamType Dhex = 0.0;
 		if (static_cast<double>(sumQSurface) > 1e-30)
 			Dhex = sqrt(2.0 * std::sqrt(3.0) / (3.0 * NA) / sumQSurface);
 
 		bndIdx = 0;
-		for (int i = _startIdx; i < _nComp; ++i)
+		for (int i = 0; i < _nComp; ++i)
 		{
 			if (_nBoundStates[i] == 0)
 				continue;
@@ -367,13 +365,13 @@ protected:
 			//      -(pi*a_i^2 * sum_j(q_j*N_A) + 2*pi*a_i * sum_j(a_j*q_j*N_A)) / (1 - Theta)
 			//      - pi*a_i^2 * (sum_j(a_j*q_j*N_A))^2 / (1 - Theta)^2 )
 
-			StateParamType B_i = 0.0;
+			CpStateParamType B_i = 0.0;
 			if (std::abs(static_cast<double>(Theta)) < 1.0)
 			{
-				const StateParamType oneMinusTheta = 1.0 - Theta;
-				const StateParamType nom1 = pi * a_i * a_i * sumQSurface * NA
+				const CpStateParamType oneMinusTheta = 1.0 - Theta;
+				const CpStateParamType nom1 = pi * a_i * a_i * sumQSurface * NA
 					+ 2.0 * pi * a_i * sumAjQj * NA;
-				const StateParamType nom2 = pi * a_i * a_i
+				const CpStateParamType nom2 = pi * a_i * a_i
 					* (sumAjQj * NA) * (sumAjQj * NA);
 
 				B_i = oneMinusTheta * exp(-nom1 / oneMinusTheta - nom2 / (oneMinusTheta * oneMinusTheta));
@@ -385,12 +383,12 @@ protected:
 			//                * sum_j(q_j * beta_{i,j})
 			//    beta_{i,j} computed inline (Eq. 22)
 
-			StateParamType ulat_i = 0.0;
+			CpStateParamType ulat_i = 0.0;
 
 			// sum_j(q_j * beta_{i,j})
-			StateParamType betaQSum = 0.0;
+			CpStateParamType betaQSum = 0.0;
 			int bndIdx2 = 0;
-			for (int j = _startIdx; j < _nComp; ++j)
+			for (int j = 0; j < _nComp; ++j)
 			{
 				if (_nBoundStates[j] == 0)
 					continue;
@@ -405,13 +403,13 @@ protected:
 					* exp(kappa * (a_i + a_j))
 					/ ((1.0 + kappa * a_i) * (1.0 + kappa * a_j));
 
-				const StateParamType q_j = y[bndIdx2] / As_j;
+				const CpStateParamType q_j = yCp[bndIdx2] / As_j;
 				betaQSum += beta_ij * q_j;
 
 				++bndIdx2;
 			}
 
-			const StateParamType denom = 1.0 - exp(-(3.0 * std::sqrt(3.0) / (2.0 * pi)) * kappa * Dhex);
+			const CpStateParamType denom = 1.0 - exp(-(3.0 * std::sqrt(3.0) / (2.0 * pi)) * kappa * Dhex);
 
 			if (std::abs(static_cast<double>(denom)) > 1e-30)
 			{
@@ -421,7 +419,7 @@ protected:
 			} 
 
 			// 6.  K_{v,i} =  As_i * (dstar_i - dm_i) * K_{H,i} * B_i(Theta) * exp(-u_{lat,i} / (k_b*T))
-			const StateParamType Kv_i =  As_i * (dstar_i - dm_i) * KH_i * B_i * exp(-ulat_i / kbT);
+			const CpStateParamType Kv_i =  As_i * (dstar_i - dm_i) * KH_i * B_i * exp(-ulat_i / kbT);
 
 			// 7. k_{kin,i} =  D_i /Delta^2_i  * 1/2 (u_A,i(detla_m,i)/k_bT)^2 * (cosh(u_A,i(detla_m,i)//k_bT)-1))^{-1}
 			const double D_i = 1; //TODO D_i is the (pore) diffusion coeffizent -> how to get this from the unit operation?
