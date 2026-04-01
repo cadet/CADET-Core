@@ -16,8 +16,6 @@
 #include "ParamReaderHelper.hpp"
 #include "AdUtils.hpp"
 #include "SimulationTypes.hpp"
-//#include "model/parts/AxialConvectionDispersionKernelDG.hpp" // todo radial flow DG and outsource residual implementation to kernel
-//#include "model/parts/RadialConvectionDispersionKernelDG.hpp"
 #include "model/ParameterDependence.hpp"
 #include "SensParamUtil.hpp"
 #include "ConfigurationHelper.hpp"
@@ -69,18 +67,26 @@ AxialConvectionDispersionOperatorBaseDG::~AxialConvectionDispersionOperatorBaseD
  * @param [in] strideNode node stride in state vector
  * @return @c true if configuration went fine, @c false otherwise
  */
-bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, int polynomial_integration_mode, unsigned int nElem, unsigned int polyDeg, unsigned int strideNode)
+bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nElem, unsigned int polyDeg, unsigned int strideNode)
 {
 	const bool firstConfigCall = _auxState == nullptr; // used to not multiply allocate memory
 
 	_nComp = nComp;
-	_exactInt = static_cast<bool>(polynomial_integration_mode); // only integration mode 0 applies the inexact collocated diagonal LGL mass matrix
 	_nElem = nElem;
 	_polyDeg = polyDeg;
 	_nNodes = _polyDeg + 1u;
 	_nPoints = _nNodes * _nElem;
 	_strideNode = strideNode;
 	_strideElem = _nNodes * strideNode;
+
+	paramProvider.pushScope("discretization");
+
+	_polyIntType = paramProvider.getInt("POLYNOMIAL_INTEGRATION_TYPE");
+	if (_polyIntType < 0 || _polyIntType > 2)
+		throw InvalidParameterException("Invalid value for POLYNOMIAL_INTEGRATION_TYPE (should be 0, 1, or 2)");
+	_exactInt = static_cast<bool>(_polyIntType); // only integration mode 0 applies the inexact collocated diagonal LGL mass matrix
+	
+	paramProvider.popScope();
 
 	/* Allocate space for DG discretization operations */
 	_nodes.resize(_nNodes);
@@ -110,7 +116,7 @@ bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPara
 	_invMM = dgtoolbox::invMMatrix(_polyDeg, _nodes);
 	_polyDerM = dgtoolbox::derivativeMatrix(_polyDeg, _nodes);
 
-	if(polynomial_integration_mode == 2) // use Gauss quadrature for exact integration
+	if(_polyIntType == 2) // use Gauss quadrature for exact integration
 		_invMM = dgtoolbox::gaussQuadratureMMatrix(_nodes, _nNodes).inverse();
 
 	if (paramProvider.exists("COL_DISPERSION_DEP"))
@@ -266,7 +272,6 @@ bool AxialConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, IPa
  */
 bool AxialConvectionDispersionOperatorBaseDG::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, MatrixXd& jacInlet)
 {
-
 	_curSection = secIdx;
 	_newStaticJac = true;
 
@@ -297,13 +302,15 @@ bool AxialConvectionDispersionOperatorBaseDG::notifyDiscontinuousSectionTransiti
 	 // recompute convection jacobian block, which depends on flow direction
 	_DGjacAxConvBlock = DGjacobianConvBlock();
 
-	if (_curVelocity >= 0.0) { // forward flow upwind convection
+	if (_curVelocity >= 0.0) // forward flow upwind convection
+	{
 		if (_exactInt)
 			jacInlet = static_cast<double>(_curVelocity) * _DGjacAxConvBlock.col(0); // only first element depends on inlet concentration
 		else
 			jacInlet(0, 0) = static_cast<double>(_curVelocity) * _DGjacAxConvBlock(0, 0); // only first node depends on inlet concentration
 	}
-	else {  // backward flow upwind convection
+	else // backward flow upwind convection
+	{
 		if (_exactInt)
 			jacInlet = static_cast<double>(_curVelocity) * _DGjacAxConvBlock.col(_DGjacAxConvBlock.cols() - 1); // only last element depends on inlet concentration
 		else
@@ -726,9 +733,9 @@ int ConvectionDispersionOperatorDG<Operator>::requiredADdirs() const CADET_NOEXC
  * @return @c true if configuration went fine, @c false otherwise
  */
 template <typename Operator>
-bool ConvectionDispersionOperatorDG<Operator>::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, int polynomial_integration_mode, unsigned int nElem, unsigned int polyDeg, unsigned int strideNode)
+bool ConvectionDispersionOperatorDG<Operator>::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nElem, unsigned int polyDeg, unsigned int strideNode)
 {
-	const bool retVal = _baseOp.configureModelDiscretization(paramProvider, helper, nComp, polynomial_integration_mode, nElem, polyDeg, strideNode);
+	const bool retVal = _baseOp.configureModelDiscretization(paramProvider, helper, nComp, nElem, polyDeg, strideNode);
 
 	// todo: manage jacobians in convDispOp instead of unitOp ?
 	//// Allocate memory
@@ -768,10 +775,8 @@ bool ConvectionDispersionOperatorDG<Operator>::configure(UnitOpIdx unitOpIdx, IP
 template <typename Operator>
 bool ConvectionDispersionOperatorDG<Operator>::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac)
 {
-	if (_baseOp.exactInt())
-		_jacInlet.resize(_baseOp.nNodes(), 1); // first element depends on inlet concentration (same for every component)
-	else
-		_jacInlet.resize(1, 1); // first element depends on inlet concentration (same for every component)
+	if (_jacInlet.size() == 0)
+		_jacInlet = _baseOp.jacobianInlet();
 
 	const bool hasChanged = _baseOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
 
@@ -818,8 +823,8 @@ void ConvectionDispersionOperatorDG<Operator>::prepareADvectors(const AdJacobian
 		return;
 
 	// Get bandwidths of blocks
-	const unsigned int lowerColBandwidth = _baseOp.exactInt() ? 2 * _baseOp.nNodes() * _baseOp.strideColNode() : _baseOp.nNodes() * _baseOp.strideColNode();
-	const unsigned int upperColBandwidth = lowerColBandwidth;
+	const unsigned int lowerColBandwidth = _baseOp.jacobianLowerBandwidth();
+	const unsigned int upperColBandwidth = _baseOp.jacobianUpperBandwidth();
 
 	// Column block
 	ad::prepareAdVectorSeedsForBandMatrix(adJac.adY + _baseOp.nComp(), adJac.adDirOffset, _baseOp.nComp() * _baseOp.nPoints(), lowerColBandwidth, upperColBandwidth, lowerColBandwidth);

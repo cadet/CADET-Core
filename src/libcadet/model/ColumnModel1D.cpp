@@ -156,11 +156,6 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 
 	_disc.nPoints = _disc.nNodes * _disc.nElem;
 
-	int polynomial_integration_mode = 0;
-	if (paramProvider.exists("EXACT_INTEGRATION"))
-		polynomial_integration_mode = paramProvider.getInt("EXACT_INTEGRATION");
-	_disc.exactInt = static_cast<bool>(polynomial_integration_mode); // only integration mode 0 applies the inexact collocated diagonal LGL mass matrix
-
 	paramProvider.popScope();
 
 	// Create and configure particle model
@@ -307,7 +302,7 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 	// ==== Construct and configure convection dispersion operator
 
 	unsigned int strideColNode = _disc.nComp;
-	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, polynomial_integration_mode, _disc.nElem, _disc.polyDeg, strideColNode);
+	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nElem, _disc.polyDeg, strideColNode);
 
 	_disc.curSection = -1;
 
@@ -357,10 +352,7 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 	if (firstConfigCall)
 		_tempState = new double[numDofs()];
 
-	if (_disc.exactInt)
-		_jacInlet.resize(_disc.nNodes, 1); // first cell depends on inlet concentration (same for every component)
-	else
-		_jacInlet.resize(1, 1); // first node depends on inlet concentration (same for every component)
+	_jacInlet = _convDispOp.jacobianInlet();
 
 	// set jacobian pattern
 	_globalJacDisc.resize(numDofs(), numDofs());

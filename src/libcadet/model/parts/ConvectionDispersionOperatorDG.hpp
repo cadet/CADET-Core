@@ -12,7 +12,7 @@
 
 /**
  * @file
- * Defines the convection dispersion transport operator according to the discontinuous Galerkin discretization.
+ * Defines the convection dispersion transport operator based on discontinuous Galerkin discretizations.
  */
 
 #ifndef LIBCADET_CONVECTIONDISPERSIONOPERATORDG_HPP_
@@ -52,7 +52,7 @@ namespace cadet
 		{
 
 			/**
-			 * @brief Convection dispersion transport operator
+			 * @brief Axial convection dispersion transport operator based on a DG discretization
 			 * @details Implements the equation
 			 *
 			 * @f[\begin{align}
@@ -78,7 +78,7 @@ namespace cadet
 
 				void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
 
-				bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, int polynomial_integration_mode, unsigned int nelements, unsigned int polyDeg, unsigned int strideNode);
+				bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nelements, unsigned int polyDeg, unsigned int strideNode);
 				bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 				bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, Eigen::MatrixXd& jacInlet);
 
@@ -118,7 +118,6 @@ namespace cadet
 				inline unsigned int nelements() const CADET_NOEXCEPT { return _nElem; }
 				inline unsigned int nNodes() const CADET_NOEXCEPT { return _nNodes; }
 				inline unsigned int nPoints() const CADET_NOEXCEPT { return _nPoints; }
-				inline bool exactInt() const CADET_NOEXCEPT { return _exactInt; }
 
 				// Indexer functionality:
 				// Strides
@@ -144,6 +143,42 @@ namespace cadet
 				bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
 				bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& id, double value);
 
+				void jacobianInlet(Eigen::MatrixXd& jacInlet)
+				{
+					if (_exactInt)
+						jacInlet.resize(_nNodes, 1); // first cell depends on inlet concentration (same for every component)
+					else
+						jacInlet.resize(1, 1); // first node depends on inlet concentration (same for every component)
+
+					if (_curVelocity >= 0.0) // forward flow upwind convection
+					{
+						if (_exactInt)
+							jacInlet = static_cast<double>(_curVelocity) * _DGjacAxConvBlock.col(0); // only first element depends on inlet concentration
+						else
+							jacInlet(0, 0) = static_cast<double>(_curVelocity) * _DGjacAxConvBlock(0, 0); // only first node depends on inlet concentration
+					}
+					else // backward flow upwind convection
+					{
+						if (_exactInt)
+							jacInlet = static_cast<double>(_curVelocity) * _DGjacAxConvBlock.col(_DGjacAxConvBlock.cols() - 1); // only last element depends on inlet concentration
+						else
+							jacInlet(0, 0) = static_cast<double>(_curVelocity) * _DGjacAxConvBlock(_DGjacAxConvBlock.rows() - 1, _DGjacAxConvBlock.cols() - 1); // only last node depends on inlet concentration
+					}
+				}
+
+				Eigen::MatrixXd jacobianInlet()
+				{
+					Eigen::MatrixXd jacInlet;
+
+					if (_exactInt)
+						jacInlet = Eigen::MatrixXd::Zero(_nNodes, 1);
+					else
+						jacInlet = Eigen::MatrixXd::Zero(1, 1);
+
+					jacobianInlet(jacInlet);
+					return jacInlet;
+				}
+
 			protected:
 
 				template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
@@ -151,6 +186,7 @@ namespace cadet
 
 				// discretization parameters
 				unsigned int _nComp; //!< Number of components
+				int _polyIntType; //!< specifies the type of polynomial integration e.g. LGL collocation
 				bool _exactInt;	//!< specifies whether integrals are calculated exactly or approximated with LGL quadrature
 				unsigned int _polyDeg; //!< DG discretization polynomial degree
 				unsigned int _nElem; //!< Number of axial elements
@@ -336,7 +372,7 @@ namespace cadet
 				 */
 				Eigen::MatrixXd DGjacobianDispBlock(unsigned int elementIdx)
 				{
-//					int offC = 0; // inlet DOFs not included in Jacobian
+					// int offC = 0; // inlet DOFs not included in Jacobian
 
 					Eigen::MatrixXd dispBlock;
 
@@ -1150,44 +1186,6 @@ namespace cadet
 
 					return 0;
 				}
-				// todo time derivative pattern
-				///**
-				//* @brief adds time derivative to the jacobian
-				//*/
-				//void addTimederJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, double alpha) {
-
-				//	unsigned int offC = 0; // inlet DOFs not included in Jacobian
-
-				//	// =================================================================================================== //
-				//	//	 Time derivative Jacobian: d Residual / d y_t   												   //
-				//	// =================================================================================================== //
-
-				//	linalg::BandedEigenSparseRowIterator jac(jacobian, offC);
-
-				//	double Beta = (1.0 - static_cast<double>(_totalPorosity)) / static_cast<double>(_totalPorosity);
-
-				//	for (unsigned int point = 0; point < _disc.nPoints; point++) {
-				//		for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
-				//			// d convDispRHS / d c_t
-				//			jac[0] += alpha;
-
-				//			if (_disc.nBound[comp]) { // either one or null; no loop necessary
-				//				// d convDispRHS / d q_t
-				//				jac[idxr.strideColLiquid() - comp + idxr.offsetBoundComp(comp)] += alpha * Beta;
-				//			}
-				//			++jac;
-				//		}
-				//		for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
-				//			if (_disc.nBound[comp]) { // either one or null; no loop over bound states necessary
-				//				if (!_binding[0]->hasQuasiStationaryReactions()) {
-				//					// d isotherm / d q_t
-				//					jac[0] += alpha;
-				//				}
-				//				++jac;
-				//			}
-				//		}
-				//	}
-				//}
 			};
 
 

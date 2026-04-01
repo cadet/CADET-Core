@@ -147,10 +147,10 @@ namespace cadet
 
 			_disc.nPoints = _disc.nNodes * _disc.nElem;
 
-			int polynomial_integration_mode = 0;
-			if (paramProvider.exists("EXACT_INTEGRATION"))
-				polynomial_integration_mode = paramProvider.getInt("EXACT_INTEGRATION");
-			_disc.exactInt = static_cast<bool>(polynomial_integration_mode); // only integration mode 0 applies the inexact collocated diagonal LGL mass matrix
+			int polynomial_integration_type = 0;
+			if (paramProvider.exists("POLYNOMIAL_INTEGRATION_TYPE"))
+				polynomial_integration_type = paramProvider.getInt("POLYNOMIAL_INTEGRATION_TYPE");
+			_disc.exactInt = static_cast<bool>(polynomial_integration_type); // only integration mode 0 applies the inexact collocated diagonal LGL mass matrix
 
 			// Precompute offsets and total number of bound states (DOFs in solid phase)
 			if (firstConfigCall)
@@ -180,7 +180,7 @@ namespace cadet
 			paramProvider.popScope();
 
 			const unsigned int strideNode = _disc.nComp + _disc.strideBound;
-			const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, polynomial_integration_mode, _disc.nElem, _disc.polyDeg, strideNode);
+			const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nElem, _disc.polyDeg, strideNode);
 
 			_disc.curSection = -1;
 
