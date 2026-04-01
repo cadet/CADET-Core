@@ -757,6 +757,8 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 	bool parSurfDiffDepConfSuccess = true;
 	if (_hasParDepSurfDiffusion)
 	{
+		paramProvider.pushScope("particle_type_000");
+
 		if (_singleParDepSurfDiffusion && _parDepSurfDiffusion[0])
 		{
 			parSurfDiffDepConfSuccess = _parDepSurfDiffusion[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep, "SURFACE_DIFFUSION");
@@ -771,6 +773,7 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 				parSurfDiffDepConfSuccess = _parDepSurfDiffusion[i]->configure(paramProvider, _unitOpIdx, i, "SURFACE_DIFFUSION") && parSurfDiffDepConfSuccess;
 			}
 		}
+		paramProvider.popScope();
 	}
 
 	if ((_filmDiffusion.size() < _disc.nComp * _disc.nParType) || (_filmDiffusion.size() % (_disc.nComp * _disc.nParType) != 0))
