@@ -264,7 +264,6 @@ protected:
 		unsigned int polyDeg; //!< polynomial degree of column elements
 		unsigned int nNodes; //!< Number of nodes per column cell
 		unsigned int nPoints; //!< Number of discrete column Points
-		bool exactInt;	//!< 1 for exact integration, 0 for inexact LGL quadrature
 		unsigned int nParType; //!< Number of particle types
 		unsigned int* nParPoints; //!< Array with number of discrete points for each particle type
 		unsigned int* parTypeOffset; //!< Array with offsets (in particle block) to particle type, additional last element contains total number of particle DOFs

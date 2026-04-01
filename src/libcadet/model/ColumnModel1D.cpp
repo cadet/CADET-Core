@@ -352,8 +352,6 @@ bool ColumnModel1D::configureModelDiscretization(IParameterProvider& paramProvid
 	if (firstConfigCall)
 		_tempState = new double[numDofs()];
 
-	_jacInlet = _convDispOp.jacobianInlet();
-
 	// set jacobian pattern
 	_globalJacDisc.resize(numDofs(), numDofs());
 	_globalJac.resize(numDofs(), numDofs());
@@ -623,8 +621,8 @@ void ColumnModel1D::prepareADvectors(const AdJacobianParams& adJac) const
 	// We have differing Jacobian structures for exact integration and collocation DG scheme, i.e. we need different seed vectors
 	// collocation DG: 2 * N_n * (N_c + N_q) + 1 = total bandwidth (main diagonal entries maximally depend on the next and last N_n liquid phase entries of same component)
 	//    ex. int. DG: 4 * N_n * (N_c + N_q) + 1 = total bandwidth (main diagonal entries maximally depend on the next and last 2*N_n liquid phase entries of same component)
-	const int lowerBandwidth = (_disc.exactInt) ? 2 * _disc.nNodes * idxr.strideColNode() : _disc.nNodes * idxr.strideColNode();
-	const int upperBandwidth = lowerBandwidth;
+	const int lowerBandwidth = _convDispOp.jacobianLowerBandwidth();
+	const int upperBandwidth = _convDispOp.jacobianUpperBandwidth();
 	const int bulkRows = idxr.offsetCp() - idxr.offsetC();
 	ad::prepareAdVectorSeedsForBandMatrix(adJac.adY + _disc.nComp, adJac.adDirOffset, bulkRows, lowerBandwidth, upperBandwidth, lowerBandwidth);
 
@@ -662,8 +660,8 @@ void ColumnModel1D::extractJacobianFromAD(active const* const adRes, unsigned in
 	const active* const adVec = adRes + idxr.offsetC();
 
 	/* Extract bulk phase equations entries */
-	const int lowerBandwidth = (_disc.exactInt) ? 2 * _disc.nNodes * idxr.strideColNode() : _disc.nNodes * idxr.strideColNode();
-	const int upperBandwidth = lowerBandwidth;
+	const int lowerBandwidth = _convDispOp.jacobianLowerBandwidth();
+	const int upperBandwidth = _convDispOp.jacobianUpperBandwidth();
 //	const int stride = lowerBandwidth + 1 + upperBandwidth;
 	int diagDir = lowerBandwidth;
 	const int bulkDoFs = idxr.offsetCp() - idxr.offsetC();
@@ -718,8 +716,8 @@ void ColumnModel1D::checkAnalyticJacobianAgainstAd(active const* const adRes, un
 	const active* const adVec = adRes + idxr.offsetC();
 
 	/* Extract bulk phase equations entries */
-	const int lowerBandwidth = (_disc.exactInt) ? 2 * _disc.nNodes * idxr.strideColNode() : _disc.nNodes * idxr.strideColNode();
-	const int upperBandwidth = lowerBandwidth;
+	const int lowerBandwidth = _convDispOp.jacobianLowerBandwidth();
+	const int upperBandwidth = _convDispOp.jacobianUpperBandwidth();
 	const int stride = lowerBandwidth + 1 + upperBandwidth;
 	int diagDir = lowerBandwidth;
 	const int bulkDoFs = idxr.offsetCp() - idxr.offsetC();
@@ -1177,7 +1175,7 @@ void ColumnModel1D::multiplyWithJacobian(const SimulationTime& simTime, const Co
 	unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
 
 	for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
-		for (unsigned int node = 0; node < (_disc.exactInt ? _disc.nNodes : 1); node++) {
+		for (unsigned int node = 0; node < _jacInlet.rows(); node++) {
 			ret[idxr.offsetC() + offInlet + comp * idxr.strideColComp() + node * idxr.strideColNode()] += alpha * _jacInlet(node, 0) * yS[comp];
 		}
 	}

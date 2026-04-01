@@ -213,7 +213,6 @@ namespace cadet
 				unsigned int polyDeg; //!< polynomial degree
 				unsigned int nNodes; //!< Number of nodes per cell
 				unsigned int nPoints; //!< Number of discrete Points
-				bool exactInt;	//!< 1 for exact integration, 0 for LGL quadrature
 
 				unsigned int* nBound; //!< Array with number of bound states for each component
 				unsigned int* boundOffset; //!< Array with offset to the first bound state of each component in the solid phase

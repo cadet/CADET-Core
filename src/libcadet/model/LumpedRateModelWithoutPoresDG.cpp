@@ -147,11 +147,6 @@ namespace cadet
 
 			_disc.nPoints = _disc.nNodes * _disc.nElem;
 
-			int polynomial_integration_type = 0;
-			if (paramProvider.exists("POLYNOMIAL_INTEGRATION_TYPE"))
-				polynomial_integration_type = paramProvider.getInt("POLYNOMIAL_INTEGRATION_TYPE");
-			_disc.exactInt = static_cast<bool>(polynomial_integration_type); // only integration mode 0 applies the inexact collocated diagonal LGL mass matrix
-
 			// Precompute offsets and total number of bound states (DOFs in solid phase)
 			if (firstConfigCall)
 				_disc.boundOffset = new unsigned int[_disc.nComp];
@@ -187,10 +182,6 @@ namespace cadet
 			// Allocate memory
 			Indexer idxr(_disc);
 
-			if (_disc.exactInt)
-				_jacInlet.resize(_disc.nNodes, 1); // first cell depends on inlet concentration (same for every component)
-			else
-				_jacInlet.resize(1, 1); // first cell depends on inlet concentration (same for every component)
 			_jac.resize((_disc.nComp + _disc.strideBound) * _disc.nPoints, (_disc.nComp + _disc.strideBound) * _disc.nPoints);
 			_jacDisc.resize((_disc.nComp + _disc.strideBound) * _disc.nPoints, (_disc.nComp + _disc.strideBound) * _disc.nPoints);
 			// jacobian pattern is set and analyzed after reactions are configured
@@ -468,9 +459,8 @@ namespace cadet
 			// We have different jacobian structure for exact integration and collocation DG scheme, i.e. we need different seed vectors
 			// collocation DG: 2 * N_n * (N_c + N_q) + 1 = total bandwidth (main diagonal entries maximally depend on the next and last N_n liquid phase entries of same component)
 			//    ex. int. DG: 4 * N_n * (N_c + N_q) + 1 = total bandwidth (main diagonal entries maximally depend on the next and last 2*N_n liquid phase entries of same component)
-
-			int lowerBandwidth = (_disc.exactInt) ? 2 * _disc.nNodes * idxr.strideColNode() : _disc.nNodes * idxr.strideColNode();
-			int upperBandwidth = lowerBandwidth;
+			const int lowerBandwidth = _convDispOp.jacobianLowerBandwidth();
+			const int upperBandwidth = _convDispOp.jacobianUpperBandwidth();
 
 			ad::prepareAdVectorSeedsForBandMatrix(adJac.adY + _disc.nComp, adJac.adDirOffset, _jac.rows(), lowerBandwidth, upperBandwidth, lowerBandwidth);
 		}
@@ -485,10 +475,8 @@ namespace cadet
 			Indexer idxr(_disc);
 
 			const active* const adVec = adRes + idxr.offsetC();
-
-			const int lowerBandwidth = (_disc.exactInt) ? 2 * _disc.nNodes * idxr.strideColNode() : _disc.nNodes * idxr.strideColNode();
-			const int upperBandwidth = lowerBandwidth;
-//			const int stride = lowerBandwidth + 1 + upperBandwidth;
+			const int lowerBandwidth = _convDispOp.jacobianLowerBandwidth();
+			const int upperBandwidth = _convDispOp.jacobianUpperBandwidth();
 
 			int diagDir = lowerBandwidth;
 			const int nRows = _jac.rows();
@@ -510,8 +498,8 @@ namespace cadet
 		{
 			Indexer idxr(_disc);
 
-			const int lowerBandwidth = (_disc.exactInt) ? 2 * _disc.nNodes * idxr.strideColNode() : _disc.nNodes * idxr.strideColNode();
-			const int upperBandwidth = lowerBandwidth;
+			const int lowerBandwidth = _convDispOp.jacobianLowerBandwidth();
+			const int upperBandwidth = _convDispOp.jacobianUpperBandwidth();
 			const int stride = lowerBandwidth + 1 + upperBandwidth;
 
 			const double maxDiff = ad::compareBandedEigenJacobianWithAd(adRes + idxr.offsetC(), adDirOffset, lowerBandwidth, lowerBandwidth, upperBandwidth, 0, _jac.rows(), _jac, 0);
@@ -819,7 +807,7 @@ namespace cadet
 			unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
 
 			for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
-				for (unsigned int node = 0; node < (_disc.exactInt ? _disc.nNodes : 1); node++) {
+				for (unsigned int node = 0; node < _jacInlet.rows(); node++) {
 					ret[idxr.offsetC() + offInlet + comp * idxr.strideColComp() + node * idxr.strideColNode()] += alpha * _jacInlet(node, 0) * yS[comp];
 				}
 			}
@@ -946,7 +934,7 @@ namespace cadet
 			unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
 
 			for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
-				for (unsigned int node = 0; node < (_disc.exactInt ? _disc.nNodes : 1); node++) {
+				for (unsigned int node = 0; node < _jacInlet.rows(); node++) {
 					r[idxr.offsetC() + offInlet + comp * idxr.strideColComp() + node * idxr.strideColNode()] -= _jacInlet(node, 0) * r[comp];
 				}
 			}

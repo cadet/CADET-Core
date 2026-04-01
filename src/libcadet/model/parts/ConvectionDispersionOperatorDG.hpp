@@ -143,42 +143,6 @@ namespace cadet
 				bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
 				bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& id, double value);
 
-				void jacobianInlet(Eigen::MatrixXd& jacInlet)
-				{
-					if (_exactInt)
-						jacInlet.resize(_nNodes, 1); // first cell depends on inlet concentration (same for every component)
-					else
-						jacInlet.resize(1, 1); // first node depends on inlet concentration (same for every component)
-
-					if (_curVelocity >= 0.0) // forward flow upwind convection
-					{
-						if (_exactInt)
-							jacInlet = static_cast<double>(_curVelocity) * _DGjacAxConvBlock.col(0); // only first element depends on inlet concentration
-						else
-							jacInlet(0, 0) = static_cast<double>(_curVelocity) * _DGjacAxConvBlock(0, 0); // only first node depends on inlet concentration
-					}
-					else // backward flow upwind convection
-					{
-						if (_exactInt)
-							jacInlet = static_cast<double>(_curVelocity) * _DGjacAxConvBlock.col(_DGjacAxConvBlock.cols() - 1); // only last element depends on inlet concentration
-						else
-							jacInlet(0, 0) = static_cast<double>(_curVelocity) * _DGjacAxConvBlock(_DGjacAxConvBlock.rows() - 1, _DGjacAxConvBlock.cols() - 1); // only last node depends on inlet concentration
-					}
-				}
-
-				Eigen::MatrixXd jacobianInlet()
-				{
-					Eigen::MatrixXd jacInlet;
-
-					if (_exactInt)
-						jacInlet = Eigen::MatrixXd::Zero(_nNodes, 1);
-					else
-						jacInlet = Eigen::MatrixXd::Zero(1, 1);
-
-					jacobianInlet(jacInlet);
-					return jacInlet;
-				}
-
 			protected:
 
 				template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>

@@ -302,6 +302,14 @@ bool AxialConvectionDispersionOperatorBaseDG::notifyDiscontinuousSectionTransiti
 	 // recompute convection jacobian block, which depends on flow direction
 	_DGjacAxConvBlock = DGjacobianConvBlock();
 
+	if (jacInlet.size() == 0) // initialize inlet Jacobian if not already done
+	{
+		if (_exactInt)
+			jacInlet = Eigen::MatrixXd::Zero(_nNodes, 1);
+		else
+			jacInlet = Eigen::MatrixXd::Zero(1, 1);
+	}
+
 	if (_curVelocity >= 0.0) // forward flow upwind convection
 	{
 		if (_exactInt)
@@ -775,9 +783,6 @@ bool ConvectionDispersionOperatorDG<Operator>::configure(UnitOpIdx unitOpIdx, IP
 template <typename Operator>
 bool ConvectionDispersionOperatorDG<Operator>::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac)
 {
-	if (_jacInlet.size() == 0)
-		_jacInlet = _baseOp.jacobianInlet();
-
 	const bool hasChanged = _baseOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
 
 	// Check whether flow direction has changed and we need to update AD vectors
