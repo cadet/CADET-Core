@@ -310,9 +310,6 @@ bool ColumnModel1D<ConvDispOperator>::configureModelDiscretization(IParameterPro
 	unsigned int strideColNode = _disc.nComp;
 	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nElem, _disc.polyDeg, strideColNode);
 
-	// Sync exactInt with operator's actual mode (radial DG always uses exact integration regardless of user config)
-	_disc.exactInt = _convDispOp.exactInt();
-
 	_disc.curSection = -1;
 
 	// ==== Construct and configure dynamic reaction model

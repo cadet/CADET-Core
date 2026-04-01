@@ -90,7 +90,7 @@
                     0.0
                 ]
             },
-            "NODE_TYPE": "LGL",
+            "POLYNOMIAL_INTERPOLATION_NODES": "LGL",
             "discretization": {
                 "SPATIAL_METHOD": "DG",
                 "POLYDEG": 4,

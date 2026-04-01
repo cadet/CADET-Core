@@ -235,7 +235,7 @@ Discontinuous Galerkin
 When using the DG method, we generally recommend specifying ``USE_MODIFIED_NEWTON = 1`` in :ref:`FFSolverTime`, i.e. to use the modified Newton method to solve the linear system within the time integrator.
 
 .. note::
-   The radial DG method always uses exact integration (no collocation variant). The ``EXACT_INTEGRATION`` field is ignored for radial flow models.
+   The radial DG method always uses exact integration (no collocation variant). The ``POLYNOMIAL_INTEGRATION_TYPE`` field is ignored for radial flow models.
 
 Finite Volumes
 ^^^^^^^^^^^^^^
