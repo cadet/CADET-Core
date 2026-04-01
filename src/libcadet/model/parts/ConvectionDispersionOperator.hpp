@@ -213,7 +213,6 @@ public:
 	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return static_cast<double>(_cellCenters[idx]); }
 	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT
 	{
-		// Use actual cell center position for non-equidistant (equivolume) grids
 		return (static_cast<double>(_cellCenters[idx]) - static_cast<double>(_innerRadius)) /
 		       (static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius));
 	}
@@ -333,7 +332,6 @@ public:
 	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return static_cast<double>(_cellCenters[idx]); }
 	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT
 	{
-		// Use actual cell center position for non-equidistant (equivolume) grids
 		return (static_cast<double>(_cellCenters[idx]) - static_cast<double>(_innerRadius)) /
 		       (static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius));
 	}
