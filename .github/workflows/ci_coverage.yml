@@ -1,11 +1,47 @@
 name: CI_coverage
 
 on:
-  pull_request :
-    types : [opened, synchronize, reopened, ready_for_review]
   push:
+    paths-ignore:
+      - 'doc/**'
+      - 'doc/ISSUE_TEMPLATE'
+      - 'doc/PULL_REQUEST_TEMPLATE'
+      - '.zenodo.json'
+      - 'AUTHORS.md'
+      - 'BUILD-LINUX.md'
+      - 'BUILD-WINDOWS.md'
+      - 'BUILD-OSX.md'
+      - 'CITATION.bib'
+      - 'CLA.md'
+      - 'CODE_OF_CONDUCT.md'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE.txt'
+      - 'README.rst'
+      - 'SECURITY.md'
+      - 'ThirdParty-LICENSES.txt'
+      - 'version.txt'
     branches:
       - master
+  pull_request :
+    paths-ignore:
+      - 'doc/**'
+      - 'doc/ISSUE_TEMPLATE'
+      - 'doc/PULL_REQUEST_TEMPLATE'
+      - '.zenodo.json'
+      - 'AUTHORS.md'
+      - 'BUILD-LINUX.md'
+      - 'BUILD-WINDOWS.md'
+      - 'BUILD-OSX.md'
+      - 'CITATION.bib'
+      - 'CLA.md'
+      - 'CODE_OF_CONDUCT.md'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE.txt'
+      - 'README.rst'
+      - 'SECURITY.md'
+      - 'ThirdParty-LICENSES.txt'
+      - 'version.txt'
+    types : [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       ref:
