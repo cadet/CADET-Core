@@ -334,7 +334,7 @@ protected:
 
             }
         }
-
+		_idxPrefactor.clear();
         registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MM_STOICHIOMETRY", _stoichiometry);
         return true;
     }
@@ -356,11 +356,13 @@ protected:
             flux_t preProd = 1.0;
             for (unsigned int rowIdx = 0; rowIdx < static_cast<unsigned int>(_stoichiometry.rows()); ++rowIdx)
             {
-                unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(rowIdx), _oldInterface);
-                flux_t pre_k_j = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->KPrefactor[prekIdx]);
-                bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
-                if (pre_k_j != 0 && !isSubstrate)
-                    preProd *= pre_k_j * y[rowIdx];
+                if (p->KPrefactor.size() != 0) {
+                    unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(rowIdx), _oldInterface);
+                    flux_t pre_k_j = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->KPrefactor[prekIdx]);
+                    bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
+                    if (pre_k_j != 0 && !isSubstrate)
+                        preProd *= pre_k_j * y[rowIdx];
+                }
             }
             // Product over all substrates
             for (unsigned int subIdx = 0; subIdx < nSub; ++subIdx)
@@ -505,12 +507,13 @@ protected:
             double preProd = 1.0;
             for (unsigned int rowIdx = 0; rowIdx < static_cast<unsigned int>(_stoichiometry.rows()); ++rowIdx)
             {
-                unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(rowIdx), _oldInterface);
-                double pre_k_j = static_cast<double>(p->KPrefactor[prekIdx]);
-                bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
-                if (pre_k_j != 0 && !isSubstrate)
-                    preProd *= pre_k_j * y[rowIdx];
-                    //_idxPrefactor[r].push_back(static_cast<int>(rowIdx));
+                if (p->KPrefactor.size() != 0) {
+                    unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(rowIdx), _oldInterface);
+                    double pre_k_j = static_cast<double>(p->KPrefactor[prekIdx]);
+                    bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
+                    if (pre_k_j != 0 && !isSubstrate)
+                        preProd *= pre_k_j * y[rowIdx];
+                }
             }
             // Multiplication with vMax
             const double vMax = static_cast<double>(p->vMax[r]);
@@ -631,12 +634,13 @@ protected:
 				// Check for pre-factor contribution
                 if (!isSubstrate)
                 {
-                    unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(comp), _oldInterface);
-                    double pre_k_j = static_cast<double>(p->KPrefactor[prekIdx]);
-                    if (pre_k_j != 0.0)
-                    {
-                        dvdy += flux / y[comp];
+                    if (p->KPrefactor.size() != 0) {
+                        unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(comp), _oldInterface);
+                        double pre_k_j = static_cast<double>(p->KPrefactor[prekIdx]);
+                        if (pre_k_j != 0.0)
+                            dvdy += flux / y[comp];
                     }
+                
                 }
                 if (std::abs(dvdy) < 1e-12)
                     continue;
