@@ -402,6 +402,9 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 	bool parSurfDiffDepConfSuccess = true;
 	if (paramProvider.exists("SURFACE_DIFFUSION_DEP"))
 	{
+		if (_disc.nParType > 1)
+			LOG(Warning) << "The parameter dependence for surface diffusion (SURFACE_DIFFUSION_DEP) specified for particle type 000 will be applied to all particle types.";
+		
 		const std::vector<std::string> psdDepNames = paramProvider.getStringArray("SURFACE_DIFFUSION_DEP");
 		if ((psdDepNames.size() == 1) || (_disc.nParType == 1))
 			_singleParDepSurfDiffusion = true;
@@ -423,7 +426,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 			{
 				IParameterStateDependence* const pd = helper.createParameterStateDependence(psdDepNames[0]);
 				if (!pd)
-					throw InvalidParameterException("Unknown parameter dependence " + psdDepNames[0]);
+					throw InvalidParameterException("Unknown parameter dependence " + psdDepNames[0] + "for SURFACE_DIFFUSION_DEP");
 
 				_parDepSurfDiffusion = std::vector<IParameterStateDependence*>(_disc.nParType, pd);
 				parSurfDiffDepConfSuccess = pd->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
@@ -754,6 +757,8 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 	bool parSurfDiffDepConfSuccess = true;
 	if (_hasParDepSurfDiffusion)
 	{
+		paramProvider.pushScope("particle_type_000");
+
 		if (_singleParDepSurfDiffusion && _parDepSurfDiffusion[0])
 		{
 			parSurfDiffDepConfSuccess = _parDepSurfDiffusion[0]->configure(paramProvider, _unitOpIdx, ParTypeIndep, "SURFACE_DIFFUSION");
@@ -768,6 +773,7 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 				parSurfDiffDepConfSuccess = _parDepSurfDiffusion[i]->configure(paramProvider, _unitOpIdx, i, "SURFACE_DIFFUSION") && parSurfDiffDepConfSuccess;
 			}
 		}
+		paramProvider.popScope();
 	}
 
 	if ((_filmDiffusion.size() < _disc.nComp * _disc.nParType) || (_filmDiffusion.size() % (_disc.nComp * _disc.nParType) != 0))
