@@ -80,6 +80,16 @@ bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPara
 
 	paramProvider.pushScope("discretization");
 
+	if (paramProvider.exists("POLYNOMIAL_BASIS"))
+	{
+		if (paramProvider.getString("POLYNOMIAL_BASIS") != "LEGENDRE")
+			throw InvalidParameterException("Invalid value for POLYNOMIAL_BASIS (only LEGENDRE is supported)");
+	}
+	if (paramProvider.exists("POLYNOMIAL_INTERPOLATION_NODES"))
+	{
+		if (paramProvider.getString("POLYNOMIAL_INTERPOLATION_NODES") != "LOBATTO")
+			throw InvalidParameterException("Invalid value for POLYNOMIAL_INTERPOLATION_NODES (only LOBATTO is supported)");
+	}
 	_polyIntType = paramProvider.getInt("POLYNOMIAL_INTEGRATION_TYPE");
 	if (_polyIntType < 0 || _polyIntType > 2)
 		throw InvalidParameterException("Invalid value for POLYNOMIAL_INTEGRATION_TYPE (should be 0, 1, or 2)");
@@ -1108,12 +1118,11 @@ RadialConvectionDispersionOperatorBaseDG::~RadialConvectionDispersionOperatorBas
 /**
  * @brief Reads parameters and allocates memory
  */
-bool RadialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, int polynomial_integration_mode, unsigned int nElem, unsigned int polyDeg, unsigned int strideNode)
+bool RadialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nElem, unsigned int polyDeg, unsigned int strideNode)
 {
 	const bool firstConfigCall = _auxState == nullptr;
 
 	_nComp = nComp;
-	// Note: Radial DG uses exact integration only (polynomial_integration_mode ignored)
 	_nElem = nElem;
 	_polyDeg = polyDeg;
 	_nNodes = _polyDeg + 1u;
@@ -1151,15 +1160,15 @@ bool RadialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPar
 	_newStaticJac = true;
 
 	// Initialize standard DG matrices (select node type, default CGL for radial)
-	if (paramProvider.exists("NODE_TYPE"))
+	if (paramProvider.exists("POLYNOMIAL_INTERPOLATION_NODES"))
 	{
-		const std::string nodeType = paramProvider.getString("NODE_TYPE");
-		if (nodeType == "CGL" || nodeType == "CHEBYSHEV_GAUSS_LOBATTO")
+		const std::string nodeType = paramProvider.getString("POLYNOMIAL_INTERPOLATION_NODES");
+		if (nodeType == "CHEBYSHEV_GAUSS_LOBATTO")
 			dgtoolbox::cglNodesWeights(_polyDeg, _nodes, _invWeights, true);
-		else if (nodeType == "LGL" || nodeType == "LEGENDRE_GAUSS_LOBATTO")
+		else if (nodeType == "LEGENDRE_GAUSS_LOBATTO")
 			dgtoolbox::lglNodesWeights(_polyDeg, _nodes, _invWeights, true);
 		else
-			throw InvalidParameterException("Unknown NODE_TYPE '" + nodeType + "'. Supported: LGL, CGL");
+			throw InvalidParameterException("Unknown POLYNOMIAL_INTERPOLATION_NODES '" + nodeType + "'. Supported: LEGENDRE_GAUSS_LOBATTO, CHEBYSHEV_GAUSS_LOBATTO");
 	}
 	else
 		dgtoolbox::cglNodesWeights(_polyDeg, _nodes, _invWeights, true);
@@ -1346,10 +1355,6 @@ bool RadialConvectionDispersionOperatorBaseDG::notifyDiscontinuousSectionTransit
 	{
 		_DGjacRadConvBlocks[cell] = u * DGjacobianConvBlockRadial(cell);
 	}
-
-	// Inlet Jacobian: jacInlet should have size (nNodes, 1) for exact integration
-	// Similar to axial DG: jacInlet = velocity * convBlock.col(0) for forward flow
-	jacInlet.resize(_nNodes, 1);
 
 	if (_curVelocity >= 0.0)
 	{

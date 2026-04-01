@@ -147,7 +147,7 @@ namespace cadet
 			_disc.nPoints = _disc.nNodes * _disc.nElem;
 
 			// Radial DG always uses exact integration
-			int polynomial_integration_mode = 1;
+			int POLYNOMIAL_INTEGRATION_TYPE = 1;
 
 			// Precompute offsets and total number of bound states
 			if (firstConfigCall)
@@ -178,7 +178,7 @@ namespace cadet
 
 			// Configure convection-dispersion operator (bulk phase stride is just nComp)
 			const unsigned int strideNode = _disc.nComp;
-			const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, polynomial_integration_mode, _disc.nElem, _disc.polyDeg, strideNode);
+			const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nElem, _disc.polyDeg, strideNode);
 
 			// Configure film diffusion parameter dependency
 			if (paramProvider.exists("film_diffusion"))
