@@ -20,6 +20,9 @@ Group /input/model/unit_XXX
    **Type:** string  **Range:** :math:`\texttt{POWER_LAW}`  **Length:** 1
    ================  =====================================  =============
 
+Group /input/model/unit_XXX/particle_type_YYY
+---------------------------------------------
+
 ``FILM_DIFFUSION_DEP``
 
    Parameter dependence of film diffusion on the interstitial velocity. Available for the LRMP unit (with FV discretization only at the moment)
@@ -75,8 +78,8 @@ Parameter-State Dependencies
 
 Currently, the dependence of surface diffusion on the particle liquid salt component is the only available parameter-state dependence.
 
-Group /input/model/unit_XXX
----------------------------
+Group /input/model/unit_XXX/particle_type_YYY
+---------------------------------------------
 
 ``SURFACE_DIFFUSION_DEP``
 
