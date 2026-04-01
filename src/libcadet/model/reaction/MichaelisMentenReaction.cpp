@@ -192,10 +192,10 @@ protected:
     inline unsigned int getPreKParamIndex(unsigned int reaction, int substrate, bool oldInterface) const
     {
         // Calculate 2D parameter index: (reaction, substrate)
-        if (!oldInterface)
-            return (reaction * _nComp + static_cast<unsigned int>(substrate));
-        else
-            return reaction;
+        
+        return (reaction * _nComp + static_cast<unsigned int>(substrate));
+
+
     }
 
     virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
@@ -272,7 +272,8 @@ protected:
             // Identify substrates (negative entries in stoichiometry matrix)
             const unsigned int nReactions = static_cast<unsigned int>(_stoichiometry.columns());
             _idxSubstrate.clear();
-            _idxPrefactor.resize(nReactions);
+
+            //_idxPrefactor.resize(nReactions);
             _idxCompInhibitors.resize(nReactions);
             _idxUncompInhibitors.resize(nReactions);
             

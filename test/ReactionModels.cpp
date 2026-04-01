@@ -145,7 +145,8 @@ TEST_CASE("MichaelisMenten kinetic and numerical reference with Crank-Nicolson y
 }
 
 
-TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD without inhibition", "[MichaelisMenten],[ReactionModel],[Jacobian],[AD]")
+//TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD without inhibition", "[MichaelisMenten],[ReactionModel],[Jacobian],[AD]")
+TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD without inhibition", "[TestHier]")
 {
 	const unsigned int nBound[] = {1, 2, 1};
 	const double point[] = {1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8};
@@ -156,7 +157,8 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD without inhibition", 
 			"MM_VMAX": [1.0, 0.2, 1.5],
 			"MM_STOICHIOMETRY": [ 1.0, -2.0,  3.0,
 			                          -1.0,  0.0, -2.0,
-			                           0.0,  1.0,  1.0]
+			                           0.0,  1.0,  1.0],
+			"MM_PRE_K": [1.0, 2.0, 3.0, 4.0,5.0, 6.0, 7.0, 8.0, 9.0]
 		})json",
 		point, 1e-15, 1e-15
 	);
