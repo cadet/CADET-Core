@@ -211,7 +211,11 @@ public:
 	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelocity >= 0.0; }
 
 	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return static_cast<double>(_cellCenters[idx]); }
-	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT { return (0.5 + idx) / _nCol; }
+	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT
+	{
+		return (static_cast<double>(_cellCenters[idx]) - static_cast<double>(_innerRadius)) /
+		       (static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius));
+	}
 
 	inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
 	inline unsigned int nCol() const CADET_NOEXCEPT { return _nCol; }
@@ -326,7 +330,11 @@ public:
 	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelocityCoeff >= 0.0; }
 
 	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return static_cast<double>(_cellCenters[idx]); }
-	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT { return (0.5 + idx) / _nCol; }
+	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT
+	{
+		return (static_cast<double>(_cellCenters[idx]) - static_cast<double>(_innerRadius)) /
+		       (static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius));
+	}
 
 	inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
 	inline unsigned int nCol() const CADET_NOEXCEPT { return _nCol; }
