@@ -215,7 +215,7 @@ namespace column
 		}
 
 		void setDiscParam(const std::string& name, int value) {
-			if (name == "EXACT_INTEGRATION")
+			if (name == "POLYNOMIAL_INTEGRATION_TYPE")
 				exactIntegration_ = value;
 			else if (name == "POLYDEG")
 				polyDeg_ = value;
@@ -246,7 +246,7 @@ namespace column
 				if (nElem_) jpp.set("AX_NELEM", nElem_);
 			}
 			else {
-				if (exactIntegration_ > -1) jpp.set("EXACT_INTEGRATION", exactIntegration_);
+				if (exactIntegration_ > -1) jpp.set("POLYNOMIAL_INTEGRATION_TYPE", exactIntegration_);
 				if (polyDeg_) jpp.set("POLYDEG", polyDeg_);
 				if (nElem_) jpp.set("NELEM", nElem_);
 			}

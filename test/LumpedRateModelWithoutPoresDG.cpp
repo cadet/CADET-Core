@@ -22,9 +22,9 @@ TEST_CASE("LRM_DG LWE forward vs backward flow", "[LRM],[DG],[DG1D],[Simulation]
 	cadet::test::column::DGParams disc;
 
 	// Test all integration modes
-	for (int i = 0; i <= 1; i++)
+	for (int i = 0; i <= 2; i++)
 	{
-		disc.setBulkDiscParam("EXACT_INTEGRATION", i);
+		disc.setBulkDiscParam("POLYNOMIAL_INTEGRATION_TYPE", i);
 		cadet::test::column::testForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", disc, 6e-9, 6e-2);
 	}
 }
@@ -52,7 +52,7 @@ TEST_CASE("LRM_DG non-binding linear pulse vs analytic solution", "[LRM],[DG],[D
 //	// Test all integration modes
 //	for (int i = 0; i < 2; i++)
 //	{
-//		disc.setBulkDiscParam("EXACT_INTEGRATION", i);
+//		disc.setBulkDiscParam("POLYNOMIAL_INTEGRATION_TYPE", i);
 //		cadet::test::column::testJacobianForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", disc, std::numeric_limits<float>::epsilon() * 100.0);
 //	}
 //}

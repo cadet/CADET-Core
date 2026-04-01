@@ -102,7 +102,7 @@ void configureBulkDiscretization(cadet::io::HDF5Writer& writer, int polyDeg, int
     {
         writer.scalar<std::string>("SPATIAL_METHOD", "DG");
         writer.scalar<int>("POLYDEG", polyDeg);
-        writer.scalar<int>("EXACT_INTEGRATION", 1);
+        writer.scalar<int>("POLYNOMIAL_INTEGRATION_TYPE", 1);
         writer.scalar<int>("NELEM", polyDeg);
 
         if (nRad > 1)

@@ -165,7 +165,7 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 			}
 			else
 			{
-				disc["EXACT_INTEGRATION"] = 0;
+				disc["POLYNOMIAL_INTEGRATION_TYPE"] = 0;
 				disc["POLYDEG"] = 4;
 				disc["NELEM"] = 2;
 			}
@@ -349,7 +349,7 @@ json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(cons
 		}
 		else if (bulkMethod == "DG")
 		{
-			disc["EXACT_INTEGRATION"] = 0;
+			disc["POLYNOMIAL_INTEGRATION_TYPE"] = 0;
 			disc["POLYDEG"] = 4;
 			disc["NELEM"] = 2;
 		}
@@ -499,7 +499,7 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 		}
 		else if (bulkMethod == "DG")
 		{
-			disc["EXACT_INTEGRATION"] = 0;
+			disc["POLYNOMIAL_INTEGRATION_TYPE"] = 0;
 			disc["POLYDEG"] = 3;
 			disc["NELEM"] = 1;
 		}
@@ -901,7 +901,7 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 					}
 					else
 					{
-						disc["EXACT_INTEGRATION"] = 0;
+						disc["POLYNOMIAL_INTEGRATION_TYPE"] = 0;
 						disc["POLYDEG"] = 3;
 						disc["NELEM"] = 2;
 					}
@@ -1208,7 +1208,7 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 			}
 			else
 			{
-				disc["EXACT_INTEGRATION"] = 0;
+				disc["POLYNOMIAL_INTEGRATION_TYPE"] = 0;
 				disc["POLYDEG"] = 5;
 				disc["NELEM"] = 15;
 			}
