@@ -368,7 +368,12 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configure(IParameterProvider& p
 
 	if (_filmDiffDep)
 	{
-		if (!_filmDiffDep->configure(paramProvider, _unitOpIdx, ParTypeIndep, BoundStateIndep, "FILM_DIFFUSION_DEP"))
+		// FILM_DIFFUSION_DEP type name is read from particle_type_000 scope (in configureModelDiscretization),
+		// so configure parameters (BASE, EXPONENT, etc.) must also be read from the same scope.
+		paramProvider.pushScope("particle_type_000");
+		const bool filmDepSuccess = _filmDiffDep->configure(paramProvider, _unitOpIdx, ParTypeIndep, BoundStateIndep, "FILM_DIFFUSION_DEP");
+		paramProvider.popScope();
+		if (!filmDepSuccess)
 			throw InvalidParameterException("Failed to configure film diffusion parameter dependency (FILM_DIFFUSION_DEP)");
 	}
 
