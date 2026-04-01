@@ -1212,7 +1212,7 @@ namespace cadet
 
 				void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
 
-				bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, int polynomial_integration_mode, unsigned int nelements, unsigned int polyDeg, unsigned int strideNode);
+				bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nelements, unsigned int polyDeg, unsigned int strideNode);
 				bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 				bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac);
 
