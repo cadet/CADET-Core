@@ -7,9 +7,6 @@
 #include "model/GeneralRateModel.hpp"
 #include "model/LumpedRateModelWithoutPores.hpp"
 #include "model/LumpedRateModelWithoutPoresDG.hpp"
-#include "model/RadialLumpedRateModelWithoutPoresDG.hpp"
-#include "model/RadialLumpedRateModelWithPoresDG.hpp"
-#include "model/RadialGeneralRateModelDG.hpp"
 #include "model/LumpedRateModelWithPores.hpp"
 #include "CompileTimeConfig.hpp"
 #include "LoggingUtils.hpp"
@@ -188,7 +185,6 @@ namespace model
 			}
 			else
 			{
-				// LRM used for npartype = 0
 				paramProvider.pushScope("discretization");
 				const std::string discName = paramProvider.exists("SPATIAL_METHOD") ? paramProvider.getString("SPATIAL_METHOD") : "FV";
 				paramProvider.popScope();
@@ -196,7 +192,7 @@ namespace model
 				if (discName == "DG")
 					model = new ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG>(uoId);
 				else
-					model = createRadialFVLRM(uoId);
+					model = createRadialFVLRM(uoId); // LRM used for npartype = 0
 			}
 		}
 		else
@@ -207,11 +203,9 @@ namespace model
 			if (discName == "DG")
 			{
 				if (uoType == "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES")
-					model = new RadialLumpedRateModelWithoutPoresDG(uoId);
-				else if (uoType == "RADIAL_LUMPED_RATE_MODEL_WITH_PORES")
-					model = new RadialLumpedRateModelWithPoresDG(uoId);
-				else if (uoType == "RADIAL_GENERAL_RATE_MODEL")
-					model = new RadialGeneralRateModelDG(uoId);
+					model = new LumpedRateModelWithoutPoresDG(uoId);
+				else if (uoType == "RADIAL_LUMPED_RATE_MODEL_WITH_PORES" || uoType == "RADIAL_GENERAL_RATE_MODEL")
+					model = new ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG>(uoId);
 				else
 					LOG(Error) << "Radial DG only supports LRM, LRMP, and GRM currently for unit " << uoId;
 			}
@@ -344,16 +338,6 @@ namespace model
 
 		models[RadialLRM::identifier()] = selectRadialFlowColumnUnitOperation;
 		models["RLRM"] = selectRadialFlowColumnUnitOperation;
-
-		// DG-specific model registrations
-		models[RadialLumpedRateModelWithoutPoresDG::identifier()] = selectRadialFlowColumnUnitOperation;
-		models["RLRM_DG"] = selectRadialFlowColumnUnitOperation;
-
-		models[RadialLumpedRateModelWithPoresDG::identifier()] = selectRadialFlowColumnUnitOperation;
-		models["RLRMP_DG"] = selectRadialFlowColumnUnitOperation;
-
-		models[RadialGeneralRateModelDG::identifier()] = selectRadialFlowColumnUnitOperation;
-		models["RGRM_DG"] = selectRadialFlowColumnUnitOperation;
 	}
 
 }  // namespace model
