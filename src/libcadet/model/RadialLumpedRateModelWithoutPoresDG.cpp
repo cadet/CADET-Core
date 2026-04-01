@@ -149,7 +149,7 @@ namespace cadet
 			_disc.nPoints = _disc.nNodes * _disc.nElem;
 
 			// Radial DG always uses exact integration
-			int polynomial_integration_mode = 1;
+			int POLYNOMIAL_INTEGRATION_TYPE = 1;
 
 			// Precompute offsets and total number of bound states
 			if (firstConfigCall)
@@ -178,7 +178,7 @@ namespace cadet
 			paramProvider.popScope();
 
 			const unsigned int strideNode = _disc.nComp + _disc.strideBound;
-			const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, polynomial_integration_mode, _disc.nElem, _disc.polyDeg, strideNode);
+			const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nElem, _disc.polyDeg, strideNode);
 
 			_disc.curSection = -1;
 

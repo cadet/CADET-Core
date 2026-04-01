@@ -144,7 +144,6 @@ namespace cadet
 				bool setParameter(const ParameterId& pId, double value);
 				bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
 				bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& id, double value);
-
 			protected:
 
 				template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
@@ -1154,9 +1153,8 @@ namespace cadet
 				}
 			};
 
-
 			/**
-			 * @brief Radial convection dispersion transport operator using DG discretization
+			 * @brief Radial convection dispersion transport operator based on a DG discretization
 			 * @details Implements the radial transport equation
 			 *
 			 * @f[\begin{align}
@@ -1168,7 +1166,7 @@ namespace cadet
 			 \frac{\partial c_i}{\partial \rho}(t,\rho_{out}) &= 0
 			 \end{align} @f]
 			 *
-			 * Key difference from axial: Uses cell-dependent weighted mass matrices M_rho[i] = (delta_rho/2) * M^{(0,1)} + rho_i * M^{(0,0)}
+			 * Key difference from axial operator: Uses cell-dependent weighted mass matrices M_rho[i] = (delta_rho/2) * M^{(0,1)} + rho_i * M^{(0,0)}
 			 *
 			 * This class does not store the Jacobian. It only fills existing matrices given to its residual() functions.
 			 */
@@ -1181,7 +1179,7 @@ namespace cadet
 
 				void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
 
-				bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, int polynomial_integration_mode, unsigned int nelements, unsigned int polyDeg, unsigned int strideNode);
+				bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nelements, unsigned int polyDeg, unsigned int strideNode);
 				bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 				bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, Eigen::MatrixXd& jacInlet);
 
@@ -1228,7 +1226,6 @@ namespace cadet
 				inline unsigned int nelements() const CADET_NOEXCEPT { return _nElem; }
 				inline unsigned int nNodes() const CADET_NOEXCEPT { return _nNodes; }
 				inline unsigned int nPoints() const CADET_NOEXCEPT { return _nPoints; }
-				inline bool exactInt() const CADET_NOEXCEPT { return true; }  // Radial DG always uses exact integration
 
 				// Indexer functionality
 				inline int strideColElement() const CADET_NOEXCEPT { return static_cast<int>(_strideElem); }
@@ -1264,6 +1261,29 @@ namespace cadet
 				bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
 				bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& id, double value);
 
+				void jacobianInlet(Eigen::MatrixXd& jacInlet)
+				{
+					jacInlet.resize(_nNodes, 1); // first cell depends on inlet concentration (same for every component)
+
+					if (_curVelocity >= 0.0)
+					{
+						// Forward flow (outward radial): inlet at inner radius, first element
+						jacInlet = _DGjacRadConvBlocks[0].col(0);
+					}
+					else
+					{
+						// Backward flow (inward radial): inlet at outer radius, last element
+						jacInlet = _DGjacRadConvBlocks[_nElem - 1].col(_DGjacRadConvBlocks[_nElem - 1].cols() - 1);
+					}
+				}
+
+				Eigen::MatrixXd jacobianInlet()
+				{
+					Eigen::MatrixXd jacInlet = Eigen::MatrixXd::Zero(_nNodes, 1);
+					jacobianInlet(jacInlet);
+					return jacInlet;
+				}
+
 			protected:
 
 				// Discretization parameters
@@ -1272,6 +1292,7 @@ namespace cadet
 				unsigned int _nElem;      //!< Number of radial elements
 				unsigned int _nNodes;     //!< Nodes per element
 				unsigned int _nPoints;    //!< Total radial discrete points
+				int _polyIntType; //!< specifies the mode of polynomial integration e.g. LGL collocation
 
 				unsigned int _strideNode; //!< Stride between nodes
 				unsigned int _strideElem; //!< Stride between elements
@@ -1538,7 +1559,7 @@ namespace cadet
 
 				/**
 				 * @brief Computes numerical fluxes c* and g* for radial DG
-				 * @detail Following CADET-Julia pattern:
+				 * @detail
 				 *   - c*: upwind convection flux
 				 *   - g*: central average for interior, Danckwerts for inlet, zero for outlet
 				 *   - u = v * rho_inlet for forward flow (velocity × boundary radius)
@@ -1607,7 +1628,7 @@ namespace cadet
 				}
 
 				/**
-				 * @brief Computes surface integral for main equation (CADET-Julia pattern)
+				 * @brief Computes surface integral for main equation
 				 * @detail Exact integration: Dc -= (2/Δρ) * M_ρ^{-1} * [
 				 *           [:, 0] * (-u * c*[left] + rho[left] * D[left] * g*[left]) +
 				 *           [:, N] * (u * c*[right] - rho[right] * D[right] * g*[right])
@@ -1653,7 +1674,7 @@ namespace cadet
 				}
 
 				/**
-				 * @brief Computes volume integral for main equation (CADET-Julia pattern)
+				 * @brief Computes volume integral for main equation
 				 * @detail Dc += (2/Δρ) * M_ρ^{-1} * (D^T * M^{(0,0)} * u * c - S_g * g)
 				 *         For constant dispersion: S_g = D^T * M_ρ, multiply by d_rad
 				 *         For variable dispersion: S_g already includes D(ρ), don't multiply by d_rad
@@ -1728,7 +1749,7 @@ namespace cadet
 
 				/**
 				 * @brief Main residual implementation for radial DG
-				 * @detail Following CADET-Julia radialresidualImpl! pattern:
+				 * @detail
 				 *   1. Initialize residual with time derivative dc/dt
 				 *   2. For each component:
 				 *      a. Compute auxiliary variable g = dc/drho via volume + surface integrals
