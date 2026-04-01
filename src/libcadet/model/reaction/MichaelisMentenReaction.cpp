@@ -272,16 +272,25 @@ protected:
             // Identify substrates (negative entries in stoichiometry matrix)
             const unsigned int nReactions = static_cast<unsigned int>(_stoichiometry.columns());
             _idxSubstrate.clear();
+            _idxPrefactor.resize(nReactions);
             _idxCompInhibitors.resize(nReactions);
             _idxUncompInhibitors.resize(nReactions);
+            
 
             for (unsigned int r = 0; r < nReactions; ++r)
             {
                 std::vector<int> idxSubstrateReaction_r;
+                std::vector<int> idxPrefactorReaction_r;
+
                 for (unsigned int c = 0; c < _nComp; ++c)
                 {
                     if (_stoichiometry.native(c, r) < 0.0)
                         idxSubstrateReaction_r.push_back(static_cast<int>(c));
+                    
+                    const unsigned int paramIdx = getPreKParamIndex(r, c, _oldInterface);
+                    double pre_k = static_cast<double>(PRE_K[paramIdx]);
+                    if (pre_k != 0.0)
+						idxPrefactorReaction_r.push_back(static_cast<int>(c));
                 }
 
                 if (idxSubstrateReaction_r.empty())
@@ -290,6 +299,7 @@ protected:
                     throw InvalidParameterException("Michaelis Menten: The old interface is used which does not support multiple substrats. Please refer to the documentation of CADET version >= 5.2.0");
 
                 _idxSubstrate.push_back(idxSubstrateReaction_r);
+				_idxPrefactor.push_back(idxPrefactorReaction_r);
 
                 // Pre-identify inhibitors for each substrate in this reaction
                 const size_t numSubstrates = idxSubstrateReaction_r.size();
@@ -347,8 +357,8 @@ protected:
             {
                 unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(rowIdx), _oldInterface);
                 flux_t pre_k_j = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->KPrefactor[prekIdx]);
-
-                if (pre_k_j != 0)
+                bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
+                if (pre_k_j != 0 && !isSubstrate)
                     preProd *= pre_k_j * y[rowIdx];
             }
             // Product over all substrates
@@ -438,6 +448,7 @@ protected:
             std::vector<double> substratValues(nSub);    // Values for each substrate term
             std::vector<double> compInhSums(nSub, 0.0);  // Competitive inhibition sums
             std::vector<double> uncompInhSums(nSub, 0.0); // Uncompetitive inhibition sums
+
             double flux = 1.0; // Total flux
 
             // Calculate inhibition sums and substrate values
@@ -489,10 +500,20 @@ protected:
                 substratValues[subIdx] = subValue;
                 flux *= subValue;
             }
-
+			//  Calculate pre-factor product
+            double preProd = 1.0;
+            for (unsigned int rowIdx = 0; rowIdx < static_cast<unsigned int>(_stoichiometry.rows()); ++rowIdx)
+            {
+                unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(rowIdx), _oldInterface);
+                double pre_k_j = static_cast<double>(p->KPrefactor[prekIdx]);
+                bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
+                if (pre_k_j != 0 && !isSubstrate)
+                    preProd *= pre_k_j * y[rowIdx];
+                    //_idxPrefactor[r].push_back(static_cast<int>(rowIdx));
+            }
             // Multiplication with vMax
             const double vMax = static_cast<double>(p->vMax[r]);
-            flux *= vMax;
+            flux *= preProd * vMax;
 
             // Calculate Jacobian derivatives for all components
             for (unsigned int comp = 0; comp < _nComp; ++comp)
@@ -606,6 +627,16 @@ protected:
                     }
                 }
 
+				// Check for pre-factor contribution
+                if (!isSubstrate)
+                {
+                    unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(comp), _oldInterface);
+                    double pre_k_j = static_cast<double>(p->KPrefactor[prekIdx]);
+                    if (pre_k_j != 0.0)
+                    {
+                        dvdy += flux / y[comp];
+                    }
+                }
                 if (std::abs(dvdy) < 1e-12)
                     continue;
 
