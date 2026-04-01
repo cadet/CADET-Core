@@ -61,7 +61,6 @@ AxialConvectionDispersionOperatorBaseDG::~AxialConvectionDispersionOperatorBaseD
  * @param [in] paramProvider Parameter provider for reading parameters
  * @param [in] helper Configures parameter dependencies
  * @param [in] nComp Number of components
- * @param [in] exact_integration DG volume integral computation
  * @param [in] nElem Number of axial elements
  * @param [in] polyDeg Polynomial degree of DG approach
  * @param [in] strideNode node stride in state vector

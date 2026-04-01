@@ -106,7 +106,7 @@ Recommendations on DG discretization parameters
 - Employ an axial polynomial degree between 3 and 5
 - Select a lower axial polynomial degree for approximating functions that tend to be less smooth and employ more elements instead. Converse choice for smooth problems
 - Adjust the DG particle polynomial degree to control approximation accuracy; leave the number of elements at one. Make exceptions if very steep gradients occur inside the particles or when specific regions of the particle domain are more interesting (the spatial resolution of certain regions can be refined by a user-defined spacing of multiple elements)
-- The field ``EXACT_INTEGRATION`` specifies the DG polynomial integration method. The default value of $0$ (collocation DG) is expected to be slightly more performant in most settings
+- The field ``POLYNOMIAL_INTEGRATION_TYPE`` specifies the DG polynomial integration type. The default value of $0$ (collocation DG) is expected to be slightly more performant in most settings.
 
 Refinement strategy
 -------------------
