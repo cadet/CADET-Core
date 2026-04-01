@@ -7,6 +7,9 @@ CADET-Core
 .. image:: https://github.com/cadet/cadet-core/actions/workflows/ci.yml/badge.svg?branch=master
    :target: https://github.com/cadet/cadet-core/actions/workflows/ci.yml?query=branch%3Amaster
 
+.. image:: https://codecov.io/gh/cadet/CADET-Core/graph/badge.svg?token=NKLJL03PA5
+   :target: https://codecov.io/gh/cadet/CADET-Core/graph
+
 .. image:: https://joss.theoj.org/papers/282a9ec56a0680e51ed4f1fa8fda3650/status.svg
    :target: https://joss.theoj.org/papers/282a9ec56a0680e51ed4f1fa8fda3650
 
