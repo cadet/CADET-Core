@@ -237,7 +237,7 @@ For further information on the choice of discretization methods and their parame
    **Type:** string  **Length:** 1
    ================  =============
 
-``RADIAL_COMPARTMENTS``
+``RADIAL_DISC_VECTOR``
 
    Coordinates for the radial compartment boundaries (ignored if :math:`\texttt{RADIAL_DISC_TYPE} \neq \texttt{USER_DEFINED}`). The coordinates are absolute and have to include the endpoints 0 and :math:`\texttt{COLUMN_RADIUS}`. The values are expected in ascending order (i.e., 0 is the first and :math:`\texttt{COLUMN_RADIUS}` the last value in the array).
 
