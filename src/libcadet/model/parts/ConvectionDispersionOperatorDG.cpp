@@ -80,16 +80,6 @@ bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPara
 
 	paramProvider.pushScope("discretization");
 
-	if (paramProvider.exists("POLYNOMIAL_BASIS"))
-	{
-		if (paramProvider.getString("POLYNOMIAL_BASIS") != "LEGENDRE")
-			throw InvalidParameterException("Invalid value for POLYNOMIAL_BASIS (only LEGENDRE is supported)");
-	}
-	if (paramProvider.exists("POLYNOMIAL_INTERPOLATION_NODES"))
-	{
-		if (paramProvider.getString("POLYNOMIAL_INTERPOLATION_NODES") != "LOBATTO")
-			throw InvalidParameterException("Invalid value for POLYNOMIAL_INTERPOLATION_NODES (only LOBATTO is supported)");
-	}
 	_polyIntType = paramProvider.getInt("POLYNOMIAL_INTEGRATION_TYPE");
 	if (_polyIntType < 0 || _polyIntType > 2)
 		throw InvalidParameterException("Invalid value for POLYNOMIAL_INTEGRATION_TYPE (should be 0, 1, or 2)");
