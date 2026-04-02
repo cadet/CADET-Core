@@ -659,12 +659,12 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configure(UnitOpIdx unitOpIdx
 	else if (rdt == "USER_DEFINED")
 	{
 		_radialDiscretizationMode = RadialDiscretizationMode::UserDefined;
-		readScalarParameterOrArray(_radialElemInterfaces, paramProvider, "RADIAL_COMPARTMENTS", 1);
+		readScalarParameterOrArray(_radialElemInterfaces, paramProvider, "RADIAL_DISC_VECTOR", 1);
 
 		if (_radialElemInterfaces.size() < _radNElem + 1)
-			throw InvalidParameterException("Number of elements in field RADIAL_COMPARTMENTS is less than radNElem + 1 (" + std::to_string(_radNElem + 1) + ")");
+			throw InvalidParameterException("Number of elements in field RADIAL_DISC_VECTOR is less than radNElem + 1 (" + std::to_string(_radNElem + 1) + ")");
 
-		registerParam1DArray(parameters, _radialElemInterfaces, [=](bool multi, unsigned int i) { return makeParamId(hashString("RADIAL_COMPARTMENTS"), unitOpIdx, CompIndep, i, BoundStateIndep, ReactionIndep, SectionIndep); });
+		registerParam1DArray(parameters, _radialElemInterfaces, [=](bool multi, unsigned int i) { return makeParamId(hashString("RADIAL_DISC_VECTOR"), unitOpIdx, CompIndep, i, BoundStateIndep, ReactionIndep, SectionIndep); });
 	}
 	else
 		_radialDiscretizationMode = RadialDiscretizationMode::Equidistant;
