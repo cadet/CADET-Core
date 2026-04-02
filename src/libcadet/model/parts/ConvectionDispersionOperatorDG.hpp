@@ -1261,29 +1261,6 @@ namespace cadet
 				bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
 				bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& id, double value);
 
-				void jacobianInlet(Eigen::MatrixXd& jacInlet)
-				{
-					jacInlet.resize(_nNodes, 1); // first cell depends on inlet concentration (same for every component)
-
-					if (_curVelocity >= 0.0)
-					{
-						// Forward flow (outward radial): inlet at inner radius, first element
-						jacInlet = _DGjacRadConvBlocks[0].col(0);
-					}
-					else
-					{
-						// Backward flow (inward radial): inlet at outer radius, last element
-						jacInlet = _DGjacRadConvBlocks[_nElem - 1].col(_DGjacRadConvBlocks[_nElem - 1].cols() - 1);
-					}
-				}
-
-				Eigen::MatrixXd jacobianInlet()
-				{
-					Eigen::MatrixXd jacInlet = Eigen::MatrixXd::Zero(_nNodes, 1);
-					jacobianInlet(jacInlet);
-					return jacInlet;
-				}
-
 			protected:
 
 				// Discretization parameters
