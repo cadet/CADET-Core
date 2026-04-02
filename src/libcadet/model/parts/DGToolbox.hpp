@@ -151,6 +151,44 @@ Eigen::MatrixXd mMatrix(const unsigned int polyDeg, const Eigen::VectorXd nodes,
  */
 Eigen::MatrixXd weightedMMatrix(const unsigned int polyDeg, const Eigen::VectorXd nodes);
 /**
+ * @brief calculates a variable coefficient mass matrix via numerical quadrature
+ * @detail Computes integrals of the form \int_E f(\xi) \ell_i(\xi) \ell_j(\xi) d\xi
+ *         where f(\xi) is given by its values at LGL nodes.
+ *         Uses Gauss-Legendre quadrature with nQuadPoints for exact integration.
+ * @param [in] polyDeg polynomial degree
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] coeffAtNodes coefficient values f evaluated at LGL nodes
+ * @param [in] nQuadPoints number of Gauss quadrature points (default: polyDeg + 2 for safety)
+ */
+Eigen::MatrixXd varCoeffMMatrix(const unsigned int polyDeg, const Eigen::VectorXd LGLnodes,
+                                 const Eigen::VectorXd coeffAtNodes, const int nQuadPoints = -1);
+/**
+ * @brief calculates a variable coefficient stiffness matrix via numerical quadrature
+ * @detail Computes integrals of the form \int_E f(\xi) \ell'_i(\xi) \ell'_j(\xi) d\xi
+ *         where f(\xi) is given by its values at LGL nodes.
+ *         Used for dispersion terms with spatially varying D(x).
+ * @param [in] polyDeg polynomial degree
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] coeffAtNodes coefficient values f evaluated at LGL nodes
+ * @param [in] nQuadPoints number of Gauss quadrature points (default: polyDeg + 2 for safety)
+ */
+Eigen::MatrixXd varCoeffStiffnessMatrix(const unsigned int polyDeg, const Eigen::VectorXd LGLnodes,
+                                         const Eigen::VectorXd coeffAtNodes, const int nQuadPoints = -1);
+/**
+ * @brief calculates a mixed variable coefficient matrix for film diffusion terms
+ * @detail Computes integrals of the form \int_E f(\xi) \ell_i(\xi) \ell_j(\xi) g(\xi) d\xi
+ *         Used for radial film diffusion where k_f/rho terms appear.
+ * @param [in] polyDeg polynomial degree
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] coeff1AtNodes first coefficient values evaluated at LGL nodes
+ * @param [in] coeff2AtNodes second coefficient values evaluated at LGL nodes (optional, default ones)
+ * @param [in] nQuadPoints number of Gauss quadrature points (default: polyDeg + 3)
+ */
+Eigen::MatrixXd varCoeffMMatrixProduct(const unsigned int polyDeg, const Eigen::VectorXd LGLnodes,
+                                        const Eigen::VectorXd coeff1AtNodes,
+                                        const Eigen::VectorXd coeff2AtNodes = Eigen::VectorXd(),
+                                        const int nQuadPoints = -1);
+/**
  * @brief calculates a specific second order nodal stiffness matrix
  * @detail for integrals including terms of the form (1 - \xi)^\alpha (1 + \xi)^\beta. Computation via transformation to the respective Jacobi polynomial
  * @param [in] polyDeg polynomial degree

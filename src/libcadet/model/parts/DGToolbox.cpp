@@ -672,6 +672,43 @@ Eigen::MatrixXd varCoeffMMatrix(const unsigned int polyDeg, const Eigen::VectorX
 
 	return massMatrix;
 }
+//Eigen::MatrixXd varCoeffMMatrix(const unsigned int polyDeg, const Eigen::VectorXd LGLnodes,
+//	const Eigen::VectorXd coeffAtNodes, const int nQuadPoints)
+//{
+//	const unsigned int nNodes = polyDeg + 1;
+//	const int nQuad = (nQuadPoints < 0) ? static_cast<int>(polyDeg + 2) : nQuadPoints;
+//
+//	// Get Gauss-Legendre quadrature points and weights
+//	Eigen::VectorXd quadNodes = Eigen::VectorXd::Zero(nQuad);
+//	Eigen::VectorXd quadWeights = Eigen::VectorXd::Zero(nQuad);
+//	lgNodesWeights(nQuad - 1, quadNodes, quadWeights, false);
+//
+//	// Evaluate Lagrange basis functions at quadrature points
+//	Eigen::MatrixXd basisAtQuad(nNodes, nQuad);
+//	for (unsigned int j = 0; j < nNodes; j++) {
+//		basisAtQuad.row(j) = evalLagrangeBasis(j, LGLnodes, quadNodes);
+//	}
+//
+//	// Interpolate coefficient to quadrature points: f(quad_k) = sum_j coeff_j * ell_j(quad_k)
+//	Eigen::VectorXd coeffAtQuad = Eigen::VectorXd::Zero(nQuad);
+//	for (int k = 0; k < nQuad; k++) {
+//		for (unsigned int j = 0; j < nNodes; j++) {
+//			coeffAtQuad[k] += coeffAtNodes[j] * basisAtQuad(j, k);
+//		}
+//	}
+//
+//	// Compute mass matrix: M_ij = sum_k w_k * f(quad_k) * ell_i(quad_k) * ell_j(quad_k)
+//	Eigen::MatrixXd massMatrix = Eigen::MatrixXd::Zero(nNodes, nNodes);
+//	for (unsigned int i = 0; i < nNodes; i++) {
+//		for (unsigned int j = 0; j < nNodes; j++) {
+//			for (int k = 0; k < nQuad; k++) {
+//				massMatrix(i, j) += quadWeights[k] * coeffAtQuad[k] * basisAtQuad(i, k) * basisAtQuad(j, k);
+//			}
+//		}
+//	}
+//
+//	return massMatrix;
+//}
 /**
  * @brief computes radial film diffusion mass matrix M_K for a single cell with variable k_f(x)
  * @detail For radial DG: M_K[i,j] = ∫ L_i * L_j * ρ(ξ) * k_f(ρ(ξ)) dξ
