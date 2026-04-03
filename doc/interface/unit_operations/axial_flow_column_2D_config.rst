@@ -342,7 +342,7 @@ Finite Volumes
    **Type:** string  **Range:** :math:`\texttt{WENO, KOREN}`  **Length:** 1
    ================  =======================================  =============
 
-   For further information on discretization parameters for reconstruction methods, see also :ref:`flux_reconstruction_methods` (FV specific).
+   For further information on discretization parameters for reconstruction methods (including ``AXIAL_GRID_FACES`` for non-equidistant axial grid spacing), see also :ref:`flux_reconstruction_methods` (FV specific).
 
 ``GS_TYPE``
 
