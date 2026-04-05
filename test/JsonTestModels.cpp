@@ -190,13 +190,13 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 		disc["USE_ANALYTIC_JACOBIAN"] = true;
 
 		particle["INIT_CS"] = { 1.2e3, 0.0, 0.0, 0.0 };
-		if (uoType.find("GRM") != std::string::npos)
+		if (uoType.find("GRM") != std::string::npos || uoType.find("GENERAL_RATE_MODEL") != std::string::npos)
 		{
 			particle["HAS_FILM_DIFFUSION"] = true;
 			particle["HAS_PORE_DIFFUSION"] = true;
 			particle["HAS_SURFACE_DIFFUSION"] = true;
 		}
-		else if (uoType.find("LRMP") != std::string::npos)
+		else if (uoType.find("LRMP") != std::string::npos || uoType.find("WITH_PORES") != std::string::npos)
 			particle["HAS_FILM_DIFFUSION"] = true;
 		else
 			particle["HAS_FILM_DIFFUSION"] = false;
@@ -544,13 +544,13 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 	}
 
 	particle["INIT_CS"] = { 5.0, 6.0, 7.0 };
-	if (uoType.find("GRM") != std::string::npos)
+	if (uoType.find("GRM") != std::string::npos || uoType.find("GENERAL_RATE_MODEL") != std::string::npos)
 	{
 		particle["HAS_FILM_DIFFUSION"] = true;
 		particle["HAS_PORE_DIFFUSION"] = true;
 		particle["HAS_SURFACE_DIFFUSION"] = true;
 	}
-	else if (uoType.find("LRMP") != std::string::npos)
+	else if (uoType.find("LRMP") != std::string::npos || uoType.find("WITH_PORES") != std::string::npos)
 		particle["HAS_FILM_DIFFUSION"] = true;
 	else
 		particle["HAS_FILM_DIFFUSION"] = false;
@@ -916,13 +916,13 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 			}
 
 			particle["INIT_CS"] = { 0.0 };
-			if (uoType.find("GRM") != std::string::npos)
+			if (uoType.find("GRM") != std::string::npos || uoType.find("GENERAL_RATE_MODEL") != std::string::npos)
 			{
 				particle["HAS_FILM_DIFFUSION"] = true;
 				particle["HAS_PORE_DIFFUSION"] = true;
 				particle["HAS_SURFACE_DIFFUSION"] = true;
 			}
-			else if (uoType.find("LRMP") != std::string::npos)
+			else if (uoType.find("LRMP") != std::string::npos || uoType.find("WITH_PORES") != std::string::npos)
 				particle["HAS_FILM_DIFFUSION"] = true;
 			else
 				particle["HAS_FILM_DIFFUSION"] = false;
@@ -1228,13 +1228,13 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 		disc["USE_ANALYTIC_JACOBIAN"] = true;
 
 		particle["INIT_CS"] = { 0.0 };
-		if (uoType.find("GRM") != std::string::npos)
+		if (uoType.find("GRM") != std::string::npos || uoType.find("GENERAL_RATE_MODEL") != std::string::npos)
 		{
 			particle["HAS_FILM_DIFFUSION"] = true;
 			particle["HAS_PORE_DIFFUSION"] = true;
 			particle["HAS_SURFACE_DIFFUSION"] = true;
 		}
-		else if (uoType.find("LRMP") != std::string::npos)
+		else if (uoType.find("LRMP") != std::string::npos || uoType.find("WITH_PORES") != std::string::npos)
 			particle["HAS_FILM_DIFFUSION"] = true;
 		else
 			particle["HAS_FILM_DIFFUSION"] = false;

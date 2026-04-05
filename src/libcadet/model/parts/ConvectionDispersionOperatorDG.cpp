@@ -1163,12 +1163,12 @@ bool RadialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPar
 	if (paramProvider.exists("POLYNOMIAL_INTERPOLATION_NODES"))
 	{
 		const std::string nodeType = paramProvider.getString("POLYNOMIAL_INTERPOLATION_NODES");
-		if (nodeType == "CHEBYSHEV_GAUSS_LOBATTO")
+		if (nodeType == "CHEBYSHEV_GAUSS_LOBATTO" || nodeType == "CGL")
 			dgtoolbox::cglNodesWeights(_polyDeg, _nodes, _invWeights, true);
-		else if (nodeType == "LEGENDRE_GAUSS_LOBATTO")
+		else if (nodeType == "LEGENDRE_GAUSS_LOBATTO" || nodeType == "LGL")
 			dgtoolbox::lglNodesWeights(_polyDeg, _nodes, _invWeights, true);
 		else
-			throw InvalidParameterException("Unknown POLYNOMIAL_INTERPOLATION_NODES '" + nodeType + "'. Supported: LEGENDRE_GAUSS_LOBATTO, CHEBYSHEV_GAUSS_LOBATTO");
+			throw InvalidParameterException("Unknown POLYNOMIAL_INTERPOLATION_NODES '" + nodeType + "'. Supported: LEGENDRE_GAUSS_LOBATTO (LGL), CHEBYSHEV_GAUSS_LOBATTO (CGL)");
 	}
 	else
 		dgtoolbox::cglNodesWeights(_polyDeg, _nodes, _invWeights, true);

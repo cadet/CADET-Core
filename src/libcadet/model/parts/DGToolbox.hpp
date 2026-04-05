@@ -208,11 +208,25 @@ Eigen::VectorXd evalLagrangeBasisDerivative(const int j, const Eigen::VectorXd b
  * @param [in] rho_left left boundary of cell in physical space
  * @param [in] delta_rho cell width in physical space
  * @param [in] dispAtNodes dispersion coefficient D evaluated at physical node positions
- * @param [in] nQuadPoints number of Gauss quadrature points (default: polyDeg + 2, use higher for nonlinear D)
+ * @param [in] nQuadPoints number of Gauss quadrature points (default: 3/2 rule for dealiasing)
  */
 Eigen::MatrixXd radialDispersionMatrix(const unsigned int polyDeg, const Eigen::VectorXd LGLnodes,
                                         const double rho_left, const double delta_rho,
                                         const Eigen::VectorXd dispAtNodes, const int nQuadPoints = -1);
+/**
+ * @brief computes radial film diffusion mass matrix M_K for a single cell with variable k_f(rho)
+ * @detail For radial DG: M_K[i,j] = ∫ L_i * L_j * ρ(ξ) * k_f(ρ(ξ)) dξ
+ *         where ρ(ξ) = rho_left + (delta_rho/2) * (1 + ξ)
+ * @param [in] polyDeg polynomial degree
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] rho_left left boundary of cell in physical space
+ * @param [in] delta_rho cell width in physical space
+ * @param [in] kfAtNodes film diffusion coefficient k_f evaluated at physical node positions
+ * @param [in] nQuadPoints number of Gauss quadrature points (default: 3/2 rule for dealiasing)
+ */
+Eigen::MatrixXd radialFilmDiffusionMatrix(const unsigned int polyDeg, const Eigen::VectorXd LGLnodes,
+                                            const double rho_left, const double delta_rho,
+                                            const Eigen::VectorXd kfAtNodes, const int nQuadPoints = -1);
 /**
  * @brief evaluates the jth Lagrange basis functions at given nodes
  * @param [in, out] coords DG coordinate array

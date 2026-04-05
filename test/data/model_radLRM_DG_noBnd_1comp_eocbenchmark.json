@@ -84,7 +84,8 @@
                 "POLYDEG": 4,
                 "NELEM": 4,
                 "USE_ANALYTIC_JACOBIAN": true
-            }
+            },
+            "COL_POROSITY": 0.8
         },
         "unit_002": {
             "NCOMP": 1,

@@ -202,9 +202,7 @@ namespace model
 
 			if (discName == "DG")
 			{
-				if (uoType == "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES")
-					model = new LumpedRateModelWithoutPoresDG(uoId);
-				else if (uoType == "RADIAL_LUMPED_RATE_MODEL_WITH_PORES" || uoType == "RADIAL_GENERAL_RATE_MODEL")
+				if (uoType == "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES" || uoType == "RADIAL_LUMPED_RATE_MODEL_WITH_PORES" || uoType == "RADIAL_GENERAL_RATE_MODEL")
 					model = new ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG>(uoId);
 				else
 					LOG(Error) << "Radial DG only supports LRM, LRMP, and GRM currently for unit " << uoId;

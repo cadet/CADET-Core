@@ -73,6 +73,7 @@ namespace parts
 
 class IDynamicReactionModel;
 class IParameterStateDependence;
+class IParameterParameterDependence;
 
 /**
  * @brief General rate model of liquid column chromatography
@@ -324,6 +325,16 @@ protected:
 	//MatrixXd FDJac; // test purpose FD Jacobian
 
 	Eigen::MatrixXd _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
+
+	IParameterParameterDependence* _filmDiffDep; //!< Film diffusion position dependence (nullptr if constant)
+	bool _variableFilmDiff; //!< Flag: true if film diffusion is position-dependent
+	std::vector<Eigen::MatrixXd> _filmDiffCoupling; //!< Per-cell coupling matrix invMRho * M_K [nElem]
+	std::vector<Eigen::VectorXd> _filmDiffAtNodes; //!< Per-cell k_f values at DG nodes [nElem][nNodes]
+
+	void updateFilmDiffCoupling(unsigned int secIdx, unsigned int comp);
+
+	template <typename StateType, typename ResidualType, typename ParamType>
+	void applyFilmDiffMKCorrection(unsigned int secIdx, StateType const* y, ResidualType* res);
 
 	active _colPorosity; //!< Column porosity (external porosity) \f$ \varepsilon_c \f$
 	std::vector<active> _parTypeVolFrac; //!< Volume fraction of each particle type
