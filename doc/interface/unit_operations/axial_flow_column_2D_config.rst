@@ -60,14 +60,6 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
    **Type:** double  **Range:** :math:`(0,1]`  **Length:** :math:`1 / \texttt{NRAD}`
    ================  ========================  =====================================
 
-``NPARTYPE``
-
-   Number of particle types. Defaults to 0.
-   
-   =============  =========================  =============
-   **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
-   =============  =========================  =============
-
 ``PAR_TYPE_VOLFRAC``
 
    Volume fractions of the particle types. The volume fractions can be set homogeneous or individually along both axes. For each cell, the volume fractions have to sum to 1. 
@@ -237,7 +229,7 @@ For further information on the choice of discretization methods and their parame
    **Type:** string  **Length:** 1
    ================  =============
 
-``RADIAL_DISC_VECTOR``
+``RADIAL_COMPARTMENTS``
 
    Coordinates for the radial compartment boundaries (ignored if :math:`\texttt{RADIAL_DISC_TYPE} \neq \texttt{USER_DEFINED}`). The coordinates are absolute and have to include the endpoints 0 and :math:`\texttt{COLUMN_RADIUS}`. The values are expected in ascending order (i.e., 0 is the first and :math:`\texttt{COLUMN_RADIUS}` the last value in the array).
 
@@ -342,7 +334,7 @@ Finite Volumes
    **Type:** string  **Range:** :math:`\texttt{WENO, KOREN}`  **Length:** 1
    ================  =======================================  =============
 
-   For further information on discretization parameters for reconstruction methods (including ``AXIAL_GRID_FACES`` for non-equidistant axial grid spacing), see also :ref:`flux_reconstruction_methods` (FV specific).
+   For further information on discretization parameters for reconstruction methods, see also :ref:`flux_reconstruction_methods` (FV specific).
 
 ``GS_TYPE``
 

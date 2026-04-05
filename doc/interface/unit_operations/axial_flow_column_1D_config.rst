@@ -51,7 +51,7 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
 
 ``NPARTYPE``
 
-   Number of particle types. Defaults to 0.
+   Number of particle types.
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
@@ -194,17 +194,13 @@ Discontinuous Galerkin
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
    =============  =========================  =============
 
-``POLYNOMIAL_INTEGRATION_TYPE``
+``EXACT_INTEGRATION``
 
    Specifies the DG integration variant. Optional, defaults to 0
    
-   0. Collocation Lagrange-Gauss-Lobatto quadrature (inexact, but faster)
-   1. Exact analytical integration
-   0. Gauss-Legendre quadrature (exact)
-   
-   =============  ==============================  =============
-   **Type:** int  **Range:** :math:`\{0, 1, 2\}`  **Length:** 1
-   =============  ==============================  =============
+   =============  ===========================  =============
+   **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1
+   =============  ===========================  =============
 
 ``LINEAR_SOLVER``
 
@@ -281,4 +277,4 @@ The following FV discretization parameters are only required if particles are pr
    **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1
    =============  ===========================  =============
 
-For further information on discretization parameters, see also :ref:`flux_reconstruction_methods` (FV specific), and :ref:`non_consistency_solver_parameters`.
+For further information on discretization parameters, see also :ref:`flux_reconstruction_methods` (FV specific)), and :ref:`non_consistency_solver_parameters`.

@@ -23,7 +23,6 @@
 #include "linalg/CompressedSparseMatrix.hpp"
 #include "Memory.hpp"
 #include "Weno.hpp"
-#include "HighResKoren.hpp"
 #include "model/ParameterMultiplexing.hpp"
 #include "SimulationTypes.hpp"
 
@@ -157,7 +156,6 @@ protected:
 
 	active _colLength; //!< Column length \f$ L \f$
 	active _colRadius; //!< Column radius \f$ r_c \f$
-	bool _gridEquidistant; //!< Determines whether the axial grid is equidistant
 	std::vector<active> _axialEdges; //!< Positions of axial cell faces (length nCol+1)
 	std::vector<active> _radialEdges; //!< Boundaries of the radial compartments
 	std::vector<active> _radialCenters; //!< Center of each radial compartment
@@ -178,9 +176,8 @@ protected:
 	bool _singleVelocity; //!< Determines whether only one velocity for all compartments is given
 
 	ArrayPool _stencilMemory; //!< Provides memory for the stencil
-	double* _reconstrDerivatives; //!< Holds derivatives of the reconstruction scheme
-	Weno* _weno; //!< The WENO scheme implementation (mutually exclusive with _koren)
-	HighResolutionKoren* _koren; //!< The Koren scheme implementation (mutually exclusive with _weno)
+	double* _wenoDerivatives; //!< Holds derivatives of the WENO scheme
+	Weno _weno; //!< The WENO scheme implementation
 
 	linalg::CompressedSparseMatrix _jacC; //!< Jacobian
 	LinearSolver* _linearSolver; //!< Solves linear system with time discretized Jacobian

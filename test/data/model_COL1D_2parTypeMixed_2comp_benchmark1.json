@@ -85,7 +85,7 @@
         "UNIT_TYPE": "COLUMN_MODEL_1D",
         "VELOCITY": 0.000575,
         "discretization": {
-          "POLYNOMIAL_INTEGRATION_TYPE": 0,
+          "EXACT_INTEGRATION": 0,
           "NELEM": 5,
           "POLYDEG": 3,
           "SPATIAL_METHOD": "DG",

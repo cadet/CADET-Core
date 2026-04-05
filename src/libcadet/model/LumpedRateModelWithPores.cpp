@@ -244,8 +244,6 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 	paramProvider.pushScope("particle_type_000");
 	if (paramProvider.exists("FILM_DIFFUSION_DEP"))
 	{
-		if (_disc.nParType > 1)
-			LOG(Warning) << "The parameter dependence for film diffusion (FILM_DIFFUSION_DEP) specified for particle type 000 will be applied to all particle types.";
 		const std::string paramDepName = paramProvider.getString("FILM_DIFFUSION_DEP");
 		_filmDiffDep = helper.createParameterParameterDependence(paramDepName);
 		if (!_filmDiffDep)
@@ -370,12 +368,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configure(IParameterProvider& p
 
 	if (_filmDiffDep)
 	{
-		// FILM_DIFFUSION_DEP type name is read from particle_type_000 scope (in configureModelDiscretization),
-		// so configure parameters (BASE, EXPONENT, etc.) must also be read from the same scope.
-		paramProvider.pushScope("particle_type_000");
-		const bool filmDepSuccess = _filmDiffDep->configure(paramProvider, _unitOpIdx, ParTypeIndep, BoundStateIndep, "FILM_DIFFUSION_DEP");
-		paramProvider.popScope();
-		if (!filmDepSuccess)
+		if (!_filmDiffDep->configure(paramProvider, _unitOpIdx, ParTypeIndep, BoundStateIndep, "FILM_DIFFUSION_DEP"))
 			throw InvalidParameterException("Failed to configure film diffusion parameter dependency (FILM_DIFFUSION_DEP)");
 	}
 

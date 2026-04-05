@@ -211,11 +211,7 @@ public:
 	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelocity >= 0.0; }
 
 	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return static_cast<double>(_cellCenters[idx]); }
-	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT
-	{
-		return (static_cast<double>(_cellCenters[idx]) - static_cast<double>(_innerRadius)) /
-		       (static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius));
-	}
+	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT { return (0.5 + idx) / _nCol; }
 
 	inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
 	inline unsigned int nCol() const CADET_NOEXCEPT { return _nCol; }
@@ -330,16 +326,10 @@ public:
 	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelocityCoeff >= 0.0; }
 
 	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return static_cast<double>(_cellCenters[idx]); }
-	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT
-	{
-		return (static_cast<double>(_cellCenters[idx]) - static_cast<double>(_innerRadius)) /
-		       (static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius));
-	}
+	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT { return (0.5 + idx) / _nCol; }
 
 	inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
 	inline unsigned int nCol() const CADET_NOEXCEPT { return _nCol; }
-	inline Weno const* weno() const CADET_NOEXCEPT { return _weno; }
-	inline HighResolutionKoren const* koren() const CADET_NOEXCEPT { return _koren; }
 
 	unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
 	unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
@@ -356,7 +346,6 @@ protected:
 	int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
 
 	void equidistantCells();
-	void computeCellCentersAndSizes(const std::vector<active>& cellFaces);
 
 	unsigned int _nComp; //!< Number of components
 	unsigned int _nCol; //!< Number of axial cells
@@ -374,10 +363,6 @@ protected:
 	int _dir; //!< Current flow direction in this time section
 
 	ArrayPool _stencilMemory; //!< Provides memory for the stencil
-	double* _reconstrDerivatives; //!< Holds derivatives of the reconstruction scheme
-	bool _gridEquidistant; //!< Determines whether the grid is equidistant
-	Weno* _weno; //!< The WENO scheme implementation
-	HighResolutionKoren* _koren; //!< The High Resolution Koren scheme implementation
 
 	bool _dispersionCompIndep; //!< Determines whether dispersion is component independent
 

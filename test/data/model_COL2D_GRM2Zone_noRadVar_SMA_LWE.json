@@ -155,6 +155,7 @@
         "discretization": {
           "AX_NELEM": 8,
           "AX_POLYDEG": 3,
+          "EXACT_INTEGRATION": 1,
           "RADIAL_DISC_TYPE": "EQUIDISTANT",
           "RAD_NELEM": 2,
           "RAD_POLYDEG": 3,

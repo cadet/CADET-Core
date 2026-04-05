@@ -335,4 +335,4 @@ Finite Volumes
    =============  ===========================  =============
 
 When using the FV method, we generally recommend specifying ``USE_MODIFIED_NEWTON = 0`` in :ref:`FFSolverTime`, i.e. to use the full Newton method to solve the linear system within the time integrator.
-For further discretization parameters, see also :ref:`flux_reconstruction_methods` (FV specific), and :ref:`non_consistency_solver_parameters`.
+For further discretization parameters, see also :ref:`flux_reconstruction_methods` (FV specific)), and :ref:`non_consistency_solver_parameters`.

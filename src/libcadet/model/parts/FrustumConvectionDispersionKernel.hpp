@@ -21,15 +21,11 @@
 #include "AutoDiff.hpp"
 #include "Memory.hpp"
 #include "Weno.hpp"
-#include "HighResKoren.hpp"
 #include "Stencil.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"
 #include "SimulationTypes.hpp"
 #include "model/ParameterDependence.hpp"
 #include "model/UnitOperation.hpp"
-
-#include <algorithm>
-#include <cmath>
 
 namespace cadet
 {
@@ -45,7 +41,7 @@ namespace parts
 namespace convdisp
 {
 
-template <typename T, typename Reconstruction_t>
+template <typename T>
 struct FrustumFlowParameters
 {
 	T u;
@@ -53,10 +49,8 @@ struct FrustumFlowParameters
 	active const* disp;
 	active const* cellCenters; //!< Coordinates of cell midpoints
 	active const* cellFaces; //!< Coordinates of cell faces
-	active const* cellFaceRadiusSq; //!< Squared radii at cell faces
-	active const* cellVolume; //!< Volumes of cells
-	double* reconstructionDerivatives; //!< Holds derivatives of the reconstruction scheme
-	Reconstruction_t* reconstruction; //!< The reconstruction scheme implementation
+	active const* cellFaceRadiusSq; //!< Radii at cell faces
+	active const* cellVolume; //!< Volume of cells
 	ArrayPool* stencilMemory; //!< Provides memory for the stencil
 	int strideCell;
 	unsigned int nComp;
@@ -65,29 +59,24 @@ struct FrustumFlowParameters
 	unsigned int offsetToBulk; //!< Offset to the first component of the first bulk cell in the local state vector
 	IParameterParameterDependence* parDep;
 	const IModel& model;
-	bool gridEquidistant; //!< Determines whether the grid is equidistant
-	std::vector<active> const* gridFaces; //!< Positions of the cell faces for non-equidistant grids
 };
 
 
 namespace impl
 {
-	template <class FaceContainerType>
-	struct ReverseFaceAccessorFrustum
+	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes = true>
+	int residualForwardsFrustumFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FrustumFlowParameters<ParamType>& p)
 	{
-		const FaceContainerType& faces;
-		inline auto operator[](unsigned int idx) const -> decltype(faces[0]) { return faces[faces.size() - 1 - idx]; }
-	};
-
-	template <typename StateType, typename ResidualType, typename ParamType, typename ReconstrType, typename RowIteratorType, bool wantJac, bool wantRes = true>
-	int residualForwardsFrustumFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FrustumFlowParameters<ParamType, ReconstrType>& p)
-	{
-		const bool nonEqGrid = p.gridFaces && !p.gridEquidistant;
-
 		// The stencil caches parts of the state vector for better spatial coherence
 		typedef CachingStencil<StateType, ArrayPool> StencilType;
-		StencilType stencil(std::max(p.reconstruction->stencilSize(), 3u), *p.stencilMemory, std::max(p.reconstruction->order() - 1, 1));
+//		StencilType stencil(std::max(p.weno->stencilSize(), 3u), *p.stencilMemory, std::max(p.weno->order() - 1, 1));
+		StencilType stencil(std::max(1u, 3u), *p.stencilMemory, std::max(1 - 1, 1));
 
+		// The RowIterator is always centered on the main diagonal.
+		// This means that jac[0] is the main diagonal, jac[-1] is the first lower diagonal,
+		// and jac[1] is the first upper diagonal. We can also access the rows from left to
+		// right beginning with the last lower diagonal moving towards the main diagonal and
+		// continuing to the last upper diagonal by using the native() method.
 		RowIteratorType jac;
 
 		ResidualType* const resBulk = wantRes ? res + p.offsetToBulk : nullptr;
@@ -101,6 +90,7 @@ namespace impl
 			ResidualType* const resBulkComp = wantRes ? resBulk + comp : nullptr;
 			StateType const* const yBulkComp = yBulk + comp;
 
+			// Add time derivative to each cell
 			if (yDot && wantRes)
 			{
 				double const* const yDotBulkComp = yDot + p.offsetToBulk + comp;
@@ -113,96 +103,112 @@ namespace impl
 					resBulkComp[col * p.strideCell] = 0.0;
 			}
 
-			for (int i = -std::max(p.reconstruction->order(), 2) + 1; i < 0; ++i)
+			// Fill stencil (left side with zeros, right side with states)
+			for (int i = -std::max(1, 2) + 1; i < 0; ++i)
 				stencil[i] = 0.0;
-			for (int i = 0; i < std::max(p.reconstruction->order(), 2); ++i)
+			for (int i = 0; i < std::max(1, 2); ++i)
 				stencil[i] = yBulkComp[i * p.strideCell];
 
-			StateType vm(0.0);
-			if (wantJac)
-				std::fill(p.reconstructionDerivatives, p.reconstructionDerivatives + p.reconstruction->stencilSize(), 0.0);
+			// Reset WENO output
+			StateType vm(0.0); // reconstructed value
+//			if (wantJac)
+//				std::fill(p.wenoDerivatives, p.wenoDerivatives + p.weno->stencilSize(), 0.0);
 
-			int recOrder = 0;
+			int wenoOrder = 1;
 			const ParamType disp = static_cast<ParamType>(p.disp[comp]);
-			const ParamType colLength = static_cast<ParamType>(p.colLength);
-			const ParamType pi = static_cast<ParamType>(3.1415926535897932384626434);
 
+			const double pi = 3.1415926535897932384626434;
+
+			// Iterate over all cells
 			for (unsigned int col = 0; col < p.nCol; ++col)
 			{
 				const ParamType preFac = pi / static_cast<ParamType>(p.cellVolume[col]);
-				const ParamType convCoeff = preFac * static_cast<ParamType>(p.u);
 
+				// ------------------- Dispersion -------------------
+
+				// Right side, leave out if we're in the last cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					const double relCoord = static_cast<double>(p.cellFaces[col + 1]) / static_cast<double>(colLength);
-					const ParamType dispRight = disp * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep,
-						static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellFaceRadiusSq[col + 1]));
-					const ParamType coeff = dispRight * preFac * static_cast<ParamType>(p.cellFaceRadiusSq[col + 1]) / (static_cast<ParamType>(p.cellCenters[col + 1]) - static_cast<ParamType>(p.cellCenters[col]));
-					if (wantRes)
-						resBulkComp[col * p.strideCell] -= coeff * (stencil[1] - stencil[0]);
+					const double relCoord = static_cast<double>(p.cellFaces[col+1] / p.colLength);
+					const ParamType disp_right = disp * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellFaces[col+1]));
+					if(wantRes)
+						resBulkComp[col * p.strideCell] -= disp_right * preFac * static_cast<ParamType>(p.cellFaceRadiusSq[col + 1]) * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col+1]) - static_cast<ParamType>(p.cellCenters[col]));
+					// Jacobian entries
 					if (wantJac)
 					{
-						const double coeffJac = static_cast<double>(coeff);
-						jac[0] += coeffJac;
-						jac[p.strideCell] -= coeffJac;
+						const double val = static_cast<double>(disp_right) * static_cast<double>(preFac) * static_cast<double>(p.cellFaceRadiusSq[col + 1]) / (static_cast<double>(p.cellCenters[col+1]) - static_cast<double>(p.cellCenters[col]));
+						jac[0] += val;
+						jac[p.strideCell] -= val;
 					}
 				}
 
+				// Left side, leave out if we're in the first cell (boundary condition)
 				if (cadet_likely(col > 0))
 				{
-					const double relCoord = static_cast<double>(p.cellFaces[col]) / static_cast<double>(colLength);
-					const ParamType dispLeft = disp * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep,
-						static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellFaceRadiusSq[col]));
-					const ParamType coeff = dispLeft * preFac * static_cast<ParamType>(p.cellFaceRadiusSq[col]) / (static_cast<ParamType>(p.cellCenters[col]) - static_cast<ParamType>(p.cellCenters[col - 1]));
-					if (wantRes)
-						resBulkComp[col * p.strideCell] -= coeff * (stencil[-1] - stencil[0]);
+					const double relCoord = static_cast<double>(p.cellFaces[col] / p.colLength);
+					const ParamType disp_left = disp * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellFaces[col]));
+					if(wantRes)
+						resBulkComp[col * p.strideCell] -= disp_left * preFac * static_cast<ParamType>(p.cellFaceRadiusSq[col]) * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col]) - static_cast<ParamType>(p.cellCenters[col-1]));
+					// Jacobian entries
 					if (wantJac)
 					{
-						const double coeffJac = static_cast<double>(coeff);
-						jac[0] += coeffJac;
-						jac[-p.strideCell] -= coeffJac;
+						const double val = static_cast<double>(disp_left) * static_cast<double>(preFac) * static_cast<double>(p.cellFaceRadiusSq[col]) / (static_cast<double>(p.cellCenters[col]) - static_cast<double>(p.cellCenters[col-1]));
+						jac[0] += val;
+						jac[-p.strideCell] -= val;
 					}
 				}
 
+				// ------------------- Convection -------------------
+
+				// Add convection through this cell's left face
 				if (cadet_likely(col > 0))
 				{
+					// Remember that vm still contains the reconstructed value of the previous 
+					// cell's *right* face, which is identical to this cell's *left* face!
 					if (wantRes)
-						resBulkComp[col * p.strideCell] -= convCoeff * vm;
+						resBulkComp[col * p.strideCell] -= preFac * p.u * vm;
+
+					// Jacobian entries
 					if (wantJac)
 					{
-						for (int i = 0; i < 2 * recOrder - 1; ++i)
-							jac[(i - recOrder) * p.strideCell] -= static_cast<double>(convCoeff) * p.reconstructionDerivatives[i];
+						for (int i = 0; i < 2 * wenoOrder - 1; ++i)
+							// Note that we have an offset of -1 here (compared to the right cell face below), since
+							// the reconstructed value depends on the previous stencil (which has now been moved by one cell)
+							jac[(i - wenoOrder) * p.strideCell] -= static_cast<double>(preFac) * static_cast<double>(p.u);
 					}
 				}
 				else if (wantRes)
 				{
-					resBulkComp[col * p.strideCell] -= convCoeff * y[p.offsetToInlet + comp];
+					// In the first cell we need to apply the boundary condition: inflow concentration
+					resBulkComp[col * p.strideCell] -= preFac * p.u * y[p.offsetToInlet + comp];
 				}
 
-				if (nonEqGrid)
+				// Reconstruct concentration on this cell's right face
+				if (wantJac)
 				{
-					if (wantJac)
-						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives, *p.gridFaces);
-					else
-						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, *p.gridFaces);
+					wenoOrder = 1;
+					vm = stencil[0];
+					// wenoOrder = p.weno->template reconstruct<StateType, StencilType>(p.wenoEpsilon, col, p.nCol, stencil, vm, p.wenoDerivatives);
 				}
 				else
 				{
-					if (wantJac)
-						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives);
-					else
-						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm);
+					wenoOrder = 1;
+					vm = stencil[0];
+					// wenoOrder = p.weno->template reconstruct<StateType, StencilType>(p.wenoEpsilon, col, p.nCol, stencil, vm);
 				}
 
+				// Right side
 				if (wantRes)
-					resBulkComp[col * p.strideCell] += convCoeff * vm;
+					resBulkComp[col * p.strideCell] += preFac * p.u * vm;
+				// Jacobian entries
 				if (wantJac)
 				{
-					for (int i = 0; i < 2 * recOrder - 1; ++i)
-						jac[(i - recOrder + 1) * p.strideCell] += static_cast<double>(convCoeff) * p.reconstructionDerivatives[i];
+					for (int i = 0; i < 2 * wenoOrder - 1; ++i)
+						jac[(i - wenoOrder + 1) * p.strideCell] += static_cast<double>(preFac) * static_cast<double>(p.u);
 				}
 
-				const unsigned int shift = std::max(p.reconstruction->order(), 2);
+				// Update stencil
+				const unsigned int shift = std::max(1, 2);
 				if (cadet_likely(col + shift < p.nCol))
 					stencil.advance(yBulkComp[(col + shift) * p.strideCell]);
 				else
@@ -216,17 +222,24 @@ namespace impl
 			}
 		}
 
+		// Film diffusion with flux into beads is added in residualFlux() function
+
 		return 0;
 	}
 
-	template <typename StateType, typename ResidualType, typename ParamType, typename ReconstrType, typename RowIteratorType, bool wantJac, bool wantRes = true>
-	int residualBackwardsFrustumFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FrustumFlowParameters<ParamType, ReconstrType>& p)
+	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes = true>
+	int residualBackwardsFrustumFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FrustumFlowParameters<ParamType>& p)
 	{
-		const bool nonEqGrid = p.gridFaces && !p.gridEquidistant;
-
+		// The stencil caches parts of the state vector for better spatial coherence
 		typedef CachingStencil<StateType, ArrayPool> StencilType;
-		StencilType stencil(std::max(p.reconstruction->stencilSize(), 3u), *p.stencilMemory, std::max(p.reconstruction->order() - 1, 1));
+		//		StencilType stencil(std::max(p.weno->stencilSize(), 3u), *p.stencilMemory, std::max(p.weno->order() - 1, 1));
+		StencilType stencil(std::max(1u, 3u), *p.stencilMemory, std::max(1 - 1, 1));
 
+		// The RowIterator is always centered on the main diagonal.
+		// This means that jac[0] is the main diagonal, jac[-1] is the first lower diagonal,
+		// and jac[1] is the first upper diagonal. We can also access the rows from left to
+		// right beginning with the last lower diagonal moving towards the main diagonal and
+		// continuing to the last upper diagonal by using the native() method.
 		RowIteratorType jac;
 
 		ResidualType* const resBulk = wantRes ? res + p.offsetToBulk : nullptr;
@@ -240,6 +253,7 @@ namespace impl
 			ResidualType* const resBulkComp = wantRes ? resBulk + comp : nullptr;
 			StateType const* const yBulkComp = yBulk + comp;
 
+			// Add time derivative to each cell
 			if (yDot && wantRes)
 			{
 				double const* const yDotBulkComp = yDot + p.offsetToBulk + comp;
@@ -252,98 +266,113 @@ namespace impl
 					resBulkComp[col * p.strideCell] = 0.0;
 			}
 
-			for (int i = -std::max(p.reconstruction->order(), 2) + 1; i < 0; ++i)
+			// Fill stencil (left side with zeros, right side with states)
+			for (int i = -std::max(1, 2) + 1; i < 0; ++i)
 				stencil[i] = 0.0;
-			for (int i = 0; i < std::max(p.reconstruction->order(), 2); ++i)
+			for (int i = 0; i < std::max(1, 2); ++i)
 				stencil[i] = yBulkComp[(p.nCol - static_cast<unsigned int>(i) - 1) * p.strideCell];
 
-			StateType vm(0.0);
-			if (wantJac)
-				std::fill(p.reconstructionDerivatives, p.reconstructionDerivatives + p.reconstruction->stencilSize(), 0.0);
+			// Reset WENO output
+			StateType vm(0.0); // reconstructed value
+			//			if (wantJac)
+			//				std::fill(p.wenoDerivatives, p.wenoDerivatives + p.weno->stencilSize(), 0.0);
 
-			int recOrder = 0;
+			int wenoOrder = 1;
 			const ParamType disp = static_cast<ParamType>(p.disp[comp]);
-			const ParamType colLength = static_cast<ParamType>(p.colLength);
-			const ParamType pi = static_cast<ParamType>(3.1415926535897932384626434);
 
+			const double pi = 3.1415926535897932384626434;
+
+			// Iterate over all cells (backwards)
+			// Note that col wraps around to unsigned int's maximum value after 0
 			for (unsigned int col = p.nCol - 1; col < p.nCol; --col)
 			{
 				const ParamType preFac = pi / static_cast<ParamType>(p.cellVolume[col]);
-				const ParamType convCoeff = preFac * static_cast<ParamType>(p.u);
 
+				// ------------------- Dispersion -------------------
+
+				// Right side, leave out if we're in the first cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					const double relCoord = static_cast<double>(p.cellFaces[col + 1]) / static_cast<double>(colLength);
-					const ParamType dispRight = disp * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep,
-						static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellFaceRadiusSq[col + 1]));
-					const ParamType coeff = dispRight * preFac * static_cast<ParamType>(p.cellFaceRadiusSq[col + 1]) / (static_cast<ParamType>(p.cellCenters[col + 1]) - static_cast<ParamType>(p.cellCenters[col]));
+					const double relCoord = static_cast<double>(p.cellFaces[col + 1] / p.colLength);
+					const ParamType disp_right = disp * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellFaces[col + 1]));
 					if (wantRes)
-						resBulkComp[col * p.strideCell] -= coeff * (stencil[-1] - stencil[0]);
+						resBulkComp[col * p.strideCell] -= disp_right * preFac * static_cast<ParamType>(p.cellFaceRadiusSq[col + 1]) * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col + 1]) - static_cast<ParamType>(p.cellCenters[col]));
+					// Jacobian entries
 					if (wantJac)
 					{
-						const double coeffJac = static_cast<double>(coeff);
-						jac[0] += coeffJac;
-						jac[p.strideCell] -= coeffJac;
+						const double val = static_cast<double>(disp_right) * static_cast<double>(preFac) * static_cast<double>(p.cellFaceRadiusSq[col + 1]) / (static_cast<double>(p.cellCenters[col + 1]) - static_cast<double>(p.cellCenters[col]));
+						jac[0] += val;
+						jac[p.strideCell] -= val;
 					}
 				}
 
+				// Left side, leave out if we're in the last cell (boundary condition)
 				if (cadet_likely(col > 0))
 				{
-					const double relCoord = static_cast<double>(p.cellFaces[col]) / static_cast<double>(colLength);
-					const ParamType dispLeft = disp * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep,
-						static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellFaceRadiusSq[col]));
-                    const ParamType coeff = dispLeft * preFac * static_cast<ParamType>(p.cellFaceRadiusSq[col]) / (static_cast<ParamType>(p.cellCenters[col]) - static_cast<ParamType>(p.cellCenters[col - 1]));
+					const double relCoord = static_cast<double>(p.cellFaces[col] / p.colLength);
+					const ParamType disp_left = disp * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellFaces[col]));
 					if (wantRes)
-						resBulkComp[col * p.strideCell] -= coeff * (stencil[1] - stencil[0]);
+						resBulkComp[col * p.strideCell] -= disp_left * preFac * static_cast<ParamType>(p.cellFaceRadiusSq[col]) * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col - 1]) - static_cast<ParamType>(p.cellCenters[col]));
+					// Jacobian entries
 					if (wantJac)
 					{
-						const double coeffJac = static_cast<double>(coeff);
-						jac[0] += coeffJac;
-						jac[-p.strideCell] -= coeffJac;
+						const double val = static_cast<double>(disp_left) * static_cast<double>(preFac) * static_cast<double>(p.cellFaceRadiusSq[col]) / (static_cast<double>(p.cellCenters[col - 1]) - static_cast<double>(p.cellCenters[col]));
+						jac[0] += val;
+						jac[-p.strideCell] -= val;
 					}
 				}
 
+				// ------------------- Convection -------------------
+
+				// Add convection through this cell's right face
 				if (cadet_likely(col < p.nCol - 1))
 				{
+					// Remember that vm still contains the reconstructed value of the previous 
+					// cell's *left* face, which is identical to this cell's *right* face!
 					if (wantRes)
-						resBulkComp[col * p.strideCell] += convCoeff * vm;
+						resBulkComp[col * p.strideCell] += preFac * p.u * vm;
+
+					// Jacobian entries
 					if (wantJac)
 					{
-						for (int i = 0; i < 2 * recOrder - 1; ++i)
-							jac[(recOrder - i) * p.strideCell] += static_cast<double>(convCoeff) * p.reconstructionDerivatives[i];
+						for (int i = 0; i < 2 * wenoOrder - 1; ++i)
+							// Note that we have an offset of +1 here (compared to the left cell face below), since
+							// the reconstructed value depends on the previous stencil (which has now been moved by one cell)
+							jac[(wenoOrder - i) * p.strideCell] += static_cast<double>(preFac) * static_cast<double>(p.u);
 					}
 				}
 				else if (wantRes)
 				{
-					resBulkComp[col * p.strideCell] += convCoeff * y[p.offsetToInlet + comp];
+					// In the last cell (z = L) we need to apply the boundary condition: inflow concentration
+					resBulkComp[col * p.strideCell] += preFac * p.u * y[p.offsetToInlet + comp];
 				}
 
-				if (nonEqGrid)
+				// Reconstruct concentration on this cell's left face
+				if (wantJac)
 				{
-					const ReverseFaceAccessorFrustum<std::vector<active>> reverseFaces{*p.gridFaces};
-					const unsigned int flowCellIdx = p.nCol - 1 - col;
-					if (wantJac)
-						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(flowCellIdx, p.nCol, stencil, vm, p.reconstructionDerivatives, reverseFaces);
-					else
-						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(flowCellIdx, p.nCol, stencil, vm, reverseFaces);
+					wenoOrder = 1;
+					vm = stencil[0];
+					//					wenoOrder = p.weno->template reconstruct<StateType, StencilType>(p.wenoEpsilon, col, p.nCol, stencil, vm, p.wenoDerivatives);
 				}
 				else
 				{
-					if (wantJac)
-						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives);
-					else
-						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm);
+					wenoOrder = 1;
+					vm = stencil[0];
+					//					wenoOrder = p.weno->template reconstruct<StateType, StencilType>(p.wenoEpsilon, col, p.nCol, stencil, vm);
 				}
 
+				// Left face
 				if (wantRes)
-					resBulkComp[col * p.strideCell] -= convCoeff * vm;
+					resBulkComp[col * p.strideCell] -= preFac * p.u * vm;
+				// Jacobian entries
 				if (wantJac)
 				{
-					for (int i = 0; i < 2 * recOrder - 1; ++i)
-						jac[(recOrder - i - 1) * p.strideCell] -= static_cast<double>(convCoeff) * p.reconstructionDerivatives[i];
+					for (int i = 0; i < 2 * wenoOrder - 1; ++i)
+						jac[(wenoOrder - i - 1) * p.strideCell] -= static_cast<double>(preFac) * static_cast<double>(p.u);
 				}
 
-				const unsigned int shift = std::max(p.reconstruction->order(), 2);
+				// Update stencil (be careful because of wrap-around, might cause reading memory very far away [although never used])
+				const unsigned int shift = std::max(1, 2);
 				if (cadet_likely(col - shift < p.nCol))
 					stencil.advance(yBulkComp[(col - shift) * p.strideCell]);
 				else
@@ -357,23 +386,24 @@ namespace impl
 			}
 		}
 
+		// Film diffusion with flux into beads is added in residualFlux() function
+
 		return 0;
 	}
 
 } // namespace impl
 
 
-template <typename StateType, typename ResidualType, typename ParamType, typename ReconstrType, typename RowIteratorType, bool wantJac, bool wantRes = true>
-int residualKernelFrustum(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FrustumFlowParameters<ParamType, ReconstrType>& p)
+template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes = true>
+int residualKernelFrustum(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FrustumFlowParameters<ParamType>& p)
 {
 	if (p.u >= 0.0)
-		return impl::residualForwardsFrustumFlow<StateType, ResidualType, ParamType, ReconstrType, RowIteratorType, wantJac, wantRes>(simTime, y, yDot, res, jacBegin, p);
+		return impl::residualForwardsFrustumFlow<StateType, ResidualType, ParamType, RowIteratorType, wantJac, wantRes>(simTime, y, yDot, res, jacBegin, p);
 	else
-		return impl::residualBackwardsFrustumFlow<StateType, ResidualType, ParamType, ReconstrType, RowIteratorType, wantJac, wantRes>(simTime, y, yDot, res, jacBegin, p);
+		return impl::residualBackwardsFrustumFlow<StateType, ResidualType, ParamType, RowIteratorType, wantJac, wantRes>(simTime, y, yDot, res, jacBegin, p);
 }
 
 void sparsityPatternFrustum(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, Weno& weno);
-void sparsityPatternFrustum(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, HighResolutionKoren& koren);
 
 } // namespace convdisp
 } // namespace parts

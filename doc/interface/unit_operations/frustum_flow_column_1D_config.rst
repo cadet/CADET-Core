@@ -217,4 +217,4 @@ The following FV discretization parameters are only required if particles are pr
    ================  =========================  =============
 
 When using the FV method, we generally recommend specifying ``USE_MODIFIED_NEWTON = 0`` in :ref:`FFSolverTime`, i.e. to use the full Newton method to solve the linear system within the time integrator.
-For further information on discretization parameters, see also :ref:`flux_reconstruction_methods` (FV specific), and :ref:`non_consistency_solver_parameters`.
+For further information on discretization parameters, see also :ref:`flux_reconstruction_methods` (FV specific)), and :ref:`non_consistency_solver_parameters`.

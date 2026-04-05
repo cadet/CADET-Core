@@ -1253,20 +1253,14 @@ bool RadialConvectionDispersionOperatorBase::setParameter(const ParameterId& pId
 	if (pId.name == hashString("COL_RADIUS_INNER"))
 	{
 		_innerRadius.setValue(value);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
+		equidistantCells();
 		return true;
 	}
 
 	if (pId.name == hashString("COL_RADIUS_OUTER"))
 	{
 		_outerRadius.setValue(value);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
+		equidistantCells();
 		return true;
 	}
 
@@ -1316,20 +1310,14 @@ bool RadialConvectionDispersionOperatorBase::setSensitiveParameterValue(const st
 	if (pId.name == hashString("COL_RADIUS_INNER"))
 	{
 		_innerRadius.setValue(value);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
+		equidistantCells();
 		return true;
 	}
 
 	if (pId.name == hashString("COL_RADIUS_OUTER"))
 	{
 		_outerRadius.setValue(value);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
+		equidistantCells();
 		return true;
 	}
 
@@ -1385,20 +1373,14 @@ bool RadialConvectionDispersionOperatorBase::setSensitiveParameter(std::unordere
 	if (pId.name == hashString("COL_RADIUS_INNER"))
 	{
 		_innerRadius.setADValue(adDirection, adValue);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
+		equidistantCells();
 		return true;
 	}
 
 	if (pId.name == hashString("COL_RADIUS_OUTER"))
 	{
 		_outerRadius.setADValue(adDirection, adValue);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
+		equidistantCells();
 		return true;
 	}
 
@@ -1462,15 +1444,12 @@ void RadialConvectionDispersionOperatorBase::computeCellCentersAndSizes(const st
 /**
  * @brief Creates a FrustumConvectionDispersionOperatorBase
  */
-FrustumConvectionDispersionOperatorBase::FrustumConvectionDispersionOperatorBase() : _stencilMemory(sizeof(active) * Weno::maxStencilSize()), _reconstrDerivatives(nullptr), _gridEquidistant(true), _weno(nullptr), _koren(nullptr), _dispersionDep(nullptr)
+FrustumConvectionDispersionOperatorBase::FrustumConvectionDispersionOperatorBase() : _stencilMemory(sizeof(active)* Weno::maxStencilSize()), _dispersionDep(nullptr)
 {
 }
 
 FrustumConvectionDispersionOperatorBase::~FrustumConvectionDispersionOperatorBase() CADET_NOEXCEPT
 {
-	delete[] _reconstrDerivatives;
-	delete _weno;
-	delete _koren;
 	if (_dispersionDep)
 		delete _dispersionDep;
 }
@@ -1489,15 +1468,6 @@ bool FrustumConvectionDispersionOperatorBase::configureModelDiscretization(IPara
 	_nCol = nCol;
 	_strideCell = strideCell;
 
-	_innerRadius = paramProvider.getDouble("COL_RADIUS_INNER");
-	_outerRadius = paramProvider.getDouble("COL_RADIUS_OUTER");
-	_colLength = paramProvider.getDouble("COL_LENGTH");
-
-	if (!(_innerRadius > 0.0 && _outerRadius > 0.0 && _colLength > 0.0))
-		throw InvalidParameterException("Geometry parameters COL_RADIUS_INNER, COL_RADIUS_OUTER, COL_LENGTH must be > 0.0");
-	if (_innerRadius > _outerRadius)
-		throw InvalidParameterException("Geometry parameters are inconsistent, model requires COL_RADIUS_INNER <= COL_RADIUS_OUTER for consistency reasons. Please check the documentation for control of the flow direction.");
-
 	if (paramProvider.exists("COL_DISPERSION_DEP"))
 	{
 		const std::string paramDepName = paramProvider.getString("COL_DISPERSION_DEP");
@@ -1510,95 +1480,6 @@ bool FrustumConvectionDispersionOperatorBase::configureModelDiscretization(IPara
 	else
 		_dispersionDep = helper.createParameterParameterDependence("CONSTANT_ONE");
 
-	paramProvider.pushScope("discretization");
-
-	const std::string recType = paramProvider.exists("RECONSTRUCTION") ? paramProvider.getString("RECONSTRUCTION") : "WENO";
-
-	if (paramProvider.exists("GRID_FACES"))
-	{
-		readScalarParameterOrArray(_cellFaces, paramProvider, "GRID_FACES", 1);
-		if (_cellFaces.size() < 5)
-			throw InvalidParameterException("Number of elements in field GRID_FACES must be at least 5");
-		if (_cellFaces.size() != _nCol + 1)
-			throw InvalidParameterException("Number of elements in field GRID_FACES must be NCOL + 1");
-		if (std::abs(static_cast<double>(_cellFaces.front())) > 1e-14)
-			throw InvalidParameterException("First entry of GRID_FACES must be zero");
-		if (std::abs(static_cast<double>(_cellFaces.back()) - static_cast<double>(_colLength)) > 1e-14)
-			throw InvalidParameterException("Last entry of GRID_FACES must match COL_LENGTH");
-
-		double dxMin = std::numeric_limits<double>::max();
-		double dxMax = 0.0;
-		double rMax = 0.0;
-		const double firstWidth = static_cast<double>(_cellFaces[1] - _cellFaces[0]);
-		const double widthTol = 1e-10 * std::max(1.0, std::abs(firstWidth));
-		_gridEquidistant = true;
-
-		double prevWidth = firstWidth;
-		dxMin = std::min(dxMin, prevWidth);
-		dxMax = std::max(dxMax, prevWidth);
-
-		for (unsigned int i = 1; i < _nCol; ++i)
-		{
-			const double curWidth = static_cast<double>(_cellFaces[i + 1] - _cellFaces[i]);
-			dxMin = std::min(dxMin, curWidth);
-			dxMax = std::max(dxMax, curWidth);
-			if (std::abs(curWidth - firstWidth) > widthTol)
-				_gridEquidistant = false;
-			const double r = std::max(curWidth / prevWidth, prevWidth / curWidth);
-			rMax = std::max(rMax, r);
-			prevWidth = curWidth;
-		}
-
-		if (rMax > 3.0)
-		{
-			LOG(Warning) << "GRID_FACES contains strongly stretched neighboring cells (max recommended ratio = "
-				<< rMax << "). WENO reconstruction on highly stretched grids may lose accuracy or stability.";
-		}
-
-		const double sizeRatio = dxMax / dxMin;
-		if (sizeRatio > 1e6)
-		{
-			LOG(Warning) << "GRID_FACES contains cells spanning a very large size range (max/min ratio = "
-				<< sizeRatio << "). This may lead to stiff ODE systems and slow or unstable time integration.";
-		}
-
-		computeCellCentersAndSizes(_cellFaces);
-	}
-	else
-	{
-		_gridEquidistant = true;
-		_cellFaces.clear();
-		equidistantCells();
-	}
-
-	if (recType == "WENO")
-	{
-		paramProvider.pushScope("weno");
-		_weno = new Weno();
-		_weno->order(paramProvider.getInt("WENO_ORDER"));
-		_weno->boundaryTreatment(paramProvider.getInt("BOUNDARY_MODEL"));
-		_weno->epsilon(paramProvider.getDouble("WENO_EPS"));
-		paramProvider.popScope();
-
-		_reconstrDerivatives = new double[Weno::maxStencilSize()];
-		_stencilMemory.resize(sizeof(active) * Weno::maxStencilSize());
-	}
-	else if (recType == "KOREN")
-	{
-		paramProvider.pushScope("koren");
-		_koren = new HighResolutionKoren();
-		_koren->epsilon(paramProvider.getDouble("KOREN_EPS"));
-		paramProvider.popScope();
-
-		_reconstrDerivatives = new double[HighResolutionKoren::maxStencilSize()];
-		_stencilMemory.resize(sizeof(active) * HighResolutionKoren::maxStencilSize());
-	}
-	else
-	{
-		throw InvalidParameterException("Unknown reconstruction type in field RECONSTRUCTION");
-	}
-
-	paramProvider.popScope();
 	return true;
 }
 
@@ -1612,6 +1493,16 @@ bool FrustumConvectionDispersionOperatorBase::configureModelDiscretization(IPara
  */
 bool FrustumConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
+	// Read geometry parameters
+	_innerRadius = paramProvider.getDouble("COL_RADIUS_INNER");
+	_outerRadius = paramProvider.getDouble("COL_RADIUS_OUTER");
+	_colLength = paramProvider.getDouble("COL_LENGTH");
+
+	if (!(_innerRadius > 0.0 && _outerRadius > 0.0 && _colLength > 0.0))
+		throw InvalidParameterException("Geometry parameters COL_RADIUS_INNER, COL_RADIUS_OUTER, COL_LENGTH must be > 0.0");
+
+	if (_innerRadius > _outerRadius)
+		throw InvalidParameterException("Geometry parameters are inconsistent, model requires COL_RADIUS_INNER <= COL_RADIUS_OUTER for consistency reasons. Please check the documentation for control of the flow direction.");
 
 	// Read section dependent parameters (transport)
 
@@ -1691,6 +1582,8 @@ bool FrustumConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IPa
 	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
 	parameters[makeParamId(hashString("COL_RADIUS_INNER"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_innerRadius;
 	parameters[makeParamId(hashString("COL_RADIUS_OUTER"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_outerRadius;
+
+	equidistantCells();
 
 	return true;
 }
@@ -1817,62 +1710,25 @@ int FrustumConvectionDispersionOperatorBase::residualImpl(const IModel& model, d
 	const ParamType length = static_cast<ParamType>(_colLength);
 	active const* const d_rad = getSectionDependentSlice(_colDispersion, _nComp, secIdx);
 
-	const std::vector<active>* const cellFacesPtr = _cellFaces.empty() ? nullptr : &_cellFaces;
+	convdisp::FrustumFlowParameters<ParamType> fp{
+		u,
+		length,
+		d_rad,
+		_cellCenters.data(),
+		_cellFaces.data(),
+		_cellFaceRadiusSq.data(),
+		_cellVolume.data(),
+		&_stencilMemory,
+		strideColCell(),
+		_nComp,
+		_nCol,
+		0u,
+		_nComp,
+		_dispersionDep,
+		model
+	};
 
-	if (_weno)
-	{
-		convdisp::FrustumFlowParameters<ParamType, Weno> fp{
-			u,
-			length,
-			d_rad,
-			_cellCenters.data(),
-			_cellFaces.data(),
-			_cellFaceRadiusSq.data(),
-			_cellVolume.data(),
-			_reconstrDerivatives,
-			_weno,
-			&_stencilMemory,
-			strideColCell(),
-			_nComp,
-			_nCol,
-			0u,
-			_nComp,
-			_dispersionDep,
-			model,
-			_gridEquidistant,
-			cellFacesPtr
-		};
-
-		return convdisp::residualKernelFrustum<StateType, ResidualType, ParamType, Weno, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
-	}
-	else if (_koren)
-	{
-		convdisp::FrustumFlowParameters<ParamType, HighResolutionKoren> fp{
-			u,
-			length,
-			d_rad,
-			_cellCenters.data(),
-			_cellFaces.data(),
-			_cellFaceRadiusSq.data(),
-			_cellVolume.data(),
-			_reconstrDerivatives,
-			_koren,
-			&_stencilMemory,
-			strideColCell(),
-			_nComp,
-			_nCol,
-			0u,
-			_nComp,
-			_dispersionDep,
-			model,
-			_gridEquidistant,
-			cellFacesPtr
-		};
-
-		return convdisp::residualKernelFrustum<StateType, ResidualType, ParamType, HighResolutionKoren, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
-	}
-
-	return 0;
+	return convdisp::residualKernelFrustum<StateType, ResidualType, ParamType, RowIteratorType, wantJac, wantRes>(SimulationTime{ t, secIdx }, y, yDot, res, jacBegin, fp);
 }
 
 /**
@@ -1928,20 +1784,14 @@ unsigned int FrustumConvectionDispersionOperatorBase::jacobianLowerBandwidth() c
 	// right cell face (lower + 1 + upper) and to the left cell face (shift the stencil by -1 because influx of cell i
 	// is outflux of cell i-1)
 	// We also have to make sure that there's at least one sub and super diagonal for the dispersion term
-	if (_weno)
-		return std::max(_weno->lowerBandwidth() + 1u, 1u) * strideColCell();
-	else if (_koren)
-		return std::max(_koren->lowerBandwidth() + 1u, 1u) * strideColCell();
+//	return std::max(_weno.lowerBandwidth() + 1u, 1u) * strideColCell();
 	return strideColCell();
 }
 
 unsigned int FrustumConvectionDispersionOperatorBase::jacobianUpperBandwidth() const CADET_NOEXCEPT
 {
 	// We have to make sure that there's at least one sub and super diagonal for the dispersion term
-	if (_weno)
-		return std::max(_weno->upperBandwidth(), 1u) * strideColCell();
-	else if (_koren)
-		return std::max(_koren->upperBandwidth(), 1u) * strideColCell();
+//	return std::max(_weno.upperBandwidth(), 1u) * strideColCell();
 	return strideColCell();
 }
 
@@ -1973,20 +1823,14 @@ bool FrustumConvectionDispersionOperatorBase::setParameter(const ParameterId& pI
 	if (pId.name == hashString("COL_RADIUS_INNER"))
 	{
 		_innerRadius.setValue(value);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
+		equidistantCells();
 		return true;
 	}
 
 	if (pId.name == hashString("COL_RADIUS_OUTER"))
 	{
 		_outerRadius.setValue(value);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
+		equidistantCells();
 		return true;
 	}
 
@@ -2036,20 +1880,14 @@ bool FrustumConvectionDispersionOperatorBase::setSensitiveParameterValue(const s
 	if (pId.name == hashString("COL_RADIUS_INNER"))
 	{
 		_innerRadius.setValue(value);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
+		equidistantCells();
 		return true;
 	}
 
 	if (pId.name == hashString("COL_RADIUS_OUTER"))
 	{
 		_outerRadius.setValue(value);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
+		equidistantCells();
 		return true;
 	}
 
@@ -2105,20 +1943,14 @@ bool FrustumConvectionDispersionOperatorBase::setSensitiveParameter(std::unorder
 	if (pId.name == hashString("COL_RADIUS_INNER"))
 	{
 		_innerRadius.setADValue(adDirection, adValue);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
+		equidistantCells();
 		return true;
 	}
 
 	if (pId.name == hashString("COL_RADIUS_OUTER"))
 	{
 		_outerRadius.setADValue(adDirection, adValue);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
+		equidistantCells();
 		return true;
 	}
 
@@ -2156,45 +1988,33 @@ bool FrustumConvectionDispersionOperatorBase::setSensitiveParameter(std::unorder
 void FrustumConvectionDispersionOperatorBase::equidistantCells()
 {
 	const active dx = _colLength / _nCol;
-	std::vector<active> faces(_nCol + 1, 0.0);
-	for (unsigned int i = 0; i <= _nCol; ++i)
-		faces[i] = i * dx;
-	computeCellCentersAndSizes(faces);
-}
-
-void FrustumConvectionDispersionOperatorBase::computeCellCentersAndSizes(const std::vector<active>& cellFaces)
-{
-	const active pi = 3.1415926535897932384626434;
 	std::vector<active> centers(_nCol, 0.0);
-	std::vector<active> sizes(_nCol, 0.0);
+	_cellSizes = std::vector<active>(_nCol, dx);
+	std::vector<active> faces(_nCol + 1, 0.0);
 	std::vector<active> centerRadiiSq(_nCol, 0.0);
 	std::vector<active> faceRadiiSq(_nCol + 1, 0.0);
+	faceRadiiSq[0] = _innerRadius * _innerRadius;
 
 	for (unsigned int i = 0; i < _nCol; ++i)
 	{
-		centers[i] = static_cast<active>(0.5) * (cellFaces[i] + cellFaces[i + 1]);
-		sizes[i] = cellFaces[i + 1] - cellFaces[i];
-
-		active centerRadius = _innerRadius + (centers[i] / _colLength) * (_outerRadius - _innerRadius);
-		centerRadiiSq[i] = centerRadius * centerRadius;
-
-		active faceRadius = _innerRadius + (cellFaces[i] / _colLength) * (_outerRadius - _innerRadius);
-		faceRadiiSq[i] = faceRadius * faceRadius;
+		centers[i] = (i + 0.5) * dx;
+		faces[i + 1] = (i + 1) * dx;
+		centerRadiiSq[i] = _innerRadius + (centers[i] / _colLength) * (_outerRadius - _innerRadius);
+		centerRadiiSq[i] *= centerRadiiSq[i];
+		faceRadiiSq[i + 1] = _innerRadius + faces[i + 1] / _colLength * (_outerRadius - _innerRadius);
+		faceRadiiSq[i + 1] *= faceRadiiSq[i + 1];
 	}
-	active lastFaceRadius = _innerRadius + (cellFaces[_nCol] / _colLength) * (_outerRadius - _innerRadius);
-	faceRadiiSq[_nCol] = lastFaceRadius * lastFaceRadius;
 
-	_cellCenters = std::move(centers);
-	_cellSizes = std::move(sizes);
 	_cellCenterRadiusSq = std::move(centerRadiiSq);
 	_cellFaceRadiusSq = std::move(faceRadiiSq);
-	_cellFaces = cellFaces;
+	_cellCenters = std::move(centers);
+	_cellFaces = std::move(faces);
 
 	_cellVolume.resize(_nCol);
 
-	for (unsigned int cell = 0; cell < _nCol; ++cell)
+	for (int cell = 0; cell < _nCol; cell++)
 	{
-		_cellVolume[cell] = static_cast<active>(1.0 / 3.0) * pi * _cellSizes[cell] * (_cellFaceRadiusSq[cell] + _cellFaceRadiusSq[cell + 1] + sqrt(_cellFaceRadiusSq[cell]) * sqrt(_cellFaceRadiusSq[cell + 1]));
+		_cellVolume[cell] = 1.0 / 3.0 * 3.1415926535897932384626434 * _cellSizes[cell] * (_cellFaceRadiusSq[cell] + _cellFaceRadiusSq[cell + 1] + sqrt(_cellFaceRadiusSq[cell]) * sqrt(_cellFaceRadiusSq[cell + 1]));
 	}
 }
 
