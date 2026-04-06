@@ -18,8 +18,8 @@ The first component is either ion concentration (:math:`c_{\mathrm{H}^+}`, :math
 **Type:** int        **Range:** {0,1}  		    **Length:** 1/NTOTALBND
 ===================  =========================  =========================================
 
-``ACT_USE_SALT_CONC``
-   Optional. Selects to use either ion concentration or negative log ion concentration as the first component. 
+``ACT_USE_ION_CONC``
+   Selects to use either ion concentration or negative log ion concentration as the first component. 
 
    * ``False``: input is negative log ion concentration :math:`\mathrm{pIon}`; use ``ACT_PKAA`` / ``ACT_PKAG``.
    * ``True``: input is ion concentration :math:`c_{\mathrm{Ion}^{n+}}`; use ``ACT_CMID_A`` / ``ACT_CMID_G``.

@@ -4,7 +4,7 @@ Affinity Complex Titration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The affinity complex titration (ACT) isotherm is a modified Langmuir isotherm where both the binding capacity and equilibrium constant are dependent on a mobile phase modulator via a Hill-type relationship in :cite:`Zhang2025ACT`. 
-In CADET, a general form of ACT that can use either a raw ion concentration or a negative log ion concentration is implemented. 
+CADET-Core implements a general form of ACT that can use either a raw ion concentration or a negative log ion concentration. 
 If the ion of interest is proton and users choose to use negative log proton concentration, then it becomes pH which is the default case originally derived in the paper.
 The current implementation requires the first component to be the non-binding mobile phase modulator and does not support multiple bound states. 
 
