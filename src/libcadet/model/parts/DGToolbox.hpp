@@ -216,7 +216,7 @@ Eigen::VectorXd evalLagrangeBasisDerivative(const int j, const Eigen::VectorXd b
  * @param [in] rho_left left boundary of cell in physical space
  * @param [in] delta_rho cell width in physical space
  * @param [in] dispAtNodes dispersion coefficient D evaluated at physical node positions
- * @param [in] nQuadPoints number of Gauss quadrature points (default: polyDeg + 2, use higher for nonlinear D)
+ * @param [in] nQuadPoints number of Gauss quadrature points (default: 3/2 rule for dealiasing)
  */
 Eigen::MatrixXd radialDispersionMatrix(const unsigned int polyDeg, const Eigen::VectorXd LGLnodes,
                                         const double rho_left, const double delta_rho,
