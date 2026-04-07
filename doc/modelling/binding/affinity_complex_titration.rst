@@ -18,7 +18,9 @@ The ACT isotherm is given by:
 
 where :math:`f_{A, i}` is the modification factor for the binding capacity :math:`q_{\text{max}, i}`, and :math:`f_{G,i}` is the modification factor for the equilibrium constant :math:`K_{eq, i} = k_{a,i} / k_{d,i}`.
 
-If pH is used (default case), the modification factors are defined by:
+The following two approaches result in the same mathematical model; they only differ in how the modulator is provided.
+
+If pH is used, the modification factors are defined by:
 
 .. math::
 
