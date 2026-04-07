@@ -711,14 +711,14 @@ VectorXd evalLagrangeBasisDerivative(const int j, const VectorXd baseNodes, cons
  * @param [in] rho_left left boundary of cell in physical space
  * @param [in] delta_rho cell width in physical space
  * @param [in] dispAtNodes dispersion coefficient D evaluated at physical node positions
- * @param [in] nQuadPoints number of Gauss quadrature points (default: polyDeg + 2, use higher for nonlinear D)
+ * @param [in] nQuadPoints number of Gauss quadrature points (default: 3/2 rule for dealiasing)
  */
 MatrixXd radialDispersionMatrix(const unsigned int polyDeg, const VectorXd LGLnodes,
                                  const double rho_left, const double delta_rho,
                                  const VectorXd dispAtNodes, const int nQuadPoints)
 {
 	const unsigned int nNodes = polyDeg + 1;
-	const int nQuad = (nQuadPoints < 0) ? static_cast<int>(polyDeg + 2) : nQuadPoints;
+	const int nQuad = (nQuadPoints < 0) ? static_cast<int>((3 * polyDeg + 1) / 2 + 1) : nQuadPoints;
 
 	// Get Gauss-Legendre quadrature points and weights
 	VectorXd quadNodes = VectorXd::Zero(nQuad);
