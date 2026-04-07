@@ -206,11 +206,11 @@ Discontinuous Galerkin
 
 ``POLYNOMIAL_INTEGRATION_TYPE``
 
-   Specifies the DG integration variant. Optional, defaults to 0
-   
+   Specifies the DG integration variant. Optional, defaults to 0.
+
    0. Collocation Lagrange-Gauss-Lobatto quadrature (inexact, but faster)
    1. Exact analytical integration
-   0. Gauss-Legendre quadrature (exact)
+   2. Gauss-Legendre quadrature (exact)
    
    =============  ==============================  =============
    **Type:** int  **Range:** :math:`\{0, 1, 2\}`  **Length:** 1
