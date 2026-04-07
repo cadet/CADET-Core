@@ -43,7 +43,17 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
 
 ``COL_POROSITY``
 
-   Column porosity
+   Column porosity of the interstitial volume.
+   Used only if model is not a Lumped Rate Model without Pores, in which case ``TOTAL_POROSITY`` is used instead.
+   
+   ================  ========================  =============
+   **Type:** double  **Range:** :math:`(0,1]`  **Length:** 1
+   ================  ========================  =============
+
+``TOTAL_POROSITY``
+
+   Total porosity of including the porosity of the particles.
+   Only applicable for the Lumped Rate Model without pores, i.e. when ``NPARTYPE = 1`` **AND** ``particle_type_000\HAS_FILM_DIFFUSION = 0``
    
    ================  ========================  =============
    **Type:** double  **Range:** :math:`(0,1]`  **Length:** 1
