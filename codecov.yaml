@@ -23,3 +23,6 @@ fixes:
 
 github_checks:
   annotations: false
+
+test_analytics:
+  enabled: true

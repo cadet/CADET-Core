@@ -115,57 +115,57 @@ jobs:
           ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5 || true
       - name: Run CI test set I - bindings
         run: |
-          ${BUILD_DIR}/test/testRunner [CI_binding]
+          ${BUILD_DIR}/test/testRunner [CI_binding] -r junit -o junit-binding.xml
       - name: Run CI test set II - sensitivities
         run: |
-          ${BUILD_DIR}/test/testRunner [CI_sens1]
-          ${BUILD_DIR}/test/testRunner [CI_sens2]
-          ${BUILD_DIR}/test/testRunner [CI_sens3]
-          ${BUILD_DIR}/test/testRunner [CI_sens4]
-          ${BUILD_DIR}/test/testRunner [CI_sens5]
-          ${BUILD_DIR}/test/testRunner [CI_sens6]
-          ${BUILD_DIR}/test/testRunner [CI_sens7]
-          ${BUILD_DIR}/test/testRunner [CI_sens8]
-          ${BUILD_DIR}/test/testRunner [CI_sens9]
-          ${BUILD_DIR}/test/testRunner [CI_sens11]
-          ${BUILD_DIR}/test/testRunner [CI_sens12]
-          ${BUILD_DIR}/test/testRunner [CI_sens13]
-          ${BUILD_DIR}/test/testRunner [CI_sens14]
-          ${BUILD_DIR}/test/testRunner [CI_sens15]
-          ${BUILD_DIR}/test/testRunner [CI_sens16]
-          ${BUILD_DIR}/test/testRunner [CI_sens17]
-          ${BUILD_DIR}/test/testRunner [CI_sens18]
-          ${BUILD_DIR}/test/testRunner [CI_sens19]
-          ${BUILD_DIR}/test/testRunner [CI_sens20]
-          ${BUILD_DIR}/test/testRunner [CI_sens21]
-          ${BUILD_DIR}/test/testRunner [CI_sens22]
-          ${BUILD_DIR}/test/testRunner [CI_sens23]
-          ${BUILD_DIR}/test/testRunner [CI_sens24]
+          ${BUILD_DIR}/test/testRunner [CI_sens1] -r junit -o junit-sens1.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens2] -r junit -o junit-sens2.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens3] -r junit -o junit-sens3.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens4] -r junit -o junit-sens4.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens5] -r junit -o junit-sens5.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens6] -r junit -o junit-sens6.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens7] -r junit -o junit-sens7.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens8] -r junit -o junit-sens8.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens9] -r junit -o junit-sens9.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens11] -r junit -o junit-sens11.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens12] -r junit -o junit-sens12.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens13] -r junit -o junit-sens13.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens14] -r junit -o junit-sens14.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens15] -r junit -o junit-sens15.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens16] -r junit -o junit-sens16.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens17] -r junit -o junit-sens17.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens18] -r junit -o junit-sens18.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens19] -r junit -o junit-sens19.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens20] -r junit -o junit-sens20.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens21] -r junit -o junit-sens21.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens22] -r junit -o junit-sens22.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens23] -r junit -o junit-sens23.xml
+          ${BUILD_DIR}/test/testRunner [CI_sens24] -r junit -o junit-sens24.xml
       - name: Run CI test set III - crystallization
         run: |
-          ${BUILD_DIR}/test/testRunner [CI_cry1]
-          ${BUILD_DIR}/test/testRunner [CI_cry2]
-          ${BUILD_DIR}/test/testRunner [CI_cry3]
-          ${BUILD_DIR}/test/testRunner [CI_cry4]
-          ${BUILD_DIR}/test/testRunner [CI_cry5]
-          ${BUILD_DIR}/test/testRunner [CI_cry6]
-          ${BUILD_DIR}/test/testRunner [CI_cry7]
-          ${BUILD_DIR}/test/testRunner [CI_cry8]
-          ${BUILD_DIR}/test/testRunner [CI_cry9]
-          ${BUILD_DIR}/test/testRunner [CI_cry10]
-          ${BUILD_DIR}/test/testRunner [CI_cry11]
-          ${BUILD_DIR}/test/testRunner [CI_cry12]
-          ${BUILD_DIR}/test/testRunner [CI_cry13]
-          ${BUILD_DIR}/test/testRunner [CI_cry14]
-          ${BUILD_DIR}/test/testRunner [CI_cry15]
-          ${BUILD_DIR}/test/testRunner [CI_cry16]
-          ${BUILD_DIR}/test/testRunner [CI_cry17]
-          ${BUILD_DIR}/test/testRunner [CI_cry18]
-          ${BUILD_DIR}/test/testRunner [CI_cry19]
-          ${BUILD_DIR}/test/testRunner [CI_cry20]
+          ${BUILD_DIR}/test/testRunner [CI_cry1] -r junit -o junit-cry1.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry2] -r junit -o junit-cry2.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry3] -r junit -o junit-cry3.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry4] -r junit -o junit-cry4.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry5] -r junit -o junit-cry5.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry6] -r junit -o junit-cry6.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry7] -r junit -o junit-cry7.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry8] -r junit -o junit-cry8.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry9] -r junit -o junit-cry9.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry10] -r junit -o junit-cry10.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry11] -r junit -o junit-cry11.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry12] -r junit -o junit-cry12.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry13] -r junit -o junit-cry13.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry14] -r junit -o junit-cry14.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry15] -r junit -o junit-cry15.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry16] -r junit -o junit-cry16.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry17] -r junit -o junit-cry17.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry18] -r junit -o junit-cry18.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry19] -r junit -o junit-cry19.xml
+          ${BUILD_DIR}/test/testRunner [CI_cry20] -r junit -o junit-cry20.xml
       - name: Run CI test set IV
         run: |
-          ${BUILD_DIR}/test/testRunner [CI]
+          ${BUILD_DIR}/test/testRunner [CI] -r junit -o junit-ci.xml
 
       - name: Generate Coverage Report
         run: |
@@ -184,4 +184,11 @@ jobs:
           slug: cadet/CADET-Core
           files: coverage.xml
           fail_ci_if_error : true
+      - name: Upload Test Results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: cadet/CADET-Core
+          files: junit-*.xml
 
