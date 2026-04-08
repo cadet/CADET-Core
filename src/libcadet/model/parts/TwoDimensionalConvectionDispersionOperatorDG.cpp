@@ -899,9 +899,17 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 {
 	const unsigned int offsetC = _radNPoints * _nComp;
 
+	// Pre-compute strides
 	const int auxRadElemStride = _radNNodes;
 	const int auxAxNodeStride = _radNElem * auxRadElemStride;
 	const int auxAxElemStride = _axNNodes * auxAxNodeStride;
+	const int auxStateGRadStride = _radNNodes * _radNElem;
+	const Stride<Dynamic, Dynamic> strideC(_radNodeStride, _axNodeStride);
+	const Stride<Dynamic, Dynamic> strideAuxDispZ(1, auxStateGRadStride);
+	const Stride<Dynamic, Dynamic> strideFStarConv(1, _radNNodes);
+	const Stride<Dynamic, Dynamic> strideFAux2(1, 2);
+	const InnerStride<Dynamic> strideVectorC(_radNodeStride);
+	const InnerStride<Dynamic> strideVectorAx(_axNodeStride);
 
 	const active* const curAxialDispersion = getSectionDependentSlice(_axialDispersion, _radNElem * _nComp, secIdx);
 	const active* const curRadialDispersion = getSectionDependentSlice(_radialDispersion, _radNElem * _nComp, secIdx);
@@ -917,19 +925,19 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 				const int elemOffset = zEidx * _axElemStride + rEidx * _radElemStride;
 				const int auxElemOffset = zEidx * auxAxElemStride + rEidx * auxRadElemStride;
 
-				ConstMatrixMap<StateType> _C(y + offsetC + comp + elemOffset, _axNNodes, _radNNodes, Stride<Dynamic, Dynamic>(_radNodeStride, _axNodeStride));
+				ConstMatrixMap<StateType> _C(y + offsetC + comp + elemOffset, _axNNodes, _radNNodes, strideC);
 
-				MatrixMap<StateType> _Gz(reinterpret_cast<StateType*>(&_axAuxStateG[0]) + auxElemOffset, _axNNodes, _radNNodes, Stride<Dynamic, Dynamic>(1, _radNPoints));
-				MatrixMap<StateType> _Gr(reinterpret_cast<StateType*>(&_radAuxStateG[0]) + auxElemOffset, _axNNodes, _radNNodes, Stride<Dynamic, Dynamic>(1, _radNPoints));
+				MatrixMap<StateType> _Gz(reinterpret_cast<StateType*>(&_axAuxStateG[0]) + auxElemOffset, _axNNodes, _radNNodes, strideAuxDispZ);
+				MatrixMap<StateType> _Gr(reinterpret_cast<StateType*>(&_radAuxStateG[0]) + auxElemOffset, _axNNodes, _radNNodes, strideAuxDispZ);
 
-				MatrixMap<StateType> _fAux1(reinterpret_cast<StateType*>(&_fStarAux1[0]), 2, _radNNodes, Stride<Dynamic, Dynamic>(1, _radNNodes));
-				MatrixMap<StateType> _fAux2(reinterpret_cast<StateType*>(&_fStarAux2[0]), _axNNodes, 2, Stride<Dynamic, Dynamic>(1, 2));
+				MatrixMap<StateType> _fAux1(reinterpret_cast<StateType*>(&_fStarAux1[0]), 2, _radNNodes, strideFStarConv);
+				MatrixMap<StateType> _fAux2(reinterpret_cast<StateType*>(&_fStarAux2[0]), _axNNodes, 2, strideFAux2);
 
 				// axial auxiliary flux: central flux
 				_fAux1.row(0) = _C.row(0);
 				if (zEidx != 0) // else inlet auxiliary boundary condition fulfilled
 				{
-					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> prevNodeZ(y + offsetC + comp + elemOffset - _axNodeStride, _radNNodes, InnerStride<Dynamic>(_radNodeStride));
+					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> prevNodeZ(y + offsetC + comp + elemOffset - _axNodeStride, _radNNodes, strideVectorC);
 					_fAux1.row(0) += prevNodeZ;
 					_fAux1.row(0) *= 0.5;
 				}
@@ -937,7 +945,7 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 				_fAux1.row(1) = _C.row(_axPolyDeg);
 				if (zEidx != _axNElem - 1) // else already correct as per BC
 				{
-					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> nextNodeZ(y + offsetC + comp + elemOffset + _axElemStride, _radNNodes, InnerStride<Dynamic>(_radNodeStride));
+					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> nextNodeZ(y + offsetC + comp + elemOffset + _axElemStride, _radNNodes, strideVectorC);
 					_fAux1.row(1) += nextNodeZ;
 					_fAux1.row(1) *= 0.5;
 				}
@@ -949,7 +957,7 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 				_fAux2.col(1) = _C.col(_radPolyDeg);
 				if (rEidx != _radNElem - 1) // else auxiliary bc already fulfilled as per last line
 				{
-					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> nextNodeR(y + offsetC + comp + elemOffset + _radElemStride, _axNNodes, InnerStride<Dynamic>(_axNodeStride));
+					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> nextNodeR(y + offsetC + comp + elemOffset + _radElemStride, _axNNodes, strideVectorAx);
 					_fAux2.col(1) += nextNodeR;
 					_fAux2.col(1) *= 0.5;
 				}
@@ -970,8 +978,8 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 		// Add time derivative to bulk residual
 		if (yDot)
 		{
-			Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> _cDot(yDot + offsetC + comp, _axNPoints * _radNPoints, InnerStride<Dynamic>(_radNodeStride));
-			Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> _cRes(res + offsetC + comp, _axNPoints * _radNPoints, InnerStride<Dynamic>(_radNodeStride));
+			Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> _cDot(yDot + offsetC + comp, _axNPoints * _radNPoints, strideVectorC);
+			Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> _cRes(res + offsetC + comp, _axNPoints * _radNPoints, strideVectorC);
 			_cRes = _cDot.template cast<ResidualType>();
 		}
 
@@ -982,22 +990,23 @@ int TwoDimensionalConvectionDispersionOperatorDG::residualImpl(const IModel& mod
 				const int elemOffset = zEidx * _axElemStride + rEidx * _radElemStride;
 				const int auxElemOffset = zEidx * auxAxElemStride + rEidx * _radNNodes;
 
-				ConstMatrixMap<StateType> _C(y + offsetC + comp + elemOffset, _axNNodes, _radNNodes, Stride<Dynamic, Dynamic>(_radNodeStride, _axNodeStride));
-				MatrixMap<ResidualType> _Res(res + offsetC + comp + elemOffset, _axNNodes, _radNNodes, Stride<Dynamic, Dynamic>(_radNodeStride, _axNodeStride));
+				ConstMatrixMap<StateType> _C(y + offsetC + comp + elemOffset, _axNNodes, _radNNodes, strideC);
+				MatrixMap<ResidualType> _Res(res + offsetC + comp + elemOffset, _axNNodes, _radNNodes, strideC);
 
-				ConstMatrixMap<StateType> _Gz(reinterpret_cast<StateType*>(&_axAuxStateG[0]) + auxElemOffset, _axNNodes, _radNNodes, Stride<Dynamic, Dynamic>(1, _radNNodes * _radNElem));
-				
-				ConstMatrixMap<StateType> _Gr(reinterpret_cast<StateType*>(&_radAuxStateG[0]) + auxElemOffset, _axNNodes, _radNNodes, Stride<Dynamic, Dynamic>(1, _radNNodes * _radNElem));
+				ConstMatrixMap<StateType> _Gz(reinterpret_cast<StateType*>(&_axAuxStateG[0]) + auxElemOffset, _axNNodes, _radNNodes, strideAuxDispZ);
 
-				MatrixMap<ResidualType> _fStarConvZ(reinterpret_cast<ResidualType*>(&_fStarConv[0]), 2, _radNNodes, Stride<Dynamic, Dynamic>(1, _radNNodes));
-				MatrixMap<StateType> _gStarDispZ(reinterpret_cast<StateType*>(&_gZStarDisp[0]), 2, _radNNodes, Stride<Dynamic, Dynamic>(1, _radNNodes));
-				MatrixMap<ResidualType> _gStarDispR(reinterpret_cast<ResidualType*>(&_gRStarDisp[0]), _axNNodes, 2, Stride<Dynamic, Dynamic>(1, 2));
+				ConstMatrixMap<StateType> _Gr(reinterpret_cast<StateType*>(&_radAuxStateG[0]) + auxElemOffset, _axNNodes, _radNNodes, strideAuxDispZ);
+
+				MatrixMap<ResidualType> _fStarConvZ(reinterpret_cast<ResidualType*>(&_fStarConv[0]), 2, _radNNodes, strideFStarConv);
+				MatrixMap<StateType> _gStarDispZ(reinterpret_cast<StateType*>(&_gZStarDisp[0]), 2, _radNNodes, strideFStarConv);
+				MatrixMap<ResidualType> _gStarDispR(reinterpret_cast<ResidualType*>(&_gRStarDisp[0]), _axNNodes, 2, strideFAux2);
 				
 				/*	numerical fluxes	*/
 
 				// radial dispersion (central) flux
+				const Stride<Dynamic, Dynamic> strideRadAuxFull(1, _radNPoints);
 				{
-					ConstMatrixMap<StateType> _Gr(reinterpret_cast<StateType*>(&_radAuxStateG[0]) + auxElemOffset, _axNNodes, _radNNodes, Stride<Dynamic, Dynamic>(1, _radNPoints));
+					ConstMatrixMap<StateType> _Gr(reinterpret_cast<StateType*>(&_radAuxStateG[0]) + auxElemOffset, _axNNodes, _radNNodes, strideRadAuxFull);
 
 					if (rEidx == 0) // else already set from last iteration, see below
 						_gStarDispR.col(0).setZero(); // solid wall BC
@@ -1164,22 +1173,24 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 	const double deltaZ = static_cast<double>(_axDelta);
 
 	/* auxiliary block axial dispersion */
-	MatrixXd* GzDer = new MatrixXd[3]; // we have three unique auxiliary blocks
-	MatrixXd fStarAux1 = MatrixXd::Zero(Np, 3 * Np);
+	std::unique_ptr<MatrixXd[]> GzDer(new MatrixXd[3]); // we have three unique auxiliary blocks
+	MatrixXd fStarAux1(Np, 3 * Np); // Pre-allocate to avoid repeated creation
+	fStarAux1.setZero();
 
 	MatrixXd _radMM = dgtoolbox::mMatrix(_radPolyDeg, _radNodes, 0.0, 0.0);
-	MatrixXd MzKronMrInv = MatrixXd::Zero(Np, Np);
+	MatrixXd MzKronMrInv(Np, Np);
 	kroneckerProduct(_axInvMM.inverse(), _radMM, MzKronMrInv);
 	MzKronMrInv = MzKronMrInv.inverse();
 
-	MatrixXd BzKronMr = MatrixXd::Zero(Np, Np);
+	MatrixXd BzKronMr(Np, Np);
 	kroneckerProduct(dgtoolbox::liftingMatrixQuadratic(_axNNodes), _radMM, BzKronMr);
 
-	MatrixXd SzTKronMr = MatrixXd::Zero(Np, Np);
+	MatrixXd SzTKronMr(Np, Np);
 	kroneckerProduct(_axTransStiffM, _radMM, SzTKronMr);
 
 	for (int i = 0; i < 3; i++) // we have three unique auxiliary blocks
 	{
+		fStarAux1.setZero();
 		if (i == 0)
 			fStarAux1.block(0, Np, _radNNodes, _radNNodes) = MatrixXd::Identity(_radNNodes, _radNNodes);
 		else
@@ -1196,74 +1207,78 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 		}
 
 		GzDer[i] = 2.0 / deltaZ * MzKronMrInv * (BzKronMr * fStarAux1 - SzTKronMr * cDer.block(0, Np, Np, 3 * Np));
-
-		fStarAux1.setZero();
 	}
 
 	/* auxiliary block radial dispersion */
 
-	MatrixXd* GrDer = new MatrixXd[3]; // we have three unique auxiliary blocks
-	MatrixXd fStarAux2 = MatrixXd::Zero(Np, 3 * Np);
+	std::unique_ptr<MatrixXd[]> GrDer(new MatrixXd[3]); // we have three unique auxiliary blocks
+	MatrixXd fStarAux2(Np, 3 * Np);
+	fStarAux2.setZero();
 
-	MatrixXd MzKronBr = MatrixXd::Zero(Np, Np);
+	MatrixXd MzKronBr(Np, Np);
 	MatrixXd _axMM = dgtoolbox::mMatrix(_axPolyDeg, _axNodes, 0.0, 0.0);
 	kroneckerProduct(_axMM, dgtoolbox::liftingMatrixQuadratic(_radNNodes), MzKronBr);
 
-	MatrixXd MzKronSrT = MatrixXd::Zero(Np, Np);
+	MatrixXd MzKronSrT(Np, Np);
 	kroneckerProduct(_axMM, _radStiffM.transpose(), MzKronSrT);
 
+	MatrixXd auxCder(Np, 3 * Np);
+	auxCder.setZero();
+	MatrixXd auxCderSubBlock(_radNNodes, 3 * _radNNodes);
+	auxCderSubBlock.setZero();
+	auxCderSubBlock.block(0, _radNNodes, _radNNodes, _radNNodes) = MatrixXd::Identity(_radNNodes, _radNNodes);
+	for (int j = 0; j < _axNNodes; j++)
+		auxCder.block(j * _radNNodes, j * 3 * _radNNodes, _radNNodes, 3 * _radNNodes) = auxCderSubBlock;
+
+	auto Yblock = [](const double a, const double b, const double c, const double d, const int size) -> MatrixXd {
+		MatrixXd A = MatrixXd::Zero(size, 3 * size);
+		A(0, size - 1) = a;
+		A(0, size) = b;
+		A(size - 1, 2 * size - 1) = c;
+		A(size - 1, 2 * size) = d;
+		return A;
+		};
+
+	MatrixXd Y1(_radNNodes, 3 * _radNNodes);
+
+	for (int i = 0; i < 3; i++) // we have three unique auxiliary blocks
 	{
-		MatrixXd auxCder = MatrixXd::Zero(Np, 3 * Np);
-		MatrixXd auxCderSubBlock = MatrixXd::Zero(_radNNodes, 3 * _radNNodes);
-		auxCderSubBlock.block(0, _radNNodes, _radNNodes, _radNNodes) = MatrixXd::Identity(_radNNodes, _radNNodes);
+		Y1 = Yblock(0.5, 0.5, 0.5, 0.5, _radNNodes);
+
+		if (_radNElem == 1)
+			Y1 = Yblock(0.0, 1.0, 1.0, 0.0, _radNNodes);
+		else if (i == 0)
+			Y1 = Yblock(0.0, 1.0, 0.5, 0.5, _radNNodes);
+		else if (i == 2)
+			Y1 = Yblock(0.5, 0.5, 1.0, 0.0, _radNNodes);
+
+		fStarAux2.setZero();
 		for (int j = 0; j < _axNNodes; j++)
-			auxCder.block(j * _radNNodes, j * 3 * _radNNodes, _radNNodes, 3 * _radNNodes) = auxCderSubBlock;
+			fStarAux2.block(j * _radNNodes, j * 3 * _radNNodes, _radNNodes, 3 * _radNNodes) = Y1;
 
-		auto Yblock = [](const double a, const double b, const double c, const double d, const int size) {
-
-			MatrixXd A = MatrixXd::Zero(size, 3 * size);
-			A(0, size - 1) = a;
-			A(0, size) = b;
-			A(size - 1, 2 * size - 1) = c;
-			A(size - 1, 2 * size) = d;
-
-			return A;
-			};
-
-		for (int i = 0; i < 3; i++) // we have three unique auxiliary blocks
-		{
-			MatrixXd Y1 = Yblock(0.5, 0.5, 0.5, 0.5, _radNNodes);
-
-			if (_radNElem == 1)
-				Y1 = Yblock(0.0, 1.0, 1.0, 0.0, _radNNodes);
-			else if (i == 0)
-				Y1 = Yblock(0.0, 1.0, 0.5, 0.5, _radNNodes);
-			else if (i == 2)
-				Y1 = Yblock(0.5, 0.5, 1.0, 0.0, _radNNodes);
-
-			for (int j = 0; j < _axNNodes; j++)
-				fStarAux2.block(j * _radNNodes, j * 3 * _radNNodes, _radNNodes, 3 * _radNNodes) = Y1;
-
-			// note: without deltaR, which will be added in final Jacobian block, so that we only have three unique auxiliary blocks here
-			GrDer[i] = MzKronMrInv * (MzKronBr * fStarAux2 - MzKronSrT * auxCder);
-
-			fStarAux2.setZero();
-		}
+		// note: without deltaR, which will be added in final Jacobian block, so that we only have three unique auxiliary blocks here
+		GrDer[i] = MzKronMrInv * (MzKronBr * fStarAux2 - MzKronSrT * auxCder);
 	}
 
 	const int uAxElem = std::min(5, static_cast<int>(_axNElem)); // number of unique axial Jacobian blocks (per radial element)
 
 	/* Actual Jacobian blocks */
+	MatrixXd MzKronMrCylInv(Np, Np);
+	MatrixXd BzKronMrCyl(Np, Np);
+	MatrixXd SzTKronMrCyl(Np, Np);
+	MatrixXd gStarZ(Np, 5 * Np);
+	MatrixXd gStarR(Np, 5 * Np);
+	MatrixXd _BrCyl(_radNNodes, _radNNodes);
+	MatrixXd MzKronBrCyl(Np, Np);
+	MatrixXd MzKronSrTCyl(Np, Np);
+
 	for (int rElem = 0; rElem < _radNElem; rElem++)
 	{
-		MatrixXd MzKronMrCylInv = MatrixXd::Zero(Np, Np);
 		kroneckerProduct(_axInvMM.inverse(), _transMrCyl[rElem].transpose(), MzKronMrCylInv);
 		MzKronMrCylInv = MzKronMrCylInv.inverse();
 
-		MatrixXd BzKronMrCyl = MatrixXd::Zero(Np, Np);
 		kroneckerProduct(dgtoolbox::liftingMatrixQuadratic(_axNNodes), _transMrCyl[rElem].transpose(), BzKronMrCyl);
 
-		MatrixXd SzTKronMrCyl = MatrixXd::Zero(Np, Np);
 		kroneckerProduct(_axTransStiffM, _transMrCyl[rElem].transpose(), SzTKronMrCyl);
 
 		/* convection block */
@@ -1271,15 +1286,14 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 
 		_jacConvection[rElem] = MzKronMrCylInv * 2.0 / deltaZ * u * (SzTKronMrCyl * cDer - BzKronMrCyl * cStarDer);
 
-		// filter numerical noise
 		_jacConvection[rElem] = _jacConvection[rElem].unaryExpr([](double val) {
 			return (std::abs(val) < 1e-14) ? 0.0 : val;
 			});
 
 		/* axial dispersion block */
-//		const active* const curAxialDispersion = getSectionDependentSlice(_axialDispersion, _radNElem * _nComp, 0);
+		//const active* const curAxialDispersion = getSectionDependentSlice(_axialDispersion, _radNElem * _nComp, 0);
 
-		MatrixXd gStarZ = MatrixXd::Zero(Np, 5 * Np);
+		gStarZ.setZero();
 
 		for (int i = 0; i < uAxElem; i++)
 		{
@@ -1323,7 +1337,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 		const active* const curRadialDispersion = getSectionDependentSlice(_radialDispersion, _radNElem * _nComp, 0);
 		const double curPorosity = static_cast<double>(_colPorosities[rElem]);
 
-		MatrixXd gStarR = MatrixXd::Zero(Np, 5 * Np);
+		gStarR.setZero();
 
 		for (int comp = 0; comp < _nComp; comp++)
 		{
@@ -1355,14 +1369,11 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 				}
 			}
 
-			MatrixXd _BrCyl = dgtoolbox::liftingMatrixQuadratic(_radNNodes);
+			_BrCyl = dgtoolbox::liftingMatrixQuadratic(_radNNodes);
 			_BrCyl(0, 0) = -static_cast<double>(_radialElemInterfaces[rElem]);
 			_BrCyl(_radPolyDeg, _radPolyDeg) = static_cast<double>(_radialElemInterfaces[rElem + 1]);
 
-			MatrixXd MzKronBrCyl = MatrixXd::Zero(Np, Np);
 			kroneckerProduct(_axMM, _BrCyl, MzKronBrCyl);
-
-			MatrixXd MzKronSrTCyl = MatrixXd::Zero(Np, Np);
 			kroneckerProduct(_axMM, _SrCyl[rElem].transpose(), MzKronSrTCyl);
 
 			int auxIdx;
@@ -1383,9 +1394,6 @@ bool TwoDimensionalConvectionDispersionOperatorDG::computeConvDispJacobianBlocks
 			gStarR.setZero();
 		}
 	}
-
-	delete[] GrDer;
-	delete[] GzDer;
 
 	return 1;
 }
