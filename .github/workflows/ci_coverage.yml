@@ -165,7 +165,7 @@ jobs:
           ${BUILD_DIR}/test/testRunner [CI_cry20] -r junit -o junit-cry20.xml
       - name: Run CI test set IV
         run: |
-          ${BUILD_DIR}/test/testRunner [CI] -r junit -o junit-ci.xml
+          ${BUILD_DIR}/test/testRunner [CI]
 
       - name: Generate Coverage Report
         run: |
