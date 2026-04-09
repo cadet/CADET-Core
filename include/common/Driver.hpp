@@ -663,7 +663,7 @@ public:
 		writer.scalar("TIME_SIM", _sim->lastSimulationDuration());
 
 		if (!writer.exists("FILE_FORMAT"))
-			writer.scalar("FILE_FORMAT", std::string("1.0.0a3"));
+			writer.scalar("FILE_FORMAT", std::string("1.1.0a1"));
 
 		writer.popGroup();
 	}
