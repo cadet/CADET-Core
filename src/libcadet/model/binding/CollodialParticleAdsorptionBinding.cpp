@@ -9,6 +9,12 @@
 //  your option, any later version) which accompanies this distribution, and
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
+//TODO: Compute time derivative of quasi-stationary fluxes
+//TODO ph modelling
+//TODO add is_kinetic
+//TODO psi param type or double
+//TODO Di 
+//TODO constexpr for constans
 
 #include "model/binding/BindingModelBase.hpp"
 #include "model/ExternalFunctionSupport.hpp"
@@ -49,7 +55,6 @@ using std::numbers::pi;
 	"constantParameters":
 		[
 			{ "type": "ScalarBoolParameter", "varName": "phIdx", "confName": "CPA_PROTON_IDX"},
-			{ "type": "ScalarBoolParameter", "varName": "isKinetic", "confName": "CPA_IS_KINETIC"}
 		]
 }
 </codegen>*/
@@ -87,8 +92,8 @@ inline bool ColloidalParticleAdsorptionParamHandler::validateConfig(unsigned int
 		|| (_compRadius.size() != _adSurfaceArea.size())
 		|| (_compRadius.size() != _deltaM.size())
 		|| (_compRadius.size() != _deltaStar.size())
-		|| (_compRadius.size() < nComp))
-		throw InvalidParameterException("CPA component-dependent parameters must all have the same size (nComp)");
+		|| (_compRadius.size() < nBoundStates))
+		throw InvalidParameterException("CPA component-dependent parameters must all have the same size (nBoundStates)");
 
 	return true;
 }
@@ -102,8 +107,8 @@ inline bool ExtColloidalParticleAdsorptionParamHandler::validateConfig(unsigned 
 		|| (_compRadius.size() != _adSurfaceArea.size())
 		|| (_compRadius.size() != _deltaM.size())
 		|| (_compRadius.size() != _deltaStar.size())
-		|| (_compRadius.size() < nComp))
-		throw InvalidParameterException("CPA component-dependent parameters must all have the same size (nComp)");
+		|| (_compRadius.size() < nBoundStates))
+		throw InvalidParameterException("CPA component-dependent parameters must all have the same size (nBoundStates)");
 
 	return true;
 }
@@ -147,8 +152,6 @@ public:
 
 		if (!ParamHandler_t::dependsOnTime())
 			return;
-
-		// TODO: Compute time derivative of quasi-stationary fluxes
 	}
 
 	virtual bool hasSalt() const CADET_NOEXCEPT { return false; }
@@ -165,7 +168,6 @@ protected:
 	using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
 	// Physical constants
-	//TODO constexpr
 	const double _elemCharge 	= 1.602176634e-19;   // elementaryCharge e [C]
 	const double _avogadroNum   = 6.02214076e23;     // avogadro number N_A [1/mol]
 	const double _boltzmann     = 1.380649e-23;      // boltzmann constant k_b [J/K]
@@ -178,7 +180,7 @@ protected:
 	 * @brief Solve for adsorber surface potential psi_{0,A} using Newton
 	 * @details Solves the neutrality condition sigma_{I,A}(psi) = sigma_D(psi)
 	 */
-	template <typename CpStateType, typename ParamType> //TODO psi param type or double
+	template <typename CpStateType, typename ParamType>
 	ParamType solvePsiAdsorber(CpStateType pH, ParamType kappa, ParamType GammaL,
 		ParamType zetaL, ParamType pKL, ParamType eps, ParamType T) const
 	{
@@ -231,9 +233,6 @@ protected:
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
 		const bool res = ParamHandlerBindingModelBase<ParamHandler_t>::configureImpl(paramProvider, unitOpIdx, parTypeIdx);
-
-		//TODO ph modelling
-		//TODO add is_kinetic
 
 
 		if (_nComp <= 1)
@@ -402,7 +401,7 @@ protected:
 					* exp(kappa * (a_i + a_j))
 					/ ((1.0 + kappa * a_i) * (1.0 + kappa * a_j));
 
-				const CpStateParamType q_j = y[bndIdx2] / As_j;  // BUG FIX: was yCp[bndIdx2], must read bound state y
+				const CpStateParamType q_j = y[bndIdx2] / As_j;
 				betaQSum += beta_ij * q_j;
 
 				++bndIdx2;
