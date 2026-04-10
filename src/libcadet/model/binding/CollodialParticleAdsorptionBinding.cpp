@@ -48,7 +48,7 @@ using std::numbers::pi;
 		],
 	"constantParameters":
 		[
-			{ "type": "ScalarBoolParameter", "varName": "phIdx", "confName": "CPA_PH_IDX"},
+			{ "type": "ScalarBoolParameter", "varName": "phIdx", "confName": "CPA_PROTON_IDX"},
 			{ "type": "ScalarBoolParameter", "varName": "isKinetic", "confName": "CPA_IS_KINETIC"}
 		]
 }
@@ -172,7 +172,7 @@ protected:
 	const double _vacuumPermi 	= 8.8541878128e-12;  // vacuumPermittivity eps_0 [F/m]
 	
 	const int _MAXITER = 100; // for newtoniteration in solvePsiAdsorber()
-	int _idxpH = 0;
+	int _idxProd = 0;
 	
 	/**
 	 * @brief Solve for adsorber surface potential psi_{0,A} using Newton
@@ -239,10 +239,10 @@ protected:
 		if (_nComp <= 1)
 			throw InvalidParameterException("CPA model: To use PH as a state at least two components need to present");
 
-		if(paramProvider.exists("CPA_PH_IDX"))// default index is 0
-			_idxpH = paramProvider.getInt("CPA_PH_IDX");
+		if(paramProvider.exists("CPA_PROTON_IDX"))// default index is 0
+			_idxProd = paramProvider.getInt("CPA_PROTON_IDX");
 
-		if (_nBoundStates[_idxpH] != 0)
+		if (_nBoundStates[_idxProd] != 0)
 		 	throw InvalidParameterException("PH component must be non-binding (NBOUND = 0)");
 
 		for (int i = 0; i < _nComp; ++i)
@@ -279,17 +279,16 @@ protected:
 		const ParamType zetaL   = static_cast<ParamType>(p->chargeFullLigand);
 		const ParamType pKL     = static_cast<ParamType>(p->pKLigand);
 
-		const CpStateType pH_val  = yCp[_idxpH];
+		const CpStateType pH  = log10(yCp[_idxProd]); // pH = log10(c_pH_proxy), c_pH_proxy = 10^pH
 
 		// kappa = sqrt(2 * e^2 * I_m * N_A / (k_b * T * eps * eps0))
-		const ParamType kappa = sqrt(2.0 * e * e * Im * NA
-			/ (kb * T * eps * eps0));
+		const ParamType kappa = e * sqrt(2.0 * Im * NA / (kb * T * eps * eps0));
 
 		const ParamType kbT = kb * T;
 
 		// Solve adsorber surface potential psi_{0,A}
 		const ParamType psiA = solvePsiAdsorber(
-			pH_val, kappa, GammaL, zetaL, pKL, eps, T);
+			pH, kappa, GammaL, zetaL, pKL, eps, T);
 
 		// beta_{i,j}: e^2 / (4*pi*eps*eps0)
 		const ParamType elecPrefactor = e * e / (4.0 * pi * eps * eps0);
@@ -307,7 +306,7 @@ protected:
 
 			const ParamType a_i  = static_cast<ParamType>(p->compRadius[i]);
 			const ParamType As_i = static_cast<ParamType>(p->adSurfaceArea[i]);
-			const CpStateParamType q_i = yCp[bndIdx] / As_i;
+			const CpStateParamType q_i = y[bndIdx] / As_i;  // BUG FIX: was yCp[bndIdx], must read bound state y
 
 			Theta       += a_i * a_i * q_i;
 			sumQSurface += q_i;
@@ -403,7 +402,7 @@ protected:
 					* exp(kappa * (a_i + a_j))
 					/ ((1.0 + kappa * a_i) * (1.0 + kappa * a_j));
 
-				const CpStateParamType q_j = yCp[bndIdx2] / As_j;
+				const CpStateParamType q_j = y[bndIdx2] / As_j;  // BUG FIX: was yCp[bndIdx2], must read bound state y
 				betaQSum += beta_ij * q_j;
 
 				++bndIdx2;
@@ -422,12 +421,14 @@ protected:
 			const CpStateParamType Kv_i =  As_i * (dstar_i - dm_i) * KH_i * B_i * exp(-ulat_i / kbT);
 
 			// 7. k_{kin,i} =  D_i /Delta^2_i  * 1/2 (u_A,i(detla_m,i)/k_bT)^2 * (cosh(u_A,i(detla_m,i)//k_bT)-1))^{-1}
-			const double D_i = 1; //TODO D_i is the (pore) diffusion coeffizent -> how to get this from the unit operation?
+			const double D_i = 1e-10; // Typical protein pore diffusion coefficient [m^2/s]
 			const ParamType kKin_i_star =  D_i / (2 * (dstar_i - dm_i)*(dstar_i - dm_i));
 			const ParamType kKin_i = kKin_i_star * (uA_i/kbT)*(uA_i/kbT) * 1/(cosh(uA_i/kbT)-1);
 			
-			//res: k_{kin,i} * (K_{v,i} * c_{p,i} - q_{v,i})
-			res[bndIdx] = kKin_i * (Kv_i * yCp[i] - y[bndIdx]);
+			//res: dq/dt - k_{kin,i} * (K_{v,i} * c_{p,i} - q_{v,i})  = 0
+			// => flux = k_{kin,i} * (K_{v,i} * c_{p,i} - q_{v,i})
+			// For CADET convention: res = -(flux), so add negative sign
+			res[bndIdx] = -kKin_i * (Kv_i * yCp[i] - y[bndIdx]);
 
 			++bndIdx;
 		}
@@ -492,7 +493,7 @@ protected:
 		const double zetaL   = static_cast<double>(p->chargeFullLigand);
 		const double pKL     = static_cast<double>(p->pKLigand);
 
-		const double pH_val = yCp[_idxpH];
+		const double pH_val = std::log10(yCp[_idxProd]);  // BUG FIX: must apply log10 like in fluxImpl
 		const double kappa = sqrt(2.0 * e * e * Im * NA / (kb * T * eps * eps0));
 		const double kbT = kb * T;
 
@@ -591,7 +592,7 @@ protected:
 			}
 
 			// --- k_{kin,i} ---
-			const double D_i = 1.0; // TODO: pore diffusion coefficient
+			const double D_i = 1e-10; // Typical protein pore diffusion coefficient [m^2/s]
 			const double Delta_i = dstar_i - dm_i;
 			const double kKin_star = D_i / (2.0 * Delta_i * Delta_i);
 			const double uAratio = uA_i / kbT;
@@ -715,24 +716,24 @@ protected:
 			//   dres_i / dq_i        (direct + through above)
 
 			// === dres_i / dc_{p,i} ===
-			// dres_i / dc_{p,i} = kKin_i * Kv_i
-			jac[i - bndIdx - offsetCp] = kKin_i * Kv_i;
+			// dres_i / dc_{p,i} = -kKin_i * Kv_i
+			jac[i - bndIdx - offsetCp] = -kKin_i * Kv_i;
 
 			// === dres_i / dc_{p,pH} (pH is at index _idxpH in yCp) ===
 			// Chain: res depends on psiA through uA_i, which affects KH_i and kKin_i
 			// dres/dpH = (dres/duA * duA/dpsiA + dKv/dpsiA_via_uA) * dpsiA/dpH
 			//
 			// dKv/duA = As*Delta * dKH/duA * B * exp(-ulat/kbT)
-			// dres/duA = dkKin/duA * (Kv*cp - q) + kKin * dKv/duA * cp
+			// dres/duA = -(dkKin/duA * (Kv*cp - q) + kKin * dKv/duA * cp)
 			const double dKv_duA = As_i * Delta_i * dKH_duA * B_i * expUlat;
-			const double dres_duA = dkKin_duA * (Kv_i * yCp[i] - y[bndIdx])
-				+ kKin_i * dKv_duA * yCp[i];
+			const double dres_duA = -(dkKin_duA * (Kv_i * yCp[i] - y[bndIdx])
+				+ kKin_i * dKv_duA * yCp[i]);
 			const double dres_dpH = dres_duA * duA_dpsiA * dpsiA_dpH_val;
 
-			jac[_idxpH - bndIdx - offsetCp] += dres_dpH;
+			jac[_idxProd - bndIdx - offsetCp] += dres_dpH;
 
-			// === dres_i / dq_i (direct term: -kKin_i) ===
-			jac[0] = -kKin_i;
+			// === dres_i / dq_i (direct term: +kKin_i due to negative sign in res) ===
+			jac[0] = +kKin_i;
 
 			// === dres_i / dq_j (through Kv_i which depends on B_i, ulat_i via Theta, sumQ, sumAjQj, Dhex) ===
 			// Kv_i = As*Delta*KH * B_i * exp(-ulat/kbT)
@@ -778,8 +779,8 @@ protected:
 				else
 					dKv_dqk = As_i * Delta_i * KH_i * expUlat * (dBi_dqk - B_i * dulat_dqk / kbT);
 
-				// dres_i / dq_k = kKin_i * dKv_i/dq_k * c_{p,i}
-				const double dres_dqk = kKin_i * dKv_dqk * yCp[i];
+				// dres_i / dq_k = -kKin_i * dKv_i/dq_k * c_{p,i}
+				const double dres_dqk = -kKin_i * dKv_dqk * yCp[i];
 
 				// jac[bndIdx2 - bndIdx] points to q_{bndIdx2}
 				jac[bndIdx2 - bndIdx] += dres_dqk;
