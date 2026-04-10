@@ -9,12 +9,13 @@
 //  your option, any later version) which accompanies this distribution, and
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
-//TODO: Compute time derivative of quasi-stationary fluxes
-//TODO ph modelling
-//TODO add is_kinetic
-//TODO psi param type or double
-//TODO Di 
-//TODO constexpr for constans
+//TODO: is_kinetik = False
+//TODO: psi param type or double
+//TODO: Di
+//TODO: constexpr for constans
+//TODO: validateConfig -> nComp to nBound?
+//TODO: Jaconian
+//TODO: Units
 
 #include "model/binding/BindingModelBase.hpp"
 #include "model/ExternalFunctionSupport.hpp"
@@ -47,14 +48,17 @@ using std::numbers::pi;
 			{ "type": "ScalarParameter", "varName": "pKLigand", "confName": "CPA_PK_LIGAND"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "adSurfaceArea", "confName": "CPA_SURFACE_AREA"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "compRadius", "confName": "CPA_PROTEIN_RADIUS"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "compCharge", "confName": "CPA_COMP_CHARGE"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "latCharge", "confName": "CPA_COMP_LAT_CHARGE"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "deltaM", "confName": "CPA_DELTA_M"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "deltaStar", "confName": "CPA_DELTA_STAR"}
+			{ "type": "ScalarComponentDependentParameter", "varName": "refCompCharge", "confName": "CPA_COMP_CHARGE_REF"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "linCompCharge", "confName": "CPA_COMP_CHARGE_LIN"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "quadCompCharge", "confName": "CPA_COMP_CHARGE_QUAD"},
+			{ "type": "ScalarParameter", "varName": "refpH", "confName": "CPA_PH_REF"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "refDelta", "confName": "CPA_DELTA_REF"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "linDelta", "confName": "CPA_DELTA_LIN"}
 		],
 	"constantParameters":
 		[
-			{ "type": "ScalarBoolParameter", "varName": "phIdx", "confName": "CPA_PROTON_IDX"},
+			{ "type": "ScalarBoolParameter", "varName": "phIdx", "confName": "CPA_PROTON_IDX"}
 		]
 }
 </codegen>*/
@@ -70,11 +74,12 @@ using std::numbers::pi;
  CPA_PH:                  Bulk pH [-]
  CPA_SURFACE_AREA:        Specific adsorber surface per skeleton volume A_{s,i} [m^-1] (per component)
  CPA_PROTEIN_RADIUS:      Protein radius a_i [m] (per component)
- CPA_COMP_CHARGE:         Net protein charge Z_i [-] (per component)
- CPA_COMP_LAT_CHARGE:     Lateral charge Z_{lat,i} [-] (per component)
- CPA_DELTA_M:             Location of energy minimum delta_{m,i} [m] (per component)
- CPA_DELTA_STAR:          Thickness of interaction boundary layer delta*_i [m] (per component)
- CPA_USE_PH:              Whether pH is a mobile phase component (bool)
+ CPA_COMP_CHARGE_REF:	
+ CPA_COMP_CHARGE_LIN:
+ CPA_COMP_CHARGE_QUAD:
+ CPA_PH_REF:
+ CPA_DELTA_REF:
+ CPA_DELTA_LIN:
 */
 
 namespace cadet
@@ -87,13 +92,15 @@ inline const char* ColloidalParticleAdsorptionParamHandler::identifier() CADET_N
 
 inline bool ColloidalParticleAdsorptionParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
-	if ((_compRadius.size() != _compCharge.size())
+	if ((_compRadius.size() != _refCompCharge.size())
+		|| (_compRadius.size() != _linCompCharge.size())
+		|| (_compRadius.size() != _quadCompCharge.size())
 		|| (_compRadius.size() != _latCharge.size())
 		|| (_compRadius.size() != _adSurfaceArea.size())
-		|| (_compRadius.size() != _deltaM.size())
-		|| (_compRadius.size() != _deltaStar.size())
-		|| (_compRadius.size() < nBoundStates))
-		throw InvalidParameterException("CPA component-dependent parameters must all have the same size (nBoundStates)");
+		|| (_compRadius.size() != _refDelta.size())
+		|| (_compRadius.size() != _linDelta.size())
+		|| (_compRadius.size() < nComp))
+		throw InvalidParameterException("CPA component-dependent parameters must all have the same size (nComp)");
 
 	return true;
 }
@@ -102,13 +109,15 @@ inline const char* ExtColloidalParticleAdsorptionParamHandler::identifier() CADE
 
 inline bool ExtColloidalParticleAdsorptionParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
-	if ((_compRadius.size() != _compCharge.size())
+	if ((_compRadius.size() != _refCompCharge.size())
+		|| (_compRadius.size() != _linCompCharge.size())
+		|| (_compRadius.size() != _quadCompCharge.size())
 		|| (_compRadius.size() != _latCharge.size())
 		|| (_compRadius.size() != _adSurfaceArea.size())
-		|| (_compRadius.size() != _deltaM.size())
-		|| (_compRadius.size() != _deltaStar.size())
-		|| (_compRadius.size() < nBoundStates))
-		throw InvalidParameterException("CPA component-dependent parameters must all have the same size (nBoundStates)");
+		|| (_compRadius.size() != _refDelta.size())
+		|| (_compRadius.size() != _linDelta.size())
+		|| (_compRadius.size() < nComp))
+		throw InvalidParameterException("CPA component-dependent parameters must all have the same size (nComp)");
 
 	return true;
 }
@@ -174,7 +183,7 @@ protected:
 	const double _vacuumPermi 	= 8.8541878128e-12;  // vacuumPermittivity eps_0 [F/m]
 	
 	const int _MAXITER = 100; // for newtoniteration in solvePsiAdsorber()
-	int _idxProd = 0;
+	int _idxProton = 0;
 	
 	/**
 	 * @brief Solve for adsorber surface potential psi_{0,A} using Newton
@@ -228,7 +237,7 @@ protected:
 		return psi;
 	}
 
-	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return true; }
+	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return false; }
 
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
@@ -239,9 +248,9 @@ protected:
 			throw InvalidParameterException("CPA model: To use PH as a state at least two components need to present");
 
 		if(paramProvider.exists("CPA_PROTON_IDX"))// default index is 0
-			_idxProd = paramProvider.getInt("CPA_PROTON_IDX");
+			_idxProton = paramProvider.getInt("CPA_PROTON_IDX");
 
-		if (_nBoundStates[_idxProd] != 0)
+		if (_nBoundStates[_idxProton] != 0)
 		 	throw InvalidParameterException("PH component must be non-binding (NBOUND = 0)");
 
 		for (int i = 0; i < _nComp; ++i)
@@ -264,21 +273,22 @@ protected:
 
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		// Physical constants (double, no AD tracking needed)
+		// Physical constants
 		const double e    = _elemCharge;
 		const double NA   = _avogadroNum;
 		const double kb   = _boltzmann;
 		const double eps0 = _vacuumPermi;
 
-		// Scalar parameters (ParamType for AD sensitivity tracking)
+		// Scalar parameters
 		const ParamType T       = static_cast<ParamType>(p->temperature);
 		const ParamType Im      = static_cast<ParamType>(p->ionicStrength);
 		const ParamType eps     = static_cast<ParamType>(p->permittivity);
 		const ParamType GammaL  = static_cast<ParamType>(p->surfaceDensity);
 		const ParamType zetaL   = static_cast<ParamType>(p->chargeFullLigand);
 		const ParamType pKL     = static_cast<ParamType>(p->pKLigand);
+		const ParamType refpH   = static_cast<ParamType>(p->refpH);
 
-		const CpStateType pH  = log10(yCp[_idxProd]); // pH = log10(c_pH_proxy), c_pH_proxy = 10^pH
+		const CpStateType pH  = log10(yCp[_idxProton]); // pH = log10(c_proton), c_proton = 10^pH
 
 		// kappa = sqrt(2 * e^2 * I_m * N_A / (k_b * T * eps * eps0))
 		const ParamType kappa = e * sqrt(2.0 * Im * NA / (kb * T * eps * eps0));
@@ -305,7 +315,7 @@ protected:
 
 			const ParamType a_i  = static_cast<ParamType>(p->compRadius[i]);
 			const ParamType As_i = static_cast<ParamType>(p->adSurfaceArea[i]);
-			const CpStateParamType q_i = y[bndIdx] / As_i;  // BUG FIX: was yCp[bndIdx], must read bound state y
+			const CpStateParamType q_i = y[bndIdx] / As_i;
 
 			Theta       += a_i * a_i * q_i;
 			sumQSurface += q_i;
@@ -328,36 +338,48 @@ protected:
 
 			const ParamType a_i      = static_cast<ParamType>(p->compRadius[i]);
 			const ParamType As_i     = static_cast<ParamType>(p->adSurfaceArea[i]);
-			const ParamType Zi       = static_cast<ParamType>(p->compCharge[i]);
 			const ParamType Zlat_i   = static_cast<ParamType>(p->latCharge[i]);
-			const ParamType dm_i     = static_cast<ParamType>(p->deltaM[i]);
-			const ParamType dstar_i  = static_cast<ParamType>(p->deltaStar[i]);
+			const ParamType refZi	 = static_cast<ParamType>(p->refCompCharge[i]);
+			const ParamType linZi	 = static_cast<ParamType>(p->linCompCharge[i]);
+			const ParamType quadZi   = static_cast<ParamType>(p->quadCompCharge[i]);	
+
+			const CpStateParamType Zi = refZi + linZi * (pH - refpH) + quadZi * (pH - refpH) * (pH - refpH);
 
 			// 1. Protein surface potential psi_{0,i}
 			//    psi_i = (2*k_b*T/e) * asinh(Z_i*e^2 / (8*pi*a_i^2*eps*eps0*kappa*k_b*T))
-			const ParamType psiArg = Zi * e * e / (8.0 * pi * a_i * a_i * eps * eps0 * kappa * kbT);
-			const ParamType psi_i = (2.0 * kbT / e) * log(psiArg + sqrt(psiArg * psiArg + 1.0));
+			const CpStateParamType psiArg = Zi * e * e / (8.0 * pi * a_i * a_i * eps * eps0 * kappa * kbT);
+			const CpStateParamType psi_i = (2.0 * kbT / e) * log(psiArg + sqrt(psiArg * psiArg + 1.0));
 
-			// 2. Protein-adsorber interaction: u_{A,i}(delta_{m,i})
+			// 2. Compute delta_m analytically: z^* = -ln( -2*psiA*psi_i / (psiA^2 + psi_i^2))/kappa
+			const CpStateParamType dmRatio = -2.0 * psiA * psi_i / (psiA * psiA + psi_i * psi_i);
+			const CpStateParamType dm_i = -log(dmRatio) / kappa;
+
+			// 3. Compute delta_i and dstar_i
+			const ParamType dRef_i = static_cast<ParamType>(p->refDelta[i]);
+			const ParamType dLin_i = static_cast<ParamType>(p->linDelta[i]);
+			const CpStateParamType sigmaI_i = Zi * e / (4.0 * pi * a_i * a_i);
+			const ParamType sigmaRef_I = refZi * e / (4.0 * pi * a_i * a_i);
+			const CpStateParamType logDelta = dRef_i + dLin_i * (abs(sigmaI_i) - abs(sigmaRef_I));
+			const CpStateParamType delta_i = exp(std::log(10.0) * logDelta);
+			const CpStateParamType dstar_i = dm_i + delta_i / As_i;
+
+			// 4. Protein-adsorber interaction: u_{A,i}(delta_{m,i})
 			//    u_{A,i}(z) = pi * a_i * eps * eps0 *
 			//      [ 2*psi_A*psi_i * ln((1+exp(-kappa*z))/(1-exp(-kappa*z)))
 			//        - (psi_A^2 + psi_i^2) * ln(1 - exp(-2*kappa*z)) ]
-
-			const ParamType ekz = exp(-kappa * dm_i);
-			const ParamType uA_i = pi * a_i * eps * eps0 * (
+			const CpStateParamType ekz = exp(-kappa * dm_i);
+			const CpStateParamType uA_i = pi * a_i * eps * eps0 * (
 				2.0 * psiA * psi_i * log((1.0 + ekz) / (1.0 - ekz))
 				- (psiA * psiA + psi_i * psi_i) * log(1.0 - ekz * ekz)
 			);
 
-			// 3. K_{H,i} (Eq. 10)
-			//    K_{H,i} = (k_b*T / u_{A,i})
-			//              * (1 - exp(-u_{A,i} / (k_b*T)))
-
-			ParamType KH_i = 0.0;
+			// 5. K_{H,i}
+			//    K_{H,i} = (k_b*T / u_{A,i}) * (1 - exp(-u_{A,i} / (k_b*T)))
+			CpStateParamType KH_i = 0.0;
 			if (std::abs(static_cast<double>(uA_i)) > 1e-30)
-				KH_i =(kbT / uA_i) * (1.0 - exp(-uA_i / kbT));
+				KH_i = (kbT / uA_i) * (1.0 - exp(-uA_i / kbT));
 
-			// 4. B_i(Theta)
+			// 6. B_i(Theta)
 			//    Hard-disc ASF
 			//    B_i = (1 - Theta) * exp(
 			//      -(pi*a_i^2 * sum_j(q_j*N_A) + 2*pi*a_i * sum_j(a_j*q_j*N_A)) / (1 - Theta)
@@ -375,7 +397,7 @@ protected:
 				B_i = oneMinusTheta * exp(-nom1 / oneMinusTheta - nom2 / (oneMinusTheta * oneMinusTheta));
 			}
 
-			// 5. u_{lat,i} 
+			// 7. u_{lat,i} 
 			//    u_{lat,i} = 3*sqrt(3)*D_hex*N_A
 			//                * exp(-kappa*D_hex) / (1 - exp(-3*sqrt(3)/(2*pi)*kappa*D_hex))
 			//                * sum_j(q_j * beta_{i,j})
@@ -407,26 +429,25 @@ protected:
 				++bndIdx2;
 			}
 
-			const CpStateParamType denom = 1.0 - exp(-(3.0 * std::sqrt(3.0) / (2.0 * pi)) * kappa * Dhex);
+			const CpStateParamType ulatDenom = 1.0 - exp(-(3.0 * std::sqrt(3.0) / (2.0 * pi)) * kappa * Dhex);
 
-			if (std::abs(static_cast<double>(denom)) > 1e-30)
+			if (std::abs(static_cast<double>(ulatDenom)) > 1e-30)
 			{
 				ulat_i = 3.0 * std::sqrt(3.0) * Dhex * NA
-					* exp(-kappa * Dhex) / denom
+					* exp(-kappa * Dhex) / ulatDenom
 					* betaQSum;
-			} 
+			}
 
-			// 6.  K_{v,i} =  As_i * (dstar_i - dm_i) * K_{H,i} * B_i(Theta) * exp(-u_{lat,i} / (k_b*T))
-			const CpStateParamType Kv_i =  As_i * (dstar_i - dm_i) * KH_i * B_i * exp(-ulat_i / kbT);
+			// 8. K_{v,i} = As_i * (dstar_i - dm_i) * K_{H,i} * B_i(Theta) * exp(-u_{lat,i} / (k_b*T))
+			const CpStateParamType Kv_i = As_i * (dstar_i - dm_i) * KH_i * B_i * exp(-ulat_i / kbT);
 
-			// 7. k_{kin,i} =  D_i /Delta^2_i  * 1/2 (u_A,i(detla_m,i)/k_bT)^2 * (cosh(u_A,i(detla_m,i)//k_bT)-1))^{-1}
+			// 9. k_{kin,i} = D_i / (2*Delta^2) * (u_A/(k_bT))^2 / (cosh(u_A/(k_bT)) - 1)
 			const double D_i = 1e-10; // Typical protein pore diffusion coefficient [m^2/s]
-			const ParamType kKin_i_star =  D_i / (2 * (dstar_i - dm_i)*(dstar_i - dm_i));
-			const ParamType kKin_i = kKin_i_star * (uA_i/kbT)*(uA_i/kbT) * 1/(cosh(uA_i/kbT)-1);
-			
-			//res: dq/dt - k_{kin,i} * (K_{v,i} * c_{p,i} - q_{v,i})  = 0
-			// => flux = k_{kin,i} * (K_{v,i} * c_{p,i} - q_{v,i})
-			// For CADET convention: res = -(flux), so add negative sign
+			const CpStateParamType kKin_i_star = D_i / (2.0 * (dstar_i - dm_i) * (dstar_i - dm_i));
+			const CpStateParamType uARatio = uA_i / kbT;
+			const CpStateParamType kKin_i = kKin_i_star * uARatio * uARatio / (cosh(uARatio) - 1.0);
+
+
 			res[bndIdx] = -kKin_i * (Kv_i * yCp[i] - y[bndIdx]);
 
 			++bndIdx;
@@ -553,14 +574,29 @@ protected:
 
 			const double a_i      = static_cast<double>(p->compRadius[i]);
 			const double As_i     = static_cast<double>(p->adSurfaceArea[i]);
-			const double Zi       = static_cast<double>(p->compCharge[i]);
+			const double refZi    = static_cast<double>(p->refCompCharge[i]);
+			const double linZi    = static_cast<double>(p->linCompCharge[i]);
+			const double quadZi   = static_cast<double>(p->quadCompCharge[i]);
 			const double Zlat_i   = static_cast<double>(p->latCharge[i]);
-			const double dm_i     = static_cast<double>(p->deltaM[i]);
-			const double dstar_i  = static_cast<double>(p->deltaStar[i]);
+			const double refpH    = static_cast<double>(p->refpH);
 
-			// --- Protein surface potential psi_i (depends only on parameters, not state) ---
+			const double Zi = refZi + linZi * (pH_val - refpH) + quadZi * (pH_val - refpH) * (pH_val - refpH);
+
+			// --- Protein surface potential psi_i ---
 			const double psiArg = Zi * e * e / (8.0 * pi * a_i * a_i * eps * eps0 * kappa * kbT);
 			const double psi_i = (2.0 * kbT / e) * log(psiArg + sqrt(psiArg * psiArg + 1.0));
+
+			// --- Compute delta_m analytically ---
+			const double dmRatio = -2.0 * psiA * psi_i / (psiA * psiA + psi_i * psi_i);
+			const double dm_i = -log(dmRatio) / kappa;
+
+			// --- Compute delta_i via Eq. (39) and dstar_i ---
+			const double dRef_i = static_cast<double>(p->refDelta[i]);
+			const double dLin_i = static_cast<double>(p->linDelta[i]);
+			const double sigmaI_i = Zi * e / (4.0 * pi * a_i * a_i);
+			const double sigmaRef_I = refZi * e / (4.0 * pi * a_i * a_i);
+			const double delta_i = std::pow(10.0, dRef_i + dLin_i * (std::abs(sigmaI_i) - std::abs(sigmaRef_I)));
+			const double dstar_i = dm_i + delta_i / As_i;
 
 			// --- Protein-adsorber interaction u_{A,i} ---
 			const double ekz = exp(-kappa * dm_i);
