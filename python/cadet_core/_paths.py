@@ -21,16 +21,21 @@ def get_cadet_library_dir() -> Path:
     return _package_root() / "lib"
 
 
-def get_cadet_binary() -> Path:
+def get_packaged_binary(name: str) -> Path:
     bin_dir = _package_root() / "bin"
-    exe = "cadet-cli.exe" if os.name == "nt" else "cadet-cli"
-    p = bin_dir / exe
+    exe_name = f"{name}.exe" if os.name == "nt" else name
+    p = bin_dir / exe_name
     if p.exists():
         return p
-    raise FileNotFoundError(
-        f"CADET-Core executable not found at {p}. "
-        "Your CMake install step must place it into cadet_core/bin/"
-    )
+    raise FileNotFoundError(f"Executable not found at {p}")
+
+
+def get_cadet_binary() -> Path:
+    return get_packaged_binary("cadet-cli")
+
+
+def get_createLWE_binary() -> Path:
+    return get_packaged_binary("createLWE")
 
 
 def get_cadet_library_path(prefer: Optional[str] = None) -> Path:
@@ -68,18 +73,13 @@ def _env_with_library_path(env: dict[str, str]) -> dict[str, str]:
     if os.name == "nt":
         paths = [str(bin_dir)]
 
-        # delvewheel vendors here by default: <site-packages>/<distribution>.libs
-        # In your case it will be "cadet_core.libs" (distribution name can vary),
-        # so search for any sibling directory ending with ".libs".
         site_packages = pkg_root.parent
         libs_dirs = sorted([p for p in site_packages.glob("*.libs") if p.is_dir()])
 
-        # Prefer the one matching the package name if present
         preferred = site_packages / "cadet_core.libs"
         if preferred.is_dir():
             paths.insert(0, str(preferred))
         else:
-            # otherwise add all .libs dirs (usually just one)
             paths = [*paths, *[str(p) for p in libs_dirs]]
 
         env["PATH"] = os.pathsep.join(paths) + os.pathsep + env.get("PATH", "")
@@ -91,9 +91,15 @@ def _env_with_library_path(env: dict[str, str]) -> dict[str, str]:
     return env
 
 
+def _run_binary(path: Path) -> int:
+    env = _env_with_library_path(dict(os.environ))
+    proc = subprocess.run([str(path), *sys.argv[1:]], env=env)
+    return int(proc.returncode)
+
 
 def run_cadet() -> int:
-    exe = get_cadet_binary()
-    env = _env_with_library_path(dict(os.environ))
-    proc = subprocess.run([str(exe), *sys.argv[1:]], env=env)
-    return int(proc.returncode)
+    return _run_binary(get_cadet_binary())
+
+
+def run_createLWE() -> int:
+    return _run_binary(get_createLWE_binary())

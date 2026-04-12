@@ -97,6 +97,7 @@ jobs:
           CIBW_TEST_COMMAND: >
             python -m cadet_core._ci.inspect_wheel
             && python -m cadet_core._ci.smoke_cadet
+            && python -c "import shutil, sys; cmds=['cadet-cli','createLWE']; missing=[c for c in cmds if shutil.which(c) is None]; print({c: shutil.which(c) for c in cmds}); sys.exit(1 if missing else 0)"
 
       - name: Save caches
         if: always()

@@ -27,6 +27,8 @@ Documentation = "https://cadet.github.io/"
 
 [project.scripts]
 cadet-core = "cadet_core._paths:run_cadet"
+cadet-cli = "cadet_core._paths:run_cadet"
+createLWE = "cadet_core._paths:run_createLWE"
 
 [tool.scikit-build]
 minimum-version = "0.10"
