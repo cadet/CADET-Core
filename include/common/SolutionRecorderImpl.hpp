@@ -574,6 +574,9 @@ protected:
 	template <typename Writer_t>
 	void writeData(Writer_t& writer, const char* prefix, std::ostringstream& oss)
 	{
+		if (_numTimesteps < 1)
+			return;
+
 		if (_curCfg->storeOutlet)
 		{
 			if (_splitPorts)
@@ -1128,7 +1131,7 @@ public:
 	{
 		std::ostringstream oss;
 
-		if (_storeTime)
+		if (_storeTime && _time.size() > 0)
 			writer.template vector<double>("SOLUTION_TIMES", _time.size(), _time.data());
 
 		for (InternalStorageUnitOpRecorder* rec : _recorders)

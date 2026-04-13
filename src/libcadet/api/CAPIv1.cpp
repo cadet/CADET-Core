@@ -20,6 +20,7 @@
 #include "Logging.hpp"
 
 #include "common/Driver.hpp"
+#include "common/TimeoutCallback.hpp"
 
 
 #define CADET_XSTR(a) #a
@@ -734,6 +735,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		if (state)
@@ -752,6 +756,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		if (state)
@@ -770,6 +777,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		unsigned int sliceStart;
@@ -792,6 +802,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		unsigned int sliceStart;
@@ -815,6 +828,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		const std::vector<double const*> lastY = sim->getLastSensitivities(len);
@@ -837,6 +853,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		const std::vector<double const*> lastY = sim->getLastSensitivityDerivatives(len);
@@ -859,6 +878,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		unsigned int sliceStart;
@@ -885,6 +907,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		unsigned int sliceStart;
@@ -1014,23 +1039,24 @@ namespace v1
 		if (!realDrv)
 			return cdtErrorInvalidInputs;
 
-        if (timeSim)
-            *timeSim = realDrv->simulator()->lastSimulationDuration();
+		if (timeSim)
+			*timeSim = realDrv->simulator()->lastSimulationDuration();
 
 		return cdtOK;
 	}
 
-}  // namespace v1
+	cdtResult setTimeout(cdtDriver* drv, double timeout)
+	{
+		Driver* const realDrv = drv->driver;
+		if (!realDrv)
+			return cdtErrorInvalidInputs;
 
-}  // namespace api
+		realDrv->setTimeout(timeout);
+		return cdtOK;
+	}
 
-}  // namespace cadet
-
-
-extern "C"
-{
-
-	CADET_API cdtResult cdtGetAPIv010000(cdtAPIv010000* ptr)
+	template <typename cdtAPIv1_x>
+	cdtResult cdtGetAPIv1_x(cdtAPIv1_x* ptr)
 	{
 		if (!ptr)
 			return cdtErrorInvalidInputs;
@@ -1095,6 +1121,31 @@ extern "C"
 		ptr->getTimeSim = &cadet::api::v1::getTimeSim;
 
 		return cdtOK;
+	}
+
+}  // namespace v1
+
+}  // namespace api
+
+}  // namespace cadet
+
+
+extern "C"
+{
+
+	CADET_API cdtResult cdtGetAPIv1_0_0(cdtAPIv1_0_0* ptr)
+	{
+		return cadet::api::v1::cdtGetAPIv1_x(ptr);
+	}
+
+	CADET_API cdtResult cdtGetAPIv1_1_0a1(cdtAPIv1_1_0a1* ptr)
+	{
+		if (!ptr)
+			return cdtErrorInvalidInputs;
+
+		ptr->setTimeout = &cadet::api::v1::setTimeout;
+
+		return cadet::api::v1::cdtGetAPIv1_x(ptr);
 	}
 
 }

@@ -30,7 +30,7 @@ using json = nlohmann::json;
 
 const char* getLibBinaryPath();
 
-typedef cdtResult (*cdtGetAPIv010000_t)(cdtAPIv010000* ptr);
+typedef cdtResult (*cdtGetAPIv1_0_0_t)(cdtAPIv1_0_0* ptr);
 
 typedef void (*cdtSetLogReceiver_t)(cdtLogHandler recv);
 typedef void (*cdtSetLogLevel_t)(int lvl);
@@ -768,17 +768,17 @@ int main(int argc, char** argv)
 	}
 	setLogLevel(cdtLogLevelTrace);
 
-	const cdtGetAPIv010000_t apiLoader = loader.load<cdtGetAPIv010000_t>("cdtGetAPIv010000");
+	const cdtGetAPIv1_0_0_t apiLoader = loader.load<cdtGetAPIv1_0_0_t>("cdtGetAPIv1_0_0");
 	if (!apiLoader)
 	{
-		std::cout << "Failed to load cdtGetAPIv010000() function" << std::endl;
+		std::cout << "Failed to load cdtGetAPIv1_0_0() function" << std::endl;
 		return 1;
 	}
 
-	cdtAPIv010000 api;
+	cdtAPIv1_0_0 api;
 	const cdtResult resApiLoad = apiLoader(&api);
 
-	std::cout << "cdtGetAPIv010000() = " << resApiLoad << " api.createDriver = " << api.createDriver << std::endl;
+	std::cout << "cdtGetAPIv1_0_0() = " << resApiLoad << " api.createDriver = " << api.createDriver << std::endl;
 	if (CADET_ERR(resApiLoad))
 	{
 		std::cout << "Error obtaining API loader" << std::endl;

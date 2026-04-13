@@ -22,4 +22,5 @@ Since some contributors may be new to collaborative development with Git and Git
    model_expansion
    debugging
    testing
+   CAPI
    release_strategy
