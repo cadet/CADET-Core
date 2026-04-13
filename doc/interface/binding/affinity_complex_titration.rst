@@ -10,10 +10,10 @@ For information on model equations, refer to :ref:`affinity_complex_titration`.
 General remarks
 ---------------
 
-* The **first component** is the ACT modulator.
+* The **first component** is the mobile phase modulator.
 * This first component must be **non-binding**.
 * The ACT implementation currently supports **at most one bound state per component**.
-* The first component can be specified either as a negative logarithmic quantity
+* The first component can be specified either as a negative logarithmic concentration
   (:math:`\mathrm{pH}`, :math:`\mathrm{pNa}`, ...) or as a raw ion concentration.
 
 ``IS_KINETIC``
@@ -26,9 +26,9 @@ General remarks
 ===================  =========================  =========================================
 
 ``ACT_USE_ION_CONC``
-   Selects how the first liquid-phase component is interpreted.
+   Selects how the mobile phase modulator concentration is interpreted.
 
-   * ``False``: the first component is already on the logarithmic axis, for example
+   * ``False``: the first component concentration is on a negative logarithmic axis, for example
      :math:`\mathrm{pH}` or :math:`\mathrm{pNa}`.
      Use ``ACT_PKAA`` and ``ACT_PKAG``.
    * ``True``: the first component is the raw ion concentration :math:`c_{\mathrm{ion}}`.
@@ -36,7 +36,7 @@ General remarks
 
    Default is ``False``.
 
-   The two conventions are equivalent when
+   These two cases are equivalent when
 
    .. math::
 
@@ -78,7 +78,7 @@ Core kinetic parameters
 ===================  =========================  =========================================
 
 ``ACT_ETAA``
-   Hill-type coefficients controlling how strongly the apparent binding capacity changes with the modulator.
+   Hill-type coefficients controlling how strongly the apparent binding capacity changes with the modulator concentration.
 
 **Unit:** :math:`1`
 
@@ -87,7 +87,7 @@ Core kinetic parameters
 ===================  =============================  =========================================
 
 ``ACT_ETAG``
-   Hill-type coefficients controlling how strongly the effective adsorption strength changes with the modulator.
+   Hill-type coefficients controlling how strongly the apparent affinity changes with the modulator concentration.
 
 **Unit:** :math:`1`
 
@@ -95,14 +95,14 @@ Core kinetic parameters
 **Type:** double     **Range:** :math:`\mathbb{R}`   **Length:** NCOMP
 ===================  =============================  =========================================
 
-Midpoint parameters for ``ACT_USE_ION_CONC = False``
+Parameters for ``ACT_USE_ION_CONC = False``
 ----------------------------------------------------
 
 Use these parameters only when the first component is given as :math:`\mathrm{pIon}`
 (for example :math:`\mathrm{pH}`).
 
 ``ACT_PKAA``
-   Midpoint of the capacity transition on the logarithmic ion axis.
+   Midpoint of the binding capacity transition on the negative logarithmic ion axis.
 
 **Unit:** :math:`1`
 
@@ -111,7 +111,7 @@ Use these parameters only when the first component is given as :math:`\mathrm{pI
 ===================  ==============================  =========================================
 
 ``ACT_PKAG``
-   Midpoint of the equilibrium / adsorption-strength transition on the logarithmic ion axis.
+   Midpoint of the affinity (equilibrium constant) transition on the negative logarithmic ion axis.
 
 **Unit:** :math:`1`
 
@@ -119,14 +119,14 @@ Use these parameters only when the first component is given as :math:`\mathrm{pI
 **Type:** double     **Range:** :math:`\mathbb{R}`   **Length:** NCOMP
 ===================  ==============================  =========================================
 
-Midpoint parameters for ``ACT_USE_ION_CONC = True``
+Parameters for ``ACT_USE_ION_CONC = True``
 ---------------------------------------------------
 
 Use these parameters only when the first component is given as a raw ion concentration.
 CADET internally converts them to the same negative logarithmic axis used by the ``ACT_PKAA`` / ``ACT_PKAG`` form.
 
 ``ACT_CMID_A``
-   Midpoint ion concentration for the capacity transition.
+   Midpoint ion concentration for the binding capacity transition.
    Must be non-negative and should use the same concentration unit as the first liquid-phase component.
 
 **Recommended unit:** :math:`mol\,m_{MP}^{-3}`
@@ -136,7 +136,7 @@ CADET internally converts them to the same negative logarithmic axis used by the
 ===================  =========================  =========================================
 
 ``ACT_CMID_G``
-   Midpoint ion concentration for the equilibrium / adsorption-strength transition.
+   Midpoint ion concentration for the affinity (equilibrium constant) transition.
    Must be non-negative and should use the same concentration unit as the first liquid-phase component.
 
 **Recommended unit:** :math:`mol\,m_{MP}^{-3}`
