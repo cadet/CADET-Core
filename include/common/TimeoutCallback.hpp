@@ -68,6 +68,10 @@ namespace cadet
             _timer.stop();
 			const bool cont_sim = _timer.totalElapsedTime() <= _timeout;
 			_timer.start();
+
+			if (!cont_sim)
+				LOG(Error) << "Simulation stopped at timeout = " << _timeout;
+
 			return cont_sim;
 		}
 
