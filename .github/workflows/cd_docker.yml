@@ -3,7 +3,7 @@ name: build_docker_containers
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - 'v?*.*.*'
     branches:
       - feature/add_docker_build
   workflow_dispatch:
