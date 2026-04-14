@@ -9,14 +9,10 @@
 //  your option, any later version) which accompanies this distribution, and
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
-//TODO: is_kinetik = False
-//TODO: psi param type or double
-//TODO: Di
-//TODO: constexpr for constans
-//TODO: validateConfig -> nComp to nBound?
-//TODO: Jaconian
-//TODO: Units
-//TODO: Implement Zi as n x k matrix
+//TODO:1. is_kinetik = False
+//TODO:2. read Di from column model
+//TODO:3. Implement Zi as n x k matrix (n component, k polynomial degree)
+//TODO:4. dres/d_yCp[_idxSalt] missing in jacobianImpl when _idxSalt >= 0
 
 #include "model/binding/BindingModelBase.hpp"
 #include "model/ExternalFunctionSupport.hpp"
@@ -181,10 +177,10 @@ protected:
 	using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
 	// Physical constants
-	const double _elemCharge 	= 1.602176634e-19;   // elementaryCharge e [C]
-	const double _avogadroNum   = 6.02214076e23;     // avogadro number N_A [1/mol]
-	const double _boltzmann     = 1.380649e-23;      // boltzmann constant k_b [J/K]
-	const double _vacuumPermi 	= 8.8541878128e-12;  // vacuumPermittivity eps_0 [F/m]
+	static constexpr double _elemCharge  = 1.602176634e-19;   // elementaryCharge e [C]
+	static constexpr double _avogadroNum = 6.02214076e23;     // avogadro number N_A [1/mol]
+	static constexpr double _boltzmann   = 1.380649e-23;      // boltzmann constant k_b [J/K]
+	static constexpr double _vacuumPermi = 8.8541878128e-12;  // vacuumPermittivity eps_0 [F/m]
 	
 	int _MAXITER = 100; // for newtoniteration in solvePsiAdsorber()
 	int _idxProton = 0;
@@ -195,7 +191,7 @@ protected:
 	 * @details Solves the neutrality condition sigma_{I,A}(psi) = sigma_D(psi)
 	 */
 	template <typename CpStateType, typename ParamType>
-	ParamType solvePsiAdsorber(CpStateType pH, ParamType kappa, ParamType GammaL,
+	typename DoubleActivePromoter<CpStateType, ParamType>::type solvePsiAdsorber(CpStateType pH, ParamType kappa, ParamType GammaL,
 		ParamType zetaL, ParamType pKL, ParamType eps, ParamType T) const
 	{
 		using StateParamType = typename DoubleActivePromoter<CpStateType, ParamType>::type;
@@ -205,35 +201,35 @@ protected:
 		const double eps0 = _vacuumPermi;
 		const double NA = _avogadroNum;
 
-		ParamType psi = -0.01; // Initial guess
+		StateParamType psi = -0.01; // Initial guess
 		for (int iter = 0; iter < _MAXITER; ++iter)
 		{
 			// pH at surface: pH_0 = pH + (e * psi) / (ln(10) * k_b * T)
 			const StateParamType pH0 = pH + (e * psi) / (std::log(10.0) * kb * T);
 
 			// lhs: sigma_{I,A} = e * N_A * Gamma_L * [zeta_L - 1/(1 + 10^{pK_L - pH_0})]
-			const ParamType lhs = e * NA * GammaL * (zetaL - 1.0 / (1.0 + pow(10.0, static_cast<double>(pKL - pH0))));
+			const StateParamType lhs = e * NA * GammaL * (zetaL - 1.0 / (1.0 + pow(10.0, pKL - pH0)));
 
 			// rhs: sigma_D = 2 * eps * eps0 * kappa * (k_b*T/e) * sinh(e*psi/(2*k_b*T))
-			const ParamType sinArg = e  / (2.0 * kb * T);
-			const ParamType rhs = 2.0 * eps * eps0 * kappa * (kb * T / e) * sinh(sinArg * psi);
+			const StateParamType sinArg = e  / (2.0 * kb * T);
+			const StateParamType rhs = 2.0 * eps * eps0 * kappa * (kb * T / e) * sinh(sinArg * psi);
 
-			const ParamType F = lhs - rhs;
+			const StateParamType F = lhs - rhs;
 
 			// Derivatives for Newton step
 			// dlhs/dpsi = -e*NA*GammaL * b * 10^{pKL-pH0} / (1 + 10^{pKL-pH0})^2
 			// where b = e/(ln10*kb*T) = d(pH0)/d(psi) * ln10
-			const ParamType b = e / (std::log(10.0) * kb * T);
-			const double expTerm = std::pow(10.0, static_cast<double>(pKL - pH0));
-			const ParamType dlhs = -e * NA * GammaL * b * expTerm / ((1.0 + expTerm) * (1.0 + expTerm));
+			const StateParamType b = e / (std::log(10.0) * kb * T);
+			const StateParamType expTerm = pow(10.0, pKL - pH0);
+			const StateParamType dlhs = -e * NA * GammaL * b * expTerm / ((1.0 + expTerm) * (1.0 + expTerm));
 
-			const ParamType drhs = 2.0 * eps * eps0 * kappa * (kb * T / e) * cosh(sinArg * psi) * sinArg;
-			const ParamType dF = dlhs - drhs;
+			const StateParamType drhs = 2.0 * eps * eps0 * kappa * (kb * T / e) * cosh(sinArg * psi) * sinArg;
+			const StateParamType dF = dlhs - drhs;
 
 			if (abs(dF) < 1e-30)
 				break;
 
-			const ParamType delta = -F / dF;
+			const StateParamType delta = -F / dF;
 			psi += delta;
 
 			if (abs(delta) < 1e-15 * (1.0 + abs(psi)))
@@ -242,7 +238,7 @@ protected:
 		return psi;
 	}
 
-	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return false; }
+	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return true; }
 
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
@@ -265,9 +261,7 @@ protected:
 		}
 
 		if (paramProvider.exists("CPA_SALT_IDX"))
-		{
 			_idxSalt = paramProvider.getInt("CPA_SALT_IDX");
-		}
 		
 		if(_idxSalt >= 0 && _nBoundStates[_idxSalt] != 0)
 		{
@@ -315,7 +309,7 @@ protected:
 		const ParamType kbT = kb * T;
 
 		// Solve adsorber surface potential psi_{0,A}
-		const ParamType psiA = solvePsiAdsorber(
+		const CpStateParamType psiA = solvePsiAdsorber(
 			pH, kappa, GammaL, zetaL, pKL, eps, T);
 
 		// beta_{i,j}: e^2 / (4*pi*eps*eps0)
@@ -526,7 +520,7 @@ protected:
 		const double eps0 = _vacuumPermi;
 
 		const double T       = static_cast<double>(p->temperature);
-		const double Im      = static_cast<double>(p->ionicStrength);
+		const double Im      = (_idxSalt >= 0) ? static_cast<double>(yCp[_idxSalt]) : static_cast<double>(p->ionicStrength);
 		const double eps     = static_cast<double>(p->permittivity);
 		const double GammaL  = static_cast<double>(p->surfaceDensity);
 		const double zetaL   = static_cast<double>(p->chargeFullLigand);
@@ -627,10 +621,16 @@ protected:
 				- (psiA * psiA + psi_i * psi_i) * logTerm
 			);
 
-			// du_{A,i}/dpsiA = pi * a_i * eps * eps0 * (2*psi_i*logRatio - 2*psiA*logTerm)
+			// Partial derivatives of uA w.r.t. psiA, psi_i, and dm_i
 			const double duA_dpsiA = pi * a_i * eps * eps0 * (
 				2.0 * psi_i * logRatio - 2.0 * psiA * logTerm
 			);
+			const double duA_dpsi_i = pi * a_i * eps * eps0 * (
+				2.0 * psiA * logRatio - 2.0 * psi_i * logTerm
+			);
+			const double duA_ddm = pi * a_i * eps * eps0
+				* (-2.0 * kappa * ekz / (1.0 - ekz * ekz))
+				* (2.0 * psiA * psi_i + (psiA * psiA + psi_i * psi_i) * ekz);
 
 			// --- K_{H,i} ---
 			double KH_i = 0.0;
@@ -646,7 +646,7 @@ protected:
 			}
 
 			// --- k_{kin,i} ---
-			const double D_i = 1e-10; // Typical protein pore diffusion coefficient [m^2/s]
+			const double D_i = static_cast<double>(p->diffCoeff[i]);
 			const double Delta_i = dstar_i - dm_i;
 			const double kKin_star = D_i / (2.0 * Delta_i * Delta_i);
 			const double uAratio = uA_i / kbT;
@@ -773,18 +773,54 @@ protected:
 			// dres_i / dc_{p,i} = -kKin_i * Kv_i
 			jac[i - bndIdx - offsetCp] = -kKin_i * Kv_i;
 
-			// === dres_i / dc_{p,pH} (pH is at index _idxpH in yCp) ===
-			// Chain: res depends on psiA through uA_i, which affects KH_i and kKin_i
-			// dres/dpH = (dres/duA * duA/dpsiA + dKv/dpsiA_via_uA) * dpsiA/dpH
-			//
-			// dKv/duA = As*Delta * dKH/duA * B * exp(-ulat/kbT)
-			// dres/duA = -(dkKin/duA * (Kv*cp - q) + kKin * dKv/duA * cp)
-			const double dKv_duA = As_i * Delta_i * dKH_duA * B_i * expUlat;
-			const double dres_duA = -(dkKin_duA * (Kv_i * yCp[i] - y[bndIdx])
-				+ kKin_i * dKv_duA * yCp[i]);
-			const double dres_dpH = dres_duA * duA_dpsiA * dpsiA_dpH_val;
+			// === dres_i / dc_{p,proton} (full pH derivative chain) ===
+			// pH affects: Zi -> psi_i, sigmaI -> delta_i, and psiA (via dPsiA_dpH)
+			// These propagate through: dm_i, uA_i, KH_i, kKin_i, Delta_i, Kv_i
+			{
+				// dZi/dpH
+				const double dZi_dpH = linZi + 2.0 * quadZi * (pH_val - refpH);
 
-			jac[_idxProton - bndIdx - offsetCp] += dres_dpH;
+				// dpsi_i/dpH: psi_i = (2*kbT/e)*arcsinh(Zi*C1), so dpsi_i/dpH = (2*kbT/e)*C1*dZi/dpH / sqrt(arg^2+1)
+				const double C1_psi = e * e / (8.0 * pi * a_i * a_i * eps * eps0 * kappa * kbT);
+				const double dpsi_i_dpH = (2.0 * kbT / e) * dZi_dpH * C1_psi / sqrt(psiArg * psiArg + 1.0);
+
+				// ddm_i/dpH via R = -2*psiA*psi_i/(psiA^2+psi_i^2)
+				const double S_pot = psiA * psiA + psi_i * psi_i;
+				const double dR_dpsiA = 2.0 * psi_i * (psiA * psiA - psi_i * psi_i) / (S_pot * S_pot);
+				const double dR_dpsi_i = 2.0 * psiA * (psi_i * psi_i - psiA * psiA) / (S_pot * S_pot);
+				const double ddm_dpH = (std::abs(dmRatio) > 1e-30)
+					? (-1.0 / (dmRatio * kappa)) * (dR_dpsiA * dpsiA_dpH_val + dR_dpsi_i * dpsi_i_dpH)
+					: 0.0;
+
+				// ddelta_i/dpH via sigmaI_i
+				const double dsigmaI_dpH = dZi_dpH * e / (4.0 * pi * a_i * a_i);
+				double ddelta_dpH = 0.0;
+				if (std::abs(sigmaI_i) > 1e-30)
+					ddelta_dpH = delta_i * std::log(10.0) * dLin_i * (sigmaI_i > 0.0 ? 1.0 : -1.0) * dsigmaI_dpH;
+				const double dDelta_dpH = ddelta_dpH / As_i;
+
+				// Total duA_i/dpH = duA/dpsiA * dpsiA/dpH + duA/dpsi_i * dpsi_i/dpH + duA/ddm * ddm/dpH
+				const double duA_dpH = duA_dpsiA * dpsiA_dpH_val
+					+ duA_dpsi_i * dpsi_i_dpH
+					+ duA_ddm * ddm_dpH;
+
+				// dKH/dpH
+				const double dKH_dpH = dKH_duA * duA_dpH;
+
+				// dkKin/dpH: kKin depends on Delta_i and uA_i
+				const double dkKin_dDelta = (std::abs(Delta_i) > 1e-30) ? -2.0 * kKin_i / Delta_i : 0.0;
+				const double dkKin_dpH = dkKin_dDelta * dDelta_dpH + dkKin_duA * duA_dpH;
+
+				// dKv/dpH: B_i and ulat_i are independent of pH
+				const double dKv_dpH = As_i * B_i * expUlat * (dDelta_dpH * KH_i + Delta_i * dKH_dpH);
+
+				// dres/dpH
+				const double dres_dpH = -(dkKin_dpH * (Kv_i * yCp[i] - y[bndIdx]) + kKin_i * dKv_dpH * yCp[i]);
+
+				// Convert dpH to dc_{p,proton}: pH = log10(c), dpH/dc = 1/(c*ln(10))
+				const double dpH_dc_proton = 1.0 / (yCp[_idxProton] * std::log(10.0));
+				jac[_idxProton - bndIdx - offsetCp] += dres_dpH * dpH_dc_proton;
+			}
 
 			// === dres_i / dq_i (direct term: +kKin_i due to negative sign in res) ===
 			jac[0] = +kKin_i;
