@@ -16,6 +16,7 @@
 //TODO: validateConfig -> nComp to nBound?
 //TODO: Jaconian
 //TODO: Units
+//TODO: Implement Zi as n x k matrix
 
 #include "model/binding/BindingModelBase.hpp"
 #include "model/ExternalFunctionSupport.hpp"
@@ -54,7 +55,10 @@ using std::numbers::pi;
 			{ "type": "ScalarComponentDependentParameter", "varName": "quadCompCharge", "confName": "CPA_COMP_CHARGE_QUAD"},
 			{ "type": "ScalarParameter", "varName": "refpH", "confName": "CPA_PH_REF"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "refDelta", "confName": "CPA_DELTA_REF"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "linDelta", "confName": "CPA_DELTA_LIN"}
+			{ "type": "ScalarComponentDependentParameter", "varName": "linDelta", "confName": "CPA_DELTA_LIN"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "diffCoeff", "confName": "CPA_DIFFUSION_COEFF"}
+
+
 		],
 	"constantParameters":
 		[
@@ -182,11 +186,12 @@ protected:
 	const double _boltzmann     = 1.380649e-23;      // boltzmann constant k_b [J/K]
 	const double _vacuumPermi 	= 8.8541878128e-12;  // vacuumPermittivity eps_0 [F/m]
 	
-	const int _MAXITER = 100; // for newtoniteration in solvePsiAdsorber()
+	int _MAXITER = 100; // for newtoniteration in solvePsiAdsorber()
 	int _idxProton = 0;
+	int _idxSalt = -1; // if >= 0 read ionic strenght from yCp[_idxSalt]
 	
 	/**
-	 * @brief Solve for adsorber surface potential psi_{0,A} using Newton
+	 * @brief Solve for adsorber surface potential psi_{0,A} using Newton*
 	 * @details Solves the neutrality condition sigma_{I,A}(psi) = sigma_D(psi)
 	 */
 	template <typename CpStateType, typename ParamType>
@@ -259,6 +264,20 @@ protected:
 				throw InvalidParameterException("Binding model supports at most one bound state per component");
 		}
 
+		if (paramProvider.exists("CPA_SALT_IDX"))
+		{
+			_idxSalt = paramProvider.getInt("CPA_SALT_IDX");
+		}
+		
+		if(_idxSalt >= 0 && _nBoundStates[_idxSalt] != 0)
+		{
+			throw InvalidParameterException("Salt component must be non-bining (NBOUND = 0)");
+		}
+
+		if(paramProvider.exists("CPA_MAXITER"))// default index is 0
+			_MAXITER = paramProvider.getInt("CPA_MAXITER");
+		
+
 		return res;
 	}
 
@@ -281,7 +300,7 @@ protected:
 
 		// Scalar parameters
 		const ParamType T       = static_cast<ParamType>(p->temperature);
-		const ParamType Im      = static_cast<ParamType>(p->ionicStrength);
+		const ParamType Im      = (_idxSalt >= 0) ? static_cast<ParamType>(yCp[_idxSalt]): static_cast<ParamType>(p->ionicStrength);
 		const ParamType eps     = static_cast<ParamType>(p->permittivity);
 		const ParamType GammaL  = static_cast<ParamType>(p->surfaceDensity);
 		const ParamType zetaL   = static_cast<ParamType>(p->chargeFullLigand);
@@ -442,7 +461,7 @@ protected:
 			const CpStateParamType Kv_i = As_i * (dstar_i - dm_i) * KH_i * B_i * exp(-ulat_i / kbT);
 
 			// 9. k_{kin,i} = D_i / (2*Delta^2) * (u_A/(k_bT))^2 / (cosh(u_A/(k_bT)) - 1)
-			const double D_i = 1e-10; // Typical protein pore diffusion coefficient [m^2/s]
+			const ParamType D_i = static_cast<ParamType>(p->diffCoeff[i]); // Typical protein pore diffusion coefficient [m^2/s]
 			const CpStateParamType kKin_i_star = D_i / (2.0 * (dstar_i - dm_i) * (dstar_i - dm_i));
 			const CpStateParamType uARatio = uA_i / kbT;
 			const CpStateParamType kKin_i = kKin_i_star * uARatio * uARatio / (cosh(uARatio) - 1.0);
@@ -513,7 +532,7 @@ protected:
 		const double zetaL   = static_cast<double>(p->chargeFullLigand);
 		const double pKL     = static_cast<double>(p->pKLigand);
 
-		const double pH_val = std::log10(yCp[_idxProd]);  // BUG FIX: must apply log10 like in fluxImpl
+		const double pH_val = std::log10(yCp[_idxProton]);
 		const double kappa = sqrt(2.0 * e * e * Im * NA / (kb * T * eps * eps0));
 		const double kbT = kb * T;
 
@@ -765,7 +784,7 @@ protected:
 				+ kKin_i * dKv_duA * yCp[i]);
 			const double dres_dpH = dres_duA * duA_dpsiA * dpsiA_dpH_val;
 
-			jac[_idxProd - bndIdx - offsetCp] += dres_dpH;
+			jac[_idxProton - bndIdx - offsetCp] += dres_dpH;
 
 			// === dres_i / dq_i (direct term: +kKin_i due to negative sign in res) ===
 			jac[0] = +kKin_i;
