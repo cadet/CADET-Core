@@ -74,4 +74,5 @@ This group also takes precedence over a possibly existing ``/input/model/unit_XX
     hic_constant_water_activity
     hic_unified
     multi_component_colloidal
+    colloidal_particle_adsorption
     affinity_complex_titration
