@@ -15,7 +15,7 @@
  * The library provides a fast and accurate forward simulator for the general rate model of column liquid chromatography
  * 
  * @authors    Please refer to CONTRIBUTING.md
- * @version    6.0.0-alpha.2
+ * @version    6.0.0a3
  * @date       2008-present
  * @copyright  GNU General Public License v3.0 (or, at your option, any later version).
  */
