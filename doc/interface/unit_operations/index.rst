@@ -8,6 +8,7 @@ Unit Operations
 
     inlet
     outlet
+    particle_config
     axial_flow_column_1D_config
     radial_flow_column_1D_config
     frustum_flow_column_1D_config
