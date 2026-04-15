@@ -127,6 +127,24 @@ By choosing a Michaelis-Menten kinetics configuration with one substrate and set
 i.e :math:`\mu_{\mathrm{max}} = v_{\mathrm{max}}`, :math:`K_S = K_{\mathrm{M}_{0,0}}` and :math:`c_S = c_{0,0}`,
 the Monod equation can be expressed in the same form as the Michaelis-Menten kinetics.
 
+Prefactorial extension
+^^^^^^^^^^^^^^^^^^^^^^
+
+In some cases a different component, like biomass, may have a prefactorial effect on the reaction rate, which can be represented by a prefactorial extension of the Michaelis-Menten kinetics:
+
+.. math::
+
+    \begin{aligned}
+        \nu_{i,j} = \prod_{x = 1}^{N_{x,j}} K_{x,j} c_{x,j} \cdot v_{\mathrm{max},j} \prod_{i = 1}^{N_{sub,j}} \frac{ c_{i,j}}{K_{\mathrm{M}_{i,j}} + c_{i,j}}
+    \end{aligned}
+
+where:
+
+- :math:`c_{x,j}` is biomass concentration (or any other component that has a prefactorial effect on the reaction rate)
+- :math:`K_{x,j}` is the prefactorial constant (if no prefactorial effect it is set as :math:`0`)
+- :math:`N_{x,j}` components in :math:`S` that are not in :math:`N_{sub,j}` but have a prefactorial effect on the reaction rate
+ 
+
 Literature
 ^^^^^^^^^^
 
