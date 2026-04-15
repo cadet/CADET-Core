@@ -48,7 +48,7 @@ Note that, in any case, ``/input/model/unit_XXX/particle_type_ZZZ/adsorption_000
 This group also takes precedence over a possibly existing ``/input/model/unit_XXX/particle_type_ZZZ/adsorption`` group.
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
 
     linear
     multi_component_langmuir

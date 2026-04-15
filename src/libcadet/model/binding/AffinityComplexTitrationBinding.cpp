@@ -85,15 +85,6 @@ namespace
 		return e / (static_cast<T>(1.0) + e);
 	}
 
-	inline bool getBoolWithFallback(cadet::IParameterProvider& paramProvider, const char* primaryName, const char* fallbackName, bool defaultValue)
-	{
-		if (paramProvider.exists(primaryName))
-			return paramProvider.getBool(primaryName);
-		if (paramProvider.exists(fallbackName))
-			return paramProvider.getBool(fallbackName);
-		return defaultValue;
-	}
-
 	inline std::vector<double> getDoubleArrayWithFallback(cadet::IParameterProvider& paramProvider, const char* primaryName, const char* fallbackName)
 	{
 		if (paramProvider.exists(primaryName))
@@ -186,7 +177,12 @@ namespace cadet
 				}
 
 				// Read parameters related to ion concentration handling
-				_useIonConc = getBoolWithFallback(paramProvider, "ACT_USE_ION_CONC", "EXT_ACT_USE_ION_CONC", false);
+				if (paramProvider.exists("ACT_USE_ION_CONC"))
+					_useIonConc = paramProvider.getBool("ACT_USE_ION_CONC");
+				else if (paramProvider.exists("EXT_ACT_USE_ION_CONC"))
+					_useIonConc = paramProvider.getBool("EXT_ACT_USE_ION_CONC");
+				else
+					throw InvalidParameterException("ACT_USE_ION_CONC does not exist in model specification");
 
 				// Read either pKa or cMid parameters depending on the value of _useIonConc
 				if (!_useIonConc)
