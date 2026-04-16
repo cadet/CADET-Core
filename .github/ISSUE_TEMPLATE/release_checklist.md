@@ -20,8 +20,8 @@ The following checklist describes the steps to execute sequentially for creating
 
 ## Preparation
 
-- [x] Create a release branch `vX.X.X` (typically from `master`) and cherry-pick the commits to include
-- [x] Create a version bump commit `Bump version to vX.X.X`:
+- [ ] Create a release branch `vX.X.X` (typically from `master`) and cherry-pick the commits to include
+- [ ] Create a version bump commit `Bump version to vX.X.X`:
   - Update the version number in `version.txt`, `zenodo.json` (two places), `cadet.hpp` and `cadet.doxyfile`
   - Update the authors list if needed in `CONTRIBUTING.md` and `zenodo.json`
   - Update the file format in `driver.hpp` if required
@@ -33,7 +33,7 @@ The following checklist describes the steps to execute sequentially for creating
 
 ## Pre-release build and Docker image
 
-- [x] Manually dispatch the `build_docker_containers` workflow ([cd_docker.yml](https://github.com/cadet/CADET-Core/blob/master/.github/workflows/cd_docker.yml)) and input the commit hash of the last commit on the release branch.  
+- [ ] Manually dispatch the `build_docker_containers` workflow ([cd_docker.yml](https://github.com/cadet/CADET-Core/blob/master/.github/workflows/cd_docker.yml)) and input the commit hash of the last commit on the release branch.  
   This triggers the Docker workflow to build an image containing:
   - The CADET-Core version at this commit
   - The latest released version of CADET-Python
@@ -43,28 +43,28 @@ The following checklist describes the steps to execute sequentially for creating
 
 ## Continuous Deployment tests
 
-- [x] Run the CD tests as described in the [CADET-Verification README](https://github.com/cadet/CADET-Verification).
-- [x] In the [CADET-Verification Output repository](https://github.com/cadet/CADET-Verification-Output):
+- [ ] Run the CD tests as described in the [CADET-Verification README](https://github.com/cadet/CADET-Verification).
+- [ ] In the [CADET-Verification Output repository](https://github.com/cadet/CADET-Verification-Output):
   - Open the automatically created branch for this release and compare the results with the previous release. To this end, there are comparison utility functions as described in the [CADET-Verification README](https://github.com/cadet/CADET-Verification)
   - If the numerical engine or code structure changed, check the required simulation times
-- [x] If tests fail or show unexpected behaviour:
+- [ ] If tests fail or show unexpected behaviour:
   - Fix the issues on the release branch
   - Repeat the tests until results are as expected
   - Merge fixes into `master` and resolve conflicts if needed
-- [x] Add the new run to the [meta-issue](https://github.com/cadet/CADET-Verification-Output/issues/1) and upload the log generated from the convergence data comparison
-- [x] Link the output branch in the release issue
+- [ ] Add the new run to the [meta-issue](https://github.com/cadet/CADET-Verification-Output/issues/1) and upload the log generated from the convergence data comparison
+- [ ] Link the output branch in the release issue
 
 ---
 
 ## Creating the release on GitHub
 
-- [x] Go to [GitHub Releases](https://github.com/cadet/CADET-Core/releases/new):
+- [ ] Go to [GitHub Releases](https://github.com/cadet/CADET-Core/releases/new):
   - Set the release branch as the target
   - Specify the tag `vX.X.X` according to semantic versioning
   - Add release notes with sections for Added, Fixed, Changed, and Updated
   - Double check: Publish pre-release or release, then publish.
 - [ ] Check creation of docker image with the new release
-- [x] Verify Zenodo archiving:
+- [ ] Verify Zenodo archiving:
   - Confirm that a version-specific DOI was created
   - Ensure that the source code and associated files are archived
   - Note that the [concept DOI](https://doi.org/10.5281/zenodo.8179015) remains constant
@@ -77,8 +77,8 @@ To ensure CADET-Core is accessible to a broad community, it is available as a Py
 Other software, such as CADET-Process and CADET-Python, import this package.
 For pre-releases, make sure the `version` follows the conda-friendly PEP 404 standard in the following (e.g. 6.0.0a1). This version must also be the a tag of the release on GitHub (which it should already be at this point).
 
-- [x] Go to your fork of [cadet-feedstock](https://github.com/conda-forge/cadet-feedstock) or create one if it does not exist
-- [x] Create a new branch on your fork and change the file `recipe/meta.yaml`:
+- [ ] Go to your fork of [cadet-feedstock](https://github.com/conda-forge/cadet-feedstock) or create one if it does not exist
+- [ ] Create a new branch on your fork and change the file `recipe/meta.yaml`:
   - install openSSL
   - Generate the SHA256 key (replace `{{ version }}` with the semantic version number):  
     ```bash
@@ -86,22 +86,22 @@ For pre-releases, make sure the `version` follows the conda-friendly PEP 404 sta
     ```
   - Update the version number and SHA256 key
   - Set the build number to zero (`build: number: 0`)
-- [x] Open a PR onto the `main` branch (for a release) or the `dev` branch (pre-release) of `conda-forge/cadet-feedstock`, and complete the automatically generated checklist
+- [ ] Open a PR onto the `main` branch (for a release) or the `dev` branch (pre-release) of `conda-forge/cadet-feedstock`, and complete the automatically generated checklist
   - Note: to check if the license file is included, check the tarball (`https://github.com/cadet/CADET-Core/archive/refs/tags/v{{ version }}.tar.gz`) if the License file is in the location specified in the meta.yml in the variable `license_file`
-- [x] Wait for the automatic checks to pass
-- [x] Merge the pull request to trigger the conda-forge release
-- [x] Double check if the new version of cadet-core is on conda-forge
+- [ ] Wait for the automatic checks to pass
+- [ ] Merge the pull request to trigger the conda-forge release
+- [ ] Double check if the new version of cadet-core is on conda-forge
 
 ## Release of binaries on PyPi
 
 Additionally, CADET-Core is released on PyPi.
 
-- [x] Check if the workflow `wheels.yml` was successfully executed (triggered by the GitHub tag)
-- [x] Check availability of the package on [pypi.org/project/CADET-Core/](https://pypi.org/project/CADET-Core/)
+- [ ] Check if the workflow `wheels.yml` was successfully executed (triggered by the GitHub tag)
+- [ ] Check availability of the package on [pypi.org/project/CADET-Core/](https://pypi.org/project/CADET-Core/)
 
 ## Follow-up
 - [ ] Check if the documentation for the new version was deployed correctly: https://cadet.github.io/
-- [x] Check whether a version bump of the [CADET metapackage](https://github.com/cadet/CADET-Metapackage) is required. A bump is only necessary if the set of explicitly compatible CADET-Core and CADET-Process versions changes. This applies when a new CADET-Core release has feature parity with CADET-Process, or when a patch release is issued for a Core version that is already shipped as compatible in the metapackage.
-- [x] Create or update a CADET forum post announcing the release, including release notes
+- [ ] Check whether a version bump of the [CADET metapackage](https://github.com/cadet/CADET-Metapackage) is required. A bump is only necessary if the set of explicitly compatible CADET-Core and CADET-Process versions changes. This applies when a new CADET-Core release has feature parity with CADET-Process, or when a patch release is issued for a Core version that is already shipped as compatible in the metapackage.
+- [ ] Create or update a CADET forum post announcing the release, including release notes
 - [ ] If this release checklist was updated, add these changes to the corresponding issue template
 
