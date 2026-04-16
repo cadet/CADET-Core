@@ -45,10 +45,11 @@ source_suffix = {
 
 # Multiversion
 
-smv_tag_whitelist = r"^v\d+\.\d+\.\d+(-(alpha|beta|rc)\.\d+)?$" # Releases and Pre-Releases
-smv_released_pattern = smv_released_pattern = (
+smv_tag_whitelist = r"^v\d+\.\d+\.\d+((a|b|rc)\d+)?$"  # PEP 440 releases and pre-releases
+smv_released_pattern = (
     r"^(heads|remotes/origin)/\d+\.\d+\.X$"
-    r"|^tags/v\d+\.\d+\.\d+(-(alpha|beta|rc)\.\d+)?$") # Releases and Pre-Releases
+    r"|^tags/v\d+\.\d+\.\d+((a|b|rc)\d+)?$"
+)  # semver/PEP440 releases and PEP 440 pre-releases
 smv_branch_whitelist = r"^(master|v5\.1\.X)$"
 smv_remote_whitelist = r"^origin$"          # Use branches from remote origin
 smv_outputdir_format = '{ref.name}'         # Use the branch/tag name
