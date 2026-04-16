@@ -190,7 +190,6 @@ Model assumptions and limitations
 - One component must serve as a non-binding proton/pH state (index configurable, default 0).
 - An optional non-binding salt component can provide the ionic strength from the mobile phase.
 - Multiple bound states per component are not supported.
-- At most one bound state per component is allowed.
 - Physical constants (:math:`e`, :math:`N_A`, :math:`k_B`, :math:`\varepsilon_0`) are hard-coded to CODATA 2018 values.
 
 For more information on model parameters required to define in CADET file format, see :ref:`colloidal_particle_adsorption_config`.
