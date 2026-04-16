@@ -12,7 +12,6 @@
 //TODO:1. is_kinetik = False
 //TODO:2. read Di from column model
 //TODO:3. Implement Zi as n x k matrix (n component, k polynomial degree)
-//TODO:4. dres/d_yCp[_idxSalt] missing in jacobianImpl when _idxSalt >= 0
 
 #include "model/binding/BindingModelBase.hpp"
 #include "model/ExternalFunctionSupport.hpp"
@@ -168,7 +167,7 @@ public:
 	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return false; }
 	virtual bool hasQuasiStationaryReactions() const CADET_NOEXCEPT { return false; }
 
-	CADET_BINDINGMODEL_RESIDUAL_BOILERPLATE
+	CADET_BINDINGMODELBASE_BOILERPLATE
 
 protected:
 	using ParamHandlerBindingModelBase<ParamHandler_t>::_paramHandler;
@@ -180,8 +179,7 @@ protected:
 	static constexpr double _elemCharge  = 1.602176634e-19;   // elementaryCharge e [C]
 	static constexpr double _avogadroNum = 6.02214076e23;     // avogadro number N_A [1/mol]
 	static constexpr double _boltzmann   = 1.380649e-23;      // boltzmann constant k_b [J/K]
-	static constexpr double _vacuumPermi = 8.8541878128e-12;  // vacuumPermittivity eps_0 [F/m]
-	
+	static constexpr double _vacuumPermi = 8.854187818814e-12;  // vacuumPermittivity eps_0 [F/m]
 	int _MAXITER = 100; // for newtoniteration in solvePsiAdsorber()
 	int _idxProton = 0;
 	int _idxSalt = -1; // if >= 0 read ionic strenght from yCp[_idxSalt]
@@ -190,11 +188,12 @@ protected:
 	 * @brief Solve for adsorber surface potential psi_{0,A} using Newton*
 	 * @details Solves the neutrality condition sigma_{I,A}(psi) = sigma_D(psi)
 	 */
-	template <typename CpStateType, typename ParamType>
-	typename DoubleActivePromoter<CpStateType, ParamType>::type solvePsiAdsorber(CpStateType pH, ParamType kappa, ParamType GammaL,
+	template <typename CpStateType, typename ParamType, typename KappaType>
+	typename DoubleActivePromoter<typename DoubleActivePromoter<CpStateType, ParamType>::type, KappaType>::type
+	solvePsiAdsorber(CpStateType pH, KappaType kappa, ParamType GammaL,
 		ParamType zetaL, ParamType pKL, ParamType eps, ParamType T) const
 	{
-		using StateParamType = typename DoubleActivePromoter<CpStateType, ParamType>::type;
+		using StateParamType = typename DoubleActivePromoter<typename DoubleActivePromoter<CpStateType, ParamType>::type, KappaType>::type;
 
 		const double e = _elemCharge;
 		const double kb = _boltzmann;
@@ -217,11 +216,10 @@ protected:
 			const StateParamType F = lhs - rhs;
 
 			// Derivatives for Newton step
-			// dlhs/dpsi = -e*NA*GammaL * b * 10^{pKL-pH0} / (1 + 10^{pKL-pH0})^2
-			// where b = e/(ln10*kb*T) = d(pH0)/d(psi) * ln10
-			const StateParamType b = e / (std::log(10.0) * kb * T);
+			// dlhs/dpsi: let x = 10^{pKL-pH0}, dx/dpsi = -x*e/(kb*T)
+			// dlhs/dpsi = e*NA*GammaL * dx/dpsi / (1+x)^2 = -e^2*NA*GammaL*x / (kb*T*(1+x)^2)
 			const StateParamType expTerm = pow(10.0, pKL - pH0);
-			const StateParamType dlhs = -e * NA * GammaL * b * expTerm / ((1.0 + expTerm) * (1.0 + expTerm));
+			const StateParamType dlhs = -e * (e / (kb * T)) * NA * GammaL * expTerm / ((1.0 + expTerm) * (1.0 + expTerm));
 
 			const StateParamType drhs = 2.0 * eps * eps0 * kappa * (kb * T / e) * cosh(sinArg * psi) * sinArg;
 			const StateParamType dF = dlhs - drhs;
@@ -294,7 +292,7 @@ protected:
 
 		// Scalar parameters
 		const ParamType T       = static_cast<ParamType>(p->temperature);
-		const ParamType Im      = (_idxSalt >= 0) ? static_cast<ParamType>(yCp[_idxSalt]): static_cast<ParamType>(p->ionicStrength);
+		const CpStateParamType Im = (_idxSalt >= 0) ? static_cast<CpStateParamType>(yCp[_idxSalt]): static_cast<CpStateParamType>(p->ionicStrength);
 		const ParamType eps     = static_cast<ParamType>(p->permittivity);
 		const ParamType GammaL  = static_cast<ParamType>(p->surfaceDensity);
 		const ParamType zetaL   = static_cast<ParamType>(p->chargeFullLigand);
@@ -304,7 +302,7 @@ protected:
 		const CpStateType pH  = log10(yCp[_idxProton]); // pH = log10(c_proton), c_proton = 10^pH
 
 		// kappa = sqrt(2 * e^2 * I_m * N_A / (k_b * T * eps * eps0))
-		const ParamType kappa = e * sqrt(2.0 * Im * NA / (kb * T * eps * eps0));
+		const CpStateParamType kappa = e * sqrt(2.0 * Im * NA / (kb * T * eps * eps0));
 
 		const ParamType kbT = kb * T;
 
@@ -432,7 +430,7 @@ protected:
 
 				// beta_{i,j} = Zlat_i * Zlat_j * e^2/(4*pi*eps*eps0)
 				//              * exp(kappa*(a_i+a_j)) / ((1+kappa*a_i)*(1+kappa*a_j))
-				const ParamType beta_ij = Zlat_i * Zlat_j * elecPrefactor
+				const CpStateParamType beta_ij = Zlat_i * Zlat_j * elecPrefactor
 					* exp(kappa * (a_i + a_j))
 					/ ((1.0 + kappa * a_i) * (1.0 + kappa * a_j));
 
@@ -461,7 +459,7 @@ protected:
 			const CpStateParamType kKin_i = kKin_i_star * uARatio * uARatio / (cosh(uARatio) - 1.0);
 
 
-			res[bndIdx] = -kKin_i * (Kv_i * yCp[i] - y[bndIdx]);
+			res[bndIdx] = kKin_i * (y[bndIdx] - Kv_i * yCp[i]);
 
 			++bndIdx;
 		}
@@ -484,23 +482,52 @@ protected:
 
 		const double pH0 = pH + (e * psiA) / (std::log(10.0) * kb * T);
 		const double expTerm = std::pow(10.0, pKL - pH0);
-		const double b = e / (std::log(10.0) * kb * T); // dpH0/dpsi
 
-		// dF/dpsi (same as Newton dF)
-		const double dlhs_dpsi = -e * NA * GammaL * b * expTerm / ((1.0 + expTerm) * (1.0 + expTerm));
+		// dF/dpsi: dlhs/dpsi = -e^2*NA*GammaL*x / (kb*T*(1+x)^2), drhs/dpsi = eps*eps0*kappa*cosh(...)
+		const double dlhs_dpsi = -e * (e / (kb * T)) * NA * GammaL * expTerm / ((1.0 + expTerm) * (1.0 + expTerm));
 		const double sinArg = e / (2.0 * kb * T);
 		const double drhs_dpsi = 2.0 * eps * eps0 * kappa * (kb * T / e) * std::cosh(sinArg * psiA) * sinArg;
 		const double dF_dpsi = dlhs_dpsi - drhs_dpsi;
 
-		// dF/dpH: sigma_{I,A} depends on pH through pH0 = pH + ...
-		// dsigma_{I,A}/dpH = e * NA * GammaL * ln(10) * 10^{pKL-pH0} / (1 + 10^{pKL-pH0})^2
-		// (positive because decreasing pH0 = increasing 10^{pK-pH0} contribution)
-		const double dF_dpH = e * NA * GammaL * std::log(10.0) * expTerm / ((1.0 + expTerm) * (1.0 + expTerm));
+		// dF/dpH: dsigma_I/dpH = -e*NA*GammaL*ln10*x/(1+x)^2
+		const double dF_dpH = -e * NA * GammaL * std::log(10.0) * expTerm / ((1.0 + expTerm) * (1.0 + expTerm));
 
 		if (std::abs(dF_dpsi) < 1e-30)
 			return 0.0;
 
 		return -dF_dpH / dF_dpsi;
+	}
+
+	/**
+	 * @brief Compute dpsiA/dkappa
+	 * @details F(psi, pH, kappa) = sigma_{I,A}(psi, pH) - sigma_D(psi, kappa) = 0.
+	 *          By IFT: dpsi/dkappa = -(dF/dkappa) / (dF/dpsi)
+	 */
+	double dPsiA_dkappa(double psiA, double pH, double kappa, double GammaL,
+		double zetaL, double pKL, double eps, double T) const
+	{
+		const double e = _elemCharge;
+		const double kb = _boltzmann;
+		const double eps0 = _vacuumPermi;
+		const double NA = _avogadroNum;
+
+		const double pH0 = pH + (e * psiA) / (std::log(10.0) * kb * T);
+		const double expTerm = std::pow(10.0, pKL - pH0);
+
+		// dF/dpsi (same as in dPsiA_dpH)
+		const double dlhs_dpsi = -e * (e / (kb * T)) * NA * GammaL * expTerm / ((1.0 + expTerm) * (1.0 + expTerm));
+		const double sinArg = e / (2.0 * kb * T);
+		const double drhs_dpsi = 2.0 * eps * eps0 * kappa * (kb * T / e) * std::cosh(sinArg * psiA) * sinArg;
+		const double dF_dpsi = dlhs_dpsi - drhs_dpsi;
+
+		// dF/dkappa: sigma_{I,A} is independent of kappa, so dF/dkappa = -d(sigma_D)/dkappa
+		// sigma_D = 2*eps*eps0*kappa*(kbT/e)*sinh(e*psi/(2*kbT))
+		const double dF_dkappa = -2.0 * eps * eps0 * (kb * T / e) * std::sinh(sinArg * psiA);
+
+		if (std::abs(dF_dpsi) < 1e-30)
+			return 0.0;
+
+		return -dF_dkappa / dF_dpsi;
 	}
 
 	template <typename RowIterator>
@@ -820,6 +847,84 @@ protected:
 				// Convert dpH to dc_{p,proton}: pH = log10(c), dpH/dc = 1/(c*ln(10))
 				const double dpH_dc_proton = 1.0 / (yCp[_idxProton] * std::log(10.0));
 				jac[_idxProton - bndIdx - offsetCp] += dres_dpH * dpH_dc_proton;
+			}
+
+			// === dres_i / dc_{p,salt} (full ionic strength derivative chain) ===
+			// Im affects everything through kappa. dkappa/dIm = kappa/(2*Im).
+			if (_idxSalt >= 0 && std::abs(Im) > 1e-30)
+			{
+				const double dkappa_dIm = kappa / (2.0 * Im);
+
+				// dpsiA/dkappa via IFT
+				const double dpsiA_dkappa_val = dPsiA_dkappa(psiA, pH_val, kappa, GammaL, zetaL, pKL, eps, T);
+
+				// dpsi_i/dkappa: psiArg = Zi*e^2/(8*pi*a_i^2*eps*eps0*kappa*kbT)
+				// dpsiArg/dkappa = -psiArg / kappa
+				const double dpsiArg_dkappa = -psiArg / kappa;
+				const double dpsi_i_dkappa = (2.0 * kbT / e) * dpsiArg_dkappa / sqrt(psiArg * psiArg + 1.0);
+
+				// ddm_i/dkappa: dm_i = -log(R)/kappa, R = -2*psiA*psi_i/(psiA^2+psi_i^2)
+				// dR/dkappa through psiA and psi_i
+				const double S_pot_k = psiA * psiA + psi_i * psi_i;
+				const double dR_dpsiA_k = 2.0 * psi_i * (psiA * psiA - psi_i * psi_i) / (S_pot_k * S_pot_k);
+				const double dR_dpsi_i_k = 2.0 * psiA * (psi_i * psi_i - psiA * psiA) / (S_pot_k * S_pot_k);
+				const double dR_dkappa = dR_dpsiA_k * dpsiA_dkappa_val + dR_dpsi_i_k * dpsi_i_dkappa;
+				double ddm_dkappa = 0.0;
+				if (std::abs(dmRatio) > 1e-30)
+					ddm_dkappa = log(dmRatio) / (kappa * kappa) - dR_dkappa / (dmRatio * kappa);
+
+				// duA/dkappa: through psiA, psi_i, and explicit kappa in ekz
+				// ekz = exp(-kappa*dm_i), duA_ddm accounts for d(ekz)/d(dm_i) at constant kappa
+				// Extra term for explicit kappa: duA_ddm * dm_i / kappa
+				const double duA_dkappa = duA_dpsiA * dpsiA_dkappa_val
+					+ duA_dpsi_i * dpsi_i_dkappa
+					+ duA_ddm * (ddm_dkappa + dm_i / kappa);
+
+				// dKH/dkappa
+				const double dKH_dkappa = dKH_duA * duA_dkappa;
+
+				// dkKin/dkappa: Delta_i = delta_i/As_i doesn't depend on kappa, only uA does
+				const double dkKin_dkappa = dkKin_duA * duA_dkappa;
+
+				// dulat_i/dkappa: through beta_ij and ulatPrefactor
+				// dbeta_ij/dkappa = beta_ij * [(a_i+a_j) - a_i/(1+kappa*a_i) - a_j/(1+kappa*a_j)]
+				double dbetaQSum_dkappa = 0.0;
+				int bndIdx3 = 0;
+				for (int j = 0; j < _nComp; ++j)
+				{
+					if (_nBoundStates[j] == 0)
+						continue;
+
+					const double a_j = aVec[bndIdx3];
+					const double dbeta_dkappa = beta_ij_vec[bndIdx3]
+						* ((a_i + a_j) - a_i / (1.0 + kappa * a_i) - a_j / (1.0 + kappa * a_j));
+					dbetaQSum_dkappa += dbeta_dkappa * qSurface[bndIdx3];
+					++bndIdx3;
+				}
+
+				// dulatPrefactor/dkappa: ulatPrefactor = 3*sqrt3*Dhex*NA*exp(-kappa*Dhex) / (1-exp(-c*kappa*Dhex))
+				double dulatPrefactor_dkappa = 0.0;
+				if (Dhex > 1e-30)
+				{
+					const double c_lat = 3.0 * sqrt3 / (2.0 * pi);
+					const double hLat = exp(-c_lat * kappa * Dhex);
+					const double denomLat = 1.0 - hLat;
+					if (std::abs(denomLat) > 1e-30)
+						dulatPrefactor_dkappa = ulatPrefactor * (-Dhex) * (1.0 + (c_lat - 1.0) * hLat) / denomLat;
+				}
+
+				const double dulat_dkappa = dulatPrefactor_dkappa * betaQSum + ulatPrefactor * dbetaQSum_dkappa;
+
+				// dKv/dkappa: Kv = As*Delta*KH*B*exp(-ulat/kbT)
+				// B_i and Delta_i don't depend on kappa
+				const double dKv_dkappa = As_i * Delta_i * B_i * expUlat
+					* (dKH_dkappa - KH_i * dulat_dkappa / kbT);
+
+				// dres/dkappa
+				const double dres_dkappa = -(dkKin_dkappa * (Kv_i * yCp[i] - y[bndIdx]) + kKin_i * dKv_dkappa * yCp[i]);
+
+				// dres/dIm = dres/dkappa * dkappa/dIm, and dIm/dc_salt = 1
+				jac[_idxSalt - bndIdx - offsetCp] += dres_dkappa * dkappa_dIm;
 			}
 
 			// === dres_i / dq_i (direct term: +kKin_i due to negative sign in res) ===

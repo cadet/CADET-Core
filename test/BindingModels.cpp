@@ -1928,3 +1928,96 @@ CADET_BINDINGTEST("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITRATION"
 	        "EXT_ACT_PKAG_TTT": [0.0, 0.0, 0.0]
 	)json", \
 	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_USED, CADET_COMPARE_BINDING_VS_NONBINDING)
+
+TEST_CASE("COLLOIDAL_PARTICAL_ADSORPTION binding model analytic Jacobian vs AD with PH low conc no salt", "[Jacobian],[AD],[BindingModel],[COLLOIDAL_PARTICAL_ADSORPTION]")
+{
+	const unsigned int nBound[] = {0, 1};
+	const double state[] = {0.9, 1.1, 1.5e-2};
+	char const* const config = R"json({
+			"COL_PHI": 0.56,
+			"COL_KAPPA_EXP": 0.8,
+			"COL_KAPPA_FACT": 1e7,
+			"COL_KAPPA_CONST": 1.2,
+			"COL_CORDNUM": 4.0,
+			"COL_LOGKEQ_PH_EXP": [0.0, 0.0, 1.3, 2.3, 1.8],
+			"COL_LOGKEQ_SALT_POWEXP": [0.0, 0.0, 1.4, 1.5, 1.6],
+			"COL_LOGKEQ_SALT_POWFACT": [0.0, 0.0, 1.7, 1.9, 2.0],
+			"COL_LOGKEQ_SALT_EXPFACT": [0.0, 0.0, 2.1, 2.2, 2.4],
+			"COL_LOGKEQ_SALT_EXPARGMULT": [0.0, 0.0, 2.5, 2.6, 0.6],
+			"COL_BPP_PH_EXP": [0.0, 0.0, 0.5, 0.4, 0.3],
+			"COL_BPP_SALT_POWEXP": [0.0, 0.0, 1.1, 1.2, 1.3],
+			"COL_BPP_SALT_POWFACT": [0.0, 0.0, 2.9, 2.8, 2.7],
+			"COL_BPP_SALT_EXPFACT": [0.0, 0.0, 1.3, 1.7, 2.1],
+			"COL_BPP_SALT_EXPARGMULT": [0.0, 0.0, 3.0, 2.8, 2.6],
+			"COL_PROTEIN_RADIUS": [0.0, 0.0, 1.1e-8, 2.0e-8, 3.0e-8],
+			"COL_KKIN": [0.0, 0.0, 0.9, 1.4, 1.9],
+			"COL_LINEAR_THRESHOLD": 1e-5,
+			"COL_USE_PH": 1
+		})json";
+	for (int bindMode = 0; bindMode < 2; ++bindMode)
+	{
+		const bool isKinetic = bindMode;
+		SECTION(std::string("Binding mode ") + (isKinetic ? "dynamic" : "quasi-stationary"))
+		{
+			cadet::test::binding::testJacobianAD("MULTI_COMPONENT_COLLOIDAL", sizeof(nBound) / sizeof(unsigned int), nBound, isKinetic, config, state, true);
+		}
+	}
+}
+
+TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD pH only", "[Jacobian],[AD],[BindingModel],[CPA]")
+{
+	// Minimal case: 2 components (pH, protein), nBound = {0, 1}
+	// state: [yCp_pH, yCp_protein, q_protein]
+	// yCp_pH = 10^pH = 10^5 = 1e5, q_v ~ 1.5 mol/m^3 (Theta ~ 0.4)
+	const unsigned int nBound[] = {0, 1};
+	const double state[] = {1e5, 0.05, 1.5};
+	char const* const config = R"json({
+		"CPA_TEMPERATURE": 298.15,
+		"CPA_IONIC_STRENGTH": 100.0,
+		"CPA_PERMITTIVITY": 78.3,
+		"CPA_SURFACE_DENSITY": 2.89e-6,
+		"CPA_CHARGE_FULL_LIGAND": 0.0,
+		"CPA_PK_LIGAND": 2.3,
+		"CPA_PROTON_IDX": 0,
+		"CPA_SURFACE_AREA": [0.0, 0.22e9],
+		"CPA_PROTEIN_RADIUS": [0.0, 5.5e-9],
+		"CPA_COMP_LAT_CHARGE": [0.0, 19.07],
+		"CPA_COMP_CHARGE_REF": [0.0, 80.45],
+		"CPA_COMP_CHARGE_LIN": [0.0, 0.0],
+		"CPA_COMP_CHARGE_QUAD": [0.0, 0.0],
+		"CPA_PH_REF": 5.0,
+		"CPA_DELTA_REF": [0.0, -1.90],
+		"CPA_DELTA_LIN": [0.0, 0.0],
+		"CPA_DIFFUSION_COEFF": [0.0, 1e-11]
+	})json";
+	cadet::test::binding::testJacobianAD("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, true, config, state, true, 0.0, 1e-6, 0.0);
+}
+
+TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD with salt component", "[Jacobian],[AD],[BindingModel],[CPA]")
+{
+	// 3 components: pH (idx 0), salt (idx 1), protein (idx 2), nBound = {0, 0, 1}
+	// state: [yCp_pH, yCp_salt, yCp_protein, q_protein]
+	const unsigned int nBound[] = {0, 0, 1};
+	const double state[] = {1e5, 100.0, 0.05, 1.5};
+	char const* const config = R"json({
+		"CPA_TEMPERATURE": 298.15,
+		"CPA_IONIC_STRENGTH": 100.0,
+		"CPA_PERMITTIVITY": 78.3,
+		"CPA_SURFACE_DENSITY": 2.89e-6,
+		"CPA_CHARGE_FULL_LIGAND": 0.0,
+		"CPA_PK_LIGAND": 2.3,
+		"CPA_PROTON_IDX": 0,
+		"CPA_SALT_IDX": 1,
+		"CPA_SURFACE_AREA": [0.0, 0.0, 0.22e9],
+		"CPA_PROTEIN_RADIUS": [0.0, 0.0, 5.5e-9],
+		"CPA_COMP_LAT_CHARGE": [0.0, 0.0, 19.07],
+		"CPA_COMP_CHARGE_REF": [0.0, 0.0, 80.45],
+		"CPA_COMP_CHARGE_LIN": [0.0, 0.0, 0.0],
+		"CPA_COMP_CHARGE_QUAD": [0.0, 0.0, 0.0],
+		"CPA_PH_REF": 5.0,
+		"CPA_DELTA_REF": [0.0, 0.0, -1.90],
+		"CPA_DELTA_LIN": [0.0, 0.0, 0.0],
+		"CPA_DIFFUSION_COEFF": [0.0, 0.0, 1e-11]
+	})json";
+	cadet::test::binding::testJacobianAD("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, true, config, state, true, 0.0, 1e-6, 0.0);
+}
