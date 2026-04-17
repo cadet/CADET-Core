@@ -727,6 +727,12 @@ public:
 	 * @param[in] nc Object to receive notifications or @c nullptr to disable notifications
 	 */
 	virtual void setNotificationCallback(INotificationCallback* nc) CADET_NOEXCEPT = 0;
+
+	virtual void  prepareIntegrator() = 0;
+
+    virtual int integrateStep(double tEnd, double& tReached) = 0;
+
+	virtual int reinitialize(double currentTime) = 0;
 };
 
 } // namespace cadet
