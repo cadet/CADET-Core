@@ -7,9 +7,10 @@ assignees: ''
 
 ---
 
+
 # CADET-Core Release Checklist
 
-CADET-Core follows the semantic versioning system described at [semver.org](https://semver.org/).
+CADET-Core follows the semantic versioning system described at [semver.org](https://semver.org/), except for pre-release versioning, where we follow the PEP 440 style versioning, see e.g. [here](https://packaging.python.org/en/latest/specifications/version-specifiers/).
 
 CADET-Core is released using the GitLab flow. In GitLab flow, feature and hotfix branches contain work for new features and bug fixes. These branches are merged back into the master branch immediately after they are finished, reviewed, and approved. The master branch is ready to be deployed but is not necessarily the source of truth for a new release. Each release has an associated release branch that is based on the master branch. Changes that are intended to be released are cherry-picked from master onto the release branch. The release is made on the release branch. Some release branches can be maintained, for example branch `v5.0.X` to support the last major release.
 
@@ -24,8 +25,8 @@ The following checklist describes the steps to execute sequentially for creating
   - Update the version number in `version.txt`, `zenodo.json` (two places), `cadet.hpp` and `cadet.doxyfile`
   - Update the authors list if needed in `CONTRIBUTING.md` and `zenodo.json`
   - Update the file format in `driver.hpp` if required
-  - Double check `LATEST_CAPI_VERSION` under src\libcadet\VersionInfo.cpp.in
-  - Update `html_baseurl` and `smv_branch_whitelist` in the `conf.py` file to the release branch (only if stable release)
+  - Double check LATEST_CAPI_VERSION under `src\libcadet\VersionInfo.cpp.in`
+  - Update `html_baseurl` and `smv_branch_whitelist` in the `doc/conf.py` file to the release branch (only if stable release)
   - If the release contains all commits from `master`, merge the bump commit into `master`
 
 ---
@@ -61,7 +62,7 @@ The following checklist describes the steps to execute sequentially for creating
   - Set the release branch as the target
   - Specify the tag `vX.X.X` according to semantic versioning
   - Add release notes with sections for Added, Fixed, Changed, and Updated
-  - Publish the release.
+  - Double check: Publish pre-release or release, then publish.
 - [ ] Check creation of docker image with the new release
 - [ ] Verify Zenodo archiving:
   - Confirm that a version-specific DOI was created
@@ -74,9 +75,8 @@ The following checklist describes the steps to execute sequentially for creating
 
 To ensure CADET-Core is accessible to a broad community, it is available as a Python package on conda-forge.  
 Other software, such as CADET-Process and CADET-Python, import this package.
-For pre-releases, substitute the `version` with the conda-friendly PEP 404 standard in the following (e.g. 6.0.0a1 instead of 6.0.0-alpha.1).
+For pre-releases, make sure the `version` follows the conda-friendly PEP 404 standard in the following (e.g. 6.0.0a1). This version must also be the a tag of the release on GitHub (which it should already be at this point).
 
-- [ ] If its a pre-release: add another tag with the PEP 404 version number to the pre-release commit on GitHub
 - [ ] Go to your fork of [cadet-feedstock](https://github.com/conda-forge/cadet-feedstock) or create one if it does not exist
 - [ ] Create a new branch on your fork and change the file `recipe/meta.yaml`:
   - install openSSL
