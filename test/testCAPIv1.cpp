@@ -22,6 +22,7 @@
 #include <vector>
 #include <stack>
 #include <string>
+#include <cmath>
 
 #include <json.hpp>
 using json = nlohmann::json;
@@ -31,6 +32,7 @@ using json = nlohmann::json;
 const char* getLibBinaryPath();
 
 typedef cdtResult (*cdtGetAPIv1_0_0_t)(cdtAPIv1_0_0* ptr);
+typedef cdtResult (*cdtGetAPIv1_1_0a2_t)(cdtAPIv1_1_0a2* ptr);
 
 typedef void (*cdtSetLogReceiver_t)(cdtLogHandler recv);
 typedef void (*cdtSetLogLevel_t)(int lvl);
@@ -113,55 +115,66 @@ json createColumnWithSMAJson(const std::string& uoType)
 	json config;
 	config["UNIT_TYPE"] = uoType;
 	config["NCOMP"] = 4;
+	config["NPARTYPE"] = 1;
 	config["VELOCITY"] = 5.75e-4;
 	config["COL_DISPERSION"] = 5.75e-8;
 	config["COL_DISPERSION_RADIAL"] = 1e-6;
-	config["FILM_DIFFUSION"] = {6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6};
-	config["PORE_DIFFUSION"] = {7e-10, 6.07e-11, 6.07e-11, 6.07e-11};
-	config["SURFACE_DIFFUSION"] = {0.0, 0.0, 0.0, 0.0};
 
 	// Geometry
 	config["COL_LENGTH"] = 0.014;
 	config["COL_RADIUS"] = 0.01;
-	config["PAR_RADIUS"] = 4.5e-5;
 	config["COL_POROSITY"] = 0.37;
-	config["PAR_POROSITY"] = 0.75;
-	config["TOTAL_POROSITY"] = 0.37 + (1.0 - 0.37) * 0.75;
 
 	// Initial conditions
 	config["INIT_C"] = {50.0, 0.0, 0.0, 0.0};
-	config["INIT_CS"] = {1.2e3, 0.0, 0.0, 0.0};
 
-	// Adsorption
-	config["ADSORPTION_MODEL"] = std::string("STERIC_MASS_ACTION");
-	config["NBOUND"] = { 1, 1, 1, 1 };
+	// Particle type 000
 	{
-		json ads;
-		ads["IS_KINETIC"] = 1;
-		ads["SMA_LAMBDA"] = 1.2e3;
-		ads["SMA_KA"] = {0.0, 35.5, 1.59, 7.7};
-		ads["SMA_KD"] = {0.0, 1000.0, 1000.0, 1000.0};
-		ads["SMA_NU"] = {0.0, 4.7, 5.29, 3.7};
-		ads["SMA_SIGMA"] = {0.0, 11.83, 10.6, 10.0};
-		config["adsorption"] = ads;
+		json parType;
+		parType["NBOUND"] = { 1, 1, 1, 1 };
+		parType["PAR_RADIUS"] = 4.5e-5;
+		parType["PAR_POROSITY"] = 0.75;
+		parType["FILM_DIFFUSION"] = {6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6};
+		parType["PORE_DIFFUSION"] = {7e-10, 6.07e-11, 6.07e-11, 6.07e-11};
+		parType["SURFACE_DIFFUSION"] = {0.0, 0.0, 0.0, 0.0};
+		parType["INIT_CP"] = {50.0, 0.0, 0.0, 0.0};
+		parType["INIT_CS"] = {1.2e3, 0.0, 0.0, 0.0};
+
+		parType["ADSORPTION_MODEL"] = std::string("STERIC_MASS_ACTION");
+		{
+			json ads;
+			ads["IS_KINETIC"] = 1;
+			ads["SMA_LAMBDA"] = 1.2e3;
+			ads["SMA_KA"] = {0.0, 35.5, 1.59, 7.7};
+			ads["SMA_KD"] = {0.0, 1000.0, 1000.0, 1000.0};
+			ads["SMA_NU"] = {0.0, 4.7, 5.29, 3.7};
+			ads["SMA_SIGMA"] = {0.0, 11.83, 10.6, 10.0};
+			parType["adsorption"] = ads;
+		}
+
+		{
+			json disc;
+			disc["NCELLS"] = 4;
+			disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT");
+			parType["discretization"] = disc;
+		}
+
+		config["particle_type_000"] = parType;
 	}
 
 	// Discretization
 	{
 		json disc;
 
+		disc["SPATIAL_METHOD"] = std::string("FV");
 		disc["NCOL"] = 16;
-		disc["NCELLS"] = 4;
 
 		if (uoType == "GENERAL_RATE_MODEL_2D")
 		{
 			disc["NCOL"] = 8;
 			disc["NRAD"] = 3;
-			disc["NCELLS"] = 3;
 			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
 		}
-
-		disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT");
 
 		disc["USE_ANALYTIC_JACOBIAN"] = true;
 		disc["MAX_KRYLOV"] = 0;
@@ -374,6 +387,185 @@ json createLWEJson(const std::string& uoType)
 
 		config["solver"] = solver;
 	}
+	return config;
+}
+
+json createStepColumnWithSMAJson(const std::string& uoType)
+{
+	json config;
+	config["UNIT_TYPE"] = uoType;
+	config["NCOMP"] = 4;
+	config["NPARTYPE"] = 1;
+	config["VELOCITY"] = 5.75e-4;
+	config["COL_DISPERSION"] = 5.75e-8;
+
+	// Geometry
+	config["COL_LENGTH"] = 0.014;
+	config["COL_POROSITY"] = 0.37;
+
+	// Initial conditions
+	config["INIT_C"] = {50.0, 0.0, 0.0, 0.0};
+
+	// Column-level discretization
+	{
+		json disc;
+		disc["SPATIAL_METHOD"] = std::string("FV");
+		disc["NCOL"] = 4;
+		disc["USE_ANALYTIC_JACOBIAN"] = true;
+		disc["MAX_KRYLOV"] = 0;
+		disc["GS_TYPE"] = 1;
+		disc["MAX_RESTARTS"] = 10;
+		disc["SCHUR_SAFETY"] = 1e-8;
+
+		{
+			json weno;
+			weno["WENO_ORDER"] = 3;
+			weno["BOUNDARY_MODEL"] = 0;
+			weno["WENO_EPS"] = 1e-10;
+			disc["weno"] = weno;
+		}
+		config["discretization"] = disc;
+	}
+
+	// Particle type 000
+	{
+		json parType;
+		parType["NBOUND"] = { 1, 1, 1, 1 };
+		parType["PAR_RADIUS"] = 4.5e-5;
+		parType["PAR_POROSITY"] = 0.75;
+		parType["FILM_DIFFUSION"] = {6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6};
+		parType["PORE_DIFFUSION"] = {7e-10, 6.07e-11, 6.07e-11, 6.07e-11};
+		parType["SURFACE_DIFFUSION"] = {0.0, 0.0, 0.0, 0.0};
+		parType["INIT_CP"] = {50.0, 0.0, 0.0, 0.0};
+		parType["INIT_CS"] = {1.2e3, 0.0, 0.0, 0.0};
+
+		parType["ADSORPTION_MODEL"] = std::string("STERIC_MASS_ACTION");
+		{
+			json ads;
+			ads["IS_KINETIC"] = 1;
+			ads["SMA_LAMBDA"] = 1.2e3;
+			ads["SMA_KA"] = {0.0, 35.5, 1.59, 7.7};
+			ads["SMA_KD"] = {0.0, 1000.0, 1000.0, 1000.0};
+			ads["SMA_NU"] = {0.0, 4.7, 5.29, 3.7};
+			ads["SMA_SIGMA"] = {0.0, 11.83, 10.6, 10.0};
+			parType["adsorption"] = ads;
+		}
+
+		{
+			json disc;
+			disc["NCELLS"] = 2;
+			disc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT");
+			parType["discretization"] = disc;
+		}
+
+		config["particle_type_000"] = parType;
+	}
+
+	return config;
+}
+
+json createSingleSectionLWEJson()
+{
+	json config;
+
+	// Model
+	{
+		json model;
+		model["NUNITS"] = 2;
+		model["unit_000"] = createStepColumnWithSMAJson("GENERAL_RATE_MODEL");
+
+		// Inlet - unit 001, single section (load phase)
+		{
+			json inlet;
+			inlet["UNIT_TYPE"] = std::string("INLET");
+			inlet["INLET_TYPE"] = std::string("PIECEWISE_CUBIC_POLY");
+			inlet["NCOMP"] = 4;
+
+			{
+				json sec;
+				sec["CONST_COEFF"] = {50.0, 1.0, 1.0, 1.0};
+				sec["LIN_COEFF"] = {0.0, 0.0, 0.0, 0.0};
+				sec["QUAD_COEFF"] = {0.0, 0.0, 0.0, 0.0};
+				sec["CUBE_COEFF"] = {0.0, 0.0, 0.0, 0.0};
+				inlet["sec_000"] = sec;
+			}
+
+			model["unit_001"] = inlet;
+		}
+
+		// Valve switches
+		{
+			json con;
+			con["NSWITCHES"] = 1;
+			con["CONNECTIONS_INCLUDE_PORTS"] = true;
+
+			{
+				json sw;
+				sw["SECTION"] = 0;
+				sw["CONNECTIONS"] = {1.0, 0.0, -1.0, -1.0, -1.0, -1.0, 1.0};
+				con["switch_000"] = sw;
+			}
+			model["connections"] = con;
+		}
+
+		{
+			json solver;
+			solver["MAX_KRYLOV"] = 0;
+			solver["GS_TYPE"] = 1;
+			solver["MAX_RESTARTS"] = 10;
+			solver["SCHUR_SAFETY"] = 1e-8;
+			model["solver"] = solver;
+		}
+
+		config["model"] = model;
+	}
+
+	// Return
+	{
+		json ret;
+		ret["WRITE_SOLUTION_TIMES"] = true;
+		ret["WRITE_SOLUTION_LAST"] = true;
+
+		json grm;
+		grm["WRITE_SOLUTION_BULK"] = false;
+		grm["WRITE_SOLUTION_PARTICLE"] = false;
+		grm["WRITE_SOLUTION_FLUX"] = false;
+		grm["WRITE_SOLUTION_INLET"] = true;
+		grm["WRITE_SOLUTION_OUTLET"] = true;
+		ret["unit_000"] = grm;
+
+		config["return"] = ret;
+	}
+
+	// Solver - single section [0, 10]
+	{
+		json solver;
+
+		{
+			json sec;
+			sec["NSEC"] = 1;
+			sec["SECTION_TIMES"] = {0.0, 10.0};
+			solver["sections"] = sec;
+		}
+
+		solver["NTHREADS"] = 1;
+
+		{
+			json ti;
+			ti["ABSTOL"] = 1e-8;
+			ti["RELTOL"] = 1e-6;
+			ti["ALGTOL"] = 1e-12;
+			ti["INIT_STEP_SIZE"] = 1e-6;
+			ti["MAX_STEPS"] = 10000;
+			ti["MAX_STEP_SIZE"] = 0.0;
+			ti["CONSISTENT_INIT_MODE"] = 1;
+			ti["CONSISTENT_INIT_MODE_SENS"] = 1;
+			solver["time_integrator"] = ti;
+		}
+
+		config["solver"] = solver;
+	}
+
 	return config;
 }
 
@@ -741,6 +933,296 @@ cdtResult popScope(void* userData)
 	return cdtOK;
 }
 
+cdtParameterProvider makeParamProvider(JsonNavigator* jn)
+{
+	cdtParameterProvider pp
+	{
+		jn,
+		&getDouble,
+		&getInt,
+		&getBool,
+		&getString,
+		nullptr,
+		nullptr,
+		nullptr,
+		nullptr,
+		&getDoubleArrayItem,
+		&getIntArrayItem,
+		&getBoolArrayItem,
+		&getStringArrayItem,
+		&exists,
+		&isArray,
+		&numElements,
+		&pushScope,
+		&popScope
+	};
+	return pp;
+}
+
+int testErrors = 0;
+
+void check(bool condition, const char* msg)
+{
+	if (!condition)
+	{
+		std::cout << "FAIL: " << msg << std::endl;
+		++testErrors;
+	}
+	else
+	{
+		std::cout << "PASS: " << msg << std::endl;
+	}
+}
+
+
+//    v1.1.0a2 API tests
+int testInitAndEnd(cdtAPIv1_1_0a2& api)
+{
+	std::cout << "\n=== Test: initializeSimulation + endSimulation ===" << std::endl;
+
+	const json simSpec = createSingleSectionLWEJson();
+	JsonNavigator jn(simSpec);
+	cdtParameterProvider pp = makeParamProvider(&jn);
+
+	std::unique_ptr<cdtDriver, std::function<void(cdtDriver*)>> drv(api.createDriver(), [&api](cdtDriver* ptr)
+		{
+			api.deleteDriver(ptr);
+		}
+	);
+
+	const cdtResult resInit = api.initializeSimulation(drv.get(), &pp);
+	check(!CADET_ERR(resInit), "initializeSimulation returns cdtOK");
+
+	const cdtResult resEnd = api.endSimulation(drv.get());
+	check(!CADET_ERR(resEnd), "endSimulation returns cdtOK");
+
+	return (CADET_ERR(resInit) || CADET_ERR(resEnd)) ? 1 : 0;
+}
+
+int testStepToEnd(cdtAPIv1_1_0a2& api)
+{
+	const json simSpec = createSingleSectionLWEJson();
+	JsonNavigator jn(simSpec);
+	cdtParameterProvider pp = makeParamProvider(&jn);
+
+	std::unique_ptr<cdtDriver, std::function<void(cdtDriver*)>> drv(api.createDriver(), [&api](cdtDriver* ptr)
+		{
+			api.deleteDriver(ptr);
+		}
+	);
+
+	cdtResult res = api.initializeSimulation(drv.get(), &pp);
+	check(!CADET_ERR(res), "initializeSimulation returns cdtOK");
+	if (CADET_ERR(res))
+		return 1;
+
+	const double totalTime = 10.0;
+	const int nSteps = 5;
+	const double stepSize = totalTime / static_cast<double>(nSteps);
+	double tCurrent = 0.0;
+	int stepCount = 0;
+
+	while (totalTime - tCurrent > 1e-10)
+	{
+		const double tTarget = std::min(tCurrent + stepSize, totalTime);
+		double tReached = 0.0;
+
+		res = api.performSimulationStep(drv.get(), tTarget, &tReached);
+		check(!CADET_ERR(res), "performSimulationStep returns cdtOK");
+		if (CADET_ERR(res))
+		{
+			api.endSimulation(drv.get());
+			return 1;
+		}
+
+		check(tReached > tCurrent || std::abs(tReached - totalTime) < 1e-10,
+			"tReached advances or equals totalTime");
+
+		tCurrent = tReached;
+		++stepCount;
+	}
+
+	check(std::abs(tCurrent - totalTime) < 1e-8, "final time matches totalTime");
+
+	double const* lastState = nullptr;
+	int nStates = 0;
+	res = api.getLastState(drv.get(), &lastState, &nStates);
+	check(!CADET_ERR(res), "getLastState returns cdtOK");
+	check(lastState != nullptr, "lastState pointer is valid");
+	check(nStates > 0, "nStates > 0");
+
+	res = api.endSimulation(drv.get());
+	check(!CADET_ERR(res), "endSimulation returns cdtOK");
+
+	return 0;
+}
+
+int testStepMatchesFullSim(cdtAPIv1_1_0a2& api)
+{
+	const json simSpec = createSingleSectionLWEJson();
+
+	{
+		json fullSpec = simSpec;
+		std::vector<double> solTimes;
+		solTimes.reserve(11);
+		for (double t = 0.0; t <= 10.0; t += 1.0)
+			solTimes.push_back(t);
+		fullSpec["solver"]["USER_SOLUTION_TIMES"] = solTimes;
+
+		JsonNavigator jnFull(fullSpec);
+		cdtParameterProvider ppFull = makeParamProvider(&jnFull);
+
+		std::unique_ptr<cdtDriver, std::function<void(cdtDriver*)>> drvFull(api.createDriver(), [&api](cdtDriver* ptr)
+			{
+				api.deleteDriver(ptr);
+			}
+		);
+
+		cdtResult res = api.runSimulation(drvFull.get(), &ppFull);
+		check(!CADET_ERR(res), "runSimulation returns cdtOK");
+		if (CADET_ERR(res))
+			return 1;
+
+		double const* lastStateFull = nullptr;
+		int nStatesFull = 0;
+		api.getLastState(drvFull.get(), &lastStateFull, &nStatesFull);
+
+		double const* lastStateDotFull = nullptr;
+		int nStatesDotFull = 0;
+		api.getLastStateTimeDerivative(drvFull.get(), &lastStateDotFull, &nStatesDotFull);
+
+		//  Stepped simulation
+		JsonNavigator jnStep(simSpec);
+		cdtParameterProvider ppStep = makeParamProvider(&jnStep);
+
+		std::unique_ptr<cdtDriver, std::function<void(cdtDriver*)>> drvStep(api.createDriver(), [&api](cdtDriver* ptr)
+			{
+				api.deleteDriver(ptr);
+			}
+		);
+
+		res = api.initializeSimulation(drvStep.get(), &ppStep);
+		check(!CADET_ERR(res), "initializeSimulation returns cdtOK");
+
+		double tReached = 0.0;
+		res = api.performSimulationStep(drvStep.get(), 10.0, &tReached);
+		check(!CADET_ERR(res), "performSimulationStep returns cdtOK");
+
+		double const* lastStateStep = nullptr;
+		int nStatesStep = 0;
+		api.getLastState(drvStep.get(), &lastStateStep, &nStatesStep);
+
+		double const* lastStateDotStep = nullptr;
+		int nStatesDotStep = 0;
+		api.getLastStateTimeDerivative(drvStep.get(), &lastStateDotStep, &nStatesDotStep);
+
+		// Compare states
+		check(nStatesFull == nStatesStep, "state vector sizes match");
+		check(nStatesDotFull == nStatesDotStep, "state derivative vector sizes match");
+
+		if (nStatesFull == nStatesStep && lastStateFull && lastStateStep)
+		{
+			double maxDiff = 0.0;
+			for (int i = 0; i < nStatesFull; ++i)
+			{
+				const double diff = std::abs(lastStateFull[i] - lastStateStep[i]);
+				maxDiff = std::max(maxDiff, diff);
+			}
+			check(maxDiff < 1e-6, "last_state_y matches between full and stepped simulation");
+		}
+
+		if (nStatesDotFull == nStatesDotStep && lastStateDotFull && lastStateDotStep)
+		{
+			double maxDiff = 0.0;
+			for (int i = 0; i < nStatesDotFull; ++i)
+			{
+				const double diff = std::abs(lastStateDotFull[i] - lastStateDotStep[i]);
+				maxDiff = std::max(maxDiff, diff);
+			}
+			check(maxDiff < 1e-6, "last_state_ydot matches between full and stepped simulation");
+		}
+
+		api.endSimulation(drvStep.get());
+	}
+
+	return 0;
+}
+
+int testIntermediateStateAccess(cdtAPIv1_1_0a2& api)
+{
+
+	const json simSpec = createSingleSectionLWEJson();
+	JsonNavigator jn(simSpec);
+	cdtParameterProvider pp = makeParamProvider(&jn);
+
+	std::unique_ptr<cdtDriver, std::function<void(cdtDriver*)>> drv(api.createDriver(), [&api](cdtDriver* ptr)
+		{
+			api.deleteDriver(ptr);
+		}
+	);
+
+	cdtResult res = api.initializeSimulation(drv.get(), &pp);
+	check(!CADET_ERR(res), "initializeSimulation returns cdtOK");
+	if (CADET_ERR(res))
+		return 1;
+
+	const double totalTime = 10.0;
+	const double fractions[] = {0.1, 0.25, 0.5, 0.75};
+	double prevT = 0.0;
+
+	for (double frac : fractions)
+	{
+		double tReached = 0.0;
+		res = api.performSimulationStep(drv.get(), totalTime * frac, &tReached);
+		check(!CADET_ERR(res), "performSimulationStep returns cdtOK");
+
+		check(tReached > prevT, "time progresses monotonically");
+
+		double const* lastState = nullptr;
+		int nStates = 0;
+		res = api.getLastState(drv.get(), &lastState, &nStates);
+		check(!CADET_ERR(res), "getLastState returns cdtOK at intermediate time");
+		check(lastState != nullptr, "lastState pointer is valid at intermediate time");
+		check(nStates > 0, "nStates > 0 at intermediate time");
+
+		prevT = tReached;
+	}
+
+	res = api.endSimulation(drv.get());
+	check(!CADET_ERR(res), "endSimulation returns cdtOK");
+
+	return 0;
+}
+
+int testEndWithoutInit(cdtAPIv1_1_0a2& api)
+{
+	std::unique_ptr<cdtDriver, std::function<void(cdtDriver*)>> drv(api.createDriver(), [&api](cdtDriver* ptr)
+		{
+			api.deleteDriver(ptr);
+		}
+	);
+
+	const cdtResult res = api.endSimulation(drv.get());
+	check(!CADET_ERR(res), "endSimulation on fresh driver returns cdtOK");
+
+	return 0;
+}
+
+int testStepWithoutInit(cdtAPIv1_1_0a2& api)
+{
+	std::unique_ptr<cdtDriver, std::function<void(cdtDriver*)>> drv(api.createDriver(), [&api](cdtDriver* ptr)
+		{
+			api.deleteDriver(ptr);
+		}
+	);
+
+	double tReached = 0.0;
+	const cdtResult res = api.performSimulationStep(drv.get(), 5.0, &tReached);
+	check(CADET_ERR(res), "performSimulationStep without init returns error");
+
+	return 0;
+}
+
 
 int main(int argc, char** argv)
 {
@@ -832,8 +1314,37 @@ int main(int argc, char** argv)
 	int nPort = 0;
 	int nComp = 0;
 	const cdtResult resSol = api.getSolutionOutlet(drv.get(), 0, &time, &outlet, &nTime, &nPort, &nComp);
+	std::cout << "getSolutionOutlet() = " << resSol << " nTime = " << nTime << " nPort = " << nPort << " nComp = " <<nComp << std::endl;
 
-	std::cout << "getSolutionOutlet() = " << resSol << " nTime = " << nTime << " nPort = " << nPort << " nComp = " << nComp << std::endl;
+	//  v1.1.0a2 API tests
+	const cdtGetAPIv1_1_0a2_t apiLoaderStep = loader.load<cdtGetAPIv1_1_0a2_t>("cdtGetAPIv1_1_0a2");
+	if (!apiLoaderStep)
+	{
+		return 1;
+	}
+
+	cdtAPIv1_1_0a2 apiStep;
+	const cdtResult resApiLoadStep = apiLoaderStep(&apiStep);
+
+	if (CADET_ERR(resApiLoadStep))
+		return 1;
+
+	check(apiStep.initializeSimulation != nullptr, "initializeSimulation is set");
+	check(apiStep.performSimulationStep != nullptr, "performSimulationStep is set");
+	check(apiStep.endSimulation != nullptr, "endSimulation is set");
+	check(apiStep.setTimeout != nullptr, "setTimeout is set");
+
+	setLogLevel(cdtLogLevelInfo);
+
+	testInitAndEnd(apiStep);
+	testStepToEnd(apiStep);
+	testStepMatchesFullSim(apiStep);
+	testIntermediateStateAccess(apiStep);
+	testEndWithoutInit(apiStep);
+	testStepWithoutInit(apiStep);
+
+	if (testErrors > 0)
+		return 1;
 
 	return 0;
 }
