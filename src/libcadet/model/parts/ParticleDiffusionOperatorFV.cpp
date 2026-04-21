@@ -716,7 +716,6 @@ namespace parts
 	int ParticleDiffusionOperatorFV::calcParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
 	{
 		// Prepare parameters
-		const active* const filmDiff = getSectionDependentSlice(_filmDiffusion, _nComp, secIdx);
 		const active* const parDiff = getSectionDependentSlice(_parDiffusion, _nComp, secIdx);
 		const active* const  parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
 
