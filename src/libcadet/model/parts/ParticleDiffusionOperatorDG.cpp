@@ -556,20 +556,22 @@ namespace parts
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 	int ParticleDiffusionOperatorDG::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, linalg::BandedEigenSparseRowIterator& jacBase)
 	{
-		const active* const filmDiff = getSectionDependentSlice(_filmDiffusion, _nComp, secIdx);
-
-		// Add the DG discretized solid entries of the jacobian that get overwritten by the binding kernel.
-		// These entries only exist for the GRM with surface diffusion
+		// Add the solid entries of the transport jacobian that get overwritten by the binding kernel.
+		// These entries only exist for the combination of dynamic reactions with surface diffusion
+		// To get the full Jacobian, calcParticleDiffJacobian() must be called
 		if (wantJac && _hasDynamicReactions && _hasSurfaceDiffusion)
-			addSolidDGentries(secIdx, jacBase, _reqBinding);
+			addSolidDiagonalDGentries(secIdx, jacBase, _reqBinding);
 
 		if (!wantRes)
 			return 0;
 
 		/* Mobile phase RHS	*/
 
+		const active* const filmDiff = getSectionDependentSlice(_filmDiffusion, _nComp, secIdx);
+
 		// Get film diffusion flux at current node to compute boundary condition
-		for (unsigned int comp = 0; comp < _nComp; comp++) {
+		for (unsigned int comp = 0; comp < _nComp; comp++)
+		{
 			_localFlux[comp] = filmDiff[comp] * (yBulk[comp * _strideBulkComp] - yPar[(_nParPoints - 1) * strideParNode() + comp]);
 		}
 
@@ -1404,7 +1406,7 @@ namespace parts
 	 * @brief adds jacobian entries which have been overwritten by the binding kernel (only use for surface diffusion combined with kinetic binding)
 	 * @detail only adds the entries d RHS_i / d c^s_i, which lie on the diagonal
 	 */
-	 int ParticleDiffusionOperatorDG::addSolidDGentries(const int secIdx, linalg::BandedEigenSparseRowIterator& jacBase, const int* const reqBinding)
+	 int ParticleDiffusionOperatorDG::addSolidDiagonalDGentries(const int secIdx, linalg::BandedEigenSparseRowIterator& jacBase, const int* const reqBinding)
 	 {
 	 	active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
 
