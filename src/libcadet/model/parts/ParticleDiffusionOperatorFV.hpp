@@ -158,7 +158,6 @@ namespace parts
 		/* FV specific operators */
 
 		std::vector<active> _deltaR; //!< particle cell spacing
-		ArrayPool _discParFlux; //!< Storage for discretized @f$ k_f @f$ value
 		int _boundaryOrderFV; //!< Order of the bulk-particle boundary discretization
 	};
 
