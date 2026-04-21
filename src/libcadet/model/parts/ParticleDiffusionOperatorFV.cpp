@@ -568,7 +568,7 @@ namespace parts
 						continue;
 
 					const int curIdx = strideParLiquid() + idxBnd;
-					const ResidualType gradQ = (yPar[(_nParPoints - 1) * strideParPoint() + curIdx] - yPar[(_nParPoints - 2) * strideParPoint() + curIdx]);// / dr;
+					const ResidualType gradQ = (yPar[(_nParPoints - 1) * strideParPoint() + curIdx] - yPar[(_nParPoints - 2) * strideParPoint() + curIdx]) / dr;
 					surfFlux += kf_FV * static_cast<ParamType>(parSurfDiff[idxBnd]) * gradQ;
 				}
 
