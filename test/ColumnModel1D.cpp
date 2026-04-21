@@ -396,6 +396,18 @@ TEST_CASE("Column_1D as GRM transport Jacobian with bulk DG and par FV discretiz
 	cadet::test::column::testJacobianAD(jpp, 1e+10);
 }
 
+TEST_CASE("Column_1D as GRM with equilibrium linear binding Jacobian with bulk DG and par FV discretization", "[Column_1D],[DGFV],[UnitOp],[Jacobian],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, false, "COLUMN_MODEL_1D_GRM", "DGFV");
+	cadet::test::column::testJacobianAD(jpp, 1e+10);
+}
+
+TEST_CASE("Column_1D as GRM with two component kinetic linear binding Jacobian with bulk DG and par FV discretization", "[Column_1D],[DGFV],[UnitOp],[Jacobian],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_GRM", "DGFV");
+	cadet::test::column::testJacobianAD(jpp, 1e+10);
+}
+
 TEST_CASE("Column_1D as GRM LWE one vs two identical particle types match", "[Column_1D],[DG],[DG1D],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("COLUMN_MODEL_1D_GRM", "DG", 2e-8, 5e-5);
