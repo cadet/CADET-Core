@@ -189,13 +189,10 @@ protected:
     }
 
     // Helper function to calculate the parameter index for pre_k value
-    inline unsigned int getPreKParamIndex(unsigned int reaction, int substrate, bool oldInterface) const
+    inline unsigned int getPreKParamIndex(unsigned int reaction, int substrate) const
     {
         // Calculate 2D parameter index: (reaction, substrate)
-        
         return (reaction * _nComp + static_cast<unsigned int>(substrate));
-
-
     }
 
     virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
@@ -288,7 +285,7 @@ protected:
                     if (_stoichiometry.native(c, r) < 0.0)
                         idxSubstrateReaction_r.push_back(static_cast<int>(c));
                     
-                    const unsigned int paramIdx = getPreKParamIndex(r, c, _oldInterface);
+                    const unsigned int paramIdx = getPreKParamIndex(r, c);
                     double pre_k = static_cast<double>(PRE_K[paramIdx]);
                     if (pre_k != 0.0)
 						idxPrefactorReaction_r.push_back(static_cast<int>(c));
@@ -357,7 +354,7 @@ protected:
             for (unsigned int rowIdx = 0; rowIdx < static_cast<unsigned int>(_stoichiometry.rows()); ++rowIdx)
             {
                 if (p->KPrefactor.size() != 0) {
-                    unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(rowIdx), _oldInterface);
+                    unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(rowIdx));
                     flux_t pre_k_j = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->KPrefactor[prekIdx]);
                     bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
                     if (pre_k_j != 0 && !isSubstrate)
@@ -508,7 +505,7 @@ protected:
             for (unsigned int rowIdx = 0; rowIdx < static_cast<unsigned int>(_stoichiometry.rows()); ++rowIdx)
             {
                 if (p->KPrefactor.size() != 0) {
-                    unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(rowIdx), _oldInterface);
+                    unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(rowIdx));
                     double pre_k_j = static_cast<double>(p->KPrefactor[prekIdx]);
                     bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
                     if (pre_k_j != 0 && !isSubstrate)
@@ -635,7 +632,7 @@ protected:
                 if (!isSubstrate)
                 {
                     if (p->KPrefactor.size() != 0) {
-                        unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(comp), _oldInterface);
+                        unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(comp));
                         double pre_k_j = static_cast<double>(p->KPrefactor[prekIdx]);
                         if (pre_k_j != 0.0)
                             dvdy += flux / y[comp];
