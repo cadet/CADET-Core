@@ -191,6 +191,7 @@ protected:
 	bool _activeAeration = false;
 
 	static constexpr double XH_MIN_THRESHOLD = 0.1;
+	static constexpr double XH_SMOOTH_EPS = 1e-4; //!< Smoothing parameter for smooth max of XH lower bound
 
 	// Temperature correction factors (Arrhenius-type)
 	static constexpr double T_REF = 20.0;           //!< Reference temperature
@@ -552,10 +553,12 @@ protected:
 
 
 		// p1: Hydrolysis of organic structures
-		if (XH < XH_MIN_THRESHOLD)
-			fluxes[0] = kh20 * ft_hydrolysis * (XS/XH_MIN_THRESHOLD) / ((XS/XH_MIN_THRESHOLD) + kx) * XH;
-		else
-			fluxes[0] = kh20 * ft_hydrolysis * (XS/XH) / ((XS/XH) + kx) * XH;
+		// smooth lower bound: XH_lb = XH_MIN + 0.5*(XH - XH_MIN + sqrt((XH - XH_MIN)^2 + eps^2))
+		{
+			const auto dXH = XH - static_cast<StateType>(XH_MIN_THRESHOLD);
+			const auto XH_lb = static_cast<StateType>(XH_MIN_THRESHOLD) + static_cast<StateType>(0.5) * (dXH + sqrt(dXH * dXH + static_cast<StateType>(XH_SMOOTH_EPS * XH_SMOOTH_EPS)));
+			fluxes[0] = kh20 * ft_hydrolysis * (XS / XH_lb) / ((XS / XH_lb) + kx) * XH_lb;
+		}
 
 		// p2: Aerobic storage of SS
 		fluxes[1] = k_sto * SO / (SO + kho2) * (SS) / ( ( SS + SS_ad ) + khss )  * XH;
@@ -564,17 +567,14 @@ protected:
 		fluxes[2] = k_sto * etahno3 * kho2 / (SO + kho2) * (SS) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khn03) * XH;
 
 		// p4: Aerobic growth of heterotrophic biomass (XH)
-		if (XH < XH_MIN_THRESHOLD)
-			fluxes[3] = muH * SO / (SO + kho2) * SNH / (SNH + khnh4) * SALK / (SALK + khalk) * (XSTO / XH_MIN_THRESHOLD) / ((XSTO / XH_MIN_THRESHOLD) + khsto) * XH;
-		else
-			fluxes[3] = muH * SO / (SO + kho2) * SNH / (SNH + khnh4) * SALK / (SALK + khalk) * ((XSTO/XH)) / (((XSTO/XH)) + khsto) * XH;
-
-
 		// p5: Anoxic growth of heterotrophic biomass (XH, denitrification)
-		if (XH < XH_MIN_THRESHOLD)
-			fluxes[4] = muH * etahno3 * kho2 / (kho2 + SO) * SNH / (khnh4 + SNH) * SALK / (khalk + SALK) * (XSTO / XH_MIN_THRESHOLD) * 1 / (khsto + (XSTO/XH_MIN_THRESHOLD)) * SNO / (khn03 + SNO) * XH;
-		else
-			fluxes[4] = muH * etahno3 * kho2 / (kho2 + SO) * SNH / (khnh4 + SNH) * SALK / (khalk + SALK) * (XSTO / XH) * 1 / (khsto + (XSTO / XH)) * SNO / (khn03 + SNO) * XH;
+		// smooth lower bound shared by p4 and p5
+		{
+			const auto dXH = XH - static_cast<StateType>(XH_MIN_THRESHOLD);
+			const auto XH_lb = static_cast<StateType>(XH_MIN_THRESHOLD) + static_cast<StateType>(0.5) * (dXH + sqrt(dXH * dXH + static_cast<StateType>(XH_SMOOTH_EPS * XH_SMOOTH_EPS)));
+			fluxes[3] = muH * SO / (SO + kho2) * SNH / (SNH + khnh4) * SALK / (SALK + khalk) * (XSTO / XH_lb) / ((XSTO / XH_lb) + khsto) * XH_lb;
+			fluxes[4] = muH * etahno3 * kho2 / (kho2 + SO) * SNH / (khnh4 + SNH) * SALK / (khalk + SALK) * (XSTO / XH_lb) / (khsto + (XSTO / XH_lb)) * SNO / (khn03 + SNO) * XH_lb;
+		}
 
 
 		// r6: Aerobic endogenous respiration of heterotroph microorganisms (XH)
@@ -694,22 +694,16 @@ protected:
 		// initialize jacobian
 		std::vector<std::vector<double>> d(_stoichiometry.columns(), std::vector<double>(_nComp, 0.0));
 
-		// p1: Hydrolysis: kh20 * ft_hydrolysis * XS/XH_S / (XS/XH_S + kx) * XH;
-		if (XH < XH_MIN_THRESHOLD)
+		// p1: Hydrolysis: flux = kh20 * ft_hydrolysis * XS * XH_lb / (XS + kx*XH_lb)
+		// smooth lower bound: XH_lb = XH_MIN + 0.5*(XH - XH_MIN + sqrt((XH-XH_MIN)^2 + eps^2))
 		{
-			d[0][_idxXS] = kh20 * ft_hydrolysis
-				* XH_MIN_THRESHOLD / ((XS + XH_MIN_THRESHOLD * kx) * (XS + XH_MIN_THRESHOLD * kx)) * XH;
-			d[0][_idxXH] = kh20 * ft_hydrolysis
-				* XH_MIN_THRESHOLD / ((XS + XH_MIN_THRESHOLD * kx) * (XS + XH_MIN_THRESHOLD * kx));
-		}
-		else
-		{
-			d[0][_idxXS] = kh20 * ft_hydrolysis
-				* XH / ((XS + XH * kx)
-					* (XS + XH * kx)) * XH;
-			d[0][_idxXH] = kh20 * ft_hydrolysis
-				* (XS * XS) / ((XS + kx * XH)
-					* (XS + kx * XH));
+			const double dXH0 = XH - XH_MIN_THRESHOLD;
+			const double sqrtTerm0 = std::sqrt(dXH0 * dXH0 + XH_SMOOTH_EPS * XH_SMOOTH_EPS);
+			const double XH_lb0 = XH_MIN_THRESHOLD + 0.5 * (dXH0 + sqrtTerm0);
+			const double dXH_lb_dXH0 = 0.5 * (1.0 + dXH0 / sqrtTerm0);
+			const double denom0 = XS + kx * XH_lb0;
+			d[0][_idxXS] = kh20 * ft_hydrolysis * XH_lb0 * kx * XH_lb0 / (denom0 * denom0);
+			d[0][_idxXH] = kh20 * ft_hydrolysis * XS * XS / (denom0 * denom0) * dXH_lb_dXH0;
 		}
 
 		// p2: Aerobic storage of SS: k_sto * SO / (SO + kho2) * ( SS ) / ( ( SS_ad + SS ) + khss )  * XH;
@@ -756,137 +750,57 @@ protected:
 			* (SS) / ((SS_ad + SS) + khss)
 			* SNO / (SNO + khn03);
 
-		// p4: Aerobic growth: muH * SO / (SO + kho2) * SNH / (SNH + khnh4) * SALK / (SALK + khalk) * (XSTO/XH_S) / ((XSTO/XH_S) + khsto) * XH;
-		if (XH < XH_MIN_THRESHOLD)
+		// p4 & p5: Aerobic/Anoxic growth with smooth lower bound XH_lb
+		// flux4 = muH * SO/(SO+kho2) * SNH/(SNH+khnh4) * SALK/(SALK+khalk) * (XSTO/XH_lb)/(XSTO/XH_lb+khsto) * XH_lb
+		// flux5 = muH * etahno3 * kho2/(kho2+SO) * SNH/(khnh4+SNH) * SALK/(khalk+SALK) * (XSTO/XH_lb)/(khsto+XSTO/XH_lb) * SNO/(khn03+SNO) * XH_lb
+		// = muH * ... * XSTO*XH_lb / (XSTO + khsto*XH_lb) ... so let denomXH = XSTO + khsto*XH_lb
 		{
-			d[3][_idxSO] = muH
-				* -kho2 / ((SO + kho2) * (SO + kho2))
-				* SNH / (SNH + khnh4)
-				* SALK / (SALK + khalk)
-				* (XSTO / XH_MIN_THRESHOLD) / ((XSTO / XH_MIN_THRESHOLD) + khsto) * XH;
-			d[3][_idxSNH] = muH
-				* SO / (SO + kho2)
+			const double dXH34 = XH - XH_MIN_THRESHOLD;
+			const double sqrtTerm34 = std::sqrt(dXH34 * dXH34 + XH_SMOOTH_EPS * XH_SMOOTH_EPS);
+			const double XH_lb34 = XH_MIN_THRESHOLD + 0.5 * (dXH34 + sqrtTerm34);
+			const double dXH_lb_dXH34 = 0.5 * (1.0 + dXH34 / sqrtTerm34);
+			const double denomXSTO34 = XSTO + khsto * XH_lb34;
+			// XSTO/XH_lb term that appears in flux = XSTO * XH_lb / (XSTO + khsto*XH_lb)
+			// d(XSTO*XH_lb/denomXSTO)/dXSTO = khsto*XH_lb*XH_lb / denomXSTO^2
+			// d(XSTO*XH_lb/denomXSTO)/dXH    = XSTO*XSTO / denomXSTO^2 * dXH_lb_dXH
+			const double stoFactor3 = muH * SO / (SO + kho2) * SNH / (SNH + khnh4) * SALK / (SALK + khalk);
+			d[3][_idxSO] = stoFactor3 * kho2 / ((SO + kho2) * (SO + kho2))
+				* XSTO * XH_lb34 / denomXSTO34;
+			d[3][_idxSNH] = muH * SO / (SO + kho2)
 				* khnh4 / ((SNH + khnh4) * (SNH + khnh4))
 				* SALK / (SALK + khalk)
-				* (XSTO / XH_MIN_THRESHOLD) / ((XSTO / XH_MIN_THRESHOLD) + khsto) * XH;
-			d[3][_idxSALK] = muH
-				* SO / (SO + kho2)
+				* XSTO * XH_lb34 / denomXSTO34;
+			d[3][_idxSALK] = muH * SO / (SO + kho2)
 				* SNH / (SNH + khnh4)
 				* khalk / ((SALK + khalk) * (SALK + khalk))
-				* (XSTO / XH_MIN_THRESHOLD) / ((XSTO / XH_MIN_THRESHOLD) + khsto) * XH;
-			d[3][_idxXSTO] = muH
-				* SO / (SO + kho2)
-				* SNH / (SNH + khnh4)
-				* SALK / (SALK + khalk)
-				* (khsto * XH_MIN_THRESHOLD) / ((XSTO + khsto * XH_MIN_THRESHOLD) * (XSTO + khsto * XH_MIN_THRESHOLD)) * XH;
-			d[3][_idxXH] = muH * SO / (SO + kho2) * SNH / (SNH + khnh4) * SALK / (SALK + khalk) * (XSTO / XH_MIN_THRESHOLD) / ((XSTO / XH_MIN_THRESHOLD) + khsto);
-		}
-		else
-		{
-			d[3][_idxSO] = muH
-				* kho2 / ((SO + kho2) * (SO + kho2))
-				* SNH / (SNH + khnh4)
-				* SALK / (SALK + khalk)
-				* (XSTO / XH) / ((XSTO / XH) + khsto) * XH;
-			d[3][_idxSNH] = muH
-				* SO / (SO + kho2)
-				* khnh4 / ((SNH + khnh4) * (SNH + khnh4))
-				* SALK / (SALK + khalk)
-				* (XSTO / XH) / ((XSTO / XH) + khsto) * XH;
-			d[3][_idxSALK] = muH
-				* SO / (SO + kho2)
-				* SNH / (SNH + khnh4)
-				* khalk / ((SALK + khalk) * (SALK + khalk))
-				* (XSTO / XH) / ((XSTO / XH) + khsto) * XH;
-			d[3][_idxXSTO] = muH
-				* SO / (SO + kho2)
-				* SNH / (SNH + khnh4)
-				* SALK / (SALK + khalk)
-				* (khsto * XH) / ((XSTO + khsto * XH) * (XSTO + khsto * XH)) * XH;
-			d[3][_idxXH] = muH
-				* SO / (SO + kho2)
-				* SNH / (SNH + khnh4)
-				* SALK / (SALK + khalk)
-				* (XSTO * XSTO) / ((XSTO + khsto * XH) * (XSTO + khsto * XH));
-		}
+				* XSTO * XH_lb34 / denomXSTO34;
+			d[3][_idxXSTO] = stoFactor3 * khsto * XH_lb34 * XH_lb34 / (denomXSTO34 * denomXSTO34);
+			d[3][_idxXH] = stoFactor3 * XSTO * XSTO / (denomXSTO34 * denomXSTO34) * dXH_lb_dXH34;
 
-		// p5: Anoxic growth: muH * etahno3 * kho2 / (kho2 + SO) * SNH / (khnh4 + SNH) * SALK / (khalk + SALK)  * SNO / (khn03 + SNO)* (XSTO / XH_S) / (khsto + (XSTO/XH)_S) * XH;
-		if (XH < XH_MIN_THRESHOLD)
-		{
+			const double stoFactor4 = muH * etahno3 * kho2 / (kho2 + SO) * SNH / (khnh4 + SNH) * SALK / (khalk + SALK) * SNO / (khn03 + SNO);
 			d[4][_idxSO] = muH * etahno3
 				* -kho2 / ((kho2 + SO) * (kho2 + SO))
 				* SNH / (khnh4 + SNH)
 				* SALK / (khalk + SALK)
-				* (XSTO / XH_MIN_THRESHOLD) / (khsto + (XSTO / XH_MIN_THRESHOLD))
-				* SNO / (khn03 + SNO) * XH_MIN_THRESHOLD;
+				* SNO / (khn03 + SNO)
+				* XSTO * XH_lb34 / denomXSTO34;
 			d[4][_idxSNH] = muH * etahno3
 				* kho2 / (kho2 + SO)
 				* khnh4 / ((khnh4 + SNH) * (khnh4 + SNH))
 				* SALK / (khalk + SALK)
-				* (XSTO / XH_MIN_THRESHOLD) / (khsto + (XSTO / XH_MIN_THRESHOLD))
-				* SNO / (khn03 + SNO) * XH_MIN_THRESHOLD;
+				* SNO / (khn03 + SNO)
+				* XSTO * XH_lb34 / denomXSTO34;
 			d[4][_idxSALK] = muH * etahno3
 				* kho2 / (kho2 + SO)
 				* SNH / (khnh4 + SNH)
 				* khalk / ((khalk + SALK) * (khalk + SALK))
-				* (XSTO / XH_MIN_THRESHOLD) / (khsto + (XSTO / XH_MIN_THRESHOLD))
-				* SNO / (khn03 + SNO) * XH_MIN_THRESHOLD;
-			d[4][_idxSNO] = muH * etahno3
-				* kho2 / (kho2 + SO)
-				* SNH / (khnh4 + SNH)
-				* SALK / (khalk + SALK)
-				* (XSTO / XH_MIN_THRESHOLD) / (khsto + (XSTO / XH_MIN_THRESHOLD))
-				* khn03 / ((khn03 + SNO) * (khn03 + SNO)) * XH_MIN_THRESHOLD;
-			d[4][_idxXSTO] = muH * etahno3
-				* kho2 / (kho2 + SO)
-				* SNH / (khnh4 + SNH)
-				* SALK / (khalk + SALK)
-				* (1.0 / XH_MIN_THRESHOLD)
 				* SNO / (khn03 + SNO)
-				* (khsto * XH_MIN_THRESHOLD * XH_MIN_THRESHOLD) / ((XSTO + khsto * XH_MIN_THRESHOLD) * (XSTO + khsto * XH_MIN_THRESHOLD)) * XH_MIN_THRESHOLD;
-			d[4][_idxXH] = 0.0;
-		}
-		else
-		{
-			d[4][_idxSO] = muH * etahno3
-				* -kho2 / ((kho2 + SO) * (kho2 + SO))
-				* SNH / (khnh4 + SNH)
-				* SALK / (khalk + SALK)
-				* (XSTO / XH) / (khsto + (XSTO / XH))
-				* SNO / (khn03 + SNO) * XH;
-			d[4][_idxSNH] = muH * etahno3
-				* kho2 / (kho2 + SO)
-				* khnh4 / ((khnh4 + SNH) * (khnh4 + SNH))
-				* SALK / (khalk + SALK)
-				* (XSTO / XH) / (khsto + (XSTO / XH))
-				* SNO / (khn03 + SNO) * XH;
-			d[4][_idxSALK] = muH * etahno3
-				* kho2 / (kho2 + SO)
-				* SNH / (khnh4 + SNH)
-				* khalk / ((khalk + SALK) * (khalk + SALK))
-				* (XSTO / XH) / (khsto + (XSTO / XH))
-				* SNO / (khn03 + SNO) * XH;
-			d[4][_idxSNO] = muH * etahno3
-				* kho2 / (kho2 + SO)
-				* SNH / (khnh4 + SNH)
-				* SALK / (khalk + SALK)
-				* (XSTO / XH) / (khsto + (XSTO / XH))
-				* khn03 / ((khn03 + SNO) * (khn03 + SNO)) * XH;
-			d[4][_idxXSTO] = muH * etahno3
-				* kho2 / (kho2 + SO)
-				* SNH / (khnh4 + SNH)
-				* SALK / (khalk + SALK)
-				* (1.0 / XH)
-				* SNO / (khn03 + SNO)
-				* (khsto * XH * XH) / ((XSTO + khsto * XH) * (XSTO + khsto * XH)) * XH;
-			d[4][_idxXH] = muH * etahno3
-				* kho2 / (kho2 + SO)
-				* SNH / (khnh4 + SNH)
-				* SALK / (khalk + SALK)
-				* SNO / (khn03 + SNO)
-				* (XSTO * XSTO) / ((XSTO + khsto * XH) * (XSTO + khsto * XH));
-
-
+				* XSTO * XH_lb34 / denomXSTO34;
+			d[4][_idxSNO] = stoFactor4
+				* khn03 / ((khn03 + SNO) * (khn03 + SNO))
+				* XSTO * XH_lb34 / denomXSTO34;
+			d[4][_idxXSTO] = stoFactor4 * khsto * XH_lb34 * XH_lb34 / (denomXSTO34 * denomXSTO34);
+			d[4][_idxXH] = stoFactor4 * XSTO * XSTO / (denomXSTO34 * denomXSTO34) * dXH_lb_dXH34;
 		}
 
 		//reaction6: bH * SO / (SO + kho2) * XH;
