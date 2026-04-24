@@ -91,7 +91,9 @@ jobs:
             libblas-dev \
             libtbb-dev \
             libsuperlu-dev \
-            gcovr;  # for generating code coverage
+            python3-pip;
+
+          pip3 install --upgrade gcovr
 
       - name: Build Eigen
         run: |
@@ -175,7 +177,7 @@ jobs:
       - name: Generate Coverage Report
         run: |
           gcovr \
-            --root "${{ github.workspace }}" \
+            --root src \
             --filter "${{ github.workspace }}/(src|include|build/src)" \
             --exclude-directories '.*ThirdParty.*' \
             --cobertura -o coverage.xml \
