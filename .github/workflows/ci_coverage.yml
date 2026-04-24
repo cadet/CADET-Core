@@ -22,7 +22,9 @@ on:
       - 'version.txt'
     branches:
       - master
-  pull_request :
+      - dev
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
       - 'doc/**'
       - 'doc/ISSUE_TEMPLATE'
@@ -41,7 +43,6 @@ on:
       - 'SECURITY.md'
       - 'ThirdParty-LICENSES.txt'
       - 'version.txt'
-    types : [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       ref:
@@ -50,9 +51,10 @@ on:
         default: 'master'
         type: string
 
-
 jobs:
+
   coverage:
+    if: github.event.pull_request == null || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -60,6 +62,7 @@ jobs:
       run:
         shell: bash -l {0}
     env:
+      SRC_DIR: ${{ github.workspace }}/src
       BUILD_DIR: ${{ github.workspace }}/build
       INSTALL_PREFIX: ${{ github.workspace }}/install
       BUILD_TYPE: RelWithDebInfo 
@@ -67,7 +70,9 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: true
-          ref: "${{ github.event.inputs.ref || github.ref }}"
+          path: src
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
       - name: Install GCC-14
         run: |
           sudo apt-get update
@@ -79,15 +84,17 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update
-          sudo apt -y install \
+          sudo apt-get install -y \
             build-essential \
             libhdf5-dev \
             liblapack-dev \
             libblas-dev \
             libtbb-dev \
             libsuperlu-dev \
-            gcovr;  # for generating code coverage
+            python3-pip;
+
+          pip3 install --upgrade gcovr
+
       - name: Build Eigen
         run: |
           git clone https://gitlab.com/libeigen/eigen.git
@@ -101,76 +108,76 @@ jobs:
             -DBUILD_TESTING=OFF
           cmake --install build
       - name: Build and Install
+        id: build
         run: |
           cmake -E make_directory "${BUILD_DIR}"
           cmake -E make_directory "${INSTALL_PREFIX}"
           cd "${BUILD_DIR}"
-          cmake -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" "${{ github.workspace }}" -DENABLE_TESTS=ON -DNUM_MAX_AD_DIRS=160 -DCODE_COVERAGE=ON
+          cmake \
+            -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+            -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+            -DEIGEN3_DIR="${INSTALL_PREFIX}/eigen" \
+            "${SRC_DIR}" \
+            -DENABLE_TESTS=ON \
+            -DNUM_MAX_AD_DIRS=160 \
+            -DCODE_COVERAGE=ON
           make install -j$(nproc)
       - name: Check executable
+        if: always() && steps.build.conclusion == 'success'
         run: |
+          set -e
           export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:$LD_LIBRARY_PATH
-          ${INSTALL_PREFIX}/bin/cadet-cli --version || true
+          ${INSTALL_PREFIX}/bin/cadet-cli --version
           ${INSTALL_PREFIX}/bin/createLWE
-          ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5 || true
+          ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5
       - name: Run CI test set I - bindings
+        if: always() && steps.build.conclusion == 'success'
         run: |
           ${BUILD_DIR}/test/testRunner [CI_binding]
       - name: Run CI test set II - sensitivities
+        if: always() && steps.build.conclusion == 'success'
         run: |
-          ${BUILD_DIR}/test/testRunner [CI_sens1]
-          ${BUILD_DIR}/test/testRunner [CI_sens2]
-          ${BUILD_DIR}/test/testRunner [CI_sens3]
-          ${BUILD_DIR}/test/testRunner [CI_sens4]
-          ${BUILD_DIR}/test/testRunner [CI_sens5]
-          ${BUILD_DIR}/test/testRunner [CI_sens6]
-          ${BUILD_DIR}/test/testRunner [CI_sens7]
-          ${BUILD_DIR}/test/testRunner [CI_sens8]
-          ${BUILD_DIR}/test/testRunner [CI_sens9]
-          ${BUILD_DIR}/test/testRunner [CI_sens11]
-          ${BUILD_DIR}/test/testRunner [CI_sens12]
-          ${BUILD_DIR}/test/testRunner [CI_sens13]
-          ${BUILD_DIR}/test/testRunner [CI_sens14]
-          ${BUILD_DIR}/test/testRunner [CI_sens15]
-          ${BUILD_DIR}/test/testRunner [CI_sens16]
-          ${BUILD_DIR}/test/testRunner [CI_sens17]
-          ${BUILD_DIR}/test/testRunner [CI_sens18]
-          ${BUILD_DIR}/test/testRunner [CI_sens19]
-          ${BUILD_DIR}/test/testRunner [CI_sens20]
-          ${BUILD_DIR}/test/testRunner [CI_sens21]
-          ${BUILD_DIR}/test/testRunner [CI_sens22]
-          ${BUILD_DIR}/test/testRunner [CI_sens23]
-          ${BUILD_DIR}/test/testRunner [CI_sens24]
+          failed=0
+          failed_tests=()
+          for i in {1..24}; do
+            if ! ${BUILD_DIR}/test/testRunner "[CI_sens${i}]"; then
+              echo -e "::error::Test [CI_sens${i}] failed\n"
+
+              failed=1
+              failed_tests+=("[CI_sens${i}]")
+            fi
+          done
+          if [ $failed -ne 0 ]; then
+            echo "Failed tests: ${failed_tests[*]}"
+          fi
+          exit $failed
       - name: Run CI test set III - crystallization
+        if: always() && steps.build.conclusion == 'success'
         run: |
-          ${BUILD_DIR}/test/testRunner [CI_cry1]
-          ${BUILD_DIR}/test/testRunner [CI_cry2]
-          ${BUILD_DIR}/test/testRunner [CI_cry3]
-          ${BUILD_DIR}/test/testRunner [CI_cry4]
-          ${BUILD_DIR}/test/testRunner [CI_cry5]
-          ${BUILD_DIR}/test/testRunner [CI_cry6]
-          ${BUILD_DIR}/test/testRunner [CI_cry7]
-          ${BUILD_DIR}/test/testRunner [CI_cry8]
-          ${BUILD_DIR}/test/testRunner [CI_cry9]
-          ${BUILD_DIR}/test/testRunner [CI_cry10]
-          ${BUILD_DIR}/test/testRunner [CI_cry11]
-          ${BUILD_DIR}/test/testRunner [CI_cry12]
-          ${BUILD_DIR}/test/testRunner [CI_cry13]
-          ${BUILD_DIR}/test/testRunner [CI_cry14]
-          ${BUILD_DIR}/test/testRunner [CI_cry15]
-          ${BUILD_DIR}/test/testRunner [CI_cry16]
-          ${BUILD_DIR}/test/testRunner [CI_cry17]
-          ${BUILD_DIR}/test/testRunner [CI_cry18]
-          ${BUILD_DIR}/test/testRunner [CI_cry19]
-          ${BUILD_DIR}/test/testRunner [CI_cry20]
+          failed=0
+          failed_tests=()
+          for i in {1..20}; do
+            if ! ${BUILD_DIR}/test/testRunner "[CI_cry${i}]"; then
+              echo -e "::error::Test [CI_cry${i}] failed\n"
+
+              failed=1
+              failed_tests+=("[CI_cry${i}]")
+            fi
+          done
+          if [ $failed -ne 0 ]; then
+            echo "Failed tests: ${failed_tests[*]}"
+          fi
+
+          exit $failed
       - name: Run CI test set IV
+        if: always() && steps.build.conclusion == 'success'
         run: |
           ${BUILD_DIR}/test/testRunner [CI]
 
       - name: Generate Coverage Report
         run: |
           gcovr \
-            --root "${{ github.workspace }}" \
+            --root "${{ github.workspace }}/src" \
             --filter "${{ github.workspace }}/(src|include|build/src)" \
             --exclude-directories '.*ThirdParty.*' \
             --cobertura -o coverage.xml \
