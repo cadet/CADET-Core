@@ -24,7 +24,6 @@ using json = nlohmann::json;
 #include "common/JsonParameterProvider.hpp"
 #include "JsonTestModels.hpp"
 
-
 namespace cadet
 {
 namespace test

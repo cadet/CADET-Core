@@ -18,9 +18,10 @@
 
 #ifndef CADET_TIMEOUT_CALLBACK_HPP_
 #define CADET_TIMEOUT_CALLBACK_HPP_
- 
+
 #include "common/Timer.hpp"
 #include "cadet/Notification.hpp"
+#include "cadet/Logging.hpp"
 
 namespace cadet
 {
