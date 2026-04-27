@@ -172,6 +172,10 @@ jobs:
         if: always() && steps.build.conclusion == 'success'
         run: |
           ${BUILD_DIR}/test/testRunner [CI]
+      - name: Run CI test CAPI
+        if: always() && steps.build.conclusion == 'success'
+        run: |
+          ${BUILD_DIR}/test/testCAPIv1
 
       - name: Generate Coverage Report
         run: |

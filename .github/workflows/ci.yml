@@ -151,6 +151,9 @@ jobs:
           .\cadet-cli.exe --version
           .\createLWE.exe
           .\cadet-cli.exe LWE.h5
+      - name: Run CI test CAPI
+        run: |
+          & "${env:BUILD_DIR}\test\testCAPIv1.exe"
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -274,6 +277,10 @@ jobs:
         if: always() && steps.build.conclusion == 'success'
         run: |
           ${BUILD_DIR}/test/testRunner [CI]
+      - name: Run CI test CAPI
+        if: always() && steps.build.conclusion == 'success'
+        run: |
+          ${BUILD_DIR}/test/testCAPIv1
 
   MacOS:
     if: github.event.pull_request == null || github.event.pull_request.draft == false
@@ -313,4 +320,7 @@ jobs:
           ${INSTALL_PREFIX}/bin/cadet-cli --version
           ${INSTALL_PREFIX}/bin/createLWE
           ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5
+      - name: Run CI test CAPI
+        run: |
+          ${BUILD_DIR}/test/testCAPIv1
 
