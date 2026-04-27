@@ -176,7 +176,7 @@ protected:
     inline unsigned int getKmmParamIndex(unsigned int reaction, int substrate) const
     {
         // Calculate 2D parameter index: (reaction, substrate)
-            return (reaction * _nComp + static_cast<unsigned int>(substrate));
+        return (reaction * _nComp + static_cast<unsigned int>(substrate));
     }
 
     // Helper function to calculate the parameter index for pre_k value

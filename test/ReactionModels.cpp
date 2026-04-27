@@ -122,7 +122,7 @@ TEST_CASE("MichaelisMenten kinetic with two non-inhibitors and specific mass act
 }
 
 
-TEST_CASE("MichaelisMenten kinetic with two non-inhibitors and two substrates and specific mass action law micro-kinetics yield same result", "[CSTR],[MassActionLaw],[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI]")
+TEST_CASE("MichaelisMenten kinetic with two non-inhibitors and two substrates and specific mass action law micro-kinetics yield same result", "[CSTR],[MassActionLaw],[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI], [TestSingle]") //failed
 {
 	const std::string& configFilePath1 = std::string("/data/configuration_CSTR_MichaelisMenten_twoSubs_twoInhib_benchmark1.json");
 	const std::string& configFilePath2 = std::string("/data/configuration_CSTR_MicroKineticsSMA_twoSubs_twoInhib_benchmark1.json");
@@ -133,7 +133,7 @@ TEST_CASE("MichaelisMenten kinetic with two non-inhibitors and two substrates an
 	cadet::test::reaction::testMichaelisMentenToSMAMicroKinetic(configFilePath1, configFilePath2, absTol, relTol);
 }
 
-TEST_CASE("MichaelisMenten kinetic and numerical reference with Crank-Nicolson yield same result", "[CSTR],[MassActionLaw],[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI]")
+TEST_CASE("MichaelisMenten kinetic and numerical reference with Crank-Nicolson yield same result", "[CSTR],[MassActionLaw],[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI]") 
 {
 	const std::string& configFileRelPath = std::string("/data/model_CSTR_MichaelisMenten_benchmark2.json");
 	const std::string& refFileRelPath = std::string("/data/ref_CSTR_MichaelisMenten_benchmark2.h5");
@@ -145,14 +145,15 @@ TEST_CASE("MichaelisMenten kinetic and numerical reference with Crank-Nicolson y
 }
 
 
-TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD without inhibition", "[MichaelisMenten],[ReactionModel],[Jacobian],[AD]") // Test runs as a single test but fails when run in combination with [MichaelisMenten] tag
+TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD without inhibition", "[MichaelisMenten],[ReactionModel],[Jacobian],[AD],[TestSingle]") // Test runs as a single test but fails when run in combination with [MichaelisMenten] tag
 {
 	const unsigned int nBound[] = {1, 2, 1};
 	const double point[] = {1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8};
 	cadet::test::reaction::testDynamicJacobianAD("MICHAELIS_MENTEN", 3, nBound,
 		R"json({
-			"MM_KMM": [1.0, 2.0, 0.4],
-			"MM_KI": [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0],
+			"MM_KMM": [0.0, 1.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.4, 0.0],
+			"MM_KI_UC": [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0],
+			"MM_KI_IC": [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0],
 			"MM_VMAX": [1.0, 0.2, 1.5],
 			"MM_STOICHIOMETRY": [ 1.0, -2.0,  3.0,
 			                          -1.0,  0.0, -2.0,
@@ -168,7 +169,7 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with prefactorial com
 	const double point[] = { 1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8 };
 	cadet::test::reaction::testDynamicJacobianAD("MICHAELIS_MENTEN", 3, nBound,
 		R"json({
-			"MM_KMM": [1.0, 2.0, 0.4],
+			"MM_KMM": [0.0, 1.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.4, 0.0],
 			"MM_KI": [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0],
 			"MM_VMAX": [1.0, 0.2, 1.5],
 			"MM_STOICHIOMETRY": [ 1.0, -2.0,  3.0,
@@ -186,8 +187,9 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with inhibition", "[M
 	const double point[] = {1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8};
 	cadet::test::reaction::testDynamicJacobianAD("MICHAELIS_MENTEN", 3, nBound,
 		R"json({
-			"MM_KMM": [1.0, 2.0, 0.4],
-			"MM_KI": [-1.0, 1.0, -1.0, -1.0, -1.0, -1.0, 3.0, 2.0, -1.0],
+			"MM_KMM": [0.0, 1.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.4, 0.0],
+			"MM_KI_UC": [-1.0, 1.0, -1.0, -1.0, -1.0, -1.0, 3.0, 2.0, -1.0, -1.0, 1.0, -1.0, -1.0, -1.0, -1.0, 3.0, 2.0, -1.0, -1.0, 1.0, -1.0, -1.0, -1.0, -1.0, 3.0, 2.0, -1.0],
+			"MM_KI_C": [-1.0, 1.0, -1.0, -1.0, -1.0, -1.0, 3.0, 2.0, -1.0, -1.0, 1.0, -1.0, -1.0, -1.0, -1.0, 3.0, 2.0, -1.0, -1.0, 1.0, -1.0, -1.0, -1.0, -1.0, 3.0, 2.0, -1.0],
 			"MM_VMAX": [1.0, 0.2, 1.5],
 			"MM_STOICHIOMETRY": [ 1.0, -2.0,  3.0,
 			                          -1.0,  0.0, -2.0,
