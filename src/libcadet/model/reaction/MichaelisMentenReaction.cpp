@@ -202,7 +202,7 @@ protected:
             std::vector<double> KIC(_stoichiometry.columns() * _nComp * _nComp); 
             std::vector<double> KIUC(_stoichiometry.columns() * _nComp * _nComp);
             std::vector<double> PRE_K(_stoichiometry.columns() * _nComp);
-            bool hasCompetiveInhibition = false;
+            //bool hasCompetiveInhibition = false;
             
             if (paramProvider.exists("MM_KI_C"))
             {
