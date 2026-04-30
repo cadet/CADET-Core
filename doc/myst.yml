@@ -1,0 +1,152 @@
+version: 1
+project:
+  id: cadet-core-docs
+  title: CADET-Core
+  description: Fast and accurate solver for a comprehensive model family
+  github: https://github.com/cadet/cadet-core
+  bibliography: literature.bib
+  substitutions:
+    component_li: "$c^\\ell_i$ concentration of component $i$ in the liquid phase."
+    component_sij: "$c^s_{j,i,m_{j,i}}$ concentration of component $i$ in the solid phase of particle type $j$ and bound state $m_{j,i}$."
+    flow_in_out: "$F_{\\text{in}}$ and $F_{\\text{out}}$ flow rates of liquid into and out of the tank."
+    reaction: "$f_{\\text{react},i}^l\\left( c^\\ell \\right)$ and $f_{\\text{react},j,i}^s\\left( c^\\ell, c_j^s \\right)$ reaction rates of component $i$ in the liquid and solid phase."
+    reaction_ads: "$f_{\\text{ads},j}\\left( c^\\ell, c^s_j\\right)$ adsorption rate of component $i$ in the solid phase of particle type $j$."
+    volume_fac_pat: "$d_j$ volume fraction of the different solid volume in the tank."
+    volume_liquid: "$V^{\\ell}$ liquid volume in the tank."
+    volume_solid: "$V^{s}$ solid volume in the tank."
+  toc:
+    - file: index
+    - file: getting_started/index
+      children:
+        - file: getting_started/installation_core
+        - file: getting_started/installation_frontend
+        - file: getting_started/introduction
+    - file: modelling/index
+      children:
+        - file: modelling/unit_operations/index
+          children:
+            - file: modelling/unit_operations/general_rate_model
+            - file: modelling/unit_operations/lumped_rate_model_without_pores
+            - file: modelling/unit_operations/lumped_rate_model_with_pores
+            - file: modelling/unit_operations/2d_general_rate_model
+            - file: modelling/unit_operations/multi_channel_transport_model
+            - file: modelling/unit_operations/cstr
+            - file: modelling/unit_operations/inlet
+            - file: modelling/unit_operations/outlet
+        - file: modelling/binding/index
+          children:
+            - file: modelling/binding/linear
+            - file: modelling/binding/multi_component_langmuir
+            - file: modelling/binding/multi_component_langmuir_ldf
+            - file: modelling/binding/multi_component_langmuir_ldf_liquid_phase
+            - file: modelling/binding/mobile_phase_modulator_langmuir
+            - file: modelling/binding/extended_mobile_phase_modulator_langmuir
+            - file: modelling/binding/multi_component_bi_langmuir
+            - file: modelling/binding/multi_component_bi_langmuir_ldf
+            - file: modelling/binding/multi_component_anti_langmuir
+            - file: modelling/binding/multi_component_spreading
+            - file: modelling/binding/steric_mass_action
+            - file: modelling/binding/multi_state_steric_mass_action
+            - file: modelling/binding/simplified_multi_state_steric_mass_action
+            - file: modelling/binding/bi_steric_mass_action
+            - file: modelling/binding/generalized_ion_exchange
+            - file: modelling/binding/saska
+            - file: modelling/binding/self_association
+            - file: modelling/binding/freundlich_ldf
+            - file: modelling/binding/multi_component_colloidal
+            - file: modelling/binding/multi_component_sips
+            - file: modelling/binding/multi_component_ldf_freundlich
+            - file: modelling/binding/hic_constant_water_activity
+            - file: modelling/binding/hic_unified
+            - file: modelling/binding/hic_water_on_hydrophobic_surfaces
+            - file: modelling/binding/affinity_complex_titration
+            - file: modelling/binding/affinity_energy_distribution
+            - file: modelling/binding/spline_interpolation
+        - file: modelling/reaction/index
+          children:
+            - file: modelling/reaction/mass_action_law_model
+            - file: modelling/reaction/mass_action_law_model_cross_phase
+            - file: modelling/reaction/michaelis_menten_kinetics
+            - file: modelling/reaction/rate_constant_distribution_theory
+            - file: modelling/reaction/thomas_model
+        - file: modelling/networks
+        - file: modelling/crystallization/index
+          children:
+            - file: modelling/crystallization/primary_particle_formation
+            - file: modelling/crystallization/aggregation
+            - file: modelling/crystallization/fragmentation
+    - file: simulation/index
+    - file: interface/index
+      children:
+        - file: interface/introduction
+        - file: interface/input_group
+        - file: interface/output_group
+        - file: interface/meta_group
+        - file: interface/system
+        - file: interface/solver
+        - file: interface/return_data
+        - file: interface/sensitivities
+        - file: interface/consistent_initialization
+        - file: interface/flux_reconstruction
+        - file: interface/spatial_discretization_methods
+        - file: interface/parameter_dependencies
+        - file: interface/population_balance_model
+        - file: interface/unit_operations/index
+          children:
+            - file: interface/unit_operations/inlet
+            - file: interface/unit_operations/outlet
+            - file: interface/unit_operations/particle_config
+            - file: interface/unit_operations/axial_flow_column_1D_config
+            - file: interface/unit_operations/radial_flow_column_1D_config
+            - file: interface/unit_operations/frustum_flow_column_1D_config
+            - file: interface/unit_operations/axial_flow_column_2D_config
+            - file: interface/unit_operations/cstr
+            - file: interface/unit_operations/multi_channel_transport_model
+        - file: interface/binding/index
+          children:
+            - file: interface/binding/linear
+            - file: interface/binding/multi_component_langmuir
+            - file: interface/binding/multi_component_langmuir_ldf
+            - file: interface/binding/multi_component_langmuir_ldf_liquid_phase
+            - file: interface/binding/mobile_phase_modulator_langmuir
+            - file: interface/binding/extended_mobile_phase_modulator_langmuir
+            - file: interface/binding/multi_component_bi_langmuir
+            - file: interface/binding/multi_component_bi_langmuir_ldf
+            - file: interface/binding/multi_component_anti_langmuir
+            - file: interface/binding/multi_component_spreading
+            - file: interface/binding/steric_mass_action
+            - file: interface/binding/multi_state_steric_mass_action
+            - file: interface/binding/simplified_multi_state_steric_mass_action
+            - file: interface/binding/bi_steric_mass_action
+            - file: interface/binding/generalized_ion_exchange
+            - file: interface/binding/saska
+            - file: interface/binding/self_association
+            - file: interface/binding/freundlich_ldf
+            - file: interface/binding/multi_component_colloidal
+            - file: interface/binding/multi_component_ldf_freundlich
+            - file: interface/binding/multi_component_sips
+            - file: interface/binding/hic_constant_water_activity
+            - file: interface/binding/hic_unified
+            - file: interface/binding/hic_water_on_hydrophobic_surfaces
+            - file: interface/binding/affinity_complex_titration
+            - file: interface/binding/spline_interpolation
+        - file: interface/reaction/index
+          children:
+            - file: interface/reaction/mass_action_law
+            - file: interface/reaction/michaelis_menten_kinetics
+            - file: interface/reaction/mass_action_law_cross_phase
+    - file: developer_guide/index
+      children:
+        - file: developer_guide/cadet_python
+        - file: developer_guide/cadet_core_architecture
+        - file: developer_guide/build_options
+        - file: developer_guide/model_expansion
+        - file: developer_guide/debugging
+        - file: developer_guide/testing
+        - file: developer_guide/CAPI
+        - file: developer_guide/release_strategy
+    - file: license
+    - file: publications
+site:
+  template: book-theme
+  title: CADET

@@ -1,0 +1,283 @@
+(axial-flow-column-1d-config)=
+
+# Axial Flow Column 1D
+
+## Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
+
+`UNIT_TYPE`
+
+> Specifies the type of unit operation model
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** string | **Range:** `COLUMN_MODEL_1D` | **Length:** 1 |
+
+`NCOMP`
+
+> Number of chemical components in the chromatographic medium
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** int | **Range:** $\geq 1$ | **Length:** 1 |
+
+`CROSS_SECTION_AREA`
+
+> Cross section area of the column (optional if `VELOCITY` is present, see Section [](#MUOPGRMflow))
+> **Unit:** $\mathrm{m}^{2}$
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** double | **Range:** $>0$ | **Length:** 1 |
+
+`COL_LENGTH`
+
+> Column length
+>
+> **Unit:** $\mathrm{m}$
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** double | **Range:** $> 0$ | **Length:** 1 |
+
+`COL_POROSITY`
+
+> Column porosity of the interstitial volume.
+> Used only if model is not a Lumped Rate Model without Pores, in which case `TOTAL_POROSITY` is used instead.
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** double | **Range:** $(0,1]$ | **Length:** 1 |
+
+`TOTAL_POROSITY`
+
+> Total porosity of including the porosity of the particles.
+> Only applicable for the Lumped Rate Model without pores, i.e. when `NPARTYPE = 1` **AND** `particle_type_000\HAS_FILM_DIFFUSION = 0`
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** double | **Range:** $(0,1]$ | **Length:** 1 |
+
+`NPARTYPE`
+
+> Number of particle types. Defaults to 0.
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** int | **Range:** $\geq 0$ | **Length:** 1 |
+
+`PAR_TYPE_VOLFRAC`
+
+> Volume fractions of the particle types. The volume fractions can be set for all axial cells together or for each individual axial cell. For each cell, the volume fractions have to sum to $1$. In case of a spatially inhomogeneous setting, the data is expected in cell-major ordering and the `SENS_SECTION` field is used for indexing the axial cell when specifying parameter sensitivities. This field is optional in case of only one particle type.
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** double | **Range:** $[0,1]$ | **Length:** $\texttt{NPARTYPE} / \texttt{NCOL} \cdot \texttt{NPARTYPE}$ |
+
+`VELOCITY`
+
+> Interstitial velocity of the mobile phase (optional if `CROSS_SECTION_AREA` is present, see Section [](#MUOPGRMflow))
+> **Unit:** $\mathrm{m}\,\mathrm{s}^{-1}$
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** double | **Range:** $\mathbb{R}$ |  |
+
+`COL_DISPERSION`
+
+> Axial dispersion coefficient
+>
+> **Unit:** $\mathrm{m}_{\mathrm{IV}}^{2}\,\mathrm{s}^{-1}$
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** double | **Range:** $\geq 0$ | **Length:** see `COL_DISPERSION_MULTIPLEX` |
+
+`COL_DISPERSION_MULTIPLEX`
+
+> Multiplexing mode of `COL_DISPERSION`. Determines whether `COL_DISPERSION` is treated as component- and/or section-independent. This field is optional. When left out, multiplexing behavior is inferred from the length of `COL_DISPERSION`. Valid modes are:
+>
+> 0. Component-independent, section-independent; length of `COL_DISPERSION` is $1$
+> 1. Component-dependent, section-independent; length of `COL_DISPERSION` is `NCOMP`
+> 2. Component-independent, section-dependent; length of `COL_DISPERSION` is `NSEC`
+> 3. Component-dependent, section-dependent; length of `COL_DISPERSION` is $\texttt{NCOMP} \cdot \texttt{NSEC}$; ordering is section-major
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** int | **Range:** $\{0, \dots, 3 \}$ | **Length:** 1 |
+
+`INIT_C`
+
+> Initial concentrations for each component in the bulk mobile phase
+>
+> **Unit:** $\mathrm{mol}\,\mathrm{m}_{\mathrm{IV}}^{-3}$
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** double | **Range:** $\geq 0$ | **Length:** `NCOMP` |
+
+`INIT_STATE`
+
+> Full state vector for initialization (optional, `INIT_C`, `INIT_CP`, and `INIT_CS` will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives).
+> The ordering of the state vector is defined in [](#UnitOperationStateOrdering).
+>
+> **Unit:** $various$
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** double | **Range:** $\mathbb{R}$ | **Length:** $\texttt{NDOF} / 2\texttt{NDOF}$ |
+
+`NREAC_LIQUID`
+
+> Number of liquid phase reaction models (optional, only if liquid reactions are present).
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** int | **Range:** $\geq 0$ | **Length:** 1 |
+
+## Group /input/model/unit_XXX/liquid_reaction_YYY
+
+Each reaction is specified in another subgroup `liquid_reaction_YYY`, see [](#FFReaction).
+
+## Group /input/model/unit_XXX/particle_type_XXX
+
+Each particle type is specified in another subgroup `particle_type_XXX`, see [](#particle-model-config).
+
+## Group /input/model/unit_XXX/discretization - UNIT_TYPE - COLUMN_MODEL_1D
+
+`USE_ANALYTIC_JACOBIAN`
+
+> Determines whether analytically computed Jacobian matrix (faster) is used (value is 1) instead of Jacobians generated by algorithmic differentiation (slower, value is 0)
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** int | **Range:** $\{0, 1\}$ | **Length:** 1 |
+
+## Spatial discretization - Numerical Methods
+
+CADET offers two spatial discretization methods: Finite Volumes (FV) and Discontinuous Galerkin (DG). Each method has it's own set of input fields.
+While both methods approximate the same solution to the same underlying model, they may differ in terms of computational performance.
+With our currently implemented variants of FV and DG, FV perform better for solutions with steep gradients or discontinuities, while DG can be much faster for rather smooth solutions.
+For the same number of discrete points, DG will generally be slower but often more accurate.
+
+For further information on the choice of discretization methods and their parameters, see [](#spatial-discretization-methods).
+
+`SPATIAL_METHOD`
+
+> Spatial discretization method
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** string | **Range:** $\{\texttt{FV}, \texttt{DG}\}$ | **Length:** 1 |
+
+## Discontinuous Galerkin
+
+`POLYDEG`
+
+> DG polynomial degree. Optional, defaults to 4 and $N_d \in \{3, 4, 5\}$ is recommended. The total number of axial discrete points is given by (`POLYDEG` + 1 ) * `NELEM`
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** int | **Range:** $\geq 1$ | **Length:** 1 |
+
+`NELEM`
+
+> Number of axial column discretization DG cellselements. The total number of axial discrete points is given by (`POLYDEG` + 1 ) * `NELEM`
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** int | **Range:** $\geq 1$ | **Length:** 1 |
+
+`NCOL`
+
+> Number of axial discrete points. Optional and ignored if `NELEM` is defined. Otherwise, used to calculate `NELEM` = $\lfloor$ `NCOL` / (`POLYDEG` + 1 ) $\rfloor$
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** int | **Range:** $\geq 1$ | **Length:** 1 |
+
+`POLYNOMIAL_INTEGRATION_TYPE`
+
+> Specifies the DG integration variant. Optional, defaults to 0.
+>
+> 0. Collocation Lagrange-Gauss-Lobatto quadrature (inexact, but faster)
+> 1. Exact analytical integration
+> 2. Gauss-Legendre quadrature (exact)
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** int | **Range:** $\{0, 1, 2\}$ | **Length:** 1 |
+
+`LINEAR_SOLVER`
+
+> Specifies the linear solver variant used to factorize the semidiscretized system. Optional, defaults to `SparseLU`. For more information on these solvers, we refer to the [Eigen documentation](https://eigen.tuxfamily.org/)
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** int | **Range:** $\{\texttt{SparseLU}, \texttt{SparseQR}, ..., \texttt{BiCGSTAB}\}$ | **Length:** 1 |
+>
+> When using the DG method, we generally recommend specifying `USE_MODIFIED_NEWTON = 1` in [](#FFSolverTime), i.e. to use the modified Newton method to solve the linear system within the time integrator.
+> For further information on discretization parameters, see also [](#non-consistency-solver-parameters).
+
+## Finite Volumes
+
+`NCELLS`
+
+> Number of axial column discretization points, i.e. FV cells
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** int | **Range:** $\geq 1$ | **Length:** 1 |
+
+`RECONSTRUCTION`
+
+> Type of reconstruction method for fluxes
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** string | **Range:** `WENO, KOREN` | **Length:** 1 |
+>
+> For further information on discretization parameters for reconstruction methods, see also [](#flux-reconstruction-methods) (FV specific).
+
+The following FV discretization parameters are only required if particles are present:
+
+`GS_TYPE`
+
+> Type of Gram-Schmidt orthogonalization, see IDAS guide Section 4.5.7.3, p. 41f. A value of $0$ enables classical Gram-Schmidt, a value of 1 uses modified Gram-Schmidt.
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** int | **Range:** $\{0, 1\}$ | **Length:** 1 |
+
+`MAX_KRYLOV`
+
+> Defines the size of the Krylov subspace in the iterative linear GMRES solver (0: $\texttt{MAX\_KRYLOV} = \texttt{NCOL} \cdot \texttt{NCOMP} \cdot \texttt{NPARTYPE}$)
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** int | **Range:** $\{0, \dots, \texttt{NCOL} \cdot \texttt{NCOMP} \cdot \texttt{NPARTYPE} \}$ | **Length:** 1 |
+
+`MAX_RESTARTS`
+
+> Maximum number of restarts in the GMRES algorithm. If lack of memory is not an issue, better use a larger Krylov space than restarts.
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** int | **Range:** $\geq 0$ | **Length:** 1 |
+
+`SCHUR_SAFETY`
+
+> Schur safety factor; Influences the tradeoff between linear iterations and nonlinear error control; see IDAS guide Section~2.1 and 5.
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** double | **Range:** $\geq 0$ | **Length:** 1 |
+
+`FIX_ZERO_SURFACE_DIFFUSION`
+
+> Determines whether the surface diffusion parameters `SURFACE_DIFFUSION` are fixed if the parameters are zero. If the parameters are fixed to zero ($\texttt{FIX\_ZERO\_SURFACE\_DIFFUSION} = 1$, $\texttt{SURFACE\_DIFFUSION} = 0$), the parameters must not become non-zero during this or subsequent simulation runs. The internal data structures are optimized for a more efficient simulation. This field is optional and defaults to $0$ (optimization disabled in favor of flexibility).
+>
+> |   |   |   |
+> | --- | --- | --- |
+> | **Type:** int | **Range:** $\{0, 1\}$ | **Length:** 1 |
+
+For further information on discretization parameters, see also [](#flux-reconstruction-methods) (FV specific), and [](#non-consistency-solver-parameters).

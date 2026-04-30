@@ -71,6 +71,7 @@ doc/tex/*.gitinfo
 doc/tex/*.synctex.gz
 doc/tex/*.pdf
 doc/tex/docs/*.aux
+doc/_build
 
 ### Ignore IDE files ###
 .vs/
