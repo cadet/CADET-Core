@@ -1,0 +1,7 @@
+(examples)=
+
+# Examples
+
+
+```{tableofcontents}
+```

@@ -1,0 +1,40 @@
+(freundlich-ldf-model)=
+
+# Freundlich LDF
+
+The Freundlich isotherm model is an empirical model that considers changes in the equilibrium constant of the binding process due to the heterogeneity of the surface and the variation of the interaction strength {cite}`Benedikt2019,Singh2016`.
+This variant of the model is based on the linear driving force approximation (see section [](#ldf-model)) and is given as
+
+$$
+\begin{aligned}         q^*_i= k_{F,i}c_{p,i}^{\frac{1}{n_{i}}}  && i = 0, \dots, N_{\text{comp}} - 1. \end{aligned}
+$$
+
+No interaction between the components is considered when the model has multiple components.
+One of the limitation of this isotherm is the first order Jacobian $\left(\frac{dq^*}{dc_p}\right)$ tends to infinity as $c_{p} \rightarrow 0$ for $n>1$.
+Additionally, the isotherm is undefined for $c_{p} < 0$ if $\frac{1}{n_i}$ can be expressed as $\frac{p}{q}$ with $p,q \in \mathbb{N}$ where $q$ is an even number.
+To address these issues an approximation of the isotherm is considered below a threshold concentration $c_p < \varepsilon$.
+This approximation matches the isotherm in such a way that $q=0$ at $c_p=0$ and also matches the value and the first derivative of the isotherm at $c_p = \varepsilon$, where $\varepsilon$ is a very small number, for example $1e-14$.
+The form of approximation and its derivative is given below for $c_p < \varepsilon$:
+
+$$
+\begin{aligned}
+        q^* = \alpha_0+\alpha_1 c+\alpha_2 c_p^2
+\end{aligned}
+
+\begin{aligned}
+        \frac{dq^*}{dc_p} = \alpha_1+ 2 \alpha_2 c_p
+\end{aligned}
+$$
+
+where $\alpha_0=0$ and $\alpha_1$ and $\alpha_2$ are determined from $\alpha_1 \varepsilon+\alpha_2 \varepsilon^2 = k_f \varepsilon^{1/n}$ and $\alpha_1 + 2 \alpha_2 \varepsilon = \frac{1}{n}k_f \varepsilon^{\frac{1-n}{n}}$.
+
+$$
+\begin{aligned}         \alpha_1 = \frac{2 n-1}{n}k_f \varepsilon^{\frac{1-n}{n}} \end{aligned}
+$$
+
+$$
+\begin{aligned}         \alpha_2 = \frac{1-n}{n}k_f \varepsilon^{\frac{1-2 n}{n}} \end{aligned}
+$$
+
+This approximation can be used for any pore phase concentration $c_p < \varepsilon$ given $n>1$.
+For more information on model parameters required to define in CADET file format, see [](#freundlich-ldf-config).

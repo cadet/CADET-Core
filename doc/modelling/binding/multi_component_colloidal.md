@@ -1,0 +1,67 @@
+(multi-component-colloidal-model)=
+
+# Multi Component Colloidal
+
+The colloidal isotherm assumes that adsorbed protein molecules are evenly distributed in a hexagonal arrangement at equilibrium, with the coverage varying via adjustment of the lattice size {cite}`Xu2009`.
+Protein-surface interactions are captured in a parameter $K_{e}$.
+The surface coverage is modulated at higher coverage, described by a Yukawa potential.
+The Yukawa constant $b_{pp}$ characterizes protein-protein interactions.
+Since these are long-ranged, they are assumed to be primarily electrostatic for ion-exchange chromatography, with the range of interactions determined by the Debye parameter, $\kappa$.
+
+$$
+\begin{aligned}     \frac{{dq}_{i}}{dt} = & k_{kin,i} \left( c_{p,i} -  c_{p,i}^\star \right)      \quad      i = 0, \dots, N_{comp} - 1,      \\     c_{p,i}^\star = & q_{i} \exp  \Biggl[ \frac{n\left( 3 + \kappa R \right)}{4 q_{tot}} \sum_{j=0}^{N_{bound}} {q_{j} \sqrt{b_{pp,i} b_{pp,j}}} \frac{r_{i} + r_{j}}{2R}      \exp \bigl[ - \kappa \left( R - \left( r_{i} + r_{j} \right) \right) \bigr] \\      &\phantom{q_{i} \exp  \Biggl[} - ln \left(K_{e,i} \right) \Biggr], \end{aligned}
+$$
+
+where $n$ is the coordination number describing the two-dimensional lattice agreement of protein molecules on the resin surface ($n=6$ for hexagonal arrangement).
+$r_{i}$ is the radius of the protein, and $K_{kin}$ is the kinetic rate of adsorption.
+
+For the surface coverage factor $R$, the following equation is used:
+
+$$
+R = \sqrt{\frac{2 \phi}{N_{A} \cdot 10^{23} \cdot \sqrt{3} \cdot q_{tot}}},
+$$
+
+where $\phi$ is the phase ratio (surface area/solid phase volume), $N_{A}$ is Avogadro's number, and with
+
+$$
+q_{tot} = \sum q_{i}.
+$$
+
+The screening term $\kappa$ is a Debye parameter based on the ideal colloidal phase behavior of the protein.
+In the case of ion exchange chromatography, this is the inverse of the Debye length.
+For other interaction mechanisms, this term can also be used to describe protein-protein interactions in general:
+
+$$
+\kappa = \frac{1}{\kappa_f {c_{p,0}}^{\kappa_{ef}} + \kappa_{c}}.
+$$
+
+$\kappa_{c}$, $\kappa_{ef}$, and $\kappa_{f}$ are fitting constants which can be used to custom define the protein-protein interaction behavior based on additives in the mobile phase.
+$c_{p,0}$ is the total ionic strength, represented by the first component (non-binding pseudo component).
+
+Also the terms for protein-resin interaction, $K_{e,i}$, and protein-protein interaction, $b_{pp,i}$, are varied as a function of the ionic strength.
+
+$$
+\begin{aligned}
+\ln \left( K_{e, i} \right) &= k_{a,i} {c_{p, 0}}^{-k_{b,i}} + k_{c,i} \exp \left( k_{d,i} c_{p,0} \right)  \\
+b_{pp,i} &= b_{a,i} {c_{p,0}}^{b_{b,i}} + b_{c,i} \exp \left( b_{d,i} c_{p,0} \right),
+\end{aligned}
+$$
+
+Optionally, they can also be varied as a function of the pH, then represented by the second component (non-binding pseudo component, $c_{p,1}$).
+
+$$
+\begin{aligned}
+\ln \left( K_{e, i} \right) &= {c_{p,1}}^{k_{e,i}} \left( k_{a,i} {c_{p, 0}}^{-k_{b,i}} + k_{c,i} \exp \left( k_{d,i} c_{p,0} \right) \right) \\
+b_{pp,i} &= {c_{p,1}}^{b_{e,i}} \left( b_{a,i} {c_{p,0}}^{b_{b,i}} + b_{c,i} \exp \left( b_{d,i} c_{p,0} \right) \right),
+\end{aligned}
+$$
+
+where $k_{a-e}$, $b_{a-e}$ are fitting constants.
+
+Because the model becomes mathematically singular at zero concentration, the original equation is replaced by its mathematical limit below a threshold concentration $c_\epsilon > 0$.
+
+$$
+\frac{{dq}_{i}}{dt} = k_{kin,i} \left(c_{p,i} - q_{i} \cdot \exp \left[ - ln \left( K_{e,i} \right) \right] \right).
+$$
+
+For more information on model parameters required to define in CADET file format, see [](#multi-component-colloidal-config).
