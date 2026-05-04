@@ -79,7 +79,7 @@ public:
 
 	virtual UnitOpIdx unitOperationId() const CADET_NOEXCEPT { return _unitOpIdx; }
 	virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
-	virtual void setFlowRates(active const* in, active const* out) CADET_NOEXCEPT;
+	virtual void setFlowRates(active const* in, active const* out);
 	virtual unsigned int numInletPorts() const CADET_NOEXCEPT { return _disc.radNPoints; }
 	virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return _disc.radNPoints; }
 	virtual bool canAccumulate() const CADET_NOEXCEPT { return false; }
