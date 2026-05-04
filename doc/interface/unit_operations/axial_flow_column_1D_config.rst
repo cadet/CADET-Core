@@ -190,7 +190,7 @@ Discontinuous Galerkin
 
 ``NELEM``
 
-   Number of axial column discretization DG cells\elements. The total number of axial discrete points is given by (``POLYDEG`` + 1 ) * ``NELEM``
+   Number of axial column discretization DG elements. The total number of axial discrete points is given by (``POLYDEG`` + 1 ) * ``NELEM``
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
