@@ -791,7 +791,7 @@ void ColumnModel2D::notifyDiscontinuousSectionTransition(double t, unsigned int 
 	}
 }
 
-void ColumnModel2D::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
+void ColumnModel2D::setFlowRates(active const* in, active const* out)
 {
 	_convDispOp.setFlowRates(in, out);
 }
