@@ -53,12 +53,12 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
 
 ``COL_POROSITY``
 
-   Column porosity, either constant (length is 1) or for each radial zone (length is :math:`\texttt{NRAD}`). 
+   Column porosity, either constant (length is 1) or for each radial zone (length is :math:`\texttt{RAD_NELEM}`). 
    In case of a spatially inhomogeneous setting, the :math:`\texttt{SENS_PARTYPE}` field is used for indexing the radial zone when specifying parameter sensitivities.
 
-   ================  ========================  =====================================
-   **Type:** double  **Range:** :math:`(0,1]`  **Length:** :math:`1 / \texttt{NRAD}`
-   ================  ========================  =====================================
+   ================  ========================  ==========================================
+   **Type:** double  **Range:** :math:`(0,1]`  **Length:** :math:`1 / \texttt{RAD_NELEM}`
+   ================  ========================  ==========================================
 
 ``NPARTYPE``
 
@@ -83,9 +83,9 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
    This field is optional. When left out, multiplexing behavior is inferred from the length of :math:`\texttt{PAR_TYPE_VOLFRAC}`.  Valid modes are:
 
   0. Radial-independent, axial-independent; length of :math:`\texttt{PAR_TYPE_VOLFRAC}` is :math:`\texttt{NPARTYPE}`
-  1. Radial-dependent, axial-independent; length of :math:`\texttt{PAR_TYPE_VOLFRAC}` is :math:`\texttt{NRAD} \cdot \texttt{NPARTYPE}`; ordering is radial-major
+  1. Radial-dependent, axial-independent; length of :math:`\texttt{PAR_TYPE_VOLFRAC}` is :math:`\texttt{RAD_NELEM} \cdot \texttt{NPARTYPE}`; ordering is radial-major
   2. Axial-dependent; length of :math:`\texttt{PAR_TYPE_VOLFRAC}` is :math:`\texttt{NCOL} \cdot \texttt{NPARTYPE}`; ordering is axial-major
-  3. Radial-dependent, axial-dependent; length of :math:`\texttt{PAR_TYPE_VOLFRAC}` is :math:`\texttt{NCOL} \cdot \texttt{NRAD} \cdot \texttt{NPARTYPE}`; ordering is axial-radial-major
+  3. Radial-dependent, axial-dependent; length of :math:`\texttt{PAR_TYPE_VOLFRAC}` is :math:`\texttt{NCOL} \cdot \texttt{RAD_NELEM} \cdot \texttt{NPARTYPE}`; ordering is axial-radial-major
 
 ``VELOCITY``
 
@@ -100,9 +100,9 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
    Multiplexing mode of :math:`\texttt{VELOCITY}`. Determines whether :math:`\texttt{VELOCITY}` is treated as radial- and/or section-independent.  This field is optional. When left out, multiplexing behavior is inferred from the length of :math:`\texttt{VELOCITY}`.  Valid modes are:
 
   0. Radial-independent, section-independent; length of :math:`\texttt{VELOCITY}` is 1
-  1. Radial-dependent, section-independent; length of :math:`\texttt{VELOCITY}` is :math:`\texttt{NRAD}`
+  1. Radial-dependent, section-independent; length of :math:`\texttt{VELOCITY}` is :math:`\texttt{RAD_NELEM}`
   2. Section-dependent; length of :math:`\texttt{VELOCITY}` is :math:`\texttt{NSEC}`
-  3. Radial-dependent, section-dependent; length of :math:`\texttt{VELOCITY}` is :math:`\texttt{NRAD} \cdot \texttt{NSEC}`; ordering is section-major
+  3. Radial-dependent, section-dependent; length of :math:`\texttt{VELOCITY}` is :math:`\texttt{RAD_NELEM} \cdot \texttt{NSEC}`; ordering is section-major
 
 ``COL_DISPERSION_AXIAL``
 
@@ -119,13 +119,13 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
    Multiplexing mode of :math:`\texttt{COL_DISPERSION_AXIAL}`. Determines whether :math:`\texttt{COL_DISPERSION_AXIAL}` is treated as component-, radial-, and/or section-independent.  This field is optional. When left out, multiplexing behavior is inferred from the length of :math:`\texttt{COL_DISPERSION_AXIAL}`.  Valid modes are:
 
   0. Component-independent, radial-independent, section-independent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is 1
-  1. Component-independent, radial-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NRAD}`
+  1. Component-independent, radial-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{RAD_NELEM}`
   2. Component-dependent, radial-independent, section-independent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NCOMP}`
-  3. Component-dependent, radial-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{NRAD}`; ordering is radial-major
+  3. Component-dependent, radial-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{RAD_NELEM}`; ordering is radial-major
   4. Component-independent, radial-independent, section-dependent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NSEC}`
-  5. Component-independent, radial-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NRAD} \cdot \texttt{NSEC}`; ordering is section-major
+  5. Component-independent, radial-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{RAD_NELEM} \cdot \texttt{NSEC}`; ordering is section-major
   6. Component-dependent, radial-independent, section-independent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{NSEC}`; ordering is section-major
-  7. Component-dependent, radial-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{NRAD} \cdot \texttt{NSEC}`; ordering is section-radial-major
+  7. Component-dependent, radial-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{RAD_NELEM} \cdot \texttt{NSEC}`; ordering is section-radial-major
    
    =============  ===================================  =============
    **Type:** int  **Range:** :math:`\{0, \dots, 7 \}`  **Length:** 1
@@ -146,13 +146,13 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
    Multiplexing mode of :math:`\texttt{COL_DISPERSION_RADIAL}`. Determines whether :math:`\texttt{COL_DISPERSION_RADIAL}` is treated as component-, radial-, and/or section-independent.  This field is optional. When left out, multiplexing behavior is inferred from the length of :math:`\texttt{COL_DISPERSION_RADIAL}`.  Valid modes are:
 
   0. Component-independent, radial-independent, section-independent; length of :math:`\texttt{COL_DISPERSION_RADIAL}` is 1
-  1. Component-independent, radial-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION_RADIAL}` is :math:`\texttt{NRAD}`
+  1. Component-independent, radial-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION_RADIAL}` is :math:`\texttt{RAD_NELEM}`
   2. Component-dependent, radial-independent, section-independent; length of :math:`\texttt{COL_DISPERSION_RADIAL}` is :math:`\texttt{NCOMP}`
-  3. Component-dependent, radial-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION_RADIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{NRAD}`; ordering is radial-major
+  3. Component-dependent, radial-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION_RADIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{RAD_NELEM}`; ordering is radial-major
   4. Component-independent, radial-independent, section-dependent; length of :math:`\texttt{COL_DISPERSION_RADIAL}` is :math:`\texttt{NSEC}`
-  5. Component-independent, radial-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION_RADIAL}` is :math:`\texttt{NRAD} \cdot \texttt{NSEC}`; ordering is section-major
+  5. Component-independent, radial-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION_RADIAL}` is :math:`\texttt{RAD_NELEM} \cdot \texttt{NSEC}`; ordering is section-major
   6. Component-dependent, radial-independent, section-independent; length of :math:`\texttt{COL_DISPERSION_RADIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{NSEC}`; ordering is section-major
-  7. Component-dependent, radial-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION_RADIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{NRAD} \cdot \texttt{NSEC}`; ordering is section-radial-major
+  7. Component-dependent, radial-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION_RADIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{RAD_NELEM} \cdot \texttt{NSEC}`; ordering is section-radial-major
 
    =============  ===================================  =============
    **Type:** int  **Range:** :math:`\{0, \dots, 7 \}`  **Length:** 1
@@ -161,13 +161,13 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
 
 ``INIT_C``
 
-   Initial concentrations for each component in all radial zones the bulk mobile phase (length :math:`\texttt{NCOMP}`), or for each component in each radial zone (length :math:`\texttt{NCOMP} \cdot \texttt{NRAD}`, ordering radial-major)
+   Initial concentrations for each component in all radial zones the bulk mobile phase (length :math:`\texttt{NCOMP}`), or for each component in each radial zone (length :math:`\texttt{NCOMP} \cdot \texttt{RAD_NELEM}`, ordering radial-major)
 
    **Unit:** :math:`\mathrm{mol}\,\mathrm{m}_{\mathrm{IV}}^{-3}`
 
-   ================  =========================  =========================================================================
-   **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NCOMP} / \texttt{NCOMP} \cdot \texttt{NRAD}`
-   ================  =========================  =========================================================================
+   ================  =========================  ============================================================================
+   **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NCOMP} / \texttt{NCOMP} \cdot \texttt{RAD_NELEM}`
+   ================  =========================  ============================================================================
 
 ``INIT_STATE``
 
@@ -244,7 +244,7 @@ For further information on the choice of discretization methods and their parame
    **Unit:** :math:`\mathrm{m}`
 
    ================  =============================================  ====================================
-   **Type:** double  **Range:** :math:`[0,\texttt{COLUMN_RADIUS}]`  **Length:** :math:`\texttt{NRAD} + 1`
+   **Type:** double  **Range:** :math:`[0,\texttt{COLUMN_RADIUS}]`  **Length:** :math:`\texttt{RAD_NELEM} + 1`
    ================  =============================================  ====================================
 
 Discontinuous Galerkin
@@ -261,7 +261,7 @@ Discontinuous Galerkin
 
 ``AX_NELEM``
 
-   Number of axial column discretization DG cells\elements. The total number of axial discrete points is given by (``POLYDEG`` + 1 ) * ``NELEM``
+   Number of axial column discretization DG elements. The total number of axial discrete points is given by (``POLYDEG`` + 1 ) * ``NELEM``
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
@@ -278,7 +278,7 @@ Discontinuous Galerkin
 
 ``RAD_NELEM``
 
-   Number of radial column discretization DG cells\elements. The total number of axial discrete points is given by (``POLYDEG`` + 1 ) * ``NELEM``
+   Number of radial column discretization DG elements. The total number of axial discrete points is given by (``POLYDEG`` + 1 ) * ``NELEM``.
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
@@ -308,7 +308,8 @@ Finite Volumes
 
 ``NRAD``
 
-   Number of radial column discretization cells
+   Number of radial column discretization cells.
+   Replaces the ``RAD_NELEM`` field in the length specification of parameters.
 
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
