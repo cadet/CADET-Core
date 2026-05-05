@@ -1671,23 +1671,47 @@ int ColumnModel2D::Exporter::writeOutlet(unsigned int port, double* buffer) cons
 {
 	cadet_assert(port < _disc.radNPoints);
 
-	const int radZone = std::floor(port / _disc.radNNodes);
+	const int radZone = port / _disc.radNNodes;
+	const int localNode = port % _disc.radNNodes;
 
-	if (_model._convDispOp.currentVelocity(radZone) >= 0)
-		std::copy_n(&_idx.c(_data, _disc.axNPoints - 1, port, 0), _disc.nComp, buffer);
-	else
-		std::copy_n(&_idx.c(_data, 0, port, 0), _disc.nComp, buffer);
+	const int axIdx = (_model._convDispOp.currentVelocity(radZone) >= 0)
+		? (_disc.axNPoints - 1)
+		: 0;
+
+	const int radElemOffset = radZone * _disc.radNNodes;
+
+	for (int comp = 0; comp < _disc.nComp; ++comp)
+	{
+		// pointer to start of this radial element at outlet
+		const double* elemPtr = &_idx.c(_data, axIdx, port, comp);
+
+		buffer[comp] = _model._convDispOp.getRadialAvgNodalValue(elemPtr, localNode);
+	}
 
 	return _disc.nComp;
 }
 
 int ColumnModel2D::Exporter::writeOutlet(double* buffer) const
 {
-	for (int i = 0; i < _disc.radNPoints; ++i)
+	const int axIdxForward = _disc.axNPoints - 1;
+	const int axIdxBackward = 0;
+
+	for (int radZone = 0; radZone < _disc.radNElem; ++radZone)
 	{
-		writeOutlet(i, buffer);
-		buffer += _disc.nComp;
+		const int axIdx = (_model._convDispOp.currentVelocity(radZone) >= 0)
+			? axIdxForward
+			: axIdxBackward;
+
+		const int radElemOffset = radZone * _disc.radNNodes;
+
+		// pointer to start of this radial element at outlet
+		const double* elemPtr = &_idx.c(_data, axIdx, radElemOffset, 0);
+
+		_model._convDispOp.getRadialAvgNodalValuesElem(elemPtr, buffer);
+
+		buffer += _disc.radNNodes * _disc.nComp;
 	}
+
 	return _disc.nComp * _disc.radNPoints;
 }
 

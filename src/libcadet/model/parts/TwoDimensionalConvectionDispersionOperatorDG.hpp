@@ -141,6 +141,9 @@ public:
 	void writeRadialCoordinates(double* coords) const;
 	void writeAxialCoordinates(double* coords) const;
 
+	double getRadialAvgNodalValue(const double* const val, int nodeIdx) const CADET_NOEXCEPT;
+	void getRadialAvgNodalValuesElem(const double* const val, double* buffer) const CADET_NOEXCEPT;
+
 protected:
 
 	/*
@@ -220,6 +223,7 @@ protected:
 	//Eigen::MatrixXd _radPolyDerM; //!< Radial polynomial derivative matrix
 	Eigen::MatrixXd _axLiftM; //!< Axial lifting matrix
 	Eigen::MatrixXd _radLiftM; //!< Radial lifting matrix
+	Eigen::MatrixXd _radSubcellIntegrationM; //!< Subcell integration matrix needed in outlet nodal concentration averaging
 	// main eq. operators
 	Eigen::MatrixXd* _radLiftMCyl; //!< Radial lifting matrices with radial metrics for each radial element
 	Eigen::MatrixXd* _transMrCyl; //!< Radial transposed mass matrix with cylinder metrics
