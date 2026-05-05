@@ -252,6 +252,11 @@ The models also differ in whether a mobile phase modifier (e.g., salt) is suppor
      - ✓
      - ✓
      - ×
+   * - :ref:`colloidal_particle_adsorption_model`
+     - ✓
+     - ✓
+     - ✓
+     - ×
    * - :ref:`generalized_ion_exchange_model`
      - ✓
      - ✓
