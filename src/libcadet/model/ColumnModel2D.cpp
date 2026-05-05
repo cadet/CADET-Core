@@ -1683,7 +1683,7 @@ int ColumnModel2D::Exporter::writeOutlet(unsigned int port, double* buffer) cons
 	for (int comp = 0; comp < _disc.nComp; ++comp)
 	{
 		// pointer to start of this radial element at outlet
-		const double* elemPtr = &_idx.c(_data, axIdx, port, comp);
+		const double* elemPtr = &_idx.c(_data, axIdx, radElemOffset, comp);
 
 		buffer[comp] = _model._convDispOp.getRadialAvgNodalValue(elemPtr, localNode);
 	}
