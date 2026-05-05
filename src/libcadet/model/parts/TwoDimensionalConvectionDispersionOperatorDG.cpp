@@ -858,7 +858,9 @@ double TwoDimensionalConvectionDispersionOperatorDG::inletFactor(unsigned int id
 
 double TwoDimensionalConvectionDispersionOperatorDG::getRadialAvgNodalValue(const double* const val, int nodeIdx) const CADET_NOEXCEPT
 {
-	Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> elemVec(val, _radNNodes, _radNodeStride);
+	const InnerStride<Dynamic> strideVectorC(_radNodeStride);
+
+	Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> elemVec(val, _radNNodes, strideVectorC);
 
 	// Compute integral over subcell
 	double result = _radSubcellIntegrationM.row(nodeIdx).dot(elemVec);
@@ -870,10 +872,13 @@ double TwoDimensionalConvectionDispersionOperatorDG::getRadialAvgNodalValue(cons
 
 void TwoDimensionalConvectionDispersionOperatorDG::getRadialAvgNodalValuesElem(const double* const val, double* buffer) const CADET_NOEXCEPT
 {
+	const InnerStride<Dynamic> strideVectorC(_radNodeStride);
+	const InnerStride<Dynamic> strideCompBuffer(_nComp);
+
 	for (int comp = 0; comp < _nComp; comp++)
 	{
-		Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> elemVecComp(val + comp, _radNNodes, _radNodeStride);
-		Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> bufferElemVecComp(buffer + comp, _radNNodes, _nComp);
+		Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> elemVecComp(val + comp, _radNNodes, strideVectorC);
+		Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> bufferElemVecComp(buffer + comp, _radNNodes, strideCompBuffer);
 
 		// Compute integral over subcell
 		bufferElemVecComp = _radSubcellIntegrationM * elemVecComp;
