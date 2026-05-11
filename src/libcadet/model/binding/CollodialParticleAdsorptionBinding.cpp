@@ -52,8 +52,6 @@ using std::numbers::pi;
 			{ "type": "ScalarComponentDependentParameter", "varName": "refDelta", "confName": "CPA_DELTA_REF"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "linDelta", "confName": "CPA_DELTA_LIN"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "diffCoeff", "confName": "CPA_DIFFUSION_COEFF"}
-
-
 		],
 	"constantParameters":
 		[
@@ -79,6 +77,7 @@ using std::numbers::pi;
  CPA_PH_REF:
  CPA_DELTA_REF:
  CPA_DELTA_LIN:
+ CPA_COMPONENT_CHARGE: (temporally)
 */
 
 namespace cadet
@@ -182,7 +181,8 @@ protected:
 	static constexpr double _vacuumPermi = 8.854187818814e-12;  // vacuumPermittivity eps_0 [F/m]
 	int _MAXITER = 100; // for newtoniteration in solvePsiAdsorber()
 	int _idxProton = 0;
-	int _idxSalt = -1; // if >= 0 read ionic strenght from yCp[_idxSalt]
+
+	std::vector<int> _compCharge;
 	
 	/**
 	 * @brief Solve for adsorber surface potential psi_{0,A} using Newton*
@@ -240,7 +240,7 @@ protected:
 
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
-		const bool res = ParamHandlerBindingModelBase<ParamHandler_t>::configureImpl(paramProvider, unitOpIdx, parTypeIdx);
+		const bool valid = ParamHandlerBindingModelBase<ParamHandler_t>::configureImpl(paramProvider, unitOpIdx, parTypeIdx);
 
 
 		if (_nComp <= 1)
@@ -258,19 +258,56 @@ protected:
 				throw InvalidParameterException("Binding model supports at most one bound state per component");
 		}
 
-		if (paramProvider.exists("CPA_SALT_IDX"))
-			_idxSalt = paramProvider.getInt("CPA_SALT_IDX");
-		
-		if(_idxSalt >= 0 && _nBoundStates[_idxSalt] != 0)
-		{
-			throw InvalidParameterException("Salt component must be non-bining (NBOUND = 0)");
-		}
-
 		if(paramProvider.exists("CPA_MAXITER"))// default index is 0
 			_MAXITER = paramProvider.getInt("CPA_MAXITER");
-		
 
-		return res;
+		if(paramProvider.exists("CPA_COMPONENT_CHARGE"))
+		{
+			_compCharge = paramProvider.getIntArray("CPA_COMPONENT_CHARGE");
+			if (_compCharge.size() != _nComp)
+				throw InvalidParameterException("CPA Binding: For every component a charge needs to be provided");
+
+			LOG(Info) << "The definition of component charges is a temporary implementation and will soon be replaced by a general pH modul.";
+		}
+	
+		return valid;
+	}
+
+	// Returns ionic strength I = 0.5 * sum_i(z_i^2 * c_i), preserving the AD type of yCp
+	template <typename CpStateType>
+	CpStateType calcIonicStrength(CpStateType const* yCp) const
+	{
+		CpStateType sum = 0.0;
+		for (int i = 0; i < static_cast<int>(_compCharge.size()); ++i)
+			sum += yCp[i] * static_cast<double>(_compCharge[i] * _compCharge[i]);
+		return 0.5 * sum;
+	}
+
+	static double daviesActivityCoeff(double ionicStrength, int charge)
+	{
+		const double sqrtI = std::sqrt(ionicStrength);
+		const double logGamma = -0.509 * charge * charge * (sqrtI / (1.0 + sqrtI) - 0.3 * ionicStrength);
+		return std::pow(10.0, logGamma);
+	}
+
+	// d(log10(gamma_i))/d(I_m), needed for the activity-corrected pH Jacobian
+	static double dDaviesLogGammaDI(double ionicStrength, int charge)
+	{
+		if (ionicStrength < 1e-30) return 0.0;
+		const double sqrtI = std::sqrt(ionicStrength);
+		// d/dI [ sqrt(I)/(1+sqrt(I)) - 0.3*I ] = 1/(2*sqrt(I)*(1+sqrt(I))^2) - 0.3
+		return -0.509 * charge * charge * (1.0 / (2.0 * sqrtI * (1.0 + sqrtI) * (1.0 + sqrtI)) - 0.3);
+	}
+
+	// Returns the activity a_i = gamma_i * c_i
+	template <typename CpStateType>
+	CpStateType activityCoeffizent(CpStateType const* yCp, int idx) const
+	{
+		if (_compCharge.empty() || idx >= static_cast<int>(_compCharge.size()))
+			return yCp[idx];
+		const double Im = static_cast<double>(calcIonicStrength(yCp));
+		const double gamma = daviesActivityCoeff(Im, _compCharge[idx]);
+		return static_cast<CpStateType>(gamma) * yCp[idx];
 	}
 
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
@@ -292,19 +329,24 @@ protected:
 
 		// Scalar parameters
 		const ParamType T       = static_cast<ParamType>(p->temperature);
-		const CpStateParamType Im = (_idxSalt >= 0) ? static_cast<CpStateParamType>(yCp[_idxSalt]): static_cast<CpStateParamType>(p->ionicStrength);
+		const CpStateParamType Im = !_compCharge.empty()
+			? static_cast<CpStateParamType>(calcIonicStrength(yCp))
+			: static_cast<CpStateParamType>(p->ionicStrength);
 		const ParamType eps     = static_cast<ParamType>(p->permittivity);
 		const ParamType GammaL  = static_cast<ParamType>(p->surfaceDensity);
 		const ParamType zetaL   = static_cast<ParamType>(p->chargeFullLigand);
 		const ParamType pKL     = static_cast<ParamType>(p->pKLigand);
 		const ParamType refpH   = static_cast<ParamType>(p->refpH);
 
-		const CpStateType pH  = log10(yCp[_idxProton]); // pH = log10(c_proton), c_proton = 10^pH
-
 		// kappa = sqrt(2 * e^2 * I_m * N_A / (k_b * T * eps * eps0))
 		const CpStateParamType kappa = e * sqrt(2.0 * Im * NA / (kb * T * eps * eps0));
 
 		const ParamType kbT = kb * T;
+
+		// pH = -log10(a_H+ [mol/L]) = -log10(gamma_H+ * c_H+ * 1e-3)  (c in mol/m^3, factor 1e-3 converts to mol/L)
+		const CpStateType pH = _compCharge.empty()
+			? -log(yCp[_idxProton] * 1e-3) / log(10.0)
+			: -log(activityCoeffizent(yCp, _idxProton) * 1e-3) / log(10.0);
 
 		// Solve adsorber surface potential psi_{0,A}
 		const CpStateParamType psiA = solvePsiAdsorber(
@@ -547,13 +589,16 @@ protected:
 		const double eps0 = _vacuumPermi;
 
 		const double T       = static_cast<double>(p->temperature);
-		const double Im      = (_idxSalt >= 0) ? static_cast<double>(yCp[_idxSalt]) : static_cast<double>(p->ionicStrength);
+		const double Im      = !_compCharge.empty() ? calcIonicStrength(yCp) : static_cast<double>(p->ionicStrength);
 		const double eps     = static_cast<double>(p->permittivity);
 		const double GammaL  = static_cast<double>(p->surfaceDensity);
 		const double zetaL   = static_cast<double>(p->chargeFullLigand);
 		const double pKL     = static_cast<double>(p->pKLigand);
 
-		const double pH_val = std::log10(yCp[_idxProton]);
+		// pH = -log10(gamma_H+ * c_H+ * 1e-3)  (c in mol/m^3, factor 1e-3 converts to mol/L)
+		const double pH_val = _compCharge.empty()
+			? -std::log10(yCp[_idxProton] * 1e-3)
+			: -std::log10(daviesActivityCoeff(Im, _compCharge[_idxProton]) * yCp[_idxProton] * 1e-3);
 		const double kappa = sqrt(2.0 * e * e * Im * NA / (kb * T * eps * eps0));
 		const double kbT = kb * T;
 
@@ -796,11 +841,11 @@ protected:
 			//   dres_i / dq_j        (through Theta, sumQ, sumAjQj, Dhex -> B_i, ulat_i)
 			//   dres_i / dq_i        (direct + through above)
 
-			// === dres_i / dc_{p,i} ===
+			// dres_i / dc_{p,i}
 			// dres_i / dc_{p,i} = -kKin_i * Kv_i
 			jac[i - bndIdx - offsetCp] = -kKin_i * Kv_i;
 
-			// === dres_i / dc_{p,proton} (full pH derivative chain) ===
+			// dres_i / dc_{p,proton}
 			// pH affects: Zi -> psi_i, sigmaI -> delta_i, and psiA (via dPsiA_dpH)
 			// These propagate through: dm_i, uA_i, KH_i, kKin_i, Delta_i, Kv_i
 			{
@@ -844,14 +889,28 @@ protected:
 				// dres/dpH
 				const double dres_dpH = -(dkKin_dpH * (Kv_i * yCp[i] - y[bndIdx]) + kKin_i * dKv_dpH * yCp[i]);
 
-				// Convert dpH to dc_{p,proton}: pH = log10(c), dpH/dc = 1/(c*ln(10))
-				const double dpH_dc_proton = 1.0 / (yCp[_idxProton] * std::log(10.0));
+				// dpH/dc_proton = -1/(c_proton*ln10) - dlog10(gamma_H+)/dIm * dIm/dc_proton
+				// (negative signs from pH = -log10(...))
+				double dpH_dc_proton = -1.0 / (yCp[_idxProton] * std::log(10.0));
+				if (!_compCharge.empty() && std::abs(Im) > 1e-30)
+				{
+					const double dpH_dIm = -dDaviesLogGammaDI(Im, _compCharge[_idxProton]);
+					for (int jj = 0; jj < _nComp; ++jj)
+					{
+						const double dIm_dcjj = 0.5 * static_cast<double>(_compCharge[jj] * _compCharge[jj]);
+						if (std::abs(dIm_dcjj) < 1e-30) continue;
+						if (jj == _idxProton)
+							dpH_dc_proton += dpH_dIm * dIm_dcjj;
+						else
+							jac[jj - bndIdx - offsetCp] += dres_dpH * dpH_dIm * dIm_dcjj;
+					}
+				}
 				jac[_idxProton - bndIdx - offsetCp] += dres_dpH * dpH_dc_proton;
 			}
 
-			// === dres_i / dc_{p,salt} (full ionic strength derivative chain) ===
-			// Im affects everything through kappa. dkappa/dIm = kappa/(2*Im).
-			if (_idxSalt >= 0 && std::abs(Im) > 1e-30)
+			// Im = 0.5 * sum_j(z_j^2 * c_j), so dIm/dc_j = 0.5 * z_j^2
+			// dkappa/dc_j = dkappa/dIm * dIm/dc_j = (kappa/(2*Im)) * 0.5 * z_j^2
+			if (!_compCharge.empty() && std::abs(Im) > 1e-30)
 			{
 				const double dkappa_dIm = kappa / (2.0 * Im);
 
@@ -923,8 +982,15 @@ protected:
 				// dres/dkappa
 				const double dres_dkappa = -(dkKin_dkappa * (Kv_i * yCp[i] - y[bndIdx]) + kKin_i * dKv_dkappa * yCp[i]);
 
-				// dres/dIm = dres/dkappa * dkappa/dIm, and dIm/dc_salt = 1
-				jac[_idxSalt - bndIdx - offsetCp] += dres_dkappa * dkappa_dIm;
+				// Distribute over all charged pore-phase components:
+				// dres/dc_j = dres/dkappa * dkappa/dIm * dIm/dc_j, with dIm/dc_j = 0.5 * z_j^2
+				for (int j = 0; j < _nComp; ++j)
+				{
+					const double dIm_dcj = 0.5 * static_cast<double>(_compCharge[j] * _compCharge[j]);
+					if (std::abs(dIm_dcj) < 1e-30)
+						continue;
+					jac[j - bndIdx - offsetCp] += dres_dkappa * dkappa_dIm * dIm_dcj;
+				}
 			}
 
 			// === dres_i / dq_i (direct term: +kKin_i due to negative sign in res) ===

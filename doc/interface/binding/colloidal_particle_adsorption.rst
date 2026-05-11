@@ -30,8 +30,8 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 
 ``CPA_IONIC_STRENGTH``
    Ionic strength :math:`I_m` of the mobile phase. Ignored if
-   ``CPA_SALT_IDX`` is set (ionic strength is then read from the
-   corresponding mobile phase component).
+   ``CPA_COMPONENT_CHARGE`` is set (ionic strength is then computed
+   from the pore-phase concentrations).
 
 **Unit:** :math:`\mathrm{mol \, m^{-3}}`
 
@@ -163,14 +163,17 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Type:** int        **Range:** :math:`\ge 0`   **Length:** 1
 ===================  =========================  =========================================
 
-``CPA_SALT_IDX``
-   0-based index of the salt component in the mobile phase (optional).
-   If set, the ionic strength :math:`I_m` is read from this mobile phase
-   component instead of from ``CPA_IONIC_STRENGTH``. The corresponding
-   component must be non-binding (``NBOUND = 0``).
+``CPA_COMPONENT_CHARGE``
+   Integer valence charge :math:`z_i` for each component (optional).
+   If provided, the ionic strength is computed from the pore-phase
+   concentrations as :math:`I_m = \tfrac{1}{2}\sum_i z_i^2 c_{p,i}`,
+   and the Davies activity correction is applied to the proton
+   component when computing pH.  The vector must contain one entry per
+   component (``NCOMP`` values).  Non-ionic components should be
+   assigned a charge of 0.
 
 ===================  =========================  =========================================
-**Type:** int        **Range:** :math:`\ge 0`   **Length:** 1
+**Type:** int                                   **Length:** NCOMP
 ===================  =========================  =========================================
 
 ``CPA_MAXITER``

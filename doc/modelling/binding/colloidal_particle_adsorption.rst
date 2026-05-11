@@ -6,9 +6,8 @@ Colloidal Particle Adsorption
 The colloidal particle adsorption (CPA) model describes protein adsorption on ion exchange resins based on colloidal interaction theory :cite:`Briskot2021`.
 The model captures three key contributions to adsorption: electrostatic protein-adsorber interactions, lateral protein-protein interactions on the surface, and steric exclusion effects via scaled-particle theory (hard-disc available surface function).
 
-A designated proton component :math:`c_{p,\mathrm{pH}}` (by default the first component, index configurable via ``CPA_PROTON_IDX``) acts as a non-binding pH state, where :math:`\mathrm{pH} = \log_{10}(c_{p,\mathrm{pH}})`.
-Optionally, a salt component (configurable via ``CPA_SALT_IDX``) can provide the ionic strength :math:`I_m` from the mobile phase.
-Both the proton and salt components must be non-binding.
+A designated proton component :math:`c_{p,\mathrm{pH}}` (by default the first component, index configurable via ``CPA_PROTON_IDX``) acts as a non-binding pH state.
+The proton component must be non-binding.
 
 The kinetic formulation reads for each binding component :math:`i`:
 
@@ -19,6 +18,39 @@ The kinetic formulation reads for each binding component :math:`i`:
 where :math:`q_{v,i}` is the volumetric solid phase concentration, :math:`c_{p,i}` is the pore liquid phase concentration, :math:`K_{v,i}` is the volumetric equilibrium constant, and :math:`k_{\mathrm{kin},i}` is the kinetic rate constant.
 
 Multiple bound states per component are not supported.
+
+
+Ionic strength and activity coefficients
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The ionic strength :math:`I_m` can be supplied in two ways:
+
+- **Fixed parameter** (default): :math:`I_m` is read from ``CPA_IONIC_STRENGTH`` and the pH is computed directly from the proton component concentration.
+Since the standard definition of pH is based on concentration in mol/L, :math:`mol/m^3` is converted to mol/L via the factor :math:`10^{-3}`:
+
+  .. math::
+
+      \mathrm{pH} = -\log_{10}\!\left(c_{p,\mathrm{pH}} \cdot 10^{-3}\right).
+
+- **Computed from concentrations**: if component charges :math:`z_i` are provided via ``CPA_COMPONENT_CHARGE``, the ionic strength is computed from the pore-phase concentrations at each time step,
+
+  .. math::
+
+      I_m = \frac{1}{2} \sum_i z_i^2 \, c_{p,i},
+
+  and the Davies model is applied to correct the proton activity before computing pH:
+
+  .. math::
+
+      \log_{10}\gamma_i = -0.509 \, z_i^2 \left( \frac{\sqrt{I_m}}{1 + \sqrt{I_m}} - 0.3 \, I_m \right),
+
+  so that
+
+  .. math::
+
+      \mathrm{pH} = -\log_{10}\!\left(\gamma_{\mathrm{H}^+} \, c_{p,\mathrm{pH}} \cdot 10^{-3}\right).
+
+  The constant 0.509 is the Debye–Hückel slope for water at 25 °C.  The factor :math:`10^{-3}` converts the pore-phase concentration from :math:`mol/m^3` to mol/L, as required by the pH definition.
 
 
 Inverse Debye length
@@ -188,8 +220,8 @@ Model assumptions and limitations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - One component must serve as a non-binding proton/pH state (index configurable, default 0).
-- An optional non-binding salt component can provide the ionic strength from the mobile phase.
+- If ``CPA_COMPONENT_CHARGE`` is provided, the ionic strength is computed from the pore-phase concentrations and the Davies activity correction is applied to the proton activity. Otherwise, ``CPA_IONIC_STRENGTH`` is used as a fixed parameter.
 - Multiple bound states per component are not supported.
 - Physical constants (:math:`e`, :math:`N_A`, :math:`k_B`, :math:`\varepsilon_0`) are hard-coded to CODATA 2018 values.
 
-For more information on model parameters required to define in CADET file format, see :ref:`colloidal_particle_adsorption_config`.
+For more information on model parameters required to configure in CADET format, see :ref:`colloidal_particle_adsorption_config`.
