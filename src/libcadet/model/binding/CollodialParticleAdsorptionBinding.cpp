@@ -285,8 +285,9 @@ protected:
 
 	static double daviesActivityCoeff(double ionicStrength, int charge)
 	{
-		const double sqrtI = std::sqrt(ionicStrength);
-		const double logGamma = -0.509 * charge * charge * (sqrtI / (1.0 + sqrtI) - 0.3 * ionicStrength);
+		const double I_M = ionicStrength * 1e-3;
+		const double sqrtI = std::sqrt(I_M);
+		const double logGamma = -0.509 * charge * charge * (sqrtI / (1.0 + sqrtI) - 0.3 * I_M);
 		return std::pow(10.0, logGamma);
 	}
 
@@ -294,20 +295,10 @@ protected:
 	static double dDaviesLogGammaDI(double ionicStrength, int charge)
 	{
 		if (ionicStrength < 1e-30) return 0.0;
-		const double sqrtI = std::sqrt(ionicStrength);
+		const double I_M = ionicStrength * 1e-3;
+		const double sqrtI = std::sqrt(ionicStrength * 1e-3);
 		// d/dI [ sqrt(I)/(1+sqrt(I)) - 0.3*I ] = 1/(2*sqrt(I)*(1+sqrt(I))^2) - 0.3
 		return -0.509 * charge * charge * (1.0 / (2.0 * sqrtI * (1.0 + sqrtI) * (1.0 + sqrtI)) - 0.3);
-	}
-
-	// Returns the activity a_i = gamma_i * c_i
-	template <typename CpStateType>
-	CpStateType activityCoeffizent(CpStateType const* yCp, int idx) const
-	{
-		if (_compCharge.empty() || idx >= static_cast<int>(_compCharge.size()))
-			return yCp[idx];
-		const double Im = static_cast<double>(calcIonicStrength(yCp));
-		const double gamma = daviesActivityCoeff(Im, _compCharge[idx]);
-		return static_cast<CpStateType>(gamma) * yCp[idx];
 	}
 
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
@@ -344,9 +335,11 @@ protected:
 		const ParamType kbT = kb * T;
 
 		// pH = -log10(a_H+ [mol/L]) = -log10(gamma_H+ * c_H+ * 1e-3)  (c in mol/m^3, factor 1e-3 converts to mol/L)
+		const double gammaHp = !_compCharge.empty() ? daviesActivityCoeff(static_cast<double>(Im), _compCharge[_idxProton]) :daviesActivityCoeff(static_cast<double>(Im), 1.0) ;
+
 		const CpStateType pH = _compCharge.empty()
 			? -log(yCp[_idxProton] * 1e-3) / log(10.0)
-			: -log(activityCoeffizent(yCp, _idxProton) * 1e-3) / log(10.0);
+			: -log(gammaHp* yCp[_idxProton] * 1e-3) / log(10.0);
 
 		// Solve adsorber surface potential psi_{0,A}
 		const CpStateParamType psiA = solvePsiAdsorber(
