@@ -49,6 +49,7 @@
  MM_KMM     - Michaelis-Menten constant for each component (dim: number of reactions x number of components)
  MM_KI_C    - Competitive inhibition constants (\tilde{K}_{i,j,k}) ( dim: number of reactions x number of components x number of componetns)
  MM_KI_UC   - Uncompetitive inhibition constants (K_{i,j,k}) (dim: number of reactions x number of components x number of componetns)
+ MM_PRE_K    - Prefactor component influcence constant (dim: number of reactions x number of components)
 */
 
 
@@ -161,7 +162,6 @@ protected:
 
     linalg::ActiveDenseMatrix _stoichiometry;
     std::vector<std::vector<int>> _idxSubstrate; //!< Indices of substrate components for each reaction [reaction][substrate indices]
-    std::vector<std::vector<int>> _idxPrefactor; //!< Indices of substrate components for each reaction [reaction][substrate indices]
     std::vector<std::vector<std::unordered_set<int>>> _idxCompInhibitors; //!< Indices of competitive inhibitors [reaction][substrate][inhibitor indices]
     std::vector<std::vector<std::unordered_set<int>>> _idxUncompInhibitors; //!< Indices of uncompetitive inhibitors [reaction][substrate][inhibitor indices]
 
@@ -239,8 +239,6 @@ protected:
             // Identify substrates (negative entries in stoichiometry matrix)
             const unsigned int nReactions = static_cast<unsigned int>(_stoichiometry.columns());
             _idxSubstrate.clear();
-
-            //_idxPrefactor.resize(nReactions);
             _idxCompInhibitors.resize(nReactions);
             _idxUncompInhibitors.resize(nReactions);
             
@@ -255,7 +253,7 @@ protected:
                     if (_stoichiometry.native(c, r) < 0.0)
                         idxSubstrateReaction_r.push_back(static_cast<int>(c));
                     
-                    const unsigned int paramIdx = getPreKParamIndex(r, c);
+                    const unsigned int paramIdx = getKmmParamIndex(r, c);
                     double pre_k = static_cast<double>(PRE_K[paramIdx]);
                     if (pre_k != 0.0)
 						idxPrefactorReaction_r.push_back(static_cast<int>(c));
@@ -265,7 +263,6 @@ protected:
                     throw InvalidParameterException("Michaelis Menten: No substrates found for reaction " + std::to_string(r));
 
                 _idxSubstrate.push_back(idxSubstrateReaction_r);
-				_idxPrefactor.push_back(idxPrefactorReaction_r);
 
                 // Pre-identify inhibitors for each substrate in this reaction
                 const size_t numSubstrates = idxSubstrateReaction_r.size();
@@ -299,7 +296,6 @@ protected:
 
             }
         }
-		_idxPrefactor.clear();
         registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MM_STOICHIOMETRY", _stoichiometry);
         return true;
     }
@@ -322,7 +318,7 @@ protected:
             for (unsigned int rowIdx = 0; rowIdx < static_cast<unsigned int>(_stoichiometry.rows()); ++rowIdx)
             {
                 if (p->KPrefactor.size() != 0) {
-                    unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(rowIdx));
+                    unsigned int prekIdx = getKmmParamIndex(r, static_cast<unsigned int>(rowIdx));
                     flux_t pre_k_j = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->KPrefactor[prekIdx]);
                     bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
                     if (pre_k_j != 0 && !isSubstrate)
@@ -450,7 +446,7 @@ protected:
             for (unsigned int rowIdx = 0; rowIdx < static_cast<unsigned int>(_stoichiometry.rows()); ++rowIdx)
             {
                 if (p->KPrefactor.size() != 0) {
-                    unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(rowIdx));
+                    unsigned int prekIdx = getKmmParamIndex(r, static_cast<unsigned int>(rowIdx));
                     double pre_k_j = static_cast<double>(p->KPrefactor[prekIdx]);
                     bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
                     if (pre_k_j != 0 && !isSubstrate)
@@ -567,8 +563,8 @@ protected:
 				// Check for pre-factor contribution
                 if (!isSubstrate)
                 {
-                    if (p->KPrefactor.size() != 0) {
-                        unsigned int prekIdx = getPreKParamIndex(r, static_cast<unsigned int>(comp));
+                    if ((p->KPrefactor.size() != 0) && y[comp] != 0.0) {
+                        unsigned int prekIdx = getKmmParamIndex(r, static_cast<unsigned int>(comp));
                         double pre_k_j = static_cast<double>(p->KPrefactor[prekIdx]);
                         if (pre_k_j != 0.0)
                             dvdy += flux / y[comp];
