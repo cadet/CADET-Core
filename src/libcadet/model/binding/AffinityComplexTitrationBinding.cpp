@@ -31,7 +31,7 @@ namespace
 	constexpr double ln10 = 2.30258509299404568402;
 	constexpr double minIonConcentration = 1e-30;
 	constexpr double softplusTransitionFactor = 100.0;
-	constexpr double minApparentCapacity = 1e-20;
+	constexpr double softplusScaleQMaxFraction = 1e-3;
 
 	// Here we use a numerically stable implementation of the logistic function f to avoid potential over and underflow.
 	template <typename T>
@@ -58,7 +58,7 @@ namespace
 	// It happens for certain param sets that decrease the capacity too abruptly in a multicomponent system. 
 	// The transition factor beta determines how close to zero the apparent capacity can get before the function starts to deviate from the identity function.
 	// An emipirical value of 100 is chosen here, which means that the apparent capacity can get as low as 1/100 = 1% of x before the softplus function starts to significantly increase it.
-	// Approximation error near the clamp is roughly ln2 / beta = 0.7% x.
+	// Approximation error near the clamp is roughly ln2 / beta = 0.69%.
 	template <typename T>
 	inline T softplusScaled(T const& x, T const& beta)
 	{
@@ -255,7 +255,7 @@ namespace cadet
 				using std::log;
 
 				// Protein fluxes
-				ResidualType qSum = 0.0;
+				std::vector<ResParamType> qApp(_nComp, static_cast<ResParamType>(0.0));
 				unsigned int bndIdx = 0;
 				const CpStateParamType IonAxis = !_useIonConc ? yCp[0] : -log(yCp[0] + static_cast<ParamType>(minIonConcentration)) / static_cast<ParamType>(ln10);
 
@@ -266,7 +266,12 @@ namespace cadet
 						continue;
 
 					// y is only defined for components that have a bound state
-					qSum += y[bndIdx];
+					const CpStateParamType pKaAaxis = !_useIonConc
+						? static_cast<CpStateParamType>(_pKaA[i])
+						: -log(static_cast<CpStateParamType>(_cMidA[i]) + static_cast<CpStateParamType>(minIonConcentration)) / static_cast<CpStateParamType>(ln10);
+
+					const CpStateParamType etaAaxis = static_cast<CpStateParamType>(p->etaA[i]);
+					qApp[i] = static_cast<ParamType>(p->qMax[i]) * stableActGate(etaAaxis, pKaAaxis, IonAxis);
 
 					// Next bound component
 					++bndIdx;
@@ -281,25 +286,35 @@ namespace cadet
 						continue;
 
 					// Residual
-					const CpStateParamType pKaAaxis = !_useIonConc
-						? static_cast<CpStateParamType>(_pKaA[i])
-						: -log(static_cast<CpStateParamType>(_cMidA[i]) + static_cast<CpStateParamType>(minIonConcentration)) / static_cast<CpStateParamType>(ln10);
-
 					const CpStateParamType pKaGaxis = !_useIonConc
 						? static_cast<CpStateParamType>(_pKaG[i])
 						: -log(static_cast<CpStateParamType>(_cMidG[i]) + static_cast<CpStateParamType>(minIonConcentration)) / static_cast<CpStateParamType>(ln10);
 
-					const CpStateParamType etaAaxis = static_cast<CpStateParamType>(p->etaA[i]);
 					const CpStateParamType etaGaxis = static_cast<CpStateParamType>(p->etaG[i]);
 
-					const ResParamType f_A = stableActGate(etaAaxis, pKaAaxis, IonAxis);
+					// Make sure we don't compute the surface coverage here and them multiply with qapp later. This will slow down the simulation (extremely small value x extremely large value). 
+					// Instead we compute the product directly. 
+
 					const ResParamType f_G = stableActGate(etaGaxis, pKaGaxis, IonAxis);
 
-					const ResParamType qApp = static_cast<ParamType>(p->qMax[i]) * f_A;
-					const ResParamType qFree_local = qApp - qSum;
-					const ResParamType qScale = (qApp > static_cast<ParamType>(minApparentCapacity)) ? qApp : static_cast<ParamType>(minApparentCapacity);
+					const ResParamType qApp_i = qApp[i];
+					ResParamType qFree_local = qApp_i - y[bndIdx];
+					unsigned int bndIdx2 = 0;
+					for (unsigned int j = 0; j < _nComp; ++j)
+					{
+						if (_nBoundStates[j] == 0)
+							continue;
+
+						if (j != i)
+							qFree_local -= y[bndIdx2] * (qApp_i / qApp[j]);
+
+						++bndIdx2;
+					}
+
+					const ResParamType qScaleMin = static_cast<ParamType>(softplusScaleQMaxFraction) * static_cast<ParamType>(p->qMax[i]);
+					const ResParamType qScale = (qApp_i > qScaleMin) ? qApp_i : qScaleMin;
 					const ResParamType beta = static_cast<ParamType>(softplusTransitionFactor) / qScale;
-					const ResParamType qFree_eff = softplusScaled(qFree_local, beta);
+					const ResParamType qFree_eff = softplusScaled(qFree_local, beta);                                   // see the softplus function notes
 					const ResParamType kA_local = static_cast<ParamType>(p->kA[i]) * f_G;
 					res[bndIdx] = static_cast<ResidualType>(static_cast<ParamType>(p->kD[i]) * y[bndIdx] - kA_local * yCp[i] * qFree_eff);
 
@@ -316,7 +331,9 @@ namespace cadet
 				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 				// Protein flux
-				double qsum = 0.0;
+				std::vector<double> qApp(_nComp, 0.0);
+				std::vector<double> dqApp_dIonAxis(_nComp, 0.0);
+				std::vector<double> qBound(_nComp, 0.0);
 				int bndIdx = 0;
 				const double IonAxis = !_useIonConc ? yCp[0] : -std::log(yCp[0] + minIonConcentration) / ln10;
 				const double dIonAxis_dC0 = !_useIonConc ? 1.0 : -1.0 / ((yCp[0] + minIonConcentration) * ln10);
@@ -327,7 +344,11 @@ namespace cadet
 					if (_nBoundStates[i] == 0)
 						continue;
 
-					qsum += y[bndIdx];
+					const double pKaAaxis = !_useIonConc ? _pKaA[i] : -std::log(_cMidA[i] + minIonConcentration) / ln10;
+					const double f_A = stableActGate(static_cast<double>(p->etaA[i]), pKaAaxis, IonAxis);
+					qApp[i] = static_cast<double>(p->qMax[i]) * f_A;
+					dqApp_dIonAxis[i] = static_cast<double>(p->qMax[i]) * stableActGateDerivIon(static_cast<double>(p->etaA[i]), f_A);
+					qBound[i] = y[bndIdx];
 
 					// Next bound component
 					++bndIdx;
@@ -341,18 +362,25 @@ namespace cadet
 						continue;
 
 					// Local variables to aid the calculation of the Jacobian
-					const double pKaAaxis = !_useIonConc ? _pKaA[i] : -std::log(_cMidA[i] + minIonConcentration) / ln10;
 					const double pKaGaxis = !_useIonConc ? _pKaG[i] : -std::log(_cMidG[i] + minIonConcentration) / ln10;
 
-					const double f_A = stableActGate(static_cast<double>(p->etaA[i]), pKaAaxis, IonAxis);
 					const double f_G = stableActGate(static_cast<double>(p->etaG[i]), pKaGaxis, IonAxis);
 
-					const double f_A_deriv = stableActGateDerivIon(static_cast<double>(p->etaA[i]), f_A);
 					const double f_G_deriv = stableActGateDerivIon(static_cast<double>(p->etaG[i]), f_G);
 
-					const double qApp = static_cast<double>(p->qMax[i]) * f_A;
-					const double qFree_local = qApp - qsum;
-					const double qScale = (qApp > minApparentCapacity) ? qApp : minApparentCapacity;
+					const double qApp_i = qApp[i];
+					double qFree_local = qApp_i - qBound[i];
+					for (int j = 0; j < _nComp; ++j)
+					{
+						if (_nBoundStates[j] == 0)
+							continue;
+
+						if (j != i)
+							qFree_local -= qBound[j] * (qApp_i / qApp[j]);
+					}
+
+					const double qScaleMin = softplusScaleQMaxFraction * static_cast<double>(p->qMax[i]);
+					const double qScale = (qApp_i > qScaleMin) ? qApp_i : qScaleMin;
 					const double beta = softplusTransitionFactor / qScale;
 					const double bx = beta * qFree_local;
 					const double qFree_eff = softplusScaled(qFree_local, beta);
@@ -360,7 +388,6 @@ namespace cadet
 
 					const double kA_i = static_cast<double>(p->kA[i]);
 					const double kD_i = static_cast<double>(p->kD[i]);
-					const double qMax_i = static_cast<double>(p->qMax[i]);
 
 					const double kA_times_fG = kA_i * f_G;
 
@@ -369,24 +396,36 @@ namespace cadet
 					// Getting to c_{p,i}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +i to c_{p,i}.
 					//                     This means jac[i - bndIdx - offsetCp] corresponds to c_{p,i}.
 
-					// dres_i / d(Ion axis), including the beta(qApp(IonAxis)) dependence
-					const double dqApp_dIonAxis = qMax_i * f_A_deriv;
+					// dres_i / d(Ion axis)
+					const double dqApp_i_dIonAxis = dqApp_dIonAxis[i];
+					double dqFreeLocal_dIonAxis = dqApp_i_dIonAxis;
+					for (int j = 0; j < _nComp; ++j)
+					{
+						if (_nBoundStates[j] == 0)
+							continue;
+
+						if (j != i)
+						{
+							const double qApp_j = qApp[j];
+							const double dRatio_dIonAxis = (dqApp_i_dIonAxis * qApp_j - qApp_i * dqApp_dIonAxis[j]) / (qApp_j * qApp_j);
+							dqFreeLocal_dIonAxis -= qBound[j] * dRatio_dIonAxis;
+						}
+					}
 
 					double dsoftplus_dbeta = 0.0;
 					double dbeta_dIonAxis = 0.0;
 
-					if (qApp > minApparentCapacity)
+					if (qApp_i > qScaleMin)
 					{
 						const double logTerm = (bx > 0.0)
 							? (bx + std::log1p(std::exp(-bx)))
 							: std::log1p(std::exp(bx));
 
 						dsoftplus_dbeta = (beta * qFree_local * dqFreeEff_dqFree - logTerm) / (beta * beta);
-						dbeta_dIonAxis = -(beta / qApp) * dqApp_dIonAxis;
+						dbeta_dIonAxis = -(beta / qApp_i) * dqApp_i_dIonAxis;
 					}
 
-					const double dqFreeEff_dIonAxis =
-						dqFreeEff_dqFree * dqApp_dIonAxis + dsoftplus_dbeta * dbeta_dIonAxis;
+					const double dqFreeEff_dIonAxis = dqFreeEff_dqFree * dqFreeLocal_dIonAxis + dsoftplus_dbeta * dbeta_dIonAxis;
 
 					jac[-bndIdx - offsetCp] =
 						-kA_i * yCp[i] * (f_G_deriv * qFree_eff + f_G * dqFreeEff_dIonAxis) * dIonAxis_dC0;
@@ -399,8 +438,10 @@ namespace cadet
 						if (_nBoundStates[j] == 0)
 							continue;
 
+						const double ratio_ij = (j == i) ? 1.0 : (qApp_i / qApp[j]);  // avoid redundant division for single conponent case
+
 						// dres_i / dq_j, part 1
-						jac[bndIdx2 - bndIdx] = kA_times_fG * yCp[i] * dqFreeEff_dqFree;
+						jac[bndIdx2 - bndIdx] = kA_times_fG * yCp[i] * dqFreeEff_dqFree * ratio_ij;
 						// Getting to q_j: -bndIdx takes us to q_0, another +bndIdx2 to q_j. This means jac[bndIdx2 - bndIdx] corresponds to q_j.
 
 						++bndIdx2;
