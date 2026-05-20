@@ -1,9 +1,9 @@
 // =============================================================================
 //  CADET
-//  
+//
 //  Copyright © 2008-2021: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
 //  are made available under the terms of the GNU Public License v3.0 (or, at
 //  your option, any later version) which accompanies this distribution, and
@@ -20,20 +20,21 @@
 #include "SimulationTypes.hpp"
 #include "AdUtils.hpp"
 #include "model/binding/GPR_Class.h"
+
 #include <functional>
-#include <unordered_map>
+#include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
-#include <cmath>
 
 /*<codegen>
 {
-"name": "GPRParamHandler",
-"externalName": "ExtGPRParamHandler",
-"parameters":
-[
-	{ "type": "ScalarComponentDependentParameter", "varName": "kKin", "confName": "GPR_KKIN"}
-]
+	"name": "GPRParamHandler",
+	"externalName": "ExtGPRParamHandler",
+	"parameters":
+		[
+			{ "type": "ScalarComponentDependentParameter", "varName": "kKin", "confName": "GPR_KKIN"}
+		]
 }
 </codegen>*/
 
@@ -63,26 +64,33 @@ inline bool ExtGPRParamHandler::validateConfig(unsigned int nComp, unsigned int 
 	return true;
 }
 
-
 template <class ParamHandler_t>
 class GPRBindingBase : public ParamHandlerBindingModelBase<ParamHandler_t>
 {
 public:
-
-	GPRBindingBase() :pore_phase_concentration(),
-		GPR_parameters(),
-		solid_phase_concentration(){}
+	GPRBindingBase()
+		: _poreConc()
+		, _gprParams()
+		, _solidConc()
+		, _kernelMat()
+		, _alpha()
+		, _offset(0.0)
+		, _kernelName()
+		, _nDim(1u)
+		, _gpModel()
+	{
+	}
 
 	virtual ~GPRBindingBase() CADET_NOEXCEPT { }
 
 	static const char* identifier() { return ParamHandler_t::identifier(); }
-
 	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return true; }
 
-	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
+	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates,
+		unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
-		return ParamHandlerBindingModelBase<ParamHandler_t>::workspaceSize(nComp, totalNumBoundStates, nBoundStates)
-			+ sizeof(active) * nComp + alignof(active);  // Add the memory for the qML buffer
+		return ParamHandlerBindingModelBase<ParamHandler_t>::workspaceSize(
+			nComp, totalNumBoundStates, nBoundStates);
 	}
 
 	CADET_BINDINGMODELBASE_BOILERPLATE
@@ -93,197 +101,188 @@ protected:
 	using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
 	using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
-	std::vector<double> pore_phase_concentration; // Storage for trained ANN curve for GPR fitting
-	std::vector<double> GPR_parameters;			  // Storage for trained ANN curve for GPR fitting
-	std::vector<double> solid_phase_concentration;
-	std::vector<double> Kernel_Mat;
-	std::vector<double> K_inv_y;
-	double offset;
-	std::string kernel_name ;
-	unsigned int ndim;
-	/***************************************************************************************************/
+	// Training data and GPR state — populated once in configureImpl
+	std::vector<double>            _poreConc;   // X_train: (nTrain x nDim), row-major
+	std::vector<double>            _solidConc;  // Y_train: (nTrain,)
+	std::vector<double>            _gprParams;  // hyperparameters
+	std::vector<double>            _kernelMat;  // K(X_train, X_train): (nTrain x nTrain)
+	std::vector<double>            _alpha;      // K^{-1} y: (nTrain,)
+	double                         _offset;     // prediction at c_p = 0 for bias removal
+	std::string                    _kernelName;
+	unsigned int                   _nDim;
+	std::unique_ptr<GP::GPR_Class> _gpModel;
 
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
 		const bool result = ParamHandlerBindingModelBase<ParamHandler_t>::configureImpl(paramProvider, unitOpIdx, parTypeIdx);
 
 		// Input parameters
-		solid_phase_concentration = paramProvider.getDoubleArray("CS_VALS");
-		pore_phase_concentration = paramProvider.getDoubleArray("CP_VALS");
-		GPR_parameters = paramProvider.getDoubleArray("TRAINED_PARAMS");
-		kernel_name = paramProvider.getString("KERNEL");
+		_solidConc = paramProvider.getDoubleArray("CS_VALS");
+		_poreConc = paramProvider.getDoubleArray("CP_VALS");
+		_gprParams = paramProvider.getDoubleArray("TRAINED_PARAMS");
+		_kernelName = paramProvider.getString("KERNEL");
 		if (paramProvider.getInt("NDIM") > 0)
-			ndim = paramProvider.getInt("NDIM");
+			_nDim = paramProvider.getInt("NDIM");
 		else
 			throw InvalidParameterException("NDIM must be a positive integer specifying the number of dimensions for the GPR input data");
 
-		if (kernel_name != "MLP" && kernel_name != "RBF" && kernel_name != "RBF_Linear" && kernel_name != "MLP_Linear")
-			throw InvalidParameterException("Unsupported kernel specified for GPR. Supported kernels are: MLP, RBF, RBF_Linear, MLP_Linear");
+		// --- Validation ---
+		if (_nComp != 1u)
+			throw InvalidParameterException(
+				"Current GPR binding supports single-component only.");
 
-		std::vector<double> kernel_m(solid_phase_concentration.size() * solid_phase_concentration.size(), 0.0);
-		std::vector<double> K_inv_y_temp(solid_phase_concentration.size(), 0.0);
-		K_inv_y = K_inv_y_temp;
+		if (_gprParams.size() < 7u)
+			throw InvalidParameterException(
+				"TRAINED_PARAMS must contain at least 7 entries: "
+				"[mlp_weight_var, mlp_bias_var, mlp_var, lin_var, rbf_var, rbf_ls, gaussian_var]");
 
-		std::vector<double> test_pt = { 0.0 };
-		std::vector<double> matCp(_nComp, 0.0);
+		if (_solidConc.empty() || _poreConc.empty())
+			throw InvalidParameterException(
+				"Training data Q_VALS and C_VALS must not be empty.");
 
-		GP::GPR_Class gp(solid_phase_concentration.size(), solid_phase_concentration.size(), ndim,
-			GPR_parameters[0], GPR_parameters[1], GPR_parameters[2], GPR_parameters[3], GPR_parameters[4],
-			GPR_parameters[5], GPR_parameters[6],
-			kernel_name);
+		// C_VALS has shape (nTrain x nDim) flattened, Q_VALS has shape (nTrain,)
+		if (_poreConc.size() != _solidConc.size() * _nDim)
+			throw InvalidParameterException(
+				"C_VALS size must equal Q_VALS size * NDIM.");
 
-		if (kernel_name == "MLP")
-		{
-			gp.MLP_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data());
-		}
-		else if (kernel_name == "RBF")
-		{
-			gp.RBF_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data());
-		}
-		else if (kernel_name == "RBF_Linear")
-		{
-			gp.RBF_Linear_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data());
-		}
+		const unsigned int nTrain = static_cast<unsigned int>(_solidConc.size());
 
-		gp.kernel_inv_y(solid_phase_concentration.data(), kernel_m.data(), K_inv_y_temp.data());
+		// --- Build GPR model ---
+		_gpModel = std::make_unique<GP::GPR_Class>(
+			nTrain,
+			1u,
+			_nDim,
+			_gprParams[0],   // mlp_weight_variance
+			_gprParams[1],   // mlp_bias_variance
+			_gprParams[2],   // mlp_variance
+			_gprParams[3],   // linear_variance
+			_gprParams[4],   // rbf_variance
+			_gprParams[5],   // rbf_lengthscale (= ls^2)
+			_gprParams[6],   // gaussian_variance (noise)
+			_kernelName);
 
-		offset = gp.prediction(pore_phase_concentration.data(), test_pt.data(), K_inv_y_temp.data());
+		// --- Compute training kernel matrix K(X_train, X_train) ---
+		_kernelMat.assign(static_cast<std::size_t>(nTrain) * nTrain, 0.0);
 
-		K_inv_y = K_inv_y_temp;
-		Kernel_Mat = kernel_m;
+		if (_kernelName == "MLP")
+			_gpModel->MLP_kernel(nTrain, nTrain, _nDim,
+				_poreConc.data(), _poreConc.data(), _kernelMat.data());
+		else if (_kernelName == "RBF")
+			_gpModel->RBF_kernel(_poreConc.data(), _poreConc.data(),
+				_kernelMat.data(), nTrain);
+		else if (_kernelName == "RBF_Linear")
+			_gpModel->RBF_Linear_Kernel(_poreConc.data(), _poreConc.data(),
+				_kernelMat.data(), nTrain);
+		else if (_kernelName == "MLP_Linear")
+			_gpModel->MLP_Linear_Kernel(_poreConc.data(), _poreConc.data(),
+				_kernelMat.data(), nTrain);
+		else
+			throw InvalidParameterException("GPR: unsupported kernel: " + _kernelName);
+
+		// --- Solve for alpha = (K + sigma^2 I)^{-1} y ---
+		// kernel_inv_y does NOT destroy _kernelMat (unlike original MKL dposv)
+		_alpha.assign(nTrain, 0.0);
+		_gpModel->kernel_inv_y(_solidConc.data(), _kernelMat.data(), _alpha.data());
+
+		// --- Compute offset = prediction at c_p = 0 for bias correction ---
+		// This enforces q(c_p=0) = 0. Only physically meaningful if your
+		// isotherm truly passes through the origin. Verify against training data.
+		std::vector<double> zeroPt(_nDim, 0.0);
+		_offset = _gpModel->prediction(_poreConc.data(), zeroPt.data(), _alpha.data());
 
 		return result;
 	}
 
+	// -------------------------------------------------------------------------
+	// Flux: res[bndIdx] = kKin[i] * (q[bndIdx] - q_GPR(c_p))
+	//
+	// At steady state res = 0, so q = q_GPR(c_p), i.e. the GPR isotherm.
+	// The kinetic rate kKin drives q toward the GPR equilibrium prediction.
+	// -------------------------------------------------------------------------
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
-	int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
-		CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
+	int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		StateType const* y, CpStateType const* yCp, ResidualType* res,
+		LinearBufferAllocator workSpace) const
 	{
-		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		typename ParamHandler_t::ParamsHandle const p =
+			_paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		// We have to implement -kKin * (f(c_p) - q) = kKin * (q - f(c_p))
-		// where f is the ML model
+		// Evaluate GPR isotherm at current pore concentration
+		// Note: GPR always works in double; AD types in yCp are cast to double here.
+		// The Jacobian w.r.t. yCp is provided analytically in jacobianImpl.
+		std::vector<double> cpVec(_nDim);
+		for (unsigned int i = 0; i < _nDim; ++i)
+			cpVec[i] = static_cast<double>(yCp[i]);
 
-		// y points to q
-		// yCp points to c_p
-		// Use workSpace to obtain scratch memory
+		const double qML = _gpModel->prediction(_poreConc.data(), cpVec.data(), _alpha.data())
+			- _offset;
 
-		// Get a vector of doubles for the result of the ML model
-		BufferedArray<double> qMLarray = workSpace.array<double>(_nComp);
-		double* qML = static_cast<double*>(qMLarray); //double const* qML
-
-		// Run the ML model on the c_p
-		mlModel(qML, yCp, workSpace);
-
-		// Compute res = kKin * (q - f(c_p))
 		unsigned int bndIdx = 0;
-		for (int i = 0; i < _nComp; ++i)
+		for (unsigned int i = 0; i < _nComp; ++i)
 		{
-			// Skip components without bound states (bound state index bndIdx is not advanced)
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			// Residual: kKin * (q - f(c_p))
-			res[bndIdx] = static_cast<ParamType>(p->kKin[i]) * (y[bndIdx] - qML[bndIdx]);
+			// res = kKin * (q - q_GPR)
+			// At equilibrium (res=0): q = q_GPR(c_p)  ✓
+			res[bndIdx] = static_cast<ParamType>(p->kKin[i])
+				* (static_cast<ResidualType>(y[bndIdx]) - static_cast<ResidualType>(qML));
 
-			// Next bound component
 			++bndIdx;
 		}
 
 		return 0;
 	}
 
-	template <typename StateType>
-	void mlModel(double* q, StateType const* cp, LinearBufferAllocator workSpace) const
-	{
-		// Here goes the ML model
-		// Fill q array (output) using cp array (input)
-		/* ***************************************************
-		****Forward propagation of the neural network********
-		******************************************************/
-				
-		std::vector<double> matCp(_nComp, 0.0);
-
-		for (unsigned int i = 0; i < _nComp; i++)
-		{
-			matCp[i]  = static_cast<double>(cp[0]);
-		}
-
-		GP::GPR_Class gp(solid_phase_concentration.size(), solid_phase_concentration.size(), ndim,
-			GPR_parameters[0], GPR_parameters[1], GPR_parameters[2], GPR_parameters[3], GPR_parameters[4],
-			GPR_parameters[5], GPR_parameters[6],
-			kernel_name);
-
-		double prediction = gp.prediction(pore_phase_concentration.data(), matCp.data(), K_inv_y.data());
-
-		// todo make this actually multi-component
-		for (unsigned int i = 0; i < _nComp; i++)
-		{
-			q[i] = prediction - offset;
-		}
-				
-	}
-
+	// -------------------------------------------------------------------------
+	// Jacobian of res[bndIdx] = kKin[i] * (q[bndIdx] - q_GPR(c_p[i]))
+	//
+	// dres[bndIdx]/dq[bndIdx]  =  kKin[i]          -> jac[0]
+	// dres[bndIdx]/dc_p[i]     = -kKin[i] * dqGPR/dc_p[i]  -> jac[i - bndIdx - offsetCp]
+	//
+	// No cross-component Jacobian terms (single-component, no coupling).
+	// -------------------------------------------------------------------------
 	template <typename RowIterator>
-	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double const* yCp, int offsetCp, RowIterator jac, LinearBufferAllocator workSpace) const
+	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		double const* y, double const* yCp, int offsetCp, RowIterator jac,
+		LinearBufferAllocator workSpace) const
 	{
-		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
-		//std::cout << "Time is : " << t << "\n";
-		// We have to implement Jacobian of -kKin * (f(c_p) - q) wrt. c_p and q
-		// where f is the ML model
+		typename ParamHandler_t::ParamsHandle const p =
+			_paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		// y points to q
-		// yCp points to c_p
-		// Use workSpace to obtain scratch memory
+		// Build c_p vector for derivative evaluation
+		std::vector<double> cpVec(_nDim);
+		for (unsigned int i = 0; i < _nDim; ++i)
+			cpVec[i] = yCp[i];
 
-				
-		std::vector<double> jacobian(_nComp, 0.0);
-		std::vector<double> matCp(_nComp, 0.0);
-
-		for (unsigned int i = 0; i < _nComp; i++)
-		{
-			matCp[i] = yCp[i];
-		}
-
-		GP::GPR_Class gp(solid_phase_concentration.size(), solid_phase_concentration.size(), ndim,
-			GPR_parameters[0], GPR_parameters[1], GPR_parameters[2], GPR_parameters[3], GPR_parameters[4],
-			GPR_parameters[5], GPR_parameters[6],
-			kernel_name);
-
-		if (kernel_name == "MLP")
-		{
-			gp.MLP_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data());
-		}
-		else if (kernel_name == "RBF")
-		{
-			gp.RBF_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data());
-		}
-		else if (kernel_name == "RBF_Linear")
-		{
-			gp.RBF_Linear_derivative(pore_phase_concentration.data(), matCp.data(), K_inv_y.data());
-		}
+		// Compute dq_GPR / dc_p using the analytical kernel derivative
+		double dqdc = 0.0;
+		if (_kernelName == "MLP")
+			dqdc = _gpModel->MLP_derivative(_poreConc.data(), cpVec.data(), _alpha.data());
+		else if (_kernelName == "RBF")
+			dqdc = _gpModel->RBF_derivative(_poreConc.data(), cpVec.data(), _alpha.data());
+		else if (_kernelName == "RBF_Linear")
+			dqdc = _gpModel->RBF_Linear_derivative(_poreConc.data(), cpVec.data(), _alpha.data());
+		else if (_kernelName == "MLP_Linear")
+			dqdc = _gpModel->MLP_Linear_derivative(_poreConc.data(), cpVec.data(), _alpha.data());
+		// If kernel is unknown we leave dqdc = 0 — configureImpl would have thrown already.
 
 		unsigned int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
 		{
-			// Skip components without bound states (bound state index bndIdx is not advanced)
 			if (_nBoundStates[i] == 0)
 				continue;
 
 			const double kkin = static_cast<double>(p->kKin[i]);
-					
 
-			for (int j = 0; j < _nComp; ++j)
-			{
-						
-				jac[j - bndIdx - offsetCp] = -kkin * jacobian[j];
+			// dres[bndIdx] / dc_p[i]
+			// Index: from q[bndIdx], step back bndIdx positions to q[0],
+			// then -offsetCp to c_p[0], then +i to c_p[i].
+			jac[i - static_cast<int>(bndIdx) - offsetCp] = -kkin * dqdc;
 
-			}
-
-			// dres_i / dq_i
+			// dres[bndIdx] / dq[bndIdx]
 			jac[0] = kkin;
 
-			// Advance to next flux and Jacobian row
 			++bndIdx;
 			++jac;
 		}

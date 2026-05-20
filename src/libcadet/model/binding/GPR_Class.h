@@ -21,7 +21,7 @@ namespace GP
 			, mlp_variance(mlp_var)
 			, gaussian_variance(gaussian_var)
 			, rbf_variance(rbf_var)
-			, rbf_lengthscale(rbf_ls)
+			, rbf_lengthscale(rbf_ls)   // Expected to be ls^2 as exported from Python
 			, linear_variance(lin_var)
 			, kernel_choice(kernel_name)
 			, M(m)
@@ -30,7 +30,11 @@ namespace GP
 		{
 		}
 
-		void sqdist(const double* X, const double* Y, double* sqdist_t1_t2,
+		// -----------------------------------------------------------------------
+		// Squared distance: result[i,j] = ||X[i] - Y[j]||^2
+		// X: (train_data_size x K), Y: (test_data_size x K), row-major
+		// -----------------------------------------------------------------------
+		void sqdist(const double* X, const double* Y, double* out,
 			unsigned int train_data_size, unsigned int test_data_size) const
 		{
 			for (unsigned int i = 0; i < train_data_size; ++i)
@@ -43,27 +47,38 @@ namespace GP
 						const double diff = X[i * K + d] - Y[j * K + d];
 						s += diff * diff;
 					}
-					sqdist_t1_t2[i * test_data_size + j] = s;
+					out[i * test_data_size + j] = s;
 				}
 			}
 		}
 
-		void RBF_kernel(const double* X, const double* Y, double* kernel, unsigned int test_data_size) const
+		// -----------------------------------------------------------------------
+		// RBF kernel: k(x,y) = rbf_variance * exp(-||x-y||^2 / (2 * rbf_lengthscale))
+		// rbf_lengthscale is assumed to be ls^2 (as exported from scikit-learn)
+		// X: (M x K), Y: (test_data_size x K), kernel: (M x test_data_size)
+		// -----------------------------------------------------------------------
+		void RBF_kernel(const double* X, const double* Y, double* kernel,
+			unsigned int test_data_size) const
 		{
-			std::vector<double> sqdist_values(static_cast<std::size_t>(M) * test_data_size, 0.0);
-			sqdist(X, Y, sqdist_values.data(), M, test_data_size);
+			std::vector<double> sq(static_cast<std::size_t>(M) * test_data_size, 0.0);
+			sqdist(X, Y, sq.data(), M, test_data_size);
 
 			for (unsigned int i = 0; i < M; ++i)
 			{
 				for (unsigned int j = 0; j < test_data_size; ++j)
 				{
-					const double exponent = -sqdist_values[i * test_data_size + j] / (2.0 * rbf_lengthscale);
-					kernel[i * test_data_size + j] = rbf_variance * std::exp(exponent);
+					kernel[i * test_data_size + j] = rbf_variance
+						* std::exp(-sq[i * test_data_size + j] / (2.0 * rbf_lengthscale));
 				}
 			}
 		}
 
-		void Linear_kernel(const double* X, const double* Y, double* kernel, unsigned int test_data_size) const
+		// -----------------------------------------------------------------------
+		// Linear kernel: k(x,y) = linear_variance * (x . y)
+		// X: (M x K), Y: (test_data_size x K), kernel: (M x test_data_size)
+		// -----------------------------------------------------------------------
+		void Linear_kernel(const double* X, const double* Y, double* kernel,
+			unsigned int test_data_size) const
 		{
 			for (unsigned int i = 0; i < M; ++i)
 			{
@@ -77,177 +92,230 @@ namespace GP
 			}
 		}
 
-		void MLP_kernel(unsigned int x_row, unsigned int y_col, unsigned int x_col,
+		// -----------------------------------------------------------------------
+		// MLP (arc-cosine) kernel
+		// k(x,y) = mlp_variance * (2/pi) * asin(num / (denomX * denomY))
+		// num    = w * dot(x,y) + b
+		// denomX = sqrt(w * ||x||^2 + b + 1),  denomY = sqrt(w * ||y||^2 + b + 1)
+		// X: (x_row x x_col), Y: (y_row x x_col), kernel: (x_row x y_row)
+		// -----------------------------------------------------------------------
+		void MLP_kernel(unsigned int x_row, unsigned int y_row, unsigned int x_col,
 			const double* X, const double* Y, double* kernel) const
 		{
-			constexpr double pi = 3.14159265358979323846;
+			constexpr double twoOverPi = 2.0 / 3.14159265358979323846;
+
 			for (unsigned int i = 0; i < x_row; ++i)
 			{
-				for (unsigned int j = 0; j < y_col; ++j)
+				// Precompute x_i norm — shared across all j
+				double xnorm = 0.0;
+				for (unsigned int d = 0; d < x_col; ++d)
+					xnorm += X[i * x_col + d] * X[i * x_col + d];
+				const double denomX = std::sqrt(mlp_weight_variance * xnorm + mlp_bias_variance + 1.0);
+
+				for (unsigned int j = 0; j < y_row; ++j)
 				{
-					double dot = 0.0;
-					double xnorm = 0.0;
 					double ynorm = 0.0;
+					double dot   = 0.0;
 					for (unsigned int d = 0; d < x_col; ++d)
 					{
-						const double xv = X[i * x_col + d];
 						const double yv = Y[j * x_col + d];
-						dot += xv * yv;
-						xnorm += xv * xv;
 						ynorm += yv * yv;
+						dot   += X[i * x_col + d] * yv;
 					}
-
-					const double numerator = mlp_weight_variance * dot + mlp_bias_variance;
-					const double denomX = std::sqrt(mlp_weight_variance * xnorm + mlp_bias_variance + 1.0);
 					const double denomY = std::sqrt(mlp_weight_variance * ynorm + mlp_bias_variance + 1.0);
-					const double denom = denomX * denomY;
-					const double arg = (denom > 0.0) ? std::clamp(numerator / denom, -1.0, 1.0) : 0.0;
-					kernel[i * y_col + j] = mlp_variance * (2.0 / pi) * std::asin(arg);
+					const double num    = mlp_weight_variance * dot + mlp_bias_variance;
+					const double arg    = std::clamp(num / (denomX * denomY), -1.0, 1.0);
+					kernel[i * y_row + j] = mlp_variance * twoOverPi * std::asin(arg);
 				}
 			}
 		}
 
-		void kernel_inv_y(const double* Y_train, const double* kernel_train, double* chol_solution) const
+		// -----------------------------------------------------------------------
+		// Solve (K_train + gaussian_variance * I) * alpha = Y_train via Cholesky.
+		// Uses column-major Eigen::MatrixXd — required for Eigen::LLT correctness.
+		// Does NOT modify kernel_train (unlike original MKL dposv which destroyed it).
+		// -----------------------------------------------------------------------
+		void kernel_inv_y(const double* Y_train, const double* kernel_train,
+			double* chol_solution) const
 		{
-			using RowMajorMatrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
-			Eigen::Map<const RowMajorMatrix> kernel_map(kernel_train, M, M);
-			Eigen::Map<const Eigen::VectorXd> y_map(Y_train, M);
+			// Eigen::LLT requires column-major storage — copy explicitly
+			Eigen::MatrixXd K(static_cast<int>(M), static_cast<int>(M));
+			for (unsigned int i = 0; i < M; ++i)
+				for (unsigned int j = 0; j < M; ++j)
+					K(i, j) = kernel_train[i * M + j];
 
-			RowMajorMatrix kernel_mat = kernel_map;
-			kernel_mat.diagonal().array() += gaussian_variance;
+			K.diagonal().array() += gaussian_variance;
 
-			Eigen::LLT<RowMajorMatrix> llt(kernel_mat);
+			Eigen::Map<const Eigen::VectorXd> y(Y_train, static_cast<int>(M));
+
+			Eigen::LLT<Eigen::MatrixXd> llt(K);
 			if (llt.info() != Eigen::Success)
-				throw std::runtime_error("Cholesky decomposition failed for GPR kernel matrix");
+				throw std::runtime_error(
+					"GPR: kernel matrix is not positive definite. "
+					"Check gaussian_variance and training data.");
 
-			const Eigen::VectorXd alpha = llt.solve(y_map);
-			if (llt.info() != Eigen::Success)
-				throw std::runtime_error("Failed to solve GPR linear system");
-
-			Eigen::Map<Eigen::VectorXd>(chol_solution, M) = alpha;
+			Eigen::Map<Eigen::VectorXd>(chol_solution, static_cast<int>(M)) = llt.solve(y);
 		}
 
-		void RBF_Linear_Kernel(const double* X, const double* Y, double* out, unsigned int test_data_size) const
+		// -----------------------------------------------------------------------
+		// Composite kernels
+		// -----------------------------------------------------------------------
+		void RBF_Linear_Kernel(const double* X, const double* Y, double* out,
+			unsigned int test_data_size) const
 		{
-			std::vector<double> rbf_kernel(static_cast<std::size_t>(M) * test_data_size, 0.0);
-			std::vector<double> linear_kernel(static_cast<std::size_t>(M) * test_data_size, 0.0);
-			RBF_kernel(X, Y, rbf_kernel.data(), test_data_size);
-			Linear_kernel(X, Y, linear_kernel.data(), test_data_size);
-			for (std::size_t i = 0; i < rbf_kernel.size(); ++i)
-				out[i] = rbf_kernel[i] + linear_kernel[i];
+			const std::size_t sz = static_cast<std::size_t>(M) * test_data_size;
+			std::vector<double> rbf(sz, 0.0);
+			std::vector<double> lin(sz, 0.0);
+			RBF_kernel(X, Y, rbf.data(), test_data_size);
+			Linear_kernel(X, Y, lin.data(), test_data_size);
+			for (std::size_t i = 0; i < sz; ++i)
+				out[i] = rbf[i] + lin[i];
 		}
 
-		void MLP_Linear_Kernel(const double* X, const double* Y, double* out, unsigned int test_data_size) const
+		void MLP_Linear_Kernel(const double* X, const double* Y, double* out,
+			unsigned int test_data_size) const
 		{
-			std::vector<double> mlp_kernel(static_cast<std::size_t>(M) * test_data_size, 0.0);
-			std::vector<double> linear_kernel(static_cast<std::size_t>(M) * test_data_size, 0.0);
-			MLP_kernel(M, test_data_size, K, X, Y, mlp_kernel.data());
-			Linear_kernel(X, Y, linear_kernel.data(), test_data_size);
-			for (std::size_t i = 0; i < mlp_kernel.size(); ++i)
-				out[i] = mlp_kernel[i] + linear_kernel[i];
+			const std::size_t sz = static_cast<std::size_t>(M) * test_data_size;
+			std::vector<double> mlp(sz, 0.0);
+			std::vector<double> lin(sz, 0.0);
+			MLP_kernel(M, test_data_size, K, X, Y, mlp.data());
+			Linear_kernel(X, Y, lin.data(), test_data_size);
+			for (std::size_t i = 0; i < sz; ++i)
+				out[i] = mlp[i] + lin[i];
 		}
 
-		double prediction(const double* X_train, const double* X_test, const double* chol_solution) const
+		// -----------------------------------------------------------------------
+		// GPR mean prediction: mu = k(X_train, x*)^T * alpha
+		// -----------------------------------------------------------------------
+		double prediction(const double* X_train, const double* X_test,
+			const double* chol_solution) const
 		{
-			std::vector<double> kernel_train_test(M, 0.0);
+			std::vector<double> k_star(M, 0.0);
 
 			if (kernel_choice == "MLP")
-				MLP_kernel(M, 1u, K, X_train, X_test, kernel_train_test.data());
+				MLP_kernel(M, 1u, K, X_train, X_test, k_star.data());
 			else if (kernel_choice == "RBF")
-				RBF_kernel(X_train, X_test, kernel_train_test.data(), 1u);
+				RBF_kernel(X_train, X_test, k_star.data(), 1u);
 			else if (kernel_choice == "RBF_Linear")
-				RBF_Linear_Kernel(X_train, X_test, kernel_train_test.data(), 1u);
+				RBF_Linear_Kernel(X_train, X_test, k_star.data(), 1u);
 			else if (kernel_choice == "MLP_Linear")
-				MLP_Linear_Kernel(X_train, X_test, kernel_train_test.data(), 1u);
+				MLP_Linear_Kernel(X_train, X_test, k_star.data(), 1u);
 			else
-				throw std::invalid_argument("Unsupported kernel selected in GPR prediction");
+				throw std::invalid_argument("GPR: unsupported kernel: " + kernel_choice);
 
-			const Eigen::Map<const Eigen::VectorXd> k_vec(kernel_train_test.data(), M);
-			const Eigen::Map<const Eigen::VectorXd> alpha(chol_solution, M);
-			return k_vec.dot(alpha);
+			return Eigen::Map<const Eigen::VectorXd>(k_star.data(), static_cast<int>(M))
+				.dot(Eigen::Map<const Eigen::VectorXd>(chol_solution, static_cast<int>(M)));
 		}
 
-		double MLP_derivative(const double* X_train, const double* X_test, const double* chol_solution) const
-		{
-			constexpr double pi = 3.14159265358979323846;
-			double pred_derivative = 0.0;
+		// -----------------------------------------------------------------------
+		// Derivatives of prediction w.r.t. x* (scalar input, K=1 single-component)
+		// dmu/dx* = sum_i alpha_i * dk(x_i, x*)/dx*
+		// -----------------------------------------------------------------------
 
+		// RBF: dk/dx*_0 = -(x*_0 - x_i0) / rbf_lengthscale * k(x_i, x*)
+		// where rbf_lengthscale = ls^2
+		double RBF_derivative(const double* X_train, const double* X_test,
+			const double* chol_solution) const
+		{
+			std::vector<double> k_star(M, 0.0);
+			RBF_kernel(X_train, X_test, k_star.data(), 1u);
+
+			double deriv = 0.0;
 			for (unsigned int i = 0; i < M; ++i)
 			{
-				double dot = 0.0;
+				const double diff = X_test[0] - X_train[i * K];
+				deriv += -(diff / rbf_lengthscale) * k_star[i] * chol_solution[i];
+			}
+			return deriv;
+		}
+
+		// Linear: dk/dx*_0 = linear_variance * x_i0
+		double Linear_derivative(const double* X_train, const double* chol_solution) const
+		{
+			double deriv = 0.0;
+			for (unsigned int i = 0; i < M; ++i)
+				deriv += linear_variance * X_train[i * K] * chol_solution[i];
+			return deriv;
+		}
+
+		// MLP: quotient rule on asin(u), u = num / (g * h)
+		// g = denomX (depends on x_i, not x*), h = denomY (depends on x*)
+		// dnum/dx*_0 = w * X_train[i, 0]
+		// dh/dx*_0   = w * X_test[0] / h
+		// du/dx*_0   = (dnum * g*h - num * g * dh) / (g*h)^2
+		//            = dnum/h - num * dh / (g * h^2)   [simplified]
+		// dk/dx*_0   = mlp_variance * (2/pi) * du / sqrt(1 - u^2)
+		double MLP_derivative(const double* X_train, const double* X_test,
+			const double* chol_solution) const
+		{
+			constexpr double twoOverPi = 2.0 / 3.14159265358979323846;
+
+			// h and dh depend only on x*, precompute outside the training-point loop
+			double tnorm = 0.0;
+			for (unsigned int d = 0; d < K; ++d)
+				tnorm += X_test[d] * X_test[d];
+			const double h  = std::sqrt(mlp_weight_variance * tnorm + mlp_bias_variance + 1.0);
+			const double dh = (h > 0.0) ? (mlp_weight_variance * X_test[0] / h) : 0.0;
+
+			double deriv = 0.0;
+			for (unsigned int i = 0; i < M; ++i)
+			{
 				double xnorm = 0.0;
-				double tnorm = 0.0;
+				double dot   = 0.0;
 				for (unsigned int d = 0; d < K; ++d)
 				{
 					const double xv = X_train[i * K + d];
-					const double tv = X_test[d];
-					dot += xv * tv;
 					xnorm += xv * xv;
-					tnorm += tv * tv;
+					dot   += xv * X_test[d];
 				}
 
-				const double a = mlp_weight_variance;
-				const double b = mlp_bias_variance;
-				const double numerator = a * dot + b;
-				const double g = std::sqrt(a * xnorm + b + 1.0);
-				const double h = std::sqrt(a * tnorm + b + 1.0);
-				const double denom = g * h;
-				if (denom <= 0.0)
+				const double g   = std::sqrt(mlp_weight_variance * xnorm + mlp_bias_variance + 1.0);
+				const double num = mlp_weight_variance * dot + mlp_bias_variance;
+				const double gh  = g * h;
+
+				if (gh <= 0.0)
 					continue;
 
-				const double u = std::clamp(numerator / denom, -1.0, 1.0);
+				const double u          = std::clamp(num / gh, -1.0, 1.0);
+				const double oneMinusU2 = std::max(1.0e-14, 1.0 - u * u);
 
-				// Derivative with respect to the first input dimension (single-component usage)
-				const double x0 = X_train[i * K];
-				const double t0 = X_test[0];
-				const double hprime = (h > 0.0) ? (a * t0 / h) : 0.0;
-				const double du = (a * x0 * denom - numerator * g * hprime) / (denom * denom);
-				const double one_minus_u2 = std::max(1e-14, 1.0 - u * u);
-				const double dk = mlp_variance * (2.0 / pi) * du / std::sqrt(one_minus_u2);
-				pred_derivative += dk * chol_solution[i];
+				// dnum/dx*_0 = w * X_train[i, 0]  (K=1, d=0 only)
+				const double dnum = mlp_weight_variance * X_train[i * K];
+				const double du   = dnum / (g * h) - num * dh / (g * h * h);
+				const double dk   = mlp_variance * twoOverPi * du / std::sqrt(oneMinusU2);
+				deriv += dk * chol_solution[i];
 			}
 
-			return pred_derivative;
+			return deriv;
 		}
 
-		double Linear_derivative(const double* X_train, const double* chol_solution) const
+		// Composite derivatives
+		double RBF_Linear_derivative(const double* X_train, const double* X_test,
+			const double* chol_solution) const
 		{
-			double linear_derivative = 0.0;
-			for (unsigned int i = 0; i < M; ++i)
-				linear_derivative += linear_variance * X_train[i * K] * chol_solution[i];
-			return linear_derivative;
+			return RBF_derivative(X_train, X_test, chol_solution)
+				 + Linear_derivative(X_train, chol_solution);
 		}
 
-		double RBF_derivative(const double* X_train, const double* X_test, const double* chol_solution) const
+		double MLP_Linear_derivative(const double* X_train, const double* X_test,
+			const double* chol_solution) const
 		{
-			std::vector<double> kernel_train_test(M, 0.0);
-			RBF_kernel(X_train, X_test, kernel_train_test.data(), 1u);
-
-			double pred_derivative = 0.0;
-			for (unsigned int i = 0; i < M; ++i)
-			{
-				const double x_tilda_star = X_test[0] - X_train[i * K];
-				pred_derivative += -(x_tilda_star / rbf_lengthscale) * kernel_train_test[i] * chol_solution[i];
-			}
-			return pred_derivative;
-		}
-
-		double RBF_Linear_derivative(const double* X_train, const double* X_test, const double* chol_solution) const
-		{
-			return RBF_derivative(X_train, X_test, chol_solution) + Linear_derivative(X_train, chol_solution);
+			return MLP_derivative(X_train, X_test, chol_solution)
+				 + Linear_derivative(X_train, chol_solution);
 		}
 
 	private:
-		double mlp_weight_variance;
-		double mlp_bias_variance;
-		double mlp_variance;
-		double gaussian_variance;
-		double rbf_variance;
-		double rbf_lengthscale;
-		double linear_variance;
-		std::string kernel_choice;
-		unsigned int M;
-		unsigned int N;
-		unsigned int K;
+		double       mlp_weight_variance;
+		double       mlp_bias_variance;
+		double       mlp_variance;
+		double       gaussian_variance;
+		double       rbf_variance;
+		double       rbf_lengthscale;   // = ls^2 as exported from Python
+		double       linear_variance;
+		std::string  kernel_choice;
+		unsigned int M;   // number of training points
+		unsigned int N;   // unused — kept for API compatibility
+		unsigned int K;   // input dimensionality (1 for single-component)
 	};
-}
+
+}  // namespace GP
