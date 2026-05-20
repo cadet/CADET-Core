@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET
 //
-//  Copyright © 2008-2021: The CADET Authors
+//  Copyright © 2008-present: The CADET Authors
 //            Please see the AUTHORS and CONTRIBUTORS file.
 //
 //  All rights reserved. This program and the accompanying materials
@@ -68,6 +68,7 @@ template <class ParamHandler_t>
 class GPRBindingBase : public ParamHandlerBindingModelBase<ParamHandler_t>
 {
 public:
+
 	GPRBindingBase()
 		: _poreConc()
 		, _solidConc()
@@ -75,9 +76,9 @@ public:
 		, _kernelMat()
 		, _alpha()
 		, _offset(0.0)
-		, _kernelName()
 		, _nDim(1u)
 		, _gpModel()
+		, _cpVecCache()
 	{
 	}
 
@@ -96,6 +97,7 @@ public:
 	CADET_BINDINGMODELBASE_BOILERPLATE
 
 protected:
+
 	using ParamHandlerBindingModelBase<ParamHandler_t>::_paramHandler;
 	using ParamHandlerBindingModelBase<ParamHandler_t>::_reactionQuasistationarity;
 	using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
@@ -108,9 +110,9 @@ protected:
 	std::vector<double>            _kernelMat;  // K(X_train, X_train): (nTrain x nTrain)
 	std::vector<double>            _alpha;      // K^{-1} y: (nTrain,)
 	double                         _offset;     // prediction at c_p = 0 for bias removal
-	std::string                    _kernelName;
 	unsigned int                   _nDim;
 	std::unique_ptr<GP::GPR_Class> _gpModel;
+	mutable std::vector<double>    _cpVecCache; // cache for c_p vector
 
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
@@ -120,7 +122,7 @@ protected:
 		_solidConc = paramProvider.getDoubleArray("CS_VALS");
 		_poreConc = paramProvider.getDoubleArray("CP_VALS");
 		_gprParams = paramProvider.getDoubleArray("TRAINED_PARAMS");
-		_kernelName = paramProvider.getString("KERNEL");
+
 		if (paramProvider.getInt("NDIM") > 0)
 			_nDim = paramProvider.getInt("NDIM");
 		else
@@ -159,25 +161,13 @@ protected:
 			_gprParams[4],   // rbf_variance
 			_gprParams[5],   // rbf_lengthscale (= ls^2)
 			_gprParams[6],   // gaussian_variance (noise)
-			_kernelName);
+			paramProvider.getString("KERNEL")
+			);
 
 		// --- Compute training kernel matrix K(X_train, X_train) ---
 		_kernelMat.assign(static_cast<std::size_t>(nTrain) * nTrain, 0.0);
 
-		if (_kernelName == "MLP")
-			_gpModel->MLP_kernel(nTrain, nTrain, _nDim,
-				_poreConc.data(), _poreConc.data(), _kernelMat.data());
-		else if (_kernelName == "RBF")
-			_gpModel->RBF_kernel(_poreConc.data(), _poreConc.data(),
-				_kernelMat.data(), nTrain);
-		else if (_kernelName == "RBF_Linear")
-			_gpModel->RBF_Linear_Kernel(_poreConc.data(), _poreConc.data(),
-				_kernelMat.data(), nTrain);
-		else if (_kernelName == "MLP_Linear")
-			_gpModel->MLP_Linear_Kernel(_poreConc.data(), _poreConc.data(),
-				_kernelMat.data(), nTrain);
-		else
-			throw InvalidParameterException("GPR: unsupported kernel: " + _kernelName);
+		_gpModel->GPR_kernel(_poreConc.data(), _poreConc.data(), _kernelMat.data());
 
 		// --- Solve for alpha = (K + sigma^2 I)^{-1} y ---
 		// kernel_inv_y does NOT destroy _kernelMat (unlike original MKL dposv)
@@ -187,8 +177,8 @@ protected:
 		// --- Compute offset = prediction at c_p = 0 for bias correction ---
 		// This enforces q(c_p=0) = 0. Only physically meaningful if your
 		// isotherm truly passes through the origin. Verify against training data.
-		std::vector<double> zeroPt(_nDim, 0.0);
-		_offset = _gpModel->prediction(_poreConc.data(), zeroPt.data(), _alpha.data());
+		_cpVecCache.resize(_nDim, 0.0);
+		_offset = _gpModel->prediction(_poreConc.data(), _cpVecCache.data(), _alpha.data());
 
 		return result;
 	}
@@ -209,12 +199,10 @@ protected:
 
 		// Evaluate GPR isotherm at current pore concentration
 		// Note: GPR always works in double; AD types in yCp are cast to double here.
-		// The Jacobian w.r.t. yCp is provided analytically in jacobianImpl.
-		std::vector<double> cpVec(_nDim);
 		for (unsigned int i = 0; i < _nDim; ++i)
-			cpVec[i] = static_cast<double>(yCp[i]);
+			_cpVecCache[i] = static_cast<double>(yCp[i]);
 
-		const double qML = _gpModel->prediction(_poreConc.data(), cpVec.data(), _alpha.data())
+		const double qML = _gpModel->prediction(_poreConc.data(), _cpVecCache.data(), _alpha.data())
 			- _offset;
 
 		unsigned int bndIdx = 0;
@@ -256,16 +244,7 @@ protected:
 			cpVec[i] = yCp[i];
 
 		// Compute dq_GPR / dc_p using the analytical kernel derivative
-		double dqdc = 0.0;
-		if (_kernelName == "MLP")
-			dqdc = _gpModel->MLP_derivative(_poreConc.data(), cpVec.data(), _alpha.data());
-		else if (_kernelName == "RBF")
-			dqdc = _gpModel->RBF_derivative(_poreConc.data(), cpVec.data(), _alpha.data());
-		else if (_kernelName == "RBF_Linear")
-			dqdc = _gpModel->RBF_Linear_derivative(_poreConc.data(), cpVec.data(), _alpha.data());
-		else if (_kernelName == "MLP_Linear")
-			dqdc = _gpModel->MLP_Linear_derivative(_poreConc.data(), cpVec.data(), _alpha.data());
-		// If kernel is unknown we leave dqdc = 0 — configureImpl would have thrown already.
+		const double dqdc = _gpModel->GPR_derivative(_poreConc.data(), cpVec.data(), _alpha.data());
 
 		unsigned int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
