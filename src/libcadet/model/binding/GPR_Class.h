@@ -16,7 +16,8 @@ namespace GP
 		GPR_Class(unsigned int m, unsigned int n, unsigned int k,
 			double mlp_weight_var, double mlp_bias_var, double mlp_var, double lin_var,
 			double rbf_var, double rbf_ls, double gaussian_var, const std::string& kernel_name)
-			: mlp_weight_variance(mlp_weight_var)
+			: kernelType(KernelType::Unknown)
+			, mlp_weight_variance(mlp_weight_var)
 			, mlp_bias_variance(mlp_bias_var)
 			, mlp_variance(mlp_var)
 			, gaussian_variance(gaussian_var)
@@ -38,7 +39,6 @@ namespace GP
 			, workspace_k_star(m)
 			, workspace_norms_x(m)  // Precomputed norms for X_train
 			, workspace_norms_y(m)  // Precomputed norms for Y/X_test
-			, kernelType(KernelType::Unknown)
 		{
 			if (kernel_name == "MLP")
 				kernelType = KernelType::MLP;
@@ -407,6 +407,7 @@ namespace GP
 		}
 
 		// Kernel hyperparameters
+		KernelType kernelType;
 		double       mlp_weight_variance;
 		double       mlp_bias_variance;
 		double       mlp_variance;
@@ -414,7 +415,6 @@ namespace GP
 		double       rbf_variance;
 		double       rbf_lengthscale;   // = ls^2 as exported from Python
 		double       linear_variance;
-		KernelType kernelType;
 
 		unsigned int M;   // number of training points
 		unsigned int N;   // unused — kept for API compatibility
