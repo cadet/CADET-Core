@@ -70,8 +70,8 @@ class GPRBindingBase : public ParamHandlerBindingModelBase<ParamHandler_t>
 public:
 	GPRBindingBase()
 		: _poreConc()
-		, _gprParams()
 		, _solidConc()
+		, _gprParams()
 		, _kernelMat()
 		, _alpha()
 		, _offset(0.0)
