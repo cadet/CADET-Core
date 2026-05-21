@@ -302,6 +302,11 @@ The models also differ in whether a mobile phase modifier (e.g., salt) is suppor
      - ×
      - ✓
      - ✓
+   * - :ref:`gaussian_process_regression`
+     - ×
+     - ×
+     - ✓
+     - ×
 
 
 .. toctree::
