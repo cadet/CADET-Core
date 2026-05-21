@@ -160,7 +160,7 @@ TEST_CASE("Reference test: spline binding single component", "[Column_1D],[Splin
 TEST_CASE("Reference test: GPR binding with MLP kernel single component", "[Column_1D],[GPRBinding],[Simulation],[CI]")
 {
 	std::string modelFilePath = std::string("/data/config_COL1D_GRM_GPR_Shallow_MLP_7.json");
-	std::string refFilePath = std::string("/data/ref_Col1D_GRM_GPR_Shallow_MLP_7.h5");
+	std::string refFilePath = std::string("/data/ref_COL1D_GRM_GPR_Shallow_MLP_7.h5");
 	const std::vector<double> absTol = { 1e-10 };
 	const std::vector<double> relTol = { 1e-6 };
 
@@ -171,7 +171,7 @@ TEST_CASE("Reference test: GPR binding with MLP kernel single component", "[Colu
 TEST_CASE("Reference test: GPR binding with RBF kernel single component", "[Column_1D],[GPRBinding],[Simulation],[CI]")
 {
 	std::string modelFilePath = std::string("/data/config_COL1D_GRM_GPR_Shallow_RBF_15.json");
-	std::string refFilePath = std::string("/data/ref_Col1D_GRM_GPR_Shallow_RBF_15.h5");
+	std::string refFilePath = std::string("/data/ref_COL1D_GRM_GPR_Shallow_RBF_15.h5");
 	const std::vector<double> absTol = { 1e-10 };
 	const std::vector<double> relTol = { 1e-6 };
 
