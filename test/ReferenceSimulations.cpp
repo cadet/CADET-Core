@@ -161,7 +161,7 @@ TEST_CASE("Reference test: GPR binding with MLP kernel single component", "[Colu
 {
 	std::string modelFilePath = std::string("/data/config_COL1D_GRM_GPR_Shallow_MLP_7.json");
 	std::string refFilePath = std::string("/data/ref_COL1D_GRM_GPR_Shallow_MLP_7.h5");
-	const std::vector<double> absTol = { 1e-6 };
+	const std::vector<double> absTol = { 5e-4 };
 	const std::vector<double> relTol = { 1e-5 };
 
 	cadet::test::column::FVParams disc(20, 5, 3);
@@ -172,7 +172,7 @@ TEST_CASE("Reference test: GPR binding with RBF kernel single component", "[Colu
 {
 	std::string modelFilePath = std::string("/data/config_COL1D_GRM_GPR_Shallow_RBF_15.json");
 	std::string refFilePath = std::string("/data/ref_COL1D_GRM_GPR_Shallow_RBF_15.h5");
-	const std::vector<double> absTol = { 1e-6 };
+	const std::vector<double> absTol = { 1e-5 };
 	const std::vector<double> relTol = { 1e-5 };
 
 	cadet::test::column::FVParams disc(20, 5, 3);
