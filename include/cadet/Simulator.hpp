@@ -728,10 +728,37 @@ public:
 	 */
 	virtual void setNotificationCallback(INotificationCallback* nc) CADET_NOEXCEPT = 0;
 
+	/**
+	 * @brief Checks whether the simulation was stopped by the notification callback
+	 */
+	virtual bool stoppedByNotificationCallback() CADET_NOEXCEPT = 0;
+
+	/**		
+	 * @brief Prepares the simulator for step-by-step integration
+	 * @details Performs initialization steps normally done in integrate(), including:
+	 *          parallelization setup, AD vector preparation, consistent initial conditions,
+	 *          and IDAS initialization. Stops before the actual time integration loop.
+	 */
 	virtual void  prepareIntegrator() = 0;
 
+	/**
+	 * @brief Performs one integration step to the specified target time
+	 * @details Only supports single-section integration. Uses IDAS solver to advance
+	 *          the simulation and extracts sensitivity information if available.
+	 * @param [in] tEnd Target time to integrate to
+	 * @param [out] tReached Actually reached time (may differ from tEnd)
+	 * @return 0 on success, negative error code on failure
+	 */
     virtual int integrateStep(double tEnd, double& tReached) = 0;
 
+	/**
+	 * @brief Reinitializes the integrator at the specified time
+	 * @details Determines the current section, zeros yDot, notifies model of discontinuous
+	 *          section transition, applies lean consistent initialization, and reinitializes
+	 *          IDAS solver with the new state.
+	 * @param [in] currentTime Simulation time to reinitialize at
+	 * @return 0 on success, negative error code on failure (e.g., -1 if IDAS not initialized)
+	 */
 	virtual int reinitialize(double currentTime) = 0;
 };
 

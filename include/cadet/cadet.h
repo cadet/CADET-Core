@@ -183,7 +183,11 @@ extern "C"
 		/**
 		 * @brief Success
 		 */
-		cdtOK = 0
+		cdtOK = 0,
+		/**
+		 * @brief Stopped by callback
+		 */
+		cdtStoppedByCallback = 1
 	};
 
 	/**

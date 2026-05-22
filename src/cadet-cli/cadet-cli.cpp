@@ -258,6 +258,9 @@ int run(const std::string& inFileName, const std::string& outFileName, bool show
 	try
 	{
 		drv.run();
+
+		if (drv.simulator()->stoppedByNotificationCallback())
+			returnCode = 4;
 	}
 	catch (const cadet::IntegrationException& e)
 	{

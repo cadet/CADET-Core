@@ -411,6 +411,8 @@ namespace v1
 
 			realDrv->run();
 
+			if(realDrv->simulator()->stoppedByNotificationCallback())
+				return cdtStoppedByCallback;
 		}
 		catch(const std::exception& e)
 		{
