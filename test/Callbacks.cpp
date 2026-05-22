@@ -75,28 +75,9 @@ TEST_CASE("Test Callback: timeout interrupts simulation but data is saved", "[Ca
 		cadet::JsonParameterProvider pp = createLWEConfigForTimeoutTest("COLUMN_MODEL_1D_GRM", timeout, polyDeg, nElem);
 
 		driver.configure(pp);
+		driver.run();
 
-		bool properErrorThrown = false;
-
-		try
-		{
-			driver.run();
-		}
-		catch (const IntegrationException& e)
-		{
-			properErrorThrown = true;
-
-			REQUIRE_THAT(
-				std::string(e.what()),
-				Catch::Matchers::Contains("Error in IDASolve")
-			);
-			REQUIRE_THAT(
-				std::string(e.what()),
-				Catch::Matchers::Contains("IDA_LSOLVE_FAIL")
-			);
-		}
-
-		REQUIRE(properErrorThrown);
+		REQUIRE(driver.simulator()->stoppedByNotificationCallback());
 		// factor applied since callback is invoked at the end of a time step, which might be a little later than the specified timeout
 		REQUIRE(driver.simulator()->lastSimulationDuration() <= 1.2 * timeout);
 

@@ -728,6 +728,8 @@ public:
 	 */
 	virtual void setNotificationCallback(INotificationCallback* nc) CADET_NOEXCEPT = 0;
 
+	virtual bool stoppedByNotificationCallback() CADET_NOEXCEPT = 0;
+
 	virtual void  prepareIntegrator() = 0;
 
     virtual int integrateStep(double tEnd, double& tReached) = 0;

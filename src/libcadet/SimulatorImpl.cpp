@@ -329,7 +329,10 @@ namespace cadet
 		if (sim->_notification)
 		{
 			const unsigned int secIdx = sim->getCurrentSection(t);
-			if (!sim->_notification->timeIntegrationLinearSolve(secIdx, t, NVEC_DATA(y), NVEC_DATA(yDot)))
+
+			sim->_stoppedByCallback = !sim->_notification->timeIntegrationLinearSolve(secIdx, t, NVEC_DATA(y), NVEC_DATA(yDot));
+
+			if (sim->_stoppedByCallback)
 				return IDA_TOO_MUCH_WORK;
 		}
 
@@ -373,7 +376,7 @@ namespace cadet
 		_nThreads(0), _sensErrorTestEnabled(true), _maxNewtonIter(4), _maxErrorTestFail(10), _maxConvTestFail(10),
 		_maxNewtonIterSens(4), _curSec(0), _skipConsistencyStateY(false), _skipConsistencySensitivity(false),
 		_consistentInitMode(ConsistentInitialization::Full), _consistentInitModeSens(ConsistentInitialization::Full),
-		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr)
+		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr), _stoppedByCallback(false)
 	{
 #if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 		LOG(Debug) << "Resetting AD directions from " << ad::getDirections() << " to default " << ad::getMaxDirections();
@@ -1048,6 +1051,8 @@ namespace cadet
 		ad::setDirections(numSensitivityAdDirections() + _model->requiredADdirs());
 #endif
 
+		_stoppedByCallback = false;
+
 		if (_notification)
 			_notification->timeIntegrationStart();
 
@@ -1225,7 +1230,10 @@ namespace cadet
 			if (_notification)
 			{
 				const double progress = (curT - static_cast<double>(_sectionTimes[0])) / (tEnd - static_cast<double>(_sectionTimes[0]));
-				if (!_notification->timeIntegrationSection(_curSec, curT, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), progress))
+
+				_stoppedByCallback = !_notification->timeIntegrationSection(_curSec, curT, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), progress);
+
+				if (_stoppedByCallback)
 				{
 					_lastIntTime = _timerIntegration.stop();
 					return;
@@ -1347,7 +1355,10 @@ namespace cadet
 					if (_notification)
 					{
 						const double progress = (curT - static_cast<double>(_sectionTimes[0])) / (tEnd - static_cast<double>(_sectionTimes[0]));
-						if (!_notification->timeIntegrationStep(_curSec, curT, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), progress))
+
+						_stoppedByCallback = !_notification->timeIntegrationStep(_curSec, curT, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), progress);
+
+						if (_stoppedByCallback)
 						{
 							_lastIntTime = _timerIntegration.stop();
 							return;
@@ -1379,13 +1390,25 @@ namespace cadet
 					if (_notification)
 					{
 						const double progress = (curT - static_cast<double>(_sectionTimes[0])) / (tEnd - static_cast<double>(_sectionTimes[0]));
-						if (!_notification->timeIntegrationStep(_curSec, curT, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), progress))
+						
+						_stoppedByCallback = !_notification->timeIntegrationStep(_curSec, curT, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), progress);
+						
+						if (_stoppedByCallback)
 						{
 							_lastIntTime = _timerIntegration.stop();
 							return;
 						}
 					}
 					break;
+				case IDA_LSOLVE_FAIL:
+
+					if (_stoppedByCallback)
+					{
+						_lastIntTime = _timerIntegration.stop();
+						return;
+					}
+					// no break, fall through into default if not stopped by callback
+
 				default:
 					_lastIntTime = _timerIntegration.stop();
 

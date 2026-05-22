@@ -135,6 +135,8 @@ public:
 	virtual double totalSimulationDuration() const CADET_NOEXCEPT { return _timerIntegration.totalElapsedTime(); }
 
 	virtual void setNotificationCallback(INotificationCallback* nc) CADET_NOEXCEPT;
+	virtual bool stoppedByNotificationCallback() CADET_NOEXCEPT { return _stoppedByCallback; }
+
 protected:
 
 	/**
@@ -307,6 +309,7 @@ protected:
 	double _lastIntTime; //!< Last simulation duration
 
 	INotificationCallback* _notification; //!< Callback handler for notifications
+	bool _stoppedByCallback; //!< Flag that is set to @c true if the simulation was stopped by the notification callback
 };
 
 } // namespace cadet
