@@ -21,7 +21,6 @@
 
 #include "common/Timer.hpp"
 #include "cadet/Notification.hpp"
-#include "cadet/Logging.hpp"
 
 namespace cadet
 {

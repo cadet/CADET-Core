@@ -20,6 +20,7 @@
 #include <json.hpp>
 using json = nlohmann::json;
 
+#include "Logging.hpp"
 #include "common/Driver.hpp"
 #include "common/JsonParameterProvider.hpp"
 #include "JsonTestModels.hpp"
@@ -101,7 +102,8 @@ TEST_CASE("Test Callback: timeout interrupts simulation but data is saved", "[Ca
 
 		// test that part of the solution is written
 		cadet::InternalStorageUnitOpRecorder const* const simData = driver.solution()->unitOperation(0);
-		REQUIRE(simData->numDataPoints() > 3 && simData->numDataPoints() < 1500);
+		REQUIRE(simData->numDataPoints() > 3);
+		REQUIRE(simData->numDataPoints() < 1500);
 }
 
 TEST_CASE("Test Callback: timeout is ignored when set to zero", "[Callback],[Timeout],[CI]")
