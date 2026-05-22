@@ -1407,7 +1407,7 @@ namespace cadet
 						_lastIntTime = _timerIntegration.stop();
 						return;
 					}
-					// no break, fall through into default if not stopped by callback
+					[[fallthrough]]; // no break, fall through into default if not stopped by callback
 
 				default:
 					_lastIntTime = _timerIntegration.stop();
