@@ -169,7 +169,7 @@ protected:
     inline unsigned int getInhibitionParamIndex(unsigned int reaction, int substrate, unsigned int inhibitor) const
     {
         // Calculate 3D parameter index: (reaction, substrate, inhibitor)
-            return reaction * _nComp + inhibitor;
+            return (reaction * _nComp + static_cast<unsigned int>(substrate)) * _nComp + inhibitor;
     }
 
     // Helper function to calculate the parameter index for km value
