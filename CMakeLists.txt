@@ -199,7 +199,12 @@ set(TBB_TARGET "")
 if (ENABLE_THREADING)
 	set(TBB_PREFER_STATIC_LIBS ${ENABLE_STATIC_LINK_DEPS})
 	set(TBB_USE_DEBUG_BUILD OFF)
-	find_package(TBB COMPONENTS tbb OPTIONAL_COMPONENTS tbb_preview)
+	# Prefer modern config package (conda-forge, oneAPI, vcpkg, system installs)
+	find_package(TBB CONFIG QUIET COMPONENTS tbb OPTIONAL_COMPONENTS tbb_preview)
+	# Fallback to legacy FindTBB.cmake
+	if(NOT TBB_FOUND)
+		find_package(TBB COMPONENTS tbb OPTIONAL_COMPONENTS tbb_preview)
+	endif()
 	set_package_properties(TBB PROPERTIES
 		TYPE RECOMMENDED
 		PURPOSE "Accelerates computation via multi-threading"
@@ -208,8 +213,12 @@ if (ENABLE_THREADING)
 	set(CADET_PARALLEL_FLAG "")
 	if (TBB_FOUND)
 		# Use tbb_preview instead of tbb if it has been found
-		if (TBB_tbb_preview_FOUND)
+		if(TARGET TBB::tbb_preview)
+			set(TBB_TARGET "TBB::tbb_preview")
+		elseif(TARGET TBB::TBBpreview)
 			set(TBB_TARGET "TBB::TBBpreview")
+		elseif(TARGET TBB::tbb)
+			set(TBB_TARGET "TBB::tbb")
 		else()
 			set(TBB_TARGET "TBB::TBB")
 		endif()
