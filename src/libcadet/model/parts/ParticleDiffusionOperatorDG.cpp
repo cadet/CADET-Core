@@ -556,20 +556,22 @@ namespace parts
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 	int ParticleDiffusionOperatorDG::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, linalg::BandedEigenSparseRowIterator& jacBase)
 	{
-		const active* const filmDiff = getSectionDependentSlice(_filmDiffusion, _nComp, secIdx);
-
-		// Add the DG discretized solid entries of the jacobian that get overwritten by the binding kernel.
-		// These entries only exist for the GRM with surface diffusion
+		// Add the solid entries of the transport jacobian that get overwritten by the binding kernel.
+		// These entries only exist for the combination of dynamic reactions with surface diffusion
+		// To get the full Jacobian, calcParticleDiffJacobian() must be called
 		if (wantJac && _hasDynamicReactions && _hasSurfaceDiffusion)
-			addSolidDGentries(secIdx, jacBase, _reqBinding);
+			addSolidDiagonalDGentries(secIdx, jacBase, _reqBinding);
 
 		if (!wantRes)
 			return 0;
 
 		/* Mobile phase RHS	*/
 
+		const active* const filmDiff = getSectionDependentSlice(_filmDiffusion, _nComp, secIdx);
+
 		// Get film diffusion flux at current node to compute boundary condition
-		for (unsigned int comp = 0; comp < _nComp; comp++) {
+		for (unsigned int comp = 0; comp < _nComp; comp++)
+		{
 			_localFlux[comp] = filmDiff[comp] * (yBulk[comp * _strideBulkComp] - yPar[(_nParPoints - 1) * strideParNode() + comp]);
 		}
 
@@ -1404,7 +1406,7 @@ namespace parts
 	 * @brief adds jacobian entries which have been overwritten by the binding kernel (only use for surface diffusion combined with kinetic binding)
 	 * @detail only adds the entries d RHS_i / d c^s_i, which lie on the diagonal
 	 */
-	 int ParticleDiffusionOperatorDG::addSolidDGentries(const int secIdx, linalg::BandedEigenSparseRowIterator& jacBase, const int* const reqBinding)
+	 int ParticleDiffusionOperatorDG::addSolidDiagonalDGentries(const int secIdx, linalg::BandedEigenSparseRowIterator& jacBase, const int* const reqBinding)
 	 {
 	 	active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
 
@@ -1510,10 +1512,6 @@ namespace parts
 
 		const active* const invBetaP = &_invBetaP[0];
 
-		// (global) strides
-//		unsigned int selem = _nParNode * strideParNode();
-//		unsigned int sNode = strideParNode();
-//		unsigned int sComp = 1u;
 		unsigned int nNodes = _nParNode;
 
 		/* Special case */
@@ -1604,7 +1602,7 @@ namespace parts
 					jacCl[0] += static_cast<double>(filmDiff[comp]) * (1.0 - colPorosity) / colPorosity
 					* _parGeomSurfToVol / static_cast<double>(_parRadius)
 					* static_cast<double>(parTypeVolFrac[_parTypeIdx + blk * nParType]);
-				// add Cl on Cp entries (added since these entries are also touched by bulk jacobian)
+				// add Cl on Cp entries
 				// row: already at bulk phase. already at current node and component.
 				// col: go to current particle phase entry.
 				jacCl[jacCp.row() - jacCl.row()] = -static_cast<double>(filmDiff[comp]) * (1.0 - colPorosity) / colPorosity
@@ -1616,7 +1614,7 @@ namespace parts
 				for (int node = _parPolyDeg; node >= 0; node--, jacCp -= strideParNode()) {
 					// row: already at particle. Already at current node and liquid state.
 					// col: original entry at outer node.
-					if (!outliersOnly) // Cp on Cb
+					if (!outliersOnly) // Cp on Cp
 						jacCp[entry - jacCp.row()]
 						+= static_cast<double>(filmDiff[comp]) * 2.0 / static_cast<double>(_deltaR[0]) * _parInvMM[_nParElem - 1](node, _nParNode - 1) * exIntLiftContribution / static_cast<double>(_parPorosity) / static_cast<double>(_poreAccessFactor[comp]);
 					// row: already at particle. Already at current node and liquid state.
