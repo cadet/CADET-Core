@@ -158,6 +158,14 @@ Eigen::MatrixXd liftingMatrix(const unsigned int size);
  */
 Eigen::VectorXd evalLagrangeBasis(const int j, const Eigen::VectorXd baseNodes, const Eigen::VectorXd evalNodes);
 /**
+ * @brief Computes subcell integration matrix A_{ij} = \int_{subcell i} ell_j(x) dx
+ * @detail Subcells are defined via LGL weights (partition of [-1,1])
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] LGLweights corresponding quadrature weights
+ * @param [in] nQuad number of quadrature points per subcell (>= polyDeg+1 recommended)
+ */
+Eigen::MatrixXd subcellIntegrationMatrix(const Eigen::VectorXd& LGLnodes, const Eigen::VectorXd& LGLweights, const unsigned int nQuad);
+/**
  * @brief evaluates the jth Lagrange basis functions at given nodes
  * @param [in, out] coords DG coordinate array
  * @param [in] nElem number of DG elements

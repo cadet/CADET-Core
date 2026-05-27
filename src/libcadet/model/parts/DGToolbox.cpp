@@ -526,6 +526,63 @@ MatrixXd liftingMatrix(const unsigned int size)
 	return liftingMatrix;
 }
 
+/**
+ * @brief Computes subcell integration matrix A_{ij} = \int_{subcell i} ell_j(x) dx
+ * @detail Subcells are defined via LGL weights (partition of [-1,1])
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] LGLweights corresponding quadrature weights
+ * @param [in] nQuad number of quadrature points per subcell (>= polyDeg+1 recommended)
+ */
+Eigen::MatrixXd subcellIntegrationMatrix(const Eigen::VectorXd& LGLnodes,
+	const Eigen::VectorXd& LGLweights,
+	const unsigned int nQuad)
+{
+	const unsigned int nNodes = LGLnodes.size();
+
+	Eigen::MatrixXd A = Eigen::MatrixXd::Zero(nNodes, nNodes);
+
+	// --- build subcell boundaries from weights ---
+	Eigen::VectorXd bounds(nNodes + 1);
+	bounds[0] = -1.0;
+	for (unsigned int i = 0; i < nNodes; ++i)
+		bounds[i + 1] = bounds[i] + LGLweights[i];
+
+	// enforce exact right boundary
+	bounds[nNodes] = 1.0;
+
+	// --- Gauss nodes/weights on [-1,1] ---
+	Eigen::VectorXd quadNodes = Eigen::VectorXd::Zero(nQuad);
+	Eigen::VectorXd quadWeights = Eigen::VectorXd::Zero(nQuad);
+	lgNodesWeights(nQuad - 1, quadNodes, quadWeights, false);
+
+	// --- loop over subcells ---
+	for (unsigned int i = 0; i < nNodes; ++i)
+	{
+		const double a = bounds[i];
+		const double b = bounds[i + 1];
+
+		// map quadrature nodes to subcell
+		Eigen::VectorXd mappedNodes = 0.5 * (b - a) * quadNodes.array() + 0.5 * (a + b);
+
+		// evaluate all Lagrange basis functions at mapped nodes
+		Eigen::MatrixXd ell(nNodes, nQuad);
+		for (unsigned int j = 0; j < nNodes; ++j)
+			ell.row(j) = evalLagrangeBasis(j, LGLnodes, mappedNodes);
+
+		// integrate
+		for (unsigned int j = 0; j < nNodes; ++j)
+		{
+			double integral = 0.0;
+			for (unsigned int k = 0; k < nQuad; ++k)
+				integral += ell(j, k) * quadWeights[k];
+
+			A(i, j) = 0.5 * (b - a) * integral;
+		}
+	}
+
+	return A;
+}
+
 void writeDGCoordinates(double* coords, const int nElem, const int nNodes, const double* DGnodes, const double length, const double* leftElemBndries)
 {
 	for (unsigned int i = 0; i < nElem; i++) {

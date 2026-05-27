@@ -519,6 +519,7 @@ void TwoDimensionalConvectionDispersionOperatorDG::initializeDG()
 	_radStiffM = dgtoolbox::stiffnessMatrix(_radPolyDeg, _radNodes, 0.0, 0.0);
 	_axLiftM = dgtoolbox::liftingMatrix(_axNNodes);
 	_radLiftM = dgtoolbox::liftingMatrix(_radNNodes).transpose();
+	_radSubcellIntegrationM = dgtoolbox::subcellIntegrationMatrix(_radNodes, _radInvWeights.cwiseInverse(), _radNNodes);
 	_matrixProductCache.resize(_axNNodes * _radNNodes); // operator matrix product cache
 
 	const int uAxElem = std::min(5, static_cast<int>(_axNElem)); // number of unique axial Jacobian blocks (per radial element)
@@ -853,6 +854,37 @@ double TwoDimensionalConvectionDispersionOperatorDG::inletFactor(unsigned int id
 {
 	const double h = static_cast<double>(_colLength) / static_cast<double>(_axNPoints);
 	return -std::abs(static_cast<double>(_curVelocity[idxRad])) / h;
+}
+
+double TwoDimensionalConvectionDispersionOperatorDG::getRadialAvgNodalValue(const double* const val, int nodeIdx) const CADET_NOEXCEPT
+{
+	const InnerStride<Dynamic> strideVectorC(_radNodeStride);
+
+	Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> elemVec(val, _radNNodes, strideVectorC);
+
+	// Compute integral over subcell
+	double result = _radSubcellIntegrationM.row(nodeIdx).dot(elemVec);
+	// Normalize to get average
+	result *= _radInvWeights[nodeIdx];
+
+	return result;
+}
+
+void TwoDimensionalConvectionDispersionOperatorDG::getRadialAvgNodalValuesElem(const double* const val, double* buffer) const CADET_NOEXCEPT
+{
+	const InnerStride<Dynamic> strideVectorC(_radNodeStride);
+	const InnerStride<Dynamic> strideCompBuffer(_nComp);
+
+	for (int comp = 0; comp < _nComp; comp++)
+	{
+		Eigen::Map<const VectorXd, 0, InnerStride<Dynamic>> elemVecComp(val + comp, _radNNodes, strideVectorC);
+		Eigen::Map<VectorXd, 0, InnerStride<Dynamic>> bufferElemVecComp(buffer + comp, _radNNodes, strideCompBuffer);
+
+		// Compute integral over subcell
+		bufferElemVecComp = _radSubcellIntegrationM * elemVecComp;
+		// Normalize to get average
+		bufferElemVecComp.array() *= _radInvWeights.array();
+	}
 }
 
 const active& TwoDimensionalConvectionDispersionOperatorDG::axialDispersion(unsigned int idxSec, int idxRad, int idxComp) const CADET_NOEXCEPT
