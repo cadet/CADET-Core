@@ -205,6 +205,38 @@ if (ENABLE_THREADING)
 	if(NOT TBB_FOUND)
 		find_package(TBB COMPONENTS tbb OPTIONAL_COMPONENTS tbb_preview)
 	endif()
+	
+	# Detect TBB_INTERFACE_VERSION for modern TBB CONFIG mode
+	if (TBB_FOUND AND NOT DEFINED TBB_INTERFACE_VERSION)
+		# Get include directory from target
+		if(TARGET TBB::tbb)
+			get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+		elseif(TARGET TBB::tbb_preview)
+			get_target_property(TBB_INCLUDE_DIRS TBB::tbb_preview INTERFACE_INCLUDE_DIRECTORIES)
+		endif()
+		
+		if (TBB_INCLUDE_DIRS)
+			list(GET TBB_INCLUDE_DIRS 0 TBB_INCLUDE_DIR)
+			
+			if (EXISTS "${TBB_INCLUDE_DIR}/oneapi/tbb/version.h")
+				file(READ "${TBB_INCLUDE_DIR}/oneapi/tbb/version.h" _tbb_version_file)
+			elseif (EXISTS "${TBB_INCLUDE_DIR}/tbb/tbb_stddef.h")
+				file(READ "${TBB_INCLUDE_DIR}/tbb/tbb_stddef.h" _tbb_version_file)
+			endif()
+			
+			if (_tbb_version_file)
+				string(REGEX REPLACE ".*#define TBB_VERSION_MAJOR ([0-9]+).*" "\\1"
+					TBB_VERSION_MAJOR "${_tbb_version_file}")
+				string(REGEX REPLACE ".*#define TBB_VERSION_MINOR ([0-9]+).*" "\\1"
+					TBB_VERSION_MINOR "${_tbb_version_file}")
+				string(REGEX REPLACE ".*#define TBB_INTERFACE_VERSION ([0-9]+).*" "\\1"
+					TBB_INTERFACE_VERSION "${_tbb_version_file}")
+				
+				message(STATUS "Detected TBB interface version: ${TBB_INTERFACE_VERSION}")
+			endif()
+		endif()
+	endif()
+	
 	set_package_properties(TBB PROPERTIES
 		TYPE RECOMMENDED
 		PURPOSE "Accelerates computation via multi-threading"
@@ -231,30 +263,16 @@ if (ENABLE_THREADING)
 			set(CADET_PARALLEL_FLAG "CADET_PARALLELIZE")
 		endif()
 
-		get_target_property(TBB_IFACE_COMP_DEF ${TBB_TARGET} INTERFACE_COMPILE_DEFINITIONS)
-		if (TBB_IFACE_COMP_DEF)
-			list(APPEND TBB_IFACE_COMP_DEF ${CADET_PARALLEL_FLAG})
-		else()
-			set(TBB_IFACE_COMP_DEF ${CADET_PARALLEL_FLAG})
+		# Set compile definitions using modern CMake approach
+		if (CADET_PARALLEL_FLAG)
+			target_compile_definitions(${TBB_TARGET} INTERFACE ${CADET_PARALLEL_FLAG})
 		endif()
-		if (TBB_IFACE_COMP_DEF)
-			set_target_properties(${TBB_TARGET} PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${TBB_IFACE_COMP_DEF}")
-		endif()
-		unset(TBB_IFACE_COMP_DEF)
 
 		if (TBB_INTERFACE_VERSION GREATER_EQUAL 11004)
-			# Use global_control instead of task_scheduler_init
-			get_target_property(TBB_IFACE_COMP_DEF ${TBB_TARGET} INTERFACE_COMPILE_DEFINITIONS)
-			set_target_properties(${TBB_TARGET} PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${TBB_IFACE_COMP_DEF}")
-			if (TBB_IFACE_COMP_DEF)
-				list(APPEND TBB_IFACE_COMP_DEF "CADET_TBB_GLOBALCTRL")
-			else()
-				set(TBB_IFACE_COMP_DEF "CADET_TBB_GLOBALCTRL")
-			endif()
-			if (TBB_IFACE_COMP_DEF)
-				set_target_properties(${TBB_TARGET} PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${TBB_IFACE_COMP_DEF}")
-			endif()
-			unset(TBB_IFACE_COMP_DEF)
+			message(STATUS "Using TBB global_control (TBB_INTERFACE_VERSION=${TBB_INTERFACE_VERSION} >= 11004)")
+			target_compile_definitions(${TBB_TARGET} INTERFACE CADET_TBB_GLOBALCTRL)
+		else()
+			message(STATUS "Using TBB task_scheduler_init (TBB_INTERFACE_VERSION=${TBB_INTERFACE_VERSION} < 11004)")
 		endif()
 	endif()
 endif()
