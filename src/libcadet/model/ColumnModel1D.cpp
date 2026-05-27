@@ -964,41 +964,42 @@ int ColumnModel1D::residualImpl(double t, unsigned int secIdx, StateType const* 
 			}
 
 			residualBulk<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, y, yDot, res, threadLocalMem);
-
-			continue;
 		}
-
-		const unsigned int parType = (pblk - 1) / _disc.nPoints;
-		const unsigned int colNode = (pblk - 1) % _disc.nPoints;
-
-		linalg::BandedEigenSparseRowIterator jacIt;
-
-		if (wantJac)
+		else
 		{
-			jacIt = linalg::BandedEigenSparseRowIterator(
-				_globalJac,
-				idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode })
+			const unsigned int parType = (pblk - 1) / _disc.nPoints;
+			const unsigned int colNode = (pblk - 1) % _disc.nPoints;
+
+			linalg::BandedEigenSparseRowIterator jacIt;
+
+			if (wantJac)
+			{
+				jacIt = linalg::BandedEigenSparseRowIterator(
+					_globalJac,
+					idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode })
+				);
+			}
+
+			model::columnPackingParameters packing
+			{
+				_parTypeVolFrac[parType + _disc.nParType * colNode],
+				_colPorosity,
+				ColumnPosition{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }
+			};
+
+
+			_particles[parType]->residual(t, secIdx,
+				y + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
+				y + idxr.offsetC() + colNode * idxr.strideColNode(),
+				yDot ? yDot + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
+				res ? res + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
+				res ? res + idxr.offsetC() + colNode * idxr.strideColNode() : nullptr,
+				packing, jacIt, tlmAlloc,
+				typename cadet::ParamSens<ParamType>::enabled()
 			);
 		}
 
-		model::columnPackingParameters packing
-		{
-			_parTypeVolFrac[parType + _disc.nParType * colNode],
-			_colPorosity,
-			ColumnPosition{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }
-		};
-
-
-		_particles[parType]->residual(t, secIdx,
-			y + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
-			y + idxr.offsetC() + colNode * idxr.strideColNode(),
-			yDot ? yDot + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
-			res ? res + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
-			res ? res + idxr.offsetC() + colNode * idxr.strideColNode() : nullptr,
-			packing, jacIt, tlmAlloc,
-			typename cadet::ParamSens<ParamType>::enabled()
-		);
-	}
+	} CADET_PARFOR_END;
 
 	if (!wantRes)
 		return 0;
