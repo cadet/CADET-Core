@@ -77,3 +77,4 @@ This group also takes precedence over a possibly existing ``/input/model/unit_XX
     affinity_complex_titration
     spline_interpolation
     gaussian_process_regression
+    machine_learning
