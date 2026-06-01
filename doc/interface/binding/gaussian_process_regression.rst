@@ -21,13 +21,13 @@ For information on model equations, refer to :ref:`gaussian_process_regression`.
    Flattened pore-phase concentration training inputs used by the Gaussian
    process regression model. The values represent the training input points
    :math:`X` used to evaluate the kernel function. The array is interpreted
-   according to ``NDIM``.
+   as an ``NTRAIN`` major vector.
 
 **Unit:** :math:`mol~m_{MP}^{-3}`
 
-===================  =========================  =======================
+===================  =========================  ==========================
 **Type:** double     **Range:** unrestricted    **Length:** NTRAIN * NDIM
-===================  =========================  =======================
+===================  =========================  ==========================
 
 ``CS_VALS``
    Solid-phase training targets corresponding to ``CP_VALS``.
@@ -68,11 +68,11 @@ For information on model equations, refer to :ref:`gaussian_process_regression`.
 ===================  ================================================  =========
 
 ``NDIM``
-   Number of input dimensions per training point used in
-   ``CP_VALS``. Must be a positive integer.
+   Number of input dimensions per training point used in ``CP_VALS``.
+   Must equal number of components.
 
 ===================  =========================  =======================
-**Type:** int        **Range:** :math:`\geq 1`  **Length:** 1
+**Type:** int        **Range:** :math:`NCOMP`   **Length:** 1
 ===================  =========================  =======================
 
 ``GPR_KKIN``

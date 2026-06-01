@@ -104,34 +104,40 @@ protected:
 	using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
 	// Training data and GPR state — populated once in configureImpl
-	std::vector<double>            _poreConc;   // X_train: (nTrain x nDim), row-major
-	std::vector<double>            _solidConc;  // Y_train: (nTrain,)
-	std::vector<double>            _gprParams;  // hyperparameters
-	std::vector<double>            _kernelMat;  // K(X_train, X_train): (nTrain x nTrain)
-	std::vector<double>            _alpha;      // K^{-1} y: (nTrain,)
-	double                         _offset;     // prediction at c_p = 0 for bias removal
-	unsigned int                   _nDim;
+	std::vector<double>            _poreConc;    // X_train: (nTrain x nDim), row-major
+	std::vector<double>            _solidConc;   // Y_train: (nTrain,)
+	std::vector<double>            _gprParams;   // hyperparameters
+	std::vector<double>            _kernelMat;   // K(X_train, X_train): (nTrain x nTrain)
+	std::vector<double>            _alpha;       // (K + sigma^2 I)^{-1} y: (nTrain,)
+	double                         _offset;      // prediction at c_p = 0 for bias removal
+	unsigned int                   _nDim;        // GPR input dimensionality (== nComp)
 	std::unique_ptr<GP::GPR_Class> _gpModel;
-	mutable std::vector<double>    _cpVecCache; // cache for c_p vector
+	mutable std::vector<double>    _cpVecCache;  // reusable buffer for c_p vector (length _nDim)
 
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
-		const bool result = ParamHandlerBindingModelBase<ParamHandler_t>::configureImpl(paramProvider, unitOpIdx, parTypeIdx);
+		const bool result = ParamHandlerBindingModelBase<ParamHandler_t>::configureImpl(
+			paramProvider, unitOpIdx, parTypeIdx);
 
-		// Input parameters
+		// --- Read training data and configuration ---
 		_solidConc = paramProvider.getDoubleArray("CS_VALS");
-		_poreConc = paramProvider.getDoubleArray("CP_VALS");
+		_poreConc  = paramProvider.getDoubleArray("CP_VALS");
 		_gprParams = paramProvider.getDoubleArray("TRAINED_PARAMS");
 
-		if (paramProvider.getInt("NDIM") > 0)
-			_nDim = paramProvider.getInt("NDIM");
-		else
-			throw InvalidParameterException("NDIM must be a positive integer specifying the number of dimensions for the GPR input data");
+		const int nDimRaw = paramProvider.getInt("NDIM");
+		if (nDimRaw <= 0)
+			throw InvalidParameterException(
+				"NDIM must be a positive integer specifying the number of GPR input dimensions.");
+		_nDim = static_cast<unsigned int>(nDimRaw);
 
 		// --- Validation ---
-		if (_nComp != 1u)
+
+		// NDIM must match NCOMP: each GPR input dimension corresponds to one chromatographic component.
+		// NDIM is retained as an explicit user-supplied sense check against NCOMP.
+		if (_nDim != _nComp)
 			throw InvalidParameterException(
-				"Current GPR binding supports single-component only.");
+				"NDIM must equal NCOMP for GPR binding — each GPR input dimension "
+				"corresponds to one chromatographic component.");
 
 		if (_gprParams.size() < 7u)
 			throw InvalidParameterException(
@@ -140,12 +146,13 @@ protected:
 
 		if (_solidConc.empty() || _poreConc.empty())
 			throw InvalidParameterException(
-				"Training data Q_VALS and C_VALS must not be empty.");
+				"Training data CS_VALS and CP_VALS must not be empty.");
 
-		// C_VALS has shape (nTrain x nDim) flattened, Q_VALS has shape (nTrain,)
+		// CP_VALS has shape (nTrain x nDim) flattened row-major; CS_VALS has shape (nTrain,)
 		if (_poreConc.size() != _solidConc.size() * _nDim)
 			throw InvalidParameterException(
-				"C_VALS size must equal Q_VALS size * NDIM.");
+				"CP_VALS size must equal CS_VALS size * NDIM. "
+				"CP_VALS is expected as a flat (nTrain x nDim) row-major array.");
 
 		const unsigned int nTrain = static_cast<unsigned int>(_solidConc.size());
 
@@ -159,25 +166,23 @@ protected:
 			_gprParams[2],   // mlp_variance
 			_gprParams[3],   // linear_variance
 			_gprParams[4],   // rbf_variance
-			_gprParams[5],   // rbf_lengthscale (= ls^2)
+			_gprParams[5],   // rbf_lengthscale (= ls^2 as exported from Python)
 			_gprParams[6],   // gaussian_variance (noise)
-			paramProvider.getString("KERNEL")
-			);
+			paramProvider.getString("KERNEL"));
 
 		// --- Compute training kernel matrix K(X_train, X_train) ---
 		_kernelMat.assign(static_cast<std::size_t>(nTrain) * nTrain, 0.0);
-
 		_gpModel->GPR_kernel(_poreConc.data(), _poreConc.data(), _kernelMat.data());
 
 		// --- Solve for alpha = (K + sigma^2 I)^{-1} y ---
-		// kernel_inv_y does NOT destroy _kernelMat (unlike original MKL dposv)
+		// kernel_inv_y does NOT destroy _kernelMat
 		_alpha.assign(nTrain, 0.0);
 		_gpModel->kernel_inv_y(_solidConc.data(), _kernelMat.data(), _alpha.data());
 
-		// --- Compute offset = prediction at c_p = 0 for bias correction ---
-		// This enforces q(c_p=0) = 0. Only physically meaningful if your
-		// isotherm truly passes through the origin. Verify against training data.
-		_cpVecCache.resize(_nDim, 0.0);
+		// --- Compute offset = GPR prediction at c_p = 0 (all dimensions zero) ---
+		// Enforces q(c_p = 0) = 0. Only physically valid if the isotherm passes through
+		// the origin. Verify against training data before enabling.
+		_cpVecCache.assign(_nDim, 0.0);
 		_offset = _gpModel->prediction(_poreConc.data(), _cpVecCache.data(), _alpha.data());
 
 		return result;
@@ -186,8 +191,11 @@ protected:
 	// -------------------------------------------------------------------------
 	// Flux: res[bndIdx] = kKin[i] * (q[bndIdx] - q_GPR(c_p))
 	//
-	// At steady state res = 0, so q = q_GPR(c_p), i.e. the GPR isotherm.
-	// The kinetic rate kKin drives q toward the GPR equilibrium prediction.
+	// The GPR isotherm is evaluated at the full c_p vector (all nDim components).
+	// At steady state (res = 0): q = q_GPR(c_p).
+	//
+	// Note: GPR prediction always operates in double. AD types in yCp are cast
+	// to double here. The Jacobian w.r.t. yCp is provided analytically in jacobianImpl.
 	// -------------------------------------------------------------------------
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
 	int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
@@ -197,10 +205,9 @@ protected:
 		typename ParamHandler_t::ParamsHandle const p =
 			_paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		// Evaluate GPR isotherm at current pore concentration
-		// Note: GPR always works in double; AD types in yCp are cast to double here.
-		for (unsigned int i = 0; i < _nDim; ++i)
-			_cpVecCache[i] = static_cast<double>(yCp[i]);
+		// Fill c_p vector from all nDim pore concentrations
+		for (unsigned int d = 0; d < _nDim; ++d)
+			_cpVecCache[d] = static_cast<double>(yCp[d]);
 
 		const double qML = _gpModel->prediction(_poreConc.data(), _cpVecCache.data(), _alpha.data())
 			- _offset;
@@ -211,8 +218,6 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			// res = kKin * (q - q_GPR)
-			// At equilibrium (res=0): q = q_GPR(c_p)  ✓
 			res[bndIdx] = static_cast<ParamType>(p->kKin[i])
 				* (static_cast<ResidualType>(y[bndIdx]) - static_cast<ResidualType>(qML));
 
@@ -223,12 +228,19 @@ protected:
 	}
 
 	// -------------------------------------------------------------------------
-	// Jacobian of res[bndIdx] = kKin[i] * (q[bndIdx] - q_GPR(c_p[i]))
+	// Jacobian of res[bndIdx] = kKin[i] * (q[bndIdx] - q_GPR(c_p))
 	//
-	// dres[bndIdx]/dq[bndIdx]  =  kKin[i]          -> jac[0]
-	// dres[bndIdx]/dc_p[i]     = -kKin[i] * dqGPR/dc_p[i]  -> jac[i - bndIdx - offsetCp]
+	// dres[bndIdx]/dq[bndIdx]  =  kKin[i]                     -> jac[0]
+	// dres[bndIdx]/dc_p[d]     = -kKin[i] * dq_GPR/dc_p[d]    -> jac[d - bndIdx - offsetCp]
 	//
-	// No cross-component Jacobian terms (single-component, no coupling).
+	// The GPR gradient dq_GPR/dc_p is a vector of length nDim (one partial per
+	// input dimension / component), computed analytically from the kernel.
+	//
+	// Jacobian index convention (follows CADET banded layout, same as Langmuir):
+	//   Starting at jac (= row for q[bndIdx]):
+	//     -bndIdx          -> q[0]
+	//     -bndIdx-offsetCp -> c_p[0]
+	//     d - bndIdx - offsetCp -> c_p[d]
 	// -------------------------------------------------------------------------
 	template <typename RowIterator>
 	void jacobianImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
@@ -238,26 +250,26 @@ protected:
 		typename ParamHandler_t::ParamsHandle const p =
 			_paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		// Build c_p vector for derivative evaluation
+		// Build c_p vector
 		std::vector<double> cpVec(_nDim);
-		for (unsigned int i = 0; i < _nDim; ++i)
-			cpVec[i] = yCp[i];
+		for (unsigned int d = 0; d < _nDim; ++d)
+			cpVec[d] = yCp[d];
 
-		// Compute dq_GPR / dc_p using the analytical kernel derivative
-		const double dqdc = _gpModel->GPR_derivative(_poreConc.data(), cpVec.data(), _alpha.data());
+		// Compute full gradient dq_GPR/dc_p — length nDim
+		const std::vector<double> dqdc =
+			_gpModel->GPR_derivative(_poreConc.data(), cpVec.data(), _alpha.data());
 
 		unsigned int bndIdx = 0;
-		for (int i = 0; i < _nComp; ++i)
+		for (int i = 0; i < static_cast<int>(_nComp); ++i)
 		{
 			if (_nBoundStates[i] == 0)
 				continue;
 
 			const double kkin = static_cast<double>(p->kKin[i]);
 
-			// dres[bndIdx] / dc_p[i]
-			// Index: from q[bndIdx], step back bndIdx positions to q[0],
-			// then -offsetCp to c_p[0], then +i to c_p[i].
-			jac[i - static_cast<int>(bndIdx) - offsetCp] = -kkin * dqdc;
+			// dres[bndIdx] / dc_p[d] for each input dimension d
+			for (int d = 0; d < static_cast<int>(_nDim); ++d)
+				jac[d - static_cast<int>(bndIdx) - offsetCp] = -kkin * dqdc[d];
 
 			// dres[bndIdx] / dq[bndIdx]
 			jac[0] = kkin;
@@ -268,14 +280,15 @@ protected:
 	}
 };
 
-typedef GPRBindingBase<GPRParamHandler> GPRBinding;
+typedef GPRBindingBase<GPRParamHandler>    GPRBinding;
 typedef GPRBindingBase<ExtGPRParamHandler> ExternalGPRBinding;
 
 namespace binding
 {
-	void registerGaussianProcessRegressionModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings)
+	void registerGaussianProcessRegressionModel(
+		std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings)
 	{
-		bindings[GPRBinding::identifier()] = []() { return new GPRBinding(); };
+		bindings[GPRBinding::identifier()]         = []() { return new GPRBinding(); };
 		bindings[ExternalGPRBinding::identifier()] = []() { return new ExternalGPRBinding(); };
 	}
 }  // namespace binding
