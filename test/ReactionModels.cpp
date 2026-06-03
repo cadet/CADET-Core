@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET
 //  
-//  Copyright Â© 2008-present: The CADET-Core Authors
+//  Copyright © 2008-present: The CADET-Core Authors
 //            Please see the AUTHORS.md file.
 //  
 //  All rights reserved. This program and the accompanying materials
@@ -88,7 +88,7 @@ TEST_CASE("CSTR with MAL reaction numerical Benchmark with parameter sensitiviti
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
-TEST_CASE("MichaelisMenten kinetic and specific mass action law micro-kinetics yield same result", "[CSTR],[MassActionLaw],[MichaelisMenten],[ReactionModel],[Simulation],[CI],[testHere]")
+TEST_CASE("MichaelisMenten kinetic and specific mass action law micro-kinetics yield same result", "[CSTR],[MassActionLaw],[MichaelisMenten],[ReactionModel],[Simulation],[CI]")
 {
 	const std::string& configFilePath1 = std::string("/data/model_CSTR_MichaelisMenten_benchmark1.json");
 	const std::string& configFilePath2 = std::string("/data/model_CSTR_MicroKineticsSMA_benchmark1.json");
@@ -122,7 +122,7 @@ TEST_CASE("MichaelisMenten kinetic with two non-inhibitors and specific mass act
 }
 
 
-TEST_CASE("MichaelisMenten kinetic with two non-inhibitors and two substrates and specific mass action law micro-kinetics yield same result", "[CSTR],[MassActionLaw],[MichaelisMenten_],[ReactionModel],[Simulation],[Reference]") //failed [TestSingle] [MichaelisMenten]
+TEST_CASE("MichaelisMenten kinetic with two non-inhibitors and two substrates and specific mass action law micro-kinetics yield same result", "[CSTR],[MassActionLaw],[MichaelisMenten_],[ReactionModel],[Simulation],[Reference]") //failed 
 {
 	const std::string& configFilePath1 = std::string("/data/configuration_CSTR_MichaelisMenten_twoSubs_twoInhib_benchmark1.json");
 	const std::string& configFilePath2 = std::string("/data/configuration_CSTR_MicroKineticsSMA_twoSubs_twoInhib_benchmark1.json");
@@ -133,7 +133,7 @@ TEST_CASE("MichaelisMenten kinetic with two non-inhibitors and two substrates an
 	cadet::test::reaction::testMichaelisMentenToSMAMicroKinetic(configFilePath1, configFilePath2, absTol, relTol);
 }
 
-TEST_CASE("MichaelisMenten kinetic and numerical reference with Crank-Nicolson yield same result", "[CSTR],[MassActionLaw],[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI],[TestSingle]")
+TEST_CASE("MichaelisMenten kinetic and numerical reference with Crank-Nicolson yield same result", "[CSTR],[MassActionLaw],[MichaelisMenten],[ReactionModel],[Simulation],[Reference],[CI]")
 {
 	const std::string& configFileRelPath = std::string("/data/model_CSTR_MichaelisMenten_benchmark2.json");
 	const std::string& refFileRelPath = std::string("/data/ref_CSTR_MichaelisMenten_benchmark2.h5");
@@ -170,8 +170,6 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with prefactorial com
 	cadet::test::reaction::testDynamicJacobianAD("MICHAELIS_MENTEN", 3, nBound,
 		R"json({
 			"MM_KMM": [0.0, 1.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.4, 0.0],
-			"MM_KI_UC": [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0],
-			"MM_KI_IC": [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0],
 			"MM_VMAX": [1.0, 0.2, 1.5],
 			"MM_STOICHIOMETRY": [ 1.0, -2.0,  3.0,
 			                          -1.0,  0.0, -2.0,
