@@ -73,7 +73,7 @@
                 "GS_TYPE": 1,
                 "MAX_KRYLOV": 0,
                 "MAX_RESTARTS": 10,
-                "NCOL": 20,
+                "NCOL": 100,
                 "RECONSTRUCTION": "WENO",
                 "SCHUR_SAFETY": 1e-08,
                 "SPATIAL_METHOD": "FV",
@@ -107,6 +107,7 @@
                     5.50724638e-12
                 ],
                 "adsorption": {
+                    "CP_NDIM": 1,
                     "CP_VALS": [
                         0.0,
                         0.19219219,
@@ -116,6 +117,7 @@
                         3.003003,
                         6.0
                     ],
+                    "CS_NDIM": 1,
                     "CS_VALS": [
                         1.29198742,
                         76.84778516,
@@ -125,22 +127,24 @@
                         181.33282173,
                         190.23846417
                     ],
+                    "GAUSSIAN_NOISE_VARIANCE": [
+                        1.0
+                    ],
                     "GPR_KKIN": 1,
                     "IS_KINETIC": 1,
                     "KERNEL": "MLP",
-                    "NDIM": 1,
-                    "TRAINED_PARAMS": [
-                        18.6490637,
-                        0.000331357112,
-                        7891.70771,
-                        3.28049204e-15,
-                        1.0,
-                        1.0,
-                        1.0
+                    "MLP_BIAS_VARIANCE": [
+                        0.000331357112
+                    ],
+                    "MLP_VARIANCE": [
+                        7891.70771
+                    ],
+                    "MLP_WEIGHT_VARIANCE": [
+                        18.6490637
                     ]
                 },
                 "discretization": {
-                    "NCELLS": 5,
+                    "NCELLS": 15,
                     "PAR_DISC_TYPE": "EQUIDISTANT_PAR",
                     "SPATIAL_METHOD": "FV"
                 }
