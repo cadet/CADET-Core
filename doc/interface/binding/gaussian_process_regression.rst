@@ -40,39 +40,12 @@ For information on model equations, refer to :ref:`gaussian_process_regression`.
 **Type:** double     **Range:** unrestricted    **Length:** NTRAIN
 ===================  =========================  =======================
 
-``TRAINED_PARAMS``
-   Trained kernel hyperparameters of the Gaussian process regression model.
-   The parameters are expected in the following order:
-
-   - MLP weight variance
-   - MLP bias variance
-   - MLP variance
-   - Linear variance
-   - RBF variance
-   - RBF lengthscale
-   - Gaussian noise variance
-
-   All entries must be provided, regardless of the selected kernel.
-
-===================  =========================  =======================
-**Type:** double     **Range:** kernel-dependent **Length:** 7
-===================  =========================  =======================
-
-``KERNEL``
-   Selects the kernel function used by the Gaussian process regression
-   model. Supported values are ``MLP``, ``RBF``, ``RBF_Linear``, and
-   ``MLP_Linear``.
-
-===================  ================================================  =========
-**Type:** string     **Range:** {MLP, RBF, RBF_Linear, MLP_Linear}     **Length:** 1
-===================  ================================================  =========
-
 ``NDIM``
    Number of input dimensions per training point used in ``CP_VALS``.
    Must equal number of components.
 
 ===================  =========================  =======================
-**Type:** int        **Range:** :math:`NCOMP`   **Length:** 1
+**Type:** int        **Range:** NCOMP           **Length:** 1
 ===================  =========================  =======================
 
 ``GPR_KKIN``
@@ -82,4 +55,94 @@ For information on model equations, refer to :ref:`gaussian_process_regression`.
 
 ===================  =========================  =======================
 **Type:** double     **Range:** :math:`\geq 0`  **Length:** NTOTALBND
+===================  =========================  =======================
+
+``KERNEL``
+   Selects the kernel function used by the Gaussian process regression
+   model. Supported values are ``MLP``, ``RBF``, ``RBF_Linear``, and
+   ``MLP_Linear``.
+
+===================  ================================================  =============
+**Type:** string     **Range:** {MLP, RBF, RBF_Linear, MLP_Linear}     **Length:** 1
+===================  ================================================  =============
+
+Kernel-Specific Parameter Requirements
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following table summarizes which parameters are required for each kernel:
+
++-------------------------+------------+-----------+------------------+------------------+
+| **Kernel**              | **MLP**    | **RBF**   | **RBF_Linear**   | **MLP_Linear**   |
++=========================+============+===========+==================+==================+
+| MLP_WEIGHT_VAR          | ✓          | —         | —                | ✓                |
++-------------------------+------------+-----------+------------------+------------------+
+| MLP_BIAS_VAR            | ✓          | —         | —                | ✓                |
++-------------------------+------------+-----------+------------------+------------------+
+| MLP_VARIANCE            | ✓          | —         | —                | ✓                |
++-------------------------+------------+-----------+------------------+------------------+
+| RBF_VARIANCE            | —          | ✓         | ✓                | —                |
++-------------------------+------------+-----------+------------------+------------------+
+| RBF_LENGTHSCALE         | —          | ✓         | ✓                | —                |
++-------------------------+------------+-----------+------------------+------------------+
+| LINEAR_VARIANCE         | —          | —         | ✓                | ✓                |
++-------------------------+------------+-----------+------------------+------------------+
+| GAUSSIAN_NOISE_VARIANCE | ✓          | ✓         | ✓                | ✓                |
++-------------------------+------------+-----------+------------------+------------------+
+
+``MLP_WEIGHT_VARIANCE``
+   Weight variance hyperparameter for the MLP (arc-cosine) kernel.
+   Required for ``MLP`` and ``MLP_Linear`` kernels.
+
+===================  =========================  =======================
+**Type:** double     **Range:** :math:`\geq 0`  **Length:** 1
+===================  =========================  =======================
+
+``MLP_BIAS_VARIANCE``
+   Bias variance hyperparameter for the MLP (arc-cosine) kernel.
+   Required for ``MLP`` and ``MLP_Linear`` kernels.
+
+===================  =========================  =======================
+**Type:** double     **Range:** :math:`\geq 0`  **Length:** 1
+===================  =========================  =======================
+
+``MLP_VARIANCE``
+   Output variance hyperparameter for the MLP (arc-cosine) kernel.
+   Required for ``MLP`` and ``MLP_Linear`` kernels.
+
+===================  =========================  =======================
+**Type:** double     **Range:** :math:`\geq 0`  **Length:** 1
+===================  =========================  =======================
+
+``RBF_VARIANCE``
+   Output variance hyperparameter for the RBF (squared exponential) kernel.
+   Required for ``RBF`` and ``RBF_Linear`` kernels.
+
+===================  =========================  =======================
+**Type:** double     **Range:** :math:`\geq 0`  **Length:** 1
+===================  =========================  =======================
+
+``RBF_LENGTHSCALE``
+   Lengthscale hyperparameter for the RBF kernel, expected as :math:`\ell^2`
+   (squared lengthscale as exported from scikit-learn).
+   Required for ``RBF`` and ``RBF_Linear`` kernels.
+
+===================  =========================  =======================
+**Type:** double     **Range:** :math:`\geq 0`  **Length:** 1
+===================  =========================  =======================
+
+``LINEAR_VARIANCE``
+   Variance hyperparameter for the linear kernel.
+   Required for ``RBF_Linear`` and ``MLP_Linear`` kernels.
+
+===================  =========================  =======================
+**Type:** double     **Range:** :math:`\geq 0`  **Length:** 1
+===================  =========================  =======================
+
+``GAUSSIAN_NOISE_VARIANCE``
+   Noise variance hyperparameter :math:`\sigma_n^2` added to the kernel
+   diagonal for numerical stability and observation noise modeling.
+   Required for all kernel types.
+
+===================  =========================  =======================
+**Type:** double     **Range:** :math:`> 0`     **Length:** 1
 ===================  =========================  =======================

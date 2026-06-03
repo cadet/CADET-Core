@@ -4,7 +4,7 @@ Gaussian Process Regression
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-The Gaussian process regression (GPR) model is a non-parametric, data-driven binding model that represents the equilibrium relation between pore-phase and solid-phase concentration by Gaussian process regression trained on tabulated data. The model predicts an equilibrium loading from training inputs in pore-phase concentration space and corresponding solid-phase loadings. :contentReference[oaicite:0]{index=0} :contentReference[oaicite:1]{index=1}
+The Gaussian process regression (GPR) model is a non-parametric, data-driven binding model that represents the equilibrium relation between pore-phase and solid-phase concentration by Gaussian process regression trained on tabulated data. The model predicts an equilibrium loading from training inputs in pore-phase concentration space and corresponding solid-phase loadings.
 
 For each component :math:`i` and bound state :math:`m`, an equilibrium loading
 
@@ -12,7 +12,7 @@ For each component :math:`i` and bound state :math:`m`, an equilibrium loading
 
     c^{s,\ast}_{i,m} = f_{i,m}(c^p)
 
-is constructed from user-provided training data and trained kernel parameters. In the current implementation, the prediction is evaluated from pore-phase training inputs ``CP_VALS``, solid-phase targets ``CS_VALS``, and trained kernel hyperparameters ``TRAINED_PARAMS`` provided in the ``training_data`` scope. The input dimension is specified by ``NDIM`` and the kernel type by ``KERNEL``. Supported kernels are ``MLP``, ``RBF``, ``RBF_Linear``, and ``MLP_Linear``. :contentReference[oaicite:2]{index=2}
+is constructed from user-provided training data and trained kernel parameters. In the current implementation, the prediction is evaluated from pore-phase training inputs ``CP_VALS``, solid-phase targets ``CS_VALS``, and trained kernel hyperparameters ``TRAINED_PARAMS`` provided in the ``training_data`` scope. The input dimension is specified by ``NDIM`` and the kernel type by ``KERNEL``. Supported kernels are ``MLP``, ``RBF``, ``RBF_Linear``, and ``MLP_Linear``.
 
 The GPR predictor evaluates the equilibrium loading in the standard kernel form
 
@@ -26,7 +26,7 @@ where :math:`X` denotes the training inputs, :math:`k(c^p, X)` is the vector of 
 
     \alpha = \left(K(X,X) + \sigma_n^2 I\right)^{-1} y.
 
-Here, :math:`K(X,X)` is the kernel matrix assembled from the training inputs, :math:`y` is the vector of solid-phase training values, and :math:`\sigma_n^2` is the Gaussian noise variance added to the diagonal before Cholesky factorization. :contentReference[oaicite:3]{index=3}
+Here, :math:`K(X,X)` is the kernel matrix assembled from the training inputs, :math:`y` is the vector of solid-phase training values, and :math:`\sigma_n^2` is the Gaussian noise variance added to the diagonal before Cholesky factorization.
 
 Depending on the selected kernel, the covariance function is given by one of the following forms.
 
@@ -72,7 +72,7 @@ In addition, the implementation supports additive mixed kernels
 
     k_{\mathrm{MLP+Lin}}(x,x') = k_{\mathrm{MLP}}(x,x') + k_{\mathrm{Lin}}(x,x').
 
-These kernel definitions are used both for prediction and for evaluation of the Jacobian contribution. :contentReference[oaicite:4]{index=4} :contentReference[oaicite:5]{index=5}
+These kernel definitions are used both for prediction and for evaluation of the Jacobian contribution.
 
 An offset is computed once during configuration as the GPR prediction at zero input and is subtracted from subsequent predictions. Thus, the equilibrium loading used by the binding model is
 
@@ -80,7 +80,7 @@ An offset is computed once during configuration as the GPR prediction at zero in
 
     c^{s,\ast}(c^p) = f(c^p) - f(0).
 
-This shifts the model response such that the predicted loading is zero at the chosen reference point. :contentReference[oaicite:6]{index=6} :contentReference[oaicite:7]{index=7}
+This shifts the model response such that the predicted loading is zero at the chosen reference point.
 
 Kinetic form
 ************
@@ -101,7 +101,8 @@ Equivalently, in residual form the implementation evaluates
     =
     k^{\mathrm{kin}}_{i,m}\left(c^s_{i,m} - c^{s,\ast}_{i,m}(c^p)\right).
 
-Thus, the Gaussian process regression model provides the equilibrium target, while the kinetic constant :math:`k^{\mathrm{kin}}_{i,m}` controls how fast the equilibrium state is approached. The kinetic parameter is configured through ``GPR_KKIN``. :contentReference[oaicite:8]{index=8} :contentReference[oaicite:9]{index=9}
+Thus, the Gaussian process regression model provides the equilibrium target, while the kinetic constant :math:`k^{\mathrm{kin}}_{i,m}` controls how fast the equilibrium state is approached.
+The kinetic parameter is configured through ``GPR_KKIN``.
 
 
 For more information on model parameters required to define in CADET file format, see :ref:`gaussian_process_regression_config`.

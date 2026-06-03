@@ -122,7 +122,58 @@ protected:
 		// --- Read training data and configuration ---
 		_solidConc = paramProvider.getDoubleArray("CS_VALS");
 		_poreConc  = paramProvider.getDoubleArray("CP_VALS");
-		_gprParams = paramProvider.getDoubleArray("TRAINED_PARAMS");
+
+		const std::string kernel = paramProvider.getString("KERNEL");
+
+		// Initialize _gprParams with 7 entries (all kernel hyperparameters)
+		// [mlp_weight_var, mlp_bias_var, mlp_var, lin_var, rbf_var, rbf_ls, gaussian_var]
+		_gprParams.assign(7, 0.0);
+
+		// Read kernel-specific parameters and use dummy values (0.0) for unused ones
+		if (kernel == "MLP")
+		{
+			_gprParams[0] = paramProvider.getDouble("MLP_WEIGHT_VARIANCE");
+			_gprParams[1] = paramProvider.getDouble("MLP_BIAS_VARIANCE");
+			_gprParams[2] = paramProvider.getDouble("MLP_VARIANCE");
+			// linear_var, rbf_var, rbf_ls remain 0.0 (unused)
+			_gprParams[6] = paramProvider.getDouble("GAUSSIAN_NOISE_VARIANCE");
+		}
+		else if (kernel == "RBF")
+		{
+			// mlp_weight_var, mlp_bias_var, mlp_var remain 0.0 (unused)
+			_gprParams[4] = paramProvider.getDouble("RBF_VARIANCE");
+			_gprParams[5] = paramProvider.getDouble("RBF_LENGTHSCALE");
+			_gprParams[6] = paramProvider.getDouble("GAUSSIAN_NOISE_VARIANCE");
+		}
+		else if (kernel == "RBF_Linear")
+		{
+			// mlp_weight_var, mlp_bias_var, mlp_var remain 0.0 (unused)
+			_gprParams[3] = paramProvider.getDouble("LINEAR_VARIANCE");
+			_gprParams[4] = paramProvider.getDouble("RBF_VARIANCE");
+			_gprParams[5] = paramProvider.getDouble("RBF_LENGTHSCALE");
+			_gprParams[6] = paramProvider.getDouble("GAUSSIAN_NOISE_VARIANCE");
+		}
+		else if (kernel == "MLP_Linear")
+		{
+			_gprParams[0] = paramProvider.getDouble("MLP_WEIGHT_VARIANCE");
+			_gprParams[1] = paramProvider.getDouble("MLP_BIAS_VARIANCE");
+			_gprParams[2] = paramProvider.getDouble("MLP_VARIANCE");
+			_gprParams[3] = paramProvider.getDouble("LINEAR_VARIANCE");
+			// rbf_var, rbf_ls remain 0.0 (unused)
+			_gprParams[6] = paramProvider.getDouble("GAUSSIAN_NOISE_VARIANCE");
+		}
+		else
+		{
+			throw InvalidParameterException(
+				"KERNEL must be one of: MLP, RBF, RBF_Linear, MLP_Linear");
+		}
+
+		for (int param = 0; param < 7; ++param)
+		{
+			if (_gprParams[param] < 0.0)
+				throw InvalidParameterException(
+					"All GPR hyperparameters must be non-negative.");
+		}
 
 		const int nDimRaw = paramProvider.getInt("NDIM");
 		if (nDimRaw <= 0)
@@ -141,8 +192,7 @@ protected:
 
 		if (_gprParams.size() < 7u)
 			throw InvalidParameterException(
-				"TRAINED_PARAMS must contain at least 7 entries: "
-				"[mlp_weight_var, mlp_bias_var, mlp_var, lin_var, rbf_var, rbf_ls, gaussian_var]");
+				"Internal error: _gprParams must contain 7 entries.");
 
 		if (_solidConc.empty() || _poreConc.empty())
 			throw InvalidParameterException(
@@ -167,8 +217,8 @@ protected:
 			_gprParams[3],   // linear_variance
 			_gprParams[4],   // rbf_variance
 			_gprParams[5],   // rbf_lengthscale (= ls^2 as exported from Python)
-			_gprParams[6],   // gaussian_variance (noise)
-			paramProvider.getString("KERNEL"));
+			_gprParams[6],   // GAUSSIAN_NOISE_VARIANCE (noise)
+			kernel);
 
 		// --- Compute training kernel matrix K(X_train, X_train) ---
 		_kernelMat.assign(static_cast<std::size_t>(nTrain) * nTrain, 0.0);
