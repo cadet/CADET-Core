@@ -179,13 +179,6 @@ protected:
         return (reaction * _nComp + static_cast<unsigned int>(substrate));
     }
 
-    // Helper function to calculate the parameter index for pre_k value
-    inline unsigned int getPreKParamIndex(unsigned int reaction, int substrate) const
-    {
-        // Calculate 2D parameter index: (reaction, substrate)
-        return reaction * _nComp + static_cast<unsigned int>(substrate);
-    }
-
     virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
     {
         _paramHandler.configure(paramProvider, _stoichiometry.columns(), _nComp, _nBoundStates);
