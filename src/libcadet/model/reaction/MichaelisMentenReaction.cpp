@@ -243,8 +243,6 @@ protected:
                 {
                     if (_stoichiometry.native(c, r) < 0.0)
                         idxSubstrateReaction_r.push_back(static_cast<int>(c));
-
-                    const unsigned int paramIdx = getKmmParamIndex(r, c);
                 }
 
                 if (idxSubstrateReaction_r.empty())
