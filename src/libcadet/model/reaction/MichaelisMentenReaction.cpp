@@ -192,9 +192,9 @@ protected:
         if (paramProvider.exists("MM_STOICHIOMETRY"))
         {
             const std::vector<double> s = paramProvider.getDoubleArray("MM_STOICHIOMETRY");
-            std::vector<double> KIC(0.0, _stoichiometry.columns() * _nComp * _nComp); 
-            std::vector<double> KIUC(0.0,_stoichiometry.columns() * _nComp * _nComp);
-            std::vector<double> PRE_K(0.0, _stoichiometry.columns() * _nComp);
+            std::vector<double> KIC( _stoichiometry.columns() * _nComp * _nComp, 0.0); 
+            std::vector<double> KIUC(_stoichiometry.columns() * _nComp * _nComp, 0.0);
+            std::vector<double> PRE_K( _stoichiometry.columns() * _nComp, 0.0);
             //bool hasCompetiveInhibition = false;
             
             if (paramProvider.exists("MM_KI_C"))
@@ -302,12 +302,12 @@ protected:
                     unsigned int prekIdx = getKmmParamIndex(r, static_cast<unsigned int>(rowIdx));
                     flux_t pre_k_j = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->KPrefactor[prekIdx]);
                     bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
-                    if (isSubstrate)
-                        throw InvalidParameterException("Michaelis Menten flux: Prefactor component should not be a substrate");
-                    if (pre_k_j != 0 && !isSubstrate)
-                        preProd *= pre_k_j * y[rowIdx];
-                    
-
+                    if (pre_k_j != 0.0 && !isSubstrate)
+                        if (isSubstrate)
+                        {
+                            throw InvalidParameterException("Michaelis Menten flux: Prefactor component should not be a substrate");
+                        }
+                        preProd *= pre_k_j * y[rowIdx];                   
                 }
             }
             // Product over all substrates
