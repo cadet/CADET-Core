@@ -132,6 +132,8 @@ protected:
 	// Helper function to create bound-state-specific parameter name with BNDXXX suffix
 	std::string makeBoundStateParamName(const std::string& baseName, unsigned int bndIdx) const
 	{
+		if (bndIdx == static_cast<unsigned int>(-1))
+			return baseName;
 		std::ostringstream oss;
 		oss << baseName << "_BND_" << std::setw(3) << std::setfill('0') << bndIdx;
 		return oss.str();
