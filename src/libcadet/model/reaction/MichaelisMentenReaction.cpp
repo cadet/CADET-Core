@@ -436,11 +436,14 @@ protected:
                     unsigned int prekIdx = getKmmParamIndex(r, static_cast<unsigned int>(rowIdx));
                     double pre_k_j = static_cast<double>(p->KPrefactor[prekIdx]);
                     bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
-                    if (isSubstrate)
-                        throw InvalidParameterException("Michaelis Menten jacobian: Prefactor component should not be a substrate");
-                    if (pre_k_j != 0 && !isSubstrate)
+                    if (pre_k_j != 0.0)
+                    {
+                        if (isSubstrate)
+                        {
+                            throw InvalidParameterException("Michaelis Menten jacobian: Prefactor component should not be a substrate");
+                        }
                         preProd *= pre_k_j * y[rowIdx];
-                    
+                    }
                 }
             }
             // Multiplication with vMax
