@@ -50,7 +50,7 @@ Notes
     ================  =============================  ======================================================
 
 ``MM_KI_C``
-    Inhibition constant for competitive inhibition :math:`K^{c}_{I_{k}}`.
+    (Optional)Inhibition constant for competitive inhibition :math:`K^{c}_{I_{k}}`.
     The index :math:`k` corresponds to the inhibitors acting on substrate :math:`c_{i,j}` in reaction :math:`j`, i.e. :math:`k = (j,i,k)`, where :math:`k` is the index of the inhibitor.
     If :math:`K^{c}_{I_{k}} > 0`, the component inhibits the reaction.
     Input as reaction index major.
@@ -62,7 +62,7 @@ Notes
     ================  =============================  =============================================================================
 
 ``MM_KI_UC``
-    Inhibition constant for uncompetitive inhibition :math:`K^{uc}_{I_{k}}`.
+    (Optional) Inhibition constant for uncompetitive inhibition :math:`K^{uc}_{I_{k}}`.
     The index :math:`k` corresponds to the inhibitors acting on substrate :math:`c_{i,j}` in reaction :math:`j`, i.e. :math:`k = (j,i,k)`, where :math:`k` is the index of the inhibitor.
     Input as reaction index major.
 
@@ -73,7 +73,7 @@ Notes
     ================  =============================  ===========================================================================
 
 ``MM_PRE_K``
-    (Optinal) Factor (:math:`\neq 0`) before component for multiplying with Michaelis-Menten kinetics.
+    (Optional) Factor (:math:`\neq 0`) before component for multiplying with Michaelis-Menten kinetics.
     The index :math:`k` corresponds to the component acting on reaction :math:`j`. Note that components acting as substrates can not defined as prefactor components.
     Input as reaction index major.
 

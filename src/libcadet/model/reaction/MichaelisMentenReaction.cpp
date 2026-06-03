@@ -192,9 +192,9 @@ protected:
         if (paramProvider.exists("MM_STOICHIOMETRY"))
         {
             const std::vector<double> s = paramProvider.getDoubleArray("MM_STOICHIOMETRY");
-            std::vector<double> KIC(_stoichiometry.columns() * _nComp * _nComp); 
-            std::vector<double> KIUC(_stoichiometry.columns() * _nComp * _nComp);
-            std::vector<double> PRE_K(_stoichiometry.columns() * _nComp);
+            std::vector<double> KIC(0.0, _stoichiometry.columns() * _nComp * _nComp); 
+            std::vector<double> KIUC(0.0,_stoichiometry.columns() * _nComp * _nComp);
+            std::vector<double> PRE_K(0.0, _stoichiometry.columns() * _nComp);
             //bool hasCompetiveInhibition = false;
             
             if (paramProvider.exists("MM_KI_C"))
@@ -209,11 +209,6 @@ protected:
                 KIUC = paramProvider.getDoubleArray("MM_KI_UC");
                 if (KIUC.size() != _stoichiometry.columns() * _nComp * _nComp)
                     throw InvalidParameterException("MM_KI_UC must have the size (number of reactions) x (number of components) x (number of components)");
-            }
-            if (paramProvider.exists("MM_KI"))
-            {
-                KIUC = paramProvider.getDoubleArray("MM_KI");
-                KIC = paramProvider.getDoubleArray("MM_KI");
             }
             
             if (paramProvider.exists("MM_PRE_K"))
