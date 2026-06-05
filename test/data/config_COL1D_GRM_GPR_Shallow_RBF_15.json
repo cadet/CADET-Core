@@ -73,7 +73,7 @@
                 "GS_TYPE": 1,
                 "MAX_KRYLOV": 0,
                 "MAX_RESTARTS": 10,
-                "NCOL": 100,
+                "NCOL": 32,
                 "RECONSTRUCTION": "WENO",
                 "SCHUR_SAFETY": 1e-08,
                 "SPATIAL_METHOD": "FV",
@@ -160,7 +160,7 @@
                     ]
                 },
                 "discretization": {
-                    "NCELLS": 15,
+                    "NCELLS": 8,
                     "PAR_DISC_TYPE": "EQUIDISTANT_PAR",
                     "SPATIAL_METHOD": "FV"
                 }
