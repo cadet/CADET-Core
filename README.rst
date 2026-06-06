@@ -89,15 +89,26 @@ Copyright and License Notice
 
 Copyright (C) 2008-present: The CADET-Core Authors (see `AUTHORS.md <https://github.com/cadet/cadet-core/blob/master/AUTHORS.md>`_).
 
-This program is free software: you can redistribute it and/or modify it under the terms of the
-GNU General Public License as published by the Free Software Foundation, either version 3 of
-the License, or (at your option) any later version (see `LICENSE.txt <https://github.com/cadet/cadet-core/blob/master/LICENSE.txt>`_).
+As of 24th June 2024, newly added files are licensed under the GNU AGPL v3.0-or-later.
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
-even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
+Files existing in the repository before 24th June 2024 remain licensed under the GNU GPL v3.0-or-later unless their file header states otherwise.
 
-You should have received a copy of the GNU General Public License along with this program, see below.
+When a file contains an SPDX license identifier, that identifier governs the license for that file.
+
+This repository contains files licensed under both the GNU General Public
+License (GPL) and the GNU Affero General Public License (AGPL), as described
+above.
+
+You may redistribute and/or modify each file under the terms of the license
+that applies to that file, i.e. either the GNU GPL or the GNU AGPL as
+published by the Free Software Foundation, either version 3 of the applicable
+license, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+See the applicable license for more details.
+
+You should have received a copy of the applicable license along with this program.
 If not, see <https://www.gnu.org/licenses/>.
 
 Except as contained in this notice, the name of a copyright holder shall not be used in advertising
