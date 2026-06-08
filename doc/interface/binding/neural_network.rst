@@ -53,6 +53,8 @@ For information on model equations, refer to :ref:`neural_network`.
 **Type:** double     **Range:** :math:`> 0`     **Length:** NCOMP
 ===================  =========================  =======================
 
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_YYY**
+
 ``POROSITY_FACTOR``
    Scaling factor applied to the neural network prediction. This can be
    used to account for porosity differences or unit conversions between
@@ -64,7 +66,7 @@ For information on model equations, refer to :ref:`neural_network`.
 
 Neural network weights and biases are organized hierarchically by layer. All weight matrices must be stored in column-major (Fortran) order.
 
-**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/layer_0**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_YYY/layer_0**
 
 First hidden layer parameters.
 
@@ -83,7 +85,7 @@ First hidden layer parameters.
 **Type:** double     **Range:** :math:`\mathbb{R}`    **Length:** NNODES
 ===================  =============================  =======================
 
-**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/layer_1**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_YYY/layer_1**
 
 Second hidden layer parameters (for NLAYERS=2) or output layer parameters (for NLAYERS=1).
 
@@ -111,7 +113,7 @@ Second hidden layer parameters (for NLAYERS=2) or output layer parameters (for N
                                                           or NNODES (NLAYERS=2)
 ===================  =============================  ===========================
 
-**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/layer_2**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_YYY/layer_2**
 
 Output layer parameters (only for NLAYERS=2).
 
