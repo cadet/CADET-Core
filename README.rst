@@ -108,7 +108,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 See the applicable license for more details.
 
-You should have received a copy of the applicable license along with this program, the full texts are available in `LICENSE.txt <LICENSE.txt>`_ (AGPL) and `LICENSE-GPL.txt <LICENSE-GPL.txt>`_ (GPL).
+You should have received a copy of the applicable license along with this program, the full texts are available in `LICENSE.txt <LICENSE.txt>`_ (AGPL) and `LICENSE-GPL.txt <licenses/LICENSE-GPL.txt>`_ (GPL).
 If not, see <https://www.gnu.org/licenses/>.
 
 Except as contained in this notice, the name of a copyright holder shall not be used in advertising
