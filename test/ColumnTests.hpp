@@ -808,9 +808,19 @@ namespace column
 	 */
 	void testForeignReferenceBenchmark(const std::string& configFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const double absTol, const double relTol, const int compIdx);
 
+	/**
+	 * @brief Tests analytic Jacobian against finite differences
+	 * @param [in] jpp Configuration
+	 * @param [in] h Step size for finite differences
+	 * @param [in] absTol Absolute tolerance for Jacobian comparison
+	 * @param [in] relTol Relative tolerance for Jacobian comparison
+	 * @param [in] flowRate Flow rate for 2D models (nullptr for 1D)
+	 */
+	void testJacobianFD(cadet::JsonParameterProvider& jpp, const double h, const double absTol, const double relTol, const active* flowRate = nullptr);
 
 } // namespace column
 } // namespace test
 } // namespace cadet
 
 #endif  // CADETTEST_COLUMNSIMTEST_HPP_
+
