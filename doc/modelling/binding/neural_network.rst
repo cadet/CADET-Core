@@ -1,9 +1,9 @@
-.. _machine_learning:
+.. _neural_network:
 
-Machine Learning Binding
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Neural Network Binding
+~~~~~~~~~~~~~~~~~~~~~~
 
-The Machine Learning (ML) binding model is a non-parametric, data-driven binding model that represents the equilibrium relation between pore-phase and solid-phase concentration using a trained feedforward neural network. The model predicts an equilibrium loading from a neural network trained on experimental or simulated adsorption data.
+The Neural Network (NN) binding model is a non-parametric, data-driven binding model that represents the equilibrium relation between pore-phase and solid-phase concentration using a trained feedforward neural network. The model predicts an equilibrium loading from a neural network trained on experimental or simulated adsorption data.
 
 For each component :math:`i` and bound state :math:`m`, an equilibrium loading
 
@@ -56,11 +56,6 @@ The network output is scaled by a porosity factor and shifted by an offset:
 
 where :math:`\beta_{\text{poros}}` is specified by ``POROSITY_FACTOR``. The offset :math:`f(0)` is computed once during configuration to ensure that the predicted loading is zero when the pore-phase concentration is zero.
 
-Weight Storage Convention
-**************************
-
-All weight matrices are stored in column-major (Fortran) order, matching the export format from common machine learning frameworks. A weight matrix :math:`W` of shape :math:`(n_{\text{out}} \times n_{\text{in}})` is stored such that element :math:`W(i,j)` corresponds to ``KERNEL[i + j * n_out]``.
-
 Kinetic Form
 ************
 
@@ -80,12 +75,12 @@ Equivalently, in residual form the implementation evaluates
     =
     k^{\mathrm{kin}}_{i,m}\left(c^s_{i,m} - c^{s,\ast}_{i,m}(c^p)\right).
 
-Thus, the neural network provides the equilibrium target, while the kinetic constant :math:`k^{\mathrm{kin}}_{i,m}` controls how fast the equilibrium state is approached. The kinetic parameter is configured through ``ML_KKIN``.
+Thus, the neural network provides the equilibrium target, while the kinetic constant :math:`k^{\mathrm{kin}}_{i,m}` controls how fast the equilibrium state is approached. The kinetic parameter is configured through ``NN_KKIN``.
 
 Jacobian Computation
 ********************
 
-The model provides an analytical Jacobian based on automatic differentiation through the neural network layers. The gradient with respect to the pore-phase concentration is computed via backpropagation:
+An analytical Jacobian is implemented, where the gradient with respect to the pore-phase concentration is computed as:
 
 **Single hidden layer:**
 
@@ -111,4 +106,4 @@ where :math:`z_i` denotes the pre-activation at layer :math:`i`, and the ELU der
 
 The chain rule accounts for input normalization and output scaling when computing the full Jacobian contribution to the binding residual.
 
-For more information on model parameters required to define in CADET file format, see :ref:`machine_learning_config`.
+For more information on model parameters required to define in CADET file format, see :ref:`neural_network_config`.

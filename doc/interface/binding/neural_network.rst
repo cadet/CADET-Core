@@ -1,11 +1,11 @@
-.. _machine_learning_config:
+.. _neural_network_config:
 
-Machine Learning Binding
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Neural Network Binding
+~~~~~~~~~~~~~~~~~~~~~~
 
-**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption - ADSORPTION_MODEL = MACHINE_LEARNING**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption - ADSORPTION_MODEL = NEURAL_NETWORK**
 
-For information on model equations, refer to :ref:`machine_learning`.
+For information on model equations, refer to :ref:`neural_network`.
 
 ``IS_KINETIC``
    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 =
@@ -17,7 +17,7 @@ For information on model equations, refer to :ref:`machine_learning`.
 **Type:** int        **Range:** {0,1}           **Length:** 1/NTOTALBND
 ===================  =========================  =======================
 
-``ML_KKIN``
+``NN_KKIN``
    Linear-driving-force coefficients in component-major ordering.
    Controls the rate at which the solid-phase loading approaches the
    neural network-predicted equilibrium.
@@ -28,7 +28,7 @@ For information on model equations, refer to :ref:`machine_learning`.
 **Type:** double     **Range:** :math:`\geq 0`  **Length:** NCOMP
 ===================  =========================  =======================
 
-``LAYERS``
+``NLAYERS``
    Number of hidden layers in the neural network architecture.
    Currently supports 1 or 2 hidden layers.
 
@@ -36,7 +36,7 @@ For information on model equations, refer to :ref:`machine_learning`.
 **Type:** int        **Range:** {1, 2}          **Length:** 1
 ===================  =========================  =======================
 
-``NODES``
+``NNODES``
    Number of nodes per hidden layer. All hidden layers have the same
    number of nodes.
 
@@ -62,72 +62,70 @@ For information on model equations, refer to :ref:`machine_learning`.
 **Type:** double     **Range:** :math:`> 0`     **Length:** 1
 ===================  =========================  =======================
 
-**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/model_weights**
+Neural network weights and biases are organized hierarchically by layer. All weight matrices must be stored in column-major (Fortran) order.
 
-Neural network weights and biases are organized hierarchically by layer. All weight matrices must be stored in column-major (Fortran) order, matching the export format from common machine learning frameworks.
-
-**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/model_weights/layer_0**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/layer_0**
 
 First hidden layer parameters.
 
 ``KERNEL``
    Weight matrix :math:`W_1` connecting input to first hidden layer.
-   Shape: (NODES x NCOMP). Stored in column-major order.
+   Shape: (NNODES x NCOMP). Stored in column-major order.
 
-===================  =========================  =======================
-**Type:** double     **Range:** unrestricted    **Length:** NODES * NCOMP
-===================  =========================  =======================
+===================  =============================  ===========================
+**Type:** double     **Range:** :math:`\mathbb{R}`    **Length:** NNODES * NCOMP
+===================  =============================  ===========================
 
 ``BIAS``
    Bias vector :math:`b_1` for first hidden layer.
 
-===================  =========================  =======================
-**Type:** double     **Range:** unrestricted    **Length:** NODES
-===================  =========================  =======================
+===================  =============================  =======================
+**Type:** double     **Range:** :math:`\mathbb{R}`    **Length:** NNODES
+===================  =============================  =======================
 
-**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/model_weights/layer_1**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/layer_1**
 
-Second hidden layer parameters (for LAYERS=2) or output layer parameters (for LAYERS=1).
+Second hidden layer parameters (for NLAYERS=2) or output layer parameters (for NLAYERS=1).
 
 ``KERNEL``
    Weight matrix :math:`W_2`.
 
-   - For LAYERS=1: Shape (1 x NODES), connects hidden to output.
-   - For LAYERS=2: Shape (NODES x NODES), connects first to second hidden layer.
+   - For NLAYERS=1: Shape (1 x NNODES), connects hidden to output.
+   - For NLAYERS=2: Shape (NNODES x NNODES), connects first to second hidden layer.
 
    Stored in column-major order.
 
-===================  =========================  ============================
-**Type:** double     **Range:** unrestricted    **Length:** NODES (LAYERS=1)
-                                                            or NODES*NODES (LAYERS=2)
-===================  =========================  ============================
+===================  =============================  ================================
+**Type:** double     **Range:** :math:`\mathbb{R}`    **Length:** NNODES (NLAYERS=1)
+                                                        or NNODES*NNODES (NLAYERS=2)
+===================  =============================  ================================
 
 ``BIAS``
    Bias vector :math:`b_2`.
 
-   - For LAYERS=1: Output bias (length 1).
-   - For LAYERS=2: Second hidden layer bias (length NODES).
+   - For NLAYERS=1: Output bias (length 1).
+   - For NLAYERS=2: Second hidden layer bias (length NNODES).
 
-===================  =========================  =======================
-**Type:** double     **Range:** unrestricted    **Length:** 1 (LAYERS=1)
-                                                            or NODES (LAYERS=2)
-===================  =========================  =======================
+===================  =============================  ===========================
+**Type:** double     **Range:** :math:`\mathbb{R}`    **Length:** 1 (NLAYERS=1)
+                                                          or NNODES (NLAYERS=2)
+===================  =============================  ===========================
 
-**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/model_weights/layer_2**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/layer_2**
 
-Output layer parameters (only for LAYERS=2).
+Output layer parameters (only for NLAYERS=2).
 
 ``KERNEL``
    Weight matrix :math:`W_3` connecting second hidden layer to output.
-   Shape: (1 x NODES). Stored in column-major order.
+   Shape: (1 x NNODES). Stored in column-major order.
 
-===================  =========================  =======================
-**Type:** double     **Range:** unrestricted    **Length:** NODES
-===================  =========================  =======================
+===================  =============================  =======================
+**Type:** double     **Range:** :math:`\mathbb{R}`    **Length:** NNODES
+===================  =============================  =======================
 
 ``BIAS``
    Bias scalar :math:`b_3` for output layer.
 
-===================  =========================  =======================
-**Type:** double     **Range:** unrestricted    **Length:** 1
-===================  =========================  =======================
+===================  =============================  ================
+**Type:** double     **Range:** :math:`\mathbb{R}`    **Length:** 1
+===================  =============================  ================

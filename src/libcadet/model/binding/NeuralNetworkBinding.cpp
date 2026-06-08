@@ -30,8 +30,8 @@
 
 /*<codegen>
 {
-	"name": "MachineLearningParamHandler",
-	"externalName": "ExtMachineLearningParamHandler",
+	"name": "NeuralNetworkParamHandler",
+	"externalName": "ExtNeuralNetworkParamHandler",
 	"parameters":
 		[
 			{ "type": "ScalarComponentDependentParameter", "varName": "kKin", "confName": "NN_KKIN"}
@@ -44,12 +44,12 @@ namespace cadet
 namespace model
 {
 
-inline const char* MachineLearningParamHandler::identifier() CADET_NOEXCEPT
+inline const char* NeuralNetworkParamHandler::identifier() CADET_NOEXCEPT
 {
 	return "NEURAL_NETWORK";
 }
 
-inline bool MachineLearningParamHandler::validateConfig(
+inline bool NeuralNetworkParamHandler::validateConfig(
 	unsigned int nComp, unsigned int const* nBoundStates)
 {
 	if (_kKin.size() < nComp)
@@ -57,12 +57,12 @@ inline bool MachineLearningParamHandler::validateConfig(
 	return true;
 }
 
-inline const char* ExtMachineLearningParamHandler::identifier() CADET_NOEXCEPT
+inline const char* ExtNeuralNetworkParamHandler::identifier() CADET_NOEXCEPT
 {
 	return "EXT_NEURAL_NETWORK";
 }
 
-inline bool ExtMachineLearningParamHandler::validateConfig(
+inline bool ExtNeuralNetworkParamHandler::validateConfig(
 	unsigned int nComp, unsigned int const* nBoundStates)
 {
 	if (_kKin.size() < nComp)
@@ -401,12 +401,12 @@ private:
 	}
 };
 
-typedef NeuralNetworkBindingBase<MachineLearningParamHandler>    NeuralNetworkBinding;
-typedef NeuralNetworkBindingBase<ExtMachineLearningParamHandler> ExternalNeuralNetworkBinding;
+typedef NeuralNetworkBindingBase<NeuralNetworkParamHandler>    NeuralNetworkBinding;
+typedef NeuralNetworkBindingBase<ExtNeuralNetworkParamHandler> ExternalNeuralNetworkBinding;
 
 namespace binding
 {
-	void registerMachineLearningModel(
+	void registerNeuralNetworkModel(
 		std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings)
 	{
 		bindings[NeuralNetworkBinding::identifier()]         = []() { return new NeuralNetworkBinding(); };
