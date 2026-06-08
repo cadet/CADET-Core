@@ -1,3 +1,14 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// =================================================================================
+//  CADET
+//
+//  Copyright © 2008-present: The CADET-Core Authors
+//            Please see the AUTHORS.md file.
+//
+//  All rights reserved. This program and the accompanying materials
+//  are made available under the terms of the GNU Affero General Public
+//  License v3.0 (or, at your option, any later version).
+// =================================================================================
 #pragma once
 
 #include <Eigen/Dense>
@@ -8,7 +19,7 @@
 #include <vector>
 
 // =============================================================================
-// Class_ANN — Feedforward neural network with ELU activations.
+// ClassANN — Feedforward neural network with ELU activations.
 //
 // Architecture (single-component, scalar output):
 //   1-hidden-layer:  y = W2 * ELU(W1 * x + b1) + b2
@@ -25,7 +36,7 @@
 // inside forward/backward methods.
 // =============================================================================
 
-class Class_ANN
+class ClassANN
 {
 public:
 	// -------------------------------------------------------------------------
@@ -35,7 +46,7 @@ public:
 	// num_inputs: input dimensionality
 	// num_outputs: output dimensionality (1 for single-component isotherm)
 	// -------------------------------------------------------------------------
-	Class_ANN(unsigned int num_layer, unsigned int num_nodes,
+	ClassANN(unsigned int num_layer, unsigned int num_nodes,
 	          unsigned int num_inputs, unsigned int num_outputs)
 		: number_of_layers(num_layer)
 		, number_of_nodes(num_nodes)
@@ -49,7 +60,7 @@ public:
 	{
 		if (num_layer != 1 && num_layer != 2)
 			throw std::invalid_argument(
-				"Class_ANN: only 1 or 2 hidden layers are supported.");
+				"ClassANN: only 1 or 2 hidden layers are supported.");
 	}
 
 	// -------------------------------------------------------------------------

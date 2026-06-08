@@ -9,8 +9,7 @@
 //  are made available under the terms of the GNU Affero General Public
 //  License v3.0 (or, at your option, any later version).
 // =================================================================================
- 
- #pragma once
+#pragma once
 
 #include <Eigen/Dense>
 
@@ -22,10 +21,10 @@
 
 namespace GP
 {
-	class GPR_Class
+	class ClassGPR
 	{
 	public:
-		GPR_Class(unsigned int m, unsigned int n, unsigned int k,
+		ClassGPR(unsigned int m, unsigned int n, unsigned int k,
 			double mlp_weight_var, double mlp_bias_var, double mlp_var, double lin_var,
 			double rbf_var, double rbf_ls, double gaussian_var, const std::string& kernel_name)
 			: kernelType(KernelType::Unknown)

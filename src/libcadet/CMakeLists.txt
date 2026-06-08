@@ -109,7 +109,7 @@ set(LIBCADET_BINDINGMODEL_SOURCES
     ${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/AffinityComplexTitrationBinding.cpp
     ${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/SplineBinding.cpp
     ${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/GaussianProcessRegressionBinding.cpp
-    ${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/MachineLearningBinding.cpp
+    ${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/NeuralNetworkBinding.cpp
 )
 set(LIBCADET_EXCHANGEMODEL_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/exchange/LinearExchange.cpp

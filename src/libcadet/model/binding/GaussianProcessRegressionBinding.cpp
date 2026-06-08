@@ -19,7 +19,7 @@
 #include "LocalVector.hpp"
 #include "SimulationTypes.hpp"
 #include "AdUtils.hpp"
-#include "model/binding/GPR_Class.h"
+#include "model/binding/GaussianProcessRegression.h"
 
 #include <functional>
 #include <memory>
@@ -122,7 +122,7 @@ protected:
 	std::vector<double>                             _poreConc;           // X_train: (nTrain x nComp), row-major, shared across all bound states
 	std::vector<double>                             _solidConc;          // Y_train: (nTrain x totalNumBoundStates), row-major, bound-state-specific outputs
 	std::vector<BoundStateGPRParams>                _boundStateParams;   // hyperparameters per bound state
-	std::vector<std::unique_ptr<GP::GPR_Class>>     _gpModels;           // one GPR model per bound state
+	std::vector<std::unique_ptr<GP::ClassGPR>>     _gpModels;           // one GPR model per bound state
 	std::vector<std::vector<double>>                _kernelMats;         // one kernel matrix per bound state: each (nTrain x nTrain)
 	std::vector<std::vector<double>>                _alphas;             // one alpha vector per bound state: each (nTrain,)
 	std::vector<double>                             _offsets;            // one offset per bound state (prediction at c_p = 0)
@@ -316,7 +316,7 @@ protected:
 					yTrain[row] = _solidConc[row * totalNumBoundStates + bndIdx];
 
 				// Create GPR model for this bound state with its specific hyperparameters
-				auto gpModel = std::make_unique<GP::GPR_Class>(
+				auto gpModel = std::make_unique<GP::ClassGPR>(
 					_nTrain,
 					1u,
 					_nComp,

@@ -1,14 +1,14 @@
-// =============================================================================
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// =================================================================================
 //  CADET
 //
-//  Copyright © 2008-present: The CADET Authors
-//            Please see the AUTHORS and CONTRIBUTORS file.
+//  Copyright © 2008-present: The CADET-Core Authors
+//            Please see the AUTHORS.md file.
 //
 //  All rights reserved. This program and the accompanying materials
-//  are made available under the terms of the GNU Public License v3.0 (or, at
-//  your option, any later version) which accompanies this distribution, and
-//  is available at http://www.gnu.org/licenses/gpl.html
-// =============================================================================
+//  are made available under the terms of the GNU Affero General Public
+//  License v3.0 (or, at your option, any later version).
+// =================================================================================
 
 #include "model/binding/BindingModelBase.hpp"
 #include "model/ExternalFunctionSupport.hpp"
@@ -19,7 +19,7 @@
 #include "LocalVector.hpp"
 #include "SimulationTypes.hpp"
 #include "AdUtils.hpp"
-#include "model/binding/Class_ANN.h"
+#include "model/binding/NeuralNetwork.h"
 
 #include <functional>
 #include <memory>
@@ -34,7 +34,7 @@
 	"externalName": "ExtMachineLearningParamHandler",
 	"parameters":
 		[
-			{ "type": "ScalarComponentDependentParameter", "varName": "kKin", "confName": "ML_KKIN"}
+			{ "type": "ScalarComponentDependentParameter", "varName": "kKin", "confName": "NN_KKIN"}
 		]
 }
 </codegen>*/
@@ -46,36 +46,36 @@ namespace model
 
 inline const char* MachineLearningParamHandler::identifier() CADET_NOEXCEPT
 {
-	return "MACHINE_LEARNING";
+	return "NEURAL_NETWORK";
 }
 
 inline bool MachineLearningParamHandler::validateConfig(
 	unsigned int nComp, unsigned int const* nBoundStates)
 {
 	if (_kKin.size() < nComp)
-		throw InvalidParameterException("ML_KKIN must have NCOMP entries");
+		throw InvalidParameterException("NN_KKIN must have NCOMP entries");
 	return true;
 }
 
 inline const char* ExtMachineLearningParamHandler::identifier() CADET_NOEXCEPT
 {
-	return "EXT_MACHINE_LEARNING";
+	return "EXT_NEURAL_NETWORK";
 }
 
 inline bool ExtMachineLearningParamHandler::validateConfig(
 	unsigned int nComp, unsigned int const* nBoundStates)
 {
 	if (_kKin.size() < nComp)
-		throw InvalidParameterException("ML_KKIN must have NCOMP entries");
+		throw InvalidParameterException("NN_KKIN must have NCOMP entries");
 	return true;
 }
 
 template <class ParamHandler_t>
-class MachineLearningBindingBase : public ParamHandlerBindingModelBase<ParamHandler_t>
+class NeuralNetworkBindingBase : public ParamHandlerBindingModelBase<ParamHandler_t>
 {
 public:
 
-	MachineLearningBindingBase()
+	NeuralNetworkBindingBase()
 		: _bias0(), _kernel0()
 		, _bias1(), _kernel1()
 		, _bias2(), _kernel2()
@@ -93,7 +93,7 @@ public:
 	{
 	}
 
-	virtual ~MachineLearningBindingBase() CADET_NOEXCEPT { }
+	virtual ~NeuralNetworkBindingBase() CADET_NOEXCEPT { }
 
 	static const char* identifier() { return ParamHandler_t::identifier(); }
 	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return true; }
@@ -132,7 +132,7 @@ protected:
 	unsigned int _nInput;    // input dimensionality (== nComp, single-component => 1)
 	unsigned int _nOutput;   // output dimensionality (always 1 for single-component)
 
-	std::unique_ptr<Class_ANN>  _annModel;
+	std::unique_ptr<ClassANN>  _annModel;
 
 	// Pre-allocated per-call buffers (mutable — used in const flux/jacobian methods)
 	mutable std::vector<double> _cpCache;    // normalised c_p input, length _nInput
@@ -152,12 +152,11 @@ protected:
 
 		if (_nLayers != 1u && _nLayers != 2u)
 			throw InvalidParameterException(
-				"ML binding: LAYERS must be 1 or 2. Got: "
+				"NEURAL_NETWORK binding: LAYERS must be 1 or 2. Got: "
 				+ std::to_string(_nLayers));
 
 		if (_nNodes == 0u)
-			throw InvalidParameterException("ML binding: NODES must be > 0.");
-
+			throw InvalidParameterException("NEURAL_NETWORK binding: NODES must be > 0.");
 		// Normalisation: one factor per input component
 		_normFactor = paramProvider.getDoubleArray("NORM_FACTOR");
 
@@ -165,7 +164,7 @@ protected:
 		{
 			const std::vector<double> pf = paramProvider.getDoubleArray("POROSITY_FACTOR");
 			if (pf.empty())
-				throw InvalidParameterException("ML binding: POROSITY_FACTOR must not be empty.");
+				throw InvalidParameterException("NEURAL_NETWORK binding: POROSITY_FACTOR must not be empty.");
 			_porosFactor = pf[0];
 		}
 
@@ -176,7 +175,7 @@ protected:
 
 		if (_normFactor.size() < _nInput)
 			throw InvalidParameterException(
-				"ML binding: NORM_FACTOR must have at least NCOMP entries.");
+				"NEURAL_NETWORK binding: NORM_FACTOR must have at least NCOMP entries.");
 
 		// --- Read weights from HDF5 scope ---
 		// Scope layout:
@@ -209,11 +208,11 @@ protected:
 		// W1: (nNodes x nInput) -> nNodes * nInput elements
 		if (_kernel0.size() != _nNodes * _nInput)
 			throw InvalidParameterException(
-				"ML binding: layer_0 KERNEL size must be NODES * NCOMP = "
+				"NEURAL_NETWORK binding: layer_0 KERNEL size must be NODES * NCOMP = "
 				+ std::to_string(_nNodes * _nInput));
 		if (_bias0.size() != _nNodes)
 			throw InvalidParameterException(
-				"ML binding: layer_0 BIAS size must be NODES = "
+				"NEURAL_NETWORK binding: layer_0 BIAS size must be NODES = "
 				+ std::to_string(_nNodes));
 
 		if (_nLayers == 2u)
@@ -221,20 +220,20 @@ protected:
 			// W2: (nNodes x nNodes)
 			if (_kernel1.size() != _nNodes * _nNodes)
 				throw InvalidParameterException(
-					"ML binding: layer_1 KERNEL size must be NODES * NODES = "
+					"NEURAL_NETWORK binding: layer_1 KERNEL size must be NODES * NODES = "
 					+ std::to_string(_nNodes * _nNodes));
 			if (_bias1.size() != _nNodes)
 				throw InvalidParameterException(
-					"ML binding: layer_1 BIAS size must be NODES = "
+					"NEURAL_NETWORK binding: layer_1 BIAS size must be NODES = "
 					+ std::to_string(_nNodes));
 			// W3: (nOutput x nNodes)
 			if (_kernel2.size() != _nOutput * _nNodes)
 				throw InvalidParameterException(
-					"ML binding: layer_2 KERNEL size must be NOUTPUT * NODES = "
+					"NEURAL_NETWORK binding: layer_2 KERNEL size must be NOUTPUT * NODES = "
 					+ std::to_string(_nOutput * _nNodes));
 			if (_bias2.size() != _nOutput)
 				throw InvalidParameterException(
-					"ML binding: layer_2 BIAS size must be NOUTPUT = "
+					"NEURAL_NETWORK binding: layer_2 BIAS size must be NOUTPUT = "
 					+ std::to_string(_nOutput));
 		}
 		else  // 1-layer: layer_1 is the output layer
@@ -242,16 +241,16 @@ protected:
 			// W2: (nOutput x nNodes)
 			if (_kernel1.size() != _nOutput * _nNodes)
 				throw InvalidParameterException(
-					"ML binding: layer_1 KERNEL size must be NOUTPUT * NODES = "
+					"NEURAL_NETWORK binding: layer_1 KERNEL size must be NOUTPUT * NODES = "
 					+ std::to_string(_nOutput * _nNodes));
 			if (_bias1.size() != _nOutput)
 				throw InvalidParameterException(
-					"ML binding: layer_1 BIAS size must be NOUTPUT = "
+					"NEURAL_NETWORK binding: layer_1 BIAS size must be NOUTPUT = "
 					+ std::to_string(_nOutput));
 		}
 
 		// --- Build ANN model ---
-		_annModel = std::make_unique<Class_ANN>(_nLayers, _nNodes, _nInput, _nOutput);
+		_annModel = std::make_unique<ClassANN>(_nLayers, _nNodes, _nInput, _nOutput);
 
 		// --- Pre-allocate runtime buffers ---
 		_cpCache.assign(_nInput, 0.0);
@@ -405,16 +404,16 @@ private:
 	}
 };
 
-typedef MachineLearningBindingBase<MachineLearningParamHandler>    MachineLearningBinding;
-typedef MachineLearningBindingBase<ExtMachineLearningParamHandler> ExternalMachineLearningBinding;
+typedef NeuralNetworkBindingBase<MachineLearningParamHandler>    NeuralNetworkBinding;
+typedef NeuralNetworkBindingBase<ExtMachineLearningParamHandler> ExternalNeuralNetworkBinding;
 
 namespace binding
 {
 	void registerMachineLearningModel(
 		std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings)
 	{
-		bindings[MachineLearningBinding::identifier()]         = []() { return new MachineLearningBinding(); };
-		bindings[ExternalMachineLearningBinding::identifier()] = []() { return new ExternalMachineLearningBinding(); };
+		bindings[NeuralNetworkBinding::identifier()]         = []() { return new NeuralNetworkBinding(); };
+		bindings[ExternalNeuralNetworkBinding::identifier()] = []() { return new ExternalNeuralNetworkBinding(); };
 	}
 }  // namespace binding
 
