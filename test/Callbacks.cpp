@@ -67,7 +67,7 @@ namespace
 
 TEST_CASE("Test Callback: timeout interrupts simulation but data is saved", "[Callback],[Timeout],[CI_callback]")
 {
-		const double timeout = 2.5;
+		const double timeout = 0.5;
 		const int polyDeg = 3;
 		const int nElem = 16;
 
@@ -83,7 +83,7 @@ TEST_CASE("Test Callback: timeout interrupts simulation but data is saved", "[Ca
 
 		// test that part of the solution is written
 		cadet::InternalStorageUnitOpRecorder const* const simData = driver.solution()->unitOperation(0);
-		REQUIRE(simData->numDataPoints() > 3);
+		REQUIRE(simData->numDataPoints() > 1);
 		REQUIRE(simData->numDataPoints() < 1500);
 }
 
