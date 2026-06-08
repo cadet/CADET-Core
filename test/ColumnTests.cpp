@@ -870,6 +870,45 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
+	void testJacobianFD(cadet::JsonParameterProvider& jpp, const double h, const double absTol, const double relTol, const active* flowRate)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		cadet::IUnitOperation* const unit = unitoperation::createAndConfigureUnit(jpp, *mb);
+
+		// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		std::vector<double> y(unit->numDofs(), 0.0);
+		std::vector<double> jacDir(unit->numDofs(), 0.0);
+		std::vector<double> jacCol1(unit->numDofs(), 0.0);
+		std::vector<double> jacCol2(unit->numDofs(), 0.0);
+
+		// Fill state vector with some values
+		util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unit->numDofs());
+
+		// Setup matrices
+		const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
+
+		if (flowRate) //  for 2D units, velocity needs to be determined from flow rates
+			unit->setFlowRates(flowRate, flowRate);
+
+		const ConstSimulationState simState{y.data(), nullptr};
+		unit->notifyDiscontinuousSectionTransition(0.0, 0u, simState, noAdParams);
+
+		// Compute state Jacobian
+		const SimulationTime simTime{0.0, 0u};
+		cadet::util::ThreadLocalStorage tls;
+		tls.resize(unit->threadLocalMemorySize());
+
+		unit->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams, tls);
+		std::fill(jacDir.begin(), jacDir.end(), 0.0);
+
+		cadet::test::compareJacobianFD(unit, unit, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls, h, absTol, relTol);
+
+		mb->destroyUnitOperation(unit);
+		destroyModelBuilder(mb);
+	}
+
 	void testJacobianForwardBackward(cadet::JsonParameterProvider& jpp, const double absTolFDpattern)
 	{
 		// Enable AD

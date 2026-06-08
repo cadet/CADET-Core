@@ -250,6 +250,33 @@
 	}
 
 
+ /**
+  * @brief Emits tests for a binding model that does not allow non-binding components
+  * @param modelName Identifier of the model as string (e.g. "LINEAR")
+  * @param tagName Tags added to the tests as string (e.g., "[SOMETAG]")
+  * @param allBinding Array with number of bound states in parentheses (e.g., (1, 1, 2))
+  * @param stateAll Array with full state vector (liquid and solid phase) in parentheses
+  * @param configAll Interior of a JSON object block with parameters for the
+  * @param hFD FD step size
+  * @param absTol absolute tolerance for comparison of Jacobian entries
+  * @param relTol relative tolerance for comparison of Jacobian entries
+  */
+#define CADET_BINDINGTEST_ALLBINDING_SINGLE_IMPL_FD(modelName, suffix, tagName, allBinding, stateAll, configAll, hFD, absTol, relTol) \
+	TEST_CASE(modelName " binding model " suffix " analytic Jacobian vs FD", "[Jacobian],[FD],[BindingModel],[CI_binding]," tagName) \
+	{ \
+		const unsigned int nBound2[] = BRACED_INIT_LIST allBinding; \
+		const double state2[] = BRACED_INIT_LIST stateAll; \
+		for (int bindMode = 0; bindMode < 2; ++bindMode) \
+		{ \
+			const bool isKinetic = bindMode; \
+			SECTION(std::string("Binding mode ") + (isKinetic ? "dynamic" : "quasi-stationary")) \
+			{ \
+				cadet::test::binding::testJacobianFD(modelName, sizeof(nBound2) / sizeof(unsigned int), nBound2, isKinetic, "{" configAll "}", state2, hFD, absTol, relTol); \
+			} \
+		} \
+	}
+
+
 /**
  * @brief Emits tests for a binding model that does not allow non-binding components
  * @param modelName Identifier of the model as string (e.g. "LINEAR")

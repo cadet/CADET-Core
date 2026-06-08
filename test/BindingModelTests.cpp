@@ -249,6 +249,38 @@ void testJacobianAD(const char* modelName, unsigned int nComp, unsigned int cons
 	}
 }
 
+void testJacobianFD(const char* modelName, unsigned int nComp, unsigned int const* nBound, bool isKinetic, const char* config, double const* point, double h, double absTol, double relTol)
+{
+	ConfiguredBindingModel cbm = ConfiguredBindingModel::create(modelName, nComp, nBound, isKinetic, config);
+
+	const unsigned int numDofs = cbm.nComp() + cbm.numBoundStates();
+	const unsigned int numEq = cbm.numBoundStates();
+	std::vector<double> yState(numDofs, 0.0);
+	double* const yBound = yState.data() + cbm.nComp();
+	std::copy_n(point, numDofs, yState.data());
+
+	std::vector<double> dir(numDofs, 0.0);
+	std::vector<double> colA(numEq, 0.0);
+	std::vector<double> colB(numEq, 0.0);
+
+	// Calculate analytic Jacobian
+	cadet::linalg::DenseMatrix jacAna;
+	jacAna.resize(numDofs, numDofs);
+	cbm.model().analyticJacobian(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, yBound, cbm.nComp(), jacAna.row(cbm.nComp()), cbm.buffer());
+
+	// Compare against finite differences
+	cadet::test::compareJacobianFD(
+		[&](double const* y, double* r) {
+			std::fill_n(r, numEq, 0.0);
+			cbm.model().flux(1.0, 0u, cadet::ColumnPosition{ 0.0, 0.0, 0.0 }, y + cbm.nComp(), y, r, cbm.buffer());
+		},
+		[&](double const* y, double* r) {
+			jacAna.submatrixMultiplyVector(y, cbm.nComp(), 0, numEq, numDofs, r);
+		},
+		yState.data(), dir.data(), colA.data(), colB.data(), numDofs, numEq, h, absTol, relTol
+	);
+}
+
 void testNormalExternalConsistency(const char* modelName, const char* modelNameExt, unsigned int nComp, unsigned int const* nBound, bool isKinetic, const char* config, double const* point)
 {
 	ConfiguredBindingModel cbm = ConfiguredBindingModel::create(modelName, nComp, nBound, isKinetic, config);
