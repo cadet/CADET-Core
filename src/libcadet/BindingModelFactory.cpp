@@ -51,6 +51,7 @@ namespace cadet
 			void registerAffinityComplexTitrationModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);
 			void registerSplineModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);
 			void registerGaussianProcessRegressionModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);
+			void registerNeuralNetworkModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);
 		}
 	}
 
@@ -87,6 +88,7 @@ namespace cadet
 		model::binding::registerAffinityComplexTitrationModel(_bindingModels);
 		model::binding::registerSplineModel(_bindingModels);
 		model::binding::registerGaussianProcessRegressionModel(_bindingModels);
+		model::binding::registerNeuralNetworkModel(_bindingModels);
 		registerModel<model::SimplifiedMultiStateStericMassActionBinding>();
 	}
 
