@@ -327,3 +327,14 @@ TEST_CASE("Reference test: GPR binding with MLP kernel for competitive Langmuir 
 	disc.setBulkDiscParam("WENO_ORDER", static_cast<int>(2));
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
+
+TEST_CASE("Reference test: ANN binding for Langmuir single component", "[Column_1D],[ANNBinding],[Simulation],[CI]")
+{
+	std::string modelFilePath = std::string("/data/config_Col1D_GRM_langANN_1comp_benchmark1.json");
+	std::string refFilePath = std::string("/data/ref_Col1D_GRM_langANN_1comp_benchmark1.h5");
+	const std::vector<double> absTol = { 1e-5 };
+	const std::vector<double> relTol = { 1e-5 };
+
+	cadet::test::column::FVParams disc(32, 8, 3);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
