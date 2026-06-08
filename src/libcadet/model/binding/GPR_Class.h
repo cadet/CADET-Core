@@ -1,4 +1,16 @@
-#pragma once
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// =================================================================================
+//  CADET
+//
+//  Copyright © 2008-present: The CADET-Core Authors
+//            Please see the AUTHORS.md file.
+//
+//  All rights reserved. This program and the accompanying materials
+//  are made available under the terms of the GNU Affero General Public
+//  License v3.0 (or, at your option, any later version).
+// =================================================================================
+ 
+ #pragma once
 
 #include <Eigen/Dense>
 
