@@ -251,7 +251,12 @@ protected:
 		// Calculate total number of bound states
 		unsigned int totalNumBoundStates = 0;
 		for (unsigned int i = 0; i < _nComp; ++i)
+		{
+			if(_nBoundStates[i] != 1)
+				throw InvalidParameterException(
+					"GPR binding requires exactly one bound state for each component");
 			totalNumBoundStates += _nBoundStates[i];
+		}
 
 		// CS_NDIM must match total number of bound states
 		if (static_cast<unsigned int>(csNDim) != totalNumBoundStates)
