@@ -147,16 +147,16 @@ protected:
 			paramProvider, unitOpIdx, parTypeIdx);
 
 		// --- Read scalar configuration ---
-		_nLayers = static_cast<unsigned int>(paramProvider.getInt("LAYERS"));
-		_nNodes  = static_cast<unsigned int>(paramProvider.getInt("NODES"));
+		_nLayers = static_cast<unsigned int>(paramProvider.getInt("NLAYERS"));
+		_nNodes  = static_cast<unsigned int>(paramProvider.getInt("NNODES"));
 
 		if (_nLayers != 1u && _nLayers != 2u)
 			throw InvalidParameterException(
-				"NEURAL_NETWORK binding: LAYERS must be 1 or 2. Got: "
+				"NEURAL_NETWORK binding: NLAYERS must be 1 or 2. Got: "
 				+ std::to_string(_nLayers));
 
 		if (_nNodes == 0u)
-			throw InvalidParameterException("NEURAL_NETWORK binding: NODES must be > 0.");
+			throw InvalidParameterException("NEURAL_NETWORK binding: NNODES must be > 0.");
 		// Normalisation: one factor per input component
 		_normFactor = paramProvider.getDoubleArray("NORM_FACTOR");
 
@@ -179,10 +179,9 @@ protected:
 
 		// --- Read weights from HDF5 scope ---
 		// Scope layout:
-		//   model_weights/layer_0: {KERNEL, BIAS}   W1, b1
-		//   model_weights/layer_1: {KERNEL, BIAS}   W2, b2  (hidden for 2-layer; output for 1-layer)
-		//   model_weights/layer_2: {KERNEL, BIAS}   W3, b3  (output — 2-layer only)
-		paramProvider.pushScope("model_weights");
+		//   adsorption/layer_0: {KERNEL, BIAS}   W1, b1
+		//   adsorption/layer_1: {KERNEL, BIAS}   W2, b2  (hidden for 2-layer; output for 1-layer)
+		//   adsorption/layer_2: {KERNEL, BIAS}   W3, b3  (output — 2-layer only)
 
 		paramProvider.pushScope("layer_0");
 		_kernel0 = paramProvider.getDoubleArray("KERNEL");
@@ -201,8 +200,6 @@ protected:
 			_bias2   = paramProvider.getDoubleArray("BIAS");
 			paramProvider.popScope();  // layer_2
 		}
-
-		paramProvider.popScope();  // model_weights
 
 		// --- Validate weight sizes ---
 		// W1: (nNodes x nInput) -> nNodes * nInput elements
