@@ -273,11 +273,15 @@ jobs:
           fi
 
           exit $failed
-      - name: Run CI test set IV
+      - name: Run CI test set IV - callbacks
+        if: always() && steps.build.conclusion == 'success'
+        run: |
+          ${BUILD_DIR}/test/testRunner [CI_callback]
+      - name: Run CI test set V
         if: always() && steps.build.conclusion == 'success'
         run: |
           ${BUILD_DIR}/test/testRunner [CI]
-      - name: Run CI test CAPI
+      - name: Run CI test set VI - CAPI
         if: always() && steps.build.conclusion == 'success'
         run: |
           ${BUILD_DIR}/test/testCAPIv1

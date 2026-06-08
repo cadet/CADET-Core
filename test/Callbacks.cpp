@@ -65,7 +65,7 @@ namespace
 
 } // namespace
 
-TEST_CASE("Test Callback: timeout interrupts simulation but data is saved", "[Callback],[Timeout],[CI]")
+TEST_CASE("Test Callback: timeout interrupts simulation but data is saved", "[Callback],[Timeout],[CI_callback]")
 {
 		const double timeout = 2.5;
 		const int polyDeg = 3;
@@ -87,7 +87,7 @@ TEST_CASE("Test Callback: timeout interrupts simulation but data is saved", "[Ca
 		REQUIRE(simData->numDataPoints() < 1500);
 }
 
-TEST_CASE("Test Callback: timeout is ignored when set to zero", "[Callback],[Timeout],[CI]")
+TEST_CASE("Test Callback: timeout is ignored when set to zero", "[Callback],[Timeout],[CI_callback]")
 {
 	const double timeout = 0.0;
 	const int polyDeg = 2;
@@ -105,7 +105,7 @@ TEST_CASE("Test Callback: timeout is ignored when set to zero", "[Callback],[Tim
 	REQUIRE(simData->numDataPoints() == 1501);
 }
 
-TEST_CASE("Test Callback: timeout is ignored when set to < 0", "[Callback],[Timeout],[CI]")
+TEST_CASE("Test Callback: timeout is ignored when set to < 0", "[Callback],[Timeout],[CI_callback]")
 {
 	const double timeout = -5.0;
 	const int polyDeg = 2;
