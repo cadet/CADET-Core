@@ -360,7 +360,9 @@ TEST_CASE("Radial GRM_DG with two component linear binding Jacobian", "[RadGRM],
 
 TEST_CASE("Radial GRM_DG consistent initialization with linear binding", "[RadGRM],[DG],[ConsistentInit]")
 {
-	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_GENERAL_RATE_MODEL", "DG", 1e-12, 1e-12);
+	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_GENERAL_RATE_MODEL", "DG", 1e-12, 1e-12, 0, 0);
+	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_GENERAL_RATE_MODEL", "DG", 1e-12, 1e-12, 1, 0);
+	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_GENERAL_RATE_MODEL", "DG", 1e-12, 1e-12, 0, 1);
 }
 
 TEST_CASE("Radial GRM_DG sensitivity Jacobians", "[RadGRM],[DG],[UnitOp],[Sensitivity]")
@@ -380,7 +382,8 @@ TEST_CASE("Radial GRM_DG consistent sensitivity initialization with linear bindi
 	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, numDofs);
 	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
 
-	cadet::test::column::testConsistentInitializationSensitivity("RADIAL_GENERAL_RATE_MODEL", "DG", y.data(), yDot.data(), true, 1e-14);
+	cadet::test::column::testConsistentInitializationSensitivity("RADIAL_GENERAL_RATE_MODEL", "DG", y.data(), yDot.data(), true, 1e-14, 1, 0);
+	cadet::test::column::testConsistentInitializationSensitivity("RADIAL_GENERAL_RATE_MODEL", "DG", y.data(), yDot.data(), true, 1e-14, 1, 1);
 }
 
 // SMA sensitivity init: pre-existing failure (also fails in FV radial models)
