@@ -156,7 +156,7 @@ TEST_CASE("Radial LRM dynamic reactions time derivative Jacobian vs FD modified 
 // Radial LRM_DG Tests
 // ============================================================================
 
-TEST_CASE("Radial LRM_DG numerical Benchmark for linear case", "[RadLRM],[DG],[Simulation],[Reference]")
+TEST_CASE("Radial LRM_DG numerical Benchmark for linear case", "[RadLRM],[DG],[Simulation],[Reference],[CI]")
 {
 	const std::string& modelFilePath = std::string("/data/model_radLRM_dynLin_1comp_sensbenchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_radLRM_dynLin_1comp_sensbenchmark1_DG_P3Z16.h5");
@@ -166,29 +166,29 @@ TEST_CASE("Radial LRM_DG numerical Benchmark for linear case", "[RadLRM],[DG],[S
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("Radial LRM_DG transport Jacobian", "[RadLRM],[DG],[UnitOp],[Jacobian]")
+TEST_CASE("Radial LRM_DG transport Jacobian", "[RadLRM],[DG],[UnitOp],[Jacobian],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-TEST_CASE("Radial LRM_DG time derivative Jacobian vs FD", "[RadLRM],[DG],[UnitOp],[Residual],[Jacobian]")
+TEST_CASE("Radial LRM_DG time derivative Jacobian vs FD", "[RadLRM],[DG],[UnitOp],[Residual],[Jacobian],[CI]")
 {
 	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
 }
 
-TEST_CASE("Radial LRM_DG inlet DOF Jacobian", "[RadLRM],[DG],[UnitOp],[Jacobian],[Inlet]")
+TEST_CASE("Radial LRM_DG inlet DOF Jacobian", "[RadLRM],[DG],[UnitOp],[Jacobian],[Inlet],[CI]")
 {
 	cadet::test::column::testInletDofJacobian("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
 }
 
-TEST_CASE("Radial LRM_DG with two component linear binding Jacobian", "[RadLRM],[DG],[UnitOp],[Jacobian]")
+TEST_CASE("Radial LRM_DG with two component linear binding Jacobian", "[RadLRM],[DG],[UnitOp],[Jacobian],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-TEST_CASE("Radial LRM_DG consistent initialization with linear binding", "[RadLRM],[DG],[ConsistentInit]")
+TEST_CASE("Radial LRM_DG consistent initialization with linear binding", "[RadLRM],[DG],[ConsistentInit],[CI]")
 {
 	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", 1e-12, 1e-12);
 }
@@ -200,14 +200,14 @@ TEST_CASE("Radial LRM_DG consistent initialization with linear binding", "[RadLR
 //	cadet::test::column::testJacobianForwardBackward("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", disc, std::numeric_limits<float>::epsilon() * 100.0);
 //}
 
-TEST_CASE("Radial LRM_DG sensitivity Jacobians", "[RadLRM],[DG],[UnitOp],[Sensitivity]")
+TEST_CASE("Radial LRM_DG sensitivity Jacobians", "[RadLRM],[DG],[UnitOp],[Sensitivity],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
 
 	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 3e-7, 5e-4);
 }
 
-TEST_CASE("Radial LRM_DG consistent sensitivity initialization with linear binding", "[RadLRM],[DG],[ConsistentInit],[Sensitivity]")
+TEST_CASE("Radial LRM_DG consistent sensitivity initialization with linear binding", "[RadLRM],[DG],[ConsistentInit],[Sensitivity],[CI]")
 {
 	// DG: createColumnWithTwoCompLinearBinding uses POLYDEG=3, NELEM=1 => nPoints=4, nComp=2, strideBound=2
 	const unsigned int numDofs = 2 + 4 * (2 + 2);
@@ -235,22 +235,22 @@ TEST_CASE("Radial LRM_DG consistent sensitivity initialization with linear bindi
 //	cadet::test::column::testConsistentInitializationSensitivity("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", y.data(), yDot.data(), false, 1e-9);
 //}
 
-TEST_CASE("Radial LRM_DG dynamic reactions Jacobian vs AD bulk", "[RadLRM],[DG],[Jacobian],[AD],[ReactionModel]")
+TEST_CASE("Radial LRM_DG dynamic reactions Jacobian vs AD bulk", "[RadLRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, false, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-TEST_CASE("Radial LRM_DG dynamic reactions Jacobian vs AD modified bulk", "[RadLRM],[DG],[Jacobian],[AD],[ReactionModel]")
+TEST_CASE("Radial LRM_DG dynamic reactions Jacobian vs AD modified bulk", "[RadLRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, true, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-TEST_CASE("Radial LRM_DG dynamic reactions time derivative Jacobian vs FD bulk", "[RadLRM],[DG],[Jacobian],[Residual],[ReactionModel]")
+TEST_CASE("Radial LRM_DG dynamic reactions time derivative Jacobian vs FD bulk", "[RadLRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, false, 1e-6, 1e-14, 8e-4);
 }
 
-TEST_CASE("Radial LRM_DG dynamic reactions time derivative Jacobian vs FD modified bulk", "[RadLRM],[DG],[Jacobian],[Residual],[ReactionModel]")
+TEST_CASE("Radial LRM_DG dynamic reactions time derivative Jacobian vs FD modified bulk", "[RadLRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, true, 1e-6, 1e-14, 8e-4);
 }
@@ -259,7 +259,7 @@ TEST_CASE("Radial LRM_DG dynamic reactions time derivative Jacobian vs FD modifi
 // Radial LRM_DG vs FV reference benchmark
 // ============================================================
 
-TEST_CASE("Radial LRM_DG noBnd vs FV WENO3 reference", "[RadLRM],[DG],[Reference]")
+TEST_CASE("Radial LRM_DG noBnd vs FV WENO3 reference", "[RadLRM],[DG],[Reference],[CI]")
 {
 	cadet::test::column::testRadialDGvsReference(
 		"/data/model_radLRM_DG_noBnd_1comp_eocbenchmark.json",
@@ -267,7 +267,7 @@ TEST_CASE("Radial LRM_DG noBnd vs FV WENO3 reference", "[RadLRM],[DG],[Reference
 		"001", 4, 16, 2e-5, 1e-7);
 }
 
-TEST_CASE("Radial LRM_DG linBnd vs FV WENO3 reference", "[RadLRM],[DG],[Reference]")
+TEST_CASE("Radial LRM_DG linBnd vs FV WENO3 reference", "[RadLRM],[DG],[Reference],[CI]")
 {
 	cadet::test::column::testRadialDGvsReference(
 		"/data/model_radLRM_DG_linBnd_1comp_eocbenchmark.json",
