@@ -387,21 +387,24 @@ namespace column
 			JsonDiscScopeManager manager(jpp, unitID);
 			std::string unitType = manager.getUnitType();
 
-			manager.enterDiscretization();
-			jpp.set("SPATIAL_METHOD", bulkDisc_->getDiscType());
-			bulkDisc_->setBulkParameters(manager.getProvider(), unitType, manager);
-			manager.exitDiscretization();
-
-			int parType = 0;
-			while (jpp.exists("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType)))
+			if (unitType != "OUTLET")
 			{
-				jpp.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
 				manager.enterDiscretization();
-				jpp.set("SPATIAL_METHOD", particleDisc_->getDiscType());
-				particleDisc_->setParticleParameters(jpp);
+				jpp.set("SPATIAL_METHOD", bulkDisc_->getDiscType());
+				bulkDisc_->setBulkParameters(manager.getProvider(), unitType, manager);
 				manager.exitDiscretization();
-				jpp.popScope();
-				parType++;
+
+				int parType = 0;
+				while (jpp.exists("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType)))
+				{
+					jpp.pushScope("particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType));
+					manager.enterDiscretization();
+					jpp.set("SPATIAL_METHOD", particleDisc_->getDiscType());
+					particleDisc_->setParticleParameters(jpp);
+					manager.exitDiscretization();
+					jpp.popScope();
+					parType++;
+				}
 			}
 		}
 
