@@ -338,3 +338,25 @@ TEST_CASE("Reference test: ANN binding for Langmuir single component", "[Column_
 	cadet::test::column::FVParams disc(32, 8, 3);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
+
+TEST_CASE("Reference test: cyclic system with LRMP", "[Column_1D],[LRMP],[Simulation],[System],[CI]")
+{
+	std::string modelFilePath = std::string("/data/config_cyclicSystem1_LRMP_linBnd_1comp.json");
+	std::string refFilePath = std::string("/data/ref_cyclicSystem1_LRMP_linBnd_1comp.h5");
+	const std::vector<double> absTol = { 1e-10 };
+	const std::vector<double> relTol = { 1e-8 };
+
+	cadet::test::column::DGParams disc;
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "003", absTol, relTol, disc, false);
+}
+
+TEST_CASE("Reference test: acyclic system with LRMP", "[Column_1D],[LRMP],[Simulation],[System],[CI]")
+{
+	std::string modelFilePath = std::string("/data/config_acyclicSystem1_LRMP_linBnd_1comp.json");
+	std::string refFilePath = std::string("/data/ref_acyclicSystem1_LRMP_linBnd_1comp.h5");
+	const std::vector<double> absTol = { 1e-10 };
+	const std::vector<double> relTol = { 1e-8 };
+
+	cadet::test::column::DGParams disc;
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "006", absTol, relTol, disc, false);
+}
