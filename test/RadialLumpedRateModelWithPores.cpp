@@ -452,7 +452,7 @@ TEST_CASE("Radial LRMP_DG noBnd vs FV WENO3 reference", "[RadLRMP],[DG],[Referen
 	cadet::test::column::testRadialDGvsReference(
 		"/data/model_radLRMP_DG_noBnd_1comp_eocbenchmark.json",
 		"/data/ref_radLRMP_DG_noBnd_1comp_eocbenchmark_FV_Z10000.h5",
-		"001", 4, 16, 1e-6, 1e-3);
+		"001", 4, 16, 6e-5, 1e-7);
 }
 
 TEST_CASE("Radial LRMP_DG linBnd vs FV WENO3 reference", "[RadLRMP],[DG],[Reference]")
@@ -460,5 +460,5 @@ TEST_CASE("Radial LRMP_DG linBnd vs FV WENO3 reference", "[RadLRMP],[DG],[Refere
 	cadet::test::column::testRadialDGvsReference(
 		"/data/model_radLRMP_DG_linBnd_1comp_eocbenchmark.json",
 		"/data/ref_radLRMP_DG_linBnd_1comp_eocbenchmark_FV_Z10000.h5",
-		"001", 4, 16, 1e-6, 1e-3);
+		"001", 4, 16, 6e-5, 1e-7);
 }

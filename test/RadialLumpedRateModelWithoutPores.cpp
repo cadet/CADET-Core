@@ -264,7 +264,7 @@ TEST_CASE("Radial LRM_DG noBnd vs FV WENO3 reference", "[RadLRM],[DG],[Reference
 	cadet::test::column::testRadialDGvsReference(
 		"/data/model_radLRM_DG_noBnd_1comp_eocbenchmark.json",
 		"/data/ref_radLRM_DG_noBnd_1comp_eocbenchmark_FV_Z10000.h5",
-		"001", 4, 16, 1e-6, 1e-3);
+		"001", 4, 16, 2e-5, 1e-7);
 }
 
 TEST_CASE("Radial LRM_DG linBnd vs FV WENO3 reference", "[RadLRM],[DG],[Reference]")
@@ -272,5 +272,5 @@ TEST_CASE("Radial LRM_DG linBnd vs FV WENO3 reference", "[RadLRM],[DG],[Referenc
 	cadet::test::column::testRadialDGvsReference(
 		"/data/model_radLRM_DG_linBnd_1comp_eocbenchmark.json",
 		"/data/ref_radLRM_DG_linBnd_1comp_eocbenchmark_FV_Z10000.h5",
-		"001", 4, 16, 1e-6, 1e-3);
+		"001", 4, 16, 2e-5, 1e-7);
 }
