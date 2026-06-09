@@ -54,7 +54,26 @@ The network output is scaled by a porosity factor and shifted by an offset:
 
     c^{s,\ast}(c^p) = \beta_{\text{poros}} \cdot \left(f(c^p \odot \alpha_{\text{norm}}) - f(0)\right)
 
-where :math:`\beta_{\text{poros}}` is specified by ``POROSITY_FACTOR``. The offset :math:`f(0)` is computed once during configuration to ensure that the predicted loading is zero when the pore-phase concentration is zero.
+where :math:`\beta_{\text{poros}}` is specified by ``POROSITY_FACTOR``.
+The offset :math:`f(0)` is computed once during configuration to ensure that the predicted loading is zero when the pore-phase concentration is zero (enforcing physically valid boundary conditions).
+
+Normalization
+*************
+
+The normalization factor :math:`\alpha_{\text{norm}}` scales the liquid-phase concentrations before they are passed to the ANN.
+The ANN is trained and evaluated on these normalized concentrations rather than on the raw concentrations.
+Normalization factors should be chosen such that the normalized ANN inputs are typically of order 1.
+This generally improves training stability, prediction accuracy, and robustness of the nonlinear solver.
+Values that are excessively large or small should be avoided.
+
+**With** mechanistic knowledge, it may be practical to choose normalization factors that reflect characteristic concentration scales of the respective bound state (e.g., equilibrium constants, affinity parameters, or other physically meaningful scaling factors).
+**Without** mechanistic knowledge, it may be practical to choose normalization factors purely for numerical conditioning. A common choice is to scale each input component to values of order unity, for example :math:`\alpha_{\text{norm}} = max(c^p)`
+
+Porosity factor
+***************
+
+The porosity scaling factor :math:`\beta_{\text{poros}}` scales this prediction to the physical solid-phase loading used by the binding model.
+Since equilibrium loadings are often reported on different reference volumes or masses, :math:`\beta_{\text{poros}}` is intended to be used as a simple correction factor to account for differences in porosity or unit conversions between the training data and the simulation conditions.
 
 Kinetic Form
 ************

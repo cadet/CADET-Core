@@ -44,16 +44,14 @@ For information on model equations, refer to :ref:`neural_network`.
 **Type:** int        **Range:** :math:`\geq 1`  **Length:** 1
 ===================  =========================  =======================
 
-``NORM_FACTOR``
-   Normalization factors applied element-wise to the pore-phase
-   concentration before feeding into the neural network. Each entry
-   corresponds to one input dimension (component).
-
-===================  =========================  =======================
-**Type:** double     **Range:** :math:`> 0`     **Length:** NCOMP
-===================  =========================  =======================
-
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_YYY**
+
+``NORM_FACTOR``
+   Normalization factors applied pore-phase concentration before feeding into the neural network.
+
+===================  =========================  =======================
+**Type:** double     **Range:** :math:`> 0`     **Length:** 1
+===================  =========================  =======================
 
 ``POROSITY_FACTOR``
    Scaling factor applied to the neural network prediction. This can be
@@ -64,7 +62,8 @@ For information on model equations, refer to :ref:`neural_network`.
 **Type:** double     **Range:** :math:`> 0`     **Length:** 1
 ===================  =========================  =======================
 
-Neural network weights and biases are organized hierarchically by layer. All weight matrices must be stored in column-major (Fortran) order.
+Neural network weights and biases are organized hierarchically by layer.
+All weight matrices must be stored in column-major (Fortran) order.
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_YYY/layer_0**
 

@@ -160,18 +160,10 @@ namespace cadet
                 if (_nNodes == 0u)
                     throw InvalidParameterException("NEURAL_NETWORK binding: NNODES must be > 0.");
 
-                // Shared normalisation: one factor per input component
-                _normFactor = paramProvider.getDoubleArray("NORM_FACTOR");
-
                 // Input/output dimensionality: each bound state's ANN takes the full
                 // c_p vector and predicts a scalar solid concentration.
                 _nInput = _nComp;
                 _nOutput = 1u;
-
-                if (_normFactor.size() < _nInput)
-                    throw InvalidParameterException(
-                        "NEURAL_NETWORK binding: NORM_FACTOR must have at least NCOMP ("
-                        + std::to_string(_nInput) + ") entries.");
 
                 // --- Validate bound state count and compute total ---
                 unsigned int totalNumBoundStates = 0u;
@@ -185,7 +177,7 @@ namespace cadet
                     ++totalNumBoundStates;
                 }
 
-                // --- Clear and reserve per-bound-state containers ---
+                // --- Clear and reserve containers ---
                 _bias0.clear();    _bias0.reserve(totalNumBoundStates);
                 _kernel0.clear();  _kernel0.reserve(totalNumBoundStates);
                 _bias1.clear();    _bias1.reserve(totalNumBoundStates);
@@ -195,20 +187,16 @@ namespace cadet
                 _porosFactors.clear(); _porosFactors.reserve(totalNumBoundStates);
                 _offsets.clear();  _offsets.reserve(totalNumBoundStates);
                 _annModels.clear(); _annModels.reserve(totalNumBoundStates);
+                _normFactor.clear(); _normFactor.reserve(totalNumBoundStates);
 
-                // --- Read per-bound-state weights ---
-                // Scope layout:
-                //   adsorption/bound_state_N/layer_0: {KERNEL, BIAS}   W1, b1
-                //   adsorption/bound_state_N/layer_1: {KERNEL, BIAS}   W2, b2
-                //   adsorption/bound_state_N/layer_2: {KERNEL, BIAS}   W3, b3  (2-layer only)
-                //   adsorption/bound_state_N/POROSITY_FACTOR
+				// --- Read parameters for each NN / bound state ---
                 for (unsigned int bndIdx = 0u; bndIdx < totalNumBoundStates; ++bndIdx)
                 {
 					const std::string scopeName = std::format("bound_state_{:03}", bndIdx);
                     paramProvider.pushScope(scopeName);
 
-                    const double pf = paramProvider.getDouble("POROSITY_FACTOR");
-                    _porosFactors.push_back(pf);
+                    _porosFactors.push_back(paramProvider.getDouble("POROSITY_FACTOR"));
+                    _normFactor.push_back(paramProvider.getDouble("NORM_FACTOR"));
 
                     paramProvider.pushScope("layer_0");
                     _kernel0.push_back(paramProvider.getDoubleArray("KERNEL"));
