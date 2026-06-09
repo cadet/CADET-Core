@@ -799,12 +799,16 @@ TEST_CASE("Radial Column_1D as LRMP sensitivity Jacobians", "[RadialColumn_1D],[
 
 TEST_CASE("Radial Column_1D as GRM consistent initialization with linear binding", "[RadialColumn_1D],[DG],[ConsistentInit]")
 {
-	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-12);
+	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-12, 0, 0);
+	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-12, 1, 0);
+	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-12, 0, 1);
 }
 
 TEST_CASE("Radial Column_1D as LRMP consistent initialization with linear binding", "[RadialColumn_1D],[DG],[ConsistentInit]")
 {
-	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12);
+	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12, 0, 0);
+	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12, 1, 0);
+	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12, 0, 1);
 }
 
 TEST_CASE("Radial Column_1D as GRM dynamic reactions Jacobian vs AD bulk", "[RadialColumn_1D],[DG],[Jacobian],[AD],[ReactionModel]")
