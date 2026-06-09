@@ -485,5 +485,5 @@ TEST_CASE("Radial GRM_DG noBnd vs FV WENO3 reference", "[RadGRM],[DG],[Reference
 	cadet::test::column::testRadialDGvsReference(
 		"/data/model_radGRM_DG_noBnd_1comp_eocbenchmark.json",
 		"/data/ref_radGRM_DG_noBnd_1comp_eocbenchmark_FV_Z10000.h5",
-		"001", 4, 32, 1e-5, 1e-2);
+		"001", 4, 32, 6e-5, 1e-7);
 }
