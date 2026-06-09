@@ -821,6 +821,8 @@ namespace column
 	 */
 	void testJacobianFD(cadet::JsonParameterProvider& jpp, const double h, const double absTol, const double relTol, const active* flowRate = nullptr);
 
+	void testSplitComponentsData(const std::string& uoType, const std::string& spatialMethod);
+
 } // namespace column
 } // namespace test
 } // namespace cadet

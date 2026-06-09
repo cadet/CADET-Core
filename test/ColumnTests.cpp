@@ -32,11 +32,13 @@
 #include "UnitOperationTests.hpp"
 #include "LoggingUtils.hpp"
 #include "../include/io/hdf5/HDF5Reader.hpp"
+#include "../include/io/hdf5/HDF5Writer.hpp"
 #include "common/ParameterProviderImpl.hpp"
 
 #include <cmath>
 #include <functional>
 #include <cstdint>
+#include <cstdio>
 
 /**
  * @brief Returns the absolute path to the test/ folder of the project
@@ -1978,6 +1980,144 @@ namespace column
 			CHECK((sim_outlet[i]) == cadet::test::makeApprox(ref_outlet[j], relTol, absTol));
 
 		rd.closeFile();
+	}
+
+	void testSplitComponentsData(const std::string& uoType, const std::string& spatialMethod)
+	{
+		cadet::JsonParameterProvider pp = createLWE(uoType, spatialMethod);
+		nlohmann::json& setupJson = *pp.data();
+
+		setupJson["solver"]["USER_SOLUTION_TIMES"] = { 0.0, 10.0, 20.0 };
+
+		const unsigned int nComp = setupJson["model"]["unit_000"]["NCOMP"].get<unsigned int>();
+		const auto& nbArr = setupJson["model"]["unit_000"]["particle_type_000"]["NBOUND"];
+		std::vector<unsigned int> nBoundPerComp(nComp);
+		for (unsigned int c = 0; c < nComp; ++c)
+			nBoundPerComp[c] = nbArr[c].get<unsigned int>();
+
+		setupJson["return"]["unit_000"]["WRITE_SOLUTION_OUTLET"] = true;
+		setupJson["return"]["unit_000"]["WRITE_SOLUTION_INLET"] = true;
+		setupJson["return"]["unit_000"]["WRITE_SOLUTION_BULK"] = true;
+		setupJson["return"]["unit_000"]["WRITE_SOLUTION_PARTICLE"] = true;
+		setupJson["return"]["unit_000"]["WRITE_SOLUTION_SOLID"] = true;
+		setupJson["return"]["unit_000"]["WRITE_SOLUTION_FLUX"] = true;
+
+		// Test with SPLIT_COMPONENTS_DATA = true
+		{
+			setupJson["return"]["SPLIT_COMPONENTS_DATA"] = true;
+
+			cadet::Driver drv;
+			drv.configure(pp);
+			drv.run();
+
+			const std::string outFile = std::string(getTestDirectory()) + "/data/tmp_split_comp_true.h5";
+			{
+				cadet::io::HDF5Writer writer;
+				writer.openFile(outFile, "co");
+				drv.write(writer);
+				writer.closeFile();
+			}
+
+			cadet::io::HDF5Reader rd;
+			rd.openFile(outFile, "r");
+			rd.pushGroup("output");
+			rd.pushGroup("solution");
+			rd.pushGroup("unit_000");
+
+			for (unsigned int comp = 0; comp < nComp; ++comp)
+			{
+				std::ostringstream oss;
+				oss << "SOLUTION_OUTLET_COMP_" << std::setfill('0') << std::setw(3) << comp;
+				CHECK(rd.exists(oss.str()));
+			}
+
+			for (unsigned int comp = 0; comp < nComp; ++comp)
+			{
+				std::ostringstream oss;
+				oss << "SOLUTION_INLET_COMP_" << std::setfill('0') << std::setw(3) << comp;
+				CHECK(rd.exists(oss.str()));
+			}
+
+			for (unsigned int comp = 0; comp < nComp; ++comp)
+			{
+				std::ostringstream oss;
+				oss << "SOLUTION_BULK_COMP_" << std::setfill('0') << std::setw(3) << comp;
+				CHECK(rd.exists(oss.str()));
+			}
+
+			for (unsigned int comp = 0; comp < nComp; ++comp)
+			{
+				std::ostringstream oss;
+				oss << "SOLUTION_PARTICLE_COMP_" << std::setfill('0') << std::setw(3) << comp;
+				CHECK(rd.exists(oss.str()));
+			}
+
+			for (unsigned int comp = 0; comp < nComp; ++comp)
+			{
+				for (unsigned int bnd = 0; bnd < nBoundPerComp[comp]; ++bnd)
+				{
+					std::ostringstream oss;
+					oss << "SOLUTION_SOLID_COMP_" << std::setfill('0') << std::setw(3) << comp
+						<< "_BND_" << std::setfill('0') << std::setw(3) << bnd;
+					CHECK(rd.exists(oss.str()));
+				}
+			}
+
+			for (unsigned int comp = 0; comp < nComp; ++comp)
+			{
+				std::ostringstream oss;
+				oss << "SOLUTION_FLUX_COMP_" << std::setfill('0') << std::setw(3) << comp;
+				CHECK(rd.exists(oss.str()));
+			}
+
+			CHECK_FALSE(rd.exists("SOLUTION_OUTLET"));
+			CHECK_FALSE(rd.exists("SOLUTION_BULK"));
+			CHECK_FALSE(rd.exists("SOLUTION_PARTICLE"));
+			CHECK_FALSE(rd.exists("SOLUTION_SOLID"));
+			CHECK_FALSE(rd.exists("SOLUTION_FLUX"));
+
+			rd.closeFile();
+			std::remove(outFile.c_str());
+		}
+
+		// Test with SPLIT_COMPONENTS_DATA = false
+		{
+			setupJson["return"]["SPLIT_COMPONENTS_DATA"] = false;
+
+			cadet::Driver drv;
+			drv.configure(pp);
+			drv.run();
+
+			const std::string outFile = std::string(getTestDirectory()) + "/data/tmp_split_comp_false.h5";
+			{
+				cadet::io::HDF5Writer writer;
+				writer.openFile(outFile, "co");
+				drv.write(writer);
+				writer.closeFile();
+			}
+
+			cadet::io::HDF5Reader rd;
+			rd.openFile(outFile, "r");
+			rd.pushGroup("output");
+			rd.pushGroup("solution");
+			rd.pushGroup("unit_000");
+
+			CHECK(rd.exists("SOLUTION_OUTLET"));
+			CHECK(rd.exists("SOLUTION_INLET"));
+			CHECK(rd.exists("SOLUTION_BULK"));
+			CHECK(rd.exists("SOLUTION_PARTICLE"));
+			CHECK(rd.exists("SOLUTION_SOLID"));
+			CHECK(rd.exists("SOLUTION_FLUX"));
+
+			CHECK_FALSE(rd.exists("SOLUTION_OUTLET_COMP_000"));
+			CHECK_FALSE(rd.exists("SOLUTION_BULK_COMP_000"));
+			CHECK_FALSE(rd.exists("SOLUTION_PARTICLE_COMP_000"));
+			CHECK_FALSE(rd.exists("SOLUTION_SOLID_COMP_000_BND_000"));
+			CHECK_FALSE(rd.exists("SOLUTION_FLUX_COMP_000"));
+
+			rd.closeFile();
+			std::remove(outFile.c_str());
+		}
 	}
 
 } // namespace column

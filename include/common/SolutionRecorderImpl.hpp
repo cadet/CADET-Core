@@ -735,31 +735,49 @@ protected:
 			}
 		}
 
-		if (_curCfg->storeBulk)
+		if (_curCfg->storeBulk && _splitComponents)
 		{
-			if (_splitComponents)
-			{
-				std::vector<std::size_t> layout(0);
-				layout.reserve(3);
-				layout.push_back(_numTimesteps);
+			std::vector<std::size_t> layout(0);
+			layout.reserve(3);
+			layout.push_back(_numTimesteps);
 
-				if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
-					layout.push_back(_nAxialCells);
-				if (_nRadialCells > 0)
-					layout.push_back(_nRadialCells);
+			if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
+				layout.push_back(_nAxialCells);
+			if (_nRadialCells > 0)
+				layout.push_back(_nRadialCells);
 
-				for (unsigned int comp = 0; comp < _nComp; ++comp)
-				{
-					oss.str("");
-					oss << prefix << "_BULK_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
-					writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->bulk.data() + comp, _nComp, 1);
-				}
-			}
-			else
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
 				oss.str("");
-				oss << prefix << "_BULK";
+				oss << prefix << "_BULK_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+				writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->bulk.data() + comp, _nComp, 1);
+			}
+		}
 
+		if (_curCfg->storeBulk && !_splitComponents)
+		{
+			oss.str("");
+			oss << prefix << "_BULK";
+
+			std::vector<std::size_t> layout(0);
+			layout.reserve(4);
+			layout.push_back(_numTimesteps);
+
+			if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
+				layout.push_back(_nAxialCells);
+			if (_nRadialCells > 0)
+				layout.push_back(_nRadialCells);
+			layout.push_back(_nComp);
+
+			debugCheckTensorLayout(layout, _curStorage->bulk.size());
+
+			writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->bulk.data());
+		}
+
+		if (_curCfg->storeParticle && _nParShells.size() > 0 && _splitComponents)
+		{
+			if (_nParShells.size() <= 1)
+			{
 				std::vector<std::size_t> layout(0);
 				layout.reserve(4);
 				layout.push_back(_numTimesteps);
@@ -768,19 +786,25 @@ protected:
 					layout.push_back(_nAxialCells);
 				if (_nRadialCells > 0)
 					layout.push_back(_nRadialCells);
-				layout.push_back(_nComp);
 
-				debugCheckTensorLayout(layout, _curStorage->bulk.size());
+				if (_nParShells[0] >= 1)
+				{
+					if ((_nParShells[0] == 1) && _keepParticleSingletonDim[0])
+						layout.push_back(_nParShells[0]);
+					else if (_nParShells[0] > 1)
+						layout.push_back(_nParShells[0]);
+				}
 
-				writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->bulk.data());
+				for (unsigned int comp = 0; comp < _nComp; ++comp)
+				{
+					oss.str("");
+					oss << prefix << "_PARTICLE_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+					writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->particle[0].data() + comp, _nComp, 1);
+				}
 			}
-		}
-
-		if (_curCfg->storeParticle && _nParShells.size() > 0)
-		{
-			if (_splitComponents)
+			else
 			{
-				if (_nParShells.size() <= 1)
+				for (std::size_t parType = 0; parType < _nParShells.size(); ++parType)
 				{
 					std::vector<std::size_t> layout(0);
 					layout.reserve(4);
@@ -791,57 +815,92 @@ protected:
 					if (_nRadialCells > 0)
 						layout.push_back(_nRadialCells);
 
-					if (_nParShells[0] >= 1)
+					if (_nParShells[parType] >= 1)
 					{
-						if ((_nParShells[0] == 1) && _keepParticleSingletonDim[0])
-							layout.push_back(_nParShells[0]);
-						else if (_nParShells[0] > 1)
-							layout.push_back(_nParShells[0]);
+						if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim[parType])
+						{
+						}
+						else
+							layout.push_back(_nParShells[parType]);
 					}
 
 					for (unsigned int comp = 0; comp < _nComp; ++comp)
 					{
 						oss.str("");
-						oss << prefix << "_PARTICLE_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
-						writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->particle[0].data() + comp, _nComp, 1);
-					}
-				}
-				else
-				{
-					for (std::size_t parType = 0; parType < _nParShells.size(); ++parType)
-					{
-						std::vector<std::size_t> layout(0);
-						layout.reserve(4);
-						layout.push_back(_numTimesteps);
-
-						if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
-							layout.push_back(_nAxialCells);
-						if (_nRadialCells > 0)
-							layout.push_back(_nRadialCells);
-
-						if (_nParShells[parType] >= 1)
-						{
-							if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim[parType])
-							{
-							}
-							else
-								layout.push_back(_nParShells[parType]);
-						}
-
-						for (unsigned int comp = 0; comp < _nComp; ++comp)
-						{
-							oss.str("");
-							oss << prefix << "_PARTICLE_PARTYPE_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << parType
-								<< "_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
-							writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->particle[parType].data() + comp, _nComp, 1);
-						}
+						oss << prefix << "_PARTICLE_PARTYPE_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << parType
+							<< "_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+						writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->particle[parType].data() + comp, _nComp, 1);
 					}
 				}
 			}
+		}
+
+		if (_curCfg->storeParticle && _nParShells.size() > 0 && !_splitComponents)
+		{
+			std::vector<std::size_t> layout(0);
+			layout.reserve(5);
+			layout.push_back(_numTimesteps);
+
+			if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
+				layout.push_back(_nAxialCells);
+			if (_nRadialCells > 0)
+				layout.push_back(_nRadialCells);
+
+			if (_nParShells.size() <= 1)
+			{
+				if (_nParShells[0] >= 1)
+				{
+					if ((_nParShells[0] == 1) && _keepParticleSingletonDim[0])
+						layout.push_back(_nParShells[0]);
+					else if (_nParShells[0] > 1)
+						layout.push_back(_nParShells[0]);
+				}
+				layout.push_back(_nComp);
+
+				debugCheckTensorLayout(layout, _curStorage->particle[0].size());
+
+				oss.str("");
+				oss << prefix << "_PARTICLE";
+				writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->particle[0].data());
+			}
 			else
 			{
+				const bool hasParticleShells = std::any_of(_nParShells.begin(), _nParShells.end(), [](unsigned int x) { return x >= 1; });
+				if (hasParticleShells)
+					layout.push_back(0);
+				layout.push_back(_nComp);
+
+				for (std::size_t parType = 0; parType < _nParShells.size(); ++parType)
+				{
+					std::size_t layoutSize = layout.size();
+					if (hasParticleShells)
+					{
+						if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim[parType])
+						{
+							layout[layoutSize - 2] = _nComp;
+							--layoutSize;
+						}
+						else if ((_nParShells[parType] == 1) && _keepParticleSingletonDim[parType])
+							layout[layout.size() - 2] = _nParShells[parType];
+						else if (_nParShells[parType] > 1)
+							layout[layout.size() - 2] = _nParShells[parType];
+					}
+
+					debugCheckTensorLayout(layout, layoutSize, _curStorage->particle[parType].size());
+
+					oss.str("");
+					oss << prefix << "_PARTICLE_PARTYPE_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << parType;
+					writer.template tensor<double>(oss.str(), layoutSize, layout.data(), _curStorage->particle[parType].data());
+				}
+			}
+		}
+
+		if (_curCfg->storeSolid && _nParShells.size() > 0 && _splitComponents)
+		{
+			if (_nParShells.size() <= 1)
+			{
 				std::vector<std::size_t> layout(0);
-				layout.reserve(5);
+				layout.reserve(4);
 				layout.push_back(_numTimesteps);
 
 				if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
@@ -849,61 +908,28 @@ protected:
 				if (_nRadialCells > 0)
 					layout.push_back(_nRadialCells);
 
-				if (_nParShells.size() <= 1)
+				if (_nParShells[0] >= 1)
 				{
-					if (_nParShells[0] >= 1)
-					{
-						if ((_nParShells[0] == 1) && _keepParticleSingletonDim[0])
-							layout.push_back(_nParShells[0]);
-						else if (_nParShells[0] > 1)
-							layout.push_back(_nParShells[0]);
-					}
-					layout.push_back(_nComp);
-
-					debugCheckTensorLayout(layout, _curStorage->particle[0].size());
-
-					oss.str("");
-					oss << prefix << "_PARTICLE";
-					writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->particle[0].data());
+					if ((_nParShells[0] == 1) && _keepParticleSingletonDim[0])
+						layout.push_back(_nParShells[0]);
+					else if (_nParShells[0] > 1)
+						layout.push_back(_nParShells[0]);
 				}
-				else
+
+				for (unsigned int comp = 0; comp < _nComp; ++comp)
 				{
-					const bool hasParticleShells = std::any_of(_nParShells.begin(), _nParShells.end(), [](unsigned int x) { return x >= 1; });
-					if (hasParticleShells)
-						layout.push_back(0);
-					layout.push_back(_nComp);
-
-					for (std::size_t parType = 0; parType < _nParShells.size(); ++parType)
+					for (unsigned int bnd = 0; bnd < _nBoundPerComp[0][comp]; ++bnd)
 					{
-						std::size_t layoutSize = layout.size();
-						if (hasParticleShells)
-						{
-							if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim[parType])
-							{
-								layout[layoutSize - 2] = _nComp;
-								--layoutSize;
-							}
-							else if ((_nParShells[parType] == 1) && _keepParticleSingletonDim[parType])
-								layout[layout.size() - 2] = _nParShells[parType];
-							else if (_nParShells[parType] > 1)
-								layout[layout.size() - 2] = _nParShells[parType];
-						}
-
-						debugCheckTensorLayout(layout, layoutSize, _curStorage->particle[parType].size());
-
 						oss.str("");
-						oss << prefix << "_PARTICLE_PARTYPE_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << parType;
-						writer.template tensor<double>(oss.str(), layoutSize, layout.data(), _curStorage->particle[parType].data());
+						oss << prefix << "_SOLID_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp
+							<< "_BND_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << bnd;
+						writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->solid[0].data() + _boundOffset[0][comp] + bnd, _nBoundStates[0], 1);
 					}
 				}
 			}
-		}
-
-		if (_curCfg->storeSolid && _nParShells.size() > 0)
-		{
-			if (_splitComponents)
+			else
 			{
-				if (_nParShells.size() <= 1)
+				for (std::size_t parType = 0; parType < _nParShells.size(); ++parType)
 				{
 					std::vector<std::size_t> layout(0);
 					layout.reserve(4);
@@ -914,169 +940,127 @@ protected:
 					if (_nRadialCells > 0)
 						layout.push_back(_nRadialCells);
 
-					if (_nParShells[0] >= 1)
+					if (_nParShells[parType] >= 1)
 					{
-						if ((_nParShells[0] == 1) && _keepParticleSingletonDim[0])
-							layout.push_back(_nParShells[0]);
-						else if (_nParShells[0] > 1)
-							layout.push_back(_nParShells[0]);
+						if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim[parType])
+						{
+						}
+						else
+							layout.push_back(_nParShells[parType]);
 					}
-
-					const std::size_t baseDims = layout.size();
-					layout.push_back(0);
 
 					for (unsigned int comp = 0; comp < _nComp; ++comp)
 					{
-						if (_nBoundPerComp[0][comp] == 0)
-							continue;
-
-						layout[baseDims] = _nBoundPerComp[0][comp];
-
-						oss.str("");
-						oss << prefix << "_SOLID_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
-						writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->solid[0].data() + _boundOffset[0][comp], _nBoundStates[0], _nBoundPerComp[0][comp]);
-					}
-				}
-				else
-				{
-					for (std::size_t parType = 0; parType < _nParShells.size(); ++parType)
-					{
-						std::vector<std::size_t> layout(0);
-						layout.reserve(4);
-						layout.push_back(_numTimesteps);
-
-						if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
-							layout.push_back(_nAxialCells);
-						if (_nRadialCells > 0)
-							layout.push_back(_nRadialCells);
-
-						if (_nParShells[parType] >= 1)
+						for (unsigned int bnd = 0; bnd < _nBoundPerComp[parType][comp]; ++bnd)
 						{
-							if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim[parType])
-							{
-							}
-							else
-								layout.push_back(_nParShells[parType]);
-						}
-
-						const std::size_t baseDims = layout.size();
-						layout.push_back(0);
-
-						for (unsigned int comp = 0; comp < _nComp; ++comp)
-						{
-							if (_nBoundPerComp[parType][comp] == 0)
-								continue;
-
-							layout[baseDims] = _nBoundPerComp[parType][comp];
-
 							oss.str("");
 							oss << prefix << "_SOLID_PARTYPE_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << parType
-								<< "_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
-							writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->solid[parType].data() + _boundOffset[parType][comp], _nBoundStates[parType], _nBoundPerComp[parType][comp]);
+								<< "_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp
+								<< "_BND_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << bnd;
+							writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->solid[parType].data() + _boundOffset[parType][comp] + bnd, _nBoundStates[parType], 1);
 						}
-					}
-				}
-			}
-			else
-			{
-				std::vector<std::size_t> layout(0);
-				layout.reserve(5);
-				layout.push_back(_numTimesteps);
-
-				if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
-					layout.push_back(_nAxialCells);
-				if (_nRadialCells > 0)
-					layout.push_back(_nRadialCells);
-
-				if (_nParShells.size() <= 1)
-				{
-					if (_nParShells[0] >= 1)
-					{
-						if ((_nParShells[0] == 1) && _keepParticleSingletonDim[0])
-							layout.push_back(_nParShells[0]);
-						else if (_nParShells[0] > 1)
-							layout.push_back(_nParShells[0]);
-					}
-					layout.push_back(_nBoundStates[0]);
-
-					debugCheckTensorLayout(layout, _curStorage->solid[0].size());
-
-					oss.str("");
-					oss << prefix << "_SOLID";
-					writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->solid[0].data());
-				}
-				else
-				{
-					const bool hasParticleShells = std::any_of(_nParShells.begin(), _nParShells.end(), [](unsigned int x) { return x >= 1; });
-					if (hasParticleShells)
-						layout.push_back(0);
-					layout.push_back(0);
-
-					for (std::size_t parType = 0; parType < _nParShells.size(); ++parType)
-					{
-						std::size_t layoutSize = layout.size();
-						if (hasParticleShells)
-						{
-							if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim[0])
-								--layoutSize;
-							else if ((_nParShells[parType] == 1) && _keepParticleSingletonDim[0])
-								layout[layout.size() - 2] = _nParShells[parType];
-							else if (_nParShells[parType] > 1)
-								layout[layout.size() - 2] = _nParShells[parType];
-						}
-
-						layout[layoutSize - 1] = _nBoundStates[parType];
-
-						debugCheckTensorLayout(layout, layoutSize, _curStorage->solid[parType].size());
-
-						oss.str("");
-						oss << prefix << "_SOLID_PARTYPE_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << parType;
-						writer.template tensor<double>(oss.str(), layoutSize, layout.data(), _curStorage->solid[parType].data());
 					}
 				}
 			}
 		}
 
-		if (_curCfg->storeFlux)
+		if (_curCfg->storeSolid && _nParShells.size() > 0 && !_splitComponents)
 		{
-			if (_splitComponents)
+			std::vector<std::size_t> layout(0);
+			layout.reserve(5);
+			layout.push_back(_numTimesteps);
+
+			if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
+				layout.push_back(_nAxialCells);
+			if (_nRadialCells > 0)
+				layout.push_back(_nRadialCells);
+
+			if (_nParShells.size() <= 1)
 			{
-				std::vector<std::size_t> layout(0);
-				layout.reserve(4);
-
-				layout.push_back(_numTimesteps);
-				layout.push_back(_nParShells.size());
-				if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
-					layout.push_back(_nAxialCells);
-				if (_nRadialCells > 0)
-					layout.push_back(_nRadialCells);
-
-				for (unsigned int comp = 0; comp < _nComp; ++comp)
+				if (_nParShells[0] >= 1)
 				{
-					oss.str("");
-					oss << prefix << "_FLUX_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
-					writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->flux.data() + comp, _nComp, 1);
+					if ((_nParShells[0] == 1) && _keepParticleSingletonDim[0])
+						layout.push_back(_nParShells[0]);
+					else if (_nParShells[0] > 1)
+						layout.push_back(_nParShells[0]);
 				}
+				layout.push_back(_nBoundStates[0]);
+
+				debugCheckTensorLayout(layout, _curStorage->solid[0].size());
+
+				oss.str("");
+				oss << prefix << "_SOLID";
+				writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->solid[0].data());
 			}
 			else
 			{
-				std::vector<std::size_t> layout(0);
-				layout.reserve(5);
+				const bool hasParticleShells = std::any_of(_nParShells.begin(), _nParShells.end(), [](unsigned int x) { return x >= 1; });
+				if (hasParticleShells)
+					layout.push_back(0);
+				layout.push_back(0);
 
-				layout.push_back(_numTimesteps);
-				layout.push_back(_nParShells.size());
-				if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
-					layout.push_back(_nAxialCells);
-				if (_nRadialCells > 0)
-					layout.push_back(_nRadialCells);
-				layout.push_back(_nComp);
+				for (std::size_t parType = 0; parType < _nParShells.size(); ++parType)
+				{
+					std::size_t layoutSize = layout.size();
+					if (hasParticleShells)
+					{
+						if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim[0])
+							--layoutSize;
+						else if ((_nParShells[parType] == 1) && _keepParticleSingletonDim[0])
+							layout[layout.size() - 2] = _nParShells[parType];
+						else if (_nParShells[parType] > 1)
+							layout[layout.size() - 2] = _nParShells[parType];
+					}
 
-				debugCheckTensorLayout(layout, _curStorage->flux.size());
+					layout[layoutSize - 1] = _nBoundStates[parType];
 
-				oss.str("");
-				oss << prefix << "_FLUX";
-				writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->flux.data());
+					debugCheckTensorLayout(layout, layoutSize, _curStorage->solid[parType].size());
+
+					oss.str("");
+					oss << prefix << "_SOLID_PARTYPE_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << parType;
+					writer.template tensor<double>(oss.str(), layoutSize, layout.data(), _curStorage->solid[parType].data());
+				}
 			}
+		}
+
+		if (_curCfg->storeFlux && _splitComponents)
+		{
+			std::vector<std::size_t> layout(0);
+			layout.reserve(4);
+
+			layout.push_back(_numTimesteps);
+			layout.push_back(_nParShells.size());
+			if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
+				layout.push_back(_nAxialCells);
+			if (_nRadialCells > 0)
+				layout.push_back(_nRadialCells);
+
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
+			{
+				oss.str("");
+				oss << prefix << "_FLUX_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+				writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->flux.data() + comp, _nComp, 1);
+			}
+		}
+
+		if (_curCfg->storeFlux && !_splitComponents)
+		{
+			std::vector<std::size_t> layout(0);
+			layout.reserve(5);
+
+			layout.push_back(_numTimesteps);
+			layout.push_back(_nParShells.size());
+			if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
+				layout.push_back(_nAxialCells);
+			if (_nRadialCells > 0)
+				layout.push_back(_nRadialCells);
+			layout.push_back(_nComp);
+
+			debugCheckTensorLayout(layout, _curStorage->flux.size());
+
+			oss.str("");
+			oss << prefix << "_FLUX";
+			writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->flux.data());
 		}
 
 		if (_curCfg->storeVolume)
