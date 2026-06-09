@@ -444,6 +444,7 @@ namespace column
 		timeIntegrator["RELTOL"] = copy ? pp.getDouble("RELTOL") : 1e-6;
 		timeIntegrator["INIT_STEP_SIZE"] = copy ? pp.getDouble("INIT_STEP_SIZE") : 1e-10;
 		timeIntegrator["MAX_STEPS"] = copy ? pp.getInt("MAX_STEPS") : 1000000;
+		timeIntegrator["USE_MODIFIED_NEWTON"] = copy ? pp.getBool("USE_MODIFIED_NEWTON") : false;
 		pp.popScope();
 		setupJson["solver"]["time_integrator"] = timeIntegrator;
 		pp.popScope();
