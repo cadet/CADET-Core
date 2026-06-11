@@ -124,6 +124,8 @@ public:
 	 */
 	virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT = 0;
 
+	virtual unsigned int numBoundStates(unsigned int parType, unsigned int comp) const CADET_NOEXCEPT = 0;
+
 	/**
 	 * @brief Returns the total number of DOFs in the main mobile phase (e.g., bulk volume)
 	 * @return Total number of mobile phase DOFs

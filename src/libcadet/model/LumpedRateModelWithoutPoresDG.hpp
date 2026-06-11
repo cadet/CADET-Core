@@ -318,6 +318,7 @@ namespace cadet
 				virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return 1; }
 				virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return 0; }
 				virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound; }
+				virtual unsigned int numBoundStates(unsigned int parType, unsigned int comp) const CADET_NOEXCEPT { return _disc.nBound[comp]; }
 				virtual unsigned int numMobilePhaseDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nPoints; }
 				virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return 0; }
 				virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT { return 0; }
