@@ -113,10 +113,8 @@
           "NN_KKIN": [
             1000.0
           ],
-          "NORM_FACTOR": [
-            2.0000000000000004
-          ],
           "bound_state_000": {
+            "NORM_FACTOR": 2.0000000000000004,
             "POROSITY_FACTOR": 1.0,
             "layer_0": {
               "BIAS": [
