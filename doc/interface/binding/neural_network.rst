@@ -44,13 +44,13 @@ For information on model equations, refer to :ref:`neural_network`.
 **Type:** int        **Range:** :math:`\geq 1`  **Length:** 1
 ===================  =========================  =======================
 
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_YYY**
+
 ``NORM_FACTOR``
-   Normalization factors applied element-wise to the pore-phase
-   concentration before feeding into the neural network. Each entry
-   corresponds to one input dimension (component).
+   Normalization factors applied pore-phase concentration before feeding into the neural network.
 
 ===================  =========================  =======================
-**Type:** double     **Range:** :math:`> 0`     **Length:** NCOMP
+**Type:** double     **Range:** :math:`> 0`     **Length:** 1
 ===================  =========================  =======================
 
 ``POROSITY_FACTOR``
@@ -62,9 +62,10 @@ For information on model equations, refer to :ref:`neural_network`.
 **Type:** double     **Range:** :math:`> 0`     **Length:** 1
 ===================  =========================  =======================
 
-Neural network weights and biases are organized hierarchically by layer. All weight matrices must be stored in column-major (Fortran) order.
+Neural network weights and biases are organized hierarchically by layer.
+All weight matrices must be stored in column-major (Fortran) order.
 
-**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/layer_0**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_YYY/layer_0**
 
 First hidden layer parameters.
 
@@ -83,7 +84,7 @@ First hidden layer parameters.
 **Type:** double     **Range:** :math:`\mathbb{R}`    **Length:** NNODES
 ===================  =============================  =======================
 
-**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/layer_1**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_YYY/layer_1**
 
 Second hidden layer parameters (for NLAYERS=2) or output layer parameters (for NLAYERS=1).
 
@@ -111,7 +112,7 @@ Second hidden layer parameters (for NLAYERS=2) or output layer parameters (for N
                                                           or NNODES (NLAYERS=2)
 ===================  =============================  ===========================
 
-**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/layer_2**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_YYY/layer_2**
 
 Output layer parameters (only for NLAYERS=2).
 
