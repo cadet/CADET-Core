@@ -13,6 +13,7 @@
 
 #include <Eigen/Dense>
 
+#include <algorithm>
 #include <cmath>
 #include <stdexcept>
 #include <string>
@@ -21,9 +22,8 @@
 // =============================================================================
 // ClassANN — Feedforward neural network with ELU activations.
 //
-// Architecture (single-component, scalar output):
-//   1-hidden-layer:  y = W2 * ELU(W1 * x + b1) + b2
-//   2-hidden-layer:  y = W3 * ELU(W2 * ELU(W1 * x + b1) + b2) + b3
+// Architecture (N hidden layers, scalar output):
+//   y = W_{N} * ELU(... ELU(W_0 * x + b_0) ...) + b_{N}
 //
 // Weight storage convention (matches original training export):
 //   All weight matrices are stored COLUMN-MAJOR (Fortran order).
@@ -31,7 +31,7 @@
 //   W(row=i, col=j) = kernel[i + j * n_out].
 //   This means Eigen::Map<MatrixXd>(kernel.data(), n_out, n_in) gives W directly.
 //
-// MKL has been removed. All linear algebra uses Eigen.
+// All hidden layers share the same width (num_nodes).
 // All workspace buffers are pre-allocated at construction — no heap allocation
 // inside forward/backward methods.
 // =============================================================================
@@ -41,9 +41,9 @@ class ClassANN
 public:
 	// -------------------------------------------------------------------------
 	// Constructor — pre-allocates all workspace buffers.
-	// num_layer: number of hidden layers (1 or 2)
-	// num_nodes: nodes per hidden layer (same for all hidden layers)
-	// num_inputs: input dimensionality
+	// num_layer:   number of hidden layers (>= 1); all share width num_nodes
+	// num_nodes:   nodes per hidden layer
+	// num_inputs:  input dimensionality
 	// num_outputs: output dimensionality (1 for single-component isotherm)
 	// -------------------------------------------------------------------------
 	ClassANN(unsigned int num_layer, unsigned int num_nodes,
@@ -52,176 +52,112 @@ public:
 		, number_of_nodes(num_nodes)
 		, number_of_input(num_inputs)
 		, number_of_output(num_outputs)
-		, ws_z1(num_nodes)
-		, ws_z1_pre(num_nodes)
-		, ws_z2(num_nodes)
-		, ws_delta(num_nodes)
-		, ws_delta2(num_nodes)
+		, ws_z(num_layer, Eigen::VectorXd(num_nodes))
+		, ws_h(num_layer, Eigen::VectorXd(num_nodes))
+		, ws_delta_cur(num_nodes)
+		, ws_delta_nxt(num_nodes)
 	{
-		if (num_layer != 1 && num_layer != 2)
+		if (num_layer < 1)
 			throw std::invalid_argument(
-				"ClassANN: only 1 or 2 hidden layers are supported.");
+				"ClassANN: at least 1 hidden layer is required.");
 	}
 
 	// -------------------------------------------------------------------------
-	// Forward pass — 1-hidden-layer network.
+	// General forward pass for N hidden layers.
 	//
-	// y = W2 * ELU(W1 * x + b1) + b2
-	//
-	// kernel0: W1 col-major (num_nodes x num_input)
-	// bias0:   b1 (num_nodes,)
-	// kernel1: W2 col-major (num_output x num_nodes)
-	// bias1:   b2 (num_output,)
-	// input:   x  (num_input,)
-	// output:  y  (num_output,)   -- must be pre-allocated by caller
+	// kernels[0..N-1]: hidden layer weight matrices, col-major (num_nodes x prev)
+	// kernels[N]:      output layer weight matrix,   col-major (num_output x num_nodes)
+	// biases[0..N-1]:  hidden layer biases  (num_nodes,)
+	// biases[N]:       output layer bias    (num_output,)
+	// input:           x  (num_input,)
+	// output:          y  (num_output,)  — must be pre-allocated by caller
 	// -------------------------------------------------------------------------
-	void forward_single_layer(
+	void forward(
+		const std::vector<const double*>& kernels,
+		const std::vector<const double*>& biases,
 		const double* input,
-		const double* kernel0, const double* bias0,
-		const double* kernel1, const double* bias1,
 		double* output) const
 	{
 		using Map    = Eigen::Map<const Eigen::MatrixXd>;
 		using MapVec = Eigen::Map<const Eigen::VectorXd>;
 
-		// z1 = W1 * x + b1
-		ws_z1 = Map(kernel0, number_of_nodes, number_of_input)
-		        * MapVec(input, number_of_input)
-		        + MapVec(bias0, number_of_nodes);
+		const unsigned int N = number_of_layers;
 
-		elu_inplace(ws_z1);   // h1 = ELU(z1), stored in ws_z1
+		// First hidden layer: h[0] = ELU(W[0] * x + b[0])
+		ws_h[0] = Map(kernels[0], number_of_nodes, number_of_input)
+		          * MapVec(input, number_of_input)
+		          + MapVec(biases[0], number_of_nodes);
+		elu_inplace(ws_h[0]);
 
-		// y = W2 * h1 + b2
+		// Remaining hidden layers: h[l] = ELU(W[l] * h[l-1] + b[l])
+		for (unsigned int l = 1; l < N; ++l)
+		{
+			ws_h[l] = Map(kernels[l], number_of_nodes, number_of_nodes)
+			          * ws_h[l - 1]
+			          + MapVec(biases[l], number_of_nodes);
+			elu_inplace(ws_h[l]);
+		}
+
+		// Output layer (no activation): y = W[N] * h[N-1] + b[N]
 		Eigen::Map<Eigen::VectorXd>(output, number_of_output) =
-		    Map(kernel1, number_of_output, number_of_nodes) * ws_z1
-		    + MapVec(bias1, number_of_output);
+		    Map(kernels[N], number_of_output, number_of_nodes) * ws_h[N - 1]
+		    + MapVec(biases[N], number_of_output);
 	}
 
 	// -------------------------------------------------------------------------
-	// Forward pass — 2-hidden-layer network.
+	// General Jacobian (gradient dy/dx) for N hidden layers.
 	//
-	// y = W3 * ELU(W2 * ELU(W1 * x + b1) + b2) + b3
+	// kernels / biases: same layout as forward().
+	//   biases[N] (output layer) is accepted but not used — keeps the
+	//   interface symmetric with forward() so callers can reuse the same arrays.
 	//
-	// kernel0: W1 col-major (num_nodes x num_input)
-	// bias0:   b1 (num_nodes,)
-	// kernel1: W2 col-major (num_nodes x num_nodes)
-	// bias1:   b2 (num_nodes,)
-	// kernel2: W3 col-major (num_output x num_nodes)
-	// bias2:   b3 (num_output,)
-	// input:   x  (num_input,)
-	// output:  y  (num_output,)   -- must be pre-allocated by caller
-	// -------------------------------------------------------------------------
-	void forward_two_layers(
-		const double* input,
-		const double* kernel0, const double* bias0,
-		const double* kernel1, const double* bias1,
-		const double* kernel2, const double* bias2,
-		double* output) const
-	{
-		using Map    = Eigen::Map<const Eigen::MatrixXd>;
-		using MapVec = Eigen::Map<const Eigen::VectorXd>;
-
-		// z1 = W1 * x + b1,  h1 = ELU(z1)
-		ws_z1 = Map(kernel0, number_of_nodes, number_of_input)
-		        * MapVec(input, number_of_input)
-		        + MapVec(bias0, number_of_nodes);
-		elu_inplace(ws_z1);
-
-		// z2 = W2 * h1 + b2,  h2 = ELU(z2)
-		ws_z2 = Map(kernel1, number_of_nodes, number_of_nodes) * ws_z1
-		        + MapVec(bias1, number_of_nodes);
-		elu_inplace(ws_z2);
-
-		// y = W3 * h2 + b3  (no activation on output layer)
-		Eigen::Map<Eigen::VectorXd>(output, number_of_output) =
-		    Map(kernel2, number_of_output, number_of_nodes) * ws_z2
-		    + MapVec(bias2, number_of_output);
-	}
-
-	// -------------------------------------------------------------------------
-	// Jacobian — 1-hidden-layer network.
-	//
-	// dy/dx = W1^T * diag(ELU'(z1)) * W2^T
 	// For scalar output (num_output=1) this gives a (num_input,) gradient vector.
-	//
-	// The pre-activation z1 is computed internally and stored in ws_z1_pre.
 	// -------------------------------------------------------------------------
-	void jacobian_single_layer(
+	void jacobian(
+		const std::vector<const double*>& kernels,
+		const std::vector<const double*>& biases,
 		const double* input,
-		const double* kernel0, const double* bias0,
-		const double* kernel1,
 		double* grad_out) const
 	{
 		using Map    = Eigen::Map<const Eigen::MatrixXd>;
 		using MapVec = Eigen::Map<const Eigen::VectorXd>;
 
-		// Forward: z1 = W1 * x + b1  (keep pre-activation for ELU')
-		ws_z1_pre = Map(kernel0, number_of_nodes, number_of_input)
-		            * MapVec(input, number_of_input)
-		            + MapVec(bias0, number_of_nodes);
+		const unsigned int N = number_of_layers;
 
-		// delta = W2^T * 1  (output layer weight transposed, scalar output)
-		// For num_output=1: W2 has shape (1 x num_nodes), W2^T is (num_nodes x 1)
-		ws_delta = Map(kernel1, number_of_output, number_of_nodes).transpose()
-		           * Eigen::VectorXd::Ones(number_of_output);
+		// Forward pass: collect pre-activations (ws_z) and post-activations (ws_h)
+		ws_z[0] = Map(kernels[0], number_of_nodes, number_of_input)
+		          * MapVec(input, number_of_input)
+		          + MapVec(biases[0], number_of_nodes);
+		ws_h[0] = ws_z[0];
+		elu_inplace(ws_h[0]);
 
-		// Multiply element-wise by ELU'(z1)
-		elu_backward_inplace(ws_delta, ws_z1_pre);
-
-		// grad = W1^T * delta
-		Eigen::Map<Eigen::VectorXd>(grad_out, number_of_input) =
-		    Map(kernel0, number_of_nodes, number_of_input).transpose() * ws_delta;
-	}
-
-	// -------------------------------------------------------------------------
-	// Jacobian — 2-hidden-layer network.
-	//
-	// dy/dx = W1^T * diag(ELU'(z1)) * W2^T * diag(ELU'(z2)) * W3^T
-	//
-	// Backprop steps:
-	//   delta  = W3^T * 1              [elementwise * ELU'(z2)]
-	//   delta2 = W2^T * delta          [elementwise * ELU'(z1)]
-	//   grad   = W1^T * delta2
-	// -------------------------------------------------------------------------
-	void jacobian_two_layers(
-		const double* input,
-		const double* kernel0, const double* bias0,
-		const double* kernel1, const double* bias1,
-		const double* kernel2,
-		double* grad_out) const
-	{
-		using Map    = Eigen::Map<const Eigen::MatrixXd>;
-		using MapVec = Eigen::Map<const Eigen::VectorXd>;
-
-		// Forward pass to get pre-activations z1 and z2
-		// z1 = W1 * x + b1
-		ws_z1_pre = Map(kernel0, number_of_nodes, number_of_input)
-		            * MapVec(input, number_of_input)
-		            + MapVec(bias0, number_of_nodes);
-
-		// h1 = ELU(z1)
-		ws_z1 = ws_z1_pre;
-		elu_inplace(ws_z1);
-
-		// z2 = W2 * h1 + b2  (keep pre-activation for ELU')
-		ws_z2 = Map(kernel1, number_of_nodes, number_of_nodes) * ws_z1
-		        + MapVec(bias1, number_of_nodes);
+		for (unsigned int l = 1; l < N; ++l)
+		{
+			ws_z[l] = Map(kernels[l], number_of_nodes, number_of_nodes)
+			          * ws_h[l - 1]
+			          + MapVec(biases[l], number_of_nodes);
+			ws_h[l] = ws_z[l];
+			elu_inplace(ws_h[l]);
+		}
 
 		// Backward pass
-		// delta = W3^T (scalar output => W3 shape (1 x n_h), W3^T shape (n_h,))
-		ws_delta = Map(kernel2, number_of_output, number_of_nodes).transpose()
-		           * Eigen::VectorXd::Ones(number_of_output);
+		// Initial delta: W_out^T * 1  elementwise  ELU'(z[N-1])
+		ws_delta_cur = Map(kernels[N], number_of_output, number_of_nodes).transpose()
+		               * Eigen::VectorXd::Ones(number_of_output);
+		elu_backward_inplace(ws_delta_cur, ws_z[N - 1]);
 
-		// delta .*= ELU'(z2)
-		elu_backward_inplace(ws_delta, ws_z2);
+		// Propagate delta back through hidden layers N-2 down to 0
+		for (int l = static_cast<int>(N) - 2; l >= 0; --l)
+		{
+			ws_delta_nxt = Map(kernels[l + 1], number_of_nodes, number_of_nodes).transpose()
+			               * ws_delta_cur;
+			elu_backward_inplace(ws_delta_nxt, ws_z[l]);
+			ws_delta_cur.swap(ws_delta_nxt);
+		}
 
-		// delta2 = W2^T * delta  .*  ELU'(z1)
-		ws_delta2 = Map(kernel1, number_of_nodes, number_of_nodes).transpose() * ws_delta;
-		elu_backward_inplace(ws_delta2, ws_z1_pre);
-
-		// grad = W1^T * delta2
+		// Input-space gradient: grad = W_0^T * delta
 		Eigen::Map<Eigen::VectorXd>(grad_out, number_of_input) =
-		    Map(kernel0, number_of_nodes, number_of_input).transpose() * ws_delta2;
+		    Map(kernels[0], number_of_nodes, number_of_input).transpose() * ws_delta_cur;
 	}
 
 private:
@@ -231,11 +167,10 @@ private:
 	unsigned int number_of_output;
 
 	// Pre-allocated workspace (mutable so forward/backward can be called on const objects)
-	mutable Eigen::VectorXd ws_z1;       // pre- or post-activation layer 1
-	mutable Eigen::VectorXd ws_z1_pre;   // pre-activation layer 1 (kept for backprop)
-	mutable Eigen::VectorXd ws_z2;       // pre-activation layer 2 (kept for backprop)
-	mutable Eigen::VectorXd ws_delta;    // backprop gradient buffer layer 2
-	mutable Eigen::VectorXd ws_delta2;   // backprop gradient buffer layer 1
+	mutable std::vector<Eigen::VectorXd> ws_z;        // pre-activations,  ws_z[l] for hidden layer l
+	mutable std::vector<Eigen::VectorXd> ws_h;        // post-activations, ws_h[l] for hidden layer l
+	mutable Eigen::VectorXd             ws_delta_cur; // current backprop delta
+	mutable Eigen::VectorXd             ws_delta_nxt; // scratch buffer for backprop swap
 
 	// -------------------------------------------------------------------------
 	// ELU activation applied in-place.
@@ -251,8 +186,8 @@ private:
 
 	// -------------------------------------------------------------------------
 	// Multiply gradient vector element-wise by ELU'(z_pre).
-	// ELU'(z) = 1          if z >= 0
-	//         = exp(z)      if z <  0
+	// ELU'(z) = 1       if z >= 0
+	//         = exp(z)   if z <  0
 	//
 	// grad:   current backprop gradient (modified in-place)
 	// z_pre:  pre-activation values at the same layer

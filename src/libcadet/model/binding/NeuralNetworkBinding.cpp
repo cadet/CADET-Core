@@ -78,9 +78,10 @@ namespace cadet
         public:
 
             NeuralNetworkBindingBase()
-                : _bias0(), _kernel0()
-                , _bias1(), _kernel1()
-                , _bias2(), _kernel2()
+                : _layerKernels()
+                , _layerBiases()
+                , _kernelPtrs()
+                , _biasPtrs()
                 , _normFactor()
                 , _porosFactors()
                 , _offsets()
@@ -116,21 +117,24 @@ namespace cadet
             using ParamHandlerBindingModelBase<ParamHandler_t>::_nComp;
             using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 
-            // Network weights and biases — one set of vectors per bound state.
+            // Network weights and biases — indexed [bndIdx][layerIdx].
+            // layerIdx runs 0.._nLayers (inclusive): indices 0.._nLayers-1 are hidden
+            // layers, index _nLayers is the output layer.
             // Inner vector follows col-major storage (matches training export).
-            std::vector<std::vector<double>> _bias0;    // b1: (nNodes,)            per bound state
-            std::vector<std::vector<double>> _kernel0;  // W1: (nNodes x nInput)    per bound state
-            std::vector<std::vector<double>> _bias1;    // b2: (nNodes,) or (1,)    per bound state
-            std::vector<std::vector<double>> _kernel1;  // W2: (nNodes x nNodes) or (1 x nNodes) per bound state
-            std::vector<std::vector<double>> _bias2;    // b3: (1,)      — 2-layer only, per bound state
-            std::vector<std::vector<double>> _kernel2;  // W3: (1 x nNodes) — 2-layer only, per bound state
+            std::vector<std::vector<std::vector<double>>> _layerKernels; // [bndIdx][layerIdx]
+            std::vector<std::vector<std::vector<double>>> _layerBiases;  // [bndIdx][layerIdx]
 
-            std::vector<double> _normFactor;   // shared normalisation factor per input dimension (length _nInput)
+            // Pre-allocated raw-pointer caches used in the hot path — avoids heap
+            // allocation inside fluxImpl / jacobianImpl.
+            std::vector<std::vector<const double*>> _kernelPtrs; // [bndIdx][layerIdx]
+            std::vector<std::vector<const double*>> _biasPtrs;   // [bndIdx][layerIdx]
+
+            std::vector<double> _normFactor;   // normalisation factor per input dimension (length _nInput)
             std::vector<double> _porosFactors; // porosity scaling — one per bound state
             std::vector<double> _offsets;      // ANN(x=0) — one per bound state, subtracted for zero intercept
 
-            unsigned int _nLayers;   // number of hidden layers (1 or 2), shared across all bound states
-            unsigned int _nNodes;    // nodes per hidden layer,            shared across all bound states
+            unsigned int _nLayers;   // number of hidden layers (>= 1), shared across all bound states
+            unsigned int _nNodes;    // nodes per hidden layer,         shared across all bound states
             unsigned int _nInput;    // input dimensionality (== nComp)
             unsigned int _nOutput;   // output dimensionality (always 1 — scalar isotherm per bound state)
 
@@ -150,11 +154,11 @@ namespace cadet
 
                 // --- Read shared scalar configuration ---
                 _nLayers = static_cast<unsigned int>(paramProvider.getInt("NLAYERS"));
-                _nNodes = static_cast<unsigned int>(paramProvider.getInt("NNODES"));
+                _nNodes  = static_cast<unsigned int>(paramProvider.getInt("NNODES"));
 
-                if (_nLayers != 1u && _nLayers != 2u)
+                if (_nLayers < 1u)
                     throw InvalidParameterException(
-                        "NEURAL_NETWORK binding: NLAYERS must be 1 or 2. Got: "
+                        "NEURAL_NETWORK binding: NLAYERS must be >= 1. Got: "
                         + std::to_string(_nLayers));
 
                 if (_nNodes == 0u)
@@ -162,7 +166,7 @@ namespace cadet
 
                 // Input/output dimensionality: each bound state's ANN takes the full
                 // c_p vector and predicts a scalar solid concentration.
-                _nInput = _nComp;
+                _nInput  = _nComp;
                 _nOutput = 1u;
 
                 // --- Validate bound state count and compute total ---
@@ -177,103 +181,88 @@ namespace cadet
                     ++totalNumBoundStates;
                 }
 
-                // --- Clear and reserve containers ---
-                _bias0.clear();    _bias0.reserve(totalNumBoundStates);
-                _kernel0.clear();  _kernel0.reserve(totalNumBoundStates);
-                _bias1.clear();    _bias1.reserve(totalNumBoundStates);
-                _kernel1.clear();  _kernel1.reserve(totalNumBoundStates);
-                _bias2.clear();    _bias2.reserve(totalNumBoundStates);
-                _kernel2.clear();  _kernel2.reserve(totalNumBoundStates);
-                _porosFactors.clear(); _porosFactors.reserve(totalNumBoundStates);
-                _offsets.clear();  _offsets.reserve(totalNumBoundStates);
-                _annModels.clear(); _annModels.reserve(totalNumBoundStates);
-                _normFactor.clear(); _normFactor.reserve(totalNumBoundStates);
+                const unsigned int nTotalLayers = _nLayers + 1u; // hidden layers + output layer
 
-				// --- Read parameters for each NN / bound state ---
+                // --- Clear and reserve containers ---
+                _layerKernels.clear(); _layerKernels.reserve(totalNumBoundStates);
+                _layerBiases.clear();  _layerBiases.reserve(totalNumBoundStates);
+                _kernelPtrs.clear();   _kernelPtrs.reserve(totalNumBoundStates);
+                _biasPtrs.clear();     _biasPtrs.reserve(totalNumBoundStates);
+                _porosFactors.clear(); _porosFactors.reserve(totalNumBoundStates);
+                _offsets.clear();      _offsets.reserve(totalNumBoundStates);
+                _annModels.clear();    _annModels.reserve(totalNumBoundStates);
+                _normFactor.clear();   _normFactor.reserve(totalNumBoundStates);
+
+                // --- Read parameters for each NN / bound state ---
                 for (unsigned int bndIdx = 0u; bndIdx < totalNumBoundStates; ++bndIdx)
                 {
-					const std::string scopeName = std::format("bound_state_{:03}", bndIdx);
+                    const std::string scopeName = std::format("bound_state_{:03}", bndIdx);
                     paramProvider.pushScope(scopeName);
 
                     _porosFactors.push_back(paramProvider.getDouble("POROSITY_FACTOR"));
                     _normFactor.push_back(paramProvider.getDouble("NORM_FACTOR"));
 
-                    paramProvider.pushScope("layer_0");
-                    _kernel0.push_back(paramProvider.getDoubleArray("KERNEL"));
-                    _bias0.push_back(paramProvider.getDoubleArray("BIAS"));
-                    paramProvider.popScope();
+                    _layerKernels.emplace_back();
+                    _layerBiases.emplace_back();
+                    _layerKernels.back().reserve(nTotalLayers);
+                    _layerBiases.back().reserve(nTotalLayers);
 
-                    paramProvider.pushScope("layer_1");
-                    _kernel1.push_back(paramProvider.getDoubleArray("KERNEL"));
-                    _bias1.push_back(paramProvider.getDoubleArray("BIAS"));
-                    paramProvider.popScope();
-
-                    if (_nLayers == 2u)
+                    for (unsigned int l = 0u; l < nTotalLayers; ++l)
                     {
-                        paramProvider.pushScope("layer_2");
-                        _kernel2.push_back(paramProvider.getDoubleArray("KERNEL"));
-                        _bias2.push_back(paramProvider.getDoubleArray("BIAS"));
+                        paramProvider.pushScope(std::format("layer_{}", l));
+                        _layerKernels.back().push_back(paramProvider.getDoubleArray("KERNEL"));
+                        _layerBiases.back().push_back(paramProvider.getDoubleArray("BIAS"));
                         paramProvider.popScope();
                     }
 
                     paramProvider.popScope();  // bound_state_N
 
                     // --- Validate weight sizes for this bound state ---
-                    // W1: (nNodes x nInput) -> nNodes * nInput elements
-                    if (_kernel0.back().size() != _nNodes * _nInput)
-                        throw InvalidParameterException(
-                            "NEURAL_NETWORK binding: " + scopeName
-                            + "/layer_0 KERNEL size must be NNODES * NCOMP = "
-                            + std::to_string(_nNodes * _nInput));
-                    if (_bias0.back().size() != _nNodes)
-                        throw InvalidParameterException(
-                            "NEURAL_NETWORK binding: " + scopeName
-                            + "/layer_0 BIAS size must be NNODES = "
-                            + std::to_string(_nNodes));
-
-                    if (_nLayers == 2u)
+                    // Hidden layers 0.._nLayers-1
+                    for (unsigned int l = 0u; l < _nLayers; ++l)
                     {
-                        // W2: (nNodes x nNodes)
-                        if (_kernel1.back().size() != _nNodes * _nNodes)
+                        const unsigned int prevSize = (l == 0u) ? _nInput : _nNodes;
+                        if (_layerKernels.back()[l].size() != _nNodes * prevSize)
                             throw InvalidParameterException(
                                 "NEURAL_NETWORK binding: " + scopeName
-                                + "/layer_1 KERNEL size must be NNODES * NNODES = "
-                                + std::to_string(_nNodes * _nNodes));
-                        if (_bias1.back().size() != _nNodes)
+                                + "/layer_" + std::to_string(l) + " KERNEL size must be "
+                                + std::to_string(_nNodes) + " * " + std::to_string(prevSize)
+                                + " = " + std::to_string(_nNodes * prevSize));
+                        if (_layerBiases.back()[l].size() != _nNodes)
                             throw InvalidParameterException(
                                 "NEURAL_NETWORK binding: " + scopeName
-                                + "/layer_1 BIAS size must be NNODES = "
+                                + "/layer_" + std::to_string(l) + " BIAS size must be NNODES = "
                                 + std::to_string(_nNodes));
-                        // W3: (nOutput x nNodes) == (1 x nNodes)
-                        if (_kernel2.back().size() != _nOutput * _nNodes)
-                            throw InvalidParameterException(
-                                "NEURAL_NETWORK binding: " + scopeName
-                                + "/layer_2 KERNEL size must be NOUTPUT * NNODES = "
-                                + std::to_string(_nOutput * _nNodes));
-                        if (_bias2.back().size() != _nOutput)
-                            throw InvalidParameterException(
-                                "NEURAL_NETWORK binding: " + scopeName
-                                + "/layer_2 BIAS size must be NOUTPUT = "
-                                + std::to_string(_nOutput));
                     }
-                    else  // 1-layer: layer_1 is the output layer
-                    {
-                        // W2: (nOutput x nNodes)
-                        if (_kernel1.back().size() != _nOutput * _nNodes)
-                            throw InvalidParameterException(
-                                "NEURAL_NETWORK binding: " + scopeName
-                                + "/layer_1 KERNEL size must be NOUTPUT * NNODES = "
-                                + std::to_string(_nOutput * _nNodes));
-                        if (_bias1.back().size() != _nOutput)
-                            throw InvalidParameterException(
-                                "NEURAL_NETWORK binding: " + scopeName
-                                + "/layer_1 BIAS size must be NOUTPUT = "
-                                + std::to_string(_nOutput));
-                    }
+                    // Output layer _nLayers
+                    if (_layerKernels.back()[_nLayers].size() != _nOutput * _nNodes)
+                        throw InvalidParameterException(
+                            "NEURAL_NETWORK binding: " + scopeName
+                            + "/layer_" + std::to_string(_nLayers) + " KERNEL size must be "
+                            + std::to_string(_nOutput) + " * " + std::to_string(_nNodes)
+                            + " = " + std::to_string(_nOutput * _nNodes));
+                    if (_layerBiases.back()[_nLayers].size() != _nOutput)
+                        throw InvalidParameterException(
+                            "NEURAL_NETWORK binding: " + scopeName
+                            + "/layer_" + std::to_string(_nLayers) + " BIAS size must be NOUTPUT = "
+                            + std::to_string(_nOutput));
 
-                    // Build ANN model for this bound state
                     _annModels.push_back(
                         std::make_unique<ClassANN>(_nLayers, _nNodes, _nInput, _nOutput));
+                }
+
+                // --- Build pre-allocated pointer caches (avoids allocation in hot path) ---
+                _kernelPtrs.resize(totalNumBoundStates);
+                _biasPtrs.resize(totalNumBoundStates);
+                for (unsigned int bndIdx = 0u; bndIdx < totalNumBoundStates; ++bndIdx)
+                {
+                    _kernelPtrs[bndIdx].resize(nTotalLayers);
+                    _biasPtrs[bndIdx].resize(nTotalLayers);
+                    for (unsigned int l = 0u; l < nTotalLayers; ++l)
+                    {
+                        _kernelPtrs[bndIdx][l] = _layerKernels[bndIdx][l].data();
+                        _biasPtrs[bndIdx][l]   = _layerBiases[bndIdx][l].data();
+                    }
                 }
 
                 // --- Pre-allocate shared runtime buffers ---
@@ -383,45 +372,23 @@ namespace cadet
         private:
 
             // -------------------------------------------------------------------------
-            // Forward pass dispatcher for bound state bndIdx.
+            // Forward pass for bound state bndIdx.
+            // Uses pre-allocated pointer caches — no heap allocation.
             // Input x must already be normalised.
             // -------------------------------------------------------------------------
             void _annForward(unsigned int bndIdx, const double* x, double* pred) const
             {
-                if (_nLayers == 1u)
-                    _annModels[bndIdx]->forward_single_layer(
-                        x,
-                        _kernel0[bndIdx].data(), _bias0[bndIdx].data(),
-                        _kernel1[bndIdx].data(), _bias1[bndIdx].data(),
-                        pred);
-                else
-                    _annModels[bndIdx]->forward_two_layers(
-                        x,
-                        _kernel0[bndIdx].data(), _bias0[bndIdx].data(),
-                        _kernel1[bndIdx].data(), _bias1[bndIdx].data(),
-                        _kernel2[bndIdx].data(), _bias2[bndIdx].data(),
-                        pred);
+                _annModels[bndIdx]->forward(_kernelPtrs[bndIdx], _biasPtrs[bndIdx], x, pred);
             }
 
             // -------------------------------------------------------------------------
-            // Jacobian dispatcher for bound state bndIdx.
+            // Jacobian for bound state bndIdx.
+            // Uses pre-allocated pointer caches — no heap allocation.
             // Input x must already be normalised.
             // -------------------------------------------------------------------------
             void _annJacobian(unsigned int bndIdx, const double* x, double* grad) const
             {
-                if (_nLayers == 1u)
-                    _annModels[bndIdx]->jacobian_single_layer(
-                        x,
-                        _kernel0[bndIdx].data(), _bias0[bndIdx].data(),
-                        _kernel1[bndIdx].data(),
-                        grad);
-                else
-                    _annModels[bndIdx]->jacobian_two_layers(
-                        x,
-                        _kernel0[bndIdx].data(), _bias0[bndIdx].data(),
-                        _kernel1[bndIdx].data(), _bias1[bndIdx].data(),
-                        _kernel2[bndIdx].data(),
-                        grad);
+                _annModels[bndIdx]->jacobian(_kernelPtrs[bndIdx], _biasPtrs[bndIdx], x, grad);
             }
         };
 
