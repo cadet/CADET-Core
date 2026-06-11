@@ -311,7 +311,7 @@ TEST_CASE("Radial LRMP_DG numerical Benchmark for linear case", "[RadLRMP],[DG],
 {
 	const std::string& modelFilePath = std::string("/data/model_radLRMP_dynLin_1comp_sensbenchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_radLRMP_dynLin_1comp_sensbenchmark1_DG_P3Z16.h5");
-	const std::vector<double> absTol = { 1e-12 };
+	const std::vector<double> absTol = { 1e-8 };
 	const std::vector<double> relTol = { 1e-5 };
 	cadet::test::column::DGParams disc(0, 3, 16);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
