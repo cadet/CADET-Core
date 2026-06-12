@@ -61,7 +61,7 @@ RUN /cadet/CADET-Core/install/bin/cadet-cli /cadet/CADET-Core/install/bin/LWE.h5
 FROM condaforge/miniforge3:${MINIFORGE_VERSION} AS deploy
 COPY --from=build /cadet/CADET-Core/install /cadet/CADET-Core/install
 COPY --from=build /usr/lib/x86_64-linux-gnu/libsz.so.2 /cadet/CADET-Core/install/lib
-ENV PATH="$PATH:/cadet/CADET-Core/install/bin"
+ENV PATH="/cadet/CADET-Core/install/bin:$PATH"
 
 RUN apt-get update && \
     apt-get -y install libhdf5-dev libsuperlu-dev git git-lfs && \
