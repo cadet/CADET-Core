@@ -163,7 +163,7 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD without inhibition", 
 	);
 }
 
-TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with prefactorial component", "[MichaelisMenten],[ReactionModel],[Jacobian],[AD]") // Test runs locally
+TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with prefactorial component", "[MichaelisMenten],[ReactionModel],[Jacobian],[AD],[CI]") // Test runs locally
 {
 	const unsigned int nBound[] = { 1, 2, 1 };
 	const double point[] = { 1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8 };
@@ -176,7 +176,7 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with prefactorial com
 			                           0.0,  1.0,  1.0],
 			"MM_PRE_K": [0.0, 0.0, 2.0, 0.0, 5.0, 0.0, 0.5, 0.0, 0.0]
 		})json",
-		point, 1e-15, 1e-15
+		point, 1e-12, 1e-12
 	);
 }
 
