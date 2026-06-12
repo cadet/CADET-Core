@@ -1,9 +1,4 @@
 {
-    "meta": {
-        "INFO": "CADET-Reference convergence data for the CADET-Database model configuration: radLRM_dynLin_1comp_sensbenchmark1 whose source is CADET-Reference convergence data https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-reference_data",
-        "NAME": "convergence_radLRM_dynLin_1comp_sensbenchmark1",
-        "SOURCE": "CADET-Reference convergence data https://jugit.fz-juelich.de/IBG-1/ModSim/cadet/cadet-reference_data"
-    },
     "model": {
         "NUNITS": 3,
         "connections": {
@@ -62,38 +57,26 @@
             "NCOMP": 1,
             "TOTAL_POROSITY": 0.8425,
             "VELOCITY_COEFF": 0.000575,
-            "COL_DISPERSION": 5.75e-08,
+            "COL_DISPERSION": 5.75e-05,
             "COL_RADIUS_INNER": 0.01,
             "COL_RADIUS_OUTER": 0.2,
             "NPARTYPE": 1,
             "INIT_C": [
                 0.0
             ],
+            "COL_POROSITY": 0.8425,
             "particle_type_000": {
                 "HAS_FILM_DIFFUSION": false,
                 "HAS_PORE_DIFFUSION": false,
                 "HAS_SURFACE_DIFFUSION": false,
-                "ADSORPTION_MODEL": "LINEAR",
-                "NBOUND": [
-                    1
-                ],
-                "adsorption": {
-                    "IS_KINETIC": 1,
-                    "LIN_KA": [
-                        12.3
-                    ],
-                    "LIN_KD": [
-                        45.0
-                    ]
-                },
                 "INIT_CP": [
                     0.0
                 ],
-                "INIT_CS": [
-                    0.0
+                "ADSORPTION_MODEL": "NONE",
+                "NBOUND": [
+                    0
                 ]
             },
-            "COL_POROSITY": 0.8425,
             "discretization": {
                 "SPATIAL_METHOD": "DG",
                 "POLYDEG": 3,
@@ -104,6 +87,12 @@
         "unit_002": {
             "NCOMP": 1,
             "UNIT_TYPE": "OUTLET"
+        },
+        "solver": {
+            "GS_TYPE": 1,
+            "MAX_KRYLOV": 0,
+            "MAX_RESTARTS": 10,
+            "SCHUR_SAFETY": 1e-08
         }
     },
     "solver": {
@@ -117,6 +106,33 @@
                 60.0,
                 130.0
             ]
+        },
+        "time_integrator": {
+            "ABSTOL": 1e-08,
+            "ALGTOL": 1e-12,
+            "RELTOL": 1e-06,
+            "INIT_STEP_SIZE": 1e-10,
+            "MAX_STEPS": 1000000
+        }
+    },
+    "return": {
+        "SPLIT_COMPONENTS_DATA": 0,
+        "SPLIT_PORTS_DATA": 0,
+        "unit_000": {
+            "WRITE_SOLUTION_BULK": 0,
+            "WRITE_SOLUTION_INLET": 0,
+            "WRITE_SOLUTION_OUTLET": 0
+        },
+        "unit_001": {
+            "WRITE_COORDINATES": 0,
+            "WRITE_SOLUTION_BULK": 0,
+            "WRITE_SOLUTION_INLET": 0,
+            "WRITE_SOLUTION_OUTLET": 1
+        },
+        "unit_002": {
+            "WRITE_SOLUTION_BULK": 0,
+            "WRITE_SOLUTION_INLET": 0,
+            "WRITE_SOLUTION_OUTLET": 0
         }
     }
 }

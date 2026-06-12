@@ -183,18 +183,67 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE - RADIAL_COLUMN_MODEL_1D
 Spatial discretization - Numerical Methods
 ------------------------------------------
 
+CADET offers two spatial discretization methods: Finite Volumes (FV) and Discontinuous Galerkin (DG). Each method has its own set of input fields.
+While both methods approximate the same solution to the same underlying model, they may differ in terms of computational performance.
+The radial DG method uses exact integration with rho-weighted mass matrices to accurately capture the cylindrical geometry.
+
+For further information on the choice of discretization methods and their parameters, see :ref:`spatial_discretization_methods`.
+
 ``SPATIAL_METHOD``
 
    Spatial discretization method
 
-   ================  ==================================  =============
-   **Type:** string  **Range:** :math:`\{\texttt{FV}\}`  **Length:** 1
-   ================  ==================================  =============
+   ================  ===============================================  =============
+   **Type:** string  **Range:** :math:`\{\texttt{FV}, \texttt{DG}\}`  **Length:** 1
+   ================  ===============================================  =============
+
+Discontinuous Galerkin
+^^^^^^^^^^^^^^^^^^^^^^
+
+``POLYDEG``
+
+   DG polynomial degree. Optional, defaults to 4 and :math:`N_d \in \{3, 4, 5\}` is recommended. The total number of radial discrete points is given by (``POLYDEG`` + 1 ) * ``NELEM``
+
+   =============  =========================  =============
+   **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
+   =============  =========================  =============
+
+``NELEM``
+
+   Number of radial column discretization DG cells/elements. The total number of radial discrete points is given by (``POLYDEG`` + 1 ) * ``NELEM``
+
+   =============  =========================  =============
+   **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
+   =============  =========================  =============
+
+``NCOL``
+
+   Number of radial discrete points. Optional and ignored if ``NELEM`` is defined. Otherwise, used to calculate ``NELEM`` = :math:`\lfloor` ``NCOL`` / (``POLYDEG`` + 1 ) :math:`\rfloor`
+
+   =============  =========================  =============
+   **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
+   =============  =========================  =============
+
+``LINEAR_SOLVER``
+
+   Specifies the linear solver variant used to factorize the semidiscretized system. Optional, defaults to ``SparseLU``. For more information on these solvers, we refer to the `Eigen documentation <https://eigen.tuxfamily.org/>`_
+
+   =============  ===================================================================================  =============
+   **Type:** int  **Range:** :math:`\{\texttt{SparseLU}, \texttt{SparseQR}, ..., \texttt{BiCGSTAB}\}`  **Length:** 1
+   =============  ===================================================================================  =============
+
+When using the DG method, we generally recommend specifying ``USE_MODIFIED_NEWTON = 1`` in :ref:`FFSolverTime`, i.e. to use the modified Newton method to solve the linear system within the time integrator.
+
+.. note::
+   The radial DG method always uses exact integration (no collocation variant). The ``POLYNOMIAL_INTEGRATION_TYPE`` field is ignored for radial flow models.
+
+Finite Volumes
+^^^^^^^^^^^^^^
 
 ``NCELLS``
 
-   Number of axial column discretization points, i.e. FV cells
-   
+   Number of radial column discretization points, i.e. FV cells
+
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
    =============  =========================  =============
@@ -202,7 +251,7 @@ Spatial discretization - Numerical Methods
 ``RECONSTRUCTION``
 
    Type of reconstruction method for fluxes
-   
+
    ================  =======================================  =============
    **Type:** string  **Range:** :math:`\texttt{WENO, KOREN}`  **Length:** 1
    ================  =======================================  =============
@@ -214,7 +263,7 @@ The following FV discretization parameters are only required if particles are pr
 ``GS_TYPE``
 
    Type of Gram-Schmidt orthogonalization, see IDAS guide Section 4.5.7.3, p. 41f. A value of :math:`0` enables classical Gram-Schmidt, a value of 1 uses modified Gram-Schmidt.
-   
+
    =============  ===========================  =============
    **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1
    =============  ===========================  =============
@@ -222,7 +271,7 @@ The following FV discretization parameters are only required if particles are pr
 ``MAX_KRYLOV``
 
    Defines the size of the Krylov subspace in the iterative linear GMRES solver (0: :math:`\texttt{MAX_KRYLOV} = \texttt{NCOL} \cdot \texttt{NCOMP} \cdot \texttt{NPARTYPE}`)
-   
+
    =============  ============================================================================================  =============
    **Type:** int  **Range:** :math:`\{0, \dots, \texttt{NCOL} \cdot \texttt{NCOMP} \cdot \texttt{NPARTYPE} \}`  **Length:** 1
    =============  ============================================================================================  =============
@@ -230,7 +279,7 @@ The following FV discretization parameters are only required if particles are pr
 ``MAX_RESTARTS``
 
    Maximum number of restarts in the GMRES algorithm. If lack of memory is not an issue, better use a larger Krylov space than restarts.
-   
+
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
    =============  =========================  =============
@@ -238,7 +287,7 @@ The following FV discretization parameters are only required if particles are pr
 ``SCHUR_SAFETY``
 
    Schur safety factor; Influences the tradeoff between linear iterations and nonlinear error control; see IDAS guide Section~2.1 and 5.
-   
+
    ================  =========================  =============
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
    ================  =========================  =============

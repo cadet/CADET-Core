@@ -113,6 +113,67 @@ void lglNodesWeights(const unsigned int polyDeg, VectorXd& nodes, VectorXd& invW
 	invWeights = invWeights.cwiseInverse();
 }
 /**
+ * @brief computes the Chebyshev-Gauss-Lobatto nodes and Clenshaw-Curtis quadrature weights
+ * @param [in] polyDeg polynomial degree
+ * @param [in, out] nodes Chebyshev Gauss Lobatto nodes
+ * @param [in, out] invWeights Clenshaw-Curtis quadrature weights
+ * @param [in] invertWeights specifies if weights should be inverted
+ */
+void cglNodesWeights(const unsigned int polyDeg, VectorXd& nodes, VectorXd& invWeights, bool invertWeights)
+{
+	const double pi = 3.1415926535897932384626434;
+	const unsigned int N = polyDeg;
+
+	if (N == 0)
+		throw std::invalid_argument("Polynomial degree must be at least 1 !");
+
+	// CGL nodes: x_j = -cos(pi * j / N), j = 0, ..., N
+	for (unsigned int j = 0; j <= N; j++)
+		nodes[j] = -std::cos(pi * j / N);
+
+	// Clenshaw-Curtis weights via DCT-based formula
+	// w_0 = w_N = 1/(N^2 - 1) for even N, 1/N^2 for odd N
+	// Interior weights computed from the closed-form formula
+	for (unsigned int j = 0; j <= N; j++)
+	{
+		double w = 0.0;
+		for (unsigned int k = 1; k <= N / 2; k++)
+		{
+			double b = (k == N / 2 && N % 2 == 0) ? 1.0 : 2.0;
+			w += b / (4.0 * k * k - 1.0) * std::cos(2.0 * pi * k * j / N);
+		}
+		invWeights[j] = (1.0 - w) * 2.0 / N;
+		if (j == 0 || j == N)
+			invWeights[j] *= 0.5;
+	}
+
+	if (invertWeights)
+		invWeights = invWeights.cwiseInverse();
+}
+/**
+ * @brief computes the Chebyshev-Gauss (interior) nodes and quadrature weights
+ * @param [in] polyDeg polynomial degree (N where N+1 is number of points)
+ * @param [in, out] nodes Chebyshev Gauss nodes
+ * @param [in, out] weights Chebyshev Gauss quadrature weights
+ * @param [in] invertWeights specifies if weights should be inverted
+ */
+void cgNodesWeights(const unsigned int polyDeg, VectorXd& nodes, VectorXd& weights, bool invertWeights)
+{
+	const double pi = 3.1415926535897932384626434;
+	const unsigned int N = polyDeg + 1; // number of points
+
+	// CG nodes: x_j = -cos((2j+1)/(2N) * pi), j = 0, ..., N-1
+	for (unsigned int j = 0; j < N; j++)
+		nodes[j] = -std::cos((2.0 * j + 1.0) / (2.0 * N) * pi);
+
+	// Chebyshev-Gauss quadrature weights: w_j = pi / N
+	for (unsigned int j = 0; j < N; j++)
+		weights[j] = pi / N;
+
+	if (invertWeights)
+		weights = weights.cwiseInverse();
+}
+/**
  * @brief computes the Legendre polynomial and its derivative
  * @param [in] polyDeg polynomial degree
  * @param [in, out] leg Legendre polynomial
@@ -153,7 +214,7 @@ void legendrePolynomialAndDerivative(const int polyDeg, double& leg, double& leg
  * @param [in, out] weights Legendre Gauss quadrature weights
  * @param [in] invertWeights specifies if weights should be inverted
  */
-void lgNodesWeights(const unsigned int polyDeg, VectorXd& nodes, VectorXd& weights, bool invertWeights = true)
+void lgNodesWeights(const unsigned int polyDeg, VectorXd& nodes, VectorXd& weights, bool invertWeights)
 {
 	const double pi = 3.1415926535897932384626434;
 
@@ -393,6 +454,18 @@ Eigen::MatrixXd mMatrix(const unsigned int polyDeg, const Eigen::VectorXd nodes,
 	return invMMatrix(polyDeg, nodes, alpha, beta).inverse();
 }
 /**
+ * @brief calculates the weighted mass matrix M^{(0,1)} for radial DG integrals
+ * @detail For integrals of the form \int_E \ell_i(\xi) \ell_j(\xi) (1 + \xi) d\xi
+ *         Used to construct radial weighted mass matrix: M_rho = (delta_rho/2) * M^{(0,1)} + rho_i * M^{(0,0)}
+ * @param [in] polyDeg polynomial degree
+ * @param [in] nodes polynomial interpolation nodes
+ */
+Eigen::MatrixXd weightedMMatrix(const unsigned int polyDeg, const Eigen::VectorXd nodes)
+{
+	// M^{(0,1)} uses alpha=0, beta=1 to get (1+xi) weighting
+	return mMatrix(polyDeg, nodes, 0.0, 1.0);
+}
+/**
  * @brief calculates the derivative of the Vandermonde matrix of the normalized Legendre polynomials
  * @param [in] polyDeg polynomial degree
  * @param [in] a Jacobi polynomial parameter
@@ -587,12 +660,102 @@ void writeDGCoordinates(double* coords, const int nElem, const int nNodes, const
 {
 	for (unsigned int i = 0; i < nElem; i++) {
 		for (unsigned int j = 0; j < nNodes; j++) {
-			// mapping 
+			// mapping
 			coords[i * nNodes + j] = leftElemBndries[i] + 0.5 * (length / nElem) * (1.0 + DGnodes[j]);
 		}
 	}
 }
+/**
+ * @brief evaluates the derivative of the jth Lagrange basis function at given nodes
+ * @detail Uses the formula: dL_j/dξ(x) = sum_{m≠j} [1/(ξ_j - ξ_m) * prod_{k≠j,m} (x - ξ_k)/(ξ_j - ξ_k)]
+ * @param [in] j index of Lagrange basis function
+ * @param [in] baseNodes interpolation nodes of Lagrange basis
+ * @param [in] evalNodes evaluation nodes in [-1, 1]
+ */
+VectorXd evalLagrangeBasisDerivative(const int j, const VectorXd baseNodes, const VectorXd evalNodes)
+{
+	const int nIntNodes = baseNodes.size();
+	const int nEvalNodes = evalNodes.size();
+	VectorXd evalDerEll = VectorXd::Zero(nEvalNodes);
 
+	for (int k = 0; k < nEvalNodes; k++)
+	{
+		double sumTerms = 0.0;
+		for (int m = 0; m < nIntNodes; m++)
+		{
+			if (m != j)
+			{
+				double term = 1.0 / (baseNodes[j] - baseNodes[m]);
+				for (int p = 0; p < nIntNodes; p++)
+				{
+					if (p != j && p != m)
+					{
+						term *= (evalNodes[k] - baseNodes[p]) / (baseNodes[j] - baseNodes[p]);
+					}
+				}
+				sumTerms += term;
+			}
+		}
+		evalDerEll[k] = sumTerms;
+	}
+
+	return evalDerEll;
+}
+/**
+ * @brief computes radial dispersion matrix S_g for a single cell with variable D(rho)
+ * @detail For radial DG: S_g[i,j] = ∫ dL_i/dξ * L_j * ρ(ξ) * D(ρ(ξ)) dξ
+ *         where ρ(ξ) = rho_left + (delta_rho/2) * (1 + ξ)
+ *         Uses Gauss-Legendre quadrature for numerical integration.
+ * @param [in] polyDeg polynomial degree
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] rho_left left boundary of cell in physical space
+ * @param [in] delta_rho cell width in physical space
+ * @param [in] dispAtNodes dispersion coefficient D evaluated at physical node positions
+ * @param [in] nQuadPoints number of Gauss quadrature points (default: 3/2 rule for dealiasing)
+ */
+MatrixXd radialDispersionMatrix(const unsigned int polyDeg, const VectorXd LGLnodes,
+                                 const double rho_left, const double delta_rho,
+                                 const VectorXd dispAtNodes, const int nQuadPoints)
+{
+	const unsigned int nNodes = polyDeg + 1;
+	const int nQuad = (nQuadPoints < 0) ? static_cast<int>((3 * polyDeg + 1) / 2 + 1) : nQuadPoints;
+
+	// Get Gauss-Legendre quadrature points and weights
+	VectorXd quadNodes = VectorXd::Zero(nQuad);
+	VectorXd quadWeights = VectorXd::Zero(nQuad);
+	lgNodesWeights(nQuad - 1, quadNodes, quadWeights, false);
+
+	// Evaluate Lagrange basis and derivatives at quadrature points
+	MatrixXd basisAtQuad(nNodes, nQuad);
+	MatrixXd basisDerAtQuad(nNodes, nQuad);
+	for (unsigned int j = 0; j < nNodes; j++) {
+		basisAtQuad.row(j) = evalLagrangeBasis(j, LGLnodes, quadNodes);
+		basisDerAtQuad.row(j) = evalLagrangeBasisDerivative(j, LGLnodes, quadNodes);
+	}
+
+	// Interpolate dispersion coefficient to quadrature points
+	VectorXd dispAtQuad = VectorXd::Zero(nQuad);
+	for (int k = 0; k < nQuad; k++) {
+		for (unsigned int j = 0; j < nNodes; j++) {
+			dispAtQuad[k] += dispAtNodes[j] * basisAtQuad(j, k);
+		}
+	}
+
+	// Compute S_g matrix: S_g[i,j] = sum_k w_k * dL_i(quad_k) * L_j(quad_k) * rho(quad_k) * D(rho(quad_k))
+	MatrixXd S_g = MatrixXd::Zero(nNodes, nNodes);
+	for (unsigned int i = 0; i < nNodes; i++) {
+		for (unsigned int j = 0; j < nNodes; j++) {
+			for (int k = 0; k < nQuad; k++) {
+				// Map reference coordinate to physical radius: rho = rho_left + (delta_rho/2) * (1 + xi)
+				double rho_k = rho_left + 0.5 * delta_rho * (1.0 + quadNodes[k]);
+				double weight_factor = quadWeights[k] * rho_k * dispAtQuad[k];
+				S_g(i, j) += weight_factor * basisDerAtQuad(i, k) * basisAtQuad(j, k);
+			}
+		}
+	}
+
+	return S_g;
+}
 
 } // namespace dgtoolbox
 } // namespace parts
