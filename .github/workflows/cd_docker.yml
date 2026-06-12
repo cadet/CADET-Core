@@ -36,7 +36,18 @@ jobs:
           ref: ${{ github.event.inputs.ref || github.sha }}
           # Ensure all commits are available (needed for arbitrary commit SHAs including non-default branches)
           fetch-depth: 0
-
+          
+      - name: Show checked out Core commit
+        run: |
+          echo "HEAD SHA:"
+          git rev-parse HEAD
+          echo
+          echo "Last commit:"
+          git log -1 --oneline
+          echo
+          echo "Branches:"
+          git branch -a
+          
       - name: Get versions for Python and Process
         shell: bash
         run: |
