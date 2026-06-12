@@ -29,25 +29,25 @@ For information on model equations, refer to :ref:`neural_network`.
 ===================  =========================  =======================
 
 ``NLAYERS``
-   Number of hidden layers in the neural network architecture.
-   Currently supports 1 or 2 hidden layers.
-
-===================  =========================  =======================
-**Type:** int        **Range:** {1, 2}          **Length:** 1
-===================  =========================  =======================
-
-``NNODES``
-   Number of nodes per hidden layer. All hidden layers have the same
-   number of nodes.
+   Number of hidden layers :math:`N` in the neural network architecture.
 
 ===================  =========================  =======================
 **Type:** int        **Range:** :math:`\geq 1`  **Length:** 1
 ===================  =========================  =======================
 
-**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_YYY**
+``NNODES``
+   Number of nodes per hidden layer.
+   All hidden layers share the same width.
+
+===================  =========================  =======================
+**Type:** int        **Range:** :math:`\geq 1`  **Length:** 1
+===================  =========================  =======================
+
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_XXX/layer_0**
 
 ``NORM_FACTOR``
-   Normalization factors applied pore-phase concentration before feeding into the neural network.
+   Normalization factors applied to the pore-phase
+   concentration before feeding into the neural network.
 
 ===================  =========================  =======================
 **Type:** double     **Range:** :math:`> 0`     **Length:** 1
@@ -62,71 +62,66 @@ For information on model equations, refer to :ref:`neural_network`.
 **Type:** double     **Range:** :math:`> 0`     **Length:** 1
 ===================  =========================  =======================
 
-Neural network weights and biases are organized hierarchically by layer.
-All weight matrices must be stored in column-major (Fortran) order.
+Neural network weights and biases are organized hierarchically by bound state and layer.
+For each bound state, there are ``NLAYERS + 1`` layer groups:
+``layer_0`` through ``layer_{NLAYERS-1}`` are the hidden layers and
+``layer_{NLAYERS}`` is the output layer. All weight matrices must be stored in
+column-major (Fortran) order.
 
-**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_YYY/layer_0**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_XXX/layer_0**
 
-First hidden layer parameters.
+First hidden layer parameters. Always present.
 
 ``KERNEL``
-   Weight matrix :math:`W_1` connecting input to first hidden layer.
+   Weight matrix :math:`W_1` connecting the input to the first hidden layer.
    Shape: (NNODES x NCOMP). Stored in column-major order.
 
 ===================  =============================  ===========================
-**Type:** double     **Range:** :math:`\mathbb{R}`    **Length:** NNODES * NCOMP
+**Type:** double     **Range:** :math:`\mathbb{R}`  **Length:** NNODES * NCOMP
 ===================  =============================  ===========================
 
 ``BIAS``
-   Bias vector :math:`b_1` for first hidden layer.
+   Bias vector :math:`b_1` for the first hidden layer.
 
 ===================  =============================  =======================
-**Type:** double     **Range:** :math:`\mathbb{R}`    **Length:** NNODES
+**Type:** double     **Range:** :math:`\mathbb{R}`  **Length:** NNODES
 ===================  =============================  =======================
 
-**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_YYY/layer_1**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_XXX/layer_l**
+**(for l = 1, ..., NLAYERS-1)**
 
-Second hidden layer parameters (for NLAYERS=2) or output layer parameters (for NLAYERS=1).
+Intermediate hidden layer parameters. Present only when ``NLAYERS >= 2``.
+Layer ``layer_l`` connects hidden layer :math:`l` to hidden layer :math:`l+1`.
 
 ``KERNEL``
-   Weight matrix :math:`W_2`.
+   Weight matrix :math:`W_{l+1}` of shape (NNODES x NNODES). Stored in column-major order.
 
-   - For NLAYERS=1: Shape (1 x NNODES), connects hidden to output.
-   - For NLAYERS=2: Shape (NNODES x NNODES), connects first to second hidden layer.
-
-   Stored in column-major order.
-
-===================  =============================  ================================
-**Type:** double     **Range:** :math:`\mathbb{R}`    **Length:** NNODES (NLAYERS=1)
-                                                        or NNODES*NNODES (NLAYERS=2)
-===================  =============================  ================================
+===================  =============================  ========================
+**Type:** double     **Range:** :math:`\mathbb{R}`  **Length:** NNODES*NNODES
+===================  =============================  ========================
 
 ``BIAS``
-   Bias vector :math:`b_2`.
+   Bias vector :math:`b_{l+1}` for hidden layer :math:`l+1`.
 
-   - For NLAYERS=1: Output bias (length 1).
-   - For NLAYERS=2: Second hidden layer bias (length NNODES).
+===================  =============================  =======================
+**Type:** double     **Range:** :math:`\mathbb{R}`  **Length:** NNODES
+===================  =============================  =======================
 
-===================  =============================  ===========================
-**Type:** double     **Range:** :math:`\mathbb{R}`    **Length:** 1 (NLAYERS=1)
-                                                          or NNODES (NLAYERS=2)
-===================  =============================  ===========================
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_XXX/layer_NLAYERS**
 
-**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_YYY/layer_2**
-
-Output layer parameters (only for NLAYERS=2).
+Output layer parameters. Always present. Index equals ``NLAYERS``.
 
 ``KERNEL``
-   Weight matrix :math:`W_3` connecting second hidden layer to output.
+   Weight matrix :math:`W_{N+1}` connecting the last hidden layer to the scalar output.
    Shape: (1 x NNODES). Stored in column-major order.
 
 ===================  =============================  =======================
-**Type:** double     **Range:** :math:`\mathbb{R}`    **Length:** NNODES
+**Type:** double     **Range:** :math:`\mathbb{R}`  **Length:** NNODES
 ===================  =============================  =======================
 
 ``BIAS``
-   Bias scalar :math:`b_3` for output layer.
+   Bias scalar :math:`b_{N+1}` for the output layer.
 
 ===================  =============================  ================
-**Type:** double     **Range:** :math:`\mathbb{R}`    **Length:** 1
+**Type:** double     **Range:** :math:`\mathbb{R}`  **Length:** 1
 ===================  =============================  ================

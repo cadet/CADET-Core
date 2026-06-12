@@ -11,26 +11,28 @@ For each component :math:`i` and bound state :math:`m`, an equilibrium loading
 
     c^{s,\ast}_{i,m} = f_{i,m}(c^p)
 
-is constructed from user-provided trained neural network weights and biases. In the current implementation, the neural network is a feedforward architecture with exponential linear unit (ELU) activations, supporting either one or two hidden layers.
+is constructed from user-provided trained neural network weights and biases.
+The neural network is a feedforward architecture with exponential linear unit (ELU) activations and an arbitrary number of hidden layers :math:`N \geq 1`.
 
 Network Architecture
 ********************
 
-The neural network predictor uses the following architectures:
-
-**Single hidden layer:**
+The neural network predictor is defined by the following recurrence over :math:`N` hidden layers:
 
 .. math::
 
-    f(x) = W_2 \cdot \text{ELU}(W_1 \cdot x + b_1) + b_2
+    h_0 &= x \\
+    h_l &= \text{ELU}(W_l \cdot h_{l-1} + b_l), \quad l = 1, \ldots, N \\
+    f(x) &= W_{N+1} \cdot h_N + b_{N+1}
 
-**Two hidden layers:**
+where :math:`W_l` denote weight matrices, :math:`b_l` denote bias vectors, and :math:`x` is the input vector. The output layer applies no activation. The special cases are:
 
 .. math::
 
-    f(x) = W_3 \cdot \text{ELU}(W_2 \cdot \text{ELU}(W_1 \cdot x + b_1) + b_2) + b_3
+    N=1: \quad f(x) &= W_2 \cdot \text{ELU}(W_1 \cdot x + b_1) + b_2 \\
+    N=2: \quad f(x) &= W_3 \cdot \text{ELU}(W_2 \cdot \text{ELU}(W_1 \cdot x + b_1) + b_2) + b_3
 
-where :math:`W_i` denote weight matrices, :math:`b_i` denote bias vectors, and the exponential linear unit (ELU) activation function is defined as:
+The exponential linear unit (ELU) activation function is defined as:
 
 .. math::
 
@@ -99,21 +101,20 @@ Thus, the neural network provides the equilibrium target, while the kinetic cons
 Jacobian Computation
 ********************
 
-An analytical Jacobian is implemented, where the gradient with respect to the pore-phase concentration is computed as:
-
-**Single hidden layer:**
-
-.. math::
-
-    \frac{\partial c^{s,\ast}}{\partial c^p} = W_1^\top \cdot \text{diag}(\text{ELU}'(z_1)) \cdot W_2^\top
-
-**Two hidden layers:**
+An analytical Jacobian is implemented.
+Denoting the pre-activation at hidden layer :math:`l` as :math:`z_l = W_l \cdot h_{l-1} + b_l`, the gradient of the network output with respect to the input is given by the backpropagation chain rule:
 
 .. math::
 
-    \frac{\partial c^{s,\ast}}{\partial c^p} = W_1^\top \cdot \text{diag}(\text{ELU}'(z_1)) \cdot W_2^\top \cdot \text{diag}(\text{ELU}'(z_2)) \cdot W_3^\top
+    \frac{\partial f}{\partial x}
+    =
+    W_1^\top \cdot
+    \left[
+        \prod_{l=1}^{N}
+        \text{diag}\!\left(\text{ELU}'(z_l)\right) \cdot W_{l+1}^\top
+    \right]
 
-where :math:`z_i` denotes the pre-activation at layer :math:`i`, and the ELU derivative is:
+where the product is taken left-to-right with increasing :math:`l`, and the ELU derivative is:
 
 .. math::
 
