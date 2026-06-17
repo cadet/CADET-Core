@@ -163,7 +163,7 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD without inhibition", 
 	);
 }
 
-TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with prefactorial component", "[MichaelisMenten],[ReactionModel],[Jacobian],[AD],[CI]") // Test runs locally
+TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with prefactorial component", "[MichaelisMenten],[ReactionModel],[Jacobian],[AD]") // Test runs locally
 {
 	const unsigned int nBound[] = { 1, 2, 1 };
 	const double point[] = { 1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8 };
@@ -180,7 +180,7 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with prefactorial com
 	);
 }
 
-TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with inhibition", "[MichaelisMenten],[ReactionModel],[Jacobian],[AD], [InhSingle]")// Test runs as a single test but fails when run in combination with [MichaelisMenten] tag
+TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with inhibition", "[MichaelisMenten],[ReactionModel],[Jacobian],[AD]")// Test runs as a single test but fails when run in combination with [MichaelisMenten] tag
 {
 	const unsigned int nBound[] = { 1, 2, 1 };
 	const double point[] = { 1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8 };
