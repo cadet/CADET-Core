@@ -176,7 +176,7 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with prefactorial com
 			                           0.0,  1.0,  1.0],
 			"MM_PRE_K": [0.0, 0.0, 2.0, 0.0, 5.0, 0.0, 0.5, 0.0, 0.0]
 		})json",
-		point, 1e-12, 1e-12
+		point, 1e-13, 1e-13
 	);
 }
 
