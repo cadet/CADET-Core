@@ -302,7 +302,7 @@ protected:
                     unsigned int prekIdx = getKmmParamIndex(r, static_cast<unsigned int>(rowIdx));
                     flux_t pre_k_j = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->KPrefactor[prekIdx]);
                     bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
-                    if (pre_k_j != 0.0) 
+                    if (pre_k_j != 0.0)
                     {
                         if (isSubstrate)
                         {
