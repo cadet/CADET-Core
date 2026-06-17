@@ -224,6 +224,7 @@ jobs:
             -DEIGEN3_DIR="${INSTALL_PREFIX}/eigen" \
             "${SRC_DIR}" \
             -DENABLE_TESTS=ON \
+            -DENABLE_TEST_RADIAL=ON \
             -DNUM_MAX_AD_DIRS=160
           make install -j$(nproc)
       - name: Check executable
@@ -285,6 +286,10 @@ jobs:
         if: always() && steps.build.conclusion == 'success'
         run: |
           ${BUILD_DIR}/test/testCAPIv1
+      - name: Run CI test set VII - Radial Weno
+        if: always() && steps.build.conclusion == 'success'
+        run: |
+          ${BUILD_DIR}/test/testRadialKernel
 
   MacOS:
     if: github.event.pull_request == null || github.event.pull_request.draft == false
