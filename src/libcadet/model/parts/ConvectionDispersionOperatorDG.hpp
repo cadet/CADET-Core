@@ -122,20 +122,20 @@ namespace cadet
 				inline unsigned int nNodes() const CADET_NOEXCEPT { return _nNodes; }
 				inline unsigned int nPoints() const CADET_NOEXCEPT { return _nPoints; }
 				inline bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return static_cast<bool>(_OSmode); }
-				inline int writeSmoothnessIndicator() const CADET_NOEXCEPT
+				inline int writeSmoothnessIndicator(double* buffer) const CADET_NOEXCEPT
 				{
-					//if (hasSmoothnessIndicator())
-					//	return _troubledCells;
-					//else
-					return 0;
+					if (hasSmoothnessIndicator())
+					{
+						std::copy_n(_troubledCells, _nPoints * _nComp, buffer);
+						return _nPoints * _nComp;
+					}
+					else
+						return 0;
 				}
 
-				// Indexer functionality:
-				// Strides
 				inline int strideColElement() const CADET_NOEXCEPT { return static_cast<int>(_strideElem); }
 				inline int strideColNode() const CADET_NOEXCEPT { return static_cast<int>(_strideNode); }
 				inline int strideColComp() const CADET_NOEXCEPT { return 1; }
-				// Offsets
 				inline int offsetC() const CADET_NOEXCEPT { return _nComp; }
 
 				unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
