@@ -191,6 +191,7 @@ protected:
 		virtual bool hasVolume() const CADET_NOEXCEPT { return true; }
 		virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return true; }
 		virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return false; }
+		virtual bool discHasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
 		virtual unsigned int numPrimaryCoordinates() const CADET_NOEXCEPT { return 1; }
@@ -221,6 +222,7 @@ protected:
 		virtual int writeInlet(double* buffer) const;
 		virtual int writeOutlet(unsigned int port, double* buffer) const;
 		virtual int writeOutlet(double* buffer) const;
+		virtual int writeSmoothnessIndicator(double* buffer) const { return 0; }
 
 		virtual double const* solidPhase(unsigned int parType) const { return _data + 2 * _nComp; }
 

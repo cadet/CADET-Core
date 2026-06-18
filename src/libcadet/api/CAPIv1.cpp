@@ -571,11 +571,11 @@ namespace v1
 			} \
 		\
 			if (nAxialCells) \
-				*nAxialCells = unitRec->numAxialCells(); \
+				*nAxialCells = unitRec->numAxialPoints(); \
 			if (keepAxialSingletonDimension) \
 				*keepAxialSingletonDimension = unitRec->keepBulkSingletonDim(); \
 			if (nRadialCells) \
-				*nRadialCells = unitRec->numRadialCells(); \
+				*nRadialCells = unitRec->numRadialPoints(); \
 			if (nComp) \
 				*nComp = unitRec->numComponents(); \
 			if (data) \
@@ -605,11 +605,11 @@ namespace v1
 			} \
 		\
 			if (nAxialCells) \
-				*nAxialCells = unitRec->numAxialCells(); \
+				*nAxialCells = unitRec->numAxialPoints(); \
 			if (keepAxialSingletonDimension) \
 				*keepAxialSingletonDimension = unitRec->keepBulkSingletonDim(); \
 			if (nRadialCells) \
-				*nRadialCells = unitRec->numRadialCells(); \
+				*nRadialCells = unitRec->numRadialPoints(); \
 			if (nParShells) \
 				*nParShells = unitRec->numParticleShells(parType); \
 			if (keepParticleSingletonDimension) \
@@ -643,11 +643,11 @@ namespace v1
 			} \
 		\
 			if (nAxialCells) \
-				*nAxialCells = unitRec->numAxialCells(); \
+				*nAxialCells = unitRec->numAxialPoints(); \
 			if (keepAxialSingletonDimension) \
 				*keepAxialSingletonDimension = unitRec->keepBulkSingletonDim(); \
 			if (nRadialCells) \
-				*nRadialCells = unitRec->numRadialCells(); \
+				*nRadialCells = unitRec->numRadialPoints(); \
 			if (nParShells) \
 				*nParShells = unitRec->numParticleShells(parType); \
 			if (keepParticleSingletonDim) \
@@ -682,11 +682,11 @@ namespace v1
 			} \
 		\
 			if (nAxialCells) \
-				*nAxialCells = unitRec->numAxialCells(); \
+				*nAxialCells = unitRec->numAxialPoints(); \
 			if (keepAxialSingletonDimension) \
 				*keepAxialSingletonDimension = unitRec->keepBulkSingletonDim(); \
 			if (nRadialCells) \
-				*nRadialCells = unitRec->numRadialCells(); \
+				*nRadialCells = unitRec->numRadialPoints(); \
 			if (nParType) \
 				*nParType = unitRec->numParticleTypes(); \
 			if (nComp) \
@@ -947,7 +947,7 @@ namespace v1
 		bool keepAxialSingletonDimension = unitRec->keepBulkSingletonDim();
 
 		if (nCoords)
-			*nCoords = unitRec->numAxialCells();
+			*nCoords = unitRec->numAxialPoints();
 
 		if (nCoords && *nCoords == 1 && !keepAxialSingletonDimension)
 		{
@@ -974,7 +974,7 @@ namespace v1
 		}
 
 		if (nCoords)
-			*nCoords = unitRec->numRadialCells();
+			*nCoords = unitRec->numRadialPoints();
 		if (data)
 			*data = unitRec->secondaryCoordinates();
 

@@ -66,6 +66,13 @@ public:
 	virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT = 0;
 
 	/**
+	 * @brief Returns whether the discretization of the model has a smoothness indicator
+	 * @details spatial discretization may contain a smoothness indicator reporting on the solution
+	 * @return @c true if indicator is present, otherwise @c false
+	 */
+	virtual bool discHasSmoothnessIndicator() const CADET_NOEXCEPT = 0;
+
+	/**
 	 * @brief Returns whether the primary coordinate is always a single element
 	 * @details If the primary coordinate is always a single element, the singleton dimension can be removed.
 	 * @return @c true if the state in the primary coordinate direction is always represented by a single element, otherwise @c false
@@ -323,6 +330,12 @@ public:
 	 */
 	virtual int writeOutlet(double* buffer) const = 0;
 
+	/**
+	 * @brief Writes the smoothness indicator if present
+	 * @param [out] buffer Pointer to buffer that receives the data
+	 * @return Number of written items
+	 */
+	virtual int writeSmoothnessIndicator(double* buffer) const = 0;
 
 	/**
 	 * @brief Returns primary coordinates (e.g., axial for axial flow columns)
