@@ -144,6 +144,9 @@ public:
 	double getRadialAvgNodalValue(const double* const val, int nodeIdx) const CADET_NOEXCEPT;
 	void getRadialAvgNodalValuesElem(const double* const val, double* buffer) const CADET_NOEXCEPT;
 
+	inline bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
+	inline int writeSmoothnessIndicator(double* buffer) const CADET_NOEXCEPT { return 0; }
+
 protected:
 
 	/*

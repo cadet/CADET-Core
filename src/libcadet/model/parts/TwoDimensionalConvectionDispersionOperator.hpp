@@ -111,6 +111,9 @@ public:
 	inline linalg::CompressedSparseMatrix& jacobian() CADET_NOEXCEPT { return _jacC; }
 	inline const linalg::CompressedSparseMatrix& jacobian() const CADET_NOEXCEPT { return _jacC; }
 
+	inline bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
+	inline int writeSmoothnessIndicator(double* buffer) const CADET_NOEXCEPT { return 0; }
+
 protected:
 
 	class LinearSolver;

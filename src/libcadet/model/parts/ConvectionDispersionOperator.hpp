@@ -111,6 +111,8 @@ public:
 	inline unsigned int nCol() const CADET_NOEXCEPT { return _nCol; }
 	inline Weno const* weno() const CADET_NOEXCEPT { return _weno; }
 	inline HighResolutionKoren const* koren() const CADET_NOEXCEPT { return _koren; }
+	inline bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
+	inline int writeSmoothnessIndicator(double* buffer) const CADET_NOEXCEPT { return 0; }
 
 	unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
 	unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
@@ -221,6 +223,8 @@ public:
 	inline unsigned int nCol() const CADET_NOEXCEPT { return _nCol; }
 	inline Weno const* weno() const CADET_NOEXCEPT { return _weno; }
 	inline HighResolutionKoren const* koren() const CADET_NOEXCEPT { return _koren; }
+	inline bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
+	inline int writeSmoothnessIndicator(double* buffer) const CADET_NOEXCEPT { return 0; }
 
 	unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
 	unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
@@ -340,6 +344,8 @@ public:
 	inline unsigned int nCol() const CADET_NOEXCEPT { return _nCol; }
 	inline Weno const* weno() const CADET_NOEXCEPT { return _weno; }
 	inline HighResolutionKoren const* koren() const CADET_NOEXCEPT { return _koren; }
+	inline bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
+	inline int writeSmoothnessIndicator(double* buffer) const CADET_NOEXCEPT { return 0; }
 
 	unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
 	unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
@@ -432,6 +438,9 @@ public:
 
 	int jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res);
 	int jacobian(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res);
+
+	inline bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return _baseOp.hasSmoothnessIndicator(); }
+	inline int writeSmoothnessIndicator(double* buffer) const CADET_NOEXCEPT { return _baseOp.writeSmoothnessIndicator(buffer); }
 
 	void prepareADvectors(const AdJacobianParams& adJac) const;
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);

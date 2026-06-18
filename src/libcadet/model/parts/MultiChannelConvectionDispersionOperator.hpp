@@ -127,6 +127,9 @@ protected:
 	void setUserdefinedRadialDisc();
 	void updateRadialDisc();
 
+	inline bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
+	inline int writeSmoothnessIndicator(double* buffer) const CADET_NOEXCEPT { return 0; }
+
 	enum class RadialDiscretizationMode : int
 	{
 		/**

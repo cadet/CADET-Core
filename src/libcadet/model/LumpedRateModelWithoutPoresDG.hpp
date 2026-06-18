@@ -309,6 +309,7 @@ namespace cadet
 				virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
 				virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return true; }
 				virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return true; }
+				virtual bool discHasSmoothnessIndicator() const CADET_NOEXCEPT { return _model._convDispOp.hasSmoothnessIndicator(); }
 
 				virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
 				virtual unsigned int numPrimaryCoordinates() const CADET_NOEXCEPT { return _disc.nPoints; }
@@ -339,6 +340,7 @@ namespace cadet
 				virtual int writeInlet(double* buffer) const;
 				virtual int writeOutlet(unsigned int port, double* buffer) const;
 				virtual int writeOutlet(double* buffer) const;
+				virtual int writeSmoothnessIndicator(double* buffer) const { return _model._convDispOp.writeSmoothnessIndicator(buffer); }
 				/**
 				 * @brief calculates the physical node coordinates of the DG discretization with double! interface nodes
 				 */
