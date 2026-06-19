@@ -38,7 +38,8 @@
             { "type": "ComponentDependentReactionDependentParameter", "varName": "kInhibitComp", "confName": "MM_KI_C"},
             { "type": "ComponentDependentReactionDependentParameter", "varName": "kInhibitUnComp", "confName": "MM_KI_UC"},
             { "type": "ComponentDependentReactionDependentParameter", "varName": "kInhibit", "confName": "MM_KI"},
-            { "type": "ComponentDependentReactionDependentParameter", "varName": "KPrefactor", "confName": "MM_PRE_K"}
+            { "type": "ComponentDependentReactionDependentParameter", "varName": "KPrefactor", "confName": "MM_PRE_K"},
+            { "type": "ComponentDependentReactionDependentParameter", "varName": "hillc", "confName": "MM_HILL_C"}
         ]
 }
 </codegen>*/
@@ -49,7 +50,8 @@
  MM_KMM     - Michaelis-Menten constant for each component (dim: number of reactions x number of components)
  MM_KI_C    - Competitive inhibition constants (\tilde{K}_{i,j,k}) ( dim: number of reactions x number of components x number of componetns)
  MM_KI_UC   - Uncompetitive inhibition constants (K_{i,j,k}) (dim: number of reactions x number of components x number of componetns)
- MM_PRE_K    - Prefactor component influcence constant (dim: number of reactions x number of components)
+ MM_PRE_K   - Prefactor component influcence constant (dim: number of reactions x number of components)
+ MM_HILL_C  - Exponential constant for hill kinetics of substrate (dim: number of reactions x number of components)
 */
 
 
@@ -164,6 +166,7 @@ protected:
     std::vector<std::vector<int>> _idxSubstrate; //!< Indices of substrate components for each reaction [reaction][substrate indices]
     std::vector<std::vector<std::unordered_set<int>>> _idxCompInhibitors; //!< Indices of competitive inhibitors [reaction][substrate][inhibitor indices]
     std::vector<std::vector<std::unordered_set<int>>> _idxUncompInhibitors; //!< Indices of uncompetitive inhibitors [reaction][substrate][inhibitor indices]
+    std::vector<std::vector<int>> _idxHillSubstrates;
 
     // Helper function to calculate the parameter index for inhibition
     inline unsigned int getInhibitionParamIndex(unsigned int reaction, int substrate, unsigned int inhibitor) const
@@ -195,6 +198,7 @@ protected:
             std::vector<double> KIC(_stoichiometry.columns() * _nComp * _nComp); 
             std::vector<double> KIUC(_stoichiometry.columns() * _nComp * _nComp);
             std::vector<double> PRE_K(_stoichiometry.columns() * _nComp);
+            std::vector<double> HILL_C(_stoichiometry.columns() * _nComp);
             //bool hasCompetiveInhibition = false;
             
             if (paramProvider.exists("MM_KI_C"))
@@ -222,7 +226,14 @@ protected:
                 if (PRE_K.size() != _stoichiometry.columns() * _nComp)
                     throw InvalidParameterException("MM_PRE_K must have the size (number of reactions) x (number of components) ");
             }
-            
+
+            if (paramProvider.exists("MM_HILL_C"))
+            {
+                HILL_C = paramProvider.getDoubleArray("MM_HILL_C");
+                if (HILL_C.size() != _stoichiometry.columns() * _nComp)
+                    throw InvalidParameterException("MM_HILL_C must have the size (number of reactions) x (number of components) ");
+            }
+
             if (s.size() != _stoichiometry.elements())
                 throw InvalidParameterException("MM_STOICHIOMETRY size mismatch: Expected " +
                     std::to_string(_stoichiometry.elements()) + " elements but got " + std::to_string(s.size()));
@@ -234,12 +245,14 @@ protected:
             _idxSubstrate.clear();
             _idxCompInhibitors.resize(nReactions);
             _idxUncompInhibitors.resize(nReactions);
+			_idxHillSubstrates.clear();
             
 
             for (unsigned int r = 0; r < nReactions; ++r)
             {
                 std::vector<int> idxSubstrateReaction_r;
                 std::vector<int> idxPrefactorReaction_r;
+                std::vector<int> idxHillSubstrateReaction_r;
 
                 for (unsigned int c = 0; c < _nComp; ++c)
                 {
@@ -250,6 +263,9 @@ protected:
                     double pre_k = static_cast<double>(PRE_K[paramIdx]);
                     if (pre_k != 0.0)
 						idxPrefactorReaction_r.push_back(static_cast<int>(c));
+                    double hill_c = static_cast<double>(HILL_C[paramIdx]);
+                    if (hill_c != 1.0)
+                        idxHillSubstrateReaction_r.push_back(static_cast<int>(c));
                 }
 
                 if (idxSubstrateReaction_r.empty())
