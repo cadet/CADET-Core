@@ -1416,7 +1416,7 @@ public:
 
 		writer.scalar("IDAS_NTIMESTEPS", static_cast<int>(_nIDASTimeSteps));
 
-		if (!_storeIDASMeta || !_time.size() > 0)
+		if (!_storeIDASMeta || _time.size() <= 0)
 			return;
 
 		writer.scalar("IDAS_NEXT_BDF_ORDER", _kcur);
