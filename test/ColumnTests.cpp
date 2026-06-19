@@ -98,6 +98,7 @@ namespace
 		virtual void prepare(unsigned int numDofs, unsigned int numSens, unsigned int numTimesteps) { }
 		virtual void notifyIntegrationStart(unsigned int numDofs, unsigned int numSens, unsigned int numTimesteps) { }
 		virtual void beginTimestep(double t) { }
+		virtual void integratorMetaData(const cadet::IDASMeta& idasMeta) {}
 		virtual void beginUnitOperation(cadet::UnitOpIdx idx, const cadet::IModel& model, const cadet::ISolutionExporter& exporter) { }
 		virtual void endUnitOperation() { }
 		virtual void endTimestep() { }
@@ -1982,7 +1983,7 @@ namespace column
 		rd.closeFile();
 	}
 
-	void testSplitComponentsData(const std::string& uoType, const std::string& spatialMethod)
+	void testOutputSplitComponentsData(const std::string& uoType, const std::string& spatialMethod)
 	{
 		cadet::JsonParameterProvider pp = createLWE(uoType, spatialMethod);
 		nlohmann::json& setupJson = *pp.data();
@@ -2146,6 +2147,49 @@ namespace column
 		runOnce(true);
 		runOnce(false);
 	}
+
+	void testOutputIDASMetaData(const std::string& uoType, const std::string& spatialMethod)
+	{
+		cadet::JsonParameterProvider pp = createLWE(uoType, spatialMethod);
+		nlohmann::json& setupJson = *pp.data();
+
+		setupJson["return"]["WRITE_IDAS_META"] = 1;
+
+		cadet::Driver drv;
+		drv.configure(pp);
+		drv.run();
+
+		const std::string outFile = std::string(getTestDirectory()) + "/data/tmp_idasMeta.h5";
+		{
+			cadet::io::HDF5Writer writer;
+			writer.openFile(outFile, "co");
+			drv.write(writer);
+			writer.closeFile();
+		}
+
+		cadet::io::HDF5Reader rd;
+		rd.openFile(outFile, "r");
+
+		rd.pushGroup("meta");
+		CHECK(rd.exists("idas"));
+
+		if (rd.exists("idas"))
+		{
+			rd.pushGroup("idas");
+			CHECK(rd.exists("IDAS_NTIMESTEPS"));
+			CHECK(rd.exists("IDAS_NEXT_BDF_ORDER"));
+			CHECK(rd.exists("IDAS_NEXT_STEP_SIZE"));
+			CHECK(rd.exists("IDAS_NEXT_TIME_POINT"));
+			CHECK(rd.exists("IDAS_KUMULATIVE_NTIMESTEPS"));
+			CHECK(rd.exists("IDAS_N_RESIDUAL_CALLS"));
+			CHECK(rd.exists("IDAS_N_LINSOLVER_SETUP_CALLS"));
+			CHECK(rd.exists("IDAS_N_LOCAL_ERROR_TEST_FAILURES"));
+			CHECK(rd.exists("IDAS_BDF_ORDER"));
+			CHECK(rd.exists("IDAS_FIRST_INTEGRATION_STEP_SIZE"));
+			CHECK(rd.exists("IDAS_INTEGRATION_STEP_SIZE"));
+		}
+	}
+
 
 } // namespace column
 } // namespace test

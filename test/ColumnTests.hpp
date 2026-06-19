@@ -821,7 +821,20 @@ namespace column
 	 */
 	void testJacobianFD(cadet::JsonParameterProvider& jpp, const double h, const double absTol, const double relTol, const active* flowRate = nullptr);
 
-	void testSplitComponentsData(const std::string& uoType, const std::string& spatialMethod);
+	/**
+	 * @brief Tests the existence and dimensionality of the output solution fields with and without splits_component_data
+	 * @param [in] uotype Unit operation type
+	 * @param [in] spatialMethod Spatial discretization method
+	 */
+	void testOutputSplitComponentsData(const std::string& uoType, const std::string& spatialMethod);
+
+	/**
+	 * @brief Tests the existence of the IDAS meta data output fields
+	 * @param [in] uotype Unit operation type
+	 * @param [in] spatialMethod Spatial discretization method
+	 */
+	void testOutputIDASMetaData(const std::string& uoType, const std::string& spatialMethod);
+
 
 } // namespace column
 } // namespace test

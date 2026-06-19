@@ -16,7 +16,8 @@ Group /input/solver
    
 ``USER_SOLUTION_TIMES``
 
-   Vector with timepoints at which the solution is evaluated
+   Vector with timepoints at which the solution is evaluated.
+   Optional: if not specified, the solution is written for every time integration step, which may be many, leading to large output files.
 
    **Unit:** :math:`\mathrm{s}`
    

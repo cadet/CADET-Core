@@ -1815,6 +1815,21 @@ namespace cadet
 
 		_solRecorder->beginTimestep(t);
 
+		IDASMeta idasMeta;
+		long int nsteps, nrevals, nlinsetups, netfails;
+
+		IDAGetIntegratorStats(_idaMemBlock, &nsteps, &nrevals,
+			&nlinsetups, &netfails, &idasMeta.klast,
+			&idasMeta.kcur, &idasMeta.hinused, &idasMeta.hlast,
+			&idasMeta.hcur, &idasMeta.tcur);
+
+		idasMeta.nsteps = static_cast<unsigned long>(nsteps);
+		idasMeta.nrevals = static_cast<unsigned long>(nrevals);
+		idasMeta.nlinsetups = static_cast<unsigned long>(nlinsetups);
+		idasMeta.netfails = static_cast<unsigned long>(netfails);
+
+		_solRecorder->integratorMetaData(idasMeta);
+
 		_solRecorder->beginSolution();
 		_model->reportSolution(*_solRecorder, NVEC_DATA(_vecStateY));
 		_solRecorder->endSolution();

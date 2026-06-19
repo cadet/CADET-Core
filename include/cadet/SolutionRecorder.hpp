@@ -28,6 +28,20 @@ namespace cadet
 class ISolutionExporter;
 class IModel;
 
+struct IDASMeta
+{
+	int nsteps;
+	int nrevals;
+	int nlinsetups;
+	int netfails;
+	int klast;
+	int kcur;
+	double hinused;
+	double hlast;
+	double hcur;
+	double tcur;
+};
+
 /**
  * @brief Interface providing functionality for recording the solution in the user space
  * @details Library users implement this interface which is then used by the cadet::ISimulator
@@ -91,6 +105,12 @@ public:
 	 * @param [in] t Current timepoint
 	 */
 	virtual void beginTimestep(double t) = 0;
+
+	/**
+	 * @brief Signals the beginning of new IDAS meta data to export
+	 * @param [in] idasMeta Container for IDAS meta data
+	 */
+	virtual void integratorMetaData(const IDASMeta& idasMeta) = 0;
 
 	/**
 	 * @brief Signals the export of the given unit operation

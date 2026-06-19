@@ -83,6 +83,7 @@ add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp Unit
 	NonlinearSolvers.cpp
 	ReferenceSimulations.cpp
 	Callbacks.cpp
+	H5FileOutput.cpp
 	"${CMAKE_CURRENT_BINARY_DIR}/Paths_$<CONFIG>.cpp" "${CMAKE_SOURCE_DIR}/src/io/JsonParameterProvider.cpp"
 	${TEST_ADDITIONAL_SOURCES}
 	$<TARGET_OBJECTS:libcadet_object>)
