@@ -290,6 +290,10 @@ jobs:
         if: always() && steps.build.conclusion == 'success'
         run: |
           ${BUILD_DIR}/test/testRadialKernel
+      - name: Run CI test set VII - Radial Weno again
+        if: always() && steps.build.conclusion == 'success'
+        run: |
+          ${BUILD_DIR}/test/testRunner [Manufactured]
 
   MacOS:
     if: github.event.pull_request == null || github.event.pull_request.draft == false
