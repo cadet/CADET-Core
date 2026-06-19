@@ -68,6 +68,8 @@ public:
 	{
 	}
 
+	virtual void integratorMetaData(const IDASMeta& idasMeta) {}
+
 	virtual void clear()
 	{
 		// Clear solution storage
@@ -1197,7 +1199,7 @@ class InternalStorageSystemRecorder : public ISolutionRecorder
 {
 public:
 
-	InternalStorageSystemRecorder() : _numTimesteps(0), _numSens(0), _storeTime(true)
+	InternalStorageSystemRecorder() : _numTimesteps(0), _numSens(0), _storeTime(true), _storeIDASMeta(false), _nIDASTimeSteps(0)
 	{
 	}
 
@@ -1257,6 +1259,25 @@ public:
 
 		for (InternalStorageUnitOpRecorder* rec : _recorders)
 			rec->beginTimestep(t);
+	}
+
+	virtual void integratorMetaData(const IDASMeta& idasMeta)
+	{
+		if (_storeIDASMeta)
+		{
+			_nsteps.push_back(idasMeta.nsteps);
+			_nrevals.push_back(idasMeta.nrevals);
+			_nlinsetups.push_back(idasMeta.nlinsetups);
+			_netfails.push_back(idasMeta.netfails);
+			_klast.push_back(idasMeta.klast);
+			_hinused.push_back(idasMeta.hinused);
+			_hlast.push_back(idasMeta.hlast);
+			_kcur = idasMeta.kcur;
+			_hcur = idasMeta.hcur;
+			_tcur = idasMeta.tcur;
+		}
+
+		_nIDASTimeSteps = idasMeta.nsteps;
 	}
 
 	virtual void beginUnitOperation(cadet::UnitOpIdx idx, const cadet::IModel& model, const cadet::ISolutionExporter& exporter)
@@ -1388,6 +1409,29 @@ public:
 		}
 	}
 
+	template <typename Writer_t>
+	void writeIDASMeta(Writer_t& writer)
+	{
+		std::ostringstream oss;
+
+		writer.scalar("IDAS_NTIMESTEPS", static_cast<int>(_nIDASTimeSteps));
+
+		if (!_storeIDASMeta || !_time.size() > 0)
+			return;
+
+		writer.scalar("IDAS_NEXT_BDF_ORDER", _kcur);
+		writer.scalar("IDAS_NEXT_STEP_SIZE", _hcur);
+		writer.scalar("IDAS_NEXT_TIME_POINT", _tcur);
+
+		writer.template vector<int>("IDAS_KUMULATIVE_NTIMESTEPS", numDataPoints(), &_nsteps[0]);
+		writer.template vector<int>("IDAS_N_RESIDUAL_CALLS", numDataPoints(), &_nrevals[0]);
+		writer.template vector<int>("IDAS_N_LINSOLVER_SETUP_CALLS", numDataPoints(), &_nlinsetups[0]);
+		writer.template vector<int>("IDAS_N_LOCAL_ERROR_TEST_FAILURES", numDataPoints(), &_netfails[0]);
+		writer.template vector<int>("IDAS_BDF_ORDER", numDataPoints(), &_klast[0]);
+		writer.template vector<double>("IDAS_FIRST_INTEGRATION_STEP_SIZE", numDataPoints(), &_hinused[0]);
+		writer.template vector<double>("IDAS_INTEGRATION_STEP_SIZE", numDataPoints(), &_hlast[0]);
+	}
+
 	inline bool storeTime() const CADET_NOEXCEPT { return _storeTime; }
 	inline void storeTime(bool st) CADET_NOEXCEPT { _storeTime = st; }
 
@@ -1447,6 +1491,8 @@ public:
 	inline double const* time() const CADET_NOEXCEPT { return _time.data(); }
 	inline unsigned int numSensitivites() const CADET_NOEXCEPT { return _numSens; }
 
+	inline void setStoreIDASMeta(bool store) CADET_NOEXCEPT { _storeIDASMeta = store; }
+
 protected:
 
 	std::vector<InternalStorageUnitOpRecorder*> _recorders;
@@ -1454,6 +1500,20 @@ protected:
 	unsigned int _numSens;
 	std::vector<double> _time;
 	bool _storeTime;
+
+	// IDAS meta info
+	bool _storeIDASMeta;
+	unsigned int _nIDASTimeSteps; // number of steps taken by IDAS at the end of simulation
+	std::vector<int> _nsteps; // cumulative number of steps taken by IDAS
+	std::vector<int> _nrevals; // number of calls to the user’s residual evaluation function
+	std::vector<int> _nlinsetups; // cumulative number of calls made to the linear solver’s setup function
+	std::vector<int> _netfails; // cumulative number of local error test failures that have occurred
+	std::vector<int> _klast; // integration method order used during the last internal step
+	std::vector<double> _hinused; // value of the integration step size used on the first step
+	std::vector<double> _hlast; // integration step size taken on the last internal step
+	int _kcur; // integration method order to be used on the next internal step
+	double _hcur; // integration step size to be attempted on the next internal step
+	double _tcur; //current internal time reached by the solver
 };
 
 

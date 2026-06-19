@@ -14,6 +14,14 @@ Group /input/return
    **Type:** int  **Range:** :math:`\{0,1\}`
    =============  ==========================
    
+``WRITE_IDAS_META``
+
+   Write IDAS time integrator meta data (optional, defaults to 0), e.g. time step sizes
+   
+   =============  ==========================
+   **Type:** int  **Range:** :math:`\{0,1\}`
+   =============  ==========================
+   
 ``WRITE_SOLUTION_LAST``
 
    Write full solution state vector at last time point, including the state derivative vector (optional, defaults to 0)

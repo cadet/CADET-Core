@@ -119,6 +119,12 @@ void configureSystemRecorder(cadet::InternalStorageSystemRecorder& recorder, Par
 	if (pp.exists("SINGLE_AS_MULTI_PORT"))
 		singleAsMultiPort = pp.getBool("SINGLE_AS_MULTI_PORT");
 
+	bool writeIDASMeta = false;
+	if (pp.exists("WRITE_IDAS_META"))
+		writeIDASMeta = pp.getBool("WRITE_IDAS_META");
+
+	recorder.setStoreIDASMeta(writeIDASMeta);
+
 	recorder.deleteRecorders();
 
 	cadet::InternalStorageUnitOpRecorder::StorageConfig cfg;
@@ -671,7 +677,7 @@ public:
 				writer.unlinkDataset("CADET_BRANCH");
 			if (writer.exists("TIME_SIM"))
 				writer.unlinkDataset("TIME_SIM");
-		}
+			}
 		else
 			writer.pushGroup("meta");
 
@@ -684,7 +690,41 @@ public:
 		if (!writer.exists("FILE_FORMAT"))
 			writer.scalar("FILE_FORMAT", std::string("1.1.0a1"));
 
-		writer.popGroup();
+
+		if (writer.exists("idas"))
+		{
+			writer.pushGroup("idas");
+
+			if (writer.exists("IDAS_NTIMESTEPS"))
+				writer.unlinkDataset("IDAS_NTIMESTEPS");
+			if (writer.exists("IDAS_NEXT_BDF_ORDER"))
+				writer.unlinkDataset("IDAS_NEXT_BDF_ORDER");
+			if (writer.exists("IDAS_NEXT_STEP_SIZE"))
+				writer.unlinkDataset("IDAS_NEXT_STEP_SIZE");
+			if (writer.exists("IDAS_NEXT_TIME_POINT"))
+				writer.unlinkDataset("IDAS_NEXT_TIME_POINT");
+			if (writer.exists("IDAS_KUMULATIVE_NTIMESTEPS"))
+				writer.unlinkDataset("IDAS_KUMULATIVE_NTIMESTEPS");
+			if (writer.exists("IDAS_N_RESIDUAL_CALLS"))
+				writer.unlinkDataset("IDAS_N_RESIDUAL_CALLS");
+			if (writer.exists("IDAS_N_LINSOLVER_SETUP_CALLS"))
+				writer.unlinkDataset("IDAS_N_LINSOLVER_SETUP_CALLS");
+			if (writer.exists("IDAS_N_LOCAL_ERROR_TEST_FAILURES"))
+				writer.unlinkDataset("IDAS_N_LOCAL_ERROR_TEST_FAILURES");
+			if (writer.exists("IDAS_BDF_ORDER"))
+				writer.unlinkDataset("IDAS_BDF_ORDER");
+			if (writer.exists("IDAS_FIRST_INTEGRATION_STEP_SIZE"))
+				writer.unlinkDataset("IDAS_FIRST_INTEGRATION_STEP_SIZE");
+			if (writer.exists("IDAS_INTEGRATION_STEP_SIZE"))
+				writer.unlinkDataset("IDAS_INTEGRATION_STEP_SIZE");
+		}
+		else
+			writer.pushGroup("idas");
+
+		_storage->writeIDASMeta(writer);
+
+		writer.popGroup(); // idas
+		writer.popGroup(); // meta
 	}
 
 	/**
