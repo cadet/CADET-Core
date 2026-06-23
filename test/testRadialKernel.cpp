@@ -14,6 +14,11 @@
 #include "cadet/Logging.hpp"
 #include "Logging.hpp"
 
+#ifndef CADET_TEST_INTEGRATION
+#   define CATCH_CONFIG_RUNNER
+#endif
+#include <catch.hpp>
+
 #include "model/parts/RadialConvectionDispersionKernel.hpp"
 #include "Weno.hpp"
 #include "HighResKoren.hpp"
@@ -23,7 +28,9 @@
 #include "model/paramdep/DummyParameterDependence.cpp"
 #include "Dummies.hpp"
 
-#include "io/hdf5/HDF5Writer.hpp"
+#ifndef CADET_TEST_INTEGRATION
+#   include "io/hdf5/HDF5Writer.hpp"
+#endif
 
 #include <algorithm>
 #include <iostream>
@@ -422,7 +429,7 @@ public:
 		{
 			const double t = _solTimes[i];
 			const double tMinusFiveSq = (t - 5.0) * (t - 5.0);
-			const double expFactor = std::exp(-0.125 * tMinusFiveSq);
+			const double expFactor = t * std::exp(-0.125 * tMinusFiveSq);
 
 			for (int comp = 0; comp < _nComp; ++comp, ++idx)
 			{
@@ -537,7 +544,7 @@ void RadialFlowModel<cadet::HighResolutionKoren>::configureReconstruction(int or
 
 
 template <typename Reconstruction_t>
-void runTest(const std::string& name, int reconstrOrder, int nCol = 1250)
+void runTest(const std::string& name, int reconstrOrder, bool testRun = false, int nCol = 1250)
 {
 	const double tEnd = 10.0;
 	std::vector<double> secTimes = {0.0, tEnd};
@@ -557,22 +564,60 @@ void runTest(const std::string& name, int reconstrOrder, int nCol = 1250)
 
 	sim.integrate();
 
-	const std::string fileName = "radial_" + name + ".h5";
-	cadet::io::HDF5Writer writer;
-	writer.openFile(fileName, "co");
-	writer.vector("SOLUTION_TIMES", model.solutionTimes());
-	const std::vector<std::size_t> dims = {model.solutionTimes().size(), static_cast<std::size_t>(model.numCol()), static_cast<std::size_t>(model.numComp())};
-	writer.template tensor<double>("SOLUTION", 3, dims.data(), model.solution());
-	writer.template matrix<double>("SOLUTION_INLET", model.solutionTimes().size(), model.numComp(), model.solutionInlet());
-	writer.template matrix<double>("SOLUTION_OUTLET", model.solutionTimes().size(), model.numComp(), model.solutionOutlet());
-	writer.template tensor<double>("REF", 3, dims.data(), model.referenceSolution());
-	writer.template matrix<double>("REF_OUTLET", model.solutionTimes().size(), model.numComp(), model.referenceOutlet());
-	writer.template vector<double>("COORDS", model.coordinates());
-	writer.closeFile();
 
-	std::cout << "Wrote " << fileName << " (" << name << ", nCol=" << nCol << ")" << std::endl;
+	if (testRun)
+	{
+		const std::size_t nTimes = model.solutionTimes().size();
+		const std::size_t nCol = static_cast<std::size_t>(model.numCol());
+		const std::size_t nComp = static_cast<std::size_t>(model.numComp());
+
+		const double* sol = model.solution().data();
+		const double* ref = model.referenceSolution().data();
+		const double* solOut = model.solutionOutlet().data();
+		const double* refOut = model.referenceOutlet().data();
+
+		SECTION(name + " nCol=" + std::to_string(nCol))
+		{
+			for (std::size_t i = 0; i < nTimes * nCol * nComp; ++i)
+				CHECK(sol[i] == Approx(ref[i]).epsilon(1e-6));
+
+			for (std::size_t i = 0; i < nTimes * nComp; ++i)
+				CHECK(solOut[i] == Approx(refOut[i]).epsilon(1e-6));
+		}
+	}
+	else
+	{
+
+		const std::string fileName = "radial_" + name + ".h5";
+		cadet::io::HDF5Writer writer;
+		writer.openFile(fileName, "co");
+		writer.vector("SOLUTION_TIMES", model.solutionTimes());
+		const std::vector<std::size_t> dims = { model.solutionTimes().size(), static_cast<std::size_t>(model.numCol()), static_cast<std::size_t>(model.numComp()) };
+		writer.template tensor<double>("SOLUTION", 3, dims.data(), model.solution());
+		writer.template matrix<double>("SOLUTION_INLET", model.solutionTimes().size(), model.numComp(), model.solutionInlet());
+		writer.template matrix<double>("SOLUTION_OUTLET", model.solutionTimes().size(), model.numComp(), model.solutionOutlet());
+		writer.template tensor<double>("REF", 3, dims.data(), model.referenceSolution());
+		writer.template matrix<double>("REF_OUTLET", model.solutionTimes().size(), model.numComp(), model.referenceOutlet());
+		writer.template vector<double>("COORDS", model.coordinates());
+		writer.closeFile();
+
+		std::cout << "Wrote " << fileName << " (" << name << ", nCol=" << nCol << ")" << std::endl;
+	}
 }
 
+
+TEST_CASE("Test Manufactured Radial Kernel", "[Manufactured]")
+{
+	// Test WENO orders 1, 2, 3
+	runTest<cadet::Weno>("weno1", 1, true);
+	runTest<cadet::Weno>("weno2", 2, true);
+	runTest<cadet::Weno>("weno3", 3, true);
+
+	// Test Koren
+	runTest<cadet::HighResolutionKoren>("koren", 2, true);
+}
+
+#ifndef CADET_TEST_INTEGRATION
 
 int main(int argc, char* argv[])
 {
@@ -594,3 +639,4 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
+#endif

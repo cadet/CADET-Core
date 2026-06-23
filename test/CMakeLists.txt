@@ -32,8 +32,15 @@ add_executable(testLogging testLogging.cpp)
 target_link_libraries(testLogging PRIVATE CADET::CompileOptions)
 
 if (ENABLE_TEST_RADIAL)
-	add_executable(testRadialKernel testRadialKernel.cpp TimeIntegrator.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/Logging.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/AutoDiff.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/ParameterDependenceBase.cpp)
-	target_link_libraries(testRadialKernel PRIVATE CADET::CompileOptions CADET::AD SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${EIGEN_TARGET} )
+	add_executable(testRadialKernel
+		testRadialKernel.cpp
+		TimeIntegrator.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/Logging.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/AutoDiff.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/ParameterDependenceBase.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/Weno.cpp
+	)
+	target_link_libraries(testRadialKernel PRIVATE CADET::CompileOptions CADET::AD SUNDIALS::sundials_idas ${SUNDIALS_CORE_TARGET} ${SUNDIALS_NVEC_TARGET} ${EIGEN_TARGET} )
 	target_include_directories(testRadialKernel PRIVATE ${CMAKE_SOURCE_DIR}/test ${CMAKE_BINARY_DIR}/src/libcadet)
 
 	if (ENABLE_GRM_2D)
@@ -66,6 +73,16 @@ if (ENABLE_2D_MODELS)
 	list(APPEND TEST_ADDITIONAL_SOURCES ColumnModel2D.cpp)
 endif()
 
+if (ENABLE_TEST_RADIAL)
+	list(APPEND TEST_ADDITIONAL_SOURCES testRadialKernel.cpp
+		TimeIntegrator.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/Logging.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/AutoDiff.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/ParameterDependenceBase.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/Weno.cpp
+	)
+endif()
+
 add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp UnitOperationTests.cpp SimHelper.cpp ParticleHelper.cpp
 	GeneralRateModel.cpp GeneralRateModel2D.cpp LumpedRateModelWithPores.cpp LumpedRateModelWithoutPores.cpp
 	RadialGeneralRateModel.cpp RadialLumpedRateModelWithPores.cpp RadialLumpedRateModelWithoutPores.cpp
@@ -87,6 +104,10 @@ add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp Unit
 	"${CMAKE_CURRENT_BINARY_DIR}/Paths_$<CONFIG>.cpp" "${CMAKE_SOURCE_DIR}/src/io/JsonParameterProvider.cpp"
 	${TEST_ADDITIONAL_SOURCES}
 	$<TARGET_OBJECTS:libcadet_object>)
+
+if (ENABLE_TEST_RADIAL)
+	target_compile_definitions(testRunner PRIVATE CADET_TEST_INTEGRATION)
+endif()
 
 target_include_directories(testRunner PRIVATE ${CMAKE_BINARY_DIR}/src/libcadet)
 target_link_libraries(testRunner PRIVATE CADET::CompileOptions CADET::AD SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${TBB_TARGET} ${EIGEN_TARGET})
