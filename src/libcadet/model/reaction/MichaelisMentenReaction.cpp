@@ -359,16 +359,16 @@ protected:
                 }
 
 				double n = 1.0;
-                if (compInhSum == uncompInhSum == 0.0) {
-                    n = static_cast<double>(p->hillc[getKmmParamIndex(r, static_cast<unsigned int>(subIdx))]);
+                if (compInhSum == 0.0 && uncompInhSum == 0.0) {
+                    n = static_cast<double>(p->hillc[getKmmParamIndex(r, static_cast<unsigned int>(j))]);
                 }
                 // KMM for this substrate
                 const unsigned int kmmIdx = getKmmParamIndex(r, static_cast<unsigned int>(j));
                 const flux_t kMM_j = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kMM[kmmIdx]);
 
                 // Calculate substrate contribution to production rate
-                const flux_t numerator = y[j] ** n;
-                const flux_t denominator = (kMM_j ** n * (1.0 + compInhSum)) + y[j]**n * (1.0 + uncompInhSum);
+                const flux_t numerator = pow(y[j],n);
+                const flux_t denominator = (pow(kMM_j,n) * (1.0 + compInhSum)) + pow(y[j],n) * (1.0 + uncompInhSum);
 
                 vProd *= numerator / denominator;
             }
@@ -441,13 +441,18 @@ protected:
                 }
                 uncompInhSums[subIdx] = uncompInhSum;
 
+                double n = 1.0;
+                if (compInhSum == 0.0 && uncompInhSum == 0.0) {
+                    n = static_cast<double>(p->hillc[getKmmParamIndex(r, static_cast<unsigned int>(j))]);
+                }
+
                 // KMM for this substrate
                 const unsigned int kmmIdx = getKmmParamIndex(r, static_cast<unsigned int>(j));
                 const double kMM_j = static_cast<double>(p->kMM[kmmIdx]);
 
                 // Calculate substrate term
-                const double numerator = y[j];
-                const double denominator = (kMM_j * (1.0 + compInhSum)) + y[j] * (1.0 + uncompInhSum);
+                const double numerator = pow(y[j],n);
+                const double denominator = (pow(kMM_j, n) * (1.0 + compInhSum)) + pow(y[j], n) * (1.0 + uncompInhSum);
                 const double subValue = numerator / denominator;
 
                 substratValues[subIdx] = subValue;
@@ -499,11 +504,16 @@ protected:
                     const double compInhSum = compInhSums[substrateIdx];
                     const double uncompInhSum = uncompInhSums[substrateIdx];
 
+					// Exponential for hill kinetics
+                    double n = 1.0;
+                    if (compInhSum == 0.0 && uncompInhSum == 0.0) {
+                        n = static_cast<double>(p->hillc[getKmmParamIndex(r, comp)]);
+                    }
                     // Denominator of substrate rate
-                    const double denominator = (kMM_j * (1.0 + compInhSum)) + y[j] * (1.0 + uncompInhSum);
+                    const double denominator = (pow(kMM_j,n) * (1.0 + compInhSum)) + pow(y[j],n) * (1.0 + uncompInhSum);
 
                     // Derivative dv/dj for a substrate j
-                    const double dsubs_dj = (kMM_j * (1.0 + compInhSum)) / (denominator * denominator);
+                    const double dsubs_dj = (n * pow(y[j], n - 1.0) * pow(kMM_j, n) * (1.0 + compInhSum)) / (denominator * denominator);
 
                     // Calculate total derivative for the substrate
                     const double factor_j = flux / substratValues[substrateIdx];
