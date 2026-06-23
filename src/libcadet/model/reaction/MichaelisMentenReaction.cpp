@@ -358,14 +358,17 @@ protected:
                     uncompInhSum += y[k] / kIU;
                 }
 
+				double n = 1.0;
+                if (compInhSum == uncompInhSum == 0.0) {
+                    n = static_cast<double>(p->hillc[getKmmParamIndex(r, static_cast<unsigned int>(subIdx))]);
+                }
                 // KMM for this substrate
-
                 const unsigned int kmmIdx = getKmmParamIndex(r, static_cast<unsigned int>(j));
                 const flux_t kMM_j = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kMM[kmmIdx]);
 
                 // Calculate substrate contribution to production rate
-                const flux_t numerator = y[j];
-                const flux_t denominator = (kMM_j * (1.0 + compInhSum)) + y[j] * (1.0 + uncompInhSum);
+                const flux_t numerator = y[j] ** n;
+                const flux_t denominator = (kMM_j ** n * (1.0 + compInhSum)) + y[j]**n * (1.0 + uncompInhSum);
 
                 vProd *= numerator / denominator;
             }
