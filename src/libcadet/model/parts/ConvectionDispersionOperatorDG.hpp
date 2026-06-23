@@ -1226,6 +1226,8 @@ namespace cadet
 				inline unsigned int nelements() const CADET_NOEXCEPT { return _nElem; }
 				inline unsigned int nNodes() const CADET_NOEXCEPT { return _nNodes; }
 				inline unsigned int nPoints() const CADET_NOEXCEPT { return _nPoints; }
+				inline bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
+				inline int writeSmoothnessIndicator(double* buffer) const CADET_NOEXCEPT { return 0; }
 
 				// Indexer functionality
 				inline int strideColElement() const CADET_NOEXCEPT { return static_cast<int>(_strideElem); }
