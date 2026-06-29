@@ -599,7 +599,10 @@ namespace column
 			++level;
 		}
 
-		jpp.set("VELOCITY", -jpp.getDouble("VELOCITY"));
+		if (jpp.exists("VELOCITY"))
+			jpp.set("VELOCITY", -jpp.getDouble("VELOCITY"));
+		else
+			jpp.set("VELOCITY_COEFF", -jpp.getDouble("VELOCITY_COEFF"));
 
 		for (int l = 0; l < level; ++l)
 			jpp.popScope();
@@ -1612,7 +1615,11 @@ namespace column
 					else
 						unit->setSensitiveParameter(cadet::makeParamId("SMA_NU", 0, 1, cadet::ParTypeIndep, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
 
-					unit->setSensitiveParameter(cadet::makeParamId("COL_LENGTH", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
+					// Radial models don't have COL_LENGTH; use COL_RADIUS_OUTER instead
+					if (uoType.find("RADIAL") != std::string::npos)
+						unit->setSensitiveParameter(cadet::makeParamId("COL_RADIUS_OUTER", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
+					else
+						unit->setSensitiveParameter(cadet::makeParamId("COL_LENGTH", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
 
 					REQUIRE(unit->numSensParams() == 3);
 					unitoperation::testConsistentInitializationSensitivity(unit, adEnabled, y, yDot, absTol);
@@ -2189,7 +2196,6 @@ namespace column
 			CHECK(rd.exists("IDAS_INTEGRATION_STEP_SIZE"));
 		}
 	}
-
 
 } // namespace column
 } // namespace test

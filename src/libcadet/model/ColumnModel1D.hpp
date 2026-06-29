@@ -39,6 +39,24 @@
 
 using namespace Eigen;
 
+namespace
+{
+	template <typename Operator>
+	struct ColumnModel1DName { };
+
+	template <>
+	struct ColumnModel1DName<cadet::model::parts::AxialConvectionDispersionOperatorBaseDG>
+	{
+		static const char* identifier() CADET_NOEXCEPT { return "COLUMN_MODEL_1D"; }
+	};
+
+	template <>
+	struct ColumnModel1DName<cadet::model::parts::RadialConvectionDispersionOperatorBaseDG>
+	{
+		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_COLUMN_MODEL_1D"; }
+	};
+}
+
 namespace cadet
 {
 
@@ -59,7 +77,7 @@ class IParameterStateDependence;
 /**
  * @brief General rate model of liquid column chromatography
  * @details See @cite Guiochon2006, @cite Gu1995, @cite Felinger2004
- * 
+ *
  * @f[\begin{align}
 	\frac{\partial c_i}{\partial t} &= - u \frac{\partial c_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c_i}{\partial z^2} - \frac{1 - \varepsilon_c}{\varepsilon_c} \frac{3}{r_p} j_{f,i} \\
 	\frac{\partial c_{p,i}}{\partial t} + \frac{1 - \varepsilon_p}{\varepsilon_p} \frac{\partial q_{i}}{\partial t} &= D_{p,i} \left( \frac{\partial^2 c_{p,i}}{\partial r^2} + \frac{2}{r} \frac{\partial c_{p,i}}{\partial r} \right) + D_{s,i} \frac{1 - \varepsilon_p}{\varepsilon_p} \left( \frac{\partial^2 q_{i}}{\partial r^2} + \frac{2}{r} \frac{\partial q_{i}}{\partial r} \right) \\
@@ -77,6 +95,7 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 \end{align} @f]
  * Methods are described in @cite Breuer2023 (DGSEM discretization), @cite Puttmann2013 @cite Puttmann2016 (forward sensitivities, AD, band compression)
  */
+template <typename ConvDispOperator = parts::AxialConvectionDispersionOperatorBaseDG>
 class ColumnModel1D : public UnitOperationBase
 {
 public:
@@ -96,7 +115,7 @@ public:
 	virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
 	virtual bool canAccumulate() const CADET_NOEXCEPT { return false; }
 
-	static const char* identifier() { return "COLUMN_MODEL_1D"; }
+	static const char* identifier() { return ColumnModel1DName<ConvDispOperator>::identifier(); }
 	virtual const char* unitOperationName() const CADET_NOEXCEPT { return identifier(); }
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper);
@@ -295,7 +314,7 @@ protected:
 
 	std::vector<IParticleModel*> _particles; //!< Particle dispersion operator
 
-	parts::AxialConvectionDispersionOperatorBaseDG _convDispOp; //!< Convection dispersion operator base for interstitial volume transport
+	ConvDispOperator _convDispOp; //!< Convection dispersion operator base for interstitial volume transport
 	ReactionSystem _reaction; //!< Reaction system for bulk phase
 
 	cadet::linalg::EigenSolverBase* _linearSolver; //!< Linear solver
@@ -380,8 +399,8 @@ protected:
 	{
 	public:
 
-		Exporter(const Discretization& disc, const ColumnModel1D& model, double const* data) : _disc(disc), _idx(disc), _model(model), _data(data) { }
-		Exporter(const Discretization&& disc, const ColumnModel1D& model, double const* data) = delete;
+		Exporter(const Discretization& disc, const ColumnModel1D<ConvDispOperator>& model, double const* data) : _disc(disc), _idx(disc), _model(model), _data(data) { }
+		Exporter(const Discretization&& disc, const ColumnModel1D<ConvDispOperator>& model, double const* data) = delete;
 
 		virtual bool hasParticleFlux() const CADET_NOEXCEPT { return false; }
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return true; }
@@ -458,7 +477,7 @@ protected:
 	protected:
 		const Discretization& _disc;
 		const Indexer _idx;
-		const ColumnModel1D& _model;
+		const ColumnModel1D<ConvDispOperator>& _model;
 		double const* const _data;
 	};
 
@@ -602,6 +621,12 @@ protected:
 	}
 
 };
+
+extern template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseDG>;
+extern template class ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG>;
+
+IUnitOperation* createAxialCol1DDG(UnitOpIdx uoId);
+IUnitOperation* createRadialCol1DDG(UnitOpIdx uoId);
 
 } // namespace model
 } // namespace cadet

@@ -11,6 +11,7 @@
 // =============================================================================
 
 #include <catch.hpp>
+#include <limits>
 
 #include "ColumnTests.hpp"
 #include "ParticleHelper.hpp"
@@ -300,4 +301,89 @@ TEST_CASE("Radial LRMP multi particle types dynamic reactions time derivative Ja
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesRadLRMP();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("Radial LRMP_DG transport Jacobian", "[RadLRMP],[DG],[UnitOp],[Jacobian],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial LRMP_DG time derivative Jacobian vs FD", "[RadLRMP],[DG],[UnitOp],[Residual],[Jacobian],[CI]")
+{
+	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG");
+}
+
+TEST_CASE("Radial LRMP_DG inlet DOF Jacobian", "[RadLRMP],[DG],[UnitOp],[Jacobian],[Inlet],[CI]")
+{
+	cadet::test::column::testInletDofJacobian("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG");
+}
+
+TEST_CASE("Radial LRMP_DG with two component linear binding Jacobian", "[RadLRMP],[DG],[UnitOp],[Jacobian],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial LRMP_DG consistent initialization with linear binding", "[RadLRMP],[DG],[ConsistentInit],[CI]")
+{
+	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG", 1e-12, 1e-12, 0, 0);
+	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG", 1e-12, 1e-12, 1, 0);
+	cadet::test::column::testConsistentInitializationLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG", 1e-12, 1e-12, 0, 1);
+}
+
+TEST_CASE("Radial LRMP_DG sensitivity Jacobians", "[RadLRMP],[DG],[UnitOp],[Sensitivity],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG");
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7);
+}
+
+TEST_CASE("Radial LRMP_DG dynamic reactions Jacobian vs AD bulk", "[RadLRMP],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG", true, false, false, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial LRMP_DG dynamic reactions Jacobian vs AD particle", "[RadLRMP],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG", false, true, false, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial LRMP_DG dynamic reactions Jacobian vs AD modified particle", "[RadLRMP],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG", false, true, true, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial LRMP_DG dynamic reactions Jacobian vs AD bulk and particle", "[RadLRMP],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG", true, true, false, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial LRMP_DG dynamic reactions Jacobian vs AD bulk and modified particle", "[RadLRMP],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG", true, true, true, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial LRMP_DG dynamic reactions time derivative Jacobian vs FD bulk", "[RadLRMP],[DG],[Jacobian],[Residual],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG", true, false, false, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("Radial LRMP_DG dynamic reactions time derivative Jacobian vs FD particle", "[RadLRMP],[DG],[Jacobian],[Residual],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG", false, true, false, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("Radial LRMP_DG dynamic reactions time derivative Jacobian vs FD modified particle", "[RadLRMP],[DG],[Jacobian],[Residual],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG", false, true, true, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("Radial LRMP_DG dynamic reactions time derivative Jacobian vs FD bulk and particle", "[RadLRMP],[DG],[Jacobian],[Residual],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG", true, true, false, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("Radial LRMP_DG dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[RadLRMP],[DG],[Jacobian],[Residual],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_LUMPED_RATE_MODEL_WITH_PORES", "DG", true, true, true, 1e-6, 1e-14, 8e-4);
 }

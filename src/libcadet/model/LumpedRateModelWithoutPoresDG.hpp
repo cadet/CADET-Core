@@ -44,6 +44,24 @@
 
 using namespace Eigen;
 
+namespace
+{
+	template <typename Operator>
+	struct LumpedRateModelWithoutPoresDGName { };
+
+	template <>
+	struct LumpedRateModelWithoutPoresDGName<cadet::model::parts::AxialConvectionDispersionOperatorBaseDG>
+	{
+		static const char* identifier() CADET_NOEXCEPT { return "LUMPED_RATE_MODEL_WITHOUT_PORES_DG"; }
+	};
+
+	template <>
+	struct LumpedRateModelWithoutPoresDGName<cadet::model::parts::RadialConvectionDispersionOperatorBaseDG>
+	{
+		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES_DG"; }
+	};
+}
+
 namespace cadet
 {
 
@@ -65,6 +83,7 @@ namespace cadet
 			\end{align} @f]
 		* Methods are described in @cite Breuer2023 (DGSEM discretization), @cite Puttmann2013 @cite Puttmann2016 (forward sensitivities, AD, band compression)
 		*/
+		template <typename ConvDispOperator = parts::AxialConvectionDispersionOperatorBaseDG>
 		class LumpedRateModelWithoutPoresDG : public UnitOperationBase
 		{
 		public:
@@ -84,7 +103,7 @@ namespace cadet
 			virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
 			virtual bool canAccumulate() const CADET_NOEXCEPT { return false; }
 
-			static const char* identifier() { return "LUMPED_RATE_MODEL_WITHOUT_PORES_DG"; }
+			static const char* identifier() { return LumpedRateModelWithoutPoresDGName<ConvDispOperator>::identifier(); }
 			virtual const char* unitOperationName() const CADET_NOEXCEPT { return identifier(); }
 
 			virtual bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper);
@@ -233,7 +252,7 @@ namespace cadet
 		//	IExternalFunction* _extFun; //!< External function (owned by library user)
 
 			// used as auxiliary supplier 
-			parts::AxialConvectionDispersionOperatorBaseDG _convDispOp; //!< Convection dispersion operator for interstitial volume transport
+			ConvDispOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 
 			cadet::linalg::EigenSolverBase* _linearSolver; //!< Linear solver
 
@@ -536,6 +555,9 @@ namespace cadet
 			}
 
 		};
+
+		IUnitOperation* createAxialLRMDG(UnitOpIdx uoId);
+		IUnitOperation* createRadialLRMDG(UnitOpIdx uoId);
 
 	} // namespace model
 } // namespace cadet

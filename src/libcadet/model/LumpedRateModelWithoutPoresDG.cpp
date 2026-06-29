@@ -47,7 +47,8 @@ namespace cadet
 	namespace model
 	{
 
-		LumpedRateModelWithoutPoresDG::LumpedRateModelWithoutPoresDG(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
+		template <typename ConvDispOperator>
+		LumpedRateModelWithoutPoresDG<ConvDispOperator>::LumpedRateModelWithoutPoresDG(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
 			/*_jacInlet(),*/ _analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr), _initC(0),
 			_initCs(0), _initState(0), _initStateDot(0)
 		{
@@ -56,28 +57,32 @@ namespace cadet
 			_singleDynReaction = true;
 		}
 
-		LumpedRateModelWithoutPoresDG::~LumpedRateModelWithoutPoresDG() CADET_NOEXCEPT
+		template <typename ConvDispOperator>
+		LumpedRateModelWithoutPoresDG<ConvDispOperator>::~LumpedRateModelWithoutPoresDG() CADET_NOEXCEPT
 		{
 			delete[] _tempState;
 
 			delete _linearSolver;
 		}
 
-		unsigned int LumpedRateModelWithoutPoresDG::numDofs() const CADET_NOEXCEPT
+		template <typename ConvDispOperator>
+		unsigned int LumpedRateModelWithoutPoresDG<ConvDispOperator>::numDofs() const CADET_NOEXCEPT
 		{
 			// Column bulk DOFs: nElem * nNodes * nComp mobile phase and nElem * nNodes * (sum boundStates) solid phase
 			// Inlet DOFs: nComp
 			return _disc.nPoints * (_disc.nComp + _disc.strideBound) + _disc.nComp;
 		}
 
-		unsigned int LumpedRateModelWithoutPoresDG::numPureDofs() const CADET_NOEXCEPT
+		template <typename ConvDispOperator>
+		unsigned int LumpedRateModelWithoutPoresDG<ConvDispOperator>::numPureDofs() const CADET_NOEXCEPT
 		{
 			// Column bulk DOFs: nElem * nNodes * nComp mobile phase and nElem * nNodes * (sum boundStates) solid phase
 			return _disc.nPoints * (_disc.nComp + _disc.strideBound);
 		}
 
 
-		bool LumpedRateModelWithoutPoresDG::usesAD() const CADET_NOEXCEPT
+		template <typename ConvDispOperator>
+		bool LumpedRateModelWithoutPoresDG<ConvDispOperator>::usesAD() const CADET_NOEXCEPT
 		{
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 			// We always need AD if we want to check the analytical Jacobian
@@ -88,7 +93,8 @@ namespace cadet
 #endif
 		}
 
-		bool LumpedRateModelWithoutPoresDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
+		template <typename ConvDispOperator>
+		bool LumpedRateModelWithoutPoresDG<ConvDispOperator>::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 		{
 			const bool firstConfigCall = _tempState == nullptr; // used to not multiply allocate memory
 
@@ -276,7 +282,8 @@ namespace cadet
 			return transportSuccess && bindingConfSuccess && reactionConfSuccess;
 		}
 
-		bool LumpedRateModelWithoutPoresDG::configure(IParameterProvider& paramProvider)
+		template <typename ConvDispOperator>
+		bool LumpedRateModelWithoutPoresDG<ConvDispOperator>::configure(IParameterProvider& paramProvider)
 		{
 			_parameters.clear();
 
@@ -345,7 +352,8 @@ namespace cadet
 			return bindingConfSuccess && dynReactionConfSuccess;
 		}
 
-		unsigned int LumpedRateModelWithoutPoresDG::threadLocalMemorySize() const CADET_NOEXCEPT
+		template <typename ConvDispOperator>
+		unsigned int LumpedRateModelWithoutPoresDG<ConvDispOperator>::threadLocalMemorySize() const CADET_NOEXCEPT
 		{
 			LinearMemorySizer lms;
 
@@ -381,7 +389,8 @@ namespace cadet
 			return lms.bufferSize();
 		}
 
-		void LumpedRateModelWithoutPoresDG::useAnalyticJacobian(const bool analyticJac)
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::useAnalyticJacobian(const bool analyticJac)
 		{
 
 			Indexer idxr(_disc);
@@ -398,7 +407,8 @@ namespace cadet
 #endif
 		}
 
-		void LumpedRateModelWithoutPoresDG::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 		{
 			// TODO: reset pattern every time section?
 
@@ -418,26 +428,30 @@ namespace cadet
 			prepareADvectors(adJac);
 		}
 
-		void LumpedRateModelWithoutPoresDG::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 		{
 			_convDispOp.setFlowRates(in[0], out[0], _totalPorosity);
 		}
 
-		void LumpedRateModelWithoutPoresDG::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
 		{
 			Exporter expr(_disc, *this, solution);
 			recorder.beginUnitOperation(_unitOpIdx, *this, expr);
 			recorder.endUnitOperation();
 		}
 
-		void LumpedRateModelWithoutPoresDG::reportSolutionStructure(ISolutionRecorder& recorder) const
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::reportSolutionStructure(ISolutionRecorder& recorder) const
 		{
 			Exporter expr(_disc, *this, nullptr);
 			recorder.unitOperationStructure(_unitOpIdx, *this, expr);
 		}
 
 
-		unsigned int LumpedRateModelWithoutPoresDG::requiredADdirs() const CADET_NOEXCEPT
+		template <typename ConvDispOperator>
+		unsigned int LumpedRateModelWithoutPoresDG<ConvDispOperator>::requiredADdirs() const CADET_NOEXCEPT
 		{
 			const unsigned int numDirsBinding = maxBindingAdDirs();
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
@@ -447,7 +461,8 @@ namespace cadet
 #endif
 		}
 
-		void LumpedRateModelWithoutPoresDG::prepareADvectors(const AdJacobianParams& adJac) const
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::prepareADvectors(const AdJacobianParams& adJac) const
 		{
 			// Early out if AD Jacobian is disabled
 			if (!adJac.adY)
@@ -470,7 +485,8 @@ namespace cadet
 		 * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
 		 * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
 		 */
-		void LumpedRateModelWithoutPoresDG::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
 		{
 			Indexer idxr(_disc);
 
@@ -494,7 +510,8 @@ namespace cadet
 		 * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
 		 * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
 		 */
-		void LumpedRateModelWithoutPoresDG::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
 		{
 			Indexer idxr(_disc);
 
@@ -511,7 +528,8 @@ namespace cadet
 		}
 
 #endif
-		int LumpedRateModelWithoutPoresDG::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+		template <typename ConvDispOperator>
+		int LumpedRateModelWithoutPoresDG<ConvDispOperator>::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 		{
 			BENCH_SCOPE(_timerResidual);
 
@@ -523,7 +541,8 @@ namespace cadet
 				return residualWithJacobian(simTime, ConstSimulationState{ simState.vecStateY, nullptr }, nullptr, adJac, threadLocalMem);
 		}
 
-		int LumpedRateModelWithoutPoresDG::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
+		template <typename ConvDispOperator>
+		int LumpedRateModelWithoutPoresDG<ConvDispOperator>::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
 		{
 			BENCH_SCOPE(_timerResidual);
 
@@ -531,7 +550,8 @@ namespace cadet
 			return residualImpl<double, double, double, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
 		}
 
-		int LumpedRateModelWithoutPoresDG::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+		template <typename ConvDispOperator>
+		int LumpedRateModelWithoutPoresDG<ConvDispOperator>::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 		{
 			BENCH_SCOPE(_timerResidual);
 
@@ -541,7 +561,8 @@ namespace cadet
 			return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
 		}
 
-		int LumpedRateModelWithoutPoresDG::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
+		template <typename ConvDispOperator>
+		int LumpedRateModelWithoutPoresDG<ConvDispOperator>::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
 			const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity)
 		{
 			if (updateJacobian)
@@ -643,8 +664,9 @@ namespace cadet
 			}
 		}
 
+		template <typename ConvDispOperator>
 		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-		int LumpedRateModelWithoutPoresDG::residualImpl(double t, unsigned int secIdx, StateType const* const y_, double const* const yDot_, ResidualType* const res_, util::ThreadLocalStorage& threadLocalMem)
+		int LumpedRateModelWithoutPoresDG<ConvDispOperator>::residualImpl(double t, unsigned int secIdx, StateType const* const y_, double const* const yDot_, ResidualType* const res_, util::ThreadLocalStorage& threadLocalMem)
 		{
 			Indexer idxr(_disc);
 
@@ -719,7 +741,8 @@ namespace cadet
 			return 0;
 		}
 
-		int LumpedRateModelWithoutPoresDG::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+		template <typename ConvDispOperator>
+		int LumpedRateModelWithoutPoresDG<ConvDispOperator>::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 		{
 			BENCH_SCOPE(_timerResidualSens);
 
@@ -728,7 +751,8 @@ namespace cadet
 			return residual(simTime, simState, nullptr, adJac, threadLocalMem, true, true);
 		}
 
-		int LumpedRateModelWithoutPoresDG::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
+		template <typename ConvDispOperator>
+		int LumpedRateModelWithoutPoresDG<ConvDispOperator>::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
 		{
 			BENCH_SCOPE(_timerResidualSens);
 
@@ -736,7 +760,8 @@ namespace cadet
 			return residualImpl<double, active, active, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, adRes, threadLocalMem);
 		}
 
-		int LumpedRateModelWithoutPoresDG::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
+		template <typename ConvDispOperator>
+		int LumpedRateModelWithoutPoresDG<ConvDispOperator>::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
 			const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
 			double* const tmp1, double* const tmp2, double* const tmp3)
 		{
@@ -787,7 +812,8 @@ namespace cadet
 		 * @param [in] beta Factor @f$ \beta @f$ in front of @f$ z @f$
 		 * @param [in,out] ret Vector @f$ z @f$ which stores the result of the operation
 		 */
-		void LumpedRateModelWithoutPoresDG::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
 		{
 			Indexer idxr(_disc);
 
@@ -822,7 +848,8 @@ namespace cadet
 		 * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
 		 * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
 		 */
-		void LumpedRateModelWithoutPoresDG::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
 		{
 			Indexer idxr(_disc);
 			const double invBeta = (1.0 / static_cast<double>(_totalPorosity) - 1.0);
@@ -842,13 +869,15 @@ namespace cadet
 			std::fill_n(ret, _disc.nComp, 0.0);
 		}
 
-		void LumpedRateModelWithoutPoresDG::setExternalFunctions(IExternalFunction** extFuns, unsigned int size)
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::setExternalFunctions(IExternalFunction** extFuns, unsigned int size)
 		{
 			if (_binding[0])
 				_binding[0]->setExternalFunctions(extFuns, size);
 		}
 
-		unsigned int LumpedRateModelWithoutPoresDG::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
+		template <typename ConvDispOperator>
+		unsigned int LumpedRateModelWithoutPoresDG<ConvDispOperator>::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 		{
 			// Inlets are duplicated so need to be accounted for
 			if (static_cast<double>(_convDispOp.currentVelocity()) >= 0.0)
@@ -859,22 +888,26 @@ namespace cadet
 				return _disc.nComp;
 		}
 
-		unsigned int LumpedRateModelWithoutPoresDG::localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT
+		template <typename ConvDispOperator>
+		unsigned int LumpedRateModelWithoutPoresDG<ConvDispOperator>::localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 		{
 			return 0;
 		}
 
-		unsigned int LumpedRateModelWithoutPoresDG::localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT
+		template <typename ConvDispOperator>
+		unsigned int LumpedRateModelWithoutPoresDG<ConvDispOperator>::localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT
 		{
 			return 1;
 		}
 
-		unsigned int LumpedRateModelWithoutPoresDG::localInletComponentStride(unsigned int port) const CADET_NOEXCEPT
+		template <typename ConvDispOperator>
+		unsigned int LumpedRateModelWithoutPoresDG<ConvDispOperator>::localInletComponentStride(unsigned int port) const CADET_NOEXCEPT
 		{
 			return 1;
 		}
 
-		void LumpedRateModelWithoutPoresDG::expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut)
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut)
 		{
 			// @todo Write this function
 		}
@@ -894,7 +927,8 @@ namespace cadet
 		 * @param [in] simState State of the simulation (state vector and its time derivatives) at which the Jacobian is evaluated
 		 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 		 */
-		int LumpedRateModelWithoutPoresDG::linearSolve(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
+		template <typename ConvDispOperator>
+		int LumpedRateModelWithoutPoresDG<ConvDispOperator>::linearSolve(double t, double alpha, double outerTol, double* const rhs, double const* const weight,
 			const ConstSimulationState& simState)
 		{
 			BENCH_SCOPE(_timerLinearSolve);
@@ -958,7 +992,8 @@ namespace cadet
 		 * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
 		 * @param [in] idxr Indexer
 		 */
-		void LumpedRateModelWithoutPoresDG::assembleDiscretizedJacobian(double alpha, const Indexer& idxr)
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::assembleDiscretizedJacobian(double alpha, const Indexer& idxr)
 		{
 			// set to static jacobian entries
 			_jacDisc = _jac;
@@ -984,7 +1019,8 @@ namespace cadet
 		 * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
 		 * @param [in] invBeta Inverse porosity term @f$\frac{1}{\beta}@f$
 		 */
-		void LumpedRateModelWithoutPoresDG::addTimeDerivativeToJacobianNode(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, double invBeta) const
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::addTimeDerivativeToJacobianNode(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, double invBeta) const
 		{
 			// Mobile phase
 			for (int comp = 0; comp < static_cast<int>(_disc.nComp); ++comp, ++jac)
@@ -1016,7 +1052,8 @@ namespace cadet
 			}
 		}
 
-		void LumpedRateModelWithoutPoresDG::applyInitialCondition(const SimulationState& simState) const
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::applyInitialCondition(const SimulationState& simState) const
 		{
 			Indexer idxr(_disc);
 
@@ -1054,7 +1091,8 @@ namespace cadet
 			}
 		}
 
-		void LumpedRateModelWithoutPoresDG::readInitialCondition(IParameterProvider& paramProvider)
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::readInitialCondition(IParameterProvider& paramProvider)
 		{
 			_initState.clear();
 			_initStateDot.clear();
@@ -1120,7 +1158,8 @@ namespace cadet
 		 * @param [in] errorTol Error tolerance for algebraic equations
 		 * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
 		 */
-		void LumpedRateModelWithoutPoresDG::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 		{
 			BENCH_SCOPE(_timerConsistentInit);
 
@@ -1360,7 +1399,8 @@ namespace cadet
 		 * @param [in] vecStateY Consistently initialized state vector
 		 * @param [in,out] vecStateYdot On entry, residual without taking time derivatives into account. On exit, consistent state time derivatives.
 		 */
-		void LumpedRateModelWithoutPoresDG::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem)
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem)
 		{
 			BENCH_SCOPE(_timerConsistentInit);
 
@@ -1478,7 +1518,8 @@ namespace cadet
 		 * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
 		 * @param [in] errorTol Error tolerance for algebraic equations
 		 */
-		void LumpedRateModelWithoutPoresDG::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 		{
 		}
 
@@ -1508,7 +1549,8 @@ namespace cadet
 		 * @param [in,out] vecStateYdot On entry, inconsistent state time derivatives. On exit, partially consistent state time derivatives.
 		 * @param [in] res On entry, residual without taking time derivatives into account. The data is overwritten during execution of the function.
 		 */
-		void LumpedRateModelWithoutPoresDG::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
 		{
 			BENCH_SCOPE(_timerConsistentInit);
 
@@ -1536,7 +1578,8 @@ namespace cadet
 			}
 		}
 
-		void LumpedRateModelWithoutPoresDG::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
 		{
 			Indexer idxr(_disc);
 			for (std::size_t param = 0; param < vecSensY.size(); ++param)
@@ -1593,7 +1636,8 @@ namespace cadet
 		 * @param [in] adRes Pointer to residual vector of AD datatypes with parameter sensitivities
 		 * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
 		 */
-		void LumpedRateModelWithoutPoresDG::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 			std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 		{
 			BENCH_SCOPE(_timerConsistentInit);
@@ -1775,7 +1819,8 @@ namespace cadet
 		 * @param [in] adRes Pointer to residual vector of AD datatypes with parameter sensitivities
 		 * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
 		 */
-		void LumpedRateModelWithoutPoresDG::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 			std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 		{
 			BENCH_SCOPE(_timerConsistentInit);
@@ -1823,7 +1868,8 @@ namespace cadet
 			}
 		}
 
-		bool LumpedRateModelWithoutPoresDG::setParameter(const ParameterId& pId, double value)
+		template <typename ConvDispOperator>
+		bool LumpedRateModelWithoutPoresDG<ConvDispOperator>::setParameter(const ParameterId& pId, double value)
 		{
 			if (_convDispOp.setParameter(pId, value))
 				return true;
@@ -1831,7 +1877,8 @@ namespace cadet
 			return UnitOperationBase::setParameter(pId, value);
 		}
 
-		void LumpedRateModelWithoutPoresDG::setSensitiveParameterValue(const ParameterId& pId, double value)
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::setSensitiveParameterValue(const ParameterId& pId, double value)
 		{
 			if (_convDispOp.setSensitiveParameterValue(_sensParams, pId, value))
 				return;
@@ -1839,7 +1886,8 @@ namespace cadet
 			UnitOperationBase::setSensitiveParameterValue(pId, value);
 		}
 
-		bool LumpedRateModelWithoutPoresDG::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
+		template <typename ConvDispOperator>
+		bool LumpedRateModelWithoutPoresDG<ConvDispOperator>::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
 		{
 			if (_convDispOp.setSensitiveParameter(_sensParams, pId, adDirection, adValue))
 			{
@@ -1851,7 +1899,8 @@ namespace cadet
 		}
 
 
-		int LumpedRateModelWithoutPoresDG::Exporter::writeMobilePhase(double* buffer) const
+		template <typename ConvDispOperator>
+		int LumpedRateModelWithoutPoresDG<ConvDispOperator>::Exporter::writeMobilePhase(double* buffer) const
 		{
 			const int stride = _idx.strideColNode();
 			double const* ptr = _data + _idx.offsetC();
@@ -1864,7 +1913,8 @@ namespace cadet
 			return _disc.nPoints * _disc.nComp;
 		}
 
-		int LumpedRateModelWithoutPoresDG::Exporter::writeSolidPhase(double* buffer) const
+		template <typename ConvDispOperator>
+		int LumpedRateModelWithoutPoresDG<ConvDispOperator>::Exporter::writeSolidPhase(double* buffer) const
 		{
 			const int stride = _idx.strideColNode();
 			double const* ptr = _data + _idx.offsetC() + _idx.strideColLiquid();
@@ -1877,26 +1927,30 @@ namespace cadet
 			return _disc.nPoints * _disc.strideBound;
 		}
 
-		int LumpedRateModelWithoutPoresDG::Exporter::writeSolidPhase(unsigned int parType, double* buffer) const
+		template <typename ConvDispOperator>
+		int LumpedRateModelWithoutPoresDG<ConvDispOperator>::Exporter::writeSolidPhase(unsigned int parType, double* buffer) const
 		{
 			cadet_assert(parType == 0);
 			return writeSolidPhase(buffer);
 		}
 
-		int LumpedRateModelWithoutPoresDG::Exporter::writeInlet(unsigned int port, double* buffer) const
+		template <typename ConvDispOperator>
+		int LumpedRateModelWithoutPoresDG<ConvDispOperator>::Exporter::writeInlet(unsigned int port, double* buffer) const
 		{
 			cadet_assert(port == 0);
 			std::copy_n(_data, _disc.nComp, buffer);
 			return _disc.nComp;
 		}
 
-		int LumpedRateModelWithoutPoresDG::Exporter::writeInlet(double* buffer) const
+		template <typename ConvDispOperator>
+		int LumpedRateModelWithoutPoresDG<ConvDispOperator>::Exporter::writeInlet(double* buffer) const
 		{
 			std::copy_n(_data, _disc.nComp, buffer);
 			return _disc.nComp;
 		}
 
-		int LumpedRateModelWithoutPoresDG::Exporter::writeOutlet(unsigned int port, double* buffer) const
+		template <typename ConvDispOperator>
+		int LumpedRateModelWithoutPoresDG<ConvDispOperator>::Exporter::writeOutlet(unsigned int port, double* buffer) const
 		{
 			cadet_assert(port == 0);
 
@@ -1908,7 +1962,8 @@ namespace cadet
 			return _disc.nComp;
 		}
 
-		int LumpedRateModelWithoutPoresDG::Exporter::writeOutlet(double* buffer) const
+		template <typename ConvDispOperator>
+		int LumpedRateModelWithoutPoresDG<ConvDispOperator>::Exporter::writeOutlet(double* buffer) const
 		{
 			if (_model._convDispOp.currentVelocity() >= 0)
 				std::copy_n(&_idx.c(_data, _disc.nPoints - 1, 0), _disc.nComp, buffer);
@@ -1916,6 +1971,22 @@ namespace cadet
 				std::copy_n(&_idx.c(_data, 0, 0), _disc.nComp, buffer);
 
 			return _disc.nComp;
+		}
+
+		// Template instantiations
+		template class LumpedRateModelWithoutPoresDG<parts::AxialConvectionDispersionOperatorBaseDG>;
+		template class LumpedRateModelWithoutPoresDG<parts::RadialConvectionDispersionOperatorBaseDG>;
+
+		IUnitOperation* createAxialLRMDG(UnitOpIdx uoId)
+		{
+			typedef LumpedRateModelWithoutPoresDG<parts::AxialConvectionDispersionOperatorBaseDG> AxialLRM;
+			return new AxialLRM(uoId);
+		}
+
+		IUnitOperation* createRadialLRMDG(UnitOpIdx uoId)
+		{
+			typedef LumpedRateModelWithoutPoresDG<parts::RadialConvectionDispersionOperatorBaseDG> RadialLRM;
+			return new RadialLRM(uoId);
 		}
 
 	}  // namespace model

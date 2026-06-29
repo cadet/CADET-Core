@@ -11,6 +11,7 @@
 // =============================================================================
 
 #include <catch.hpp>
+#include <limits>
 
 #include "ColumnTests.hpp"
 #include "ReactionModelTests.hpp"
@@ -82,4 +83,63 @@ TEST_CASE("Radial LRM dynamic reactions time derivative Jacobian vs FD bulk", "[
 TEST_CASE("Radial LRM dynamic reactions time derivative Jacobian vs FD modified bulk", "[RadLRM],[Jacobian],[Residual],[ReactionModel],[FD],[CI]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", true, false, true, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("Radial LRM_DG numerical Benchmark for linear case", "[RadLRM],[DG],[Simulation],[Reference],[CI]")
+{
+	const std::string& modelFilePath = std::string("/data/model_radLRM_dynLin_1comp_sensbenchmark1.json");
+	const std::string& refFilePath = std::string("/data/ref_radLRM_dynLin_1comp_benchmark1_DG_P3Z16.h5");
+	const std::vector<double> absTol = { 1e-10 };
+	const std::vector<double> relTol = { 1e-6 };
+	cadet::test::column::DGParams disc(1, 3, 16);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
+TEST_CASE("Radial LRM_DG transport Jacobian", "[RadLRM],[DG],[UnitOp],[Jacobian],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial LRM_DG time derivative Jacobian vs FD", "[RadLRM],[DG],[UnitOp],[Residual],[Jacobian],[CI]")
+{
+	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
+}
+
+TEST_CASE("Radial LRM_DG inlet DOF Jacobian", "[RadLRM],[DG],[UnitOp],[Jacobian],[Inlet],[CI]")
+{
+	cadet::test::column::testInletDofJacobian("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
+}
+
+TEST_CASE("Radial LRM_DG with two component linear binding Jacobian", "[RadLRM],[DG],[UnitOp],[Jacobian],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial LRM_DG sensitivity Jacobians", "[RadLRM],[DG],[UnitOp],[Sensitivity],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
+
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 3e-7, 5e-4);
+}
+
+TEST_CASE("Radial LRM_DG dynamic reactions Jacobian vs AD bulk", "[RadLRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, false, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial LRM_DG dynamic reactions Jacobian vs AD modified bulk", "[RadLRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, true, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial LRM_DG dynamic reactions time derivative Jacobian vs FD bulk", "[RadLRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, false, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("Radial LRM_DG dynamic reactions time derivative Jacobian vs FD modified bulk", "[RadLRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, true, 1e-6, 1e-14, 8e-4);
 }
