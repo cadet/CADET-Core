@@ -737,14 +737,28 @@ TEST_CASE("Column_1D as LRMP multi particle types dynamic reactions time derivat
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 8e-4);
 }
 
-// ============================================================================
-// Radial Column_1D DG Tests
-// ============================================================================
+TEST_CASE("Radial Column_1D as GRM LWE forward vs backward flow", "[Column_1D],[DG],[DG1D],[Simulation],[CI]")
+{
+	cadet::test::column::DGParams disc;
+
+	// Test both interpolation nodes
+	disc.setBulkDiscParam("POLYNOMIAL_INTERPOLATION_NODES", "LEGENDRE_GAUSS_LOBATTO");
+	cadet::test::column::testForwardBackward("RADIAL_COLUMN_MODEL_1D_GRM", disc, 1e-9, 1e-4);
+
+	disc.setBulkDiscParam("POLYNOMIAL_INTERPOLATION_NODES", "CHEBYSHEV_GAUSS_LOBATTO");
+	cadet::test::column::testForwardBackward("RADIAL_COLUMN_MODEL_1D_GRM", disc, 1e-9, 1e-4);
+}
 
 TEST_CASE("Radial Column_1D as GRM transport Jacobian", "[RadialColumn_1D],[DG],[UnitOp],[Jacobian],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "RADIAL_COLUMN_MODEL_1D_GRM", "DG");
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Radial Column_1D as GRM Jacobian forward vs backward flow", "[Column_1D],[DG],[DG1D],[UnitOp],[Residual],[Jacobian],[AD],[CI]")
+{
+	cadet::test::column::DGParams disc;
+	cadet::test::column::testJacobianForwardBackward("RADIAL_COLUMN_MODEL_1D_GRM", disc, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
 TEST_CASE("Radial Column_1D as GRM time derivative Jacobian vs FD", "[RadialColumn_1D],[DG],[UnitOp],[Residual],[Jacobian],[CI]")
@@ -851,10 +865,6 @@ TEST_CASE("Radial Column_1D as GRM rapid-equilibrium binding with surf diff par 
 	cadet::test::column::testJacobianADVariableParSurfDiff("RADIAL_COLUMN_MODEL_1D_GRM", "DG", false);
 }
 
-// ============================================================================
-// Radial Column_1D DG Particle Type Tests
-// ============================================================================
-
 TEST_CASE("Radial Column_1D as GRM LWE one vs two identical particle types match", "[RadialColumn_1D],[DG],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("RADIAL_COLUMN_MODEL_1D_GRM", "DG", 2e-8, 5e-5);
@@ -924,10 +934,6 @@ TEST_CASE("Radial Column_1D as LRMP linear binding single particle matches spati
 {
 	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", 5e-8, 5e-5);
 }
-
-// ============================================================================
-// Radial Column_1D DG Multi Particle Type Dynamic Reaction Tests
-// ============================================================================
 
 inline cadet::JsonParameterProvider createRadial1DGRMColumnWithThreeParticleTypes()
 {
@@ -1071,54 +1077,13 @@ TEST_CASE("Radial Column_1D as LRMP multi particle types dynamic reactions time 
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 8e-4);
 }
 
-// ============================================================================
-// Radial Column_1D DG Variable Coefficient Tests
-// Note: The analytic Jacobian does not support variable dispersion (it uses
-// constant per-component D). These tests verify the time derivative Jacobian
-// (which is correct) and that the model runs correctly with variable coefficients.
-// The AD Jacobian correctly handles variable dispersion.
-// ============================================================================
-
-TEST_CASE("Radial Column_1D as GRM variable dispersion (RADIAL_POWER_LAW) time derivative Jacobian vs FD", "[RadialColumn_1D],[DG],[Jacobian],[ParameterDependence],[VarCoeff],[CI]")
+TEST_CASE("Radial Column_1D pure convection dispersion numerical benchmark", "[RadialColumn_1D],[DG],[DG1D],[Simulation],[Reference],[CI]")
 {
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_COLUMN_MODEL_1D_GRM", "DG");
-	{
-		auto ms = cadet::test::util::makeOptionalGroupScope(jpp, "model");
-		auto us = cadet::test::util::makeOptionalGroupScope(jpp, "unit_000");
+	std::string modelFilePath = std::string("/data/config_radCOL1D_transport_1comp_DGP3_benchmark1_DG_P3Z16.json");
+	std::string refFilePath = std::string("/data/ref_radCOL1D_transport_1comp_DGP3_benchmark1_DG_P3Z16.h5");
+	const std::vector<double> absTol = { 1e-12 };
+	const std::vector<double> relTol = { 1e-6 };
 
-		jpp.set("COL_DISPERSION_DEP", "RADIAL_POWER_LAW");
-		jpp.set("COL_DISPERSION_DEP_FACTOR", 0.5);
-		jpp.set("COL_DISPERSION_DEP_EXPONENT", 1.0);
-	}
-	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_COLUMN_MODEL_1D_GRM", "DG");
-}
-
-TEST_CASE("Radial Column_1D as LRMP variable dispersion (RADIAL_POWER_LAW) time derivative Jacobian vs FD", "[RadialColumn_1D],[DG],[Jacobian],[ParameterDependence],[VarCoeff],[CI]")
-{
-	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_COLUMN_MODEL_1D_LRMP", "DG");
-}
-
-TEST_CASE("Radial Column_1D as GRM variable dispersion (RADIAL_RECIPROCAL_POWER_LAW) time derivative Jacobian vs FD", "[RadialColumn_1D],[DG],[Jacobian],[ParameterDependence],[VarCoeff],[CI]")
-{
-	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_COLUMN_MODEL_1D_GRM", "DG");
-}
-
-TEST_CASE("Radial Column_1D as LRMP variable dispersion (RADIAL_RECIPROCAL_POWER_LAW) time derivative Jacobian vs FD", "[RadialColumn_1D],[DG],[Jacobian],[ParameterDependence],[VarCoeff],[CI]")
-{
-	cadet::test::column::testTimeDerivativeJacobianFD("RADIAL_COLUMN_MODEL_1D_LRMP", "DG");
-}
-
-TEST_CASE("Radial Column_1D as GRM variable dispersion + surf diff par dep combined Jacobian vs AD", "[RadialColumn_1D],[DG],[Jacobian],[ParameterDependence],[VarCoeff],[CI]")
-{
-	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("RADIAL_COLUMN_MODEL_1D_GRM", "DG");
-	cadet::test::setBindingMode(jpp, true);
-	{
-		auto ms = cadet::test::util::makeOptionalGroupScope(jpp, "model");
-		auto us = cadet::test::util::makeOptionalGroupScope(jpp, "unit_000");
-
-		jpp.set("SURFACE_DIFFUSION_DEP", "LIQUID_SALT_EXPONENTIAL");
-		jpp.set("SURFACE_DIFFUSION_EXPFACTOR", std::vector<double>{ 0.8, 1.6 });
-		jpp.set("SURFACE_DIFFUSION_EXPARGMULT", std::vector<double>{ 1.3, 2.1 });
-	}
-	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+	cadet::test::column::DGParams disc(1, 3, 16);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }

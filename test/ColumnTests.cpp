@@ -599,7 +599,10 @@ namespace column
 			++level;
 		}
 
-		jpp.set("VELOCITY", -jpp.getDouble("VELOCITY"));
+		if (jpp.exists("VELOCITY"))
+			jpp.set("VELOCITY", -jpp.getDouble("VELOCITY"));
+		else
+			jpp.set("VELOCITY_COEFF", -jpp.getDouble("VELOCITY_COEFF"));
 
 		for (int l = 0; l < level; ++l)
 			jpp.popScope();
