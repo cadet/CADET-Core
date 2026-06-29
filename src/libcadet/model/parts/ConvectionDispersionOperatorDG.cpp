@@ -1150,8 +1150,10 @@ bool RadialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPar
 		_subsState[i] = 0.0;
 	}
 	_boundary.setZero();
-	_surfaceFlux.resize(_nElem + 1u);
-	_surfaceFlux.setZero();
+	_surfaceFluxC.resize(_nElem + 1u);
+	_surfaceFluxC.setZero();
+	_surfaceFluxG.resize(_nElem + 1u);
+	_surfaceFluxG.setZero();
 
 	_newStaticJac = true;
 
@@ -1423,11 +1425,21 @@ void RadialConvectionDispersionOperatorBaseDG::computeCellDependentMatrices(doub
  */
 void RadialConvectionDispersionOperatorBaseDG::updateDispersionValues(const IModel& model, unsigned int secIdx, unsigned int comp)
 {
-	if (!_variableDispersion)
-		return;
-
 	const active* const d_rad = currentDispersion(secIdx);
 	const double baseDispersion = static_cast<double>(d_rad[comp]);
+
+	if (!_variableDispersion)
+	{
+		for (int elem = 0; elem <= _nElem; elem++)
+			_dispersionAtInterfaces[elem] = baseDispersion;
+
+		for (int elem = 0; elem < _nElem; elem++)
+		{
+			for (int node = 0; node < _nNodes; node++)
+				_dispersionAtNodes[elem][node] = baseDispersion;
+		}
+		return;
+	}
 
 	// Evaluate dispersion at each node
 	for (unsigned int elem = 0; elem < _nElem; ++elem)
