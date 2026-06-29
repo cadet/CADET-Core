@@ -47,7 +47,7 @@ namespace model
 				if(particleType == "EQUILIBRIUM_PARTICLE")
 				{
 					if (discName == "DG")
-						model = createRadialLRMDG(uoId);
+						model = createAxialLRMDG(uoId);
 					else if (discName == "FV")
 						model = createAxialFVLRM(uoId);
 					else
