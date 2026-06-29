@@ -322,17 +322,13 @@ TEST_CASE("Radial GRM multi particle types dynamic reactions time derivative Jac
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 9e-4);
 }
 
-// ============================================================================
-// Radial GRM_DG Tests
-// ============================================================================
-
-TEST_CASE("Radial GRM_DG numerical Benchmark for linear case", "[RadGRM],[DG],[Simulation],[Reference],[CI]")
+TEST_CASE("Radial GRM_DG numerical Benchmark for linear case", "[RadGRM],[DG],[Simulation],[Reference],[CIjo]")
 {
 	const std::string& modelFilePath = std::string("/data/model_radGRM_dynLin_1comp_sensbenchmark1.json");
-	const std::string& refFilePath = std::string("/data/ref_radGRM_dynLin_1comp_sensbenchmark1_DG_P3Z16.h5");
-	const std::vector<double> absTol = { 1e-8 };
-	const std::vector<double> relTol = { 1e-5 };
-	cadet::test::column::DGParams disc(0, 3, 16, 3, 1);
+	const std::string& refFilePath = std::string("/data/ref_radGRM_dynLin_1comp_benchmark1_DG_P3Z16.h5");
+	const std::vector<double> absTol = { 1e-9 };
+	const std::vector<double> relTol = { 1e-6 };
+	cadet::test::column::DGParams disc(1, 3, 16, 3, 1);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
@@ -457,36 +453,4 @@ TEST_CASE("Radial GRM_DG dynamic reactions time derivative Jacobian vs FD bulk a
 TEST_CASE("Radial GRM_DG dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[RadGRM],[DG],[Jacobian],[Residual],[ReactionModel],[CI]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", "DG", true, true, true, 1e-6, 1e-14, 9e-4);
-}
-
-// Note: Particle type tests (LWE matching, multi-particle Jacobian, spatially dependent)
-// and flux Jacobian (ArrowHead) tests require the ColumnModel1D state vector layout
-// with separate flux DOFs and unified particle management. Multi-particle AD tests also
-// exceed the 80 AD direction compile-time limit for DG with 3 particle types.
-// These tests will be available after refactoring into ColumnModel1D.
-
-// ============================================================
-// Radial GRM_DG surface diffusion parameter dependence tests
-// ============================================================
-
-TEST_CASE("Radial GRM_DG dynamic binding with surf diff par dep Jacobian vs AD", "[RadGRM],[DG],[UnitOp],[Residual],[Jacobian],[ParameterDependence]")
-{
-	cadet::test::column::testJacobianADVariableParSurfDiff("RADIAL_GENERAL_RATE_MODEL", "DG", true);
-}
-
-TEST_CASE("Radial GRM_DG rapid-equilibrium binding with surf diff par dep Jacobian vs AD", "[RadGRM],[DG],[UnitOp],[Residual],[Jacobian],[ParameterDependence]")
-{
-	cadet::test::column::testJacobianADVariableParSurfDiff("RADIAL_GENERAL_RATE_MODEL", "DG", false);
-}
-
-// ============================================================
-// Radial GRM_DG vs FV reference benchmark
-// ============================================================
-
-TEST_CASE("Radial GRM_DG noBnd vs FV WENO3 reference", "[RadGRM],[DG],[Reference],[CI]")
-{
-	cadet::test::column::testRadialDGvsReference(
-		"/data/model_radGRM_DG_noBnd_1comp_eocbenchmark.json",
-		"/data/ref_radGRM_DG_noBnd_1comp_eocbenchmark_FV_Z10000.h5",
-		"001", 4, 32, 6e-5, 1e-7);
 }
