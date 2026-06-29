@@ -481,19 +481,6 @@ namespace particle
 		column::testArrowHeadJacobianFD(jpp, h, absTol, relTol);
 	}
 
-	void testArrowHeadJacobianSpatiallyMixedParticleTypes(const std::string& uoType, const std::string& spatialMethod, double h, double absTol, double relTol)
-	{
-		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
-
-		// Add more particle types (such that we have a total of 3 types)
-		extendModelToManyParticleTypes(jpp, {0.9, 0.8}, nullptr);
-
-		// Spatially inhomogeneous
-		scrambleParticleTypeFractionsSpatially(jpp, 3);
-
-		column::testArrowHeadJacobianFD(jpp, h, absTol, relTol);
-	}
-
 } // namespace particle
 } // namespace test
 } // namespace cadet

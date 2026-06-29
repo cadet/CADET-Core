@@ -382,29 +382,6 @@ TEST_CASE("Radial GRM_DG consistent sensitivity initialization with linear bindi
 	cadet::test::column::testConsistentInitializationSensitivity("RADIAL_GENERAL_RATE_MODEL", "DG", y.data(), yDot.data(), true, 1e-14, 1, 1);
 }
 
-// SMA sensitivity init: pre-existing failure (also fails in FV radial models)
-//TEST_CASE("Radial GRM_DG consistent sensitivity initialization with SMA binding", "[RadGRM],[DG],[ConsistentInit],[Sensitivity]")
-//{
-//	const unsigned int numDofs = 4 + 10 * 4 + 10 * 4 * (4 + 4);
-//	std::vector<double> y(numDofs, 0.0);
-//	std::vector<double> yDot(numDofs, 0.0);
-//
-//	const double bindingCell[] = {1.0, 1.8, 1.5, 1.6, 840.0, 63.0, 6.0, 3.0};
-//	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4 + 10 * 4);
-//	cadet::test::util::repeat(y.data() + 4 + 10 * 4, bindingCell, 8, 10 * 4);
-//
-//	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
-//
-//	cadet::test::column::testConsistentInitializationSensitivity("RADIAL_GENERAL_RATE_MODEL", "DG", y.data(), yDot.data(), false, 1e-9);
-//}
-
-// Forward vs backward flow: pre-existing issue in radial DG conv-disp operator with reversed flow
-//TEST_CASE("Radial GRM_DG Jacobian forward vs backward flow", "[RadGRM],[DG],[UnitOp],[Residual],[Jacobian],[AD]")
-//{
-//	cadet::test::column::DGParams disc;
-//	cadet::test::column::testJacobianForwardBackward("RADIAL_GENERAL_RATE_MODEL", disc, std::numeric_limits<float>::epsilon() * 100.0);
-//}
-
 TEST_CASE("Radial GRM_DG dynamic reactions Jacobian vs AD bulk", "[RadGRM],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_GENERAL_RATE_MODEL", "DG", true, false, false, std::numeric_limits<float>::epsilon() * 100.0);
