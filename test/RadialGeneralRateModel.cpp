@@ -322,7 +322,7 @@ TEST_CASE("Radial GRM multi particle types dynamic reactions time derivative Jac
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 9e-4);
 }
 
-TEST_CASE("Radial GRM_DG numerical Benchmark for linear case", "[RadGRM],[DG],[Simulation],[Reference],[CIjo]")
+TEST_CASE("Radial GRM_DG numerical Benchmark for linear case", "[RadGRM],[DG],[Simulation],[Reference],[CI]")
 {
 	const std::string& modelFilePath = std::string("/data/model_radGRM_dynLin_1comp_sensbenchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_radGRM_dynLin_1comp_benchmark1_DG_P3Z16.h5");
