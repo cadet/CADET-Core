@@ -21,7 +21,7 @@
 #include "UnitOperationBase.hpp"
 #include "cadet/StrongTypes.hpp"
 #include "cadet/SolutionExporter.hpp"
-#include "model/parts/ConvectionDispersionOperator.hpp"
+#include "model/parts/ConvectionDispersionOperatorFV.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/SparseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"

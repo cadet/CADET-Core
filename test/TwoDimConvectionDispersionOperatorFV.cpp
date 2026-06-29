@@ -13,7 +13,7 @@
 #include <catch.hpp>
 #include "Approx.hpp"
 
-#include "model/parts/TwoDimensionalConvectionDispersionOperator.hpp"
+#include "model/parts/TwoDimensionalConvectionDispersionOperatorFV.hpp"
 #include "Weno.hpp"
 #include "ModelBuilderImpl.hpp"
 
@@ -26,7 +26,7 @@
 namespace
 {
 
-	inline void createAndConfigureOperator(cadet::model::parts::TwoDimensionalConvectionDispersionOperator& convDispOp, int nComp, int nCol, int nRad, int wenoOrder)
+	inline void createAndConfigureOperator(cadet::model::parts::TwoDimensionalConvectionDispersionOperatorFV& convDispOp, int nComp, int nCol, int nRad, int wenoOrder)
 	{
 		// Obtain parameters from some test case
 		cadet::JsonParameterProvider jpp(R"json({
@@ -71,7 +71,7 @@ namespace
 		REQUIRE(convDispOp.configure(0, jpp, parameters));
 	}
 
-	inline void compareSparseJacobianAgainstFD(cadet::model::parts::TwoDimensionalConvectionDispersionOperator& convDispOp, int nInletDof, int nPureDof, double* y, double* jacCol1, double* jacCol2, double h, double relTol, double absTol)
+	inline void compareSparseJacobianAgainstFD(cadet::model::parts::TwoDimensionalConvectionDispersionOperatorFV& convDispOp, int nInletDof, int nPureDof, double* y, double* jacCol1, double* jacCol2, double h, double relTol, double absTol)
 	{
 		for (int col = 0; col < nPureDof; ++col)
 		{
@@ -115,7 +115,7 @@ void testBulk2DJacobianWenoForwardBackward(int wenoOrder)
 
 	SECTION("Forward vs backward flow Jacobian (WENO=" + std::to_string(wenoOrder) + ")")
 	{
-		cadet::model::parts::TwoDimensionalConvectionDispersionOperator convDispOp;
+		cadet::model::parts::TwoDimensionalConvectionDispersionOperatorFV convDispOp;
 		createAndConfigureOperator(convDispOp, nComp, nCol, nRad, wenoOrder);
 
 		// Obtain memory for state, Jacobian columns
@@ -157,7 +157,7 @@ void testBulk2DJacobianSparsityWeno(int wenoOrder, bool forwardFlow)
 
 	SECTION("WENO=" + std::to_string(wenoOrder))
 	{
-		cadet::model::parts::TwoDimensionalConvectionDispersionOperator convDispOp;
+		cadet::model::parts::TwoDimensionalConvectionDispersionOperatorFV convDispOp;
 		createAndConfigureOperator(convDispOp, nComp, nCol, nRad, wenoOrder);
 
 		// Obtain memory for state, Jacobian columns
@@ -206,14 +206,14 @@ void testBulk2DJacobianSparsityWeno(int wenoOrder, bool forwardFlow)
 	}
 }
 
-TEST_CASE("TwoDimensionalConvectionDispersionOperator Jacobian forward vs backward flow", "[2D],[Operator],[Residual],[Jacobian]")
+TEST_CASE("TwoDimensionalConvectionDispersionOperatorFV Jacobian forward vs backward flow", "[2D],[Operator],[Residual],[Jacobian]")
 {
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
 		testBulk2DJacobianWenoForwardBackward(i);
 }
 
-TEST_CASE("TwoDimensionalConvectionDispersionOperator Jacobian sparsity pattern vs FD", "[2D],[Operator],[Residual],[Jacobian],[SparseMatrix]")
+TEST_CASE("TwoDimensionalConvectionDispersionOperatorFV Jacobian sparsity pattern vs FD", "[2D],[Operator],[Residual],[Jacobian],[SparseMatrix]")
 {
 	SECTION("Forward flow")
 	{

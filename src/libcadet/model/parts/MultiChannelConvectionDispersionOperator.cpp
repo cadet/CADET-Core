@@ -21,7 +21,7 @@
 #include "SensParamUtil.hpp"
 #include "SimulationTypes.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"
-#include "model/parts/AxialConvectionDispersionKernel.hpp"
+#include "model/parts/AxialConvectionDispersionKernelFV.hpp"
 #include "model/ParameterDependence.hpp"
 #include "model/exchange/LinearExchange.cpp"
 #include "model/exchange/LangumirExchange.cpp"

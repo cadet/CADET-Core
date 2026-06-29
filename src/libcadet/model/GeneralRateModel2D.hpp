@@ -21,7 +21,7 @@
 #include "model/UnitOperationBase.hpp"
 #include "cadet/StrongTypes.hpp"
 #include "cadet/SolutionExporter.hpp"
-#include "model/parts/TwoDimensionalConvectionDispersionOperator.hpp"
+#include "model/parts/TwoDimensionalConvectionDispersionOperatorFV.hpp"
 #include "model/reaction/ReactionSystem.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/SparseMatrix.hpp"
@@ -277,7 +277,7 @@ protected:
 	Discretization _disc; //!< Discretization info
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
-	parts::TwoDimensionalConvectionDispersionOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
+	parts::TwoDimensionalConvectionDispersionOperatorFV _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 	ReactionSystem _reaction; //!< Reaction system for bulk
 
 	linalg::BandMatrix* _jacP; //!< Particle jacobian diagonal blocks (all of them)

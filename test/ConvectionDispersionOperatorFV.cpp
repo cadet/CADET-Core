@@ -14,9 +14,9 @@
 #include "Approx.hpp"
 #include "cadet/cadet.hpp"
 
-#include "model/parts/ConvectionDispersionOperator.hpp"
-#include "model/parts/AxialConvectionDispersionKernel.hpp"
-#include "model/parts/RadialConvectionDispersionKernel.hpp"
+#include "model/parts/ConvectionDispersionOperatorFV.hpp"
+#include "model/parts/AxialConvectionDispersionKernelFV.hpp"
+#include "model/parts/RadialConvectionDispersionKernelFV.hpp"
 #include "Weno.hpp"
 #include "HighResKoren.hpp"
 #include "AdUtils.hpp"
@@ -667,7 +667,7 @@ TEST_CASE("AxialConvectionDispersionOperator Jacobian forward vs backward flow",
 		testBulkJacobianWenoForwardBackward<cadet::model::parts::AxialConvectionDispersionOperator>(i);
 }
 
-TEST_CASE("AxialConvectionDispersionKernel Jacobian sparsity pattern vs FD", "[Operator],[AxialFlow],[Residual],[Jacobian],[SparseMatrix]")
+TEST_CASE("AxialConvectionDispersionKernelFV Jacobian sparsity pattern vs FD", "[Operator],[AxialFlow],[Residual],[Jacobian],[SparseMatrix]")
 {
 	SECTION("Forward flow")
 	{
@@ -683,7 +683,7 @@ TEST_CASE("AxialConvectionDispersionKernel Jacobian sparsity pattern vs FD", "[O
 	}
 }
 
-TEST_CASE("AxialConvectionDispersionKernel Jacobian sparse vs banded", "[Operator],[AxialFlow],[Jacobian],[SparseMatrix]")
+TEST_CASE("AxialConvectionDispersionKernelFV Jacobian sparse vs banded", "[Operator],[AxialFlow],[Jacobian],[SparseMatrix]")
 {
 	SECTION("Forward flow")
 	{
@@ -719,7 +719,7 @@ TEST_CASE("RadialConvectionDispersionOperator Jacobian forward vs backward flow"
 		testBulkJacobianWenoForwardBackward<cadet::model::parts::RadialConvectionDispersionOperator>(i);
 }
 
-TEST_CASE("RadialConvectionDispersionKernel Jacobian sparsity pattern vs FD", "[Operator],[RadialFlow],[Residual],[Jacobian],[SparseMatrix]")
+TEST_CASE("RadialConvectionDispersionKernelFV Jacobian sparsity pattern vs FD", "[Operator],[RadialFlow],[Residual],[Jacobian],[SparseMatrix]")
 {
 	SECTION("Forward flow")
 	{
@@ -735,7 +735,7 @@ TEST_CASE("RadialConvectionDispersionKernel Jacobian sparsity pattern vs FD", "[
 	}
 }
 
-TEST_CASE("RadialConvectionDispersionKernel Jacobian sparse vs banded", "[Operator],[RadialFlow],[Jacobian],[SparseMatrix]")
+TEST_CASE("RadialConvectionDispersionKernelFV Jacobian sparse vs banded", "[Operator],[RadialFlow],[Jacobian],[SparseMatrix]")
 {
 	SECTION("Forward flow")
 	{
@@ -905,7 +905,7 @@ void testBulkJacobianSparseBandedKoren(bool forwardFlow)
 	}
 }
 
-TEST_CASE("RadialConvectionDispersionKernel Koren Jacobian sparsity pattern vs FD", "[Operator],[RadialFlow],[Residual],[Jacobian],[SparseMatrix],[Koren]")
+TEST_CASE("RadialConvectionDispersionKernelFV Koren Jacobian sparsity pattern vs FD", "[Operator],[RadialFlow],[Residual],[Jacobian],[SparseMatrix],[Koren]")
 {
 	SECTION("Forward flow")
 	{
@@ -917,7 +917,7 @@ TEST_CASE("RadialConvectionDispersionKernel Koren Jacobian sparsity pattern vs F
 	}
 }
 
-TEST_CASE("RadialConvectionDispersionKernel Koren Jacobian sparse vs banded", "[Operator],[RadialFlow],[Jacobian],[SparseMatrix],[Koren]")
+TEST_CASE("RadialConvectionDispersionKernelFV Koren Jacobian sparse vs banded", "[Operator],[RadialFlow],[Jacobian],[SparseMatrix],[Koren]")
 {
 	SECTION("Forward flow")
 	{

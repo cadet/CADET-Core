@@ -14,7 +14,7 @@
 #include "cadet/Logging.hpp"
 #include "Logging.hpp"
 
-#include "model/parts/RadialConvectionDispersionKernel.hpp"
+#include "model/parts/RadialConvectionDispersionKernelFV.hpp"
 #include "Weno.hpp"
 #include "HighResKoren.hpp"
 #include "linalg/BandMatrix.hpp"

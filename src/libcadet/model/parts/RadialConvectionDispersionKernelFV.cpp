@@ -15,7 +15,7 @@
  * Implements the kernel of the radial convection dispersion transport operator.
  */
 
-#include "model/parts/RadialConvectionDispersionKernel.hpp"
+#include "model/parts/RadialConvectionDispersionKernelFV.hpp"
 #include "Weno.hpp"
 #include "HighResKoren.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"

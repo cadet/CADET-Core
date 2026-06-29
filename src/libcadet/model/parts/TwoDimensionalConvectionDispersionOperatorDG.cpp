@@ -17,7 +17,7 @@
 #include "AdUtils.hpp"
 #include "SensParamUtil.hpp"
 #include "SimulationTypes.hpp"
-#include "model/parts/AxialConvectionDispersionKernel.hpp"
+#include "model/parts/AxialConvectionDispersionKernelFV.hpp"
 #include "model/ParameterDependence.hpp"
 #include "ConfigurationHelper.hpp"
 #include "LoggingUtils.hpp"

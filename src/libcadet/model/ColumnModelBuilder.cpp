@@ -337,8 +337,8 @@ namespace model
 		models[RadialLRMP::identifier()] = selectRadialFlowColumnUnitOperation;
 		models["RLRMP"] = selectRadialFlowColumnUnitOperation;
 
-		typedef LumpedRateModelWithoutPores<parts::AxialConvectionDispersionOperatorBase> AxialLRM;
-		typedef LumpedRateModelWithoutPores<parts::RadialConvectionDispersionOperatorBase> RadialLRM;
+		typedef LumpedRateModelWithoutPores<parts::AxialConvectionDispersionOperatorBaseFV> AxialLRM;
+		typedef LumpedRateModelWithoutPores<parts::RadialConvectionDispersionOperatorBaseFV> RadialLRM;
 
 		models[AxialLRM::identifier()] = selectAxialFlowColumnUnitOperation;
 		models["LRM"] = selectAxialFlowColumnUnitOperation;

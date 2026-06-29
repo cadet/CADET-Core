@@ -158,10 +158,10 @@ set(LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/ColumnModelBuilder.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/ParameterMultiplexing.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ConvectionDispersionOperator.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/AxialConvectionDispersionKernel.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/RadialConvectionDispersionKernel.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/FrustumConvectionDispersionKernel.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ConvectionDispersionOperatorFV.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/AxialConvectionDispersionKernelFV.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/RadialConvectionDispersionKernelFV.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/FrustumConvectionDispersionKernelFV.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/reaction/ReactionModelBase.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/binding/BindingModelBase.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/inlet/PiecewiseCubicPoly.cpp
@@ -200,7 +200,7 @@ if (ENABLE_2D_MODELS)
 		list(APPEND LIBCADET_NONLINALG_SPARSE_SOURCES ${CMAKE_SOURCE_DIR}/src/libcadet/linalg/UMFPackSparseMatrix.cpp)
 	endif()
 	list (APPEND LIBCADET_SOURCES
-		${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/TwoDimensionalConvectionDispersionOperator.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/TwoDimensionalConvectionDispersionOperatorFV.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2D.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2D-LinearSolver.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2D-InitialConditions.cpp
