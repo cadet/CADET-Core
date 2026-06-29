@@ -1977,6 +1977,18 @@ namespace cadet
 		template class LumpedRateModelWithoutPoresDG<parts::AxialConvectionDispersionOperatorBaseDG>;
 		template class LumpedRateModelWithoutPoresDG<parts::RadialConvectionDispersionOperatorBaseDG>;
 
+		IUnitOperation* createAxialLRMDG(UnitOpIdx uoId)
+		{
+			typedef LumpedRateModelWithoutPoresDG<parts::AxialConvectionDispersionOperatorBaseDG> AxialLRM;
+			return new AxialLRM(uoId);
+		}
+
+		IUnitOperation* createRadialLRMDG(UnitOpIdx uoId)
+		{
+			typedef LumpedRateModelWithoutPoresDG<parts::RadialConvectionDispersionOperatorBaseDG> RadialLRM;
+			return new RadialLRM(uoId);
+		}
+
 	}  // namespace model
 
 }  // namespace cadet

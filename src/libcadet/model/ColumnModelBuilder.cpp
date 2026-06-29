@@ -47,7 +47,7 @@ namespace model
 				if(particleType == "EQUILIBRIUM_PARTICLE")
 				{
 					if (discName == "DG")
-						model = new LumpedRateModelWithoutPoresDG<>(uoId);
+						model = createRadialLRMDG(uoId);
 					else if (discName == "FV")
 						model = createAxialFVLRM(uoId);
 					else
@@ -61,13 +61,13 @@ namespace model
 						model = createAxialFVGRM(uoId);
 				}
 				else
-					model = new ColumnModel1D<>(uoId);
+					model = createAxialCol1DDG(uoId);
 
 				paramProvider.popScope();
 			}
 			else if (discName == "DG")
 			{
-				model = new ColumnModel1D<>(uoId);
+				model = createAxialCol1DDG(uoId);
 			}
 			else if (discName == "FV")
 			{
@@ -121,9 +121,9 @@ namespace model
 			if (discName == "DG")
 			{
 				if (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES")
-					model = new LumpedRateModelWithoutPoresDG<>(uoId);
+					model = createAxialLRMDG(uoId);
 				else if (uoType == "LUMPED_RATE_MODEL_WITH_PORES" || uoType == "GENERAL_RATE_MODEL")
-					model = new ColumnModel1D<>(uoId);
+					model = createAxialCol1DDG(uoId);
 			}
 			else if (discName == "FV")
 			{
@@ -166,9 +166,9 @@ namespace model
 				if (discName == "DG")
 				{
 					if (particleType == "EQUILIBRIUM_PARTICLE")
-						model = new LumpedRateModelWithoutPoresDG<parts::RadialConvectionDispersionOperatorBaseDG>(uoId);
+						model = createRadialLRMDG(uoId);
 					else
-						model = new ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG>(uoId);
+						model = createRadialCol1DDG(uoId);
 				}
 				else if (discName == "FV")
 				{
@@ -193,7 +193,7 @@ namespace model
 				paramProvider.popScope();
 
 				if (discName == "DG")
-					model = new ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG>(uoId);
+					model = createRadialCol1DDG(uoId);
 				else
 					model = createRadialFVLRM(uoId); // LRM used for npartype = 0
 			}
@@ -206,9 +206,9 @@ namespace model
 			if (discName == "DG")
 			{
 				if (uoType == "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES")
-					model = new LumpedRateModelWithoutPoresDG<parts::RadialConvectionDispersionOperatorBaseDG>(uoId);
+					model = createRadialLRMDG(uoId);
 				else if (uoType == "RADIAL_LUMPED_RATE_MODEL_WITH_PORES" || uoType == "RADIAL_GENERAL_RATE_MODEL")
-					model = new ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG>(uoId);
+					model = createRadialCol1DDG(uoId);
 				else
 					LOG(Error) << "Radial DG only supports LRM, LRMP, and GRM currently for unit " << uoId;
 			}

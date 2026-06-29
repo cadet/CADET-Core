@@ -556,6 +556,9 @@ namespace cadet
 
 		};
 
+		IUnitOperation* createAxialLRMDG(UnitOpIdx uoId);
+		IUnitOperation* createRadialLRMDG(UnitOpIdx uoId);
+
 	} // namespace model
 } // namespace cadet
 

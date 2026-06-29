@@ -87,8 +87,8 @@ bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPara
 	}
 	if (paramProvider.exists("POLYNOMIAL_INTERPOLATION_NODES"))
 	{
-		if (paramProvider.getString("POLYNOMIAL_INTERPOLATION_NODES") != "LOBATTO")
-			throw InvalidParameterException("Invalid value for POLYNOMIAL_INTERPOLATION_NODES (only LOBATTO is supported)");
+		if (paramProvider.getString("POLYNOMIAL_INTERPOLATION_NODES") != "LEGENDRE_GAUSS_LOBATTO")
+			throw InvalidParameterException("Invalid value for POLYNOMIAL_INTERPOLATION_NODES (only LEGENDRE_GAUSS_LOBATTO is supported)");
 	}
 	_polyIntType = paramProvider.getInt("POLYNOMIAL_INTEGRATION_TYPE");
 	if (_polyIntType < 0 || _polyIntType > 2)
@@ -1093,10 +1093,6 @@ bool ConvectionDispersionOperatorDG<Operator>::solveTimeDerivativeSystem(const S
 template class ConvectionDispersionOperatorDG<AxialConvectionDispersionOperatorBaseDG>;
 template class ConvectionDispersionOperatorDG<RadialConvectionDispersionOperatorBaseDG>;
 
-/* ====================================================================================
- *  RADIAL CONVECTION DISPERSION OPERATOR DG IMPLEMENTATION
- * ==================================================================================== */
-
 /**
  * @brief Creates a RadialConvectionDispersionOperatorBaseDG
  */
@@ -1171,7 +1167,7 @@ bool RadialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPar
 			throw InvalidParameterException("Unknown POLYNOMIAL_INTERPOLATION_NODES '" + nodeType + "'. Supported: LEGENDRE_GAUSS_LOBATTO, CHEBYSHEV_GAUSS_LOBATTO");
 	}
 	else
-		dgtoolbox::cglNodesWeights(_polyDeg, _nodes, _invWeights, true);
+		dgtoolbox::lglNodesWeights(_polyDeg, _nodes, _invWeights, true);
 	_invMM = dgtoolbox::invMMatrix(_polyDeg, _nodes);
 	_polyDerM = dgtoolbox::derivativeMatrix(_polyDeg, _nodes);
 
@@ -1234,9 +1230,6 @@ bool RadialConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, IP
 	// Compute cell-dependent matrices
 	computeCellDependentMatrices();
 
-	// Read cross section area (not directly used in radial but needed for interface)
-	// In radial flow, cross section varies with radius
-
 	// Allocate Jacobian blocks (cell-dependent for radial)
 	_DGjacRadDispBlocks.resize(_nElem);
 	_DGjacRadConvBlocks.resize(_nElem);
@@ -1285,7 +1278,7 @@ bool RadialConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, IP
 			_dispersionCompIndep = false;
 	}
 
-	// Expand _colDispersion to make it component dependent (same as axial operator)
+	// Padding
 	if (_dispersionCompIndep)
 	{
 		std::vector<active> expanded(_colDispersion.size() * _nComp);
@@ -1722,15 +1715,6 @@ int RadialConvectionDispersionOperatorBaseDG::calcTransportJacobian(Eigen::Spars
 	return 1;
 }
 
-/* Note: The residual and Jacobian assembly methods would be implemented here.
- * Due to complexity, these are placeholders that will need full implementation.
- * The key structure follows the axial implementation but with:
- * 1. Cell-dependent mass matrices _invMM_rho[elem]
- * 2. Cell-dependent stiffness matrices _S_g[elem]
- * 3. Radial geometry factors (rho at boundaries)
- */
-
-// Placeholder for residual methods - will implement the full DG scheme
 int RadialConvectionDispersionOperatorBaseDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac)
 {
 	return residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, true>(model, t, secIdx, y, yDot, res, linalg::BandedEigenSparseRowIterator(jac, offsetC()));
@@ -1761,8 +1745,6 @@ int RadialConvectionDispersionOperatorBaseDG::residual(const IModel& model, doub
 	return residualImpl<active, active, active, linalg::BandedEigenSparseRowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandedEigenSparseRowIterator());
 }
 
-// Jacobian block computation for radial DG (cell-dependent)
-// Note: Radial DG uses exact integration only (no collocation scheme)
 Eigen::MatrixXd RadialConvectionDispersionOperatorBaseDG::DGjacobianConvBlockRadial(unsigned int cellIdx)
 {
 	// Returns d(res_e)/dc / u for convection only (caller multiplies by u).

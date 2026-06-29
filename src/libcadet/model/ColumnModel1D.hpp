@@ -625,6 +625,9 @@ protected:
 extern template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseDG>;
 extern template class ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG>;
 
+IUnitOperation* createAxialCol1DDG(UnitOpIdx uoId);
+IUnitOperation* createRadialCol1DDG(UnitOpIdx uoId);
+
 } // namespace model
 } // namespace cadet
 

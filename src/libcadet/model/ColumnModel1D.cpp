@@ -1733,7 +1733,23 @@ namespace cadet
 {
 namespace model
 {
+
 template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseDG>;
 template class ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG>;
+
+IUnitOperation* createAxialCol1DDG(UnitOpIdx uoId)
+{
+	typedef ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseDG> AxialCol1D;
+
+	return new AxialCol1D(uoId);
+}
+
+IUnitOperation* createRadialCol1DDG(UnitOpIdx uoId)
+{
+	typedef ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG> RadialCol1D;
+
+	return new RadialCol1D(uoId);
+}
+
 }  // namespace model
 }  // namespace cadet
