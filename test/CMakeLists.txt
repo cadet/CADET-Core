@@ -58,7 +58,7 @@ file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Paths_$<CONFIG>.cpp" INPUT "${
 
 set(TEST_ADDITIONAL_SOURCES "")
 if (ENABLE_2D_MODELS)
-	list(APPEND TEST_ADDITIONAL_SOURCES SparseFactorizableMatrix.cpp TwoDimConvectionDispersionOperator.cpp)
+	list(APPEND TEST_ADDITIONAL_SOURCES SparseFactorizableMatrix.cpp TwoDimConvectionDispersionOperatorFV.cpp)
 endif()
 
 list(APPEND TEST_ADDITIONAL_SOURCES ColumnModel1D.cpp LumpedRateModelWithoutPoresDG.cpp)
@@ -73,7 +73,7 @@ add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp Unit
 	MultiChannelTransportModel.cpp
 	Crystallization.cpp
 	CSTR-Residual.cpp CSTR-Simulation.cpp
-	ConvectionDispersionOperator.cpp
+	ConvectionDispersionOperatorFV.cpp
 	CellKernelTests.cpp
 	BindingModelTests.cpp BindingModels.cpp BindingModelAutoJacobian.cpp
 	ReactionModelTests.cpp ReactionModels.cpp

@@ -15,7 +15,7 @@
  * Implements the kernel of the axial convection dispersion transport operator.
  */
 
-#include "model/parts/AxialConvectionDispersionKernel.hpp"
+#include "model/parts/AxialConvectionDispersionKernelFV.hpp"
 #include "Weno.hpp"
 #include "HighResKoren.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"

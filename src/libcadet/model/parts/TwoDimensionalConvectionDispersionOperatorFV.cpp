@@ -10,7 +10,7 @@
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
 
-#include "model/parts/TwoDimensionalConvectionDispersionOperator.hpp"
+#include "model/parts/TwoDimensionalConvectionDispersionOperatorFV.hpp"
 #include "cadet/Exceptions.hpp"
 
 #include "Stencil.hpp"
@@ -21,7 +21,7 @@
 #include "SensParamUtil.hpp"
 #include "SimulationTypes.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"
-#include "model/parts/AxialConvectionDispersionKernel.hpp"
+#include "model/parts/AxialConvectionDispersionKernelFV.hpp"
 #include "model/ParameterDependence.hpp"
 #include "ConfigurationHelper.hpp"
 
@@ -465,7 +465,7 @@ namespace model
 namespace parts
 {
 
-class TwoDimensionalConvectionDispersionOperator::LinearSolver
+class TwoDimensionalConvectionDispersionOperatorFV::LinearSolver
 {
 public:
 
@@ -480,7 +480,7 @@ public:
 
 int schurComplementMultiplier2DCDO(void* userData, double const* x, double* z);
 
-class TwoDimensionalConvectionDispersionOperator::GmresSolver : public TwoDimensionalConvectionDispersionOperator::LinearSolver
+class TwoDimensionalConvectionDispersionOperatorFV::GmresSolver : public TwoDimensionalConvectionDispersionOperatorFV::LinearSolver
 {
 public:
 
@@ -535,14 +535,14 @@ protected:
 
 int schurComplementMultiplier2DCDO(void* userData, double const* x, double* z)
 {
-	TwoDimensionalConvectionDispersionOperator::GmresSolver* const cdo = static_cast<TwoDimensionalConvectionDispersionOperator::GmresSolver*>(userData);
+	TwoDimensionalConvectionDispersionOperatorFV::GmresSolver* const cdo = static_cast<TwoDimensionalConvectionDispersionOperatorFV::GmresSolver*>(userData);
 	return cdo->schurComplementMatrixVector(x, z);
 }
 
 #if defined(UMFPACK_FOUND) || defined(SUPERLU_FOUND) 
 
 	template <typename sparse_t>
-	class TwoDimensionalConvectionDispersionOperator::SparseDirectSolver : public TwoDimensionalConvectionDispersionOperator::LinearSolver
+	class TwoDimensionalConvectionDispersionOperatorFV::SparseDirectSolver : public TwoDimensionalConvectionDispersionOperatorFV::LinearSolver
 	{
 	public:
 
@@ -586,7 +586,7 @@ int schurComplementMultiplier2DCDO(void* userData, double const* x, double* z)
 
 #endif
 
-class TwoDimensionalConvectionDispersionOperator::DenseDirectSolver : public TwoDimensionalConvectionDispersionOperator::LinearSolver
+class TwoDimensionalConvectionDispersionOperatorFV::DenseDirectSolver : public TwoDimensionalConvectionDispersionOperatorFV::LinearSolver
 {
 public:
 
@@ -656,14 +656,14 @@ protected:
 
 
 /**
- * @brief Creates a TwoDimensionalConvectionDispersionOperator
+ * @brief Creates a TwoDimensionalConvectionDispersionOperatorFV
  */
-TwoDimensionalConvectionDispersionOperator::TwoDimensionalConvectionDispersionOperator() : _gridEquidistant(true), _colPorosities(0), _dir(0), _stencilMemory(0),
+TwoDimensionalConvectionDispersionOperatorFV::TwoDimensionalConvectionDispersionOperatorFV() : _gridEquidistant(true), _colPorosities(0), _dir(0), _stencilMemory(0),
 	_reconstrDerivatives(nullptr), _weno(nullptr), _koren(nullptr), _linearSolver(nullptr), _dispersionDep(nullptr)
 {
 }
 
-TwoDimensionalConvectionDispersionOperator::~TwoDimensionalConvectionDispersionOperator() CADET_NOEXCEPT
+TwoDimensionalConvectionDispersionOperatorFV::~TwoDimensionalConvectionDispersionOperatorFV() CADET_NOEXCEPT
 {
 	delete[] _reconstrDerivatives;
 	delete _weno;
@@ -681,7 +681,7 @@ TwoDimensionalConvectionDispersionOperator::~TwoDimensionalConvectionDispersionO
  * @param [in] dynamicReactions Determines whether the sparsity pattern accounts for dynamic reactions
  * @return @c true if configuration went fine, @c false otherwise
  */
-bool TwoDimensionalConvectionDispersionOperator::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol, unsigned int nRad, bool dynamicReactions)
+bool TwoDimensionalConvectionDispersionOperatorFV::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol, unsigned int nRad, bool dynamicReactions)
 {
 	_nComp = nComp;
 	_nCol = nCol;
@@ -846,7 +846,7 @@ bool TwoDimensionalConvectionDispersionOperator::configureModelDiscretization(IP
  * @param [out] parameters Map in which local parameters are inserted
  * @return @c true if configuration went fine, @c false otherwise
  */
-bool TwoDimensionalConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
+bool TwoDimensionalConvectionDispersionOperatorFV::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
 	// Read geometry parameters
 	if (paramProvider.exists("COL_RADIUS"))
@@ -985,7 +985,7 @@ bool TwoDimensionalConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, 
  * @param [in] secIdx Index of the new section that is about to be integrated
  * @return @c true if flow direction has changed, otherwise @c false
  */
-bool TwoDimensionalConvectionDispersionOperator::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
+bool TwoDimensionalConvectionDispersionOperatorFV::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 {
 	bool hasChanged = false;
 
@@ -1021,29 +1021,29 @@ bool TwoDimensionalConvectionDispersionOperator::notifyDiscontinuousSectionTrans
  * @param [in] in Total volumetric inlet flow rate
  * @param [in] out Total volumetric outlet flow rate
  */
-void TwoDimensionalConvectionDispersionOperator::setFlowRates(int compartment, const active& in, const active& out) CADET_NOEXCEPT
+void TwoDimensionalConvectionDispersionOperatorFV::setFlowRates(int compartment, const active& in, const active& out) CADET_NOEXCEPT
 {
 	_curVelocity[compartment] = _dir[compartment] * in / (_crossSections[compartment] * _colPorosities[compartment]);
 }
 
-void TwoDimensionalConvectionDispersionOperator::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
+void TwoDimensionalConvectionDispersionOperatorFV::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 {
 	for (unsigned int compartment = 0; compartment < _nRad; ++compartment)
 		_curVelocity[compartment] = in[compartment] / (_crossSections[compartment] * _colPorosities[compartment]);
 }
 
-double TwoDimensionalConvectionDispersionOperator::inletFactor(unsigned int idxSec, int idxRad) const CADET_NOEXCEPT
+double TwoDimensionalConvectionDispersionOperatorFV::inletFactor(unsigned int idxSec, int idxRad) const CADET_NOEXCEPT
 {
 	const double h = static_cast<double>(_colLength) / static_cast<double>(_nCol);
 	return -std::abs(static_cast<double>(_curVelocity[idxRad])) / h;
 }
 
-const active& TwoDimensionalConvectionDispersionOperator::axialDispersion(unsigned int idxSec, int idxRad, int idxComp) const CADET_NOEXCEPT
+const active& TwoDimensionalConvectionDispersionOperatorFV::axialDispersion(unsigned int idxSec, int idxRad, int idxComp) const CADET_NOEXCEPT
 {
 	return *(getSectionDependentSlice(_axialDispersion, _nRad * _nComp, idxSec) + idxRad * _nComp + idxComp);
 }
 
-const active& TwoDimensionalConvectionDispersionOperator::radialDispersion(unsigned int idxSec, int idxRad, int idxComp) const CADET_NOEXCEPT
+const active& TwoDimensionalConvectionDispersionOperatorFV::radialDispersion(unsigned int idxSec, int idxRad, int idxComp) const CADET_NOEXCEPT
 {
 	return *(getSectionDependentSlice(_radialDispersion, _nRad * _nComp, idxSec) + idxRad * _nComp + idxComp);
 }
@@ -1058,7 +1058,7 @@ const active& TwoDimensionalConvectionDispersionOperator::radialDispersion(unsig
  * @param [in] wantJac Determines whether the Jacobian is computed or not
  * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
  */
-int TwoDimensionalConvectionDispersionOperator::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, bool wantJac, WithoutParamSensitivity)
+int TwoDimensionalConvectionDispersionOperatorFV::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, bool wantJac, WithoutParamSensitivity)
 {
 	if (wantJac)
 		return residualImpl<double, double, double, true>(model, t, secIdx, y, yDot, res);
@@ -1066,7 +1066,7 @@ int TwoDimensionalConvectionDispersionOperator::residual(const IModel& model, do
 		return residualImpl<double, double, double, false>(model, t, secIdx, y, yDot, res);
 }
 
-int TwoDimensionalConvectionDispersionOperator::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithoutParamSensitivity)
+int TwoDimensionalConvectionDispersionOperatorFV::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithoutParamSensitivity)
 {
 	if (wantJac)
 		return residualImpl<active, active, double, true>(model, t, secIdx, y, yDot, res);
@@ -1074,7 +1074,7 @@ int TwoDimensionalConvectionDispersionOperator::residual(const IModel& model, do
 		return residualImpl<active, active, double, false>(model, t, secIdx, y, yDot, res);
 }
 
-int TwoDimensionalConvectionDispersionOperator::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity)
+int TwoDimensionalConvectionDispersionOperatorFV::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity)
 {
 	if (wantJac)
 		return residualImpl<double, active, active, true>(model, t, secIdx, y, yDot, res);
@@ -1082,7 +1082,7 @@ int TwoDimensionalConvectionDispersionOperator::residual(const IModel& model, do
 		return residualImpl<double, active, active, false>(model, t, secIdx, y, yDot, res);
 }
 
-int TwoDimensionalConvectionDispersionOperator::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity)
+int TwoDimensionalConvectionDispersionOperatorFV::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity)
 {
 	if (wantJac)
 		return residualImpl<active, active, active, true>(model, t, secIdx, y, yDot, res);
@@ -1091,7 +1091,7 @@ int TwoDimensionalConvectionDispersionOperator::residual(const IModel& model, do
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
-int TwoDimensionalConvectionDispersionOperator::residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res)
+int TwoDimensionalConvectionDispersionOperatorFV::residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res)
 {
 	if (wantJac)
 	{
@@ -1245,7 +1245,7 @@ int TwoDimensionalConvectionDispersionOperator::residualImpl(const IModel& model
 	return 0;
 }
 
-void TwoDimensionalConvectionDispersionOperator::setSparsityPattern()
+void TwoDimensionalConvectionDispersionOperatorFV::setSparsityPattern()
 {
 	// Note that we have to increase the lower non-zeros by 1 because the WENO stencil is applied to the
 	// right cell face (lower + 1 + upper) and to the left cell face (shift the stencil by -1 because influx of cell i
@@ -1335,7 +1335,7 @@ void TwoDimensionalConvectionDispersionOperator::setSparsityPattern()
  * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
  * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
  */
-void TwoDimensionalConvectionDispersionOperator::multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const
+void TwoDimensionalConvectionDispersionOperatorFV::multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const
 {
 	double* localRet = ret + _nComp * _nRad;
 	double const* localSdot = sDot + _nComp * _nRad;
@@ -1358,7 +1358,7 @@ void TwoDimensionalConvectionDispersionOperator::multiplyWithDerivativeJacobian(
  *
  * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
  */
-void TwoDimensionalConvectionDispersionOperator::assembleDiscretizedJacobian(double alpha)
+void TwoDimensionalConvectionDispersionOperatorFV::assembleDiscretizedJacobian(double alpha)
 {
 	_linearSolver->assembleDiscretizedJacobian(alpha);
 }
@@ -1369,7 +1369,7 @@ void TwoDimensionalConvectionDispersionOperator::assembleDiscretizedJacobian(dou
  * @param [in] alpha Factor in front of @f$ \frac{\partial F}{\partial \dot{y}} @f$
  * @return @c true if factorization went fine, otherwise @c false
  */
-bool TwoDimensionalConvectionDispersionOperator::assembleAndFactorizeDiscretizedJacobian(double alpha)
+bool TwoDimensionalConvectionDispersionOperatorFV::assembleAndFactorizeDiscretizedJacobian(double alpha)
 {
 	assembleDiscretizedJacobian(alpha);
 	return _linearSolver->factorize();
@@ -1384,7 +1384,7 @@ bool TwoDimensionalConvectionDispersionOperator::assembleAndFactorizeDiscretized
  * @param [in,out] rhs On entry, right hand side of the equation system. On exit, solution of the system.
  * @return @c true if the system was solved correctly, otherwise @c false
  */
-bool TwoDimensionalConvectionDispersionOperator::solveDiscretizedJacobian(double* rhs, double const* weight, double const* init, double outerTol) const
+bool TwoDimensionalConvectionDispersionOperatorFV::solveDiscretizedJacobian(double* rhs, double const* weight, double const* init, double outerTol) const
 {
 	return _linearSolver->solveDiscretizedJacobian(rhs, weight, init, outerTol);
 }
@@ -1397,12 +1397,12 @@ bool TwoDimensionalConvectionDispersionOperator::solveDiscretizedJacobian(double
  * @param [in,out] rhs On entry, right hand side. On exit, solution of the system.
  * @return @c true if the system was solved correctly, @c false otherwise
  */
-bool TwoDimensionalConvectionDispersionOperator::solveTimeDerivativeSystem(const SimulationTime& simTime, double* const rhs)
+bool TwoDimensionalConvectionDispersionOperatorFV::solveTimeDerivativeSystem(const SimulationTime& simTime, double* const rhs)
 {
 	return true;
 }
 
-void TwoDimensionalConvectionDispersionOperator::setEquidistantRadialDisc()
+void TwoDimensionalConvectionDispersionOperatorFV::setEquidistantRadialDisc()
 {
 	const active h = _colRadius / _nRad;
 	const double pi = 3.1415926535897932384626434;
@@ -1422,7 +1422,7 @@ void TwoDimensionalConvectionDispersionOperator::setEquidistantRadialDisc()
 	}
 }
 
-void TwoDimensionalConvectionDispersionOperator::setEquivolumeRadialDisc()
+void TwoDimensionalConvectionDispersionOperatorFV::setEquivolumeRadialDisc()
 {
 	const active volPerCompartment = _colRadius * _colRadius / _nRad;
 	const double pi = 3.1415926535897932384626434;
@@ -1442,7 +1442,7 @@ void TwoDimensionalConvectionDispersionOperator::setEquivolumeRadialDisc()
 	}
 }
 
-void TwoDimensionalConvectionDispersionOperator::setUserdefinedRadialDisc()
+void TwoDimensionalConvectionDispersionOperatorFV::setUserdefinedRadialDisc()
 {
 	const double pi = 3.1415926535897932384626434;
 	for (unsigned int r = 0; r < _nRad; ++r)
@@ -1453,7 +1453,7 @@ void TwoDimensionalConvectionDispersionOperator::setUserdefinedRadialDisc()
 	}
 }
 
-void TwoDimensionalConvectionDispersionOperator::updateRadialDisc()
+void TwoDimensionalConvectionDispersionOperatorFV::updateRadialDisc()
 {
 	if (_radialDiscretizationMode == RadialDiscretizationMode::Equidistant)
 		setEquidistantRadialDisc();
@@ -1463,7 +1463,7 @@ void TwoDimensionalConvectionDispersionOperator::updateRadialDisc()
 		setUserdefinedRadialDisc();
 }
 
-bool TwoDimensionalConvectionDispersionOperator::setParameter(const ParameterId& pId, double value)
+bool TwoDimensionalConvectionDispersionOperatorFV::setParameter(const ParameterId& pId, double value)
 {
 	if (_singlePorosity && (pId.name == hashString("COL_POROSITY")) && (pId.component == CompIndep) && (pId.boundState == BoundStateIndep)
 		&& (pId.reaction == ReactionIndep) && (pId.section == SectionIndep) && (pId.particleType == ParTypeIndep))
@@ -1506,7 +1506,7 @@ bool TwoDimensionalConvectionDispersionOperator::setParameter(const ParameterId&
 	return false;
 }
 
-bool TwoDimensionalConvectionDispersionOperator::setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value)
+bool TwoDimensionalConvectionDispersionOperatorFV::setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value)
 {
 	if (_singlePorosity && (pId.name == hashString("COL_POROSITY")) && (pId.component == CompIndep) && (pId.boundState == BoundStateIndep)
 		&& (pId.reaction == ReactionIndep) && (pId.section == SectionIndep) && (pId.particleType == ParTypeIndep))
@@ -1552,7 +1552,7 @@ bool TwoDimensionalConvectionDispersionOperator::setSensitiveParameterValue(cons
 	return false;
 }
 
-bool TwoDimensionalConvectionDispersionOperator::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
+bool TwoDimensionalConvectionDispersionOperatorFV::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
 {
 	if (_singlePorosity && (pId.name == hashString("COL_POROSITY")) && (pId.component == CompIndep) && (pId.boundState == BoundStateIndep)
 		&& (pId.reaction == ReactionIndep) && (pId.section == SectionIndep) && (pId.particleType == ParTypeIndep))

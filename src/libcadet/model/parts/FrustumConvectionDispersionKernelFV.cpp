@@ -15,7 +15,7 @@
  * Implements the kernel of the frustum convection dispersion transport operator.
  */
 
-#include "model/parts/FrustumConvectionDispersionKernel.hpp"
+#include "model/parts/FrustumConvectionDispersionKernelFV.hpp"
 #include "Weno.hpp"
 #include "HighResKoren.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"

@@ -20,7 +20,7 @@
 
 #include "UnitOperationBase.hpp"
 #include "cadet/SolutionExporter.hpp"
-#include "model/parts/ConvectionDispersionOperator.hpp"
+#include "model/parts/ConvectionDispersionOperatorFV.hpp"
 #include "model/particle/ParticleModel.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/SparseMatrix.hpp"
@@ -41,19 +41,19 @@ namespace
 	struct LumpedRateModelWithoutPoresName { };
 
 	template <>
-	struct LumpedRateModelWithoutPoresName<cadet::model::parts::AxialConvectionDispersionOperatorBase>
+	struct LumpedRateModelWithoutPoresName<cadet::model::parts::AxialConvectionDispersionOperatorBaseFV>
 	{
 		static const char* identifier() CADET_NOEXCEPT { return "LUMPED_RATE_MODEL_WITHOUT_PORES"; }
 	};
 
 	template <>
-	struct LumpedRateModelWithoutPoresName<cadet::model::parts::RadialConvectionDispersionOperatorBase>
+	struct LumpedRateModelWithoutPoresName<cadet::model::parts::RadialConvectionDispersionOperatorBaseFV>
 	{
 		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES"; }
 	};
 
 	template <>
-	struct LumpedRateModelWithoutPoresName<cadet::model::parts::FrustumConvectionDispersionOperatorBase>
+	struct LumpedRateModelWithoutPoresName<cadet::model::parts::FrustumConvectionDispersionOperatorBaseFV>
 	{
 		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_LUMPED_RATE_MODEL_WITHOUT_PORES"; }
 	};

@@ -2036,21 +2036,21 @@ int LumpedRateModelWithoutPores<ConvDispOperator>::Exporter::writeOutlet(double*
 
 IUnitOperation* createAxialFVLRM(UnitOpIdx uoId)
 {
-	typedef LumpedRateModelWithoutPores<parts::AxialConvectionDispersionOperatorBase> AxialLRM;
+	typedef LumpedRateModelWithoutPores<parts::AxialConvectionDispersionOperatorBaseFV> AxialLRM;
 
 	return new AxialLRM(uoId);
 }
 
 IUnitOperation* createRadialFVLRM(UnitOpIdx uoId)
 {
-	typedef LumpedRateModelWithoutPores<parts::RadialConvectionDispersionOperatorBase> RadialLRM;
+	typedef LumpedRateModelWithoutPores<parts::RadialConvectionDispersionOperatorBaseFV> RadialLRM;
 
 	return new RadialLRM(uoId);
 }
 
 IUnitOperation* createFrustumFVLRM(UnitOpIdx uoId)
 {
-	typedef LumpedRateModelWithoutPores<parts::FrustumConvectionDispersionOperatorBase> FrustumLRM;
+	typedef LumpedRateModelWithoutPores<parts::FrustumConvectionDispersionOperatorBaseFV> FrustumLRM;
 
 	return new FrustumLRM(uoId);
 }

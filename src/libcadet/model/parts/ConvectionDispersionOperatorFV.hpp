@@ -66,12 +66,12 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
  * It assumes that there is no offset to the inlet in the local state vector and that the firsts cell is placed
  * directly after the inlet DOFs.
  */
-class AxialConvectionDispersionOperatorBase
+class AxialConvectionDispersionOperatorBaseFV
 {
 public:
 
-	AxialConvectionDispersionOperatorBase();
-	~AxialConvectionDispersionOperatorBase() CADET_NOEXCEPT;
+	AxialConvectionDispersionOperatorBaseFV();
+	~AxialConvectionDispersionOperatorBaseFV() CADET_NOEXCEPT;
 
 	void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
 
@@ -180,12 +180,12 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{\rho},i} \frac{\partial c_i}{\part
  * It assumes that there is no offset to the inlet in the local state vector and that the firsts cell is placed
  * directly after the inlet DOFs.
  */
-class RadialConvectionDispersionOperatorBase
+class RadialConvectionDispersionOperatorBaseFV
 {
 public:
 
-	RadialConvectionDispersionOperatorBase();
-	~RadialConvectionDispersionOperatorBase() CADET_NOEXCEPT;
+	RadialConvectionDispersionOperatorBaseFV();
+	~RadialConvectionDispersionOperatorBaseFV() CADET_NOEXCEPT;
 
 	void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
 
@@ -301,12 +301,12 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{x},i} \frac{\partial c_i}{\partial
  * It assumes that there is no offset to the inlet in the local state vector and that the firsts cell is placed
  * directly after the inlet DOFs.
  */
-class FrustumConvectionDispersionOperatorBase
+class FrustumConvectionDispersionOperatorBaseFV
 {
 public:
 
-	FrustumConvectionDispersionOperatorBase();
-	~FrustumConvectionDispersionOperatorBase() CADET_NOEXCEPT;
+	FrustumConvectionDispersionOperatorBaseFV();
+	~FrustumConvectionDispersionOperatorBaseFV() CADET_NOEXCEPT;
 
 	void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
 
@@ -409,7 +409,7 @@ protected:
 
 /**
  * @brief Convection dispersion transport operator
- * @details This class wraps AxialConvectionDispersionOperatorBase or RadialConvectionDispersionOperatorBase
+ * @details This class wraps AxialConvectionDispersionOperatorBaseFV or RadialConvectionDispersionOperatorBaseFV
  * and provides all the functionality it does. In addition, the Jacobian is stored and corresponding functions
  * are provided (assembly, factorization, solution, retrieval).
  * 
@@ -498,13 +498,13 @@ protected:
 	inline int offsetC() const CADET_NOEXCEPT { return _baseOp.nComp(); }
 };
 
-extern template class ConvectionDispersionOperator<AxialConvectionDispersionOperatorBase>;
-extern template class ConvectionDispersionOperator<RadialConvectionDispersionOperatorBase>;
-extern template class ConvectionDispersionOperator<FrustumConvectionDispersionOperatorBase>;
+extern template class ConvectionDispersionOperator<AxialConvectionDispersionOperatorBaseFV>;
+extern template class ConvectionDispersionOperator<RadialConvectionDispersionOperatorBaseFV>;
+extern template class ConvectionDispersionOperator<FrustumConvectionDispersionOperatorBaseFV>;
 
-typedef ConvectionDispersionOperator<AxialConvectionDispersionOperatorBase> AxialConvectionDispersionOperator;
-typedef ConvectionDispersionOperator<RadialConvectionDispersionOperatorBase> RadialConvectionDispersionOperator;
-typedef ConvectionDispersionOperator<FrustumConvectionDispersionOperatorBase> FrustumConvectionDispersionOperator;
+typedef ConvectionDispersionOperator<AxialConvectionDispersionOperatorBaseFV> AxialConvectionDispersionOperator;
+typedef ConvectionDispersionOperator<RadialConvectionDispersionOperatorBaseFV> RadialConvectionDispersionOperator;
+typedef ConvectionDispersionOperator<FrustumConvectionDispersionOperatorBaseFV> FrustumConvectionDispersionOperator;
 
 } // namespace parts
 } // namespace model
