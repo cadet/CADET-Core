@@ -185,7 +185,6 @@ Spatial discretization - Numerical Methods
 
 CADET offers two spatial discretization methods: Finite Volumes (FV) and Discontinuous Galerkin (DG). Each method has its own set of input fields.
 While both methods approximate the same solution to the same underlying model, they may differ in terms of computational performance.
-The radial DG method uses exact integration with rho-weighted mass matrices to accurately capture the cylindrical geometry.
 
 For further information on the choice of discretization methods and their parameters, see :ref:`spatial_discretization_methods`.
 
@@ -224,6 +223,14 @@ Discontinuous Galerkin
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
    =============  =========================  =============
 
+``POLYNOMIAL_INTERPOLATION_NODES``
+
+   Specifies the interpolation nodes for the DG ansatz. Optional, defaults to `LEGENDRE_GAUSS_LOBATTO`.
+
+   =============  ========================================================================================  =============
+   **Type:** int  **Range:** :math:`\{\texttt{LEGENDRE_GAUSS_LOBATTO}, \texttt{CHEBYSHEV_GAUSS_LOBATTO}\}`  **Length:** 1
+   =============  ========================================================================================  =============
+   
 ``LINEAR_SOLVER``
 
    Specifies the linear solver variant used to factorize the semidiscretized system. Optional, defaults to ``SparseLU``. For more information on these solvers, we refer to the `Eigen documentation <https://eigen.tuxfamily.org/>`_
@@ -234,8 +241,6 @@ Discontinuous Galerkin
 
 When using the DG method, we generally recommend specifying ``USE_MODIFIED_NEWTON = 1`` in :ref:`FFSolverTime`, i.e. to use the modified Newton method to solve the linear system within the time integrator.
 
-.. note::
-   The radial DG method always uses exact integration (no collocation variant). The ``POLYNOMIAL_INTEGRATION_TYPE`` field is ignored for radial flow models.
 
 Finite Volumes
 ^^^^^^^^^^^^^^
