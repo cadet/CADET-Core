@@ -90,7 +90,9 @@ bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPara
 		if (paramProvider.getString("POLYNOMIAL_INTERPOLATION_NODES") != "LEGENDRE_GAUSS_LOBATTO")
 			throw InvalidParameterException("Invalid value for POLYNOMIAL_INTERPOLATION_NODES (only LEGENDRE_GAUSS_LOBATTO is supported)");
 	}
-	_polyIntType = paramProvider.getInt("POLYNOMIAL_INTEGRATION_TYPE");
+
+	_polyIntType = paramProvider.exists("POLYNOMIAL_INTEGRATION_TYPE") ? paramProvider.getInt("POLYNOMIAL_INTEGRATION_TYPE") : 0;
+	
 	if (_polyIntType < 0 || _polyIntType > 2)
 		throw InvalidParameterException("Invalid value for POLYNOMIAL_INTEGRATION_TYPE (should be 0, 1, or 2)");
 	_exactInt = static_cast<bool>(_polyIntType); // only integration mode 0 applies the inexact collocated diagonal LGL mass matrix
