@@ -163,7 +163,7 @@ Hill Kinetics
 ^^^^^^^^^^^^^
 
 For substrates without any form of inhibition, CADET supports a Hill-kinetics
-extension of the Michaelis-Menten kinetic, introducing a cooperativity exponent :math:`n`:
+extension of the Michaelis-Menten kinetic, introducing a cooperativity exponent :math:`n_{i,j}` for substrate :math:`i` in reaction :math:`j`:
 
 .. math::
 
@@ -177,16 +177,12 @@ where
 - and :math:`K_{\mathrm{M}_{i,j}}`, :math:`c_{i,j}` are defined as above.
 
 For :math:`n_{i,j} = 1`, this reduces to standard Michaelis-Menten kinetics.
-Values :math:`n_{i,j} > 1` describe positive cooperativity (sigmoidal substrate response),
+Values :math:`n_{i,j} > 1` describe positive cooperativity,
 while :math:`0 < n_{i,j} < 1` describes negative cooperativity.
 
 .. note::
     The Hill exponent is only applied to substrates that have **no** competitive or uncompetitive
     inhibitors acting on them (:math:`\mathcal{I}^{c}_{i,j} = \mathcal{I}^{uc}_{i,j} = \emptyset`).
-    If any inhibitor is present for a given substrate, the corresponding Hill coefficient is ignored
-    and the flux falls back to standard (linear, :math:`n=1`) Michaelis-Menten kinetics for that
-    substrate, including any competitive, uncompetitive, or mixed inhibition terms described above.
-
 
 Literature
 ^^^^^^^^^^
