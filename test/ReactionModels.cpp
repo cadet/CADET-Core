@@ -220,7 +220,7 @@ TEST_CASE("MassActionLaw one reaction vs. two separate reactions", "[MassActionL
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
-TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD without inhibition with Hill kinetics", "[MichaelisMenten],[Hill],[ReactionModel],[Jacobian],[AD],[CI]")
+TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD without inhibition with Hill kinetics", "[MichaelisMenten],[Hill],[ReactionModel],[Jacobian],[AD]")
 {
 	const unsigned int nBound[] = { 1, 2, 1 };
 	const double point[] = { 1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8 };
