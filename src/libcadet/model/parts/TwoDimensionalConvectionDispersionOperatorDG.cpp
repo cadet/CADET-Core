@@ -476,7 +476,7 @@ void TwoDimensionalConvectionDispersionOperatorDG::writeAxialCoordinates(double*
 	double* leftElemBndries = new double[_axNElem];
 	for (int elem = 0; elem < _axNElem; elem++)
 		leftElemBndries[elem] = static_cast<double>(_axDelta) * elem;
-	dgtoolbox::writeDGCoordinates(coords, _axNElem, _axNNodes, static_cast<const double*>(&_axNodes[0]), static_cast<double>(_colLength), leftElemBndries);
+	dgtoolbox::writeDGCoordinates(coords, _axNElem, _axNNodes, static_cast<const double*>(&_axNodes[0]), static_cast<double>(_bedLength), leftElemBndries);
 	delete[] leftElemBndries;
 }
 void TwoDimensionalConvectionDispersionOperatorDG::writeRadialCoordinates(double* coords) const
@@ -640,10 +640,10 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configureModelDiscretization(
 bool TwoDimensionalConvectionDispersionOperatorDG::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
 	// Read geometry parameters
-	_colLength = paramProvider.getDouble("COL_LENGTH");
+	_bedLength = paramProvider.getDouble("COL_LENGTH");
 	_colRadius = paramProvider.getDouble("COL_RADIUS");
 	readScalarParameterOrArray(_colPorosities, paramProvider, "COL_POROSITY", 1);
-	_axDelta = _colLength / _axNElem; // deltaR is treated in updateRadialDisc
+	_axDelta = _bedLength / _axNElem; // deltaR is treated in updateRadialDisc
 
 	if ((_colPorosities.size() != 1) && (_colPorosities.size() != _radNElem))
 		throw InvalidParameterException("Number of elements in field COL_POROSITY is neither 1 nor radNElem (" + std::to_string(_radNElem) + ")");
@@ -749,7 +749,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configure(UnitOpIdx unitOpIdx
 	_radialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _radialDispersion, "COL_DISPERSION_RADIAL", _nComp, _radNElem, unitOpIdx);
 
 	// Add parameters to map
-	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
+	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_bedLength;
 	parameters[makeParamId(hashString("COL_RADIUS"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colRadius;
 	registerParam1DArray(parameters, _colPorosities, [=](bool multi, unsigned int i) { return makeParamId(hashString("COL_POROSITY"), unitOpIdx, CompIndep, multi ? i : ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
 
@@ -852,7 +852,7 @@ void TwoDimensionalConvectionDispersionOperatorDG::setFlowRates(active const* in
 
 double TwoDimensionalConvectionDispersionOperatorDG::inletFactor(unsigned int idxSec, int idxRad) const CADET_NOEXCEPT // todo is this function needed?
 {
-	const double h = static_cast<double>(_colLength) / static_cast<double>(_axNPoints);
+	const double h = static_cast<double>(_bedLength) / static_cast<double>(_axNPoints);
 	return -std::abs(static_cast<double>(_curVelocity[idxRad])) / h;
 }
 

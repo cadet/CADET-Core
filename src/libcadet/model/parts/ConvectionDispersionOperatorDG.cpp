@@ -158,8 +158,8 @@ bool AxialConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, IPa
 	const bool firstConfigCall = _DGjacAxDispBlocks == nullptr; // used to not multiply allocate memory
 
 	// Read geometry parameters
-	_colLength = paramProvider.getDouble("COL_LENGTH");
-	_deltaZ = _colLength / _nElem;
+	_bedLength = paramProvider.getDouble("COL_LENGTH");
+	_deltaZ = _bedLength / _nElem;
 
 	/* compute dispersion jacobian blocks(without parameters except element spacing, i.e. static entries) */
 	// we only need unique dispersion blocks, which are given by elements 1, 2, nElem for inexact integration DG and by elements 1, 2, 3, nElem-1, nElem for eaxct integration DG
@@ -267,7 +267,7 @@ bool AxialConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, IPa
 		registerParam2DArray(parameters, _colDispersion, [=](bool multi, unsigned int sec, unsigned int comp) { return makeParamId(hashString("COL_DISPERSION"), unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _nComp);
 
 	registerScalarSectionDependentParam(hashString("VELOCITY"), parameters, _velocity, unitOpIdx, ParTypeIndep);
-	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
+	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_bedLength;
 	parameters[makeParamId(hashString("CROSS_SECTION_AREA"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_crossSection;
 
 	return true;
@@ -841,14 +841,15 @@ bool RadialConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, IP
 	// Read geometry parameters
 	_innerRadius = paramProvider.getDouble("COL_RADIUS_INNER");
 	_outerRadius = paramProvider.getDouble("COL_RADIUS_OUTER");
+	_bedLength = _outerRadius - _innerRadius;
 	_deltaRho = (_outerRadius - _innerRadius) / static_cast<double>(_nElem);
 
 	// COL_LENGTH is optional for radial models.
 	// When not set, VELOCITY_COEFF is used directly (like FV radial operator).
 	// When set, network flow rate is converted to velocity via Q / (2*pi*L*eps).
-	_colLength = -1.0;
+	_bedHeight = -1.0;
 	if (paramProvider.exists("COL_LENGTH"))
-		_colLength = paramProvider.getDouble("COL_LENGTH");
+		_bedHeight = paramProvider.getDouble("COL_LENGTH");
 
 	// Compute radial node coordinates
 	computeRadialNodeCoordinates();
@@ -868,7 +869,7 @@ bool RadialConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, IP
 		readScalarParameterOrArray(_velocity, paramProvider, "VELOCITY_COEFF", 1);
 	}
 
-	if (_velocity.empty() && (_colLength <= 0.0))
+	if (_velocity.empty() && (_bedHeight <= 0.0))
 	{
 		throw InvalidParameterException("At least one of COL_LENGTH and VELOCITY_COEFF has to be set");
 	}
@@ -949,7 +950,7 @@ bool RadialConvectionDispersionOperatorBaseDG::notifyDiscontinuousSectionTransit
 
 	const int dirOld = _dir;
 
-	if (_colLength <= 0.0)
+	if (_bedHeight <= 0.0)
 	{
 		// Use the provided velocity coefficient directly
 		_curVelocity = getSectionDependentScalar(_velocity, secIdx);
@@ -1273,8 +1274,8 @@ void RadialConvectionDispersionOperatorBaseDG::setFlowRates(const active& in, co
 {
 	const double pi = 3.1415926535897932384626434;
 
-	if (_colLength > 0.0)
-		_curVelocity = _dir * in / (2.0 * pi * _colLength * colPorosity);
+	if (_bedHeight > 0.0)
+		_curVelocity = _dir * in / (2.0 * pi * _bedHeight * colPorosity);
 
 }
 

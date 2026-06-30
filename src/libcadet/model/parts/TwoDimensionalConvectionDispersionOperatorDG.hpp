@@ -107,7 +107,7 @@ public:
 	bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
 	bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& id, double value);
 
-	inline const active& columnLength() const CADET_NOEXCEPT { return _colLength; }
+	inline const active& columnLength() const CADET_NOEXCEPT { return _bedLength; }
 	inline const active& columnRadius() const CADET_NOEXCEPT { return _colRadius; }
 	inline const active& currentVelocity(int idx) const CADET_NOEXCEPT { return _curVelocity[idx]; }
 	inline const active& columnPorosity(int idx) const CADET_NOEXCEPT { return _colPorosities[idx]; }
@@ -125,7 +125,7 @@ public:
 		// const unsigned int cell = floor(idx / _nNodes);
 		// const unsigned int node = idx % _nNodes;
 		// divide by column length to get relative position
-		return (floor(idx / _axNNodes) * static_cast<double>(_axDelta) + 0.5 * static_cast<double>(_axDelta) * (1.0 + _axNodes[idx % _axNNodes])) / static_cast<double>(_colLength);
+		return (floor(idx / _axNNodes) * static_cast<double>(_axDelta) + 0.5 * static_cast<double>(_axDelta) * (1.0 + _axNodes[idx % _axNNodes])) / static_cast<double>(_bedLength);
 	}
 	double relativeRadialCoordinate(unsigned int idx) const
 	{
@@ -252,7 +252,7 @@ protected:
 	bool _hasDynamicReactions; //!< Determines whether the model has dynamic reactions (only relevant for sparsity pattern)
 
 	// geometry
-	active _colLength; //!< Column length \f$ L \f$
+	active _bedLength; //!< Column length \f$ L \f$
 	active _colRadius; //!< Column radius \f$ r_c \f$
 	active _axDelta; //!< Axial equidistant element spacing
 	std::vector<active> _radDelta; //!< Radial element spacing

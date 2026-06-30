@@ -96,7 +96,7 @@ namespace cadet
 				void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 				void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset = 0);
 
-				inline const active& columnLength() const CADET_NOEXCEPT { return _colLength; }
+				inline const active& bedLength() const CADET_NOEXCEPT { return _bedLength; }
 				inline const active& currentVelocity(double pos) const CADET_NOEXCEPT { return _curVelocity; }
 				inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelocity >= 0.0; }
 
@@ -106,7 +106,7 @@ namespace cadet
 					//const unsigned int element = floor(idx / _nNodes);
 					//const unsigned int node = idx % _nNodes;
 					// divide by column length to get relative position
-					return (floor(idx / _nNodes) * static_cast<double>(_deltaZ) + 0.5 * static_cast<double>(_deltaZ) * (1.0 + _nodes[idx % _nNodes])) / static_cast<double>(_colLength);
+					return (floor(idx / _nNodes) * static_cast<double>(_deltaZ) + 0.5 * static_cast<double>(_deltaZ) * (1.0 + _nodes[idx % _nNodes])) / static_cast<double>(_bedLength);
 				}
 
 				inline const double* LGLnodes() const CADET_NOEXCEPT { return &_nodes[0]; }
@@ -176,7 +176,7 @@ namespace cadet
 				Eigen::Vector<active, 4> _boundary; //!< stores the boundary values from Danckwert boundary conditions
 
 				// Simulation parameters
-				active _colLength; //!< Column length \f$ L \f$
+				active _bedLength; //!< Column length \f$ L \f$
 				active _crossSection; //!< Cross section area 
 
 				// Section dependent parameters
@@ -1198,7 +1198,7 @@ namespace cadet
 				void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset = 0);
 
 				// Geometry accessors
-				inline const active& columnLength() const CADET_NOEXCEPT { return _colLength; }
+				inline const active& bedLength() const CADET_NOEXCEPT { return _bedLength; }
 				inline const active& innerRadius() const CADET_NOEXCEPT { return _innerRadius; }
 				inline const active& outerRadius() const CADET_NOEXCEPT { return _outerRadius; }
 				active currentVelocity(double pos) const CADET_NOEXCEPT;
@@ -1278,7 +1278,8 @@ namespace cadet
 				unsigned int _strideElem; //!< Stride between elements
 
 				// Radial geometry
-				active _colLength;        //!< Column height L
+				active _bedLength;        //!< Bed length
+				active _bedHeight;        //!< Column height L
 				active _innerRadius;      //!< Inner radius rho_inner
 				active _outerRadius;      //!< Outer radius rho_outer
 				active _deltaRho;         //!< Element spacing (uniform grid)
