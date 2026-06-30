@@ -366,7 +366,7 @@ protected:
                 }
 
 				double n = 1.0;
-                if (compInhSum == 0.0 && uncompInhSum == 0.0) {
+                if (compInhSum == 0.0 && uncompInhSum == 0.0 && (p->hillc.size() != 0)) {
                     n = static_cast<double>(p->hillc[getKmmParamIndex(r, static_cast<unsigned int>(j))]);
                 }
                 // KMM for this substrate
@@ -449,7 +449,7 @@ protected:
                 uncompInhSums[subIdx] = uncompInhSum;
 
                 double n = 1.0;
-                if (compInhSum == 0.0 && uncompInhSum == 0.0) {
+                if (compInhSum == 0.0 && uncompInhSum == 0.0 && (p->hillc.size() != 0)) {
                     n = static_cast<double>(p->hillc[getKmmParamIndex(r, static_cast<unsigned int>(j))]);
                 }
 
@@ -513,7 +513,7 @@ protected:
 
 					// Exponential for hill kinetics
                     double n = 1.0;
-                    if (compInhSum == 0.0 && uncompInhSum == 0.0) {
+                    if (compInhSum == 0.0 && uncompInhSum == 0.0 && (p->hillc.size() != 0)) {
                         n = static_cast<double>(p->hillc[getKmmParamIndex(r, comp)]);
                     }
                     // Denominator of substrate rate
