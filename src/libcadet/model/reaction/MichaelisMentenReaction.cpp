@@ -40,7 +40,7 @@
             { "type": "ComponentDependentReactionDependentParameter", "varName": "kInhibitUnComp", "confName": "MM_KI_UC"},
             { "type": "ComponentDependentReactionDependentParameter", "varName": "kInhibit", "confName": "MM_KI"},
             { "type": "ComponentDependentReactionDependentParameter", "varName": "KPrefactor", "confName": "MM_PRE_K"},
-            { "type": "ComponentDependentReactionDependentParameter", "varName": "hillc", "confName": "MM_HILL_C"}
+            { "type": "ComponentDependentReactionDependentParameter", "varName": "exponent", "confName": "MM_EXP"}
         ]
 }
 </codegen>*/
@@ -52,7 +52,7 @@
  MM_KI_C    - Competitive inhibition constants (\tilde{K}_{i,j,k}) ( dim: number of reactions x number of components x number of componetns)
  MM_KI_UC   - Uncompetitive inhibition constants (K_{i,j,k}) (dim: number of reactions x number of components x number of componetns)
  MM_PRE_K   - Prefactor component influcence constant (dim: number of reactions x number of components)
- MM_HILL_C  - Exponential constant for hill kinetics of substrate (dim: number of reactions x number of components)
+ MM_EXP     - Exponential constant for hill kinetics of substrate (dim: number of reactions x number of components)
 */
 
 
@@ -167,7 +167,6 @@ protected:
     std::vector<std::vector<int>> _idxSubstrate; //!< Indices of substrate components for each reaction [reaction][substrate indices]
     std::vector<std::vector<std::unordered_set<int>>> _idxCompInhibitors; //!< Indices of competitive inhibitors [reaction][substrate][inhibitor indices]
     std::vector<std::vector<std::unordered_set<int>>> _idxUncompInhibitors; //!< Indices of uncompetitive inhibitors [reaction][substrate][inhibitor indices]
-    std::vector<std::vector<int>> _idxHillSubstrates;
 
     // Helper function to calculate the parameter index for inhibition
     inline unsigned int getInhibitionParamIndex(unsigned int reaction, int substrate, unsigned int inhibitor) const
@@ -199,7 +198,7 @@ protected:
             std::vector<double> KIC(_stoichiometry.columns() * _nComp * _nComp); 
             std::vector<double> KIUC(_stoichiometry.columns() * _nComp * _nComp);
             std::vector<double> PRE_K(_stoichiometry.columns() * _nComp);
-            std::vector<double> HILL_C(_stoichiometry.columns() * _nComp);
+            std::vector<double> EXP(_stoichiometry.columns() * _nComp);
             //bool hasCompetiveInhibition = false;
             
             if (paramProvider.exists("MM_KI_C"))
@@ -228,16 +227,16 @@ protected:
                     throw InvalidParameterException("MM_PRE_K must have the size (number of reactions) x (number of components) ");
             }
 
-            if (paramProvider.exists("MM_HILL_C"))
+            if (paramProvider.exists("MM_EXP"))
             {
-                HILL_C = paramProvider.getDoubleArray("MM_HILL_C");
-                if (HILL_C.size() != _stoichiometry.columns() * _nComp)
-                    throw InvalidParameterException("MM_HILL_C must have the size (number of reactions) x (number of components) ");
+                EXP = paramProvider.getDoubleArray("MM_EXP");
+                if (EXP.size() != _stoichiometry.columns() * _nComp)
+                    throw InvalidParameterException("MM_EXP must have the size (number of reactions) x (number of components) ");
                 for (unsigned int r = 0; r < static_cast<unsigned int>(_stoichiometry.columns()); ++r)
                 {
                     for (unsigned int idx = r * _nComp * _nComp; idx < (r + 1) * _nComp * _nComp; ++idx)
                         if (KIC[idx] != 0.0 || KIUC[idx] != 0.0)
-                            throw InvalidParameterException("MM_HILL_C can only be set for reactions that don't contain any inhibition");
+                            throw InvalidParameterException("MM_EXP can only be set for reactions that don't contain any inhibition");
                 }
             }
 
@@ -252,14 +251,12 @@ protected:
             _idxSubstrate.clear();
             _idxCompInhibitors.resize(nReactions);
             _idxUncompInhibitors.resize(nReactions);
-			_idxHillSubstrates.clear();
             
 
             for (unsigned int r = 0; r < nReactions; ++r)
             {
                 std::vector<int> idxSubstrateReaction_r;
                 std::vector<int> idxPrefactorReaction_r;
-                std::vector<int> idxHillSubstrateReaction_r;
 
                 for (unsigned int c = 0; c < _nComp; ++c)
                 {
@@ -270,9 +267,7 @@ protected:
                     double pre_k = static_cast<double>(PRE_K[paramIdx]);
                     if (pre_k != 0.0)
 						idxPrefactorReaction_r.push_back(static_cast<int>(c));
-                    double hill_c = static_cast<double>(HILL_C[paramIdx]);
-                    if (hill_c != 1.0)
-                        idxHillSubstrateReaction_r.push_back(static_cast<int>(c));
+                    double exponent = static_cast<double>(EXP[paramIdx]);
                 }
 
                 if (idxSubstrateReaction_r.empty())
@@ -366,8 +361,8 @@ protected:
                 }
 
 				double n = 1.0;
-                if (compInhSum == 0.0 && uncompInhSum == 0.0 && (p->hillc.size() != 0)) {
-                    n = static_cast<double>(p->hillc[getKmmParamIndex(r, static_cast<unsigned int>(j))]);
+                if (compInhSum == 0.0 && uncompInhSum == 0.0 && (p->exponent.size() != 0)) {
+                    n = static_cast<double>(p->exponent[getKmmParamIndex(r, static_cast<unsigned int>(j))]);
                 }
                 // KMM for this substrate
                 const unsigned int kmmIdx = getKmmParamIndex(r, static_cast<unsigned int>(j));
@@ -449,8 +444,8 @@ protected:
                 uncompInhSums[subIdx] = uncompInhSum;
 
                 double n = 1.0;
-                if (compInhSum == 0.0 && uncompInhSum == 0.0 && (p->hillc.size() != 0)) {
-                    n = static_cast<double>(p->hillc[getKmmParamIndex(r, static_cast<unsigned int>(j))]);
+                if (compInhSum == 0.0 && uncompInhSum == 0.0 && (p->exponent.size() != 0)) {
+                    n = static_cast<double>(p->exponent[getKmmParamIndex(r, static_cast<unsigned int>(j))]);
                 }
 
                 // KMM for this substrate
@@ -513,8 +508,8 @@ protected:
 
 					// Exponential for hill kinetics
                     double n = 1.0;
-                    if (compInhSum == 0.0 && uncompInhSum == 0.0 && (p->hillc.size() != 0)) {
-                        n = static_cast<double>(p->hillc[getKmmParamIndex(r, comp)]);
+                    if (compInhSum == 0.0 && uncompInhSum == 0.0 && (p->exponent.size() != 0)) {
+                        n = static_cast<double>(p->exponent[getKmmParamIndex(r, comp)]);
                     }
                     // Denominator of substrate rate
                     const double denominator = (pow(kMM_j,n) * (1.0 + compInhSum)) + pow(y[j],n) * (1.0 + uncompInhSum);
