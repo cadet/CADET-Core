@@ -267,7 +267,6 @@ protected:
                     double pre_k = static_cast<double>(PRE_K[paramIdx]);
                     if (pre_k != 0.0)
 						idxPrefactorReaction_r.push_back(static_cast<int>(c));
-                    double exponent = static_cast<double>(EXP[paramIdx]);
                 }
 
                 if (idxSubstrateReaction_r.empty())
