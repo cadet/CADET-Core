@@ -28,8 +28,6 @@ namespace cadet
 	 */
 	inline double sqr(const double x) CADET_NOEXCEPT { return x * x; }
 
-	inline double pow(const double x, const double n) CADET_NOEXCEPT { return std::pow(x, n); }
-
 #if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 #endif
 

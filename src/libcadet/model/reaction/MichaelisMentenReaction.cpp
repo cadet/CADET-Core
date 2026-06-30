@@ -25,6 +25,7 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include <functional>
 
 /*<codegen>
 {
@@ -232,6 +233,12 @@ protected:
                 HILL_C = paramProvider.getDoubleArray("MM_HILL_C");
                 if (HILL_C.size() != _stoichiometry.columns() * _nComp)
                     throw InvalidParameterException("MM_HILL_C must have the size (number of reactions) x (number of components) ");
+                for (unsigned int r = 0; r < static_cast<unsigned int>(_stoichiometry.columns()); ++r)
+                {
+                    for (unsigned int idx = r * _nComp * _nComp; idx < (r + 1) * _nComp * _nComp; ++idx)
+                        if (KIC[idx] != 0.0 || KIUC[idx] != 0.0)
+                            throw InvalidParameterException("MM_HILL_C can only be set for reactions that don't contain any inhibition");
+                }
             }
 
             if (s.size() != _stoichiometry.elements())
