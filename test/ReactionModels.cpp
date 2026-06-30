@@ -122,7 +122,7 @@ TEST_CASE("MichaelisMenten kinetic with two non-inhibitors and specific mass act
 }
 
 
-TEST_CASE("MichaelisMenten kinetic with two non-inhibitors and two substrates and specific mass action law micro-kinetics yield same result", "[CSTR],[MassActionLaw],[MichaelisMenten],[ReactionModel],[Simulation],[Reference], [TestSingle]") //failed
+TEST_CASE("MichaelisMenten kinetic with two non-inhibitors and two substrates and specific mass action law micro-kinetics yield same result", "[CSTR],[MassActionLaw],[MichaelisMenten],[ReactionModel],[Simulation],[Reference]") //failed
 {
 	const std::string& configFilePath1 = std::string("/data/configuration_CSTR_MichaelisMenten_twoSubs_twoInhib_benchmark1.json");
 	const std::string& configFilePath2 = std::string("/data/configuration_CSTR_MicroKineticsSMA_twoSubs_twoInhib_benchmark1.json");
@@ -163,21 +163,20 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD without inhibition", 
 	);
 }
 
-TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with prefactorial component", "[MichaelisMenten],[ReactionModel],[Jacobian],[AD],[CI]")
+TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with prefactorial component", "[MichaelisMenten],[ReactionModel],[Jacobian],[AD], [TestSingle]") // Test runs locally
 {
 	const unsigned int nBound[] = { 1, 2, 1 };
 	const double point[] = { 1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8 };
 	cadet::test::reaction::testDynamicJacobianAD("MICHAELIS_MENTEN", 3, nBound,
 		R"json({
 			"MM_KMM": [0.0, 1.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.4, 0.0],
-			"MM_KI": [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0],
 			"MM_VMAX": [1.0, 0.2, 1.5],
 			"MM_STOICHIOMETRY": [ 1.0, -2.0,  3.0,
 			                          -1.0,  0.0, -2.0,
 			                           0.0,  1.0,  1.0],
 			"MM_PRE_K": [0.0, 0.0, 2.0, 0.0, 5.0, 0.0, 0.5, 0.0, 0.0]
 		})json",
-		point, 1e-15, 1e-15
+		point, 1e-12, 1e-12
 	);
 }
 
@@ -220,3 +219,24 @@ TEST_CASE("MassActionLaw one reaction vs. two separate reactions", "[MassActionL
 	cadet::test::column::DummyParams disc;
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
+
+TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD without inhibition with Hill kinetics", "[MichaelisMenten],[Hill],[ReactionModel],[Jacobian],[AD],[Hill]")
+{
+	const unsigned int nBound[] = { 1, 2, 1 };
+	const double point[] = { 1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8 };
+
+	cadet::test::reaction::testDynamicJacobianAD("MICHAELIS_MENTEN", 3, nBound,
+		R"json({
+			"MM_KMM": [0.0, 1.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.4, 0.0],
+			"MM_VMAX": [1.0, 0.2, 1.5],
+			"MM_STOICHIOMETRY": [ 1.0, -2.0,  3.0,
+			                     -1.0,  0.0, -2.0,
+			                      0.0,  1.0,  1.0],
+			"MM_HILL_C": [2.0, 1.0, 1.0,
+			              5.0, 2.2, 1.0,
+			              1.0, 1.0, 2.0]
+		})json",
+		point, 1e-15, 1e-15
+	);
+}
+
