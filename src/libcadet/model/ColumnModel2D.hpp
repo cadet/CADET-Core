@@ -202,7 +202,8 @@ protected:
 
 	int residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity);
 	
-	int calcTransportJacobian(unsigned int secIdx)
+	template <typename StateType>
+	int calcTransportJacobian(unsigned int secIdx, const StateType* const y)
 	{
 		Indexer idxr(_disc);
 		// inlet and bulk jacobian

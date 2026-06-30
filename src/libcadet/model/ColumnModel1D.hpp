@@ -24,6 +24,7 @@
 #include "cadet/StrongTypes.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "model/parts/ConvectionDispersionOperatorDG.hpp"
+#include "model/parts/ConvectionDispersionOperatorFV.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/BandedEigenSparseRowIterator.hpp"
 #include "linalg/EigenSolverWrapper.hpp"
@@ -52,6 +53,18 @@ namespace
 
 	template <>
 	struct ColumnModel1DName<cadet::model::parts::RadialConvectionDispersionOperatorBaseDG>
+	{
+		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_COLUMN_MODEL_1D"; }
+	};
+
+	template <>
+	struct ColumnModel1DName<cadet::model::parts::AxialConvectionDispersionOperatorBaseFV>
+	{
+		static const char* identifier() CADET_NOEXCEPT { return "COLUMN_MODEL_1D"; }
+	};
+
+	template <>
+	struct ColumnModel1DName<cadet::model::parts::RadialConvectionDispersionOperatorBaseFV>
 	{
 		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_COLUMN_MODEL_1D"; }
 	};
@@ -453,7 +466,8 @@ protected:
 		virtual int writeOutlet(double* buffer) const;
 		virtual int writeSmoothnessIndicator(double* buffer) const { return _model._convDispOp.writeSmoothnessIndicator(buffer); }
 		/**
-		* @brief calculates, writes the physical axial/column coordinates of the DG discretization with double! interface nodes
+		* @brief calculates, writes the physical axial/column coordinates of the DG or FV discretization
+		* @details double interface nodes for DG, single interface nodes for FV with nNodes == 1
 		*/
 		virtual int writePrimaryCoordinates(double* coords) const { return _model._convDispOp.writeCoordinates(coords); }
 
@@ -489,7 +503,7 @@ protected:
 		int particleEntries = 0;
 		for (int type = 0; type < _disc.nParType; type++)
 		{
-			isothermNNZ = (idxr.strideParNode(type)) * _disc.nParPoints[type] * _disc.strideBound[type]; // every bound satte might depend on every bound and liquid state
+			isothermNNZ = (idxr.strideParNode(type)) * _disc.nParPoints[type] * _disc.strideBound[type]; // every bound sate might depend on every bound and liquid state
 			particleEntries += _disc.nPoints * _particles[type]->jacobianNNZperParticle() + isothermNNZ;
 		}
 
@@ -527,11 +541,12 @@ protected:
 		globalJ.setFromTriplets(tripletList.begin(), tripletList.end());
 	}
 
-	int calcTransportJacobian(unsigned int secIdx)
+	template <typename StateType>
+	int calcTransportJacobian(const double t, const unsigned int secIdx, const StateType* const y)
 	{
 		Indexer idxr(_disc);
 		// inlet and bulk jacobian
-		_convDispOp.calcTransportJacobian(_globalJac, _jacInlet, idxr.offsetC());
+		_convDispOp.calcTransportJacobian(*this, t, secIdx, _globalJac, _jacInlet, idxr.offsetC(), y);
 
 		// particle transport jacobian
 		for (int colNode = 0; colNode < _disc.nPoints; colNode++)
@@ -616,9 +631,13 @@ protected:
 
 extern template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseDG>;
 extern template class ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG>;
+extern template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseFV>;
+extern template class ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseFV>;
 
 IUnitOperation* createAxialCol1DDG(UnitOpIdx uoId);
 IUnitOperation* createRadialCol1DDG(UnitOpIdx uoId);
+IUnitOperation* createAxialCol1DFV(UnitOpIdx uoId);
+IUnitOperation* createRadialCol1DFV(UnitOpIdx uoId);
 
 } // namespace model
 } // namespace cadet

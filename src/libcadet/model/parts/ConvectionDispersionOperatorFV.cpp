@@ -358,6 +358,93 @@ void AxialConvectionDispersionOperatorBaseFV::setFlowRates(const active& in, con
 }
 
 /**
+ * @brief Returns the number of non-zero entries in the bulk transport Jacobian.
+ * @details The Jacobian is banded. Its bandwidth is determined by the reconstruction
+ *          stencil: for WENO/Koren order r, lb = r * strideCell, ub = max(r-1,1) * strideCell.
+ *          Exact NNZ = N*(lb+1+ub) - lb*(lb+1)/2 - ub*(ub+1)/2
+ *          where N = nCol * nComp (assuming N >= lb+ub+1, which holds for any reasonable grid).
+ *          When pureNNZ=false, adds nComp inlet-coupling entries.
+ */
+unsigned int AxialConvectionDispersionOperatorBaseFV::nJacEntries(bool pureNNZ) const CADET_NOEXCEPT
+{
+	const unsigned int lb = jacobianLowerBandwidth();
+	const unsigned int ub = jacobianUpperBandwidth();
+	const unsigned int N = _nCol * _nComp;
+
+	// Exact band NNZ, subtracting the triangular corners that lie outside the matrix
+	const unsigned int nnzBand = N * (lb + 1u + ub)
+		- lb * (lb + 1u) / 2u
+		- ub * (ub + 1u) / 2u;
+
+	return pureNNZ ? nnzBand : nnzBand + _nComp;
+}
+
+/**
+ * @brief Adds the sparsity pattern of the bulk transport Jacobian to the triplet list.
+ * @details Adds one zero-valued triplet per band entry and per inlet-coupling entry.
+ *          Called from ColumnModel1D::setJacobianPattern to define the sparse matrix structure.
+ */
+void AxialConvectionDispersionOperatorBaseFV::convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset) const
+{
+	const int lb = static_cast<int>(jacobianLowerBandwidth());
+	const int ub = static_cast<int>(jacobianUpperBandwidth());
+	const int N = static_cast<int>(_nCol * _nComp);
+
+	for (int row = 0; row < N; ++row)
+	{
+		const int colMin = std::max(0, row - lb);
+		const int colMax = std::min(N - 1, row + ub);
+		for (int col = colMin; col <= colMax; ++col)
+			tripletList.push_back(T(bulkOffset + row, bulkOffset + col, 0.0));
+	}
+
+	// Inlet coupling: the first cell (forward flow) or last cell (backward flow) has
+	// one entry per component that connects to the inlet DOFs [0 .. nComp-1].
+	const int inletCellRow = forwardFlow()
+		? 0
+		: (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
+	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+		tripletList.push_back(T(bulkOffset + inletCellRow + comp, comp, 0.0));
+}
+
+template <typename StateType>
+int AxialConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset, const StateType* const y)
+{
+	if constexpr (std::is_same_v<StateType, double>)
+	{
+		residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, true, false>(
+			model, t, secIdx, y, nullptr, nullptr,
+			linalg::BandedEigenSparseRowIterator(jacobian, bulkOffset));
+	}
+	else
+	{
+		const unsigned int numY = _nComp * (_nCol + 1u);
+		std::vector<double> yDouble(numY);
+		for (unsigned int i = 0; i < numY; ++i)
+			yDouble[i] = static_cast<double>(y[i]);
+
+		residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, true, false>(
+			model, t, secIdx, yDouble.data(), nullptr, nullptr,
+			linalg::BandedEigenSparseRowIterator(jacobian, bulkOffset));
+	}
+
+	const double v = inletJacobianFactor();
+	jacInlet(0, 0) = forwardFlow() ? -v : v;
+
+	return jacobian.isCompressed();
+}
+
+int AxialConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, double const* y)
+{
+	return calcTransportJacobian<double>(model, t, secIdx, jacobian, jacInlet, bulkOffset, y);
+}
+
+int AxialConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, active const* y)
+{
+	return calcTransportJacobian<active>(model, t, secIdx, jacobian, jacInlet, bulkOffset, y);
+}
+
+/**
  * @brief Computes the residual of the transport equations
  * @param [in] model Model that owns the operator
  * @param [in] t Current time point
@@ -522,6 +609,14 @@ void AxialConvectionDispersionOperatorBaseFV::addTimeDerivativeToJacobian(double
 			jac[0] += alpha;
 		}
 	}
+}
+
+void AxialConvectionDispersionOperatorBaseFV::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset) const
+{
+	linalg::BandedEigenSparseRowIterator jac(jacDisc, blockOffset);
+	for (unsigned int i = 0; i < _nCol; ++i)
+		for (unsigned int j = 0; j < _nComp; ++j, ++jac)
+			jac[0] += alpha;
 }
 
 unsigned int AxialConvectionDispersionOperatorBaseFV::jacobianLowerBandwidth() const CADET_NOEXCEPT
@@ -1034,6 +1129,77 @@ active RadialConvectionDispersionOperatorBaseFV::currentVelocity(double pos) con
 	return _curVelocity / radius;
 }
 
+unsigned int RadialConvectionDispersionOperatorBaseFV::nJacEntries(bool pureNNZ) const CADET_NOEXCEPT
+{
+	const unsigned int lb = jacobianLowerBandwidth();
+	const unsigned int ub = jacobianUpperBandwidth();
+	const unsigned int N = _nCol * _nComp;
+
+	const unsigned int nnzBand = N * (lb + 1u + ub)
+		- lb * (lb + 1u) / 2u
+		- ub * (ub + 1u) / 2u;
+
+	return pureNNZ ? nnzBand : nnzBand + _nComp;
+}
+
+void RadialConvectionDispersionOperatorBaseFV::convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset) const
+{
+	const int lb = static_cast<int>(jacobianLowerBandwidth());
+	const int ub = static_cast<int>(jacobianUpperBandwidth());
+	const int N = static_cast<int>(_nCol * _nComp);
+
+	for (int row = 0; row < N; ++row)
+	{
+		const int colMin = std::max(0, row - lb);
+		const int colMax = std::min(N - 1, row + ub);
+		for (int col = colMin; col <= colMax; ++col)
+			tripletList.push_back(T(bulkOffset + row, bulkOffset + col, 0.0));
+	}
+
+	const int inletCellRow = forwardFlow()
+		? 0
+		: (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
+	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+		tripletList.push_back(T(bulkOffset + inletCellRow + comp, comp, 0.0));
+}
+
+template <typename StateType>
+int RadialConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset, const StateType* const y)
+{
+	if constexpr (std::is_same_v<StateType, double>)
+	{
+		residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, true, false>(
+			model, t, secIdx, y, nullptr, nullptr,
+			linalg::BandedEigenSparseRowIterator(jacobian, bulkOffset));
+	}
+	else
+	{
+		const unsigned int numY = _nComp * (_nCol + 1u);
+		std::vector<double> yDouble(numY);
+		for (unsigned int i = 0; i < numY; ++i)
+			yDouble[i] = static_cast<double>(y[i]);
+
+		residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, true, false>(
+			model, t, secIdx, yDouble.data(), nullptr, nullptr,
+			linalg::BandedEigenSparseRowIterator(jacobian, bulkOffset));
+	}
+
+	const double v = inletJacobianFactor();
+	jacInlet(0, 0) = forwardFlow() ? -v : v;
+
+	return jacobian.isCompressed();
+}
+
+int RadialConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, double const* y)
+{
+	return calcTransportJacobian<double>(model, t, secIdx, jacobian, jacInlet, bulkOffset, y);
+}
+
+int RadialConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, active const* y)
+{
+	return calcTransportJacobian<active>(model, t, secIdx, jacobian, jacInlet, bulkOffset, y);
+}
+
 /**
  * @brief Computes the residual of the transport equations
  * @param [in] model Model that owns the operator
@@ -1198,6 +1364,14 @@ void RadialConvectionDispersionOperatorBaseFV::addTimeDerivativeToJacobian(doubl
 			jac[0] += alpha;
 		}
 	}
+}
+
+void RadialConvectionDispersionOperatorBaseFV::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset) const
+{
+	linalg::BandedEigenSparseRowIterator jac(jacDisc, blockOffset);
+	for (unsigned int i = 0; i < _nCol; ++i)
+		for (unsigned int j = 0; j < _nComp; ++j, ++jac)
+			jac[0] += alpha;
 }
 
 unsigned int RadialConvectionDispersionOperatorBaseFV::jacobianLowerBandwidth() const CADET_NOEXCEPT
@@ -1748,6 +1922,77 @@ active FrustumConvectionDispersionOperatorBaseFV::currentVelocity(double pos) co
 	return _curVelocityCoeff / radius / radius;
 }
 
+unsigned int FrustumConvectionDispersionOperatorBaseFV::nJacEntries(bool pureNNZ) const CADET_NOEXCEPT
+{
+	const unsigned int lb = jacobianLowerBandwidth();
+	const unsigned int ub = jacobianUpperBandwidth();
+	const unsigned int N = _nCol * _nComp;
+
+	const unsigned int nnzBand = N * (lb + 1u + ub)
+		- lb * (lb + 1u) / 2u
+		- ub * (ub + 1u) / 2u;
+
+	return pureNNZ ? nnzBand : nnzBand + _nComp;
+}
+
+void FrustumConvectionDispersionOperatorBaseFV::convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset) const
+{
+	const int lb = static_cast<int>(jacobianLowerBandwidth());
+	const int ub = static_cast<int>(jacobianUpperBandwidth());
+	const int N = static_cast<int>(_nCol * _nComp);
+
+	for (int row = 0; row < N; ++row)
+	{
+		const int colMin = std::max(0, row - lb);
+		const int colMax = std::min(N - 1, row + ub);
+		for (int col = colMin; col <= colMax; ++col)
+			tripletList.push_back(T(bulkOffset + row, bulkOffset + col, 0.0));
+	}
+
+	const int inletCellRow = forwardFlow()
+		? 0
+		: (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
+	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+		tripletList.push_back(T(bulkOffset + inletCellRow + comp, comp, 0.0));
+}
+
+template <typename StateType>
+int FrustumConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset, const StateType* const y)
+{
+	if constexpr (std::is_same_v<StateType, double>)
+	{
+		residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, true, false>(
+			model, t, secIdx, y, nullptr, nullptr,
+			linalg::BandedEigenSparseRowIterator(jacobian, bulkOffset));
+	}
+	else
+	{
+		const unsigned int numY = _nComp * (_nCol + 1u);
+		std::vector<double> yDouble(numY);
+		for (unsigned int i = 0; i < numY; ++i)
+			yDouble[i] = static_cast<double>(y[i]);
+
+		residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, true, false>(
+			model, t, secIdx, yDouble.data(), nullptr, nullptr,
+			linalg::BandedEigenSparseRowIterator(jacobian, bulkOffset));
+	}
+
+	const double v = inletJacobianFactor();
+	jacInlet(0, 0) = forwardFlow() ? -v : v;
+
+	return jacobian.isCompressed();
+}
+
+int FrustumConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, double const* y)
+{
+	return calcTransportJacobian<double>(model, t, secIdx, jacobian, jacInlet, bulkOffset, y);
+}
+
+int FrustumConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, active const* y)
+{
+	return calcTransportJacobian<active>(model, t, secIdx, jacobian, jacInlet, bulkOffset, y);
+}
+
 /**
  * @brief Computes the residual of the transport equations
  * @param [in] model Model that owns the operator
@@ -1920,6 +2165,14 @@ void FrustumConvectionDispersionOperatorBaseFV::addTimeDerivativeToJacobian(doub
 			jac[0] += alpha;
 		}
 	}
+}
+
+void FrustumConvectionDispersionOperatorBaseFV::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset) const
+{
+	linalg::BandedEigenSparseRowIterator jac(jacDisc, blockOffset);
+	for (unsigned int i = 0; i < _nCol; ++i)
+		for (unsigned int j = 0; j < _nComp; ++j, ++jac)
+			jac[0] += alpha;
 }
 
 unsigned int FrustumConvectionDispersionOperatorBaseFV::jacobianLowerBandwidth() const CADET_NOEXCEPT
@@ -2553,6 +2806,14 @@ bool ConvectionDispersionOperator<Operator>::solveTimeDerivativeSystem(const Sim
 
 	return true;
 }
+
+// Explicit instantiations for calcTransportJacobian
+template int AxialConvectionDispersionOperatorBaseFV::calcTransportJacobian<double>(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>&, Eigen::MatrixXd&, const int, const double* const);
+template int AxialConvectionDispersionOperatorBaseFV::calcTransportJacobian<active>(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>&, Eigen::MatrixXd&, const int, const active* const);
+template int RadialConvectionDispersionOperatorBaseFV::calcTransportJacobian<double>(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>&, Eigen::MatrixXd&, const int, const double* const);
+template int RadialConvectionDispersionOperatorBaseFV::calcTransportJacobian<active>(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>&, Eigen::MatrixXd&, const int, const active* const);
+template int FrustumConvectionDispersionOperatorBaseFV::calcTransportJacobian<double>(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>&, Eigen::MatrixXd&, const int, const double* const);
+template int FrustumConvectionDispersionOperatorBaseFV::calcTransportJacobian<active>(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>&, Eigen::MatrixXd&, const int, const active* const);
 
 // Template instantiations
 template class ConvectionDispersionOperator<AxialConvectionDispersionOperatorBaseFV>;
