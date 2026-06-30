@@ -589,6 +589,15 @@ namespace column
 	void testForwardBackward(JsonParameterProvider jpp, double absTol, double relTol);
 
 	/**
+	 * @brief Runs a simulation test comparing forward and backwards flow in the load-wash-elution example
+	 * @param [in] jpp1 Configured column model
+	 * @param [in] jpp2 Configured column model
+	 * @param [in] absTol Absolute error tolerance
+	 * @param [in] relTol Relative error tolerance
+	 */
+	void testEqualResults(cadet::JsonParameterProvider jpp1, cadet::JsonParameterProvider jpp2, double absTol, double relTol);
+
+	/**
 	 * @brief Checks the full Jacobian against AD and FD pattern switching
 	 * @details Checks the analytic Jacobian against the AD Jacobian and checks both against the FD pattern.
 	 * @param [in] jpp Configured column model

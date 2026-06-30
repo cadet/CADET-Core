@@ -24,12 +24,31 @@ namespace model
 
 		std::string uoType = paramProvider.getString("UNIT_TYPE");
 
+		paramProvider.pushScope("discretization");
+		
+		const std::string discName = paramProvider.getString("SPATIAL_METHOD");
+
+		// ARROW_HEAD_OPTIMIZATION defaults to true for FV, preserving the existing block-structured
+		// (arrow-head) Jacobian solver in the dedicated FV unit operation classes.
+		// Set it to false to route FV through ColumnModel1D (unified path, global sparse solver).
+		const bool arrowHeadOpt = paramProvider.exists("FV_ARROW_HEAD_OPTIMIZATION")
+			? paramProvider.getBool("FV_ARROW_HEAD_OPTIMIZATION")
+			: discName == "FV";
+
+		if (discName == "FV")
+		{
+			if (!arrowHeadOpt)
+				LOG(Info) << "FV_ARROW_HEAD_OPTIMIZATION is set to false, possibly resulting in a less efficient computation";
+		}
+		else if (arrowHeadOpt)
+		{
+			throw InvalidParameterException("FV_ARROW_HEAD_OPTIMIZATION is only available for FV discretization but " + discName + " was specified for " + uoType);
+		}
+
+		paramProvider.popScope(); // discretization
+
 		if (uoType == "COLUMN_MODEL_1D")
 		{
-			paramProvider.pushScope("discretization");
-			const std::string discName = paramProvider.getString("SPATIAL_METHOD");
-			paramProvider.popScope();
-
 			if (paramProvider.getInt("NPARTYPE") > 0)
 			{
 				paramProvider.pushScope("particle_type_000");
@@ -44,23 +63,25 @@ namespace model
 
 				const std::string particleType = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType();
 
-				if(particleType == "EQUILIBRIUM_PARTICLE")
+				if (particleType == "EQUILIBRIUM_PARTICLE")
 				{
 					if (discName == "DG")
-						model = createAxialLRMDG(uoId);
+						model = createAxialLRMDG(uoId) ;
 					else if (discName == "FV")
-						model = createAxialFVLRM(uoId);
+						model = arrowHeadOpt ? createAxialFVLRM(uoId) : createAxialCol1DFV(uoId);
 					else
 						LOG(Error) << "Unknown bulk discretization type " << discName << " for unit " << uoId;
 				}
-				else if (discName == "FV")
+				else if (discName == "FV" && arrowHeadOpt)
 				{
-					if(particleType == "HOMOGENEOUS_PARTICLE")
+					if (particleType == "HOMOGENEOUS_PARTICLE")
 						model = createAxialFVLRMP(uoId);
 					else if (particleType == "GENERAL_RATE_PARTICLE")
 						model = createAxialFVGRM(uoId);
 				}
-				else
+				else if (discName == "FV" && !arrowHeadOpt)
+					model = createAxialCol1DFV(uoId);
+				else if (discName == "DG")
 					model = createAxialCol1DDG(uoId);
 
 				paramProvider.popScope();
@@ -71,7 +92,7 @@ namespace model
 			}
 			else if (discName == "FV")
 			{
-				model = createAxialFVLRM(uoId); // LRM used for npartype = 0
+				model = createAxialCol1DFV(uoId);
 			}
 			else
 			{
@@ -81,10 +102,6 @@ namespace model
 #ifdef ENABLE_2D_MODELS
 		else if (uoType.find("_2D") != std::string::npos)
 		{
-			paramProvider.pushScope("discretization");
-			const std::string discName = paramProvider.getString("SPATIAL_METHOD");
-			paramProvider.popScope();
-
 			if (discName == "DG")
 				model = new ColumnModel2D(uoId);
 			else if (discName == "FV")
@@ -114,10 +131,6 @@ namespace model
 			if (paramProvider.getInt("NPARTYPE") < 1)
 				throw InvalidParameterException("NPARTYPE must be at least 1 for unit operation " + uoType);
 
-			paramProvider.pushScope("discretization");
-			const std::string discName = paramProvider.getString("SPATIAL_METHOD");
-			paramProvider.popScope();
-
 			if (discName == "DG")
 			{
 				if (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES")
@@ -128,11 +141,11 @@ namespace model
 			else if (discName == "FV")
 			{
 				if (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES")
-					model = createAxialFVLRM(uoId);
+					model = arrowHeadOpt ? createAxialFVLRM(uoId) : createAxialCol1DFV(uoId);
 				else if (uoType == "LUMPED_RATE_MODEL_WITH_PORES")
-					model = createAxialFVLRMP(uoId);
+					model = arrowHeadOpt ? createAxialFVLRMP(uoId) : createAxialCol1DFV(uoId);
 				else if (uoType == "GENERAL_RATE_MODEL")
-					model = createAxialFVGRM(uoId);
+					model = arrowHeadOpt ? createAxialFVGRM(uoId) : createAxialCol1DFV(uoId);
 			}
 			else
 				LOG(Error) << "Unknown bulk discretization type " << discName << " for unit " << uoId;
@@ -147,14 +160,33 @@ namespace model
 
 		std::string uoType = paramProvider.getString("UNIT_TYPE");
 
+		paramProvider.pushScope("discretization");
+
+		const std::string discName = paramProvider.getString("SPATIAL_METHOD");
+
+		// ARROW_HEAD_OPTIMIZATION defaults to true, preserving the existing block-structured
+		// (arrow-head) Jacobian solver in the dedicated FV unit operation classes.
+		// Set it to false to route FV through ColumnModel1D (unified path, global sparse solver).
+		const bool arrowHeadOpt = paramProvider.exists("FV_ARROW_HEAD_OPTIMIZATION")
+			? paramProvider.getBool("FV_ARROW_HEAD_OPTIMIZATION")
+			: discName == "FV";
+
+		if (discName == "FV")
+		{
+			if (!arrowHeadOpt)
+				LOG(Info) << "FV_ARROW_HEAD_OPTIMIZATION is set to false, possibly resulting in a less efficient computation";
+		}
+		else if (arrowHeadOpt)
+		{
+			throw InvalidParameterException("FV_ARROW_HEAD_OPTIMIZATION is only available for FV discretization but " + discName + " was specified for " + uoType);
+		}
+
+		paramProvider.popScope(); // discretization
+
 		if (uoType == "RADIAL_COLUMN_MODEL_1D")
 		{
 			if (paramProvider.getInt("NPARTYPE") > 0)
 			{
-				paramProvider.pushScope("discretization");
-				const std::string discName = paramProvider.getString("SPATIAL_METHOD");
-				paramProvider.popScope();
-
 				paramProvider.pushScope("particle_type_000");
 
 				const bool filmDiffusion = paramProvider.getBool("HAS_FILM_DIFFUSION");
@@ -173,11 +205,11 @@ namespace model
 				else if (discName == "FV")
 				{
 					if (particleType == "EQUILIBRIUM_PARTICLE")
-						model = createRadialFVLRM(uoId);
+						model = arrowHeadOpt ? createRadialFVLRM(uoId) : createRadialCol1DFV(uoId);
 					else if (particleType == "HOMOGENEOUS_PARTICLE")
-						model = createRadialFVLRMP(uoId);
+						model = arrowHeadOpt ? createRadialFVLRMP(uoId) : createRadialCol1DFV(uoId);
 					else if (particleType == "GENERAL_RATE_PARTICLE")
-						model = createRadialFVGRM(uoId);
+						model = arrowHeadOpt ? createRadialFVGRM(uoId) : createRadialCol1DFV(uoId);
 					else
 						LOG(Error) << "Unknown particle type " << particleType << " for unit " << uoId;
 				}
@@ -188,21 +220,14 @@ namespace model
 			}
 			else
 			{
-				paramProvider.pushScope("discretization");
-				const std::string discName = paramProvider.exists("SPATIAL_METHOD") ? paramProvider.getString("SPATIAL_METHOD") : "FV";
-				paramProvider.popScope();
-
 				if (discName == "DG")
 					model = createRadialCol1DDG(uoId);
 				else
-					model = createRadialFVLRM(uoId); // LRM used for npartype = 0
+					model = arrowHeadOpt ? createRadialFVLRM(uoId) : createRadialCol1DFV(uoId);
 			}
 		}
 		else
 		{
-			paramProvider.pushScope("discretization");
-			const std::string discName = paramProvider.getString("SPATIAL_METHOD");
-
 			if (discName == "DG")
 			{
 				if (uoType == "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES")
@@ -223,8 +248,6 @@ namespace model
 			}
 			else
 				LOG(Error) << "Unknown bulk discretization type " << discName << " for unit " << uoId;
-
-			paramProvider.popScope();
 		}
 
 		return model;
@@ -236,14 +259,28 @@ namespace model
 
 		std::string uoType = paramProvider.getString("UNIT_TYPE");
 
+		paramProvider.pushScope("discretization");
+
+		const std::string discName = paramProvider.getString("SPATIAL_METHOD");
+
+		// ARROW_HEAD_OPTIMIZATION defaults to true, preserving the existing block-structured
+		// (arrow-head) Jacobian solver in the dedicated FV unit operation classes.
+		// Set it to false to route FV through ColumnModel1D (unified path, global sparse solver).
+		const bool arrowHeadOpt = paramProvider.exists("FV_ARROW_HEAD_OPTIMIZATION")
+			? paramProvider.getBool("FV_ARROW_HEAD_OPTIMIZATION")
+			: discName == "FV";
+
+		if (discName != "FV")
+			throw InvalidParameterException("Only FV discretization supported for Frustum geometry but " + discName + " was asked for unit " + std::to_string(uoId));
+		else if (!arrowHeadOpt)
+			throw InvalidParameterException("FV_ARROW_HEAD_OPTIMIZATION was set to false for unit " + std::to_string(uoId) + " but only arrow head implementation is available");
+
+		paramProvider.popScope(); // discretization
+
 		if (uoType == "FRUSTUM_COLUMN_MODEL_1D")
 		{
 			if (paramProvider.exists("particle_type_000"))
 			{
-				paramProvider.pushScope("discretization");
-				const std::string discName = paramProvider.getString("SPATIAL_METHOD");
-				paramProvider.popScope();
-
 				if (discName == "DG")
 					LOG(Error) << "Frustum flow not implemented for DG discretization yet, was called for unit " << uoId;
 				else if (discName != "FV")
@@ -271,9 +308,6 @@ namespace model
 		}
 		else
 		{
-			paramProvider.pushScope("discretization");
-			const std::string discName = paramProvider.getString("SPATIAL_METHOD");
-
 			if (discName == "DG")
 				LOG(Error) << "Frustum flow not implemented for DG discretization yet, was called for unit " << uoId;
 			else if (discName == "FV")
@@ -288,7 +322,6 @@ namespace model
 			else
 				LOG(Error) << "Unknown bulk discretization type " << discName << " for unit " << uoId;
 
-			paramProvider.popScope();
 		}
 
 		return model;

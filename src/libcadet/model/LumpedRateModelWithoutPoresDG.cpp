@@ -678,7 +678,7 @@ namespace cadet
 
 				if (!wantRes || _disc.newStaticJac) {
 
-					success = _convDispOp.calcTransportJacobian(_jac, _jacInlet);
+					success = _convDispOp.calcTransportJacobian(*this, t, secIdx, _jac, _jacInlet, 0, y_);
 
 					_disc.newStaticJac = false;
 				}

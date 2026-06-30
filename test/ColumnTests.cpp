@@ -689,6 +689,37 @@ namespace column
 		}
 	}
 
+	void testEqualResults(cadet::JsonParameterProvider jpp1, cadet::JsonParameterProvider jpp2, double absTol, double relTol)
+	{
+		cadet::Driver drv1;
+		drv1.configure(jpp1);
+		drv1.run();
+
+		cadet::Driver drv2;
+		drv2.configure(jpp2);
+		drv2.run();
+
+		cadet::InternalStorageUnitOpRecorder const* const test1Data = drv1.solution()->unitOperation(0);
+		cadet::InternalStorageUnitOpRecorder const* const test2Data = drv2.solution()->unitOperation(0);
+
+		double const* test1Inlet = test1Data->inlet();
+		double const* test1Outlet = test1Data->outlet();
+		double const* test2Inlet = test2Data->inlet();
+		double const* test2Outlet = test2Data->outlet();
+
+		const unsigned int nComp = test1Data->numComponents();
+		for (unsigned int i = 0; i < test1Data->numDataPoints() * test1Data->numInletPorts() * nComp; ++i, ++test1Inlet, ++test1Outlet, ++test2Inlet, ++test2Outlet)
+		{
+			// Forward flow inlet = backward flow outlet
+			CAPTURE(i);
+			CHECK((*test1Inlet) == makeApprox(*test2Inlet, relTol, absTol));
+
+			// Forward flow outlet = backward flow inlet
+			CAPTURE(i);
+			CHECK((*test1Outlet) == makeApprox(*test2Outlet, relTol, absTol));
+		}
+	}
+
 	void testForwardBackward(const char* uoType, FVParams disc, double absTol, double relTol)
 	{
 		SECTION("Forward vs backward flow (WENO=" + std::to_string(disc.getWenoOrder()) + ")")

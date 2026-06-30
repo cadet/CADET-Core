@@ -481,8 +481,9 @@ int AxialConvectionDispersionOperatorBaseDG::residualImpl(const IModel& model, d
 * @brief analytically calculates the (static) state jacobian
 * @return 1 if jacobain estimation fits the predefined pattern of the jacobian, 0 if not.
 */
-int AxialConvectionDispersionOperatorBaseDG::calcTransportJacobian(Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset) {
-
+template <typename StateType>
+int AxialConvectionDispersionOperatorBaseDG::calcTransportJacobian(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset, const StateType* const y)
+{
 	// DG convection dispersion Jacobian
 	if (_exactInt)
 		calcConvDispExIntDGSEMJacobian(jacobian, jacInlet, bulkOffset);
@@ -491,12 +492,23 @@ int AxialConvectionDispersionOperatorBaseDG::calcTransportJacobian(Eigen::Sparse
 
 	return jacobian.isCompressed();
 }
+
+int AxialConvectionDispersionOperatorBaseDG::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, double const* y)
+{
+	return calcTransportJacobian<double>(model, t, secIdx, jacobian, jacInlet, bulkOffset, y);
+}
+
+int AxialConvectionDispersionOperatorBaseDG::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, active const* y)
+{
+	return calcTransportJacobian<active>(model, t, secIdx, jacobian, jacInlet, bulkOffset, y);
+}
+
 /**
  * @brief calculates the number of entris for the DG convection dispersion jacobian
  * @note only dispersion entries are relevant for jacobian NNZ as the convection entries are a subset of these
  */
-unsigned int AxialConvectionDispersionOperatorBaseDG::nJacEntries(bool pureNNZ) {
-
+unsigned int AxialConvectionDispersionOperatorBaseDG::nJacEntries(bool pureNNZ) const CADET_NOEXCEPT
+{
 	if (_exactInt) {
 		if (pureNNZ) {
 			return _nComp * ((3u * _nElem - 2u) * _nNodes * _nNodes + (2u * _nElem - 3u) * _nNodes); // dispersion entries
@@ -512,7 +524,7 @@ unsigned int AxialConvectionDispersionOperatorBaseDG::nJacEntries(bool pureNNZ) 
 			+ _nComp * (_nElem * _nNodes * _nNodes + 8u * _nNodes); // dispersion entries
 	}
 }
-void model::parts::AxialConvectionDispersionOperatorBaseDG::convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset)
+void model::parts::AxialConvectionDispersionOperatorBaseDG::convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset) const
 {
 	if (_exactInt)
 		ConvDispExIntPattern(tripletList, bulkOffset);
@@ -552,7 +564,7 @@ void AxialConvectionDispersionOperatorBaseDG::multiplyWithDerivativeJacobian(con
  *          The factor @f$ \alpha @f$ is useful when constructing the linear system in the time integration process.
  * @param [in] alpha Factor in front of @f$ \frac{\partial F}{\partial \dot{y}} @f$
  */
-void AxialConvectionDispersionOperatorBaseDG::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset)
+void AxialConvectionDispersionOperatorBaseDG::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset) const
 {
 	const int gapelement = strideColNode() - static_cast<int>(_nComp) * strideColComp();
 	linalg::BandedEigenSparseRowIterator jac(jacDisc, blockOffset);
@@ -1291,7 +1303,7 @@ void RadialConvectionDispersionOperatorBaseDG::multiplyWithDerivativeJacobian(co
 	}
 }
 
-void RadialConvectionDispersionOperatorBaseDG::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset)
+void RadialConvectionDispersionOperatorBaseDG::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset) const
 {
 	const int gapelement = strideColNode() - static_cast<int>(_nComp) * strideColComp();
 	linalg::BandedEigenSparseRowIterator jac(jacDisc, blockOffset);
@@ -1304,7 +1316,7 @@ void RadialConvectionDispersionOperatorBaseDG::addTimeDerivativeToJacobian(doubl
 	}
 }
 
-unsigned int RadialConvectionDispersionOperatorBaseDG::nJacEntries(bool pureNNZ)
+unsigned int RadialConvectionDispersionOperatorBaseDG::nJacEntries(bool pureNNZ) const CADET_NOEXCEPT
 {
 	// Radial DG always uses exact integration
 	if (pureNNZ)
@@ -1315,7 +1327,7 @@ unsigned int RadialConvectionDispersionOperatorBaseDG::nJacEntries(bool pureNNZ)
 		+ _nComp * ((3u * _nElem - 2u) * _nNodes * _nNodes + (2u * _nElem - 3u) * _nNodes); // dispersion entries
 }
 
-void RadialConvectionDispersionOperatorBaseDG::convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset)
+void RadialConvectionDispersionOperatorBaseDG::convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset) const
 {
 	// Similar to axial but adapted for radial geometry
 	const int lowerBW = jacobianLowerBandwidth();
@@ -1336,14 +1348,24 @@ void RadialConvectionDispersionOperatorBaseDG::convDispJacPattern(std::vector<T>
 	}
 }
 
-int RadialConvectionDispersionOperatorBaseDG::calcTransportJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset)
+template <typename StateType>
+int RadialConvectionDispersionOperatorBaseDG::calcTransportJacobian(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset, const StateType* const y)
 {
-	// Assemble Jacobian using exact integration (only scheme for radial DG)
 	calcConvDispRadialDGSEMJacobian(jacobian, jacInlet, bulkOffset);
 
 	_newStaticJac = false;
 
 	return jacobian.isCompressed();
+}
+
+int RadialConvectionDispersionOperatorBaseDG::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, double const* y)
+{
+	return calcTransportJacobian<double>(model, t, secIdx, jacobian, jacInlet, bulkOffset, y);
+}
+
+int RadialConvectionDispersionOperatorBaseDG::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, active const* y)
+{
+	return calcTransportJacobian<active>(model, t, secIdx, jacobian, jacInlet, bulkOffset, y);
 }
 
 int RadialConvectionDispersionOperatorBaseDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac)
@@ -1779,6 +1801,11 @@ void RadialConvectionDispersionOperatorBaseDG::calcConvDispRadialDGSEMJacobian(E
 	}
 
 }
+
+template int AxialConvectionDispersionOperatorBaseDG::calcTransportJacobian<double>(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>&, Eigen::MatrixXd&, const int, const double* const);
+template int AxialConvectionDispersionOperatorBaseDG::calcTransportJacobian<active>(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>&, Eigen::MatrixXd&, const int, const active* const);
+template int RadialConvectionDispersionOperatorBaseDG::calcTransportJacobian<double>(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>&, Eigen::MatrixXd&, const int, const double* const);
+template int RadialConvectionDispersionOperatorBaseDG::calcTransportJacobian<active>(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>&, Eigen::MatrixXd&, const int, const active* const);
 
 }  // namespace parts
 

@@ -1092,7 +1092,7 @@ int ColumnModel2D::residualImpl(double t, unsigned int secIdx, StateType const* 
 		{
 			if (wantJac || _disc.newStaticJac)
 			{
-				bool success = calcTransportJacobian(secIdx);
+				bool success = calcTransportJacobian(secIdx, y);
 
 				_disc.newStaticJac = false;
 

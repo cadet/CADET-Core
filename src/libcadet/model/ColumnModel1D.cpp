@@ -136,9 +136,10 @@ bool ColumnModel1D<ConvDispOperator>::configureModelDiscretization(IParameterPro
 	if (firstConfigCall)
 		_linearSolver = cadet::linalg::setLinearSolver(paramProvider.exists("LINEAR_SOLVER") ? paramProvider.getString("LINEAR_SOLVER") : "SparseLU");
 
-	if (paramProvider.getString("SPATIAL_METHOD") != "DG" && _disc.nParType == 0)
-		throw InvalidParameterException("Column with NPARTYPE = 0 is only available for DG discretization");
+	const std::string spatialMethod = paramProvider.getString("SPATIAL_METHOD");
 
+	if (spatialMethod == "DG")
+	{
 	if (paramProvider.exists("POLYDEG"))
 		_disc.polyDeg = paramProvider.getInt("POLYDEG");
 	else
@@ -156,6 +157,15 @@ bool ColumnModel1D<ConvDispOperator>::configureModelDiscretization(IParameterPro
 		_disc.nElem = std::max(1u, paramProvider.getInt("NCOL") / _disc.nNodes); // number of elements is rounded down
 	else
 		throw InvalidParameterException("Specify field NELEM (or NCOL)");
+	}
+	else if(spatialMethod == "FV")
+	{
+		_disc.polyDeg = 0u;
+		_disc.nNodes = 1u;
+		_disc.nElem = paramProvider.getInt("NCOL");
+	}
+	else
+		throw InvalidParameterException("Unknown spatial discretization method " + spatialMethod);
 
 	if (_disc.nElem < 1)
 		throw InvalidParameterException("Number of column elements must be at least 1!");
@@ -283,8 +293,8 @@ bool ColumnModel1D<ConvDispOperator>::configureModelDiscretization(IParameterPro
 	unsigned int nTotalParPoints = 0;
 	for (unsigned int j = 1; j < _disc.nParType + 1; ++j)
 	{
-		_disc.parTypeOffset[j] = _disc.parTypeOffset[j-1] + (_disc.nComp + _disc.strideBound[j-1]) * _disc.nParPoints[j-1] * _disc.nPoints;
-		nTotalParPoints += _disc.nParPoints[j-1];
+		_disc.parTypeOffset[j] = _disc.parTypeOffset[j - 1] + (_disc.nComp + _disc.strideBound[j - 1]) * _disc.nParPoints[j - 1] * _disc.nPoints;
+		nTotalParPoints += _disc.nParPoints[j - 1];
 	}
 
 	// Determine whether analytic Jacobian should be used but don't set it right now.
@@ -980,7 +990,7 @@ int ColumnModel1D<ConvDispOperator>::residualImpl(double t, unsigned int secIdx,
 			if (wantJac)
 			{
 				// estimate new static (per section) jacobian
-				bool success = calcTransportJacobian(secIdx);
+				bool success = calcTransportJacobian(t, secIdx, y);
 
 				if (cadet_unlikely(!success))
 					LOG(Error) << "Jacobian pattern did not fit the analytical transport Jacobian assembly";
@@ -1173,7 +1183,7 @@ int ColumnModel1D<ConvDispOperator>::residualSensFwdCombine(const SimulationTime
 }
 /**
  * @brief Multiplies the given vector with the system Jacobian (i.e., @f$ \frac{\partial F}{\partial y}\left(t, y, \dot{y}\right) @f$)
- * @details Actually, the operation @f$ z = \alpha \frac{\partial F}{\partial y} x + \beta z @f$ is performed.
+ * @details The operation @f$ z = \alpha \frac{\partial F}{\partial y} x + \beta z @f$ is performed.
  *
  *          Note that residual() or one of its cousins has to be called with the requested point @f$ (t, y, \dot{y}) @f$ once
  *          before calling multiplyWithJacobian() as this implementation ignores the given @f$ (t, y, \dot{y}) @f$.
@@ -1456,7 +1466,7 @@ void ColumnModel1D<ConvDispOperator>::setSensitiveParameterValue(const Parameter
 		}
 
 		// Parameters with particle type independence will be set for all particle types that have this parameter.
-		// E.g. for a parameter type independent surface diffusion, the AD value is set for all particle types that have this parameter.
+		// E.g. for a parameter type independent surface diffusion sensitivity, the sensitivity is set for all particle types that have this parameter.
 		bool paramExists = false;
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
@@ -1495,7 +1505,7 @@ bool ColumnModel1D<ConvDispOperator>::setSensitiveParameter(const ParameterId& p
 		if (mpIc > 0)
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
-			return true;
+		 return true;
 		}
 		else if (mpIc < 0)
 			return false;
@@ -1722,6 +1732,23 @@ int ColumnModel1D<ConvDispOperator>::Exporter::writeOutlet(double* buffer) const
 	return _disc.nComp;
 }
 
+namespace
+{
+	/**
+	 * @brief Dispatches configureModelDiscretization for both DG (6-arg) and FV (5-arg) operators.
+	 * @details Uses a requires expression to detect which signature the operator provides at compile time.
+	 */
+	template <typename Op>
+	bool callConfigureConvDispOpDiscretization(Op& op, IParameterProvider& paramProvider, const IConfigHelper& helper,
+		unsigned int nComp, unsigned int nElem, unsigned int polyDeg, unsigned int strideNode)
+	{
+		if constexpr (requires { op.configureModelDiscretization(paramProvider, helper, nComp, nElem, polyDeg, strideNode); })
+			return op.configureModelDiscretization(paramProvider, helper, nComp, nElem, polyDeg, strideNode);
+		else
+			return op.configureModelDiscretization(paramProvider, helper, nComp, nElem, strideNode);
+	}
+} // namespace
+
 }  // namespace model
 
 }  // namespace cadet
@@ -1736,20 +1763,43 @@ namespace model
 
 template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseDG>;
 template class ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG>;
+template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseFV>;
+template class ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseFV>;
 
 IUnitOperation* createAxialCol1DDG(UnitOpIdx uoId)
 {
-	typedef ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseDG> AxialCol1D;
+	typedef ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseDG> AxialCol1DDG;
 
-	return new AxialCol1D(uoId);
+	return new AxialCol1DDG(uoId);
 }
 
 IUnitOperation* createRadialCol1DDG(UnitOpIdx uoId)
 {
-	typedef ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG> RadialCol1D;
+	typedef ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG> RadialCol1DDG;
 
-	return new RadialCol1D(uoId);
+	return new RadialCol1DDG(uoId);
 }
+
+IUnitOperation* createAxialCol1DFV(UnitOpIdx uoId)
+{
+	typedef ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseFV> AxialCol1DFV;
+
+	return new AxialCol1DFV(uoId);
+}
+
+IUnitOperation* createRadialCol1DFV(UnitOpIdx uoId)
+{
+	typedef ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseFV> RadialCol1DFV;
+
+	return new RadialCol1DFV(uoId);
+}
+
+//IUnitOperation* createFrustumCol1DFV(UnitOpIdx uoId)
+//{
+//	typedef ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG> RadialCol1DDG;
+//
+//	return new RadialCol1DDG(uoId);
+//}
 
 }  // namespace model
 }  // namespace cadet

@@ -25,6 +25,7 @@
 #include <ParamReaderHelper.hpp>
 #include "linalg/BandedEigenSparseRowIterator.hpp"
 #include "model/parts/DGToolbox.hpp"
+#include "model/parts/IConvectionDispersionOperatorBase1D.hpp"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -69,7 +70,7 @@ namespace cadet
 			 * It assumes that there is no offset to the inlet in the local state vector and that the firsts element is placed
 			 * directly after the inlet DOFs.
 			 */
-			class AxialConvectionDispersionOperatorBaseDG
+			class AxialConvectionDispersionOperatorBaseDG : public IConvectionDispersionOperatorBase1D
 			{
 			public:
 
@@ -89,12 +90,16 @@ namespace cadet
 				int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity);
 				int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
 
-				int calcTransportJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset = 0);
+				template <typename StateType>
+				int calcTransportJacobian(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset, const StateType* const y);
+				int calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, double const* y) override;
+				int calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, active const* y) override;
+
 				typedef Eigen::Triplet<double> T;
-				void convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset = 0);
-				unsigned int nJacEntries(bool pureNNZ = false);
-				void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
-				void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset = 0);
+				void convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset = 0) const override;
+				unsigned int nJacEntries(bool pureNNZ = false) const CADET_NOEXCEPT override;
+				void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const override;
+				void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset = 0) const override;
 
 				inline const active& bedLength() const CADET_NOEXCEPT { return _bedLength; }
 				inline const active& currentVelocity(double pos) const CADET_NOEXCEPT { return _curVelocity; }
@@ -147,8 +152,7 @@ namespace cadet
 				// We have different jacobian structure for exact integration and collocation DG scheme, i.e. we need different seed vectors
 				// collocation DG: 2 * N_n * (strideNode) + 1 = total bandwidth (main diagonal entries maximally depend on the next and last N_n liquid phase entries of same component)
 				//    ex. int. DG: 4 * N_n * (strideNode) + 1 = total bandwidth (main diagonal entries maximally depend on the next and last 2*N_n liquid phase entries of same component)
-				int requiredADdirs() const CADET_NOEXCEPT { return (_exactInt) ? 4 * _nNodes * strideColNode() + 1 : 2 * _nNodes * strideColNode() + 1; }
-
+				unsigned int requiredADdirs() const CADET_NOEXCEPT override { return (_exactInt) ? 4 * _nNodes * strideColNode() + 1 : 2 * _nNodes * strideColNode() + 1; }
 
 				bool setParameter(const ParameterId& pId, double value);
 				bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
@@ -587,8 +591,8 @@ namespace cadet
 				/**
 				 * @brief sets the sparsity pattern of the convection dispersion Jacobian for the collocation DG scheme
 				 */
-				int ConvDispCollocationPattern(std::vector<T>& tripletList, const int offC = 0) {
-
+				int ConvDispCollocationPattern(std::vector<T>& tripletList, const int offC = 0) const
+				{
 					/*======================================================*/
 					/*			Define Convection Jacobian Block			*/
 					/*======================================================*/
@@ -715,8 +719,8 @@ namespace cadet
 				/**
 				* @brief sets the sparsity pattern of the convection dispersion Jacobian for the exact integration DG scheme
 				*/
-				int ConvDispExIntPattern(std::vector<T>& tripletList, const int offC = 0) {
-
+				int ConvDispExIntPattern(std::vector<T>& tripletList, const int offC = 0) const
+				{
 					/*======================================================*/
 					/*			Define Convection Jacobian Block			*/
 					/*======================================================*/
@@ -890,8 +894,8 @@ namespace cadet
 				/**
 				* @brief analytically calculates the convection dispersion jacobian for the collocation DG scheme
 				*/
-				int calcConvDispCollocationDGSEMJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int offC = 0) {
-
+				int calcConvDispCollocationDGSEMJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int offC = 0) const
+				{
 					const int strideColBound = strideColNode() - _nComp;
 
 					/*======================================================*/
@@ -1180,7 +1184,7 @@ namespace cadet
 			 *
 			 * This class does not store the Jacobian. It only fills existing matrices given to its residual() functions.
 			 */
-			class RadialConvectionDispersionOperatorBaseDG
+			class RadialConvectionDispersionOperatorBaseDG : public IConvectionDispersionOperatorBase1D
 			{
 			public:
 
@@ -1200,11 +1204,16 @@ namespace cadet
 				int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity);
 				int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
 
-				int calcTransportJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset = 0);
+				template <typename StateType>
+				int calcTransportJacobian(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset, const StateType* const y);
+				int calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, double const* y) override;
+				int calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, active const* y) override;
+
 				typedef Eigen::Triplet<double> T;
-				void convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset = 0);
-				void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
-				void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset = 0);
+				void convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset = 0) const override;
+				unsigned int nJacEntries(bool pureNNZ = false) const CADET_NOEXCEPT override;
+				void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const override;
+				void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset = 0) const override;
 
 				// Geometry accessors
 				inline const active& bedLength() const CADET_NOEXCEPT { return _bedLength; }
@@ -1258,10 +1267,9 @@ namespace cadet
 				unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
 				unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
 				double inletJacobianFactor() const CADET_NOEXCEPT;
-				unsigned int nJacEntries(bool pureNNZ);
 
 				// Radial DG always uses exact integration (4 * nNodes stencil)
-				int requiredADdirs() const CADET_NOEXCEPT { return 4 * _nNodes * strideColNode() + 1; }
+				unsigned int requiredADdirs() const CADET_NOEXCEPT override { return 4 * _nNodes * strideColNode() + 1; }
 
 				// Accessors for mass matrices (needed for rLRMP film diffusion)
 				inline const Eigen::MatrixXd& invMRho(unsigned int cell) const CADET_NOEXCEPT { return _invMM_rho[cell]; }
