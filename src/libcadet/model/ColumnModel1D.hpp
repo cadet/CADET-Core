@@ -455,16 +455,8 @@ protected:
 		/**
 		* @brief calculates, writes the physical axial/column coordinates of the DG discretization with double! interface nodes
 		*/
-		virtual int writePrimaryCoordinates(double* coords) const
-		{
-			for (unsigned int i = 0; i < _disc.nElem; i++) {
-				for (unsigned int j = 0; j < _disc.nNodes; j++) {
-					// mapping 
-					coords[i * _disc.nNodes + j] = _model._convDispOp.elemLeftBound(i) + 0.5 * (static_cast<double>(_model._convDispOp.columnLength()) / static_cast<double>(_disc.nElem)) * (1.0 + _model._convDispOp.LGLnodes()[j]);
-				}
-			}
-			return _disc.nPoints;
-		}
+		virtual int writePrimaryCoordinates(double* coords) const { return _model._convDispOp.writeCoordinates(coords); }
+
 		virtual int writeSecondaryCoordinates(double* coords) const { return 0; }
 		/**
 		* @brief calculates, writes the physical radial/particle coordinates of the DG discretization with double! interface nodes

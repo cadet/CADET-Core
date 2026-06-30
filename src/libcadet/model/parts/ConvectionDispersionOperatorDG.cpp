@@ -489,10 +489,7 @@ int AxialConvectionDispersionOperatorBaseDG::calcTransportJacobian(Eigen::Sparse
 	else
 		calcConvDispCollocationDGSEMJacobian(jacobian, jacInlet, bulkOffset);
 
-	if (!jacobian.isCompressed()) // if matrix lost its compressed storage, the pattern did not fit.
-		return 0;
-
-	return 1;
+	return jacobian.isCompressed();
 }
 /**
  * @brief calculates the number of entris for the DG convection dispersion jacobian
@@ -1346,10 +1343,7 @@ int RadialConvectionDispersionOperatorBaseDG::calcTransportJacobian(Eigen::Spars
 
 	_newStaticJac = false;
 
-	if (!jacobian.isCompressed())
-		return 0;
-
-	return 1;
+	return jacobian.isCompressed();
 }
 
 int RadialConvectionDispersionOperatorBaseDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac)
