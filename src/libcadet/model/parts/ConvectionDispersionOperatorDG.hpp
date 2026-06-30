@@ -109,7 +109,7 @@ namespace cadet
 					return (floor(idx / _nNodes) * static_cast<double>(_deltaZ) + 0.5 * static_cast<double>(_deltaZ) * (1.0 + _nodes[idx % _nNodes])) / static_cast<double>(_bedLength);
 				}
 
-				inline const double* LGLnodes() const CADET_NOEXCEPT { return &_nodes[0]; }
+				inline const double* nodes() const CADET_NOEXCEPT { return &_nodes[0]; }
 				inline const active& currentVelocity() const CADET_NOEXCEPT { return _curVelocity; }
 				inline const active* currentDispersion(const int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_colDispersion, _nComp, secIdx); }
 				inline bool dispersionCompIndep() const CADET_NOEXCEPT { return _dispersionCompIndep; }
@@ -120,7 +120,16 @@ namespace cadet
 				inline unsigned int nPoints() const CADET_NOEXCEPT { return _nPoints; }
 				inline bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
 				inline int writeSmoothnessIndicator(double* buffer) const CADET_NOEXCEPT { return 0; }
-
+				inline int writeCoordinates(double* buffer) const CADET_NOEXCEPT
+				{
+					for (unsigned int i = 0; i < _nElem; i++) {
+						for (unsigned int j = 0; j < _nNodes; j++) {
+							// mapping 
+							buffer[i * _nNodes + j] = i * static_cast<double>(_deltaZ) + 0.5 * (static_cast<double>(_bedLength) / static_cast<double>(_nElem)) * (1.0 + nodes()[j]);
+						}
+					}
+					return _nPoints;
+				}
 				// Indexer functionality:
 				// Strides
 				inline int strideColElement() const CADET_NOEXCEPT { return static_cast<int>(_strideElem); }
@@ -1218,7 +1227,7 @@ namespace cadet
 						   (static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius));
 				}
 
-				inline const double* LGLnodes() const CADET_NOEXCEPT { return &_nodes[0]; }
+				inline const double* nodes() const CADET_NOEXCEPT { return &_nodes[0]; }
 				inline const active& currentVelocityCoeff() const CADET_NOEXCEPT { return _curVelocity; }
 				inline const active* currentDispersion(const int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_colDispersion, _nComp, secIdx); }
 				inline bool dispersionCompIndep() const CADET_NOEXCEPT { return _dispersionCompIndep; }
@@ -1229,6 +1238,16 @@ namespace cadet
 				inline unsigned int nPoints() const CADET_NOEXCEPT { return _nPoints; }
 				inline bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
 				inline int writeSmoothnessIndicator(double* buffer) const CADET_NOEXCEPT { return 0; }
+				inline int writeCoordinates(double* buffer) const CADET_NOEXCEPT
+				{
+					for (unsigned int i = 0; i < _nElem; i++) {
+						for (unsigned int j = 0; j < _nNodes; j++) {
+							// mapping 
+							buffer[i * _nNodes + j] = i * static_cast<double>(_deltaRho) + 0.5 * (static_cast<double>(_bedLength) / static_cast<double>(_nElem)) * (1.0 + nodes()[j]);
+						}
+					}
+					return _nPoints;
+				}
 
 				// Indexer functionality
 				inline int strideColElement() const CADET_NOEXCEPT { return static_cast<int>(_strideElem); }

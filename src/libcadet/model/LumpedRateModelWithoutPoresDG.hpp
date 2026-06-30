@@ -361,18 +361,11 @@ namespace cadet
 				virtual int writeOutlet(double* buffer) const;
 				virtual int writeSmoothnessIndicator(double* buffer) const { return _model._convDispOp.writeSmoothnessIndicator(buffer); }
 				/**
-				 * @brief calculates the physical node coordinates of the DG discretization with double! interface nodes
+				* @brief calculates, writes the physical axial/column coordinates of the DG or FV discretization
+				* @details double interface nodes for DG, single interface nodes for FV with nNodes == 1
 				 */
-				virtual int writePrimaryCoordinates(double* coords) const
-				{
-					for (unsigned int i = 0; i < _disc.nElem; i++) {
-						for (unsigned int j = 0; j < _disc.nNodes; j++) {
-							// mapping 
-							coords[i * _disc.nNodes + j] = _model._convDispOp.elemLeftBound(i) + 0.5 * (static_cast<double>(_model._convDispOp.columnLength()) / static_cast<double>(_disc.nElem)) * (1.0 + _model._convDispOp.LGLnodes()[j]);
-						}
-					}
-					return _disc.nPoints;
-				}
+				virtual int writePrimaryCoordinates(double* coords) const { return _model._convDispOp.writeCoordinates(coords); }
+
 
 				virtual int writeSecondaryCoordinates(double* coords) const { return 0; }
 				virtual int writeParticleCoordinates(unsigned int parType, double* coords) const { return 0; }
