@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 #include <cmath>
+#include <algorithm>
 
 /*<codegen>
 {
@@ -77,7 +78,7 @@ namespace cadet
 		{
 		public:
 
-			SplineBindingBase() :_porePhaseConc(), _splineParams() {}
+			SplineBindingBase() : _competitiveMode(false), _porePhaseConc(), _splineParams() {}
 
 			virtual ~SplineBindingBase() CADET_NOEXCEPT { }
 
@@ -90,7 +91,8 @@ namespace cadet
 			virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 			{
 				return ParamHandlerBindingModelBase<ParamHandler_t>::workspaceSize(nComp, totalNumBoundStates, nBoundStates)
-					+ sizeof(active) * nComp + alignof(active); // work space for the qSpline buffer
+					+ sizeof(active) * (totalNumBoundStates + 4u * nComp)
+					+ sizeof(size_t) * nComp + alignof(active); // qSpline plus competitive interpolation buffers
 			}
 
 			CADET_BINDINGMODELBASE_BOILERPLATE
@@ -102,16 +104,139 @@ namespace cadet
 			using ParamHandlerBindingModelBase<ParamHandler_t>::_nBoundStates;
 			int _totBoundStates;
 			std::vector<int> _bndStateOffset;
+			bool _competitiveMode;
 
-			// Storage for trained ANN curves for spline fitting
-			std::vector< std::vector<double> > _porePhaseConc; // [_nComp][coeffs]
+			// Legacy one-dimensional spline storage q_i = f_i(c_i)
+			std::vector< std::vector<double> > _porePhaseConc; // [_nComp][knots]
 			std::vector< std::vector<double> > _splineParams; // [_totBoundStates][coeffs]
+			// Structured-grid competitive spline storage q = f(c)
+			tk::regular_grid_interpolator _competitiveSplineGrid;
+			std::vector< std::vector<double> > _competitiveSplineValues; // [_totBoundStates][gridPoint]
 
 			/***************************************************************************************************/
 			size_t find_interval(double x, const std::vector<double>& m_x) const
 			{
 				const std::vector<double>::const_iterator it = std::upper_bound(m_x.begin(), m_x.end(), x);
 				return std::max(int(it - m_x.begin()) - 1, 0);
+			}
+
+			bool almostEqual(double left, double right) const
+			{
+				const double scale = std::max(1.0, std::max(std::abs(left), std::abs(right)));
+				return std::abs(left - right) <= 1e-12 * scale;
+			}
+
+			std::vector<double> uniqueSortedAxis(std::vector<double> values) const
+			{
+				std::sort(values.begin(), values.end());
+
+				std::vector<double> axis;
+				axis.reserve(values.size());
+
+				for (std::vector<double>::const_iterator it = values.begin(); it != values.end(); ++it)
+				{
+					if (axis.empty() || !almostEqual(axis.back(), *it))
+						axis.push_back(*it);
+				}
+
+				return axis;
+			}
+
+			size_t findAxisIndex(double value, const std::vector<double>& axis) const
+			{
+				const std::vector<double>::const_iterator it = std::lower_bound(axis.begin(), axis.end(), value);
+
+				if (it != axis.end() && almostEqual(*it, value))
+					return static_cast<size_t>(it - axis.begin());
+
+				if (it != axis.begin() && almostEqual(*(it - 1), value))
+					return static_cast<size_t>(it - axis.begin() - 1);
+
+				throw InvalidParameterException("CP_VALS does not form a unique structured grid");
+			}
+
+			void configureCompetitiveSpline(IParameterProvider& paramProvider)
+			{
+				const std::vector<double> porePhaseConc = paramProvider.getDoubleArray("CP_VALS");
+				const std::vector<double> solidPhaseConc = paramProvider.getDoubleArray("CS_VALS");
+
+				if (porePhaseConc.empty() || solidPhaseConc.empty())
+					throw InvalidParameterException("CP_VALS and CS_VALS must not be empty");
+
+				if (porePhaseConc.size() % _nComp != 0)
+					throw InvalidParameterException("CP_VALS must contain an integer number of pore-phase samples");
+
+				if (solidPhaseConc.size() % _totBoundStates != 0)
+					throw InvalidParameterException("CS_VALS must contain an integer number of bound-state samples");
+
+				const size_t nSamples = porePhaseConc.size() / _nComp;
+				if (solidPhaseConc.size() / _totBoundStates != nSamples)
+					throw InvalidParameterException("CP_VALS and CS_VALS must contain the same number of samples");
+
+				std::vector< std::vector<double> > axes(_nComp);
+				for (int comp = 0; comp < _nComp; ++comp)
+				{
+					std::vector<double> compVals;
+					compVals.reserve(nSamples);
+					for (size_t sample = 0; sample < nSamples; ++sample)
+						compVals.push_back(porePhaseConc[sample * _nComp + comp]);
+
+					axes[comp] = uniqueSortedAxis(compVals);
+					if (axes[comp].size() < 2)
+						throw InvalidParameterException("Each spline input dimension requires at least two distinct CP_VALS entries");
+				}
+
+				size_t expectedSamples = 1;
+				for (int comp = 0; comp < _nComp; ++comp)
+					expectedSamples *= axes[comp].size();
+
+				if (expectedSamples != nSamples)
+					throw InvalidParameterException("CP_VALS does not cover a full Cartesian product grid");
+
+				_competitiveSplineGrid.set_points(axes);
+				_competitiveSplineValues.assign(_totBoundStates, std::vector<double>(_competitiveSplineGrid.num_points(), 0.0));
+
+				std::vector<bool> seen(_competitiveSplineGrid.num_points(), false);
+				for (size_t sample = 0; sample < nSamples; ++sample)
+				{
+					size_t flatIndex = 0;
+					for (int comp = 0; comp < _nComp; ++comp)
+					{
+						const size_t axisIdx = findAxisIndex(porePhaseConc[sample * _nComp + comp], axes[comp]);
+						flatIndex += axisIdx * _competitiveSplineGrid.stride(comp);
+					}
+
+					if (seen[flatIndex])
+						throw InvalidParameterException("CP_VALS contains duplicate structured-grid points");
+					seen[flatIndex] = true;
+
+					for (int bndIdx = 0; bndIdx < _totBoundStates; ++bndIdx)
+						_competitiveSplineValues[bndIdx][flatIndex] = solidPhaseConc[sample * _totBoundStates + bndIdx];
+				}
+
+				for (std::vector<bool>::const_iterator it = seen.begin(); it != seen.end(); ++it)
+				{
+					if (!(*it))
+						throw InvalidParameterException("CP_VALS does not cover the full Cartesian grid");
+				}
+			}
+
+			template <typename StateType>
+			void competitiveSplineModel(StateType* q, StateType const* cp, LinearBufferAllocator workSpace) const
+			{
+				BufferedArray<size_t> lowerIndexArray = workSpace.array<size_t>(_nComp);
+				size_t* const lowerIndices = static_cast<size_t*>(lowerIndexArray);
+				BufferedArray<StateType> lowerWeightArray = workSpace.array<StateType>(_nComp);
+				StateType* const lowerWeights = static_cast<StateType*>(lowerWeightArray);
+				BufferedArray<StateType> upperWeightArray = workSpace.array<StateType>(_nComp);
+				StateType* const upperWeights = static_cast<StateType*>(upperWeightArray);
+				BufferedArray<StateType> invStepArray = workSpace.array<StateType>(_nComp);
+				StateType* const invSteps = static_cast<StateType*>(invStepArray);
+
+				_competitiveSplineGrid.compute_factors(cp, lowerIndices, lowerWeights, upperWeights, invSteps);
+
+				for (int bndIdx = 0; bndIdx < _totBoundStates; ++bndIdx)
+					_competitiveSplineGrid.evaluate(_competitiveSplineValues[bndIdx].data(), lowerIndices, lowerWeights, upperWeights, invSteps, q[bndIdx], static_cast<StateType*>(nullptr));
 			}
 
 			virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
@@ -129,11 +254,24 @@ namespace cadet
 				}
 				_totBoundStates = _bndStateOffset[_nComp];
 
+				_competitiveMode = false;
+
 				// Input parameters
 				_splineParams.resize(_totBoundStates);
 				_porePhaseConc.resize(_nComp);
+				_competitiveSplineValues.clear();
 
-				std::vector<double> solidPhaseConc; // Temporary storage for solid phase concentration values for current component and bound state
+				if (paramProvider.exists("CP_VALS") || paramProvider.exists("CS_VALS"))
+				{
+					if (!(paramProvider.exists("CP_VALS") && paramProvider.exists("CS_VALS")))
+						throw InvalidParameterException("Competitive spline mode requires both CP_VALS and CS_VALS");
+
+					_competitiveMode = true;
+					configureCompetitiveSpline(paramProvider);
+					return result;
+				}
+
+				std::vector<double> solidPhaseConc;
 
 				for (int comp = 0; comp < _nComp; ++comp)
 				{
@@ -196,6 +334,12 @@ namespace cadet
 			template <typename StateType>
 			void splineModel(StateType* q, StateType const* cp, LinearBufferAllocator workSpace) const
 			{
+				if (_competitiveMode)
+				{
+					competitiveSplineModel(q, cp, workSpace);
+					return;
+				}
+
 				int bndIdx = 0;
 
 				for (int comp = 0; comp < _nComp; ++comp)
@@ -234,39 +378,70 @@ namespace cadet
 
 				typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
+				size_t* lowerIndices = nullptr;
+				double* lowerWeights = nullptr;
+				double* upperWeights = nullptr;
+				double* invSteps = nullptr;
+				double* dqDcpAll = nullptr;
+
+				if (_competitiveMode)
+				{
+					BufferedArray<size_t> lowerIndexArray = workSpace.array<size_t>(_nComp);
+					lowerIndices = static_cast<size_t*>(lowerIndexArray);
+					BufferedArray<double> lowerWeightArray = workSpace.array<double>(_nComp);
+					lowerWeights = static_cast<double*>(lowerWeightArray);
+					BufferedArray<double> upperWeightArray = workSpace.array<double>(_nComp);
+					upperWeights = static_cast<double*>(upperWeightArray);
+					BufferedArray<double> invStepArray = workSpace.array<double>(_nComp);
+					invSteps = static_cast<double*>(invStepArray);
+					BufferedArray<double> derivativeArray = workSpace.array<double>(_nComp);
+					dqDcpAll = static_cast<double*>(derivativeArray);
+
+					_competitiveSplineGrid.compute_factors(yCp, lowerIndices, lowerWeights, upperWeights, invSteps);
+				}
+
 				int bndIdx = 0;
 
 				for (int comp = 0; comp < _nComp; ++comp)
 				{
-					const double cp_val = yCp[comp];
-					const int n_pts = _porePhaseConc[comp].size();
-
 					for (int bnd = 0; bnd < _nBoundStates[comp]; ++bnd, ++bndIdx)
 					{
-						const auto& coeffs = _splineParams[bndIdx];
-						const int n_param = coeffs.size();
+						jac[0] = static_cast<double>(p->kKin[bndIdx]);
 
-						const int idx = find_interval(cp_val, _porePhaseConc[comp]);
-						const double h = cp_val - _porePhaseConc[comp][idx];
-
-						double dq_dcp = 0.0;
-
-						if (cp_val < _porePhaseConc[comp][0])
+						if (_competitiveMode)
 						{
-							dq_dcp = 2.0 * coeffs[1] * h + coeffs[2];
-						}
-						else if (cp_val >= _porePhaseConc[comp][n_pts - 1])
-						{
-							dq_dcp = 2.0 * coeffs[n_param - 3] * h + coeffs[n_param - 2];
+							double qValue = 0.0;
+							_competitiveSplineGrid.evaluate(_competitiveSplineValues[bndIdx].data(), lowerIndices, lowerWeights, upperWeights, invSteps, qValue, dqDcpAll);
+
+							for (int cpComp = 0; cpComp < _nComp; ++cpComp)
+								jac[cpComp - bndIdx - offsetCp] = -static_cast<double>(p->kKin[bndIdx]) * dqDcpAll[cpComp];
 						}
 						else
 						{
-							dq_dcp = (3.0 * coeffs[4 * idx] * h + 2.0 * coeffs[4 * idx + 1]) * h + coeffs[4 * idx + 2];
-						}
+							const auto& coeffs = _splineParams[bndIdx];
+							const int n_param = coeffs.size();
+							const double cp_val = yCp[comp];
+							const int n_pts = _porePhaseConc[comp].size();
+							const int idx = find_interval(cp_val, _porePhaseConc[comp]);
+							const double h = cp_val - _porePhaseConc[comp][idx];
 
-						jac[0] = static_cast<double>(p->kKin[bndIdx]);
-						jac[comp - bnd - _bndStateOffset[comp] - offsetCp] =
-							-static_cast<double>(p->kKin[bndIdx]) * dq_dcp;
+							double dq_dcp = 0.0;
+
+							if (cp_val < _porePhaseConc[comp][0])
+							{
+								dq_dcp = 2.0 * coeffs[1] * h + coeffs[2];
+							}
+							else if (cp_val >= _porePhaseConc[comp][n_pts - 1])
+							{
+								dq_dcp = 2.0 * coeffs[n_param - 3] * h + coeffs[n_param - 2];
+							}
+							else
+							{
+								dq_dcp = (3.0 * coeffs[4 * idx] * h + 2.0 * coeffs[4 * idx + 1]) * h + coeffs[4 * idx + 2];
+							}
+
+							jac[comp - bndIdx - offsetCp] = -static_cast<double>(p->kKin[bndIdx]) * dq_dcp;
+						}
 
 						++jac;
 					}

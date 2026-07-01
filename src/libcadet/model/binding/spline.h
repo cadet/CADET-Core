@@ -33,6 +33,7 @@
 #include <vector>
 #include <algorithm>
 #include <fstream>
+#include <limits>
 
 #ifdef HAVE_SSTREAM
 #include <sstream>
@@ -152,6 +153,118 @@ public:
     std::string info() const;
 #endif // HAVE_SSTREAM
 
+};
+
+class regular_grid_interpolator
+{
+public:
+    regular_grid_interpolator() : m_num_points(0), m_num_corners(0) { }
+
+    void set_points(const std::vector< std::vector<double> >& axes)
+    {
+        assert(!axes.empty());
+        assert(axes.size() < std::numeric_limits<size_t>::digits);
+
+        m_axes = axes;
+        m_strides.resize(m_axes.size());
+        m_num_points = 1;
+
+        for (size_t dim = m_axes.size(); dim > 0; --dim)
+        {
+            const size_t axisIdx = dim - 1;
+            assert(m_axes[axisIdx].size() >= 2);
+            m_strides[axisIdx] = m_num_points;
+            m_num_points *= m_axes[axisIdx].size();
+        }
+
+        m_num_corners = size_t(1) << m_axes.size();
+    }
+
+    size_t num_dims() const { return m_axes.size(); }
+    size_t num_points() const { return m_num_points; }
+    size_t num_corners() const { return m_num_corners; }
+    const std::vector<double>& axis(size_t dim) const { return m_axes[dim]; }
+    size_t stride(size_t dim) const { return m_strides[dim]; }
+
+    size_t find_interval(double x, size_t dim) const
+    {
+        const std::vector<double>& curAxis = m_axes[dim];
+        const std::vector<double>::const_iterator it = std::upper_bound(curAxis.begin(), curAxis.end(), x);
+        const size_t upperIdx = static_cast<size_t>(it - curAxis.begin());
+        if (upperIdx == 0)
+            return 0;
+        if (upperIdx >= curAxis.size())
+            return curAxis.size() - 2;
+        return upperIdx - 1;
+    }
+
+    template <typename StateType>
+    void compute_factors(StateType const* point, size_t* lowerIndices, StateType* lowerWeights, StateType* upperWeights, StateType* invSteps) const
+    {
+        for (size_t dim = 0; dim < m_axes.size(); ++dim)
+        {
+            const size_t idx = find_interval(static_cast<double>(point[dim]), dim);
+            const double lower = m_axes[dim][idx];
+            const double step = m_axes[dim][idx + 1] - lower;
+            const StateType localCoord = (point[dim] - static_cast<StateType>(lower)) / static_cast<StateType>(step);
+
+            lowerIndices[dim] = idx;
+            lowerWeights[dim] = StateType(1.0) - localCoord;
+            upperWeights[dim] = localCoord;
+            invSteps[dim] = StateType(1.0 / step);
+        }
+    }
+
+    template <typename ValueType, typename StateType>
+    void evaluate(ValueType const* values, size_t const* lowerIndices, StateType const* lowerWeights,
+        StateType const* upperWeights, StateType const* invSteps, StateType& result, StateType* derivatives) const
+    {
+        result = StateType(0.0);
+        if (derivatives)
+        {
+            for (size_t dim = 0; dim < m_axes.size(); ++dim)
+                derivatives[dim] = StateType(0.0);
+        }
+
+        for (size_t corner = 0; corner < m_num_corners; ++corner)
+        {
+            size_t flatIndex = 0;
+            StateType weight = StateType(1.0);
+
+            for (size_t dim = 0; dim < m_axes.size(); ++dim)
+            {
+                const bool useUpper = ((corner >> dim) & size_t(1)) != 0;
+                flatIndex += (lowerIndices[dim] + (useUpper ? 1 : 0)) * m_strides[dim];
+                weight *= useUpper ? upperWeights[dim] : lowerWeights[dim];
+            }
+
+            const StateType value = static_cast<StateType>(values[flatIndex]);
+            result += weight * value;
+
+            if (!derivatives)
+                continue;
+
+            for (size_t derivDim = 0; derivDim < m_axes.size(); ++derivDim)
+            {
+                StateType derivWeight = (((corner >> derivDim) & size_t(1)) != 0) ? invSteps[derivDim] : -invSteps[derivDim];
+                for (size_t dim = 0; dim < m_axes.size(); ++dim)
+                {
+                    if (dim == derivDim)
+                        continue;
+
+                    derivWeight *= (((corner >> dim) & size_t(1)) != 0) ? upperWeights[dim] : lowerWeights[dim];
+                }
+
+                derivatives[derivDim] += derivWeight * value;
+            }
+        }
+    }
+
+private:
+    std::vector< std::vector<double> > m_axes;
+    std::vector<size_t> m_strides;
+    size_t m_num_points;
+    size_t m_num_corners;
 };
 
 
