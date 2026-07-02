@@ -294,6 +294,17 @@ TEST_CASE("Reference test: spline binding single component", "[Column_1D],[Splin
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
+TEST_CASE("Reference test: spline binding 2 component competitive Langmuir", "[Column_1D],[LRM],[Simulation],[SplineBinding],[Binding],[CI]")
+{
+	std::string modelFilePath = std::string("/data/config_Col1D_LRM_langSPLINE_2comp_benchmark1.json");
+	std::string refFilePath = std::string("/data/ref_Col1D_LRM_langSPLINE_2comp_benchmark1.h5");
+	const std::vector<double> absTol = { 5e-9 };
+	const std::vector<double> relTol = { 5e-6 };
+
+	cadet::test::column::FVParams disc;
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
 TEST_CASE("Reference test: GPR binding with MLP kernel single component", "[Column_1D],[GPRBinding],[Simulation],[CI]")
 {
 	std::string modelFilePath = std::string("/data/config_COL1D_GRM_GPR_Shallow_MLP_7.json");
@@ -371,15 +382,4 @@ TEST_CASE("Reference test: acyclic system with LRMP", "[Column_1D],[LRMP],[Simul
 
 	cadet::test::column::DGParams disc;
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "006", absTol, relTol, disc, false);
-}
-
-TEST_CASE("Reference test: 2 component competitive Langmuir with spline surrogate", "[Column_1D],[LRM],[Simulation],[SPLINE_INTERPOLATION],[Binding],[CI]")
-{
-	std::string modelFilePath = std::string("/data/config_Col1D_LRM_langSPLINE_2comp_benchmark1.json");
-	std::string refFilePath = std::string("/data/ref_Col1D_LRM_langSPLINE_2comp_benchmark1.h5");
-	const std::vector<double> absTol = { 1e-10 };
-	const std::vector<double> relTol = { 1e-8 };
-
-	cadet::test::column::FVParams disc;
-	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }

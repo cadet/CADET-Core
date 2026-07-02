@@ -107,6 +107,7 @@
                     5.50724638e-12
                 ],
               "adsorption": {
+                "INTERPOLATION_MODE": "INDEPENDENT",
                 "IS_KINETIC": 1,
                 "SPLINE_KKIN": 1.0,
                 "CS_VALS_COMP_000_BND_000": [
