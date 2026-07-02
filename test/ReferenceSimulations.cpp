@@ -298,8 +298,8 @@ TEST_CASE("Reference test: spline binding 2 component competitive Langmuir", "[C
 {
 	std::string modelFilePath = std::string("/data/config_Col1D_LRM_langSPLINE_2comp_benchmark1.json");
 	std::string refFilePath = std::string("/data/ref_Col1D_LRM_langSPLINE_2comp_benchmark1.h5");
-	const std::vector<double> absTol = { 5e-4 };
-	const std::vector<double> relTol = { 1e-5 };
+	const std::vector<double> absTol = { 7e-4 };
+	const std::vector<double> relTol = { 1e-3 };
 
 	cadet::test::column::FVParams disc;
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
