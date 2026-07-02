@@ -90,9 +90,13 @@ namespace cadet
 
 			virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 			{
+				// Buffers needed:
+				//   fluxImpl:      qSpline[totBnd] + {lowerWeights, upperWeights, invSteps, cpBinding}[nComp] + lowerIndices[nComp] (size_t)
+				//   jacobianImpl:  {lowerWeights, upperWeights, invSteps, dqDcp, cpBinding}[nComp] + lowerIndices[nComp] (size_t)
+				// Use nComp as upper bound for nBindingComponents.
 				return ParamHandlerBindingModelBase<ParamHandler_t>::workspaceSize(nComp, totalNumBoundStates, nBoundStates)
-					+ sizeof(active) * (totalNumBoundStates + 4u * nComp)
-					+ sizeof(size_t) * nComp + alignof(active); // qSpline plus competitive interpolation buffers
+					+ sizeof(active) * (totalNumBoundStates + 5u * nComp)
+					+ sizeof(size_t) * nComp + alignof(active);
 			}
 
 			CADET_BINDINGMODELBASE_BOILERPLATE
@@ -109,7 +113,8 @@ namespace cadet
 			// Independent mode: per-component 1D spline storage, q_i = f_i(c_{p,i}).
 			std::vector< std::vector<double> > _porePhaseConc; // [_nComp][knots]
 			std::vector< std::vector<double> > _splineParams;  // [_totBoundStates][4*(nKnots-1) coeffs]
-			// Competitive mode: multilinear interpolation on a Cartesian-product grid.
+			// Competitive mode: multilinear interpolation on a Cartesian-product grid
+			std::vector<int> _bindingComponents; // [_nComp] indices of components with nonzero bound states
 			tk::regular_grid_interpolator _competitiveSplineGrid;
 			std::vector< std::vector<double> > _competitiveSplineValues; // [_totBoundStates][gridPoint]
 
@@ -126,7 +131,7 @@ namespace cadet
 				return std::abs(left - right) <= 1e-12 * scale;
 			}
 
-			/// Return a sorted copy of values with near-duplicate entries removed.
+			// Return a sorted copy of values with near-duplicate entries removed.
 			std::vector<double> uniqueSortedAxis(std::vector<double> values) const
 			{
 				std::sort(values.begin(), values.end());
@@ -143,8 +148,8 @@ namespace cadet
 				return axis;
 			}
 
-			/// Return the index of value in axis, tolerating small floating-point errors.
-			/// Throws InvalidParameterException if value is not found.
+			// Return the index of value in axis, tolerating small floating-point errors.
+			// Throws InvalidParameterException if value is not found.
 			size_t findAxisIndex(double value, const std::vector<double>& axis) const
 			{
 				const std::vector<double>::const_iterator it = std::lower_bound(axis.begin(), axis.end(), value);
@@ -160,46 +165,53 @@ namespace cadet
 
 			void configureCompetitiveSpline(IParameterProvider& paramProvider)
 			{
-				std::vector< std::vector<double> > porePhaseConc(_nComp);
-				std::vector< std::vector<double> > axes(_nComp);
-				std::vector<size_t> sampleToFlatIndex;
+				const int nBindingComp = static_cast<int>(_bindingComponents.size());
+
+				// Per-binding-component pore-phase concentration samples and grid axes.
+				// Indexed 0..nBindingComp-1, not by original component index.
+				std::vector< std::vector<double> > porePhaseConc(nBindingComp);
+				std::vector< std::vector<double> > axes(nBindingComp);
 
 				size_t nSamples = 0;
-				for (int comp = 0; comp < _nComp; ++comp)
+				for (int bindingIdx = 0; bindingIdx < nBindingComp; ++bindingIdx)
 				{
-					porePhaseConc[comp] = paramProvider.getDoubleArray(std::format("CP_VALS_COMP_{:03}", comp));
-					if (porePhaseConc[comp].empty())
+					const int comp = _bindingComponents[bindingIdx];
+					porePhaseConc[bindingIdx] = paramProvider.getDoubleArray(std::format("CP_VALS_COMP_{:03}", comp));
+
+					if (porePhaseConc[bindingIdx].empty())
 						throw InvalidParameterException("CP_VALS_COMP entries must not be empty");
 
-					if (comp == 0)
-						nSamples = porePhaseConc[comp].size();
-					else if (porePhaseConc[comp].size() != nSamples)
+					if (bindingIdx == 0)
+						nSamples = porePhaseConc[bindingIdx].size();
+					else if (porePhaseConc[bindingIdx].size() != nSamples)
 						throw InvalidParameterException("All CP_VALS_COMP entries must contain the same number of samples");
 
-					axes[comp] = uniqueSortedAxis(porePhaseConc[comp]);
-					if (axes[comp].size() < 2)
+					axes[bindingIdx] = uniqueSortedAxis(porePhaseConc[bindingIdx]);
+					if (axes[bindingIdx].size() < 2)
 						throw InvalidParameterException("Each spline input dimension requires at least two distinct CP_VALS_COMP entries");
 				}
 
 				size_t expectedSamples = 1;
-				for (int comp = 0; comp < _nComp; ++comp)
-					expectedSamples *= axes[comp].size();
+				for (int bindingIdx = 0; bindingIdx < nBindingComp; ++bindingIdx)
+					expectedSamples *= axes[bindingIdx].size();
 
 				if (expectedSamples != nSamples)
 					throw InvalidParameterException("CP_VALS_COMP does not cover a full Cartesian product grid");
 
+				// Grid dimensions correspond to _bindingComponents[0..nBindingComp-1].
 				_competitiveSplineGrid.set_points(axes);
 				_competitiveSplineValues.assign(_totBoundStates, std::vector<double>(_competitiveSplineGrid.num_points(), 0.0));
 
-				sampleToFlatIndex.resize(nSamples);
+				// Map each sample to its flat grid index.
+				std::vector<size_t> sampleToFlatIndex(nSamples);
 				std::vector<bool> seen(_competitiveSplineGrid.num_points(), false);
 				for (size_t sample = 0; sample < nSamples; ++sample)
 				{
 					size_t flatIndex = 0;
-					for (int comp = 0; comp < _nComp; ++comp)
+					for (int bindingIdx = 0; bindingIdx < nBindingComp; ++bindingIdx)
 					{
-						const size_t axisIdx = findAxisIndex(porePhaseConc[comp][sample], axes[comp]);
-						flatIndex += axisIdx * _competitiveSplineGrid.stride(comp);
+						const size_t axisIdx = findAxisIndex(porePhaseConc[bindingIdx][sample], axes[bindingIdx]);
+						flatIndex += axisIdx * _competitiveSplineGrid.stride(bindingIdx);
 					}
 
 					if (seen[flatIndex])
@@ -208,6 +220,7 @@ namespace cadet
 					sampleToFlatIndex[sample] = flatIndex;
 				}
 
+				// Read solid-phase values; skip components with zero bound states.
 				for (int comp = 0; comp < _nComp; ++comp)
 				{
 					for (int bnd = 0; bnd < _nBoundStates[comp]; ++bnd)
@@ -240,10 +253,9 @@ namespace cadet
 
 			void configureIndependentSpline(IParameterProvider& paramProvider)
 			{
-				/// Configure independent mode: build one 1D cubic spline per bound state.
-				/// Boundary conditions: zero second derivative (left) → linear extrapolation;
-				/// zero first derivative (right) → flat extrapolation.
-				
+				// Configure independent mode: build one 1D cubic spline per bound state.
+				// Boundary conditions: zero second derivative (left) → linear extrapolation;
+				// zero first derivative (right) → flat extrapolation.
 				std::vector<double> solidPhaseConc;
 
 				for (int comp = 0; comp < _nComp; ++comp)
@@ -285,6 +297,14 @@ namespace cadet
 						_bndStateOffset[comp] = _bndStateOffset[comp - 1] + _nBoundStates[comp - 1];
 				}
 				_totBoundStates = _bndStateOffset[_nComp];
+
+				// Collect components that participate in binding (used by competitive mode).
+				_bindingComponents.clear();
+				for (int comp = 0; comp < _nComp; ++comp)
+				{
+					if (_nBoundStates[comp] > 0)
+						_bindingComponents.push_back(comp);
+				}
 
 				_splineParams.resize(_totBoundStates);
 				_porePhaseConc.resize(_nComp);
@@ -336,26 +356,34 @@ namespace cadet
 				return 0;
 			}
 
+			// Dispatch equilibrium evaluation to competitive (multilinear N-D) or
+			// independent (cubic 1D) mode. Components with zero bound states are ignored
+			// in both cases. In competitive mode, only binding components form the grid
+			// dimensions; their cp values are extracted into a temporary buffer.
 			template <typename StateType>
 			void splineModel(StateType* q, StateType const* cp, LinearBufferAllocator workSpace) const
 			{
-				// Dispatch equilibrium evaluation to competitive (multilinear N-D) or
-				// independent (cubic 1D) mode. In independent mode, mixed extrapolation is
-				// applied: linear to the left (zero second derivative), flat to the right
-				// (zero first derivative).
 				if (_competitiveMode)
 				{
-					BufferedArray<size_t> lowerIndexArray = workSpace.array<size_t>(_nComp);
+					const int nBindingComp = static_cast<int>(_bindingComponents.size());
+
+					BufferedArray<size_t> lowerIndexArray = workSpace.array<size_t>(nBindingComp);
 					size_t* const lowerIndices = static_cast<size_t*>(lowerIndexArray);
-					BufferedArray<StateType> lowerWeightArray = workSpace.array<StateType>(_nComp);
+					BufferedArray<StateType> lowerWeightArray = workSpace.array<StateType>(nBindingComp);
 					StateType* const lowerWeights = static_cast<StateType*>(lowerWeightArray);
-					BufferedArray<StateType> upperWeightArray = workSpace.array<StateType>(_nComp);
+					BufferedArray<StateType> upperWeightArray = workSpace.array<StateType>(nBindingComp);
 					StateType* const upperWeights = static_cast<StateType*>(upperWeightArray);
-					BufferedArray<StateType> invStepArray = workSpace.array<StateType>(_nComp);
+					BufferedArray<StateType> invStepArray = workSpace.array<StateType>(nBindingComp);
 					StateType* const invSteps = static_cast<StateType*>(invStepArray);
 
+					// Extract pore-phase concentrations of binding components only.
+					BufferedArray<StateType> cpBindingArray = workSpace.array<StateType>(nBindingComp);
+					StateType* const cpBinding = static_cast<StateType*>(cpBindingArray);
+					for (int bindingIdx = 0; bindingIdx < nBindingComp; ++bindingIdx)
+						cpBinding[bindingIdx] = cp[_bindingComponents[bindingIdx]];
+
 					// Locate the enclosing cell and compute interpolation weights once for all bound states.
-					_competitiveSplineGrid.compute_factors(cp, lowerIndices, lowerWeights, upperWeights, invSteps);
+					_competitiveSplineGrid.compute_factors(cpBinding, lowerIndices, lowerWeights, upperWeights, invSteps);
 
 					for (int bndIdx = 0; bndIdx < _totBoundStates; ++bndIdx)
 						_competitiveSplineGrid.evaluate(_competitiveSplineValues[bndIdx].data(), lowerIndices, lowerWeights, upperWeights, invSteps, q[bndIdx], static_cast<StateType*>(nullptr));
@@ -412,18 +440,26 @@ namespace cadet
 
 				if (_competitiveMode)
 				{
-					BufferedArray<size_t> lowerIndexArray = workSpace.array<size_t>(_nComp);
+					const int nBindingComp = static_cast<int>(_bindingComponents.size());
+
+					BufferedArray<size_t> lowerIndexArray = workSpace.array<size_t>(nBindingComp);
 					lowerIndices = static_cast<size_t*>(lowerIndexArray);
-					BufferedArray<double> lowerWeightArray = workSpace.array<double>(_nComp);
+					BufferedArray<double> lowerWeightArray = workSpace.array<double>(nBindingComp);
 					lowerWeights = static_cast<double*>(lowerWeightArray);
-					BufferedArray<double> upperWeightArray = workSpace.array<double>(_nComp);
+					BufferedArray<double> upperWeightArray = workSpace.array<double>(nBindingComp);
 					upperWeights = static_cast<double*>(upperWeightArray);
-					BufferedArray<double> invStepArray = workSpace.array<double>(_nComp);
+					BufferedArray<double> invStepArray = workSpace.array<double>(nBindingComp);
 					invSteps = static_cast<double*>(invStepArray);
-					BufferedArray<double> derivativeArray = workSpace.array<double>(_nComp);
+					BufferedArray<double> derivativeArray = workSpace.array<double>(nBindingComp);
 					dqDcpAll = static_cast<double*>(derivativeArray);
 
-					_competitiveSplineGrid.compute_factors(yCp, lowerIndices, lowerWeights, upperWeights, invSteps);
+					// Extract pore-phase concentrations of binding components only.
+					BufferedArray<double> cpBindingArray = workSpace.array<double>(nBindingComp);
+					double* const cpBinding = static_cast<double*>(cpBindingArray);
+					for (int bindingIdx = 0; bindingIdx < nBindingComp; ++bindingIdx)
+						cpBinding[bindingIdx] = yCp[_bindingComponents[bindingIdx]];
+
+					_competitiveSplineGrid.compute_factors(cpBinding, lowerIndices, lowerWeights, upperWeights, invSteps);
 				}
 
 				int bndIdx = 0;
@@ -432,15 +468,26 @@ namespace cadet
 				{
 					for (int bnd = 0; bnd < _nBoundStates[comp]; ++bnd, ++bndIdx)
 					{
+						// d(res_bndIdx)/d(q_bndIdx) = kKin
 						jac[0] = static_cast<double>(p->kKin[bndIdx]);
 
 						if (_competitiveMode)
 						{
+							const int nBindingComp = static_cast<int>(_bindingComponents.size());
+
 							double qValue = 0.0;
 							_competitiveSplineGrid.evaluate(_competitiveSplineValues[bndIdx].data(), lowerIndices, lowerWeights, upperWeights, invSteps, qValue, dqDcpAll);
 
+							// Zero all cp Jacobian entries; only binding components have non-zero derivatives.
 							for (int cpComp = 0; cpComp < _nComp; ++cpComp)
-								jac[cpComp - bndIdx - offsetCp] = -static_cast<double>(p->kKin[bndIdx]) * dqDcpAll[cpComp];
+								jac[cpComp - bndIdx - offsetCp] = 0.0;
+
+							// dqDcpAll[bindingIdx] = dq/d(cp[_bindingComponents[bindingIdx]])
+							for (int bindingIdx = 0; bindingIdx < nBindingComp; ++bindingIdx)
+							{
+								const int cpComp = _bindingComponents[bindingIdx];
+								jac[cpComp - bndIdx - offsetCp] = -static_cast<double>(p->kKin[bndIdx]) * dqDcpAll[bindingIdx];
+							}
 						}
 						else
 						{

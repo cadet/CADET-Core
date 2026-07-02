@@ -354,7 +354,8 @@ CADET_BINDINGTEST_MULTI("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITR
 
 	// Note: the allBinding has six components to test both interpolation and extrapolation of the data, i.e. different initial values that are within or beyond the range of the provided data.
 	CADET_BINDINGTEST("SPLINE_INTERPOLATION", "EXT_SPLINE_INTERPOLATION", (1, 1, 1, 1, 1, 1), (1, 0, 1, 1, 1, 1, 1), (1.5, 0.0, 0.1, 1.1, 0.3, 1.8, 0.2, 0.3, 0.8, 0.33, 0.1, 0.75), (1.5, 1.0, 0.0, 0.1, 1.1, 0.3, 1.8, 0.2, 0.3, 0.8, 0.33, 0.1, 0.75), \
-	R"json( "CP_VALS_COMP_000": [
+	R"json( "INTERPOLATION_MODE" : "INDEPENDENT",
+			"CP_VALS_COMP_000": [
                 0.0, 0.19219219, 0.37837838, 0.75075075, 1.5015015, 3.003003, 6.0
             ],
             "CP_VALS_COMP_001": [
@@ -388,7 +389,8 @@ CADET_BINDINGTEST_MULTI("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITR
             "CS_VALS_COMP_005_BND_000": [ 0.3, 0.31, 0.35, 0.4, 0.45, 0.5 ],
 			"SPLINE_KKIN": [2.0, 1.0, 1.2, 1.1, 3.2, 4.0]
 	)json", \
-	R"json( "CP_VALS_COMP_000": [
+	R"json( "INTERPOLATION_MODE" : "INDEPENDENT",
+			"CP_VALS_COMP_000": [
 				0.0, 0.19219219, 0.37837838, 0.75075075, 1.5015015, 3.003003, 6.0
             ],
             "CP_VALS_COMP_002": [
@@ -422,7 +424,8 @@ CADET_BINDINGTEST_MULTI("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITR
             "CS_VALS_COMP_006_BND_000": [ 0.3, 0.31, 0.35, 0.4, 0.45, 0.5 ],
 			"SPLINE_KKIN": [2.0, 1.0, 1.2, 1.1, 3.2, 4.0]
 	)json", \
-	R"json( "CP_VALS_COMP_000": [
+	R"json( "INTERPOLATION_MODE" : "INDEPENDENT",
+			"CP_VALS_COMP_000": [
                 0.0, 0.19219219, 0.37837838, 0.75075075, 1.5015015, 3.003003, 6.0
             ],
             "CP_VALS_COMP_001": [
@@ -459,7 +462,8 @@ CADET_BINDINGTEST_MULTI("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITR
 	        "EXT_SPLINE_KKIN_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
 	        "EXT_SPLINE_KKIN_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 	)json", \
-	R"json( "CP_VALS_COMP_000": [
+	R"json( "INTERPOLATION_MODE" : "INDEPENDENT",
+			"CP_VALS_COMP_000": [
                 0.0, 0.19219219, 0.37837838, 0.75075075, 1.5015015, 3.003003, 6.0
             ],
             "CP_VALS_COMP_002": [
