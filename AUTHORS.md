@@ -15,13 +15,13 @@ Major additions or modifications to CADET-Core are explicitly documented here.
 * [Salah Azzouzi](https://github.com/azzouzis)[^1]
 * [Johannes Schmölder](https://github.com/schmoelder)[![ORCID iD](https://orcid.org/sites/default/files/images/orcid_16x16.png)](https://orcid.org/0000-0003-0446-7209)[^1]
 * [Jayghosh Rao](https://github.com/jayghoshter)[![ORCID iD](https://orcid.org/sites/default/files/images/orcid_16x16.png)](https://orcid.org/0000-0002-1216-9394)[^1]
-* [Jazib Hassan](https://github.com/jazib-hassan-juelich)[![ORCID iD](https://orcid.org/sites/default/files/images/orcid_16x16.png)](https://orcid.org/0000-0003-2741-5460)[^1]
-* [Jan Michael Breuer](https://github.com/jbreue16)[![ORCID iD](https://orcid.org/sites/default/files/images/orcid_16x16.png)](https://orcid.org/0000-0002-1999-2439)[^3][^1]: Spatial DG discretization (1D, 2D, particles), Crystallization module, refactored/generalized chromatography units
-* [Ronald Jäpel](https://github.com/ronald-jaepel)[![ORCID iD](https://orcid.org/sites/default/files/images/orcid_16x16.png)](https://orcid.org/0000-0002-4912-5176)[^1]
+* [Jazib Hassan](https://github.com/jazib-hassan-juelich)[![ORCID iD](https://orcid.org/sites/default/files/images/orcid_16x16.png)](https://orcid.org/0000-0003-2741-5460)[^1] hybrid models with spline/gpr/ann binding model surrogates
+* [Jan Michael Breuer](https://github.com/jbreue16)[![ORCID iD](https://orcid.org/sites/default/files/images/orcid_16x16.png)](https://orcid.org/0000-0002-1999-2439)[^3][^1]: Spatial DG discretization (1D, 2D, particles), Crystallization module, refactored/generalized chromatography units, hybrid models with spline/gpr/ann binding model surrogates, frustum and radial flow geometry FV and DG
+* [Ronald Jäpel](https://github.com/ronald-jaepel)[![ORCID iD](https://orcid.org/sites/default/files/images/orcid_16x16.png)](https://orcid.org/0000-0002-4912-5176)[^1] HIC binding
 * [Hannah Lanzrath](https://github.com/hannahlanzrath)[![ORCID iD](https://orcid.org/sites/default/files/images/orcid_16x16.png)](https://orcid.org/0000-0002-2675-9002)[^1][^2]
 * [Antonia Berger](https://github.com/AntoniaBerger)[![ORCID iD](https://orcid.org/sites/default/files/images/orcid_16x16.png)](https://orcid.org/0009-0002-0207-9042)[^1][^2]: Refactored/generalized reactions system
-* [Wendi Zhang](https://github.com/WFlynnZ)[![ORCID iD](https://orcid.org/sites/default/files/images/orcid_16x16.png)](https://orcid.org/0000-0002-6127-1408)[^4]: Crystallization module
-* [Yuvraj Singh Rathore](https://github.com/Yuvraj2710)[^1]
+* [Wendi Zhang](https://github.com/WFlynnZ)[![ORCID iD](https://orcid.org/sites/default/files/images/orcid_16x16.png)](https://orcid.org/0000-0002-6127-1408)[^4]: Crystallization module, ACT binding
+* [Yuvraj Singh Rathore](https://github.com/Yuvraj2710)[^1] radial flow geometry FV and DG
 
 [^1]: Forschungszentrum Juelich GmbH, IBG-1: Biotechnology, Juelich, Germany
 [^2]: RWTH Aachen University, Computational Systems Biotechnology, Aachen, Germany
