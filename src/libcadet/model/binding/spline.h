@@ -248,7 +248,7 @@ public:
      * corner the bit pattern of `corner` selects the lower (bit=0) or upper (bit=1)
      * grid index per dimension. The interpolated value is the weighted sum over
      * all corners. Partial derivatives replace the weight factor of the target
-     * dimension with ±invStep[d] while keeping all other dimension weights.
+     * dimension with +-invStep[d] while keeping all other dimension weights.
      *
      * @param[in]  values       Flat value array of length num_points (C-order).
      * @param[in]  lowerIndices From compute_factors().
@@ -289,7 +289,7 @@ public:
                 continue;
 
             // Partial derivative w.r.t. derivDim: swap the derivDim weight factor
-            // with ±invStep[derivDim]; sign depends on which corner vertex is used.
+            // with +-invStep[derivDim]; sign depends on which corner vertex is used.
             for (size_t derivDim = 0; derivDim < m_axes.size(); ++derivDim)
             {
                 StateType derivWeight = (((corner >> derivDim) & size_t(1)) != 0) ? invSteps[derivDim] : -invSteps[derivDim];
