@@ -18,37 +18,42 @@ For information on model equations, refer to :ref:`spline_interpolation`.
 **Type:** int        **Range:** {0,1}           **Length:** 1/NTOTALBND
 ===================  =========================  =======================
 
+``INTERPOLATION_MODE``
+   Selects the interpolation mode:
+
+   - ``INDEPENDENT``: each component's equilibrium loading is an independent
+     1D cubic spline of its own pore-phase concentration.
+   - ``COMPETITIVE``: all equilibrium loadings depend on the full pore-phase
+     concentration vector via multilinear interpolation on a regular
+     Cartesian-product grid (see :ref:`spline_interpolation`).
+
+===================  ===================================
+**Type:** string     **Value:** INDEPENDENT, COMPETITIVE
+===================  ===================================
+
 ``CP_VALS_COMP_XXX``
-   Pore-phase concentration support points for component ``XXX`` used to
-   construct the spline isotherm. The values must be given in ascending
-   order.
+   Pore-phase concentration support points for component ``XXX``.
+
+   *INDEPENDENT mode*: the 1D spline knots in strictly ascending order.
+
+   *COMPETITIVE mode*: sample values whose distinct entries define the axis
+   for component ``XXX`` of the Cartesian-product grid. All components must
+   supply the same number of samples, together covering the full grid (i.e.
+   every combination of distinct per-component values must appear exactly once).
 
 **Unit:** :math:`mol~m_{MP}^{-3}`
 
 ===================  =========================  =======================
-**Type:** double     **Range:** :math:`\geq 0`    **Length:** N
-===================  =========================  =======================
-
-``CS_VALS_COMP_XXX``
-   Solid-phase equilibrium loadings corresponding to ``C_VALS_COMP_XXX``
-   for component ``XXX``. This parameter is used if component ``XXX`` has
-   exactly one bound state.
-
-**Unit:** :math:`mol~m_{SP}^{-3}`
-
-===================  =========================  =======================
-**Type:** double     **Range:** :math:`\geq 0`    **Length:** N
+**Type:** double     **Range:** :math:`\geq 0`  **Length:** N
 ===================  =========================  =======================
 
 ``CS_VALS_COMP_XXX_BND_YYY``
-   Solid-phase equilibrium loadings corresponding to ``C_VALS_COMP_XXX``
-   for bound state ``YYY`` of component ``XXX``. This parameter is used if
-   component ``XXX`` has more than one bound state.
+   Solid-phase equilibrium loadings corresponding to ``CP_VALS_COMP_XXX`` for bound state ``YYY`` of component ``XXX``.
 
 **Unit:** :math:`mol~m_{SP}^{-3}`
 
 ===================  =========================  =======================
-**Type:** double     **Range:** :math:`\geq 0`    **Length:** N
+**Type:** double     **Range:** :math:`\geq 0`  **Length:** N
 ===================  =========================  =======================
 
 ``SPLINE_KKIN``
