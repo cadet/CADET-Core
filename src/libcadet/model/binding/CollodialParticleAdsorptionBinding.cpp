@@ -432,12 +432,10 @@ protected:
 			if (std::abs(static_cast<double>(Theta)) < 1.0)
 			{
 				const CpStateParamType oneMinusTheta = 1.0 - Theta;
-				const CpStateParamType nom1 = pi * a_i * a_i * sumQSurface * NA
-					+ 2.0 * pi * a_i * sumAjQj * NA;
-				const CpStateParamType nom2 = pi * a_i * a_i
-					* (sumAjQj * NA) * (sumAjQj * NA);
+				const CpStateParamType nom1 = pi * a_i * a_i * sumQSurface * NA + 2.0 * pi * a_i * sumAjQj * NA;
+				const CpStateParamType nom2 = pi * pi * a_i * a_i * (sumAjQj * NA) * (sumAjQj * NA);
 
-				B_i = oneMinusTheta * exp(-nom1 / oneMinusTheta - nom2 / (oneMinusTheta * oneMinusTheta));
+				B_i = oneMinusTheta * exp( - nom1 / oneMinusTheta - nom2 / (oneMinusTheta * oneMinusTheta));
 			}
 
 			// 7. u_{lat,i} 
@@ -734,9 +732,8 @@ protected:
 			if (std::abs(Theta) < 1.0)
 			{
 				const double oneMinusTheta = 1.0 - Theta;
-				const double nom1 = pi * a_i * a_i * sumQSurface * NA
-					+ 2.0 * pi * a_i * sumAjQj * NA;
-				const double nom2 = pi * a_i * a_i * (sumAjQj * NA) * (sumAjQj * NA);
+				const double nom1 = pi * a_i * a_i * sumQSurface * NA + 2.0 * pi * a_i * sumAjQj * NA;
+				const double nom2 = pi * pi * a_i * a_i * (sumAjQj * NA) * (sumAjQj * NA);
 
 				const double expArg = -nom1 / oneMinusTheta - nom2 / (oneMinusTheta * oneMinusTheta);
 				B_i = oneMinusTheta * exp(expArg);
@@ -757,7 +754,7 @@ protected:
 				// dB_i / dsumAjQj (through nom1 and nom2)
 				// dnom1/dsumAjQj = 2*pi*a_i*NA
 				// dnom2/dsumAjQj = 2*pi*a_i^2 * sumAjQj * NA^2
-				const double dexpArg_dsumAjQj = -2.0 * pi * a_i * NA / oneMinusTheta
+				const double dexpArg_dsumAjQj = -2.0 * pi * pi * a_i * NA / oneMinusTheta
 					- 2.0 * pi * a_i * a_i * sumAjQj * NA * NA / (oneMinusTheta * oneMinusTheta);
 				dBi_dsumAjQj = B_i * dexpArg_dsumAjQj;
 			}
