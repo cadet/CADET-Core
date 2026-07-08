@@ -312,6 +312,13 @@ public:
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT = 0;
 
 	virtual unsigned int numReactions() const CADET_NOEXCEPT { return 0; };
+
+	virtual bool supportsConservedMoieties() const CADET_NOEXCEPT { return false; }
+
+	virtual bool isInEquilibrium(unsigned int reaction) const CADET_NOEXCEPT { return false;}
+	
+	virtual double getStoichiometry(unsigned int component, unsigned int reaction) const CADET_NOEXCEPT { return 0.0; }
+
 protected:
 };
 

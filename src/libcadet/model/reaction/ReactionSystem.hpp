@@ -13,6 +13,7 @@
 #pragma once
 
 #include "model/reaction/ReactionModelBase.hpp"
+#include "model/reaction/ConservedMoieties.hpp"
 #include "model/ReactionModel.hpp"
 #include "cadet/Exceptions.hpp"
 #include "ConfigurationHelper.hpp"
@@ -31,6 +32,7 @@
 #include <limits>
 #include <cmath>
 #include <unordered_set>
+#include <utility>
 
 namespace cadet
 {
@@ -54,6 +56,7 @@ struct ReactionSystem
         struct PhaseData
         {
             std::vector<IDynamicReactionModel*> dynReactions; //!< Dynamic reactions in the phase
+            ConservedMoieties consMoities;
 
             /**
              * @brief Default constructor initializing phase data with safe defaults
@@ -268,6 +271,55 @@ struct ReactionSystem
             }
         
             return dynReactionConfSuccess;
+        }
+        
+        bool configureConservedMoities(const std::string& phaseType, unsigned int nStates, double rankTol)
+        {
+            if (phaseType == "cross_phase")
+                throw InvalidParameterException("Conserved moieties are not supported for cross_phase reactions");
+
+            auto& phase = getPhaseData(phaseType);
+            auto& cm = phase.consMoities;
+            
+            unsigned int totalCols = 0;
+            std::vector<unsigned int> reactionColumnOffset;
+            reactionColumnOffset.reserve(phase.dynReactions.size());
+            
+            for (const auto* reaction : phase.dynReactions)
+            {
+                reactionColumnOffset.push_back(totalCols);
+
+                if (!reaction)
+                    continue;
+                if (!reaction->supportsConservedMoieties())
+                    throw InvalidParameterException("Reaction model does not support conserved moieties");
+                
+                totalCols += reaction->numReactions();
+            }
+            Eigen::MatrixXd S(nStates, totalCols);
+            std::vector<bool> eqReactionFlags(totalCols);
+
+            unsigned int colOffset = 0;
+            for (const auto* reaction : phase.dynReactions)
+            {
+                if (!reaction)
+                    continue;
+                const unsigned int nReac = reaction->numReactions();
+                
+                for (unsigned int r = 0; r < nReac; ++r)
+                {
+                    eqReactionFlags[colOffset + r]  = reaction->isInEquilibrium(r);
+
+                    for (unsigned int s = 0; s < nStates; ++s)
+                    {
+                        S(s, colOffset + r) = reaction->getStoichiometry(s, r);
+                    }
+                }
+
+                colOffset += nReac;
+            }
+
+            return cm.configure(nStates, std::move(reactionColumnOffset), std::move(eqReactionFlags), std::move(S), rankTol);
         }
 
         /**

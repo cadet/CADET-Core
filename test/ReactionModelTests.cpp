@@ -499,6 +499,47 @@ namespace reaction
 		testTimeDerivativeJacobianDynamicReactionsFD(jpp, bulk, particle, particleModifiers, h, absTol, relTol);
 	}
 
+	Eigen::MatrixXd conservedMoietiesFromMassActionLaw(unsigned int nComp, const char* config)
+	{
+		std::vector<unsigned int> nBound(nComp, 0);
+		std::vector<unsigned int> boundOffset(nComp, 0);
+
+		cadet::JsonParameterProvider jpp(config);
+		cadet::ReactionModelFactory rmf;
+		std::unique_ptr<cadet::model::IDynamicReactionModel> model(rmf.createDynamic("MASS_ACTION_LAW"));
+		REQUIRE(model);
+		REQUIRE(model->configureModelDiscretization(jpp, nComp, nBound.data(), boundOffset.data()));
+		REQUIRE(model->configure(jpp, 0, 0));
+
+		const unsigned int nReactions = model->numReactions();
+		Eigen::MatrixXd stoichiometry(nComp, nReactions);
+		std::vector<bool> eqReactionFlags(nReactions);
+
+		for (unsigned int r = 0; r < nReactions; ++r)
+		{
+			eqReactionFlags[r] = model->isInEquilibrium(r);
+			for (unsigned int c = 0; c < nComp; ++c)
+				stoichiometry(c, r) = model->getStoichiometry(c, r);
+		}
+
+		cadet::model::ConservedMoieties cm;
+		REQUIRE(cm.configure(nComp, std::vector<unsigned int>{0u}, std::move(eqReactionFlags), std::move(stoichiometry), 1e-14));
+
+		return cm.getConservedMoitiesMatrix();
+	}
+
+	void checkNullSpace(const Eigen::MatrixXd& left, const Eigen::MatrixXd& right)
+	{
+		const double nullspaceTol = 1e-12;
+		const Eigen::MatrixXd product = left * right;
+
+		for (Eigen::Index r = 0; r < product.rows(); ++r)
+		{
+			for (Eigen::Index c = 0; c < product.cols(); ++c)
+				CHECK(std::abs(product(r, c)) <= nullspaceTol);
+		}
+	}
+
 } // namespace reaction
 } // namespace test
 } // namespace cadet
