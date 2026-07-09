@@ -144,9 +144,31 @@ int ColumnModel1D<ConvDispOperator>::linearSolve(double t, double alpha, double 
 	// Inlet at z = 0 for forward flow, at z = L for backward flow.
 	unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
 
-	for (int comp = 0; comp < _disc.nComp; comp++) {
-		for (int node = 0; node < static_cast<int>(_jacInlet.rows()); node++) {
-			r[idxr.offsetC() + offInlet + comp * idxr.strideColComp() + node * idxr.strideColNode()] -= _jacInlet(node, 0) * r[comp];
+	const auto& cm = _reaction.conservedMoieties("liquid");
+	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+	{
+ 		const auto& L = cm.getConservedMoietiesMatrix();
+        for (unsigned int moiety = 0; moiety < cm.numMoieties(); ++moiety)
+        {
+            double inletValue = 0.0;
+            for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+                inletValue += L(moiety, comp) * r[comp];
+
+            for (int node = 0; node < static_cast<int>(_jacInlet.rows()); ++node)
+            {
+                r[idxr.offsetC() + offInlet + moiety * idxr.strideColComp() + node * idxr.strideColNode()] -= _jacInlet(node, 0) * inletValue;
+            }
+        }
+
+	}
+	else
+	{
+		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+		{
+			for (int node = 0; node < static_cast<int>(_jacInlet.rows()); ++node)
+			{
+				r[idxr.offsetC() + offInlet + comp * idxr.strideColComp() + node * idxr.strideColNode()] -= _jacInlet(node, 0) * r[comp];
+			}
 		}
 	}
 
@@ -203,10 +225,31 @@ void ColumnModel1D<ConvDispOperator>::assembleDiscretizedGlobalJacobian(double a
 		}
 	}
 
-	// add the remaining bulk time derivatives to global jacobian.
-	linalg::BandedEigenSparseRowIterator jac(_globalJacDisc, idxr.offsetC());
-	for (int i = jac.row(); i < idxr.offsetCp(); ++i, ++jac)
-		jac[0] += alpha; // main diagonal
+	const auto& cm = _reaction.conservedMoieties("liquid");
+	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+	{
+		const auto& L = cm.getConservedMoietiesMatrix();
+		const unsigned int nMoieties = cm.numMoieties();
+		// todo refactor this
+		for (unsigned int point = 0; point < _disc.nPoints; ++point)
+		{
+			const int pointOffset = idxr.offsetC() + point * idxr.strideColNode();
+
+			for (unsigned int m = 0; m < nMoieties; ++m)
+			{
+				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+					_globalJacDisc.coeffRef(pointOffset + m, pointOffset + comp) += alpha * L(m, comp);
+			}
+			// No mass-matrix entries for equilibrium rows
+		}
+	}
+	else
+	{
+		// Add the remaining bulk time derivatives to global Jacobian
+		linalg::BandedEigenSparseRowIterator jac(_globalJacDisc, idxr.offsetC());
+		for (int i = jac.row(); i < idxr.offsetCp(); ++i, ++jac)
+			jac[0] += alpha;
+	}
 }
 
 /**

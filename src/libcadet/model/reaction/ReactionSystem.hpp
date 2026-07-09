@@ -333,7 +333,17 @@ struct ReactionSystem
                 colOffset += nReac;
             }
 
-            return cm.configure(nStates, std::move(reactionColumnOffset), std::move(eqReactionFlags), std::move(S), rankTol);
+            bool conservedMoitiesSuccess = cm.configure(nStates, std::move(reactionColumnOffset), std::move(eqReactionFlags), std::move(S), rankTol);
+
+            if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+            {
+                if (cm.numMoieties() + cm.numEquilibriumReactions() != nStates)
+                {
+                    throw InvalidParameterException("ReaktionSytem configureConservedMoities(): equilibrium reactions require numMoieties + numEquilibriumReactions == nComp");
+                }
+            }
+
+            return conservedMoitiesSuccess;
         }
 
         /**
@@ -371,6 +381,7 @@ struct ReactionSystem
 				}
                 // Clear vector and reset to safe initial state
 				dynReactionVector.clear();
+				getPhaseData(phase.first).consMoities.clear();
             }
 		}
 
@@ -385,6 +396,7 @@ struct ReactionSystem
                 auto& dynReacVec = getPhaseData(phase.first).dynReactions;
                 dynReacVec.clear();
                 dynReacVec.resize(1, nullptr);
+                getPhaseData(phase.first).consMoities.clear();
             }
         }
 
