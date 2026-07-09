@@ -367,6 +367,11 @@ protected:
 
 		for (int r = 0; r < _stoichiometry.columns(); ++r)
 		{
+			if (_eqFlagVector[r])
+			{
+				fluxes[r] = 0.0;
+				continue;
+			}
 			flux_t fwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kFwd[r]), r, _expFwd, nStates);
 
 			for (int c = 0; c < nStates; ++c)
@@ -422,6 +427,9 @@ protected:
 		
 		for (int r = 0; r < _stoichiometry.columns(); ++r)
 		{
+			if (_eqFlagVector[r])
+				continue;
+			
 			// Calculate gradients of forward and backward fluxes
 			double kFwd = static_cast<double>(p->kFwd[r]);
 			double kBwd = static_cast<double>(p->kBwd[r]);
@@ -454,6 +462,91 @@ protected:
 
 	}
 
+	template <typename StateType, typename ResidualType, typename ParamType>
+	int residualEquilibriumImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		const unsigned int nStates, StateType const* y, ResidualType* res, unsigned int& eqIdx , LinearBufferAllocator workSpace) const
+	{
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+
+		// Calculate fluxes
+		typedef typename DoubleActivePromoter<StateType, ParamType>::type flux_t;
+
+		for (int r = 0; r < _stoichiometry.columns(); ++r)
+		{
+			if (!_eqFlagVector[r])
+				continue;
+			
+			flux_t fwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kFwd[r]), r, _expFwd, nStates);
+
+			for (int c = 0; c < nStates; ++c)
+			{
+				if (_expFwd.native(c, r) != 0.0)
+				{
+					if (static_cast<double>(y[c]) > 0.0)
+						fwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]),
+							static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expFwd.native(c, r)));
+					else
+					{
+						fwd *= 0.0;
+						break;
+					}
+				}
+			}
+
+			flux_t bwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kBwd[r]), r, _expBwd, nStates);
+			for (int c = 0; c < nStates; ++c)
+			{	
+
+				if (_expBwd.native(c, r) != 0.0)
+				{
+					if (static_cast<double>(y[c]) > 0.0)
+						bwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]),
+							static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expBwd.native(c, r)));
+					else
+					{
+						bwd *= 0.0;
+						break;
+					}
+				}
+			}
+
+			res[eqIdx] = fwd - bwd;
+			eqIdx++;
+		}
+
+		return 0;
+	}
+
+	template <typename RowIterator>
+	void jacobianEquilibriumImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nState, double const* y, unsigned int& eqIdx, unsigned int eqRowOffset, const RowIterator& jac, LinearBufferAllocator workSpace) const
+	{
+		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+
+		BufferedArray<double> fluxes = workSpace.array<double>(2 * nState);
+		double* const fluxGradFwd = static_cast<double*>(fluxes);
+		double* const fluxGradBwd = fluxGradFwd + nState;
+		
+		for (int r = 0; r < _stoichiometry.columns(); ++r)
+		{
+			if (!_eqFlagVector[r])
+				continue;
+			
+			// Calculate gradients of forward and backward fluxes
+			double kFwd = static_cast<double>(p->kFwd[r]);
+			double kBwd = static_cast<double>(p->kBwd[r]);
+			
+			fluxGrad(fluxGradFwd, r, nState, kFwd, _expFwd, y);
+			fluxGrad(fluxGradBwd, r, nState, kBwd, _expBwd, y);
+
+			// Add gradients to Jacobian
+			RowIterator curJac = jac + eqIdx;
+			const unsigned int row = eqRowOffset + eqIdx;
+			for (int col = 0; col < nState; ++col)
+					curJac[col - row] += (fluxGradFwd[col] - fluxGradBwd[col]);
+			eqIdx++;
+		}
+
+	}
 
 };
 

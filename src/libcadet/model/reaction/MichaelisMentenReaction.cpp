@@ -593,6 +593,13 @@ protected:
     {
         // No combined phase reaction implemented
     }
+
+    template <typename StateType, typename ResidualType, typename ParamType>
+	int residualEquilibriumImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		const unsigned int nStates, StateType const* y, ResidualType* res, unsigned int& eqIdx , LinearBufferAllocator workSpace) const {return 0;}
+
+    template <typename RowIterator>
+	void jacobianEquilibriumImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nState, double const* y, unsigned int& eqIdx, const RowIterator& jac, LinearBufferAllocator workSpace) const{ }
 };
 
 typedef MichaelisMentenBase<MichaelisMentenParamHandler> MichaelisMentenReaction;

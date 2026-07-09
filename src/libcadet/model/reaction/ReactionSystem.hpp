@@ -159,6 +159,16 @@ struct ReactionSystem
         {
             return getPhaseData(phase_type).dynReactions;
         }
+
+        const ConservedMoieties& conservedMoieties(const std::string& phaseType) const
+        {
+            return getPhaseData(phaseType).consMoities;
+        }
+
+        ConservedMoieties& conservedMoieties(const std::string& phaseType)
+        {
+            return getPhaseData(phaseType).consMoities;
+        }
                 
         /**
          * @brief Configures the dimensions of the dynamic reaction vector for a phase
