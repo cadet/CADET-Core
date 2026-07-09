@@ -1564,6 +1564,86 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 	// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
 	res[2 * _nComp + _totalBound] = vDot - flowIn + flowOut + static_cast<ParamType>(_curFlowRateFilter);
 
+	const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
+	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+	{ 
+		const Eigen::MatrixXd& L = cm.getConservedMoietiesMatrix();
+
+		const unsigned int nMoieties = cm.numMoieties() ;
+		const unsigned int nEq = cm.numEquilibriumReactions();
+
+		if (nMoieties + nEq != _nComp)
+		throw InvalidParameterException(
+			"CSTR equilibrium reactions require numMoieties + numEquilibriumReactions == nComp"
+		);
+
+		BufferedArray<ResidualType> oldRes = tlmAlloc.array<ResidualType>(_nComp);
+		std::copy_n(resC, _nComp, static_cast<ResidualType*>(oldRes));
+
+		for (unsigned int m = 0; m < nMoieties; ++m)
+		{
+			resC[m] = 0.0;
+			for (unsigned int i = 0; i < _nComp; ++i)
+				resC[m] += static_cast<double>(L(m, i)) * oldRes[i];
+		}
+
+		ResidualType* const eqRes = resC + nMoieties;
+		std::fill_n(eqRes, nEq, 0.0);
+		unsigned int eqIdx = 0;
+
+		for (auto const* reaction : _reactionSystemBulk.getDynReactionVector("liquid"))
+		{
+			if (!reaction)
+				continue;
+			
+			LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
+
+			reaction->residualEquilibriumFlux( t, secIdx, colPos, _nComp, c, eqRes, eqIdx, subAlloc);
+		}
+
+		if (wantJac)
+		{ // Save old concentration rows
+			LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
+			const unsigned int nPure = numPureDofs();
+			
+			BufferedArray<double> oldJacRowsBuf =
+			tlmAlloc.array<double>(_nComp * nPure);
+
+			double* oldJacRows = static_cast<double*>(oldJacRowsBuf);
+			for (unsigned int r = 0; r < _nComp; ++r)
+			{
+				for (unsigned int c = 0; c < nPure; ++c)
+					oldJacRows[r * nPure + c] = _jac.native(r, c);
+			}
+
+			// Moiety rows
+			for (unsigned int m = 0; m < nMoieties; ++m)
+			{
+				for (unsigned int col = 0; col < nPure; ++col)
+				{
+					double val = 0.0;
+					for (unsigned int i = 0; i < _nComp; ++i)
+						val += L(m, i) * oldJacRows[i * nPure + col];
+					_jac.native(m, col) = val;
+				}
+			}
+
+			// Equilibrium rows
+			for (unsigned int r = 0; r < nEq; ++r)
+				_jac.row(nMoieties + r).setAll(0.0);
+
+			unsigned int eqIdxJac = 0;
+			unsigned int eqRowOffset = nMoieties;
+			for (auto const* reaction : _reactionSystemBulk.getDynReactionVector("liquid"))
+			{
+				if (!reaction)
+					continue;
+				
+				reaction->analyticEquilibriumJacobian(t, secIdx, colPos, _nComp, reinterpret_cast<double const*>(c), eqIdxJac, eqRowOffset, _jac.row(nMoieties), subAlloc);
+			}
+		}
+	}	
+
 	return 0;
 }
 
@@ -1908,6 +1988,31 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 
 	// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
 	r[_nComp + _totalBound] = s[_nComp + _totalBound];
+
+	const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
+	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+	{
+		const unsigned int nPure = numPureDofs();
+		const Eigen::MatrixXd& L = cm.getConservedMoietiesMatrix();
+		const unsigned int nMoieties = cm.numMoieties();
+		const unsigned int nEq = cm.numEquilibriumReactions();
+
+		std::vector<double> oldRes(_nComp + _totalBound);
+		for (unsigned int i = 0; i < _nComp + _totalBound; ++i)
+		{
+			oldRes[i] = r[i];
+		}
+		for (unsigned int m = 0; m < nMoieties; ++m)
+		{
+			r[m] = 0.0;
+			for (unsigned int i = 0; i < _nComp; ++i)
+				r[m] += static_cast<double>(L(m, i)) * oldRes[i];
+		}
+		
+		// Equilibrium rows
+		for (unsigned int i = nMoieties; i < nEq; ++i)
+			r[i] = 0.0;
+	}
 }
 
 int CSTRModel::linearSolve(double t, double alpha, double tol, double* const rhs, double const* const weight,
@@ -1995,6 +2100,39 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 
 	// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
 	mat.native(_nComp + _totalBound, _nComp + _totalBound) += alpha;
+
+	const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
+	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+	{
+		const unsigned int nPure = numPureDofs();
+		const Eigen::MatrixXd& L = cm.getConservedMoietiesMatrix();
+		const unsigned int nMoieties = cm.numMoieties();
+		const unsigned int nEq = cm.numEquilibriumReactions();
+
+		std::vector<double> oldMatRows(_nComp * nPure);
+		for (unsigned int r = 0; r < _nComp; ++r)
+		{
+			for (unsigned int c = 0; c < nPure; ++c)
+				oldMatRows[r * nPure + c] = mat.native(r, c);
+		}
+
+		// Moiety rows
+		for (unsigned int m = 0; m < nMoieties; ++m)
+		{
+			for (unsigned int col = 0; col < nPure; ++col)
+			{
+				double val = 0.0;
+				for (unsigned int i = 0; i < _nComp; ++i)
+					val += L(m, i) * oldMatRows[i * nPure + col];
+				mat.native(m, col) = val;
+			}
+		}
+
+		// Equilibrium rows
+		for (unsigned int r = 0; r < nEq; ++r)
+			mat.row(nMoieties + r).setAll(0.0);
+
+	}
 }
 
 /**
