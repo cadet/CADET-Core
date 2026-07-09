@@ -319,6 +319,30 @@ public:
 	
 	virtual double getStoichiometry(unsigned int component, unsigned int reaction) const CADET_NOEXCEPT { return 0.0; }
 
+
+	virtual int residualEquilibriumFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, active const* y,
+		active* res, unsigned int& eqIdx, LinearBufferAllocator workSpace) const = 0;
+
+	virtual int residualEquilibriumFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,
+		active* res, unsigned int& eqIdx, LinearBufferAllocator workSpace) const = 0;
+
+	virtual int residualEquilibriumFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,
+		double* res, unsigned int& eqIdx, LinearBufferAllocator workSpace) const = 0;
+
+
+	virtual void analyticEquilibriumJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,
+		unsigned int& eqIdx, unsigned int eqRowOffset, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const = 0;
+
+	virtual void analyticEquilibriumJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,
+		unsigned int& eqIdx, unsigned int eqRowOffset, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const = 0;
+
+	virtual void analyticEquilibriumJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,
+		unsigned int& eqIdx,unsigned int eqRowOffset, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
+
+	virtual void analyticEquilibriumJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,
+		unsigned int& eqIdx,unsigned int eqRowOffset, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
+
+
 protected:
 };
 
