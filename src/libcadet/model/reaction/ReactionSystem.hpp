@@ -301,12 +301,11 @@ struct ReactionSystem
 
                 if (!reaction)
                     continue;
-                if (!reaction->supportsConservedMoieties())
-                    throw InvalidParameterException("Reaction model does not support conserved moieties");
                 
                 totalCols += reaction->numReactions();
             }
             Eigen::MatrixXd S(nStates, totalCols);
+            S.setZero();
             std::vector<bool> eqReactionFlags(totalCols);
 
             unsigned int colOffset = 0;
@@ -319,6 +318,11 @@ struct ReactionSystem
                 for (unsigned int r = 0; r < nReac; ++r)
                 {
                     eqReactionFlags[colOffset + r]  = reaction->isInEquilibrium(r);
+                    if (!eqReactionFlags[colOffset + r])
+                        continue;
+
+                    if (!reaction->supportsConservedMoieties())
+                        throw InvalidParameterException("Reaction model does not support conserved moieties");
 
                     for (unsigned int s = 0; s < nStates; ++s)
                     {

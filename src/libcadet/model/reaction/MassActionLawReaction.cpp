@@ -178,10 +178,22 @@ namespace
 				for (unsigned int j = 0; j < c; ++j)
 					fluxGrad[j] *= v;
 
-				if (static_cast<double>(y[c]) > 0.0)
-					fluxGrad[c] *= exponentValue * pow(y[c], exponentValue - 1.0);
+				if (y[c] > 0.0)
+				{
+					fluxGrad[c] *= exponentValue * std::pow(y[c], exponentValue - 1.0);
+				}
+				else if (y[c] == 0.0 && exponentValue == 1.0)
+				{
+					// d/dy y = 1 also leave the factor unchanged
+				}
+				else if (y[c] == 0.0 && exponentValue > 1.0)
+				{
+					fluxGrad[c] = 0.0;
+				}
 				else
-					fluxGrad[c] *= 0.0;
+				{
+					// exponent < 1 at zero: derivative is singular / undefined
+				}
 
 				for (unsigned int j = c + 1; j < nComp; ++j)
 					fluxGrad[j] *= v;

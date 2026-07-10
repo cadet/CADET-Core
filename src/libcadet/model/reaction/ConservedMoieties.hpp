@@ -41,7 +41,7 @@ class ConservedMoieties
         Eigen::MatrixXd _L; // L dim: nMoities x nStates
         unsigned int _rank = 0;
 
-        double TOL = 1e-15; 
+        double _TOL = 1e-15;
 
         public:
         const Eigen::MatrixXd& getConservedMoietiesMatrix() const { return _L; }
@@ -66,7 +66,7 @@ class ConservedMoieties
             _reactionColumnOffset = std::move(reactionColumnOffset);
             _eqReactionMask = std::move(eqReactionFlags);
             _S = std::move(stoichiometry);
-            TOL = rankTol;
+            _TOL = rankTol;
 
             extractEquilibriumStoichiometry();
             computeLeftNullspace();
@@ -114,7 +114,7 @@ class ConservedMoieties
             _rank = 0;
             for (int i = 0; i < singularValues.size(); ++i)
             {
-                if (singularValues(i) > TOL)
+                if (singularValues(i) > _TOL)
                     ++_rank;
             }
 
