@@ -58,33 +58,34 @@
                 ]
             }
         },
-        "unit_001": {
-            "COL_DISPERSION": [
-                1e-06
-            ],
-            "COL_RADIUS_INNER": 0.01,
-            "COL_RADIUS_OUTER": 0.1,
-            "INIT_C": [
-                0.0
-            ],
-            "NCOMP": 1,
-            "NPARTYPE": 0,
-            "TOTAL_POROSITY": 1.0,
-            "UNIT_TYPE": "RADIAL_COLUMN_MODEL_1D",
-            "VELOCITY_COEFF": 5e-05,
-            "discretization": {
-                "NCOL": 128,
-                "RECONSTRUCTION": "WENO",
-                "SPATIAL_METHOD": "FV",
-                "USE_ANALYTIC_JACOBIAN": true,
-                "USE_MODIFIED_NEWTON": false,
-                "weno": {
-                    "BOUNDARY_MODEL": 0,
-                    "WENO_EPS": 1e-10,
-                    "WENO_ORDER": 3
-                }
-            }
-        },
+      "unit_001": {
+        "COL_DISPERSION": [
+          1e-06
+        ],
+        "COL_RADIUS_INNER": 0.01,
+        "COL_RADIUS_OUTER": 0.1,
+        "INIT_C": [
+          0.0
+        ],
+        "NCOMP": 1,
+        "COL_POROSITYPE": 0,
+        "NPARTYPE": 0,
+        "COL_POROSITY": 1.0,
+        "UNIT_TYPE": "RADIAL_COLUMN_MODEL_1D",
+        "VELOCITY_COEFF": 5e-05,
+        "discretization": {
+          "NCOL": 128,
+          "RECONSTRUCTION": "WENO",
+          "SPATIAL_METHOD": "FV",
+          "USE_ANALYTIC_JACOBIAN": true,
+          "USE_MODIFIED_NEWTON": false,
+          "weno": {
+            "BOUNDARY_MODEL": 0,
+            "WENO_EPS": 1e-10,
+            "WENO_ORDER": 3
+          }
+        }
+      },
         "unit_002": {
             "NCOMP": 1,
             "UNIT_TYPE": "OUTLET"

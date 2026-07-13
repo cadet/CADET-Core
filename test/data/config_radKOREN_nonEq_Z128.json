@@ -69,7 +69,7 @@
             ],
             "NCOMP": 1,
             "NPARTYPE": 0,
-            "TOTAL_POROSITY": 1.0,
+            "COL_POROSITY": 1.0,
             "UNIT_TYPE": "RADIAL_COLUMN_MODEL_1D",
             "VELOCITY_COEFF": 5e-05,
             "discretization": {
