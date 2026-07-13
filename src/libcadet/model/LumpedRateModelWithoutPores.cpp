@@ -344,10 +344,16 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configure(IParameterProvider
 	const bool transportSuccess = _convDispOp.configure(_unitOpIdx, paramProvider, _parameters);
 
 	// Read geometry parameters
-	_totalPorosity = paramProvider.getDouble("TOTAL_POROSITY");
-
-	// Add parameters to map
-	_parameters[makeParamId(hashString("TOTAL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_totalPorosity;
+	if (paramProvider.getInt("NPARTYPE") > 0)
+	{
+		_totalPorosity = paramProvider.getDouble("TOTAL_POROSITY");
+		_parameters[makeParamId(hashString("TOTAL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_totalPorosity;
+	}
+	else
+	{
+		_totalPorosity = paramProvider.getDouble("COL_POROSITY");
+		_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_totalPorosity;
+	}
 
 	// Register initial conditions parameters
 	for (unsigned int i = 0; i < _disc.nComp; ++i)
