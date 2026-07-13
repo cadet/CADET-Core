@@ -92,6 +92,9 @@ namespace model
 			}
 			else if (discName == "FV")
 			{
+				if(arrowHeadOpt)
+					model = createAxialFVLRM(uoId);
+				else
 				model = createAxialCol1DFV(uoId);
 			}
 			else
