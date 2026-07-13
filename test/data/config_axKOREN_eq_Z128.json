@@ -63,14 +63,13 @@
                 0.0001
             ],
             "COL_LENGTH": 1.0,
-            "COL_POROSITY": 1.0,
             "INIT_C": [
                 0.0
             ],
             "NCOMP": 1,
-            "NPARTYPE": 1,
-            "TOTAL_POROSITY": 1.0,
-            "UNIT_TYPE": "LUMPED_RATE_MODEL_WITHOUT_PORES",
+            "NPARTYPE": 0,
+            "COL_POROSITY": 1.0,
+            "UNIT_TYPE": "COLUMN_MODEL_1D",
             "VELOCITY": 0.01,
             "discretization": {
                 "NCOL": 128,
@@ -85,14 +84,6 @@
                     "WENO_EPS": 1e-10,
                     "WENO_ORDER": 3
                 }
-            },
-            "particle_type_000": {
-                "HAS_FILM_DIFFUSION": 0,
-                "HAS_PORE_DIFFUSION": 0,
-                "HAS_SURFACE_DIFFUSION": 0,
-                "NBOUND": [
-                    0
-                ]
             }
         },
         "unit_002": {
