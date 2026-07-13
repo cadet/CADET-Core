@@ -67,7 +67,7 @@
           0.0
         ],
         "NCOMP": 1,
-        "NPARTYPE": 1,
+        "NPARTYPE": 0,
         "COL_POROSITY": 1.0,
         "UNIT_TYPE": "COLUMN_MODEL_1D",
         "VELOCITY": 0.01,
