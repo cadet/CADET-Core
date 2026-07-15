@@ -431,16 +431,11 @@ int AxialConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel&
 	const double v = inletJacobianFactor();
 	jacInlet(0, 0) = forwardFlow() ? -v : v;
 
-	linalg::BandedEigenSparseRowIterator jac = linalg::BandedEigenSparseRowIterator(jacobian, 0);
-
-	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp, ++jac)
-	{
-		const int row = forwardFlow() ? 0 : (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
-		jac[bulkOffset + row] = forwardFlow() ? -v : v;
-	}
-
-	if (!jacobian.isCompressed())
-		jacobian.makeCompressed();
+	// Inlet coupling: entries of the inlet-adjacent cell w.r.t. the inlet DOFs.
+	// These entries are reserved in convDispJacPattern(), so writing them keeps the matrix compressed.
+	const int inletCellRow = forwardFlow() ? 0 : (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
+	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+		jacobian.coeffRef(bulkOffset + inletCellRow + comp, comp) = jacInlet(0, 0);
 
 	return jacobian.isCompressed();
 }
@@ -1197,6 +1192,12 @@ int RadialConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel
 
 	const double v = inletJacobianFactor();
 	jacInlet(0, 0) = forwardFlow() ? -v : v;
+
+	// Inlet coupling: entries of the inlet-adjacent cell w.r.t. the inlet DOFs.
+	// These entries are reserved in convDispJacPattern(), so writing them keeps the matrix compressed.
+	const int inletCellRow = forwardFlow() ? 0 : (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
+	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+		jacobian.coeffRef(bulkOffset + inletCellRow + comp, comp) = jacInlet(0, 0);
 
 	return jacobian.isCompressed();
 }
@@ -1990,6 +1991,12 @@ int FrustumConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IMode
 
 	const double v = inletJacobianFactor();
 	jacInlet(0, 0) = forwardFlow() ? -v : v;
+
+	// Inlet coupling: entries of the inlet-adjacent cell w.r.t. the inlet DOFs.
+	// These entries are reserved in convDispJacPattern(), so writing them keeps the matrix compressed.
+	const int inletCellRow = forwardFlow() ? 0 : (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
+	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+		jacobian.coeffRef(bulkOffset + inletCellRow + comp, comp) = jacInlet(0, 0);
 
 	return jacobian.isCompressed();
 }

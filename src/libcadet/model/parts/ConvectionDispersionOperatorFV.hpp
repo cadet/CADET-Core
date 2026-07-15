@@ -89,9 +89,11 @@ public:
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, Eigen::MatrixXd& jacInlet)
 	{
+		// Update velocity and flow direction before evaluating inletJacobianFactor()
+		const bool hasChanged = notifyDiscontinuousSectionTransition(t, secIdx);
 		jacInlet.resize(1, 1);
 		jacInlet(0, 0) = forwardFlow() ? -inletJacobianFactor() : inletJacobianFactor();
-		return notifyDiscontinuousSectionTransition(t, secIdx);
+		return hasChanged;
 	}
 
 	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
@@ -231,9 +233,11 @@ public:
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, Eigen::MatrixXd& jacInlet)
 	{
+		// Update velocity and flow direction before evaluating inletJacobianFactor()
+		const bool hasChanged = notifyDiscontinuousSectionTransition(t, secIdx);
 		jacInlet.resize(1, 1);
 		jacInlet(0, 0) = forwardFlow() ? -inletJacobianFactor() : inletJacobianFactor();
-		return notifyDiscontinuousSectionTransition(t, secIdx);
+		return hasChanged;
 	}
 
 	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
@@ -380,9 +384,11 @@ public:
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, Eigen::MatrixXd& jacInlet)
 	{
+		// Update velocity and flow direction before evaluating inletJacobianFactor()
+		const bool hasChanged = notifyDiscontinuousSectionTransition(t, secIdx);
 		jacInlet.resize(1, 1);
 		jacInlet(0, 0) = forwardFlow() ? -inletJacobianFactor() : inletJacobianFactor();
-		return notifyDiscontinuousSectionTransition(t, secIdx);
+		return hasChanged;
 	}
 
 	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
