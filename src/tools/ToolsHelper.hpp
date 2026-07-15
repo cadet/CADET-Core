@@ -51,7 +51,7 @@ inline void addMiscToCmdLine(TCLAP::CmdLine& cmd, ProgramOptions_t& opts)
 {
 	cmd >> (new TCLAP::ValueArg<int>("", "polydeg", "Spatial method polynomial degree (0: FV, > 0: DG)", false, 3, "Value"))->storeIn(&opts.polyDeg);
 	cmd >> (new TCLAP::ValueArg<int>("", "ncol", "Number of axial elements (default: 3)", false, 3, "Value"))->storeIn(&opts.nCol);
-	cmd >> (new TCLAP::ValueArg<int>("", "npar", "Number of particle elements (default: 1)", false, 1, "Value"))->storeIn(&opts.nCol);
+	cmd >> (new TCLAP::ValueArg<int>("", "npar", "Number of particle elements (default: 1)", false, 1, "Value"))->storeIn(&opts.nPar);
 
 	cmd >> (new TCLAP::SwitchArg("", "solverTimes", "Save all solver timesteps"))->storeIn(&opts.solverTimes);
 	cmd >> (new TCLAP::SwitchArg("k", "kinetic", "Kinetic adsorption model used (default: quasi-stationary)"))->storeIn(&opts.isKinetic);
