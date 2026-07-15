@@ -95,7 +95,7 @@ namespace model
 				if(arrowHeadOpt)
 					model = createAxialFVLRM(uoId);
 				else
-				model = createAxialCol1DFV(uoId);
+					model = createAxialCol1DFV(uoId);
 			}
 			else
 			{
