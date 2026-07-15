@@ -142,6 +142,9 @@ namespace parts
 
 		bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
 
+		active outerCellHalfWidth() const CADET_NOEXCEPT override { return 0.5 * _deltaR[_nParPoints - 1]; }
+		int boundaryOrder() const CADET_NOEXCEPT override { return _boundaryOrderFV; }
+
 	protected:
 
 		void parBindingPattern(std::vector<Eigen::Triplet<double>>& tripletList, const int offset, const unsigned int colNode);

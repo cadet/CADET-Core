@@ -180,10 +180,14 @@ namespace parts
 		inline const active& getPorosity() const CADET_NOEXCEPT { return _parPorosity; }
 		inline const active* getPoreAccessFactor() const CADET_NOEXCEPT { return &_poreAccessFactor[0]; }
 		inline const active* getFilmDiffusion(const unsigned int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_filmDiffusion, _nComp, secIdx); }
+		inline const active* getParDiffusion(const unsigned int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_parDiffusion, _nComp, secIdx); }
 		inline IParameterStateDependence* getParDepSurfDiffusion() const CADET_NOEXCEPT { return _parDepSurfDiffusion; }
 		inline bool paramDepSurfDiffParTypeIndep() const CADET_NOEXCEPT { return !_paramDepSurfDiffTypeDep; }
 		inline MultiplexMode parDiffMode() const CADET_NOEXCEPT { return _parDiffusionMode; }
 		inline MultiplexMode parSurfDiffMode() const CADET_NOEXCEPT { return _parSurfDiffusionMode; }
+
+		virtual active outerCellHalfWidth() const CADET_NOEXCEPT { return active(0.0); }
+		virtual int boundaryOrder() const CADET_NOEXCEPT { return 2; }
 
 	protected:
 
