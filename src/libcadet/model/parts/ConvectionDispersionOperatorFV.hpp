@@ -90,6 +90,7 @@ public:
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, Eigen::MatrixXd& jacInlet)
 	{
 		jacInlet.resize(1, 1);
+		jacInlet(0, 0) = forwardFlow() ? -inletJacobianFactor() : inletJacobianFactor();
 		return notifyDiscontinuousSectionTransition(t, secIdx);
 	}
 
@@ -231,6 +232,7 @@ public:
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, Eigen::MatrixXd& jacInlet)
 	{
 		jacInlet.resize(1, 1);
+		jacInlet(0, 0) = forwardFlow() ? -inletJacobianFactor() : inletJacobianFactor();
 		return notifyDiscontinuousSectionTransition(t, secIdx);
 	}
 
@@ -379,6 +381,7 @@ public:
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, Eigen::MatrixXd& jacInlet)
 	{
 		jacInlet.resize(1, 1);
+		jacInlet(0, 0) = forwardFlow() ? -inletJacobianFactor() : inletJacobianFactor();
 		return notifyDiscontinuousSectionTransition(t, secIdx);
 	}
 

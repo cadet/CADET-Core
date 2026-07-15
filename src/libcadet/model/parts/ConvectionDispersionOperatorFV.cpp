@@ -431,6 +431,17 @@ int AxialConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel&
 	const double v = inletJacobianFactor();
 	jacInlet(0, 0) = forwardFlow() ? -v : v;
 
+	linalg::BandedEigenSparseRowIterator jac = linalg::BandedEigenSparseRowIterator(jacobian, 0);
+
+	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp, ++jac)
+	{
+		const int row = forwardFlow() ? 0 : (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
+		jac[bulkOffset + row] = forwardFlow() ? -v : v;
+	}
+
+	if (!jacobian.isCompressed())
+		jacobian.makeCompressed();
+
 	return jacobian.isCompressed();
 }
 
