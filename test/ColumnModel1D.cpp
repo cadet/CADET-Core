@@ -61,6 +61,16 @@ TEST_CASE("Column_1D as LRMP with FV equivalence with arrow head implementation"
 	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8);
 }
 
+TEST_CASE("Column_1D as GRM with FV transport Jacobian", "[Column_1D],[FV],[UnitOp],[Jacobian],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "COLUMN_MODEL_1D_GRM", "FV");
+
+	jpp.pushScope("discretization");
+	jpp.set("FV_ARROW_HEAD_OPTIMIZATION", false);
+	jpp.popScope();
+
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
 
 TEST_CASE("Column_1D as GRM LWE forward vs backward flow", "[Column_1D],[DG],[DG1D],[Simulation],[CI]")
 {
