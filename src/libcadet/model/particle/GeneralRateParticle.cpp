@@ -311,23 +311,17 @@ namespace model
 		{
 			// film diffusion bulk eq. term
 			active const* const filmDiff = _parDiffOp->getFilmDiffusion(secIdx);
-			active const* const parDiff = _parDiffOp->getParDiffusion(secIdx);
 			const ParamType invBetaC = 1.0 / static_cast<ParamType>(packing.colPorosity) - 1.0;
 			const ParamType jacCF_val = invBetaC * static_cast<ParamType>(surfaceToVolumeRatio());
 			const ParamType epsP = static_cast<ParamType>(_parDiffOp->getPorosity());
-			const ParamType halfWidth = static_cast<ParamType>(_parDiffOp->outerCellHalfWidth());
-			const int bndOrder = _parDiffOp->boundaryOrder();
 
 			// Add flux to column void / bulk volume using discretized film diffusion
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
-				ParamType kf_FV;
-				if (bndOrder == 2 && nDiscPoints() > 1 && static_cast<double>(halfWidth) > 0.0)
-					kf_FV = 1.0 / (halfWidth / epsP / static_cast<ParamType>(_parDiffOp->getPoreAccessFactor()[comp]) / static_cast<ParamType>(parDiff[comp]) + 1.0 / static_cast<ParamType>(filmDiff[comp]));
-				else
-					kf_FV = static_cast<ParamType>(filmDiff[comp]);
+				ParamType discretizedFilmDiffusionFactor = static_cast<ParamType>(_parDiffOp->discretizedFilmDiffusionFactor(comp));
 
-				resBulk[comp] += kf_FV * jacCF_val * static_cast<ParamType>(packing.parTypeVolFrac) * (yBulk[comp] - yPar[(nDiscPoints() - 1) * stridePoint() + comp]);
+				// + 1/Beta^c * (surfaceToVolumeRatio^p_j) * d_j * (k_f * [c^b - c^p])
+				resBulk[comp] += discretizedFilmDiffusionFactor * static_cast<ParamType>(filmDiff[comp]) * jacCF_val * static_cast<ParamType>(packing.parTypeVolFrac) * (yBulk[comp] - yPar[(nDiscPoints() - 1) * stridePoint() + comp]);
 			}
 		}
 

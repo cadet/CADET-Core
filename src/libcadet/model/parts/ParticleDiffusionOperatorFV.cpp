@@ -522,13 +522,11 @@ namespace parts
 		for (int comp = 0; comp < _nComp; ++comp)
 		{
 			// Discretized film diffusion kf for finite volumes (per component)
-			ParamType kf_FV;
+			ParamType kf_FV = 1.0;
 			if (cadet_likely(_boundaryOrderFV == 2))
-				kf_FV = 1.0 / (absOuterShellHalfRadius / epsP / static_cast<ParamType>(_poreAccessFactor[comp]) / static_cast<ParamType>(parDiff[comp]) + 1.0 / static_cast<ParamType>(filmDiff[comp]));
-			else
-				kf_FV = static_cast<ParamType>(filmDiff[comp]);
+				kf_FV = 1.0 / (absOuterShellHalfRadius * static_cast<ParamType>(filmDiff[comp]) / epsP / static_cast<ParamType>(_poreAccessFactor[comp]) / static_cast<ParamType>(parDiff[comp]) + 1.0);
 
-			ResidualType flux = kf_FV * (yBulk[comp * strideBulkComp()] - yPar[(_nParPoints - 1) * strideParPoint() + comp]);
+			ResidualType flux = kf_FV * static_cast<ParamType>(filmDiff[comp]) * (yBulk[comp * strideBulkComp()] - yPar[(_nParPoints - 1) * strideParPoint() + comp]);
 			resPar[(_nParPoints - 1) * strideParPoint() + comp] += jacPF_val / static_cast<ParamType>(_poreAccessFactor[comp]) * flux;
 		}
 

@@ -142,8 +142,13 @@ namespace parts
 
 		bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
 
-		active outerCellHalfWidth() const CADET_NOEXCEPT override { return 0.5 * _deltaR[_nParPoints - 1]; }
-		int boundaryOrder() const CADET_NOEXCEPT override { return _boundaryOrderFV; }
+		active discretizedFilmDiffusionFactor(const int comp) const CADET_NOEXCEPT
+		{
+			if (_boundaryOrderFV == 2 && nDiscPoints() > 1)
+				return 1.0 / (0.5 * _deltaR[_nParPoints - 1] * _filmDiffusion[comp] / _parPorosity / _poreAccessFactor[comp] / _parDiffusion[comp] + 1.0);
+			else
+				return active(1.0);
+		}
 
 	protected:
 
