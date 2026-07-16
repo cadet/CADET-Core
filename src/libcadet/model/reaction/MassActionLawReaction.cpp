@@ -379,7 +379,7 @@ protected:
 
 		for (int r = 0; r < _stoichiometry.columns(); ++r)
 		{
-			if (_eqFlagVector[r])
+			if (_eqMaskVector[r])
 			{
 				fluxes[r] = 0.0;
 				continue;
@@ -439,7 +439,7 @@ protected:
 		
 		for (int r = 0; r < _stoichiometry.columns(); ++r)
 		{
-			if (_eqFlagVector[r])
+			if (_eqMaskVector[r])
 				continue;
 			
 			// Calculate gradients of forward and backward fluxes
@@ -485,7 +485,7 @@ protected:
 
 		for (int r = 0; r < _stoichiometry.columns(); ++r)
 		{
-			if (!_eqFlagVector[r])
+			if (!_eqMaskVector[r])
 				continue;
 			
 			flux_t fwd = rateConstantOrZero(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->kFwd[r]), r, _expFwd, nStates);
@@ -540,7 +540,7 @@ protected:
 		
 		for (int r = 0; r < _stoichiometry.columns(); ++r)
 		{
-			if (!_eqFlagVector[r])
+			if (!_eqMaskVector[r])
 				continue;
 			
 			// Calculate gradients of forward and backward fluxes

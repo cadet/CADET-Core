@@ -55,7 +55,7 @@ class ConservedMoieties
         unsigned int numMoieties() const  {return static_cast<unsigned int>(_L.rows()); }
         unsigned int numEquilibriumReactions() const {return static_cast<unsigned int>(_eqS.cols()); }
 
-        const std::vector<bool>& equilibriumReactionFlags() const { return _eqReactionFlags;}
+        const std::vector<bool>& equilibriumReactionFlags() const { return _eqReactionMask;}
 
         bool configure(unsigned int states, std::vector<unsigned int>&& reactionColumnOffset,
             std::vector<bool>&& eqReactionFlags, Eigen::MatrixXd&& stoichiometry, double rankTol)
