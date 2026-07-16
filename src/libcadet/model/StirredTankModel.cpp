@@ -670,7 +670,13 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 		if(cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 		{
 			if (_totalBound > 0)
-				throw InvalidParameterException("CSTR consistent initalisation: initialization with bound states is not supported yet");
+			{
+				for (unsigned int type = 0; type < _nParType; ++type)
+				{
+					if (!_binding[type]->hasQuasiStationaryReactions())
+						throw InvalidParameterException("CSTR consistent initalisation: binding AND reactions in rapid equilibirum is not supported yet");
+				}
+			
 			LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
 			const auto& L = cm.getConservedMoietiesMatrix();
