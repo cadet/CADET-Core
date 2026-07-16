@@ -268,6 +268,11 @@ public:
 	virtual unsigned int numReactions() const CADET_NOEXCEPT { return _stoichiometry.columns(); }
 	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return 0; }
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return 0; }
+	
+	virtual bool supportsConservedMoieties() const CADET_NOEXCEPT { return true; }
+
+	virtual bool isInEquilibrium(unsigned int reaction) const CADET_NOEXCEPT { return _eqMaskVector[reaction];}
+	virtual double getStoichiometry(unsigned int component, unsigned int reaction) const CADET_NOEXCEPT { return static_cast<double>(_stoichiometry.native(component, reaction));}
 
 	CADET_DYNAMICREACTIONMODEL_BOILERPLATE
 
@@ -277,6 +282,9 @@ protected:
 	linalg::ActiveDenseMatrix _stoichiometry;
 	linalg::ActiveDenseMatrix _expFwd;
 	linalg::ActiveDenseMatrix _expBwd;
+
+	std::vector<bool> _eqMaskVector;
+
 	
 	
 	inline int maxNumReactions() const CADET_NOEXCEPT
@@ -332,7 +340,17 @@ protected:
 			std::transform(_stoichiometry.data(), _stoichiometry.data() + _stoichiometry.elements(), _expBwd.data(), [](const active& v) { return std::max(0.0, static_cast<double>(v)); });
 		}
 		registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MAL_EXPONENTS_BWD", _expBwd);
-		
+
+		_eqMaskVector.assign(maxNumReactions(), false);
+		if (paramProvider.exists("MAL_IS_KINETIC"))
+		{
+			const std::vector<int> isKinetic = paramProvider.getIntArray("MAL_IS_KINETIC");
+			if (static_cast<int>(isKinetic.size()) != _stoichiometry.columns())
+				throw InvalidParameterException("Expected MAL_IS_KINETIC and MAL_STOICHIOMETRY columns has to be of the same size (" + std::to_string(_stoichiometry.columns()) + ")");
+
+			for (int r = 0; r < _stoichiometry.columns(); ++r)
+				_eqMaskVector[r] = (isKinetic[r] == 0);
+		}
 
 		return true;
 	}

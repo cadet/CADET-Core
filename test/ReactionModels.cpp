@@ -14,6 +14,104 @@
 
 #include "ReactionModelTests.hpp"
 #include "ColumnTests.hpp"
+#include "ReactionModelFactory.hpp"
+#include "common/JsonParameterProvider.hpp"
+
+#include <cmath>
+#include <memory>
+#include <utility>
+#include <vector>
+
+
+TEST_CASE("MassActionLaw conserved moieties nullspace", "[MassActionLaw],[ReactionModel],[ConservedMoieties],[CI]")
+{
+	SECTION("A <-> B")
+	{
+		const Eigen::MatrixXd L = cadet::test::reaction::conservedMoietiesFromMassActionLaw(2,
+			R"json({
+				"MAL_KFWD": [1.0],
+				"MAL_KBWD": [2.0],
+				"MAL_STOICHIOMETRY": [-1.0,
+				                       1.0],
+				"MAL_IS_KINETIC": [0]
+			})json");
+
+		Eigen::MatrixXd S(2, 1);
+		S << -1.0, 1.0;
+
+		REQUIRE(L.rows() == 1);
+		REQUIRE(L.cols() == 2);
+		cadet::test::reaction::checkNullSpace(L, S);
+	}
+
+	SECTION("A + B <-> C")
+	{
+		const Eigen::MatrixXd L = cadet::test::reaction::conservedMoietiesFromMassActionLaw(3,
+			R"json({
+				"MAL_KFWD": [1.0],
+				"MAL_KBWD": [2.0],
+				"MAL_STOICHIOMETRY": [-1.0,
+				                      -1.0,
+				                       1.0],
+				"MAL_IS_KINETIC": [0]
+			})json");
+
+		Eigen::MatrixXd S(3, 1);
+		S << -1.0, -1.0, 1.0;
+
+		REQUIRE(L.rows() == 2);
+		REQUIRE(L.cols() == 3);
+		cadet::test::reaction::checkNullSpace(L, S);
+		
+	}
+	SECTION("A + B <-> C (eq) and A <-> B (kin)")
+	{
+		const Eigen::MatrixXd L = cadet::test::reaction::conservedMoietiesFromMassActionLaw(3,
+			R"json({
+				"MAL_KFWD": [1.0,1.0],
+				"MAL_KBWD": [2.0,2.0],
+				"MAL_STOICHIOMETRY": [-1.0,-1.0,
+				                      -1.0, 1.0,
+				                       1.0, 0.0],
+				"MAL_IS_KINETIC": [0,1]
+			})json");
+
+		Eigen::MatrixXd S(3, 1);
+		S << -1.0, -1.0, 1.0;
+
+		REQUIRE(L.rows() == 2);
+		REQUIRE(L.cols() == 3);
+		cadet::test::reaction::checkNullSpace(L, S);
+
+	}
+
+	SECTION("No equilibrium MAL reaction")
+	{
+		const Eigen::MatrixXd L = cadet::test::reaction::conservedMoietiesFromMassActionLaw(3,
+			R"json({
+				"MAL_KFWD": [1.0],
+				"MAL_KBWD": [2.0],
+				"MAL_STOICHIOMETRY": [-1.0,
+				                      -1.0,
+				                       1.0],
+				"MAL_IS_KINETIC": [1]
+			})json");
+
+ 		Eigen::MatrixXd expected;
+		expected = Eigen::MatrixXd::Identity(3, 3);
+		
+		const double tol = 1e-12;
+
+		REQUIRE(L.rows() == expected.rows());
+		REQUIRE(L.cols() == expected.cols());
+
+		for (Eigen::Index r = 0; r < L.rows(); ++r)
+		{
+			for (Eigen::Index c = 0; c < L.cols(); ++c)
+				CHECK(std::abs(L(r, c) - expected(r, c)) <= tol);
+		}
+	}
+}
 
 TEST_CASE("MassActionLaw kinetic analytic Jacobian vs AD", "[MassActionLaw],[ReactionModel],[Jacobian],[AD]")
 {
