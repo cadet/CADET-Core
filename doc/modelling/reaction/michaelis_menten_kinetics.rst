@@ -127,6 +127,63 @@ By choosing a Michaelis-Menten kinetics configuration with one substrate and set
 i.e :math:`\mu_{\mathrm{max}} = v_{\mathrm{max}}`, :math:`K_S = K_{\mathrm{M}_{0,0}}` and :math:`c_S = c_{0,0}`,
 the Monod equation can be expressed in the same form as the Michaelis-Menten kinetics.
 
+Prefactorial extension
+^^^^^^^^^^^^^^^^^^^^^^
+
+In some cases a different component, like biomass, may have a prefactorial effect on the reaction rate, which can be represented by a prefactorial extension of the Michaelis-Menten kinetics:
+
+.. math::
+
+    \begin{aligned}
+        \nu_{i,j} = \prod_{X = 1}^{N_{X,j}} K_{X,j} c_{X,j} \cdot v_{\mathrm{max},j} \prod_{i = 1}^{N_{sub,j}} \frac{ c_{i,j}}{K_{\mathrm{M}_{i,j}} + c_{i,j}}
+    \end{aligned}
+   
+
+where:
+
+- :math:`c_{X,j}` is biomass concentration (or any other component that has a prefactorial effect on the reaction rate)
+- :math:`K_{X,j}` is the prefactorial constant (if no prefactorial effect it is set as :math:`0`)
+- :math:`N_{X,j}` components in :math:`S` that are not in :math:`N_{sub,j}` but have a prefactorial effect on the reaction rate
+
+While those prefactorial components are not contributing to the reaction rate in the same way as substrates, they can still influence the overall reaction rate by acting as any form of inhibitor:
+
+.. math::
+
+    \begin{aligned}
+        \nu_{i,j} = \prod_{X = 1}^{N_{X,j}} K_{X,j} c_{X,j} \cdot v_{\mathrm{max},j} \prod_{i = 1}^{N_{sub,j}} \frac{c_{i,j}}{ K_{\mathrm{M}_{i,j}} \,(1 + \sum_{k \in \mathcal{I}_{i,j}} \frac{c_{k}}{K^{c}_{I_{k}}}) + c_{i,j} \,(1 + \sum_{k \in \mathcal{I}_{i,j}} \frac{c_{k}}{K^{uc}_{I_{k}}})},
+    \end{aligned}
+
+where:
+
+
+- :math:`N_{X,j}` :math:`\cap` :math:`N_{sub,j} = 0`, i.e. the prefactorial components are not substrates
+- :math:`N_{X,j}` :math:`\cap` :math:`\mathcal{I}_{i,j} \neq 0`, i.e. the prefactorial components **can** act as inhibitors
+
+Hill Kinetics
+^^^^^^^^^^^^^
+
+For substrates without any form of inhibition, CADET supports a Hill-kinetics
+extension of the Michaelis-Menten kinetic, introducing a cooperativity exponent :math:`n_{i,j}` for substrate :math:`i` in reaction :math:`j`:
+
+.. math::
+
+    \begin{aligned}
+        \nu_{i,j} = \frac{c_{i,j}^{\,n_{i,j}}}{K_{\mathrm{M}_{i,j}}^{\,n_{i,j}} + c_{i,j}^{\,n_{i,j}}}
+    \end{aligned}
+
+where
+
+- :math:`n_{i,j}` is the Hill coefficient for substrate :math:`i` in reaction :math:`j`,
+- and :math:`K_{\mathrm{M}_{i,j}}`, :math:`c_{i,j}` are defined as above.
+
+For :math:`n_{i,j} = 1`, this reduces to standard Michaelis-Menten kinetics.
+Values :math:`n_{i,j} > 1` describe positive cooperativity,
+while :math:`0 < n_{i,j} < 1` describes negative cooperativity.
+
+.. note::
+    The Hill exponent is only applied to substrates that have **no** competitive or uncompetitive
+    inhibitors acting on them (:math:`\mathcal{I}^{c}_{i,j} = \mathcal{I}^{uc}_{i,j} = \emptyset`).
+
 Literature
 ^^^^^^^^^^
 
