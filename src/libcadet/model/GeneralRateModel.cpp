@@ -1977,7 +1977,15 @@ int GeneralRateModel<ConvDispOperator>::residualFlux(double t, unsigned int secI
 		{
 			const ParamType absOuterShellHalfRadius = 0.5 * static_cast<ParamType>(_parCellSize[_disc.nParCellsBeforeType[type]]);
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-				kf_FV[comp] = 1.0 / (absOuterShellHalfRadius / epsP / static_cast<ParamType>(_poreAccessFactor[type * _disc.nComp + comp]) / static_cast<ParamType>(parDiff[comp]) + 1.0 / static_cast<ParamType>(filmDiff[comp]));
+			{
+				// Reformulated harmonic mean: eps*F*Dp*kf / (h*kf + eps*F*Dp)
+				// Avoids 1/Dp and 1/kf divisions which produce NaN in AD derivatives when Dp=0 or kf=0
+				const ParamType Dp = static_cast<ParamType>(parDiff[comp]);
+				const ParamType kf = static_cast<ParamType>(filmDiff[comp]);
+				const ParamType F = static_cast<ParamType>(_poreAccessFactor[type * _disc.nComp + comp]);
+				const ParamType denom = absOuterShellHalfRadius * kf + epsP * F * Dp;
+				kf_FV[comp] = (static_cast<double>(denom) > 0.0) ? (epsP * F * Dp * kf / denom) : ParamType(0.0);
+			}
 		}
 		else
 		{
@@ -2031,7 +2039,14 @@ int GeneralRateModel<ConvDispOperator>::residualFlux(double t, unsigned int secI
 			const ParamType absOuterShellHalfRadius = 0.5 * static_cast<ParamType>(_parCellSize[_disc.nParCellsBeforeType[type]]);
 
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-				kf_FV[comp] = (1.0 - static_cast<ParamType>(_parPorosity[type])) / (1.0 + epsP * static_cast<ParamType>(_poreAccessFactor[type * _disc.nComp + comp]) * static_cast<ParamType>(parDiff[comp]) / (absOuterShellHalfRadius * static_cast<ParamType>(filmDiff[comp])));
+			{
+				// Reformulated to avoid division by kf (NaN in AD when kf=0)
+				const ParamType Dp = static_cast<ParamType>(parDiff[comp]);
+				const ParamType kf = static_cast<ParamType>(filmDiff[comp]);
+				const ParamType F = static_cast<ParamType>(_poreAccessFactor[type * _disc.nComp + comp]);
+				const ParamType denom = absOuterShellHalfRadius * kf + epsP * F * Dp;
+				kf_FV[comp] = (static_cast<double>(denom) > 0.0) ? ((1.0 - epsP) * absOuterShellHalfRadius * kf / denom) : ParamType(0.0);
+			}
 
 			for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 			{
@@ -2138,7 +2153,13 @@ void GeneralRateModel<ConvDispOperator>::assembleOffdiagJac(double t, unsigned i
 		{
 			const double absOuterShellHalfRadius = 0.5 * static_cast<double>(_parCellSize[_disc.nParCellsBeforeType[type]]);
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-				kf_FV[comp] = 1.0 / (absOuterShellHalfRadius / epsP / static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]) / static_cast<double>(parDiff[comp]) + 1.0 / static_cast<double>(filmDiff[comp]));
+			{
+				const double Dp = static_cast<double>(parDiff[comp]);
+				const double kf = static_cast<double>(filmDiff[comp]);
+				const double F = static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]);
+				const double denom = absOuterShellHalfRadius * kf + epsP * F * Dp;
+				kf_FV[comp] = (denom > 0.0) ? (epsP * F * Dp * kf / denom) : 0.0;
+			}
 		}
 		else
 		{
@@ -2197,7 +2218,13 @@ void GeneralRateModel<ConvDispOperator>::assembleOffdiagJac(double t, unsigned i
 			const double absOuterShellHalfRadius = 0.5 * static_cast<double>(_parCellSize[_disc.nParCellsBeforeType[type]]);
 
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-				kf_FV[comp] = (1.0 - static_cast<double>(_parPorosity[type])) / (1.0 + epsP * static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]) * static_cast<double>(parDiff[comp]) / (absOuterShellHalfRadius * static_cast<double>(filmDiff[comp])));
+			{
+				const double Dp = static_cast<double>(parDiff[comp]);
+				const double kf = static_cast<double>(filmDiff[comp]);
+				const double F = static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]);
+				const double denom = absOuterShellHalfRadius * kf + epsP * F * Dp;
+				kf_FV[comp] = (denom > 0.0) ? ((1.0 - static_cast<double>(_parPorosity[type])) * absOuterShellHalfRadius * kf / denom) : 0.0;
+			}
 
 			for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 			{
@@ -2299,7 +2326,13 @@ void GeneralRateModel<ConvDispOperator>::assembleOffdiagJacFluxParticle(double t
 		{
 			const double absOuterShellHalfRadius = 0.5 * static_cast<double>(_parCellSize[_disc.nParCellsBeforeType[type]]);
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-				kf_FV[comp] = 1.0 / (absOuterShellHalfRadius / epsP / static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]) / static_cast<double>(parDiff[comp]) + 1.0 / static_cast<double>(filmDiff[comp]));
+			{
+				const double Dp = static_cast<double>(parDiff[comp]);
+				const double kf = static_cast<double>(filmDiff[comp]);
+				const double F = static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]);
+				const double denom = absOuterShellHalfRadius * kf + epsP * F * Dp;
+				kf_FV[comp] = (denom > 0.0) ? (epsP * F * Dp * kf / denom) : 0.0;
+			}
 		}
 		else
 		{
@@ -2327,7 +2360,13 @@ void GeneralRateModel<ConvDispOperator>::assembleOffdiagJacFluxParticle(double t
 			const double absOuterShellHalfRadius = 0.5 * static_cast<double>(_parCellSize[_disc.nParCellsBeforeType[type]]);
 
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-				kf_FV[comp] = (1.0 - static_cast<double>(_parPorosity[type])) / (1.0 + epsP * static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]) * static_cast<double>(parDiff[comp]) / (absOuterShellHalfRadius * static_cast<double>(filmDiff[comp])));
+			{
+				const double Dp = static_cast<double>(parDiff[comp]);
+				const double kf = static_cast<double>(filmDiff[comp]);
+				const double F = static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]);
+				const double denom = absOuterShellHalfRadius * kf + epsP * F * Dp;
+				kf_FV[comp] = (denom > 0.0) ? ((1.0 - static_cast<double>(_parPorosity[type])) * absOuterShellHalfRadius * kf / denom) : 0.0;
+			}
 
 			for (unsigned int pblk = 0; pblk < _disc.nCol; ++pblk)
 			{
