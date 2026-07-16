@@ -313,7 +313,6 @@ namespace model
 			active const* const filmDiff = _parDiffOp->getFilmDiffusion(secIdx);
 			const ParamType invBetaC = 1.0 / static_cast<ParamType>(packing.colPorosity) - 1.0;
 			const ParamType jacCF_val = invBetaC * static_cast<ParamType>(surfaceToVolumeRatio());
-			const ParamType epsP = static_cast<ParamType>(_parDiffOp->getPorosity());
 
 			// Add flux to column void / bulk volume using discretized film diffusion
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
