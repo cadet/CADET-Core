@@ -513,31 +513,20 @@ namespace parts
 		/* Film diffusion */
 		// note that bulk equation part is treated outside this operator; here we only handle the particle equation film diffusion
 
-		// Discretized film diffusion kf for finite volumes
-		ParamType kf_FV = 0.0;
 		const ParamType epsP = static_cast<ParamType>(_parPorosity);
-		//const ParamType surfaceToVolumeRatio = _parGeomSurfToVol / static_cast<ParamType>(_parRadius);
 		const ParamType outerAreaPerVolume = static_cast<ParamType>(_parOuterSurfAreaPerVolume[_nParPoints - 1]);
-
 		const ParamType jacPF_val = -outerAreaPerVolume / epsP;
-
-		// Discretized film diffusion kf for finite volumes
-		if (cadet_likely(_boundaryOrderFV == 2))
-		{
-			const ParamType absOuterShellHalfRadius = 0.5 * static_cast<ParamType>(_deltaR[_nParPoints - 1]);
-			for (int comp = 0; comp < _nComp; ++comp)
-				kf_FV = 1.0 / (absOuterShellHalfRadius / epsP / static_cast<ParamType>(_poreAccessFactor[comp]) / static_cast<ParamType>(parDiff[comp]) + 1.0 / static_cast<ParamType>(filmDiff[comp]));
-		}
-		else
-		{
-			for (int comp = 0; comp < _nComp; ++comp)
-				kf_FV = static_cast<ParamType>(filmDiff[comp]);
-		}
+		const ParamType absOuterShellHalfRadius = 0.5 * static_cast<ParamType>(_deltaR[_nParPoints - 1]);
 
 		// bead boundary condition in outer bead shell equation
 		for (int comp = 0; comp < _nComp; ++comp)
 		{
-			ResidualType flux = kf_FV * (yBulk[comp * strideBulkComp()] - yPar[(_nParPoints - 1) * strideParPoint() + comp]);
+			// Discretized film diffusion kf for finite volumes (per component)
+			ParamType kf_FV = 1.0;
+			if (cadet_likely(_boundaryOrderFV == 2))
+				kf_FV = 1.0 / (absOuterShellHalfRadius * static_cast<ParamType>(filmDiff[comp]) / epsP / static_cast<ParamType>(_poreAccessFactor[comp]) / static_cast<ParamType>(parDiff[comp]) + 1.0);
+
+			ResidualType flux = kf_FV * static_cast<ParamType>(filmDiff[comp]) * (yBulk[comp * strideBulkComp()] - yPar[(_nParPoints - 1) * strideParPoint() + comp]);
 			resPar[(_nParPoints - 1) * strideParPoint() + comp] += jacPF_val / static_cast<ParamType>(_poreAccessFactor[comp]) * flux;
 		}
 
@@ -546,16 +535,14 @@ namespace parts
 		{
 			active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
 			active const* const parCenterRadius = _parCenterRadius.data();
-			const ParamType absOuterShellHalfRadius = 0.5 * static_cast<ParamType>(_deltaR[_nParPoints - 1]);
-
-			// Recalculate kf_FV for surface diffusion
-			for (int comp = 0; comp < _nComp; ++comp)
-				kf_FV = (1.0 - static_cast<ParamType>(_parPorosity)) / (1.0 + epsP * static_cast<ParamType>(_poreAccessFactor[comp]) * static_cast<ParamType>(parDiff[comp]) / (absOuterShellHalfRadius * static_cast<ParamType>(filmDiff[comp])));
 
 			const ParamType dr = static_cast<ParamType>(parCenterRadius[_nParPoints - 1]) - static_cast<ParamType>(parCenterRadius[_nParPoints - 2]);
 
 			for (int comp = 0; comp < _nComp; ++comp)
 			{
+				// Recalculate kf_FV for surface diffusion (per component)
+				const ParamType kf_FV = (1.0 - static_cast<ParamType>(_parPorosity)) / (1.0 + epsP * static_cast<ParamType>(_poreAccessFactor[comp]) * static_cast<ParamType>(parDiff[comp]) / (absOuterShellHalfRadius * static_cast<ParamType>(filmDiff[comp])));
+
 				const unsigned int nBound = _nBound[comp];
 				ResidualType surfFlux = 0.0;
 
@@ -869,34 +856,29 @@ namespace parts
 		for (int blk = 0; blk < nBulkPoints; blk++)
 		{
 			for (int comp = 0; comp < _nComp; comp++, ++jacCp, ++jacCl) {
-				// add Cb on Cb entries (added since these entries are also touched by bulk jacobian)
-				// row: already at bulk phase. already at current node and component.
-				// col: already at bulk phase. already at current node and component.
-				if (!outliersOnly)
-					jacCl[0] += static_cast<double>(filmDiff[comp]) * (1.0 - colPorosity) / colPorosity
-					* _parGeomSurfToVol / static_cast<double>(_parRadius)
-					* static_cast<double>(parTypeVolFrac[_parTypeIdx + blk * nParType]);
-				// add Cb on Cp entries
-				// row: already at bulk phase. already at current node and component.
-				// col: go to current particle phase entry.
-				jacCl[jacCp.row() - jacCl.row()] = -static_cast<double>(filmDiff[comp]) * (1.0 - colPorosity) / colPorosity
-					* _parGeomSurfToVol / static_cast<double>(_parRadius)
-					* static_cast<double>(parTypeVolFrac[_parTypeIdx + blk * nParType]);
-
-				// Cp on Cb entry
-				// Discretized film diffusion kf for finite volumes
+				// Discretized film diffusion kf for finite volumes (per component)
 				double kf_FV = 0.0;
 				if (cadet_likely(_boundaryOrderFV == 2))
 				{
 					const double absOuterShellHalfRadius = 0.5 * static_cast<double>(_deltaR[_nParPoints - 1]);
-					for (int comp = 0; comp < _nComp; ++comp)
-						kf_FV = 1.0 / (absOuterShellHalfRadius / epsP / static_cast<double>(_poreAccessFactor[comp]) / static_cast<double>(parDiff[comp]) + 1.0 / static_cast<double>(filmDiff[comp]));
+					kf_FV = 1.0 / (absOuterShellHalfRadius / epsP / static_cast<double>(_poreAccessFactor[comp]) / static_cast<double>(parDiff[comp]) + 1.0 / static_cast<double>(filmDiff[comp]));
 				}
 				else
 				{
-					for (int comp = 0; comp < _nComp; ++comp)
-						kf_FV = static_cast<double>(filmDiff[comp]);
+					kf_FV = static_cast<double>(filmDiff[comp]);
 				}
+
+				// Cb on Cb entries (added since these entries are also touched by bulk jacobian)
+				if (!outliersOnly)
+					jacCl[0] += kf_FV * (1.0 - colPorosity) / colPorosity
+					* _parGeomSurfToVol / static_cast<double>(_parRadius)
+					* static_cast<double>(parTypeVolFrac[_parTypeIdx + blk * nParType]);
+				// Cb on Cp entries
+				jacCl[jacCp.row() - jacCl.row()] = -kf_FV * (1.0 - colPorosity) / colPorosity
+					* _parGeomSurfToVol / static_cast<double>(_parRadius)
+					* static_cast<double>(parTypeVolFrac[_parTypeIdx + blk * nParType]);
+
+				// Cp on Cb entry
 				jacCp[jacCl.row() - jacCp.row()] = kf_FV * jacPF_val / static_cast<double>(_poreAccessFactor[comp]);
 
 				// Cp on Cp entry

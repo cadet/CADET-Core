@@ -184,6 +184,8 @@ namespace parts
 		inline bool paramDepSurfDiffParTypeIndep() const CADET_NOEXCEPT { return !_paramDepSurfDiffTypeDep; }
 		inline MultiplexMode parDiffMode() const CADET_NOEXCEPT { return _parDiffusionMode; }
 		inline MultiplexMode parSurfDiffMode() const CADET_NOEXCEPT { return _parSurfDiffusionMode; }
+		
+		virtual active discretizedFilmDiffusionFactor(const int comp) const CADET_NOEXCEPT { return active(1.0); }
 
 	protected:
 

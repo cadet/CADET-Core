@@ -25,6 +25,42 @@
 #include "common/Driver.hpp"
 
 
+TEST_CASE("Column_1D as GRM with FV equivalence with arrow head implementation", "[Column_1D],[FV],[Simulation],[CI]")
+{
+	cadet::JsonParameterProvider jpp1 = createLWE("COLUMN_MODEL_1D_GRM", "FV");
+	cadet::JsonParameterProvider jpp2 = createLWE("COLUMN_MODEL_1D_GRM", "FV");
+	cadet::test::column::FVParams disc(32);
+
+	disc.setDisc(jpp1);
+	disc.setDisc(jpp2);
+
+	// disable arrow head optimization for second setting
+	jpp2.pushScope("model");
+	jpp2.pushScope("unit_000");
+	jpp2.pushScope("discretization");
+	jpp2.set("FV_ARROW_HEAD_OPTIMIZATION", false);
+	jpp2.popScope();
+	jpp2.popScope();
+	jpp2.popScope();
+
+	// low time integration tolerances to minimize impact of different linear solvers
+	jpp2.pushScope("solver");
+	jpp2.pushScope("time_integrator");
+	jpp2.set("ABSTOL", 1e-12);
+	jpp2.set("RELTOL", 1e-10);
+	jpp2.popScope();
+	jpp2.popScope();
+
+	jpp1.pushScope("solver");
+	jpp1.pushScope("time_integrator");
+	jpp1.set("ABSTOL", 1e-12);
+	jpp1.set("RELTOL", 1e-10);
+	jpp1.popScope();
+	jpp1.popScope();
+
+	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8);
+}
+
 TEST_CASE("Column_1D as LRMP with FV equivalence with arrow head implementation", "[Column_1D],[FV],[Simulation],[CI]")
 {
 	cadet::JsonParameterProvider jpp1 = createLWE("COLUMN_MODEL_1D_LRMP", "FV");
