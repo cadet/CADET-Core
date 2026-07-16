@@ -89,7 +89,7 @@ jobs:
             cadet-${{ env.CACHE_VERSION }}-${{ runner.os }}-
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.0.0
+        uses: pypa/cibuildwheel@v4.1.0
         env:
           CIBW_BUILD: "cp312-* cp313-* cp314-*"
           CIBW_ENABLE: cpython-prerelease
