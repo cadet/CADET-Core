@@ -1391,7 +1391,7 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 			double qDotSum = 0.0;
 			for (unsigned int type = 0; type < _nParType; ++type)
 			{
-				double const* const localQ = c + _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
+				//double const* const localQ = c + _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
 				double const* const localQdot = cDot + _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
 				//double qSumType = 0.0;
 				double qDotSumType = 0.0;
