@@ -85,47 +85,6 @@ inline cadet::JsonParameterProvider createTwoComponentLinearThreeParticleTypesTe
 	return jpp;
 }
 
-inline void addLiquidMassActionAtoB(cadet::JsonParameterProvider& jpp, bool kinetic)
-{
-	jpp.set("NREAC_LIQUID", 1);
-	jpp.addScope("liquid_reaction_000");
-	jpp.pushScope("liquid_reaction_000");
-	jpp.set("TYPE", "MASS_ACTION_LAW");
-	jpp.set("MAL_KFWD", std::vector<double>{2.0});
-	jpp.set("MAL_KBWD", std::vector<double>{1.0});
-	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	jpp.set("MAL_IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
-	jpp.popScope();
-}
-
-inline cadet::model::CSTRModel* createMassActionAtoBCSTR(cadet::IModelBuilder& mb, bool kinetic)
-{
-	cadet::JsonParameterProvider jpp = createCSTR(2);
-	
-	jpp.set("NREAC_LIQUID", 1);
-	jpp.addScope("liquid_reaction_000");
-	jpp.pushScope("liquid_reaction_000");
-	jpp.set("TYPE", "MASS_ACTION_LAW");
-	jpp.set("MAL_KFWD", std::vector<double>{2.0});
-	jpp.set("MAL_KBWD", std::vector<double>{1.0});
-	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	jpp.set("MAL_IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
-	jpp.popScope();
-
-	cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(mb, jpp);
-	cstr->setFlowRates(0.0, 0.0);
-	return cstr;
-}
-
-inline std::vector<double> makeMassActionAtoBState(cadet::model::CSTRModel const* cstr, double a, double b)
-{
-	std::vector<double> y(cstr->numDofs(), 0.0);
-	y[2] = a;
-	y[3] = b;
-	y[4] = 1.0;
-	return y;
-}
-
 inline void checkJacobianAD(double flowRateIn, double flowRateOut, double flowRateFilter, std::function<void(cadet::JsonParameterProvider&, unsigned int)> modelRefiner)
 {
 	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
@@ -577,8 +536,10 @@ TEST_CASE("CSTR liquid equilibrium MAL consistent initialization", "[CSTR],[Mass
 			cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(*mb, jpp);
 			cstr->setFlowRates(0.0, 0.0);
 			
-			
-			std::vector<double> y = makeMassActionAtoBState(cstr, 2.7, 0.3);
+			std::vector<double> y(cstr->numDofs(), 0.0);
+			y[2] = 2.7;
+			y[3] = 0.3;
+			y[4] = 1.0;
 
 			cadet::test::unitoperation::testConsistentInitialization(cstr, adEnabled, y.data(), 1e-14, 1e-12);
 
@@ -630,8 +591,10 @@ TEST_CASE("CSTR kinetic and equilibrium MAL share liquid equilibrium", "[CSTR],[
 	cadet::model::CSTRModel* const eqCstr = createAndConfigureCSTR(*mb, eqjpp);
 	eqCstr->setFlowRates(0.0, 0.0);
 	
-	
-	std::vector<double> yEq = makeMassActionAtoBState(eqCstr, 2.7, 0.3);
+	std::vector<double> yEq(eqCstr->numDofs(), 0.0);
+	yEq[2] = 2.7;
+	yEq[3] = 0.3;
+	yEq[4] = 1.0;
 	cadet::test::unitoperation::testConsistentInitialization(eqCstr, false, yEq.data(), 1e-14, 1e-12);
 	mb->destroyUnitOperation(eqCstr);
 
@@ -650,7 +613,10 @@ TEST_CASE("CSTR kinetic and equilibrium MAL share liquid equilibrium", "[CSTR],[
 	cadet::model::CSTRModel* const kinCstr = createAndConfigureCSTR(*mb, kinjpp);
 	kinCstr->setFlowRates(0.0, 0.0);
 
-	std::vector<double> yKin = makeMassActionAtoBState(kinCstr, yEq[2], yEq[3]);
+	std::vector<double> yKin(kinCstr->numDofs(), 0.0);
+	yKin[2] = 2.7;
+	yKin[3] = 0.3;
+	yKin[4] = 1.0;
 	std::vector<double> res(kinCstr->numDofs(), 0.0);
 	cadet::util::ThreadLocalStorage tls;
 	tls.resize(kinCstr->threadLocalMemorySize());
