@@ -23,7 +23,7 @@ The following checklist describes the steps to execute sequentially for creating
 - [ ] Create a release branch `vX.X.X` (typically from `master`) and cherry-pick the commits to include
 - [ ] Create a version bump commit `Bump version to vX.X.X`:
   - Update the version number in `version.txt`, `zenodo.json` (two places), `cadet.hpp` and `cadet.doxyfile`
-  - Update the authors list if needed in `CONTRIBUTING.md` and `zenodo.json`
+  - Update the authors list if needed in `AUTHORS.md` and `zenodo.json`
   - Update the file format in `driver.hpp` if required
   - Double check LATEST_CAPI_VERSION under `src\libcadet\VersionInfo.cpp.in`
   - Update `html_baseurl` and `smv_branch_whitelist` in the `doc/conf.py` file to the release branch (only if stable release)
