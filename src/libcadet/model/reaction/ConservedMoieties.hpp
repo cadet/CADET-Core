@@ -86,13 +86,11 @@ class ConservedMoieties
             _nReactionEquilibirum = nEq;
             _eqS.resize(_S.rows(), nEq);
             unsigned int col = 0;
-
             for (unsigned int r = 0; r < _eqReactionMask.size(); ++r)
             {
                 if (!_eqReactionMask[r])
                     continue;
-                _eqS.col(col) = _S.col(r);
-                col++;
+                _eqS.col(col++) = _S.col(r);
             }
 
         }
@@ -102,7 +100,7 @@ class ConservedMoieties
             if (_eqS.cols() == 0)
             { 
                 _rank = 0;
-                _L = Eigen::MatrixXd::Identity(0, _eqS.rows());
+                _L = Eigen::MatrixXd::Identity(_eqS.rows(), _eqS.rows());
                 return;
             }
 
