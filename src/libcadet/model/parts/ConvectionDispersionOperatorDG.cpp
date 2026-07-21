@@ -1137,16 +1137,6 @@ active RadialConvectionDispersionOperatorBaseDG::currentVelocity(double pos) con
 	return _curVelocity / radius;
 }
 
-/**
- * @brief Returns the Jacobian factor for the inlet boundary
- */
-double RadialConvectionDispersionOperatorBaseDG::inletJacobianFactor() const CADET_NOEXCEPT
-{
-	const double rho_inlet = static_cast<double>(_innerRadius);
-	const double denom = rho_inlet * static_cast<double>(_deltaRho);
-	return static_cast<double>(_curVelocity) / denom;
-}
-
 unsigned int RadialConvectionDispersionOperatorBaseDG::jacobianLowerBandwidth() const CADET_NOEXCEPT
 {
 	// Radial DG always uses exact integration
