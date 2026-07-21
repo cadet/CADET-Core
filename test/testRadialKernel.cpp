@@ -422,7 +422,7 @@ public:
 		{
 			const double t = _solTimes[i];
 			const double tMinusFiveSq = (t - 5.0) * (t - 5.0);
-			const double expFactor = std::exp(-0.125 * tMinusFiveSq);
+			const double expFactor = t * std::exp(-0.125 * tMinusFiveSq);
 
 			for (int comp = 0; comp < _nComp; ++comp, ++idx)
 			{
