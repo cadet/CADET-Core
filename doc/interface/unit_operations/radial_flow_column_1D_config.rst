@@ -297,5 +297,14 @@ The following FV discretization parameters are only required if particles are pr
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
    ================  =========================  =============
 
+``FV_ARROW_HEAD_OPTIMIZATION``
+
+   Optional, specifies whether an optimized Jacobian block structure is exploited by a custommized linear solver module for improved computational efficiency.
+   Prohibits mix of particle types and mix of FV, DG discretizations for bulk and particles.
+   
+   =============  ==========================  =============
+   **Type:** int  **Range:** :math:`\{0,1\}`  **Length:** 1
+   =============  ==========================  =============
+
 When using the FV method, we generally recommend specifying ``USE_MODIFIED_NEWTON = 0`` in :ref:`FFSolverTime`, i.e. to use the full Newton method to solve the linear system within the time integrator.
 For further information on discretization parameters, see also :ref:`flux_reconstruction_methods` (FV specific), and :ref:`non_consistency_solver_parameters`.

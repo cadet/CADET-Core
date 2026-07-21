@@ -283,6 +283,15 @@ The following FV discretization parameters are only required if particles are pr
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
    ================  =========================  =============
 
+``FV_ARROW_HEAD_OPTIMIZATION``
+
+   Optional, specifies whether an optimized Jacobian block structure is exploited by a custommized linear solver module for improved computational efficiency.
+   Prohibits mix of particle types and mix of FV, DG discretizations for bulk and particles.
+   
+   =============  ==========================  =============
+   **Type:** int  **Range:** :math:`\{0,1\}`  **Length:** 1
+   =============  ==========================  =============
+
 ``FIX_ZERO_SURFACE_DIFFUSION``
 
    Determines whether the surface diffusion parameters :math:`\texttt{SURFACE_DIFFUSION}` are fixed if the parameters are zero. If the parameters are fixed to zero (:math:`\texttt{FIX_ZERO_SURFACE_DIFFUSION} = 1`, :math:`\texttt{SURFACE_DIFFUSION} = 0`), the parameters must not become non-zero during this or subsequent simulation runs. The internal data structures are optimized for a more efficient simulation.  This field is optional and defaults to :math:`0` (optimization disabled in favor of flexibility).
