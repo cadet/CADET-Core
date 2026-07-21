@@ -185,7 +185,7 @@ bool ColumnModel1D<ConvDispOperator>::configureModelDiscretization(IParameterPro
 			throw InvalidParameterException("Unit type was specified as " + unitName + ", but group " + parGroup + " is missing");
 		paramProvider.pushScope(parGroup);
 
-		if (unitName == "COLUMN_MODEL_1D" || unitName == "RADIAL_COLUMN_MODEL_1D")
+		if (unitName == "COLUMN_MODEL_1D" || unitName == "RADIAL_COLUMN_MODEL_1D" || unitName == "FRUSTUM_COLUMN_MODEL_1D")
 		{
 			const bool filmDiffusion = paramProvider.getBool("HAS_FILM_DIFFUSION");
 			const bool poreDiffusion = paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false;
@@ -208,7 +208,7 @@ bool ColumnModel1D<ConvDispOperator>::configureModelDiscretization(IParameterPro
 				particleType = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType();
 			}
 
-			if (unitName == "GENERAL_RATE_MODEL" || unitName == "RADIAL_GENERAL_RATE_MODEL")
+			if (unitName == "GENERAL_RATE_MODEL" || unitName == "RADIAL_GENERAL_RATE_MODEL" || unitName == "FRUSTUM_GENERAL_RATE_MODEL")
 			{
 				particleType = particleType == "NONE" ? "GENERAL_RATE_PARTICLE" : particleType;
 
@@ -217,7 +217,7 @@ bool ColumnModel1D<ConvDispOperator>::configureModelDiscretization(IParameterPro
 				else
 					throw InvalidParameterException("Unit type was specified as " + unitName + ", which is inconsistent with specified particle model " + particleType);
 			}
-			else if (unitName == "LUMPED_RATE_MODEL_WITH_PORES" || unitName == "RADIAL_LUMPED_RATE_MODEL_WITH_PORES")
+			else if (unitName == "LUMPED_RATE_MODEL_WITH_PORES" || unitName == "RADIAL_LUMPED_RATE_MODEL_WITH_PORES" || unitName == "FRUSTUM_LUMPED_RATE_MODEL_WITH_PORES")
 			{
 				particleType = particleType == "NONE" ? "HOMOGENEOUS_PARTICLE" : particleType;
 
@@ -1765,6 +1765,7 @@ template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseDG>;
 template class ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG>;
 template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseFV>;
 template class ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseFV>;
+template class ColumnModel1D<parts::FrustumConvectionDispersionOperatorBaseFV>;
 
 IUnitOperation* createAxialCol1DDG(UnitOpIdx uoId)
 {
@@ -1794,12 +1795,12 @@ IUnitOperation* createRadialCol1DFV(UnitOpIdx uoId)
 	return new RadialCol1DFV(uoId);
 }
 
-//IUnitOperation* createFrustumCol1DFV(UnitOpIdx uoId)
-//{
-//	typedef ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG> RadialCol1DDG;
-//
-//	return new RadialCol1DDG(uoId);
-//}
+IUnitOperation* createFrustumCol1DFV(UnitOpIdx uoId)
+{
+	typedef ColumnModel1D<parts::FrustumConvectionDispersionOperatorBaseFV> FrustumCol1DFV;
+
+	return new FrustumCol1DFV(uoId);
+}
 
 }  // namespace model
 }  // namespace cadet

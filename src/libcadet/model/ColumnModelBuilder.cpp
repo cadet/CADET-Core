@@ -68,7 +68,7 @@ namespace model
 					if (discName == "DG")
 						model = createAxialLRMDG(uoId) ;
 					else if (discName == "FV")
-						model = arrowHeadOpt ? createAxialFVLRM(uoId) : createAxialCol1DFV(uoId);
+						model = createAxialFVLRM(uoId);
 					else
 						LOG(Error) << "Unknown bulk discretization type " << discName << " for unit " << uoId;
 				}
@@ -208,7 +208,7 @@ namespace model
 				else if (discName == "FV")
 				{
 					if (particleType == "EQUILIBRIUM_PARTICLE")
-						model = arrowHeadOpt ? createRadialFVLRM(uoId) : createRadialCol1DFV(uoId);
+						model = createRadialFVLRM(uoId);
 					else if (particleType == "HOMOGENEOUS_PARTICLE")
 						model = arrowHeadOpt ? createRadialFVLRMP(uoId) : createRadialCol1DFV(uoId);
 					else if (particleType == "GENERAL_RATE_PARTICLE")
@@ -275,14 +275,12 @@ namespace model
 
 		if (discName != "FV")
 			throw InvalidParameterException("Only FV discretization supported for Frustum geometry but " + discName + " was asked for unit " + std::to_string(uoId));
-		else if (!arrowHeadOpt)
-			throw InvalidParameterException("FV_ARROW_HEAD_OPTIMIZATION was set to false for unit " + std::to_string(uoId) + " but only arrow head implementation is available");
 
 		paramProvider.popScope(); // discretization
 
 		if (uoType == "FRUSTUM_COLUMN_MODEL_1D")
 		{
-			if (paramProvider.exists("particle_type_000"))
+			if (paramProvider.getInt("NPARTYPE") > 0)
 			{
 				if (discName == "DG")
 					LOG(Error) << "Frustum flow not implemented for DG discretization yet, was called for unit " << uoId;
@@ -297,17 +295,19 @@ namespace model
 
 				const std::string particleType = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType();
 
-				if (particleType == "EQUILIBRIUM_PARTICLE")
-					model = createFrustumFVLRM(uoId);
-				if (particleType == "HOMOGENEOUS_PARTICLE")
-					model = createFrustumFVLRMP(uoId);
-				else if (particleType == "GENERAL_RATE_PARTICLE")
-					model = createFrustumFVGRM(uoId);
+					if (particleType == "EQUILIBRIUM_PARTICLE")
+						model = createFrustumFVLRM(uoId);
+					else if (particleType == "HOMOGENEOUS_PARTICLE")
+						model = arrowHeadOpt ? createFrustumFVLRMP(uoId) : createFrustumCol1DFV(uoId);
+					else if (particleType == "GENERAL_RATE_PARTICLE")
+						model = arrowHeadOpt ? createFrustumFVGRM(uoId) : createFrustumCol1DFV(uoId);
+					else
+						LOG(Error) << "Unknown particle type " << particleType << " for unit " << uoId;
 
 				paramProvider.popScope();
 			}
 			else
-				model = createFrustumFVLRM(uoId); // LRMP used for npartype = 0
+				model = arrowHeadOpt ? createFrustumFVLRM(uoId) : createFrustumCol1DFV(uoId);
 		}
 		else
 		{
