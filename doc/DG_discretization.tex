@@ -1,0 +1,548 @@
+\section{Spatial Discretization}
+\label{sec:spatial_discretization}
+
+\subsection{Discontinuous Galerkin Spectral Element Method}
+\label{sec:dgsem}
+
+The spatial \glspl{dgsem} discretizations developed in this section are based on the work of \cite{kronbichler_discontinuous_2021} and \cite{winters_construction_2021} and the book by \cite{hesthaven_nodal_2008}.
+
+\subsubsection{Nodal Element Toolbox}
+\label{sec:nodal_element_toolbox}
+
+In the following, we construct matrix operators for polynomial interpolation, integration, differentiation, and integration by parts, as required by the \gls{dg} discretizations in \cref{sec:dg_discretization}.
+To this end, we construct nodal \gls{dg} elements on the computational reference element $[-1,1]$ on Legendre-Gau\ss-Lobatto (LGL) points $\{\xi_k\}_{k=0}^{N^\mathrm{d}} \subset [-1,1]$ using Lagrange polynomials of degree $N^\mathrm{d}$ with basis $\mathcal{L}^{N^\mathrm{d}} \coloneq \{\ell_j\}_{j=0}^{N^\mathrm{d}}$,
+\begin{align}
+\label{eq:lagrange_basis_function}
+\ell_j(\xi) = \prod_{\substack{i=0 \\ i \neq j}}^{N^\mathrm{d}} \frac{\xi-\xi_i}{\xi_j-\xi_i} \quad \text{such that} \quad \ell_j(\xi_i)= \delta_{ij} \coloneq 
+\begin{cases}
+1, & i=j,\\
+0, & \text{else.}
+\end{cases}
+\end{align}
+Consequently, the interpolatory polynomial $c_h\in \mathbb{P}^{N^\mathrm{d}}([-1,1])$ of a sought solution $c\in\mathcal{C}^\infty(E)$ takes the form
+\begin{align}
+c_h(\xi) &= \sum_{j=0}^{N^\mathrm{d}} \ell_j(\xi) c^{\mathrm{b}}(\xi_j) \approx c^{\mathrm{b}}(\xi).
+\end{align}
+
+Mass matrices are used to discretize integral operators and are defined as
+\begin{align}
+\label{eq:operator_mass_matrix}
+\mathcal{M}_{i, j} &\coloneq \int_{-1}^{1} \ell_i(\xi) \ell_j(\xi) w(\xi) \,\mathrm{d}\xi \in\mathbb{R},
+\end{align}
+where $w\colon [-1,1]\to\mathbb{R}$ is a weighting function that, for example, accounts for geometric metric terms or spatially dependent parameters.
+A particularly important mass matrix is obtained by choosing the Jacobi weight function $w^{(\alpha,\beta)} = (1-\xi)^\alpha (1+\xi)^\beta$ with $\alpha,\beta\in\mathbb{N}^0$, yielding
+\begin{align}
+\label{eq:operator_exact_jacobi_mass_matrix}
+\mathcal{M}^{(\alpha, \beta)}_{i, j} &\coloneq \int_{-1}^{1} \ell_i(\xi) \ell_j(\xi) w^{(\alpha, \beta)}(\xi) \,\mathrm{d}\xi = \left(\mathcal{V}^{(\alpha, \beta)} \left( \mathcal{V}^{(\alpha, \beta)} \right)^T \right)^{-1}_{i,j},
+\end{align}
+where $\mathcal{V}^{(\alpha, \beta)}_{i, j} \coloneq \mathcal{P}^{(\alpha, \beta)}_j(\xi_i)$ defines the (invertible) Vandermonde matrix associated with the corresponding Jacobi polynomial basis $\left\{\mathcal{P}^{(\alpha, \beta)}_j\right\}_{j=0}^{N^\mathrm{d}}$. 
+Alternatively, the weighted mass matrix can be approximated using numerical quadrature with $N^\mathrm{Q}\in\mathbb{N}$ quadrature points $\{\tilde{\xi}_k\}_{k=1}^{N^\mathrm{Q}}$,
+\begin{align}
+\label{eq:operator_gauss_mass_matrix}
+\tilde{\mathcal{M}}_{i,j} &\coloneq \sum_{k=1}^{N^\mathrm{Q}} \ell_i(\tilde{\xi}_k) \ell_j(\tilde{\xi}_k) \, w(\tilde{\xi}) \, \tilde{w}_k,
+\end{align}
+where $\tilde{w}_k$ denotes the quadrature weight associated with the quadrature point $\tilde{\xi}_k$. In this work, we employ Gauss quadrature, an integration rule with optimal algebraic accuracy that integrates all polynomials of degree at most $2N^\mathrm{Q}-1$ exactly.
+
+The differentiation matrix $\mathcal{D} \in \mathbb{R}^{({N^\mathrm{d}} + 1) \times ({N^\mathrm{d}} + 1)}$ can be computed directly as
+\begin{align}
+\label{eq:operator_differentiation_matrix}
+\mathcal{D}_{i, j} &\coloneq \frac{\partial \ell_j}{\partial \xi}(\xi_i).
+\end{align}
+
+The stiffness matrix with weight $w(\xi)$ is defined as
+\begin{align}
+\label{eq:operator_stiffness_matrix}
+\tilde{\mathcal{S}}_{ij} &\coloneq \int_{-1}^{1} \ell_i \frac{\mathrm{d} \ell_j}{d \xi} w(\xi) \,\mathrm{d}\xi = \left( \tilde{\mathcal{M}} \mathcal{D} \right)_{i,j}.
+\end{align}
+
+The so-called ``lifting'' matrix is used to compute surface integrals and is given by
+\begin{align}
+\label{eq:operator_lifting_matrix}
+\mathcal{B}_{ij} :&= \oint_{\partial E} \ell_i(\xi) \ell_j(\xi) w(\xi) \text{\boldmath$n$} \,\mathrm{d}\xi
+=
+\begin{cases}
+- w(-1) & \text{for $i=j=0$,} \\
+w(1) & \text{for $i=j={N^\mathrm{d}}$,} \\
+0 & \text{else.}
+\end{cases}
+\end{align}
+Here, $\text{\boldmath$n$} \in \{-1, 1\}$ is the outwards pointing unit normal vector in $1$D.
+
+The \gls{dgsem} employs numerical fluxes $f^*\colon \mathbb{R}^2\mapsto \mathbb{R}$ based on the inner and outer values at element interfaces $\xi \in \{-1,1\}$.
+This yields an element operator of the form
+\begin{align}
+\label{eq:operator_numerical_flux_vector}
+\underline{f}^* \coloneq \left[f^*|_{\xi=-1}, 0, \dots, 0, f^*|_{\xi=1}\right] \in\mathbb{R}^{N^\mathrm{d}+1}.
+\end{align}
+
+% The following summation-by-parts (SBP) property is the discrete equivalent of an integration by parts and will be used to derive the so-called strong form of the DGSEM discretization, which is how the methods are implemented.
+% For the two sets of previously defined discrete operators, $\{ \mathcal{D}, \mathcal{B}, \mathcal{M}^{(0, 0)}, \mathcal{S}^{(0, 0)}\}$ and $\{ \mathcal{D}, \mathcal{B}, \mathcal{M}_{LGL}, \mathcal{S}_{LGL}\}$, it holds that
+% \begin{align}
+%  \mathcal{D} &=  \mathcal{M}^{-1} \  \mathcal{S} \text{ and }  \mathcal{S} +  \mathcal{S}^T =  \mathcal{B}, \label{sbp_property}
+% \end{align}
+% with $ \mathcal{M}$ and $ \mathcal{S}$ being the mass and stiffness matrices of the respective approach.
+% The SBP property~\eqref{sbp_property} was initially shown by \cite{kopriva_quadrature_2010} for LGL and Gau\ss{} integration and also holds for the exact integration operators when $\alpha=\beta=0$.
+
+\subsubsection{DG discretization}
+\label{sec:dg_discretization}
+
+Starting point of the discretization is the convection--dispersion--reaction equation for general symmetric column geometries with smoothly varying cross-sectional area defined on $(0,T^\mathrm{end})\times\Omega$
+\begin{align}
+    \label{eq:generalized_bulk_with_filmDiffusion}
+    \frac{\partial c^\mathrm{b}}{\partial t}
+    &=
+    -\frac{Q}{A(x)}
+    \frac{\partial c^\mathrm{b}}{\partial x}
+    +
+    \frac{1}{A(x)}
+    \frac{\partial}{\partial x}
+    \left(
+    A(x)D^x(x)
+    \frac{\partial c^\mathrm{b}}{\partial x}
+    \right)
+    \nonumber\\
+    &\phantom{={}}
+    +
+    \frac{1-\varepsilon^\mathrm{b}}{\varepsilon^\mathrm{b}}
+    \frac{3k^\mathrm{f}(x)}{R^\mathrm{p}}
+    \left(
+    \left.c^\mathrm{p}\right|_{r=R^\mathrm{p}}
+    -
+    c^\mathrm{b}
+    \right).
+\end{align}
+First, we partition the spatial domain into $N^\mathrm{e}\in\mathbb{N}$ elements $\Omega_i\coloneq(x_i,x_{i+1})$, such that
+\begin{align}
+    \overline{\Omega} = \bigcup_i \overline{\Omega_i}.
+\end{align}
+
+To improve the numerical conditioning and to enable operator reuse, we map the closure of each element onto the computational reference element $[-1,1]$ via the affine mapping
+\begin{align}
+    \label{eq:general_reference_mapping}
+    \xi(x)
+    \coloneq
+    2\frac{x-x_i}{\Delta x_i}-1,
+    \qquad
+    x\in[x_i,x_{i+1}],
+\end{align}
+with Jacobian
+\begin{align}
+    \frac{\mathrm d\xi}{\mathrm dx}
+    =
+    \frac{2}{\Delta x_i},
+\end{align}
+and inverse
+\begin{align}
+    x_i^\mathrm{e}(\xi)
+    =
+    (\xi+1)\frac{\Delta x_i}{2}+x_i,
+    \qquad
+    \xi\in[-1,1],
+\end{align}
+where $\Delta x_i\coloneq x_{i+1}-x_i$.
+
+Multiplying \cref{eq:generalized_bulk_with_filmDiffusion} by a smooth test function
+$\phi\in\mathcal C^\infty(\Omega)$
+and integrating over an element gives
+\begin{align*}
+    \int_{\Omega_i}
+    \phi
+    \frac{\partial c^\mathrm{b}}{\partial t}
+    A(x)
+    \,\mathrm dx
+    &=
+    \int_{\Omega_i}
+    \phi
+    \Bigg(
+    -Q
+    \frac{\partial c^\mathrm{b}}{\partial x}
+    +
+    \frac{\partial}{\partial x}
+    \left(
+    A(x)D^x(x)
+    \frac{\partial c^\mathrm{b}}{\partial x}
+    \right)
+    \\
+    &\qquad\qquad
+    +
+    \frac{1-\varepsilon^\mathrm b}{\varepsilon^\mathrm b}
+    \frac{3k^\mathrm f(x)}{R^\mathrm p}
+    A(x)
+    \left(
+    \left.c^\mathrm p\right|_{r=R^\mathrm p}
+    -c^\mathrm{b}
+    \right)
+    \Bigg)
+    \,\mathrm dx.
+\end{align*}
+
+We transform the equation to the reference element and introduce the shorthands
+\begin{align*}
+    w^{AD^\mathrm{x}}(\xi) \coloneq A(x_i^\mathrm e(\xi)) D^x(x_i^\mathrm e(\xi)),
+    \quad
+    A(\xi) \coloneq A(x_i^\mathrm e(\xi)),
+\end{align*}
+which yields
+\begin{align*}
+    \int_{-1}^1
+    \phi
+    \frac{\partial c^\mathrm{b}}{\partial t}
+    A(\xi)
+    \frac{\Delta x_i}{2}
+    \,\mathrm d\xi
+    &=
+    \int_{-1}^1
+    \phi
+    \left(
+    -
+    Q
+    \frac{\partial c^\mathrm{b}}{\partial\xi}
+    \frac{2}{\Delta x_i}
+    +
+    \frac{\partial}{\partial\xi}
+    \frac{2}{\Delta x_i}
+    \left(
+    w
+    \frac{\partial c^\mathrm{b}}{\partial\xi}
+    \frac{2}{\Delta x_i}
+    \right)
+    \right)
+    \,\mathrm d\xi
+    \\
+    &\phantom{={}}
+    +
+    \int_{-1}^1
+    \phi
+    \frac{1-\varepsilon^\mathrm b}{\varepsilon^\mathrm b}
+    \frac{3k^\mathrm f(x_i^\mathrm e(\xi))}{R^\mathrm p}
+    A(\xi)
+    \left(
+    \left.c^\mathrm p\right|_{r=R^\mathrm p}
+    -
+    c^\mathrm{b}
+    \right)
+    \frac{\Delta x_i}{2}
+    \,\mathrm d\xi.
+\end{align*}
+
+The Jacobian of the integral substitution cancels and we perform an integration by parts to obtain
+\begin{align*}
+    \int_{-1}^1 \phi \frac{\partial c^\mathrm{b}}{\partial t} A(\xi) \,\mathrm d\xi
+    &=
+    -
+    \frac{2}{\Delta x_i}
+    \left[
+    \phi
+    \left(
+    Qc^\mathrm{b}
+    -
+    wg
+    \right)
+    \right]_{-1}^{1}
+    \\
+    &\phantom{={}}
+    +
+    \int_{-1}^1
+    \frac{\partial\phi}{\partial\xi}
+    \left(
+    Q c^\mathrm{b}
+    \frac{2}{\Delta x_i}
+    -
+    \frac{2}{\Delta x_i}
+    wg
+    \right)
+    \,\mathrm d\xi
+    \\
+    &\phantom{={}}
+    +
+    \int_{-1}^1
+    \phi
+    \frac{1-\varepsilon^\mathrm b}{\varepsilon^\mathrm b}
+    \frac{3k^\mathrm f(x_i^\mathrm e(\xi))}{R^\mathrm p}
+    A(\xi)
+    \left(
+    \left.c^\mathrm p\right|_{r=R^\mathrm p}
+    -
+    c^\mathrm{b}
+    \right)
+    \,\mathrm d\xi.
+\end{align*}
+Here, we followed the approach of \cite{bassi_high-order_1997} and introduced the auxiliary variable
+\begin{align}
+   g \coloneq \frac{2}{\Delta x_i} \frac{\partial c^\mathrm{b}}{\partial\xi},
+\end{align}
+to rewrite the equation as a first order system.
+The auxiliary weak formulation reads
+\begin{align*}
+    \int_{-1}^1
+    \phi g
+    \,\mathrm d\xi
+    &=
+    \frac{2}{\Delta x_i}
+    \int_{-1}^1
+    \phi
+    \frac{\partial c^\mathrm{b}}{\partial\xi}
+    \,\mathrm d\xi
+    \\
+    &=
+    \frac{2}{\Delta x_i}
+    \left[
+    \phi c^\mathrm{b}
+    \right]_{-1}^{1}
+    -
+    \frac{2}{\Delta x_i}
+    \int_{-1}^1
+    \frac{\partial\phi}{\partial\xi}
+    c^\mathrm{b}
+    \,\mathrm d\xi.
+\end{align*}
+
+We note that a solution to the weak formulation is not necessarily a solution to the original equations and vice versa. However, a sufficiently smooth solution satisfies both the original and weak form.
+
+Next, we seek approximate solutions of the weak form in the polynomial space. To this end, we employ interpolating Lagrange polynomials of degree $N^\mathrm{d}$ on the computational element and obtain for $t\in(0,T^\mathrm{end}]$ and $\xi\in[-1,1]$
+\begin{subequations}
+\begin{align}
+    c^\mathrm{b}(t,\xi)
+    &\approx
+    \sum_{k=0}^{N^\mathrm d}
+    \underline{c}^\mathrm b_k(t)
+    \ell_k(\xi)
+    =:c_h,
+    \\
+    g(t,\xi)
+    &\approx
+    \sum_{k=0}^{N^\mathrm d}
+    \underline{g}_k(t)
+    \ell_k(\xi)
+    =:g_h,
+    \\
+    c^\mathrm p(t,\xi)
+    &\approx
+    \sum_{k=0}^{N^\mathrm d}
+    \underline{c}^\mathrm p_k(t)
+    \ell_k(\xi)
+    =:c_h^\mathrm p.
+\end{align}
+\end{subequations}
+
+Here, $\underline{c}^\mathrm{b},\underline{g},\underline{c}^\mathrm{p}$ denote the vectors of polynomial coefficients.
+Discretizing the continuous weak form, we reduce the infinite-dimensional test space $\mathcal C^\infty([-1,1])$ to the finite-dimensional polynomial space $\mathbb P^{N^\mathrm d}([-1,1])$.
+Choosing the Lagrange basis functions $\ell_j\in\mathcal L^{N^\mathrm d}$ as test functions yields the discrete weak formulation
+\begin{align*}
+    \int_{-1}^1
+    \ell_j
+    \frac{\partial c_h}{\partial t}
+    A(\xi)
+    \,\mathrm d\xi
+    &=
+    -\frac{2}{\Delta x_i}
+    \left[
+    \ell_j
+    \left(
+    Qc_h^{*,\mathrm a}
+    -
+    w^{AD^\mathrm{x}} g_h^{*,\mathrm d}
+    \right)
+    \right]_{-1}^{1}
+    \\
+    &\phantom{={}}
+    +
+    \int_{-1}^1
+    \frac{2}{\Delta x_i}
+    \frac{\partial\ell_j}{\partial\xi}
+    \left(
+    Qc_h
+    -
+    w^{AD^\mathrm{x}} g_h
+    \right)
+    \,\mathrm d\xi
+    \\
+    &\phantom{={}}
+    +
+    \int_{-1}^1
+    \ell_j
+    \frac{1-\varepsilon^\mathrm b}{\varepsilon^\mathrm b}
+    \frac{3k^\mathrm f(x_i^\mathrm e(\xi))}{R^\mathrm p}
+    A(\xi)
+    \left(
+    \left.c^\mathrm p\right|_{r=R^\mathrm p}
+    -
+    c_h
+    \right)
+    \,\mathrm d\xi,
+    \\
+    \int_{-1}^1
+    \ell_j g_h
+    \,\mathrm d\xi
+    &=
+    \frac{2}{\Delta x_i}
+    \left[
+    \ell_j
+    c_h^{*,\mathrm d}
+    \right]_{-1}^{1}
+    -
+    \frac{2}{\Delta x_i}
+    \int_{-1}^1
+    \frac{\partial\ell_j}{\partial\xi}
+    c_h
+    \,\mathrm d\xi.
+\end{align*}
+
+Collecting the element integrals into the discrete operators introduced in \cref{sec:nodal_element_toolbox}, we obtain the element-wise matrix formulation
+\begin{align}
+    \label{eq:generalized_matrix_operator_dg_discretization}
+    \mathcal{M}^{\mathrm{A}}
+    \frac{\partial\underline{c}^\mathrm{b}}{\partial t}
+    &=
+    -\frac{2}{\Delta x_i}
+    \left(
+    \mathcal{B} \, Q \, \underline c^{*,\mathrm a}
+    -
+    \mathcal{B}^{AD^\mathrm{x}} \underline{g}^{*,\mathrm d}
+    \right)
+    +
+    \frac{2}{\Delta x_i}
+    \left(
+    \mathcal{D}^\mathrm{T}\mathcal{M}^{(0,0)}
+    \, Q \, \underline{c}^\mathrm{b}
+    -
+    \tilde{\mathcal{S}}^{AD^\mathrm{x}} \underline{g}
+    \right)
+    \nonumber \\
+    &\phantom{={}}
+    +
+    \frac{1-\varepsilon^\mathrm b}{\varepsilon^\mathrm b}
+    \frac{3}{R^\mathrm p}
+    \tilde{\mathcal{M}}^{Ak^\mathrm{f}}
+    \left(
+    \underline c^\mathrm p
+    -
+    \underline{c}^\mathrm{b}
+    \right),
+    \\
+    \label{eq:auxiliary_matrix_operator_dg_discretization}
+    \mathcal{M}^{(0,0)}
+    \underline{g}
+    &=
+    \frac{2}{\Delta x_i}
+    \left(
+    \mathcal{B}\underline c^{*,\mathrm d}
+    -
+    \mathcal{D}^\mathrm{T}\mathcal{M}^{(0,0)}
+    \underline{c}^\mathrm{b}
+    \right).
+\end{align}
+The vectors $\underline c^{*,\mathrm a}$, $\underline c^{*,\mathrm d}$, and $\underline{g}^{*,\mathrm d}$ are the numerical flux operators as defined in \cref{eq:operator_numerical_flux_vector}.
+We recover the element-wise matrix operators used in \cref{eq:generalized_matrix_operator_dg_discretization} for both the radial flow and frustum geometry (see Model~\eqref{model:radial_flow_bulk} and~\eqref{model:frustum_bulk}) by substituting the corresponding cross-sectional area function $A(x)$ into the weighted operators, in accordance with the preparations made in \cref{sec:nodal_element_toolbox}.
+The cross-sectional area is given by
+\begin{align}
+    A(x)=
+    \begin{cases}
+    2\pi L\,x,
+    &
+    \text{radial flow},
+    \\[1ex]
+    \displaystyle
+    \pi
+    \left(
+    r_0+\frac{x}{H}(r_H-r_0)
+    \right)^2,
+    &
+    \text{frustum flow}.
+    \end{cases}
+\end{align}
+
+The weighted stiffness matrix $\tilde{\mathcal{S}}^{AD^\mathrm{x}}$ involves a spatially varying dispersion parameter, which we do not know in general, and thus requires numerical integration and is defined as per \eqref{eq:operator_stiffness_matrix} with weight $A(x^\mathrm{e}_i(\xi)) D^\mathrm{x}(x^\mathrm{e}_i(\xi))$.
+Similarly, we define the weighted mass matrix $\tilde{\mathcal{M}}^{Ak^\mathrm{f}}$ per \eqref{eq:operator_gauss_mass_matrix} with weight $A(x^\mathrm{e}_i(\xi)) k^\mathrm{f}(x^\mathrm{e}_i(\xi))$.
+
+The mass matrix $\mathcal{M}^{\mathrm{A}}$ can be computed exactly as a linear combination of Jacobi-weighted mass matrices~\eqref{eq:operator_exact_jacobi_mass_matrix}.
+For the radial flow geometry, we get
+\begin{subequations}
+\begin{align}
+    \mathcal{M}^{\mathrm{A}}
+    &=
+    2\pi L
+    \left(
+    x_i\,\mathcal{M}^{(0,0)}
+    +
+    \frac{\Delta x_i}{2}\,
+    \mathcal{M}^{(0,1)}
+    \right).
+\intertext{For the frustum flow geometry, expanding the quadratic area function gives}
+    \mathcal{M}^{\mathrm A}
+    &=
+    \pi
+    \Biggl[
+    \left(
+    r_0^2
+    +\frac{2r_0x_i}{H}(r_H-r_0)
+    +\frac{x_i^2}{H^2}(r_H-r_0)^2
+    \right)
+    \mathcal{M}^{(0,0)}
+    \nonumber\\
+    &\phantom{=\pi}
+    +
+    \left(
+    \frac{2r_0(r_H-r_0)}{H}\frac{\Delta x_i}{2}
+    +\frac{(r_H-r_0)^2}{H^2} x_i \Delta x_i
+    \right)
+    \mathcal{M}^{(0,1)}
+    \nonumber\\
+    &\phantom{=\pi}
+    +
+    \frac{(r_H-r_0)^2}{H^2}
+    \left(\frac{\Delta x_i}{2}\right)^2
+    \mathcal{M}^{(0,2)}
+    \Biggr].
+\end{align}
+\end{subequations}
+
+The lifting matrix $\mathcal{B}_{AD^\mathrm{x}}$ is defined via \eqref{eq:operator_lifting_matrix} with weight $A(x^\mathrm{e}_i(\xi)) D^\mathrm{x}(x^\mathrm{e}_i(\xi))$.
+
+We further simplify the auxiliary \cref{eq:auxiliary_matrix_operator_dg_discretization} using the summation-by-parts property \citep[see][]{Kopriva2010}, which holds in the non-weighted space, yielding
+\begin{align}
+    \label{eq:auxiliary_strong_form}
+    \underline{g}
+    =
+    \frac{2}{\Delta x_i}
+    \left( \left(\mathcal{M}^{(0,0)}\right)^{-1} B
+        \left( \underline c^{*,\mathrm d} - \underline{c}^\mathrm{b} \right)
+        + D \underline{c}^\mathrm{b}
+    \right).
+\end{align}
+
+The complementing particle model equations defined in \cref{sec:particle_models} are discretized following \cite{BREUER2023108340} which, for completeness, is summarized in the Appendix~\ref{appendix:sec:particle_discretization}.
+
+
+\subsubsection{Numerical Fluxes}
+
+For the linear advection term, we approximate the interface fluxes with an upwind numerical flux for $v>0$
+\begin{subequations}
+\label{eq:radial_flow_numerical_fluxes}
+\begin{align}
+c^{*,\mathrm{a}}_h \left( u (c_h)^-, u (c_h)^+ \right)
+&\coloneq u (c_h)^-,
+\intertext{where the superscripts $-$ and $+$ denote the inner and outer interface value respectively.
+For the dispersion interface fluxes, we employ a central numerical flux \citep{bassi_high-order_1997}}
+g^{*,\mathrm{d}}_h \left( g_h^-, g_h^+ \right)
+&\coloneq \frac{g_h^+ + g_h^-}{2},
+\\
+c^{*,\mathrm{d}}_h \left( c_h^-, c_h^+ \right)
+&\coloneq \frac{c_h^+ + c_h^-}{2}.
+\end{align}
+\end{subequations}
+
+
+\subsubsection{Boundary Conditions}
+
+Danckwerts boundary conditions \eqref{eq:danckwerts_bc} are imposed weakly through the numerical fluxes
+\begin{subequations}
+\begin{align}
+c^{a,*}+g^{d,*}\big|_{\rho=P^\mathrm{c}} &\coloneq u c^b_\text{in}, &\quad c^{a,*}+g^{d,*}\big|_{\rho=P} &\coloneq u (c_h)^-.
+\intertext{
+The model does not prescribe boundary conditions for the auxiliary equations.
+We hence define the numerical flux for inflow and outflow boundaries as \citep{bassi_high-order_1997}
+}
+c^{d,*}\big|_{\rho=P^\mathrm{c}} &\coloneq c^b\big|_{\rho=P^\mathrm{c}}, &\quad c^{d,*}\big|_{\rho=P} &\coloneq c^b\big|_{\rho=P}.
+\end{align}
+\end{subequations}
