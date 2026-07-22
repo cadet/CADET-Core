@@ -13,6 +13,7 @@
 #include <catch.hpp>
 #include "cadet/cadet.hpp"
 
+#include "Approx.hpp"
 #include "model/StirredTankModel.hpp"
 #include "ModelBuilderImpl.hpp"
 #include "SimulationTypes.hpp"
@@ -29,6 +30,7 @@
 #include <cmath>
 #include <functional>
 #include <algorithm>
+#include <vector>
 
 /**
  * @brief Creates a runnable CSTR model with given WENO order
@@ -507,6 +509,129 @@ TEST_CASE("StirredTankModel consistent initialization with SMA binding", "[CSTR]
 		cstr->setFlowRates(1.0, 1.0);
 		return cstr;
 	}, y.data(), 1e-14, 1e-5);
+}
+
+TEST_CASE("CSTR liquid equilibrium MAL consistent initialization", "[CSTR],[MassActionLaw],[ReactionModel],[ConsistentInit],[testHere]")
+{
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	for (int adMode = 0; adMode < 2; ++adMode)
+	{
+		const bool adEnabled = (adMode > 0);
+		SECTION(std::string("AD ") + (adEnabled ? "enabled" : "disabled"))
+		{
+			cadet::JsonParameterProvider jpp = createCSTR(2);
+	
+			jpp.set("NREAC_LIQUID", 1);
+			jpp.addScope("liquid_reaction_000");
+			jpp.pushScope("liquid_reaction_000");
+			jpp.set("TYPE", "MASS_ACTION_LAW");
+			jpp.set("MAL_KFWD", std::vector<double>{2.0});
+			jpp.set("MAL_KBWD", std::vector<double>{1.0});
+			jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+			jpp.set("MAL_IS_KINETIC", std::vector<int>{false ? 1 : 0});
+			jpp.popScope();
+
+			cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(*mb, jpp);
+			cstr->setFlowRates(0.0, 0.0);
+			
+			std::vector<double> y(cstr->numDofs(), 0.0);
+			y[2] = 2.7;
+			y[3] = 0.3;
+			y[4] = 1.0;
+
+			cadet::test::unitoperation::testConsistentInitialization(cstr, adEnabled, y.data(), 1e-14, 1e-12);
+
+			CHECK(y[2] == cadet::test::makeApprox(1.0, 1e-12, 1e-12));
+			CHECK(y[3] == cadet::test::makeApprox(2.0, 1e-12, 1e-12));
+			CHECK((y[2] + y[3]) == cadet::test::makeApprox(3.0, 1e-12, 1e-12));
+
+			mb->destroyUnitOperation(cstr);
+		}
+	}
+
+	destroyModelBuilder(mb);
+}
+
+TEST_CASE("CSTR liquid equilibrium MAL Jacobian vs AD", "[CSTR],[MassActionLaw],[ReactionModel],[Jacobian],[AD],[testHere]")
+{
+	checkJacobianAD(1.0, 1.0, 0.0, [](cadet::JsonParameterProvider& jpp, unsigned int nComp) {
+		
+		jpp.set("NREAC_LIQUID", 1);
+		jpp.addScope("liquid_reaction_000");
+		jpp.pushScope("liquid_reaction_000");
+		jpp.set("TYPE", "MASS_ACTION_LAW");
+		jpp.set("MAL_KFWD", std::vector<double>{2.0});
+		jpp.set("MAL_KBWD", std::vector<double>{1.0});
+		jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+		jpp.set("MAL_IS_KINETIC", std::vector<int>{false ? 1 : 0});
+		jpp.popScope();
+
+	});
+}
+
+TEST_CASE("CSTR kinetic and equilibrium MAL share liquid equilibrium", "[CSTR],[MassActionLaw],[ReactionModel],[ConsistentInit],[testHere]")
+{
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	cadet::JsonParameterProvider eqjpp = createCSTR(2);
+	
+	eqjpp.set("NREAC_LIQUID", 1);
+	eqjpp.addScope("liquid_reaction_000");
+	eqjpp.pushScope("liquid_reaction_000");
+	eqjpp.set("TYPE", "MASS_ACTION_LAW");
+	eqjpp.set("MAL_KFWD", std::vector<double>{2.0});
+	eqjpp.set("MAL_KBWD", std::vector<double>{1.0});
+	eqjpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+	eqjpp.set("MAL_IS_KINETIC", std::vector<int>{false ? 1 : 0});
+	eqjpp.popScope();
+
+	cadet::model::CSTRModel* const eqCstr = createAndConfigureCSTR(*mb, eqjpp);
+	eqCstr->setFlowRates(0.0, 0.0);
+	
+	std::vector<double> yEq(eqCstr->numDofs(), 0.0);
+	yEq[2] = 2.7;
+	yEq[3] = 0.3;
+	yEq[4] = 1.0;
+	cadet::test::unitoperation::testConsistentInitialization(eqCstr, false, yEq.data(), 1e-14, 1e-12);
+	mb->destroyUnitOperation(eqCstr);
+
+	cadet::JsonParameterProvider kinjpp = createCSTR(2);
+	
+	kinjpp.set("NREAC_LIQUID", 1);
+	kinjpp.addScope("liquid_reaction_000");
+	kinjpp.pushScope("liquid_reaction_000");
+	kinjpp.set("TYPE", "MASS_ACTION_LAW");
+	kinjpp.set("MAL_KFWD", std::vector<double>{2.0});
+	kinjpp.set("MAL_KBWD", std::vector<double>{1.0});
+	kinjpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+	kinjpp.set("MAL_IS_KINETIC", std::vector<int>{true ? 1 : 0});
+	kinjpp.popScope();
+
+	cadet::model::CSTRModel* const kinCstr = createAndConfigureCSTR(*mb, kinjpp);
+	kinCstr->setFlowRates(0.0, 0.0);
+
+	std::vector<double> yKin(kinCstr->numDofs(), 0.0);
+	yKin[2] = 2.7;
+	yKin[3] = 0.3;
+	yKin[4] = 1.0;
+	std::vector<double> res(kinCstr->numDofs(), 0.0);
+	cadet::util::ThreadLocalStorage tls;
+	tls.resize(kinCstr->threadLocalMemorySize());
+
+	kinCstr->notifyDiscontinuousSectionTransition(0.0, 0u, {yKin.data(), nullptr}, cadet::AdJacobianParams{nullptr, nullptr, 0u});
+	kinCstr->residual(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{yKin.data(), nullptr}, res.data(), tls);
+
+	CHECK(yKin[2] == cadet::test::makeApprox(1.0, 1e-12, 1e-12));
+	CHECK(yKin[3] == cadet::test::makeApprox(2.0, 1e-12, 1e-12));
+	
+	for (double val : res)
+		CHECK(std::abs(val) <= 1e-12);
+
+	mb->destroyUnitOperation(kinCstr);
+	destroyModelBuilder(mb);
 }
 
 TEST_CASE("StirredTankModel consistent sensitivity initialization with linear binding", "[CSTR],[ConsistentInit],[Sensitivity],[CI]")

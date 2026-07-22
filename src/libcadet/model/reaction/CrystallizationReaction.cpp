@@ -2620,6 +2620,13 @@ protected:
 	{
 		jacobianFluxImpl<RowIteratorLiquid>(t, secIdx, colPos, 0, yLiquid, factor, jacLiquid, workSpace);
 	}
+	
+	template <typename StateType, typename ResidualType, typename ParamType>
+	int residualEquilibriumImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		const unsigned int nStates, StateType const* y, ResidualType* res, unsigned int& eqIdx , LinearBufferAllocator workSpace) const {return 0;}
+
+	template <typename RowIterator>
+	void jacobianEquilibriumImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nState, double const* y, unsigned int& eqIdx, unsigned int eqRowOffset, const RowIterator& jac, LinearBufferAllocator workSpace) const{ }
 };
 
 namespace reaction
