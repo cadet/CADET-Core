@@ -1207,3 +1207,348 @@ TEST_CASE("Radial Column_1D pure convection dispersion numerical benchmark", "[R
 	cadet::test::column::DGParams disc(1, 3, 16);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
+
+TEST_CASE("Frustum Column_1D as GRM LWE forward vs backward flow", "[FrustumColumn1D],[DG],[DG1D],[Simulation],[CI]")
+{
+	cadet::test::column::DGParams disc;
+	cadet::test::column::testForwardBackward("FRUSTUM_COLUMN_MODEL_1D_GRM", disc, 1e-9, 1e-4);
+}
+
+TEST_CASE("Frustum Column_1D as GRM transport Jacobian", "[FrustumColumn1D],[DG],[UnitOp],[Jacobian],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "FRUSTUM_COLUMN_MODEL_1D_GRM", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Frustum Column_1D as GRM Jacobian forward vs backward flow", "[FrustumColumn1D],[DG],[DG1D],[UnitOp],[Residual],[Jacobian],[AD],[CI]")
+{
+	cadet::test::column::DGParams disc;
+	cadet::test::column::testJacobianForwardBackward("FRUSTUM_COLUMN_MODEL_1D_GRM", disc, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Frustum Column_1D as GRM time derivative Jacobian vs FD", "[FrustumColumn1D],[DG],[UnitOp],[Residual],[Jacobian],[CI]")
+{
+	cadet::test::column::testTimeDerivativeJacobianFD("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG");
+}
+
+TEST_CASE("Frustum Column_1D as GRM inlet DOF Jacobian", "[FrustumColumn1D],[DG],[UnitOp],[Jacobian],[Inlet],[CI]")
+{
+	cadet::test::column::testInletDofJacobian("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG");
+}
+
+TEST_CASE("Frustum Column_1D as GRM with two component linear binding Jacobian", "[FrustumColumn1D],[DG],[UnitOp],[Jacobian],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP transport Jacobian", "[FrustumColumn1D],[DG],[UnitOp],[Jacobian],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP time derivative Jacobian vs FD", "[FrustumColumn1D],[DG],[UnitOp],[Residual],[Jacobian],[CI]")
+{
+	cadet::test::column::testTimeDerivativeJacobianFD("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG");
+}
+
+TEST_CASE("Frustum Column_1D as LRMP inlet DOF Jacobian", "[FrustumColumn1D],[DG],[UnitOp],[Jacobian],[Inlet],[CI]")
+{
+	cadet::test::column::testInletDofJacobian("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG");
+}
+
+TEST_CASE("Frustum Column_1D as LRMP with two component linear binding Jacobian", "[FrustumColumn1D],[DG],[UnitOp],[Jacobian],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Frustum Column_1D as GRM sensitivity Jacobians", "[FrustumColumn1D],[DG],[UnitOp],[Sensitivity],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG");
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP sensitivity Jacobians", "[FrustumColumn1D],[DG],[UnitOp],[Sensitivity],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG");
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7);
+}
+
+TEST_CASE("Frustum Column_1D as GRM consistent initialization with linear binding", "[FrustumColumn1D],[DG],[ConsistentInit],[CI]")
+{
+	cadet::test::column::testConsistentInitializationLinearBinding("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-12, 0, 0);
+	cadet::test::column::testConsistentInitializationLinearBinding("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-12, 1, 0);
+	cadet::test::column::testConsistentInitializationLinearBinding("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-12, 0, 1);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP consistent initialization with linear binding", "[FrustumColumn1D],[DG],[ConsistentInit],[CI]")
+{
+	cadet::test::column::testConsistentInitializationLinearBinding("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12, 0, 0);
+	cadet::test::column::testConsistentInitializationLinearBinding("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12, 1, 0);
+	cadet::test::column::testConsistentInitializationLinearBinding("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12, 0, 1);
+}
+
+TEST_CASE("Frustum Column_1D as GRM dynamic reactions Jacobian vs AD bulk", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG", true, false, false, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Frustum Column_1D as GRM dynamic reactions Jacobian vs AD particle", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG", false, true, false, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Frustum Column_1D as GRM dynamic reactions Jacobian vs AD bulk and particle", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG", true, true, false, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP dynamic reactions Jacobian vs AD bulk", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG", true, false, false, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP dynamic reactions Jacobian vs AD particle", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG", false, true, false, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP dynamic reactions Jacobian vs AD bulk and particle", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
+{
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG", true, true, false, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Frustum Column_1D as GRM dynamic binding with surf diff par dep Jacobian vs AD", "[FrustumColumn1D],[DG],[UnitOp],[Jacobian],[ParameterDependence]")
+{
+	cadet::test::column::testJacobianADVariableParSurfDiff("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG", true);
+}
+
+TEST_CASE("Frustum Column_1D as GRM rapid-equilibrium binding with surf diff par dep Jacobian vs AD", "[FrustumColumn1D],[DG],[UnitOp],[Jacobian],[ParameterDependence]")
+{
+	cadet::test::column::testJacobianADVariableParSurfDiff("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG", false);
+}
+
+TEST_CASE("Frustum Column_1D as GRM LWE one vs two identical particle types match", "[FrustumColumn1D],[DG],[Simulation],[ParticleType],[CI]")
+{
+	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG", 2e-8, 5e-5);
+}
+
+TEST_CASE("Frustum Column_1D as GRM LWE separate identical particle types match", "[FrustumColumn1D],[DG],[Simulation],[ParticleType],[CI]")
+{
+	cadet::test::particle::testSeparateIdenticalParticleTypes("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG", 2e-8, 5e-5);
+}
+
+TEST_CASE("Frustum Column_1D as GRM linear binding single particle matches particle distribution", "[FrustumColumn1D],[DG],[Simulation],[ParticleType],[CI]")
+{
+	cadet::test::particle::testLinearMixedParticleTypes("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG", 5e-8, 5e-5);
+}
+
+TEST_CASE("Frustum Column_1D as GRM multiple particle types Jacobian analytic vs AD", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ParticleType],[CI]")
+{
+	cadet::test::particle::testJacobianMixedParticleTypes("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG", 5e-12);
+}
+
+TEST_CASE("Frustum Column_1D as GRM multiple particle types time derivative Jacobian vs FD", "[FrustumColumn1D],[DG],[UnitOp],[Residual],[Jacobian],[ParticleType],[CI]")
+{
+	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG", 1e-6, 0.0, 9e-4);
+}
+
+TEST_CASE("Frustum Column_1D as GRM multiple spatially dependent particle types Jacobian analytic vs AD", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ParticleType],[CI]")
+{
+	cadet::test::particle::testJacobianSpatiallyMixedParticleTypes("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG", 1e-11);
+}
+
+TEST_CASE("Frustum Column_1D as GRM linear binding single particle matches spatially dependent particle distribution", "[FrustumColumn1D],[DG],[Simulation],[ParticleType],[CI]")
+{
+	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG", 5e-8, 5e-5);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP LWE one vs two identical particle types match", "[FrustumColumn1D],[DG],[Simulation],[ParticleType],[CI]")
+{
+	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG", 2.2e-8, 6e-5);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP LWE separate identical particle types match", "[FrustumColumn1D],[DG],[Simulation],[ParticleType],[CI]")
+{
+	cadet::test::particle::testSeparateIdenticalParticleTypes("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG", 2e-8, 5e-5);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP linear binding single particle matches particle distribution", "[FrustumColumn1D],[DG],[Simulation],[ParticleType],[CI]")
+{
+	cadet::test::particle::testLinearMixedParticleTypes("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG", 5e-8, 5e-5);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP multiple particle types Jacobian analytic vs AD", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ParticleType],[CI]")
+{
+	cadet::test::particle::testJacobianMixedParticleTypes("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG", 5e-12);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP multiple particle types time derivative Jacobian vs FD", "[FrustumColumn1D],[DG],[UnitOp],[Residual],[Jacobian],[ParticleType],[CI]")
+{
+	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG", 1e-6, 0.0, 9e-4);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP multiple spatially dependent particle types Jacobian analytic vs AD", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ParticleType],[CI]")
+{
+	cadet::test::particle::testJacobianSpatiallyMixedParticleTypes("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG", 1e-11);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP linear binding single particle matches spatially dependent particle distribution", "[FrustumColumn1D],[DG],[Simulation],[ParticleType],[CI]")
+{
+	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG", 5e-8, 5e-5);
+}
+
+inline cadet::JsonParameterProvider createFrustum1DGRMColumnWithThreeParticleTypes()
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG");
+
+	const double parVolFrac[] = { 0.3, 0.6, 0.1 };
+	const double parFactor[] = { 0.9, 0.8 };
+	cadet::test::particle::extendModelToManyParticleTypes(jpp, 3, parFactor, parVolFrac);
+
+	return jpp;
+}
+
+TEST_CASE("Frustum Column_1D as GRM multi particle types dynamic reactions Jacobian vs AD bulk", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, false, false);
+}
+
+TEST_CASE("Frustum Column_1D as GRM multi particle types dynamic reactions Jacobian vs AD particle", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, false);
+}
+
+TEST_CASE("Frustum Column_1D as GRM multi particle types dynamic reactions Jacobian vs AD modified particle", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, true);
+}
+
+TEST_CASE("Frustum Column_1D as GRM multi particle types dynamic reactions Jacobian vs AD bulk and particle", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, false);
+}
+
+TEST_CASE("Frustum Column_1D as GRM multi particle types dynamic reactions Jacobian vs AD bulk and modified particle", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, true);
+}
+
+TEST_CASE("Frustum Column_1D as GRM multi particle types dynamic reactions time derivative Jacobian vs FD bulk", "[FrustumColumn1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, false, false, 1e-6, 1e-14, 9e-4);
+}
+
+TEST_CASE("Frustum Column_1D as GRM multi particle types dynamic reactions time derivative Jacobian vs FD particle", "[FrustumColumn1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, false, 1e-6, 1e-14, 9e-4);
+}
+
+TEST_CASE("Frustum Column_1D as GRM multi particle types dynamic reactions time derivative Jacobian vs FD modified particle", "[FrustumColumn1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, true, 1e-6, 1e-14, 9e-4);
+}
+
+TEST_CASE("Frustum Column_1D as GRM multi particle types dynamic reactions time derivative Jacobian vs FD bulk and particle", "[FrustumColumn1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, false, 1e-6, 1e-14, 9e-4);
+}
+
+TEST_CASE("Frustum Column_1D as GRM multi particle types dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[FrustumColumn1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DGRMColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 9e-4);
+}
+
+inline cadet::JsonParameterProvider createFrustum1DLRMPColumnWithThreeParticleTypes()
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG");
+
+	const double parVolFrac[] = { 0.3, 0.6, 0.1 };
+	const double parFactor[] = { 0.9, 0.8 };
+	cadet::test::particle::extendModelToManyParticleTypes(jpp, 3, parFactor, parVolFrac);
+
+	return jpp;
+}
+
+TEST_CASE("Frustum Column_1D as LRMP multi particle types dynamic reactions Jacobian vs AD bulk", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, false, false);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP multi particle types dynamic reactions Jacobian vs AD particle", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, false);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP multi particle types dynamic reactions Jacobian vs AD modified particle", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, false, true, true);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP multi particle types dynamic reactions Jacobian vs AD bulk and particle", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, false);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP multi particle types dynamic reactions Jacobian vs AD bulk and modified particle", "[FrustumColumn1D],[DG],[Jacobian],[AD],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testUnitJacobianDynamicReactionsAD(jpp, true, true, true);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP multi particle types dynamic reactions time derivative Jacobian vs FD bulk", "[FrustumColumn1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, false, false, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP multi particle types dynamic reactions time derivative Jacobian vs FD particle", "[FrustumColumn1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, false, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP multi particle types dynamic reactions time derivative Jacobian vs FD modified particle", "[FrustumColumn1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, false, true, true, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP multi particle types dynamic reactions time derivative Jacobian vs FD bulk and particle", "[FrustumColumn1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, false, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP multi particle types dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[FrustumColumn1D],[DG],[Jacobian],[Residual],[ReactionModel],[ParticleType],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createFrustum1DLRMPColumnWithThreeParticleTypes();
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("Frustum Column_1D pure convection dispersion numerical benchmark", "[FrustumColumn1D],[DG],[DG1D],[Simulation],[Reference],[CI]")
+{
+	std::string modelFilePath = std::string("/data/config_radCOL1D_transport_1comp_DGP3_benchmark1_DG_P3Z16.json");
+	std::string refFilePath = std::string("/data/ref_radCOL1D_transport_1comp_DGP3_benchmark1_DG_P3Z16.h5");
+	const std::vector<double> absTol = { 1e-12 };
+	const std::vector<double> relTol = { 1e-6 };
+
+	cadet::test::column::DGParams disc(1, 3, 16);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
