@@ -1763,6 +1763,7 @@ namespace model
 
 template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseDG>;
 template class ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG>;
+template class ColumnModel1D<parts::FrustumConvectionDispersionOperatorBaseDG>;
 template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseFV>;
 template class ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseFV>;
 template class ColumnModel1D<parts::FrustumConvectionDispersionOperatorBaseFV>;
@@ -1779,6 +1780,12 @@ IUnitOperation* createRadialCol1DDG(UnitOpIdx uoId)
 	typedef ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG> RadialCol1DDG;
 
 	return new RadialCol1DDG(uoId);
+}
+
+IUnitOperation* createFrustumCol1DDG(UnitOpIdx uoId)
+{
+	typedef ColumnModel1D<parts::FrustumConvectionDispersionOperatorBaseDG> FrustumCol1DDG;
+	return new FrustumCol1DDG(uoId);
 }
 
 IUnitOperation* createAxialCol1DFV(UnitOpIdx uoId)

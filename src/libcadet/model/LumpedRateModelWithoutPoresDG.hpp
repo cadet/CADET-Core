@@ -60,6 +60,12 @@ namespace
 	{
 		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES_DG"; }
 	};
+
+	template <>
+	struct LumpedRateModelWithoutPoresDGName<cadet::model::parts::FrustumConvectionDispersionOperatorBaseDG>
+	{
+		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_LUMPED_RATE_MODEL_WITHOUT_PORES_DG"; }
+	};
 }
 
 namespace cadet
@@ -551,6 +557,7 @@ namespace cadet
 
 		IUnitOperation* createAxialLRMDG(UnitOpIdx uoId);
 		IUnitOperation* createRadialLRMDG(UnitOpIdx uoId);
+		IUnitOperation* createFrustumLRMDG(UnitOpIdx uoId);
 
 	} // namespace model
 } // namespace cadet
