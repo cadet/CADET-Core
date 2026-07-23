@@ -880,7 +880,7 @@ namespace cadet
 		unsigned int LumpedRateModelWithoutPoresDG<ConvDispOperator>::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 		{
 			// Inlets are duplicated so need to be accounted for
-			if (static_cast<double>(_convDispOp.currentVelocity()) >= 0.0)
+			if (static_cast<double>(_convDispOp.forwardFlow()))
 				// Forward Flow: outlet is last cell
 				return _disc.nComp + (_disc.nPoints - 1) * (_disc.nComp + _disc.strideBound);
 			else
@@ -1954,7 +1954,7 @@ namespace cadet
 		{
 			cadet_assert(port == 0);
 
-			if (_model._convDispOp.currentVelocity() >= 0)
+			if (_model._convDispOp.forwardFlow())
 				std::copy_n(&_idx.c(_data, _disc.nPoints - 1, 0), _disc.nComp, buffer);
 			else
 				std::copy_n(&_idx.c(_data, 0, 0), _disc.nComp, buffer);
@@ -1965,7 +1965,7 @@ namespace cadet
 		template <typename ConvDispOperator>
 		int LumpedRateModelWithoutPoresDG<ConvDispOperator>::Exporter::writeOutlet(double* buffer) const
 		{
-			if (_model._convDispOp.currentVelocity() >= 0)
+			if (_model._convDispOp.forwardFlow())
 				std::copy_n(&_idx.c(_data, _disc.nPoints - 1, 0), _disc.nComp, buffer);
 			else
 				std::copy_n(&_idx.c(_data, 0, 0), _disc.nComp, buffer);
