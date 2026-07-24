@@ -25,12 +25,6 @@
             "NREAC_LIQUID": 1,
           "liquid_reaction_000": {
             "TYPE": "MICHAELIS_MENTEN",
-            "MM_KI": [
-              0,
-              0,
-              0,
-              0
-            ],
             "MM_KMM": [
               100
             ],
