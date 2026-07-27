@@ -1687,6 +1687,305 @@ namespace cadet
 				int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
 			};
 
+			/**
+			 * @brief Frustum convection dispersion transport operator based on a DG discretization
+			 * @details Implements the frustum (truncated cone) geometry transport equation.
+			 *          The cross-sectional area varies quadratically along the axial coordinate x:
+			 *          A(x) = pi * r(x)^2, where r(x) = r_0 + x/H * (r_H - r_0)
+			 *          Velocity: u(x) = velCoeff / r(x)^2, velCoeff = Q / (pi * eps)
+			 */
+			class FrustumConvectionDispersionOperatorBaseDG : public IConvectionDispersionOperatorBase1D
+			{
+			public:
+
+				FrustumConvectionDispersionOperatorBaseDG();
+				~FrustumConvectionDispersionOperatorBaseDG() CADET_NOEXCEPT;
+
+				void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
+
+				bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nelements, unsigned int polyDeg, unsigned int strideNode);
+				bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
+				bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, Eigen::MatrixXd& jacInlet);
+
+				int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac);
+				int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac);
+				int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity);
+				int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity);
+				int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity);
+				int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
+
+				template <typename StateType>
+				int calcTransportJacobian(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset, const StateType* const y);
+				int calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, double const* y) override;
+				int calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, active const* y) override;
+
+				typedef Eigen::Triplet<double> T;
+				void convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset = 0) const override;
+				unsigned int nJacEntries(bool pureNNZ = false) const CADET_NOEXCEPT override;
+				void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const override;
+				void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset = 0) const override;
+
+				// Geometry accessors
+
+				inline double elemLeftBound(unsigned int idx) const CADET_NOEXCEPT
+				{
+					return idx * static_cast<double>(_deltaX);
+				}
+
+				double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT
+				{
+					const double x = floor(idx / _nNodes) * static_cast<double>(_deltaX)
+						+ 0.5 * static_cast<double>(_deltaX) * (1.0 + _nodes[idx % _nNodes]);
+					return x / static_cast<double>(_bedLength);
+				}
+
+				inline const double* nodes() const CADET_NOEXCEPT { return &_nodes[0]; }
+				inline const active* currentDispersion(const int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_colDispersion, _nComp, secIdx); }
+				inline bool dispersionCompIndep() const CADET_NOEXCEPT { return _dispersionCompIndep; }
+				inline bool forwardFlow() const CADET_NOEXCEPT { return _curFwdFlow; }
+				inline int flowDirection() const CADET_NOEXCEPT { return _curFwdFlow ? 1 : -1; }
+
+				inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
+				inline unsigned int nelements() const CADET_NOEXCEPT { return _nElem; }
+				inline unsigned int nNodes() const CADET_NOEXCEPT { return _nNodes; }
+				inline unsigned int nPoints() const CADET_NOEXCEPT { return _nPoints; }
+				inline bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
+				inline int writeSmoothnessIndicator(double* buffer) const CADET_NOEXCEPT { return 0; }
+				inline int writeCoordinates(double* buffer) const CADET_NOEXCEPT
+				{
+					for (unsigned int i = 0; i < _nElem; i++)
+						for (unsigned int j = 0; j < _nNodes; j++)
+							buffer[i * _nNodes + j] = i * static_cast<double>(_deltaX)
+							+ 0.5 * static_cast<double>(_deltaX) * (1.0 + nodes()[j]);
+					return _nPoints;
+				}
+
+				// Indexer functionality
+				inline int strideColElement() const CADET_NOEXCEPT { return static_cast<int>(_strideElem); }
+				inline int strideColNode() const CADET_NOEXCEPT { return static_cast<int>(_strideNode); }
+				inline int strideColComp() const CADET_NOEXCEPT { return 1; }
+				inline int offsetC() const CADET_NOEXCEPT { return _nComp; }
+
+				unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
+				unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
+				double inletJacobianFactor() const CADET_NOEXCEPT;
+
+				unsigned int requiredADdirs() const CADET_NOEXCEPT override { return 4 * _nNodes * strideColNode() + 1; }
+
+				bool setParameter(const ParameterId& pId, double value);
+				bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
+				bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& id, double value);
+
+			protected:
+
+				// Discretization parameters
+				unsigned int _nComp;
+				unsigned int _polyDeg;
+				unsigned int _nElem;
+				unsigned int _nNodes;
+				unsigned int _nPoints;
+				unsigned int _filmDiffQuadDeg;
+				unsigned int _axDispQuadDeg;
+
+				unsigned int _strideNode;
+				unsigned int _strideElem;
+
+				// Column geometry
+				active _bedLength;						//!< bed length H (axial length)
+				active _colHeight;						//!< column height H, only applicable for radial flow geometry
+				active _radiusXStart;					//!< radius at domain start
+				active _radiusXEnd;					    //!< radius at domain end
+				std::vector<double> _crossSectionArea;	//!< Cross section area at each node
+
+				// DG operators
+				active _deltaX;					//!< Axial element spacing
+				Eigen::VectorXd _nodes;			//!< LGL nodes on [-1,1]
+				Eigen::VectorXd _invWeights;	//!< inverse LGL quadrature weights
+				Eigen::MatrixXd _polyDerM;		//!< polynomial derivative matrix D
+				Eigen::MatrixXd _M00;			//!< mass matrix M^{(0,0)}
+				Eigen::MatrixXd _invM00;		//!< inverse mass matrix (M^{(0,0)})^-1
+				std::vector<Eigen::MatrixXd> _invMM_A;						//!< per element inverse of the weighted mass matrix (w0 M^{(0,0) + w1 M^{(0,1) + w2 M^{(0,2)})^{-1}
+				std::vector<Eigen::MatrixXd> _invMM_A_times_ST_AD;			//!< Per-element matrix product (M^A)^-1 * D^T * \tilde{S}^{AD}
+				std::vector<Eigen::MatrixXd> _invMM_A_times_DT_timesM00;	//!< Per-element matrix product (M^A)^-1 * D^T * M^(0,0)
+
+				// Per-element Jacobian blocks
+				std::vector<Eigen::MatrixXd> _DGjacFrustumDispBlocks;
+				std::vector<Eigen::MatrixXd> _DGjacFrustumConvBlocks;
+
+				// Auxiliary state
+				active* _auxState;
+				active* _subsState;
+				Eigen::Vector<active, Eigen::Dynamic> _surfaceFluxC; // numerical interface flux used for c^{*,d} and c^{*,a}
+				Eigen::Vector<active, Eigen::Dynamic> _surfaceFluxG; // numerical interface flux used for g^{*,d}
+				active _inletC;
+
+				// Section dependent parameters
+				std::vector<active> _colDispersion;	//!< column dispersion D^x
+				active _flowRate;
+				active _QOverEps;	//!< flow rate divided by porosity (Q/eps)
+				std::vector<bool> _forwardFlow;
+				bool _curFwdFlow;
+
+				int _curSection;
+				bool _newStaticJac;
+
+				bool _dispersionCompIndep;
+				IParameterParameterDependence* _dispersionDep;
+
+				/* ===================================================================
+				 *  Geometry helpers
+				 * =================================================================== */
+
+				void computeGeometryFrustum();
+				void computeOperatorsFrustum();
+
+				/* ===================================================================
+				 *  Jacobian block helpers
+				 * =================================================================== */
+
+				Eigen::MatrixXd DGjacobianConvBlockFrustum(unsigned int elemIdx);
+				Eigen::MatrixXd DGjacobianDispBlockFrustum(unsigned int elemIdx);
+				Eigen::MatrixXd getGBlockFrustum(unsigned int elemIdx);
+				void calcConvDispFrustumDGSEMJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int offC);
+
+				/* ===================================================================
+				 *  Residual helpers (shared pattern with radial)
+				 * =================================================================== */
+
+				template<typename StateType>
+				void InterfaceFluxAuxiliaryFrustumImpl(const StateType* C, unsigned int strideNode, unsigned int strideElem)
+				{
+					// Central average for interior interfaces
+					for (unsigned int elem = 1; elem < _nElem; elem++)
+						_surfaceFluxC[elem] = 0.5 * (C[elem * strideElem - strideNode] + C[elem * strideElem]);
+					_surfaceFluxC[0] = C[0];
+					_surfaceFluxC[_nElem] = C[_nElem * strideElem - strideNode];
+				}
+
+				template<typename StateType, typename ResidualType>
+				void surfaceIntegralAuxFrustumImpl(const StateType* state, ResidualType* stateDer,
+					unsigned int strideNode_state, unsigned int strideElem_state,
+					unsigned int strideNode_stateDer, unsigned int strideElem_stateDer)
+				{
+					// g -= M^{(0,0),-1} * B * [c - c*]   (standard, no area weighting for aux eq)
+					for (unsigned int elem = 0; elem < _nElem; elem++)
+					{
+						for (unsigned int node = 0; node < _nNodes; node++)
+						{
+							stateDer[elem * strideElem_stateDer + node * strideNode_stateDer]
+								-= static_cast<ResidualType>(
+									_invM00(node, 0) * (state[elem * strideElem_state] - _surfaceFluxC[elem])
+									- _invM00(node, _polyDeg) * (state[elem * strideElem_state + _polyDeg * strideNode_state] - _surfaceFluxC[elem + 1])
+									);
+						}
+					}
+				}
+
+				template<typename StateType, typename ResidualType>
+				void volumeIntegralAuxFrustumImpl(
+					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state,
+					Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>>& stateDer)
+				{
+					// g -= D * c   (standard derivative matrix, no area weighting)
+					for (unsigned int elem = 0; elem < _nElem; elem++)
+					{
+						if constexpr (std::is_same_v<StateType, double>)
+						{
+							if constexpr (std::is_same_v<ResidualType, double>)
+								stateDer.segment(elem * _nNodes, _nNodes) -= _polyDerM * state.segment(elem * _nNodes, _nNodes);
+							else
+								stateDer.segment(elem * _nNodes, _nNodes) -= (_polyDerM * state.segment(elem * _nNodes, _nNodes)).template cast<ResidualType>();
+						}
+						else
+							stateDer.segment(elem * _nNodes, _nNodes) -= _polyDerM.template cast<ResidualType>() * state.segment(elem * _nNodes, _nNodes);
+					}
+				}
+
+				template<typename StateType>
+				void computeNumericalFluxesFrustum(const StateType* C)
+				{
+					StateType* g = reinterpret_cast<StateType*>(_auxState);
+					const unsigned int strideNode_g = 1u;
+					const unsigned int strideElem_g = _nNodes;
+
+					// Interior interfaces: upwind c*, central g*
+					for (unsigned int elem = 1; elem < _nElem; elem++)
+					{
+						if (_curFwdFlow)
+							_surfaceFluxC[elem] = C[elem * _strideElem - _strideNode];
+						else
+							_surfaceFluxC[elem] = C[elem * _strideElem];
+
+						_surfaceFluxG[elem] = 0.5 * (g[elem * strideElem_g - strideNode_g] + g[elem * strideElem_g]);
+					}
+
+					// Boundary interfaces
+					if (_curFwdFlow)
+					{
+						// Inlet at x=0
+						_surfaceFluxC[0] = static_cast<StateType>(_inletC);
+						_surfaceFluxG[0] = StateType(0.0);
+						// Outlet at x=H
+						_surfaceFluxC[_nElem] = C[_nElem * _strideElem - _strideNode];
+						_surfaceFluxG[_nElem] = StateType(0.0);
+					}
+					else
+					{
+						// Inlet at x=H for backward flow
+						_surfaceFluxC[_nElem] = static_cast<StateType>(_inletC);
+						_surfaceFluxG[_nElem] = StateType(0.0);
+						// Outlet at x=0
+						_surfaceFluxC[0] = C[0];
+						_surfaceFluxG[0] = StateType(0.0);
+					}
+				}
+
+				template<typename StateType, typename ResidualType>
+				void surfaceIntegralMainFrustumImpl(ResidualType* res)
+				{
+					for (unsigned int elem = 0; elem < _nElem; elem++)
+					{
+						const double Aleft = _crossSectionArea[elem * _nNodes];
+						const double Aright = _crossSectionArea[(elem + 1) * _nNodes - 1];
+
+						ResidualType left_flux = static_cast<ResidualType>(
+							-_QOverEps * _surfaceFluxC[elem]
+							- Aleft * _colDispersion[0] * _surfaceFluxG[elem]
+							);
+
+						ResidualType right_flux = static_cast<ResidualType>(
+							+_QOverEps * _surfaceFluxC[elem + 1]
+							+ Aright * _colDispersion[0] * _surfaceFluxG[elem + 1]
+							);
+
+						for (unsigned int node = 0; node < _nNodes; node++)
+						{
+							res[elem * _strideElem + node * _strideNode]
+								+= static_cast<ResidualType>(2.0 / _deltaX) * (
+									_invMM_A[elem](node, 0) * left_flux
+									+ _invMM_A[elem](node, _nNodes - 1) * right_flux
+									);
+						}
+					}
+				}
+
+				template<typename StateType, typename ResidualType>
+				void volumeIntegralMainFrustumImpl(const StateType* c, ResidualType* res, const StateType* g)
+				{
+					for (int elem = 0; elem < _nElem; elem++)
+					{
+						Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> cMap(c + elem * strideColElement(), _nNodes, InnerStride<Dynamic>(strideColNode()));
+						Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> gMap(g + elem * _nNodes, _nNodes, InnerStride<Dynamic>(1));
+						Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> resMap(res + elem * strideColElement(), _nNodes, InnerStride<Dynamic>(strideColNode()));
+
+						resMap -= 2.0 / static_cast<ResidualType>(_deltaX) * (static_cast<ResidualType>(_QOverEps) * (_invMM_A_times_DT_timesM00[elem] * cMap).template cast<ResidualType>()
+							+ (_invMM_A_times_ST_AD[elem] * gMap).template cast<ResidualType>());
+					}
+				}
+
+				template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
+				int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
+			};
 
 		} // namespace parts
 	} // namespace model

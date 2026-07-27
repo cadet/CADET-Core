@@ -77,13 +77,21 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 		config["NCHANNEL"] = 1;
 
 	// Geometry
-	if (uoType.substr(0, 6) == "RADIAL" || uoType.substr(0, 7) == "FRUSTUM")
+	if (uoType.substr(0, 6) == "RADIAL" || (uoType.substr(0, 7) == "FRUSTUM" && bulkMethod == "FV"))
 	{
 		config["COL_RADIUS_INNER"] = 0.001;
 		config["COL_RADIUS_OUTER"] = 0.004;
 		if (uoType.substr(0, 7) == "FRUSTUM")
 			config["COL_LENGTH"] = 0.01;
 		config["VELOCITY_COEFF"] = 5.75e-4;
+	}
+	else if (uoType.substr(0, 7) == "FRUSTUM" && bulkMethod == "DG")
+	{
+		config["GEOMETRY"] = "AXIAL_FLOW_FRUSTUM";
+		config["COL_LENGTH"] = 0.014;
+		config["COL_RADIUS_LARGE_END"] = 0.007023769168568; // we get v = 5.75e-4 at large radius with Q = 6.683738370512285e-8 and eps^b = 0.75
+		config["COL_RADIUS_SMALL_END"] = 0.004;
+		config["FORWARD_FLOW"] = { 1 };
 	}
 	else
 	{
@@ -1127,13 +1135,21 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 		grm["NCHANNEL"] = 3;
 
 	// Geometry
-	if (uoType.substr(0, 6) == "RADIAL" || uoType.substr(0, 7) == "FRUSTUM")
+	if (uoType.substr(0, 6) == "RADIAL" || (uoType.substr(0, 7) == "FRUSTUM" && bulkMethod == "FV"))
 	{
 		grm["COL_RADIUS_INNER"] = 0.001;
 		grm["COL_RADIUS_OUTER"] = 0.004;
 		if (uoType.substr(0, 7) == "FRUSTUM")
 			grm["COL_LENGTH"] = 0.01;
 		grm["VELOCITY_COEFF"] = 5.75e-4;
+	}
+	else if (uoType.substr(0, 7) == "FRUSTUM" && bulkMethod == "DG")
+	{
+		grm["GEOMETRY"] = "AXIAL_FLOW_FRUSTUM";
+		grm["COL_LENGTH"] = 0.05;
+		grm["COL_RADIUS_LARGE_END"] = 0.05;
+		grm["COL_RADIUS_SMALL_END"] = 0.01;
+		grm["FORWARD_FLOW"] = { 1 };
 	}
 	else
 	{

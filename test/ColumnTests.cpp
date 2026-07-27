@@ -601,8 +601,10 @@ namespace column
 
 		if (jpp.exists("VELOCITY"))
 			jpp.set("VELOCITY", -jpp.getDouble("VELOCITY"));
-		else
+		else if(jpp.exists("VELOCITY_COEFF"))
 			jpp.set("VELOCITY_COEFF", -jpp.getDouble("VELOCITY_COEFF"));
+		else
+			jpp.set("FORWARD_FLOW", static_cast<int>(!jpp.getBool("FORWARD_FLOW")));
 
 		for (int l = 0; l < level; ++l)
 			jpp.popScope();
@@ -740,6 +742,15 @@ namespace column
 			cadet::JsonParameterProvider jpp = createLWE(uoType, "DG");
 			disc.setDisc(jpp);
 
+			if (static_cast<std::string>(uoType).substr(0, 7) == "FRUSTUM")
+			{
+				jpp.pushScope("model");
+				jpp.pushScope("unit_000");
+				jpp.set("COL_RADIUS_SMALL_END", jpp.getDouble("COL_RADIUS_LARGE_END"));
+				jpp.popScope();
+				jpp.popScope();
+			}
+
 			testForwardBackward(jpp, absTol, relTol);
 		}
 	}
@@ -845,7 +856,7 @@ namespace column
 	}
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern, const double absTolAD, const active* flowRate)
+	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern, const double absTolAD, const std::vector<double> flowRate)
 	{
 		cadet::ad::setDirections(cadet::ad::getMaxDirections()); // AD directions needed in createAndConfigureUnit but requiredADdirs not known before configureModelDiscretization (which is called in configureUnit)
 
@@ -871,18 +882,27 @@ namespace column
 
 		// Fill state vector with some values
 		util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unitAna->numDofs());
-//			util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
+		// util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
 
 		// Setup matrices
-		const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
-		const AdJacobianParams adParams{adRes, adY, 0u};
+		const AdJacobianParams noAdParams{ nullptr, nullptr, 0u };
+		const AdJacobianParams adParams{ adRes, adY, 0u };
 		unitAD->prepareADvectors(adParams);
 
-		if (flowRate) //  for 2D units, velocity needs to be determined from flow rates
+		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
+		// set velocity from flow rates if provided as fresh active after setDirections to ensure all AD slots are zero-initialized
+		if (!flowRate.empty())
 		{
-			unitAna->setFlowRates(flowRate, flowRate);
-			unitAD->setFlowRates(flowRate, flowRate);
+			cadet::active* safeFlowRate = new cadet::active[flowRate.size()];
+
+			for (int i = 0; i < flowRate.size(); ++i)
+				safeFlowRate[i] = flowRate[i];
+
+			unitAna->setFlowRates(&safeFlowRate[0], &safeFlowRate[0]);
+			unitAD->setFlowRates(&safeFlowRate[0], &safeFlowRate[0]);
 		}
+
 		const ConstSimulationState simState{y.data(), nullptr};
 		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, simState, noAdParams);
 		unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, simState, adParams);

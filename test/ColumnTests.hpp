@@ -594,8 +594,9 @@ namespace column
 	 * @param [in] jpp2 Configured column model
 	 * @param [in] absTol Absolute error tolerance
 	 * @param [in] relTol Relative error tolerance
+	 * @param [in] unitID Unit operation ID
 	 */
-	void testEqualResults(cadet::JsonParameterProvider jpp1, cadet::JsonParameterProvider jpp2, double absTol, double relTol);
+	void testEqualResults(cadet::JsonParameterProvider jpp1, cadet::JsonParameterProvider jpp2, double absTol, double relTol, int unitID);
 
 	/**
 	 * @brief Checks the full Jacobian against AD and FD pattern switching
@@ -605,7 +606,7 @@ namespace column
 	 * @param [in] absTolAD absolute tolerance when comparing the AD Jacobians. Deviation from default only advised when values are numerically challenging, i.e. are at least 1E+10
 	 * @param [in] flowRate flow rate, needs to be specified for 2D units, where velocity is derived from flow rates.
 	 */
-	void testJacobianAD(JsonParameterProvider& jpp, const double absTolFDpattern = 0.0, const double absTolAD = std::numeric_limits<float>::epsilon() * 100.0, const cadet::active* flowRate = nullptr);
+	void testJacobianAD(JsonParameterProvider& jpp, const double absTolFDpattern = 0.0, const double absTolAD = std::numeric_limits<float>::epsilon() * 100.0, const std::vector<double> flowRate = {});
 
 	/**
 	 * @brief Checks the full Jacobian against AD and FD pattern switching in case of variable surface diffusion coefficient

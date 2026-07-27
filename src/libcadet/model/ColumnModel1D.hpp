@@ -58,6 +58,12 @@ namespace
 	};
 
 	template <>
+	struct ColumnModel1DName<cadet::model::parts::FrustumConvectionDispersionOperatorBaseDG>
+	{
+		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_COLUMN_MODEL_1D"; }
+	};
+
+	template <>
 	struct ColumnModel1DName<cadet::model::parts::AxialConvectionDispersionOperatorBaseFV>
 	{
 		static const char* identifier() CADET_NOEXCEPT { return "COLUMN_MODEL_1D"; }
@@ -637,12 +643,14 @@ protected:
 
 extern template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseDG>;
 extern template class ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG>;
+extern template class ColumnModel1D<parts::FrustumConvectionDispersionOperatorBaseDG>;
 extern template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseFV>;
 extern template class ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseFV>;
 extern template class ColumnModel1D<parts::FrustumConvectionDispersionOperatorBaseFV>;
 
 IUnitOperation* createAxialCol1DDG(UnitOpIdx uoId);
 IUnitOperation* createRadialCol1DDG(UnitOpIdx uoId);
+IUnitOperation* createFrustumCol1DDG(UnitOpIdx uoId);
 IUnitOperation* createAxialCol1DFV(UnitOpIdx uoId);
 IUnitOperation* createRadialCol1DFV(UnitOpIdx uoId);
 IUnitOperation* createFrustumCol1DFV(UnitOpIdx uoId);
