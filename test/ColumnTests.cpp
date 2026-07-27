@@ -689,7 +689,7 @@ namespace column
 		}
 	}
 
-	void testEqualResults(cadet::JsonParameterProvider jpp1, cadet::JsonParameterProvider jpp2, double absTol, double relTol)
+	void testEqualResults(cadet::JsonParameterProvider jpp1, cadet::JsonParameterProvider jpp2, double absTol, double relTol, int unitID)
 	{
 		cadet::Driver drv1;
 		drv1.configure(jpp1);
@@ -699,8 +699,8 @@ namespace column
 		drv2.configure(jpp2);
 		drv2.run();
 
-		cadet::InternalStorageUnitOpRecorder const* const test1Data = drv1.solution()->unitOperation(0);
-		cadet::InternalStorageUnitOpRecorder const* const test2Data = drv2.solution()->unitOperation(0);
+		cadet::InternalStorageUnitOpRecorder const* const test1Data = drv1.solution()->unitOperation(unitID);
+		cadet::InternalStorageUnitOpRecorder const* const test2Data = drv2.solution()->unitOperation(unitID);
 
 		double const* test1Inlet = test1Data->inlet();
 		double const* test1Outlet = test1Data->outlet();
