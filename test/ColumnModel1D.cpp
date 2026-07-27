@@ -58,7 +58,7 @@ TEST_CASE("Column_1D as GRM with FV equivalence with arrow head implementation",
 	jpp1.popScope();
 	jpp1.popScope();
 
-	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8);
+	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
 }
 
 TEST_CASE("Column_1D as radial flow LRMP with FV equivalence with arrow head implementation", "[Column_1D],[FV],[Simulation],[CI]")
@@ -94,7 +94,7 @@ TEST_CASE("Column_1D as radial flow LRMP with FV equivalence with arrow head imp
 	jpp1.popScope();
 	jpp1.popScope();
 
-	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8);
+	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
 }
 
 TEST_CASE("Column_1D as frustum LRMP with FV equivalence with arrow head implementation", "[Column_1D],[FV],[Simulation],[CI]")
@@ -130,7 +130,7 @@ TEST_CASE("Column_1D as frustum LRMP with FV equivalence with arrow head impleme
 	jpp1.popScope();
 	jpp1.popScope();
 
-	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8);
+	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
 }
 
 TEST_CASE("Column_1D as GRM with FV transport Jacobian", "[Column_1D],[FV],[UnitOp],[Jacobian],[CI]")
