@@ -24,6 +24,12 @@
 #include "Utils.hpp"
 #include "common/Driver.hpp"
 
+/**
+ * @brief Returns the absolute path to the test/ folder of the project
+ * @details Absolute path to the test/ folder of the project without trailing slash
+ * @return Absolute path to the test/ folder
+ */
+const char* getTestDirectory();
 
 TEST_CASE("Column_1D as axial GRM with FV equivalence with arrow head implementation", "[AxialColumn1D],[FV],[Simulation],[CI]")
 {
@@ -1209,6 +1215,22 @@ TEST_CASE("Radial Column_1D pure convection dispersion numerical benchmark", "[R
 
 	cadet::test::column::DGParams disc(1, 3, 16);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
+TEST_CASE("Column_1D radial flow DG generalized and radial operator equivalence", "[FrustumColumn1D],[DG],[Simulation],[CI]")
+{
+	std::string modelFilePath1 = std::string("/data/config_radCOL1D_radOp_transport_1comp_test.json");
+	std::string modelFilePath2 = std::string("/data/config_radCOL1D_frustOp_transport_1comp_test.json");
+	const std::string setupFile1 = std::string(getTestDirectory()) + modelFilePath1;
+	cadet::JsonParameterProvider jpp1(cadet::JsonParameterProvider::fromFile(setupFile1));
+	const std::string setupFile2 = std::string(getTestDirectory()) + modelFilePath2;
+	cadet::JsonParameterProvider jpp2(cadet::JsonParameterProvider::fromFile(setupFile2));
+
+	cadet::test::column::DGParams disc(1, 3, 8);
+	disc.setDisc(jpp1, "001");
+	disc.setDisc(jpp2, "001");
+
+	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 1);
 }
 
 TEST_CASE("Frustum Column_1D as GRM transport Jacobian", "[FrustumColumn1D],[DG],[UnitOp],[Jacobian],[CI]")
