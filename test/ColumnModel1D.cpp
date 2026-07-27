@@ -861,6 +861,9 @@ TEST_CASE("Radial Column_1D as GRM LWE forward vs backward flow", "[RadialColumn
 {
 	cadet::test::column::DGParams disc;
 
+	// Note that we don't get the exact same result for forward and backward flow due to the radial geometry,
+	// which is why we have to apply rather loose tolerances here.
+
 	// Test both interpolation nodes
 	disc.setBulkDiscParam("POLYNOMIAL_INTERPOLATION_NODES", "LEGENDRE_GAUSS_LOBATTO");
 	cadet::test::column::testForwardBackward("RADIAL_COLUMN_MODEL_1D_GRM", disc, 1e-9, 1e-4);
@@ -1206,4 +1209,22 @@ TEST_CASE("Radial Column_1D pure convection dispersion numerical benchmark", "[R
 
 	cadet::test::column::DGParams disc(1, 3, 16);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
+TEST_CASE("Frustum Column_1D as GRM transport Jacobian", "[FrustumColumn1D],[DG],[UnitOp],[Jacobian],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "FRUSTUM_COLUMN_MODEL_1D_GRM", "DG");
+
+	std::vector<double> flowRate;
+	flowRate.push_back(0.01);
+
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0, std::numeric_limits<float>::epsilon() * 100.0, flowRate);
+}
+
+TEST_CASE("Frustum Column_1D as GRM LWE forward vs backward flow", "[FrustumColumn1D],[DG],[DG1D],[Simulation],[CI]")
+{
+	cadet::test::column::DGParams disc;
+	// Note: this test internally sets COL_RADIUS_SMALL_END=COL_RADIUS_LARGE_END so that forward and backward flow
+	// actually yield the same result for the frustum geometry.
+	cadet::test::column::testForwardBackward("FRUSTUM_COLUMN_MODEL_1D_GRM", disc, 1e-10, 1e-6);
 }

@@ -51,9 +51,9 @@ void test2DColumnJacobian(const std::string relModelFilePath, const int maxAxEle
 	else
 		REQUIRE((radPolyDeg + 1) * maxRadElem <= nRad);
 
-	std::vector<cadet::active> flowRate;
+	std::vector<double> flowRate;
 	for (int i = 1; i <= nRad; i++)
-		flowRate.push_back(static_cast<cadet::active>(connections[i * 7 - 1]));
+		flowRate.push_back(connections[i * 7 - 1]);
 
 	if (axPolyDeg > 0)
 		jpp.set("AX_POLYDEG", axPolyDeg);
@@ -72,7 +72,7 @@ void test2DColumnJacobian(const std::string relModelFilePath, const int maxAxEle
 			jpp.set("RAD_NELEM", rElem);
 			jpp.popScope();
 
-			cadet::test::column::testJacobianAD(jpp, 1e10, std::numeric_limits<float>::epsilon() * 100.0, &flowRate[0]);
+			cadet::test::column::testJacobianAD(jpp, 1e10, std::numeric_limits<float>::epsilon() * 100.0, flowRate);
 		}
 	}
 }
