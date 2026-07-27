@@ -238,6 +238,24 @@ namespace cadet
 
 						for (unsigned int j = 0; j < c; ++j)
 							fluxGrad[j] *= v;
+
+						if (yLiquid[c] > 0.0)
+						{
+							fluxGrad[c] *= exponentValue * std::pow(yLiquid[c], exponentValue - 1.0);
+						}
+						else if (yLiquid[c] == 0.0 and exponentValue == 1.0)
+						{
+							// d/dy y = 1 also leave the factor unchanged
+						}
+						else if (yLiquid[c] == 0.0 and exponentValue > 1.0)
+						{
+							fluxGrad[c] = 0.0;
+						}
+						else
+						{
+							//Case: exponent < 1 at zero -> derivative is singular / undefined
+						}
+
 						if (static_cast<double>(yLiquid[c]) > 0.0)
 							fluxGrad[c] *= exponentValue * pow(yLiquid[c], exponentValue - 1.0);
 						else
@@ -261,10 +279,22 @@ namespace cadet
 						for (unsigned int j = 0; j < nComp + c; ++j)
 							fluxGrad[j] *= v;
 
-						if (static_cast<double>(ySolid[c]) > 0.0)
-							fluxGrad[nComp + c] *= exponentValue * pow(ySolid[c], exponentValue - 1.0);
+						if (ySolid[c] > 0.0)
+						{
+							fluxGrad[nComp + c] *= exponentValue * std::pow(ySolid[c], exponentValue - 1.0);
+						}
+						else if (ySolid[c] == 0.0 and exponentValue == 1.0)
+						{
+							// d/dy y = 1 also leave the factor unchanged
+						}
+						else if (ySolid[c] == 0.0 and exponentValue > 1.0)
+						{
+							fluxGrad[nComp + c] = 0.0;
+						}
 						else
-							fluxGrad[nComp + c]*= 0.0;
+						{
+							//Case: exponent < 1 at zero -> derivative is singular / undefined
+						}
 
 						for (unsigned int j = c + 1; j < nTotalBoundStates; ++j)
 							fluxGrad[nComp + j] *= v;
