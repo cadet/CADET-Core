@@ -187,6 +187,7 @@ jobs:
             --root "${{ github.workspace }}" \
             --filter "${{ github.workspace }}/(src|include|build/src)" \
             --exclude-directories '.*ThirdParty.*' \
+            --gcov-ignore-parse-errors=suspicious_hits.warn_once_per_file \
             --cobertura -o coverage.xml \
             --gcov-executable gcov-14 \
             --txt=-
