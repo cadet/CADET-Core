@@ -525,7 +525,7 @@ namespace reaction
 		cadet::model::ConservedMoieties cm;
 		REQUIRE(cm.configure(nComp, std::vector<unsigned int>{0u}, std::move(eqReactionFlags), std::move(stoichiometry), 1e-14));
 
-		return cm.getConservedMoitiesMatrix();
+		return cm.getConservedMoietiesMatrix();
 	}
 
 	void checkNullSpace(const Eigen::MatrixXd& left, const Eigen::MatrixXd& right)

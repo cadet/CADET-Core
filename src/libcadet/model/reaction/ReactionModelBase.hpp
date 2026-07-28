@@ -179,6 +179,42 @@ protected:
 		double factor, linalg::BandMatrix::RowIterator jacLiquid, linalg::DenseBandedRowIterator jacSolid, LinearBufferAllocator workSpace) const       \
 	{                                                                                                                                                   \
 		jacobianCombinedImpl(t, secIdx, colPos, yLiquid, ySolid, factor, jacLiquid, jacSolid, workSpace);                                               \
+	}																																					\
+	virtual int residualEquilibriumFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, active const* y,		\
+		active* res, unsigned int& eqIdx, LinearBufferAllocator workSpace) const 																		\
+	{																																					\
+		return residualEquilibriumImpl<active, active, double>(t, secIdx, colPos, nStates, y, res, eqIdx , workSpace);									\
+	}																																					\
+	virtual int residualEquilibriumFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,		\
+		active* res, unsigned int& eqIdx, LinearBufferAllocator workSpace) const																		\
+	{																																					\
+		return residualEquilibriumImpl<double, active, active>(t, secIdx, colPos, nStates, y, res, eqIdx , workSpace);									\
+	}																																					\
+	virtual int residualEquilibriumFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,		\
+		double* res, unsigned int& eqIdx, LinearBufferAllocator workSpace) const																		\
+	{																																					\
+		return residualEquilibriumImpl<double, double, double>(t, secIdx, colPos, nStates, y, res, eqIdx , workSpace);\
+	}\
+	\
+	virtual void analyticEquilibriumJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,\
+		unsigned int& eqIdx, unsigned int eqRowOffset,linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const\
+	{\
+		jacobianEquilibriumImpl(t,secIdx,colPos, nStates, y, eqIdx, eqRowOffset, jac,workSpace);\
+	}\
+	virtual void analyticEquilibriumJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,\
+		unsigned int& eqIdx,unsigned int eqRowOffset, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const\
+	{\
+		jacobianEquilibriumImpl(t,secIdx,colPos, nStates, y, eqIdx, eqRowOffset, jac,workSpace);\
+	}\
+	virtual void analyticEquilibriumJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,\
+		unsigned int& eqIdx,unsigned int eqRowOffset, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const\
+	{\
+		jacobianEquilibriumImpl(t,secIdx,colPos, nStates, y, eqIdx, eqRowOffset, jac,workSpace);\
+	}\
+	virtual void analyticEquilibriumJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,\
+		unsigned int& eqIdx, unsigned int eqRowOffset,linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const \
+	{\
+		jacobianEquilibriumImpl(t,secIdx,colPos, nStates, y, eqIdx,eqRowOffset, jac,workSpace);\
 	}
 
 } // namespace model
