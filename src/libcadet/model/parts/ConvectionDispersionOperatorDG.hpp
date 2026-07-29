@@ -1798,18 +1798,18 @@ namespace cadet
 				std::vector<double> _crossSectionArea;	//!< Cross section area at each node
 
 				// DG operators
-				active _deltaX;					//!< Axial element spacing
+				active _deltaX;					//!< axial element spacing
 				Eigen::VectorXd _nodes;			//!< LGL nodes on [-1,1]
 				Eigen::VectorXd _invWeights;	//!< inverse LGL quadrature weights
 				Eigen::MatrixXd _polyDerM;		//!< polynomial derivative matrix D
 				Eigen::MatrixXd _M00;			//!< mass matrix M^{(0,0)}
 				Eigen::MatrixXd _invM00;		//!< inverse mass matrix (M^{(0,0)})^-1
-				std::vector<Eigen::MatrixXd> _invMM_A;						//!< per element inverse of the weighted mass matrix (w0 M^{(0,0) + w1 M^{(0,1) + w2 M^{(0,2)})^{-1}
-				std::vector<Eigen::MatrixXd> _invMM_A_times_ST_AD;			//!< Per-element matrix product (M^A)^-1 * D^T * \tilde{S}^{AD}
-				std::vector<Eigen::MatrixXd> _invMM_A_times_DT_timesM00;	//!< Per-element matrix product (M^A)^-1 * D^T * M^(0,0)
+				std::vector<Eigen::MatrixXd> _invMM_A;							//!< per element inverse of the weighted mass matrix (w0 M^{(0,0) + w1 M^{(0,1) + w2 M^{(0,2)})^{-1}
+				std::vector<std::vector<Eigen::MatrixXd>> _invMM_A_times_ST_AD;	//!< per-compnent per-element matrix product (M^A)^-1 * D^T * \tilde{S}^{AD}
+				std::vector<Eigen::MatrixXd> _invMM_A_times_DT_timesM00;		//!< per-element matrix product (M^A)^-1 * D^T * M^(0,0)
 
 				// Per-element Jacobian blocks
-				std::vector<Eigen::MatrixXd> _DGjacFrustumDispBlocks;
+				std::vector<std::vector<Eigen::MatrixXd>> _DGjacFrustumDispBlocks;
 				std::vector<Eigen::MatrixXd> _DGjacFrustumConvBlocks;
 
 				// Auxiliary state
@@ -1844,7 +1844,7 @@ namespace cadet
 				 * =================================================================== */
 
 				Eigen::MatrixXd DGjacobianConvBlockFrustum(unsigned int elemIdx);
-				Eigen::MatrixXd DGjacobianDispBlockFrustum(unsigned int elemIdx);
+				Eigen::MatrixXd DGjacobianDispBlockFrustum(unsigned int elemIdx, unsigned int comp);
 				Eigen::MatrixXd getGBlockFrustum(unsigned int elemIdx);
 				void calcConvDispFrustumDGSEMJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int offC);
 
@@ -1941,8 +1941,10 @@ namespace cadet
 				}
 
 				template<typename StateType, typename ResidualType>
-				void surfaceIntegralMainFrustumImpl(ResidualType* res)
+				void surfaceIntegralMainFrustumImpl(ResidualType* res, const int comp)
 				{
+					const double d_comp = static_cast<double>(getSectionDependentSlice(_colDispersion, _nComp, _curSection)[comp]);
+
 					for (unsigned int elem = 0; elem < _nElem; elem++)
 					{
 						const double Aleft = _crossSectionArea[elem * _nNodes];
@@ -1950,12 +1952,12 @@ namespace cadet
 
 						ResidualType left_flux = static_cast<ResidualType>(
 							-_QOverEps * _surfaceFluxC[elem]
-							- Aleft * _colDispersion[0] * _surfaceFluxG[elem]
+							- Aleft * d_comp * _surfaceFluxG[elem]
 							);
 
 						ResidualType right_flux = static_cast<ResidualType>(
 							+_QOverEps * _surfaceFluxC[elem + 1]
-							+ Aright * _colDispersion[0] * _surfaceFluxG[elem + 1]
+							+ Aright * d_comp * _surfaceFluxG[elem + 1]
 							);
 
 						for (unsigned int node = 0; node < _nNodes; node++)
@@ -1970,7 +1972,7 @@ namespace cadet
 				}
 
 				template<typename StateType, typename ResidualType>
-				void volumeIntegralMainFrustumImpl(const StateType* c, ResidualType* res, const StateType* g)
+				void volumeIntegralMainFrustumImpl(const StateType* c, ResidualType* res, const StateType* g, const int comp)
 				{
 					for (int elem = 0; elem < _nElem; elem++)
 					{
@@ -1979,7 +1981,7 @@ namespace cadet
 						Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> resMap(res + elem * strideColElement(), _nNodes, InnerStride<Dynamic>(strideColNode()));
 
 						resMap -= 2.0 / static_cast<ResidualType>(_deltaX) * (static_cast<ResidualType>(_QOverEps) * (_invMM_A_times_DT_timesM00[elem] * cMap).template cast<ResidualType>()
-							+ (_invMM_A_times_ST_AD[elem] * gMap).template cast<ResidualType>());
+							+ (_invMM_A_times_ST_AD[comp][elem] * gMap).template cast<ResidualType>());
 					}
 				}
 
