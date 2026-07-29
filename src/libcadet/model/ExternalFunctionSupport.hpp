@@ -168,8 +168,7 @@ namespace model
 		/**
 		 * @brief Evaluates the external functions for the different parameters
 		 * @param [in] t Current time
-		 * @param [in] z Axial coordinate in the column
-		 * @param [in] r Radial coordinate in the bead
+		 * @param [in] colPos with particle and primary/secondary bulk coordinates
 		 * @param [in] secIdx Index of the current section
 		 * @param [in] nParams Number of externally dependent parameters (also size of buffer)
 		 * @param [out] buffer Buffer that holds function evaluations
@@ -180,7 +179,7 @@ namespace model
 			{
 				IExternalFunction* const fun = _extFun[i];
 				if (fun)
-					buffer[i] = fun->externalProfile(t, colPos.axial, colPos.radial, colPos.particle, secIdx);
+					buffer[i] = fun->externalProfile(t, colPos.primary, colPos.secondary, colPos.particle, secIdx);
 				else
 					buffer[i] = 0.0;
 			}
@@ -201,7 +200,7 @@ namespace model
 			{
 				IExternalFunction* const fun = _extFun[i];
 				if (fun)
-					buffer[i] = fun->timeDerivative(t, colPos.axial, colPos.radial, colPos.particle, secIdx);
+					buffer[i] = fun->timeDerivative(t, colPos.primary, colPos.secondary, colPos.particle, secIdx);
 				else
 					buffer[i] = 0.0;
 			}
