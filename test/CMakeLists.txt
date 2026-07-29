@@ -31,6 +31,7 @@ endif()
 add_executable(testLogging testLogging.cpp)
 target_link_libraries(testLogging PRIVATE CADET::CompileOptions)
 
+#[[
 if (ENABLE_TEST_RADIAL)
 	add_executable(testRadialKernel
 		testRadialKernel.cpp
@@ -56,6 +57,7 @@ if (ENABLE_TEST_RADIAL)
 	list(APPEND TEST_NONLINALG_TARGETS testRadialKernel)
 	list(APPEND TEST_HDF5_TARGETS testRadialKernel)
 endif()
+]]
 
 
 # CATCH unit tests
@@ -73,27 +75,52 @@ if (ENABLE_2D_MODELS)
 	list(APPEND TEST_ADDITIONAL_SOURCES ColumnModel2D.cpp)
 endif()
 
-add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp UnitOperationTests.cpp SimHelper.cpp ParticleHelper.cpp
-	GeneralRateModel.cpp GeneralRateModel2D.cpp LumpedRateModelWithPores.cpp LumpedRateModelWithoutPores.cpp
-	RadialGeneralRateModel.cpp RadialLumpedRateModelWithPores.cpp RadialLumpedRateModelWithoutPores.cpp
-	FrustumGeneralRateModel.cpp
-	MultiChannelTransportModel.cpp
-	Crystallization.cpp
-	CSTR-Residual.cpp CSTR-Simulation.cpp
-	ConvectionDispersionOperatorFV.cpp
-	CellKernelTests.cpp
-	BindingModelTests.cpp BindingModels.cpp BindingModelAutoJacobian.cpp
-	ReactionModelTests.cpp ReactionModels.cpp
-	ParamDepTests.cpp ParameterDependencies.cpp
-	ModelSystem.cpp
-	BandMatrix.cpp DenseMatrix.cpp SparseMatrix.cpp StringHashing.cpp LogUtils.cpp AD.cpp Subset.cpp Graph.cpp
-	NonlinearSolvers.cpp
-	ReferenceSimulations.cpp
-	Callbacks.cpp
-	H5FileOutput.cpp
-	"${CMAKE_CURRENT_BINARY_DIR}/Paths_$<CONFIG>.cpp" "${CMAKE_SOURCE_DIR}/src/io/JsonParameterProvider.cpp"
-	${TEST_ADDITIONAL_SOURCES}
-	$<TARGET_OBJECTS:libcadet_object>)
+if (ENABLE_TEST_RADIAL)
+	add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp UnitOperationTests.cpp SimHelper.cpp ParticleHelper.cpp
+		GeneralRateModel.cpp GeneralRateModel2D.cpp LumpedRateModelWithPores.cpp LumpedRateModelWithoutPores.cpp
+		RadialGeneralRateModel.cpp RadialLumpedRateModelWithPores.cpp RadialLumpedRateModelWithoutPores.cpp
+		testRadialKernel.cpp TimeIntegrator.cpp
+		FrustumGeneralRateModel.cpp
+		MultiChannelTransportModel.cpp
+		Crystallization.cpp
+		CSTR-Residual.cpp CSTR-Simulation.cpp
+		ConvectionDispersionOperatorFV.cpp
+		CellKernelTests.cpp
+		BindingModelTests.cpp BindingModels.cpp BindingModelAutoJacobian.cpp
+		ReactionModelTests.cpp ReactionModels.cpp
+		ParamDepTests.cpp ParameterDependencies.cpp
+		ModelSystem.cpp
+		BandMatrix.cpp DenseMatrix.cpp SparseMatrix.cpp StringHashing.cpp LogUtils.cpp AD.cpp Subset.cpp Graph.cpp
+		NonlinearSolvers.cpp
+		ReferenceSimulations.cpp
+		Callbacks.cpp
+		H5FileOutput.cpp
+		"${CMAKE_CURRENT_BINARY_DIR}/Paths_$<CONFIG>.cpp" "${CMAKE_SOURCE_DIR}/src/io/JsonParameterProvider.cpp"
+		${TEST_ADDITIONAL_SOURCES}
+		$<TARGET_OBJECTS:libcadet_object>)
+else()
+	add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp UnitOperationTests.cpp SimHelper.cpp ParticleHelper.cpp
+		GeneralRateModel.cpp GeneralRateModel2D.cpp LumpedRateModelWithPores.cpp LumpedRateModelWithoutPores.cpp
+		RadialGeneralRateModel.cpp RadialLumpedRateModelWithPores.cpp RadialLumpedRateModelWithoutPores.cpp
+		FrustumGeneralRateModel.cpp
+		MultiChannelTransportModel.cpp
+		Crystallization.cpp
+		CSTR-Residual.cpp CSTR-Simulation.cpp
+		ConvectionDispersionOperatorFV.cpp
+		CellKernelTests.cpp
+		BindingModelTests.cpp BindingModels.cpp BindingModelAutoJacobian.cpp
+		ReactionModelTests.cpp ReactionModels.cpp
+		ParamDepTests.cpp ParameterDependencies.cpp
+		ModelSystem.cpp
+		BandMatrix.cpp DenseMatrix.cpp SparseMatrix.cpp StringHashing.cpp LogUtils.cpp AD.cpp Subset.cpp Graph.cpp
+		NonlinearSolvers.cpp
+		ReferenceSimulations.cpp
+		Callbacks.cpp
+		H5FileOutput.cpp
+		"${CMAKE_CURRENT_BINARY_DIR}/Paths_$<CONFIG>.cpp" "${CMAKE_SOURCE_DIR}/src/io/JsonParameterProvider.cpp"
+		${TEST_ADDITIONAL_SOURCES}
+		$<TARGET_OBJECTS:libcadet_object>)
+endif()
 
 target_include_directories(testRunner PRIVATE ${CMAKE_BINARY_DIR}/src/libcadet)
 target_link_libraries(testRunner PRIVATE CADET::CompileOptions CADET::AD SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${TBB_TARGET} ${EIGEN_TARGET})
