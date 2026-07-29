@@ -107,8 +107,8 @@ protected:
 	{
 		using std::pow;
 
-		// colPos.axial contains the normalized radial position [0, 1]
-		const ParamType relPos = static_cast<ParamType>(colPos.axial);
+		// colPos.primary contains the normalized radial position [0, 1]
+		const ParamType relPos = static_cast<ParamType>(colPos.primary);
 
 		// rho = rInner + length * relPos
 		// p_new = base * (rInner / rho)^exponent

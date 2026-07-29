@@ -91,8 +91,8 @@ protected:
 	{
 		using std::pow;
 
-		// colPos.axial contains the normalized radial position [0, 1]
-		const ParamType relPos = static_cast<ParamType>(colPos.axial);
+		// colPos.primary contains the normalized radial position [0, 1]
+		const ParamType relPos = static_cast<ParamType>(colPos.primary);
 
 		// D_eff(r) = val * base * (1 + factor * relPos^exponent)
 		return val * static_cast<ParamType>(_base) * (1.0 + static_cast<ParamType>(_factor) * pow(relPos, static_cast<ParamType>(_exponent)));
