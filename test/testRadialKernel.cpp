@@ -10,6 +10,9 @@
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
 
+#include <catch.hpp>
+#include "Approx.hpp"
+
 #include "TimeIntegrator.hpp"
 #include "cadet/Logging.hpp"
 #include "Logging.hpp"
@@ -24,6 +27,9 @@
 #include "Dummies.hpp"
 
 #include "io/hdf5/HDF5Writer.hpp"
+#include "io/hdf5/HDF5Reader.hpp"
+
+#include "common/ParameterProviderImpl.hpp"
 
 #include <algorithm>
 #include <iostream>
@@ -535,6 +541,25 @@ void RadialFlowModel<cadet::HighResolutionKoren>::configureReconstruction(int or
 	_reconstr.epsilon(epsilon);
 }
 
+void compareResults(const std::string& name)
+{
+	const std::string fileName = "radial_" + name + ".h5";
+	cadet::io::HDF5Reader rd;
+
+	// read h5 reference data
+	rd.openFile(fileName, "r");
+
+	cadet::ParameterProviderImpl<cadet::io::HDF5Reader> pp_ref(rd);
+	std::vector<double> ref_outlet;
+	std::vector<double> sim_outlet;
+	ref_outlet = pp_ref.getDoubleArray("SOLUTION_OUTLET");
+	sim_outlet = pp_ref.getDoubleArray("REF_OUTLET");
+	// compare the simulation results with the reference data
+	for (unsigned int i = 0; i < ref_outlet.size(); ++i)
+		CHECK((sim_outlet[i]) == cadet::test::makeApprox(ref_outlet[i], 1e-10, 1e-10));
+
+	rd.closeFile();
+}
 
 template <typename Reconstruction_t>
 void runTest(const std::string& name, int reconstrOrder, int nCol = 1250)
@@ -571,18 +596,17 @@ void runTest(const std::string& name, int reconstrOrder, int nCol = 1250)
 	writer.closeFile();
 
 	std::cout << "Wrote " << fileName << " (" << name << ", nCol=" << nCol << ")" << std::endl;
+
+	compareResults(name);
 }
 
 
-int main(int argc, char* argv[])
+
+
+TEST_CASE("Test Radial Kernel", "[Manufactured],[Simulation],[RadialKernel]")
 {
-#ifdef CADETTEST_ENABLE_LOG
-	// Set LogLevel in CADET library
-	const cadet::LogLevel logLevel = cadet::LogLevel::Trace;
-	LogReceiver lr;
-	cadet::setLogReceiver(&lr);
-	cadet::setLogLevel(logLevel);
-#endif
+	const std::vector<double> absTol = { 1e-10 };
+	const std::vector<double> relTol = { 1e-10 };
 
 	// Test WENO orders 1, 2, 3
 	runTest<cadet::Weno>("weno1", 1);
@@ -591,6 +615,4 @@ int main(int argc, char* argv[])
 
 	// Test Koren
 	runTest<cadet::HighResolutionKoren>("koren", 2);
-
-	return 0;
 }
