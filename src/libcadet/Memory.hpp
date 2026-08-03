@@ -647,7 +647,7 @@ namespace cadet
 		 * @tparam T Type of the scalar
 		 */
 		template <typename T>
-		T* advanceScalar()
+		void advanceScalar()
 		{
 			// Align _mem as required
 			std::size_t space = sizeof(T) + alignof(T);
