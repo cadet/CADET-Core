@@ -154,8 +154,8 @@ Eigen::MatrixXd weightedMMatrix(const unsigned int polyDeg, const Eigen::VectorX
  * @brief calculates a specific second order nodal stiffness matrix
  * @detail for integrals including terms of the form (1 - \xi)^\alpha (1 + \xi)^\beta. Computation via transformation to the respective Jacobi polynomial
  * @param [in] polyDeg polynomial degree
- * @param [in] a Jacobi polynomial parameter
- * @param [in] b Jacobi polynomial parameter
+ * @param [in] alpha Jacobi polynomial parameter
+ * @param [in] beta Jacobi polynomial parameter
  * @param [in] nodes polynomial interpolation nodes
  */
 Eigen::MatrixXd secondOrderStiffnessMatrix(const unsigned int polyDeg, const double alpha, const double beta, const Eigen::VectorXd nodes);
@@ -182,7 +182,7 @@ Eigen::MatrixXd polynomialInterpolationMatrix(const Eigen::VectorXd newNodes, co
 Eigen::MatrixXd liftingMatrixQuadratic(const unsigned int size);
 /**
  * @brief returns a (size x 2) lifting matrix
- * @param [in] rows number of matrix rows
+ * @param [in] size number of matrix rows
  */
 Eigen::MatrixXd liftingMatrix(const unsigned int size);
 /**

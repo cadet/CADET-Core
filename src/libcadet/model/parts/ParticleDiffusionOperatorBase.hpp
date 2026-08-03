@@ -60,7 +60,7 @@ namespace parts
 		virtual ~ParticleDiffusionOperatorBase() CADET_NOEXCEPT;
 
 		/**
-		^* @brief Sets fixed parameters of the particle diffusion operator (e.g., the number of discretization points, components, bound states)
+		 * @brief Sets fixed parameters of the particle diffusion operator (e.g., the number of discretization points, components, bound states)
 		 * @details This function is called prior to configure() by the underlying model.
 		 *          It can only be called once. Whereas non-structural model parameters
 		 *          (e.g., rate constants) are configured by configure(), this function
@@ -106,7 +106,6 @@ namespace parts
 
 		/**
 		 * @brief Computes the residual of the transport equations
-		 * @param [in] model Model that owns the operator
 		 * @param [in] t Current time point
 		 * @param [in] secIdx Index of the current section
 		 * @param [in] yPar Pointer to particle phase entry in unit state vector

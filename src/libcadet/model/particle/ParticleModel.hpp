@@ -153,7 +153,6 @@ namespace cadet
 
 			/**
 			 * @brief Computes the residual of the particle equations and updates nonlinear Jacobian entries
-			 * @param [in] model Model that owns the operator
 			 * @param [in] t Current time point
 			 * @param [in] secIdx Index of the current section
 			 * @param [in] yPar Pointer to particle phase entry in unit state vector

@@ -188,7 +188,6 @@ public:
 	 * @param [in] comp Index of the component the parameter belongs to (or @c -1 if independent of components)
 	 * @param [in] factor Factor @f$ \gamma @f$
 	 * @param [in] offset Diaognal offset in the row iterator
-	 * @param [in] row Row index
 	 * @param [in,out] jac Row iterator pointing to the row of component @p comp in the underlying matrix that stores the Jacobian
 	 */
 	virtual void analyticJacobianAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::BandMatrix::RowIterator jac) const = 0;

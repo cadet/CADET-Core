@@ -248,7 +248,6 @@ namespace cadet
 
 				/**
 				 * @brief calculates the DG Jacobian auxiliary block
-				 * @param [in] exInt true if exact integration DG scheme
 				 * @param [in] elementIdx element index
 				 */
 				Eigen::MatrixXd getGBlock(unsigned int elementIdx)
@@ -345,7 +344,6 @@ namespace cadet
 
 				/**
 				 * @brief calculates the dispersion part of the DG jacobian
-				 * @param [in] exInt true if exact integration DG scheme
 				 * @param [in] elementIdx element index
 				 */
 				Eigen::MatrixXd DGjacobianDispBlock(unsigned int elementIdx)
@@ -1064,9 +1062,9 @@ namespace cadet
 				}
 				/**
 				 * @brief adds liquid state blocks for all components to the system jacobian
-				 * @param [in] block to be added
+				 * @param [in] block Block to be added
 				 * @param [in] jac row iterator at first (i.e. upper left) entry
-				 * @param [in] column to row offset (i.e. start at upper left corner of block)
+				 * @param [in] offCol Column to row offset (i.e. start at upper left corner of block)
 				 * @param [in] nelements determines how often the block is added (diagonally)
 				 */
 				void addLiquidJacBlock(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, int offCol, unsigned int nelements) {

@@ -66,7 +66,7 @@
 			 * @brief Sets the current number of AD directions (seed vectors)
 			 * @details The number of AD directions must not exceed the value returned by getMaxDirections().
 			 * 
-			 * @param [in] numDir Number of required AD directions
+			 * @param [in] n Number of required AD directions
 			 */
 			inline void setDirections(std::size_t n)
 			{

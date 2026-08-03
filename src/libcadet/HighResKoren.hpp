@@ -111,7 +111,7 @@ public:
 
 	/**
     * @brief Sets the \f$ \varepsilon \f$ of the WENO emthod (prevents division by zero in the weights)
-    * @param [in] HR Koren \f$ \varepsilon \f$
+    * @param [in] eps Koren \f$ \varepsilon \f$
     */
 	inline void epsilon(double eps) { _epsilon = eps; }
 
