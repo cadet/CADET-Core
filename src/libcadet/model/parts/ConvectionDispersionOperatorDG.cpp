@@ -1879,7 +1879,9 @@ bool FrustumConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPa
 		_dispersionDep = helper.createParameterParameterDependence("CONSTANT_ONE");
 
 	// Allocate per-cell Jacobian blocks
-	_DGjacFrustumDispBlocks.resize(_nElem);
+	_DGjacFrustumDispBlocks.resize(_nComp);
+	for (auto& comps : _DGjacFrustumDispBlocks)
+		comps.resize(_nElem);
 	_DGjacFrustumConvBlocks.resize(_nElem);
 
 	return true;
@@ -2072,7 +2074,9 @@ void FrustumConvectionDispersionOperatorBaseDG::computeOperatorsFrustum()
 	Eigen::MatrixXd M02 = dgtoolbox::mMatrix(_polyDeg, _nodes, 0.0, 2.0);
 
 	_invMM_A.resize(_nElem);
-	_invMM_A_times_ST_AD.resize(_nElem);
+	_invMM_A_times_ST_AD.resize(_nComp);
+	for (auto& comps : _invMM_A_times_ST_AD)
+		comps.resize(_nElem);
 	_invMM_A_times_DT_timesM00.resize(_nElem);
 
 	for (unsigned int elem = 0; elem < _nElem; ++elem)
@@ -2085,18 +2089,21 @@ void FrustumConvectionDispersionOperatorBaseDG::computeOperatorsFrustum()
 		M_A *= pi;
 		_invMM_A[elem] = M_A.inverse();
 
-		// \tilde{M}^(AD)_{i,j} = \int_{-1}^1 \ell_i(\xi) \frac{\partial \ell_j(\xi)}{\partial \xi} w(\xi) d\xi
-		// with w(\xi) = A(x^e_i(\xi) D^{ax}(x^e_i(\xi)
-		// with x^e_i(\xi) = (\xi + 1) * dx_i / 2 + x_i, and A(x) = \pi * r(x)^2, D^{ax} being the spatially dependent dispersion parameter,
-		// and r(x) = _radiusXEnd + x / _bedLength * (_radiusXStart - _radiusXEnd)
-		// matrix computed with gauss quadrature
-		// const int nGaussQuadNodes = _nNodes + 2 + _axDispQuadDeg; // accurate up to degree 2N - 1, ie exact if _axDispQuadDeg is the polynomial degree of the spatially dependent dispersion parameter
-		// ... wip
-		// for now, we assume constant dispersion, ie \tilde{M}^(AD) can be computed exactly as D^{ax} * M_A
-		Eigen::MatrixXd gaussMM_AD = static_cast<double>(_colDispersion[0]) * M_A;
+		for (int comp = 0; comp < _nComp; comp++)
+		{
+			// \tilde{M}^(AD)_{i,j} = \int_{-1}^1 \ell_i(\xi) \frac{\partial \ell_j(\xi)}{\partial \xi} w(\xi) d\xi
+			// with w(\xi) = A(x^e_i(\xi) D^{ax}(x^e_i(\xi)
+			// with x^e_i(\xi) = (\xi + 1) * dx_i / 2 + x_i, and A(x) = \pi * r(x)^2, D^{ax} being the spatially dependent dispersion parameter,
+			// and r(x) = _radiusXEnd + x / _bedLength * (_radiusXStart - _radiusXEnd)
+			// matrix computed with gauss quadrature
+			// const int nGaussQuadNodes = _nNodes + 2 + _axDispQuadDeg; // accurate up to degree 2N - 1, ie exact if _axDispQuadDeg is the polynomial degree of the spatially dependent dispersion parameter
+			// ... wip
+			// for now, we assume constant dispersion, ie \tilde{M}^(AD) can be computed exactly as D^{ax} * M_A
+			Eigen::MatrixXd gaussMM_AD = static_cast<double>(_colDispersion[comp]) * M_A;
 
-		// Matrix product (M^A)^-1 * D^T * \tilde{S}^(AD) = (M^A)^-1 * D^T * \tilde{M}^(AD)
-		_invMM_A_times_ST_AD[elem] = _invMM_A[elem] * _polyDerM.transpose() * gaussMM_AD;
+			// Matrix product (M^A)^-1 * D^T * \tilde{S}^(AD) = (M^A)^-1 * D^T * \tilde{M}^(AD)
+			_invMM_A_times_ST_AD[comp][elem] = _invMM_A[elem] * _polyDerM.transpose() * gaussMM_AD;
+		}
 		// Matrix product (M^A)^-1 D^T * M00
 		_invMM_A_times_DT_timesM00[elem] = _invMM_A[elem] * _polyDerM.transpose() * _M00;
 	}
@@ -2164,7 +2171,7 @@ Eigen::MatrixXd FrustumConvectionDispersionOperatorBaseDG::DGjacobianConvBlockFr
 	return invHalfDeltaX * convBlock;
 }
 
-Eigen::MatrixXd FrustumConvectionDispersionOperatorBaseDG::DGjacobianDispBlockFrustum(unsigned int elemIdx)
+Eigen::MatrixXd FrustumConvectionDispersionOperatorBaseDG::DGjacobianDispBlockFrustum(unsigned int elemIdx, unsigned int comp)
 {
 	const double invHalfDeltaX = 2.0 / static_cast<double>(_deltaX);
 
@@ -2172,7 +2179,7 @@ Eigen::MatrixXd FrustumConvectionDispersionOperatorBaseDG::DGjacobianDispBlockFr
 	Eigen::MatrixXd G_curr = getGBlockFrustum(elemIdx);
 
 	// Volume: invMA * S_g * G_curr
-	dispBlock.block(0, _nNodes, _nNodes, _nNodes + 2) = invHalfDeltaX * (_invMM_A_times_ST_AD[elemIdx] * G_curr);
+	dispBlock.block(0, _nNodes, _nNodes, _nNodes + 2) = invHalfDeltaX * (_invMM_A_times_ST_AD[comp][elemIdx] * G_curr);
 
 	const double Aleft = _crossSectionArea[elemIdx * _nNodes];
 	const double Aright = _crossSectionArea[(elemIdx + 1) * _nNodes - 1];
@@ -2182,9 +2189,9 @@ Eigen::MatrixXd FrustumConvectionDispersionOperatorBaseDG::DGjacobianDispBlockFr
 	{
 		Eigen::MatrixXd G_prev = getGBlockFrustum(elemIdx - 1);
 		dispBlock.block(0, 0, _nNodes, _nNodes + 2) +=
-			invHalfDeltaX * 0.5 * Aleft * static_cast<double>(_colDispersion[0]) * _invMM_A[elemIdx].col(0) * G_prev.row(_nNodes - 1);
+			invHalfDeltaX * 0.5 * Aleft * static_cast<double>(_colDispersion[comp]) * _invMM_A[elemIdx].col(0) * G_prev.row(_nNodes - 1);
 		dispBlock.block(0, _nNodes, _nNodes, _nNodes + 2) +=
-			invHalfDeltaX * 0.5 * Aleft * static_cast<double>(_colDispersion[0]) * _invMM_A[elemIdx].col(0) * G_curr.row(0);
+			invHalfDeltaX * 0.5 * Aleft * static_cast<double>(_colDispersion[comp]) * _invMM_A[elemIdx].col(0) * G_curr.row(0);
 	}
 
 	// Right surface
@@ -2192,9 +2199,9 @@ Eigen::MatrixXd FrustumConvectionDispersionOperatorBaseDG::DGjacobianDispBlockFr
 	{
 		Eigen::MatrixXd G_next = getGBlockFrustum(elemIdx + 1);
 		dispBlock.block(0, _nNodes, _nNodes, _nNodes + 2) -=
-			invHalfDeltaX * 0.5 * Aright * static_cast<double>(_colDispersion[0]) * _invMM_A[elemIdx].col(_nNodes - 1) * G_curr.row(_nNodes - 1);
+			invHalfDeltaX * 0.5 * Aright * static_cast<double>(_colDispersion[comp]) * _invMM_A[elemIdx].col(_nNodes - 1) * G_curr.row(_nNodes - 1);
 		dispBlock.block(0, 2 * _nNodes, _nNodes, _nNodes + 2) -=
-			invHalfDeltaX * 0.5 * Aright * static_cast<double>(_colDispersion[0]) * _invMM_A[elemIdx].col(_nNodes - 1) * G_next.row(0);
+			invHalfDeltaX * 0.5 * Aright * static_cast<double>(_colDispersion[comp]) * _invMM_A[elemIdx].col(_nNodes - 1) * G_next.row(0);
 	}
 
 	return dispBlock;
@@ -2209,29 +2216,29 @@ void FrustumConvectionDispersionOperatorBaseDG::calcConvDispFrustumDGSEMJacobian
 	for (unsigned int elem = 0; elem < _nElem; elem++)
 	{
 		_DGjacFrustumConvBlocks[elem] = DGjacobianConvBlockFrustum(elem);
-		_DGjacFrustumDispBlocks[elem] = DGjacobianDispBlockFrustum(elem);
+		for (unsigned int comp = 0; comp < _nComp; comp++)
+			_DGjacFrustumDispBlocks[comp][elem] = DGjacobianDispBlockFrustum(elem, comp);
 	}
 
 	/*======================================================*/
 	/*         Dispersion Jacobian                          */
 	/*======================================================*/
 
-	for (unsigned int cell = 0; cell < _nElem; cell++)
+	for (unsigned int elem = 0; elem < _nElem; elem++)
 	{
-		const Eigen::MatrixXd& dispBlock = _DGjacFrustumDispBlocks[cell];
-		linalg::BandedEigenSparseRowIterator cellJac(jacobian, offC + cell * strideElem);
+		linalg::BandedEigenSparseRowIterator elemJac(jacobian, offC + elem * strideElem);
 
-		for (unsigned int i = 0; i < _nNodes; i++, cellJac += strideColBound)
+		for (unsigned int i = 0; i < _nNodes; i++, elemJac += strideColBound)
 		{
-			for (unsigned int comp = 0; comp < _nComp; comp++, ++cellJac)
+			for (unsigned int comp = 0; comp < _nComp; comp++, ++elemJac)
 			{
 				for (unsigned int j = 0; j < 3 * _nNodes + 2; j++)
 				{
-					const double val = dispBlock(i, j);
+					const double val = _DGjacFrustumDispBlocks[comp][elem](i, j);
 					if (std::abs(val) > 1e-15)
 					{
 						const int relOffset = static_cast<int>(j) - static_cast<int>(_nNodes) - 1 - static_cast<int>(i);
-						cellJac[relOffset * strideNode] += val;
+						elemJac[relOffset * strideNode] += val;
 					}
 				}
 			}
@@ -2248,7 +2255,6 @@ void FrustumConvectionDispersionOperatorBaseDG::calcConvDispFrustumDGSEMJacobian
 	{
 		jacInlet = _DGjacFrustumConvBlocks[0].col(0);
 
-		const Eigen::MatrixXd& firstBlock = _DGjacFrustumConvBlocks[0];
 		for (unsigned int i = 0; i < _nNodes; i++, jacConv += strideColBound)
 		{
 			for (unsigned int comp = 0; comp < _nComp; comp++, ++jacConv)
@@ -2256,22 +2262,21 @@ void FrustumConvectionDispersionOperatorBaseDG::calcConvDispFrustumDGSEMJacobian
 				for (unsigned int j = 1; j <= _nNodes; j++)
 				{
 					const int nodeOffset = static_cast<int>(j - 1) - static_cast<int>(i);
-					jacConv[nodeOffset * strideNode] += firstBlock(i, j);
+					jacConv[nodeOffset * strideNode] += _DGjacFrustumConvBlocks[0](i, j);
 				}
 			}
 		}
 
-		for (unsigned int cell = 1; cell < _nElem; cell++)
+		for (unsigned int elem = 1; elem < _nElem; elem++)
 		{
-			const Eigen::MatrixXd& convBlock = _DGjacFrustumConvBlocks[cell];
 			for (unsigned int i = 0; i < _nNodes; i++, jacConv += strideColBound)
 			{
 				for (unsigned int comp = 0; comp < _nComp; comp++, ++jacConv)
 				{
-					for (unsigned int j = 0; j < static_cast<unsigned int>(convBlock.cols()); j++)
+					for (unsigned int j = 0; j < static_cast<unsigned int>(_DGjacFrustumConvBlocks[elem].cols()); j++)
 					{
 						const int nodeOffset = static_cast<int>(j) - 1 - static_cast<int>(i);
-						jacConv[nodeOffset * strideNode] += convBlock(i, j);
+						jacConv[nodeOffset * strideNode] += _DGjacFrustumConvBlocks[elem](i, j);
 					}
 				}
 			}
@@ -2279,24 +2284,22 @@ void FrustumConvectionDispersionOperatorBaseDG::calcConvDispFrustumDGSEMJacobian
 	}
 	else // backward flow
 	{
-		for (unsigned int cell = 0; cell < _nElem - 1; cell++)
+		for (unsigned int elem = 0; elem < _nElem - 1; elem++)
 		{
-			const Eigen::MatrixXd& convBlock = _DGjacFrustumConvBlocks[cell];
 			for (unsigned int i = 0; i < _nNodes; i++, jacConv += strideColBound)
 			{
 				for (unsigned int comp = 0; comp < _nComp; comp++, ++jacConv)
 				{
-					for (unsigned int j = 0; j < static_cast<unsigned int>(convBlock.cols()); j++)
+					for (unsigned int j = 0; j < static_cast<unsigned int>(_DGjacFrustumConvBlocks[elem].cols()); j++)
 					{
 						const int nodeOffset = static_cast<int>(j) - static_cast<int>(i);
-						jacConv[nodeOffset * strideNode] += convBlock(i, j);
+						jacConv[nodeOffset * strideNode] += _DGjacFrustumConvBlocks[elem](i, j);
 					}
 				}
 			}
 		}
 
-		const Eigen::MatrixXd& lastBlock = _DGjacFrustumConvBlocks[_nElem - 1];
-		jacInlet = lastBlock.col(lastBlock.cols() - 1);
+		jacInlet = _DGjacFrustumConvBlocks[_nElem - 1].col(_DGjacFrustumConvBlocks[_nElem - 1].cols() - 1);
 
 		for (unsigned int i = 0; i < _nNodes; i++, jacConv += strideColBound)
 		{
@@ -2305,7 +2308,7 @@ void FrustumConvectionDispersionOperatorBaseDG::calcConvDispFrustumDGSEMJacobian
 				for (unsigned int j = 0; j < _nNodes; j++)
 				{
 					const int nodeOffset = static_cast<int>(j) - static_cast<int>(i);
-					jacConv[nodeOffset * strideNode] += lastBlock(i, j);
+					jacConv[nodeOffset * strideNode] += _DGjacFrustumConvBlocks[_nElem - 1](i, j);
 				}
 			}
 		}
@@ -2436,9 +2439,9 @@ int FrustumConvectionDispersionOperatorBaseDG::residualImpl(const IModel& model,
 		// Step 3: main equation volume and surface integrals
 		// ----------------------------------------------------------------
 
-		surfaceIntegralMainFrustumImpl<StateType, ResidualType>(resBulk);
+		surfaceIntegralMainFrustumImpl<StateType, ResidualType>(resBulk, comp);
 
-		volumeIntegralMainFrustumImpl<StateType, ResidualType>(yBulk, resBulk, g);
+		volumeIntegralMainFrustumImpl<StateType, ResidualType>(yBulk, resBulk, g, comp);
 	}
 
 	return 0;
