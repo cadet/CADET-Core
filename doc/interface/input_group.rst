@@ -16,6 +16,6 @@ Input Group
     return_data
     sensitivities
     solver
-    parameter_dependencies
+    parameter_dependencies_config
     spatial_discretization_methods
 

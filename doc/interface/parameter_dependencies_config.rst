@@ -1,10 +1,9 @@
-.. _parameter_dependencies:
+.. _parameter_dependencies_config:
 
 Parameter Dependencies
 ======================
 
-Some parameters depend on other parameters (parameter-parameter dependency) or the solution variables (parameter-state dependency).
-Parameter dependencies are defined in the unit operation scope.
+A description on parameter dependencies from a modeling perspective is provided under :ref:`parameter_dependencies`.
 
 Parameter-Parameter Dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -14,7 +13,7 @@ Group /input/model/unit_XXX
 
 ``COL_DISPERSION_DEP``
 
-   Parameter dependence of column dispersion on the interstitial velocity. Available for the LRM, LRMP and GRM units (with FV discretization only at the moment)
+   Parameter dependence of column dispersion on the interstitial velocity. Available for the arrow-head optimzed (see `FV_ARROW_HEAD_OPTIMIZATION`) LRM, LRMP and GRM units.
    
    ================  =====================================  =============
    **Type:** string  **Range:** :math:`\texttt{POWER_LAW}`  **Length:** 1
@@ -25,7 +24,7 @@ Group /input/model/unit_XXX/particle_type_YYY
 
 ``FILM_DIFFUSION_DEP``
 
-   Parameter dependence of film diffusion on the interstitial velocity. Available for the LRMP unit (with FV discretization only at the moment)
+   Parameter dependence of film diffusion on the interstitial velocity. Available for the arrow-head optimzed (see `FV_ARROW_HEAD_OPTIMIZATION`) LRMP unit.
    
    ================  =====================================  =============
    **Type:** string  **Range:** :math:`\texttt{POWER_LAW}`  **Length:** 1
@@ -35,7 +34,7 @@ Group /input/model/unit_XXX/particle_type_YYY
 **Correlations**
 """"""""""""""""
 
-Different types of parameter correlations are can be applied.
+Different types of parameter correlations can be applied.
 The following correlations can be used for all parameter-parameter dependencies, but we specify the required input fields only for ``COL_DISPERSION_DEP``, for the sake of conciseness.
 
 **Power Law**
@@ -76,7 +75,7 @@ Here, :math:`p_{dep}` is the dependent parameter and :math:`p_{on}` is the param
 Parameter-State Dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Currently, the dependence of surface diffusion on the particle liquid salt component is the only available parameter-state dependence.
+Currently, the dependence of surface diffusion on the particle liquid salt component is the only available parameter-state dependence and is only implemented for the arrow-head optimzed (see `FV_ARROW_HEAD_OPTIMIZATION`) GRM unit.
 
 Group /input/model/unit_XXX/particle_type_YYY
 ---------------------------------------------
@@ -181,3 +180,8 @@ Group /input/model/unit_XXX/particle_type_YYY
    ================  =============================  ===================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NBOUND}`
    ================  =============================  ===================================
+
+Dependence on external functions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Dependence on external functions is currently only implemented for binding model parameters, as detailed in :ref:`dependence-on-external-function_bind`.
