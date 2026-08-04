@@ -98,7 +98,7 @@ In the following, `NSOLUTIONTIMES` denotes the number of time points at which th
 
 ``IDAS_N_RESIDUAL_CALLS``
 
-    Number of calls to the user’s residual evaluation function at corresponding time point
+    Number of calls to the user's residual evaluation function at corresponding time point
 
    	================  ======================  ===============================
 	**In/out:** Out   **Type:** int           **Length:** ``NSOLUTIONTIMES``
@@ -106,7 +106,7 @@ In the following, `NSOLUTIONTIMES` denotes the number of time points at which th
 
 ``IDAS_N_LINSOLVER_SETUP_CALLS``
 
-    Cumulative number of calls made to the linear solver’s setup function at corresponding time point
+    Cumulative number of calls made to the linear solver's setup function at corresponding time point
 
    	================  ======================  ===============================
 	**In/out:** Out   **Type:** int           **Length:** ``NSOLUTIONTIMES``
