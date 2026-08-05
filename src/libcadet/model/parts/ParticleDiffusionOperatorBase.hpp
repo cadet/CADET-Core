@@ -60,16 +60,18 @@ namespace parts
 		virtual ~ParticleDiffusionOperatorBase() CADET_NOEXCEPT;
 
 		/**
-		^* @brief Sets fixed parameters of the particle diffusion operator (e.g., the number of discretization points, components, bound states)
+		 * @brief Sets fixed parameters of the particle diffusion operator (e.g., the number of discretization points, components, bound states)
 		 * @details This function is called prior to configure() by the underlying model.
 		 *          It can only be called once. Whereas non-structural model parameters
 		 *          (e.g., rate constants) are configured by configure(), this function
 		 *          sets structural parameters (e.g., number of components and bound states).
 		 *
 		 * @param [in] paramProvider Parameter provider
+		 * @param [in] helper Configuration helper
 		 * @param [in] nComp Number of components
-		 * @param [in] nBound Array of size @p nComp which contains the number of bound states for each component
-		 * @param [in] boundOffset Array of size @p nComp with offsets to the first bound state of each component beginning from the solid phase
+		 * @param [in] parTypeIdx particle type index of this operator in the unit operation that owns it
+		 * @param [in] nParType Number of particle types in unit operation that owns this operator
+		 * @param [in] strideBulkComp Stride of bulk components in the unit state vector
 		 */
 		virtual bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp) = 0;
 
@@ -98,15 +100,12 @@ namespace parts
 		 * @brief Notifies the operator that a discontinuous section transition is in progress
 		 * @param [in] t Current time point
 		 * @param [in] secIdx Index of the new section that is about to be integrated
-		 * @param [in] filmDiff pointer to film diffusion parameter of unit operation
-		 * @param [in] poreAccessFactor pointer to pore access factor parameter of unit operation
 		 * @return @c true if flow direction has changed, otherwise @c false
 		 */
 		virtual bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx) = 0;
 
 		/**
 		 * @brief Computes the residual of the transport equations
-		 * @param [in] model Model that owns the operator
 		 * @param [in] t Current time point
 		 * @param [in] secIdx Index of the current section
 		 * @param [in] yPar Pointer to particle phase entry in unit state vector

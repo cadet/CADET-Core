@@ -241,8 +241,8 @@ static inline void mix(sip_word &state0, sip_word &state1, sip_word &state2, sip
  * @param [in] insize Size of the input data (in byte)
  * @param [in] key0 Arbitrary key (defaults to 0)
  * @param [in] key1 Arbitrary key (defaults to 0)
- * @tparam int rounds Number of mixing rounds
- * @tparam int finalisation_rounds Number of final mixing rounds
+ * @tparam rounds Number of mixing rounds
+ * @tparam finalisation_rounds Number of final mixing rounds
  * @return SipHash value of the given data
  */
 template<const int rounds, const int finalisation_rounds>

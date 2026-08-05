@@ -123,8 +123,8 @@ namespace cadet
 	 * @param [in] dest Destination vector in which the data is saved
 	 * @param [in] paramProvider Parameter provider from which is read
 	 * @param [in] dataSet Name of the dataset
-	 * @param [nComp] Number of required components
-	 * @param [nStates] Number of required bound states
+	 * @param [in] nComp Number of required components
+	 * @param [in] nStates Number of required bound states
 	 * @tparam SliceContainer_t Type of the slice container, such as @c cadet::util::SlicedVector
 	 * @tparam ValType Type of the parameter, such as @c active or @c double
 	 */
@@ -162,8 +162,8 @@ namespace cadet
 	 * @param [in] dest Destination vector in which the data is saved
 	 * @param [in] paramProvider Parameter provider from which is read
 	 * @param [in] dataSet Name of the dataset
-	 * @param [nComp] Number of required components
-	 * @param [nStates] Array with number of bound states for each component
+	 * @param [in] nComp Number of required components
+	 * @param [in] nStates Array with number of bound states for each component
 	 * @tparam SliceContainer_t Type of the slice container, such as @c cadet::util::SlicedVector
 	 * @tparam ValType Type of the parameter, such as @c active or @c double
 	 */
@@ -199,8 +199,8 @@ namespace cadet
 	 * @param [in] dest Destination vector in which the data is saved
 	 * @param [in] paramProvider Parameter provider from which is read
 	 * @param [in] dataSet Name of the dataset
-	 * @param [nComp] Number of required components
-	 * @param [nStates] Array with number of bound states for each component
+	 * @param [in] nComp Number of required components
+	 * @param [in] nStates Array with number of bound states for each component
 	 * @tparam SliceContainer_t Type of the slice container, such as @c cadet::util::SlicedVector
 	 * @tparam ValType Type of the parameter, such as @c active or @c double
 	 */
@@ -482,7 +482,7 @@ namespace cadet
 	 * @param [in,out] map Map to which the parameters are added
 	 * @param [in] params Linearized vector with parameters to be registered
 	 * @param [in] pic Callable that returns a ParameterId based on whether more than one outer index is present, outer index, inner slice index, item index within slice
-	 * @param [in] innerSices Array with sizes of the inner slices
+	 * @param [in] innerSizes Array with sizes of the inner slices
 	 * @param [in] numSizes Number of slices, number of elements in @p innerSlices
 	 */
 	template <class ParamIdCreator>
@@ -568,7 +568,7 @@ namespace cadet
 	 * @param [in,out] map Map to which the parameters are added
 	 * @param [in] params Linearized vector with parameters to be registered
 	 * @param [in] pic Callable that returns a ParameterId based on whether more than one outer index is present, outer index, mid index, inner slice index, item index within slice
-	 * @param [in] innerSices Array with sizes of the inner slices
+	 * @param [in] innerSizes Array with sizes of the inner slices
 	 * @param [in] numSizes Number of slices, number of elements in @p innerSlices
 	 * @param [in] midSize Size of the mid dimension
 	 */

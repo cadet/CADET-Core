@@ -333,7 +333,7 @@ MatrixXd gaussQuadratureMMatrix(const VectorXd LGLnodes, const int nLGNodes)
 /**
  * @brief calculates the barycentric weights for fast polynomial evaluation
  * @param [in] polyDeg polynomial degree
- * @param [in, out] baryWeights vector to store barycentric weights. Must already be initialized with ones!
+ * @param [in] nodes polynomial interpolation nodes vector
  */
 VectorXd barycentricWeights(const unsigned int polyDeg, const VectorXd nodes)
 {

@@ -73,7 +73,7 @@ namespace model
 	 * @param [in] parTypeDep true if parameter is particle type dependent
 	 * @param [in,out] parameter whose values are updated
 	 * @param [in] parTypeIdx index of the current particle type
-	 * @param [in] val Value to apply to the parameter(s)
+	 * @param [in] value Value to apply to the parameter(s)
 	 * @param [in] sensParams If not @c nullptr, the set is checked for the specified parameter.
 	 *                        If it is not contained in the set, the value is not applied to the parameter.
 	 * @return @c true if the value has been applied, or @c false otherwise
@@ -118,7 +118,7 @@ namespace model
 	 * @param [out] values Array to store the read parameters in
 	 * @param [in] name Name of the parameter
 	 * @param [in] nComp Number of components
-	 * @param [in] parTypeIndex index of the considered particle type
+	 * @param [in] parTypeIdx index of the considered particle type
 	 * @param [in] parTypeDep particle type dependence of parameter
 	 * @param [in] uoi Unit operation index
 	 * @param [in] valTypeOffset optional offset in value vector to current particle type
@@ -147,8 +147,7 @@ namespace model
 	 * @param [in] nComp Number of components
 	 * @param [in] strideBound Number of bound states this particle type
 	 * @param [in] nBound Array with number of bound states per component and particle type in type-major ordering
-	 * @param [in] nBoundBeforeType Array with number of bound states before a particle type
-	 * @param [in] parTypeIndex index of the considered particle type
+	 * @param [in] parTypeIdx index of the considered particle type
 	 * @param [in] parTypeDep particle type dependence of parameter
 	 * @param [in] uoi Unit operation index
 	 * @param [in] valTypeOffset optional offset in value vector to current particle type
@@ -174,7 +173,7 @@ namespace model
 	 * @param [in] mode Multiplexing mode as obtained by readAndRegisterMultiplexTypeParam()
 	 * @param [in,out] data Array with parameters whose values are updated
 	 * @param [in] parTypeIdx index of the current particle type
-	 * @param [in] val Value to apply to the parameter(s)
+	 * @param [in] value Value to apply to the parameter(s)
 	 * @param [in] sensParams If not @c nullptr, the set is checked for the specified parameter.
 	 *                        If it is not contained in the set, the value is not applied to the parameter.
 	 * @return @c true if the value has been applied, or @c false otherwise
@@ -220,7 +219,7 @@ namespace model
 	 * @param [in,out] data Array with parameters whose values are updated
 	 * @param [in] nComp Number of components
 	 * @param [in] parTypeIdx index of current particle type
-	 * @param [in] val Value to apply to the parameter(s)
+	 * @param [in] value Value to apply to the parameter(s)
 	 * @param [in] sensParams If not @c nullptr, the set is checked for the specified parameter.
 	 *                        If it is not contained in the set, the value is not applied to the parameter.
 	 * @param [in] valTypeOffset optional offset in value vector to current particle type
@@ -244,7 +243,7 @@ namespace model
 	 * @param [in] mode Multiplexing mode as obtained by readAndRegisterMultiplexCompTypeSecParam()
 	 * @param [in,out] data Array with parameters whose AD info are updated
 	 * @param [in] nComp Number of components
-	 * @param [in] parTypeIndex index of the considered particle type
+	 * @param [in] parTypeIdx index of the considered particle type
 	 * @param [in] adDirection AD direction
 	 * @param [in] adValue AD seed value
 	 * @param [in,out] sensParams The parameter(s) are marked sensitive by adding them to this set
@@ -271,8 +270,8 @@ namespace model
 	 * @param [in] nComp Number of components
 	 * @param [in] strideBound Array with number of bound states per particle type (additional last element is total number of bound states)
 	 * @param [in] boundOffset Array with offset to component in bound-phase (cumulative sum of nBound per particle type) for this particle type
-	 * @param [in] parTypeIndex index of the considered particle type
-	 * @param [in] val Value to apply to the parameter(s)
+	 * @param [in] parTypeIdx index of the considered particle type
+	 * @param [in] value Value to apply to the parameter(s)
 	 * @param [in] sensParams If not @c nullptr, the set is checked for the specified parameter.
 	 *                        If it is not contained in the set, the value is not applied to the parameter.
 	 * @param [in] valTypeOffset optional offset in value vector to current particle type
@@ -295,7 +294,6 @@ namespace model
 	 * @param [in] nameHash Hash of the parameter name
 	 * @param [in] mode Multiplexing mode as obtained by readAndRegisterMultiplexCompTypeSecParam()
 	 * @param [in,out] data Array with parameters whose AD info are updated
-	 * @param [in] nParType Number of particle types
 	 * @param [in] nComp Number of components
 	 * @param [in] strideBound Array with number of bound states
 	 * @param [in] boundOffset Array with offset to component in bound-phase (cumulative sum of nBound per particle type) for this particle type

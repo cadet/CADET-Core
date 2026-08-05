@@ -188,8 +188,7 @@ namespace model
 		/**
 		 * @brief Evaluates the time derivative of the external functions for the different parameters
 		 * @param [in] t Current time
-		 * @param [in] z Axial coordinate in the column
-		 * @param [in] r Radial coordinate in the bead
+		 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
 		 * @param [in] secIdx Index of the current section
 		 * @param [in] nParams Number of externally dependent parameters (also size of buffer)
 		 * @param [out] buffer Buffer that holds time derivatives of each external function
