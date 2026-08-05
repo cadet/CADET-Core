@@ -117,7 +117,7 @@ Eigen::MatrixXd gaussQuadratureMMatrix(const Eigen::VectorXd LGLnodes, const int
 /**
  * @brief calculates the barycentric weights for fast polynomial evaluation
  * @param [in] polyDeg polynomial degree
- * @param [in, out] baryWeights vector to store barycentric weights. Must already be initialized with ones!
+ * @param [in] nodes polynomial interpolation nodes vector
  */
 Eigen::VectorXd barycentricWeights(const unsigned int polyDeg, const Eigen::VectorXd nodes);
 /**

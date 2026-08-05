@@ -67,9 +67,11 @@ namespace parts
 		 *          sets structural parameters (e.g., number of components and bound states).
 		 *
 		 * @param [in] paramProvider Parameter provider
+		 * @param [in] helper Configuration helper
 		 * @param [in] nComp Number of components
-		 * @param [in] nBound Array of size @p nComp which contains the number of bound states for each component
-		 * @param [in] boundOffset Array of size @p nComp with offsets to the first bound state of each component beginning from the solid phase
+		 * @param [in] parTypeIdx particle type index of this operator in the unit operation that owns it
+		 * @param [in] nParType Number of particle types in unit operation that owns this operator
+		 * @param [in] strideBulkComp Stride of bulk components in the unit state vector
 		 */
 		virtual bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp) = 0;
 

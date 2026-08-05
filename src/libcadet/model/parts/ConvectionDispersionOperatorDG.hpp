@@ -1515,10 +1515,6 @@ namespace cadet
 				 *   - g*: central average for interior, Danckwerts for inlet, zero for outlet
 				 *   - u = v * rho_inlet for forward flow (velocity × boundary radius)
 				 * @param [in] C concentration state
-				 * @param [in] d_rad base dispersion coefficient (used if not variable dispersion)
-				 * @param [out] c_star concentration flux at interfaces
-				 * @param [out] g_star gradient flux at interfaces
-				 * @param [out] d_rad_i dispersion at interfaces
 				 */
 				template<typename StateType>
 				void computeNumericalFluxesRadial(const StateType* C)
