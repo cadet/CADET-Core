@@ -100,8 +100,6 @@ namespace parts
 		 * @brief Notifies the operator that a discontinuous section transition is in progress
 		 * @param [in] t Current time point
 		 * @param [in] secIdx Index of the new section that is about to be integrated
-		 * @param [in] filmDiff pointer to film diffusion parameter of unit operation
-		 * @param [in] poreAccessFactor pointer to pore access factor parameter of unit operation
 		 * @return @c true if flow direction has changed, otherwise @c false
 		 */
 		virtual bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx) = 0;
