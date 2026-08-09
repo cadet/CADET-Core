@@ -318,7 +318,7 @@ namespace cadet
 		friend class LinearBufferAllocator;
 		friend class ConstBufferedArray<T>;
 
-		BufferedArray() : _ptr(nullptr) { }
+		BufferedArray() : _ptr(nullptr), _numElements(0) { }
 		BufferedArray(const BufferedArray&) = delete;
 		BufferedArray(BufferedArray&& rhs) CADET_NOEXCEPT : _ptr(rhs._ptr), _numElements(rhs._numElements)
 		{
@@ -334,6 +334,9 @@ namespace cadet
 		BufferedArray& operator=(const BufferedArray&) = delete;
 		BufferedArray& operator=(BufferedArray&& rhs) CADET_NOEXCEPT
 		{
+			if (this == &rhs)
+				return *this;
+
 			_ptr = rhs._ptr;
 			_numElements = rhs._numElements;
 
@@ -372,7 +375,7 @@ namespace cadet
 	public:
 		friend class LinearBufferAllocator;
 
-		ConstBufferedArray() : _ptr(nullptr) { }
+		ConstBufferedArray() : _ptr(nullptr), _numElements(0) { }
 		ConstBufferedArray(const ConstBufferedArray&) = delete;
 		ConstBufferedArray(ConstBufferedArray&& rhs) CADET_NOEXCEPT : _ptr(rhs._ptr), _numElements(rhs._numElements)
 		{
@@ -388,6 +391,9 @@ namespace cadet
 		ConstBufferedArray& operator=(const ConstBufferedArray&) = delete;
 		ConstBufferedArray& operator=(ConstBufferedArray&& rhs) CADET_NOEXCEPT
 		{
+			if (this == &rhs)
+				return *this;
+
 			_ptr = rhs._ptr;
 			_numElements = rhs._numElements;
 
