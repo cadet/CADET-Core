@@ -58,12 +58,12 @@ TEST_CASE("Radial GRM rapid-equilibrium binding with surf diff par dep flux Jaco
 	cadet::test::column::testArrowHeadJacobianFDVariableParSurfDiff("RADIAL_GENERAL_RATE_MODEL", 1e-6, 5e-9);
 }
 
-TEST_CASE("Radial GRM dynamic binding with surf diff par dep Jacobian vs AD", "[RadGRM],[UnitOp],[Residual],[Jacobian],[ParameterDependence]")
+TEST_CASE("Radial GRM dynamic binding with surf diff par dep Jacobian vs AD", "[RadGRM],[UnitOp],[Residual],[Jacobian],[ParameterDependence],[CI]")
 {
 	cadet::test::column::testJacobianADVariableParSurfDiff("RADIAL_GENERAL_RATE_MODEL", "FV", true);
 }
 
-TEST_CASE("Radial GRM rapid-equilibrium binding with surf diff par dep Jacobian vs AD", "[RadGRM],[UnitOp],[Residual],[Jacobian],[ParameterDependence]")
+TEST_CASE("Radial GRM rapid-equilibrium binding with surf diff par dep Jacobian vs AD", "[RadGRM],[UnitOp],[Residual],[Jacobian],[ParameterDependence],[CI]")
 {
 	cadet::test::column::testJacobianADVariableParSurfDiff("RADIAL_GENERAL_RATE_MODEL", "FV", false);
 }
