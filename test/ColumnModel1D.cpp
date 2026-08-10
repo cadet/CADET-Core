@@ -574,6 +574,14 @@ TEST_CASE("Column_1D as GRM dynamic reactions Jacobian vs AD particle", "[AxialC
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("COLUMN_MODEL_1D_GRM", "DG", false, true, false, 1e-14);
 }
 
+TEST_CASE("Column_1D as GRM does not support surf diff par dep", "[AxialColumn1D],[DG],[UnitOp],[Jacobian],[ParameterDependence],[CI]")
+{
+	REQUIRE_THROWS_WITH(
+		cadet::test::column::testJacobianADVariableParSurfDiff("COLUMN_MODEL_1D_GRM", "DG", false),
+		Catch::Contains("Parameter dependence SURFACE_DIFFUSION_DEP not implemented")
+	);
+}
+
 TEST_CASE("Column_1D as GRM dynamic reactions Jacobian vs AD modified particle", "[AxialColumn1D],[DG],[DG1D],[Jacobian],[AD],[ReactionModel],[CI]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("COLUMN_MODEL_1D_GRM", "DG", false, true, true, 1e-14);
@@ -976,16 +984,6 @@ TEST_CASE("Radial Column_1D as LRMP dynamic reactions Jacobian vs AD particle", 
 TEST_CASE("Radial Column_1D as LRMP dynamic reactions Jacobian vs AD bulk and particle", "[RadialColumn1D],[DG],[Jacobian],[AD],[ReactionModel],[CI]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", true, true, false, std::numeric_limits<float>::epsilon() * 100.0);
-}
-
-TEST_CASE("Radial Column_1D as GRM dynamic binding with surf diff par dep Jacobian vs AD", "[RadialColumn1D],[DG],[UnitOp],[Jacobian],[ParameterDependence]")
-{
-	cadet::test::column::testJacobianADVariableParSurfDiff("RADIAL_COLUMN_MODEL_1D_GRM", "DG", true);
-}
-
-TEST_CASE("Radial Column_1D as GRM rapid-equilibrium binding with surf diff par dep Jacobian vs AD", "[RadialColumn1D],[DG],[UnitOp],[Jacobian],[ParameterDependence]")
-{
-	cadet::test::column::testJacobianADVariableParSurfDiff("RADIAL_COLUMN_MODEL_1D_GRM", "DG", false);
 }
 
 TEST_CASE("Radial Column_1D as GRM LWE one vs two identical particle types match", "[RadialColumn1D],[DG],[Simulation],[ParticleType],[CI]")
