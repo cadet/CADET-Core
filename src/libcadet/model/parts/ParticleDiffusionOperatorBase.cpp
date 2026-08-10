@@ -76,39 +76,18 @@ namespace parts
 		// ==== Construct and configure parameter dependencies
 
 		delete _parDepSurfDiffusion;
-		bool parSurfDiffDepConfSuccess = true;
-		if (paramProvider.exists("SURFACE_DIFFUSION_DEP"))
-		{
-			const std::string psdDepName = paramProvider.getString("SURFACE_DIFFUSION_DEP");
-			
-			_paramDepSurfDiffTypeDep = paramProvider.exists("PAR_SURFDIFFUSIN_DEP_PARTYPE_DEPENDENT") ? paramProvider.getBool("PAR_SURFDIFFUSIN_DEP_PARTYPE_DEPENDENT") : true;
+		_hasParDepSurfDiffusion = false;
+		_paramDepSurfDiffTypeDep =  false;
+		_parDepSurfDiffusion = nullptr;
 
-			if ((psdDepName == "") || (psdDepName == "NONE") || (psdDepName == "DUMMY"))
-			{
-				_hasParDepSurfDiffusion = false;
-				_parDepSurfDiffusion = nullptr;
-			}
-			else
-			{
-				_parDepSurfDiffusion = helper.createParameterStateDependence(psdDepName);
-				if (!_parDepSurfDiffusion)
-					throw InvalidParameterException("Unknown parameter dependence " + psdDepName);
-
-				parSurfDiffDepConfSuccess = _parDepSurfDiffusion->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _boundOffset);
-				_hasParDepSurfDiffusion = true;
-			}
-		}
-		else
-		{
-			_hasParDepSurfDiffusion = false;
-			_paramDepSurfDiffTypeDep =  false;
-			_parDepSurfDiffusion = nullptr;
-		}
-
-		// Check whether surface diffusion is present
 		_hasSurfaceDiffusion = paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false;
+
 		if (_hasSurfaceDiffusion)
 		{
+			// parameter dependence for surface diffusion not implemented yet
+			if (paramProvider.exists("SURFACE_DIFFUSION_DEP"))
+				throw InvalidParameterException("Parameter dependence SURFACE_DIFFUSION_DEP not implemented here. See documentation for available implementations.");
+
 			const std::vector<double> surfDiff = paramProvider.getDoubleArray("SURFACE_DIFFUSION");
 			// Assume particle surface diffusion if a parameter dependence is present
 			if (_parDepSurfDiffusion)
@@ -131,7 +110,7 @@ namespace parts
 			}
 		}
 
-		return parSurfDiffDepConfSuccess;
+		return true;
 	}
 
 	bool ParticleDiffusionOperatorBase::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, const int* reqBinding)
