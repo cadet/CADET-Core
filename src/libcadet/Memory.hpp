@@ -402,19 +402,22 @@ namespace cadet
 			return *this;
 		}
 
-		ConstBufferedArray(BufferedArray<T>&& rhs) CADET_NOEXCEPT : _ptr(rhs._ptr)
+		ConstBufferedArray(BufferedArray<T>&& rhs) CADET_NOEXCEPT : _ptr(rhs._ptr), _numElements(rhs._numElements)
 		{
 			rhs._ptr = nullptr;
 			rhs._numElements = 0;
 		}
 
-		ConstBufferedArray operator=(BufferedArray<T>&& rhs) CADET_NOEXCEPT
+		ConstBufferedArray& operator=(BufferedArray<T>&& rhs) CADET_NOEXCEPT
 		{
+			releaseRawArray(_ptr, _numElements);
+
 			_ptr = rhs._ptr;
 			_numElements = rhs._numElements;
 
 			rhs._ptr = nullptr;
 			rhs._numElements = 0;
+
 			return *this;
 		}
 
