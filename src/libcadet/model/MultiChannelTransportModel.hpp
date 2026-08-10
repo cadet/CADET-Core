@@ -215,8 +215,6 @@ protected:
 	bool _factorizeJacobian; //!< Determines whether the Jacobian needs to be factorized
 	double* _tempState; //!< Temporary storage with the size of the state vector or larger if binding models require it
 
-	IParameterParameterDependence* _dispersionDep;
-
 	std::vector<active> _initC; //!< Liquid bulk phase initial conditions
 	bool _singleRadiusInitC;
 	std::vector<double> _initState; //!< Initial conditions for state vector if given
