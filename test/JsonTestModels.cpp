@@ -468,8 +468,8 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 	}
 
 	// Initial conditions
-	config["INIT_C"] = { 1.0, 2.0, 3.0 };
-	particle["INIT_CS"] = { 5.0, 6.0, 7.0 };
+	config["INIT_C"] = { 1.0, 2.0 };
+	particle["INIT_CS"] = { 5.0, 6.0 };
 
 	// Adsorption
 	particle["ADSORPTION_MODEL"] = std::string("LINEAR");
@@ -477,8 +477,8 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 	{
 		json ads;
 		ads["IS_KINETIC"] = 1;
-		ads["LIN_KA"] = { 12.3, 35.5, 1.59 };
-		ads["LIN_KD"] = { 45.0, 20.0, 10.0 };
+		ads["LIN_KA"] = { 12.3, 35.5 };
+		ads["LIN_KD"] = { 45.0, 20.0 };
 		particle["adsorption"] = ads;
 	}
 
