@@ -1374,7 +1374,7 @@ namespace cadet
 				 * @brief Recomputes S_g matrices for variable dispersion
 				 * @detail Uses quadrature integration with dispersion values at DG nodes
 				 */
-				void recomputeDispersionMatrices();
+				void TransposedADWeightedStiffnessMatrix(const IModel& model, unsigned int secIdx, unsigned int comp);
 
 				/**
 				 * @brief Computes radial node coordinates in physical space

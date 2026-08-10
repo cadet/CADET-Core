@@ -810,7 +810,7 @@ bool RadialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPar
 	// M^{(0,0)} = integral of l_i * l_j (standard Lagrange mass matrix)
 	// M^{(0,1)} = integral of l_i * l_j * (1+xi) (weighted Lagrange mass matrix)
 	_M00 = dgtoolbox::mMatrix(_polyDeg, _nodes, 0.0, 0.0);
-	_M01 = dgtoolbox::weightedMMatrix(_polyDeg, _nodes);
+	_M01 = dgtoolbox::mMatrix(_polyDeg, _nodes, 0.0, 1.0);
 
 	if (paramProvider.exists("COL_DISPERSION_DEP"))
 	{
@@ -1107,23 +1107,73 @@ void RadialConvectionDispersionOperatorBaseDG::updateDispersionValues(const IMod
  * @brief Recomputes S_g matrices for variable dispersion using quadrature
  * @detail For variable D(rho): S_g[i,j] = ∫ dL_i/dξ * L_j * ρ(ξ) * D(ρ(ξ)) dξ
  */
-void RadialConvectionDispersionOperatorBaseDG::recomputeDispersionMatrices()
+void RadialConvectionDispersionOperatorBaseDG::TransposedADWeightedStiffnessMatrix(const IModel& model, unsigned int secIdx, unsigned int comp)
 {
-	if (!_variableDispersion)
-		return;
-
 	const double deltaRho = static_cast<double>(_deltaRho);
 
 	// Number of quadrature points: use 3p/2 for overintegration, p+2 otherwise
 	const int nQuadPoints = _overintegrate ? static_cast<int>((3 * _polyDeg + 1) / 2 + 1) : static_cast<int>(_polyDeg + 2);
 
+	// Get Gauss-Legendre quadrature points and weights.
+	Eigen::VectorXd quadNodes = Eigen::VectorXd::Zero(nQuadPoints);
+	Eigen::VectorXd quadWeights = Eigen::VectorXd::Zero(nQuadPoints);
+	dgtoolbox::lgNodesWeights(nQuadPoints - 1, quadNodes, quadWeights, false);
+
+	const std::vector<double> alpha = { };
+	const std::vector<double> beta = { 0.5 * deltaRho };
+
 	for (unsigned int elem = 0; elem < _nElem; ++elem)
 	{
 		const double rho_left = _rhoCellBounds[elem];
 
-		// Use the radialDispersionMatrix function from DGToolbox
-		_S_g[elem] = dgtoolbox::radialDispersionMatrix(_polyDeg, _nodes, rho_left, deltaRho,
-		                                                _dispersionAtNodes[elem], nQuadPoints);
+		Eigen::VectorXd dispersionAtQNodes(nQuadPoints);
+		const double baseDispersion = static_cast<double>(currentDispersion(secIdx)[comp]);
+
+		if (!_variableDispersion)
+		{
+			dispersionAtQNodes.setConstant(baseDispersion);
+		}
+		else
+		{
+			// Evaluate dispersion at each node
+			for (unsigned int node = 0; node < nQuadPoints; ++node)
+			{
+				const double rho = rho_left + 0.5 * deltaRho * (1.0 + quadNodes[node]);
+				// Normalize position to [0, 1] for parameter dependence evaluation
+				const double relPos = (rho - static_cast<double>(_innerRadius)) /
+					(static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius));
+
+				// Evaluate D(rho) = baseDispersion * dependence_factor(rho)
+				dispersionAtQNodes[node] = _dispersionDep->getValue(model, ColumnPosition{ relPos, 0.0, 0.0 },
+					comp, ParTypeIndep, BoundStateIndep, baseDispersion);
+			}
+		}
+
+		Eigen::MatrixXd M_AD = dgtoolbox::weightedQuadMassMatrix(
+			_nodes,
+			dispersionAtQNodes,
+			alpha,
+			beta,
+			rho_left,
+			quadNodes,
+			quadWeights);
+
+		_S_g[elem] = _polyDerM.transpose() * M_AD;
+
+		//Eigen::MatrixXd S_g_ref =
+		//	dgtoolbox::radialDispersionMatrix(
+		//		_polyDeg,
+		//		_nodes,
+		//		rho_left,
+		//		deltaRho,
+		//		_dispersionAtNodes[elem],
+		//		nQuadPoints);
+
+		//if(!_S_g[elem].isApprox(S_g_ref, 1e-15))
+		//{
+		//	std::cout << "Computed S_g:\n" << _S_g[elem] << "\n";
+		//	std::cout << "Reference radial dispersion matrix:\n" << dgtoolbox::radialDispersionMatrix(_polyDeg, _nodes, rho_left, deltaRho, _dispersionAtNodes[elem], nQuadPoints) << "\n";
+		//}
 	}
 }
 
@@ -1436,7 +1486,7 @@ int RadialConvectionDispersionOperatorBaseDG::residualImpl(const IModel& model, 
 		mutableThis->updateDispersionValues(model, secIdx, comp);
 
 		if (_variableDispersion && _newStaticJac)
-			mutableThis->recomputeDispersionMatrices();
+			mutableThis->TransposedADWeightedStiffnessMatrix(model, secIdx, comp);
 
 		// Auxiliary state g for this component
 		StateType* g = reinterpret_cast<StateType*>(_auxState);
