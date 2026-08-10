@@ -454,18 +454,6 @@ Eigen::MatrixXd mMatrix(const unsigned int polyDeg, const Eigen::VectorXd nodes,
 	return invMMatrix(polyDeg, nodes, alpha, beta).inverse();
 }
 /**
- * @brief calculates the weighted mass matrix M^{(0,1)} for radial DG integrals
- * @detail For integrals of the form \int_E \ell_i(\xi) \ell_j(\xi) (1 + \xi) d\xi
- *         Used to construct radial weighted mass matrix: M_rho = (delta_rho/2) * M^{(0,1)} + rho_i * M^{(0,0)}
- * @param [in] polyDeg polynomial degree
- * @param [in] nodes polynomial interpolation nodes
- */
-Eigen::MatrixXd weightedMMatrix(const unsigned int polyDeg, const Eigen::VectorXd nodes)
-{
-	// M^{(0,1)} uses alpha=0, beta=1 to get (1+xi) weighting
-	return mMatrix(polyDeg, nodes, 0.0, 1.0);
-}
-/**
  * @brief calculates the derivative of the Vandermonde matrix of the normalized Legendre polynomials
  * @param [in] polyDeg polynomial degree
  * @param [in] a Jacobi polynomial parameter
@@ -701,60 +689,85 @@ VectorXd evalLagrangeBasisDerivative(const int j, const VectorXd baseNodes, cons
 
 	return evalDerEll;
 }
-/**
- * @brief computes radial dispersion matrix S_g for a single cell with variable D(rho)
- * @detail For radial DG: S_g[i,j] = ∫ dL_i/dξ * L_j * ρ(ξ) * D(ρ(ξ)) dξ
- *         where ρ(ξ) = rho_left + (delta_rho/2) * (1 + ξ)
- *         Uses Gauss-Legendre quadrature for numerical integration.
- * @param [in] polyDeg polynomial degree
- * @param [in] LGLnodes LGL interpolation nodes
- * @param [in] rho_left left boundary of cell in physical space
- * @param [in] delta_rho cell width in physical space
- * @param [in] dispAtNodes dispersion coefficient D evaluated at physical node positions
- * @param [in] nQuadPoints number of Gauss quadrature points (default: 3/2 rule for dealiasing)
- */
-MatrixXd radialDispersionMatrix(const unsigned int polyDeg, const VectorXd LGLnodes,
-                                 const double rho_left, const double delta_rho,
-                                 const VectorXd dispAtNodes, const int nQuadPoints)
+
+Eigen::MatrixXd weightedQuadMassMatrix(
+	const Eigen::VectorXd& LegNodes,
+	const Eigen::VectorXd& paramAtQNodes,
+	const std::vector<double>& alpha,
+	const std::vector<double>& beta,
+	const double c,
+	const Eigen::VectorXd& QNodes,
+	const Eigen::VectorXd& QWeights)
 {
-	const unsigned int nNodes = polyDeg + 1;
-	const int nQuad = (nQuadPoints < 0) ? static_cast<int>((3 * polyDeg + 1) / 2 + 1) : nQuadPoints;
+	const unsigned int nNodes = LegNodes.size();
+	const int nQuad = QNodes.size();
 
-	// Get Gauss-Legendre quadrature points and weights
-	VectorXd quadNodes = VectorXd::Zero(nQuad);
-	VectorXd quadWeights = VectorXd::Zero(nQuad);
-	lgNodesWeights(nQuad - 1, quadNodes, quadWeights, false);
-
-	// Evaluate Lagrange basis and derivatives at quadrature points
-	MatrixXd basisAtQuad(nNodes, nQuad);
-	MatrixXd basisDerAtQuad(nNodes, nQuad);
-	for (unsigned int j = 0; j < nNodes; j++) {
-		basisAtQuad.row(j) = evalLagrangeBasis(j, LGLnodes, quadNodes);
-		basisDerAtQuad.row(j) = evalLagrangeBasisDerivative(j, LGLnodes, quadNodes);
+	// Sanity check: paramAtQuad must correspond to the quadrature points.
+	if (paramAtQNodes.size() != nQuad)
+	{
+		throw std::invalid_argument(
+			"weightedMassMatrix: paramAtQuad.size() must equal nQuadPoints.");
 	}
 
-	// Interpolate dispersion coefficient to quadrature points
-	VectorXd dispAtQuad = VectorXd::Zero(nQuad);
-	for (int k = 0; k < nQuad; k++) {
-		for (unsigned int j = 0; j < nNodes; j++) {
-			dispAtQuad[k] += dispAtNodes[j] * basisAtQuad(j, k);
+	Eigen::MatrixXd basisAtQuad(nNodes, nQuad);
+
+	for (unsigned int i = 0; i < nNodes; ++i)
+		basisAtQuad.row(i) = evalLagrangeBasis(i, LegNodes, QNodes);
+
+	// Compute the geometric weight g(xi) * parameter at every
+	// quadrature point.
+	Eigen::VectorXd weightAtQuad = Eigen::VectorXd::Zero(nQuad);
+
+	for (int k = 0; k < nQuad; ++k)
+	{
+		const double xi = QNodes[k];
+
+		double geometricWeight = c;
+
+		// alpha[p-1] * (1 - xi)^p
+		double minusPower = 1.0 - xi;
+		for (std::size_t p = 0; p < alpha.size(); ++p)
+		{
+			geometricWeight += alpha[p] * minusPower;
+			minusPower *= (1.0 - xi);
 		}
+
+		// beta[p-1] * (1 + xi)^p
+		double plusPower = 1.0 + xi;
+		for (std::size_t p = 0; p < beta.size(); ++p)
+		{
+			geometricWeight += beta[p] * plusPower;
+			plusPower *= (1.0 + xi);
+		}
+
+		weightAtQuad[k] =
+			QWeights[k] *
+			paramAtQNodes[k] *
+			geometricWeight;
 	}
 
-	// Compute S_g matrix: S_g[i,j] = sum_k w_k * dL_i(quad_k) * L_j(quad_k) * rho(quad_k) * D(rho(quad_k))
-	MatrixXd S_g = MatrixXd::Zero(nNodes, nNodes);
-	for (unsigned int i = 0; i < nNodes; i++) {
-		for (unsigned int j = 0; j < nNodes; j++) {
-			for (int k = 0; k < nQuad; k++) {
-				// Map reference coordinate to physical radius: rho = rho_left + (delta_rho/2) * (1 + xi)
-				double rho_k = rho_left + 0.5 * delta_rho * (1.0 + quadNodes[k]);
-				double weight_factor = quadWeights[k] * rho_k * dispAtQuad[k];
-				S_g(i, j) += weight_factor * basisDerAtQuad(i, k) * basisAtQuad(j, k);
+	// Assemble weighted mass matrix:
+	//
+	// M_AD[i,j] = sum_k w_k * param_k * g(xi_k)
+	//                   * L_i(xi_k) * L_j(xi_k)
+	//
+	Eigen::MatrixXd M_AD = Eigen::MatrixXd::Zero(nNodes, nNodes);
+
+	for (unsigned int i = 0; i < nNodes; ++i)
+	{
+		for (unsigned int j = 0; j < nNodes; ++j)
+		{
+			for (int k = 0; k < nQuad; ++k)
+			{
+				M_AD(i, j) +=
+					weightAtQuad[k] *
+					basisAtQuad(i, k) *
+					basisAtQuad(j, k);
 			}
 		}
 	}
 
-	return S_g;
+	return M_AD;
 }
 
 } // namespace dgtoolbox

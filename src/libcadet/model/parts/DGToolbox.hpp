@@ -143,14 +143,6 @@ Eigen::MatrixXd invMMatrix(const unsigned int polyDeg, const Eigen::VectorXd nod
  */
 Eigen::MatrixXd mMatrix(const unsigned int polyDeg, const Eigen::VectorXd nodes, const double alpha, const double beta);
 /**
- * @brief calculates the weighted mass matrix M^{(0,1)} for radial DG integrals
- * @detail For integrals of the form \int_E \ell_i(\xi) \ell_j(\xi) (1 + \xi) d\xi
- *         Used to construct radial weighted mass matrix: M_rho = (delta_rho/2) * M^{(0,1)} + rho_i * M^{(0,0)}
- * @param [in] polyDeg polynomial degree
- * @param [in] nodes polynomial interpolation nodes
- */
-Eigen::MatrixXd weightedMMatrix(const unsigned int polyDeg, const Eigen::VectorXd nodes);
-/**
  * @brief calculates a specific second order nodal stiffness matrix
  * @detail for integrals including terms of the form (1 - \xi)^\alpha (1 + \xi)^\beta. Computation via transformation to the respective Jacobi polynomial
  * @param [in] polyDeg polynomial degree
@@ -208,19 +200,38 @@ Eigen::MatrixXd subcellIntegrationMatrix(const Eigen::VectorXd& LGLnodes, const 
  */
 Eigen::VectorXd evalLagrangeBasisDerivative(const int j, const Eigen::VectorXd baseNodes, const Eigen::VectorXd evalNodes);
 /**
- * @brief computes radial dispersion matrix S_g for a single cell with variable D(rho)
- * @detail For radial DG: S_g[i,j] = ∫ dL_i/dξ * L_j * ρ(ξ) * D(ρ(ξ)) dξ
- *         where ρ(ξ) = rho_left + (delta_rho/2) * (1 + ξ)
- * @param [in] polyDeg polynomial degree
- * @param [in] LGLnodes LGL interpolation nodes
- * @param [in] rho_left left boundary of cell in physical space
- * @param [in] delta_rho cell width in physical space
- * @param [in] dispAtNodes dispersion coefficient D evaluated at physical node positions
- * @param [in] nQuadPoints number of Gauss quadrature points (default: 3/2 rule for dealiasing)
+ * @brief Computes a parameter-weighted quadrature mass matrix on Legendre polynomials.
+ *
+ * @details
+ * Computes
+ *
+ *     M_AD[i,j] = ∫ L_i(ξ) L_j(ξ) param(ξ) g(ξ) dξ
+ *
+ * where L_i are the Legendre polynomials and the parameter values param(ξ) are
+ * given at the quadrature points in paramAtQuad, and the geometric weight is
+ *
+ *     g(ξ) = sum_{p=1}^{n} alpha[p-1] * (1 - ξ)^p
+ *          + sum_{p=1}^{m} beta[p-1]  * (1 + ξ)^p
+ *          + c.
+ *
+ * @param [in] polyDeg			LegNodes interpolation nodes for Legendre basis.
+ * @param [in] paramAtQNodes	Parameter values evaluated at quadrature points.
+ * @param [in] alpha			Coefficients of powers of (1 - ξ).
+ * @param [in] beta				Coefficients of powers of (1 + ξ).
+ * @param [in] c				Constant coefficient of the geometric weight.
+ * @param [in] QNodes			Quadrature nodes.
+ * @param [in] QWeights			Quadrature weights.
+ *
+ * @return Parameter- and geometry-weighted Gauss quadrature mass matrix.
  */
-Eigen::MatrixXd radialDispersionMatrix(const unsigned int polyDeg, const Eigen::VectorXd LGLnodes,
-                                        const double rho_left, const double delta_rho,
-                                        const Eigen::VectorXd dispAtNodes, const int nQuadPoints = -1);
+Eigen::MatrixXd weightedQuadMassMatrix(
+	const Eigen::VectorXd& LegNodes,
+	const Eigen::VectorXd& paramAtQNodes,
+	const std::vector<double>& alpha,
+	const std::vector<double>& beta,
+	const double c,
+	const Eigen::VectorXd& QNodes,
+	const Eigen::VectorXd& QWeights);
 /**
  * @brief evaluates the jth Lagrange basis functions at given nodes
  * @param [in, out] coords DG coordinate array
