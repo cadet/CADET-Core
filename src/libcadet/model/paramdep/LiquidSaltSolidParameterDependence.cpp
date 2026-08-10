@@ -46,15 +46,11 @@ namespace
 		}
 		else
 		{
-			std::ostringstream oss;
-			oss << name << "_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << parTypeIdx;
-
-			if (paramProvider.exists(oss.str()))
+			if (paramProvider.exists(name))
 			{
-				const std::vector<double> tmp = paramProvider.getDoubleArray(oss.str());
+				const std::vector<double> tmp = paramProvider.getDoubleArray(name);
 				if (static_cast<int>(tmp.size()) < nElements)
-					throw InvalidParameterException(oss.str() + " contains too few elements (" + std::to_string(nElements) + " required)");
-
+					throw InvalidParameterException(name + " contains too few elements (" + std::to_string(nElements) + " required)");
 				out.reserve(nElements);
 				for (int i = 0; i < nElements; ++i)
 					out.push_back(tmp[i]);
@@ -62,7 +58,7 @@ namespace
 				registerParam1DArray(params, out, [=](bool multi, unsigned int comp) { return makeParamId(nameHash, unitOpIdx, comp, parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep); });
 			}
 			else
-				throw InvalidParameterException("Field " + oss.str() + " not found");
+				throw InvalidParameterException("Field " + name + " not found");
 		}
 	}
 }
