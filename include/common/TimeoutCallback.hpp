@@ -35,6 +35,7 @@ namespace cadet
 
 		virtual void timeIntegrationStart()
 		{
+			_timer.reset();
 			_timer.start();
 		}
 
@@ -47,25 +48,29 @@ namespace cadet
 
 		virtual bool timeIntegrationSection(unsigned int section, double time, double const* state, double const* stateDot, double progress)
 		{
-			return shouldStop();
+			return shouldContinue();
 		}
 
 		virtual bool timeIntegrationStep(unsigned int section, double time, double const* state, double const* stateDot, double progress)
 		{
-			return shouldStop();
+			return shouldContinue();
 		}
 
 		virtual bool timeIntegrationLinearSolve(unsigned int section, double time, double const* state, double const* stateDot)
 		{
-			return shouldStop();
+			return shouldContinue();
 		}
 	protected:
-		bool shouldStop()
+		/**
+		 * @brief Determines whether time integration may continue
+		 * @return @c true if the timeout has not elapsed yet or no timeout is set, otherwise @c false
+		 */
+		bool shouldContinue()
 		{
-            if (_timeout <= 0.0)
-                return true;
+			if (_timeout <= 0.0)
+				return true;
 
-            _timer.stop();
+			_timer.stop();
 			const bool cont_sim = _timer.totalElapsedTime() <= _timeout;
 			_timer.start();
 
