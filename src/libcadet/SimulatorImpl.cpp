@@ -400,8 +400,12 @@ namespace cadet
 
 			sim->_stoppedByCallback = !sim->_notification->timeIntegrationLinearSolve(secIdx, t, NVEC_DATA(y), NVEC_DATA(yDot));
 
+			// Abort the linear solve with a code that IDAS classifies as an unrecoverable failure, so that
+			// IDASolve() returns IDA_LSOLVE_FAIL right away (see integrate()). Codes that IDAS does not know,
+			// such as the IDA_* return codes, are silently treated as a successful solve, which would leave
+			// the Newton iteration with a stale solution vector and hence a spurious integration error.
 			if (sim->_stoppedByCallback)
-				return IDA_TOO_MUCH_WORK;
+				return SUN_ERR_EXT_FAIL;
 		}
 
 		const int ret = sim->_model->linearSolve(t, alpha, tol, NVEC_DATA(rhs), NVEC_DATA(sim->_linearSolverWeight), cadet::ConstSimulationState{ NVEC_DATA(y), NVEC_DATA(yDot) });
@@ -426,7 +430,7 @@ namespace cadet
 		_nThreads(0), _modifiedNewton(false), _sensErrorTestEnabled(true), _maxNewtonIter(4), _maxErrorTestFail(10), _maxConvTestFail(10),
 		_maxNewtonIterSens(4), _curSec(0), _skipConsistencyStateY(false), _skipConsistencySensitivity(false),
 		_consistentInitMode(ConsistentInitialization::Full), _consistentInitModeSens(ConsistentInitialization::Full),
-		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr), _linearSolver(nullptr),
+		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr), _stoppedByCallback(false), _linearSolver(nullptr),
 		_sunctx(nullptr), _linSolverType(solver), _nonLinCoeff(0.33), _alpha(-1)
 	{
 #if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
@@ -1511,16 +1515,17 @@ namespace cadet
 						}
 					}
 					break;
-				case IDA_LSOLVE_FAIL:
+				default:
 
+					// A notification callback that requests a stop aborts the current linear solve, which IDAS
+					// reports as IDA_LSOLVE_FAIL. Since IDAS is free to report the aborted solve differently, any
+					// error flag is treated as a regular stop as long as a callback asked for it.
 					if (_stoppedByCallback)
 					{
 						_lastIntTime = _timerIntegration.stop();
 						return;
 					}
-					[[fallthrough]]; // no break, fall through into default if not stopped by callback
 
-				default:
 					_lastIntTime = _timerIntegration.stop();
 
 					// An error occured
