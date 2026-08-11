@@ -20,7 +20,11 @@
 #include "ParticleHelper.hpp"
 #include "ReactionModelTests.hpp"
 #include "JsonTestModels.hpp"
+#include "model/UnitOperation.hpp"
+#include "ParallelSupport.hpp"
 #include "SimHelper.hpp"
+#include "SimulationTypes.hpp"
+#include "UnitOperationTests.hpp"
 #include "Utils.hpp"
 #include "common/Driver.hpp"
 
@@ -420,6 +424,234 @@ TEST_CASE("Column_1D as LRMP consistent initialization with linear binding", "[A
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12, 1, 0);
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12, 0, 1);
 	//cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12, 1, 1);
+}
+
+TEST_CASE("1D column liquid equilibrium MAL consistent initialization", "[Column_1D],[MassActionLaw],[ReactionModel],[ConsistentInit],[CI]")
+{
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	for (int adMode = 0; adMode < 2; ++adMode)
+	{
+		const bool adEnabled = (adMode > 0);
+		SECTION(std::string("AD ") + (adEnabled ? "enabled" : "disabled"))
+		{
+			const bool kinetic = false;
+			const bool withParticles = false;
+			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_LRMP", "DG");
+			if (!withParticles)
+			{
+				// Keep the initialization tests focused on the liquid bulk phase
+				jpp.set("NPARTYPE", 0);
+				jpp.remove("particle_type_000");
+			}
+			jpp.set("INIT_C", std::vector<double>{2.7, 0.3});
+
+			jpp.set("NREAC_LIQUID", 1);
+			jpp.addScope("liquid_reaction_000");
+			jpp.pushScope("liquid_reaction_000");
+			jpp.set("TYPE", "MASS_ACTION_LAW");
+			jpp.set("MAL_KFWD", std::vector<double>{2.0});
+			jpp.set("MAL_KBWD", std::vector<double>{1.0});
+			jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+			jpp.set("MAL_IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
+			jpp.popScope();
+
+			cadet::IUnitOperation* const unit =cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
+
+			std::vector<double> y(unit->numDofs(), 0.0);
+			y[0] = 1.0;
+			y[1] = 2.0;
+			// set column bulk state
+			const unsigned int nComp = unit->numComponents();
+			const unsigned int bulkOffset = nComp * unit->numInletPorts();
+			const unsigned int inletDofs = unit->numComponents() * unit->numInletPorts();
+			const unsigned columnBulkPoints =  (unit->numDofs() - inletDofs) / nComp;
+			
+			for (unsigned int point = 0; point < columnBulkPoints; ++point)
+			{
+				y[bulkOffset + point * nComp] = 2.7;
+				y[bulkOffset + point * nComp + 1] = 0.3;
+			}
+
+			cadet::test::unitoperation::testConsistentInitialization(
+				unit, adEnabled, y.data(), 1e-14, 1e-11);
+			
+			for (unsigned int point = 0; point < columnBulkPoints; ++point)
+			{
+				const double* const c = y.data() + bulkOffset + point * nComp;
+				CHECK(c[0] == cadet::test::makeApprox(1.0, 1e-12, 1e-12));
+				CHECK(c[1] == cadet::test::makeApprox(2.0, 1e-12, 1e-12));
+				CHECK((c[0] + c[1]) == cadet::test::makeApprox(3.0, 1e-12, 1e-12));
+			}
+
+			mb->destroyUnitOperation(unit);
+		}
+	}
+
+	destroyModelBuilder(mb);
+}
+
+TEST_CASE("1D liquid equilibrium MAL Jacobian vs AD", "[Column_1D],[MassActionLaw],[ReactionModel],[Jacobian],[AD],[CI]")
+{
+	SECTION("Without particles")
+	{
+		const bool kinetic = false;
+		const bool withParticles = false;
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_LRMP", "DG");
+		if (!withParticles)
+		{
+			// Keep the initialization tests focused on the liquid bulk phase
+			jpp.set("NPARTYPE", 0);
+			jpp.remove("particle_type_000");
+		}
+		jpp.set("INIT_C", std::vector<double>{2.7, 0.3});
+
+		jpp.set("NREAC_LIQUID", 1);
+		jpp.addScope("liquid_reaction_000");
+		jpp.pushScope("liquid_reaction_000");
+		jpp.set("TYPE", "MASS_ACTION_LAW");
+		jpp.set("MAL_KFWD", std::vector<double>{2.0});
+		jpp.set("MAL_KBWD", std::vector<double>{1.0});
+		jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+		jpp.set("MAL_IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
+		jpp.popScope();
+
+		cadet::test::column::testJacobianAD(
+			jpp, std::numeric_limits<float>::epsilon() * 100.0);
+	}
+
+	SECTION("With bulk-to-particle film coupling")
+	{
+		const bool kinetic = false;
+		const bool withParticles = true;
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_LRMP", "DG");
+		if (!withParticles)
+		{
+			// Keep the initialization tests focused on the liquid bulk phase
+			jpp.set("NPARTYPE", 0);
+			jpp.remove("particle_type_000");
+		}
+		jpp.set("INIT_C", std::vector<double>{2.7, 0.3});
+
+		jpp.set("NREAC_LIQUID", 1);
+		jpp.addScope("liquid_reaction_000");
+		jpp.pushScope("liquid_reaction_000");
+		jpp.set("TYPE", "MASS_ACTION_LAW");
+		jpp.set("MAL_KFWD", std::vector<double>{2.0});
+		jpp.set("MAL_KBWD", std::vector<double>{1.0});
+		jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+		jpp.set("MAL_IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
+		jpp.popScope();
+		cadet::test::column::testJacobianAD(
+			jpp, std::numeric_limits<float>::epsilon() * 100.0);
+	}
+}
+
+TEST_CASE("1D kinetic and equilibrium MAL share liquid equilibrium", "[Column_1D],[MassActionLaw],[ReactionModel],[ConsistentInit],[CI]")
+{
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	bool kinetic = false;
+	bool withParticles = false;
+	
+	cadet::JsonParameterProvider eqJpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_LRMP", "DG");
+	if (!withParticles)
+	{
+		// Keep the initialization tests focused on the liquid bulk phase
+		eqJpp.set("NPARTYPE", 0);
+		eqJpp.remove("particle_type_000");
+	}
+	eqJpp.set("INIT_C", std::vector<double>{2.7, 0.3});
+
+	eqJpp.set("NREAC_LIQUID", 1);
+	eqJpp.addScope("liquid_reaction_000");
+	eqJpp.pushScope("liquid_reaction_000");
+	eqJpp.set("TYPE", "MASS_ACTION_LAW");
+	eqJpp.set("MAL_KFWD", std::vector<double>{2.0});
+	eqJpp.set("MAL_KBWD", std::vector<double>{1.0});
+	eqJpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+	eqJpp.set("MAL_IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
+	eqJpp.popScope();
+
+	cadet::IUnitOperation* const eqUnit =
+		cadet::test::unitoperation::createAndConfigureUnit(eqJpp, *mb);
+
+	std::vector<double> yEq(eqUnit->numDofs(), 0.0);
+
+	// set column bulk state
+	const unsigned int nComp = eqUnit->numComponents();
+	const unsigned int bulkOffset = nComp * eqUnit->numInletPorts();
+	const unsigned int inletDofs = eqUnit->numComponents() * eqUnit->numInletPorts();
+	const unsigned columnBulkPoints =  (eqUnit->numDofs() - inletDofs) / nComp;
+	for (unsigned int point = 0; point < columnBulkPoints; ++point)
+	{
+		yEq[bulkOffset + point * nComp] = 2.7;
+		yEq[bulkOffset + point * nComp + 1] = 0.3;
+	}
+	cadet::test::unitoperation::testConsistentInitialization(eqUnit, false, yEq.data(), 1e-14, 1e-11);
+
+	kinetic = true;
+	withParticles = false;
+	cadet::JsonParameterProvider kinJpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_LRMP", "DG");
+	if (!withParticles)
+	{
+		// Keep the initialization tests focused on the liquid bulk phase
+		kinJpp.set("NPARTYPE", 0);
+		kinJpp.remove("particle_type_000");
+	}
+	kinJpp.set("INIT_C", std::vector<double>{2.7, 0.3});
+
+	kinJpp.set("NREAC_LIQUID", 1);
+	kinJpp.addScope("liquid_reaction_000");
+	kinJpp.pushScope("liquid_reaction_000");
+	kinJpp.set("TYPE", "MASS_ACTION_LAW");
+	kinJpp.set("MAL_KFWD", std::vector<double>{2.0});
+	kinJpp.set("MAL_KBWD", std::vector<double>{1.0});
+	kinJpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+	kinJpp.set("MAL_IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
+	kinJpp.popScope();
+
+	cadet::IUnitOperation* const kinUnit =
+		cadet::test::unitoperation::createAndConfigureUnit(kinJpp, *mb);
+	REQUIRE(kinUnit->numDofs() == eqUnit->numDofs());
+
+	// Use the equilibrium model's consistently initialized state
+	std::vector<double> yKin = yEq;
+	yKin[0] = 1.0;
+	yKin[1] = 2.0;
+
+	std::vector<double> residual(kinUnit->numDofs(), 0.0);
+	cadet::util::ThreadLocalStorage tls;
+	tls.resize(kinUnit->threadLocalMemorySize());
+
+	const cadet::AdJacobianParams noAdParams{nullptr, nullptr, 0u};
+	kinUnit->notifyDiscontinuousSectionTransition(
+		0.0, 0u, {yKin.data(), nullptr}, noAdParams);
+	kinUnit->residual(
+		cadet::SimulationTime{0.0, 0u},
+		cadet::ConstSimulationState{yKin.data(), nullptr},
+		residual.data(), tls);
+
+	const unsigned int eqnComp = kinUnit->numComponents();
+	const unsigned int eqbulkOffset = nComp * kinUnit->numInletPorts();
+	const unsigned int eqinletDofs = kinUnit->numComponents() * kinUnit->numInletPorts();
+	const unsigned int eqcolumnBulkPoints =  (kinUnit->numDofs() - eqinletDofs) / eqnComp;
+
+	for (unsigned int point = 0; point < eqcolumnBulkPoints; ++point)
+	{
+		const double* const c = yKin.data() + eqbulkOffset + point * nComp;
+		CHECK(c[0] == cadet::test::makeApprox(1.0, 1e-12, 1e-12));
+		CHECK(c[1] == cadet::test::makeApprox(2.0, 1e-12, 1e-12));
+	}
+
+	for (unsigned int dof = eqbulkOffset; dof < residual.size(); ++dof)
+		CHECK(std::abs(residual[dof]) <= 1e-11);
+
+	mb->destroyUnitOperation(eqUnit);
+	mb->destroyUnitOperation(kinUnit);
+	destroyModelBuilder(mb);
 }
 
 //// todo fix consistent initialization for SMA (initialization not completely correct; AD gives assertion error)

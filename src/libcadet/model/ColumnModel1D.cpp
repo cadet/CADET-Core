@@ -333,8 +333,8 @@ bool ColumnModel1D<ConvDispOperator>::configureModelDiscretization(IParameterPro
 		reactionConfSuccess = _reaction.configureDiscretization("liquid",
 			nReactions,
 			_disc.nComp,
-			_disc.nBound,
-			_disc.boundOffset,
+			_disc.nParType > 0 ? _disc.nBound : nullptr,
+			_disc.nParType > 0 ? _disc.boundOffset : nullptr,
 			paramProvider,
 			helper) && reactionConfSuccess;
 	}
@@ -485,7 +485,10 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 	// Reconfigure bulk liquid reaction model
 	bool dynReactionConfSuccess = true;
 	if (paramProvider.exists("NREAC_LIQUID"))
+	{
 		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+		dynReactionConfSuccess = _reaction.configureConservedMoities("liquid", _disc.nComp, 1e-14) && dynReactionConfSuccess;
+	}
 
 	// jaobian pattern set after binding and particle surface diffusion are configured
 	bool hasBulkReaction = false;
@@ -493,6 +496,7 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 		hasBulkReaction = true;
 
 	setJacobianPattern(_globalJac, 0, hasBulkReaction);
+	reserveConservedMoietyJacobian();
 	_globalJacDisc = _globalJac;
 	// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
 	// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
@@ -515,7 +519,9 @@ unsigned int ColumnModel1D<ConvDispOperator>::threadLocalMemorySize() const CADE
 	// Bulk reaction
 	_reaction.setWorkspaceRequirements("liquid", _disc.nComp, 0, lms);
 
-	const unsigned int maxStrideBound = *std::max_element(_disc.strideBound, _disc.strideBound + _disc.nParType);
+	const unsigned int maxStrideBound = (_disc.nParType > 0)
+		? *std::max_element(_disc.strideBound, _disc.strideBound + _disc.nParType)
+		: 0u;
 	lms.add<active>(_disc.nComp + maxStrideBound);
 	lms.add<double>((maxStrideBound + _disc.nComp) * (maxStrideBound + _disc.nComp));
 
@@ -542,6 +548,28 @@ unsigned int ColumnModel1D<ConvDispOperator>::threadLocalMemorySize() const CADE
 }
 
 template <typename ConvDispOperator>
+unsigned int ColumnModel1D<ConvDispOperator>::bulkJacobianLowerBandwidth() const CADET_NOEXCEPT
+{
+	const auto& cm = _reaction.conservedMoieties("liquid");
+	const unsigned int extension = (cm.isEnabled() && (cm.numEquilibriumReactions() > 0) && (_disc.nComp > 0)) ? _disc.nComp - 1 : 0;
+	return _convDispOp.jacobianLowerBandwidth() + extension;
+}
+
+template <typename ConvDispOperator>
+unsigned int ColumnModel1D<ConvDispOperator>::bulkJacobianUpperBandwidth() const CADET_NOEXCEPT
+{
+	const auto& cm = _reaction.conservedMoieties("liquid");
+	const unsigned int extension = (cm.isEnabled() && (cm.numEquilibriumReactions() > 0) && (_disc.nComp > 0)) ? _disc.nComp - 1 : 0;
+	return _convDispOp.jacobianUpperBandwidth() + extension;
+}
+
+template <typename ConvDispOperator>
+unsigned int ColumnModel1D<ConvDispOperator>::bulkJacobianAdDirs() const CADET_NOEXCEPT
+{
+	return bulkJacobianLowerBandwidth() + 1u + bulkJacobianUpperBandwidth();
+}
+
+template <typename ConvDispOperator>
 unsigned int ColumnModel1D<ConvDispOperator>::numAdDirsForJacobian() const CADET_NOEXCEPT
 {
 	// The global DG Jacobian is banded around the main diagonal and has additional (also banded) entries for film diffusion.
@@ -554,7 +582,7 @@ unsigned int ColumnModel1D<ConvDispOperator>::numAdDirsForJacobian() const CADET
 		sumParBandwidth += idxr.strideParBlock(type);
 	}
 
-	return _convDispOp.requiredADdirs() + sumParBandwidth;
+	return bulkJacobianAdDirs() + sumParBandwidth;
 }
 
 template <typename ConvDispOperator>
@@ -581,6 +609,7 @@ void ColumnModel1D<ConvDispOperator>::notifyDiscontinuousSectionTransition(doubl
 	// todo: only reset jacobian pattern if it changes, i.e. once in configuration and then only for changes in SurfDiff+kinetic binding.
 	bool hasReaction = _reaction.getDynReactionVector("liquid")[0];
 	setJacobianPattern(_globalJac, 0, hasReaction);
+	reserveConservedMoietyJacobian();
 	_globalJacDisc = _globalJac;
 
 	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
@@ -647,13 +676,13 @@ void ColumnModel1D<ConvDispOperator>::prepareADvectors(const AdJacobianParams& a
 	// We have differing Jacobian structures for exact integration and collocation DG scheme, i.e. we need different seed vectors
 	// collocation DG: 2 * N_n * (N_c + N_q) + 1 = total bandwidth (main diagonal entries maximally depend on the next and last N_n liquid phase entries of same component)
 	//    ex. int. DG: 4 * N_n * (N_c + N_q) + 1 = total bandwidth (main diagonal entries maximally depend on the next and last 2*N_n liquid phase entries of same component)
-	const int lowerBandwidth = _convDispOp.jacobianLowerBandwidth();
-	const int upperBandwidth = _convDispOp.jacobianUpperBandwidth();
+	const int lowerBandwidth = bulkJacobianLowerBandwidth();
+	const int upperBandwidth = bulkJacobianUpperBandwidth();
 	const int bulkRows = idxr.offsetCp() - idxr.offsetC();
 	ad::prepareAdVectorSeedsForBandMatrix(adJac.adY + _disc.nComp, adJac.adDirOffset, bulkRows, lowerBandwidth, upperBandwidth, lowerBandwidth);
 
 	// We now seed the particle Jacobian blocks using the individual AD directions for each particle type.
-	unsigned int adDirOffset = adJac.adDirOffset + _convDispOp.requiredADdirs();
+	unsigned int adDirOffset = adJac.adDirOffset + bulkJacobianAdDirs();
 
 	for (unsigned int type = 0; type < _disc.nParType; type++)
 	{
@@ -687,8 +716,8 @@ void ColumnModel1D<ConvDispOperator>::extractJacobianFromAD(active const* const 
 	const active* const adVec = adRes + idxr.offsetC();
 
 	/* Extract bulk phase equations entries */
-	const int lowerBandwidth = _convDispOp.jacobianLowerBandwidth();
-	const int upperBandwidth = _convDispOp.jacobianUpperBandwidth();
+	const int lowerBandwidth = bulkJacobianLowerBandwidth();
+	const int upperBandwidth = bulkJacobianUpperBandwidth();
 //	const int stride = lowerBandwidth + 1 + upperBandwidth;
 	int diagDir = lowerBandwidth;
 	const int bulkDoFs = idxr.offsetCp() - idxr.offsetC();
@@ -698,7 +727,7 @@ void ColumnModel1D<ConvDispOperator>::extractJacobianFromAD(active const* const 
 
 	/* Handle particle liquid and solid phase equations entries */
 	// Read particle Jacobian entries from dedicated AD directions
-	int offsetParticleTypeDirs = adDirOffset + _convDispOp.requiredADdirs();
+	int offsetParticleTypeDirs = adDirOffset +  bulkJacobianAdDirs();
 
 	for (unsigned int type = 0; type < _disc.nParType; type++)
 	{
@@ -724,6 +753,17 @@ void ColumnModel1D<ConvDispOperator>::extractJacobianFromAD(active const* const 
 		_particles[parType]->calcFilmDiffJacobian(_disc.curSection, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(parType)}), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], _globalJac, true);
 	}
 
+	const auto& cm = _reaction.conservedMoieties("liquid");
+	if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0) && (_disc.nParType > 0))
+	{
+		for (unsigned int point = 0; point < _disc.nPoints; ++point)
+		{
+			const int pointOffset = idxr.offsetC() + point * idxr.strideColNode();
+
+			cm.multiplyToMatrix(_globalJac, _disc.nComp, pointOffset, idxr.offsetCp(), _globalJac.cols(), _cMJacobianEntries);
+		}
+	}
+
 	if (!_globalJac.isCompressed())
 		_globalJac.makeCompressed();
 }
@@ -744,8 +784,8 @@ void ColumnModel1D<ConvDispOperator>::checkAnalyticJacobianAgainstAd(active cons
 	const active* const adVec = adRes + idxr.offsetC();
 
 	/* Extract bulk phase equations entries */
-	const int lowerBandwidth = _convDispOp.jacobianLowerBandwidth();
-	const int upperBandwidth = _convDispOp.jacobianUpperBandwidth();
+	const int lowerBandwidth = bulkJacobianLowerBandwidth();
+	const int upperBandwidth = bulkJacobianUpperBandwidth();
 	const int stride = lowerBandwidth + 1 + upperBandwidth;
 	int diagDir = lowerBandwidth;
 	const int bulkDoFs = idxr.offsetCp() - idxr.offsetC();
@@ -800,7 +840,7 @@ void ColumnModel1D<ConvDispOperator>::checkAnalyticJacobianAgainstAd(active cons
 
 	/* Handle particle liquid and solid phase equations entries */
 	// Read particle Jacobian entries from dedicated AD directions
-	int offsetParticleTypeDirs = adDirOffset + _convDispOp.requiredADdirs();
+	int offsetParticleTypeDirs = adDirOffset + bulkJacobianAdDirs();
 
 	for (unsigned int type = 0; type < _disc.nParType; type++)
 	{
@@ -1034,6 +1074,75 @@ int ColumnModel1D<ConvDispOperator>::residualImpl(double t, unsigned int secIdx,
 
 	} CADET_PARFOR_END;
 
+	const auto& cm = _reaction.conservedMoieties("liquid");
+	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+	{
+		const unsigned int nMoieties = cm.numMoieties();
+		const unsigned int nEq = cm.numEquilibriumReactions();
+
+		if (wantRes)
+		{
+			BufferedArray<ResidualType> oldRes = tlmAlloc.array<ResidualType>(_disc.nComp);
+			for (unsigned int point = 0; point < _disc.nPoints; ++point)
+			{
+				const int pointOffset = idxr.offsetC() + point * idxr.strideColNode();
+				ResidualType* const resC = res + pointOffset;
+
+				std::copy_n(resC, _disc.nComp, static_cast<ResidualType*>(oldRes));
+				cm.multiplyToVector(resC, static_cast<ResidualType*>(oldRes), _disc.nComp);
+
+				ResidualType* const eqRes = resC + nMoieties;
+				std::fill_n(eqRes, nEq, 0.0);
+
+				unsigned int eqIdx = 0;
+				for (auto const* reaction : _reaction.getDynReactionVector("liquid"))
+				{
+					if (!reaction)
+						continue;
+
+					LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
+					reaction->residualEquilibriumFlux(
+						t, secIdx, ColumnPosition{_convDispOp.relativeCoordinate(point), 0.0, 0.0},
+						_disc.nComp, y + pointOffset, eqRes, eqIdx, subAlloc);
+				}
+
+				cadet_assert(eqIdx == nEq);
+			}
+		}
+
+		if (wantJac)
+		{
+			LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
+
+			for (unsigned int point = 0; point < _disc.nPoints; ++point)
+			{
+				const int pointOffset = idxr.offsetC() + point * idxr.strideColNode();
+
+				cm.multiplyToMatrix(_globalJac, _disc.nComp, pointOffset, _cMJacobianEntries);
+
+				// Replace the remaining component rows by equilibrium equations
+				for (unsigned int r = 0; r < nEq; ++r)
+					_globalJac.innerVector(pointOffset + nMoieties + r) *= 0.0;
+
+				const int equilibriumRowBase = pointOffset + nMoieties;
+				linalg::BandedEigenSparseRowIterator eqJac(_globalJac, equilibriumRowBase);
+				unsigned int eqIdxJac = 0;
+				for (auto const* reaction : _reaction.getDynReactionVector("liquid"))
+				{
+					if (!reaction)
+						continue;
+
+					reaction->analyticEquilibriumJacobian(
+						t, secIdx, ColumnPosition{_convDispOp.relativeCoordinate(point), 0.0, 0.0},
+						_disc.nComp, reinterpret_cast<double const*>(y + pointOffset),
+						eqIdxJac, nMoieties, eqJac, subAlloc);
+				}
+
+				cadet_assert(eqIdxJac == nEq);
+			}
+		}
+	}
+
 	if (!wantRes)
 		return 0;
 
@@ -1047,6 +1156,7 @@ int ColumnModel1D<ConvDispOperator>::residualImpl(double t, unsigned int secIdx,
 
 	return 0;
 }
+
 
 template <typename ConvDispOperator>
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
@@ -1210,13 +1320,34 @@ void ColumnModel1D<ConvDispOperator>::multiplyWithJacobian(const SimulationTime&
 	Eigen::Map<const Eigen::VectorXd> yS_vec(yS + idxr.offsetC(), numPureDofs());
 	ret_vec = alpha * _globalJac.block(idxr.offsetC(), idxr.offsetC(), numPureDofs(), numPureDofs()) * yS_vec + beta * ret_vec;
 
-	// Map inlet DOFs to the column inlet (first bulk cells)
-	// Inlet at z = 0 for forward flow, at z = L for backward flow.
 	unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
 
-	for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
-		for (unsigned int node = 0; node < static_cast<unsigned int>(_jacInlet.rows()); node++) {
-			ret[idxr.offsetC() + offInlet + comp * idxr.strideColComp() + node * idxr.strideColNode()] += alpha * _jacInlet(node, 0) * yS[comp];
+	const auto& cm = _reaction.conservedMoieties("liquid");
+	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+	{
+
+		const auto& L = cm.getConservedMoietiesMatrix();
+		for (unsigned int moiety = 0; moiety < cm.numMoieties(); ++moiety)
+		{
+			double inletDirection = 0.0;
+			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+				inletDirection += L(moiety, comp) * yS[comp];
+
+			for (unsigned int node = 0; node < static_cast<unsigned int>(_jacInlet.rows()); ++node)
+			{
+				ret[idxr.offsetC() + offInlet + moiety * idxr.strideColComp() + node * idxr.strideColNode()] += alpha * _jacInlet(node, 0) * inletDirection;
+			}
+		}
+
+	}
+	else
+	{
+		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+		{
+			for (unsigned int node = 0; node < static_cast<unsigned int>(_jacInlet.rows()); ++node)
+			{
+				ret[idxr.offsetC() + offInlet + comp * idxr.strideColComp() + node * idxr.strideColNode()] += alpha * _jacInlet(node, 0) * yS[comp];
+			}
 		}
 	}
 }
@@ -1269,6 +1400,25 @@ void ColumnModel1D<ConvDispOperator>::multiplyWithDerivativeJacobian(const Simul
 		}
 	} CADET_PARFOR_END;
 
+	const auto& cm = _reaction.conservedMoieties("liquid");
+	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+	{
+		const unsigned int nMoieties = cm.numMoieties();
+		const unsigned int nEq = cm.numEquilibriumReactions();
+
+		for (unsigned int point = 0; point < _disc.nPoints; ++point)
+		{
+			const int pointOffset = idxr.offsetC() + point * idxr.strideColNode();
+
+			double const* const localSDot = sDot + pointOffset;
+			double* const localRet = ret + pointOffset;
+
+			cm.multiplyToVector(localRet, localSDot, _disc.nComp);
+
+			// Equilibrium reaction rows
+			std::fill_n(localRet + nMoieties, nEq, 0.0);
+		}
+	}
 	// Handle inlet DOFs (all algebraic)
 	std::fill_n(ret, _disc.nComp, 0.0);
 }
@@ -1730,6 +1880,31 @@ int ColumnModel1D<ConvDispOperator>::Exporter::writeOutlet(double* buffer) const
 		std::copy_n(&_idx.c(_data, 0, 0), _disc.nComp, buffer);
 
 	return _disc.nComp;
+}
+
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::reserveConservedMoietyJacobian()
+{
+	const auto& cm = _reaction.conservedMoieties("liquid");
+	if (!cm.isEnabled() || (cm.numEquilibriumReactions() == 0))
+		return;
+
+	Indexer idxr(_disc);
+	std::size_t maxEntries = 0;
+
+	for (unsigned int point = 0; point < _disc.nPoints; ++point)
+	{
+		const int pointOffset = idxr.offsetC() + point * idxr.strideColNode();
+		std::size_t numEntries = 0;
+		for (unsigned int state = 0; state < _disc.nComp; ++state)
+		{
+			for (SparseMatrix<double, RowMajor>::InnerIterator it(_globalJac, pointOffset + state); it; ++it)
+				++numEntries;
+		}
+		maxEntries = std::max(maxEntries, numEntries);
+	}
+
+	_cMJacobianEntries.reserve(maxEntries);
 }
 
 namespace

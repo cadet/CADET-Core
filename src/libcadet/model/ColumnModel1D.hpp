@@ -290,12 +290,17 @@ protected:
 
 	void addTimeDerivativeToJacobianParticleShell(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, unsigned int parType);
 
+	unsigned int bulkJacobianLowerBandwidth() const CADET_NOEXCEPT;
+	unsigned int bulkJacobianUpperBandwidth() const CADET_NOEXCEPT;
+	unsigned int bulkJacobianAdDirs() const CADET_NOEXCEPT;
 	unsigned int numAdDirsForJacobian() const CADET_NOEXCEPT;
 
 	int multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue);
 	int multiplexInitialConditions(const cadet::ParameterId& pId, double val, bool checkSens);
 
 	parts::cell::CellParameters makeCellResidualParams(unsigned int parType, int const* qsReaction) const;
+
+	void reserveConservedMoietyJacobian();
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
@@ -341,6 +346,8 @@ protected:
 
 	ConvDispOperator _convDispOp; //!< Convection dispersion operator base for interstitial volume transport
 	ReactionSystem _reaction; //!< Reaction system for bulk phase
+
+	std::vector<ConservedMoieties::EigenSparseMatrixEntry> _cMJacobianEntries;
 
 	cadet::linalg::EigenSolverBase* _linearSolver; //!< Linear solver
 
@@ -547,6 +554,42 @@ protected:
 			for (int type = 0; type < _disc.nParType; type++)
 			{
 				_particles[type]->setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}, ParticleIndex{static_cast<unsigned int>(colNode)}), idxr.offsetC() + colNode * idxr.strideColNode(), colNode, secIdx);
+			}
+		}
+
+		const auto& cm = _reaction.conservedMoieties("liquid");
+		if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+		{
+			const unsigned int nMoieties = cm.numMoieties();
+			const std::size_t originalTripletCount = tripletList.size();
+
+			const int firstBulkRow = idxr.offsetC();
+			const int lastBulkRow = idxr.offsetCp();
+
+			std::size_t numBulkTriplets = 0;
+			for (std::size_t i = 0; i < originalTripletCount; ++i)
+			{
+				const int sourceRow = tripletList[i].row();
+				if ((sourceRow >= firstBulkRow) && (sourceRow < lastBulkRow))
+					++numBulkTriplets;
+			}
+
+			tripletList.reserve(originalTripletCount + static_cast<std::size_t>(nMoieties) * numBulkTriplets);
+
+			for (std::size_t i = 0; i < originalTripletCount; ++i)
+			{
+				const int sourceRow = tripletList[i].row();
+				const int sourceColumn = tripletList[i].col();
+
+				if ((sourceRow < firstBulkRow) || (sourceRow >= lastBulkRow))
+					continue;
+
+				const unsigned int point = static_cast<unsigned int>(sourceRow - firstBulkRow) / idxr.strideColNode();
+
+				const int pointOffset = idxr.offsetC() + point * idxr.strideColNode();
+
+				for (unsigned int moiety = 0; moiety < nMoieties; ++moiety)
+					tripletList.emplace_back(pointOffset + moiety, sourceColumn, 0.0);
 			}
 		}
 
