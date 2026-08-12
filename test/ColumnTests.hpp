@@ -615,7 +615,16 @@ namespace column
 	 * @param [in] dynamicBinding Determines whether dynamic binding is used
 	 */
 	void testJacobianADVariableParSurfDiff(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding);
-	void testJacobianADVariableFilmDiff(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding);
+	void testJacobianADVariableFilmDiff(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding, bool disableFVArrowHead = false);
+
+	/**
+	 * @brief Adds a power law film diffusion parameter dependence (FILM_DIFFUSION_DEP) to a column model
+	 * @details The power law acts on the interstitial velocity and is scaled such that the effective film
+	 *          diffusion coefficient reproduces the original FILM_DIFFUSION value at the reference velocity
+	 *          of the test setting.
+	 * @param [in,out] jpp Configured column model
+	 */
+	void setVariableFilmDiffusion(cadet::JsonParameterProvider& jpp);
 
 	/**
 	 * @brief Checks the full Jacobian against AD and FD pattern switching from forward to backward flow and back
