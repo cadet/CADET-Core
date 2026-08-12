@@ -1441,6 +1441,17 @@ TEST_CASE("Radial Column_1D pure convection dispersion numerical benchmark", "[R
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
+TEST_CASE("Radial Column_1D as LRMP numerical Benchmark for SMA LWE case", "[RadialColumn1D],[DG],[DG1D],[Simulation],[Reference]")
+{
+	const std::string& modelFilePath = std::string("/data/config_radialLRMP_reqSMA_4comp_benchmark1.json");
+	const std::string& refFilePath = std::string("/data/ref_radialLRMP_reqSMA_4comp_benchmark1_DG_P3Z8.h5");
+	const std::vector<double> absTol = { 1e-12 };
+	const std::vector<double> relTol = { 1e-6 };
+
+	cadet::test::column::DGParams disc(0, 3, 8);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, false);
+}
+
 TEST_CASE("Frustum Column_1D as GRM transport Jacobian", "[FrustumColumn1D],[DG],[UnitOp],[Jacobian],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "FRUSTUM_COLUMN_MODEL_1D_GRM", "DG");
@@ -1457,4 +1468,15 @@ TEST_CASE("Frustum Column_1D as GRM LWE forward vs backward flow", "[FrustumColu
 	// Note: this test internally sets COL_RADIUS_SMALL_END=COL_RADIUS_LARGE_END so that forward and backward flow
 	// actually yield the same result for the frustum geometry.
 	cadet::test::column::testForwardBackward("FRUSTUM_COLUMN_MODEL_1D_GRM", disc, 1e-10, 1e-6);
+}
+
+TEST_CASE("Frustum Column_1D as LRMP numerical Benchmark for SMA LWE case", "[FrustumColumn1D],[DG],[DG1D],[Simulation],[Reference]")
+{
+	const std::string& modelFilePath = std::string("/data/config_frustumLRMP_reqSMA_4comp_benchmark1.json");
+	const std::string& refFilePath = std::string("/data/ref_frustumLRMP_reqSMA_4comp_benchmark1_DG_P3Z8.h5");
+	const std::vector<double> absTol = { 1e-12 };
+	const std::vector<double> relTol = { 1e-6 };
+
+	cadet::test::column::DGParams disc(0, 3, 8);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, false);
 }
