@@ -218,7 +218,7 @@ Eigen::VectorXd evalLagrangeBasisDerivative(const int j, const Eigen::VectorXd b
  * @param [in] paramAtQNodes	Parameter values evaluated at quadrature points.
  * @param [in] alpha			Coefficients of powers of (1 - ξ).
  * @param [in] beta				Coefficients of powers of (1 + ξ).
- * @param [in] c				Constant coefficient of the geometric weight.
+ * @param [in] gamma			Constant coefficient of the geometric weight.
  * @param [in] QNodes			Quadrature nodes.
  * @param [in] QWeights			Quadrature weights.
  *
@@ -229,7 +229,7 @@ Eigen::MatrixXd weightedQuadMassMatrix(
 	const Eigen::VectorXd& paramAtQNodes,
 	const std::vector<double>& alpha,
 	const std::vector<double>& beta,
-	const double c,
+	const double gamma,
 	const Eigen::VectorXd& QNodes,
 	const Eigen::VectorXd& QWeights);
 /**
