@@ -97,7 +97,7 @@ namespace
 		virtual void clear() { }
 		virtual void prepare(unsigned int numDofs, unsigned int numSens, unsigned int numTimesteps) { }
 		virtual void notifyIntegrationStart(unsigned int numDofs, unsigned int numSens, unsigned int numTimesteps) { }
-		virtual void beginTimestep(double t) { }
+		virtual void beginTimestep(double t, bool writeUnitState = true) { }
 		virtual void integratorMetaData(const cadet::IDASMeta& idasMeta) {}
 		virtual void beginUnitOperation(cadet::UnitOpIdx idx, const cadet::IModel& model, const cadet::ISolutionExporter& exporter) { }
 		virtual void endUnitOperation() { }
