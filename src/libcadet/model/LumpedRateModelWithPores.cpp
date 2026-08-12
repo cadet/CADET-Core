@@ -242,7 +242,8 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nCol);
 
 	paramProvider.pushScope("particle_type_000");
-	if (paramProvider.exists("FILM_DIFFUSION_DEP"))
+	_hasFilmDiffDep = paramProvider.exists("FILM_DIFFUSION_DEP");
+	if (_hasFilmDiffDep)
 	{
 		if (_disc.nParType > 1)
 			LOG(Warning) << "The parameter dependence for film diffusion (FILM_DIFFUSION_DEP) specified for particle type 000 will be applied to all particle types.";
@@ -670,15 +671,19 @@ void LumpedRateModelWithPores<ConvDispOperator>::useAnalyticJacobian(const bool 
 template <typename ConvDispOperator>
 void LumpedRateModelWithPores<ConvDispOperator>::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
-	// Setup flux Jacobian blocks at the beginning of the simulation or in case of
-	// section dependent film or particle diffusion coefficients
-	if ((secIdx == 0) || isSectionDependent(_filmDiffusionMode))
-		assembleOffdiagJac(t, secIdx);
-
 	Indexer idxr(_disc);
 
 	// AxialConvectionDispersionOperator tells us whether flow direction has changed
-	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, adJac))
+	const bool hasFlowDirectionChanged = _convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, adJac);
+
+	// Setup flux Jacobian blocks at the beginning of the simulation or in case of section dependent
+	// film diffusion coefficients. The blocks have to be assembled after the convection dispersion
+	// operator has been notified since the film diffusion parameter dependence is evaluated at the
+	// interstitial velocity of the new section.
+	if ((secIdx == 0) || isSectionDependent(_filmDiffusionMode) || _hasFilmDiffDep)
+		assembleOffdiagJac(t, secIdx);
+
+	if (!hasFlowDirectionChanged)
 		return;
 
 	// Setup the matrix connecting inlet DOFs to first column cells
