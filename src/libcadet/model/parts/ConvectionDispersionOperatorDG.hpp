@@ -1778,7 +1778,6 @@ namespace cadet
 				unsigned int _nElem;
 				unsigned int _nNodes;
 				unsigned int _nPoints;
-				unsigned int _filmDiffQuadDeg;
 				unsigned int _axDispQuadDeg;
 
 				unsigned int _strideNode;
@@ -1825,13 +1824,14 @@ namespace cadet
 
 				bool _dispersionCompIndep;
 				IParameterParameterDependence* _dispersionDep;
+				bool _variableDispersion;
 
 				/* ===================================================================
 				 *  Geometry helpers
 				 * =================================================================== */
 
 				void computeGeometryFrustum();
-				void computeOperatorsFrustum();
+				void computeOperatorsFrustum(const unsigned int secIdx);
 
 				/* ===================================================================
 				 *  Jacobian block helpers

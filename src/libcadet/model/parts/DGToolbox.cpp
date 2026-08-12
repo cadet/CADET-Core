@@ -695,7 +695,7 @@ Eigen::MatrixXd weightedQuadMassMatrix(
 	const Eigen::VectorXd& paramAtQNodes,
 	const std::vector<double>& alpha,
 	const std::vector<double>& beta,
-	const double c,
+	const double gamma,
 	const Eigen::VectorXd& QNodes,
 	const Eigen::VectorXd& QWeights)
 {
@@ -722,7 +722,7 @@ Eigen::MatrixXd weightedQuadMassMatrix(
 	{
 		const double xi = QNodes[k];
 
-		double geometricWeight = c;
+		double geometricWeight = gamma;
 
 		// alpha[p-1] * (1 - xi)^p
 		double minusPower = 1.0 - xi;

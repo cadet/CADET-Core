@@ -27,6 +27,7 @@
 #include <Eigen/Sparse>
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 
 namespace cadet
 {
@@ -1159,21 +1160,6 @@ void RadialConvectionDispersionOperatorBaseDG::TransposedADWeightedStiffnessMatr
 			quadWeights);
 
 		_S_g[elem] = _polyDerM.transpose() * M_AD;
-
-		//Eigen::MatrixXd S_g_ref =
-		//	dgtoolbox::radialDispersionMatrix(
-		//		_polyDeg,
-		//		_nodes,
-		//		rho_left,
-		//		deltaRho,
-		//		_dispersionAtNodes[elem],
-		//		nQuadPoints);
-
-		//if(!_S_g[elem].isApprox(S_g_ref, 1e-15))
-		//{
-		//	std::cout << "Computed S_g:\n" << _S_g[elem] << "\n";
-		//	std::cout << "Reference radial dispersion matrix:\n" << dgtoolbox::radialDispersionMatrix(_polyDeg, _nodes, rho_left, deltaRho, _dispersionAtNodes[elem], nQuadPoints) << "\n";
-		//}
 	}
 }
 
@@ -1866,10 +1852,6 @@ bool FrustumConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPa
 	_strideNode = strideNode;
 	_strideElem = _nNodes * strideNode;
 
-	// Read quadrature parameters
-	_axDispQuadDeg = paramProvider.exists("DISPERSION_SPATIAL_DEPENDENCE_POLYDEG") ? paramProvider.getInt("DISPERSION_SPATIAL_DEPENDENCE_POLYDEG") : 0;
-	_filmDiffQuadDeg = paramProvider.exists("FILM_DIFFUSION_SPATIAL_DEPENDENCE_POLYDEG") ? paramProvider.getInt("FILM_DIFFUSION_SPATIAL_DEPENDENCE_POLYDEG") : 0;
-
 	// Read frustum geometry parameters
 	_radiusXStart = paramProvider.getDouble("COL_RADIUS_LARGE_END");
 	_radiusXEnd = paramProvider.getDouble("COL_RADIUS_SMALL_END");
@@ -1927,6 +1909,16 @@ bool FrustumConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPa
 	}
 	else
 		_dispersionDep = helper.createParameterParameterDependence("CONSTANT_ONE");
+
+	_variableDispersion = std::strcmp(_dispersionDep->name(), "CONSTANT_ONE") != 0;
+	if (_variableDispersion)
+	{
+		if (!paramProvider.exists("DISPERSION_SPATIAL_DEPENDENCE_POLYDEG"))
+			throw InvalidParameterException("Missing DISPERSION_SPATIAL_DEPENDENCE_POLYDEG parameter for variable dispersion, see COL_DISPERSION_DEP");
+
+		_axDispQuadDeg = paramProvider.getInt("DISPERSION_SPATIAL_DEPENDENCE_POLYDEG");
+	}
+	else _axDispQuadDeg = 0;
 
 	// Allocate per-cell Jacobian blocks
 	_DGjacFrustumDispBlocks.resize(_nComp);
@@ -1998,7 +1990,7 @@ bool FrustumConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, I
 
 	// Geometry dependent operators
 	computeGeometryFrustum();
-	computeOperatorsFrustum();
+	computeOperatorsFrustum(0);
 
 	return true;
 }
@@ -2009,7 +2001,9 @@ bool FrustumConvectionDispersionOperatorBaseDG::notifyDiscontinuousSectionTransi
 	_newStaticJac = true;
 
 	// note: flow direction is set by setFlowRates() before notifyDiscontinuousSectionTransition() is called
-	_curFwdFlow = _forwardFlow.size() > 1 ? _forwardFlow[secIdx] : _forwardFlow[0];
+	const bool newFlowFwdDir = _forwardFlow.size() > 1 ? _forwardFlow[secIdx] : _forwardFlow[0];
+	const bool flowDirChange = _curFwdFlow == newFlowFwdDir;
+	_curFwdFlow = newFlowFwdDir;
 
 	// Recompute direction dependent Jacobian blocks.
 	for (unsigned int elem = 0; elem < _nElem; elem++)
@@ -2020,7 +2014,10 @@ bool FrustumConvectionDispersionOperatorBaseDG::notifyDiscontinuousSectionTransi
 	else
 		jacInlet = _DGjacFrustumConvBlocks[_nElem - 1].col(_DGjacFrustumConvBlocks[_nElem - 1].cols() - 1);
 
-	return true;
+	// some model parameters are baked into the DG operators but may be updated at section transitions
+	computeOperatorsFrustum(secIdx);
+
+	return flowDirChange;
 }
 
 void FrustumConvectionDispersionOperatorBaseDG::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
@@ -2111,7 +2108,7 @@ void FrustumConvectionDispersionOperatorBaseDG::computeGeometryFrustum()
 	}
 }
 
-void FrustumConvectionDispersionOperatorBaseDG::computeOperatorsFrustum()
+void FrustumConvectionDispersionOperatorBaseDG::computeOperatorsFrustum(const unsigned int secIdx)
 {
 	const double pi = 3.14159265358979323846;
 	const double H = static_cast<double>(_bedLength);
@@ -2129,30 +2126,71 @@ void FrustumConvectionDispersionOperatorBaseDG::computeOperatorsFrustum()
 		comps.resize(_nElem);
 	_invMM_A_times_DT_timesM00.resize(_nElem);
 
+	// number of nodes for exact gauss quadrature of the integral with dispersion weight
+	const int frustumGeomFactorDegree = 2; // we have r(x)^2 = (r0 + x/H * (rH - r0))^2, which is a polynomial of degree 2 in x
+	const int nQuadNodes = std::ceil((_axDispQuadDeg + frustumGeomFactorDegree + 2 * _polyDeg + 1) / 2);
+	// geometric weight factors as ( \sum_n (1 - \xi)^\alpha_n + \sum_m (1 + \xi)^\beta_m + gamma) = A(x^e(\xi)) = A((\xi + 1) \DeltaX_i / 2 + x_i)
+	// with A = \pi r(x)^2 and r(x) = r_0 + \frac{x}{H} \left( r_{L^\mathrm{b}} - r_0 \right)
+	const std::vector<double> alpha = { };
+	std::vector<double> beta = { 0.0, 0.0 };
+
 	for (unsigned int elem = 0; elem < _nElem; ++elem)
 	{
 		const double x_L = elem * dx;
+		const double beta1 = (r0 * rDiff * dx / H + rDiff * rDiff / H / H * x_L * dx);
+		const double beta2 = (rDiff * rDiff / H / H * dx * dx / 2.0 / 2.0);
+		beta[0] = beta1; beta[1] = beta2;
+		const double gamma = (r0 * r0 + 2.0 * r0 * x_L / H * rDiff + x_L * x_L / H / H * rDiff * rDiff);
 
-		Eigen::MatrixXd M_A = (r0 * r0 + 2.0 * r0 * x_L / H * rDiff + x_L * x_L / H / H * rDiff * rDiff) * _M00;
-		M_A += (r0 * rDiff * dx / H + rDiff * rDiff / H / H * x_L * dx) * M01;
-		M_A += (rDiff * rDiff / H / H * dx * dx / 2.0 / 2.0) * M02;
+		Eigen::MatrixXd M_A = gamma * _M00;
+		M_A += beta1 * M01;
+		M_A += beta2 * M02;
 		M_A *= pi;
 		_invMM_A[elem] = M_A.inverse();
 
 		for (int comp = 0; comp < _nComp; comp++)
 		{
-			// \tilde{M}^(AD)_{i,j} = \int_{-1}^1 \ell_i(\xi) \frac{\partial \ell_j(\xi)}{\partial \xi} w(\xi) d\xi
-			// with w(\xi) = A(x^e_i(\xi) D^{ax}(x^e_i(\xi)
-			// with x^e_i(\xi) = (\xi + 1) * dx_i / 2 + x_i, and A(x) = \pi * r(x)^2, D^{ax} being the spatially dependent dispersion parameter,
-			// and r(x) = _radiusXEnd + x / _bedLength * (_radiusXStart - _radiusXEnd)
-			// matrix computed with gauss quadrature
-			// const int nGaussQuadNodes = _nNodes + 2 + _axDispQuadDeg; // accurate up to degree 2N - 1, ie exact if _axDispQuadDeg is the polynomial degree of the spatially dependent dispersion parameter
-			// ... wip
-			// for now, we assume constant dispersion, ie \tilde{M}^(AD) can be computed exactly as D^{ax} * M_A
-			Eigen::MatrixXd gaussMM_AD = static_cast<double>(_colDispersion[comp]) * M_A;
+			const double baseDispersion = static_cast<double>(currentDispersion(secIdx)[comp]);
 
-			// Matrix product (M^A)^-1 * D^T * \tilde{S}^(AD) = (M^A)^-1 * D^T * \tilde{M}^(AD)
-			_invMM_A_times_ST_AD[comp][elem] = _invMM_A[elem] * _polyDerM.transpose() * gaussMM_AD;
+			if (!_variableDispersion)
+			{
+				// we can compute the integral exaclty
+				Eigen::MatrixXd gaussMM_AD = baseDispersion * M_A;
+				// Matrix product (M^A)^-1 * D^T * \tilde{S}^(AD) = (M^A)^-1 * D^T * \tilde{M}^(AD)
+				_invMM_A_times_ST_AD[comp][elem] = _invMM_A[elem] * _polyDerM.transpose() * gaussMM_AD;
+			}
+			else
+			{
+				// Evaluate dispersion at each quadrature node
+				Eigen::VectorXd dispAtQNodes(nQuadNodes);
+				Eigen::VectorXd quadNodes = Eigen::VectorXd::Zero(nQuadNodes);
+				Eigen::VectorXd quadWeights = Eigen::VectorXd::Zero(nQuadNodes);
+				dgtoolbox::lgNodesWeights(nQuadNodes - 1, quadNodes, quadWeights, false);
+
+				for (unsigned int node = 0; node < nQuadNodes; ++node)
+				{
+					const double physicalPos = x_L + 0.5 * dx * (1.0 + quadNodes[node]);
+					// Normalize position to [0, 1] for parameter dependence evaluation
+					const double relPos = physicalPos / H;
+
+					// Evaluate D(rho) = baseDispersion * dependence_factor(rho)
+					dispAtQNodes[node] = _dispersionDep->getValue(ColumnPosition{ relPos, 0.0, 0.0 },
+						comp, ParTypeIndep, BoundStateIndep, baseDispersion);
+				}
+
+				// \tilde{M}^(AD)_{i,j} = \int_{-1}^1 \ell_i(\xi) \frac{\partial \ell_j(\xi)}{\partial \xi} w(\xi) d\xi
+				Eigen::MatrixXd gaussMM_AD = dgtoolbox::weightedQuadMassMatrix(
+					_nodes,
+					dispAtQNodes,
+					alpha,
+					beta,
+					gamma,
+					quadNodes,
+					quadWeights);
+
+				// Matrix product (M^A)^-1 * D^T * \tilde{S}^(AD) = (M^A)^-1 * D^T * \tilde{M}^(AD)
+				_invMM_A_times_ST_AD[comp][elem] = _invMM_A[elem] * _polyDerM.transpose() * gaussMM_AD;
+			}
 		}
 		// Matrix product (M^A)^-1 D^T * M00
 		_invMM_A_times_DT_timesM00[elem] = _invMM_A[elem] * _polyDerM.transpose() * _M00;
