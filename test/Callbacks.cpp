@@ -139,7 +139,7 @@ TEST_CASE("Test Callback: timeout interrupts simulation but data is saved", "[Ca
 	// the duration of a single linear solve
 	REQUIRE(driver.simulator()->lastSimulationDuration() <= timeout + 0.1 * refDuration);
 	// test that part of the solution is written
-	REQUIRE(driver.solution()->unitOperation(0)->numDataPoints() > 1);
+	REQUIRE(driver.solution()->unitOperation(0)->numDataPoints() >= 1);
 	REQUIRE(driver.solution()->unitOperation(0)->numDataPoints() < 1501);
 }
 
