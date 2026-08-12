@@ -1785,11 +1785,37 @@ namespace cadet
 				unsigned int _strideElem;
 
 				// Column geometry
+				enum class GeometryType
+				{
+					AxialFlowCylinder,
+					RadialFlowCylinderAnnular,
+					AxialFlowFrustum
+				};
+
+				GeometryType geometryTypeFromString(const std::string& str)
+				{
+					if (str == "AXIAL_FLOW_CYLINDER")
+						return GeometryType::AxialFlowCylinder;
+
+					if (str == "RADIAL_FLOW_CYLINDER_ANNULAR")
+						return GeometryType::RadialFlowCylinderAnnular;
+
+					if (str == "RADIAL_FLOW_CYLINDER_ANNULAR_WEDGE")
+						return GeometryType::RadialFlowCylinderAnnular;
+
+					if (str == "AXIAL_FLOW_FRUSTUM")
+						return GeometryType::AxialFlowFrustum;
+
+					throw std::invalid_argument("Unknown GeometryType: " + str + " (valid options are: AXIAL_FLOW_CYLINDER, RADIAL_FLOW_CYLINDER_ANNULAR, RADIAL_FLOW_CYLINDER_ANNULAR_WEDGE, AXIAL_FLOW_FRUSTUM)");
+				}
+
+				GeometryType _geometryType;				//!< column geometry type
 				active _bedLength;						//!< bed length H (axial length)
 				active _colHeight;						//!< column height H, only applicable for radial flow geometry
 				active _radiusXStart;					//!< radius at domain start
 				active _radiusXEnd;					    //!< radius at domain end
-				std::vector<double> _crossSectionArea;	//!< Cross section area at each node
+				std::vector<double> _crossSectionArea;	//!< cross section area at each node
+				double _flowFraction;					//!< through-flow cross-sectional area fraction excluding column porosity
 
 				// DG operators
 				active _deltaX;					//!< axial element spacing
@@ -1830,7 +1856,13 @@ namespace cadet
 				 *  Geometry helpers
 				 * =================================================================== */
 
+				void computeGeometry();
+				void computeOperators();
+				void computeGeometryAxial();
+				void computeGeometryRadial();
 				void computeGeometryFrustum();
+				void computeOperatorsAxial();
+				void computeOperatorsRadial();
 				void computeOperatorsFrustum();
 
 				/* ===================================================================

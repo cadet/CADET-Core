@@ -1821,6 +1821,49 @@ bool FrustumConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPa
 	_filmDiffQuadDeg = paramProvider.exists("FILM_DIFFUSION_SPATIAL_DEPENDENCE_POLYDEG") ? paramProvider.getInt("FILM_DIFFUSION_SPATIAL_DEPENDENCE_POLYDEG") : 0;
 
 	// Read frustum geometry parameters
+	_geometryType = geometryTypeFromString(paramProvider.getString("GEOMETRY"));
+	_flowFraction = 1.0;
+
+	switch (_geometryType)
+	{	
+	case GeometryType::AxialFlowCylinder:
+	{
+		const double crossSection = paramProvider.getDouble("CROSS_SECTION_AREA");
+		const double pi = 3.14159265358979323846;
+		_radiusXStart = std::sqrt(crossSection / pi);
+		_radiusXEnd = _radiusXStart;
+		_bedLength = paramProvider.getDouble("COL_LENGTH");
+		_colHeight = _bedLength;
+
+		if (!(crossSection > 0.0 && static_cast<double>(_bedLength) > 0.0))
+			throw InvalidParameterException("Geometry parameters for AXIAL_FLOW_CYLINDER must satisfy 0 < COL_RADIUS_SMALL_END <= CROSS_SECTION_AREA > 0.0, COL_LENGTH > 0.0");
+
+		break;
+	}
+	case GeometryType::RadialFlowCylinderAnnular:
+
+		if (paramProvider.getString("GEOMETRY") == "RADIAL_FLOW_CYLINDER_ANNULAR_WEDGE")
+			_flowFraction = paramProvider.getDouble("CIRCLE_FRACTION");
+		_radiusXEnd = paramProvider.getDouble("COL_RADIUS_OUTER");
+		_radiusXStart = paramProvider.getDouble("COL_RADIUS_INNER");
+		_colHeight = paramProvider.getDouble("COL_LENGTH");
+
+		if (paramProvider.exists("BED_LENGTH")) // check this field for user convenience
+		{
+			_bedLength = paramProvider.getDouble("BED_LENGTH");
+			if (std::abs(static_cast<double>(_bedLength - (_radiusXEnd - _radiusXStart))) > 1e-15)
+				throw InvalidParameterException("For radial flow cylinder annular, BED_LENGTH must equal COL_RADIUS_OUTER - COL_RADIUS_INNER");
+			}
+		else
+			_bedLength = _radiusXEnd - _radiusXStart;
+
+		if (!(static_cast<double>(_radiusXStart) > 0.0 && static_cast<double>(_radiusXEnd) >= static_cast<double>(_radiusXStart) && static_cast<double>(_colHeight) > 0.0))
+			throw InvalidParameterException("Geometry parameters for RADIAL_FLOW_CYLINDER_ANNULAR must satisfy 0 < COL_RADIUS_INNER <= COL_RADIUS_OUTER, COL_LENGTH > 0.0");
+		
+		break;
+
+	case GeometryType::AxialFlowFrustum:
+
 	_radiusXStart = paramProvider.getDouble("COL_RADIUS_LARGE_END");
 	_radiusXEnd = paramProvider.getDouble("COL_RADIUS_SMALL_END");
 	_bedLength = paramProvider.getDouble("COL_LENGTH");
@@ -1830,6 +1873,13 @@ bool FrustumConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPa
 		static_cast<double>(_radiusXStart) >= static_cast<double>(_radiusXEnd) &&
 		static_cast<double>(_bedLength) > 0.0))
 		throw InvalidParameterException("Geometry parameters for AXIAL_FLOW_FRUSTUM must satisfy 0 < COL_RADIUS_SMALL_END <= COL_RADIUS_LARGE_END, COL_LENGTH > 0.0");
+
+	break;
+
+	default:
+		throw InvalidParameterException("Unsupported geometry type " + paramProvider.getString("COL_GEOMETRY"));
+		break;
+	}
 
 	_deltaX = static_cast<double>(_bedLength) / static_cast<double>(_nElem);
 
@@ -1947,8 +1997,8 @@ bool FrustumConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, I
 	parameters[makeParamId(hashString("COL_RADIUS_LARGE_END"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_radiusXEnd;
 
 	// Geometry dependent operators
-	computeGeometryFrustum();
-	computeOperatorsFrustum();
+	computeGeometry();
+	computeOperators();
 
 	return true;
 }
@@ -1976,7 +2026,7 @@ bool FrustumConvectionDispersionOperatorBaseDG::notifyDiscontinuousSectionTransi
 void FrustumConvectionDispersionOperatorBaseDG::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
 {
 	_flowRate = in;
-	_QOverEps = _curFwdFlow ? _flowRate / colPorosity : -_flowRate / colPorosity;
+	_QOverEps = _curFwdFlow ? _flowRate / colPorosity / _flowFraction : -_flowRate / colPorosity / _flowFraction;
 }
 
 unsigned int FrustumConvectionDispersionOperatorBaseDG::jacobianLowerBandwidth() const CADET_NOEXCEPT
@@ -2037,6 +2087,136 @@ void FrustumConvectionDispersionOperatorBaseDG::addTimeDerivativeToJacobian(doub
 	for (unsigned int point = 0; point < _nPoints; ++point, jac += gapElem)
 		for (unsigned int comp = 0; comp < _nComp; ++comp, ++jac)
 			jac[0] += alpha;
+}
+
+void FrustumConvectionDispersionOperatorBaseDG::computeGeometry()
+{
+	switch (_geometryType)
+	{
+	case GeometryType::AxialFlowCylinder:
+		computeGeometryAxial();
+		break;
+	case GeometryType::RadialFlowCylinderAnnular:
+		computeGeometryRadial();
+		break;
+	case GeometryType::AxialFlowFrustum:
+		computeGeometryFrustum();
+		break;
+	default:
+		break;
+	}
+}
+void FrustumConvectionDispersionOperatorBaseDG::computeOperators()
+{
+	switch (_geometryType)
+	{
+	case GeometryType::AxialFlowCylinder:
+		computeOperatorsAxial();
+		break;
+	case GeometryType::RadialFlowCylinderAnnular:
+		computeOperatorsRadial();
+		break;
+	case GeometryType::AxialFlowFrustum:
+		computeOperatorsFrustum();
+		break;
+	default:
+		break;
+	}
+}
+
+void FrustumConvectionDispersionOperatorBaseDG::computeGeometryAxial()
+{
+	_crossSectionArea.resize(_nPoints);
+	const double pi = 3.14159265358979323846;
+	const double radius = static_cast<double>(_radiusXStart);
+
+	for (int elem = 0; elem < _nElem; ++elem)
+	{
+		for (int node = 0; node < _nNodes; ++node)
+		{
+			_crossSectionArea[elem * _nNodes + node] = pi * radius * radius;
+		}
+	}
+}
+
+void FrustumConvectionDispersionOperatorBaseDG::computeOperatorsAxial()
+{
+	_invMM_A.resize(_nElem);
+	_invMM_A_times_ST_AD.resize(_nComp);
+	for (auto& comps : _invMM_A_times_ST_AD)
+		comps.resize(_nElem);
+	_invMM_A_times_DT_timesM00.resize(_nElem);
+
+	for (unsigned int elem = 0; elem < _nElem; ++elem)
+	{
+		_invMM_A[elem] = _M00.inverse();
+
+		for (int comp = 0; comp < _nComp; comp++)
+		{
+			// for now, we assume constant dispersion, ie \tilde{M}^(AD) can be computed exactly as D^{ax} * M_A
+			// will later become gauss quadrature with spatially dependent dispersion parameter
+			Eigen::MatrixXd gaussMM_AD = static_cast<double>(_colDispersion[comp]) * _M00;
+
+			// Matrix product (M^A)^-1 * D^T * \tilde{S}^(AD) = (M^A)^-1 * D^T * \tilde{M}^(AD)
+			_invMM_A_times_ST_AD[comp][elem] = _invMM_A[elem] * _polyDerM.transpose() * gaussMM_AD;
+		}
+		// Matrix product (M^A)^-1 D^T * M00
+		_invMM_A_times_DT_timesM00[elem] = _invMM_A[elem] * _polyDerM.transpose() * _M00;
+	}
+}
+
+void FrustumConvectionDispersionOperatorBaseDG::computeGeometryRadial()
+{
+	const double cylinderHeight = static_cast<double>(_colHeight);
+	const double drho = static_cast<double>(_deltaX);
+	const double rhoInner = static_cast<double>(_radiusXStart);
+	const double pi = 3.14159265358979323846;
+
+	_crossSectionArea.resize(_nPoints);
+
+	for (int elem = 0; elem < _nElem; ++elem)
+	{
+		for (int node = 0; node < _nNodes; ++node)
+		{
+			const double rho = rhoInner + elem * drho + 0.5 * drho * (1.0 + _nodes[node]);
+
+			_crossSectionArea[elem * _nNodes + node] = 2.0 * pi * rho * cylinderHeight;
+		}
+	}
+}
+
+void FrustumConvectionDispersionOperatorBaseDG::computeOperatorsRadial()
+{
+	const double pi = 3.14159265358979323846;
+
+	Eigen::MatrixXd M01 = dgtoolbox::mMatrix(_polyDeg, _nodes, 0.0, 1.0);
+
+	_invMM_A.resize(_nElem);
+	_invMM_A_times_ST_AD.resize(_nComp);
+	for (auto& comps : _invMM_A_times_ST_AD)
+		comps.resize(_nElem);
+	_invMM_A_times_DT_timesM00.resize(_nElem);
+
+	for (unsigned int elem = 0; elem < _nElem; ++elem)
+	{
+		const double xLeft = static_cast<double>(_radiusXStart) + elem * static_cast<double>(_deltaX);
+		// M^A = 2 pi H (x_i M^(0,0) + \frac{\Delta x_i}{2} M^(0,1))
+		const Eigen::MatrixXd M_A = 2.0 * pi * static_cast<double>(_colHeight) * (xLeft * _M00 + 0.5 * static_cast<double>(_deltaX) * M01);
+		_invMM_A[elem] = M_A.inverse();
+
+		for (int comp = 0; comp < _nComp; comp++)
+		{
+			// for now, we assume constant dispersion, ie \tilde{M}^(AD) can be computed exactly as D^{ax} * M_A
+			// later on, this will become gauss quadrature with spatially dependent dispersion parameter
+			Eigen::MatrixXd gaussMM_AD = static_cast<double>(_colDispersion[comp]) * M_A;
+
+			// Matrix product (M^A)^-1 \tilde{S}^(AD) = (M^A)^-1 polyDerM^T * \tilde{M}^(AD) 
+			_invMM_A_times_ST_AD[comp][elem] = _invMM_A[elem] * _polyDerM.transpose() * gaussMM_AD;
+		}
+
+		// Matrix product (M^A)^-1 D^T * M00
+		_invMM_A_times_DT_timesM00[elem] = _invMM_A[elem] * _polyDerM.transpose() * _M00;
+	}
 }
 
 void FrustumConvectionDispersionOperatorBaseDG::computeGeometryFrustum()
