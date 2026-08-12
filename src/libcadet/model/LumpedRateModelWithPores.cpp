@@ -1121,7 +1121,7 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualFlux(double t, unsigned 
 
 			const double relPos = _convDispOp.relativeCoordinate(colCell);
 			const active curVelocity = _convDispOp.currentVelocity(relPos);
-			const active modifier = _filmDiffDep->getValue(*this, ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity);
+			const active modifier = _filmDiffDep->getValue(ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity);
 
 			resCol[i] += jacCF_val * static_cast<ParamType>(filmDiff[comp]) * static_cast<ParamType>(modifier) * static_cast<ParamType>(_parTypeVolFrac[type + _disc.nParType * colCell]) * yFluxType[i];
 		}
@@ -1144,7 +1144,7 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualFlux(double t, unsigned 
 
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
-				const active modifier = _filmDiffDep->getValue(*this, ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity);
+				const active modifier = _filmDiffDep->getValue(ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity);
 
 				const unsigned int eq = pblk * idxr.strideColCell() + comp * idxr.strideColComp();
 				resParType[pblk * idxr.strideParBlock(type) + comp] += jacPF_val / static_cast<ParamType>(poreAccFactor[comp]) * static_cast<ParamType>(filmDiff[comp]) * static_cast<ParamType>(modifier) * yFluxType[eq];
@@ -1210,7 +1210,7 @@ void LumpedRateModelWithPores<ConvDispOperator>::assembleOffdiagJac(double t, un
 
 			const double relPos = _convDispOp.relativeCoordinate(colCell);
 			const double curVelocity = static_cast<double>(_convDispOp.currentVelocity(relPos));
-			const double modifier = _filmDiffDep->getValue(*this, ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity);
+			const double modifier = _filmDiffDep->getValue(ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity);
 
 			// Main diagonal corresponds to j_{f,i} (flux) state variable
 			_jacCF.addElement(eq, eq + typeOffset, jacCF_val * static_cast<double>(filmDiff[comp]) * modifier * static_cast<double>(_parTypeVolFrac[type + _disc.nParType * colCell]));
@@ -1233,7 +1233,7 @@ void LumpedRateModelWithPores<ConvDispOperator>::assembleOffdiagJac(double t, un
 				const unsigned int eq = typeOffset + pblk * idxr.strideColCell() + comp * idxr.strideColComp();
 				const unsigned int col = pblk * idxr.strideParBlock(type) + comp;
 
-				const double modifier = _filmDiffDep->getValue(*this, ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity);
+				const double modifier = _filmDiffDep->getValue(ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity);
 				_jacPF[type].addElement(col, eq, jacPF_val / static_cast<double>(poreAccFactor[comp]) * static_cast<double>(filmDiff[comp]) * modifier);
 			}
 		}

@@ -2010,7 +2010,7 @@ int GeneralRateModel<ConvDispOperator>::residualFlux(double t, unsigned int secI
 			const ParamType curVelocity = static_cast<ParamType>(_convDispOp.currentVelocity(relPos));
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
-				const ParamType modifier = static_cast<ParamType>(_filmDiffDep->getValue(*this, ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity));
+				const ParamType modifier = static_cast<ParamType>(_filmDiffDep->getValue(ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity));
 				const ParamType filmDiffMod = static_cast<ParamType>(filmDiff[comp]) * modifier;
 				ParamType kf_FV_local;
 				if (cadet_likely(_colParBoundaryOrder == 2))
@@ -2044,7 +2044,7 @@ int GeneralRateModel<ConvDispOperator>::residualFlux(double t, unsigned int secI
 			const ParamType curVelocity = static_cast<ParamType>(_convDispOp.currentVelocity(relPos));
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
-				const ParamType modifier = static_cast<ParamType>(_filmDiffDep->getValue(*this, ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity));
+				const ParamType modifier = static_cast<ParamType>(_filmDiffDep->getValue(ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity));
 				const ParamType filmDiffMod = static_cast<ParamType>(filmDiff[comp]) * modifier;
 				ParamType kf_FV_local;
 				if (cadet_likely(_colParBoundaryOrder == 2))
@@ -2078,7 +2078,7 @@ int GeneralRateModel<ConvDispOperator>::residualFlux(double t, unsigned int secI
 
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 				{
-					const ParamType modifier = static_cast<ParamType>(_filmDiffDep->getValue(*this, ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity));
+					const ParamType modifier = static_cast<ParamType>(_filmDiffDep->getValue(ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity));
 					const ParamType filmDiffMod = static_cast<ParamType>(filmDiff[comp]) * modifier;
 					kf_FV[comp] = (1.0 - static_cast<ParamType>(_parPorosity[type])) / (1.0 + epsP * static_cast<ParamType>(_poreAccessFactor[type * _disc.nComp + comp]) * static_cast<ParamType>(parDiff[comp]) / (absOuterShellHalfRadius * filmDiffMod));
 
@@ -2191,7 +2191,7 @@ void GeneralRateModel<ConvDispOperator>::assembleOffdiagJac(double t, unsigned i
 			const double curVelocity = static_cast<double>(_convDispOp.currentVelocity(relPos));
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
-				const double modifier = static_cast<double>(_filmDiffDep->getValue(*this, ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity));
+				const double modifier = static_cast<double>(_filmDiffDep->getValue(ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity));
 				const double filmDiffMod = static_cast<double>(filmDiff[comp]) * modifier;
 				double kf_FV_local;
 				if (cadet_likely(_colParBoundaryOrder == 2))
@@ -2228,7 +2228,7 @@ void GeneralRateModel<ConvDispOperator>::assembleOffdiagJac(double t, unsigned i
 			const double curVelocity = static_cast<double>(_convDispOp.currentVelocity(relPos));
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
-				const double modifier = static_cast<double>(_filmDiffDep->getValue(*this, ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity));
+				const double modifier = static_cast<double>(_filmDiffDep->getValue(ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity));
 				const double filmDiffMod = static_cast<double>(filmDiff[comp]) * modifier;
 				double kf_FV_local;
 				if (cadet_likely(_colParBoundaryOrder == 2))
@@ -2264,7 +2264,7 @@ void GeneralRateModel<ConvDispOperator>::assembleOffdiagJac(double t, unsigned i
 
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 				{
-					const double modifier = static_cast<double>(_filmDiffDep->getValue(*this, ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity));
+					const double modifier = static_cast<double>(_filmDiffDep->getValue(ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity));
 					const double filmDiffMod = static_cast<double>(filmDiff[comp]) * modifier;
 					kf_FV[comp] = (1.0 - static_cast<double>(_parPorosity[type])) / (1.0 + epsP * static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]) * static_cast<double>(parDiff[comp]) / (absOuterShellHalfRadius * filmDiffMod));
 
@@ -2362,7 +2362,7 @@ void GeneralRateModel<ConvDispOperator>::assembleOffdiagJacFluxParticle(double t
 			const double curVelocity = static_cast<double>(_convDispOp.currentVelocity(relPos));
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
-				const double modifier = static_cast<double>(_filmDiffDep->getValue(*this, ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity));
+				const double modifier = static_cast<double>(_filmDiffDep->getValue(ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity));
 				const double filmDiffMod = static_cast<double>(filmDiff[comp]) * modifier;
 				double kf_FV_local;
 				if (cadet_likely(_colParBoundaryOrder == 2))
@@ -2398,7 +2398,7 @@ void GeneralRateModel<ConvDispOperator>::assembleOffdiagJacFluxParticle(double t
 
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 				{
-					const double modifier = static_cast<double>(_filmDiffDep->getValue(*this, ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity));
+					const double modifier = static_cast<double>(_filmDiffDep->getValue(ColumnPosition{relPos, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, curVelocity));
 					const double filmDiffMod = static_cast<double>(filmDiff[comp]) * modifier;
 					kf_FV[comp] = (1.0 - static_cast<double>(_parPorosity[type])) / (1.0 + epsP * static_cast<double>(_poreAccessFactor[type * _disc.nComp + comp]) * static_cast<double>(parDiff[comp]) / (absOuterShellHalfRadius * filmDiffMod));
 					const unsigned int eq = typeOffset + pblk * idxr.strideColCell() + comp * idxr.strideColComp();

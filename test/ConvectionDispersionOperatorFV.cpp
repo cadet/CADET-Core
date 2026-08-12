@@ -414,7 +414,6 @@ struct AxialFlow
 			0u,
 			static_cast<unsigned int>(nComp),
 			parDep.get(),
-			DummyModel(),
 			true,
 			nullptr
 		};
@@ -482,7 +481,6 @@ struct RadialFlow
 			0u,
 			static_cast<unsigned int>(nComp),
 			parDep.get(),
-			DummyModel(),
 			true,
 			nullptr
 		};

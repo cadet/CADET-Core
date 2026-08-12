@@ -59,7 +59,6 @@ struct AxialFlowParameters
 	unsigned int offsetToInlet; //!< Offset to the first component of the inlet DOFs in the local state vector
 	unsigned int offsetToBulk; //!< Offset to the first component of the first bulk cell in the local state vector
 	IParameterParameterDependence* parDep;
-	const IModel& model;
 	bool gridEquidistant;
 	std::vector<active> const* cellFaces; //!< Positions of the cell faces for non-equidistant grids
 };
@@ -146,7 +145,7 @@ namespace impl
 						static_cast<double>((*p.cellFaces)[col + 1]) / static_cast<double>(colLength) :
 						static_cast<double>(col + 1) / p.nCol;                                                                                // relative coordinate of the cell face for parameter dependence
 
-					const ParamType d_ax_right = d_ax * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+					const ParamType d_ax_right = d_ax * p.parDep->getValue(ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
 					
 					const ParamType coeff = d_ax_right / (hCol * deltaZ);
 
@@ -169,7 +168,7 @@ namespace impl
 						static_cast<double>((*p.cellFaces)[col]) / static_cast<double>(colLength) :
 						static_cast<double>(col) / p.nCol;
 
-					const ParamType d_ax_left = d_ax * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+					const ParamType d_ax_left = d_ax * p.parDep->getValue(ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
 
 					const ParamType coeff = d_ax_left / (hCol * deltaZ);
 					if (wantRes)
@@ -325,7 +324,7 @@ namespace impl
 					const double relCoord = nonEqGrid ?
 						static_cast<double>((*p.cellFaces)[col + 1]) / static_cast<double>(colLength) :
 						static_cast<double>(col + 1) / p.nCol;
-					const ParamType d_ax_right = d_ax * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+					const ParamType d_ax_right = d_ax * p.parDep->getValue(ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
 					
 					const ParamType coeff = d_ax_right / (hCol * deltaZ);
 					if (wantRes)
@@ -347,7 +346,7 @@ namespace impl
 						static_cast<double>((*p.cellFaces)[col]) / static_cast<double>(colLength) :
 						static_cast<double>(col) / p.nCol;
 
-					const ParamType d_ax_left = d_ax * p.parDep->getValue(p.model, ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
+					const ParamType d_ax_left = d_ax * p.parDep->getValue(ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u));
 
 					const ParamType coeff = d_ax_left / (hCol * deltaZ);
 					if (wantRes)

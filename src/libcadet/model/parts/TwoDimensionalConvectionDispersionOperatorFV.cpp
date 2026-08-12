@@ -1121,7 +1121,6 @@ int TwoDimensionalConvectionDispersionOperatorFV::residualImpl(const IModel& mod
 				_nComp * i,                        // Offset to the first component of the inlet DOFs in the local state vector
 				_nComp * (_nRad + i),              // Offset to the first component of the first bulk cell in the local state vector
 				_dispersionDep,
-				model,
 				_gridEquidistant,
 				cellFacesPtr
 			};
@@ -1146,7 +1145,6 @@ int TwoDimensionalConvectionDispersionOperatorFV::residualImpl(const IModel& mod
 				_nComp * i,                        // Offset to the first component of the inlet DOFs in the local state vector
 				_nComp * (_nRad + i),              // Offset to the first component of the first bulk cell in the local state vector
 				_dispersionDep,
-				model,
 				_gridEquidistant,
 				cellFacesPtr
 			};
