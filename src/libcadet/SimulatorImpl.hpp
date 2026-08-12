@@ -72,6 +72,8 @@ public:
 
 	virtual void setSolutionTimes(const std::vector<double>& solutionTimes);
 	virtual const std::vector<double>& getSolutionTimes() const;
+	virtual void setSolutionTimesUnitState(const std::vector<double>& solutionTimesUnitState);
+	virtual const std::vector<double>& getSolutionTimesUnitState() const;
 	virtual void setSectionTimes(const std::vector<double>& sectionTimes);
 	virtual void setSectionTimes(const std::vector<double>& sectionTimes, const std::vector<bool>& sectionContinuity);
 
@@ -148,8 +150,9 @@ protected:
 	/**
 	 * @brief Writes the solution at time point t
 	 * @param [in] t Current time point
+	 * @param [in] writeUnitState If @c true, internal unit state (bulk, particle, etc.) is written in addition to inlet/outlet
 	 */
-	void writeSolution(double t);
+	void writeSolution(double t, bool writeUnitState = true);
 
 	/**
 	 * @brief Computes the index of the next section from the given time @p t
@@ -267,6 +270,7 @@ protected:
 	std::vector<bool> _sectionContinuity;
 
 	std::vector<double> _solutionTimes; //!< Contains the time transformed user specified times for writing solutions to the output
+	std::vector<double> _solutionTimesUnitState; //!< Subset of _solutionTimes at which internal unit state (bulk, particle, etc.) is written
 
 	N_Vector _vecStateY; //!< IDAS state vector	
 	N_Vector _vecStateYdot; //!< IDAS state vector time derivative

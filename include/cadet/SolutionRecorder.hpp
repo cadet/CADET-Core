@@ -101,10 +101,12 @@ public:
 	 * @details After a timestep has been finished, the solution is exported to the user space.
 	 *          This function is called once before all unit operations report their solutions
 	 *          via beginUnitOperation().
-	 * 
+	 *
 	 * @param [in] t Current timepoint
+	 * @param [in] writeUnitState If @c true, internal unit state (bulk, particle, etc.) is recorded.
+	 *             If @c false, only inlet/outlet data is recorded at this time point.
 	 */
-	virtual void beginTimestep(double t) = 0;
+	virtual void beginTimestep(double t, bool writeUnitState = true) = 0;
 
 	/**
 	 * @brief Signals the beginning of new IDAS meta data to export
