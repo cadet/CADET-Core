@@ -461,7 +461,7 @@ public:
 	 * @param [in] bnd Index of the bound state the parameter belongs to (or @c -1 if independent of bound states)
 	 * @return Actual parameter value
 	 */
-	virtual double getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const = 0;
+	virtual double getValue(const ColumnPosition& colPos, int comp, int parType, int bnd) const = 0;
 
 	/**
 	 * @brief Evaluates the parameter
@@ -474,21 +474,7 @@ public:
 	 * @param [in] bnd Index of the bound state the parameter belongs to (or @c -1 if independent of bound states)
 	 * @return Actual parameter value
 	 */
-	virtual active getValueActive(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const = 0;
-
-	/**
-	 * @brief Evaluates the parameter
-	 * @details This function is called simultaneously from multiple threads.
-	 * 
-	 * @param [in] model Model that owns this parameter dependence
-	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
-	 * @param [in] comp Index of the component the parameter belongs to (or @c -1 if independent of components)
-	 * @param [in] parType Index of the particle type the parameter belongs to (or @c -1 if independent of particle types)
-	 * @param [in] bnd Index of the bound state the parameter belongs to (or @c -1 if independent of bound states)
-	 * @param [in] val Additional parameter-dependent value
-	 * @return Actual parameter value
-	 */
-	virtual double getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, double val) const = 0;
+	virtual active getValueActive(const ColumnPosition& colPos, int comp, int parType, int bnd) const = 0;
 
 	/**
 	 * @brief Evaluates the parameter
@@ -502,7 +488,21 @@ public:
 	 * @param [in] val Additional parameter-dependent value
 	 * @return Actual parameter value
 	 */
-	virtual active getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, const active& val) const = 0;
+	virtual double getValue(const ColumnPosition& colPos, int comp, int parType, int bnd, double val) const = 0;
+
+	/**
+	 * @brief Evaluates the parameter
+	 * @details This function is called simultaneously from multiple threads.
+	 * 
+	 * @param [in] model Model that owns this parameter dependence
+	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
+	 * @param [in] comp Index of the component the parameter belongs to (or @c -1 if independent of components)
+	 * @param [in] parType Index of the particle type the parameter belongs to (or @c -1 if independent of particle types)
+	 * @param [in] bnd Index of the bound state the parameter belongs to (or @c -1 if independent of bound states)
+	 * @param [in] val Additional parameter-dependent value
+	 * @return Actual parameter value
+	 */
+	virtual active getValue(const ColumnPosition& colPos, int comp, int parType, int bnd, const active& val) const = 0;
 
 protected:
 };

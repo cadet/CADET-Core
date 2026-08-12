@@ -537,7 +537,6 @@ int AxialConvectionDispersionOperatorBaseFV::residualImpl(const IModel& model, d
 			0u,
 			_nComp,
 			_dispersionDep,
-			model,
 			_gridEquidistant,
 			cellFacesPtr
 		};
@@ -559,7 +558,6 @@ int AxialConvectionDispersionOperatorBaseFV::residualImpl(const IModel& model, d
 			0u,
 			_nComp,
 			_dispersionDep,
-			model,
 			_gridEquidistant,
 			cellFacesPtr
 		};
@@ -1299,7 +1297,6 @@ int RadialConvectionDispersionOperatorBaseFV::residualImpl(const IModel& model, 
 			0u,
 			_nComp,
 			_dispersionDep,
-			model,
 			_gridEquidistant,
 			cellFacesPtr
 		};
@@ -1322,7 +1319,6 @@ int RadialConvectionDispersionOperatorBaseFV::residualImpl(const IModel& model, 
 			0u,
 			_nComp,
 			_dispersionDep,
-			model,
 			_gridEquidistant,
 			cellFacesPtr
 		};
@@ -2101,7 +2097,6 @@ int FrustumConvectionDispersionOperatorBaseFV::residualImpl(const IModel& model,
 			0u,
 			_nComp,
 			_dispersionDep,
-			model,
 			_gridEquidistant,
 			cellFacesPtr
 		};
@@ -2127,7 +2122,6 @@ int FrustumConvectionDispersionOperatorBaseFV::residualImpl(const IModel& model,
 			0u,
 			_nComp,
 			_dispersionDep,
-			model,
 			_gridEquidistant,
 			cellFacesPtr
 		};

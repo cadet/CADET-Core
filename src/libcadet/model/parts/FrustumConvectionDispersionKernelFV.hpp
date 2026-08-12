@@ -64,7 +64,6 @@ struct FrustumFlowParameters
 	unsigned int offsetToInlet; //!< Offset to the first component of the inlet DOFs in the local state vector
 	unsigned int offsetToBulk; //!< Offset to the first component of the first bulk cell in the local state vector
 	IParameterParameterDependence* parDep;
-	const IModel& model;
 	bool gridEquidistant; //!< Determines whether the grid is equidistant
 	std::vector<active> const* gridFaces; //!< Positions of the cell faces for non-equidistant grids
 };
@@ -135,7 +134,7 @@ namespace impl
 				if (cadet_likely(col < p.nCol - 1))
 				{
 					const double relCoord = static_cast<double>(p.cellFaces[col + 1]) / static_cast<double>(colLength);
-					const ParamType dispRight = disp * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep,
+					const ParamType dispRight = disp * p.parDep->getValue(ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep,
 						static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellFaceRadiusSq[col + 1]));
 					const ParamType coeff = dispRight * preFac * static_cast<ParamType>(p.cellFaceRadiusSq[col + 1]) / (static_cast<ParamType>(p.cellCenters[col + 1]) - static_cast<ParamType>(p.cellCenters[col]));
 					if (wantRes)
@@ -151,7 +150,7 @@ namespace impl
 				if (cadet_likely(col > 0))
 				{
 					const double relCoord = static_cast<double>(p.cellFaces[col]) / static_cast<double>(colLength);
-					const ParamType dispLeft = disp * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep,
+					const ParamType dispLeft = disp * p.parDep->getValue(ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep,
 						static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellFaceRadiusSq[col]));
 					const ParamType coeff = dispLeft * preFac * static_cast<ParamType>(p.cellFaceRadiusSq[col]) / (static_cast<ParamType>(p.cellCenters[col]) - static_cast<ParamType>(p.cellCenters[col - 1]));
 					if (wantRes)
@@ -274,7 +273,7 @@ namespace impl
 				if (cadet_likely(col < p.nCol - 1))
 				{
 					const double relCoord = static_cast<double>(p.cellFaces[col + 1]) / static_cast<double>(colLength);
-					const ParamType dispRight = disp * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep,
+					const ParamType dispRight = disp * p.parDep->getValue(ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep,
 						static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellFaceRadiusSq[col + 1]));
 					const ParamType coeff = dispRight * preFac * static_cast<ParamType>(p.cellFaceRadiusSq[col + 1]) / (static_cast<ParamType>(p.cellCenters[col + 1]) - static_cast<ParamType>(p.cellCenters[col]));
 					if (wantRes)
@@ -290,7 +289,7 @@ namespace impl
 				if (cadet_likely(col > 0))
 				{
 					const double relCoord = static_cast<double>(p.cellFaces[col]) / static_cast<double>(colLength);
-					const ParamType dispLeft = disp * p.parDep->getValue(p.model, ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep,
+					const ParamType dispLeft = disp * p.parDep->getValue(ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep,
 						static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellFaceRadiusSq[col]));
                     const ParamType coeff = dispLeft * preFac * static_cast<ParamType>(p.cellFaceRadiusSq[col]) / (static_cast<ParamType>(p.cellCenters[col]) - static_cast<ParamType>(p.cellCenters[col - 1]));
 					if (wantRes)

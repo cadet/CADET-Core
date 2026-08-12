@@ -1086,7 +1086,7 @@ void RadialConvectionDispersionOperatorBaseDG::updateDispersionValues(const IMod
 			                      (static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius));
 
 			// Evaluate D(rho) = baseDispersion * dependence_factor(rho)
-			const double depValue = _dispersionDep->getValue(model, ColumnPosition{relPos, 0.0, 0.0},
+			const double depValue = _dispersionDep->getValue(ColumnPosition{relPos, 0.0, 0.0},
 			                                                  comp, ParTypeIndep, BoundStateIndep, baseDispersion);
 			_dispersionAtNodes[elem][node] = depValue;
 		}
@@ -1098,7 +1098,7 @@ void RadialConvectionDispersionOperatorBaseDG::updateDispersionValues(const IMod
 		const double rho = _rhoCellBounds[iface];
 		const double relPos = (rho - static_cast<double>(_innerRadius)) /
 		                      (static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius));
-		_dispersionAtInterfaces[iface] = _dispersionDep->getValue(model, ColumnPosition{relPos, 0.0, 0.0},
+		_dispersionAtInterfaces[iface] = _dispersionDep->getValue(ColumnPosition{relPos, 0.0, 0.0},
 		                                                           comp, ParTypeIndep, BoundStateIndep, baseDispersion);
 	}
 }
@@ -1144,7 +1144,7 @@ void RadialConvectionDispersionOperatorBaseDG::TransposedADWeightedStiffnessMatr
 					(static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius));
 
 				// Evaluate D(rho) = baseDispersion * dependence_factor(rho)
-				dispersionAtQNodes[node] = _dispersionDep->getValue(model, ColumnPosition{ relPos, 0.0, 0.0 },
+				dispersionAtQNodes[node] = _dispersionDep->getValue(ColumnPosition{ relPos, 0.0, 0.0 },
 					comp, ParTypeIndep, BoundStateIndep, baseDispersion);
 			}
 		}

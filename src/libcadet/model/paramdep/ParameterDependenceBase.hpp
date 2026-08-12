@@ -65,9 +65,9 @@ protected:
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
 
 	/**
-	 * @brief Configures the reaction model
-	 * @details This function implements the (re-)configuration of a reaction model. It is called when
-	 *          the reaction model is configured or reconfigured. On call the _parameters map will always
+	 * @brief Configures the parameter dependence model
+	 * @details This function implements the (re-)configuration of a parameter dependence model. It is called when
+	 *          the parameter dependence model is configured or reconfigured. On call the _parameters map will always
 	 *          be empty.
 	 * @param [in] paramProvider Parameter provider
 	 * @param [in] unitOpIdx Unit operation index
@@ -216,9 +216,9 @@ protected:
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
 
 	/**
-	 * @brief Configures the reaction model
-	 * @details This function implements the (re-)configuration of a reaction model. It is called when
-	 *          the reaction model is configured or reconfigured. On call the _parameters map will always
+	 * @brief Configures the parameter dependence model
+	 * @details This function implements the (re-)configuration of a parameter dependence model. It is called when
+	 *          the parameter dependence model is configured or reconfigured. On call the _parameters map will always
 	 *          be empty.
 	 * @param [in] paramProvider Parameter provider
 	 * @param [in] unitOpIdx Unit operation index
@@ -242,24 +242,24 @@ protected:
  *          The implementation is inserted inline in the class declaration.
  */
 #define CADET_PARAMETERPARAMETERDEPENDENCE_BOILERPLATE                                                                                  \
-	virtual double getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, double val) const        \
+	virtual double getValue(const ColumnPosition& colPos, int comp, int parType, int bnd, double val) const                             \
 	{                                                                                                                                   \
-		return getValueImpl<double>(model, colPos, comp, parType, bnd, val);                                                            \
+		return getValueImpl<double>(colPos, comp, parType, bnd, val);                                                                   \
 	}                                                                                                                                   \
                                                                                                                                         \
-	virtual active getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, const active& val) const \
+	virtual active getValue(const ColumnPosition& colPos, int comp, int parType, int bnd, const active& val) const                      \
 	{                                                                                                                                   \
-		return getValueImpl<active>(model, colPos, comp, parType, bnd, val);                                                            \
+		return getValueImpl<active>(colPos, comp, parType, bnd, val);                                                                   \
 	}                                                                                                                                   \
                                                                                                                                         \
-	virtual double getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const                    \
+	virtual double getValue(const ColumnPosition& colPos, int comp, int parType, int bnd) const                                         \
 	{                                                                                                                                   \
-		return getValueImpl<double>(model, colPos, comp, parType, bnd);                                                                 \
+		return getValueImpl<double>(colPos, comp, parType, bnd);                                                                        \
 	}                                                                                                                                   \
                                                                                                                                         \
-	virtual active getValueActive(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const              \
+	virtual active getValueActive(const ColumnPosition& colPos, int comp, int parType, int bnd) const                                   \
 	{                                                                                                                                   \
-		return getValueImpl<active>(model, colPos, comp, parType, bnd);                                                                 \
+		return getValueImpl<active>(colPos, comp, parType, bnd);                                                                        \
 	}
 
 

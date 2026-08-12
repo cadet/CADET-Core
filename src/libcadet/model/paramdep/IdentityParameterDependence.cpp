@@ -107,13 +107,13 @@ protected:
 	}
 
 	template <typename ParamType>
-	ParamType getValueImpl(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const
+	ParamType getValueImpl(const ColumnPosition& colPos, int comp, int parType, int bnd) const
 	{
 		return 0.0;
 	}
 
 	template <typename ParamType>
-	ParamType getValueImpl(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, const ParamType& val) const
+	ParamType getValueImpl(const ColumnPosition& colPos, int comp, int parType, int bnd, const ParamType& val) const
 	{
 		return val;
 	}
