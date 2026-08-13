@@ -93,6 +93,7 @@ namespace parts
 		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity) override;
 		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity) override;
 		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity) override;
+		void applyTimeDerivativeJacobianTransformation(double* result, unsigned int numParticleBlocks, std::vector<double>& scratch) const override;
 
 		double relativeCoordinate(const unsigned int nodeIdx) const CADET_NOEXCEPT  override { return 0.5; }
 
@@ -154,6 +155,7 @@ namespace parts
 		bool _filmDiffusionDepTypeDep; //!< Determines whether parameter dependence of film diffusion is particle type dependent
 		std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
 		MultiplexMode _poreAccessFactorMode;
+		std::vector<Eigen::Triplet<double>> _cMJacobianEntries; //!< Reusable scratch for conserved-moiety Jacobian transformations
 
 		/* geometry */
 		double _SurfVolRatioSphere = 3.0; //!< Surface to volume ratio for a spherical particle

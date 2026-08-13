@@ -487,7 +487,7 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 	if (paramProvider.exists("NREAC_LIQUID"))
 	{
 		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
-		dynReactionConfSuccess = _reaction.configureConservedMoities("liquid", _disc.nComp, 1e-14) && dynReactionConfSuccess;
+		dynReactionConfSuccess = _reaction.configureConservedMoities("liquid", _disc.nComp, 1e-15) && dynReactionConfSuccess;
 	}
 
 	// jaobian pattern set after binding and particle surface diffusion are configured
@@ -496,7 +496,7 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 		hasBulkReaction = true;
 
 	setJacobianPattern(_globalJac, 0, hasBulkReaction);
-	resizeConservedMoietyJacobianBuffer();
+	reserveConservedMoietyBuffers();
 	_globalJacDisc = _globalJac;
 	// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
 	// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
@@ -515,6 +515,8 @@ unsigned int ColumnModel1D<ConvDispOperator>::threadLocalMemorySize() const CADE
 	{
 		if (_binding[i] && _binding[i]->requiresWorkspace())
 			lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
+
+		_particles[i]->getReaction()->setWorkspaceRequirements("liquid", _disc.nComp, _disc.strideBound[i], lms);
 	}
 	// Bulk reaction
 	_reaction.setWorkspaceRequirements("liquid", _disc.nComp, 0, lms);
@@ -524,6 +526,28 @@ unsigned int ColumnModel1D<ConvDispOperator>::threadLocalMemorySize() const CADE
 		: 0u;
 	lms.add<active>(_disc.nComp + maxStrideBound);
 	lms.add<double>((maxStrideBound + _disc.nComp) * (maxStrideBound + _disc.nComp));
+
+	std::size_t maxParticleJacobianScratch = 0;
+	Indexer idxr(_disc);
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
+	{
+		const auto& cm = _particles[type]->getReaction()->conservedMoieties("liquid");
+		if (!cm.isEnabled() || (cm.numEquilibriumReactions() == 0))
+			continue;
+
+		for (unsigned int point = 0; point < _disc.nPoints; ++point)
+		{
+			const int particleOffset = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{point});
+			for (unsigned int shell = 0; shell < _disc.nParPoints[type]; ++shell)
+			{
+				const int rowOffset = particleOffset + shell * idxr.strideParNode(type);
+				maxParticleJacobianScratch = std::max(maxParticleJacobianScratch,
+					cm.matrixBufferSize(_globalJac, _disc.nComp, rowOffset));
+			}
+		}
+	}
+	if (maxParticleJacobianScratch > 0)
+		lms.add<Eigen::Triplet<double>>(maxParticleJacobianScratch);
 
 	lms.commit();
 	const std::size_t resImplSize = lms.bufferSize();
@@ -535,13 +559,19 @@ unsigned int ColumnModel1D<ConvDispOperator>::threadLocalMemorySize() const CADE
 	lms.add<double>(_disc.nComp + maxStrideBound);
 	lms.add<double>((_disc.nComp + maxStrideBound) * (_disc.nComp + maxStrideBound));
 	lms.add<double>(_disc.nComp);
+	lms.add<double>(_disc.nComp);
 
 	lms.addBlock(resImplSize);
 	lms.commit();
 
 	// Memory for consistentInitialSensitivity
-	lms.add<double>(_disc.nComp + maxStrideBound);
-	lms.add<double>(maxStrideBound);
+	const std::size_t maxSensitivityProblemSize = _disc.nComp + maxStrideBound;
+	lms.add<double>(maxSensitivityProblemSize * maxSensitivityProblemSize);
+	lms.add<double>(maxSensitivityProblemSize);
+	lms.add<double>(maxSensitivityProblemSize);
+	lms.add<double>(maxSensitivityProblemSize);
+	lms.add<double>(maxSensitivityProblemSize);
+	lms.add<lapackInt_t>(maxSensitivityProblemSize);
 	lms.commit();
 
 	return lms.bufferSize();
@@ -611,7 +641,7 @@ void ColumnModel1D<ConvDispOperator>::notifyDiscontinuousSectionTransition(doubl
 	// todo: only reset jacobian pattern if it changes, i.e. once in configuration and then only for changes in SurfDiff+kinetic binding.
 	bool hasReaction = _reaction.getDynReactionVector("liquid")[0];
 	setJacobianPattern(_globalJac, 0, hasReaction);
-	resizeConservedMoietyJacobianBuffer();
+	reserveConservedMoietyBuffers();
 	_globalJacDisc = _globalJac;
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
@@ -764,8 +794,7 @@ void ColumnModel1D<ConvDispOperator>::extractJacobianFromAD(active const* const 
 		{
 			const int pointOffset = idxr.offsetC() + point * idxr.strideColNode();
 
-			cm.applyToMatrix(_globalJac, _disc.nComp, pointOffset, idxr.offsetCp(), _globalJac.cols(),
-				_cMJacobianEntries.data(), _cMJacobianEntries.size());
+			cm.applyToMatrix(_globalJac, _disc.nComp, pointOffset, idxr.offsetCp(), _globalJac.cols(), _cMJacobianEntries);
 		}
 	}
 
@@ -1034,8 +1063,8 @@ int ColumnModel1D<ConvDispOperator>::residualImpl(double t, unsigned int secIdx,
 		{
 			if (wantJac)
 			{
-				// estimate new static (per section) jacobian
-				bool success = calcTransportJacobian(t, secIdx, y);
+				// Estimate the new static Jacobian for the current section
+				const bool success = calcTransportJacobian(t, secIdx, y);
 
 				if (cadet_unlikely(!success))
 					LOG(Error) << "Jacobian pattern did not fit the analytical transport Jacobian assembly";
@@ -1085,70 +1114,45 @@ int ColumnModel1D<ConvDispOperator>::residualImpl(double t, unsigned int secIdx,
 	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 	{
 		const unsigned int nMoieties = cm.numMoieties();
-		const unsigned int nEq = cm.numEquilibriumReactions();
-
 		if (wantRes)
 		{
-			BufferedArray<ResidualType> oldRes = tlmAlloc.array<ResidualType>(_disc.nComp);
+			BufferedArray<ResidualType> scratch = tlmAlloc.array<ResidualType>(nMoieties);
 			for (unsigned int point = 0; point < _disc.nPoints; ++point)
 			{
 				const int pointOffset = idxr.offsetC() + point * idxr.strideColNode();
 				ResidualType* const resC = res + pointOffset;
 
-				std::copy_n(resC, _disc.nComp, static_cast<ResidualType*>(oldRes));
-				cm.applyToVector(resC, static_cast<ResidualType*>(oldRes), _disc.nComp);
-
-				ResidualType* const eqRes = resC + nMoieties;
-				std::fill_n(eqRes, nEq, 0.0);
-
-				unsigned int eqIdx = 0;
-				for (auto const* reaction : _reaction.getDynReactionVector("liquid"))
-				{
-					if (!reaction)
-						continue;
-
-					LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
-					reaction->residualEquilibriumFlux(
-						t, secIdx, ColumnPosition{_convDispOp.relativeCoordinate(point), 0.0, 0.0},
-						_disc.nComp, y + pointOffset, eqRes, eqIdx, subAlloc);
-				}
-
-				cadet_assert(eqIdx == nEq);
+				cm.applyToVector(resC, _disc.nComp, static_cast<ResidualType*>(scratch));
+				_reaction.writeEquilibriumResidual("liquid", t, secIdx, ColumnPosition{_convDispOp.relativeCoordinate(point), 0.0, 0.0},
+					_disc.nComp, y + pointOffset, resC + nMoieties, tlmAlloc.manageRemainingMemory());
 			}
 		}
+	}
 
-		if (wantJac)
+
+	if (wantJac)
+	{
+		LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
+
+		// bulk
+		const auto& cm = _reaction.conservedMoieties("liquid");
+		if (cm.isEnabled() && cm.numEquilibriumReactions() != 0)
 		{
-			LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
+			const unsigned int nMoieties = cm.numMoieties();
 
 			for (unsigned int point = 0; point < _disc.nPoints; ++point)
 			{
 				const int pointOffset = idxr.offsetC() + point * idxr.strideColNode();
 
-				cm.applyToMatrix(_globalJac, _disc.nComp, pointOffset, 0, _globalJac.cols(),
-					_cMJacobianEntries.data(), _cMJacobianEntries.size());
-
-				// Replace the remaining component rows by equilibrium equations
-				for (unsigned int r = 0; r < nEq; ++r)
-					_globalJac.innerVector(pointOffset + nMoieties + r) *= 0.0;
+				cm.applyToMatrix(_globalJac, _disc.nComp, pointOffset, _cMJacobianEntries);
 
 				const int equilibriumRowBase = pointOffset + nMoieties;
 				linalg::BandedEigenSparseRowIterator eqJac(_globalJac, equilibriumRowBase);
-				unsigned int eqIdxJac = 0;
-				for (auto const* reaction : _reaction.getDynReactionVector("liquid"))
-				{
-					if (!reaction)
-						continue;
-
-					reaction->analyticEquilibriumJacobian(
-						t, secIdx, ColumnPosition{_convDispOp.relativeCoordinate(point), 0.0, 0.0},
-						_disc.nComp, reinterpret_cast<double const*>(y + pointOffset),
-						eqIdxJac, nMoieties, eqJac, subAlloc);
-				}
-
-				cadet_assert(eqIdxJac == nEq);
+				_reaction.addEquilibriumJacobian("liquid", t, secIdx,
+					ColumnPosition{_convDispOp.relativeCoordinate(point), 0.0, 0.0}, _disc.nComp, reinterpret_cast<double const*>(y + pointOffset), nMoieties, eqJac, subAlloc);
 			}
 		}
+
 	}
 
 	if (!wantRes)
@@ -1333,17 +1337,13 @@ void ColumnModel1D<ConvDispOperator>::multiplyWithJacobian(const SimulationTime&
 	const auto& cm = _reaction.conservedMoieties("liquid");
 	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 	{
-
-		const auto& L = cm.conservedMoietyMatrix();
+		_cMVectorEntries.resize(cm.numMoieties());
+		cm.applyToVector(_cMVectorEntries.data(), yS, _disc.nComp);
 		for (unsigned int moiety = 0; moiety < cm.numMoieties(); ++moiety)
 		{
-			double inletDirection = 0.0;
-			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-				inletDirection += L(moiety, comp) * yS[comp];
-
 			for (unsigned int node = 0; node < static_cast<unsigned int>(_jacInlet.rows()); ++node)
 			{
-				ret[idxr.offsetC() + offInlet + moiety * idxr.strideColComp() + node * idxr.strideColNode()] += alpha * _jacInlet(node, 0) * inletDirection;
+				ret[idxr.offsetC() + offInlet + moiety * idxr.strideColComp() + node * idxr.strideColNode()] += alpha * _jacInlet(node, 0) * _cMVectorEntries[moiety];
 			}
 		}
 
@@ -1421,6 +1421,10 @@ void ColumnModel1D<ConvDispOperator>::multiplyWithDerivativeJacobian(const Simul
 			cm.applyToDerivativeVector(localRet, localSDot, _disc.nComp);
 		}
 	}
+
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
+		_particles[type]->applyTimeDerivativeJacobianTransformation(ret + idxr.offsetCp(ParticleTypeIndex{type}), _disc.nPoints, _cMVectorEntries);
+
 	// Handle inlet DOFs (all algebraic)
 	std::fill_n(ret, _disc.nComp, 0.0);
 }
@@ -1885,28 +1889,40 @@ int ColumnModel1D<ConvDispOperator>::Exporter::writeOutlet(double* buffer) const
 }
 
 template <typename ConvDispOperator>
-void ColumnModel1D<ConvDispOperator>::resizeConservedMoietyJacobianBuffer()
+void ColumnModel1D<ConvDispOperator>::reserveConservedMoietyBuffers()
 {
-	const auto& cm = _reaction.conservedMoieties("liquid");
-	if (!cm.isEnabled() || (cm.numEquilibriumReactions() == 0))
-		return;
-
 	Indexer idxr(_disc);
 	std::size_t maxEntries = 0;
+	std::size_t maxVectorEntries = 0;
 
-	for (unsigned int point = 0; point < _disc.nPoints; ++point)
+	const auto& bulkCm = _reaction.conservedMoieties("liquid");
+	if (bulkCm.isEnabled() && (bulkCm.numEquilibriumReactions() > 0))
 	{
-		const int pointOffset = idxr.offsetC() + point * idxr.strideColNode();
-		std::size_t numEntries = 0;
-		for (unsigned int state = 0; state < _disc.nComp; ++state)
+		maxVectorEntries = bulkCm.numMoieties();
+		for (unsigned int point = 0; point < _disc.nPoints; ++point)
 		{
-			for (SparseMatrix<double, RowMajor>::InnerIterator it(_globalJac, pointOffset + state); it; ++it)
-				++numEntries;
+			const int pointOffset = idxr.offsetC() + point * idxr.strideColNode();
+			std::size_t numEntries = 0;
+			for (unsigned int state = 0; state < _disc.nComp; ++state)
+			{
+				for (SparseMatrix<double, RowMajor>::InnerIterator it(_globalJac, pointOffset + state); it; ++it)
+					++numEntries;
+			}
+			maxEntries = std::max(maxEntries, numEntries);
 		}
-		maxEntries = std::max(maxEntries, numEntries);
 	}
 
-	_cMJacobianEntries.resize(maxEntries);
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
+	{
+		const auto& particleCm = _particles[type]->getReaction()->conservedMoieties("liquid");
+		if (!particleCm.isEnabled() || (particleCm.numEquilibriumReactions() == 0))
+			continue;
+
+		maxVectorEntries = std::max(maxVectorEntries, static_cast<std::size_t>(particleCm.numMoieties()));
+	}
+
+	_cMJacobianEntries.reserve(maxEntries);
+	_cMVectorEntries.reserve(maxVectorEntries);
 }
 
 namespace

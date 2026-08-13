@@ -131,6 +131,55 @@ TEST_CASE("CellKernel time derivative Jacobian multiplier vs matrix", "[CellKern
 	}
 }
 
+TEST_CASE("CellKernel conserved-moiety particle time derivative Jacobian multiplier vs matrix", "[CellKernel],[Jacobian],[ReactionModel]")
+{
+	const double relTol = 1e-15;
+	const double absTol = 1e-15;
+	const double alpha = 2.3;
+	const double porosity = 0.25;
+	const unsigned int nComp = 3;
+	const unsigned int nMoieties = 2;
+	const unsigned int nBound[] = {1, 2, 0};
+	const unsigned int boundOffset[] = {0, 1, 3};
+	const unsigned int nTotalBound = std::accumulate(nBound, nBound + nComp, 0u);
+	const int qsReaction[] = {0, 1, 0};
+
+	std::vector<cadet::active> poreAccessFactor(nComp, 1.0);
+	std::vector<double> direction(nComp + nTotalBound, 0.0);
+	std::vector<double> result(nComp + nTotalBound, 0.0);
+
+	Eigen::MatrixXd conservedMoieties(nMoieties, nComp);
+	conservedMoieties << 1.0, 2.0, -1.0,
+		0.5, -3.0, 4.0;
+
+	cadet::linalg::DenseMatrix matMult;
+	matMult.resize(nComp + nTotalBound, nComp + nTotalBound);
+
+	cadet::linalg::DenseMatrix matDirect;
+	matDirect.resize(nComp + nTotalBound, nComp + nTotalBound);
+
+	recoverTimeDerivativeMatrixFromColumns([&](double* input, double* output)
+		{
+			cadet::model::parts::cell::multiplyWithDerivativeJacobianKernel<true>(input, output, nComp,
+				nBound, boundOffset, nTotalBound, qsReaction, alpha, alpha * (1.0 / porosity - 1.0));
+
+			std::vector<double> rawMobile(output, output + nComp);
+			for (unsigned int moiety = 0; moiety < nMoieties; ++moiety)
+			{
+				output[moiety] = 0.0;
+				for (unsigned int comp = 0; comp < nComp; ++comp)
+					output[moiety] += conservedMoieties(moiety, comp) * rawMobile[comp];
+			}
+			std::fill(output + nMoieties, output + nComp, 0.0);
+		}, matMult, direction.data(), result.data());
+
+	cadet::linalg::DenseMatrix::RowIterator jac = matDirect.row(0);
+	cadet::model::parts::cell::addConservedMoietyTimeDerivativeToJacobianParticleShell(jac, alpha, porosity,
+		nComp, nBound, poreAccessFactor.data(), nTotalBound, boundOffset, qsReaction, conservedMoieties, nMoieties);
+
+	compareMatrix(matMult, matDirect, relTol, absTol);
+}
+
 TEST_CASE("CellKernel time derivative Jacobian analytic vs FD", "[CellKernel],[Jacobian]")
 {
 	const unsigned int nComp = 5;
