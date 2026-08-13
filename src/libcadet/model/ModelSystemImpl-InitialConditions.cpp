@@ -503,6 +503,10 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 		}
 	} CADET_PARFOR_END;
 
+	// Consistent initialization may alter dynamic outlet states, for example when calculated with rapid-reaction equilibrium.
+	// Update the coupling states so that all inlet DOFs reflect the final outlet states before evaluating the residual.
+	std::fill(simState.vecStateY + finalOffset, simState.vecStateY + numDofs(), 0.0);
+	solveCouplingDOF(simState.vecStateY);
 
 	// Phase 2: Calculate residual with current state
 
