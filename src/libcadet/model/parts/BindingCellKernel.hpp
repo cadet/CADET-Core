@@ -21,7 +21,9 @@
 #include "AutoDiff.hpp"
 #include "model/BindingModel.hpp"
 #include "model/ReactionModel.hpp"
+
 #include "model/reaction/ReactionSystem.hpp"
+
 #include "SimulationTypes.hpp"
 
 #include "LoggingUtils.hpp"
@@ -364,6 +366,7 @@ namespace cell
 			else
 				solidRet[bnd] = factor * solidSdot[bnd];
 		}
+
 	}
 
 	/**
@@ -416,6 +419,38 @@ namespace cell
 
 			// Add derivative with respect to dq / dt to Jacobian
 			jac[0] += alpha;
+		}
+	}
+	// Adds L * Jacobian @f$  L \frac{\partial F}{\partial \dot{y}} @f$ to particle liquid rows of system Jacobian
+	template <typename rowIter_t, typename matrix_t>
+	void addConservedMoietyTimeDerivativeToJacobianParticleShell(rowIter_t& jac, double alpha, double porosity, int nComp,unsigned int const* const nBoundPerComp, active const* const poreAccessFactor, const unsigned int nTotalBound,
+		unsigned int const* const offsetBoundComp, int const* const qsReaction, const matrix_t& conservedMoieties, unsigned int nMoieties)
+	{
+		for (unsigned int m = 0; m < nMoieties; ++m, ++jac)
+		{
+			for (int comp = 0; comp < nComp; ++comp)
+			{
+				// for comp without boundstate dF/ddoty = L
+				const double factor = alpha * static_cast<double>(conservedMoieties(m, comp));
+				jac[comp - static_cast<int>(m)] += factor;
+
+				const double invBetaP = (1.0 - porosity) / (static_cast<double>(poreAccessFactor[comp]) * porosity);
+				for (unsigned int i = 0; i < nBoundPerComp[comp]; ++i)
+				{
+					const int idxBoundState = static_cast<int>(offsetBoundComp[comp] + i);
+					jac[nComp + idxBoundState - static_cast<int>(m)] += factor * invBetaP;
+				}
+			}
+		}
+
+		// Skip algebraic equilibrium rows
+		jac += nComp - static_cast<int>(nMoieties);
+
+		// Solid-phase mass entries are not transformed
+		for (unsigned int bnd = 0; bnd < nTotalBound; ++bnd, ++jac)
+		{
+			if (!qsReaction[bnd])
+				jac[0] += alpha;
 		}
 	}
 
