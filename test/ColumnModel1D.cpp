@@ -137,6 +137,73 @@ TEST_CASE("Column_1D as frustum LRMP with FV equivalence with arrow head impleme
 	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
 }
 
+TEST_CASE("Column_1D as radial GRM with FV variable film diffusion equivalence with arrow head implementation", "[RadialColumn1D],[FV],[Simulation],[CI]")
+{
+	// The finite volume coupling points are the cell centers and the exchange coefficient is evaluated
+	// there, so the modular unit must reproduce the arrow head implementation exactly.
+	cadet::JsonParameterProvider jpp1 = createLWE("RADIAL_COLUMN_MODEL_1D_GRM", "FV");
+	cadet::JsonParameterProvider jpp2 = createLWE("RADIAL_COLUMN_MODEL_1D_GRM", "FV");
+	cadet::test::column::FVParams disc(32);
+
+	disc.setDisc(jpp1);
+	disc.setDisc(jpp2);
+
+	cadet::test::column::setVariableFilmDiffusion(jpp1);
+	cadet::test::column::setVariableFilmDiffusion(jpp2);
+
+	// disable arrow head optimization for second setting to route to the modular column model
+	jpp2.pushScope("model");
+	jpp2.pushScope("unit_000");
+	jpp2.pushScope("discretization");
+	jpp2.set("FV_ARROW_HEAD_OPTIMIZATION", false);
+	jpp2.popScope();
+	jpp2.popScope();
+	jpp2.popScope();
+
+	// low time integration tolerances to minimize impact of different linear solvers
+	for (cadet::JsonParameterProvider* jpp : { &jpp1, &jpp2 })
+	{
+		jpp->pushScope("solver");
+		jpp->pushScope("time_integrator");
+		jpp->set("ABSTOL", 1e-12);
+		jpp->set("RELTOL", 1e-10);
+		jpp->popScope();
+		jpp->popScope();
+	}
+
+	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
+}
+
+TEST_CASE("Column_1D as radial GRM with FV variable film diffusion Jacobian vs AD", "[RadialColumn1D],[FV],[UnitOp],[Jacobian],[AD],[CI]")
+{
+	cadet::test::column::testJacobianADVariableFilmDiff("RADIAL_COLUMN_MODEL_1D_GRM", "FV", true, true);
+}
+
+TEST_CASE("Column_1D as radial LRMP with FV variable film diffusion Jacobian vs AD", "[RadialColumn1D],[FV],[UnitOp],[Jacobian],[AD],[CI]")
+{
+	cadet::test::column::testJacobianADVariableFilmDiff("RADIAL_COLUMN_MODEL_1D_LRMP", "FV", true, true);
+}
+
+TEST_CASE("Column_1D as radial GRM with DG variable film diffusion Jacobian vs AD", "[RadialColumn1D],[DG],[UnitOp],[Jacobian],[AD],[CI]")
+{
+	cadet::test::column::testJacobianADVariableFilmDiff("RADIAL_COLUMN_MODEL_1D_GRM", "DG", true);
+}
+
+TEST_CASE("Column_1D as radial LRMP with DG variable film diffusion Jacobian vs AD", "[RadialColumn1D],[DG],[UnitOp],[Jacobian],[AD],[CI]")
+{
+	cadet::test::column::testJacobianADVariableFilmDiff("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", true);
+}
+
+TEST_CASE("Column_1D as frustum LRMP with DG variable film diffusion Jacobian vs AD", "[AxialColumn1D],[DG],[UnitOp],[Jacobian],[AD],[CI]")
+{
+	cadet::test::column::testJacobianADVariableFilmDiff("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG", true);
+}
+
+TEST_CASE("Column_1D as GRM with DG variable film diffusion Jacobian vs AD", "[AxialColumn1D],[DG],[DG1D],[UnitOp],[Jacobian],[AD],[CI]")
+{
+	cadet::test::column::testJacobianADVariableFilmDiff("COLUMN_MODEL_1D_GRM", "DG", true);
+}
+
 TEST_CASE("Column_1D as GRM with FV transport Jacobian", "[AxialColumn1D],[FV],[UnitOp],[Jacobian],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "COLUMN_MODEL_1D_GRM", "FV");
