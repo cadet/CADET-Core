@@ -357,6 +357,10 @@ protected:
 
 	Eigen::MatrixXd _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
 
+	std::vector<ColumnPosition> _filmDiffQuadPos; //!< Positions at which the film diffusion coefficient is evaluated
+	std::vector<active> _filmDiffQuadVelocity; //!< Interstitial velocity at these positions
+	std::vector<double> _filmDiffQuadWeights; //!< Weights averaging these samples onto the bulk points
+
 	active _colPorosity; //!< Column porosity (external porosity) \f$ \varepsilon_c \f$
 	std::vector<active> _parTypeVolFrac; //!< Volume fraction of each particle type
 
@@ -596,6 +600,40 @@ protected:
 		globalJ.setFromTriplets(tripletList.begin(), tripletList.end());
 	}
 
+	/**
+	 * @brief Collects the quadrature rule for spatially varying bulk-particle exchange coefficients
+	 * @details The positions and averaging weights are provided by the bulk discretization and do not change
+	 *          during the simulation, whereas the interstitial velocity is section dependent and is therefore
+	 *          refreshed on every call.
+	 */
+	CouplingQuadrature filmDiffusionQuadrature()
+	{
+		const int nQuad = _filmDiffQuadWeights.size() / _disc.nPoints;
+
+		for (unsigned int k = 0; k < _filmDiffQuadPos.size(); ++k)
+			_filmDiffQuadVelocity[k] = _convDispOp.currentVelocity(_filmDiffQuadPos[k].primary);
+
+		return CouplingQuadrature{ nQuad, _filmDiffQuadPos.data(), _filmDiffQuadVelocity.data(), _filmDiffQuadWeights.data() };
+	}
+
+	/**
+	 * @brief Queries the positions and averaging weights of the exchange coefficient quadrature from the bulk operator
+	 */
+	void setupFilmDiffusionQuadrature()
+	{
+		const int nQuad = _convDispOp.couplingQuadratureOrder();
+		const int nTotal = _disc.nPoints * nQuad;
+
+		std::vector<double> relPos(nTotal);
+		_filmDiffQuadWeights.resize(nTotal);
+		_convDispOp.writeCouplingQuadrature(_disc.nPoints, relPos.data(), _filmDiffQuadWeights.data());
+
+		_filmDiffQuadPos.resize(nTotal);
+		_filmDiffQuadVelocity.resize(nTotal);
+		for (int k = 0; k < nTotal; ++k)
+			_filmDiffQuadPos[k] = ColumnPosition{ relPos[k], 0.0, 0.0 };
+	}
+
 	template <typename StateType>
 	int calcTransportJacobian(const double t, const unsigned int secIdx, const StateType* const y)
 	{
@@ -612,9 +650,11 @@ protected:
 			}
 		}
 
+		const CouplingQuadrature filmDiffQuad = filmDiffusionQuadrature();
+
 		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 		{
-			_particles[parType]->calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], _globalJac);
+			_particles[parType]->calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], filmDiffQuad, _globalJac);
 		}
 
 		return _globalJac.isCompressed(); // check if the jacobian estimation fits the pattern

@@ -302,25 +302,30 @@ namespace model
 			jacIt += stridePoint();
 		}
 
+		// Nodal film diffusion coefficients of this coupling point. The same values are used in the bulk
+		// and in the particle equation, which keeps the exchanged mass balanced between the two phases.
+		BufferedArray<ParamType> effFilmDiffBuffer = tlmAlloc.array<ParamType>(_nComp);
+		ParamType* const effFilmDiff = static_cast<ParamType*>(effFilmDiffBuffer);
+		_parDiffOp->evaluateFilmDiffusion(secIdx, packing.filmDiffQuad, effFilmDiff);
+
 		// particle diffusion, including film diffusion boundary condition
 		ResidualType* wantResPtr = wantRes ? resPar : nullptr;
 		linalg::BandedEigenSparseRowIterator jacSafe = wantNonLinJac ? jacBase : linalg::BandedEigenSparseRowIterator{};
-		_parDiffOp->residual(t, secIdx, yPar, yBulk, yDotPar, wantResPtr, jacSafe, typename ParamSens<ParamType>::enabled());
+		_parDiffOp->residual(t, secIdx, yPar, yBulk, yDotPar, wantResPtr, jacSafe, effFilmDiff, typename ParamSens<ParamType>::enabled());
 
 		if (wantRes)
 		{
 			// film diffusion bulk eq. term
-			active const* const filmDiff = _parDiffOp->getFilmDiffusion(secIdx);
 			const ParamType invBetaC = 1.0 / static_cast<ParamType>(packing.colPorosity) - 1.0;
 			const ParamType jacCF_val = invBetaC * static_cast<ParamType>(surfaceToVolumeRatio());
 
 			// Add flux to column void / bulk volume using discretized film diffusion
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
-				ParamType discretizedFilmDiffusionFactor = static_cast<ParamType>(_parDiffOp->discretizedFilmDiffusionFactor(comp));
+				const ParamType discretizedFilmDiffusionFactor = _parDiffOp->discretizedFilmDiffusionFactor(comp, secIdx, effFilmDiff[comp]);
 
 				// + 1/Beta^c * (surfaceToVolumeRatio^p_j) * d_j * (k_f * [c^b - c^p])
-				resBulk[comp] += discretizedFilmDiffusionFactor * static_cast<ParamType>(filmDiff[comp]) * jacCF_val * static_cast<ParamType>(packing.parTypeVolFrac) * (yBulk[comp] - yPar[(nDiscPoints() - 1) * stridePoint() + comp]);
+				resBulk[comp] += discretizedFilmDiffusionFactor * effFilmDiff[comp] * jacCF_val * static_cast<ParamType>(packing.parTypeVolFrac) * (yBulk[comp] - yPar[(nDiscPoints() - 1) * stridePoint() + comp]);
 			}
 		}
 
@@ -339,9 +344,9 @@ namespace model
 		return _parDiffOp->calcParticleDiffJacobian(secIdx, colNode, offsetLocalCp, globalJac);
 	}
 	
-	int GeneralRateParticle::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
+	int GeneralRateParticle::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, const CouplingQuadrature& filmDiffQuad, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
 	{
-		return _parDiffOp->calcFilmDiffJacobian(secIdx, offsetCp, offsetC, nBulkPoints, nParType, colPorosity, parTypeVolFrac, globalJac, outliersOnly);
+		return _parDiffOp->calcFilmDiffJacobian(secIdx, offsetCp, offsetC, nBulkPoints, nParType, colPorosity, parTypeVolFrac, filmDiffQuad, globalJac, outliersOnly);
 	}
 
 	bool GeneralRateParticle::setParameter(const ParameterId& pId, double value)
