@@ -169,6 +169,14 @@ namespace cadet
 			virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity) = 0;
 			virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity) = 0;
 
+			/**
+			 * @brief Applies particle-specific transformations to time-derivative Jacobian products
+			 * @param [in,out] result First particle block of this particle type
+			 * @param [in] numParticleBlocks Number of consecutive particle blocks
+			 * @param [in,out] scratch Reusable transformation scratch
+			 */
+			virtual void applyTimeDerivativeJacobianTransformation(double* result,unsigned int numParticleBlocks, std::vector<double>& scratch) const { }
+
 			virtual double relativeCoordinate(const unsigned int nodeIdx) const CADET_NOEXCEPT = 0;
 
 			virtual active surfaceToVolumeRatio() const CADET_NOEXCEPT = 0;

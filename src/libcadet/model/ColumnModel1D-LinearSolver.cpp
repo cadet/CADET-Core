@@ -206,18 +206,25 @@ void ColumnModel1D<ConvDispOperator>::assembleDiscretizedGlobalJacobian(double a
 
 	// Add time derivatives to particle shells
 	for (unsigned int parType = 0; parType < _disc.nParType; parType++) {
+		const auto& particleCm = _particles[parType]->getReaction()->conservedMoieties("liquid");
+		const bool hasParticleEquilibrium = _particles[parType]->isParticleLumped() && particleCm.isEnabled() && (particleCm.numEquilibriumReactions() > 0);
+
 		for (unsigned int colNode = 0; colNode < _disc.nPoints; colNode++) {
 
 			linalg::BandedEigenSparseRowIterator jac(_globalJacDisc, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
 
-			addTimeDerivativeToJacobianParticleShell(jac, idxr, alpha, parType);
-
-			// compute time derivative of remaining points
-			// Iterator jac has already been advanced to next shell
-			for (unsigned int j = 1; j < _disc.nParPoints[parType]; ++j)
+			for (unsigned int shell = 0; shell < _disc.nParPoints[parType]; ++shell)
 			{
-				addTimeDerivativeToJacobianParticleShell(jac, idxr, alpha, parType);
-				// Iterator jac has already been advanced to next shell
+				if (hasParticleEquilibrium)
+				{
+					parts::cell::addConservedMoietyTimeDerivativeToJacobianParticleShell(jac, alpha, static_cast<double>(_particles[parType]->getPorosity()), _disc.nComp,
+						_disc.nBound + _disc.nComp * parType, _particles[parType]->getPoreAccessFactor(), _disc.strideBound[parType], _disc.boundOffset + _disc.nComp * parType,
+						_binding[parType]->reactionQuasiStationarity(), particleCm.conservedMoietyMatrix(), particleCm.numMoieties());
+				}
+				else
+				{
+					addTimeDerivativeToJacobianParticleShell(jac, idxr, alpha, parType);
+				}
 			}
 		}
 	}

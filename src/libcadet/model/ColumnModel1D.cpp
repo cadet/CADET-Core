@@ -515,6 +515,8 @@ unsigned int ColumnModel1D<ConvDispOperator>::threadLocalMemorySize() const CADE
 	{
 		if (_binding[i] && _binding[i]->requiresWorkspace())
 			lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
+
+		_particles[i]->getReaction()->setWorkspaceRequirements("liquid", _disc.nComp, _disc.strideBound[i], lms);
 	}
 	// Bulk reaction
 	_reaction.setWorkspaceRequirements("liquid", _disc.nComp, 0, lms);
@@ -524,6 +526,19 @@ unsigned int ColumnModel1D<ConvDispOperator>::threadLocalMemorySize() const CADE
 		: 0u;
 	lms.add<active>(_disc.nComp + maxStrideBound);
 	lms.add<double>((maxStrideBound + _disc.nComp) * (maxStrideBound + _disc.nComp));
+
+	std::size_t maxParticleJacobianScratch = 0;
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
+	{
+		const auto& cm = _particles[type]->getReaction()->conservedMoieties("liquid");
+		if (!cm.isEnabled() || (cm.numEquilibriumReactions() == 0))
+			continue;
+
+		const std::size_t stridePoint = _disc.nComp + _disc.strideBound[type];
+		maxParticleJacobianScratch = std::max(maxParticleJacobianScratch, static_cast<std::size_t>(_disc.nComp) * (stridePoint + _disc.nComp));
+	}
+	if (maxParticleJacobianScratch > 0)
+		lms.add<ConservedMoieties::EigenSparseMatrixEntry>(maxParticleJacobianScratch);
 
 	lms.commit();
 	const std::size_t resImplSize = lms.bufferSize();
@@ -1377,6 +1392,10 @@ void ColumnModel1D<ConvDispOperator>::multiplyWithDerivativeJacobian(const Simul
 			cm.applyToDerivativeVector(localRet, localSDot, _disc.nComp);
 		}
 	}
+
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
+		_particles[type]->applyTimeDerivativeJacobianTransformation(ret + idxr.offsetCp(ParticleTypeIndex{type}), _disc.nPoints, _cMVectorEntries);
+
 	// Handle inlet DOFs (all algebraic)
 	std::fill_n(ret, _disc.nComp, 0.0);
 }
