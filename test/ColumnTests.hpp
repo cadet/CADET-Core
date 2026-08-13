@@ -846,6 +846,13 @@ namespace column
 	 */
 	void testOutputIDASMetaData(const std::string& uoType, const std::string& spatialMethod);
 
+	/**
+	 * @brief Tests that USER_SOLUTION_TIMES_UNIT_STATE produces separate time grids for outlet vs internal state
+	 * @param [in] uoType Unit operation type
+	 * @param [in] spatialMethod Spatial discretization method
+	 */
+	void testOutputUnitStateTimes(const std::string& uoType, const std::string& spatialMethod);
+
 
 } // namespace column
 } // namespace test
