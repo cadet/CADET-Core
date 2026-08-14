@@ -502,7 +502,8 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 
 	// ==== Film diffusion parameter dependence
 	paramProvider.pushScope("particle_type_000");
-	if (paramProvider.exists("FILM_DIFFUSION_DEP"))
+	_hasFilmDiffDep = paramProvider.exists("FILM_DIFFUSION_DEP");
+	if (_hasFilmDiffDep)
 	{
 		const std::string paramDepName = paramProvider.getString("FILM_DIFFUSION_DEP");
 		_filmDiffDep = helper.createParameterParameterDependence(paramDepName);
@@ -1002,15 +1003,19 @@ void GeneralRateModel<ConvDispOperator>::useAnalyticJacobian(const bool analytic
 template <typename ConvDispOperator>
 void GeneralRateModel<ConvDispOperator>::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
-	// Setup flux Jacobian blocks at the beginning of the simulation or in case of
-	// section dependent film or particle diffusion coefficients
-	if ((secIdx == 0) || isSectionDependent(_filmDiffusionMode) || isSectionDependent(_parDiffusionMode) || isSectionDependent(_parSurfDiffusionMode))
-		assembleOffdiagJac(t, secIdx, simState.vecStateY);
-
 	Indexer idxr(_disc);
 
 	// AxialConvectionDispersionOperator tells us whether flow direction has changed
-	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, adJac))
+	const bool hasFlowDirectionChanged = _convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, adJac);
+
+	// Setup flux Jacobian blocks at the beginning of the simulation or in case of section dependent
+	// film or particle diffusion coefficients. The blocks have to be assembled after the convection
+	// dispersion operator has been notified since the film diffusion parameter dependence is evaluated
+	// at the interstitial velocity of the new section.
+	if ((secIdx == 0) || isSectionDependent(_filmDiffusionMode) || isSectionDependent(_parDiffusionMode) || isSectionDependent(_parSurfDiffusionMode) || _hasFilmDiffDep)
+		assembleOffdiagJac(t, secIdx, simState.vecStateY);
+
+	if (!hasFlowDirectionChanged)
 		return;
 
 	// Setup the matrix connecting inlet DOFs to first column cells

@@ -386,6 +386,10 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 
 	const bool transportSuccess = _convDispOp.configure(_unitOpIdx, paramProvider, _parameters);
 
+	// The quadrature rule for spatially varying bulk-particle exchange coefficients follows from the bulk
+	// discretization and its geometry, both of which are known now
+	setupFilmDiffusionQuadrature();
+
 	// Read geometry parameters handled by unit operation
 	_colPorosity = paramProvider.getDouble("COL_POROSITY");
 
@@ -604,6 +608,9 @@ void ColumnModel1D<ConvDispOperator>::useAnalyticJacobian(const bool analyticJac
 template <typename ConvDispOperator>
 void ColumnModel1D<ConvDispOperator>::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
+	// Refresh the exchange coefficient quadrature, its positions and weights depend on geometry parameters
+	setupFilmDiffusionQuadrature();
+
 	Indexer idxr(_disc);
 
 	// todo: only reset jacobian pattern if it changes, i.e. once in configuration and then only for changes in SurfDiff+kinetic binding.
@@ -748,9 +755,11 @@ void ColumnModel1D<ConvDispOperator>::extractJacobianFromAD(active const* const 
 
 	/* Add analytically derived flux entries (only those that are part of the outlier bands) */
 	// todo extract these entries instead of analytical calculation?
+	const CouplingQuadrature filmDiffQuad = filmDiffusionQuadrature();
+
 	for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 	{
-		_particles[parType]->calcFilmDiffJacobian(_disc.curSection, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(parType)}), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], _globalJac, true);
+		_particles[parType]->calcFilmDiffJacobian(_disc.curSection, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(parType)}), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], filmDiffQuad, _globalJac, true);
 	}
 
 	const auto& cm = _reaction.conservedMoieties("liquid");
@@ -1019,6 +1028,8 @@ int ColumnModel1D<ConvDispOperator>::residualImpl(double t, unsigned int secIdx,
 	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 	Indexer idxr(_disc);
 
+	const CouplingQuadrature filmDiffQuad = filmDiffusionQuadrature();
+
 #ifdef CADET_PARALLELIZE
 	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nPoints * _disc.nParType + 1), [&](std::size_t pblk)
 #else
@@ -1057,7 +1068,8 @@ int ColumnModel1D<ConvDispOperator>::residualImpl(double t, unsigned int secIdx,
 			{
 				_parTypeVolFrac[parType + _disc.nParType * colNode],
 				_colPorosity,
-				ColumnPosition{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }
+				ColumnPosition{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 },
+				filmDiffQuad.slice(colNode)
 			};
 
 

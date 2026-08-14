@@ -1252,25 +1252,39 @@ namespace column
 		testJacobianAD(jpp, 1e-14);
 	}
 
-	void testJacobianADVariableFilmDiff(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding)
+	void setVariableFilmDiffusion(cadet::JsonParameterProvider& jpp)
+	{
+		auto ms = util::makeOptionalGroupScope(jpp, "model");
+		auto us = util::makeOptionalGroupScope(jpp, "unit_000");
+
+		// reference interstitial velocity of the test setting, 5.75e-4 in all cases (axial units specify VELOCITY,
+		// radial and frustum FV units specify VELOCITY_COEFF, the frustum DG unit derives it from flow rate and geometry)
+		const double velocityCoeff = jpp.exists("VELOCITY_COEFF") ? jpp.getDouble("VELOCITY_COEFF") : (jpp.exists("VELOCITY") ? jpp.getDouble("VELOCITY") : 5.75e-4);
+
+		auto ps = util::makeOptionalGroupScope(jpp, "particle_type_000");
+
+		const double filmDiff = jpp.getDoubleArray("FILM_DIFFUSION")[0];
+		const double fdDepExp = 1.0 / 3.0;
+		const double fdDepBase = filmDiff / std::pow(velocityCoeff, fdDepExp);
+
+		jpp.set("FILM_DIFFUSION_DEP", "POWER_LAW");
+		jpp.set("FILM_DIFFUSION_DEP_BASE", fdDepBase);
+		jpp.set("FILM_DIFFUSION_DEP_EXPONENT", fdDepExp);
+		jpp.set("FILM_DIFFUSION_DEP_ABS", true);
+	}
+
+	void testJacobianADVariableFilmDiff(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding, bool disableFVArrowHead)
 	{
 		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
 		setBindingMode(jpp, dynamicBinding);
+		setVariableFilmDiffusion(jpp);
+
+		if (disableFVArrowHead)
 		{
 			auto ms = util::makeOptionalGroupScope(jpp, "model");
 			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
-
-			const double velocityCoeff = jpp.getDouble("VELOCITY_COEFF"); // 5.75e-4
-
-			auto ps = util::makeOptionalGroupScope(jpp, "particle_type_000");
-
-			const double filmDiff = jpp.getDoubleArray("FILM_DIFFUSION")[0];
-			const double fdDepExp = 1.0 / 3.0;
-			const double fdDepBase = filmDiff / std::pow(velocityCoeff, fdDepExp);
-
-			jpp.set("FILM_DIFFUSION_DEP_BASE", fdDepBase);
-			jpp.set("FILM_DIFFUSION_DEP_EXPONENT", fdDepExp);
-			jpp.set("FILM_DIFFUSION_DEP_ABS", true);
+			auto ds = util::makeOptionalGroupScope(jpp, "discretization");
+			jpp.set("FV_ARROW_HEAD_OPTIMIZATION", false);
 		}
 
 		testJacobianAD(jpp, 1e-14);

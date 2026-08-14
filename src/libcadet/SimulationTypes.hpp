@@ -34,6 +34,33 @@ struct ColumnPosition
 };
 
 /**
+ * @brief Quadrature rule for averaging a spatially varying exchange coefficient onto the bulk points
+ * @details Bulk-particle exchange terms (film diffusion) carry a coefficient that may vary in space.
+ *          The bulk discretization provides the positions at which the coefficient has to be evaluated
+ *          and the weights that average these samples onto a bulk point,
+ *          @f[ \tilde{k}_i = \sum_q w_{iq} k\left( \rho_{iq} \right), @f]
+ *          so that the phase owning the coefficient can evaluate it without knowing the bulk
+ *          discretization, and the bulk discretization does not need to know the coefficient.
+ *          The weights of a bulk point sum to one, hence a constant coefficient is reproduced exactly.
+ *          A single quadrature point with weight one recovers evaluation at the bulk point itself.
+ */
+struct CouplingQuadrature
+{
+	int nQuadPoints; //!< Number of quadrature points per bulk point
+	ColumnPosition const* colPos; //!< Positions in relative coordinates, bulk point major
+	active const* velocity; //!< Interstitial velocity at the positions, bulk point major
+	double const* weights; //!< Averaging weights, bulk point major
+
+	/**
+	 * @brief Returns the rule belonging to a single bulk point
+	 */
+	inline CouplingQuadrature slice(int point) const CADET_NOEXCEPT
+	{
+		return CouplingQuadrature{ nQuadPoints, colPos + point * nQuadPoints, velocity + point * nQuadPoints, weights + point * nQuadPoints };
+	}
+};
+
+/**
  * @brief Common parameters for Jacobians via AD
  */
 struct AdJacobianParams

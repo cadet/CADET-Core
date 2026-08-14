@@ -118,6 +118,7 @@ namespace cadet
 			const active& parTypeVolFrac;
 			const active& colPorosity;
 			ColumnPosition colPos;
+			CouplingQuadrature filmDiffQuad; //!< Rule for averaging the film diffusion coefficient onto this bulk point
 		};
 
 		/**
@@ -210,8 +211,9 @@ namespace cadet
 			 * @brief calculates the film diffusion Jacobian
 			 * @return 1 if jacobain calculation fits the predefined pattern of the jacobian, 0 if not
 			 * @param [in] parTypeVolFrac pointer to the particle type volume fractions in column-position-major order
+			 * @param [in] filmDiffQuad rule for averaging the film diffusion coefficient onto the bulk points
 			 */
-			virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac, bool crossDepsOnly = false) = 0;
+			virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, const CouplingQuadrature& filmDiffQuad, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac, bool crossDepsOnly = false) = 0;
 
 			virtual bool setParameter(const ParameterId& pId, double value) = 0;
 			virtual bool setParameter(const ParameterId& pId, int value) = 0;

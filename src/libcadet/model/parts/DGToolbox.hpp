@@ -242,6 +242,29 @@ Eigen::MatrixXd weightedQuadMassMatrix(
  * @param [in] leftElemBndries left element boundaries array
  */
 void writeDGCoordinates(double* coords, const int nElem, const int nNodes, const double* DGnodes, const double length, const double* leftElemBndries);
+/**
+ * @brief Computes weights that average a spatially varying coefficient onto the DG nodes
+ *
+ * @details Computes
+ *
+ *     W[i,q] = w_q L_i(xi_q) g(xi_q) / sum_p w_p L_i(xi_p) g(xi_p),
+ *
+ * such that the nodal average of a coefficient @f$ k @f$ is obtained as
+ *
+ *     k_i = sum_q W[i,q] k(xi_q)  ~  ( int L_i k g dxi ) / ( int L_i g dxi ),
+ *
+ * i.e. the row sums of the parameter weighted mass matrix, normalized by the row sums of the
+ * geometry weighted mass matrix. The rows of @p W sum to one, hence a constant coefficient is
+ * reproduced exactly. Evaluating the integrals with a de-aliasing quadrature rule removes the
+ * aliasing error that sampling @f$ k @f$ at the interpolation nodes would introduce.
+ *
+ * @param [in] LGLnodes interpolation nodes of the Lagrange basis
+ * @param [in] QNodes quadrature nodes
+ * @param [in] QWeights quadrature weights
+ * @param [in] geomAtQNodes geometric weight (e.g. the radius for radial flow) at the quadrature nodes
+ * @return Averaging weights of size nNodes x nQuadNodes
+ */
+Eigen::MatrixXd nodalAveragingWeights(const Eigen::VectorXd& LGLnodes, const Eigen::VectorXd& QNodes, const Eigen::VectorXd& QWeights, const Eigen::VectorXd& geomAtQNodes);
 
 } // namespace dgtoolbox
 } // namespace parts

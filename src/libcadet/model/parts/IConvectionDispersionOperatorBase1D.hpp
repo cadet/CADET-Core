@@ -162,6 +162,37 @@
 			virtual double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT = 0;
 
 			/**
+			* @brief Number of quadrature points per bulk point used to average a spatially varying exchange coefficient
+			* @details Exchange terms between the bulk and an attached phase (e.g. film diffusion) carry a coefficient
+			*          that may vary in space. Sampling it at the bulk points introduces an aliasing error for
+			*          discretizations whose points do not represent cell averages. Discretizations that need a
+			*          quadrature rule to average the coefficient report more than one point here and provide the
+			*          rule via writeCouplingQuadrature(). Defaults to sampling at the bulk point itself, which is
+			*          the exact treatment for finite volumes.
+			*/
+			virtual int couplingQuadratureOrder() const CADET_NOEXCEPT { return 1; }
+
+			/**
+			* @brief Writes the quadrature rule that averages a spatially varying exchange coefficient onto the bulk points
+			* @details The nodal coefficient of bulk point @c i is obtained as
+			*          @f[ \tilde{k}_i = \sum_q w_{iq} k\left( \rho_{iq} \right), @f]
+			*          where the positions @f$ \rho_{iq} @f$ are written to @p relPos and the weights @f$ w_{iq} @f$
+			*          to @p weights, both in bulk point major order with couplingQuadratureOrder() entries per point.
+			*          The weights of each bulk point sum to one, so a constant coefficient is reproduced exactly.
+			* @param [in] nPoints Number of bulk points
+			* @param [out] relPos Positions in relative coordinates, size @p nPoints * couplingQuadratureOrder()
+			* @param [out] weights Averaging weights, size @p nPoints * couplingQuadratureOrder()
+			*/
+			virtual void writeCouplingQuadrature(unsigned int nPoints, double* relPos, double* weights) const CADET_NOEXCEPT
+			{
+				for (unsigned int point = 0; point < nPoints; ++point)
+				{
+					relPos[point] = relativeCoordinate(point);
+					weights[point] = 1.0;
+				}
+			}
+
+			/**
 			* @brief Returns @c true if the current interstitial velocity is non-negative (forward flow)
 			*/
 			virtual bool forwardFlow() const CADET_NOEXCEPT = 0;

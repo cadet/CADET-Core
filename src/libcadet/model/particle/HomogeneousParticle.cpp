@@ -43,13 +43,14 @@ namespace model
 	/**
 	 * @brief Creates a HomogeneousParticle
 	 */
-	HomogeneousParticle::HomogeneousParticle() : _boundOffset(nullptr)
+	HomogeneousParticle::HomogeneousParticle() : _filmDiffDep(nullptr), _boundOffset(nullptr)
 	{
 	}
 
 	HomogeneousParticle::~HomogeneousParticle() CADET_NOEXCEPT
 	{
 		delete[] _boundOffset;
+		delete _filmDiffDep;
 	}
 
 	bool HomogeneousParticle::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp)
@@ -100,6 +101,21 @@ namespace model
 		for (unsigned int i = 1; i < _nComp; ++i)
 		{
 			_boundOffset[i] = _boundOffset[i - 1] + _nBound[i - 1];
+		}
+
+		// ==== Construct and configure film diffusion parameter dependence
+
+		delete _filmDiffDep;
+		_filmDiffDep = nullptr;
+
+		if (paramProvider.exists("FILM_DIFFUSION_DEP"))
+		{
+			const std::string paramDepName = paramProvider.getString("FILM_DIFFUSION_DEP");
+			_filmDiffDep = helper.createParameterParameterDependence(paramDepName);
+			if (!_filmDiffDep)
+				throw InvalidParameterException("Unknown parameter dependence " + paramDepName + " in FILM_DIFFUSION_DEP of particle type " + std::to_string(_parTypeIdx));
+
+			_filmDiffDep->configureModelDiscretization(paramProvider);
 		}
 
 		// ==== Construct and configure binding model
@@ -228,6 +244,19 @@ namespace model
 
 		bool filmDiffParTypeDep = paramProvider.exists("FILM_DIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getBool("FILM_DIFFUSION_PARTYPE_DEPENDENT") : true;
 		_filmDiffusionMode = readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", _nComp, _parTypeIdx, filmDiffParTypeDep, unitOpIdx);
+
+		if (_filmDiffDep)
+		{
+			// The dependence follows the particle type dependence of the coefficient it modifies
+			const ParticleTypeIdx depParTypeIdx = filmDiffParTypeDep ? static_cast<ParticleTypeIdx>(_parTypeIdx) : ParTypeIndep;
+
+			if (!_filmDiffDep->configure(paramProvider, unitOpIdx, depParTypeIdx, BoundStateIndep, "FILM_DIFFUSION_DEP"))
+				throw InvalidParameterException("Failed to configure film diffusion parameter dependence (FILM_DIFFUSION_DEP) of particle type " + std::to_string(_parTypeIdx));
+
+			// Expose the dependence parameters through the unit operation parameter map
+			for (const std::pair<const ParameterId, double>& param : _filmDiffDep->getAllParameterValues())
+				parameters[param.first] = _filmDiffDep->getParameter(param.first);
+		}
 
 		if (paramProvider.exists("PORE_ACCESSIBILITY"))
 		{
@@ -396,14 +425,16 @@ namespace model
 		// Film diffusion flux
 		if (wantRes)
 		{
-			const active* const filmDiff = getSectionDependentSlice(_filmDiffusion, _nComp, secIdx);
+			BufferedArray<ParamType> effFilmDiffBuffer = tlmAlloc.array<ParamType>(_nComp);
+			ParamType* const effFilmDiff = static_cast<ParamType*>(effFilmDiffBuffer);
+			evaluateFilmDiffusion(secIdx, packing.filmDiffQuad, effFilmDiff);
 
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
 				// flux into particle
-				resPar[comp] += jacPF_val / static_cast<ParamType>(_poreAccessFactor[comp]) * static_cast<ParamType>(filmDiff[comp]) * (yBulk[comp * _strideBulkComp] - yPar[comp]);
+				resPar[comp] += jacPF_val / static_cast<ParamType>(_poreAccessFactor[comp]) * effFilmDiff[comp] * (yBulk[comp * _strideBulkComp] - yPar[comp]);
 				// flux into bulk
-				resBulk[comp] += jacCF_val * static_cast<ParamType>(filmDiff[comp]) * static_cast<ParamType>(packing.parTypeVolFrac) * (yBulk[comp] - yPar[comp]);
+				resBulk[comp] += jacCF_val * effFilmDiff[comp] * static_cast<ParamType>(packing.parTypeVolFrac) * (yBulk[comp] - yPar[comp]);
 			}
 		}
 
@@ -438,7 +469,35 @@ namespace model
 		return 1;
 	}
 	
-	int HomogeneousParticle::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool crossDepsOnly)
+	template <typename ParamType>
+	void HomogeneousParticle::evaluateFilmDiffusion(unsigned int secIdx, const CouplingQuadrature& quad, ParamType* buffer) const
+	{
+		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _nComp, secIdx);
+
+		if (!_filmDiffDep)
+		{
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
+				buffer[comp] = static_cast<ParamType>(filmDiff[comp]);
+
+			return;
+		}
+
+		for (unsigned int comp = 0; comp < _nComp; ++comp)
+		{
+			// Average the dependence over the quadrature points of this coupling point. The weights sum to
+			// one, so a dependence that is constant over the element leaves the coefficient unchanged.
+			ParamType modifier = 0.0;
+			for (int q = 0; q < quad.nQuadPoints; ++q)
+				modifier += quad.weights[q] * _filmDiffDep->getValue(quad.colPos[q], comp, _parTypeIdx, BoundStateIndep, static_cast<ParamType>(quad.velocity[q]));
+
+			buffer[comp] = static_cast<ParamType>(filmDiff[comp]) * modifier;
+		}
+	}
+
+	template void HomogeneousParticle::evaluateFilmDiffusion<double>(unsigned int secIdx, const CouplingQuadrature& quad, double* buffer) const;
+	template void HomogeneousParticle::evaluateFilmDiffusion<active>(unsigned int secIdx, const CouplingQuadrature& quad, active* buffer) const;
+
+	int HomogeneousParticle::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, const CouplingQuadrature& filmDiffQuad, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool crossDepsOnly)
 	{
 		const double invBetaC = 1.0 / static_cast<double>(colPorosity) - 1.0;
 
@@ -448,35 +507,37 @@ namespace model
 		// Ordering of diffusion:
 		// sec0type0comp0, sec0type0comp1, sec0type0comp2, sec0type1comp0, sec0type1comp1, sec0type1comp2,
 		// sec1type0comp0, sec1type0comp1, sec1type0comp2, sec1type1comp0, sec1type1comp1, sec1type1comp2, ...
-		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _nComp, secIdx);
 		active const* const poreAccFactor = _poreAccessFactor.data();
+		std::vector<double> effFilmDiff(_nComp);
 
 		linalg::BandedEigenSparseRowIterator jacC(globalJac, offsetC);
 		linalg::BandedEigenSparseRowIterator jacP(globalJac, offsetCp);
 
 		for (unsigned int colNode = 0; colNode < nBulkPoints; colNode++, jacP += _strideBound)
 		{
+			evaluateFilmDiffusion(secIdx, filmDiffQuad.slice(colNode), effFilmDiff.data());
+
 			for (unsigned int comp = 0; comp < _nComp; comp++, ++jacC, ++jacP) {
 
 				// add Cl on Cl entries (added since already set in bulk jacobian)
 				// row: already at bulk phase. already at current node and component.
 				// col: already at bulk phase. already at current node and component.
 				if (!crossDepsOnly)
-					jacC[0] += jacCF_val * static_cast<double>(filmDiff[comp]) * static_cast<double>(parTypeVolFrac[_parTypeIdx + nParType * colNode]);
+					jacC[0] += jacCF_val * effFilmDiff[comp] * static_cast<double>(parTypeVolFrac[_parTypeIdx + nParType * colNode]);
 				// add Cl on Cp entries
 				// row: already at bulk phase. already at current node and component.
 				// col: jump to particle phase
-				jacC[jacP.row() - jacC.row()] = -jacCF_val * static_cast<double>(filmDiff[comp]) * static_cast<double>(parTypeVolFrac[_parTypeIdx + nParType * colNode]);
+				jacC[jacP.row() - jacC.row()] = -jacCF_val * effFilmDiff[comp] * static_cast<double>(parTypeVolFrac[_parTypeIdx + nParType * colNode]);
 
 				// add Cp on Cp entries
 				// row: already at particle. already at current node and liquid state.
 				// col: already at particle. already at current node and liquid state.
 				if (!crossDepsOnly)
-					jacP[0] = -jacPF_val / static_cast<double>(poreAccFactor[comp]) * static_cast<double>(filmDiff[comp]);
+					jacP[0] = -jacPF_val / static_cast<double>(poreAccFactor[comp]) * effFilmDiff[comp];
 				// add Cp on Cl entries
 				// row: already at particle. already at current node and liquid state.
 				// col: go to flux of current parType and adjust for offsetC. jump over previous colNodes and add component offset
-				jacP[jacC.row() - jacP.row()] = jacPF_val / static_cast<double>(poreAccFactor[comp]) * static_cast<double>(filmDiff[comp]);
+				jacP[jacC.row() - jacP.row()] = jacPF_val / static_cast<double>(poreAccFactor[comp]) * effFilmDiff[comp];
 			}
 		}
 

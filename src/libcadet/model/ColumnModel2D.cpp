@@ -1115,11 +1115,17 @@ int ColumnModel2D::residualImpl(double t, unsigned int secIdx, StateType const* 
 			Indexer idxr(_disc);
 
 			linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colPoint }) - idxr.offsetC());
+			// The two dimensional operators evaluate the exchange coefficient at the bulk points themselves
+			const ColumnPosition couplingPos{ _convDispOp.relativeAxialCoordinate(axPoint), _convDispOp.relativeRadialCoordinate(radPoint), 0.0 };
+			const active couplingVelocity = _convDispOp.currentVelocity(radElem);
+			const double couplingWeight = 1.0;
+
 			model::columnPackingParameters packing
 			{
 				_parTypeVolFrac[colPoint * _disc.nParType + parType],
 				_convDispOp.columnPorosity(radElem),
-				ColumnPosition{ _convDispOp.relativeAxialCoordinate(axPoint), _convDispOp.relativeRadialCoordinate(radPoint), 0.0 }
+				couplingPos,
+				CouplingQuadrature{ 1, &couplingPos, &couplingVelocity, &couplingWeight }
 			};
 
 			_particles[parType]->residual(t, secIdx,

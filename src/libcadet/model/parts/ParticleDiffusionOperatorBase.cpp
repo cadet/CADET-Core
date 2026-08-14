@@ -25,7 +25,7 @@ namespace model
 
 namespace parts
 {
-	ParticleDiffusionOperatorBase::ParticleDiffusionOperatorBase() : _parDepSurfDiffusion(nullptr), _reqBinding(nullptr), _boundOffset(nullptr)
+	ParticleDiffusionOperatorBase::ParticleDiffusionOperatorBase() : _parDepSurfDiffusion(nullptr), _filmDiffDep(nullptr), _reqBinding(nullptr), _boundOffset(nullptr)
 	{
 	}
 
@@ -33,6 +33,7 @@ namespace parts
 	{
 		delete[] _boundOffset;
 		delete[] _parDepSurfDiffusion;
+		delete _filmDiffDep;
 	}
 	
 	bool ParticleDiffusionOperatorBase::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp)
@@ -74,6 +75,19 @@ namespace parts
 		}
 
 		// ==== Construct and configure parameter dependencies
+
+		delete _filmDiffDep;
+		_filmDiffDep = nullptr;
+
+		if (paramProvider.exists("FILM_DIFFUSION_DEP"))
+		{
+			const std::string paramDepName = paramProvider.getString("FILM_DIFFUSION_DEP");
+			_filmDiffDep = helper.createParameterParameterDependence(paramDepName);
+			if (!_filmDiffDep)
+				throw InvalidParameterException("Unknown parameter dependence " + paramDepName + " in FILM_DIFFUSION_DEP of particle type " + std::to_string(_parTypeIdx));
+
+			_filmDiffDep->configureModelDiscretization(paramProvider);
+		}
 
 		delete _parDepSurfDiffusion;
 		_hasParDepSurfDiffusion = false;
@@ -173,6 +187,19 @@ namespace parts
 
 		bool filmDiffParTypeDep = paramProvider.exists("FILM_DIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getBool("FILM_DIFFUSION_PARTYPE_DEPENDENT") : true;
 		_filmDiffusionMode = readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", _nComp, _parTypeIdx, filmDiffParTypeDep, unitOpIdx);
+
+		if (_filmDiffDep)
+		{
+			// The dependence follows the particle type dependence of the coefficient it modifies
+			const ParticleTypeIdx depParTypeIdx = filmDiffParTypeDep ? static_cast<ParticleTypeIdx>(_parTypeIdx) : ParTypeIndep;
+
+			if (!_filmDiffDep->configure(paramProvider, unitOpIdx, depParTypeIdx, BoundStateIndep, "FILM_DIFFUSION_DEP"))
+				throw InvalidParameterException("Failed to configure film diffusion parameter dependence (FILM_DIFFUSION_DEP) of particle type " + std::to_string(_parTypeIdx));
+
+			// Expose the dependence parameters through the unit operation parameter map
+			for (const std::pair<const ParameterId, double>& param : _filmDiffDep->getAllParameterValues())
+				parameters[param.first] = _filmDiffDep->getParameter(param.first);
+		}
 
 		if (paramProvider.exists("PORE_ACCESSIBILITY"))
 		{
@@ -345,6 +372,33 @@ namespace parts
 		return false;
 	}
 
+	template <typename ParamType>
+	void ParticleDiffusionOperatorBase::evaluateFilmDiffusion(unsigned int secIdx, const CouplingQuadrature& quad, ParamType* buffer) const
+	{
+		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _nComp, secIdx);
+
+		if (!_filmDiffDep)
+		{
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
+				buffer[comp] = static_cast<ParamType>(filmDiff[comp]);
+
+			return;
+		}
+
+		for (unsigned int comp = 0; comp < _nComp; ++comp)
+		{
+			// Average the dependence over the quadrature points of this coupling point. The weights sum to
+			// one, so a dependence that is constant over the element leaves the coefficient unchanged.
+			ParamType modifier = 0.0;
+			for (int q = 0; q < quad.nQuadPoints; ++q)
+				modifier += quad.weights[q] * _filmDiffDep->getValue(quad.colPos[q], comp, _parTypeIdx, BoundStateIndep, static_cast<ParamType>(quad.velocity[q]));
+
+			buffer[comp] = static_cast<ParamType>(filmDiff[comp]) * modifier;
+		}
+	}
+
+	template void ParticleDiffusionOperatorBase::evaluateFilmDiffusion<double>(unsigned int secIdx, const CouplingQuadrature& quad, double* buffer) const;
+	template void ParticleDiffusionOperatorBase::evaluateFilmDiffusion<active>(unsigned int secIdx, const CouplingQuadrature& quad, active* buffer) const;
 
 } // namespace parts
 } // namespace model

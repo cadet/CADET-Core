@@ -283,6 +283,7 @@ protected:
 
 	ConvDispOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 	IParameterParameterDependence* _filmDiffDep; //!< Film diffusion dependency on local velocity
+	bool _hasFilmDiffDep; //!< Whether a film diffusion parameter dependence was specified (FILM_DIFFUSION_DEP)
 
 	ReactionSystem _reaction; //!< Reaction system for bulk
 

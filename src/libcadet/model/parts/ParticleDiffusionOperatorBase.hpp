@@ -44,6 +44,7 @@ namespace model
 {
 
 class IParameterStateDependence;
+class IParameterParameterDependence;
 
 namespace parts
 {
@@ -115,12 +116,12 @@ namespace parts
 		 * @param [in] jacIt Row iterator pointing to the particle phase entry in the unit Jacobian, uninitialized if no Jacobian shall be computed
 		 * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
 		 */
-		virtual int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity) = 0;
-		virtual int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity) = 0;
-		virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity) = 0;
-		virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity) = 0;
+		virtual int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, linalg::BandedEigenSparseRowIterator& jacIt, double const* effFilmDiff, WithoutParamSensitivity) = 0;
+		virtual int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, active const* effFilmDiff, WithParamSensitivity) = 0;
+		virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, double const* effFilmDiff, WithoutParamSensitivity) = 0;
+		virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, active const* effFilmDiff, WithParamSensitivity) = 0;
 
-		virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac, bool outliersOnly = false) = 0;
+		virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, const CouplingQuadrature& filmDiffQuad, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac, bool outliersOnly = false) = 0;
 		virtual int calcParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac) = 0;
 		
 		/**
@@ -183,8 +184,31 @@ namespace parts
 		inline bool paramDepSurfDiffParTypeIndep() const CADET_NOEXCEPT { return !_paramDepSurfDiffTypeDep; }
 		inline MultiplexMode parDiffMode() const CADET_NOEXCEPT { return _parDiffusionMode; }
 		inline MultiplexMode parSurfDiffMode() const CADET_NOEXCEPT { return _parSurfDiffusionMode; }
-		
-		virtual active discretizedFilmDiffusionFactor(const int comp) const CADET_NOEXCEPT { return active(1.0); }
+
+		/**
+		 * @brief Computes the nodal film diffusion coefficients at a bulk-particle coupling point
+		 * @details Evaluates the film diffusion parameter dependence (FILM_DIFFUSION_DEP) at the quadrature
+		 *          positions supplied by the bulk discretization and averages the samples with the supplied
+		 *          weights. Since the same nodal coefficient is used in the bulk and in the particle equation,
+		 *          the discrete mass exchanged between the two phases balances exactly for any dependence.
+		 *          If no dependence is configured, the unmodified coefficients are returned.
+		 * @param [in] secIdx Index of the current section
+		 * @param [in] quad Averaging rule of this coupling point
+		 * @param [out] buffer Array of size nComp receiving the nodal coefficients
+		 */
+		template <typename ParamType>
+		void evaluateFilmDiffusion(unsigned int secIdx, const CouplingQuadrature& quad, ParamType* buffer) const;
+
+		/**
+		 * @brief Factor of the discretized film diffusion in the bulk-particle flux term
+		 * @details Depends on the spatial discretization of the particle: the FV boundary treatment combines
+		 *          film diffusion and pore diffusion into an effective mass transfer coefficient.
+		 * @param [in] comp Component index
+		 * @param [in] secIdx Index of the current section
+		 * @param [in] effFilmDiff Nodal film diffusion coefficient of the component
+		 */
+		virtual double discretizedFilmDiffusionFactor(const int comp, const unsigned int secIdx, const double effFilmDiff) const CADET_NOEXCEPT { return 1.0; }
+		virtual active discretizedFilmDiffusionFactor(const int comp, const unsigned int secIdx, const active& effFilmDiff) const CADET_NOEXCEPT { return active(1.0); }
 
 	protected:
 
@@ -207,6 +231,7 @@ namespace parts
 		/* diffusion rates */
 		std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$
 		MultiplexMode _filmDiffusionMode; //!< Determines the multiplex of film diffusion, needed for sensitivitites
+		IParameterParameterDependence* _filmDiffDep; //!< Dependence of film diffusion on bulk position and interstitial velocity (nullptr if none)
 		std::vector<active> _parDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
 		MultiplexMode _parDiffusionMode; //!< Determines the multiplex of particle diffusion, needed for sensitivitites
 		std::vector<active> _parSurfDiffusion; //!< Particle surface diffusion coefficient \f$ D_s \f$
