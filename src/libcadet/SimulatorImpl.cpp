@@ -1058,6 +1058,16 @@ namespace cadet
 		return _solutionTimes;
 	}
 
+	void Simulator::setSolutionTimesUnitState(const std::vector<double>& solutionTimesUnitState)
+	{
+		_solutionTimesUnitState = solutionTimesUnitState;
+	}
+
+	const std::vector<double>& Simulator::getSolutionTimesUnitState() const
+	{
+		return _solutionTimesUnitState;
+	}
+
 	void Simulator::setSectionTimes(const std::vector<double>& sectionTimes)
 	{
 		setSectionTimes(sectionTimes, std::vector<bool>(sectionTimes.size() - 1, false));
@@ -1176,10 +1186,21 @@ namespace cadet
 		_model->prepareADvectors(AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()});
 
 		std::vector<double>::const_iterator it;
+		std::vector<double>::const_iterator itUnitState = _solutionTimesUnitState.begin();
 		double tOut = 0.0;
 
 		const bool writeAtUserTimes = _solutionTimes.size() > 0;
+		const bool hasUnitStateTimes = !_solutionTimesUnitState.empty();
 		const bool wantSensitivities = _sensitiveParams.slices() > 0;
+
+		auto isUnitStateTime = [&](double t) -> bool {
+			if (!hasUnitStateTimes)
+				return true;
+			// Advance iterator past times before t
+			while (itUnitState != _solutionTimesUnitState.end() && *itUnitState < t)
+				++itUnitState;
+			return itUnitState != _solutionTimesUnitState.end() && *itUnitState == t;
+		};
 
 		LOG(Debug) << "#MaxNewton: " << _maxNewtonIter << ", #MaxErrTestFail: " << _maxErrorTestFail << ", #MaxConvTestFail: " << _maxConvTestFail;
 		if (wantSensitivities)
@@ -1366,7 +1387,7 @@ namespace cadet
 			{
 				// Write initial conditions only if desired by user
 				if (_curSec == 0 && _solutionTimes.front() == curT)
-					writeSolution(curT);
+					writeSolution(curT, isUnitStateTime(curT));
 
 				// Initialize iterator and forward it to the first solution time that lies inside the current section
 				it = _solutionTimes.begin();
@@ -1375,7 +1396,7 @@ namespace cadet
 			else
 			{
 				// Always write initial conditions if solutions are written at integration times
-				if (_curSec == 0) writeSolution(curT);
+				if (_curSec == 0) writeSolution(curT, isUnitStateTime(curT));
 
 				// Here tOut - only during the first call to IDASolve - specifies the direction
 				// and rough scale of the independent variable, see IDAS Guide p.33
@@ -1460,7 +1481,7 @@ namespace cadet
 						IDAGetSens(_idaMemBlock, &curT, _vecFwdYs);
 						IDAGetSensDky(_idaMemBlock, curT, 1, _vecFwdYsDot);
 					}
-					writeSolution(curT);
+					writeSolution(curT, isUnitStateTime(curT));
 
 					if (writeAtUserTimes)
 						++it;
@@ -1495,7 +1516,7 @@ namespace cadet
 
 					if (!(tOut > curT))
 					{
-						writeSolution(curT);
+						writeSolution(curT, isUnitStateTime(curT));
 
 						if (writeAtUserTimes)
 							++it;
@@ -1665,6 +1686,26 @@ namespace cadet
 		if (paramProvider.exists("USER_SOLUTION_TIMES"))
 			_solutionTimes = paramProvider.getDoubleArray("USER_SOLUTION_TIMES");
 
+		_solutionTimesUnitState.clear();
+		if (paramProvider.exists("USER_SOLUTION_TIMES_UNIT_STATE"))
+		{
+			_solutionTimesUnitState = paramProvider.getDoubleArray("USER_SOLUTION_TIMES_UNIT_STATE");
+
+			if (!_solutionTimes.empty() && !_solutionTimesUnitState.empty())
+			{
+				// Validate that unit state times are a subset of solution times
+				std::size_t j = 0;
+				for (std::size_t i = 0; i < _solutionTimesUnitState.size(); ++i)
+				{
+					while (j < _solutionTimes.size() && _solutionTimes[j] < _solutionTimesUnitState[i])
+						++j;
+
+					if (j >= _solutionTimes.size() || _solutionTimes[j] != _solutionTimesUnitState[i])
+						throw InvalidParameterException("USER_SOLUTION_TIMES_UNIT_STATE must be a subset of USER_SOLUTION_TIMES, but time " + std::to_string(_solutionTimesUnitState[i]) + " is not in USER_SOLUTION_TIMES");
+				}
+			}
+		}
+
 		if (paramProvider.exists("CONSISTENT_INIT_MODE"))
 			_consistentInitMode = toConsistentInitialization(paramProvider.getInt("CONSISTENT_INIT_MODE"));
 
@@ -1813,12 +1854,12 @@ namespace cadet
 		return success;
 	}
 
-	void Simulator::writeSolution(double t)
+	void Simulator::writeSolution(double t, bool writeUnitState)
 	{
 		if (!_solRecorder)
 			return;
 
-		_solRecorder->beginTimestep(t);
+		_solRecorder->beginTimestep(t, writeUnitState);
 
 		IDASMeta idasMeta;
 		long int nsteps, nrevals, nlinsetups, netfails;

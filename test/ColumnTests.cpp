@@ -97,7 +97,7 @@ namespace
 		virtual void clear() { }
 		virtual void prepare(unsigned int numDofs, unsigned int numSens, unsigned int numTimesteps) { }
 		virtual void notifyIntegrationStart(unsigned int numDofs, unsigned int numSens, unsigned int numTimesteps) { }
-		virtual void beginTimestep(double t) { }
+		virtual void beginTimestep(double t, bool writeUnitState = true) { }
 		virtual void integratorMetaData(const cadet::IDASMeta& idasMeta) {}
 		virtual void beginUnitOperation(cadet::UnitOpIdx idx, const cadet::IModel& model, const cadet::ISolutionExporter& exporter) { }
 		virtual void endUnitOperation() { }
@@ -2270,6 +2270,42 @@ namespace column
 			CHECK(rd.exists("IDAS_FIRST_INTEGRATION_STEP_SIZE"));
 			CHECK(rd.exists("IDAS_INTEGRATION_STEP_SIZE"));
 		}
+	}
+
+	void testOutputUnitStateTimes(const std::string& uoType, const std::string& spatialMethod)
+	{
+		cadet::JsonParameterProvider pp = createLWE(uoType, spatialMethod);
+		nlohmann::json& setupJson = *pp.data();
+
+		// Use 5 solution times, with only 2 of them as unit-state times
+		const std::vector<double> solTimes = { 0.0, 100.0, 200.0, 300.0, 400.0 };
+		const std::vector<double> unitStateTimes = { 0.0, 200.0 };
+		setupJson["solver"]["USER_SOLUTION_TIMES"] = solTimes;
+		setupJson["solver"]["USER_SOLUTION_TIMES_UNIT_STATE"] = unitStateTimes;
+
+		// Enable outlet and bulk writing
+		setupJson["return"]["unit_000"]["WRITE_SOLUTION_OUTLET"] = true;
+		setupJson["return"]["unit_000"]["WRITE_SOLUTION_BULK"] = true;
+		setupJson["return"]["WRITE_SOLUTION_TIMES"] = true;
+
+		cadet::Driver drv;
+		drv.configure(pp);
+		drv.run();
+
+		const cadet::InternalStorageUnitOpRecorder* const rec = drv.solution()->unitOperation(0);
+		REQUIRE(rec != nullptr);
+
+		// Total time points (outlet) should match all solution times
+		CHECK(rec->numDataPoints() == solTimes.size());
+		// Unit-state time points (bulk) should match the subset
+		CHECK(rec->numDataPointsUnitState() == unitStateTimes.size());
+
+		// Solution time vectors
+		CHECK(drv.solution()->numDataPoints() == solTimes.size());
+		CHECK(drv.solution()->numDataPointsUnitState() == unitStateTimes.size());
+
+		CHECK(rec->outlet() != nullptr);
+		CHECK(rec->bulk() != nullptr);
 	}
 
 } // namespace column

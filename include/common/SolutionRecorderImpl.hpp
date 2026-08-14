@@ -60,7 +60,7 @@ public:
 		_cfgSolutionDot({ false, false, false, false, false, false, false, false }), _cfgSensitivity({ false, false, false, true, false, false, false, false }),
 		_cfgSensitivityDot({ false, false, false, true, false, false, false, false }), _storeTime(false), _storeCoordinates(false),
 		_splitComponents(true), _splitPorts(true), _singleAsMultiPortUnitOps(false), _keepBulkSingletonDim(true), _curCfg(nullptr), _nComp(0), _nVolumeDof(0), _nAxialPoints(0), _nRadialPoints(0),
-		_nInletPorts(0), _nOutletPorts(0), _numTimesteps(0), _numSens(0), _unitOp(idx), _needsReAlloc(false), _axialCoords(0), _radialCoords(0), _particleCoords(0)
+		_nInletPorts(0), _nOutletPorts(0), _numTimesteps(0), _numTimestepsUnitState(0), _writeUnitState(true), _numSens(0), _unitOp(idx), _needsReAlloc(false), _axialCoords(0), _radialCoords(0), _particleCoords(0)
 	{
 	}
 
@@ -74,6 +74,7 @@ public:
 	{
 		// Clear solution storage
 		_time.clear();
+		_timeUnitState.clear();
 		clear(_data);
 		clear(_dataDot);
 
@@ -88,6 +89,7 @@ public:
 	virtual void prepare(unsigned int numDofs, unsigned int numSens, unsigned int numTimesteps)
 	{
 		_numTimesteps = numTimesteps;
+		_numTimestepsUnitState = numTimesteps;
 		_numSens = numSens;
 
 		// Allocate sensitivity storage
@@ -105,7 +107,8 @@ public:
 		clear();
 
 		_numTimesteps = numTimesteps;
-		
+		_numTimestepsUnitState = numTimesteps;
+
 		if (numSens != _numSens)
 		{
 			// Allocate sensitivity storage
@@ -186,16 +189,17 @@ public:
 		{
 			// Reset for counting the number of received time steps
 			_numTimesteps = 0;
+			_numTimestepsUnitState = 0;
 			return;
 		}
 
 		// Allocate space for solution
 		beginSolution();
-		allocateMemory(exporter);		
+		allocateMemory(exporter);
 		endSolution();
 
 		beginSolutionDerivative();
-		allocateMemory(exporter);		
+		allocateMemory(exporter);
 		endSolution();
 
 		// Allocate space for sensitivities
@@ -220,13 +224,22 @@ public:
 
 		// Reset for counting the number of received time steps
 		_numTimesteps = 0;
+		_numTimestepsUnitState = 0;
 	}
 
-	virtual void beginTimestep(double t)
+	virtual void beginTimestep(double t, bool writeUnitState = true)
 	{
 		++_numTimesteps;
+		_writeUnitState = writeUnitState;
 		if (_storeTime)
 			_time.push_back(t);
+
+		if (writeUnitState)
+		{
+			++_numTimestepsUnitState;
+			if (_storeTime)
+				_timeUnitState.push_back(t);
+		}
 	}
 
 	virtual void beginUnitOperation(cadet::UnitOpIdx idx, const cadet::IModel& model, const cadet::ISolutionExporter& exporter)
@@ -252,6 +265,10 @@ public:
 			v.resize(v.size() + sliceSize);
 			exporter.writeInlet(v.data() + v.size() - sliceSize);
 		}
+
+		// Internal unit state fields are only stored at unit-state time points
+		if (!_writeUnitState)
+			return;
 
 		if (_curCfg->storeBulk)
 		{
@@ -394,7 +411,11 @@ public:
 		std::ostringstream oss;
 
 		if (_storeTime)
+		{
 			writer.template vector<double>("SOLUTION_TIMES", _time.size(), _time.data());
+			if (!_timeUnitState.empty())
+				writer.template vector<double>("SOLUTION_TIMES_UNIT_STATE", _timeUnitState.size(), _timeUnitState.data());
+		}
 
 		beginSolution();
 		writeData(writer, "SOLUTION", oss);
@@ -483,6 +504,7 @@ public:
 	inline void unitOperation(UnitOpIdx idx) CADET_NOEXCEPT { _unitOp = idx; }
 
 	inline unsigned int numDataPoints() const CADET_NOEXCEPT { return _numTimesteps; }
+	inline unsigned int numDataPointsUnitState() const CADET_NOEXCEPT { return _numTimestepsUnitState; }
 	inline unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
 	inline unsigned int numInletPorts() const CADET_NOEXCEPT { return _nInletPorts; }
 	inline unsigned int numOutletPorts() const CADET_NOEXCEPT { return _nOutletPorts; }
@@ -493,6 +515,8 @@ public:
 	inline unsigned int numBoundStates(unsigned int parType = 0) const CADET_NOEXCEPT { return _nBoundStates[parType]; }
 
 	inline double const* time() const CADET_NOEXCEPT { return _time.data(); }
+	inline double const* timeUnitState() const CADET_NOEXCEPT { return _timeUnitState.data(); }
+	inline unsigned int numTimePointsUnitState() const CADET_NOEXCEPT { return _timeUnitState.size(); }
 	inline double const* inlet() const CADET_NOEXCEPT { return _data.inlet.data(); }
 	inline double const* outlet() const CADET_NOEXCEPT { return _data.outlet.data(); }
 	inline double const* bulk() const CADET_NOEXCEPT { return _data.bulk.data(); }
@@ -606,6 +630,8 @@ protected:
 	{
 		if (_numTimesteps < 1)
 			return;
+
+		const unsigned int numTsUnitState = _numTimestepsUnitState;
 
 		if (_curCfg->storeOutlet)
 		{
@@ -757,7 +783,7 @@ protected:
 		{
 			std::vector<std::size_t> layout(0);
 			layout.reserve(3);
-			layout.push_back(_numTimesteps);
+			layout.push_back(numTsUnitState);
 
 			if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
 				layout.push_back(_nAxialPoints);
@@ -779,7 +805,7 @@ protected:
 
 			std::vector<std::size_t> layout(0);
 			layout.reserve(4);
-			layout.push_back(_numTimesteps);
+			layout.push_back(numTsUnitState);
 
 			if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
 				layout.push_back(_nAxialPoints);
@@ -798,7 +824,7 @@ protected:
 			{
 				std::vector<std::size_t> layout(0);
 				layout.reserve(4);
-				layout.push_back(_numTimesteps);
+				layout.push_back(numTsUnitState);
 
 				if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
 					layout.push_back(_nAxialPoints);
@@ -826,7 +852,7 @@ protected:
 				{
 					std::vector<std::size_t> layout(0);
 					layout.reserve(4);
-					layout.push_back(_numTimesteps);
+					layout.push_back(numTsUnitState);
 
 					if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
 						layout.push_back(_nAxialPoints);
@@ -857,7 +883,7 @@ protected:
 		{
 			std::vector<std::size_t> layout(0);
 			layout.reserve(5);
-			layout.push_back(_numTimesteps);
+			layout.push_back(numTsUnitState);
 
 			if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
 				layout.push_back(_nAxialPoints);
@@ -919,7 +945,7 @@ protected:
 			{
 				std::vector<std::size_t> layout(0);
 				layout.reserve(4);
-				layout.push_back(_numTimesteps);
+				layout.push_back(numTsUnitState);
 
 				if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
 					layout.push_back(_nAxialPoints);
@@ -951,7 +977,7 @@ protected:
 				{
 					std::vector<std::size_t> layout(0);
 					layout.reserve(4);
-					layout.push_back(_numTimesteps);
+					layout.push_back(numTsUnitState);
 
 					if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
 						layout.push_back(_nAxialPoints);
@@ -986,7 +1012,7 @@ protected:
 		{
 			std::vector<std::size_t> layout(0);
 			layout.reserve(5);
-			layout.push_back(_numTimesteps);
+			layout.push_back(numTsUnitState);
 
 			if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
 				layout.push_back(_nAxialPoints);
@@ -1046,7 +1072,7 @@ protected:
 			std::vector<std::size_t> layout(0);
 			layout.reserve(4);
 
-			layout.push_back(_numTimesteps);
+			layout.push_back(numTsUnitState);
 			layout.push_back(_nParShells.size());
 			if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
 				layout.push_back(_nAxialPoints);
@@ -1066,7 +1092,7 @@ protected:
 			std::vector<std::size_t> layout(0);
 			layout.reserve(5);
 
-			layout.push_back(_numTimesteps);
+			layout.push_back(numTsUnitState);
 			layout.push_back(_nParShells.size());
 			if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
 				layout.push_back(_nAxialPoints);
@@ -1087,7 +1113,7 @@ protected:
 			oss << prefix << "_VOLUME";
 			// Note: since the CSTR is currently the only unit operation that simulates volume, and _numVolumeDof is 1, we always write this as a vector.
 			// Once other unit operations are implemented with more than one volume, we should add the option here to write this as a matrix (singletonDimension filed etc, see other output).
-			writer.template vector<double>(oss.str(), _numTimesteps * _nVolumeDof, _curStorage->volume.data(), 1);
+			writer.template vector<double>(oss.str(), numTsUnitState * _nVolumeDof, _curStorage->volume.data(), 1);
 		}
 
 		if (_curCfg->storeSmoothnessIndicator)
@@ -1097,7 +1123,7 @@ protected:
 
 			std::vector<std::size_t> layout(0);
 			layout.reserve(4);
-			layout.push_back(_numTimesteps);
+			layout.push_back(numTsUnitState);
 
 			if (_nAxialPoints > 0)
 				layout.push_back(_nAxialPoints);
@@ -1162,6 +1188,7 @@ protected:
 	Storage* _curStorage;
 
 	std::vector<double> _time;
+	std::vector<double> _timeUnitState;
 	Storage _data;
 	Storage _dataDot;
 	std::vector<Storage> _sens;
@@ -1178,6 +1205,8 @@ protected:
 	std::vector<std::vector<unsigned int>> _nBoundPerComp;
 	std::vector<std::vector<unsigned int>> _boundOffset;
 	unsigned int _numTimesteps;
+	unsigned int _numTimestepsUnitState;
+	bool _writeUnitState;
 	unsigned int _numSens;
 	UnitOpIdx _unitOp;
 
@@ -1199,7 +1228,7 @@ class InternalStorageSystemRecorder : public ISolutionRecorder
 {
 public:
 
-	InternalStorageSystemRecorder() : _numTimesteps(0), _numSens(0), _storeTime(true), _storeIDASMeta(false), _nIDASTimeSteps(0)
+	InternalStorageSystemRecorder() : _numTimesteps(0), _numTimestepsUnitState(0), _numSens(0), _storeTime(true), _storeIDASMeta(false), _nIDASTimeSteps(0)
 	{
 	}
 
@@ -1211,6 +1240,7 @@ public:
 	virtual void clear()
 	{
 		_time.clear();
+		_timeUnitState.clear();
 
 		for (InternalStorageUnitOpRecorder* rec : _recorders)
 			rec->clear();
@@ -1232,6 +1262,7 @@ public:
 	{
 		_numSens = numSens;
 		_time.clear();
+		_timeUnitState.clear();
 
 		if (numTimesteps > 0)
 			_time.reserve(numTimesteps);
@@ -1249,16 +1280,24 @@ public:
 
 		// Reset for counting actual number of time steps
 		_numTimesteps = 0;
+		_numTimestepsUnitState = 0;
 	}
 
-	virtual void beginTimestep(double t)
+	virtual void beginTimestep(double t, bool writeUnitState = true)
 	{
 		++_numTimesteps;
 		if (_storeTime)
 			_time.push_back(t);
 
+		if (writeUnitState)
+		{
+			++_numTimestepsUnitState;
+			if (_storeTime)
+				_timeUnitState.push_back(t);
+		}
+
 		for (InternalStorageUnitOpRecorder* rec : _recorders)
-			rec->beginTimestep(t);
+			rec->beginTimestep(t, writeUnitState);
 	}
 
 	virtual void integratorMetaData(const IDASMeta& idasMeta)
@@ -1370,8 +1409,13 @@ public:
 	{
 		std::ostringstream oss;
 
-		if (_storeTime && _time.size() > 0)
-			writer.template vector<double>("SOLUTION_TIMES", _time.size(), _time.data());
+		if (_storeTime)
+		{
+			if (_time.size() > 0)
+				writer.template vector<double>("SOLUTION_TIMES", _time.size(), _time.data());
+			if (_timeUnitState.size() > 0)
+				writer.template vector<double>("SOLUTION_TIMES_UNIT_STATE", _timeUnitState.size(), _timeUnitState.data());
+		}
 
 		for (InternalStorageUnitOpRecorder* rec : _recorders)
 		{
@@ -1489,6 +1533,9 @@ public:
 	}
 
 	inline double const* time() const CADET_NOEXCEPT { return _time.data(); }
+	inline double const* timeUnitState() const CADET_NOEXCEPT { return _timeUnitState.data(); }
+	inline unsigned int numTimePointsUnitState() const CADET_NOEXCEPT { return _timeUnitState.size(); }
+	inline unsigned int numDataPointsUnitState() const CADET_NOEXCEPT { return _numTimestepsUnitState; }
 	inline unsigned int numSensitivites() const CADET_NOEXCEPT { return _numSens; }
 
 	inline void setStoreIDASMeta(bool store) CADET_NOEXCEPT { _storeIDASMeta = store; }
@@ -1497,8 +1544,10 @@ protected:
 
 	std::vector<InternalStorageUnitOpRecorder*> _recorders;
 	unsigned int _numTimesteps;
+	unsigned int _numTimestepsUnitState;
 	unsigned int _numSens;
 	std::vector<double> _time;
+	std::vector<double> _timeUnitState;
 	bool _storeTime;
 
 	// IDAS meta info

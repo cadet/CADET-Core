@@ -287,6 +287,20 @@ public:
 	//! \return Vector containing the timepoints at which a solution has been be computed
 	virtual const std::vector<double>& getSolutionTimes() const = 0;
 
+	//! \brief Sets the time points at which internal unit operation state (bulk, particle, solid, flux) is written
+	//!
+	//! Must be a subset of the solution times set via setSolutionTimes(). At time points not in
+	//! this list, only inlet/outlet data is recorded. If empty (default), internal state is written
+	//! at all solution times.
+	//!
+	//! \param [in] solutionTimesUnitState Time points for unit state output
+	virtual void setSolutionTimesUnitState(const std::vector<double>& solutionTimesUnitState) = 0;
+
+	//! \brief Returns the time points at which internal unit operation state is written
+	//!
+	//! \return Vector containing the time points for unit state output (empty means all solution times)
+	virtual const std::vector<double>& getSolutionTimesUnitState() const = 0;
+
 	//! \brief Sets the timepoints of (potential) discontinuities
 	//!
 	//! Sets the timepoints of (potential) discontinuities where an integrator

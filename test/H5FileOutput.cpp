@@ -28,3 +28,8 @@ TEST_CASE("GRM IDAS META output fields", "[GRM],[FV],[Simulation],[Output],[CI]"
 {
 	cadet::test::column::testOutputIDASMetaData("GENERAL_RATE_MODEL", "FV");
 }
+
+TEST_CASE("GRM USER_SOLUTION_TIMES_UNIT_STATE output", "[GRM],[FV],[Simulation],[Output],[CI]")
+{
+	cadet::test::column::testOutputUnitStateTimes("GENERAL_RATE_MODEL", "FV");
+}
