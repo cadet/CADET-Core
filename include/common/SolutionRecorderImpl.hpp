@@ -1413,7 +1413,7 @@ public:
 		{
 			if (_time.size() > 0)
 				writer.template vector<double>("SOLUTION_TIMES", _time.size(), _time.data());
-			if (!_timeUnitState.size() > 0)
+			if (_timeUnitState.size() > 0)
 				writer.template vector<double>("SOLUTION_TIMES_UNIT_STATE", _timeUnitState.size(), _timeUnitState.data());
 		}
 

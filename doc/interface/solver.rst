@@ -25,6 +25,18 @@ Group /input/solver
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** Arbitrary
    ================  =========================  =====================
    
+``USER_SOLUTION_TIMES_UNIT_STATE``
+
+   Vector with timepoints at which the solution is evaluated and, if the according fields (see e.g. ``WRITE_BULK_SOLUTION``) are enabled, the unit state solutions are written at these time points.
+   This way, the unit state solutions can be written at a different time resolution than e.g. the outlet solution.
+   Optional: if not specified, the solution is evaluated and written according to ``USER_SOLUTION_TIMES``.
+
+   **Unit:** :math:`\mathrm{s}`
+   
+   ================  =========================  =====================
+   **Type:** double  **Range:** :math:`\geq 0`  **Length:** Arbitrary
+   ================  =========================  =====================
+   
 ``CONSISTENT_INIT_MODE``
 
    Consistent initialization mode (optional, defaults to :math:`1`). Valid values are: 
