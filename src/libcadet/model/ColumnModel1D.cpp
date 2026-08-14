@@ -1043,6 +1043,15 @@ int ColumnModel1D<ConvDispOperator>::residualImpl(double t, unsigned int secIdx,
 	{
 		if (cadet_unlikely(pblk == 0))
 		{
+			if (wantJac)
+			{
+				// Estimate the new static Jacobian for the current section
+				const bool success = calcTransportJacobian(t, secIdx, y);
+
+				if (cadet_unlikely(!success))
+					LOG(Error) << "Jacobian pattern did not fit the analytical transport Jacobian assembly";
+			}
+
 			residualBulk<StateType, ResidualType, ParamType, wantJac, wantRes>(t, secIdx, y, yDot, res, threadLocalMem);
 		}
 		else
