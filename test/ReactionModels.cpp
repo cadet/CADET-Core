@@ -16,11 +16,23 @@
 #include "ColumnTests.hpp"
 #include "ReactionModelFactory.hpp"
 #include "common/JsonParameterProvider.hpp"
+#include "model/reaction/ConservedMoieties.hpp"
 
 #include <cmath>
 #include <memory>
 #include <utility>
 #include <vector>
+
+
+namespace
+{
+	struct TestDenseMatrix
+	{
+		Eigen::MatrixXd values;
+
+		double& native(unsigned int row, unsigned int column) { return values(row, column); }
+	};
+}
 
 
 TEST_CASE("MassActionLaw conserved moieties nullspace", "[MassActionLaw],[ReactionModel],[ConservedMoieties],[CI]")
@@ -109,6 +121,141 @@ TEST_CASE("MassActionLaw conserved moieties nullspace", "[MassActionLaw],[Reacti
 		{
 			for (Eigen::Index c = 0; c < L.cols(); ++c)
 				CHECK(std::abs(L(r, c) - expected(r, c)) <= tol);
+		}
+	}
+}
+
+TEST_CASE("Conserved moiety transformations", "[ReactionModel],[ConservedMoieties],[CI]")
+{
+	constexpr double tol = 1e-12;
+
+	Eigen::MatrixXd stoichiometry(3, 1);
+	stoichiometry << -1.0, -1.0, 1.0;
+	const std::vector<bool> equilibriumReactionFlags{true};
+
+	cadet::model::ConservedMoieties cm;
+	REQUIRE(cm.configure(3, equilibriumReactionFlags, stoichiometry, 1e-14));
+	REQUIRE(cm.numMoieties() == 2);
+	REQUIRE(cm.numEquilibriumReactions() == 1);
+
+	const double source[] = {1.0, 2.0, 4.0};
+	double expected[2] = {0.0, 0.0};
+	const Eigen::MatrixXd& L = cm.conservedMoietyMatrix();
+	for (unsigned int moiety = 0; moiety < cm.numMoieties(); ++moiety)
+	{
+		for (unsigned int state = 0; state < 3; ++state)
+			expected[moiety] += L(moiety, state) * source[state];
+	}
+
+	SECTION("Vector")
+	{
+		double result[2];
+		cm.multiplyToVector(result, source, 3);
+		CHECK(std::abs(result[0] - expected[0]) <= tol);
+		CHECK(std::abs(result[1] - expected[1]) <= tol);
+
+		double inPlace[] = {source[0], source[1], source[2]};
+		double scratch[2];
+		cm.multiplyToVector(inPlace, 3, scratch);
+		CHECK(std::abs(inPlace[0] - expected[0]) <= tol);
+		CHECK(std::abs(inPlace[1] - expected[1]) <= tol);
+		CHECK(inPlace[2] == source[2]);
+	}
+
+	SECTION("Derivative vector")
+	{
+		double result[3];
+		cm.multiplyToDerivativeVector(result, source, 3);
+		CHECK(std::abs(result[0] - expected[0]) <= tol);
+		CHECK(std::abs(result[1] - expected[1]) <= tol);
+		CHECK(result[2] == 0.0);
+
+		double inPlace[] = {source[0], source[1], source[2]};
+		std::vector<double> scratch;
+		cm.multiplyToDerivativeVector(inPlace, 3, scratch);
+		CHECK(std::abs(inPlace[0] - expected[0]) <= tol);
+		CHECK(std::abs(inPlace[1] - expected[1]) <= tol);
+		CHECK(inPlace[2] == 0.0);
+	}
+
+	SECTION("Dense matrix")
+	{
+		TestDenseMatrix matrix{Eigen::MatrixXd(4, 4)};
+		matrix.values <<
+			1.0, 2.0, 3.0, 4.0,
+			5.0, 6.0, 7.0, 8.0,
+			9.0, 10.0, 11.0, 12.0,
+			13.0, 14.0, 15.0, 16.0;
+		const Eigen::MatrixXd original = matrix.values;
+		double scratch[2];
+
+		cm.multiplyToMatrix(matrix, 3, 1, 1, 4, scratch);
+
+		for (unsigned int moiety = 0; moiety < cm.numMoieties(); ++moiety)
+		{
+			for (unsigned int column = 1; column < 4; ++column)
+			{
+				double transformed = 0.0;
+				for (unsigned int state = 0; state < 3; ++state)
+					transformed += L(moiety, state) * original(1 + state, column);
+				CHECK(std::abs(matrix.values(1 + moiety, column) - transformed) <= tol);
+			}
+		}
+		CHECK(matrix.values.col(0) == original.col(0));
+	}
+
+	SECTION("Sparse matrix and pattern")
+	{
+		std::vector<Eigen::Triplet<double>> entries;
+		entries.emplace_back(0, 0, 9.0);
+		entries.emplace_back(1, 0, 1.0);
+		entries.emplace_back(1, 3, 2.0);
+		entries.emplace_back(2, 1, 3.0);
+		entries.emplace_back(3, 2, 4.0);
+		const Eigen::MatrixXd original = (Eigen::MatrixXd(3, 4) <<
+			1.0, 0.0, 0.0, 2.0,
+			0.0, 3.0, 0.0, 0.0,
+			0.0, 0.0, 4.0, 0.0).finished();
+
+		cm.addToPattern(entries, 3, 1);
+		Eigen::SparseMatrix<double, Eigen::RowMajor> matrix(5, 4);
+		matrix.setFromTriplets(entries.begin(), entries.end());
+
+		std::vector<cadet::model::ConservedMoieties::EigenSparseMatrixEntry> scratch;
+		CHECK(cm.matrixScratchSize(matrix, 3, 1) > 0);
+		cm.multiplyToMatrix(matrix, 3, 1, scratch);
+
+		for (unsigned int moiety = 0; moiety < cm.numMoieties(); ++moiety)
+		{
+			for (unsigned int column = 0; column < 4; ++column)
+			{
+				double transformed = 0.0;
+				for (unsigned int state = 0; state < 3; ++state)
+					transformed += L(moiety, state) * original(state, column);
+				CHECK(std::abs(matrix.coeff(1 + moiety, column) - transformed) <= tol);
+			}
+		}
+		CHECK(matrix.coeff(0, 0) == 9.0);
+	}
+
+	SECTION("Repeated sparse pattern")
+	{
+		std::vector<Eigen::Triplet<double>> entries;
+		entries.emplace_back(1, 0, 1.0);
+		entries.emplace_back(5, 3, 2.0);
+		cm.addRepeatedToPattern(entries, 3, 1, 2, 4);
+
+		for (unsigned int moiety = 0; moiety < cm.numMoieties(); ++moiety)
+		{
+			bool firstBlockEntryFound = false;
+			bool secondBlockEntryFound = false;
+			for (const auto& entry : entries)
+			{
+				firstBlockEntryFound = firstBlockEntryFound || ((entry.row() == 1 + moiety) && (entry.col() == 0));
+				secondBlockEntryFound = secondBlockEntryFound || ((entry.row() == 5 + moiety) && (entry.col() == 3));
+			}
+			CHECK(firstBlockEntryFound);
+			CHECK(secondBlockEntryFound);
 		}
 	}
 }
