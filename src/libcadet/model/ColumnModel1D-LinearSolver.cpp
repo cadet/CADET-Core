@@ -207,7 +207,7 @@ void ColumnModel1D<ConvDispOperator>::assembleDiscretizedGlobalJacobian(double a
 	// Add time derivatives to particle shells
 	for (unsigned int parType = 0; parType < _disc.nParType; parType++) {
 		const auto& particleCm = _particles[parType]->getReaction()->conservedMoieties("liquid");
-		const bool hasParticleEquilibrium = _particles[parType]->isParticleLumped() && particleCm.isEnabled() && (particleCm.numEquilibriumReactions() > 0);
+		const bool hasParticleEquilibrium = particleCm.isEnabled() && (particleCm.numEquilibriumReactions() > 0);
 
 		for (unsigned int colNode = 0; colNode < _disc.nPoints; colNode++) {
 

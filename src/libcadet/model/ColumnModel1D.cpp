@@ -528,14 +528,23 @@ unsigned int ColumnModel1D<ConvDispOperator>::threadLocalMemorySize() const CADE
 	lms.add<double>((maxStrideBound + _disc.nComp) * (maxStrideBound + _disc.nComp));
 
 	std::size_t maxParticleJacobianScratch = 0;
+	Indexer idxr(_disc);
 	for (unsigned int type = 0; type < _disc.nParType; ++type)
 	{
 		const auto& cm = _particles[type]->getReaction()->conservedMoieties("liquid");
 		if (!cm.isEnabled() || (cm.numEquilibriumReactions() == 0))
 			continue;
 
-		const std::size_t stridePoint = _disc.nComp + _disc.strideBound[type];
-		maxParticleJacobianScratch = std::max(maxParticleJacobianScratch, static_cast<std::size_t>(_disc.nComp) * (stridePoint + _disc.nComp));
+		for (unsigned int point = 0; point < _disc.nPoints; ++point)
+		{
+			const int particleOffset = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{point});
+			for (unsigned int shell = 0; shell < _disc.nParPoints[type]; ++shell)
+			{
+				const int rowOffset = particleOffset + shell * idxr.strideParNode(type);
+				maxParticleJacobianScratch = std::max(maxParticleJacobianScratch,
+					cm.matrixScratchSize(_globalJac, _disc.nComp, rowOffset));
+			}
+		}
 	}
 	if (maxParticleJacobianScratch > 0)
 		lms.add<ConservedMoieties::EigenSparseMatrixEntry>(maxParticleJacobianScratch);

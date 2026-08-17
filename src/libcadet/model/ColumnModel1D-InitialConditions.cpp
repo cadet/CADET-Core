@@ -361,7 +361,7 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialParticleLiquidEquilibrium
 
 	for (unsigned int type = 0; type < _disc.nParType; ++type)
 	{
-		if (!_particles[type]->isParticleLumped() || _binding[type]->hasQuasiStationaryReactions())
+		if (_binding[type]->hasQuasiStationaryReactions())
 			continue;
 
 		const ReactionSystem& reactionSystem = *_particles[type]->getReaction();
@@ -898,7 +898,7 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialState(const SimulationTim
 			continue;
 
 		const auto& particleCm = _particles[type]->getReaction()->conservedMoieties("liquid");
-		const bool hasParticleEquilibrium = _particles[type]->isParticleLumped() && particleCm.isEnabled() && (particleCm.numEquilibriumReactions() > 0);
+		const bool hasParticleEquilibrium = particleCm.isEnabled() && (particleCm.numEquilibriumReactions() > 0);
 
 		if (hasParticleEquilibrium)
 		{
@@ -1138,8 +1138,7 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialTimeDerivative(const Simu
 		const unsigned int par = pblk % _disc.nPoints;
 		const ReactionSystem& reactionSystem = *_particles[type]->getReaction();
 		const auto& particleCm = reactionSystem.conservedMoieties("liquid");
-		const bool hasParticleEquilibrium = _particles[type]->isParticleLumped()
-			&& particleCm.isEnabled() && (particleCm.numEquilibriumReactions() > 0);
+		const bool hasParticleEquilibrium = particleCm.isEnabled() && (particleCm.numEquilibriumReactions() > 0);
 		const bool hasBindingEquilibrium = _binding[type]->hasQuasiStationaryReactions();
 
 		if (hasParticleEquilibrium && hasBindingEquilibrium)
