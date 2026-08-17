@@ -326,7 +326,7 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialState(const SimulationTim
 	const auto& cm = _reaction.conservedMoieties("liquid");
 	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 	{
-		const auto& L = cm.getConservedMoietiesMatrix();
+		const auto& L = cm.conservedMoietyMatrix();
 		const unsigned int nMoieties = cm.numMoieties();
 		const unsigned int nEq = cm.numEquilibriumReactions();
 		const unsigned int probSize = _disc.nComp;
@@ -351,7 +351,7 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialState(const SimulationTim
 			BufferedArray<double> conservedBuffer = tlmAlloc.array<double>(nMoieties);
 			double* const conserved = static_cast<double*>(conservedBuffer);
 
-			cm.multiplyToVector(conserved, cLocal, probSize);
+			cm.applyToVector(conserved, cLocal, probSize);
 
 			BufferedArray<double> baNonlinMem = tlmAlloc.array<double>(_nonlinearSolver->workspaceSize(probSize));
 			double* const nonlinMem = static_cast<double*>(baNonlinMem);
@@ -384,7 +384,7 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialState(const SimulationTim
 			resFunc = [&](double const* const x, double* const r)
 			{
 				// Upper part: Conserved moieties
-				cm.multiplyToVector(r, x, probSize);
+				cm.applyToVector(r, x, probSize);
 				for (unsigned int m = 0; m < nMoieties; ++m)
 					r[m] -= conserved[m];
 
@@ -781,7 +781,7 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialTimeDerivative(const Simu
 	const auto& cm = _reaction.conservedMoieties("liquid");
 	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 	{
-		const auto& L = cm.getConservedMoietiesMatrix();
+		const auto& L = cm.conservedMoietyMatrix();
 		const unsigned int nMoieties = cm.numMoieties();
 		const unsigned int nEq = cm.numEquilibriumReactions();
 

@@ -300,7 +300,7 @@ protected:
 
 	parts::cell::CellParameters makeCellResidualParams(unsigned int parType, int const* qsReaction) const;
 
-	void reserveConservedMoietyJacobian();
+	void resizeConservedMoietyJacobianBuffer();
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
@@ -347,7 +347,7 @@ protected:
 	ConvDispOperator _convDispOp; //!< Convection dispersion operator base for interstitial volume transport
 	ReactionSystem _reaction; //!< Reaction system for bulk phase
 
-	std::vector<ConservedMoieties::EigenSparseMatrixEntry> _cMJacobianEntries;
+	std::vector<Eigen::Triplet<double>> _cMJacobianEntries;
 
 	cadet::linalg::EigenSolverBase* _linearSolver; //!< Linear solver
 
@@ -559,39 +559,7 @@ protected:
 
 		const auto& cm = _reaction.conservedMoieties("liquid");
 		if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
-		{
-			const unsigned int nMoieties = cm.numMoieties();
-			const std::size_t originalTripletCount = tripletList.size();
-
-			const int firstBulkRow = idxr.offsetC();
-			const int lastBulkRow = idxr.offsetCp();
-
-			std::size_t numBulkTriplets = 0;
-			for (std::size_t i = 0; i < originalTripletCount; ++i)
-			{
-				const int sourceRow = tripletList[i].row();
-				if ((sourceRow >= firstBulkRow) && (sourceRow < lastBulkRow))
-					++numBulkTriplets;
-			}
-
-			tripletList.reserve(originalTripletCount + static_cast<std::size_t>(nMoieties) * numBulkTriplets);
-
-			for (std::size_t i = 0; i < originalTripletCount; ++i)
-			{
-				const int sourceRow = tripletList[i].row();
-				const int sourceColumn = tripletList[i].col();
-
-				if ((sourceRow < firstBulkRow) || (sourceRow >= lastBulkRow))
-					continue;
-
-				const unsigned int point = static_cast<unsigned int>(sourceRow - firstBulkRow) / idxr.strideColNode();
-
-				const int pointOffset = idxr.offsetC() + point * idxr.strideColNode();
-
-				for (unsigned int moiety = 0; moiety < nMoieties; ++moiety)
-					tripletList.emplace_back(pointOffset + moiety, sourceColumn, 0.0);
-			}
-		}
+				cm.addPatternToBlocks(tripletList, _disc.nComp, idxr.offsetC(), _disc.nPoints, idxr.strideColNode(), 0, globalJ.cols());
 
 		globalJ.setFromTriplets(tripletList.begin(), tripletList.end());
 	}
