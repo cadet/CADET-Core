@@ -1326,7 +1326,7 @@ void ColumnModel1D<ConvDispOperator>::multiplyWithJacobian(const SimulationTime&
 	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 	{
 
-		const auto& L = cm.getConservedMoietiesMatrix();
+		const auto& L = cm.conservedMoietyMatrix();
 		for (unsigned int moiety = 0; moiety < cm.numMoieties(); ++moiety)
 		{
 			double inletDirection = 0.0;

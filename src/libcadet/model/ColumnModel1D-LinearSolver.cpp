@@ -147,7 +147,7 @@ int ColumnModel1D<ConvDispOperator>::linearSolve(double t, double alpha, double 
 	const auto& cm = _reaction.conservedMoieties("liquid");
 	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 	{
- 		const auto& L = cm.getConservedMoietiesMatrix();
+		const auto& L = cm.conservedMoietyMatrix();
         for (unsigned int moiety = 0; moiety < cm.numMoieties(); ++moiety)
         {
             double inletValue = 0.0;
@@ -228,7 +228,7 @@ void ColumnModel1D<ConvDispOperator>::assembleDiscretizedGlobalJacobian(double a
 	const auto& cm = _reaction.conservedMoieties("liquid");
 	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 	{
-		const auto& L = cm.getConservedMoietiesMatrix();
+		const auto& L = cm.conservedMoietyMatrix();
 		const unsigned int nMoieties = cm.numMoieties();
 		// todo refactor this
 		for (unsigned int point = 0; point < _disc.nPoints; ++point)

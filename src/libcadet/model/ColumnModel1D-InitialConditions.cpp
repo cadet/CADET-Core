@@ -326,7 +326,7 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialState(const SimulationTim
 	const auto& cm = _reaction.conservedMoieties("liquid");
 	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 	{
-		const auto& L = cm.getConservedMoietiesMatrix();
+		const auto& L = cm.conservedMoietyMatrix();
 		const unsigned int nMoieties = cm.numMoieties();
 		const unsigned int nEq = cm.numEquilibriumReactions();
 		const unsigned int probSize = _disc.nComp;
@@ -781,7 +781,7 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialTimeDerivative(const Simu
 	const auto& cm = _reaction.conservedMoieties("liquid");
 	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 	{
-		const auto& L = cm.getConservedMoietiesMatrix();
+		const auto& L = cm.conservedMoietyMatrix();
 		const unsigned int nMoieties = cm.numMoieties();
 		const unsigned int nEq = cm.numEquilibriumReactions();
 
