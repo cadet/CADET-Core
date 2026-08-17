@@ -185,6 +185,8 @@ namespace cadet
 
 						if (static_cast<double>(y[c]) > 0.0)
 							fluxGrad[c] *= exponentValue * pow(y[c], exponentValue - 1.0);
+						else if (exponentValue == 1.0)
+							fluxGrad[c] *= 1.0;
 						else
 							fluxGrad[c] *= 0.0;
 
@@ -240,8 +242,10 @@ namespace cadet
 							fluxGrad[j] *= v;
 						if (static_cast<double>(yLiquid[c]) > 0.0)
 							fluxGrad[c] *= exponentValue * pow(yLiquid[c], exponentValue - 1.0);
+						else if (exponentValue == 1.0)
+							fluxGrad[c] *= 1.0;
 						else
-							fluxGrad[c]*= 0.0;
+							fluxGrad[c] *= 0.0;
 
 						for (unsigned int j = c + 1; j < nComp + nTotalBoundStates; ++j)
 							fluxGrad[j] *= v;
@@ -263,8 +267,10 @@ namespace cadet
 
 						if (static_cast<double>(ySolid[c]) > 0.0)
 							fluxGrad[nComp + c] *= exponentValue * pow(ySolid[c], exponentValue - 1.0);
+						else if (exponentValue == 1.0)
+							fluxGrad[nComp + c] *= 1.0;
 						else
-							fluxGrad[nComp + c]*= 0.0;
+							fluxGrad[nComp + c] *= 0.0;
 
 						for (unsigned int j = c + 1; j < nTotalBoundStates; ++j)
 							fluxGrad[nComp + j] *= v;
@@ -530,6 +536,8 @@ namespace cadet
 							if (static_cast<double>(yLiquid[c]) > 0.0)
 								fwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(yLiquid[c]),
 									static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expLiquidFwd.native(c, r)));
+							else if (static_cast<double>(_expLiquidFwd.native(c, r)) == 1.0)
+								fwd *= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(yLiquid[c]);
 							else
 							{
 								fwd *= 0.0;
@@ -544,6 +552,8 @@ namespace cadet
 							if (static_cast<double>(ySolid[c]) > 0.0)
 								fwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(ySolid[c]),
 									static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expLiquidFwdSolid.native(c, r)));
+							else if (static_cast<double>(_expLiquidFwdSolid.native(c, r)) == 1.0)
+								fwd *= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(ySolid[c]);
 							else
 							{
 								fwd *= 0.0;
@@ -560,6 +570,8 @@ namespace cadet
 							if (static_cast<double>(yLiquid[c]) > 0.0)
 								bwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(yLiquid[c]),
 									static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expLiquidBwd.native(c, r)));
+							else if (static_cast<double>(_expLiquidBwd.native(c, r)) == 1.0)
+								bwd *= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(yLiquid[c]);
 							else
 							{
 								bwd *= 0.0;
@@ -574,6 +586,8 @@ namespace cadet
 							if (static_cast<double>(ySolid[c]) > 0.0)
 								bwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(ySolid[c]),
 									static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expLiquidBwdSolid.native(c, r)));
+							else if (static_cast<double>(_expLiquidBwdSolid.native(c, r)) == 1.0)
+								bwd *= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(ySolid[c]);
 							else
 							{
 								bwd *= 0.0;
@@ -602,6 +616,8 @@ namespace cadet
 							if (static_cast<double>(yLiquid[c]) > 0.0)
 								fwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(yLiquid[c]),
 									static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expSolidFwdLiquid.native(c, r)));
+							else if (static_cast<double>(_expSolidFwdLiquid.native(c, r)) == 1.0)
+								fwd *= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(yLiquid[c]);
 							else
 							{
 								fwd *= 0.0;
@@ -616,6 +632,8 @@ namespace cadet
 							if (static_cast<double>(ySolid[c]) > 0.0)
 								fwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(ySolid[c]),
 									static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expSolidFwd.native(c, r)));
+							else if (static_cast<double>(_expSolidFwd.native(c, r)) == 1.0)
+								fwd *= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(ySolid[c]);
 							else
 							{
 								fwd *= 0.0;
@@ -632,6 +650,8 @@ namespace cadet
 							if (static_cast<double>(yLiquid[c]) > 0.0)
 								bwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(yLiquid[c]),
 									static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expSolidBwdLiquid.native(c, r)));
+							else if (static_cast<double>(_expSolidBwdLiquid.native(c, r)) == 1.0)
+								bwd *= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(yLiquid[c]);
 							else
 							{
 								bwd *= 0.0;
@@ -646,6 +666,8 @@ namespace cadet
 							if (static_cast<double>(ySolid[c]) > 0.0)
 								bwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(ySolid[c]),
 									static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expSolidBwd.native(c, r)));
+							else if (static_cast<double>(_expSolidBwd.native(c, r)) == 1.0)
+								bwd *= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(ySolid[c]);
 							else
 							{
 								bwd *= 0.0;
