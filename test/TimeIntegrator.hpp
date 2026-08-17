@@ -22,13 +22,14 @@
 #include <unordered_map>
 
 #include "SundialsVector.hpp"
-#include <idas/idas_impl.h>
 
 #include "cadet/cadetCompilerInfo.hpp"
 
 namespace cadet
 {
-
+	int residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* userData);
+	int linearSolverSolve(SUNLinearSolver ls, SUNMatrix, N_Vector x, N_Vector rhs, double tol);
+	int linearSolverSetScalingVectors(SUNLinearSolver ls, N_Vector weight, N_Vector);
 namespace test
 {
 
@@ -178,6 +179,7 @@ public:
 	void setMaxErrorTestFails(unsigned int nFails);
 	void setMaxConvergenceFails(unsigned int nFails);
 	void setMaxSensNewtonIteration(unsigned int nIter);
+	void setIDALinearSolver();
 
 	IDiffEqModel* model() CADET_NOEXCEPT { return _model; }
 	IDiffEqModel const* model() const CADET_NOEXCEPT { return _model; }
@@ -201,6 +203,9 @@ protected:
 	IDiffEqModel* _model; //!< Simulated model, not owned by the Simulator
 
 	void* _idaMemBlock; //!< IDAS internal memory
+	SUNContext _sunctx; //!< IDAS suncontext object
+	SUNLinearSolver _linearSolver; //!< IDAS Sunlinearsolver object.
+	N_Vector _linearSolverWeight; //!< IDAS Weight vector.
 
 	/**
 	 * @brief Determines whether the transition from section i to section i+1 is continuous.
@@ -227,6 +232,11 @@ protected:
 	unsigned int _maxConvTestFail; //!< Maximum number of Newton iteration failures
 
 	int _curSec; //!< Index of the current section
+
+	friend int ::cadet::residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* userData);
+	friend int ::cadet::linearSolverSolve(SUNLinearSolver ls, SUNMatrix, N_Vector x, N_Vector b, double tol);
+	friend int ::cadet::linearSolverSetScalingVectors(SUNLinearSolver ls, N_Vector weight, N_Vector);
+
 };
 
 } // namespace test

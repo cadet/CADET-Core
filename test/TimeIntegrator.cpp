@@ -11,7 +11,6 @@
 // =============================================================================
 
 #include <idas/idas.h>
-#include <idas/idas_impl.h>
 #include "TimeIntegrator.hpp"
 
 #include <vector>
@@ -52,7 +51,7 @@ namespace
 	 * @brief IDAS error handler function
 	 * @details Handles errors reported by the IDAS solver. See section 4.6.2 of the IDAS manual for details.
 	 */
-	void idasErrorHandler(int error_code, const char* module, const char* function, char* msg, void* eh_data)
+	void idasErrorHandler(int line, const char* function, const char* module, const char* msg, int error_code, void* eh_data, SUNContext _sct)
 	{
 		std::ostringstream oss;
 		oss << "In function '" << function << "' of module '" << module << "', error code '" << getIDAReturnFlagName(error_code) << "':\n" << msg;
@@ -71,6 +70,20 @@ namespace
 	}
 
 	/**
+	* @brief returns type for the sundials linear solver interface
+	* @details set type of our solver to MATRIX_EMBEDDED so idas won't scale the tolerance factor down according depending
+	*	on the type of the matrix
+	*/
+	SUNLinearSolver_Type linearSolverGetType(SUNLinearSolver)
+	{
+		return SUNLINEARSOLVER_MATRIX_EMBEDDED;
+	}
+}
+
+namespace cadet
+{
+
+	/**
 	* @brief IDAS wrapper function to call the model's residual() method
 	*/
 	int residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* userData)
@@ -84,28 +97,57 @@ namespace
 	}
 
 	/**
-	* @brief IDAS wrapper function to call the model's linearSolve() method
+	* @brief solver function for our model system
+	* @details This is the main function that the linear solver object calls at each evaluation of the system
+	*     due to sundials >= v4 using a default interface for linear solver, the function solves a generic
+	*     Ax = b system with a tolerance factor tol that is scaled down from the newton convergence factor
+	*     epsnewton=0.33 by the system size and safety factor.
+	*	  In case of modified newton, we implement the logic to update the jacobian by ourselves. It still follows
+	*     the specific cases described in the sundials documentation 6.2.2.1.
+	*     The solution is written to rhs by linear solve, therefore we need to copy the solution to x.
+	*     The rhs values are negated in v7 compared to v3.
+	* @param [in] ls  linear solver object
+	* @param [in] null SUNMatrix not used
+	* @param [in, out] x nvector input guess, output solution vector
+	* @param [in] rhs nvector b of the linear system
+	* @param [in] tol newton convergence factor
 	*/
-	int linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector y, N_Vector yDot, N_Vector res)
+	int linearSolverSolve(SUNLinearSolver ls, SUNMatrix, N_Vector x, N_Vector rhs, double tol)
 	{
-		cadet::test::TimeIntegrator* const sim = static_cast<cadet::test::TimeIntegrator*>(IDA_mem->ida_lmem);
-		const double t = IDA_mem->ida_tn;
-		const double alpha = IDA_mem->ida_cj;
-		const double tol = IDA_mem->ida_epsNewt;
+		cadet::test::TimeIntegrator* const sim = static_cast<cadet::test::TimeIntegrator*>(ls->content);
+
+		double t;
+		double alpha;
+		N_Vector y;
+		N_Vector yDot;
+		N_Vector unused1;
+		N_Vector unused2;
+		N_Vector res;
+		void* unused4;
+
+		IDAGetNonlinearSystemData(sim->_idaMemBlock, &t, &unused1, &unused2, &y, &yDot, &res, &alpha, &unused4);
 
 		LOG(Trace) << "==> Solve at t = " << t << " alpha = " << alpha << " tol = " << tol;
 
-		return sim->model()->linearSolve(t, alpha, tol, NVEC_DATA(rhs), NVEC_DATA(weight), NVEC_DATA(y), NVEC_DATA(yDot));
-	}
-}
 
-namespace cadet
-{
+		const int ret = sim->model()->linearSolve(t, alpha, tol, NVEC_DATA(rhs), NVEC_DATA(sim->_linearSolverWeight), NVEC_DATA(y), NVEC_DATA(yDot));
+		N_VScale(1.0, rhs, x);
+		return ret;
+	}
+	/**
+	* Scaling function that the newton solver calls in every iteration to set the errorweights.
+	*/
+	int linearSolverSetScalingVectors(SUNLinearSolver ls, N_Vector weight, N_Vector)
+	{
+		cadet::test::TimeIntegrator* const sim = static_cast<cadet::test::TimeIntegrator*>(ls->content);
+		sim->_linearSolverWeight = weight;
+		return 0;
+	}
 
 namespace test
 {
 
-	TimeIntegrator::TimeIntegrator() : _model(nullptr), _idaMemBlock(nullptr), _vecStateY(nullptr),
+	TimeIntegrator::TimeIntegrator() : _model(nullptr), _idaMemBlock(nullptr), _sunctx(nullptr), _linearSolver(nullptr), _vecStateY(nullptr),
 		_vecStateYdot(nullptr), _absTol(1, 1.0e-8), _relTol(1.0e-6), _initStepSize(1, 1.0e-6), 
         _maxSteps(10000), _maxStepSize(0.0), _maxNewtonIter(3), _maxErrorTestFail(7), _maxConvTestFail(10),
 		_curSec(0)
@@ -127,20 +169,22 @@ namespace test
 	{
 		_model = &model;
 
+		SUNContext_Create(SUN_COMM_NULL, &_sunctx);
+
 		// Allocate and initialize state vectors
 		const unsigned int nDOFs = _model->numDofs();
-		_vecStateY = NVec_New(nDOFs);
-		_vecStateYdot = NVec_New(nDOFs);
+		_vecStateY = NVec_New(nDOFs, _sunctx);
+		_vecStateYdot = NVec_New(nDOFs, _sunctx);
 
 		// Initialize with all zeros, correct initial conditions will be set later
 		NVec_Const(0.0, _vecStateY);
 		NVec_Const(0.0, _vecStateYdot);
 
 		// Create IDAS internal memory
-		_idaMemBlock = IDACreate();
+		_idaMemBlock = IDACreate(_sunctx);
 
-		// IDAS Step 4.1: Specify error handler function
-		IDASetErrHandlerFn(_idaMemBlock, &idasErrorHandler, this);
+		// Specify error handler function
+		SUNContext_PushErrHandler(_sunctx, &idasErrorHandler, this);
 
 		// IDAS Step 5: Initialize the solver
 		_model->applyInitialCondition(NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot));
@@ -154,7 +198,11 @@ namespace test
 		// IDAS Step 6: Specify integration tolerances (S: scalar; V: array)
 		updateMainErrorTolerances();
 
-		// IDAS Step 7.1: Set optional inputs
+		// Attach user data structure
+		IDASetUserData(_idaMemBlock, this);
+
+		// Set LinearSolver
+		setIDALinearSolver();
 
 		// Set time integrator parameters
 		IDASetMaxNumSteps(_idaMemBlock, _maxSteps);
@@ -163,23 +211,18 @@ namespace test
 		IDASetMaxErrTestFails(_idaMemBlock, _maxErrorTestFail);
 		IDASetMaxConvFails(_idaMemBlock, _maxConvTestFail);
 
-		// Specify the linear solver.
-		IDAMem IDA_mem = static_cast<IDAMem>(_idaMemBlock);
+	}
 
-		IDA_mem->ida_lsolve         = &linearSolveWrapper;
-		IDA_mem->ida_lmem           = this;
-		IDA_mem->ida_linit          = nullptr;
-		IDA_mem->ida_lsetup         = nullptr;
-		IDA_mem->ida_lperf          = nullptr;
-		IDA_mem->ida_lfree          = nullptr;
-//		IDA_mem->ida_efun           = &weightWrapper;
-//		IDA_mem->ida_user_efun      = 1;
-#if CADET_SUNDIALS_IFACE <= 2
-		IDA_mem->ida_setupNonNull   = false;
-#endif
-
-		// Attach user data structure
-		IDASetUserData(_idaMemBlock, this);
+	void TimeIntegrator::setIDALinearSolver()
+	{
+		_linearSolver = SUNLinSolNewEmpty(_sunctx);
+		_linearSolver->content = this;
+		_linearSolver->ops->solve = linearSolverSolve;
+		_linearSolver->ops->setscalingvectors = linearSolverSetScalingVectors;
+		_linearSolver->ops->gettype = linearSolverGetType;
+		IDASetLinearSolver(_idaMemBlock, _linearSolver, NULL);
+		IDASetEpsLin(_idaMemBlock, 1);
+		IDASetLSNormFactor(_idaMemBlock, 1);
 	}
 
 	void TimeIntegrator::configureTimeIntegrator(double relTol, double absTol, double initStepSize, unsigned int maxSteps, double maxStepSize)
@@ -221,7 +264,7 @@ namespace test
 				return;
 
             const unsigned int nDofs = _model->numDofs();
-			N_Vector absTolTemp = NVec_New(nDofs);
+			N_Vector absTolTemp = NVec_New(nDofs, _sunctx);
 
 			// Check whether user has given us full absolute error for all (pure) DOFs
 			if (_absTol.size() >= nDofs)
