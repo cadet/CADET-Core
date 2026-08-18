@@ -291,6 +291,19 @@ protected:
 
 	int multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue);
 	int multiplexInitialConditions(const cadet::ParameterId& pId, double val, bool checkSens);
+	void consistentInitialBulkLiquidEquilibrium(const SimulationTime& simTime, double* const vecStateY, double errorTol, util::ThreadLocalStorage& threadLocalMem);
+	void consistentInitialBindingEquilibrium(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem, unsigned int type);
+	void consistentInitialBulkTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem);
+	void consistentInitialBindingTimeDerivative(const SimulationTime& simTime, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem, unsigned int type, unsigned int par);
+	void initializeSensitivityBulkStates(double* const sensY, std::size_t param) const;
+	void initializeSensitivityParticleStates(double* const sensY, std::size_t param, unsigned int type) const;
+	void consistentInitialSensitivityBindingEquilibrium(double* const sensY, double const* const sensYdot, util::ThreadLocalStorage& threadLocalMem, unsigned int type);
+	void consistentInitialSensitivityBulkTimeDerivative();
+	void consistentInitialSensitivityBindingTimeDerivative(double* const sensYdot, unsigned int pblk);
+	void leanConsistentInitialBindingEquilibrium(const SimulationTime& simTime, double* const vecStateY, util::ThreadLocalStorage& threadLocalMem, unsigned int type);
+	void leanConsistentInitialBulkTimeDerivative(double t, double* const vecStateYdot, double* const res);
+	void leanConsistentInitialSensitivityBulkTimeDerivative(const SimulationTime& simTime, const ConstSimulationState& simState,
+		double const* const sensY, double* const sensYdot, active const* const adRes, std::size_t param);
 
 	parts::cell::CellParameters makeCellResidualParams(unsigned int parType, int const* qsReaction) const;
 
