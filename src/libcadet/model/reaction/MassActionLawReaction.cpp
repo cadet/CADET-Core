@@ -22,9 +22,11 @@
 
 #include <functional>
 #include <algorithm>
+#include <cmath>
 #include <unordered_map>
 #include <string>
 #include <vector>
+
 
 /*<codegen>
 {
@@ -180,8 +182,10 @@ namespace
 
 				if (y[c] > 0.0)
 					fluxGrad[c] *= exponentValue * std::pow(y[c], exponentValue - 1.0);
+				else if (exponentValue == 1.0)
+					fluxGrad[c] *= 1.0;
 				else
-					fluxGrad[c]*= 0.0;
+					fluxGrad[c] *= 0.0;
 
 				for (unsigned int j = c + 1; j < nComp; ++j)
 					fluxGrad[j] *= v;
@@ -381,6 +385,8 @@ protected:
 					if (static_cast<double>(y[c]) > 0.0)
 						fwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]),
 							static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expFwd.native(c, r)));
+					else if (static_cast<double>(_expFwd.native(c, r)) == 1.0)
+						fwd *= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]);
 					else
 					{
 						fwd *= 0.0;
@@ -398,6 +404,8 @@ protected:
 					if (static_cast<double>(y[c]) > 0.0)
 						bwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]),
 							static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expBwd.native(c, r)));
+					else if (static_cast<double>(_expBwd.native(c, r)) == 1.0)
+						bwd *= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]);
 					else
 					{
 						bwd *= 0.0;
@@ -472,8 +480,8 @@ protected:
 		{
 			if (!_eqMaskVector[r])
 				continue;
-			
-			ResidualType fwd = rateConstantOrZero(static_cast<ResidualType>(p->kFwd[r]), r, _expFwd, nStates);
+
+			ResidualType fwd = rateConstantOrZero( static_cast<ResidualType>(p->kFwd[r]), r, _expFwd, nStates);
 
 			for (int c = 0; c < nStates; ++c)
 			{
@@ -481,6 +489,8 @@ protected:
 				{
 					if (static_cast<double>(y[c]) > 0.0)
 						fwd *= pow(static_cast<ResidualType>(y[c]), static_cast<ResidualType>(_expFwd.native(c, r)));
+					else if (static_cast<double>(_expFwd.native(c, r)) == 1.0)
+						fwd *= static_cast<ResidualType>(y[c]);
 					else
 					{
 						fwd *= 0.0;
@@ -489,7 +499,8 @@ protected:
 				}
 			}
 
-			ResidualType bwd = rateConstantOrZero(static_cast<ResidualType>(p->kBwd[r]), r, _expBwd, nStates);
+			ResidualType bwd = rateConstantOrZero(
+				static_cast<ResidualType>(p->kBwd[r]), r, _expBwd, nStates);
 			for (int c = 0; c < nStates; ++c)
 			{	
 
@@ -498,6 +509,8 @@ protected:
 					if (static_cast<double>(y[c]) > 0.0)
 						bwd *= pow(static_cast<ResidualType>(y[c]),
 							static_cast<ResidualType>(_expBwd.native(c, r)));
+					else if (static_cast<double>(_expBwd.native(c, r)) == 1.0)
+						bwd *= static_cast<ResidualType>(y[c]);
 					else
 					{
 						bwd *= 0.0;
@@ -527,12 +540,9 @@ protected:
 			if (!_eqMaskVector[r])
 				continue;
 			
-			// Calculate gradients of forward and backward fluxes
-			double kFwd = static_cast<double>(p->kFwd[r]);
-			double kBwd = static_cast<double>(p->kBwd[r]);
 			
-			fluxGrad(fluxGradFwd, r, nState, kFwd, _expFwd, y);
-			fluxGrad(fluxGradBwd, r, nState, kBwd, _expBwd, y);
+			fluxGrad(fluxGradFwd, r, nState, static_cast<double>(p->kFwd[r]), _expFwd, y);
+			fluxGrad(fluxGradBwd, r, nState, static_cast<double>(p->kBwd[r]), _expBwd, y);
 
 			// Add gradients to Jacobian
 			RowIterator curJac = jac + eqIdx;

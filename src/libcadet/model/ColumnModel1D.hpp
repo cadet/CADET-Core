@@ -297,10 +297,30 @@ protected:
 
 	int multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue);
 	int multiplexInitialConditions(const cadet::ParameterId& pId, double val, bool checkSens);
+	void consistentInitialBulkLiquidEquilibrium(const SimulationTime& simTime, double* const vecStateY,
+		double errorTol, util::ThreadLocalStorage& threadLocalMem);
+	void consistentInitialParticleLiquidEquilibrium(const SimulationTime& simTime, double* const vecStateY,
+		double errorTol, util::ThreadLocalStorage& threadLocalMem);
+	void consistentInitialBindingEquilibrium(const SimulationTime& simTime, double* const vecStateY,
+		const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem, unsigned int parType);
+	void consistentInitialParticleLiquidBindingEquilibrium(const SimulationTime& simTime, double* const vecStateY,
+		double errorTol, util::ThreadLocalStorage& threadLocalMem, unsigned int parType);
+	void consistentInitialBulkTimeDerivative(const SimulationTime& simTime, double const* vecStateY,
+		double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem);
+	void consistentInitialParticleTimeDerivative(unsigned int parType, unsigned int par);
+	void consistentInitialParticleLiquidEquilibriumTimeDerivative(const SimulationTime& simTime, double const* vecStateY,
+		double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem, unsigned int parType, unsigned int par);
+	void consistentInitialBindingTimeDerivative(const SimulationTime& simTime, double* const vecStateYdot,
+		util::ThreadLocalStorage& threadLocalMem, unsigned int parType, unsigned int par);
+	void consistentInitialParticleLiquidBindingEquilibriumTimeDerivative(const SimulationTime& simTime,
+		double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem,
+		unsigned int parType, unsigned int par);
+	void addInitialBindingTimeDerivativeEquilibriumRows(const SimulationTime& simTime, double* const vecStateYdot,
+		util::ThreadLocalStorage& threadLocalMem, unsigned int parType, unsigned int par);
 
 	parts::cell::CellParameters makeCellResidualParams(unsigned int parType, int const* qsReaction) const;
 
-	void reserveConservedMoietyJacobian();
+	void reserveConservedMoietyBuffers();
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
@@ -347,7 +367,8 @@ protected:
 	ConvDispOperator _convDispOp; //!< Convection dispersion operator base for interstitial volume transport
 	ReactionSystem _reaction; //!< Reaction system for bulk phase
 
-	std::vector<ConservedMoieties::EigenSparseMatrixEntry> _cMJacobianEntries;
+	std::vector<ConservedMoieties::EigenSparseMatrixEntry> _cMJacobianEntries; //!< Reusable scratch for in-place Jacobian transformations
+	std::vector<double> _cMVectorEntries; //!< Reusable scratch for in-place vector transformations
 
 	cadet::linalg::EigenSolverBase* _linearSolver; //!< Linear solver
 
@@ -560,37 +581,9 @@ protected:
 		const auto& cm = _reaction.conservedMoieties("liquid");
 		if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 		{
-			const unsigned int nMoieties = cm.numMoieties();
-			const std::size_t originalTripletCount = tripletList.size();
-
-			const int firstBulkRow = idxr.offsetC();
-			const int lastBulkRow = idxr.offsetCp();
-
-			std::size_t numBulkTriplets = 0;
-			for (std::size_t i = 0; i < originalTripletCount; ++i)
-			{
-				const int sourceRow = tripletList[i].row();
-				if ((sourceRow >= firstBulkRow) && (sourceRow < lastBulkRow))
-					++numBulkTriplets;
-			}
-
-			tripletList.reserve(originalTripletCount + static_cast<std::size_t>(nMoieties) * numBulkTriplets);
-
-			for (std::size_t i = 0; i < originalTripletCount; ++i)
-			{
-				const int sourceRow = tripletList[i].row();
-				const int sourceColumn = tripletList[i].col();
-
-				if ((sourceRow < firstBulkRow) || (sourceRow >= lastBulkRow))
-					continue;
-
-				const unsigned int point = static_cast<unsigned int>(sourceRow - firstBulkRow) / idxr.strideColNode();
-
-				const int pointOffset = idxr.offsetC() + point * idxr.strideColNode();
-
-				for (unsigned int moiety = 0; moiety < nMoieties; ++moiety)
-					tripletList.emplace_back(pointOffset + moiety, sourceColumn, 0.0);
-			}
+			for (unsigned int point = 0; point < _disc.nPoints; ++point)
+				cm.applyToPattern(tripletList, _disc.nComp,
+					idxr.offsetC() + point * idxr.strideColNode());
 		}
 
 		globalJ.setFromTriplets(tripletList.begin(), tripletList.end());

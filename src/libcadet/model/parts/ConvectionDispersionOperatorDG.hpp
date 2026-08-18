@@ -1974,8 +1974,8 @@ namespace cadet
 						Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> gMap(g + elem * _nNodes, _nNodes, InnerStride<Dynamic>(1));
 						Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> resMap(res + elem * strideColElement(), _nNodes, InnerStride<Dynamic>(strideColNode()));
 
-						resMap -= 2.0 / static_cast<ResidualType>(_deltaX) * (static_cast<ResidualType>(_QOverEps) * (_invMM_A_times_DT_timesM00[elem] * cMap).template cast<ResidualType>()
-							+ (_invMM_A_times_ST_AD[comp][elem] * gMap).template cast<ResidualType>());
+						resMap -= 2.0 / static_cast<ResidualType>(_deltaX) * (static_cast<ResidualType>(_QOverEps) * (_invMM_A_times_DT_timesM00[elem].template cast<StateType>() * cMap).template cast<ResidualType>()
+							+ (_invMM_A_times_ST_AD[comp][elem].template cast<StateType>() * gMap).template cast<ResidualType>());
 					}
 				}
 

@@ -295,7 +295,11 @@ namespace model
 		if (paramProvider.exists("NREAC_CROSS_PHASE"))
 			dynReactionConfSuccess = _reaction.configure("cross_phase", _parTypeIdx, unitOpIdx, paramProvider) && dynReactionConfSuccess;
 		if (paramProvider.exists("NREAC_LIQUID"))
+		{
 			dynReactionConfSuccess = _reaction.configure("liquid", _parTypeIdx, unitOpIdx, paramProvider) && dynReactionConfSuccess;
+			dynReactionConfSuccess = _reaction.configureConservedMoities("liquid", _nComp, 1e-14) && dynReactionConfSuccess;
+			_cMJacobianEntries.reserve(static_cast<std::size_t>(_nComp) * _nComp);
+		}
 		if (paramProvider.exists("NREAC_SOLID"))
 			dynReactionConfSuccess = _reaction.configure("solid", _parTypeIdx, unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
@@ -367,6 +371,20 @@ namespace model
 			return residualImpl<active, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 	}
 
+	void HomogeneousParticle::applyTimeDerivativeJacobianTransformation(double* result, unsigned int numParticleBlocks, std::vector<double>& scratch) const
+	{
+		const auto& cm = _reaction.conservedMoieties("liquid");
+		if (!cm.isEnabled() || (cm.numEquilibriumReactions() == 0))
+			return;
+
+		for (unsigned int particle = 0; particle < numParticleBlocks; ++particle)
+		{
+			double* const particleResult = result + particle * strideParBlock();
+			for (int shell = 0; shell < nDiscPoints(); ++shell)
+				cm.applyToDerivativeVector(particleResult + shell * stridePoint(), _nComp, scratch);
+		}
+	}
+
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantNonLinJac, bool wantRes>
 	int HomogeneousParticle::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ResidualType* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
 	{
@@ -407,6 +425,36 @@ namespace model
 			}
 		}
 
+		const auto& cm = _reaction.conservedMoieties("liquid");
+		if (wantRes && cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+		{
+			const unsigned int nMoieties = cm.numMoieties();
+
+			BufferedArray<ResidualType> scratchBuffer = tlmAlloc.array<ResidualType>(nMoieties);
+			ResidualType* const scratch = static_cast<ResidualType*>(scratchBuffer);
+
+			StateType const* const c =  yPar;
+			ResidualType* const localRes = resPar;
+
+			cm.applyToVector(localRes, _nComp, scratch);
+			_reaction.writeEquilibriumResidual("liquid", t, secIdx, packing.colPos, _nComp, c, localRes + nMoieties, tlmAlloc.manageRemainingMemory());
+		}
+
+		if (wantNonLinJac && cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+		{
+
+			const unsigned int nMoieties = cm.numMoieties();
+			auto& jacobian = jacBase.matrix();
+			const std::size_t scratchSize = cm.matrixScratchSize(jacobian, _nComp, jacBase.row());
+			BufferedArray<ConservedMoieties::EigenSparseMatrixEntry> scratch = tlmAlloc.array<ConservedMoieties::EigenSparseMatrixEntry>(scratchSize);
+
+			cm.applyToMatrix(jacobian, _nComp, jacBase.row(), 0, jacobian.cols(), static_cast<ConservedMoieties::EigenSparseMatrixEntry*>(scratch), scratchSize);
+
+			linalg::BandedEigenSparseRowIterator equilibriumJacobian(jacobian, jacBase.row() + nMoieties);
+			_reaction.addEquilibriumJacobian("liquid", t, secIdx, packing.colPos, _nComp, reinterpret_cast<double const*>(yPar), nMoieties, equilibriumJacobian, tlmAlloc.manageRemainingMemory());
+
+		}
+
 		return true;
 	}
 
@@ -426,11 +474,19 @@ namespace model
 			tripletList.push_back(Eigen::Triplet<double>(offsetPar + comp, offsetBulk + comp, 0.0));
 			tripletList.push_back(Eigen::Triplet<double>(offsetBulk + comp, offsetPar + comp, 0.0));
 		}
+
+		const auto& cm = _reaction.conservedMoieties("liquid");
+		if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+			cm.applyToPattern(tripletList, _nComp, offsetPar, offsetBulk, offsetBulk + _nComp);
+
 	}
 
 	unsigned int HomogeneousParticle::jacobianNNZperParticle() const
 	{
-		return (_nComp + _strideBound) * (_nComp + _strideBound) + _nComp * 4; // reaction, binding patter + film diffusion pattern for one particle
+		const auto& cm = _reaction.conservedMoieties("liquid");
+		const unsigned int conservedMoietyEntries = (cm.isEnabled() && cm.numEquilibriumReactions() > 0) ? cm.numMoieties() * _nComp: 0u;
+
+		return (_nComp + _strideBound) * (_nComp + _strideBound) + _nComp * 4 + conservedMoietyEntries;
 	}
 
 	int HomogeneousParticle::calcParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
@@ -453,9 +509,26 @@ namespace model
 
 		linalg::BandedEigenSparseRowIterator jacC(globalJac, offsetC);
 		linalg::BandedEigenSparseRowIterator jacP(globalJac, offsetCp);
+		const auto& cm = _reaction.conservedMoieties("liquid");
+		const bool crossDepAndEquilibriumReaction = crossDepsOnly && cm.isEnabled() && (cm.numEquilibriumReactions() > 0);
 
 		for (unsigned int colNode = 0; colNode < nBulkPoints; colNode++, jacP += _strideBound)
 		{
+			const int bulkRowOffset = jacC.row();
+			const int particleRowOffset = jacP.row();
+			if (crossDepAndEquilibriumReaction)
+			{
+				// Remove values left by a previous transformed Jacobian before assembling the raw diagonal block.
+				for (unsigned int state = 0; state < _nComp; ++state)
+				{
+					for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(globalJac, particleRowOffset + state); it; ++it)
+					{
+						if ((it.col() >= bulkRowOffset) && (it.col() < bulkRowOffset + _nComp))
+							it.valueRef() = 0.0;
+					}
+				}
+			}
+
 			for (unsigned int comp = 0; comp < _nComp; comp++, ++jacC, ++jacP) {
 
 				// add Cl on Cl entries (added since already set in bulk jacobian)
@@ -478,6 +551,9 @@ namespace model
 				// col: go to flux of current parType and adjust for offsetC. jump over previous colNodes and add component offset
 				jacP[jacC.row() - jacP.row()] = jacPF_val / static_cast<double>(poreAccFactor[comp]) * static_cast<double>(filmDiff[comp]);
 			}
+
+			if (crossDepAndEquilibriumReaction)
+				cm.applyToMatrix(globalJac, _nComp, particleRowOffset, bulkRowOffset, bulkRowOffset + _nComp, _cMJacobianEntries);
 		}
 
 		return 1;
