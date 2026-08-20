@@ -338,6 +338,12 @@ protected:
 	std::vector<active> _cellFaces; //!< Positions of cell faces (length nCol+1)
 	std::vector<active> _cellSizes; //!< Cell sizes (length nCol)
 
+	// Area-weighted moments for reconstruction
+	std::vector<active> _areaCentroids; //!< Area-weighted centroids c_j^{(1)} (length nCol)
+	std::vector<active> _areaSecondMoments; //!< Area-weighted second moments c_j^{(2)} (length nCol)
+	std::vector<active> _areaThirdMoments; //!< Area-weighted third moments c_j^{(3)} (length nCol)
+	std::vector<active> _areaFourthMoments; //!< Area-weighted fourth moments c_j^{(4)} (length nCol)
+
 	// Indexer functionality
 
 	// Strides
@@ -490,6 +496,12 @@ protected:
 	std::vector<active> _cellSizes; // Cell size or length in the considered coordinate
 	std::vector<active> _cellCenterRadiusSq; // Squared column radius at the cell centers
 	std::vector<active> _cellFaceRadiusSq; // Squared column radius at the cell boundaries
+
+	// Area-weighted moments for reconstruction
+	std::vector<active> _areaCentroids; //!< Area-weighted centroids c_j^{(1)} (length nCol)
+	std::vector<active> _areaSecondMoments; //!< Area-weighted second moments c_j^{(2)} (length nCol)
+	std::vector<active> _areaThirdMoments; //!< Area-weighted third moments c_j^{(3)} (length nCol)
+	std::vector<active> _areaFourthMoments; //!< Area-weighted fourth moments c_j^{(4)} (length nCol)
 
 	// Indexer functionality
 

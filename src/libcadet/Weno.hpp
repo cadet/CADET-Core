@@ -21,6 +21,7 @@
 #include "AutoDiff.hpp"
 #include "MathUtil.hpp"
 #include "Memory.hpp"
+#include "AreaWeightedReconstruction.hpp"
 #include "common/CompilerSpecific.hpp"
 #include "cadet/Exceptions.hpp"
 
@@ -119,6 +120,20 @@ public:
 	int reconstruct(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result, const FaceContainerType& cellFaces)
 	{
 		return reconstructNonEq<StateType, StencilType, FaceContainerType, false>(cellIdx, numCells, w, result, nullptr, cellFaces);
+	}
+
+	template <typename StateType, typename StencilType, typename FaceContainerType, typename MomentsType>
+	int reconstruct(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result, double* const Dvm,
+		const FaceContainerType& cellFaces, const MomentsType& areaMoments)
+	{
+		return reconstructAreaWeighted<StateType, StencilType, FaceContainerType, MomentsType, true>(cellIdx, numCells, w, result, Dvm, cellFaces, areaMoments);
+	}
+
+	template <typename StateType, typename StencilType, typename FaceContainerType, typename MomentsType>
+	int reconstruct(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result,
+		const FaceContainerType& cellFaces, const MomentsType& areaMoments)
+	{
+		return reconstructAreaWeighted<StateType, StencilType, FaceContainerType, MomentsType, false>(cellIdx, numCells, w, result, nullptr, cellFaces, areaMoments);
 	}
 
 	/**
@@ -658,6 +673,287 @@ private:
 			Dvm[4] = static_cast<double>(dW0_dp2 * q0 + dW1_dp2 * q1 + dW2_dp2 * q2 + W0 * dq0_dp2);
 		}
 		return order;
+	}
+
+
+	template <typename StateType, typename StencilType, typename FaceContainerType, typename MomentsType, bool wantJac>
+	int reconstructAreaWeighted(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result,
+		double* const Dvm, const FaceContainerType& cellFaces, const MomentsType& areaMoments)
+	{
+#if defined(ACTIVE_SETFAD) || defined(ACTIVE_SFAD)
+		using cadet::sqr;
+		using sfad::sqr;
+#endif
+
+		int order = std::min(std::min(static_cast<int>(cellIdx) + 1, _order), std::min(static_cast<int>(numCells - cellIdx), _order));
+		order = std::max(order, 1);
+
+		if (order <= 1)
+		{
+			result = StateType(w[0]);
+			if (wantJac)
+				Dvm[0] = 1.0;
+			return order;
+		}
+
+		const double xf = static_cast<double>(cellFaces[cellIdx + 1]);
+
+		if (order == 2)
+		{
+			const StateType wm1 = static_cast<StateType>(w[-1]);
+			const StateType w0 = static_cast<StateType>(w[0]);
+			const StateType wp1 = static_cast<StateType>(w[1]);
+
+			const double mu_m1 = static_cast<double>(areaMoments.centroids[cellIdx - 1]) - xf;
+			const double mu_0 = static_cast<double>(areaMoments.centroids[cellIdx]) - xf;
+			const double mu_p1 = static_cast<double>(areaMoments.centroids[cellIdx + 1]) - xf;
+
+			// Sub-stencil 0 {i, i+1}: linear polynomial face value
+			const double dmu0 = mu_p1 - mu_0;
+			const double q0c0 = mu_p1 / dmu0;
+			const double q0c1 = -mu_0 / dmu0;
+
+			// Sub-stencil 1 {i-1, i}: linear polynomial face value
+			const double dmu1 = mu_0 - mu_m1;
+			const double q1cm1 = mu_0 / dmu1;
+			const double q1c0 = -mu_m1 / dmu1;
+
+			const StateType q0 = q0c0 * w0 + q0c1 * wp1;
+			const StateType q1 = q1cm1 * wm1 + q1c0 * w0;
+
+			// Optimal weights from full-stencil (quadratic) reconstruction
+			const double nu_m1 = static_cast<double>(areaMoments.secondMoments[cellIdx - 1]) - 2.0 * xf * static_cast<double>(areaMoments.centroids[cellIdx - 1]) + xf * xf;
+			const double nu_0 = static_cast<double>(areaMoments.secondMoments[cellIdx]) - 2.0 * xf * static_cast<double>(areaMoments.centroids[cellIdx]) + xf * xf;
+			const double nu_p1 = static_cast<double>(areaMoments.secondMoments[cellIdx + 1]) - 2.0 * xf * static_cast<double>(areaMoments.centroids[cellIdx + 1]) + xf * xf;
+
+			const double cf00 = mu_0 * nu_p1 - nu_0 * mu_p1;
+			const double cf10 = -(mu_m1 * nu_p1 - nu_m1 * mu_p1);
+			const double cf20 = mu_m1 * nu_0 - nu_m1 * mu_0;
+			const double det = cf00 + cf10 + cf20;
+
+			const double C0 = (cf20 / det) / q0c1;
+			const double C1 = (cf00 / det) / q1cm1;
+
+			// Smoothness indicators (cell-width based, same as non-equidistant case)
+			const auto hRaw = cellWidths3FromFaces(cellIdx, numCells, cellFaces);
+			const StateType hm1 = static_cast<StateType>(hRaw[0]);
+			const StateType h0 = static_cast<StateType>(hRaw[1]);
+			const StateType hp1 = static_cast<StateType>(hRaw[2]);
+			const auto hl = hm1 + h0;
+			const auto hr = h0 + hp1;
+
+			const auto d0 = wp1 - w0;
+			const auto d1 = w0 - wm1;
+			const auto IS0c = (2.0 * h0 / hr) * (2.0 * h0 / hr);
+			const auto IS1c = (2.0 * h0 / hl) * (2.0 * h0 / hl);
+			const auto IS0 = IS0c * d0 * d0;
+			const auto IS1 = IS1c * d1 * d1;
+
+			const auto a0 = C0 / ((_epsilon + IS0) * (_epsilon + IS0));
+			const auto a1 = C1 / ((_epsilon + IS1) * (_epsilon + IS1));
+			const auto W0 = a0 / (a0 + a1);
+			const auto W1 = 1.0 - W0;
+
+			result = StateType(W0 * q0 + W1 * q1);
+
+			if (wantJac)
+			{
+				const auto dIS0_d0 = -2.0 * IS0c * d0;
+				const auto dIS0_dp1 = 2.0 * IS0c * d0;
+				const auto dIS1_d0 = 2.0 * IS1c * d1;
+				const auto dIS1_dm1 = -2.0 * IS1c * d1;
+
+				const auto da0_d0 = -2.0 * C0 * (1.0 / ((_epsilon + IS0) * (_epsilon + IS0) * (_epsilon + IS0))) * dIS0_d0;
+				const auto da0_dp1 = -2.0 * C0 * (1.0 / ((_epsilon + IS0) * (_epsilon + IS0) * (_epsilon + IS0))) * dIS0_dp1;
+				const auto da1_d0 = -2.0 * C1 * (1.0 / ((_epsilon + IS1) * (_epsilon + IS1) * (_epsilon + IS1))) * dIS1_d0;
+				const auto da1_dm1 = -2.0 * C1 * (1.0 / ((_epsilon + IS1) * (_epsilon + IS1) * (_epsilon + IS1))) * dIS1_dm1;
+
+				const auto aSum = a0 + a1;
+				const auto dW0_d0 = (da0_d0 * aSum - a0 * (da0_d0 + da1_d0)) / (aSum * aSum);
+				const auto dW0_dp1 = (da0_dp1 * aSum - a0 * da0_dp1) / (aSum * aSum);
+				const auto dW0_dm1 = (-a0 * da1_dm1) / (aSum * aSum);
+				const auto dW1_d0 = -dW0_d0;
+				const auto dW1_dp1 = -dW0_dp1;
+				const auto dW1_dm1 = -dW0_dm1;
+
+				Dvm[0] = static_cast<double>(dW0_dm1 * q0 + dW1_dm1 * q1 + W1 * q1cm1);
+				Dvm[1] = static_cast<double>(dW0_d0 * q0 + W0 * q0c0 + dW1_d0 * q1 + W1 * q1c0);
+				Dvm[2] = static_cast<double>(dW0_dp1 * q0 + W0 * q0c1 + dW1_dp1 * q1);
+			}
+
+			return order;
+		}
+
+		// order == 3: WENO-35 with area weighting
+		{
+			const StateType wm2 = static_cast<StateType>(w[-2]);
+			const StateType wm1 = static_cast<StateType>(w[-1]);
+			const StateType w0 = static_cast<StateType>(w[0]);
+			const StateType wp1 = static_cast<StateType>(w[1]);
+			const StateType wp2 = static_cast<StateType>(w[2]);
+
+			// Compute area-weighted moments about the face for the 5-cell stencil
+			double mu1[5], mu2[5], mu3[5], mu4[5];
+			for (int k = -2; k <= 2; ++k)
+				detail::computeMoments(cellIdx + k, xf, areaMoments, mu1[k + 2], mu2[k + 2], mu3[k + 2], mu4[k + 2]);
+
+			// Sub-stencil 0: cells {i, i+1, i+2} — quadratic polynomial
+			double muS0[3] = { mu1[2], mu1[3], mu1[4] };
+			double nuS0[3] = { mu2[2], mu2[3], mu2[4] };
+			double q0coeff[3];
+			detail::solve3x3FirstRow(muS0, nuS0, q0coeff);
+
+			// Sub-stencil 1: cells {i-1, i, i+1} — quadratic polynomial
+			double muS1[3] = { mu1[1], mu1[2], mu1[3] };
+			double nuS1[3] = { mu2[1], mu2[2], mu2[3] };
+			double q1coeff[3];
+			detail::solve3x3FirstRow(muS1, nuS1, q1coeff);
+
+			// Sub-stencil 2: cells {i-2, i-1, i} — quadratic polynomial
+			double muS2[3] = { mu1[0], mu1[1], mu1[2] };
+			double nuS2[3] = { mu2[0], mu2[1], mu2[2] };
+			double q2coeff[3];
+			detail::solve3x3FirstRow(muS2, nuS2, q2coeff);
+
+			// Candidate values
+			const StateType q0 = q0coeff[0] * w0 + q0coeff[1] * wp1 + q0coeff[2] * wp2;
+			const StateType q1 = q1coeff[0] * wm1 + q1coeff[1] * w0 + q1coeff[2] * wp1;
+			const StateType q2 = q2coeff[0] * wm2 + q2coeff[1] * wm1 + q2coeff[2] * w0;
+
+			// Full stencil: 5-cell degree-4 polynomial for optimal weights
+			double M[5][5];
+			for (int i = 0; i < 5; ++i)
+			{
+				M[i][0] = 1.0;
+				M[i][1] = mu1[i];
+				M[i][2] = mu2[i];
+				M[i][3] = mu3[i];
+				M[i][4] = mu4[i];
+			}
+			double fullCoeff[5];
+			detail::solve5x5FirstRow(M, fullCoeff);
+
+			// Optimal weights: from cells unique to each sub-stencil
+			// w[2] only in sub-stencil 0 (coeff index 2): d0 * q0coeff[2] = fullCoeff[4]
+			// w[-2] only in sub-stencil 2 (coeff index 0): d2 * q2coeff[0] = fullCoeff[0]
+			const double C0 = fullCoeff[4] / q0coeff[2];
+			const double C2 = fullCoeff[0] / q2coeff[0];
+			const double C1 = 1.0 - C0 - C2;
+
+			// Smoothness indicators (same cell-width-based formulas as non-equidistant case)
+			const auto hRaw = cellWidths5FromFaces(cellIdx, numCells, cellFaces);
+			const StateType hm2 = static_cast<StateType>(hRaw[0]);
+			const StateType hm1 = static_cast<StateType>(hRaw[1]);
+			const StateType h0 = static_cast<StateType>(hRaw[2]);
+			const StateType hp1 = static_cast<StateType>(hRaw[3]);
+			const StateType hp2 = static_cast<StateType>(hRaw[4]);
+
+			const auto dI0 = hm2 + hm1 + h0;
+			const auto dI1 = hm1 + h0 + hp1;
+			const auto dI2 = h0 + hp1 + hp2;
+
+			const auto IS0pre = 4.0 * (h0 / dI2) * (h0 / dI2);
+			const auto IS0c1 = IS0pre * (10.0 * h0 * h0 + hp1 * (h0 + hp1)) / ((hp1 + hp2) * (hp1 + hp2));
+			const auto IS0c2 = IS0pre * (20.0 * h0 * h0 + 2.0 * hp1 * (h0 + hp1) + (2.0 * hp1 + h0) * dI2) / ((hp1 + hp2) * (h0 + hp1));
+			const auto IS0c3 = IS0pre * (10.0 * h0 * h0 + (2.0 * dI2 - hp2) * (dI2 + hp1)) / ((h0 + hp1) * (h0 + hp1));
+
+			const auto IS1pre = 4.0 * (h0 / dI1) * (h0 / dI1);
+			const auto IS1c1 = IS1pre * (10.0 * h0 * h0 + hp1 * (h0 + hp1)) / ((hm1 + h0) * (hm1 + h0));
+			const auto IS1c2 = IS1pre * (20.0 * h0 * h0 - hp1 * hm1 - (h0 + hp1) * (h0 + hm1)) / ((h0 + hp1) * (h0 + hm1));
+			const auto IS1c3 = IS1pre * (10.0 * h0 * h0 + hm1 * (hm1 + h0)) / ((h0 + hp1) * (h0 + hp1));
+
+			const auto IS2pre = 4.0 * (h0 / dI0) * (h0 / dI0);
+			const auto IS2c1 = IS2pre * (10.0 * h0 * h0 + hm1 * (hm1 + h0)) / ((hm2 + hm1) * (hm2 + hm1));
+			const auto IS2c2 = IS2pre * (20.0 * h0 * h0 + 2.0 * hm1 * (hm1 + h0) + dI0 * (2.0 * hm1 + h0)) / ((hm1 + h0) * (hm2 + hm1));
+			const auto IS2c3 = IS2pre * (10.0 * h0 * h0 + (2.0 * dI0 - hm2) * (dI0 + hm1)) / ((hm1 + h0) * (hm1 + h0));
+
+			const auto dm2 = wm2;
+			const auto dm1 = wm1;
+			const auto d0 = w0;
+			const auto dp1 = wp1;
+			const auto dp2 = wp2;
+
+			const auto IS0 = IS0c1 * (dp2 - dp1) * (dp2 - dp1) + IS0c2 * (dp2 - dp1) * (d0 - dp1) + IS0c3 * (d0 - dp1) * (d0 - dp1);
+			const auto IS1 = IS1c1 * (dm1 - d0) * (dm1 - d0) + IS1c2 * (dp1 - d0) * (dm1 - d0) + IS1c3 * (dp1 - d0) * (dp1 - d0);
+			const auto IS2 = IS2c1 * (dm2 - dm1) * (dm2 - dm1) + IS2c2 * (d0 - dm1) * (dm2 - dm1) + IS2c3 * (d0 - dm1) * (d0 - dm1);
+
+			const auto a0 = C0 / ((_epsilon + IS0) * (_epsilon + IS0));
+			const auto a1 = C1 / ((_epsilon + IS1) * (_epsilon + IS1));
+			const auto a2 = C2 / ((_epsilon + IS2) * (_epsilon + IS2));
+			const auto aSum = a0 + a1 + a2;
+			const auto W0 = a0 / aSum;
+			const auto W1 = a1 / aSum;
+			const auto W2 = 1.0 - W0 - W1;
+
+			result = StateType(W0 * q0 + W1 * q1 + W2 * q2);
+
+			if (wantJac)
+			{
+				const auto dIS0_dp2 = 2.0 * IS0c1 * (dp2 - dp1) + IS0c2 * (d0 - dp1);
+				const auto dIS0_dp1 = -2.0 * IS0c1 * (dp2 - dp1) + IS0c2 * (2.0 * dp1 - dp2 - d0) - 2.0 * IS0c3 * (d0 - dp1);
+				const auto dIS0_d0 = IS0c2 * (dp2 - dp1) + 2.0 * IS0c3 * (d0 - dp1);
+
+				const auto dIS1_dp1 = IS1c2 * (dm1 - d0) + 2.0 * IS1c3 * (dp1 - d0);
+				const auto dIS1_d0 = -2.0 * IS1c1 * (dm1 - d0) + IS1c2 * (2.0 * d0 - dp1 - dm1) - 2.0 * IS1c3 * (dp1 - d0);
+				const auto dIS1_dm1 = 2.0 * IS1c1 * (dm1 - d0) + IS1c2 * (dp1 - d0);
+
+				const auto dIS2_d0 = IS2c2 * (dm2 - dm1) + 2.0 * IS2c3 * (d0 - dm1);
+				const auto dIS2_dm1 = -2.0 * IS2c1 * (dm2 - dm1) + IS2c2 * (2.0 * dm1 - d0 - dm2) - 2.0 * IS2c3 * (d0 - dm1);
+				const auto dIS2_dm2 = 2.0 * IS2c1 * (dm2 - dm1) + IS2c2 * (d0 - dm1);
+
+				const auto da0_dp2 = -2.0 * C0 * (1.0 / ((_epsilon + IS0) * (_epsilon + IS0) * (_epsilon + IS0))) * dIS0_dp2;
+				const auto da0_dp1 = -2.0 * C0 * (1.0 / ((_epsilon + IS0) * (_epsilon + IS0) * (_epsilon + IS0))) * dIS0_dp1;
+				const auto da0_d0 = -2.0 * C0 * (1.0 / ((_epsilon + IS0) * (_epsilon + IS0) * (_epsilon + IS0))) * dIS0_d0;
+
+				const auto da1_dp1 = -2.0 * C1 * (1.0 / ((_epsilon + IS1) * (_epsilon + IS1) * (_epsilon + IS1))) * dIS1_dp1;
+				const auto da1_d0 = -2.0 * C1 * (1.0 / ((_epsilon + IS1) * (_epsilon + IS1) * (_epsilon + IS1))) * dIS1_d0;
+				const auto da1_dm1 = -2.0 * C1 * (1.0 / ((_epsilon + IS1) * (_epsilon + IS1) * (_epsilon + IS1))) * dIS1_dm1;
+
+				const auto da2_d0 = -2.0 * C2 * (1.0 / ((_epsilon + IS2) * (_epsilon + IS2) * (_epsilon + IS2))) * dIS2_d0;
+				const auto da2_dm1 = -2.0 * C2 * (1.0 / ((_epsilon + IS2) * (_epsilon + IS2) * (_epsilon + IS2))) * dIS2_dm1;
+				const auto da2_dm2 = -2.0 * C2 * (1.0 / ((_epsilon + IS2) * (_epsilon + IS2) * (_epsilon + IS2))) * dIS2_dm2;
+
+				const auto zero = aSum * 0.0;
+				const auto invASum2 = 1.0 / (aSum * aSum);
+
+				const auto sumDa_dp2 = da0_dp2 + zero + zero;
+				const auto sumDa_dp1 = da0_dp1 + da1_dp1 + zero;
+				const auto sumDa_d0 = da0_d0 + da1_d0 + da2_d0;
+				const auto sumDa_dm1 = zero + da1_dm1 + da2_dm1;
+				const auto sumDa_dm2 = zero + zero + da2_dm2;
+
+				const auto dW0_dp2 = (da0_dp2 * aSum - a0 * sumDa_dp2) * invASum2;
+				const auto dW0_dp1 = (da0_dp1 * aSum - a0 * sumDa_dp1) * invASum2;
+				const auto dW0_d0 = (da0_d0 * aSum - a0 * sumDa_d0) * invASum2;
+				const auto dW0_dm1 = (zero * aSum - a0 * sumDa_dm1) * invASum2;
+				const auto dW0_dm2 = (zero * aSum - a0 * sumDa_dm2) * invASum2;
+
+				const auto dW1_dp2 = (zero * aSum - a1 * sumDa_dp2) * invASum2;
+				const auto dW1_dp1 = (da1_dp1 * aSum - a1 * sumDa_dp1) * invASum2;
+				const auto dW1_d0 = (da1_d0 * aSum - a1 * sumDa_d0) * invASum2;
+				const auto dW1_dm1 = (da1_dm1 * aSum - a1 * sumDa_dm1) * invASum2;
+				const auto dW1_dm2 = (zero * aSum - a1 * sumDa_dm2) * invASum2;
+
+				const auto dW2_dp2 = -dW0_dp2 - dW1_dp2;
+				const auto dW2_dp1 = -dW0_dp1 - dW1_dp1;
+				const auto dW2_d0 = -dW0_d0 - dW1_d0;
+				const auto dW2_dm1 = -dW0_dm1 - dW1_dm1;
+				const auto dW2_dm2 = -dW0_dm2 - dW1_dm2;
+
+				// Area-weighted candidate derivatives
+				// dq0/d(w[-2]) = 0, dq0/d(w[-1]) = 0, dq0/d(w[0]) = q0coeff[0], dq0/d(w[1]) = q0coeff[1], dq0/d(w[2]) = q0coeff[2]
+				// dq1/d(w[-2]) = 0, dq1/d(w[-1]) = q1coeff[0], dq1/d(w[0]) = q1coeff[1], dq1/d(w[1]) = q1coeff[2], dq1/d(w[2]) = 0
+				// dq2/d(w[-2]) = q2coeff[0], dq2/d(w[-1]) = q2coeff[1], dq2/d(w[0]) = q2coeff[2], dq2/d(w[1]) = 0, dq2/d(w[2]) = 0
+
+				Dvm[0] = static_cast<double>(dW0_dm2 * q0 + dW1_dm2 * q1 + dW2_dm2 * q2 + W2 * q2coeff[0]);
+				Dvm[1] = static_cast<double>(dW0_dm1 * q0 + dW1_dm1 * q1 + dW2_dm1 * q2 + W1 * q1coeff[0] + W2 * q2coeff[1]);
+				Dvm[2] = static_cast<double>(dW0_d0 * q0 + dW1_d0 * q1 + dW2_d0 * q2 + W0 * q0coeff[0] + W1 * q1coeff[1] + W2 * q2coeff[2]);
+				Dvm[3] = static_cast<double>(dW0_dp1 * q0 + dW1_dp1 * q1 + dW2_dp1 * q2 + W0 * q0coeff[1] + W1 * q1coeff[2]);
+				Dvm[4] = static_cast<double>(dW0_dp2 * q0 + dW1_dp2 * q1 + dW2_dp2 * q2 + W0 * q0coeff[2]);
+			}
+
+			return order;
+		}
 	}
 
 

@@ -21,6 +21,7 @@
 #include "AutoDiff.hpp"
 #include "MathUtil.hpp"
 #include "Memory.hpp"
+#include "AreaWeightedReconstruction.hpp"
 #include "common/CompilerSpecific.hpp"
 #include "cadet/Exceptions.hpp"
 
@@ -90,6 +91,20 @@ public:
 	int reconstruct(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result, const FaceContainerType& cellFaces)
 	{
 		return reconstructNonEqImpl<StateType, StencilType, FaceContainerType, false>(cellIdx, numCells, w, result, nullptr, cellFaces);
+	}
+
+	template <typename StateType, typename StencilType, typename FaceContainerType, typename MomentsType>
+	int reconstruct(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result, double* const Dvm,
+		const FaceContainerType& cellFaces, const MomentsType& areaMoments)
+	{
+		return reconstructAreaWeightedImpl<StateType, StencilType, FaceContainerType, MomentsType, true>(cellIdx, numCells, w, result, Dvm, cellFaces, areaMoments);
+	}
+
+	template <typename StateType, typename StencilType, typename FaceContainerType, typename MomentsType>
+	int reconstruct(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result,
+		const FaceContainerType& cellFaces, const MomentsType& areaMoments)
+	{
+		return reconstructAreaWeightedImpl<StateType, StencilType, FaceContainerType, MomentsType, false>(cellIdx, numCells, w, result, nullptr, cellFaces, areaMoments);
 	}
 
 	/**
@@ -260,6 +275,64 @@ private:
 		const auto num = w[0] - w[-1] + _epsilon;
 		const auto den = w[1] - w[0] + _epsilon;
 		const auto r = A * num / den;
+
+		double phi = 0.0;
+		double dPhiDm1 = 0.0;
+		double dPhiD0 = 0.0;
+		double dPhiDp1 = 0.0;
+		if (r > 0.0)
+		{
+			phi = static_cast<double>(r / (R - 1.0 + r));
+			const auto drDm1 = -A / den;
+			const auto drD0 = A * (den + num) / (den * den);
+			const auto drDp1 = -A * num / (den * den);
+			const auto dPhiDr = (R - 1.0) / ((R - 1.0 + r) * (R - 1.0 + r));
+			dPhiDm1 = static_cast<double>(dPhiDr * drDm1);
+			dPhiD0 = static_cast<double>(dPhiDr * drD0);
+			dPhiDp1 = static_cast<double>(dPhiDr * drDp1);
+		}
+
+		result = w[0] + phi * (w[1] - w[0]);
+		if (wantJac)
+		{
+			Dvm[0] = static_cast<double>(dPhiDm1 * (w[1] - w[0]));
+			Dvm[1] = static_cast<double>(1.0 + dPhiD0 * (w[1] - w[0]) - phi);
+			Dvm[2] = static_cast<double>(dPhiDp1 * (w[1] - w[0]) + phi);
+		}
+		return order;
+	}
+
+	template <typename StateType, typename StencilType, typename FaceContainerType, typename MomentsType, bool wantJac>
+	int reconstructAreaWeightedImpl(unsigned int cellIdx, unsigned int numCells, const StencilType& w, StateType& result,
+		double* const Dvm, const FaceContainerType& cellFaces, const MomentsType& areaMoments)
+	{
+		int order = std::min(std::min(static_cast<int>(cellIdx) + 1, _order), std::min(static_cast<int>(numCells - cellIdx), _order));
+		order = std::max(order, 1);
+		if (order <= 1)
+		{
+			result = w[0];
+			if (wantJac)
+				Dvm[0] = 1.0;
+			return order;
+		}
+
+		const double xf = static_cast<double>(cellFaces[cellIdx + 1]);
+
+		// Area-weighted first moments about the face
+		const double mu_0 = static_cast<double>(areaMoments.centroids[cellIdx]) - xf;
+		const double mu_p1 = static_cast<double>(areaMoments.centroids[cellIdx + 1]) - xf;
+
+		const double dmu = mu_p1 - mu_0;
+		const double slopeParam = -mu_0 / dmu;
+
+		// Smoothness ratio (same as non-equidistant case)
+		const auto h = cellWidthsFromFacesNonEq(cellIdx, numCells, cellFaces);
+		const auto A = (h[1] + h[2]) / (h[1] + h[0]);
+		const auto num = w[0] - w[-1] + _epsilon;
+		const auto den = w[1] - w[0] + _epsilon;
+		const auto r = A * num / den;
+
+		const double R = 1.0 / slopeParam;
 
 		double phi = 0.0;
 		double dPhiDm1 = 0.0;
