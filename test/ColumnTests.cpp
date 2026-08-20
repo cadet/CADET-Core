@@ -1840,6 +1840,44 @@ namespace column
 		rd.closeFile();
 	}
 
+	void generateReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const DiscParams& disc)
+	{
+		const int unitOpID = std::stoi(unitID);
+
+		const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
+		JsonParameterProvider pp_setup(JsonParameterProvider::fromFile(setupFile));
+
+		nlohmann::json* setupJson = pp_setup.data();
+
+		cadet::io::HDF5Reader rd;
+		const std::string refFile = std::string(getTestDirectory()) + refFileRelPath;
+		rd.openFile(refFile, "r");
+		ParameterProviderImpl<cadet::io::HDF5Reader> pp_ref(rd);
+		setNumericalMethod(pp_ref, *setupJson, unitID, true);
+		pp_ref.popScope();
+
+		pp_ref.pushScope("input");
+		pp_ref.pushScope("solver");
+		setupJson[0]["solver"]["USER_SOLUTION_TIMES"] = pp_ref.getDoubleArray("USER_SOLUTION_TIMES");
+		pp_ref.popScope();
+
+		copyMultiplexData(pp_ref, *setupJson, unitID);
+		copyReturnData(pp_ref, *setupJson, unitID);
+		pp_ref.popScope();
+		rd.closeFile();
+
+		disc.setDisc(pp_setup, unitID);
+
+		Driver drv;
+		drv.configure(pp_setup);
+		drv.run();
+
+		cadet::io::HDF5Writer writer;
+		writer.openFile(refFile, "rw");
+		drv.write(writer);
+		writer.closeFile();
+	}
+
 	void testEOCReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& convFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const unsigned int nDisc, const DiscParams& startDisc, const bool compare_sens)
 	{
 		const int unitOpID = std::stoi(unitID);

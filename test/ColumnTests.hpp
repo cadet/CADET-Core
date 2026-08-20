@@ -796,6 +796,8 @@ namespace column
 	 */
 	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const cadet::test::column::DiscParams& disc, const bool compare_sens = false, const int simDataStride = 1, const int outletDataStride = 1, const int outletDataOffset = 0);
 
+	void generateReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const cadet::test::column::DiscParams& disc);
+
 	/**
 	 * @brief Runs an EOC test comparing against numerical reference data (outlet data)
 	 * @param [in] setupFileRelPath Path to the setup data file from the directory of this file. Model configuration is sufficient, rest will be copied from reference file.
