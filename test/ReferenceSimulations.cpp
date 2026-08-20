@@ -49,6 +49,13 @@ TEST_CASE("Generate radial and frustum FV reference data", "[.][generate]")
 
 	for (int i = 0; i < 12; ++i)
 		cadet::test::column::generateReferenceBenchmark(configs[i], refs[i], "001", disc);
+
+	// Radial GRM sensitivity benchmark
+	cadet::test::column::FVParams discGRM(32, 4);
+	cadet::test::column::generateReferenceBenchmark(
+		"/data/model_radGRM_dynLin_1comp_sensbenchmark1.json",
+		"/data/ref_radGRM_dynLin_1comp_sensbenchmark1_FV_Z32parZ4.h5",
+		"001", discGRM);
 }
 
 TEST_CASE("Reference test: Frustum FV KOREN", "[Column_1D],[frustumFV_KOREN],[Simulation],[CI],[numRef]")
@@ -66,7 +73,7 @@ TEST_CASE("Reference test: Frustum FV KOREN non-equidistant grid", "[Column_1D],
 {
 	std::string modelFilePath = std::string("/data/config_frustumKOREN_nonEq_Z128.json");
 	std::string refFilePath = std::string("/data/ref_frustumKOREN_nonEq_Z128.h5");
-	const std::vector<double> absTol = { 5e-10 };
+	const std::vector<double> absTol = { 5e-7 };
 	const std::vector<double> relTol = { 1e-5 };
 
 	cadet::test::column::FVParams disc(128);

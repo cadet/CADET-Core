@@ -1842,8 +1842,6 @@ namespace column
 
 	void generateReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const DiscParams& disc)
 	{
-		const int unitOpID = std::stoi(unitID);
-
 		const std::string setupFile = std::string(getTestDirectory()) + modelFileRelPath;
 		JsonParameterProvider pp_setup(JsonParameterProvider::fromFile(setupFile));
 
@@ -1863,6 +1861,8 @@ namespace column
 
 		copyMultiplexData(pp_ref, *setupJson, unitID);
 		copyReturnData(pp_ref, *setupJson, unitID);
+		if (pp_ref.exists("sensitivity"))
+			copySensitivities(pp_ref, *setupJson, unitID);
 		pp_ref.popScope();
 		rd.closeFile();
 

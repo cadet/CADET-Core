@@ -86,8 +86,6 @@ namespace impl
 	template <typename StateType, typename ResidualType, typename ParamType, typename ReconstrType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 	int residualForwardsFrustumFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FrustumFlowParameters<ParamType, ReconstrType>& p)
 	{
-		const bool nonEqGrid = p.gridFaces && !p.gridEquidistant;
-
 		// The stencil caches parts of the state vector for better spatial coherence
 		typedef CachingStencil<StateType, ArrayPool> StencilType;
 		StencilType stencil(std::max(p.reconstruction->stencilSize(), 3u), *p.stencilMemory, std::max(p.reconstruction->order() - 1, 1));
@@ -220,8 +218,6 @@ namespace impl
 	template <typename StateType, typename ResidualType, typename ParamType, typename ReconstrType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 	int residualBackwardsFrustumFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FrustumFlowParameters<ParamType, ReconstrType>& p)
 	{
-		const bool nonEqGrid = p.gridFaces && !p.gridEquidistant;
-
 		typedef CachingStencil<StateType, ArrayPool> StencilType;
 		StencilType stencil(std::max(p.reconstruction->stencilSize(), 3u), *p.stencilMemory, std::max(p.reconstruction->order() - 1, 1));
 
