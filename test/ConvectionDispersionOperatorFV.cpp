@@ -19,6 +19,7 @@
 #include "model/parts/RadialConvectionDispersionKernelFV.hpp"
 #include "Weno.hpp"
 #include "HighResKoren.hpp"
+#include "AreaWeightedReconstruction.hpp"
 #include "AdUtils.hpp"
 #include "SimulationTypes.hpp"
 #include "ModelBuilderImpl.hpp"
@@ -445,6 +446,10 @@ struct RadialFlow
 	std::vector<cadet::active> centers;
 	std::vector<cadet::active> sizes;
 	std::vector<cadet::active> bounds;
+	std::vector<cadet::active> areaCentroids;
+	std::vector<cadet::active> areaSecondMoments;
+	std::vector<cadet::active> areaThirdMoments;
+	std::vector<cadet::active> areaFourthMoments;
 
 	RadialFlow()
 	{
@@ -466,6 +471,8 @@ struct RadialFlow
 		}
 		bounds.back() = (nCol + 1) * h;
 
+		cadet::computeRadialAreaMoments(nCol, bounds.data(), areaCentroids, areaSecondMoments, areaThirdMoments, areaFourthMoments);
+
 		return Params {
 			u,
 			d_rad,
@@ -482,7 +489,11 @@ struct RadialFlow
 			static_cast<unsigned int>(nComp),
 			parDep.get(),
 			true,
-			nullptr
+			&bounds,
+			&areaCentroids,
+			&areaSecondMoments,
+			&areaThirdMoments,
+			&areaFourthMoments
 		};
 	}
 };

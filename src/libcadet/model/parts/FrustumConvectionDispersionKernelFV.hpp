@@ -22,6 +22,7 @@
 #include "Memory.hpp"
 #include "Weno.hpp"
 #include "HighResKoren.hpp"
+#include "AreaWeightedReconstruction.hpp"
 #include "Stencil.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"
 #include "SimulationTypes.hpp"
@@ -66,6 +67,10 @@ struct FrustumFlowParameters
 	IParameterParameterDependence* parDep;
 	bool gridEquidistant; //!< Determines whether the grid is equidistant
 	std::vector<active> const* gridFaces; //!< Positions of the cell faces for non-equidistant grids
+	std::vector<active> const* areaCentroids; //!< Area-weighted centroids for each cell
+	std::vector<active> const* areaSecondMoments; //!< Area-weighted second moments for each cell
+	std::vector<active> const* areaThirdMoments; //!< Area-weighted third moments for each cell
+	std::vector<active> const* areaFourthMoments; //!< Area-weighted fourth moments for each cell
 };
 
 
@@ -81,8 +86,6 @@ namespace impl
 	template <typename StateType, typename ResidualType, typename ParamType, typename ReconstrType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 	int residualForwardsFrustumFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FrustumFlowParameters<ParamType, ReconstrType>& p)
 	{
-		const bool nonEqGrid = p.gridFaces && !p.gridEquidistant;
-
 		// The stencil caches parts of the state vector for better spatial coherence
 		typedef CachingStencil<StateType, ArrayPool> StencilType;
 		StencilType stencil(std::max(p.reconstruction->stencilSize(), 3u), *p.stencilMemory, std::max(p.reconstruction->order() - 1, 1));
@@ -178,19 +181,13 @@ namespace impl
 					resBulkComp[col * p.strideCell] -= convCoeff * y[p.offsetToInlet + comp];
 				}
 
-				if (nonEqGrid)
+				// Area-weighted reconstruction
 				{
+					const AreaMomentsBundle<const std::vector<active>&> moments{*p.areaCentroids, *p.areaSecondMoments, *p.areaThirdMoments, *p.areaFourthMoments};
 					if (wantJac)
-						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives, *p.gridFaces);
+						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives, *p.gridFaces, moments);
 					else
-						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, *p.gridFaces);
-				}
-				else
-				{
-					if (wantJac)
-						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives);
-					else
-						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm);
+						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, *p.gridFaces, moments);
 				}
 
 				if (wantRes)
@@ -221,8 +218,6 @@ namespace impl
 	template <typename StateType, typename ResidualType, typename ParamType, typename ReconstrType, typename RowIteratorType, bool wantJac, bool wantRes = true>
 	int residualBackwardsFrustumFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FrustumFlowParameters<ParamType, ReconstrType>& p)
 	{
-		const bool nonEqGrid = p.gridFaces && !p.gridEquidistant;
-
 		typedef CachingStencil<StateType, ArrayPool> StencilType;
 		StencilType stencil(std::max(p.reconstruction->stencilSize(), 3u), *p.stencilMemory, std::max(p.reconstruction->order() - 1, 1));
 
@@ -317,21 +312,19 @@ namespace impl
 					resBulkComp[col * p.strideCell] += convCoeff * y[p.offsetToInlet + comp];
 				}
 
-				if (nonEqGrid)
+				// Area-weighted reconstruction (reversed)
 				{
 					const ReverseFaceAccessorFrustum<std::vector<active>> reverseFaces{*p.gridFaces};
+					const ReverseMomentAccessor<std::vector<active>> revCentroids{*p.areaCentroids};
+					const ReverseMomentAccessor<std::vector<active>> revSecondMoments{*p.areaSecondMoments};
+					const ReverseMomentAccessor<std::vector<active>> revThirdMoments{*p.areaThirdMoments};
+					const ReverseMomentAccessor<std::vector<active>> revFourthMoments{*p.areaFourthMoments};
+					const AreaMomentsBundle<ReverseMomentAccessor<std::vector<active>>> reversedMoments{revCentroids, revSecondMoments, revThirdMoments, revFourthMoments};
 					const unsigned int flowCellIdx = p.nCol - 1 - col;
 					if (wantJac)
-						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(flowCellIdx, p.nCol, stencil, vm, p.reconstructionDerivatives, reverseFaces);
+						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(flowCellIdx, p.nCol, stencil, vm, p.reconstructionDerivatives, reverseFaces, reversedMoments);
 					else
-						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(flowCellIdx, p.nCol, stencil, vm, reverseFaces);
-				}
-				else
-				{
-					if (wantJac)
-						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives);
-					else
-						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm);
+						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(flowCellIdx, p.nCol, stencil, vm, reverseFaces, reversedMoments);
 				}
 
 				if (wantRes)

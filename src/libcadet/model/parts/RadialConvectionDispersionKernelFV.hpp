@@ -22,6 +22,7 @@
 #include "Memory.hpp"
 #include "Weno.hpp"
 #include "HighResKoren.hpp"
+#include "AreaWeightedReconstruction.hpp"
 #include "Stencil.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"
 #include "SimulationTypes.hpp"
@@ -63,6 +64,10 @@ struct RadialFlowParameters
 	IParameterParameterDependence* parDep;
 	bool gridEquidistant; //!< Determines whether the grid is equidistant
 	std::vector<active> const* cellFaces; //!< Positions of the cell faces for non-equidistant grids (points to _cellBounds)
+	std::vector<active> const* areaCentroids; //!< Area-weighted centroids for each cell
+	std::vector<active> const* areaSecondMoments; //!< Area-weighted second moments for each cell
+	std::vector<active> const* areaThirdMoments; //!< Area-weighted third moments for each cell
+	std::vector<active> const* areaFourthMoments; //!< Area-weighted fourth moments for each cell
 };
 
 
@@ -191,20 +196,13 @@ namespace impl
 					resBulkComp[col * p.strideCell] -= p.u / denom * y[p.offsetToInlet + comp];
 				}
 
-				// Reconstruct concentration on this cell's right face
-				if (!p.gridEquidistant)
+				// Reconstruct concentration on this cell's right face (area-weighted)
 				{
+					const AreaMomentsBundle<const std::vector<active>&> moments{*p.areaCentroids, *p.areaSecondMoments, *p.areaThirdMoments, *p.areaFourthMoments};
 					if (wantJac)
-						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives, *p.cellFaces);
+						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives, *p.cellFaces, moments);
 					else
-						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, *p.cellFaces);
-				}
-				else
-				{
-					if (wantJac)
-						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives);
-					else
-						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm);
+						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, *p.cellFaces, moments);
 				}
 
 				// Right side
@@ -354,22 +352,19 @@ namespace impl
 					resBulkComp[col * p.strideCell] += p.u / denom * y[p.offsetToInlet + comp];
 				}
 
-				// Reconstruct concentration on this cell's left face
-				if (!p.gridEquidistant)
+				// Reconstruct concentration on this cell's left face (area-weighted, reversed)
 				{
 					const ReverseFaceAccessorRadial<std::vector<active>> reverseFaces{ *p.cellFaces };
+					const ReverseMomentAccessor<std::vector<active>> revCentroids{ *p.areaCentroids };
+					const ReverseMomentAccessor<std::vector<active>> revSecondMoments{ *p.areaSecondMoments };
+					const ReverseMomentAccessor<std::vector<active>> revThirdMoments{ *p.areaThirdMoments };
+					const ReverseMomentAccessor<std::vector<active>> revFourthMoments{ *p.areaFourthMoments };
+					const AreaMomentsBundle<ReverseMomentAccessor<std::vector<active>>> reversedMoments{revCentroids, revSecondMoments, revThirdMoments, revFourthMoments};
 					const unsigned int flowCellIdx = p.nCol - 1 - col;
 					if (wantJac)
-						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(flowCellIdx, p.nCol, stencil, vm, p.reconstructionDerivatives, reverseFaces);
+						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(flowCellIdx, p.nCol, stencil, vm, p.reconstructionDerivatives, reverseFaces, reversedMoments);
 					else
-						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(flowCellIdx, p.nCol, stencil, vm, reverseFaces);
-				}
-				else
-				{
-					if (wantJac)
-						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives);
-					else
-						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm);
+						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(flowCellIdx, p.nCol, stencil, vm, reverseFaces, reversedMoments);
 				}
 
 				// Left face

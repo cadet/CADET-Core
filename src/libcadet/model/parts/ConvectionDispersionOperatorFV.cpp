@@ -16,6 +16,7 @@
 #include "Stencil.hpp"
 #include "Weno.hpp"
 #include "HighResKoren.hpp"
+#include "AreaWeightedReconstruction.hpp"
 #include "ParamReaderHelper.hpp"
 #include "AdUtils.hpp"
 #include "SimulationTypes.hpp"
@@ -930,6 +931,8 @@ bool RadialConvectionDispersionOperatorBaseFV::configureModelDiscretization(IPar
 		computeCellCentersAndSizes(_cellFaces);
 	}
 
+	computeRadialAreaMoments(_nCol, _cellFaces.data(), _areaCentroids, _areaSecondMoments, _areaThirdMoments, _areaFourthMoments);
+
 	if (recType == "WENO")
 	{
 		// Read WENO settings and apply them
@@ -1298,7 +1301,11 @@ int RadialConvectionDispersionOperatorBaseFV::residualImpl(const IModel& model, 
 			_nComp,
 			_dispersionDep,
 			_gridEquidistant,
-			cellFacesPtr
+			cellFacesPtr,
+			&_areaCentroids,
+			&_areaSecondMoments,
+			&_areaThirdMoments,
+			&_areaFourthMoments
 		};
 		return convdisp::residualKernelRadial<StateType, ResidualType, ParamType, Weno, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
 	}
@@ -1320,7 +1327,11 @@ int RadialConvectionDispersionOperatorBaseFV::residualImpl(const IModel& model, 
 			_nComp,
 			_dispersionDep,
 			_gridEquidistant,
-			cellFacesPtr
+			cellFacesPtr,
+			&_areaCentroids,
+			&_areaSecondMoments,
+			&_areaThirdMoments,
+			&_areaFourthMoments
 		};
 		return convdisp::residualKernelRadial<StateType, ResidualType, ParamType, HighResolutionKoren, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
 	}
@@ -1439,6 +1450,7 @@ bool RadialConvectionDispersionOperatorBaseFV::setParameter(const ParameterId& p
 			equidistantCells();
 		else
 			computeCellCentersAndSizes(_cellFaces);
+		computeRadialAreaMoments(_nCol, _cellFaces.data(), _areaCentroids, _areaSecondMoments, _areaThirdMoments, _areaFourthMoments);
 		return true;
 	}
 
@@ -1449,6 +1461,7 @@ bool RadialConvectionDispersionOperatorBaseFV::setParameter(const ParameterId& p
 			equidistantCells();
 		else
 			computeCellCentersAndSizes(_cellFaces);
+		computeRadialAreaMoments(_nCol, _cellFaces.data(), _areaCentroids, _areaSecondMoments, _areaThirdMoments, _areaFourthMoments);
 		return true;
 	}
 
@@ -1502,6 +1515,7 @@ bool RadialConvectionDispersionOperatorBaseFV::setSensitiveParameterValue(const 
 			equidistantCells();
 		else
 			computeCellCentersAndSizes(_cellFaces);
+		computeRadialAreaMoments(_nCol, _cellFaces.data(), _areaCentroids, _areaSecondMoments, _areaThirdMoments, _areaFourthMoments);
 		return true;
 	}
 
@@ -1512,6 +1526,7 @@ bool RadialConvectionDispersionOperatorBaseFV::setSensitiveParameterValue(const 
 			equidistantCells();
 		else
 			computeCellCentersAndSizes(_cellFaces);
+		computeRadialAreaMoments(_nCol, _cellFaces.data(), _areaCentroids, _areaSecondMoments, _areaThirdMoments, _areaFourthMoments);
 		return true;
 	}
 
@@ -1571,6 +1586,7 @@ bool RadialConvectionDispersionOperatorBaseFV::setSensitiveParameter(std::unorde
 			equidistantCells();
 		else
 			computeCellCentersAndSizes(_cellFaces);
+		computeRadialAreaMoments(_nCol, _cellFaces.data(), _areaCentroids, _areaSecondMoments, _areaThirdMoments, _areaFourthMoments);
 		return true;
 	}
 
@@ -1581,6 +1597,7 @@ bool RadialConvectionDispersionOperatorBaseFV::setSensitiveParameter(std::unorde
 			equidistantCells();
 		else
 			computeCellCentersAndSizes(_cellFaces);
+		computeRadialAreaMoments(_nCol, _cellFaces.data(), _areaCentroids, _areaSecondMoments, _areaThirdMoments, _areaFourthMoments);
 		return true;
 	}
 
@@ -1752,6 +1769,8 @@ bool FrustumConvectionDispersionOperatorBaseFV::configureModelDiscretization(IPa
 		_cellFaces.clear();
 		equidistantCells();
 	}
+
+	computeFrustumAreaMoments(_nCol, _cellFaces.data(), _innerRadius, _outerRadius, _colLength, _areaCentroids, _areaSecondMoments, _areaThirdMoments, _areaFourthMoments);
 
 	if (recType == "WENO")
 	{
@@ -2098,7 +2117,11 @@ int FrustumConvectionDispersionOperatorBaseFV::residualImpl(const IModel& model,
 			_nComp,
 			_dispersionDep,
 			_gridEquidistant,
-			cellFacesPtr
+			cellFacesPtr,
+			&_areaCentroids,
+			&_areaSecondMoments,
+			&_areaThirdMoments,
+			&_areaFourthMoments
 		};
 
 		return convdisp::residualKernelFrustum<StateType, ResidualType, ParamType, Weno, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
@@ -2123,7 +2146,11 @@ int FrustumConvectionDispersionOperatorBaseFV::residualImpl(const IModel& model,
 			_nComp,
 			_dispersionDep,
 			_gridEquidistant,
-			cellFacesPtr
+			cellFacesPtr,
+			&_areaCentroids,
+			&_areaSecondMoments,
+			&_areaThirdMoments,
+			&_areaFourthMoments
 		};
 
 		return convdisp::residualKernelFrustum<StateType, ResidualType, ParamType, HighResolutionKoren, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
@@ -2242,6 +2269,7 @@ bool FrustumConvectionDispersionOperatorBaseFV::setParameter(const ParameterId& 
 			equidistantCells();
 		else
 			computeCellCentersAndSizes(_cellFaces);
+		computeFrustumAreaMoments(_nCol, _cellFaces.data(), _innerRadius, _outerRadius, _colLength, _areaCentroids, _areaSecondMoments, _areaThirdMoments, _areaFourthMoments);
 		return true;
 	}
 
@@ -2252,6 +2280,7 @@ bool FrustumConvectionDispersionOperatorBaseFV::setParameter(const ParameterId& 
 			equidistantCells();
 		else
 			computeCellCentersAndSizes(_cellFaces);
+		computeFrustumAreaMoments(_nCol, _cellFaces.data(), _innerRadius, _outerRadius, _colLength, _areaCentroids, _areaSecondMoments, _areaThirdMoments, _areaFourthMoments);
 		return true;
 	}
 
@@ -2305,6 +2334,7 @@ bool FrustumConvectionDispersionOperatorBaseFV::setSensitiveParameterValue(const
 			equidistantCells();
 		else
 			computeCellCentersAndSizes(_cellFaces);
+		computeFrustumAreaMoments(_nCol, _cellFaces.data(), _innerRadius, _outerRadius, _colLength, _areaCentroids, _areaSecondMoments, _areaThirdMoments, _areaFourthMoments);
 		return true;
 	}
 
@@ -2315,6 +2345,7 @@ bool FrustumConvectionDispersionOperatorBaseFV::setSensitiveParameterValue(const
 			equidistantCells();
 		else
 			computeCellCentersAndSizes(_cellFaces);
+		computeFrustumAreaMoments(_nCol, _cellFaces.data(), _innerRadius, _outerRadius, _colLength, _areaCentroids, _areaSecondMoments, _areaThirdMoments, _areaFourthMoments);
 		return true;
 	}
 
@@ -2374,6 +2405,7 @@ bool FrustumConvectionDispersionOperatorBaseFV::setSensitiveParameter(std::unord
 			equidistantCells();
 		else
 			computeCellCentersAndSizes(_cellFaces);
+		computeFrustumAreaMoments(_nCol, _cellFaces.data(), _innerRadius, _outerRadius, _colLength, _areaCentroids, _areaSecondMoments, _areaThirdMoments, _areaFourthMoments);
 		return true;
 	}
 
@@ -2384,6 +2416,7 @@ bool FrustumConvectionDispersionOperatorBaseFV::setSensitiveParameter(std::unord
 			equidistantCells();
 		else
 			computeCellCentersAndSizes(_cellFaces);
+		computeFrustumAreaMoments(_nCol, _cellFaces.data(), _innerRadius, _outerRadius, _colLength, _areaCentroids, _areaSecondMoments, _areaThirdMoments, _areaFourthMoments);
 		return true;
 	}
 
