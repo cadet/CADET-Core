@@ -70,6 +70,7 @@ TEST_CASE("Column_1D as radial flow LRMP with FV equivalence with arrow head imp
 	cadet::JsonParameterProvider jpp1 = createLWE("RADIAL_COLUMN_MODEL_1D_LRMP", "FV");
 	cadet::JsonParameterProvider jpp2 = createLWE("RADIAL_COLUMN_MODEL_1D_LRMP", "FV");
 	cadet::test::column::FVParams disc(32);
+	disc.setBulkDiscParam("WENO_ORDER", 2);
 
 	disc.setDisc(jpp1);
 	disc.setDisc(jpp2);
@@ -106,6 +107,7 @@ TEST_CASE("Column_1D as frustum LRMP with FV equivalence with arrow head impleme
 	cadet::JsonParameterProvider jpp1 = createLWE("FRUSTUM_COLUMN_MODEL_1D_LRMP", "FV");
 	cadet::JsonParameterProvider jpp2 = createLWE("FRUSTUM_COLUMN_MODEL_1D_LRMP", "FV");
 	cadet::test::column::FVParams disc(32);
+	disc.setBulkDiscParam("WENO_ORDER", 2);
 
 	disc.setDisc(jpp1);
 	disc.setDisc(jpp2);

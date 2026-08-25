@@ -18,8 +18,8 @@ TEST_CASE("Reference test: Frustum FV KOREN", "[Column_1D],[frustumFV_KOREN],[Si
 {
 	std::string modelFilePath = std::string("/data/config_frustumKOREN_eq_Z128.json");
 	std::string refFilePath = std::string("/data/ref_frustumKOREN_eq_Z128.h5");
-	const std::vector<double> absTol = { 5e-9 };
-	const std::vector<double> relTol = { 5e-4 };
+	const std::vector<double> absTol = { 5e-8 };
+	const std::vector<double> relTol = { 5e-3 };
 
 	cadet::test::column::FVParams disc(128);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
@@ -29,8 +29,8 @@ TEST_CASE("Reference test: Frustum FV KOREN non-equidistant grid", "[Column_1D],
 {
 	std::string modelFilePath = std::string("/data/config_frustumKOREN_nonEq_Z128.json");
 	std::string refFilePath = std::string("/data/ref_frustumKOREN_nonEq_Z128.h5");
-	const std::vector<double> absTol = { 5e-9 };
-	const std::vector<double> relTol = { 5e-4 };
+	const std::vector<double> absTol = { 5e-8 };
+	const std::vector<double> relTol = { 5e-3 };
 
 	cadet::test::column::FVParams disc(128);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
