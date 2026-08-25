@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <type_traits>
 
 namespace cadet
 {
@@ -185,6 +186,13 @@ namespace impl
 					else
 						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, *p.gridFaces);
 				}
+				else if constexpr (std::is_same<ReconstrType, Weno>::value)
+				{
+					if (wantJac)
+						recOrder = p.reconstruction->template reconstructGeomExact<StateType, StencilType>(col, p.nCol, true, stencil, vm, p.reconstructionDerivatives);
+					else
+						recOrder = p.reconstruction->template reconstructGeomExact<StateType, StencilType>(col, p.nCol, true, stencil, vm);
+				}
 				else
 				{
 					if (wantJac)
@@ -325,6 +333,13 @@ namespace impl
 						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(flowCellIdx, p.nCol, stencil, vm, p.reconstructionDerivatives, reverseFaces);
 					else
 						recOrder = p.reconstruction->template reconstruct<StateType, StencilType>(flowCellIdx, p.nCol, stencil, vm, reverseFaces);
+				}
+				else if constexpr (std::is_same<ReconstrType, Weno>::value)
+				{
+					if (wantJac)
+						recOrder = p.reconstruction->template reconstructGeomExact<StateType, StencilType>(col, p.nCol, false, stencil, vm, p.reconstructionDerivatives);
+					else
+						recOrder = p.reconstruction->template reconstructGeomExact<StateType, StencilType>(col, p.nCol, false, stencil, vm);
 				}
 				else
 				{

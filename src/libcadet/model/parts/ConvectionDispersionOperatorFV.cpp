@@ -941,6 +941,17 @@ bool RadialConvectionDispersionOperatorBaseFV::configureModelDiscretization(IPar
 		paramProvider.popScope();
 
 		_reconstrDerivatives = new double[Weno::maxStencilSize()];
+
+		// Precompute geometry-exact WENO coefficients for non-equidistant grids from the
+		// rho-weighted moment systems (weight A(rho) ~ rho); equidistant grids use
+		// closed-form coefficients evaluated in the reconstruction itself.
+		if (!_gridEquidistant)
+		{
+			std::vector<double> faces(_cellFaces.size());
+			for (std::size_t i = 0; i < _cellFaces.size(); ++i)
+				faces[i] = static_cast<double>(_cellFaces[i]);
+			_weno->prepareGeometryExactCoefficients(0.0, 1.0, 1, faces);
+		}
 	}
 	else if (recType == "KOREN")
 	{
@@ -1764,6 +1775,17 @@ bool FrustumConvectionDispersionOperatorBaseFV::configureModelDiscretization(IPa
 
 		_reconstrDerivatives = new double[Weno::maxStencilSize()];
 		_stencilMemory.resize(sizeof(active) * Weno::maxStencilSize());
+
+		// Precompute geometry-exact WENO coefficients from the r(z)^2-weighted moment systems
+		// (the FV DOFs are cross-section weighted cell averages with A(z) ~ r(z)^2 and
+		// r(z) = r_in + (r_out - r_in) * z / L). Used on equidistant and non-equidistant grids.
+		{
+			std::vector<double> faces(_cellFaces.size());
+			for (std::size_t i = 0; i < _cellFaces.size(); ++i)
+				faces[i] = static_cast<double>(_cellFaces[i]);
+			const double slope = (static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius)) / static_cast<double>(_colLength);
+			_weno->prepareGeometryExactCoefficients(static_cast<double>(_innerRadius), slope, 2, faces);
+		}
 	}
 	else if (recType == "KOREN")
 	{

@@ -11,9 +11,9 @@
 // =================================================================================
 
 /**
- * @file 
- * Implements the kernel of the radial convection dispersion transport operator.
- */
+* @file
+* Implements the kernel of the radial convection dispersion transport operator.
+*/
 
 #ifndef LIBCADET_RADIALCONVECTIONDISPERSIONKERNEL_HPP_
 #define LIBCADET_RADIALCONVECTIONDISPERSIONKERNEL_HPP_
@@ -29,6 +29,7 @@
 #include "model/UnitOperation.hpp"
 
 #include <algorithm>
+#include <type_traits>
 
 namespace cadet
 {
@@ -113,7 +114,8 @@ namespace impl
 					resBulkComp[col * p.strideCell] = 0.0;
 			}
 
-			// Fill stencil (left side with zeros, right side with states)
+			// Fill stencil (left side with zeros, right side with states).
+			// The stencil holds plain concentrations c_j used by the dispersion term.
 			for (int i = -std::max(p.reconstruction->order(), 2) + 1; i < 0; ++i)
 				stencil[i] = 0.0;
 			for (int i = 0; i < std::max(p.reconstruction->order(), 2); ++i)
@@ -137,14 +139,14 @@ namespace impl
 				// Right side, leave out if we're in the last cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					const double relCoord = (static_cast<double>(p.cellBounds[col+1]) - static_cast<double>(p.cellBounds[0])) / (static_cast<double>(p.cellBounds[p.nCol - 1]) - static_cast<double>(p.cellBounds[0]));
-					const ParamType d_rad_right = d_rad * p.parDep->getValue(ColumnPosition{relCoord, 0.0, 0.0}, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellBounds[col+1]));
-					if(wantRes)
-						resBulkComp[col * p.strideCell] -= d_rad_right * static_cast<ParamType>(p.cellBounds[col+1]) / denom * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col+1]) - static_cast<ParamType>(p.cellCenters[col]));
+					const double relCoord = (static_cast<double>(p.cellBounds[col + 1]) - static_cast<double>(p.cellBounds[0])) / (static_cast<double>(p.cellBounds[p.nCol - 1]) - static_cast<double>(p.cellBounds[0]));
+					const ParamType d_rad_right = d_rad * p.parDep->getValue(ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellBounds[col + 1]));
+					if (wantRes)
+						resBulkComp[col * p.strideCell] -= d_rad_right * static_cast<ParamType>(p.cellBounds[col + 1]) / denom * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col + 1]) - static_cast<ParamType>(p.cellCenters[col]));
 					// Jacobian entries
 					if (wantJac)
 					{
-						const double val = static_cast<double>(d_rad_right) * static_cast<double>(p.cellBounds[col+1]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col+1]) - static_cast<double>(p.cellCenters[col]));
+						const double val = static_cast<double>(d_rad_right) * static_cast<double>(p.cellBounds[col + 1]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col + 1]) - static_cast<double>(p.cellCenters[col]));
 						jac[0] += val;
 						jac[p.strideCell] -= val;
 					}
@@ -155,12 +157,12 @@ namespace impl
 				{
 					const double relCoord = (static_cast<double>(p.cellBounds[col]) - static_cast<double>(p.cellBounds[0])) / (static_cast<double>(p.cellBounds[p.nCol - 1]) - static_cast<double>(p.cellBounds[0]));
 					const ParamType d_rad_left = d_rad * p.parDep->getValue(ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellBounds[col]));
-					if(wantRes)
-						resBulkComp[col * p.strideCell] -= d_rad_left * static_cast<ParamType>(p.cellBounds[col]) / denom * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col]) - static_cast<ParamType>(p.cellCenters[col-1]));
+					if (wantRes)
+						resBulkComp[col * p.strideCell] -= d_rad_left * static_cast<ParamType>(p.cellBounds[col]) / denom * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col]) - static_cast<ParamType>(p.cellCenters[col - 1]));
 					// Jacobian entries
 					if (wantJac)
 					{
-						const double val = static_cast<double>(d_rad_left) * static_cast<double>(p.cellBounds[col]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col]) - static_cast<double>(p.cellCenters[col-1]));
+						const double val = static_cast<double>(d_rad_left) * static_cast<double>(p.cellBounds[col]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col]) - static_cast<double>(p.cellCenters[col - 1]));
 						jac[0] += val;
 						jac[-p.strideCell] -= val;
 					}
@@ -173,8 +175,8 @@ namespace impl
 				{
 					// Remember that vm still contains the reconstructed value of the previous 
 					// cell's *right* face, which is identical to this cell's *left* face!
-					if(wantRes)
-					resBulkComp[col * p.strideCell] -= p.u / denom * vm;
+					if (wantRes)
+						resBulkComp[col * p.strideCell] -= p.u / denom * vm;
 
 					// Jacobian entries
 					if (wantJac)
@@ -192,7 +194,26 @@ namespace impl
 				}
 
 				// Reconstruct concentration on this cell's right face
-				if (!p.gridEquidistant)
+				if constexpr (std::is_same<ReconstrType, Weno>::value)
+				{
+					if (!p.gridEquidistant)
+					{
+						if (wantJac)
+							wenoOrder = p.reconstruction->template reconstructGeomExact<StateType, StencilType>(col, p.nCol, true, stencil, vm, p.reconstructionDerivatives);
+						else
+							wenoOrder = p.reconstruction->template reconstructGeomExact<StateType, StencilType>(col, p.nCol, true, stencil, vm);
+					}
+					else
+					{
+						const double zeta = static_cast<double>(p.cellBounds[col + 1]) / static_cast<double>(p.cellSizes[col]);
+
+						if (wantJac)
+							wenoOrder = p.reconstruction->template reconstructRadial<StateType, StencilType>(col, p.nCol, zeta, true, stencil, vm, p.reconstructionDerivatives);
+						else
+							wenoOrder = p.reconstruction->template reconstructRadial<StateType, StencilType>(col, p.nCol, zeta, true, stencil, vm);
+					}
+				}
+				else if (!p.gridEquidistant)
 				{
 					if (wantJac)
 						wenoOrder = p.reconstruction->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.reconstructionDerivatives, *p.cellFaces);
@@ -208,8 +229,8 @@ namespace impl
 				}
 
 				// Right side
-				if(wantRes)
-				resBulkComp[col * p.strideCell] += p.u / denom * vm;
+				if (wantRes)
+					resBulkComp[col * p.strideCell] += p.u / denom * vm;
 				// Jacobian entries
 				if (wantJac)
 				{
@@ -275,7 +296,10 @@ namespace impl
 					resBulkComp[col * p.strideCell] = 0.0;
 			}
 
-			// Fill stencil (left side with zeros, right side with states)
+			// Fill stencil (left side with zeros, right side with states).
+			// The stencil holds plain concentrations c_j used by the dispersion term.
+			// In backward flow stencil[k] = c_{nCol-1-k} initially, i.e. stencil[k] = c_{col-k}
+			// at iteration col.
 			for (int i = -std::max(p.reconstruction->order(), 2) + 1; i < 0; ++i)
 				stencil[i] = 0.0;
 			for (int i = 0; i < std::max(p.reconstruction->order(), 2); ++i)
@@ -355,7 +379,27 @@ namespace impl
 				}
 
 				// Reconstruct concentration on this cell's left face
-				if (!p.gridEquidistant)
+				if constexpr (std::is_same<ReconstrType, Weno>::value)
+				{
+					if (!p.gridEquidistant)
+					{
+						if (wantJac)
+							wenoOrder = p.reconstruction->template reconstructGeomExact<StateType, StencilType>(col, p.nCol, false, stencil, vm, p.reconstructionDerivatives);
+						else
+							wenoOrder = p.reconstruction->template reconstructGeomExact<StateType, StencilType>(col, p.nCol, false, stencil, vm);
+					}
+					else
+					{
+						const double zeta = static_cast<double>(p.cellBounds[col + 1]) / static_cast<double>(p.cellSizes[col]);
+						const unsigned int flowCellIdx = p.nCol - 1 - col;
+
+						if (wantJac)
+							wenoOrder = p.reconstruction->template reconstructRadial<StateType, StencilType>(flowCellIdx, p.nCol, zeta, false, stencil, vm, p.reconstructionDerivatives);
+						else
+							wenoOrder = p.reconstruction->template reconstructRadial<StateType, StencilType>(flowCellIdx, p.nCol, zeta, false, stencil, vm);
+					}
+				}
+				else if (!p.gridEquidistant)
 				{
 					const ReverseFaceAccessorRadial<std::vector<active>> reverseFaces{ *p.cellFaces };
 					const unsigned int flowCellIdx = p.nCol - 1 - col;
