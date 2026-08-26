@@ -2233,8 +2233,7 @@ void FrustumConvectionDispersionOperatorBaseDG::computeGeometryRadial()
 void FrustumConvectionDispersionOperatorBaseDG::computeOperatorsRadial(const unsigned int secIdx)
 {
 	const double pi = 3.14159265358979323846;
-
-	Eigen::MatrixXd M01 = dgtoolbox::mMatrix(_polyDeg, _nodes, 0.0, 1.0);
+	Eigen::MatrixXd M01 = dgtoolbox::mMatrix(_polyDeg, _nodes, 0.0, 0.0);
 
 	_invMM_A.resize(_nElem);
 	_invMM_A_times_ST_AD.resize(_nComp);
@@ -2242,23 +2241,65 @@ void FrustumConvectionDispersionOperatorBaseDG::computeOperatorsRadial(const uns
 		comps.resize(_nElem);
 	_invMM_A_times_DT_timesM00.resize(_nElem);
 
+	// number of nodes for exact gauss quadrature of the integral with dispersion weight and geometric factor -> _axDispQuadDeg + 1
+	const int nQuadNodes = std::ceil((_axDispQuadDeg + 1 + 2 * _polyDeg + 1) / 2);
+	// geometric weight factors as ( \sum_n (1 - \xi)^n \alpha_n + \sum_m (1 + \xi)^m \beta_m + gamma) = A(x^e(\xi)) = A((\xi + 1) \DeltaX_i / 2 + x_i)
+	// with A = 2 * \pi *  H * [ (\xi + 1) \DeltaX_i / 2 + x_i ]
+	const std::vector<double> alpha = { };
+	std::vector<double> beta = { 0.0 };
+
 	for (unsigned int elem = 0; elem < _nElem; ++elem)
 	{
-		const double xLeft = static_cast<double>(_radiusXStart) + elem * static_cast<double>(_deltaX);
+		const double x_L = static_cast<double>(_radiusXStart) + elem * static_cast<double>(_deltaX);
+		beta[0] = 2.0 * pi * static_cast<double>(_colHeight) * static_cast<double>(_deltaX) / 2.0;
+		const double gamma = 2.0 * pi * static_cast<double>(_colHeight) * x_L;
+
 		// M^A = 2 pi H (x_i M^(0,0) + \frac{\Delta x_i}{2} M^(0,1))
-		const Eigen::MatrixXd M_A = 2.0 * pi * static_cast<double>(_colHeight) * (xLeft * _M00 + 0.5 * static_cast<double>(_deltaX) * M01);
+		const Eigen::MatrixXd M_A = 2.0 * pi * static_cast<double>(_colHeight) * (x_L * _M00 + 0.5 * static_cast<double>(_deltaX) * M01);
 		_invMM_A[elem] = M_A.inverse();
 
 		for (int comp = 0; comp < _nComp; comp++)
 		{
-			// for now, we assume constant dispersion, ie \tilde{M}^(AD) can be computed exactly as D^{ax} * M_A
-			// later on, this will become gauss quadrature with spatially dependent dispersion parameter
-			Eigen::MatrixXd gaussMM_AD = static_cast<double>(_colDispersion[comp]) * M_A;
+			const double baseDispersion = static_cast<double>(currentDispersion(secIdx)[comp]);
 
-			// Matrix product (M^A)^-1 \tilde{S}^(AD) = (M^A)^-1 polyDerM^T * \tilde{M}^(AD) 
-			_invMM_A_times_ST_AD[comp][elem] = _invMM_A[elem] * _polyDerM.transpose() * gaussMM_AD;
+			if (!_variableDispersion) // we can compute the integral exactly
+			{
+				// Matrix product (M^A)^-1 * D^T * \tilde{S}^(AD) = (M^A)^-1 * D^T * \tilde{M}^(AD)
+				_invMM_A_times_ST_AD[comp][elem] = _invMM_A[elem] * _polyDerM.transpose() * baseDispersion * M_A;
+			}
+			else
+			{
+				// Evaluate dispersion at each quadrature node
+				Eigen::VectorXd dispAtQNodes(nQuadNodes);
+				Eigen::VectorXd quadNodes = Eigen::VectorXd::Zero(nQuadNodes);
+				Eigen::VectorXd quadWeights = Eigen::VectorXd::Zero(nQuadNodes);
+				dgtoolbox::lgNodesWeights(nQuadNodes - 1, quadNodes, quadWeights, false);
+
+				for (unsigned int node = 0; node < nQuadNodes; ++node)
+				{
+					const double physicalPos = x_L + 0.5 * static_cast<double>(_deltaX) * (1.0 + quadNodes[node]);
+					// Normalize position to [0, 1] for parameter dependence evaluation
+					const double relPos = physicalPos / static_cast<double>(_bedLength);
+
+					// Evaluate D(rho) = baseDispersion * dependence_factor(rho)
+					dispAtQNodes[node] = _dispersionDep->getValue(ColumnPosition{ relPos, 0.0, 0.0 },
+						comp, ParTypeIndep, BoundStateIndep, baseDispersion);
+				}
+
+				// \tilde{M}^(AD)_{i,j} = \int_{-1}^1 \ell_i(\xi) \frac{\partial \ell_j(\xi)}{\partial \xi} w(\xi) d\xi
+				Eigen::MatrixXd gaussMM_AD = dgtoolbox::weightedQuadMassMatrix(
+					_nodes,
+					dispAtQNodes,
+					alpha,
+					beta,
+					gamma,
+					quadNodes,
+					quadWeights);
+
+				// Matrix product (M^A)^-1 * D^T * \tilde{S}^(AD) = (M^A)^-1 * D^T * \tilde{M}^(AD)
+				_invMM_A_times_ST_AD[comp][elem] = _invMM_A[elem] * _polyDerM.transpose() * gaussMM_AD;
+			}
 		}
-
 		// Matrix product (M^A)^-1 D^T * M00
 		_invMM_A_times_DT_timesM00[elem] = _invMM_A[elem] * _polyDerM.transpose() * _M00;
 	}
@@ -2307,7 +2348,7 @@ void FrustumConvectionDispersionOperatorBaseDG::computeOperatorsFrustum(const un
 	// number of nodes for exact gauss quadrature of the integral with dispersion weight
 	const int frustumGeomFactorDegree = 2; // we have r(x)^2 = (r0 + x/H * (rH - r0))^2, which is a polynomial of degree 2 in x
 	const int nQuadNodes = std::ceil((_axDispQuadDeg + frustumGeomFactorDegree + 2 * _polyDeg + 1) / 2);
-	// geometric weight factors as ( \sum_n (1 - \xi)^\alpha_n + \sum_m (1 + \xi)^\beta_m + gamma) = A(x^e(\xi)) = A((\xi + 1) \DeltaX_i / 2 + x_i)
+	// geometric weight factors as ( \sum_n (1 - \xi)^n \alpha_n + \sum_m (1 + \xi)^m \beta_m + gamma) = A(x^e(\xi)) = A((\xi + 1) \DeltaX_i / 2 + x_i)
 	// with A = \pi r(x)^2 and r(x) = r_0 + \frac{x}{H} \left( r_{L^\mathrm{b}} - r_0 \right)
 	const std::vector<double> alpha = { };
 	std::vector<double> beta = { 0.0, 0.0 };
@@ -2332,7 +2373,7 @@ void FrustumConvectionDispersionOperatorBaseDG::computeOperatorsFrustum(const un
 
 			if (!_variableDispersion)
 			{
-				// we can compute the integral exaclty
+				// we can compute the integral exactly
 				Eigen::MatrixXd gaussMM_AD = baseDispersion * M_A;
 				// Matrix product (M^A)^-1 * D^T * \tilde{S}^(AD) = (M^A)^-1 * D^T * \tilde{M}^(AD)
 				_invMM_A_times_ST_AD[comp][elem] = _invMM_A[elem] * _polyDerM.transpose() * gaussMM_AD;
