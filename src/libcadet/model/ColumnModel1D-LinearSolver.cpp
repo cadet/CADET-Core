@@ -147,18 +147,15 @@ int ColumnModel1D<ConvDispOperator>::linearSolve(double t, double alpha, double 
 	const auto& cm = _reaction.conservedMoieties("liquid");
 	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 	{
- 		const auto& L = cm.getConservedMoietiesMatrix();
-        for (unsigned int moiety = 0; moiety < cm.numMoieties(); ++moiety)
-        {
-            double inletValue = 0.0;
-            for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-                inletValue += L(moiety, comp) * r[comp];
-
-            for (int node = 0; node < static_cast<int>(_jacInlet.rows()); ++node)
-            {
-                r[idxr.offsetC() + offInlet + moiety * idxr.strideColComp() + node * idxr.strideColNode()] -= _jacInlet(node, 0) * inletValue;
-            }
-        }
+		_cMVectorEntries.resize(cm.numMoieties());
+		cm.applyToVector(_cMVectorEntries.data(), rhs, _disc.nComp);
+		for (unsigned int moiety = 0; moiety < cm.numMoieties(); ++moiety)
+		{
+			for (int node = 0; node < static_cast<int>(_jacInlet.rows()); ++node)
+			{
+				r[idxr.offsetC() + offInlet + moiety * idxr.strideColComp() + node * idxr.strideColNode()] -= _jacInlet(node, 0) * _cMVectorEntries[moiety];
+			}
+		}
 
 	}
 	else
@@ -209,18 +206,25 @@ void ColumnModel1D<ConvDispOperator>::assembleDiscretizedGlobalJacobian(double a
 
 	// Add time derivatives to particle shells
 	for (unsigned int parType = 0; parType < _disc.nParType; parType++) {
+		const auto& particleCm = _particles[parType]->getReaction()->conservedMoieties("liquid");
+		const bool hasParticleEquilibrium = particleCm.isEnabled() && (particleCm.numEquilibriumReactions() > 0);
+
 		for (unsigned int colNode = 0; colNode < _disc.nPoints; colNode++) {
 
 			linalg::BandedEigenSparseRowIterator jac(_globalJacDisc, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }));
 
-			addTimeDerivativeToJacobianParticleShell(jac, idxr, alpha, parType);
-
-			// compute time derivative of remaining points
-			// Iterator jac has already been advanced to next shell
-			for (unsigned int j = 1; j < _disc.nParPoints[parType]; ++j)
+			for (unsigned int shell = 0; shell < _disc.nParPoints[parType]; ++shell)
 			{
-				addTimeDerivativeToJacobianParticleShell(jac, idxr, alpha, parType);
-				// Iterator jac has already been advanced to next shell
+				if (hasParticleEquilibrium)
+				{
+					parts::cell::addConservedMoietyTimeDerivativeToJacobianParticleShell(jac, alpha, static_cast<double>(_particles[parType]->getPorosity()), _disc.nComp,
+						_disc.nBound + _disc.nComp * parType, _particles[parType]->getPoreAccessFactor(), _disc.strideBound[parType], _disc.boundOffset + _disc.nComp * parType,
+						_binding[parType]->reactionQuasiStationarity(), particleCm.conservedMoietyMatrix(), particleCm.numMoieties());
+				}
+				else
+				{
+					addTimeDerivativeToJacobianParticleShell(jac, idxr, alpha, parType);
+				}
 			}
 		}
 	}
@@ -228,9 +232,8 @@ void ColumnModel1D<ConvDispOperator>::assembleDiscretizedGlobalJacobian(double a
 	const auto& cm = _reaction.conservedMoieties("liquid");
 	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 	{
-		const auto& L = cm.getConservedMoietiesMatrix();
+		const auto& L = cm.conservedMoietyMatrix();
 		const unsigned int nMoieties = cm.numMoieties();
-		// todo refactor this
 		for (unsigned int point = 0; point < _disc.nPoints; ++point)
 		{
 			const int pointOffset = idxr.offsetC() + point * idxr.strideColNode();

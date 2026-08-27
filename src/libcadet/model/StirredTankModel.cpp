@@ -398,6 +398,7 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 	{
 		dynReactionConfSuccess = _reactionSystemBulk.configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 		dynReactionConfSuccess = _reactionSystemBulk.configureConservedMoities("liquid", _nComp, 1e-14) && dynReactionConfSuccess;
+		_cMVectorEntries.reserve(_reactionSystemBulk.conservedMoieties("liquid").numMoieties());
 	}
 
 	for (unsigned int par = 0; par < _nParType; par++)
@@ -679,8 +680,6 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 		}
 		LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
-		const auto& L = cm.getConservedMoietiesMatrix();
-
 		const unsigned int nMoieties = cm.numMoieties();
 		const unsigned int nEq = cm.numEquilibriumReactions();
 		
@@ -694,13 +693,9 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 		std::copy_n(c, _nComp, static_cast<double*>(solution));
 		
 		BufferedArray<double> conserved = tlmAlloc.array<double>(nMoieties);
+		cm.applyToVector(static_cast<double*>(conserved), c, probSize);
 
-		for (unsigned int m = 0; m < nMoieties; m++)
-		{
-			conserved[m] = 0.0;
-			for(unsigned int i = 0; i < _nComp; i++)
-				conserved[m] += L(m, i) * c[i];
-		}
+		BufferedArray<double> matrixScratch = tlmAlloc.array<double>(nMoieties);
 		
 		BufferedArray<double> baNonlinMem = tlmAlloc.array<double>(_nonlinearSolver->workspaceSize(probSize));
 		double* const nonlinMem = static_cast<double*>(baNonlinMem);
@@ -710,18 +705,14 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 		jacFunc = [&](double const* const x, linalg::detail::DenseMatrixBase& mat)
 		{
 			mat.setAll(0.0);
-			// upper part: conserved moites
-			for(unsigned int m = 0; m < nMoieties; m++)
-			{
-				for(unsigned int i = 0; i < _nComp; i++)
-					mat.native(m,i) = L(m,i);
-			}
-			unsigned int eqIdx = 0;
-			for (auto const* reaction : _reactionSystemBulk.getDynReactionVector("liquid"))
-			{
-				LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
-				reaction->analyticEquilibriumJacobian(simTime.t, simTime.secIdx, ColumnPosition{0.0, 0.0, 0.0}, _nComp, x, eqIdx, nMoieties, mat.row(nMoieties), subAlloc);
-			}
+			for (unsigned int state = 0; state < probSize; ++state)
+				mat.native(state, state) = 1.0;
+			cm.applyToMatrix(mat, probSize, 0, 0, probSize, static_cast<double*>(matrixScratch));
+			for (unsigned int reaction = 0; reaction < nEq; ++reaction)
+				mat.row(nMoieties + reaction).setAll(0.0);
+			_reactionSystemBulk.addEquilibriumJacobian("liquid", simTime.t, simTime.secIdx,
+				ColumnPosition{0.0, 0.0, 0.0}, probSize, x, nMoieties, mat.row(nMoieties),
+				tlmAlloc.manageRemainingMemory());
 
 			return true;
 		};
@@ -730,19 +721,12 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 		_nonlinearSolver->solve(
 			[&](double const* const x, double* const r)
 			{
-				// upper part: conserved moites
-				for(unsigned int m = 0; m < nMoieties; m++)
-				{	
-					r[m] = -conserved[m];
-					for(unsigned int i = 0; i < _nComp; i++)
-						r[m] += L(m,i) * x[i];
-				}
-				unsigned int eqIdx = 0;
-				for (auto const* reaction : _reactionSystemBulk.getDynReactionVector("liquid"))
-				{
-					LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
-					reaction->residualEquilibriumFlux(simTime.t, simTime.secIdx, ColumnPosition{0.0, 0.0, 0.0}, _nComp, x, r + nMoieties, eqIdx, subAlloc);
-				}
+				cm.applyToVector(r, x, probSize);
+				for (unsigned int moiety = 0; moiety < nMoieties; ++moiety)
+					r[moiety] -= conserved[moiety];
+				_reactionSystemBulk.writeEquilibriumResidual("liquid", simTime.t, simTime.secIdx,
+					ColumnPosition{0.0, 0.0, 0.0}, probSize, x, r + nMoieties,
+					tlmAlloc.manageRemainingMemory());
 				return true;
 			},
 			jacFunc, errorTol, static_cast<double*>(solution), nonlinMem, jacobianMatrix, probSize);
@@ -1080,26 +1064,9 @@ void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, d
 		for (unsigned int r = 0; r < nEq; ++r)
 			_jacFact.row(nMoieties + r).setAll(0.0);
 
-		unsigned int eqIdx = 0;
-		for (auto const* reaction : _reactionSystemBulk.getDynReactionVector("liquid"))
-		{
-			if (!reaction)
-				continue;
-
-			LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
-
-			reaction->analyticEquilibriumJacobian(
-				simTime.t,
-				simTime.secIdx,
-				ColumnPosition{0.0, 0.0, 0.0},
-				_nComp,
-				c,
-				eqIdx,
-				nMoieties,
-				_jacFact.row(nMoieties),
-				subAlloc
-			);
-		}
+		_reactionSystemBulk.addEquilibriumJacobian("liquid", simTime.t, simTime.secIdx,
+			ColumnPosition{0.0, 0.0, 0.0}, _nComp, c, nMoieties, _jacFact.row(nMoieties),
+			tlmAlloc.manageRemainingMemory());
 
 		for (unsigned int r = 0; r < nEq; ++r)
 			cDot[nMoieties + r] = 0.0; // for time dep. equilibria  -> -dg_eq/dt
@@ -1707,79 +1674,31 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 	const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
 	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 	{ 
-		const Eigen::MatrixXd& L = cm.getConservedMoietiesMatrix();
-
-		const unsigned int nMoieties = cm.numMoieties() ;
+		const unsigned int nMoieties = cm.numMoieties();
 		const unsigned int nEq = cm.numEquilibriumReactions();
 
 		if (nMoieties + nEq != _nComp)
-		throw InvalidParameterException(
-			"CSTR equilibrium reactions require numMoieties + numEquilibriumReactions == nComp"
-		);
+			throw InvalidParameterException(
+				"CSTR equilibrium reactions require numMoieties + numEquilibriumReactions == nComp");
 
-		BufferedArray<ResidualType> oldRes = tlmAlloc.array<ResidualType>(_nComp);
-		std::copy_n(resC, _nComp, static_cast<ResidualType*>(oldRes));
-
-		for (unsigned int m = 0; m < nMoieties; ++m)
-		{
-			resC[m] = 0.0;
-			for (unsigned int i = 0; i < _nComp; ++i)
-				resC[m] += static_cast<double>(L(m, i)) * oldRes[i];
-		}
-
-		ResidualType* const eqRes = resC + nMoieties;
-		std::fill_n(eqRes, nEq, 0.0);
-		unsigned int eqIdx = 0;
-
-		for (auto const* reaction : _reactionSystemBulk.getDynReactionVector("liquid"))
-		{
-			if (!reaction)
-				continue;
-			
-			LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
-			reaction->residualEquilibriumFlux( t, secIdx, colPos, _nComp, c, eqRes, eqIdx, subAlloc);
-		}
+		BufferedArray<ResidualType> vectorScratch = tlmAlloc.array<ResidualType>(nMoieties);
+		cm.applyToVector(resC, _nComp, static_cast<ResidualType*>(vectorScratch));
+		_reactionSystemBulk.writeEquilibriumResidual("liquid", t, secIdx, colPos, _nComp, c,
+			resC + nMoieties, tlmAlloc.manageRemainingMemory());
 
 		if (wantJac)
-		{ // Save old concentration rows
-			LinearBufferAllocator subAlloc = tlmAlloc.manageRemainingMemory();
+		{
 			const unsigned int nPure = numPureDofs();
-			
-			BufferedArray<double> oldJacRowsBuf =
-			tlmAlloc.array<double>(_nComp * nPure);
-
-			double* oldJacRows = static_cast<double*>(oldJacRowsBuf);
-			for (unsigned int r = 0; r < _nComp; ++r)
-			{
-				for (unsigned int c = 0; c < nPure; ++c)
-					oldJacRows[r * nPure + c] = _jac.native(r, c);
-			}
-
-			// Moiety rows
-			for (unsigned int m = 0; m < nMoieties; ++m)
-			{
-				for (unsigned int col = 0; col < nPure; ++col)
-				{
-					double val = 0.0;
-					for (unsigned int i = 0; i < _nComp; ++i)
-						val += L(m, i) * oldJacRows[i * nPure + col];
-					_jac.native(m, col) = val;
-				}
-			}
+			BufferedArray<double> matrixScratch = tlmAlloc.array<double>(nMoieties);
+			cm.applyToMatrix(_jac, _nComp, 0, 0, nPure, static_cast<double*>(matrixScratch));
 
 			// Equilibrium rows
 			for (unsigned int r = 0; r < nEq; ++r)
 				_jac.row(nMoieties + r).setAll(0.0);
 
-			unsigned int eqIdxJac = 0;
-			unsigned int eqRowOffset = nMoieties;
-			for (auto const* reaction : _reactionSystemBulk.getDynReactionVector("liquid"))
-			{
-				if (!reaction)
-					continue;
-				
-				reaction->analyticEquilibriumJacobian(t, secIdx, colPos, _nComp, reinterpret_cast<double const*>(c), eqIdxJac, eqRowOffset, _jac.row(nMoieties), subAlloc);
-			}
+			_reactionSystemBulk.addEquilibriumJacobian("liquid", t, secIdx, colPos, _nComp,
+				reinterpret_cast<double const*>(c), nMoieties, _jac.row(nMoieties),
+				tlmAlloc.manageRemainingMemory());
 		}
 	}	
 
@@ -2131,26 +2050,13 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 	const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
 	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 	{
-		const unsigned int nPure = numPureDofs();
-		const Eigen::MatrixXd& L = cm.getConservedMoietiesMatrix();
 		const unsigned int nMoieties = cm.numMoieties();
 		const unsigned int nEq = cm.numEquilibriumReactions();
 
-		std::vector<double> oldRes(nPure);
-		for (unsigned int i = 0; i < _nComp + _totalBound; ++i)
-		{
-			oldRes[i] = r[i];
-		}
-		for (unsigned int m = 0; m < nMoieties; ++m)
-		{
-			r[m] = 0.0;
-			for (unsigned int i = 0; i < _nComp; ++i)
-				r[m] += static_cast<double>(L(m, i)) * oldRes[i];
-		}
+		cm.applyToVector(r, _nComp, _cMVectorEntries);
 		
 		// Equilibrium rows
-		for (unsigned int i = nMoieties; i < nEq; ++i)
-			r[i + nMoieties] = 0.0;
+		std::fill_n(r + nMoieties, nEq, 0.0);
 	}
 }
 
@@ -2189,44 +2095,63 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 	double const* const c = simState.vecStateY + _nComp;
 	const double v = simState.vecStateY[2 * _nComp + _totalBound];
 	const double timeV = v * alpha;
-	const double timeVSolid = static_cast<double>(_constSolidVolume) * alpha;
-
-    const double vSolid = static_cast<double>(_constSolidVolume);
-
-    const unsigned int volumeIdx = _nComp + _totalBound;
+	const double vSolid = static_cast<double>(_constSolidVolume);
+	const unsigned int volumeIdx = _nComp + _totalBound;
 	const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
-	
-	// Assemble Jacobian: dRes / dyDot
-	for (unsigned int i = 0; i < _nComp; ++i)
+
+	if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0))
 	{
-		mat.native(i, i) += timeV; // dRes / dcDot
-
-		for (unsigned int type = 0; type < _nParType; ++type)
+		const auto& L = cm.conservedMoietyMatrix();
+		for (unsigned int moiety = 0; moiety < cm.numMoieties(); ++moiety)
 		{
-			const unsigned int localOffset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
-			const double vSolidParVolFrac = timeVSolid * static_cast<double>(_parTypeVolFrac[type]);
-			for (unsigned int j = 0; j < _nBound[type * _nComp + i]; ++j)
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
-				mat.native(i, localOffset + j) += vSolidParVolFrac; // dRes / dqDot
-				// + _nComp: Moves over liquid phase components
-				// + _offsetParType[type]: Moves to particle type
-				// + _boundOffset[i]: Moves over bound states of previous components
-				// + j: Moves to current bound state j of component i
+				const double factor = alpha * L(moiety, comp);
+				mat.native(moiety, comp) += factor * v;
+				mat.native(moiety, volumeIdx) += factor * c[comp];
 
+				for (unsigned int type = 0; type < _nParType; ++type)
+				{
+					const unsigned int localOffset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + comp];
+					const double boundFactor = factor * vSolid * static_cast<double>(_parTypeVolFrac[type]);
+					for (unsigned int bound = 0; bound < _nBound[type * _nComp + comp]; ++bound)
+						mat.native(moiety, localOffset + bound) += boundFactor;
+				}
 			}
 		}
+	}
+	else
+	{
+		for (unsigned int i = 0; i < _nComp; ++i)
+		{
+			mat.native(i, i) += timeV; // dRes / dcDot
 
-		mat.native(i, _nComp + _totalBound) += alpha * c[i]; // dRes / dVlDot
+			for (unsigned int type = 0; type < _nParType; ++type)
+			{
+				const unsigned int localOffset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
+				const double vSolidParVolFrac = alpha * vSolid * static_cast<double>(_parTypeVolFrac[type]);
+				for (unsigned int j = 0; j < _nBound[type * _nComp + i]; ++j)
+				{
+					mat.native(i, localOffset + j) += vSolidParVolFrac; // dRes / dqDot
+					// + _nComp: Moves over liquid phase components
+					// + _offsetParType[type]: Moves to particle type
+					// + _boundOffset[i]: Moves over bound states of previous components
+					// + j: Moves to current bound state j of component i
+
+				}
+			}
+
+			mat.native(i, _nComp + _totalBound) += alpha * c[i]; // dRes / dVlDot
+		}
+
 	}
 
-	// Bound states
 	unsigned int globalIdx = _nComp;
 	for (unsigned int type = 0; type < _nParType; ++type)
 	{
 		IBindingModel* const binding = _binding[type];
 		if (!binding->hasDynamicReactions())
 		{
-			// Skip binding models without dynamic binding fluxes
 			globalIdx += _strideBound[type];
 			continue;
 		}
@@ -2234,45 +2159,13 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 		int const* const qsReaction = binding->reactionQuasiStationarity();
 		for (unsigned int idx = 0; idx < _strideBound[type]; ++idx, ++globalIdx)
 		{
-			// Skip quasi-stationary fluxes
-			if (qsReaction[idx])
-				continue;
-
-			mat.native(globalIdx, globalIdx) += alpha;
+			if (!qsReaction[idx])
+				mat.native(globalIdx, globalIdx) += alpha;
 		}
 	}
 
-	if (cm.isEnabled() &&  (cm.numEquilibriumReactions() > 0))
-    {
-        const auto& L = cm.getConservedMoietiesMatrix();
-        const unsigned int nMoieties = cm.numMoieties();
-
-        //mat += alpha * L * dRes / dyDot
-        for (unsigned int m = 0; m < nMoieties; ++m)
-        {
-            for (unsigned int i = 0; i < _nComp; ++i)
-            {
-                const double factor = alpha * L(m, i);
-
-                // V * dc_comp / dt
-                mat.native(m, i) += factor * v; // dRes / dcDot
-                // c_comp * dV / dt
-                mat.native(m, volumeIdx) += factor * c[i]; // dRes / dVDot
-
-                // V_s * sum_j phi_j * dq_comp,j / dt
-                for (unsigned int type = 0; type < _nParType; ++type)
-                {
-                    const unsigned int localOffset = _nComp + _offsetParType[type] + _boundOffset[type * _nComp + i];
-                    const double boundFactor = factor * vSolid * static_cast<double>(_parTypeVolFrac[type]);
-                    for (unsigned int j = 0; j <  _nBound[type * _nComp + i]; ++j)
-                        mat.native(m, localOffset + j) += boundFactor; // dRes / dqDot
-                }
-            }
-        }
-        // dRes_eq / dyDot = 0 
-    }
 	// Volume: \dot{V} - F_{in} + F_{out} + F_{filter} == 0
-	mat.native(_nComp + _totalBound, _nComp + _totalBound) += alpha;
+	mat.native(volumeIdx, volumeIdx) += alpha;
 }
 
 /**

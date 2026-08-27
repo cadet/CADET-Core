@@ -494,6 +494,335 @@ TEST_CASE("1D column liquid equilibrium MAL consistent initialization", "[Column
 	destroyModelBuilder(mb);
 }
 
+TEST_CASE("1D column particle liquid equilibrium MAL consistent initialization", "[Column_1D],[MassActionLaw],[ReactionModel],[ConsistentInit],[Particle],[CI]")
+{
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_LRMP", "DG");
+	jpp.pushScope("particle_type_000");
+	jpp.set("INIT_CP", std::vector<double>{2.7, 0.3});
+	jpp.set("NREAC_LIQUID", 1);
+	jpp.addScope("liquid_reaction_000");
+	jpp.pushScope("liquid_reaction_000");
+	jpp.set("TYPE", "MASS_ACTION_LAW");
+	jpp.set("MAL_KFWD", std::vector<double>{2.0});
+	jpp.set("MAL_KBWD", std::vector<double>{1.0});
+	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.popScope();
+	jpp.popScope();
+
+	cadet::IUnitOperation* const unit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
+	std::vector<double> y(unit->numDofs(), 0.0);
+	std::vector<double> yDot(unit->numDofs(), 0.0);
+	unit->readInitialCondition(jpp);
+	unit->applyInitialCondition(cadet::SimulationState{y.data(), yDot.data()});
+
+	const unsigned int nComp = unit->numComponents();
+	const unsigned int inletDofs = nComp * unit->numInletPorts();
+	const unsigned int nBound = 2;
+	const unsigned int strideParticle = nComp + nBound;
+	const unsigned int dofsPerPoint = nComp + strideParticle;
+	REQUIRE((unit->numDofs() - inletDofs) % dofsPerPoint == 0);
+	const unsigned int nPoints = (unit->numDofs() - inletDofs) / dofsPerPoint;
+	const unsigned int particleOffset = inletDofs + nPoints * nComp;
+	REQUIRE(y[particleOffset] == cadet::test::makeApprox(2.7, 1e-14, 1e-14));
+	REQUIRE(y[particleOffset + 1] == cadet::test::makeApprox(0.3, 1e-14, 1e-14));
+
+	cadet::test::unitoperation::testConsistentInitialization(unit, false, y.data(), 1e-14, 1e-10);
+
+	for (unsigned int point = 0; point < nPoints; ++point)
+	{
+		double const* const cp = y.data() + particleOffset + point * strideParticle;
+		CHECK(cp[0] == cadet::test::makeApprox(1.0, 1e-11, 1e-11));
+		CHECK(cp[1] == cadet::test::makeApprox(2.0, 1e-11, 1e-11));
+		CHECK((cp[0] + cp[1]) == cadet::test::makeApprox(3.0, 1e-11, 1e-11));
+	}
+
+	mb->destroyUnitOperation(unit);
+	destroyModelBuilder(mb);
+}
+
+TEST_CASE("1D column particle liquid and binding equilibrium consistent initialization", "[Column_1D],[MassActionLaw],[ReactionModel],[ConsistentInit],[Binding],[Particle],[CI]")
+{
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_LRMP", "DG");
+	jpp.pushScope("particle_type_000");
+	jpp.set("INIT_CP", std::vector<double>{2.7, 0.3});
+	jpp.set("INIT_CS", std::vector<double>{0.4, 0.6});
+	jpp.set("PORE_ACCESSIBILITY", std::vector<double>{0.5, 0.8});
+	jpp.pushScope("adsorption");
+	jpp.set("IS_KINETIC", 0);
+	jpp.popScope();
+	jpp.set("NREAC_LIQUID", 1);
+	jpp.addScope("liquid_reaction_000");
+	jpp.pushScope("liquid_reaction_000");
+	jpp.set("TYPE", "MASS_ACTION_LAW");
+	jpp.set("MAL_KFWD", std::vector<double>{2.0});
+	jpp.set("MAL_KBWD", std::vector<double>{1.0});
+	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.popScope();
+	jpp.popScope();
+
+	cadet::IUnitOperation* const unit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
+	std::vector<double> y(unit->numDofs(), 0.0);
+	std::vector<double> yDot(unit->numDofs(), 0.0);
+	unit->readInitialCondition(jpp);
+	unit->applyInitialCondition(cadet::SimulationState{y.data(), yDot.data()});
+
+	const unsigned int nComp = unit->numComponents();
+	const unsigned int inletDofs = nComp * unit->numInletPorts();
+	const unsigned int nBound = 2;
+	const unsigned int strideParticle = nComp + nBound;
+	const unsigned int dofsPerPoint = nComp + strideParticle;
+	REQUIRE((unit->numDofs() - inletDofs) % dofsPerPoint == 0);
+	const unsigned int nPoints = (unit->numDofs() - inletDofs) / dofsPerPoint;
+	const unsigned int particleOffset = inletDofs + nPoints * nComp;
+	const double invBetaP0 = 0.25 / (0.5 * 0.75);
+	const double invBetaP1 = 0.25 / (0.8 * 0.75);
+	const double initialConservedMass = 2.7 + 0.3 + invBetaP0 * 0.4 + invBetaP1 * 0.6;
+
+	cadet::test::unitoperation::testConsistentInitialization(unit, false, y.data(), 1e-14, 1e-10);
+
+	for (unsigned int point = 0; point < nPoints; ++point)
+	{
+		double const* const cp = y.data() + particleOffset + point * strideParticle;
+		double const* const q = cp + nComp;
+		CHECK(cp[1] == cadet::test::makeApprox(2.0 * cp[0], 1e-11, 1e-11));
+		CHECK(q[0] == cadet::test::makeApprox((12.3 / 45.0) * cp[0], 1e-11, 1e-11));
+		CHECK(q[1] == cadet::test::makeApprox((35.5 / 20.0) * cp[1], 1e-11, 1e-11));
+		CHECK((cp[0] + cp[1] + invBetaP0 * q[0] + invBetaP1 * q[1])
+			== cadet::test::makeApprox(initialConservedMass, 1e-11, 1e-11));
+	}
+
+	mb->destroyUnitOperation(unit);
+	destroyModelBuilder(mb);
+}
+
+TEST_CASE("1D column general rate particle liquid and binding equilibrium consistent initialization", "[Column_1D],[MassActionLaw],[ReactionModel],[ConsistentInit],[Binding],[Particle],[GRM],[CI]")
+{
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_GRM", "DG");
+	jpp.pushScope("particle_type_000");
+	jpp.set("INIT_CP", std::vector<double>{2.7, 0.3});
+	jpp.set("INIT_CS", std::vector<double>{0.4, 0.6});
+	jpp.set("PORE_ACCESSIBILITY", std::vector<double>{0.5, 0.8});
+	jpp.pushScope("adsorption");
+	jpp.set("IS_KINETIC", 0);
+	jpp.popScope();
+	jpp.set("NREAC_LIQUID", 1);
+	jpp.addScope("liquid_reaction_000");
+	jpp.pushScope("liquid_reaction_000");
+	jpp.set("TYPE", "MASS_ACTION_LAW");
+	jpp.set("MAL_KFWD", std::vector<double>{2.0});
+	jpp.set("MAL_KBWD", std::vector<double>{1.0});
+	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.popScope();
+	jpp.popScope();
+
+	cadet::IUnitOperation* const unit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
+	std::vector<double> y(unit->numDofs(), 0.0);
+	std::vector<double> yDot(unit->numDofs(), 0.0);
+	unit->readInitialCondition(jpp);
+	unit->applyInitialCondition(cadet::SimulationState{y.data(), yDot.data()});
+
+	const unsigned int nComp = unit->numComponents();
+	const unsigned int inletDofs = nComp * unit->numInletPorts();
+	const unsigned int nBound = 2;
+	const unsigned int nParticlePoints = 4;
+	const unsigned int strideParticlePoint = nComp + nBound;
+	const unsigned int dofsPerColumnPoint = nComp + nParticlePoints * strideParticlePoint;
+	REQUIRE((unit->numDofs() - inletDofs) % dofsPerColumnPoint == 0);
+	const unsigned int nColumnPoints = (unit->numDofs() - inletDofs) / dofsPerColumnPoint;
+	const unsigned int particleOffset = inletDofs + nColumnPoints * nComp;
+	const double invBetaP0 = 0.25 / (0.5 * 0.75);
+	const double invBetaP1 = 0.25 / (0.8 * 0.75);
+	const double initialConservedMass = 2.7 + 0.3 + invBetaP0 * 0.4 + invBetaP1 * 0.6;
+
+	cadet::test::unitoperation::testConsistentInitialization(unit, false, y.data(), 1e-14, 1e-10);
+
+	for (unsigned int columnPoint = 0; columnPoint < nColumnPoints; ++columnPoint)
+	{
+		for (unsigned int particlePoint = 0; particlePoint < nParticlePoints; ++particlePoint)
+		{
+			double const* const cp = y.data() + particleOffset
+				+ (columnPoint * nParticlePoints + particlePoint) * strideParticlePoint;
+			double const* const q = cp + nComp;
+			CHECK(cp[1] == cadet::test::makeApprox(2.0 * cp[0], 1e-11, 1e-11));
+			CHECK(q[0] == cadet::test::makeApprox((12.3 / 45.0) * cp[0], 1e-11, 1e-11));
+			CHECK(q[1] == cadet::test::makeApprox((35.5 / 20.0) * cp[1], 1e-11, 1e-11));
+			CHECK((cp[0] + cp[1] + invBetaP0 * q[0] + invBetaP1 * q[1])
+				== cadet::test::makeApprox(initialConservedMass, 1e-11, 1e-11));
+		}
+	}
+
+	mb->destroyUnitOperation(unit);
+	destroyModelBuilder(mb);
+}
+
+TEST_CASE("1D column general rate particle liquid equilibrium MAL consistent initialization", "[Column_1D],[MassActionLaw],[ReactionModel],[ConsistentInit],[Particle],[GRM],[CI]")
+{
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_GRM", "DG");
+	jpp.pushScope("particle_type_000");
+	jpp.set("INIT_CP", std::vector<double>{2.7, 0.3});
+	jpp.set("NREAC_LIQUID", 1);
+	jpp.addScope("liquid_reaction_000");
+	jpp.pushScope("liquid_reaction_000");
+	jpp.set("TYPE", "MASS_ACTION_LAW");
+	jpp.set("MAL_KFWD", std::vector<double>{2.0});
+	jpp.set("MAL_KBWD", std::vector<double>{1.0});
+	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.popScope();
+	jpp.popScope();
+
+	cadet::IUnitOperation* const unit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
+	std::vector<double> y(unit->numDofs(), 0.0);
+	std::vector<double> yDot(unit->numDofs(), 0.0);
+	unit->readInitialCondition(jpp);
+	unit->applyInitialCondition(cadet::SimulationState{y.data(), yDot.data()});
+
+	const unsigned int nComp = unit->numComponents();
+	const unsigned int inletDofs = nComp * unit->numInletPorts();
+	const unsigned int nBound = 2;
+	const unsigned int nParticlePoints = 4;
+	const unsigned int strideParticlePoint = nComp + nBound;
+	const unsigned int dofsPerColumnPoint = nComp + nParticlePoints * strideParticlePoint;
+	REQUIRE((unit->numDofs() - inletDofs) % dofsPerColumnPoint == 0);
+	const unsigned int nColumnPoints = (unit->numDofs() - inletDofs) / dofsPerColumnPoint;
+	const unsigned int particleOffset = inletDofs + nColumnPoints * nComp;
+
+	cadet::test::unitoperation::testConsistentInitialization(unit, false, y.data(), 1e-14, 1e-10);
+
+	for (unsigned int columnPoint = 0; columnPoint < nColumnPoints; ++columnPoint)
+	{
+		for (unsigned int particlePoint = 0; particlePoint < nParticlePoints; ++particlePoint)
+		{
+			double const* const cp = y.data() + particleOffset
+				+ (columnPoint * nParticlePoints + particlePoint) * strideParticlePoint;
+			CHECK(cp[0] == cadet::test::makeApprox(1.0, 1e-11, 1e-11));
+			CHECK(cp[1] == cadet::test::makeApprox(2.0, 1e-11, 1e-11));
+			CHECK((cp[0] + cp[1]) == cadet::test::makeApprox(3.0, 1e-11, 1e-11));
+		}
+	}
+
+	mb->destroyUnitOperation(unit);
+	destroyModelBuilder(mb);
+}
+
+TEST_CASE("1D column particle liquid equilibrium MAL Jacobian vs AD", "[Column_1D],[MassActionLaw],[ReactionModel],[Jacobian],[AD],[Particle],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_LRMP", "DG");
+	jpp.pushScope("particle_type_000");
+	jpp.set("NREAC_LIQUID", 1);
+	jpp.addScope("liquid_reaction_000");
+	jpp.pushScope("liquid_reaction_000");
+	jpp.set("TYPE", "MASS_ACTION_LAW");
+	jpp.set("MAL_KFWD", std::vector<double>{2.0});
+	jpp.set("MAL_KBWD", std::vector<double>{1.0});
+	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.popScope();
+	jpp.popScope();
+
+	cadet::test::column::testJacobianAD(
+		jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("1D column particle liquid and binding equilibrium Jacobian vs AD", "[Column_1D],[MassActionLaw],[ReactionModel],[Jacobian],[AD],[Binding],[Particle],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_LRMP", "DG");
+	jpp.pushScope("particle_type_000");
+	jpp.set("PORE_ACCESSIBILITY", std::vector<double>{0.5, 0.8});
+	jpp.pushScope("adsorption");
+	jpp.set("IS_KINETIC", 0);
+	jpp.popScope();
+	jpp.set("NREAC_LIQUID", 1);
+	jpp.addScope("liquid_reaction_000");
+	jpp.pushScope("liquid_reaction_000");
+	jpp.set("TYPE", "MASS_ACTION_LAW");
+	jpp.set("MAL_KFWD", std::vector<double>{2.0});
+	jpp.set("MAL_KBWD", std::vector<double>{1.0});
+	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.popScope();
+	jpp.popScope();
+
+	cadet::test::column::testJacobianAD(
+		jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("1D column general rate particle liquid equilibrium MAL Jacobian vs AD", "[Column_1D],[MassActionLaw],[ReactionModel],[Jacobian],[AD],[Particle],[GRM],[CI]")
+{
+	for (const std::string& spatialMethod : {std::string("DG"), std::string("DGFV")})
+	{
+		SECTION(spatialMethod)
+		{
+			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_GRM", spatialMethod);
+			jpp.pushScope("particle_type_000");
+			jpp.set("NREAC_LIQUID", 1);
+			jpp.addScope("liquid_reaction_000");
+			jpp.pushScope("liquid_reaction_000");
+			jpp.set("TYPE", "MASS_ACTION_LAW");
+			jpp.set("MAL_KFWD", std::vector<double>{2.0});
+			jpp.set("MAL_KBWD", std::vector<double>{1.0});
+			jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+			jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+			jpp.popScope();
+			jpp.popScope();
+
+			cadet::test::column::testJacobianAD(
+				jpp, std::numeric_limits<float>::epsilon() * 100.0);
+		}
+	}
+}
+
+TEST_CASE("1D column general rate particle liquid equilibrium MAL time derivative Jacobian vs FD", "[Column_1D],[MassActionLaw],[ReactionModel],[Jacobian],[FD],[Particle],[GRM],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_GRM", "DG");
+	jpp.pushScope("particle_type_000");
+	jpp.set("NREAC_LIQUID", 1);
+	jpp.addScope("liquid_reaction_000");
+	jpp.pushScope("liquid_reaction_000");
+	jpp.set("TYPE", "MASS_ACTION_LAW");
+	jpp.set("MAL_KFWD", std::vector<double>{2.0});
+	jpp.set("MAL_KBWD", std::vector<double>{1.0});
+	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.popScope();
+	jpp.popScope();
+
+	cadet::test::unitoperation::testTimeDerivativeJacobianFD(jpp, 1e-6, 0.0, 9e-4);
+}
+
+TEST_CASE("1D column general rate particle liquid equilibrium MAL sensitivity Jacobians", "[Column_1D],[MassActionLaw],[ReactionModel],[Jacobian],[Sensitivity],[Particle],[GRM],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_GRM", "DG");
+	jpp.pushScope("particle_type_000");
+	jpp.set("NREAC_LIQUID", 1);
+	jpp.addScope("liquid_reaction_000");
+	jpp.pushScope("liquid_reaction_000");
+	jpp.set("TYPE", "MASS_ACTION_LAW");
+	jpp.set("MAL_KFWD", std::vector<double>{2.0});
+	jpp.set("MAL_KBWD", std::vector<double>{1.0});
+	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.popScope();
+	jpp.popScope();
+
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7, 1e-4);
+}
+
 TEST_CASE("1D liquid equilibrium MAL Jacobian vs AD", "[Column_1D],[MassActionLaw],[ReactionModel],[Jacobian],[AD],[CI]")
 {
 	SECTION("Without particles")
@@ -726,6 +1055,28 @@ TEST_CASE("Column_1D Jacobian for 2ParType with general rate and homogeneous par
 {
 	cadet::JsonParameterProvider jpp = createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson("COLUMN_MODEL_1D", "DG");
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
+TEST_CASE("Column_1D consistent sensitivity initialization with two particle types", "[AxialColumn1D],[DG],[DG1D],[ConsistentInit],[Sensitivity],[Particle]")
+{
+	cadet::ad::setDirections(cadet::ad::getMaxDirections());
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	cadet::JsonParameterProvider jpp = createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson("COLUMN_MODEL_1D", "DG");
+	cadet::IUnitOperation* const unit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
+	REQUIRE(unit->setSensitiveParameter(cadet::makeParamId("COL_LENGTH", 0, cadet::CompIndep,
+		cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0));
+
+	std::vector<double> y(unit->numDofs(), 0.0);
+	std::vector<double> yDot(unit->numDofs(), 0.0);
+	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, y.size());
+	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, yDot.size());
+
+	cadet::test::unitoperation::testConsistentInitializationSensitivity(unit, false, y.data(), yDot.data(), 1e-10);
+
+	mb->destroyUnitOperation(unit);
+	destroyModelBuilder(mb);
 }
 
 TEST_CASE("Column_1D as GRM inlet DOF Jacobian", "[AxialColumn1D],[DG],[DG1D],[UnitOp],[Jacobian],[Inlet],[CI]")

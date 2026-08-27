@@ -169,6 +169,57 @@ struct ReactionSystem
         {
             return getPhaseData(phaseType).consMoities;
         }
+
+        /**
+         * @brief Writes all equilibrium-reaction residuals of a phase
+         * @details The output starts with the first equilibrium equation and is cleared before
+         *          the individual reaction models write their equations.
+         */
+        template <typename StateType, typename ResidualType>
+        void writeEquilibriumResidual(const std::string& phaseType, double t, unsigned int secIdx,
+            const ColumnPosition& colPos, unsigned int numStates, StateType const* state,
+            ResidualType* residual, LinearBufferAllocator workspace) const
+        {
+            const PhaseData& phase = getPhaseData(phaseType);
+            const unsigned int numEquilibriumReactions = phase.consMoities.numEquilibriumReactions();
+            std::fill_n(residual, numEquilibriumReactions, ResidualType{0.0});
+
+            unsigned int equilibriumIndex = 0;
+            for (auto const* reaction : phase.dynReactions)
+            {
+                if (!reaction)
+                    continue;
+
+                reaction->residualEquilibriumFlux(t, secIdx, colPos, numStates, state,
+                    residual, equilibriumIndex, workspace.manageRemainingMemory());
+            }
+
+            cadet_assert(equilibriumIndex == numEquilibriumReactions);
+        }
+
+        /**
+         * @brief Adds all equilibrium-reaction Jacobian rows of a phase
+         * @details The caller owns the matrix and must clear the target rows before calling this
+         *          method. The row iterator points to the first equilibrium equation.
+         */
+        template <typename RowIterator>
+        void addEquilibriumJacobian(const std::string& phaseType, double t, unsigned int secIdx,
+            const ColumnPosition& colPos, unsigned int numStates, double const* state,
+            unsigned int equilibriumRowOffset, RowIterator jacobian, LinearBufferAllocator workspace) const
+        {
+            const PhaseData& phase = getPhaseData(phaseType);
+            unsigned int equilibriumIndex = 0;
+            for (auto const* reaction : phase.dynReactions)
+            {
+                if (!reaction)
+                    continue;
+
+                reaction->analyticEquilibriumJacobian(t, secIdx, colPos, numStates, state,
+                    equilibriumIndex, equilibriumRowOffset, jacobian, workspace.manageRemainingMemory());
+            }
+
+            cadet_assert(equilibriumIndex == phase.consMoities.numEquilibriumReactions());
+        }
                 
         /**
          * @brief Configures the dimensions of the dynamic reaction vector for a phase
@@ -292,13 +343,8 @@ struct ReactionSystem
             auto& cm = phase.consMoities;
             
             unsigned int totalCols = 0;
-            std::vector<unsigned int> reactionColumnOffset;
-            reactionColumnOffset.reserve(phase.dynReactions.size());
-            
             for (const auto* reaction : phase.dynReactions)
             {
-                reactionColumnOffset.push_back(totalCols);
-
                 if (!reaction)
                     continue;
                 
@@ -333,7 +379,7 @@ struct ReactionSystem
                 colOffset += nReac;
             }
 
-            bool conservedMoitiesSuccess = cm.configure(nStates, std::move(reactionColumnOffset), std::move(eqReactionFlags), std::move(S), rankTol);
+            const bool conservedMoitiesSuccess = cm.configure(nStates, eqReactionFlags, S, rankTol);
 
             if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
             {

@@ -100,6 +100,7 @@ namespace parts
 		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity) override;
 		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithoutParamSensitivity) override;
 		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, active* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc, WithParamSensitivity) override;
+		void applyTimeDerivativeJacobianTransformation(double* result, unsigned int numParticleBlocks, std::vector<double>& scratch) const override;
 
 		double relativeCoordinate(const unsigned int nodeIdx) const CADET_NOEXCEPT  override { return _parDiffOp->relativeCoordinate(nodeIdx); }
 
@@ -119,10 +120,7 @@ namespace parts
 
 		int writeParticleCoordinates(double* coords) const override;
 
-		void setParJacPattern(std::vector<Eigen::Triplet<double>>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx) const override
-		{
-			_parDiffOp->setParticleJacobianPattern(tripletList, offsetPar, offsetBulk, colNode, secIdx);
-		}
+		void setParJacPattern(std::vector<Eigen::Triplet<double>>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx) const override;
 
 		unsigned int jacobianNNZperParticle() const override;
 		int calcParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac) override;
@@ -163,6 +161,7 @@ namespace parts
 		virtual bool isParticleLumped() const CADET_NOEXCEPT { return false; }
 
 	protected:
+		std::vector<ConservedMoieties::EigenSparseMatrixEntry> _cMJacobianEntries; //!< Reusable scratch for conserved-moiety film Jacobian transformations
 
 		/**
 		 * @brief stride over one discrete point
