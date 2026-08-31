@@ -46,7 +46,7 @@ namespace
 	struct ColumnModel1DName { };
 
 	template <>
-	struct ColumnModel1DName<cadet::model::parts::AxialConvectionDispersionOperatorBaseDG>
+	struct ColumnModel1DName<cadet::model::parts::AxialConvectionDispersionOperatorBaseCollocationDG>
 	{
 		static const char* identifier() CADET_NOEXCEPT { return "COLUMN_MODEL_1D"; }
 	};
@@ -114,7 +114,7 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 \end{align} @f]
  * Methods are described in @cite Breuer2023 (DGSEM discretization), @cite Puttmann2013 @cite Puttmann2016 (forward sensitivities, AD, band compression)
  */
-template <typename ConvDispOperator = parts::AxialConvectionDispersionOperatorBaseDG>
+template <typename ConvDispOperator = parts::AxialConvectionDispersionOperatorBaseCollocationDG>
 class ColumnModel1D : public UnitOperationBase
 {
 public:
@@ -678,7 +678,7 @@ protected:
 
 };
 
-extern template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseDG>;
+extern template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseCollocationDG>;
 extern template class ColumnModel1D<parts::VariableCrossSectionConvectionDispersionOperatorBaseDG>;
 extern template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseFV>;
 extern template class ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseFV>;

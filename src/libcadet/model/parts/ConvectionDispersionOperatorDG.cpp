@@ -39,14 +39,14 @@ namespace parts
 {
 
 /**
- * @brief Creates an AxialConvectionDispersionOperatorBaseDG
+ * @brief Creates an AxialConvectionDispersionOperatorBaseCollocationDG
  */
-AxialConvectionDispersionOperatorBaseDG::AxialConvectionDispersionOperatorBaseDG() :
+AxialConvectionDispersionOperatorBaseCollocationDG::AxialConvectionDispersionOperatorBaseCollocationDG() :
 	_DGjacAxDispBlocks(nullptr), _auxState(nullptr), _subsState(nullptr), _dispersionDep(nullptr)
 {
 }
 
-AxialConvectionDispersionOperatorBaseDG::~AxialConvectionDispersionOperatorBaseDG() CADET_NOEXCEPT
+AxialConvectionDispersionOperatorBaseCollocationDG::~AxialConvectionDispersionOperatorBaseCollocationDG() CADET_NOEXCEPT
 {
 	if (_dispersionDep)
 		delete _dispersionDep;
@@ -67,7 +67,7 @@ AxialConvectionDispersionOperatorBaseDG::~AxialConvectionDispersionOperatorBaseD
  * @param [in] strideNode node stride in state vector
  * @return @c true if configuration went fine, @c false otherwise
  */
-bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nElem, unsigned int polyDeg, unsigned int strideNode)
+bool AxialConvectionDispersionOperatorBaseCollocationDG::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nElem, unsigned int polyDeg, unsigned int strideNode)
 {
 	const bool firstConfigCall = _auxState == nullptr; // used to not multiply allocate memory
 
@@ -79,27 +79,6 @@ bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPara
 	_strideNode = strideNode;
 	_strideElem = _nNodes * strideNode;
 
-	paramProvider.pushScope("discretization");
-
-	if (paramProvider.exists("POLYNOMIAL_BASIS"))
-	{
-		if (paramProvider.getString("POLYNOMIAL_BASIS") != "LEGENDRE")
-			throw InvalidParameterException("Invalid value for POLYNOMIAL_BASIS (only LEGENDRE is supported)");
-	}
-	if (paramProvider.exists("POLYNOMIAL_INTERPOLATION_NODES"))
-	{
-		if (paramProvider.getString("POLYNOMIAL_INTERPOLATION_NODES") != "LEGENDRE_GAUSS_LOBATTO")
-			throw InvalidParameterException("Invalid value for POLYNOMIAL_INTERPOLATION_NODES (only LEGENDRE_GAUSS_LOBATTO is supported)");
-	}
-
-	_polyIntType = paramProvider.exists("POLYNOMIAL_INTEGRATION_TYPE") ? paramProvider.getInt("POLYNOMIAL_INTEGRATION_TYPE") : 0;
-	
-	if (_polyIntType < 0 || _polyIntType > 2)
-		throw InvalidParameterException("Invalid value for POLYNOMIAL_INTEGRATION_TYPE (should be 0, 1, or 2)");
-	_exactInt = static_cast<bool>(_polyIntType); // only integration mode 0 applies the inexact collocated diagonal LGL mass matrix
-	
-	paramProvider.popScope();
-
 	/* Allocate space for DG discretization operations */
 	_nodes.resize(_nNodes);
 	_nodes.setZero();
@@ -107,8 +86,6 @@ bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPara
 	_invWeights.setZero();
 	_polyDerM.resize(_nNodes, _nNodes);
 	_polyDerM.setZero();
-	_invMM.resize(_nNodes, _nNodes);
-	_invMM.setZero();
 
 	if (firstConfigCall)
 		_auxState = new active[_nPoints];
@@ -125,11 +102,7 @@ bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPara
 	_newStaticJac = true;
 
 	dgtoolbox::lglNodesWeights(_polyDeg, _nodes, _invWeights, true);
-	_invMM = dgtoolbox::invMMatrix(_polyDeg, _nodes);
 	_polyDerM = dgtoolbox::derivativeMatrix(_polyDeg, _nodes);
-
-	if(_polyIntType == 2) // use Gauss quadrature for exact integration
-		_invMM = dgtoolbox::gaussQuadratureMMatrix(_nodes, _nNodes).inverse();
 
 	if (paramProvider.exists("COL_DISPERSION_DEP"))
 	{
@@ -154,7 +127,7 @@ bool AxialConvectionDispersionOperatorBaseDG::configureModelDiscretization(IPara
  * @param [out] parameters Map in which local parameters are inserted
  * @return @c true if configuration went fine, @c false otherwise
  */
-bool AxialConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
+bool AxialConvectionDispersionOperatorBaseCollocationDG::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
 	const bool firstConfigCall = _DGjacAxDispBlocks == nullptr; // used to not multiply allocate memory
 
@@ -165,18 +138,12 @@ bool AxialConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, IPa
 	/* compute dispersion jacobian blocks(without parameters except element spacing, i.e. static entries) */
 	// we only need unique dispersion blocks, which are given by elements 1, 2, nElem for inexact integration DG and by elements 1, 2, 3, nElem-1, nElem for eaxct integration DG
 	if (firstConfigCall)
-		_DGjacAxDispBlocks = new Eigen::MatrixXd[(_exactInt ? std::min(_nElem, 5u) : std::min(_nElem, 3u))];
+		_DGjacAxDispBlocks = new Eigen::MatrixXd[std::min(_nElem, 3u)];
 	_DGjacAxDispBlocks[0] = DGjacobianDispBlock(1);
 	if (_nElem > 1)
 		_DGjacAxDispBlocks[1] = DGjacobianDispBlock(2);
-	if (_nElem > 2 && _exactInt)
-		_DGjacAxDispBlocks[2] = DGjacobianDispBlock(3);
-	else if (_nElem > 2 && !_exactInt)
+	if (_nElem > 2)
 		_DGjacAxDispBlocks[2] = DGjacobianDispBlock(_nElem);
-	if (_exactInt && _nElem > 3)
-		_DGjacAxDispBlocks[3] = DGjacobianDispBlock(std::max(4u, _nElem - 1u));
-	if (_exactInt && _nElem > 4)
-		_DGjacAxDispBlocks[4] = DGjacobianDispBlock(_nElem);
 
 	// note that convection jacobian block is computet in notifyDiscontinuousSectionTransition() since this block needs to be recomputed when flow direction changes
 
@@ -282,7 +249,7 @@ bool AxialConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, IPa
  * @param [in] secIdx Index of the new section that is about to be integrated
  * @return @c true if flow direction has changed, otherwise @c false
  */
-bool AxialConvectionDispersionOperatorBaseDG::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, MatrixXd& jacInlet)
+bool AxialConvectionDispersionOperatorBaseCollocationDG::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, MatrixXd& jacInlet)
 {
 	_curSection = secIdx;
 	_newStaticJac = true;
@@ -315,28 +282,13 @@ bool AxialConvectionDispersionOperatorBaseDG::notifyDiscontinuousSectionTransiti
 	_DGjacAxConvBlock = DGjacobianConvBlock();
 
 	if (jacInlet.size() == 0) // initialize inlet Jacobian if not already done
-	{
-		if (_exactInt)
-			jacInlet = Eigen::MatrixXd::Zero(_nNodes, 1);
-		else
-			jacInlet = Eigen::MatrixXd::Zero(1, 1);
-	}
+		jacInlet = Eigen::MatrixXd::Zero(1, 1);
 
 	if (_curVelocity >= 0.0) // forward flow upwind convection
-	{
-		if (_exactInt)
-			jacInlet = static_cast<double>(_curVelocity) * _DGjacAxConvBlock.col(0); // only first element depends on inlet concentration
-		else
-			jacInlet(0, 0) = static_cast<double>(_curVelocity) * _DGjacAxConvBlock(0, 0); // only first node depends on inlet concentration
-	}
+		jacInlet(0, 0) = static_cast<double>(_curVelocity) * _DGjacAxConvBlock(0, 0); // only first node depends on inlet concentration
 	else // backward flow upwind convection
-	{
-		if (_exactInt)
-			jacInlet = static_cast<double>(_curVelocity) * _DGjacAxConvBlock.col(_DGjacAxConvBlock.cols() - 1); // only last element depends on inlet concentration
-		else
-			jacInlet(0, 0) = static_cast<double>(_curVelocity) * _DGjacAxConvBlock(_DGjacAxConvBlock.rows() - 1, _DGjacAxConvBlock.cols() - 1); // only last node depends on inlet concentration
-	}
-	
+		jacInlet(0, 0) = static_cast<double>(_curVelocity) * _DGjacAxConvBlock(_DGjacAxConvBlock.rows() - 1, _DGjacAxConvBlock.cols() - 1); // only last node depends on inlet concentration
+
 	// Detect change in flow direction
 	return (dirOld * _dir < 0);
 }
@@ -348,7 +300,7 @@ bool AxialConvectionDispersionOperatorBaseDG::notifyDiscontinuousSectionTransiti
  * @param [in] out Total volumetric outlet flow rate
  * @param [in] colPorosity Porosity used for computing interstitial velocity from volumetric flow rate
  */
-void AxialConvectionDispersionOperatorBaseDG::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
+void AxialConvectionDispersionOperatorBaseCollocationDG::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
 {
 	// If we have cross section area, interstitial velocity is given by network flow rates
 	if (_crossSection > 0.0)
@@ -366,7 +318,7 @@ void AxialConvectionDispersionOperatorBaseDG::setFlowRates(const active& in, con
  * @param [in] jac Matrix that holds the Jacobian
  * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
  */
-int AxialConvectionDispersionOperatorBaseDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac)
+int AxialConvectionDispersionOperatorBaseCollocationDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac)
 {
 	//// Reset Jacobian but keep pattern
 	//double* val = jac.valuePtr();
@@ -378,17 +330,17 @@ int AxialConvectionDispersionOperatorBaseDG::residual(const IModel& model, doubl
 	return residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, true>(model, t, secIdx, y, yDot, res, jacIt);
 }
 
-int AxialConvectionDispersionOperatorBaseDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity)
+int AxialConvectionDispersionOperatorBaseCollocationDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity)
 {
 	return residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandedEigenSparseRowIterator());
 }
 
-int AxialConvectionDispersionOperatorBaseDG::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity)
+int AxialConvectionDispersionOperatorBaseCollocationDG::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity)
 {
 	return residualImpl<active, active, double, linalg::BandedEigenSparseRowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandedEigenSparseRowIterator());
 }
 
-int AxialConvectionDispersionOperatorBaseDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac)
+int AxialConvectionDispersionOperatorBaseCollocationDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, Eigen::SparseMatrix<double, Eigen::RowMajor>& jac)
 {
 	// todo include jacobian in convDisp operator
 	//// Reset Jacobian but keep pattern
@@ -401,18 +353,18 @@ int AxialConvectionDispersionOperatorBaseDG::residual(const IModel& model, doubl
 	return residualImpl<double, active, active, linalg::BandedEigenSparseRowIterator, true>(model, t, secIdx, y, yDot, res, jacIt);
 }
 
-int AxialConvectionDispersionOperatorBaseDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity)
+int AxialConvectionDispersionOperatorBaseCollocationDG::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity)
 {
 	return residualImpl<double, active, active, linalg::BandedEigenSparseRowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandedEigenSparseRowIterator());
 }
 
-int AxialConvectionDispersionOperatorBaseDG::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity)
+int AxialConvectionDispersionOperatorBaseCollocationDG::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity)
 {
 	return residualImpl<active, active, active, linalg::BandedEigenSparseRowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandedEigenSparseRowIterator());
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-int AxialConvectionDispersionOperatorBaseDG::residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin)
+int AxialConvectionDispersionOperatorBaseCollocationDG::residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin)
 {
 	for (unsigned int comp = 0; comp < _nComp; comp++) {
 
@@ -483,23 +435,19 @@ int AxialConvectionDispersionOperatorBaseDG::residualImpl(const IModel& model, d
 * @return 1 if jacobain estimation fits the predefined pattern of the jacobian, 0 if not.
 */
 template <typename StateType>
-int AxialConvectionDispersionOperatorBaseDG::calcTransportJacobian(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset, const StateType* const y)
+int AxialConvectionDispersionOperatorBaseCollocationDG::calcTransportJacobian(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset, const StateType* const y)
 {
-	// DG convection dispersion Jacobian
-	if (_exactInt)
-		calcConvDispExIntDGSEMJacobian(jacobian, jacInlet, bulkOffset);
-	else
-		calcConvDispCollocationDGSEMJacobian(jacobian, jacInlet, bulkOffset);
+	calcConvDispCollocationDGSEMJacobian(jacobian, jacInlet, bulkOffset);
 
 	return jacobian.isCompressed();
 }
 
-int AxialConvectionDispersionOperatorBaseDG::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, double const* y)
+int AxialConvectionDispersionOperatorBaseCollocationDG::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, double const* y)
 {
 	return calcTransportJacobian<double>(model, t, secIdx, jacobian, jacInlet, bulkOffset, y);
 }
 
-int AxialConvectionDispersionOperatorBaseDG::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, active const* y)
+int AxialConvectionDispersionOperatorBaseCollocationDG::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, active const* y)
 {
 	return calcTransportJacobian<active>(model, t, secIdx, jacobian, jacInlet, bulkOffset, y);
 }
@@ -508,29 +456,17 @@ int AxialConvectionDispersionOperatorBaseDG::calcTransportJacobian(const IModel&
  * @brief calculates the number of entris for the DG convection dispersion jacobian
  * @note only dispersion entries are relevant for jacobian NNZ as the convection entries are a subset of these
  */
-unsigned int AxialConvectionDispersionOperatorBaseDG::nJacEntries(bool pureNNZ) const CADET_NOEXCEPT
+unsigned int AxialConvectionDispersionOperatorBaseCollocationDG::nJacEntries(bool pureNNZ) const CADET_NOEXCEPT
 {
-	if (_exactInt) {
-		if (pureNNZ) {
-			return _nComp * ((3u * _nElem - 2u) * _nNodes * _nNodes + (2u * _nElem - 3u) * _nNodes); // dispersion entries
-		}
-		return _nComp * _nNodes * _nNodes + _nNodes // convection entries
-			+ _nComp * ((3u * _nElem - 2u) * _nNodes * _nNodes + (2u * _nElem - 3u) * _nNodes); // dispersion entries
-	}
-	else {
-		if (pureNNZ) {
-			return _nComp * (_nElem * _nNodes * _nNodes + 8u * _nNodes); // dispersion entries
-		}
-		return _nComp * _nNodes * _nNodes + 1u // convection entries
-			+ _nComp * (_nElem * _nNodes * _nNodes + 8u * _nNodes); // dispersion entries
-	}
+	if (pureNNZ)
+		return _nComp * (_nElem * _nNodes * _nNodes + 8u * _nNodes); // dispersion entries
+	
+	return _nComp * _nNodes * _nNodes + 1u // convection entries
+		+ _nComp * (_nElem * _nNodes * _nNodes + 8u * _nNodes); // dispersion entries
 }
-void model::parts::AxialConvectionDispersionOperatorBaseDG::convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset) const
+void model::parts::AxialConvectionDispersionOperatorBaseCollocationDG::convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset) const
 {
-	if (_exactInt)
-		ConvDispExIntPattern(tripletList, bulkOffset);
-	else
-		ConvDispCollocationPattern(tripletList, bulkOffset);
+	ConvDispCollocationPattern(tripletList, bulkOffset);
 }
 /**
  * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$ with a given vector
@@ -543,7 +479,7 @@ void model::parts::AxialConvectionDispersionOperatorBaseDG::convDispJacPattern(s
  * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
  * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
  */
-void AxialConvectionDispersionOperatorBaseDG::multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const
+void AxialConvectionDispersionOperatorBaseCollocationDG::multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const
 {
 	double* localRet = ret + offsetC();
 	double const* localSdot = sDot + offsetC();
@@ -565,7 +501,7 @@ void AxialConvectionDispersionOperatorBaseDG::multiplyWithDerivativeJacobian(con
  *          The factor @f$ \alpha @f$ is useful when constructing the linear system in the time integration process.
  * @param [in] alpha Factor in front of @f$ \frac{\partial F}{\partial \dot{y}} @f$
  */
-void AxialConvectionDispersionOperatorBaseDG::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset) const
+void AxialConvectionDispersionOperatorBaseCollocationDG::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset) const
 {
 	const int gapelement = strideColNode() - static_cast<int>(_nComp) * strideColComp();
 	linalg::BandedEigenSparseRowIterator jac(jacDisc, blockOffset);
@@ -578,23 +514,21 @@ void AxialConvectionDispersionOperatorBaseDG::addTimeDerivativeToJacobian(double
 	}
 }
 
-unsigned int AxialConvectionDispersionOperatorBaseDG::jacobianLowerBandwidth() const CADET_NOEXCEPT
+unsigned int AxialConvectionDispersionOperatorBaseCollocationDG::jacobianLowerBandwidth() const CADET_NOEXCEPT
 {
 	// @todo use more efficient seed vectors. currently, we treat the jacobian as banded, but the pattern is actually more sparse when multiple components are considered
 	// (note that active type directions are limited)
-	// We have different jacobian structure for exact integration and collocation DG scheme, i.e. we need different seed vectors
-	// collocation DG: 2 * N_n * (N_c + N_q) + 1 = total bandwidth (main diagonal entries maximally depend on the next and last N_n liquid phase entries of same component)
-	//    ex. int. DG: 4 * N_n * (N_c + N_q) + 1 = total bandwidth (main diagonal entries maximally depend on the next and last 2*N_n liquid phase entries of same component)
-
-	return (_exactInt) ? 2 * _nNodes * strideColNode() : _nNodes * strideColNode();
+	// We have a specific jacobian structure for the collocation DG scheme:
+	// 2 * N_n * (N_c + N_q) + 1 = total bandwidth (main diagonal entries maximally depend on the next and last N_n liquid phase entries of same component)
+	return _nNodes * strideColNode();
 }
 
-unsigned int AxialConvectionDispersionOperatorBaseDG::jacobianUpperBandwidth() const CADET_NOEXCEPT
+unsigned int AxialConvectionDispersionOperatorBaseCollocationDG::jacobianUpperBandwidth() const CADET_NOEXCEPT
 {
 	return jacobianLowerBandwidth();
 }
 
-bool AxialConvectionDispersionOperatorBaseDG::setParameter(const ParameterId& pId, double value)
+bool AxialConvectionDispersionOperatorBaseCollocationDG::setParameter(const ParameterId& pId, double value)
 {
 	// Check if parameter is in parameter dependence of column dispersion coefficient
 	if (_dispersionDep)
@@ -635,7 +569,7 @@ bool AxialConvectionDispersionOperatorBaseDG::setParameter(const ParameterId& pI
 	return true;
 }
 
-bool AxialConvectionDispersionOperatorBaseDG::setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value)
+bool AxialConvectionDispersionOperatorBaseCollocationDG::setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value)
 {
 	// Check if parameter is in parameter dependence of column dispersion coefficient
 	if (_dispersionDep)
@@ -683,7 +617,7 @@ bool AxialConvectionDispersionOperatorBaseDG::setSensitiveParameterValue(const s
 	return true;
 }
 
-bool AxialConvectionDispersionOperatorBaseDG::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
+bool AxialConvectionDispersionOperatorBaseCollocationDG::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
 {
 	// Check if parameter is in parameter dependence of column dispersion coefficient
 	if (_dispersionDep)
@@ -1737,8 +1671,8 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::setSensitiveParamet
 	return true;
 }
 
-template int AxialConvectionDispersionOperatorBaseDG::calcTransportJacobian<double>(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>&, Eigen::MatrixXd&, const int, const double* const);
-template int AxialConvectionDispersionOperatorBaseDG::calcTransportJacobian<active>(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>&, Eigen::MatrixXd&, const int, const active* const);
+template int AxialConvectionDispersionOperatorBaseCollocationDG::calcTransportJacobian<double>(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>&, Eigen::MatrixXd&, const int, const double* const);
+template int AxialConvectionDispersionOperatorBaseCollocationDG::calcTransportJacobian<active>(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>&, Eigen::MatrixXd&, const int, const active* const);
 template int VariableCrossSectionConvectionDispersionOperatorBaseDG::calcTransportJacobian<double>(const IModel&, double, unsigned int, Eigen::SparseMatrix<double, RowMajor>&, Eigen::MatrixXd&, const int, const double* const);
 template int VariableCrossSectionConvectionDispersionOperatorBaseDG::calcTransportJacobian<active>(const IModel&, double, unsigned int, Eigen::SparseMatrix<double, RowMajor>&, Eigen::MatrixXd&, const int, const active* const);
 

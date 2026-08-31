@@ -1936,7 +1936,7 @@ namespace cadet
 namespace model
 {
 
-template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseDG>;
+template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseCollocationDG>;
 template class ColumnModel1D<parts::VariableCrossSectionConvectionDispersionOperatorBaseDG>;
 template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseFV>;
 template class ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseFV>;
@@ -1944,7 +1944,7 @@ template class ColumnModel1D<parts::FrustumConvectionDispersionOperatorBaseFV>;
 
 IUnitOperation* createAxialCol1DDG(UnitOpIdx uoId)
 {
-	typedef ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseDG> AxialCol1DDG;
+	typedef ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseCollocationDG> AxialCol1DDG;
 
 	return new AxialCol1DDG(uoId);
 }
