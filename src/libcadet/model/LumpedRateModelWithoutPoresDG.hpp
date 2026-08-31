@@ -50,7 +50,7 @@ namespace
 	struct LumpedRateModelWithoutPoresDGName { };
 
 	template <>
-	struct LumpedRateModelWithoutPoresDGName<cadet::model::parts::AxialConvectionDispersionOperatorBaseDG>
+	struct LumpedRateModelWithoutPoresDGName<cadet::model::parts::AxialConvectionDispersionOperatorBaseCollocationDG>
 	{
 		static const char* identifier() CADET_NOEXCEPT { return "LUMPED_RATE_MODEL_WITHOUT_PORES_DG"; }
 	};
@@ -83,7 +83,7 @@ namespace cadet
 			\end{align} @f]
 		* Methods are described in @cite Breuer2023 (DGSEM discretization), @cite Puttmann2013 @cite Puttmann2016 (forward sensitivities, AD, band compression)
 		*/
-		template <typename ConvDispOperator = parts::AxialConvectionDispersionOperatorBaseDG>
+		template <typename ConvDispOperator = parts::AxialConvectionDispersionOperatorBaseCollocationDG>
 		class LumpedRateModelWithoutPoresDG : public UnitOperationBase
 		{
 		public:
