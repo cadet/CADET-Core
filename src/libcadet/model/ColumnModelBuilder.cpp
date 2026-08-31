@@ -1,4 +1,16 @@
-#include "model/particle/ParticleModel.hpp"
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// =================================================================================
+//  CADET
+//
+//  Copyright © 2008-present: The CADET-Core Authors
+//            Please see the AUTHORS.md file.
+//
+//  All rights reserved. This program and the accompanying materials
+//  are made available under the terms of the GNU Affero General Public
+//  License v3.0 (or, at your option, any later version).
+// =================================================================================
+ 
+ #include "model/particle/ParticleModel.hpp"
 #include "model/ColumnModel1D.hpp"
 #ifdef ENABLE_2D_MODELS
 	#include "model/ColumnModel2D.hpp"
@@ -201,9 +213,9 @@ namespace model
 				if (discName == "DG")
 				{
 					if (particleType == "EQUILIBRIUM_PARTICLE")
-						model = createRadialLRMDG(uoId);
+						model = createVariableCrossSectionLRMDG(uoId);
 					else
-						model = createRadialCol1DDG(uoId);
+						model = createVariableCrossSectionCol1DDG(uoId);
 				}
 				else if (discName == "FV")
 				{
@@ -224,7 +236,7 @@ namespace model
 			else
 			{
 				if (discName == "DG")
-					model = createRadialCol1DDG(uoId);
+					model = createVariableCrossSectionCol1DDG(uoId);
 				else
 					model = arrowHeadOpt ? createRadialFVLRM(uoId) : createRadialCol1DFV(uoId);
 			}
@@ -234,9 +246,9 @@ namespace model
 			if (discName == "DG")
 			{
 				if (uoType == "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES")
-					model = createRadialLRMDG(uoId);
+					model = createVariableCrossSectionLRMDG(uoId);
 				else if (uoType == "RADIAL_LUMPED_RATE_MODEL_WITH_PORES" || uoType == "RADIAL_GENERAL_RATE_MODEL")
-					model = createRadialCol1DDG(uoId);
+					model = createVariableCrossSectionCol1DDG(uoId);
 				else
 					LOG(Error) << "Radial DG only supports LRM, LRMP, and GRM currently for unit " << uoId;
 			}
@@ -303,9 +315,9 @@ namespace model
 				if (discName == "DG")
 				{
 					if (particleType == "EQUILIBRIUM_PARTICLE")
-						model = createFrustumLRMDG(uoId);
+						model = createVariableCrossSectionLRMDG(uoId);
 					else
-						model = createFrustumCol1DDG(uoId);
+						model = createVariableCrossSectionCol1DDG(uoId);
 				}
 				else if (discName == "FV")
 				{
@@ -326,7 +338,7 @@ namespace model
 			else
 			{
 				if (discName == "DG")
-					model = createFrustumCol1DDG(uoId);
+					model = createVariableCrossSectionCol1DDG(uoId);
 				else
 				model = arrowHeadOpt ? createFrustumFVLRM(uoId) : createFrustumCol1DFV(uoId);
 		}
@@ -336,9 +348,9 @@ namespace model
 			if (discName == "DG")
 			{
 				if (uoType == "Frustum_LUMPED_RATE_MODEL_WITHOUT_PORES")
-					model = createFrustumLRMDG(uoId);
+					model = createVariableCrossSectionLRMDG(uoId);
 				else if (uoType == "Frustum_LUMPED_RATE_MODEL_WITH_PORES" || uoType == "RADIAL_GENERAL_RATE_MODEL")
-					model = createFrustumCol1DDG(uoId);
+					model = createVariableCrossSectionCol1DDG(uoId);
 				else
 					LOG(Error) << "Frustum DG discretization supports LRM, LRMP, and GRM but " << uoType << " was specified for unit " << uoId;
 			}
@@ -369,14 +381,10 @@ namespace model
 		models[ColumnModel2D::identifier()] = selectAxialFlowColumnUnitOperation;
 		models["COLUMN_MODEL_2D"] = selectAxialFlowColumnUnitOperation;
 
-		typedef LumpedRateModelWithoutPoresDG<parts::RadialConvectionDispersionOperatorBaseDG> RadialLRMDG;
-		typedef LumpedRateModelWithoutPoresDG<parts::FrustumConvectionDispersionOperatorBaseDG> FrustumLRMDG;
+		typedef LumpedRateModelWithoutPoresDG<parts::VariableCrossSectionConvectionDispersionOperatorBaseDG> FrustumLRMDG;
 
 		models[LumpedRateModelWithoutPoresDG<>::identifier()] = selectAxialFlowColumnUnitOperation;
 		models["LRM_DG"] = selectAxialFlowColumnUnitOperation;
-
-		models[RadialLRMDG::identifier()] = selectRadialFlowColumnUnitOperation;
-		models["RLRM_DG"] = selectRadialFlowColumnUnitOperation;
 
 		models[FrustumLRMDG::identifier()] = selectFrustumFlowColumnUnitOperation;
 		models["FLRM_DG"] = selectFrustumFlowColumnUnitOperation;

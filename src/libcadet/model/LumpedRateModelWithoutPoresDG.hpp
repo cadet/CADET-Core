@@ -56,13 +56,7 @@ namespace
 	};
 
 	template <>
-	struct LumpedRateModelWithoutPoresDGName<cadet::model::parts::RadialConvectionDispersionOperatorBaseDG>
-	{
-		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES_DG"; }
-	};
-
-	template <>
-	struct LumpedRateModelWithoutPoresDGName<cadet::model::parts::FrustumConvectionDispersionOperatorBaseDG>
+	struct LumpedRateModelWithoutPoresDGName<cadet::model::parts::VariableCrossSectionConvectionDispersionOperatorBaseDG>
 	{
 		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_LUMPED_RATE_MODEL_WITHOUT_PORES_DG"; }
 	};
@@ -556,8 +550,7 @@ namespace cadet
 		};
 
 		IUnitOperation* createAxialLRMDG(UnitOpIdx uoId);
-		IUnitOperation* createRadialLRMDG(UnitOpIdx uoId);
-		IUnitOperation* createFrustumLRMDG(UnitOpIdx uoId);
+		IUnitOperation* createVariableCrossSectionLRMDG(UnitOpIdx uoId);
 
 	} // namespace model
 } // namespace cadet
