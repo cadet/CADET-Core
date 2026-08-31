@@ -1937,8 +1937,7 @@ namespace model
 {
 
 template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseDG>;
-template class ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG>;
-template class ColumnModel1D<parts::FrustumConvectionDispersionOperatorBaseDG>;
+template class ColumnModel1D<parts::VariableCrossSectionConvectionDispersionOperatorBaseDG>;
 template class ColumnModel1D<parts::AxialConvectionDispersionOperatorBaseFV>;
 template class ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseFV>;
 template class ColumnModel1D<parts::FrustumConvectionDispersionOperatorBaseFV>;
@@ -1950,16 +1949,9 @@ IUnitOperation* createAxialCol1DDG(UnitOpIdx uoId)
 	return new AxialCol1DDG(uoId);
 }
 
-IUnitOperation* createRadialCol1DDG(UnitOpIdx uoId)
+IUnitOperation* createVariableCrossSectionCol1DDG(UnitOpIdx uoId)
 {
-	typedef ColumnModel1D<parts::RadialConvectionDispersionOperatorBaseDG> RadialCol1DDG;
-
-	return new RadialCol1DDG(uoId);
-}
-
-IUnitOperation* createFrustumCol1DDG(UnitOpIdx uoId)
-{
-	typedef ColumnModel1D<parts::FrustumConvectionDispersionOperatorBaseDG> FrustumCol1DDG;
+	typedef ColumnModel1D<parts::VariableCrossSectionConvectionDispersionOperatorBaseDG> FrustumCol1DDG;
 	return new FrustumCol1DDG(uoId);
 }
 
