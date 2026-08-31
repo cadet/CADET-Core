@@ -42,21 +42,21 @@ namespace
 	struct LumpedRateModelWithPoresName { };
 
 	template <>
-	struct LumpedRateModelWithPoresName<cadet::model::parts::AxialConvectionDispersionOperator>
+	struct LumpedRateModelWithPoresName<cadet::model::parts::AxialConvectionDispersionOperatorFV>
 	{
-		static const char* identifier() CADET_NOEXCEPT { return "LUMPED_RATE_MODEL_WITH_PORES"; }
+		static const char* identifier() CADET_NOEXCEPT { return "LUMPED_RATE_MODEL_WITH_PORES_FV"; }
 	};
 
 	template <>
-	struct LumpedRateModelWithPoresName<cadet::model::parts::RadialConvectionDispersionOperator>
+	struct LumpedRateModelWithPoresName<cadet::model::parts::RadialConvectionDispersionOperatorFV>
 	{
-		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_LUMPED_RATE_MODEL_WITH_PORES"; }
+		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_LUMPED_RATE_MODEL_WITH_PORES_FV"; }
 	};
 
 	template <>
-	struct LumpedRateModelWithPoresName<cadet::model::parts::FrustumConvectionDispersionOperator>
+	struct LumpedRateModelWithPoresName<cadet::model::parts::FrustumConvectionDispersionOperatorFV>
 	{
-		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_LUMPED_RATE_MODEL_WITH_PORES"; }
+		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_LUMPED_RATE_MODEL_WITH_PORES_FV"; }
 	};
 }
 
@@ -459,9 +459,9 @@ protected:
 	};
 };
 
-extern template class LumpedRateModelWithPores<parts::AxialConvectionDispersionOperator>;
-extern template class LumpedRateModelWithPores<parts::RadialConvectionDispersionOperator>;
-extern template class LumpedRateModelWithPores<parts::FrustumConvectionDispersionOperator>;
+extern template class LumpedRateModelWithPores<parts::AxialConvectionDispersionOperatorFV>;
+extern template class LumpedRateModelWithPores<parts::RadialConvectionDispersionOperatorFV>;
+extern template class LumpedRateModelWithPores<parts::FrustumConvectionDispersionOperatorFV>;
 
 IUnitOperation* createAxialFVLRMP(UnitOpIdx uoId);
 IUnitOperation* createRadialFVLRMP(UnitOpIdx uoId);

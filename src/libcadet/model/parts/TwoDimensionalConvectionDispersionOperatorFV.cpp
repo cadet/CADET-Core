@@ -687,7 +687,7 @@ bool TwoDimensionalConvectionDispersionOperatorFV::configureModelDiscretization(
 	_nCol = nCol;
 	_nRad = nRad;
 	_hasDynamicReactions = dynamicReactions;
-	_colLength = paramProvider.getDouble("COL_LENGTH");
+	_colLength = paramProvider.getDouble("BED_LENGTH");
 
 	// TODO: Add support for parameter dependent dispersion
 	_dispersionDep = helper.createParameterParameterDependence("CONSTANT_ONE");
@@ -707,7 +707,7 @@ bool TwoDimensionalConvectionDispersionOperatorFV::configureModelDiscretization(
 
 		const double lastFace = static_cast<double>(_axialEdges.back());
 		if (std::abs(lastFace - static_cast<double>(_colLength)) > 1e-12)
-			throw InvalidParameterException("Last entry of AXIAL_GRID_FACES must match COL_LENGTH");
+			throw InvalidParameterException("Last entry of AXIAL_GRID_FACES must match BED_LENGTH");
 		if (_axialEdges[0] > 1e-15)
 			throw InvalidParameterException("First entry of AXIAL_GRID_FACES must be zero");
 
@@ -970,7 +970,7 @@ bool TwoDimensionalConvectionDispersionOperatorFV::configure(UnitOpIdx unitOpIdx
 	_radialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _radialDispersion, "COL_DISPERSION_RADIAL", _nComp, _nRad, unitOpIdx);
 
 	// Add parameters to map
-	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
+	parameters[makeParamId(hashString("BED_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
 	parameters[makeParamId(hashString("COL_RADIUS"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colRadius;
 	registerParam1DArray(parameters, _colPorosities, [=](bool multi, unsigned int i) { return makeParamId(hashString("COL_POROSITY"), unitOpIdx, CompIndep, multi ? i : ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
 

@@ -119,20 +119,20 @@ public:
 
 	unsigned int requiredADdirs() const CADET_NOEXCEPT { return jacobianLowerBandwidth() + 1u + jacobianUpperBandwidth(); }
 
-	inline const active& columnLength() const CADET_NOEXCEPT { return _colLength; }
+	inline const active& columnLength() const CADET_NOEXCEPT { return _bedLength; }
 	inline const active& crossSectionArea() const CADET_NOEXCEPT { return _crossSection; }
-	inline const active& currentVelocity(double pos) const CADET_NOEXCEPT { return _curVelocity; }
-	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelocity >= 0.0; }
+	inline const active& currentVelocity(double pos) const CADET_NOEXCEPT { return _curVelCoeff; }
+	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelCoeff >= 0.0; }
 
 	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT
 	{
 		if (_cellFaces.empty())
-			return static_cast<double>(_colLength) / _nCol * (idx + 0.5);
+			return static_cast<double>(_bedLength) / _nCol * (idx + 0.5);
 		return static_cast<double>(_cellFaces[idx] + _cellFaces[idx + 1]) * 0.5;
 	}
 
-	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT { return cellCenter(idx) / static_cast<double>(_colLength); }
-	inline const active& currentVelocity() const CADET_NOEXCEPT { return _curVelocity; }
+	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT { return cellCenter(idx) / static_cast<double>(_bedLength); }
+	inline const active& currentVelocity() const CADET_NOEXCEPT { return _curVelCoeff; }
 
 	inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
 	inline unsigned int nCol() const CADET_NOEXCEPT { return _nCol; }
@@ -167,14 +167,13 @@ protected:
 	unsigned int _nCol; //!< Number of axial cells
 	unsigned int _strideCell; //!< Number of elements between the same item in two adjacent cells
 
-	active _colLength; //!< Column length \f$ L \f$
+	active _bedLength; //!< Column length \f$ L \f$
 	active _crossSection; //!< Cross section area 
 
 	// Section dependent parameters
 	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{ax}} \f$
-	std::vector<active> _velocity; //!< Interstitial velocity (may be section dependent) \f$ u \f$
-	active _curVelocity; //!< Current interstitial velocity \f$ u \f$ in this time section
-	int _dir; //!< Current flow direction in this time section
+	active _curVelCoeff; //!< Current interstitial velocity coefficient \f$ u \f$ in this time section
+	std::vector<double> _dir; //!< Flow direction for all time sections (1.0 for forward, -1.0 for backward)
 
 	ArrayPool _stencilMemory; //!< Provides memory for the stencil
 	double* _reconstrDerivatives; //!< Holds derivatives of the reconstruction scheme
@@ -263,11 +262,11 @@ public:
 
 	unsigned int requiredADdirs() const CADET_NOEXCEPT { return jacobianLowerBandwidth() + 1u + jacobianUpperBandwidth(); }
 
-	inline const active& columnLength() const CADET_NOEXCEPT { return _colLength; }
+	inline const active& columnLength() const CADET_NOEXCEPT { return _bedLength; }
 	inline const active& innerRadius() const CADET_NOEXCEPT { return _innerRadius; }
 	inline const active& outerRadius() const CADET_NOEXCEPT { return _outerRadius; }
 	active currentVelocity(double pos) const CADET_NOEXCEPT;
-	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelocity >= 0.0; }
+	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelCoeff >= 0.0; }
 
 	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return static_cast<double>(_cellCenters[idx]); }
 	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT
@@ -312,16 +311,16 @@ protected:
 	unsigned int _nCol; //!< Number of axial cells
 	unsigned int _strideCell; //!< Number of elements between the same item in two adjacent cells
 
-	active _colLength; //!< Column length \f$ L \f$
+	active _bedLength; //!< Column length \f$ L \f$
 	active _innerRadius; //!< Inner radius
 	active _outerRadius; //!< Outer radius
 
 	// Section dependent parameters
 	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{rad}} \f$
-	std::vector<active> _velocity; //!< Radial velocity (may be section dependent) \f$ v \f$
-	active _curVelocity; //!< Current interstitial velocity \f$ u \f$ in this time section
-	int _dir; //!< Current flow direction in this time section
+	active _curVelCoeff; //!< Current interstitial velocity coefficient \f$ u \f$ in this time section
+	std::vector<double> _dir; //!< Flow direction for all time sections (1.0 for forward, -1.0 for backward)
 	double _circleFraction; //!< Specifies whether the radial model is a full circle or wedge and in that case the fraction of a full circle
+	double _colHeight; //!< Specifies the height of the cylindrical column
 
 	ArrayPool _stencilMemory; //!< Provides memory for the stencil
 	double* _reconstrDerivatives; //!< Holds derivatives of the reconstruction scheme
@@ -414,11 +413,11 @@ public:
 
 	unsigned int requiredADdirs() const CADET_NOEXCEPT { return jacobianLowerBandwidth() + 1u + jacobianUpperBandwidth(); }
 
-	inline const active& columnLength() const CADET_NOEXCEPT { return _colLength; }
+	inline const active& columnLength() const CADET_NOEXCEPT { return _bedLength; }
 	inline const active& innerRadius() const CADET_NOEXCEPT { return _innerRadius; }
 	inline const active& outerRadius() const CADET_NOEXCEPT { return _outerRadius; }
 	active currentVelocity(double pos) const CADET_NOEXCEPT;
-	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelocityCoeff >= 0.0; }
+	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelCoeff >= 0.0; }
 
 	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return static_cast<double>(_cellCenters[idx]); }
 	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT
@@ -463,16 +462,15 @@ protected:
 	unsigned int _nCol; //!< Number of axial cells
 	unsigned int _strideCell; //!< Number of elements between the same item in two adjacent cells
 
-	active _colLength; //!< Column length \f$ L \f$
+	active _bedLength; //!< Column length \f$ L \f$
 	active _innerRadius; //!< Inner radius
 	active _outerRadius; //!< Outer radius
 	std::vector<active> _cellVolume; //!< Outer radius
 
 	// Section dependent parameters
 	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{rad}} \f$
-	std::vector<active> _velocityCoeff; //!< Velocity coefficients (may be section dependent) \f$ v \f$
-	active _curVelocityCoeff; //!< Current interstitial velocity coefficient \f$ u \f$ in this time section
-	int _dir; //!< Current flow direction in this time section
+	active _curVelCoeff; //!< Current interstitial velocity coefficient \f$ u \f$ in this time section
+	std::vector<double> _dir; //!< Flow direction for all time sections (1.0 for forward, -1.0 for backward)
 
 	ArrayPool _stencilMemory; //!< Provides memory for the stencil
 	double* _reconstrDerivatives; //!< Holds derivatives of the reconstruction scheme
@@ -597,9 +595,9 @@ extern template class ConvectionDispersionOperator<AxialConvectionDispersionOper
 extern template class ConvectionDispersionOperator<RadialConvectionDispersionOperatorBaseFV>;
 extern template class ConvectionDispersionOperator<FrustumConvectionDispersionOperatorBaseFV>;
 
-typedef ConvectionDispersionOperator<AxialConvectionDispersionOperatorBaseFV> AxialConvectionDispersionOperator;
-typedef ConvectionDispersionOperator<RadialConvectionDispersionOperatorBaseFV> RadialConvectionDispersionOperator;
-typedef ConvectionDispersionOperator<FrustumConvectionDispersionOperatorBaseFV> FrustumConvectionDispersionOperator;
+typedef ConvectionDispersionOperator<AxialConvectionDispersionOperatorBaseFV> AxialConvectionDispersionOperatorFV;
+typedef ConvectionDispersionOperator<RadialConvectionDispersionOperatorBaseFV> RadialConvectionDispersionOperatorFV;
+typedef ConvectionDispersionOperator<FrustumConvectionDispersionOperatorBaseFV> FrustumConvectionDispersionOperatorFV;
 
 } // namespace parts
 } // namespace model

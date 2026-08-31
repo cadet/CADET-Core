@@ -599,12 +599,7 @@ namespace column
 			++level;
 		}
 
-		if (jpp.exists("VELOCITY"))
-			jpp.set("VELOCITY", -jpp.getDouble("VELOCITY"));
-		else if(jpp.exists("VELOCITY_COEFF"))
-			jpp.set("VELOCITY_COEFF", -jpp.getDouble("VELOCITY_COEFF"));
-		else
-			jpp.set("FORWARD_FLOW", static_cast<int>(!jpp.getBool("FORWARD_FLOW")));
+		jpp.set("FORWARD_FLOW", static_cast<int>(!jpp.getBool("FORWARD_FLOW")));
 
 		for (int l = 0; l < level; ++l)
 			jpp.popScope();
@@ -635,15 +630,10 @@ namespace column
 		// Assume a volumetric flow rate of 1.0 m^3/s
 		jpp.set("CROSS_SECTION_AREA", 1.0 / (vel * por));
 
-		if (dir == 0)
-			jpp.remove("VELOCITY");
+		if (dir > 0)
+			jpp.set("FORWARD_FLOW", 1);
 		else
-		{
-			if (dir > 0)
-				jpp.set("VELOCITY", 1.0);
-			else
-				jpp.set("VELOCITY", -1.0);
-		}
+			jpp.set("FORWARD_FLOW", 0);
 
 		for (int l = 0; l < level; ++l)
 			jpp.popScope();
@@ -746,7 +736,7 @@ namespace column
 			{
 				jpp.pushScope("model");
 				jpp.pushScope("unit_000");
-				jpp.set("COL_RADIUS_SMALL_END", jpp.getDouble("COL_RADIUS_LARGE_END"));
+				jpp.set("CROSS_SECTION_AREA_SMALL_END", jpp.getDouble("CROSS_SECTION_AREA_LARGE_END"));
 				jpp.popScope();
 				jpp.popScope();
 			}
@@ -1690,11 +1680,7 @@ namespace column
 					else
 						unit->setSensitiveParameter(cadet::makeParamId("SMA_NU", 0, 1, cadet::ParTypeIndep, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
 
-					// Radial models don't have COL_LENGTH; use COL_RADIUS_OUTER instead
-					if (uoType.find("RADIAL") != std::string::npos)
-						unit->setSensitiveParameter(cadet::makeParamId("COL_RADIUS_OUTER", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
-					else
-						unit->setSensitiveParameter(cadet::makeParamId("COL_LENGTH", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
+					unit->setSensitiveParameter(cadet::makeParamId("BED_LENGTH", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
 
 					REQUIRE(unit->numSensParams() == 3);
 					unitoperation::testConsistentInitializationSensitivity(unit, adEnabled, y, yDot, absTol);

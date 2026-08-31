@@ -21,6 +21,10 @@
       "NCOMP": 4,
       "TOTAL_POROSITY": 0.8425,
       "UNIT_TYPE": "LUMPED_RATE_MODEL_WITHOUT_PORES",
+      "GEOMETRY": "AXIAL_FLOW_CYLINDER",
+      "FORWARD_FLOW": 1,
+      "CROSS_SECTION_AREA": 4700.352526439482961,
+      "BED_LENGTH": 0.014,
       "VELOCITY": 0.000575,
       "NPARTYPE": 1,
       "particle_type_000": {
@@ -66,7 +70,7 @@
       },
       "COL_DISPERSION": 5.75e-08,
       "COL_DISPERSION_RADIAL": 1e-06,
-      "COL_LENGTH": 0.014,
+      "BED_LENGTH": 0.014,
       "COL_POROSITY": 0.37,
       "COL_RADIUS": 0.01,
       "INIT_C": [

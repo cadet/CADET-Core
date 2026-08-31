@@ -48,31 +48,31 @@ namespace
 	template <>
 	struct ColumnModel1DName<cadet::model::parts::AxialConvectionDispersionOperatorBaseCollocationDG>
 	{
-		static const char* identifier() CADET_NOEXCEPT { return "COLUMN_MODEL_1D"; }
+		static const char* identifier() CADET_NOEXCEPT { return "AXIAL_COLUMN_MODEL_1D_COLLOCATION_DG"; }
 	};
 
 	template <>
 	struct ColumnModel1DName<cadet::model::parts::VariableCrossSectionConvectionDispersionOperatorBaseDG>
 	{
-		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_COLUMN_MODEL_1D"; }
+		static const char* identifier() CADET_NOEXCEPT { return "VARIABLE_CROSS_SECTION_COLUMN_MODEL_1D_DG"; }
 	};
 
 	template <>
 	struct ColumnModel1DName<cadet::model::parts::AxialConvectionDispersionOperatorBaseFV>
 	{
-		static const char* identifier() CADET_NOEXCEPT { return "COLUMN_MODEL_1D"; }
+		static const char* identifier() CADET_NOEXCEPT { return "AXIAL_COLUMN_MODEL_1D_FV"; }
 	};
 
 	template <>
 	struct ColumnModel1DName<cadet::model::parts::RadialConvectionDispersionOperatorBaseFV>
 	{
-		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_COLUMN_MODEL_1D"; }
+		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_COLUMN_MODEL_1D_FV"; }
 	};
 
 	template <>
 	struct ColumnModel1DName<cadet::model::parts::FrustumConvectionDispersionOperatorBaseFV>
 	{
-		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_COLUMN_MODEL_1D"; }
+		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_COLUMN_MODEL_1D_FV"; }
 	};
 }
 

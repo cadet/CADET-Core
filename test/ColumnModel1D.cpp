@@ -163,7 +163,7 @@ TEST_CASE("Column_1D as GRM LWE forward vs backward flow", "[AxialColumn1D],[DG]
 	// Test all integration modes
 	for (int i = 0; i <= 2; i++)
 	{
-		disc.setBulkDiscParam("POLYNOMIAL_INTEGRATION_TYPE", i);
+		disc.setBulkDiscParam("USE_COLLOCATION_DG", i);
 		cadet::test::column::testForwardBackward("COLUMN_MODEL_1D_GRM", disc, 1e-9, 2e-4);
 	}
 }
@@ -212,7 +212,7 @@ TEST_CASE("Column_1D as LRMP non-binding linear pulse vs analytic solution", "[A
 TEST_CASE("Column_1D as GRM Jacobian forward vs backward flow", "[AxialColumn1D],[DG],[DG1D],[UnitOp],[Residual],[Jacobian],[AD],[CI]")
 {
 	cadet::test::column::DGParams disc;
-	disc.setBulkDiscParam("POLYNOMIAL_INTEGRATION_TYPE", 1);
+	disc.setBulkDiscParam("USE_COLLOCATION_DG", 1);
 	cadet::test::column::testJacobianForwardBackward("COLUMN_MODEL_1D_GRM", disc, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
@@ -223,7 +223,7 @@ TEST_CASE("Column_1D as DPF numerical Benchmark1", "[AxialColumn1D],[DG],[DG1D],
 	const std::vector<double> absTol = { 1e-12 };
 	const std::vector<double> relTol = { 1e-4 };
 
-	cadet::test::column::DGParams disc(0, 3, 8, 3, 1);
+	cadet::test::column::DGParams disc(1, 3, 8, 3, 1);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
@@ -234,7 +234,7 @@ TEST_CASE("Column_1D as GRM numerical Benchmark1 with parameter sensitivities fo
 	const std::vector<double> absTol = { 1e-12, 1e-6, 1e-6, 1e-10 };
 	const std::vector<double> relTol = { 1e-4, 1e-3, 1e-4, 1e-3 };
 
-	cadet::test::column::DGParams disc(0, 3, 8, 3, 1);
+	cadet::test::column::DGParams disc(1, 3, 8, 3, 1);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
@@ -245,7 +245,7 @@ TEST_CASE("Column_1D as GRM numerical Benchmark1 for linear case with surface di
 	const std::vector<double> absTol = { 1e-12 };
 	const std::vector<double> relTol = { 1e-6 };
 
-	cadet::test::column::DGParams disc(0, 3, 8, 3, 1);
+	cadet::test::column::DGParams disc(1, 3, 8, 3, 1);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
@@ -256,7 +256,7 @@ TEST_CASE("Column_1D as LRMP numerical Benchmark with parameter sensitivities fo
 	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 
-	cadet::test::column::DGParams disc(0, 3, 8);
+	cadet::test::column::DGParams disc(1, 3, 8);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
@@ -275,12 +275,12 @@ TEST_CASE("Column_1D as pseudo-LRMP (GRM with single FV cell) numerical Benchmar
 
 TEST_CASE("Column_1D as GRM numerical Benchmark2 with parameter sensitivities for linear case", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens18]")
 {
-	std::string modelFilePath = std::string("/data/model_COL1D_GRM_dynLin_1comp_sensbenchmark2.json");
+	std::string modelFilePath = std::string("/data/model_COL1D_GRM_dynLin_1comp_benchmark2.json");
 	std::string refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark2_cDG_P3Z8_GSM_parP3parZ1.h5");
 	const std::vector<double> absTol = { 1e-12, 1e-6, 1e-6, 1e-12 };
 	const std::vector<double> relTol = { 1e-4, 1e-3, 1e-4, 1e-4 };
 
-	cadet::test::column::DGParams disc(0, 3, 8, 3, 1);
+	cadet::test::column::DGParams disc(1, 3, 8, 3, 1);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
@@ -291,7 +291,7 @@ TEST_CASE("Column_1D as GRM numerical Benchmark with parameter sensitivities and
 	const std::vector<double> absTol = { 1e-12, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6 };
 	const std::vector<double> relTol = { 1e-4, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1 };
 
-	const cadet::test::column::DGParams disc(0, 3, 4, 3, 2);
+	const cadet::test::column::DGParams disc(1, 3, 4, 3, 2);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
@@ -313,7 +313,7 @@ TEST_CASE("Column_1D as LRMP numerical Benchmark with parameter sensitivities fo
 	const std::vector<double> absTol = { 1e-12, 1e-5, 5e-9, 1e-12 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 
-	cadet::test::column::DGParams disc(0, 3, 8);
+	cadet::test::column::DGParams disc(1, 3, 8);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 
@@ -324,14 +324,14 @@ TEST_CASE("Column_1D with mixed general rate and homogeneous particle types and 
 	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12, 1e-12, 1e-12 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 };
 
-	cadet::test::column::DGParams disc(0, 3, 5, 3, 1);
+	cadet::test::column::DGParams disc(1, 3, 5, 3, 1);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
 TEST_CASE("Column_1D as GRM LWE DGSEM and GSM particle discretization yields similar accuracy", "[AxialColumn1D],[DG],[DG1D],[Simulation],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createLWE("COLUMN_MODEL_1D_GRM", "DG");
-	cadet::test::column::DGParams disc(0, 4, 2, 3, 1); // Note that we want to employ only a single particle element
+	cadet::test::column::DGParams disc(1, 4, 2, 3, 1); // Note that we want to employ only a single particle element
 	disc.setDisc(jpp);
 
 	const double absTol = 1e-9;
@@ -1445,7 +1445,7 @@ TEST_CASE("Radial Column_1D pure convection dispersion numerical benchmark", "[R
 	const std::vector<double> absTol = { 1e-12 };
 	const std::vector<double> relTol = { 1e-6 };
 
-	cadet::test::column::DGParams disc(1, 3, 16);
+	cadet::test::column::DGParams disc(0, 3, 16);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
@@ -1458,38 +1458,6 @@ TEST_CASE("Radial Column_1D as LRMP numerical Benchmark for SMA LWE case", "[Rad
 
 	cadet::test::column::DGParams disc(0, 3, 8);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, false);
-}
-
-TEST_CASE("Column_1D radial flow DG generalized and radial operator equivalence", "[FrustumColumn1D],[DG],[Simulation],[CI]")
-{
-	std::string modelFilePath1 = std::string("/data/config_radCOL1D_radOp_transport_1comp_test.json");
-	std::string modelFilePath2 = std::string("/data/config_radCOL1D_frustOp_transport_1comp_test.json");
-	const std::string setupFile1 = std::string(getTestDirectory()) + modelFilePath1;
-	cadet::JsonParameterProvider jpp1(cadet::JsonParameterProvider::fromFile(setupFile1));
-	const std::string setupFile2 = std::string(getTestDirectory()) + modelFilePath2;
-	cadet::JsonParameterProvider jpp2(cadet::JsonParameterProvider::fromFile(setupFile2));
-
-	cadet::test::column::DGParams disc(1, 3, 8);
-	disc.setDisc(jpp1, "001");
-	disc.setDisc(jpp2, "001");
-
-	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 1);
-}
-
-TEST_CASE("Column_1D axial flow generalized DG operator equivalence with dedicated axial DG operator equivalence", "[FrustumColumn1D],[DG],[Simulation],[CI]")
-{
-	std::string modelFilePath1 = std::string("/data/frustOp_GRM_dynLin_1comp_benchmark1_cDG_P3Z32_DGexInt_parP3parZ4.json");
-	std::string modelFilePath2 = std::string("/data/axOp_GRM_dynLin_1comp_benchmark1_cDG_P3Z32_DGexInt_parP3parZ4.json");
-	const std::string setupFile1 = std::string(getTestDirectory()) + modelFilePath1;
-	cadet::JsonParameterProvider jpp1(cadet::JsonParameterProvider::fromFile(setupFile1));
-	const std::string setupFile2 = std::string(getTestDirectory()) + modelFilePath2;
-	cadet::JsonParameterProvider jpp2(cadet::JsonParameterProvider::fromFile(setupFile2));
-
-	cadet::test::column::DGParams disc(1, 3, 8, 3, 1);
-	disc.setDisc(jpp1, "001");
-	disc.setDisc(jpp2, "001");
-
-	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 1);
 }
 
 TEST_CASE("Frustum Column_1D as GRM transport Jacobian", "[FrustumColumn1D],[DG],[UnitOp],[Jacobian],[CI]")
@@ -1505,7 +1473,7 @@ TEST_CASE("Frustum Column_1D as GRM transport Jacobian", "[FrustumColumn1D],[DG]
 TEST_CASE("Frustum Column_1D as GRM LWE forward vs backward flow", "[FrustumColumn1D],[DG],[DG1D],[Simulation],[CI]")
 {
 	cadet::test::column::DGParams disc;
-	// Note: this test internally sets COL_RADIUS_SMALL_END=COL_RADIUS_LARGE_END so that forward and backward flow
+	// Note: this test internally sets the geometry to a constant cross section cylinder so that forward and backward flow
 	// actually yield the same result for the frustum geometry.
 	cadet::test::column::testForwardBackward("FRUSTUM_COLUMN_MODEL_1D_GRM", disc, 1e-10, 1e-6);
 }

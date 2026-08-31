@@ -58,30 +58,31 @@
                 ]
             }
         },
-        "unit_001": {
-            "COL_DISPERSION": [
-                1e-06
-            ],
-            "COL_POROSITY": 1.0,
-            "COL_RADIUS_INNER": 0.01,
-            "COL_RADIUS_OUTER": 0.1,
-            "INIT_C": [
-                0.0
-            ],
-            "NCOMP": 1,
-            "NPARTYPE": 0,
-            "COL_POROSITY": 1.0,
-            "UNIT_TYPE": "RADIAL_COLUMN_MODEL_1D",
-            "VELOCITY_COEFF": 5e-05,
-            "discretization": {
-                "NELEM": 16,
-                "POLYDEG": 3,
-                "POLYNOMIAL_INTEGRATION_TYPE": 0,
-                "SPATIAL_METHOD": "DG",
-                "USE_ANALYTIC_JACOBIAN": true,
-                "USE_MODIFIED_NEWTON": true
-            }
-        },
+      "unit_001": {
+        "COL_DISPERSION": [
+          1e-06
+        ],
+        "UNIT_TYPE": "COLUMN_MODEL_1D",
+        "FORWARD_FLOW": 1,
+        "COL_POROSITY": 1.0,
+        "GEOMETRY": "RADIAL_FLOW_CYLINDER_SHELL",
+        "CYLINDER_HEIGHT": 31830.988618379067,
+        "COL_RADIUS_INNER": 2000.0,
+        "COL_RADIUS_OUTER": 20000.0,
+        "BED_LENGTH": 0.09,
+        "INIT_C": [
+          0.0
+        ],
+        "NCOMP": 1,
+        "NPARTYPE": 0,
+        "discretization": {
+          "NELEM": 16,
+          "POLYDEG": 3,
+          "SPATIAL_METHOD": "DG",
+          "USE_ANALYTIC_JACOBIAN": true,
+          "USE_MODIFIED_NEWTON": true
+        }
+      },
         "unit_002": {
             "NCOMP": 1,
             "UNIT_TYPE": "OUTLET"

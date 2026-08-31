@@ -54,10 +54,13 @@
     },
     "unit_001": {
       "UNIT_TYPE": "COLUMN_MODEL_1D",
+      "GEOMETRY": "AXIAL_FLOW_CYLINDER",
+      "CROSS_SECTION_AREA": 0.28202115158636897,
+      "BED_LENGTH": 0.014,
       "VELOCITY": 0.000575,
-      "COL_DISPERSION": 5.75e-08,
-      "COL_LENGTH": 0.014,
       "COL_POROSITY": 0.37,
+      "FORWARD_FLOW": 1,
+      "COL_DISPERSION": 5.75e-08,
       "INIT_C": [
         0.0
       ],

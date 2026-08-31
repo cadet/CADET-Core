@@ -24,7 +24,7 @@ TEST_CASE("LRM_DG LWE forward vs backward flow", "[LRM],[DG],[DG1D],[Simulation]
 	// Test all integration modes
 	for (int i = 0; i <= 2; i++)
 	{
-		disc.setBulkDiscParam("POLYNOMIAL_INTEGRATION_TYPE", i);
+		disc.setBulkDiscParam("USE_COLLOCATION_DG", i);
 		cadet::test::column::testForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", disc, 6e-9, 6e-2);
 	}
 }
@@ -52,7 +52,7 @@ TEST_CASE("LRM_DG non-binding linear pulse vs analytic solution", "[LRM],[DG],[D
 //	// Test all integration modes
 //	for (int i = 0; i < 2; i++)
 //	{
-//		disc.setBulkDiscParam("POLYNOMIAL_INTEGRATION_TYPE", i);
+//		disc.setBulkDiscParam("USE_COLLOCATION_DG", i);
 //		cadet::test::column::testJacobianForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", disc, std::numeric_limits<float>::epsilon() * 100.0);
 //	}
 //}
@@ -64,7 +64,7 @@ TEST_CASE("LRM_DG numerical Benchmark with parameter sensitivities for linear ca
 	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 
-	cadet::test::column::DGParams disc(0, 3, 8);
+	cadet::test::column::DGParams disc(1, 3, 8);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
@@ -75,7 +75,7 @@ TEST_CASE("LRM_DG numerical Benchmark with parameter sensitivities for SMA LWE c
 	const std::vector<double> absTol = { 1e-8, 1e-6, 1e-6, 1e-12 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 
-	cadet::test::column::DGParams disc(0, 3, 8);
+	cadet::test::column::DGParams disc(1, 3, 8);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 

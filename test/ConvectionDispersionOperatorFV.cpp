@@ -650,19 +650,19 @@ TEST_CASE("AxialConvectionDispersionOperator residual forward vs backward flow",
 {
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
-		testResidualBulkWenoForwardBackward<cadet::model::parts::AxialConvectionDispersionOperator>(i);
+		testResidualBulkWenoForwardBackward<cadet::model::parts::AxialConvectionDispersionOperatorFV>(i);
 }
 
 TEST_CASE("AxialConvectionDispersionOperator time derivative Jacobian vs FD", "[Operator],[AxialFlow],[Residual],[Jacobian]")
 {
-	testTimeDerivativeBulkJacobianFD<cadet::model::parts::AxialConvectionDispersionOperator>(1e-6, 0.0, 1e-5);
+	testTimeDerivativeBulkJacobianFD<cadet::model::parts::AxialConvectionDispersionOperatorFV>(1e-6, 0.0, 1e-5);
 }
 
 TEST_CASE("AxialConvectionDispersionOperator Jacobian forward vs backward flow", "[Operator],[AxialFlow],[Residual],[Jacobian],[AD]")
 {
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
-		testBulkJacobianWenoForwardBackward<cadet::model::parts::AxialConvectionDispersionOperator>(i);
+		testBulkJacobianWenoForwardBackward<cadet::model::parts::AxialConvectionDispersionOperatorFV>(i);
 }
 
 TEST_CASE("AxialConvectionDispersionKernelFV Jacobian sparsity pattern vs FD", "[Operator],[AxialFlow],[Residual],[Jacobian],[SparseMatrix]")
@@ -702,19 +702,19 @@ TEST_CASE("RadialConvectionDispersionOperator residual forward vs backward flow"
 {
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= 1; ++i)
-		testResidualBulkWenoForwardBackward<cadet::model::parts::RadialConvectionDispersionOperator>(i);
+		testResidualBulkWenoForwardBackward<cadet::model::parts::RadialConvectionDispersionOperatorFV>(i);
 }
 
 TEST_CASE("RadialConvectionDispersionOperator time derivative Jacobian vs FD", "[Operator],[RadialFlow],[Residual],[Jacobian]")
 {
-	testTimeDerivativeBulkJacobianFD<cadet::model::parts::RadialConvectionDispersionOperator>(1e-6, 0.0, 1e-5);
+	testTimeDerivativeBulkJacobianFD<cadet::model::parts::RadialConvectionDispersionOperatorFV>(1e-6, 0.0, 1e-5);
 }
 
 TEST_CASE("RadialConvectionDispersionOperator Jacobian forward vs backward flow", "[Operator],[RadialFlow],[Residual],[Jacobian],[AD]")
 {
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= 1; ++i)
-		testBulkJacobianWenoForwardBackward<cadet::model::parts::RadialConvectionDispersionOperator>(i);
+		testBulkJacobianWenoForwardBackward<cadet::model::parts::RadialConvectionDispersionOperatorFV>(i);
 }
 
 TEST_CASE("RadialConvectionDispersionKernelFV Jacobian sparsity pattern vs FD", "[Operator],[RadialFlow],[Residual],[Jacobian],[SparseMatrix]")

@@ -58,114 +58,116 @@
                 ]
             }
         },
-        "unit_001": {
-            "COL_DISPERSION": 0.0,
-            "COL_LENGTH": 0.1,
-            "COL_POROSITY": 0.25,
-            "CROSS_SECTION_AREA": 9.503317777109126e-05,
-            "INIT_C": [
-                0.0
-            ],
-            "NCOMP": 1,
-            "NPARTYPE": 1,
-            "UNIT_TYPE": "COLUMN_MODEL_1D",
-            "discretization": {
-                "GS_TYPE": 1,
-                "MAX_KRYLOV": 0,
-                "MAX_RESTARTS": 10,
-                "NCOL": 32,
-                "RECONSTRUCTION": "WENO",
-                "SCHUR_SAFETY": 1e-08,
-                "SPATIAL_METHOD": "FV",
-                "USE_ANALYTIC_JACOBIAN": 1,
-                "weno": {
-                    "BOUNDARY_MODEL": 0,
-                    "WENO_EPS": 1e-10,
-                    "WENO_ORDER": 3
-                }
-            },
-            "particle_type_000": {
-                "ADSORPTION_MODEL": "GAUSSIAN_PROCESS_REGRESSION",
-                "FILM_DIFFUSION": [
-                    6.38748621e-06
-                ],
-                "HAS_FILM_DIFFUSION": true,
-                "HAS_PORE_DIFFUSION": true,
-                "HAS_SURFACE_DIFFUSION": false,
-                "INIT_CP": [
-                    0.0
-                ],
-                "INIT_CS": [
-                    0.0
-                ],
-                "NBOUND": [
-                    1
-                ],
-                "PAR_POROSITY": 0.69,
-                "PAR_RADIUS": 4.625e-05,
-                "PORE_DIFFUSION": [
-                    5.50724638e-12
-                ],
-                "adsorption": {
-                    "CP_NDIM": 1,
-                    "CP_VALS": [
-                        0.0,
-                        0.42857143,
-                        0.85714286,
-                        1.28571429,
-                        1.71428571,
-                        2.14285714,
-                        2.57142857,
-                        3.0,
-                        3.42857143,
-                        3.85714286,
-                        4.28571429,
-                        4.71428571,
-                        5.14285714,
-                        5.57142857,
-                        6.0
-                    ],
-                    "CS_NDIM": 1,
-                    "CS_VALS": [
-                        0.0,
-                        116.26794275,
-                        147.04992449,
-                        161.28318594,
-                        169.48561458,
-                        174.82014386,
-                        178.56705449,
-                        181.34328358,
-                        183.4827749,
-                        185.18204912,
-                        186.56429944,
-                        187.71067415,
-                        188.67680362,
-                        189.50209958,
-                        190.21526419
-                    ],
-                    "GAUSSIAN_NOISE_VARIANCE": [
-                        1473.38643
-                    ],
-                    "GPR_KKIN": 1,
-                    "IS_KINETIC": 1,
-                    "KERNEL": "RBF_Linear",
-                    "LINEAR_VARIANCE": [
-                        6.89934599
-                    ],
-                    "RBF_LENGTHSCALE": [
-                        0.932978701
-                    ],
-                    "RBF_VARIANCE": [
-                        15254.353
-                    ]
-                },
-                "discretization": {
-                    "NCELLS": 8,
-                    "PAR_DISC_TYPE": "EQUIDISTANT_PAR",
-                    "SPATIAL_METHOD": "FV"
-                }
-            }
+      "unit_001": {
+        "COL_DISPERSION": 0.0,
+        "BED_LENGTH": 0.1,
+        "COL_POROSITY": 0.25,
+        "CROSS_SECTION_AREA": 9.503317777109126e-05,
+        "GEOMETRY": "AXIAL_FLOW_CYLINDER",
+        "FORWARD_FLOW": 1,
+        "INIT_C": [
+          0.0
+        ],
+        "NCOMP": 1,
+        "NPARTYPE": 1,
+        "UNIT_TYPE": "COLUMN_MODEL_1D",
+        "discretization": {
+          "GS_TYPE": 1,
+          "MAX_KRYLOV": 0,
+          "MAX_RESTARTS": 10,
+          "NCOL": 32,
+          "RECONSTRUCTION": "WENO",
+          "SCHUR_SAFETY": 1e-08,
+          "SPATIAL_METHOD": "FV",
+          "USE_ANALYTIC_JACOBIAN": 1,
+          "weno": {
+            "BOUNDARY_MODEL": 0,
+            "WENO_EPS": 1e-10,
+            "WENO_ORDER": 3
+          }
         },
+        "particle_type_000": {
+          "ADSORPTION_MODEL": "GAUSSIAN_PROCESS_REGRESSION",
+          "FILM_DIFFUSION": [
+            6.38748621e-06
+          ],
+          "HAS_FILM_DIFFUSION": true,
+          "HAS_PORE_DIFFUSION": true,
+          "HAS_SURFACE_DIFFUSION": false,
+          "INIT_CP": [
+            0.0
+          ],
+          "INIT_CS": [
+            0.0
+          ],
+          "NBOUND": [
+            1
+          ],
+          "PAR_POROSITY": 0.69,
+          "PAR_RADIUS": 4.625e-05,
+          "PORE_DIFFUSION": [
+            5.50724638e-12
+          ],
+          "adsorption": {
+            "CP_NDIM": 1,
+            "CP_VALS": [
+              0.0,
+              0.42857143,
+              0.85714286,
+              1.28571429,
+              1.71428571,
+              2.14285714,
+              2.57142857,
+              3.0,
+              3.42857143,
+              3.85714286,
+              4.28571429,
+              4.71428571,
+              5.14285714,
+              5.57142857,
+              6.0
+            ],
+            "CS_NDIM": 1,
+            "CS_VALS": [
+              0.0,
+              116.26794275,
+              147.04992449,
+              161.28318594,
+              169.48561458,
+              174.82014386,
+              178.56705449,
+              181.34328358,
+              183.4827749,
+              185.18204912,
+              186.56429944,
+              187.71067415,
+              188.67680362,
+              189.50209958,
+              190.21526419
+            ],
+            "GAUSSIAN_NOISE_VARIANCE": [
+              1473.38643
+            ],
+            "GPR_KKIN": 1,
+            "IS_KINETIC": 1,
+            "KERNEL": "RBF_Linear",
+            "LINEAR_VARIANCE": [
+              6.89934599
+            ],
+            "RBF_LENGTHSCALE": [
+              0.932978701
+            ],
+            "RBF_VARIANCE": [
+              15254.353
+            ]
+          },
+          "discretization": {
+            "NCELLS": 8,
+            "PAR_DISC_TYPE": "EQUIDISTANT_PAR",
+            "SPATIAL_METHOD": "FV"
+          }
+        }
+      },
         "unit_002": {
             "NCOMP": 1,
             "UNIT_TYPE": "OUTLET"

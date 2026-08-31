@@ -77,28 +77,32 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 		config["NCHANNEL"] = 1;
 
 	// Geometry
-	if (uoType.substr(0, 6) == "RADIAL" || (uoType.substr(0, 7) == "FRUSTUM" && bulkMethod == "FV"))
+	// v = 5.75e-4, Q = 6.683738370512285e-8, eps = 0.37
+	// -> A = Q / (v * eps) = 3.125e-4
+	const double inletA = 0.000314159265358;
+	const double pi = 3.14159265358979323846;
+	if (uoType.substr(0, 6) == "RADIAL")
 	{
-		config["COL_RADIUS_INNER"] = 0.001;
-		config["COL_RADIUS_OUTER"] = 0.004;
-		if (uoType.substr(0, 7) == "FRUSTUM")
-			config["COL_LENGTH"] = 0.01;
-		config["VELOCITY_COEFF"] = 5.75e-4;
+		const double height = inletA / 2.0 / pi / 0.024; // assuming an outer radius of 0.024m, we get H = A / 2 / pi / r ~ 0.00208333
+		config["GEOMETRY"] = "RADIAL_FLOW_CYLINDER_SHELL";
+		config["CYLINDER_HEIGHT"] = height; // assuming in inner radius of 0.02m, we get H = A / 2 / pi / r_outer ~ 0.00208333
+		config["CROSS_SECTION_AREA_OUTER"] = inletA;
+		config["CROSS_SECTION_AREA_INNER"] = height * 2.0 * pi * (0.024-0.014); // we get A = H * 2 * pi * r_inner = height
 	}
-	else if (uoType.substr(0, 7) == "FRUSTUM" && bulkMethod == "DG")
+	else if (uoType.substr(0, 7) == "FRUSTUM")
 	{
 		config["GEOMETRY"] = "AXIAL_FLOW_FRUSTUM";
-		config["COL_LENGTH"] = 0.014;
-		config["COL_RADIUS_LARGE_END"] = 0.007023769168568; // we get v = 5.75e-4 at large radius with Q = 6.683738370512285e-8 and eps^b = 0.75
-		config["COL_RADIUS_SMALL_END"] = 0.004;
-		config["FORWARD_FLOW"] = { 1 };
+		config["CROSS_SECTION_AREA_LARGE_END"] = inletA;
+		config["CROSS_SECTION_AREA_SMALL_END"] = inletA * 0.75;
 	}
 	else
 	{
-		config["COL_LENGTH"] = 0.014;
-		config["COL_RADIUS"] = 0.01;
+		config["GEOMETRY"] = "AXIAL_FLOW_CYLINDER";
+		config["CROSS_SECTION_AREA"] = inletA;
 		config["VELOCITY"] = 5.75e-4;
 	}
+	config["BED_LENGTH"] = 0.014;
+	config["FORWARD_FLOW"] = 1;
 	config["COL_POROSITY"] = 0.37;
 	config["TOTAL_POROSITY"] = 0.37 + (1.0 - 0.37) * 0.75;
 
@@ -173,7 +177,7 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 			}
 			else
 			{
-				disc["POLYNOMIAL_INTEGRATION_TYPE"] = 0;
+				disc["USE_COLLOCATION_DG"] = 0;
 				disc["POLYDEG"] = 4;
 				disc["NELEM"] = 2;
 			}
@@ -226,7 +230,7 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 	"FILM_DIFFUSION": [6.9e-6, 6.9e-6, 6.9e-6, 6.9e-6],
 	"PORE_DIFFUSION": [7e-10, 6.07e-11, 6.07e-11, 6.07e-11],
 	"SURFACE_DIFFUSION": [0.0, 0.0, 0.0, 0.0],
-	"COL_LENGTH": 0.014,
+	"BED_LENGTH": 0.014,
 	"PAR_RADIUS": 4.5e-5,
 	"COL_POROSITY": 0.37,
 	"PAR_POROSITY": 0.75,
@@ -296,20 +300,30 @@ json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(cons
 		config["NCHANNEL"] = 3;
 
 	// Geometry
-	if (uoType.substr(0, 6) == "RADIAL" || uoType.substr(0, 7) == "FRUSTUM")
+	const double pi = 3.14159265358979323846;
+	if (uoType.substr(0, 6) == "RADIAL")
 	{
-		config["COL_RADIUS_INNER"] = 0.001;
-		config["COL_RADIUS_OUTER"] = 0.004;
-		if (uoType.substr(0, 7) == "FRUSTUM")
-			config["COL_LENGTH"] = 0.01;
-		config["VELOCITY_COEFF"] = 5.75e-4;
+		config["GEOMETRY"] = "RADIAL_FLOW_CYLINDER_SHELL";
+		const double flowRate = 5.75e-4 * (pi * 0.01 * 0.01) * 0.37;
+		// A = 2.0 * pi * H * r_outer = flowRate / (v*eps) -> H = flowRate / (v*eps) / (2 pi r_outer)
+		config["CYLINDER_HEIGHT"] = flowRate / (5.75e-4 * 0.37) / (2.0 * pi * 0.024);
+		config["CROSS_SECTION_AREA_OUTER"] = 2.0 * pi * 0.024 * config["CYLINDER_HEIGHT"];
+		config["CROSS_SECTION_AREA_INNER"] = 2.0 * pi * 0.01 * config["CYLINDER_HEIGHT"];
+	}
+	else if (uoType.substr(0, 7) == "FRUSTUM")
+	{
+		config["GEOMETRY"] = "AXIAL_FLOW_FRUSTUM";
+		config["CROSS_SECTION_AREA_LARGE_END"] = pi * 0.01 * 0.01;
+		config["CROSS_SECTION_AREA_SMALL_END"] = pi * 0.005 * 0.005;
 	}
 	else
 	{
-		config["COL_LENGTH"] = 0.014;
+		config["GEOMETRY"] = "AXIAL_FLOW_CYLINDER";
 		config["COL_RADIUS"] = 0.01;
-		config["VELOCITY"] = 5.75e-4;
+		config["CROSS_SECTION_AREA"] = pi * 0.01 * 0.01;
 	}
+	config["BED_LENGTH"] = 0.014;
+	config["FORWARD_FLOW"] = 1;
 	config["COL_POROSITY"] = 0.37;
 	config["TOTAL_POROSITY"] = 0.37 + (1.0 - 0.37) * (0.6 * 0.75 + 0.4 * 0.5);
 
@@ -357,7 +371,7 @@ json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(cons
 		}
 		else if (bulkMethod == "DG")
 		{
-			disc["POLYNOMIAL_INTEGRATION_TYPE"] = 0;
+			disc["USE_COLLOCATION_DG"] = 0;
 			disc["POLYDEG"] = 4;
 			disc["NELEM"] = 2;
 		}
@@ -441,20 +455,29 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 		config["NCHANNEL"] = 3;
 
 	// Geometry
-	if (uoType.substr(0, 6) == "RADIAL" || uoType.substr(0, 7) == "FRUSTUM")
+	const double pi = 3.14159265358979323846;
+	if (uoType.substr(0, 6) == "RADIAL")
 	{
-		config["COL_RADIUS_INNER"] = 0.001;
-		config["COL_RADIUS_OUTER"] = 0.004;
-		if (uoType.substr(0, 7) == "FRUSTUM")
-			config["COL_LENGTH"] = 0.01;
-		config["VELOCITY_COEFF"] = 5.75e-4;
+		config["GEOMETRY"] = "RADIAL_FLOW_CYLINDER_SHELL";
+		const double flowRate = 5.75e-4 * (pi * 0.01 * 0.01) * 0.37;
+		// A = 2.0 * pi * H * r_outer = flowRate / (v*eps) -> H = flowRate / (v*eps) / (2 pi r_outer)
+		config["CYLINDER_HEIGHT"] = flowRate / (5.75e-4 * 0.37) / (2.0 * pi * 0.024);
+		config["CROSS_SECTION_AREA_OUTER"] = 2.0 * pi * 0.024 * config["CYLINDER_HEIGHT"];
+		config["CROSS_SECTION_AREA_INNER"] = 2.0 * pi * 0.01 * config["CYLINDER_HEIGHT"];
+	}
+	else if (uoType.substr(0, 7) == "FRUSTUM")
+	{
+		config["GEOMETRY"] = "AXIAL_FLOW_FRUSTUM";
+		config["CROSS_SECTION_AREA_LARGE_END"] = pi * 0.01 * 0.01;
+		config["CROSS_SECTION_AREA_SMALL_END"] = pi * 0.005 * 0.005;
 	}
 	else
 	{
-		config["COL_LENGTH"] = 0.014;
-		config["COL_RADIUS"] = 0.01;
-		config["VELOCITY"] = 5.75e-4;
+		config["GEOMETRY"] = "AXIAL_FLOW_CYLINDER";
+		config["CROSS_SECTION_AREA"] = pi * 0.01 * 0.01;
 	}
+	config["BED_LENGTH"] = 0.014;
+	config["FORWARD_FLOW"] = 1;
 	particle["PAR_RADIUS"] = 4.5e-5;
 	config["COL_POROSITY"] = 0.37;
 	particle["PAR_POROSITY"] = 0.75;
@@ -507,7 +530,7 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 		}
 		else if (bulkMethod == "DG")
 		{
-			disc["POLYNOMIAL_INTEGRATION_TYPE"] = 0;
+			disc["USE_COLLOCATION_DG"] = 0;
 			disc["POLYDEG"] = 3;
 			disc["NELEM"] = 1;
 		}
@@ -829,12 +852,12 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 				grm["COL_RADIUS_INNER"] = 0.001;
 				grm["COL_RADIUS_OUTER"] = 0.004;
 				if (uoType.substr(0, 7) == "FRUSTUM")
-					grm["COL_LENGTH"] = 0.01;
+					grm["BED_LENGTH"] = 0.01;
 				grm["VELOCITY_COEFF"] = 5.75e-4;
 			}
 			else
 			{
-				grm["COL_LENGTH"] = 0.014;
+				grm["BED_LENGTH"] = 0.014;
 				grm["COL_RADIUS"] = 0.01;
 				grm["VELOCITY"] = 5.75e-4;
 			}
@@ -909,7 +932,7 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 					}
 					else
 					{
-						disc["POLYNOMIAL_INTEGRATION_TYPE"] = 0;
+						disc["USE_COLLOCATION_DG"] = 0;
 						disc["POLYDEG"] = 3;
 						disc["NELEM"] = 2;
 					}
@@ -1135,28 +1158,34 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 		grm["NCHANNEL"] = 3;
 
 	// Geometry
-	if (uoType.substr(0, 6) == "RADIAL" || (uoType.substr(0, 7) == "FRUSTUM" && bulkMethod == "FV"))
+	const double pi = 3.141592653589793235923;
+	if (uoType.substr(0, 6) == "RADIAL")
 	{
-		grm["COL_RADIUS_INNER"] = 0.001;
-		grm["COL_RADIUS_OUTER"] = 0.004;
-		if (uoType.substr(0, 7) == "FRUSTUM")
-			grm["COL_LENGTH"] = 0.01;
+		grm["GEOMETRY"] = "RADIAL_FLOW_CYLINDER_SHELL";
+		//grm["COL_RADIUS_INNER"] = 0.001;
+		//grm["COL_RADIUS_OUTER"] = 0.004;
+		// A = Q / (v*eps) and A = 2 * pi * r * h -> h = Q / (v*eps*2*pi*r)
+		grm["CROSS_SECTION_AREA_INNER"] = 1.0 / (5.75e-4 * 0.4 * 2.0 * pi * 0.001);
+		grm["CROSS_SECTION_AREA_OUTER"] = 1.0 / (5.75e-4 * 0.4 * 2.0 * pi * 0.004);
+		grm["BED_LENGTH"] = 0.03;
+		grm["CYLINDER_HEIGHT"] = 0.03;
 		grm["VELOCITY_COEFF"] = 5.75e-4;
 	}
-	else if (uoType.substr(0, 7) == "FRUSTUM" && bulkMethod == "DG")
+	else if (uoType.substr(0, 7) == "FRUSTUM")
 	{
 		grm["GEOMETRY"] = "AXIAL_FLOW_FRUSTUM";
-		grm["COL_LENGTH"] = 0.05;
-		grm["COL_RADIUS_LARGE_END"] = 0.05;
-		grm["COL_RADIUS_SMALL_END"] = 0.01;
-		grm["FORWARD_FLOW"] = { 1 };
+		grm["BED_LENGTH"] = 0.017;
+		grm["CROSS_SECTION_AREA_LARGE_END"] = 4347.826086956522;
+		grm["CROSS_SECTION_AREA_SMALL_END"] = 0.75 * 4347.826086956522;
 	}
 	else
 	{
-		grm["COL_LENGTH"] = 0.017;
-		grm["COL_RADIUS"] = 0.01;
-		grm["VELOCITY"] = 0.5 / (100.0 * 60.0);
+		grm["GEOMETRY"] = "AXIAL_FLOW_CYLINDER";
+		grm["BED_LENGTH"] = 0.017;
+		// A = Q / (v*eps) = 1.0 / (5.75e-4 * 0.4) = 4347.826086956522
+		grm["CROSS_SECTION_AREA"] = 4347.826086956522;
 	}
+	grm["FORWARD_FLOW"] = { 1 };
 	particle["PAR_RADIUS"] = 4e-5;
 	grm["COL_POROSITY"] = 0.4;
 	particle["PAR_POROSITY"] = 0.333;
@@ -1224,7 +1253,7 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 			}
 			else
 			{
-				disc["POLYNOMIAL_INTEGRATION_TYPE"] = 0;
+				disc["USE_COLLOCATION_DG"] = 0;
 				disc["POLYDEG"] = 5;
 				disc["NELEM"] = 15;
 			}

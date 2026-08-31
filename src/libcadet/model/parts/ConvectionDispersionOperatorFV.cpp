@@ -72,7 +72,7 @@ bool AxialConvectionDispersionOperatorBaseFV::configureModelDiscretization(IPara
 	_nCol = nCol;
 	_strideCell = strideCell;
 
-	_colLength = paramProvider.getDouble("COL_LENGTH");
+	_bedLength = paramProvider.getDouble("BED_LENGTH");
 
 	if (paramProvider.exists("COL_DISPERSION_DEP"))
 	{
@@ -100,8 +100,8 @@ bool AxialConvectionDispersionOperatorBaseFV::configureModelDiscretization(IPara
 			throw InvalidParameterException("Number of elements in field GRID_FACES must be NCOL + 1");
 
 		const double lastFace = static_cast<double>(_cellFaces.back());
-		if (std::abs(lastFace - static_cast<double>(_colLength)) > 1e-12)
-			throw InvalidParameterException("Last entry of GRID_FACES must match COL_LENGTH");
+		if (std::abs(lastFace - static_cast<double>(_bedLength)) > 1e-12)
+			throw InvalidParameterException("Last entry of GRID_FACES must match BED_LENGTH");
 		if (_cellFaces[0] > 1e-15)
 			throw InvalidParameterException("First entry of GRID_FACES must be zero");
 
@@ -156,7 +156,7 @@ bool AxialConvectionDispersionOperatorBaseFV::configureModelDiscretization(IPara
 	else
 	{
 		_gridEquidistant = true;
-		const double h = static_cast<double>(_colLength) / static_cast<double>(_nCol);
+		const double h = static_cast<double>(_bedLength) / static_cast<double>(_nCol);
 		_cellFaces.resize(_nCol + 1);
 
 		for (int i = 0; i <= _nCol; ++i)
@@ -211,22 +211,13 @@ bool AxialConvectionDispersionOperatorBaseFV::configureModelDiscretization(IPara
  */
 bool AxialConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
-	// Read cross section area or set to -1
-	_crossSection = -1.0;
-	if (paramProvider.exists("CROSS_SECTION_AREA"))
-	{
-		_crossSection = paramProvider.getDouble("CROSS_SECTION_AREA");
-	}
+	_crossSection = paramProvider.getDouble("CROSS_SECTION_AREA");
 
 	// Read section dependent parameters (transport)
-
-	// Read VELOCITY
-	_velocity.clear();
-	if (paramProvider.exists("VELOCITY"))
-	{
-		readScalarParameterOrArray(_velocity, paramProvider, "VELOCITY", 1);
-	}
-	_dir = 1;
+	_dir.clear();
+	const std::vector<double> fwdFlow = paramProvider.getDoubleArray("FORWARD_FLOW");
+	for (std::size_t i = 0; i < fwdFlow.size(); ++i)
+		_dir.push_back(fwdFlow[i] ? 1.0 : -1.0);
 
 	readScalarParameterOrArray(_colDispersion, paramProvider, "COL_DISPERSION", 1);
 	if (paramProvider.exists("COL_DISPERSION_MULTIPLEX"))
@@ -275,11 +266,6 @@ bool AxialConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, IPa
 			throw InvalidParameterException("Failed to configure dispersion parameter dependency (COL_DISPERSION_DEP)");
 	}
 
-	if (_velocity.empty() && (_crossSection <= 0.0))
-	{
-		throw InvalidParameterException("At least one of CROSS_SECTION_AREA and VELOCITY has to be set");
-	}
-
 	// Add parameters to map
 	if (_dispersionCompIndep)
 	{
@@ -298,8 +284,8 @@ bool AxialConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, IPa
 	else
 		registerParam2DArray(parameters, _colDispersion, [=](bool multi, unsigned int sec, unsigned int comp) { return makeParamId(hashString("COL_DISPERSION"), unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _nComp);
 
-	registerScalarSectionDependentParam(hashString("VELOCITY"), parameters, _velocity, unitOpIdx, ParTypeIndep);
-	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
+	parameters[makeParamId(hashString("VELOCITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_curVelCoeff;
+	parameters[makeParamId(hashString("BED_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_bedLength;
 	parameters[makeParamId(hashString("CROSS_SECTION_AREA"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_crossSection;
 
 	return true;
@@ -315,32 +301,14 @@ bool AxialConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, IPa
  */
 bool AxialConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 {
-	// setFlowRates() was called before, so _curVelocity has direction dirOld
-	const int dirOld = _dir;
-
-	if (_crossSection <= 0.0)
-	{
-		// Use the provided _velocity (direction is also set), only update _dir
-		_curVelocity = getSectionDependentScalar(_velocity, secIdx);
-		_dir = (_curVelocity >= 0.0) ? 1 : -1;
-	}
-	else if (!_velocity.empty())
-	{
-		// Use network flow rate but take direction from _velocity
-		_dir = (getSectionDependentScalar(_velocity, secIdx) >= 0.0) ? 1 : -1;
-
-		// _curVelocity has correct magnitude but previous direction, so flip it if necessary
-		if (dirOld * _dir < 0)
-			_curVelocity *= -1.0;
-	}
-
-	// Remaining case: _velocity is empty and _crossSection <= 0.0
-	// _curVelocity is goverend by network flow rate provided in setFlowRates().
-	// Direction never changes (always forward, that is, _dir = 1)-
-	// No action required.
-
+	// setFlowRates was called before, setting current velocity
 	// Detect change in flow direction
-	return (dirOld * _dir < 0);
+	const double curDir = getSectionDependentScalar(_dir, secIdx);
+	const bool changedDirection = secIdx > 0 ? (getSectionDependentScalar(_dir, secIdx - 1) * curDir < 0) : false;
+	if (changedDirection)
+		_curVelCoeff *= -1.0;
+
+	return changedDirection;
 }
 
 /**
@@ -352,9 +320,7 @@ bool AxialConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransiti
  */
 void AxialConvectionDispersionOperatorBaseFV::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
 {
-	// If we have cross section area, interstitial velocity is given by network flow rates
-	if (_crossSection > 0.0)
-		_curVelocity = _dir * in / (_crossSection * colPorosity);
+	_curVelCoeff = in / (_crossSection * colPorosity);
 }
 
 /**
@@ -516,9 +482,9 @@ int AxialConvectionDispersionOperatorBaseFV::jacobian(const IModel& model, doubl
 template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes>
 int AxialConvectionDispersionOperatorBaseFV::residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin)
 {
-	const ParamType u = static_cast<ParamType>(_curVelocity);
+	const ParamType u = static_cast<ParamType>(_curVelCoeff);
 	active const* const d_c = getSectionDependentSlice(_colDispersion, _nComp, secIdx);
-	const ParamType h = static_cast<ParamType>(_colLength) / static_cast<double>(_nCol);
+	const ParamType h = static_cast<ParamType>(_bedLength) / static_cast<double>(_nCol);
 
 	const std::vector<active>* const cellFacesPtr = _cellFaces.empty() ? nullptr : &_cellFaces;
 
@@ -667,8 +633,8 @@ unsigned int AxialConvectionDispersionOperatorBaseFV::jacobianDiscretizedBandwid
 
 double AxialConvectionDispersionOperatorBaseFV::inletJacobianFactor() const CADET_NOEXCEPT
 {
-	const double h = static_cast<double>(_colLength) / static_cast<double>(_nCol);
-	const double u = static_cast<double>(_curVelocity);
+	const double h = static_cast<double>(_bedLength) / static_cast<double>(_nCol);
+	const double u = static_cast<double>(_curVelCoeff);
 	return u / h;
 }
 
@@ -838,8 +804,31 @@ bool RadialConvectionDispersionOperatorBaseFV::configureModelDiscretization(IPar
 	_nCol = nCol;
 	_strideCell = strideCell;
 
-	_innerRadius = paramProvider.getDouble("COL_RADIUS_INNER");
-	_outerRadius = paramProvider.getDouble("COL_RADIUS_OUTER");
+	if (paramProvider.getString("GEOMETRY") == "RADIAL_FLOW_CYLINDER_SHELL_WEDGE")
+		_circleFraction = paramProvider.getDouble("CIRCLE_FRACTION");
+	else
+		_circleFraction = 1.0;
+
+	const double areaOuter = paramProvider.getDouble("CROSS_SECTION_AREA_OUTER");
+	const double areaInner = paramProvider.getDouble("CROSS_SECTION_AREA_INNER");
+	_colHeight = paramProvider.getDouble("CYLINDER_HEIGHT");
+	// A = 2 pi r h => r = sqrt(A / (2 pi h))
+	const double pi = 3.14159265358979323846;
+	_innerRadius = areaInner / (2.0 * pi * _colHeight);
+	_outerRadius = areaOuter / (2.0 * pi * _colHeight);
+
+	if (paramProvider.exists("BED_LENGTH")) // check this field for user convenience
+	{
+		_bedLength = paramProvider.getDouble("BED_LENGTH");
+		if (std::abs(static_cast<double>(_bedLength - (_outerRadius - _innerRadius))) > 1e-15)
+			throw InvalidParameterException("For radial flow cylinder shell, BED_LENGTH must equal outer minus inner radius which are derived from the respective cross sectional areas");
+	}
+	else
+		_bedLength = _outerRadius - _innerRadius;
+
+	if (!(static_cast<double>(_innerRadius) > 0.0 && static_cast<double>(_outerRadius) >= static_cast<double>(_innerRadius) && static_cast<double>(_colHeight) > 0.0))
+		throw InvalidParameterException("Geometry parameters for RADIAL_FLOW_CYLINDER_SHELL must satisfy 0 < CROSS_SECTION_AREA_INNER <= CROSS_SECTION_AREA_OUTER, BED_LENGTH > 0.0");
+
 
 	if (paramProvider.exists("COL_DISPERSION_DEP"))
 	{
@@ -868,9 +857,9 @@ bool RadialConvectionDispersionOperatorBaseFV::configureModelDiscretization(IPar
 
 		// Check if first and last coordinate of cell faces match the inner and outer radius, respectively
 		if (std::abs(static_cast<double>(_cellFaces.back()) - static_cast<double>(_outerRadius)) > 1e-14)
-			throw InvalidParameterException("Last entry of GRID_FACES must be COL_RADIUS_OUTER");
+			throw InvalidParameterException("Last entry of GRID_FACES must be the outer column radius");
 		if (std::abs(static_cast<double>(_cellFaces.front()) - static_cast<double>(_innerRadius)) > 1e-14)
-			throw InvalidParameterException("First entry of GRID_FACES must be COL_RADIUS_INNER");
+			throw InvalidParameterException("First entry of GRID_FACES must be the inner column radius");
 
 		// --- Grid diagnostics ---
 		double dxMin = std::numeric_limits<double>::max();
@@ -979,35 +968,11 @@ bool RadialConvectionDispersionOperatorBaseFV::configureModelDiscretization(IPar
  */
 bool RadialConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
-	// Read geometry parameters
-	if (paramProvider.exists("COLUMN_GEOMETRY"))
-	{
-		std::string geom = paramProvider.getString("COLUMN_GEOMETRY");
-
-		if (!(geom == "WEDGE" || geom == "CYLINDER_SHELL"))
-			throw InvalidParameterException("COLUMN_GEOMETRY for unit" + std::to_string(unitOpIdx) + " must bei either be WEDGE or CYLINDER_SHELL");
-		else
-			_circleFraction = paramProvider.getDouble("CIRCLE_FRACTION");
-	}
-	else
-		_circleFraction = 1.0;
-
-	// Read length or set to -1
-	_colLength = -1.0;
-	if (paramProvider.exists("COL_LENGTH"))
-	{
-		_colLength = paramProvider.getDouble("COL_LENGTH");
-	}
-
 	// Read section dependent parameters (transport)
-
-	// Read VELOCITY coefficient
-	_velocity.clear();
-	if (paramProvider.exists("VELOCITY_COEFF"))
-	{
-		readScalarParameterOrArray(_velocity, paramProvider, "VELOCITY_COEFF", 1);
-	}
-	_dir = 1;
+	_dir.clear();
+	const std::vector<double> fwdFlow = paramProvider.getDoubleArray("FORWARD_FLOW");
+	for (std::size_t i = 0; i < fwdFlow.size(); ++i)
+		_dir.push_back(fwdFlow[i] ? 1.0 : -1.0);
 
 	readScalarParameterOrArray(_colDispersion, paramProvider, "COL_DISPERSION", 1);
 	if (paramProvider.exists("COL_DISPERSION_MULTIPLEX"))
@@ -1056,11 +1021,6 @@ bool RadialConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, IP
 			throw InvalidParameterException("Failed to configure dispersion parameter dependency (COL_DISPERSION_DEP)");
 	}
 
-	if (_velocity.empty() && (_colLength <= 0.0))
-	{
-		throw InvalidParameterException("At least one of COL_LENGTH and VELOCITY_COEFF has to be set");
-	}
-
 	// Add parameters to map
 	if (_dispersionCompIndep)
 	{
@@ -1079,10 +1039,7 @@ bool RadialConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, IP
 	else
 		registerParam2DArray(parameters, _colDispersion, [=](bool multi, unsigned int sec, unsigned int comp) { return makeParamId(hashString("COL_DISPERSION"), unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _nComp);
 
-	registerScalarSectionDependentParam(hashString("VELOCITY_COEFF"), parameters, _velocity, unitOpIdx, ParTypeIndep);
-	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
-	parameters[makeParamId(hashString("COL_RADIUS_INNER"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_innerRadius;
-	parameters[makeParamId(hashString("COL_RADIUS_OUTER"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_outerRadius;
+	parameters[makeParamId(hashString("VELOCITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_curVelCoeff;
 
 	return true;
 }
@@ -1097,29 +1054,14 @@ bool RadialConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, IP
  */
 bool RadialConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 {
-	// setFlowRates() was called before, so _curVelocity has direction dirOld
-	const int dirOld = _dir;
-
-	if (_colLength <= 0.0)
-	{
-		// Use the provided _velocity (direction is also set), only update _dir
-		_curVelocity = getSectionDependentScalar(_velocity, secIdx);
-		_dir = (_curVelocity >= 0.0) ? 1 : -1;
-	}
-	else if (!_velocity.empty())
-	{
-		// Use network flow rate but take direction from _velocity
-		_dir = (getSectionDependentScalar(_velocity, secIdx) >= 0.0) ? 1 : -1;
-
-		// _curVelocity has correct magnitude but previous direction, so flip it if necessary
-		if (dirOld * _dir < 0)
-			_curVelocity *= -1.0;
-	}
-
-	// No remaining case, exception was thrown if neither column length nor velocity coefficient was specified
-
+	// setFlowRates was called before, setting current velocity
 	// Detect change in flow direction
-	return (dirOld * _dir < 0);
+	const double curDir = getSectionDependentScalar(_dir, secIdx);
+	const bool changedDirection = secIdx > 0 ? (getSectionDependentScalar(_dir, secIdx - 1) * curDir < 0) : false;
+	if (changedDirection)
+		_curVelCoeff *= -1.0;
+
+	return changedDirection;
 }
 
 /**
@@ -1132,16 +1074,13 @@ bool RadialConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransit
 void RadialConvectionDispersionOperatorBaseFV::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
 {
 	const double pi = 3.1415926535897932384626434;
-
-	// If we have column length, interstitial velocity is given by network flow rates
-	if (_colLength > 0.0)
-		_curVelocity = _dir * in / (2.0 * pi * _colLength * colPorosity * _circleFraction); // this coefficient is later divided by r
+	_curVelCoeff = in / (2.0 * pi * _colHeight * colPorosity * _circleFraction) / _outerRadius; // this coefficient is later divided by r
 }
 
 active RadialConvectionDispersionOperatorBaseFV::currentVelocity(double pos) const CADET_NOEXCEPT
 {
 	const active radius = pos * (_outerRadius - _innerRadius) + _innerRadius;
-	return _curVelocity / radius;
+	return _curVelCoeff / radius;
 }
 
 unsigned int RadialConvectionDispersionOperatorBaseFV::nJacEntries(bool pureNNZ) const CADET_NOEXCEPT
@@ -1286,7 +1225,7 @@ int RadialConvectionDispersionOperatorBaseFV::jacobian(const IModel& model, doub
 template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes>
 int RadialConvectionDispersionOperatorBaseFV::residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin)
 {
-	const ParamType u = static_cast<ParamType>(_curVelocity);
+	const ParamType u = static_cast<ParamType>(_curVelCoeff);
 	active const* const d_rad = getSectionDependentSlice(_colDispersion, _nComp, secIdx);
 
 	const std::vector<active>* const cellFacesPtr = _cellFaces.empty() ? nullptr : &_cellFaces;
@@ -1426,7 +1365,7 @@ unsigned int RadialConvectionDispersionOperatorBaseFV::jacobianDiscretizedBandwi
 double RadialConvectionDispersionOperatorBaseFV::inletJacobianFactor() const CADET_NOEXCEPT
 {
 	const double denom = static_cast<double>(_cellCenters[0]) * static_cast<double>(_cellSizes[0]);
-	const double u = static_cast<double>(_curVelocity);
+	const double u = static_cast<double>(_curVelCoeff);
 	return u / denom;
 }
 
@@ -1440,27 +1379,6 @@ bool RadialConvectionDispersionOperatorBaseFV::setParameter(const ParameterId& p
 			_dispersionDep->setParameter(pId, value);
 			return true;
 		}
-	}
-
-	// Check whether column radius has changed and update discretization if necessary
-	if (pId.name == hashString("COL_RADIUS_INNER"))
-	{
-		_innerRadius.setValue(value);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
-		return true;
-	}
-
-	if (pId.name == hashString("COL_RADIUS_OUTER"))
-	{
-		_outerRadius.setValue(value);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
-		return true;
 	}
 
 	// We only need to do something if COL_DISPERSION is component independent
@@ -1503,27 +1421,6 @@ bool RadialConvectionDispersionOperatorBaseFV::setSensitiveParameterValue(const 
 			param->setValue(value);
 			return true;
 		}
-	}
-
-	// Check whether column radius has changed and update discretization if necessary
-	if (pId.name == hashString("COL_RADIUS_INNER"))
-	{
-		_innerRadius.setValue(value);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
-		return true;
-	}
-
-	if (pId.name == hashString("COL_RADIUS_OUTER"))
-	{
-		_outerRadius.setValue(value);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
-		return true;
 	}
 
 	// We only need to do something if COL_DISPERSION is component independent
@@ -1572,27 +1469,6 @@ bool RadialConvectionDispersionOperatorBaseFV::setSensitiveParameter(std::unorde
 			param->setADValue(adDirection, adValue);
 			return true;
 		}
-	}
-
-	// Check whether column radius has changed and update discretization if necessary
-	if (pId.name == hashString("COL_RADIUS_INNER"))
-	{
-		_innerRadius.setADValue(adDirection, adValue);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
-		return true;
-	}
-
-	if (pId.name == hashString("COL_RADIUS_OUTER"))
-	{
-		_outerRadius.setADValue(adDirection, adValue);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
-		return true;
 	}
 
 	// We only need to do something if COL_DISPERSION is component independent
@@ -1682,14 +1558,19 @@ bool FrustumConvectionDispersionOperatorBaseFV::configureModelDiscretization(IPa
 	_nCol = nCol;
 	_strideCell = strideCell;
 
-	_innerRadius = paramProvider.getDouble("COL_RADIUS_INNER");
-	_outerRadius = paramProvider.getDouble("COL_RADIUS_OUTER");
-	_colLength = paramProvider.getDouble("COL_LENGTH");
+	const double areaLarge = paramProvider.getDouble("CROSS_SECTION_AREA_LARGE_END");
+	const double areaSmall = paramProvider.getDouble("CROSS_SECTION_AREA_SMALL_END");
+	const double pi = 3.14159265358979323846;
+	// A = pi r^2 => r = sqrt(A / pi)
+	_outerRadius = sqrt(areaLarge / pi);
+	_innerRadius = sqrt(areaSmall / pi);
+	_bedLength = paramProvider.getDouble("BED_LENGTH");
+	_bedLength = paramProvider.getDouble("BED_LENGTH");
 
-	if (!(_innerRadius > 0.0 && _outerRadius > 0.0 && _colLength > 0.0))
-		throw InvalidParameterException("Geometry parameters COL_RADIUS_INNER, COL_RADIUS_OUTER, COL_LENGTH must be > 0.0");
+	if (!(_innerRadius > 0.0 && _outerRadius > 0.0 && _bedLength > 0.0))
+		throw InvalidParameterException("Geometry parameters CROSS_SECTION_AREA_LARGE_END, CROSS_SECTION_AREA_SMALL_END, BED_LENGTH must be > 0.0");
 	if (_innerRadius > _outerRadius)
-		throw InvalidParameterException("Geometry parameters are inconsistent, model requires COL_RADIUS_INNER <= COL_RADIUS_OUTER for consistency reasons. Please check the documentation for control of the flow direction.");
+		throw InvalidParameterException("Geometry parameters are inconsistent, model requires CROSS_SECTION_AREA_SMALL_END <= CROSS_SECTION_AREA_LARGE_END for consistency reasons. Please check the documentation for control of the flow direction.");
 
 	if (paramProvider.exists("COL_DISPERSION_DEP"))
 	{
@@ -1716,8 +1597,8 @@ bool FrustumConvectionDispersionOperatorBaseFV::configureModelDiscretization(IPa
 			throw InvalidParameterException("Number of elements in field GRID_FACES must be NCOL + 1");
 		if (std::abs(static_cast<double>(_cellFaces.front())) > 1e-14)
 			throw InvalidParameterException("First entry of GRID_FACES must be zero");
-		if (std::abs(static_cast<double>(_cellFaces.back()) - static_cast<double>(_colLength)) > 1e-14)
-			throw InvalidParameterException("Last entry of GRID_FACES must match COL_LENGTH");
+		if (std::abs(static_cast<double>(_cellFaces.back()) - static_cast<double>(_bedLength)) > 1e-14)
+			throw InvalidParameterException("Last entry of GRID_FACES must match BED_LENGTH");
 
 		double dxMin = std::numeric_limits<double>::max();
 		double dxMax = 0.0;
@@ -1783,7 +1664,7 @@ bool FrustumConvectionDispersionOperatorBaseFV::configureModelDiscretization(IPa
 			std::vector<double> faces(_cellFaces.size());
 			for (std::size_t i = 0; i < _cellFaces.size(); ++i)
 				faces[i] = static_cast<double>(_cellFaces[i]);
-			const double slope = (static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius)) / static_cast<double>(_colLength);
+			const double slope = (static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius)) / static_cast<double>(_bedLength);
 			_weno->prepareGeometryExactCoefficients(static_cast<double>(_innerRadius), slope, 2, faces);
 		}
 	}
@@ -1818,13 +1699,10 @@ bool FrustumConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, I
 {
 
 	// Read section dependent parameters (transport)
-
-	_velocityCoeff.clear();
-	if (paramProvider.exists("VELOCITY_COEFF")) // only used to set the flow direction, velocity is infered from flow rate
-	{
-		readScalarParameterOrArray(_velocityCoeff, paramProvider, "VELOCITY_COEFF", 1);
-	}
-	_dir = 1;
+	_dir.clear();
+	const std::vector<double> fwdFlow = paramProvider.getDoubleArray("FORWARD_FLOW");
+	for (std::size_t i = 0; i < fwdFlow.size(); ++i)
+		_dir.push_back(fwdFlow[i] ? 1.0 : -1.0);
 
 	readScalarParameterOrArray(_colDispersion, paramProvider, "COL_DISPERSION", 1);
 	if (paramProvider.exists("COL_DISPERSION_MULTIPLEX"))
@@ -1891,10 +1769,8 @@ bool FrustumConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, I
 	else
 		registerParam2DArray(parameters, _colDispersion, [=](bool multi, unsigned int sec, unsigned int comp) { return makeParamId(hashString("COL_DISPERSION"), unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _nComp);
 
-	registerScalarSectionDependentParam(hashString("VELOCITY_COEFF"), parameters, _velocityCoeff, unitOpIdx, ParTypeIndep);
-	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
-	parameters[makeParamId(hashString("COL_RADIUS_INNER"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_innerRadius;
-	parameters[makeParamId(hashString("COL_RADIUS_OUTER"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_outerRadius;
+	parameters[makeParamId(hashString("VELOCITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_curVelCoeff;
+	parameters[makeParamId(hashString("BED_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_bedLength;
 
 	return true;
 }
@@ -1909,23 +1785,14 @@ bool FrustumConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, I
  */
 bool FrustumConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 {
-	// setFlowRates() was called before, so _curVelocity has direction dirOld
-	const int dirOld = _dir;
-
-	if (!_velocityCoeff.empty())
-	{
-		// Use network flow rate but take direction from _velocity
-		_dir = (getSectionDependentScalar(_velocityCoeff, secIdx) >= 0.0) ? 1 : -1;
-
-		// _curVelocity has correct magnitude but previous direction, so flip it if necessary
-		if (dirOld * _dir < 0)
-			_curVelocityCoeff *= -1.0;
-	}
-
-	// No remaining case, exception was thrown if neither column length nor velocity coefficient was specified
-
+	// setFlowRates was called before, setting current velocity
 	// Detect change in flow direction
-	return (dirOld * _dir < 0);
+	const double curDir = getSectionDependentScalar(_dir, secIdx);
+	const bool changedDirection = secIdx > 0 ? (getSectionDependentScalar(_dir, secIdx - 1) * curDir < 0) : false;
+	if (changedDirection)
+		_curVelCoeff *= -1.0;
+
+	return changedDirection;
 }
 
 /**
@@ -1938,8 +1805,7 @@ bool FrustumConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransi
 void FrustumConvectionDispersionOperatorBaseFV::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
 {
 	const double pi = 3.1415926535897932384626434;
-
-	_curVelocityCoeff = _dir * in / (pi * colPorosity); // this coefficient is later divided by r^2
+	_curVelCoeff = in / (pi * _outerRadius * _outerRadius * colPorosity); // this coefficient is later divided by r^2
 }
 
 /**
@@ -1949,7 +1815,7 @@ void FrustumConvectionDispersionOperatorBaseFV::setFlowRates(const active& in, c
 active FrustumConvectionDispersionOperatorBaseFV::currentVelocity(double pos) const CADET_NOEXCEPT
 {
 	const active radius = pos * (_outerRadius - _innerRadius) + _innerRadius;
-	return _curVelocityCoeff / radius / radius;
+	return _curVelCoeff / radius / radius;
 }
 
 unsigned int FrustumConvectionDispersionOperatorBaseFV::nJacEntries(bool pureNNZ) const CADET_NOEXCEPT
@@ -2094,8 +1960,8 @@ int FrustumConvectionDispersionOperatorBaseFV::jacobian(const IModel& model, dou
 template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes>
 int FrustumConvectionDispersionOperatorBaseFV::residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin)
 {
-	const ParamType u = static_cast<ParamType>(_curVelocityCoeff);
-	const ParamType length = static_cast<ParamType>(_colLength);
+	const ParamType u = static_cast<ParamType>(_curVelCoeff);
+	const ParamType length = static_cast<ParamType>(_bedLength);
 	active const* const d_rad = getSectionDependentSlice(_colDispersion, _nComp, secIdx);
 
 	const std::vector<active>* const cellFacesPtr = _cellFaces.empty() ? nullptr : &_cellFaces;
@@ -2241,7 +2107,7 @@ unsigned int FrustumConvectionDispersionOperatorBaseFV::jacobianDiscretizedBandw
 
 double FrustumConvectionDispersionOperatorBaseFV::inletJacobianFactor() const CADET_NOEXCEPT
 {
-	return static_cast<double>(_curVelocityCoeff) * 3.1415926535897932384626434 / static_cast<double>(_cellVolume[0]);
+	return static_cast<double>(_curVelCoeff) * 3.1415926535897932384626434 / static_cast<double>(_cellVolume[0]);
 }
 
 bool FrustumConvectionDispersionOperatorBaseFV::setParameter(const ParameterId& pId, double value)
@@ -2254,27 +2120,6 @@ bool FrustumConvectionDispersionOperatorBaseFV::setParameter(const ParameterId& 
 			_dispersionDep->setParameter(pId, value);
 			return true;
 		}
-	}
-
-	// Check whether column radius has changed and update discretization if necessary
-	if (pId.name == hashString("COL_RADIUS_INNER"))
-	{
-		_innerRadius.setValue(value);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
-		return true;
-	}
-
-	if (pId.name == hashString("COL_RADIUS_OUTER"))
-	{
-		_outerRadius.setValue(value);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
-		return true;
 	}
 
 	// We only need to do something if COL_DISPERSION is component independent
@@ -2317,27 +2162,6 @@ bool FrustumConvectionDispersionOperatorBaseFV::setSensitiveParameterValue(const
 			param->setValue(value);
 			return true;
 		}
-	}
-
-	// Check whether column radius has changed and update discretization if necessary
-	if (pId.name == hashString("COL_RADIUS_INNER"))
-	{
-		_innerRadius.setValue(value);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
-		return true;
-	}
-
-	if (pId.name == hashString("COL_RADIUS_OUTER"))
-	{
-		_outerRadius.setValue(value);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
-		return true;
 	}
 
 	// We only need to do something if COL_DISPERSION is component independent
@@ -2388,27 +2212,6 @@ bool FrustumConvectionDispersionOperatorBaseFV::setSensitiveParameter(std::unord
 		}
 	}
 
-	// Check whether column radius has changed and update discretization if necessary
-	if (pId.name == hashString("COL_RADIUS_INNER"))
-	{
-		_innerRadius.setADValue(adDirection, adValue);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
-		return true;
-	}
-
-	if (pId.name == hashString("COL_RADIUS_OUTER"))
-	{
-		_outerRadius.setADValue(adDirection, adValue);
-		if (_cellFaces.empty())
-			equidistantCells();
-		else
-			computeCellCentersAndSizes(_cellFaces);
-		return true;
-	}
-
 	// We only need to do something if COL_DISPERSION is component independent
 	if (!_dispersionCompIndep)
 		return false;
@@ -2442,7 +2245,7 @@ bool FrustumConvectionDispersionOperatorBaseFV::setSensitiveParameter(std::unord
 
 void FrustumConvectionDispersionOperatorBaseFV::equidistantCells()
 {
-	const active dx = _colLength / _nCol;
+	const active dx = _bedLength / _nCol;
 	std::vector<active> faces(_nCol + 1, 0.0);
 	for (unsigned int i = 0; i <= _nCol; ++i)
 		faces[i] = i * dx;
@@ -2462,13 +2265,13 @@ void FrustumConvectionDispersionOperatorBaseFV::computeCellCentersAndSizes(const
 		centers[i] = static_cast<active>(0.5) * (cellFaces[i] + cellFaces[i + 1]);
 		sizes[i] = cellFaces[i + 1] - cellFaces[i];
 
-		active centerRadius = _innerRadius + (centers[i] / _colLength) * (_outerRadius - _innerRadius);
+		active centerRadius = _innerRadius + (centers[i] / _bedLength) * (_outerRadius - _innerRadius);
 		centerRadiiSq[i] = centerRadius * centerRadius;
 
-		active faceRadius = _innerRadius + (cellFaces[i] / _colLength) * (_outerRadius - _innerRadius);
+		active faceRadius = _innerRadius + (cellFaces[i] / _bedLength) * (_outerRadius - _innerRadius);
 		faceRadiiSq[i] = faceRadius * faceRadius;
 	}
-	active lastFaceRadius = _innerRadius + (cellFaces[_nCol] / _colLength) * (_outerRadius - _innerRadius);
+	active lastFaceRadius = _innerRadius + (cellFaces[_nCol] / _bedLength) * (_outerRadius - _innerRadius);
 	faceRadiiSq[_nCol] = lastFaceRadius * lastFaceRadius;
 
 	_cellCenters = std::move(centers);

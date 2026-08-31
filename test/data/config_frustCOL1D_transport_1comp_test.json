@@ -68,15 +68,16 @@
         "NCOMP": 1,
         "NPARTYPE": 0,
         "COL_POROSITY": 1.0,
-        "COL_LENGTH": 0.09,
+        "BED_LENGTH": 0.09,
         "COL_RADIUS_SMALL_END": 30.0,
         "COL_RADIUS_LARGE_END": 79.78845608028653,
         "UNIT_TYPE": "FRUSTUM_COLUMN_MODEL_1D",
         "GEOMETRY": "AXIAL_FLOW_FRUSTUM",
+        "FORWARD_FLOW": 1,
         "discretization": {
           "NELEM": 8,
           "POLYDEG": 3,
-          "POLYNOMIAL_INTEGRATION_TYPE": 0,
+          "USE_COLLOCATION_DG": 1,
           "SPATIAL_METHOD": "DG",
           "USE_ANALYTIC_JACOBIAN": true,
           "USE_MODIFIED_NEWTON": true

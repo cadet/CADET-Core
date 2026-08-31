@@ -116,14 +116,16 @@ json createColumnWithSMAJson(const std::string& uoType)
 	config["UNIT_TYPE"] = uoType;
 	config["NCOMP"] = 4;
 	config["NPARTYPE"] = 1;
-	config["VELOCITY"] = 5.75e-4;
 	config["COL_DISPERSION"] = 5.75e-8;
 	config["COL_DISPERSION_RADIAL"] = 1e-6;
 
 	// Geometry
-	config["COL_LENGTH"] = 0.014;
-	config["COL_RADIUS"] = 0.01;
+	const double pi = 3.14159265358979323846;
+	config["GEOMETRY"] = "AXIAL_FLOW_CYLINDER";
+	config["BED_LENGTH"] = 0.014;
+	config["CROSS_SECTION_AREA"] = pi * 0.01 * 0.01;
 	config["COL_POROSITY"] = 0.37;
+	config["FORWARD_FLOW"] = 1;
 
 	// Initial conditions
 	config["INIT_C"] = {50.0, 0.0, 0.0, 0.0};
@@ -400,8 +402,12 @@ json createStepColumnWithSMAJson(const std::string& uoType)
 	config["COL_DISPERSION"] = 5.75e-8;
 
 	// Geometry
-	config["COL_LENGTH"] = 0.014;
+	const double pi = 3.14159265358979323846;
+	config["GEOMETRY"] = "AXIAL_FLOW_CYLINDER";
+	config["BED_LENGTH"] = 0.014;
+	config["CROSS_SECTION_AREA"] = pi * 0.01 * 0.01;
 	config["COL_POROSITY"] = 0.37;
+	config["FORWARD_FLOW"] = 1;
 
 	// Initial conditions
 	config["INIT_C"] = {50.0, 0.0, 0.0, 0.0};

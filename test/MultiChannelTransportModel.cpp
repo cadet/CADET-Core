@@ -48,7 +48,7 @@ namespace
 		config["NCHANNEL"] = crossSectionAreas.size();
 
 		// Geometry
-		config["COL_LENGTH"] = colLength;
+		config["BED_LENGTH"] = colLength;
 		config["CHANNEL_CROSS_SECTION_AREAS"] = crossSectionAreas;
 		config["VELOCITY"] = velocity;
 
@@ -582,7 +582,7 @@ TEST_CASE("MCT consistent sensitivity initialization", "[MCT],[ConsistentInit],[
 			cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp, cadet::Weno::maxOrder());
 
 			unit->setSensitiveParameter(cadet::makeParamId("INIT_C", 0, 0, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0);
-			unit->setSensitiveParameter(cadet::makeParamId("COL_LENGTH", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
+			unit->setSensitiveParameter(cadet::makeParamId("BED_LENGTH", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
 
 			REQUIRE(unit->numSensParams() == 2);
 			cadet::test::unitoperation::testConsistentInitializationSensitivity(unit, adEnabled, y.data(), yDot.data(), 1e-14);

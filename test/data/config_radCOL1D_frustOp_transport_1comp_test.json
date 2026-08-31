@@ -70,11 +70,10 @@
         "NCOMP": 1,
         "NPARTYPE": 0,
         "COL_POROSITY": 1.0,
-        "COL_LENGTH": 3183.098861837907,
+        "BED_LENGTH": 3183.098861837907,
         "UNIT_TYPE": "FRUSTUM_COLUMN_MODEL_1D",
         "GEOMETRY": "RADIAL_FLOW_CYLINDER_SHELL",
         "FORWARD_FLOW": 1,
-        "VELOCITY_COEFF": 5e-05,
         "discretization": {
           "NELEM": 8,
           "POLYDEG": 3,

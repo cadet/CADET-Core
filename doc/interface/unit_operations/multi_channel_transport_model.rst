@@ -85,7 +85,7 @@ Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`
    **Type:** int  **Range:** :math:`\{0, \dots, 7 \}`  **Length:** 1
    =============  ===================================  =============
 
-``COL_LENGTH``
+``BED_LENGTH``
 
    Column length
 

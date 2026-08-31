@@ -19,6 +19,7 @@
 #include "model/ParameterDependence.hpp"
 #include "SensParamUtil.hpp"
 #include "ConfigurationHelper.hpp"
+#include "ParamReaderHelper.hpp"
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -132,11 +133,12 @@ bool AxialConvectionDispersionOperatorBaseCollocationDG::configure(UnitOpIdx uni
 	const bool firstConfigCall = _DGjacAxDispBlocks == nullptr; // used to not multiply allocate memory
 
 	// Read geometry parameters
-	_bedLength = paramProvider.getDouble("COL_LENGTH");
+	_bedLength = paramProvider.getDouble("BED_LENGTH");
 	_deltaZ = _bedLength / _nElem;
 
 	/* compute dispersion jacobian blocks(without parameters except element spacing, i.e. static entries) */
 	// we only need unique dispersion blocks, which are given by elements 1, 2, nElem for inexact integration DG and by elements 1, 2, 3, nElem-1, nElem for eaxct integration DG
+	// note that convection jacobian block is computed in notifyDiscontinuousSectionTransition() since this block needs to be recomputed when flow direction changes
 	if (firstConfigCall)
 		_DGjacAxDispBlocks = new Eigen::MatrixXd[std::min(_nElem, 3u)];
 	_DGjacAxDispBlocks[0] = DGjacobianDispBlock(1);
@@ -145,24 +147,13 @@ bool AxialConvectionDispersionOperatorBaseCollocationDG::configure(UnitOpIdx uni
 	if (_nElem > 2)
 		_DGjacAxDispBlocks[2] = DGjacobianDispBlock(_nElem);
 
-	// note that convection jacobian block is computet in notifyDiscontinuousSectionTransition() since this block needs to be recomputed when flow direction changes
-
-	// Read cross section area or set to -1
-	_crossSection = -1.0;
-	if (paramProvider.exists("CROSS_SECTION_AREA"))
-	{
-		_crossSection = paramProvider.getDouble("CROSS_SECTION_AREA");
-	}
+	_crossSection = paramProvider.getDouble("CROSS_SECTION_AREA");
 
 	// Read section dependent parameters (transport)
-
-	// Read VELOCITY
-	_velocity.clear();
-	if (paramProvider.exists("VELOCITY"))
-	{
-		readScalarParameterOrArray(_velocity, paramProvider, "VELOCITY", 1);
-	}
-	_dir = 1;
+	_dir.clear();
+	const std::vector<double> fwdFlow = paramProvider.getDoubleArray("FORWARD_FLOW");
+	for (std::size_t i = 0; i < fwdFlow.size(); ++i)
+		_dir.push_back(fwdFlow[i] ? 1.0 : -1.0);
 
 	readScalarParameterOrArray(_colDispersion, paramProvider, "COL_DISPERSION", 1);
 	if (paramProvider.exists("COL_DISPERSION_MULTIPLEX"))
@@ -211,11 +202,6 @@ bool AxialConvectionDispersionOperatorBaseCollocationDG::configure(UnitOpIdx uni
 			throw InvalidParameterException("Failed to configure dispersion parameter dependency (COL_DISPERSION_DEP)");
 	}
 
-	if (_velocity.empty() && (_crossSection <= 0.0))
-	{
-		throw InvalidParameterException("At least one of CROSS_SECTION_AREA and VELOCITY has to be set");
-	}
-
 	// Add parameters to map
 	if (_dispersionCompIndep)
 	{
@@ -234,8 +220,8 @@ bool AxialConvectionDispersionOperatorBaseCollocationDG::configure(UnitOpIdx uni
 	else
 		registerParam2DArray(parameters, _colDispersion, [=](bool multi, unsigned int sec, unsigned int comp) { return makeParamId(hashString("COL_DISPERSION"), unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _nComp);
 
-	registerScalarSectionDependentParam(hashString("VELOCITY"), parameters, _velocity, unitOpIdx, ParTypeIndep);
-	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_bedLength;
+	parameters[makeParamId(hashString("VELOCITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_curVelocity;
+	parameters[makeParamId(hashString("BED_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_bedLength;
 	parameters[makeParamId(hashString("CROSS_SECTION_AREA"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_crossSection;
 
 	return true;
@@ -254,30 +240,6 @@ bool AxialConvectionDispersionOperatorBaseCollocationDG::notifyDiscontinuousSect
 	_curSection = secIdx;
 	_newStaticJac = true;
 
-	// setFlowRates() was called before, so _curVelocity has direction dirOld
-	const int dirOld = _dir;
-
-	if (_crossSection <= 0.0)
-	{
-		// Use the provided _velocity (direction is also set), only update _dir
-		_curVelocity = getSectionDependentScalar(_velocity, secIdx);
-		_dir = (_curVelocity >= 0.0) ? 1 : -1;
-	}
-	else if (!_velocity.empty())
-	{
-		// Use network flow rate but take direction from _velocity
-		_dir = (getSectionDependentScalar(_velocity, secIdx) >= 0.0) ? 1 : -1;
-
-		// _curVelocity has correct magnitude but previous direction, so flip it if necessary
-		if (dirOld * _dir < 0)
-			_curVelocity *= -1.0;
-	}
-
-	// Remaining case: _velocity is empty and _crossSection <= 0.0
-	// _curVelocity is goverend by network flow rate provided in setFlowRates().
-	// Direction never changes (always forward, that is, _dir = 1)-
-	// No action required.
-
 	 // recompute convection jacobian block, which depends on flow direction
 	_DGjacAxConvBlock = DGjacobianConvBlock();
 
@@ -290,7 +252,12 @@ bool AxialConvectionDispersionOperatorBaseCollocationDG::notifyDiscontinuousSect
 		jacInlet(0, 0) = static_cast<double>(_curVelocity) * _DGjacAxConvBlock(_DGjacAxConvBlock.rows() - 1, _DGjacAxConvBlock.cols() - 1); // only last node depends on inlet concentration
 
 	// Detect change in flow direction
-	return (dirOld * _dir < 0);
+	const double curDir = getSectionDependentScalar(_dir, secIdx);
+	const bool changedDirection = secIdx > 0 ? (getSectionDependentScalar(_dir, secIdx - 1) * curDir < 0) : false;
+	if (changedDirection)
+		_curVelocity *= -1.0;
+
+	return changedDirection;
 }
 
 /**
@@ -302,9 +269,7 @@ bool AxialConvectionDispersionOperatorBaseCollocationDG::notifyDiscontinuousSect
  */
 void AxialConvectionDispersionOperatorBaseCollocationDG::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
 {
-	// If we have cross section area, interstitial velocity is given by network flow rates
-	if (_crossSection > 0.0)
-		_curVelocity = _dir * in / (_crossSection * colPorosity);
+	_curVelocity = in / (_crossSection * colPorosity);
 }
 
 /**
@@ -691,57 +656,66 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::configureModelDiscr
 	_flowFraction = 1.0;
 
 	switch (_geometryType)
-	{	
+	{
 	case GeometryType::AxialFlowCylinder:
 	{
 		const double crossSection = paramProvider.getDouble("CROSS_SECTION_AREA");
 		const double pi = 3.14159265358979323846;
 		_radiusXStart = std::sqrt(crossSection / pi);
 		_radiusXEnd = _radiusXStart;
-		_bedLength = paramProvider.getDouble("COL_LENGTH");
+		_bedLength = paramProvider.getDouble("BED_LENGTH");
 		_colHeight = _bedLength;
 
 		if (!(crossSection > 0.0 && static_cast<double>(_bedLength) > 0.0))
-			throw InvalidParameterException("Geometry parameters for AXIAL_FLOW_CYLINDER must satisfy 0 < COL_RADIUS_SMALL_END <= CROSS_SECTION_AREA > 0.0, COL_LENGTH > 0.0");
+			throw InvalidParameterException("Geometry parameters for AXIAL_FLOW_CYLINDER must satisfy CROSS_SECTION_AREA > 0.0, BED_LENGTH > 0.0");
 
 		break;
 	}
 	case GeometryType::RadialFlowCylinderShell:
-
+	{
 		if (paramProvider.getString("GEOMETRY") == "RADIAL_FLOW_CYLINDER_SHELL_WEDGE")
 			_flowFraction = paramProvider.getDouble("CIRCLE_FRACTION");
-		_radiusXEnd = paramProvider.getDouble("COL_RADIUS_OUTER");
-		_radiusXStart = paramProvider.getDouble("COL_RADIUS_INNER");
-		_colHeight = paramProvider.getDouble("COL_LENGTH");
+
+		const double areaOuter = paramProvider.getDouble("CROSS_SECTION_AREA_OUTER");
+		const double areaInner = paramProvider.getDouble("CROSS_SECTION_AREA_INNER");
+		_colHeight = paramProvider.getDouble("CYLINDER_HEIGHT");
+		// A = 2 pi r h => r = A / (2 pi h)
+		const double pi = 3.14159265358979323846;
+		_radiusXStart = areaInner / (2.0 * pi * _colHeight);
+		_radiusXEnd = areaOuter / (2.0 * pi * _colHeight);
 
 		if (paramProvider.exists("BED_LENGTH")) // check this field for user convenience
 		{
 			_bedLength = paramProvider.getDouble("BED_LENGTH");
 			if (std::abs(static_cast<double>(_bedLength - (_radiusXEnd - _radiusXStart))) > 1e-15)
-				throw InvalidParameterException("For radial flow cylinder shell, BED_LENGTH must equal COL_RADIUS_OUTER - COL_RADIUS_INNER");
-			}
+				throw InvalidParameterException("For radial flow cylinder shell, BED_LENGTH must equal outer minus inner radius which are derived from the corresponding cross sectional areas");
+		}
 		else
 			_bedLength = _radiusXEnd - _radiusXStart;
 
 		if (!(static_cast<double>(_radiusXStart) > 0.0 && static_cast<double>(_radiusXEnd) >= static_cast<double>(_radiusXStart) && static_cast<double>(_colHeight) > 0.0))
-			throw InvalidParameterException("Geometry parameters for RADIAL_FLOW_CYLINDER_SHELL must satisfy 0 < COL_RADIUS_INNER <= COL_RADIUS_OUTER, COL_LENGTH > 0.0");
-		
+			throw InvalidParameterException("Geometry parameters for RADIAL_FLOW_CYLINDER_SHELL must satisfy 0 < CROSS_SECTION_AREA_INNER <= CROSS_SECTION_AREA_OUTER, BED_LENGTH > 0.0");
+
 		break;
-
+	}
 	case GeometryType::AxialFlowFrustum:
+	{
+		const double areaLarge = paramProvider.getDouble("CROSS_SECTION_AREA_LARGE_END");
+		const double areaSmall = paramProvider.getDouble("CROSS_SECTION_AREA_SMALL_END");
+		const double pi = 3.14159265358979323846;
+		// A = pi r^2 => r = sqrt(A / pi)
+		_radiusXStart = sqrt(areaLarge / pi);
+		_radiusXEnd = sqrt(areaSmall / pi);
+		_bedLength = paramProvider.getDouble("BED_LENGTH");
+		_colHeight = _bedLength;
 
-	_radiusXStart = paramProvider.getDouble("COL_RADIUS_LARGE_END");
-	_radiusXEnd = paramProvider.getDouble("COL_RADIUS_SMALL_END");
-	_bedLength = paramProvider.getDouble("COL_LENGTH");
-	_colHeight = _bedLength;
+		if (!(static_cast<double>(_radiusXStart) > 0.0 &&
+			static_cast<double>(_radiusXStart) >= static_cast<double>(_radiusXEnd) &&
+			static_cast<double>(_bedLength) > 0.0))
+			throw InvalidParameterException("Geometry parameters for AXIAL_FLOW_FRUSTUM must satisfy 0 < CROSS_SECTION_AREA_SMALL_END <= CROSS_SECTION_AREA_LARGE_END, BED_LENGTH > 0.0");
 
-	if (!(static_cast<double>(_radiusXStart) > 0.0 &&
-		static_cast<double>(_radiusXStart) >= static_cast<double>(_radiusXEnd) &&
-		static_cast<double>(_bedLength) > 0.0))
-		throw InvalidParameterException("Geometry parameters for AXIAL_FLOW_FRUSTUM must satisfy 0 < COL_RADIUS_SMALL_END <= COL_RADIUS_LARGE_END, COL_LENGTH > 0.0");
-
-	break;
-
+		break;
+	}
 	default:
 		throw InvalidParameterException("Unsupported geometry type " + paramProvider.getString("COL_GEOMETRY"));
 		break;
@@ -818,7 +792,7 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::configure(UnitOpIdx
 	readScalarParameterOrArray(_colDispersion, paramProvider, "COL_DISPERSION", 1);
 
 	readScalarParameterOrArray(_forwardFlow, paramProvider, "FORWARD_FLOW", 1);
-	_curFwdFlow = _forwardFlow[0];
+	_curFwdFlow = static_cast<bool>(_forwardFlow[0]);
 
 	if (paramProvider.exists("COL_DISPERSION_MULTIPLEX"))
 	{
@@ -868,7 +842,7 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::configure(UnitOpIdx
 		return makeParamId(hashString("COL_DISPERSION"), unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, multi ? static_cast<int>(sec) : SectionIndep);
 			}, _nComp);
 
-	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_bedLength;
+	parameters[makeParamId(hashString("BED_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_bedLength;
 	parameters[makeParamId(hashString("COL_RADIUS_SMALL_END"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_radiusXStart;
 	parameters[makeParamId(hashString("COL_RADIUS_LARGE_END"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_radiusXEnd;
 
@@ -885,9 +859,8 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::notifyDiscontinuous
 	_newStaticJac = true;
 
 	// note: flow direction is set by setFlowRates() before notifyDiscontinuousSectionTransition() is called
-	const bool newFlowFwdDir = _forwardFlow.size() > 1 ? _forwardFlow[secIdx] : _forwardFlow[0];
-	const bool flowDirChange = _curFwdFlow == newFlowFwdDir;
-	_curFwdFlow = newFlowFwdDir;
+	_curFwdFlow = static_cast<bool>(getSectionDependentScalar(_forwardFlow, secIdx));
+	const bool changedDirection = secIdx > 0 ? (static_cast<bool>(getSectionDependentScalar(_forwardFlow, secIdx - 1)) && _curFwdFlow) : false;
 
 	// Recompute Jacobian blocks
 	for (unsigned int elem = 0; elem < _nElem; elem++)
@@ -905,7 +878,7 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::notifyDiscontinuous
 	// some model parameters are baked into the DG operators but may be updated at section transitions
 	computeOperators(secIdx);
 
-	return flowDirChange;
+	return changedDirection;
 }
 
 void VariableCrossSectionConvectionDispersionOperatorBaseDG::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
@@ -1658,15 +1631,28 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::setSensitiveParamet
 
 bool VariableCrossSectionConvectionDispersionOperatorBaseDG::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
 {
+	auto checkAvailabilityOfParameter = [&](const ParameterId& pId,
+		const std::string& pName)
+		{
+			if (_geometryType == GeometryType::AxialFlowCylinder)
+				throw InvalidParameterException(
+					"Sensitivities for " + pName +
+					" not supported for exact integration DG, please change to collocation DG or FV discretization.");
+			else
+				throw InvalidParameterException(
+					"Sensitivities for " + pName +
+					" in variable cross section column geometries are not supported.");
+		};
+
 	// No geometric and axial diffusion sensitivities available since that would dispatch active type DG operators which is currently not implemented
-	if (pId.name == hashString("COL_DISPERSION"))
-		throw InvalidParameterException("Sensitivities for COL_DISPERSION in frustum geometry are not supported.");
-	else if (pId.name == hashString("COL_RADIUS_LARGE_END"))
-		throw InvalidParameterException("Sensitivities for COL_RADIUS_LARGE_END in frustum geometry are not supported.");
-	else if (pId.name == hashString("COL_RADIUS_SMALL_END"))
-		throw InvalidParameterException("Sensitivities for COL_RADIUS_SMALL_END in frustum geometry are not supported.");
-	else if (pId.name == hashString("COL_LENGTH"))
-		throw InvalidParameterException("Sensitivities for COL_LENGTH in frustum geometry are not supported.");
+	checkAvailabilityOfParameter(pId, "COL_DISPERSION");
+	checkAvailabilityOfParameter(pId, "CROSS_SECTION_AREA_LARGE_END");
+	checkAvailabilityOfParameter(pId, "CROSS_SECTION_AREA_SMALL_END");
+	checkAvailabilityOfParameter(pId, "BED_LENGTH");
+	checkAvailabilityOfParameter(pId, "CYLINDER_HEIGHT");
+	checkAvailabilityOfParameter(pId, "CROSS_SECTION_AREA_INNER");
+	checkAvailabilityOfParameter(pId, "CROSS_SECTION_AREA_OUTER");
+	checkAvailabilityOfParameter(pId, "CROSS_SECTION_AREA");
 
 	return true;
 }

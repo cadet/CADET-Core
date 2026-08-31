@@ -68,7 +68,7 @@
         "NCOMP": 1,
         "NPARTYPE": 0,
         "COL_POROSITY": 1.0,
-        "COL_LENGTH": 0.09,
+        "BED_LENGTH": 0.09,
         "FORWARD_FLOW": 1,
         "COL_RADIUS": 55.0,
         "CROSS_SECTION_AREA": 19006.63555421825,
@@ -77,7 +77,6 @@
         "discretization": {
           "NELEM": 8,
           "POLYDEG": 3,
-          "POLYNOMIAL_INTEGRATION_TYPE": 1,
           "SPATIAL_METHOD": "DG",
           "USE_ANALYTIC_JACOBIAN": true,
           "USE_MODIFIED_NEWTON": true
