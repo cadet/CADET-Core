@@ -1353,20 +1353,20 @@ int GeneralRateModel<ConvDispOperator>::residualBulk(double t, unsigned int secI
 	for (unsigned int col = 0; col < _disc.nCol; ++col, y += idxr.strideColCell(), res += idxr.strideColCell())
 	{
 		const ColumnPosition colPos{ (0.5 + static_cast<double>(col)) / static_cast<double>(_disc.nCol), 0.0, 0.0 };
-				
-				for (auto i = 0; i < _reaction.getDynReactionVector("liquid").size(); i++)
-				{
-					if (!_reaction.getDynReactionVector("liquid")[i])
-						continue;
 
-		if (wantRes)
-						_reaction.getDynReactionVector("liquid")[i]->residualFluxAdd(t, secIdx, colPos, _disc.nComp, y, res, -1.0, tlmAlloc);
-
-		if (wantJac)
+		for (auto i = 0; i < _reaction.getDynReactionVector("liquid").size(); i++)
 		{
-			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-						_reaction.getDynReactionVector("liquid")[i]->analyticJacobianAdd(t, secIdx, colPos, _disc.nComp, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(col * idxr.strideColCell()), tlmAlloc);
-					}
+			if (!_reaction.getDynReactionVector("liquid")[i])
+				continue;
+
+			if (wantRes)
+				_reaction.getDynReactionVector("liquid")[i]->residualFluxAdd(t, secIdx, colPos, _disc.nComp, y, res, -1.0, tlmAlloc);
+
+			if (wantJac)
+			{
+				// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+				_reaction.getDynReactionVector("liquid")[i]->analyticJacobianAdd(t, secIdx, colPos, _disc.nComp, reinterpret_cast<double const*>(y), -1.0, _convDispOp.jacobian().row(col * idxr.strideColCell()), tlmAlloc);
+			}
 		}
 	}
 
