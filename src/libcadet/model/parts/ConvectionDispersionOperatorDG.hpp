@@ -1784,11 +1784,37 @@ namespace cadet
 				unsigned int _strideElem;
 
 				// Column geometry
+				enum class GeometryType
+				{
+					AxialFlowCylinder,
+					RadialFlowCylinderShell,
+					AxialFlowFrustum
+				};
+
+				GeometryType geometryTypeFromString(const std::string& str)
+				{
+					if (str == "AXIAL_FLOW_CYLINDER")
+						return GeometryType::AxialFlowCylinder;
+
+					if (str == "RADIAL_FLOW_CYLINDER_SHELL")
+						return GeometryType::RadialFlowCylinderShell;
+
+					if (str == "RADIAL_FLOW_CYLINDER_SHELL_WEDGE")
+						return GeometryType::RadialFlowCylinderShell;
+
+					if (str == "AXIAL_FLOW_FRUSTUM")
+						return GeometryType::AxialFlowFrustum;
+
+					throw std::invalid_argument("Unknown GeometryType: " + str + " (valid options are: AXIAL_FLOW_CYLINDER, RADIAL_FLOW_CYLINDER_SHELL, RADIAL_FLOW_CYLINDER_SHELL_WEDGE, AXIAL_FLOW_FRUSTUM)");
+				}
+
+				GeometryType _geometryType;				//!< column geometry type
 				active _bedLength;						//!< bed length H (axial length)
 				active _colHeight;						//!< column height H, only applicable for radial flow geometry
 				active _radiusXStart;					//!< radius at domain start
 				active _radiusXEnd;					    //!< radius at domain end
-				std::vector<double> _crossSectionArea;	//!< Cross section area at each node
+				std::vector<double> _crossSectionArea;	//!< cross section area at each node
+				double _flowFraction;					//!< through-flow cross-sectional area fraction excluding column porosity
 
 				// DG operators
 				active _deltaX;					//!< axial element spacing
@@ -1802,8 +1828,8 @@ namespace cadet
 				std::vector<Eigen::MatrixXd> _invMM_A_times_DT_timesM00;		//!< per-element matrix product (M^A)^-1 * D^T * M^(0,0)
 
 				// Per-element Jacobian blocks
-				std::vector<std::vector<Eigen::MatrixXd>> _DGjacFrustumDispBlocks;
-				std::vector<Eigen::MatrixXd> _DGjacFrustumConvBlocks;
+				std::vector<std::vector<Eigen::MatrixXd>> _DGjacDispBlocks;
+				std::vector<Eigen::MatrixXd> _DGjacConvBlocks;
 
 				// Auxiliary state
 				active* _auxState;
@@ -1830,24 +1856,30 @@ namespace cadet
 				 *  Geometry helpers
 				 * =================================================================== */
 
+				void computeGeometry();
+				void computeOperators(const unsigned int secIdx);
+				void computeGeometryAxial();
+				void computeGeometryRadial();
 				void computeGeometryFrustum();
+				void computeOperatorsAxial();
+				void computeOperatorsRadial(const unsigned int secIdx);
 				void computeOperatorsFrustum(const unsigned int secIdx);
 
 				/* ===================================================================
 				 *  Jacobian block helpers
 				 * =================================================================== */
 
-				Eigen::MatrixXd DGjacobianConvBlockFrustum(unsigned int elemIdx);
-				Eigen::MatrixXd DGjacobianDispBlockFrustum(unsigned int elemIdx, unsigned int comp);
-				Eigen::MatrixXd getGBlockFrustum(unsigned int elemIdx);
-				void calcConvDispFrustumDGSEMJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int offC);
+				Eigen::MatrixXd DGjacobianConvBlock(unsigned int elemIdx);
+				Eigen::MatrixXd DGjacobianDispBlock(unsigned int elemIdx, unsigned int comp);
+				Eigen::MatrixXd getGBlock(unsigned int elemIdx);
+				void calcConvDispDGSEMJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int offC);
 
 				/* ===================================================================
 				 *  Residual helpers (shared pattern with radial)
 				 * =================================================================== */
 
 				template<typename StateType>
-				void InterfaceFluxAuxiliaryFrustumImpl(const StateType* C, unsigned int strideNode, unsigned int strideElem)
+				void InterfaceFluxAuxiliaryImpl(const StateType* C, unsigned int strideNode, unsigned int strideElem)
 				{
 					// Central average for interior interfaces
 					for (unsigned int elem = 1; elem < _nElem; elem++)
@@ -1857,7 +1889,7 @@ namespace cadet
 				}
 
 				template<typename StateType, typename ResidualType>
-				void surfaceIntegralAuxFrustumImpl(const StateType* state, ResidualType* stateDer,
+				void surfaceIntegralAuxImpl(const StateType* state, ResidualType* stateDer,
 					unsigned int strideNode_state, unsigned int strideElem_state,
 					unsigned int strideNode_stateDer, unsigned int strideElem_stateDer)
 				{
@@ -1876,7 +1908,7 @@ namespace cadet
 				}
 
 				template<typename StateType, typename ResidualType>
-				void volumeIntegralAuxFrustumImpl(
+				void volumeIntegralAuxImpl(
 					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state,
 					Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>>& stateDer)
 				{
@@ -1896,7 +1928,7 @@ namespace cadet
 				}
 
 				template<typename StateType>
-				void computeNumericalFluxesFrustum(const StateType* C)
+				void computeNumericalFluxes(const StateType* C)
 				{
 					StateType* g = reinterpret_cast<StateType*>(_auxState);
 					const unsigned int strideNode_g = 1u;
@@ -1935,7 +1967,7 @@ namespace cadet
 				}
 
 				template<typename StateType, typename ResidualType>
-				void surfaceIntegralMainFrustumImpl(ResidualType* res, const int comp)
+				void surfaceIntegralMainImpl(ResidualType* res, const int comp)
 				{
 					const double d_comp = static_cast<double>(getSectionDependentSlice(_colDispersion, _nComp, _curSection)[comp]);
 
@@ -1966,7 +1998,7 @@ namespace cadet
 				}
 
 				template<typename StateType, typename ResidualType>
-				void volumeIntegralMainFrustumImpl(const StateType* c, ResidualType* res, const StateType* g, const int comp)
+				void volumeIntegralMainImpl(const StateType* c, ResidualType* res, const StateType* g, const int comp)
 				{
 					for (int elem = 0; elem < _nElem; elem++)
 					{

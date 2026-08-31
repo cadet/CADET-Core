@@ -62,21 +62,22 @@
         "COL_DISPERSION": [
           1e-06
         ],
+        "COL_POROSITY": 1.0,
+        "COL_RADIUS_INNER": 0.01,
+        "COL_RADIUS_OUTER": 0.1,
         "INIT_C": [
           0.0
         ],
         "NCOMP": 1,
         "NPARTYPE": 0,
         "COL_POROSITY": 1.0,
-        "COL_LENGTH": 0.09,
-        "COL_RADIUS_SMALL_END": 30.0,
-        "COL_RADIUS_LARGE_END": 79.78845608028653,
-        "UNIT_TYPE": "FRUSTUM_COLUMN_MODEL_1D",
-        "GEOMETRY": "AXIAL_FLOW_FRUSTUM",
+        "COL_HEIGHT": 3183.098861837907,
+        "UNIT_TYPE": "RADIAL_COLUMN_MODEL_1D",
+        "FORWARD_FLOW": true,
+        "VELOCITY_COEFF": 5e-05,
         "discretization": {
           "NELEM": 8,
           "POLYDEG": 3,
-          "POLYNOMIAL_INTEGRATION_TYPE": 0,
           "SPATIAL_METHOD": "DG",
           "USE_ANALYTIC_JACOBIAN": true,
           "USE_MODIFIED_NEWTON": true
@@ -517,7 +518,7 @@
             "ABSTOL": 1e-12,
             "ALGTOL": 1e-10,
             "INIT_STEP_SIZE": 1e-08,
-            "MAX_STEPS": 10000,
+            "MAX_STEPS": 1500,
             "RELTOL": 1e-10,
             "USE_MODIFIED_NEWTON": true
         }
