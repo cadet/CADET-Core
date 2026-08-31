@@ -60,9 +60,11 @@
     },
     "unit_001": {
       "COL_DISPERSION": 7.550718e-08,
-      "COL_LENGTH": 0.05,
+      "BED_LENGTH": 0.05,
       "COL_POROSITY": 0.256288,
       "CROSS_SECTION_AREA": 1.9997899142612784e-05,
+      "GEOMETRY": "AXIAL_FLOW_CYLINDER",
+      "FORWARD_FLOW": 1,
       "INIT_C": [
         0.0
       ],

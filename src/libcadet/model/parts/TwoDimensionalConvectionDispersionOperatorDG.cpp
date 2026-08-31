@@ -640,7 +640,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configureModelDiscretization(
 bool TwoDimensionalConvectionDispersionOperatorDG::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
 	// Read geometry parameters
-	_bedLength = paramProvider.getDouble("COL_LENGTH");
+	_bedLength = paramProvider.getDouble("BED_LENGTH");
 	_colRadius = paramProvider.getDouble("COL_RADIUS");
 	readScalarParameterOrArray(_colPorosities, paramProvider, "COL_POROSITY", 1);
 	_axDelta = _bedLength / _axNElem; // deltaR is treated in updateRadialDisc
@@ -749,7 +749,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configure(UnitOpIdx unitOpIdx
 	_radialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _radialDispersion, "COL_DISPERSION_RADIAL", _nComp, _radNElem, unitOpIdx);
 
 	// Add parameters to map
-	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_bedLength;
+	parameters[makeParamId(hashString("BED_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_bedLength;
 	parameters[makeParamId(hashString("COL_RADIUS"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colRadius;
 	registerParam1DArray(parameters, _colPorosities, [=](bool multi, unsigned int i) { return makeParamId(hashString("COL_POROSITY"), unitOpIdx, CompIndep, multi ? i : ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
 

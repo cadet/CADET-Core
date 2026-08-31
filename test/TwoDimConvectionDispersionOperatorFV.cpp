@@ -30,7 +30,7 @@ namespace
 	{
 		// Obtain parameters from some test case
 		cadet::JsonParameterProvider jpp(R"json({
-				"COL_LENGTH": 10,
+				"BED_LENGTH": 10,
 				"COL_RADIUS": 1,
 				"COL_RADIUS_INNER": 0.001,
 				"COL_RADIUS_OUTER": 0.004,

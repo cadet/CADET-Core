@@ -54,14 +54,16 @@
         },
       "unit_001": {
         "UNIT_TYPE": "COLUMN_MODEL_1D",
+        "GEOMETRY": "AXIAL_FLOW_CYLINDER",
+        "FORWARD_FLOW": 1,
+        "CROSS_SECTION_AREA": 0.003,
         "NCOMP": 1,
         "TOTAL_POROSITY": 0.6,
         "COL_DISPERSION": 0.0001,
-        "COL_LENGTH": 1.0,
+        "BED_LENGTH": 1.0,
         "INIT_C": [
           0.0
         ],
-        "VELOCITY": 0.03333333333333333,
         "NPARTYPE": 1,
         "particle_type_000": {
           "HAS_FILM_DIFFUSION": false,

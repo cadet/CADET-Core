@@ -23,92 +23,93 @@
             "MAX_RESTARTS": 10,
             "SCHUR_SAFETY": 1e-08
         },
-        "unit_000": {
-            "COL_DISPERSION": 5.75e-08,
-            "COL_LENGTH": 0.00025,
-            "COL_POROSITY": 0.37,
-            "COL_RADIUS_INNER": 0.010499999999999997,
-            "COL_RADIUS_OUTER": 0.024499999999999997,
-            "CROSS_SECTION_AREA": 3.8484510006474965e-05,
-            "FORWARD_FLOW": 1,
-            "INIT_C": [
-                50.0,
-                0.0,
-                0.0,
-                0.0
-            ],
-            "NCOMP": 4,
-            "NPARTYPE": 1,
-            "TOTAL_POROSITY": 0.8425,
-            "UNIT_TYPE": "RADIAL_COLUMN_MODEL_1D",
-            "discretization": {
-                "NELEM": 8,
-                "POLYDEG": 3,
-                "POLYNOMIAL_INTEGRATION_TYPE": 0,
-                "SPATIAL_METHOD": "DG",
-                "USE_ANALYTIC_JACOBIAN": 1
-            },
-            "particle_type_000": {
-                "ADSORPTION_MODEL": "STERIC_MASS_ACTION",
-                "FILM_DIFFUSION": [
-                    6.9e-06,
-                    6.9e-06,
-                    6.9e-06,
-                    6.9e-06
-                ],
-                "HAS_FILM_DIFFUSION": 1,
-                "INIT_CP": [
-                    50.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ],
-                "INIT_CS": [
-                    1200.0,
-                    0.0,
-                    0.0,
-                    0.0
-                ],
-                "NBOUND": [
-                    1,
-                    1,
-                    1,
-                    1
-                ],
-                "PAR_CORERADIUS": 0.0,
-                "PAR_GEOM": "SPHERE",
-                "PAR_POROSITY": 0.75,
-                "PAR_RADIUS": 4.5e-05,
-                "adsorption": {
-                    "IS_KINETIC": 1,
-                    "SMA_KA": [
-                        0.0,
-                        35.5,
-                        1.59,
-                        7.7
-                    ],
-                    "SMA_KD": [
-                        0.0,
-                        1000.0,
-                        1000.0,
-                        1000.0
-                    ],
-                    "SMA_LAMBDA": 1200.0,
-                    "SMA_NU": [
-                        0.0,
-                        4.7,
-                        5.29,
-                        3.7
-                    ],
-                    "SMA_SIGMA": [
-                        0.0,
-                        11.83,
-                        10.6,
-                        10.0
-                    ]
-                }
-            }
+      "unit_000": {
+        "COL_DISPERSION": 5.75e-08,
+        "CYLINDER_HEIGHT": 0.00025,
+        "BED_LENGTH": 0.014,
+        "COL_POROSITY": 0.37,
+        "CROSS_SECTION_AREA_OUTER": 3.8484510006474965e-05,
+        "CROSS_SECTION_AREA_INNER": 1.6493361431346414e-05,
+        "GEOMETRY": "RADIAL_FLOW_CYLINDER_SHELL",
+        "UNIT_TYPE": "COLUMN_MODEL_1D",
+        "FORWARD_FLOW": 1,
+        "INIT_C": [
+          50.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "NCOMP": 4,
+        "NPARTYPE": 1,
+        "TOTAL_POROSITY": 0.8425,
+        "discretization": {
+          "NELEM": 8,
+          "POLYDEG": 3,
+          "USE_COLLOCATION_DG": 1,
+          "SPATIAL_METHOD": "DG",
+          "USE_ANALYTIC_JACOBIAN": 1
         },
+        "particle_type_000": {
+          "ADSORPTION_MODEL": "STERIC_MASS_ACTION",
+          "FILM_DIFFUSION": [
+            6.9e-06,
+            6.9e-06,
+            6.9e-06,
+            6.9e-06
+          ],
+          "HAS_FILM_DIFFUSION": 1,
+          "INIT_CP": [
+            50.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "INIT_CS": [
+            1200.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "NBOUND": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "PAR_CORERADIUS": 0.0,
+          "PAR_GEOM": "SPHERE",
+          "PAR_POROSITY": 0.75,
+          "PAR_RADIUS": 4.5e-05,
+          "adsorption": {
+            "IS_KINETIC": 1,
+            "SMA_KA": [
+              0.0,
+              35.5,
+              1.59,
+              7.7
+            ],
+            "SMA_KD": [
+              0.0,
+              1000.0,
+              1000.0,
+              1000.0
+            ],
+            "SMA_LAMBDA": 1200.0,
+            "SMA_NU": [
+              0.0,
+              4.7,
+              5.29,
+              3.7
+            ],
+            "SMA_SIGMA": [
+              0.0,
+              11.83,
+              10.6,
+              10.0
+            ]
+          }
+        }
+      },
         "unit_001": {
             "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
             "NCOMP": 4,

@@ -686,7 +686,7 @@ bool MultiChannelConvectionDispersionOperator::configureModelDiscretization(IPar
 	_nCol = nCol;
 	_nChannel = nChannel;
 	_hasDynamicReactions = dynamicReactions;
-	_colLength = paramProvider.getDouble("COL_LENGTH");
+	_colLength = paramProvider.getDouble("BED_LENGTH");
 
 	paramProvider.pushScope("discretization");
 
@@ -705,7 +705,7 @@ bool MultiChannelConvectionDispersionOperator::configureModelDiscretization(IPar
 
 		const double lastFace = static_cast<double>(_cellFaces.back());
 		if (std::abs(lastFace - static_cast<double>(_colLength)) > 1e-12)
-			throw InvalidParameterException("Last entry of GRID_FACES must match COL_LENGTH");
+			throw InvalidParameterException("Last entry of GRID_FACES must match BED_LENGTH");
 		if (_cellFaces[0] > 1e-15)
 			throw InvalidParameterException("First entry of GRID_FACES must be zero");
 
@@ -922,7 +922,7 @@ bool MultiChannelConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IP
 	_axialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _axialDispersion, "COL_DISPERSION", _nComp, _nChannel, unitOpIdx);
 
 	// Add parameters to map
-	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
+	parameters[makeParamId(hashString("BED_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
 
 	registerParam1DArray(parameters, _crossSections, [=](bool multi, unsigned int channel)
 	{

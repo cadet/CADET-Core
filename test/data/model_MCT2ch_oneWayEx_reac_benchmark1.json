@@ -648,7 +648,7 @@
         1
       ],
       "COL_DISPERSION": 0,
-      "COL_LENGTH": 0.3,
+      "BED_LENGTH": 0.3,
       "EXCHANGE_MATRIX": [
         0.0,
         0.003,

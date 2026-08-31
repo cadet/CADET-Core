@@ -31,7 +31,7 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
    **Type:** double  **Range:** :math:`>0`  **Length:** 1
    ================  =====================  =============
 
-``COL_LENGTH``
+``BED_LENGTH``
 
    Column length / height
 

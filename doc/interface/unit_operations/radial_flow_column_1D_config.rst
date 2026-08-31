@@ -22,19 +22,9 @@ Group /input/model/unit_XXX - UNIT_TYPE - RADIAL_COLUMN_MODEL_1D
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
    =============  =========================  =============
 
-``COL_RADIUS_INNER``
+``CROSS_SECTION_AREA_INNER``
 
-	Inner column radius
-
-	**Unit:** :math:`\mathrm{m}`
-
-	================  ======================  =============
-	**Type:** double  **Range:** :math:`> 0`  **Length:** 1
-	================  ======================  =============
-
-``COL_RADIUS_OUTER``
-
-	Outer column radius
+	Cross section area of the inner column radius (optional, only triggers a geometry check against ``CROSS_SECTION_AREA_OUTER``, ``CYLINDER_HEIGHT``, and ``BED_LENGTH``).
 
 	**Unit:** :math:`\mathrm{m}`
 
@@ -42,17 +32,45 @@ Group /input/model/unit_XXX - UNIT_TYPE - RADIAL_COLUMN_MODEL_1D
 	**Type:** double  **Range:** :math:`> 0`  **Length:** 1
 	================  ======================  =============
 
+``CROSS_SECTION_AREA_OUTER``
 
-``COL_LENGTH``
+	Cross section area of the outer column radius
 
-   Column length/height (optional if :math:`\texttt{VELOCITY_COEFF}` is present, see Section :ref:`MUOPGRMflow`).
-   Note that this is not the bed height in flow direction.
+	**Unit:** :math:`\mathrm{m}`
+
+	================  ======================  =============
+	**Type:** double  **Range:** :math:`> 0`  **Length:** 1
+	================  ======================  =============
+
+``BED_LENGTH``
+
+   Column length/height, i.e., outer minus inner column radius.
 
    **Unit:** :math:`\mathrm{m}`
 
    ================  ======================  =============
    **Type:** double  **Range:** :math:`> 0`  **Length:** 1
    ================  ======================  =============
+
+``CYLINDER_HEIGHT``
+
+   Height of the cylinder. Note: not the bed length
+
+   **Unit:** :math:`\mathrm{m}`
+
+   ================  ======================  =============
+   **Type:** double  **Range:** :math:`> 0`  **Length:** 1
+   ================  ======================  =============
+
+``FORWARD_FLOW``
+
+   Flow direction of the column. If set to 1, the flow is from the outer radius to the inner radius.
+
+   **Unit:** :math:`\mathrm{m}`
+
+   ==============  ==========================  ==================
+   **Type:** bool  **Range:** :math:`\{0,1\}`  **Length:** NSEC
+   ==============  ==========================  ==================
 
 ``COLUMN_GEOMETRY``
 
@@ -93,18 +111,6 @@ Group /input/model/unit_XXX - UNIT_TYPE - RADIAL_COLUMN_MODEL_1D
    ================  ========================  =============================================================================
    **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`\texttt{NPARTYPE} / \texttt{NCOL} \cdot \texttt{NPARTYPE}`
    ================  ========================  =============================================================================
-
-``VELOCITY_COEFF``
-
-   Interstitial velocity coefficient of the mobile phase (optional :math:`\texttt{COL_LENGTH}` is present, see Section :ref:`MUOPGRMflow`).
-   This input replaces the ``VELOCITY`` field, which is used for axial flow models. The distinction is made to emphasize that radial flow models do not incorporate a global velocity but a variable velocity field that depends on the spatial position.
-   Specifically, the velocity coefficient here is defined as :math:`\frac{Q}{2 \pi L \varepsilon_c}`, for details see Section :ref:`MUOPGRMradialFlow`.
-
-   **Unit:** :math:`\mathrm{m}\,\mathrm{s}^{-1}`
-
-   ================  =============================  ======================================
-   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`1 / \texttt{NSEC}`
-   ================  =============================  ======================================
 
 ``COL_DISPERSION``
 

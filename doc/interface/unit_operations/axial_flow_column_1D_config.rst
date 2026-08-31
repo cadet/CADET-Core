@@ -31,7 +31,7 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
    **Type:** double  **Range:** :math:`>0`  **Length:** 1
    ================  =====================  =============
 
-``COL_LENGTH``
+``BED_LENGTH``
 
    Column length
 
@@ -40,6 +40,16 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
    ================  ======================  =============
    **Type:** double  **Range:** :math:`> 0`  **Length:** 1
    ================  ======================  =============
+
+``FORWARD_FLOW``
+
+   Flow direction of the column.
+
+   **Unit:** :math:`\mathrm{m}`
+
+   ==============  ==========================  ==================
+   **Type:** bool  **Range:** :math:`\{0,1\}`  **Length:** NSEC
+   ==============  ==========================  ==================
 
 ``COL_POROSITY``
 
@@ -204,17 +214,13 @@ Discontinuous Galerkin
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
    =============  =========================  =============
 
-``POLYNOMIAL_INTEGRATION_TYPE``
+``USE_COLLOCATION_DG``
 
-   Specifies the DG integration variant. Optional, defaults to 0.
+   Specifies whether the collocation DG variant should be used. Optional, only existend for axial cylinder columns, defaults to 1.
 
-   0. Collocation Lagrange-Gauss-Lobatto quadrature (inexact, but faster)
-   1. Exact analytical integration
-   2. Gauss-Legendre quadrature (exact)
-   
-   =============  ==============================  =============
-   **Type:** int  **Range:** :math:`\{0, 1, 2\}`  **Length:** 1
-   =============  ==============================  =============
+   =============  ===========================  =============
+   **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1
+   =============  ===========================  =============
 
 ``LINEAR_SOLVER``
 

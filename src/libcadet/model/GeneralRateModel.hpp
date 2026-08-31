@@ -42,21 +42,21 @@ namespace
 	struct GeneralRateModelName { };
 
 	template <>
-	struct GeneralRateModelName<cadet::model::parts::AxialConvectionDispersionOperator>
+	struct GeneralRateModelName<cadet::model::parts::AxialConvectionDispersionOperatorFV>
 	{
-		static const char* identifier() CADET_NOEXCEPT { return "GENERAL_RATE_MODEL"; }
+		static const char* identifier() CADET_NOEXCEPT { return "GENERAL_RATE_MODEL_FV"; }
 	};
 
 	template <>
-	struct GeneralRateModelName<cadet::model::parts::RadialConvectionDispersionOperator>
+	struct GeneralRateModelName<cadet::model::parts::RadialConvectionDispersionOperatorFV>
 	{
-		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_GENERAL_RATE_MODEL"; }
+		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_GENERAL_RATE_MODEL_FV"; }
 	};
 
 	template <>
-	struct GeneralRateModelName<cadet::model::parts::FrustumConvectionDispersionOperator>
+	struct GeneralRateModelName<cadet::model::parts::FrustumConvectionDispersionOperatorFV>
 	{
-		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_GENERAL_RATE_MODEL"; }
+		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_GENERAL_RATE_MODEL_FV"; }
 	};
 }
 
@@ -542,9 +542,9 @@ protected:
 	};
 };
 
-extern template class GeneralRateModel<parts::AxialConvectionDispersionOperator>;
-extern template class GeneralRateModel<parts::RadialConvectionDispersionOperator>;
-extern template class GeneralRateModel<parts::FrustumConvectionDispersionOperator>;
+extern template class GeneralRateModel<parts::AxialConvectionDispersionOperatorFV>;
+extern template class GeneralRateModel<parts::RadialConvectionDispersionOperatorFV>;
+extern template class GeneralRateModel<parts::FrustumConvectionDispersionOperatorFV>;
 
 IUnitOperation* createAxialFVGRM(UnitOpIdx uoId);
 IUnitOperation* createRadialFVGRM(UnitOpIdx uoId);

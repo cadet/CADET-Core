@@ -1860,27 +1860,27 @@ namespace model
 {
 
 // Template instantiations
-template class LumpedRateModelWithPores<parts::AxialConvectionDispersionOperator>;
-template class LumpedRateModelWithPores<parts::RadialConvectionDispersionOperator>;
-template class LumpedRateModelWithPores<parts::FrustumConvectionDispersionOperator>;
+template class LumpedRateModelWithPores<parts::AxialConvectionDispersionOperatorFV>;
+template class LumpedRateModelWithPores<parts::RadialConvectionDispersionOperatorFV>;
+template class LumpedRateModelWithPores<parts::FrustumConvectionDispersionOperatorFV>;
 
 IUnitOperation* createAxialFVLRMP(UnitOpIdx uoId)
 {
-	typedef LumpedRateModelWithPores<parts::AxialConvectionDispersionOperator> AxialLRMP;
+	typedef LumpedRateModelWithPores<parts::AxialConvectionDispersionOperatorFV> AxialLRMP;
 
 	return new AxialLRMP(uoId);
 }
 
 IUnitOperation* createRadialFVLRMP(UnitOpIdx uoId)
 {
-	typedef LumpedRateModelWithPores<parts::RadialConvectionDispersionOperator> RadialLRMP;
+	typedef LumpedRateModelWithPores<parts::RadialConvectionDispersionOperatorFV> RadialLRMP;
 
 	return new RadialLRMP(uoId);
 }
 
 IUnitOperation* createFrustumFVLRMP(UnitOpIdx uoId)
 {
-	typedef LumpedRateModelWithPores<parts::FrustumConvectionDispersionOperator> FrustumLRMP;
+	typedef LumpedRateModelWithPores<parts::FrustumConvectionDispersionOperatorFV> FrustumLRMP;
 
 	return new FrustumLRMP(uoId);
 }

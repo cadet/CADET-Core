@@ -102,7 +102,7 @@ void configureBulkDiscretization(cadet::io::HDF5Writer& writer, int polyDeg, int
     {
         writer.scalar<std::string>("SPATIAL_METHOD", "DG");
         writer.scalar<int>("POLYDEG", polyDeg);
-        writer.scalar<int>("POLYNOMIAL_INTEGRATION_TYPE", 1);
+        writer.scalar<int>("USE_COLLOCATION_DG", 1);
         writer.scalar<int>("NELEM", polyDeg);
 
         if (nRad > 1)
@@ -223,9 +223,9 @@ void configureParticles(cadet::io::HDF5Writer& writer, const int nParType, const
 void configureFlowDirection(cadet::io::HDF5Writer& writer, bool reverseFlow)
 {
     if (!reverseFlow)
-        writer.scalar<double>("VELOCITY", 1);
+        writer.scalar<int>("FORWARD_FLOW", 1);
     else
-        writer.scalar<double>("VELOCITY", -1);
+        writer.scalar<int>("FORWARD_FLOW", 0);
 }
 
 void configureUnitSolver(cadet::io::HDF5Writer& writer)
@@ -250,13 +250,16 @@ void configureLRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp
 {
     if (opts.radialFlow)
     {
-        writer.scalar<double>("COL_LENGTH", 0.0014);
-        writer.scalar<double>("COL_RADIUS_INNER", 0.01);
-        writer.scalar<double>("COL_RADIUS_OUTER", 0.04);
+        writer.scalar<std::string>("GEOMETRY", "RADIAL_FLOW_CYLINDER_SHELL");
+        writer.scalar<double>("CYLINDER_HEIGHT", 0.005);
+        writer.scalar<double>("BED_LENGTH", 0.0014);
+        writer.scalar<double>("CROSS_SECTION_AREA_INNER", 0.00023242025594369025);
+        writer.scalar<double>("CROSS_SECTION_AREA_OUTER", 0.0003141592653589793);
     }
     else
     {
-        writer.scalar<double>("COL_LENGTH", 0.014);
+        writer.scalar<std::string>("GEOMETRY", "AXIAL_FLOW_CYLINDER");
+        writer.scalar<double>("BED_LENGTH", 0.014);
         writer.scalar<double>("CROSS_SECTION_AREA", 0.0003141592653589793);
     }
 
@@ -280,13 +283,16 @@ void configureLRMP(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nCom
 {
     if (opts.radialFlow)
     {
-        writer.scalar<double>("COL_LENGTH", 0.0014);
-        writer.scalar<double>("COL_RADIUS_INNER", 0.01);
-        writer.scalar<double>("COL_RADIUS_OUTER", 0.04);
+        writer.scalar<std::string>("GEOMETRY", "RADIAL_FLOW_CYLINDER_SHELL");
+        writer.scalar<double>("CYLINDER_HEIGHT", 0.005);
+        writer.scalar<double>("BED_LENGTH", 0.0014);
+        writer.scalar<double>("CROSS_SECTION_AREA_INNER", 0.00023242025594369025);
+        writer.scalar<double>("CROSS_SECTION_AREA_OUTER", 0.0003141592653589793);
     }
     else
     {
-        writer.scalar<double>("COL_LENGTH", 0.014);
+        writer.scalar<std::string>("GEOMETRY", "AXIAL_FLOW_CYLINDER");
+        writer.scalar<double>("BED_LENGTH", 0.014);
         writer.scalar<double>("CROSS_SECTION_AREA", 0.0003141592653589793);
     }
 
@@ -311,15 +317,19 @@ void configureGRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp
 {
     if (opts.radialFlow)
     {
-        writer.scalar<double>("COL_LENGTH", 0.0014);
-        writer.scalar<double>("COL_RADIUS_INNER", 0.01);
-        writer.scalar<double>("COL_RADIUS_OUTER", 0.04);
+        writer.scalar<std::string>("GEOMETRY", "RADIAL_FLOW_CYLINDER_SHELL");
+        writer.scalar<double>("CYLINDER_HEIGHT", 0.005);
+        writer.scalar<double>("BED_LENGTH", 0.0014);
+        writer.scalar<double>("CROSS_SECTION_AREA_INNER", 0.00023242025594369025);
+        writer.scalar<double>("CROSS_SECTION_AREA_OUTER", 0.0003141592653589793);
     }
     else
     {
-        writer.scalar<double>("COL_LENGTH", 0.014);
+        writer.scalar<std::string>("GEOMETRY", "AXIAL_FLOW_CYLINDER");
+        writer.scalar<double>("BED_LENGTH", 0.014);
         writer.scalar<double>("CROSS_SECTION_AREA", 0.0003141592653589793);
     }
+
     writer.scalar<double>("COL_DISPERSION", 5.75e-8);
     if (opts.velocityDependence)
     {
@@ -339,7 +349,7 @@ void configureGRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp
 
 void configure2DGRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp)
 {
-    writer.scalar<double>("COL_LENGTH", 0.014);
+    writer.scalar<double>("BED_LENGTH", 0.014);
     writer.scalar<double>("CROSS_SECTION_AREA", 0.0003141592653589793);
 
     writer.scalar<double>("COL_DISPERSION", 5.75e-8);

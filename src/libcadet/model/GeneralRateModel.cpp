@@ -3383,27 +3383,27 @@ namespace model
 {
 
 // Template instantiations
-template class GeneralRateModel<parts::AxialConvectionDispersionOperator>;
-template class GeneralRateModel<parts::RadialConvectionDispersionOperator>;
-template class GeneralRateModel<parts::FrustumConvectionDispersionOperator>;
+template class GeneralRateModel<parts::AxialConvectionDispersionOperatorFV>;
+template class GeneralRateModel<parts::RadialConvectionDispersionOperatorFV>;
+template class GeneralRateModel<parts::FrustumConvectionDispersionOperatorFV>;
 
 IUnitOperation* createAxialFVGRM(UnitOpIdx uoId)
 {
-	typedef GeneralRateModel<parts::AxialConvectionDispersionOperator> AxialGRM;
+	typedef GeneralRateModel<parts::AxialConvectionDispersionOperatorFV> AxialGRM;
 
 	return new AxialGRM(uoId);
 }
 
 IUnitOperation* createRadialFVGRM(UnitOpIdx uoId)
 {
-	typedef GeneralRateModel<parts::RadialConvectionDispersionOperator> RadialGRM;
+	typedef GeneralRateModel<parts::RadialConvectionDispersionOperatorFV> RadialGRM;
 
 	return new RadialGRM(uoId);
 }
 
 IUnitOperation* createFrustumFVGRM(UnitOpIdx uoId)
 {
-	typedef GeneralRateModel<parts::FrustumConvectionDispersionOperator> FrustumGRM;
+	typedef GeneralRateModel<parts::FrustumConvectionDispersionOperatorFV> FrustumGRM;
 
 	return new FrustumGRM(uoId);
 }

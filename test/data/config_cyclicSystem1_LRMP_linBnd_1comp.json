@@ -50,98 +50,102 @@
                 ]
             }
         },
-        "unit_001": {
-            "COL_DISPERSION": 2e-07,
-            "COL_LENGTH": 0.014,
-            "COL_POROSITY": 0.37,
-            "CROSS_SECTION_AREA": 1,
-            "INIT_C": [
-                0
-            ],
-            "NCOMP": 1,
-            "NPARTYPE": 1,
-            "UNIT_TYPE": "COLUMN_MODEL_1D",
-            "discretization": {
-                "NELEM": 16,
-                "POLYDEG": 5,
-                "POLYNOMIAL_INTEGRATION_TYPE": 1,
-                "SPATIAL_METHOD": "DG",
-                "USE_ANALYTIC_JACOBIAN": 1
-            },
-            "particle_type_000": {
-                "ADSORPTION_MODEL": "LINEAR",
-                "FILM_DIFFUSION": 6.9e-06,
-                "HAS_FILM_DIFFUSION": 1,
-                "HAS_PORE_DIFFUSION": 0,
-                "HAS_SURFACE_DIFFUSION": 0,
-                "INIT_CP": [
-                    0
-                ],
-                "INIT_CS": [
-                    0
-                ],
-                "NBOUND": [
-                    1
-                ],
-                "PAR_POROSITY": 0.75,
-                "PAR_RADIUS": 4.5e-05,
-                "adsorption": {
-                    "IS_KINETIC": true,
-                    "LIN_KA": [
-                        3.55
-                    ],
-                    "LIN_KD": [
-                        0.1
-                    ]
-                }
-            }
+      "unit_001": {
+        "COL_DISPERSION": 2e-07,
+        "BED_LENGTH": 0.014,
+        "COL_POROSITY": 0.37,
+        "CROSS_SECTION_AREA": 1,
+        "GEOMETRY": "AXIAL_FLOW_CYLINDER",
+        "FORWARD_FLOW": 1,
+        "INIT_C": [
+          0
+        ],
+        "NCOMP": 1,
+        "NPARTYPE": 1,
+        "UNIT_TYPE": "COLUMN_MODEL_1D",
+        "discretization": {
+          "NELEM": 16,
+          "POLYDEG": 5,
+          "USE_COLLOCATION_DG": 0,
+          "SPATIAL_METHOD": "DG",
+          "USE_ANALYTIC_JACOBIAN": 1
         },
-        "unit_002": {
-            "COL_DISPERSION": 2e-07,
-            "COL_LENGTH": 0.014,
-            "COL_POROSITY": 0.37,
-            "CROSS_SECTION_AREA": 1,
-            "INIT_C": [
-                0
+        "particle_type_000": {
+          "ADSORPTION_MODEL": "LINEAR",
+          "FILM_DIFFUSION": 6.9e-06,
+          "HAS_FILM_DIFFUSION": 1,
+          "HAS_PORE_DIFFUSION": 0,
+          "HAS_SURFACE_DIFFUSION": 0,
+          "INIT_CP": [
+            0
+          ],
+          "INIT_CS": [
+            0
+          ],
+          "NBOUND": [
+            1
+          ],
+          "PAR_POROSITY": 0.75,
+          "PAR_RADIUS": 4.5e-05,
+          "adsorption": {
+            "IS_KINETIC": true,
+            "LIN_KA": [
+              3.55
             ],
-            "NCOMP": 1,
-            "NPARTYPE": 1,
-            "UNIT_TYPE": "COLUMN_MODEL_1D",
-            "discretization": {
-                "NELEM": 16,
-                "POLYDEG": 5,
-                "POLYNOMIAL_INTEGRATION_TYPE": 1,
-                "SPATIAL_METHOD": "DG",
-                "USE_ANALYTIC_JACOBIAN": 1
-            },
-            "particle_type_000": {
-                "ADSORPTION_MODEL": "LINEAR",
-                "FILM_DIFFUSION": 6.9e-06,
-                "HAS_FILM_DIFFUSION": 1,
-                "HAS_PORE_DIFFUSION": 0,
-                "HAS_SURFACE_DIFFUSION": 0,
-                "INIT_CP": [
-                    0
-                ],
-                "INIT_CS": [
-                    0
-                ],
-                "NBOUND": [
-                    1
-                ],
-                "PAR_POROSITY": 0.75,
-                "PAR_RADIUS": 4.5e-05,
-                "adsorption": {
-                    "IS_KINETIC": false,
-                    "LIN_KA": [
-                        35.5
-                    ],
-                    "LIN_KD": [
-                        1
-                    ]
-                }
-            }
+            "LIN_KD": [
+              0.1
+            ]
+          }
+        }
+      },
+      "unit_002": {
+        "COL_DISPERSION": 2e-07,
+        "BED_LENGTH": 0.014,
+        "COL_POROSITY": 0.37,
+        "CROSS_SECTION_AREA": 1,
+        "GEOMETRY": "AXIAL_FLOW_CYLINDER",
+        "FORWARD_FLOW": 1,
+        "INIT_C": [
+          0
+        ],
+        "NCOMP": 1,
+        "NPARTYPE": 1,
+        "UNIT_TYPE": "COLUMN_MODEL_1D",
+        "discretization": {
+          "NELEM": 16,
+          "POLYDEG": 5,
+          "USE_COLLOCATION_DG": 0,
+          "SPATIAL_METHOD": "DG",
+          "USE_ANALYTIC_JACOBIAN": 1
         },
+        "particle_type_000": {
+          "ADSORPTION_MODEL": "LINEAR",
+          "FILM_DIFFUSION": 6.9e-06,
+          "HAS_FILM_DIFFUSION": 1,
+          "HAS_PORE_DIFFUSION": 0,
+          "HAS_SURFACE_DIFFUSION": 0,
+          "INIT_CP": [
+            0
+          ],
+          "INIT_CS": [
+            0
+          ],
+          "NBOUND": [
+            1
+          ],
+          "PAR_POROSITY": 0.75,
+          "PAR_RADIUS": 4.5e-05,
+          "adsorption": {
+            "IS_KINETIC": false,
+            "LIN_KA": [
+              35.5
+            ],
+            "LIN_KD": [
+              1
+            ]
+          }
+        }
+      },
         "unit_003": {
             "NCOMP": 1,
             "UNIT_TYPE": "OUTLET"
