@@ -180,6 +180,8 @@ namespace
 
 				if (y[c] > 0.0)
 					fluxGrad[c] *= exponentValue * std::pow(y[c], exponentValue - 1.0);
+				else if (exponentValue == 1.0)
+					fluxGrad[c]*= 1.0;
 				else
 					fluxGrad[c]*= 0.0;
 
@@ -381,6 +383,8 @@ protected:
 					if (static_cast<double>(y[c]) > 0.0)
 						fwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]),
 							static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expFwd.native(c, r)));
+					else if (static_cast<double>(_expFwd.native(c, r)) == 1.0)
+						fwd *= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]);
 					else
 					{
 						fwd *= 0.0;
@@ -398,6 +402,8 @@ protected:
 					if (static_cast<double>(y[c]) > 0.0)
 						bwd *= pow(static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]),
 							static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(_expBwd.native(c, r)));
+					else if (static_cast<double>(_expBwd.native(c, r)) == 1.0)
+						bwd *= static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(y[c]);
 					else
 					{
 						bwd *= 0.0;
@@ -481,6 +487,8 @@ protected:
 				{
 					if (static_cast<double>(y[c]) > 0.0)
 						fwd *= pow(static_cast<ResidualType>(y[c]), static_cast<ResidualType>(_expFwd.native(c, r)));
+					else if (static_cast<double>(_expFwd.native(c, r)) == 1)
+						fwd *= static_cast<ResidualType>(y[c]);
 					else
 					{
 						fwd *= 0.0;
@@ -496,8 +504,9 @@ protected:
 				if (_expBwd.native(c, r) != 0.0)
 				{
 					if (static_cast<double>(y[c]) > 0.0)
-						bwd *= pow(static_cast<ResidualType>(y[c]),
-							static_cast<ResidualType>(_expBwd.native(c, r)));
+						bwd *= pow(static_cast<ResidualType>(y[c]), static_cast<ResidualType>(_expBwd.native(c, r)));
+					else if (static_cast<double>(_expBwd.native(c, r)) == 1)
+						bwd *= static_cast<ResidualType>(y[c]);
 					else
 					{
 						bwd *= 0.0;
