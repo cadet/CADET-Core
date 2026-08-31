@@ -75,7 +75,7 @@
     "unit_000": {
       "COL_DISPERSION_AXIAL": [ 1e-08, 2e-08, 3e-08 ],
       "COL_DISPERSION_RADIAL": [ 1e-08, 2e-08, 3e-08 ],
-      "COL_LENGTH": 0.014,
+      "BED_LENGTH": 0.014,
       "COL_POROSITY": [ 0.31, 0.33, 0.35 ],
       "COL_RADIUS": 0.0035,
       "CROSS_SECTION_AREA": 3.848451000647497e-05,

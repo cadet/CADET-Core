@@ -190,9 +190,8 @@ namespace parts
 
 		// Section dependent parameters
 		std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{ax}} \f$
-		std::vector<active> _velocity; //!< Interstitial velocity (may be section dependent) \f$ u \f$
 		active _curVelocity; //!< Current interstitial velocity \f$ u \f$ in this time section
-		int _dir; //!< Current flow direction in this time section
+		std::vector<double> _dir; //!< Current flow direction in this time section
 
 		// needed?
 		int _curSection; //!< current section index
@@ -1004,7 +1003,7 @@ namespace parts
 		std::vector<active> _colDispersion;	//!< column dispersion D^x
 		active _flowRate;
 		active _QOverEps;	//!< flow rate divided by porosity (Q/eps)
-		std::vector<bool> _forwardFlow;
+		std::vector<int> _forwardFlow; // 1 for forward flow, 0 and other for backward flow, per time section
 		bool _curFwdFlow;
 
 		int _curSection;

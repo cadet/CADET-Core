@@ -333,7 +333,7 @@ TEST_CASE("Radial GRM_DG numerical Benchmark for linear case", "[RadGRM],[DG],[S
 	const std::string& refFilePath = std::string("/data/ref_radGRM_dynLin_1comp_benchmark1_DG_P3Z16.h5");
 	const std::vector<double> absTol = { 1e-9 };
 	const std::vector<double> relTol = { 1e-6 };
-	cadet::test::column::DGParams disc(1, 3, 16, 3, 1);
+	cadet::test::column::DGParams disc(0, 3, 16, 3, 1);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 

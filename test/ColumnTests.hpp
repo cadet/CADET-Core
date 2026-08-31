@@ -202,21 +202,21 @@ namespace column
 
 	class BulkDG : public BulkDiscretization {
 	private:
-		int exactIntegration_;
+		int useColllocation_;
 		int polyDeg_;
 		int nElem_;
 		int radPolyDeg_;
 		int radNelem_;
 
 	public:
-		BulkDG(int exactIntegration = -1, int polyDeg = 0, int nElem = 0, int radPolyDeg = 0, int radNelem = 0)
-			: exactIntegration_(exactIntegration), polyDeg_(polyDeg), nElem_(nElem),
+		BulkDG(int collocation = -1, int polyDeg = 0, int nElem = 0, int radPolyDeg = 0, int radNelem = 0)
+			: useColllocation_(collocation), polyDeg_(polyDeg), nElem_(nElem),
 			radPolyDeg_(radPolyDeg), radNelem_(radNelem) {
 		}
 
 		void setDiscParam(const std::string& name, int value) {
-			if (name == "POLYNOMIAL_INTEGRATION_TYPE")
-				exactIntegration_ = value;
+			if (name == "USE_COLLOCATION_DG")
+				useColllocation_ = value;
 			else if (name == "POLYDEG")
 				polyDeg_ = value;
 			else if (name == "NELEM")
@@ -246,16 +246,16 @@ namespace column
 				if (nElem_) jpp.set("AX_NELEM", nElem_);
 			}
 			else {
-				if (exactIntegration_ > -1) jpp.set("POLYNOMIAL_INTEGRATION_TYPE", exactIntegration_);
+				if (useColllocation_ > -1) jpp.set("USE_COLLOCATION_DG", useColllocation_);
 				if (polyDeg_) jpp.set("POLYDEG", polyDeg_);
 				if (nElem_) jpp.set("NELEM", nElem_);
 			}
 		}
 
 		std::unique_ptr<BulkDiscretization> clone() const override {
-			return std::make_unique<BulkDG>(exactIntegration_, polyDeg_, nElem_, radPolyDeg_, radNelem_);
+			return std::make_unique<BulkDG>(useColllocation_, polyDeg_, nElem_, radPolyDeg_, radNelem_);
 		}
-		int getIntegrationMode() const { return exactIntegration_; }
+		int getIntegrationMode() const { return useColllocation_; }
 	};
 
 	class ParticleFV : public ParticleDiscretization {
@@ -443,19 +443,19 @@ namespace column
 		);
 	}
 
-	inline std::unique_ptr<DiscParams> createDGFVParams(int exactIntegration, int polyDeg, int nElem,
+	inline std::unique_ptr<DiscParams> createDGFVParams(int collocation, int polyDeg, int nElem,
 		int radPolyDeg, int radNelem, int nParCells) {
 		return std::make_unique<DiscParams>(
-			std::make_unique<BulkDG>(exactIntegration, polyDeg, nElem, radPolyDeg, radNelem),
+			std::make_unique<BulkDG>(collocation, polyDeg, nElem, radPolyDeg, radNelem),
 			std::make_unique<ParticleFV>(nParCells)
 		);
 	}
 
-	inline std::unique_ptr<DiscParams> createDGDGParams(int exactIntegration, int polyDeg, int nElem,
+	inline std::unique_ptr<DiscParams> createDGDGParams(int collocation, int polyDeg, int nElem,
 		int radPolyDeg, int radNelem,
 		int parPolyDeg, int parNelem) {
 		return std::make_unique<DiscParams>(
-			std::make_unique<BulkDG>(exactIntegration, polyDeg, nElem, radPolyDeg, radNelem),
+			std::make_unique<BulkDG>(collocation, polyDeg, nElem, radPolyDeg, radNelem),
 			std::make_unique<ParticleDG>(parPolyDeg, parNelem)
 		);
 	}
@@ -481,14 +481,14 @@ namespace column
 	class DGParams : public DiscParams {
 	public:
 		DGParams() : DiscParams(std::make_unique<BulkDG>(), std::make_unique<ParticleDG>()) {}
-		DGParams(int exact, int poly, int elem)
-			: DiscParams(std::make_unique<BulkDG>(exact, poly, elem), std::make_unique<ParticleDG>()) {
+		DGParams(int collocation, int poly, int elem)
+			: DiscParams(std::make_unique<BulkDG>(collocation, poly, elem), std::make_unique<ParticleDG>()) {
 		}
-		DGParams(int exact, int poly, int elem, int parPolyDeg, int parNelem)
-			: DiscParams(std::make_unique<BulkDG>(exact, poly, elem), std::make_unique<ParticleDG>(parPolyDeg, parNelem)) {
+		DGParams(int collocation, int poly, int elem, int parPolyDeg, int parNelem)
+			: DiscParams(std::make_unique<BulkDG>(collocation, poly, elem), std::make_unique<ParticleDG>(parPolyDeg, parNelem)) {
 		}
-		DGParams(int exact, int poly, int elem, int parPolyDeg, int parNelem, int radPolyDeg, int radNelem)
-			: DiscParams(std::make_unique<BulkDG>(exact, poly, elem, radPolyDeg, radNelem),
+		DGParams(int collocation, int poly, int elem, int parPolyDeg, int parNelem, int radPolyDeg, int radNelem)
+			: DiscParams(std::make_unique<BulkDG>(collocation, poly, elem, radPolyDeg, radNelem),
 				std::make_unique<ParticleDG>(parPolyDeg, parNelem)) {
 		}
 		int getIntegrationMode() const {
@@ -702,8 +702,12 @@ namespace column
 	 * @param [in] h Step size of centered finite differences
 	 * @param [in] absTol Absolute error tolerance
 	 * @param [in] relTol Relative error tolerance
+	 * @param [in] sensParamNames Candidate parameter names to try (in order) as the sensitive
+	 *             parameter; the first one the unit operation actually has is used. Not every unit
+	 *             operation exposes the same parameters (e.g. MultiChannelTransportModel has no
+	 *             porosity), so callers for which the default doesn't apply must override this.
 	 */
-	void testFwdSensJacobians(JsonParameterProvider jpp, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0, const bool hasBinding=true);
+	void testFwdSensJacobians(JsonParameterProvider jpp, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0, const bool hasBinding=true, const std::vector<std::string>& sensParamNames = { "COL_POROSITY", "TOTAL_POROSITY" });
 
 	/**
 	 * @brief Checks the forward sensitivity solution against finite differences

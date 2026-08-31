@@ -273,7 +273,10 @@ TEST_CASE("GRM2D with 1 radial zone matches GRM", "[GRM],[GRM2D],[FV],[UnitOp],[
 
 	// Create a unit
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_GRM", "FV");
-	const double velocity = jpp.getDouble("VELOCITY");
+	// VELOCITY is no longer a JSON input field (1D models derive it from CROSS_SECTION_AREA); this
+	// is only used below to synthesize a matching flow rate for both units via setFlowRates(), so
+	// the historical literal value (what used to be set directly as VELOCITY) is used here.
+	const double velocity = 5.75e-4;
 	const double colRadius = jpp.getDouble("COL_RADIUS");
 	const double colPorosity = jpp.getDouble("COL_POROSITY");
 	const double crossSectionArea = 3.1415926535897932384626434 * (colRadius * colRadius - 0.0 * 0.0);

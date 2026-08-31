@@ -58,39 +58,40 @@
                 ]
             }
         },
-        "unit_001": {
-            "COL_DISPERSION": [
-                5e-07
-            ],
-            "COL_LENGTH": 0.2,
-            "COL_POROSITY": 0.37,
-            "COL_RADIUS_INNER": 0.1823,
-            "COL_RADIUS_OUTER": 0.2235,
-            "INIT_C": [
-                0.0
-            ],
-            "NCOMP": 1,
-            "NPARTYPE": 0,
-            "TOTAL_POROSITY": 0.37,
-            "UNIT_TYPE": "FRUSTUM_COLUMN_MODEL_1D",
-            "VELOCITY_COEFF": 1,
-            "discretization": {
-                "GS_TYPE": 0,
-                "MAX_KRYLOV": 10,
-                "MAX_RESTARTS": 100,
-                "NCOL": 128,
-                "RECONSTRUCTION": "WENO",
-                "SCHUR_SAFETY": 0.1,
-                "SPATIAL_METHOD": "FV",
-                "USE_ANALYTIC_JACOBIAN": true,
-                "USE_MODIFIED_NEWTON": false,
-                "weno": {
-                    "BOUNDARY_MODEL": 0,
-                    "WENO_EPS": 1e-10,
-                    "WENO_ORDER": 3
-                }
-            }
-        },
+      "unit_001": {
+        "COL_DISPERSION": [
+          5e-07
+        ],
+        "BED_LENGTH": 0.2,
+        "COL_POROSITY": 0.37,
+        "CROSS_SECTION_AREA_SMALL_END": 0.104405459718619,
+        "CROSS_SECTION_AREA_LARGE_END": 0.156929621630281,
+        "GEOMETRY": "AXIAL_FLOW_FRUSTUM",
+        "UNIT_TYPE": "COLUMN_MODEL_1D",
+        "FORWARD_FLOW": 1,
+        "INIT_C": [
+          0.0
+        ],
+        "NCOMP": 1,
+        "NPARTYPE": 0,
+        "TOTAL_POROSITY": 0.37,
+        "discretization": {
+          "GS_TYPE": 0,
+          "MAX_KRYLOV": 10,
+          "MAX_RESTARTS": 100,
+          "NCOL": 128,
+          "RECONSTRUCTION": "WENO",
+          "SCHUR_SAFETY": 0.1,
+          "SPATIAL_METHOD": "FV",
+          "USE_ANALYTIC_JACOBIAN": true,
+          "USE_MODIFIED_NEWTON": false,
+          "weno": {
+            "BOUNDARY_MODEL": 0,
+            "WENO_EPS": 1e-10,
+            "WENO_ORDER": 3
+          }
+        }
+      },
         "unit_002": {
             "NCOMP": 1,
             "UNIT_TYPE": "OUTLET"

@@ -52,13 +52,13 @@ namespace
 	template <>
 	struct LumpedRateModelWithoutPoresDGName<cadet::model::parts::AxialConvectionDispersionOperatorBaseCollocationDG>
 	{
-		static const char* identifier() CADET_NOEXCEPT { return "LUMPED_RATE_MODEL_WITHOUT_PORES_DG"; }
+		static const char* identifier() CADET_NOEXCEPT { return "LUMPED_RATE_MODEL_WITHOUT_PORES_COLLOCATIONDG"; }
 	};
 
 	template <>
 	struct LumpedRateModelWithoutPoresDGName<cadet::model::parts::VariableCrossSectionConvectionDispersionOperatorBaseDG>
 	{
-		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_LUMPED_RATE_MODEL_WITHOUT_PORES_DG"; }
+		static const char* identifier() CADET_NOEXCEPT { return "LUMPED_RATE_MODEL_WITHOUT_PORES_DG"; }
 	};
 }
 

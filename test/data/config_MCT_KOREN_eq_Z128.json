@@ -62,7 +62,7 @@
             "COL_DISPERSION": [
                 0.0001
             ],
-            "COL_LENGTH": 1.0,
+            "BED_LENGTH": 1.0,
             "INIT_C": [
                 0.0
             ],

@@ -57,15 +57,17 @@
       "COL_DISPERSION": [
         0.0001
       ],
-      "COL_LENGTH": 1.0,
+      "UNIT_TYPE": "COLUMN_MODEL_1D",
+      "GEOMETRY": "AXIAL_FLOW_CYLINDER",
+      "CROSS_SECTION_AREA": 0.003,
+      "BED_LENGTH": 1.0,
       "COL_POROSITY": 0.6,
+      "FORWARD_FLOW": 1,
       "INIT_C": [
         0.0
       ],
       "NCOMP": 1,
-      "NPARTYPE": 0,
-      "UNIT_TYPE": "COLUMN_MODEL_1D",
-      "VELOCITY": 0.03333333333333333
+      "NPARTYPE": 0
     },
     "unit_002": {
       "NCOMP": 1,

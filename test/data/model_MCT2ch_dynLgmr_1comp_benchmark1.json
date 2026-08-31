@@ -22,7 +22,7 @@
         1.0
       ],
       "COL_DISPERSION": 4e-15,
-      "COL_LENGTH": 1.0,
+      "BED_LENGTH": 1.0,
       "EXCHANGE_MATRIX": [
         0.0,
         1.0,

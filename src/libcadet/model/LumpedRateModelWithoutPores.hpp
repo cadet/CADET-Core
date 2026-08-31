@@ -43,19 +43,19 @@ namespace
 	template <>
 	struct LumpedRateModelWithoutPoresName<cadet::model::parts::AxialConvectionDispersionOperatorBaseFV>
 	{
-		static const char* identifier() CADET_NOEXCEPT { return "LUMPED_RATE_MODEL_WITHOUT_PORES"; }
+		static const char* identifier() CADET_NOEXCEPT { return "LUMPED_RATE_MODEL_WITHOUT_PORES_FV"; }
 	};
 
 	template <>
 	struct LumpedRateModelWithoutPoresName<cadet::model::parts::RadialConvectionDispersionOperatorBaseFV>
 	{
-		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES"; }
+		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES_FV"; }
 	};
 
 	template <>
 	struct LumpedRateModelWithoutPoresName<cadet::model::parts::FrustumConvectionDispersionOperatorBaseFV>
 	{
-		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_LUMPED_RATE_MODEL_WITHOUT_PORES"; }
+		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_LUMPED_RATE_MODEL_WITHOUT_PORES_FV"; }
 	};
 }
 

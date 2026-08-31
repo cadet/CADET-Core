@@ -58,84 +58,86 @@
                 ]
             }
         },
-        "unit_001": {
-            "COL_DISPERSION": 0.0,
-            "COL_LENGTH": 0.1,
-            "COL_POROSITY": 0.25,
-            "CROSS_SECTION_AREA": 9.503317777109126e-05,
-            "INIT_C": [
-                0.0
-            ],
-            "NCOMP": 1,
-            "NPARTYPE": 1,
-            "UNIT_TYPE": "COLUMN_MODEL_1D",
-            "discretization": {
-                "GS_TYPE": 1,
-                "MAX_KRYLOV": 0,
-                "MAX_RESTARTS": 10,
-                "NCOL": 100,
-                "RECONSTRUCTION": "WENO",
-                "SCHUR_SAFETY": 1e-08,
-                "SPATIAL_METHOD": "FV",
-                "USE_ANALYTIC_JACOBIAN": 1,
-                "weno": {
-                    "BOUNDARY_MODEL": 0,
-                    "WENO_EPS": 1e-10,
-                    "WENO_ORDER": 3
-                }
-            },
-            "particle_type_000": {
-                "ADSORPTION_MODEL": "SPLINE_INTERPOLATION",
-                "FILM_DIFFUSION": [
-                    6.38748621e-06
-                ],
-                "HAS_FILM_DIFFUSION": 1,
-                "HAS_PORE_DIFFUSION": 1,
-                "HAS_SURFACE_DIFFUSION": 0,
-                "INIT_CP": [
-                    0.0
-                ],
-                "INIT_CS": [
-                    0.0
-                ],
-                "NBOUND": [
-                    1
-                ],
-                "PAR_POROSITY": 0.69,
-                "PAR_RADIUS": 4.625e-05,
-                "PORE_DIFFUSION": [
-                    5.50724638e-12
-                ],
-              "adsorption": {
-                "INTERPOLATION_MODE": "INDEPENDENT",
-                "IS_KINETIC": 1,
-                "SPLINE_KKIN": 1.0,
-                "CS_VALS_COMP_000_BND_000": [
-                  1.29198742,
-                  76.84778516,
-                  110.14325476,
-                  141.59781958,
-                  165.80146634,
-                  181.33282173,
-                  190.23846417
-                ],
-                "CP_VALS_COMP_000": [
-                  0.0,
-                  0.19219219,
-                  0.37837838,
-                  0.75075075,
-                  1.5015015,
-                  3.003003,
-                  6.0
-                ]
-              },
-                "discretization": {
-                    "NCELLS": 15,
-                    "PAR_DISC_TYPE": "EQUIDISTANT_PAR",
-                    "SPATIAL_METHOD": "FV"
-                }
-            }
+      "unit_001": {
+        "COL_DISPERSION": 0.0,
+        "BED_LENGTH": 0.1,
+        "COL_POROSITY": 0.25,
+        "CROSS_SECTION_AREA": 9.503317777109126e-05,
+        "GEOMETRY": "AXIAL_FLOW_CYLINDER",
+        "FORWARD_FLOW": 1,
+        "INIT_C": [
+          0.0
+        ],
+        "NCOMP": 1,
+        "NPARTYPE": 1,
+        "UNIT_TYPE": "COLUMN_MODEL_1D",
+        "discretization": {
+          "GS_TYPE": 1,
+          "MAX_KRYLOV": 0,
+          "MAX_RESTARTS": 10,
+          "NCOL": 100,
+          "RECONSTRUCTION": "WENO",
+          "SCHUR_SAFETY": 1e-08,
+          "SPATIAL_METHOD": "FV",
+          "USE_ANALYTIC_JACOBIAN": 1,
+          "weno": {
+            "BOUNDARY_MODEL": 0,
+            "WENO_EPS": 1e-10,
+            "WENO_ORDER": 3
+          }
         },
+        "particle_type_000": {
+          "ADSORPTION_MODEL": "SPLINE_INTERPOLATION",
+          "FILM_DIFFUSION": [
+            6.38748621e-06
+          ],
+          "HAS_FILM_DIFFUSION": 1,
+          "HAS_PORE_DIFFUSION": 1,
+          "HAS_SURFACE_DIFFUSION": 0,
+          "INIT_CP": [
+            0.0
+          ],
+          "INIT_CS": [
+            0.0
+          ],
+          "NBOUND": [
+            1
+          ],
+          "PAR_POROSITY": 0.69,
+          "PAR_RADIUS": 4.625e-05,
+          "PORE_DIFFUSION": [
+            5.50724638e-12
+          ],
+          "adsorption": {
+            "INTERPOLATION_MODE": "INDEPENDENT",
+            "IS_KINETIC": 1,
+            "SPLINE_KKIN": 1.0,
+            "CS_VALS_COMP_000_BND_000": [
+              1.29198742,
+              76.84778516,
+              110.14325476,
+              141.59781958,
+              165.80146634,
+              181.33282173,
+              190.23846417
+            ],
+            "CP_VALS_COMP_000": [
+              0.0,
+              0.19219219,
+              0.37837838,
+              0.75075075,
+              1.5015015,
+              3.003003,
+              6.0
+            ]
+          },
+          "discretization": {
+            "NCELLS": 15,
+            "PAR_DISC_TYPE": "EQUIDISTANT_PAR",
+            "SPATIAL_METHOD": "FV"
+          }
+        }
+      },
         "unit_002": {
             "NCOMP": 1,
             "UNIT_TYPE": "OUTLET"

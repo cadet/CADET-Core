@@ -22,28 +22,28 @@ Group /input/model/unit_XXX - UNIT_TYPE - FRUSTUM_COLUMN_MODEL_1D
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
    =============  =========================  =============
 
-``COL_RADIUS_INNER``
+``CROSS_SECTION_AREA_SMALL_END``
 
-	Smaller column radius
+	Cross section area of the smaller end, typically the outlet.
 
-	**Unit:** :math:`\mathrm{m}`
-
-	================  ======================  =============
-	**Type:** double  **Range:** :math:`> 0`  **Length:** 1
-	================  ======================  =============
-
-``COL_RADIUS_OUTER``
-
-	Larger column radius
-
-	**Unit:** :math:`\mathrm{m}`
+	**Unit:** :math:`\mathrm{m}^2`
 
 	================  ======================  =============
 	**Type:** double  **Range:** :math:`> 0`  **Length:** 1
 	================  ======================  =============
 
+``CROSS_SECTION_AREA_LARGE_END``
 
-``COL_LENGTH``
+	Cross section area of the larger end, typically the inlet.
+
+	**Unit:** :math:`\mathrm{m}^2`
+
+	================  ======================  =============
+	**Type:** double  **Range:** :math:`> 0`  **Length:** 1
+	================  ======================  =============
+
+
+``BED_LENGTH``
 
    Column/bed length. NOT optional for the frustum model.
 
@@ -52,6 +52,16 @@ Group /input/model/unit_XXX - UNIT_TYPE - FRUSTUM_COLUMN_MODEL_1D
    ================  ======================  =============
    **Type:** double  **Range:** :math:`> 0`  **Length:** 1
    ================  ======================  =============
+
+``FORWARD_FLOW``
+
+   Flow direction of the column. If set to 1, the flow is from the larger radius to the smaller radius.
+
+   **Unit:** :math:`\mathrm{m}`
+
+   ==============  ==========================  ==================
+   **Type:** bool  **Range:** :math:`\{0,1\}`  **Length:** NSEC
+   ==============  ==========================  ==================
 
 ``COL_POROSITY``
 
@@ -76,16 +86,6 @@ Group /input/model/unit_XXX - UNIT_TYPE - FRUSTUM_COLUMN_MODEL_1D
    ================  ========================  =============================================================================
    **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`\texttt{NPARTYPE} / \texttt{NCOL} \cdot \texttt{NPARTYPE}`
    ================  ========================  =============================================================================
-
-``VELOCITY_COEFF``
-
-   Used only to indicate flow direction, which is taken from the sign. Positive sign corresponds to flow from the smaller ``COL_RADIUS_INNER`` to the larger ``COL_RADIUS_OUTER`` column radius
-
-   **Unit:** :math:`\mathrm{m}\,\mathrm{s}^{-1}`
-
-   ================  =============================  ======================================
-   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`1 / \texttt{NSEC}`
-   ================  =============================  ======================================
 
 ``COL_DISPERSION``
 

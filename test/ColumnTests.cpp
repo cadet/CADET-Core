@@ -599,12 +599,7 @@ namespace column
 			++level;
 		}
 
-		if (jpp.exists("VELOCITY"))
-			jpp.set("VELOCITY", -jpp.getDouble("VELOCITY"));
-		else if(jpp.exists("VELOCITY_COEFF"))
-			jpp.set("VELOCITY_COEFF", -jpp.getDouble("VELOCITY_COEFF"));
-		else
-			jpp.set("FORWARD_FLOW", static_cast<int>(!jpp.getBool("FORWARD_FLOW")));
+		jpp.set("FORWARD_FLOW", static_cast<int>(!jpp.getBool("FORWARD_FLOW")));
 
 		for (int l = 0; l < level; ++l)
 			jpp.popScope();
@@ -635,15 +630,10 @@ namespace column
 		// Assume a volumetric flow rate of 1.0 m^3/s
 		jpp.set("CROSS_SECTION_AREA", 1.0 / (vel * por));
 
-		if (dir == 0)
-			jpp.remove("VELOCITY");
+		if (dir > 0)
+			jpp.set("FORWARD_FLOW", 1);
 		else
-		{
-			if (dir > 0)
-				jpp.set("VELOCITY", 1.0);
-			else
-				jpp.set("VELOCITY", -1.0);
-		}
+			jpp.set("FORWARD_FLOW", 0);
 
 		for (int l = 0; l < level; ++l)
 			jpp.popScope();
@@ -746,7 +736,27 @@ namespace column
 			{
 				jpp.pushScope("model");
 				jpp.pushScope("unit_000");
-				jpp.set("COL_RADIUS_SMALL_END", jpp.getDouble("COL_RADIUS_LARGE_END"));
+				jpp.set("CROSS_SECTION_AREA_SMALL_END", jpp.getDouble("CROSS_SECTION_AREA_LARGE_END"));
+				jpp.popScope();
+				jpp.popScope();
+			}
+			else if (static_cast<std::string>(uoType).substr(0, 6) == "RADIAL")
+			{
+				// Forward and backward flow only match when the cross-sectional area is (nearly)
+				// constant along the flow path. The default LWE geometry yields different results
+				// for fowd and bwd flow, so we override the geometry here.
+				jpp.pushScope("model");
+				jpp.pushScope("unit_000");
+				const double pi = 3.14159265358979323846;
+				const double bedLength = 0.01; // same radial extent as the default geometry
+				const double rInner = 1000.0; // large compared to bedLength -> area varies only slightly
+				const double rOuter = rInner + bedLength;
+				const double area = jpp.getDouble("CROSS_SECTION_AREA_OUTER"); // keep the same area/velocity scale as the default geometry
+				const double height = area / (2.0 * pi * rInner);
+				jpp.set("CYLINDER_HEIGHT", height);
+				jpp.set("BED_LENGTH", bedLength);
+				jpp.set("CROSS_SECTION_AREA_INNER", 2.0 * pi * rInner * height); // optional, only used as a double-check
+				jpp.set("CROSS_SECTION_AREA_OUTER", 2.0 * pi * rOuter * height);
 				jpp.popScope();
 				jpp.popScope();
 			}
@@ -1025,24 +1035,9 @@ namespace column
 			cadet::test::compareJacobian(unitAna, unitAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 //				cadet::test::compareJacobianFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 
-			if (jpp.getString("UNIT_TYPE").substr(0, 6) == "RADIAL" || jpp.getString("UNIT_TYPE").substr(0, 7) == "FRUSTUM")
-			{
-				// Reverse flow
-				const bool paramSet = unitAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY_COEFF"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY_COEFF"));
-				REQUIRE(paramSet);
-				// Reverse flow
-				const bool paramSet2 = unitAD->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY_COEFF"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY_COEFF"));
-				REQUIRE(paramSet2);
-			}
-			else
-			{
-				// Reverse flow
-				const bool paramSet = unitAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
-				REQUIRE(paramSet);
-				// Reverse flow
-				const bool paramSet2 = unitAD->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
-				REQUIRE(paramSet2);
-			}
+				reverseFlow(jpp);
+				REQUIRE(unitAna->configure(jpp));
+				REQUIRE(unitAD->configure(jpp));
 
 			// Setup
 			unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
@@ -1137,9 +1132,8 @@ namespace column
 				cadet::test::checkJacobianPatternFD(unit, unit, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
 				cadet::test::compareJacobianFD(unit, unit, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls, h, absTol, relTol);
 
-				// Reverse flow
-				const bool paramSet = unit->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
-				REQUIRE(paramSet);
+				reverseFlow(jpp);
+				REQUIRE(unit->configure(jpp));
 
 				// Setup
 				unit->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
@@ -1260,7 +1254,10 @@ namespace column
 			auto ms = util::makeOptionalGroupScope(jpp, "model");
 			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
 
-			const double velocityCoeff = jpp.getDouble("VELOCITY_COEFF"); // 5.75e-4
+			// VELOCITY_COEFF is no longer a JSON input field (velocity is now derived from
+			// CROSS_SECTION_AREA*); this is only used as an arbitrary representative scale for the
+			// synthetic film-diffusion dependency below, so the historical value is used directly.
+			const double velocityCoeff = 5.75e-4;
 
 			auto ps = util::makeOptionalGroupScope(jpp, "particle_type_000");
 
@@ -1321,7 +1318,7 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testFwdSensJacobians(cadet::JsonParameterProvider jpp, double h, double absTol, double relTol, const bool hasBinding)
+	void testFwdSensJacobians(cadet::JsonParameterProvider jpp, double h, double absTol, double relTol, const bool hasBinding, const std::vector<std::string>& sensParamNames)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
@@ -1341,9 +1338,17 @@ namespace column
 				const AdJacobianParams adParams{adRes, nullptr, 0};
 				unit->prepareADvectors(adParams);
 
-				// Add dispersion parameter sensitivity
-				const bool dispSens = unit->setSensitiveParameter(makeParamId(hashString("COL_DISPERSION"), 0, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep), 0, 1.0) ||
-					unit->setSensitiveParameter(makeParamId(hashString("COL_DISPERSION_AXIAL"), 0, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep), 0, 1.0);
+				// Add a parameter sensitivity. Different unit operations expose different parameters
+				// (e.g. not every geometry supports COL_DISPERSION sensitivities, and MultiChannelTransportModel
+				// has no porosity at all), so sensParamNames lets each caller pick a parameter that
+				// actually exists on its unit operation; the first matching name is used.
+				bool dispSens = false;
+				for (const std::string& sensParamName : sensParamNames)
+				{
+					dispSens = unit->setSensitiveParameter(makeParamId(hashStringRuntime(sensParamName), 0, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep), 0, 1.0);
+					if (dispSens)
+						break;
+				}
 				REQUIRE(dispSens);
 
 				// Obtain memory for state, Jacobian multiply direction, Jacobian column
@@ -1690,11 +1695,7 @@ namespace column
 					else
 						unit->setSensitiveParameter(cadet::makeParamId("SMA_NU", 0, 1, cadet::ParTypeIndep, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
 
-					// Radial models don't have COL_LENGTH; use COL_RADIUS_OUTER instead
-					if (uoType.find("RADIAL") != std::string::npos)
-						unit->setSensitiveParameter(cadet::makeParamId("COL_RADIUS_OUTER", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
-					else
-						unit->setSensitiveParameter(cadet::makeParamId("COL_LENGTH", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
+					unit->setSensitiveParameter(cadet::makeParamId("BED_LENGTH", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
 
 					REQUIRE(unit->numSensParams() == 3);
 					unitoperation::testConsistentInitializationSensitivity(unit, adEnabled, y, yDot, absTol);

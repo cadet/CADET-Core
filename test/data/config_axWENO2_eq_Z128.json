@@ -62,7 +62,7 @@
         "COL_DISPERSION": [
           0.0001
         ],
-        "COL_LENGTH": 1.0,
+        "BED_LENGTH": 1.0,
         "INIT_C": [
           0.0
         ],
@@ -70,7 +70,9 @@
         "NPARTYPE": 0,
         "COL_POROSITY": 1.0,
         "UNIT_TYPE": "COLUMN_MODEL_1D",
-        "VELOCITY": 0.01,
+        "GEOMETRY": "AXIAL_FLOW_CYLINDER",
+        "FORWARD_FLOW": 1,
+        "CROSS_SECTION_AREA": 100.0,
         "discretization": {
           "NCOL": 128,
           "RECONSTRUCTION": "WENO",
