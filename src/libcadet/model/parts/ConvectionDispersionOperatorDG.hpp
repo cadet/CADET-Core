@@ -1166,22 +1166,22 @@ namespace cadet
 			};
 
 			/**
-			 * @brief Radial convection dispersion transport operator based on a DG discretization
-			 * @details Implements the radial transport equation
-			 *
-			 * @f[\begin{align}
-				\frac{\partial c_i}{\partial t} &= -\frac{u}{\rho} \frac{\partial c_i}{\partial \rho} + \frac{1}{\rho} \frac{\partial}{\partial \rho}\left( D_{\rho,i} \rho \frac{\partial c_i}{\partial \rho} \right) \\
-			\end{align} @f]
-			 * with Danckwerts boundary conditions
-			 * @f[ \begin{align}
-			 u c_{\text{in},i}(t) &= u c_i(t,\rho_{in}) - D_{\rho,i} \frac{\partial c_i}{\partial \rho}(t,\rho_{in}) \\
-			 \frac{\partial c_i}{\partial \rho}(t,\rho_{out}) &= 0
-			 \end{align} @f]
-			 *
-			 * Key difference from axial operator: Uses cell-dependent weighted mass matrices M_rho[i] = (delta_rho/2) * M^{(0,1)} + rho_i * M^{(0,0)}
-			 *
-			 * This class does not store the Jacobian. It only fills existing matrices given to its residual() functions.
-			 */
+ * @brief Radial convection dispersion transport operator based on a DG discretization
+ * @details Implements the radial transport equation
+ *
+ * @f[\begin{align}
+	\frac{\partial c_i}{\partial t} &= -\frac{u}{\rho} \frac{\partial c_i}{\partial \rho} + \frac{1}{\rho} \frac{\partial}{\partial \rho}\left( D_{\rho,i} \rho \frac{\partial c_i}{\partial \rho} \right) \\
+\end{align} @f]
+ * with Danckwerts boundary conditions
+ * @f[ \begin{align}
+ u c_{\text{in},i}(t) &= u c_i(t,\rho_{in}) - D_{\rho,i} \frac{\partial c_i}{\partial \rho}(t,\rho_{in}) \\
+ \frac{\partial c_i}{\partial \rho}(t,\rho_{out}) &= 0
+ \end{align} @f]
+ *
+ * Key difference from axial operator: Uses cell-dependent weighted mass matrices M_rho[i] = (delta_rho/2) * M^{(0,1)} + rho_i * M^{(0,0)}
+ *
+ * This class does not store the Jacobian. It only fills existing matrices given to its residual() functions.
+ */
 			class RadialConvectionDispersionOperatorBaseDG : public IConvectionDispersionOperatorBase1D
 			{
 			public:
@@ -1229,9 +1229,9 @@ namespace cadet
 				{
 					const double rho = static_cast<double>(_innerRadius) +
 						(floor(idx / _nNodes) * static_cast<double>(_deltaRho) +
-						 0.5 * static_cast<double>(_deltaRho) * (1.0 + _nodes[idx % _nNodes]));
+							0.5 * static_cast<double>(_deltaRho) * (1.0 + _nodes[idx % _nNodes]));
 					return (rho - static_cast<double>(_innerRadius)) /
-						   (static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius));
+						(static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius));
 				}
 
 				inline const double* nodes() const CADET_NOEXCEPT { return &_nodes[0]; }
@@ -1356,10 +1356,10 @@ namespace cadet
 				 *  Helper functions for radial DG
 				 * =================================================================================== */
 
-				/**
-				 * @brief Computes cell-dependent weighted mass matrices and stiffness matrices
-				 * @param [in] dispersion base dispersion coefficient (used when not variable)
-				 */
+				 /**
+				  * @brief Computes cell-dependent weighted mass matrices and stiffness matrices
+				  * @param [in] dispersion base dispersion coefficient (used when not variable)
+				  */
 				void computeCellDependentMatrices(double dispersion = 1.0);
 
 				/**
@@ -1408,9 +1408,9 @@ namespace cadet
 				 *  Radial DG residual helper functions
 				 * =================================================================================== */
 
-				/**
-				 * @brief Computes volume integral for radial DG with cell-dependent stiffness
-				 */
+				 /**
+				  * @brief Computes volume integral for radial DG with cell-dependent stiffness
+				  */
 				template<typename StateType, typename ResidualType>
 				void volumeIntegralRadial(unsigned int cellIdx,
 					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state,
@@ -1452,9 +1452,9 @@ namespace cadet
 				 *  Radial DG residual template implementations
 				 * =================================================================================== */
 
-				/**
-				 * @brief Computes volume integral for auxiliary equation: g -= D * c
-				 */
+				 /**
+				  * @brief Computes volume integral for auxiliary equation: g -= D * c
+				  */
 				template<typename StateType, typename ResidualType>
 				void volumeIntegralAuxRadial(
 					Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state,
@@ -1588,12 +1588,12 @@ namespace cadet
 						// Left face contribution: -F* = -u*c* - ρ*D*(2/Δρ)*g*
 						ResidualType left_flux = static_cast<ResidualType>(
 							-u * _surfaceFluxC[elem] - rho_left * _dispersionAtInterfaces[elem] * invHalfDeltaRho * _surfaceFluxG[elem]
-						);
+							);
 
 						// Right face contribution: F* = u*c* + ρ*D*(2/Δρ)*g*
 						ResidualType right_flux = static_cast<ResidualType>(
 							u * _surfaceFluxC[elem + 1] + rho_right * _dispersionAtInterfaces[elem + 1] * invHalfDeltaRho * _surfaceFluxG[elem + 1]
-						);
+							);
 
 						// Surface integral: res += (2/Δρ) * M_ρ^{-1} * B * F*
 						// The (2/Δρ) comes from dividing by M_ρ^{phys} = (Δρ/2)*M_ρ^{code}
@@ -1602,7 +1602,7 @@ namespace cadet
 								+= static_cast<ResidualType>(invHalfDeltaRho * (
 									_invMM_rho[elem](node, 0) * left_flux +
 									_invMM_rho[elem](node, _nNodes - 1) * right_flux
-								));
+									));
 						}
 					}
 				}
@@ -1672,7 +1672,7 @@ namespace cadet
 								-= static_cast<ResidualType>(invHalfDeltaRho) * (
 									static_cast<ResidualType>(u) * conv_term
 									+ static_cast<ResidualType>(dispFactor * invHalfDeltaRho) * disp_term
-								);
+									);
 						}
 					}
 				}
@@ -1682,18 +1682,18 @@ namespace cadet
 			};
 
 			/**
-			 * @brief Frustum convection dispersion transport operator based on a DG discretization
-			 * @details Implements the frustum (truncated cone) geometry transport equation.
-			 *          The cross-sectional area varies quadratically along the axial coordinate x:
-			 *          A(x) = pi * r(x)^2, where r(x) = r_0 + x/H * (r_H - r_0)
-			 *          Velocity: u(x) = velCoeff / r(x)^2, velCoeff = Q / (pi * eps)
+			 * @brief Convection-dispersion transport operator based on a DG discretization
+			 *        for one-dimensional geometries with smoothly varying cross-sectional area.
+			 * @details Provides a common DG formulation for axial, radial, and frustum geometries.
+			 *          Geometry-dependent mass matrices account for variations in cross-sectional area,
+			 *          velocity, and dispersion along the flow-directional coordinate.
 			 */
-			class FrustumConvectionDispersionOperatorBaseDG : public IConvectionDispersionOperatorBase1D
+			class VariableCrossSectionConvectionDispersionOperatorBaseDG : public IConvectionDispersionOperatorBase1D
 			{
 			public:
 
-				FrustumConvectionDispersionOperatorBaseDG();
-				~FrustumConvectionDispersionOperatorBaseDG() CADET_NOEXCEPT;
+				VariableCrossSectionConvectionDispersionOperatorBaseDG();
+				~VariableCrossSectionConvectionDispersionOperatorBaseDG() CADET_NOEXCEPT;
 
 				void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
 
