@@ -1478,14 +1478,14 @@ TEST_CASE("Column_1D radial flow DG generalized and radial operator equivalence"
 
 TEST_CASE("Column_1D axial flow generalized DG operator equivalence with dedicated axial DG operator equivalence", "[FrustumColumn1D],[DG],[Simulation],[CI]")
 {
-	std::string modelFilePath1 = std::string("/data/config_axCOL1D_axOp_transport_1comp_test.json");
-	std::string modelFilePath2 = std::string("/data/config_axCOL1D_frustOp_transport_1comp_test.json");
+	std::string modelFilePath1 = std::string("/data/frustOp_GRM_dynLin_1comp_benchmark1_cDG_P3Z32_DGexInt_parP3parZ4.json");
+	std::string modelFilePath2 = std::string("/data/axOp_GRM_dynLin_1comp_benchmark1_cDG_P3Z32_DGexInt_parP3parZ4.json");
 	const std::string setupFile1 = std::string(getTestDirectory()) + modelFilePath1;
 	cadet::JsonParameterProvider jpp1(cadet::JsonParameterProvider::fromFile(setupFile1));
 	const std::string setupFile2 = std::string(getTestDirectory()) + modelFilePath2;
 	cadet::JsonParameterProvider jpp2(cadet::JsonParameterProvider::fromFile(setupFile2));
 
-	cadet::test::column::DGParams disc(1, 3, 8);
+	cadet::test::column::DGParams disc(1, 3, 8, 3, 1);
 	disc.setDisc(jpp1, "001");
 	disc.setDisc(jpp2, "001");
 

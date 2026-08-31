@@ -1975,8 +1975,7 @@ namespace cadet
 
 		// Template instantiations
 		template class LumpedRateModelWithoutPoresDG<parts::AxialConvectionDispersionOperatorBaseDG>;
-		template class LumpedRateModelWithoutPoresDG<parts::RadialConvectionDispersionOperatorBaseDG>;
-		template class LumpedRateModelWithoutPoresDG<parts::FrustumConvectionDispersionOperatorBaseDG>;
+		template class LumpedRateModelWithoutPoresDG<parts::VariableCrossSectionConvectionDispersionOperatorBaseDG>;
 
 		IUnitOperation* createAxialLRMDG(UnitOpIdx uoId)
 		{
@@ -1984,16 +1983,10 @@ namespace cadet
 			return new AxialLRM(uoId);
 		}
 
-		IUnitOperation* createRadialLRMDG(UnitOpIdx uoId)
+		IUnitOperation* createVariableCrossSectionLRMDG(UnitOpIdx uoId)
 		{
-			typedef LumpedRateModelWithoutPoresDG<parts::RadialConvectionDispersionOperatorBaseDG> RadialLRM;
-			return new RadialLRM(uoId);
-		}
-
-		IUnitOperation* createFrustumLRMDG(UnitOpIdx uoId)
-		{
-			typedef LumpedRateModelWithoutPoresDG<parts::FrustumConvectionDispersionOperatorBaseDG> FrustumLRM;
-			return new FrustumLRM(uoId);
+			typedef LumpedRateModelWithoutPoresDG<parts::VariableCrossSectionConvectionDispersionOperatorBaseDG> VariableCrossSectionLRM;
+			return new VariableCrossSectionLRM(uoId);
 		}
 
 	}  // namespace model
