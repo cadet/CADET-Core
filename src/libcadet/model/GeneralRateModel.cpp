@@ -1383,7 +1383,7 @@ int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int 
 
 	// Go to the particle block of the given column cell
 	StateType const* y = yBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell});
-	double const* yDot = wantRes ? yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colCell }) : nullptr;
+	double const* yDot = (wantRes && yDotBase) ? yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colCell }) : nullptr;
 	ResidualType* res = wantRes ? resBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colCell }) : nullptr;
 
 	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
@@ -1950,7 +1950,8 @@ int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int 
 		}
 
 		// Advance yDot over particle shell
-		yDot += idxr.strideParShell(parType);
+		if (yDot)
+			yDot += idxr.strideParShell(parType);
 	}
 	return 0;
 }
