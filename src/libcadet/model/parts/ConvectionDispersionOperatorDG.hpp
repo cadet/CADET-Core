@@ -903,7 +903,7 @@ namespace cadet
 					/*		Inner element dispersion blocks		*/
 
 					if (_nElem >= 3u) {
-						MatrixXd dispBlock = _DGjacAxDispBlocks[1];
+						const auto& dispBlock = _DGjacAxDispBlocks[1];
 						linalg::BandedEigenSparseRowIterator jacIt(jacobian, offC + strideColElement()); // row iterator starting at second element and component
 
 						for (unsigned int element = 1; element < _nElem - 1; element++) {
@@ -926,7 +926,7 @@ namespace cadet
 					/*				Boundary element Dispersion blocks			*/
 
 					/* left element */
-					MatrixXd dispBlock = _DGjacAxDispBlocks[0];
+					const auto& dispBlock = _DGjacAxDispBlocks[0];
 
 					if (_nElem != 1u) { // "standard" case
 						linalg::BandedEigenSparseRowIterator jacIt(jacobian, offC); // row iterator starting at first element and component
@@ -960,7 +960,7 @@ namespace cadet
 
 					/* right element */
 					if (_nElem != 1u) { // "standard" case
-						dispBlock = _DGjacAxDispBlocks[std::min(_nElem, 3u) - 1];
+						const auto& dispBlock = _DGjacAxDispBlocks[std::min(_nElem, 3u) - 1];
 						linalg::BandedEigenSparseRowIterator jacIt(jacobian, offC + (_nElem - 1) * strideColElement()); // row iterator starting at last element
 
 						for (unsigned int i = 0; i < dispBlock.rows(); i++, jacIt += strideColBound) {
@@ -983,7 +983,7 @@ namespace cadet
 					/*======================================================*/
 
 					// Convection block [ d RHS_conv / d c ], also depends on first entry of previous element
-					MatrixXd convBlock = _DGjacAxConvBlock;
+					const auto& convBlock = _DGjacAxConvBlock;
 					linalg::BandedEigenSparseRowIterator jacIt(jacobian, offC); // row iterator starting at first element and component
 
 					if (_curVelocity > 0.0) { // forward flow upwind convection
