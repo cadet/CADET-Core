@@ -2055,9 +2055,13 @@ bool FrustumConvectionDispersionOperatorBaseDG::notifyDiscontinuousSectionTransi
 	const bool flowDirChange = _curFwdFlow == newFlowFwdDir;
 	_curFwdFlow = newFlowFwdDir;
 
-	// Recompute direction dependent Jacobian blocks.
+	// Recompute Jacobian blocks
 	for (unsigned int elem = 0; elem < _nElem; elem++)
+	{
 		_DGjacConvBlocks[elem] = DGjacobianConvBlock(elem);
+		for (unsigned int comp = 0; comp < _nComp; comp++)
+			_DGjacDispBlocks[comp][elem] = DGjacobianDispBlock(elem, comp);
+	}
 
 	if (_curFwdFlow)
 		jacInlet = _DGjacConvBlocks[0].col(0);
@@ -2525,13 +2529,6 @@ void FrustumConvectionDispersionOperatorBaseDG::calcConvDispDGSEMJacobian(Eigen:
 	const int strideNode = strideColNode();
 	const int strideElem = strideColElement();
 	const int strideColBound = strideNode - static_cast<int>(_nComp);
-
-	for (unsigned int elem = 0; elem < _nElem; elem++)
-	{
-		_DGjacConvBlocks[elem] = DGjacobianConvBlock(elem);
-		for (unsigned int comp = 0; comp < _nComp; comp++)
-			_DGjacDispBlocks[comp][elem] = DGjacobianDispBlock(elem, comp);
-	}
 
 	/*======================================================*/
 	/*         Dispersion Jacobian                          */
