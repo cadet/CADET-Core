@@ -2486,6 +2486,7 @@ Eigen::MatrixXd FrustumConvectionDispersionOperatorBaseDG::DGjacobianConvBlock(u
 Eigen::MatrixXd FrustumConvectionDispersionOperatorBaseDG::DGjacobianDispBlock(unsigned int elemIdx, unsigned int comp)
 {
 	const double invHalfDeltaX = 2.0 / static_cast<double>(_deltaX);
+	const double d_comp = static_cast<double>(getSectionDependentSlice(_colDispersion, _nComp, _curSection)[comp]);
 
 	Eigen::MatrixXd dispBlock = Eigen::MatrixXd::Zero(_nNodes, 3 * _nNodes + 2);
 	Eigen::MatrixXd G_curr = getGBlock(elemIdx);
@@ -2501,9 +2502,9 @@ Eigen::MatrixXd FrustumConvectionDispersionOperatorBaseDG::DGjacobianDispBlock(u
 	{
 		Eigen::MatrixXd G_prev = getGBlock(elemIdx - 1);
 		dispBlock.block(0, 0, _nNodes, _nNodes + 2) +=
-			invHalfDeltaX * 0.5 * Aleft * static_cast<double>(_colDispersion[comp]) * _invMM_A[elemIdx].col(0) * G_prev.row(_nNodes - 1);
+			invHalfDeltaX * 0.5 * Aleft * d_comp * _invMM_A[elemIdx].col(0) * G_prev.row(_nNodes - 1);
 		dispBlock.block(0, _nNodes, _nNodes, _nNodes + 2) +=
-			invHalfDeltaX * 0.5 * Aleft * static_cast<double>(_colDispersion[comp]) * _invMM_A[elemIdx].col(0) * G_curr.row(0);
+			invHalfDeltaX * 0.5 * Aleft * d_comp * _invMM_A[elemIdx].col(0) * G_curr.row(0);
 	}
 
 	// Right surface
@@ -2511,9 +2512,9 @@ Eigen::MatrixXd FrustumConvectionDispersionOperatorBaseDG::DGjacobianDispBlock(u
 	{
 		Eigen::MatrixXd G_next = getGBlock(elemIdx + 1);
 		dispBlock.block(0, _nNodes, _nNodes, _nNodes + 2) -=
-			invHalfDeltaX * 0.5 * Aright * static_cast<double>(_colDispersion[comp]) * _invMM_A[elemIdx].col(_nNodes - 1) * G_curr.row(_nNodes - 1);
+			invHalfDeltaX * 0.5 * Aright * d_comp * _invMM_A[elemIdx].col(_nNodes - 1) * G_curr.row(_nNodes - 1);
 		dispBlock.block(0, 2 * _nNodes, _nNodes, _nNodes + 2) -=
-			invHalfDeltaX * 0.5 * Aright * static_cast<double>(_colDispersion[comp]) * _invMM_A[elemIdx].col(_nNodes - 1) * G_next.row(0);
+			invHalfDeltaX * 0.5 * Aright * d_comp * _invMM_A[elemIdx].col(_nNodes - 1) * G_next.row(0);
 	}
 
 	return dispBlock;
