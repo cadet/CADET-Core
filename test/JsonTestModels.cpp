@@ -1182,8 +1182,16 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 	{
 		grm["GEOMETRY"] = "AXIAL_FLOW_CYLINDER";
 		grm["BED_LENGTH"] = 0.017;
-		// A = Q / (v*eps) = 1.0 / (5.75e-4 * 0.4) = 4347.826086956522
-		grm["CROSS_SECTION_AREA"] = 4347.826086956522;
+		// LumpedRateModelWithoutPores uses TOTAL_POROSITY (not COL_POROSITY) as the
+		// porosity for interstitial velocity whenever NPARTYPE > 0 (which it is here),
+		// so its CROSS_SECTION_AREA must be derived from TOTAL_POROSITY instead of
+		// COL_POROSITY to reproduce the same historical velocity.
+		if (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES")
+			// A = Q / (v*eps) = 1.0 / ((0.5 / (100.0 * 60.0)) * (0.4 + (1.0 - 0.4) * 0.333)) = 20006.6688896299
+			grm["CROSS_SECTION_AREA"] = 20006.6688896299;
+		else
+			// A = Q / (v*eps) = 1.0 / ((0.5 / (100.0 * 60.0)) * 0.4) = 30000.0
+			grm["CROSS_SECTION_AREA"] = 30000.0;
 	}
 	grm["FORWARD_FLOW"] = { 1 };
 	particle["PAR_RADIUS"] = 4e-5;
