@@ -679,7 +679,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 		}
 		LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
-		const auto& L = cm.getConservedMoietiesMatrix();
+		const auto& L = cm.conservedMoietyMatrix();
 
 		const unsigned int nMoieties = cm.numMoieties();
 		const unsigned int nEq = cm.numEquilibriumReactions();
@@ -1707,7 +1707,7 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 	const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
 	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 	{ 
-		const Eigen::MatrixXd& L = cm.getConservedMoietiesMatrix();
+		const Eigen::MatrixXd& L = cm.conservedMoietyMatrix();
 
 		const unsigned int nMoieties = cm.numMoieties() ;
 		const unsigned int nEq = cm.numEquilibriumReactions();
@@ -2132,7 +2132,7 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 	{
 		const unsigned int nPure = numPureDofs();
-		const Eigen::MatrixXd& L = cm.getConservedMoietiesMatrix();
+		const Eigen::MatrixXd& L = cm.conservedMoietyMatrix();
 		const unsigned int nMoieties = cm.numMoieties();
 		const unsigned int nEq = cm.numEquilibriumReactions();
 
@@ -2244,7 +2244,7 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 
 	if (cm.isEnabled() &&  (cm.numEquilibriumReactions() > 0))
     {
-        const auto& L = cm.getConservedMoietiesMatrix();
+        const auto& L = cm.conservedMoietyMatrix();
         const unsigned int nMoieties = cm.numMoieties();
 
         //mat += alpha * L * dRes / dyDot

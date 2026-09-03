@@ -496,7 +496,7 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 		hasBulkReaction = true;
 
 	setJacobianPattern(_globalJac, 0, hasBulkReaction);
-	reserveConservedMoietyJacobian();
+	resizeConservedMoietyJacobianBuffer();
 	_globalJacDisc = _globalJac;
 	// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
 	// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
@@ -609,7 +609,7 @@ void ColumnModel1D<ConvDispOperator>::notifyDiscontinuousSectionTransition(doubl
 	// todo: only reset jacobian pattern if it changes, i.e. once in configuration and then only for changes in SurfDiff+kinetic binding.
 	bool hasReaction = _reaction.getDynReactionVector("liquid")[0];
 	setJacobianPattern(_globalJac, 0, hasReaction);
-	reserveConservedMoietyJacobian();
+	resizeConservedMoietyJacobianBuffer();
 	_globalJacDisc = _globalJac;
 
 	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
@@ -760,7 +760,8 @@ void ColumnModel1D<ConvDispOperator>::extractJacobianFromAD(active const* const 
 		{
 			const int pointOffset = idxr.offsetC() + point * idxr.strideColNode();
 
-			cm.multiplyToMatrix(_globalJac, _disc.nComp, pointOffset, idxr.offsetCp(), _globalJac.cols(), _cMJacobianEntries);
+			cm.applyToMatrix(_globalJac, _disc.nComp, pointOffset, idxr.offsetCp(), _globalJac.cols(),
+				_cMJacobianEntries.data(), _cMJacobianEntries.size());
 		}
 	}
 
@@ -1089,7 +1090,7 @@ int ColumnModel1D<ConvDispOperator>::residualImpl(double t, unsigned int secIdx,
 				ResidualType* const resC = res + pointOffset;
 
 				std::copy_n(resC, _disc.nComp, static_cast<ResidualType*>(oldRes));
-				cm.multiplyToVector(resC, static_cast<ResidualType*>(oldRes), _disc.nComp);
+				cm.applyToVector(resC, static_cast<ResidualType*>(oldRes), _disc.nComp);
 
 				ResidualType* const eqRes = resC + nMoieties;
 				std::fill_n(eqRes, nEq, 0.0);
@@ -1118,7 +1119,8 @@ int ColumnModel1D<ConvDispOperator>::residualImpl(double t, unsigned int secIdx,
 			{
 				const int pointOffset = idxr.offsetC() + point * idxr.strideColNode();
 
-				cm.multiplyToMatrix(_globalJac, _disc.nComp, pointOffset, _cMJacobianEntries);
+				cm.applyToMatrix(_globalJac, _disc.nComp, pointOffset, 0, _globalJac.cols(),
+					_cMJacobianEntries.data(), _cMJacobianEntries.size());
 
 				// Replace the remaining component rows by equilibrium equations
 				for (unsigned int r = 0; r < nEq; ++r)
@@ -1326,7 +1328,7 @@ void ColumnModel1D<ConvDispOperator>::multiplyWithJacobian(const SimulationTime&
 	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 	{
 
-		const auto& L = cm.getConservedMoietiesMatrix();
+		const auto& L = cm.conservedMoietyMatrix();
 		for (unsigned int moiety = 0; moiety < cm.numMoieties(); ++moiety)
 		{
 			double inletDirection = 0.0;
@@ -1403,9 +1405,6 @@ void ColumnModel1D<ConvDispOperator>::multiplyWithDerivativeJacobian(const Simul
 	const auto& cm = _reaction.conservedMoieties("liquid");
 	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 	{
-		const unsigned int nMoieties = cm.numMoieties();
-		const unsigned int nEq = cm.numEquilibriumReactions();
-
 		for (unsigned int point = 0; point < _disc.nPoints; ++point)
 		{
 			const int pointOffset = idxr.offsetC() + point * idxr.strideColNode();
@@ -1413,10 +1412,7 @@ void ColumnModel1D<ConvDispOperator>::multiplyWithDerivativeJacobian(const Simul
 			double const* const localSDot = sDot + pointOffset;
 			double* const localRet = ret + pointOffset;
 
-			cm.multiplyToVector(localRet, localSDot, _disc.nComp);
-
-			// Equilibrium reaction rows
-			std::fill_n(localRet + nMoieties, nEq, 0.0);
+			cm.applyToDerivativeVector(localRet, localSDot, _disc.nComp);
 		}
 	}
 	// Handle inlet DOFs (all algebraic)
@@ -1883,7 +1879,7 @@ int ColumnModel1D<ConvDispOperator>::Exporter::writeOutlet(double* buffer) const
 }
 
 template <typename ConvDispOperator>
-void ColumnModel1D<ConvDispOperator>::reserveConservedMoietyJacobian()
+void ColumnModel1D<ConvDispOperator>::resizeConservedMoietyJacobianBuffer()
 {
 	const auto& cm = _reaction.conservedMoieties("liquid");
 	if (!cm.isEnabled() || (cm.numEquilibriumReactions() == 0))
@@ -1904,7 +1900,7 @@ void ColumnModel1D<ConvDispOperator>::reserveConservedMoietyJacobian()
 		maxEntries = std::max(maxEntries, numEntries);
 	}
 
-	_cMJacobianEntries.reserve(maxEntries);
+	_cMJacobianEntries.resize(maxEntries);
 }
 
 namespace

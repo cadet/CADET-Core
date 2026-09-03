@@ -12,19 +12,16 @@
 
 #pragma once
 
-#include "model/ReactionModel.hpp"
 #include "cadet/Exceptions.hpp"
-#include "ConfigurationHelper.hpp"
-#include "SensParamUtil.hpp"
-
-#include "LoggingUtils.hpp"
-#include "Logging.hpp"
+#include "cadet/cadetCompilerInfo.hpp"
+#include "common/CompilerSpecific.hpp"
 
 #include <Eigen/Core>
 #include <Eigen/SparseCore>
 #include <Eigen/SVD>
 
-#include <utility>
+#include <algorithm>
+#include <cstddef>
 #include <vector>
 
 namespace cadet
@@ -34,267 +31,224 @@ namespace model
 {
 
 
-
 class ConservedMoieties
-    {
-        
-        private:
-        bool _enabled = false;
+{
+public:
+	const Eigen::MatrixXd& conservedMoietyMatrix() const CADET_NOEXCEPT { return _L; }
 
-        unsigned int _nStates = 0;
-        unsigned int _nReactionTotal = 0;
-        unsigned int _nReactionEquilibirum = 0;
-        
-        std::vector<unsigned int> _reactionColumnOffset;
-        std::vector<bool> _eqReactionMask;
+	bool isEnabled() const CADET_NOEXCEPT { return _enabled; }
+	unsigned int rank() const CADET_NOEXCEPT { return numEquilibriumReactions(); }
+	unsigned int numMoieties() const CADET_NOEXCEPT { return static_cast<unsigned int>(_L.rows()); }
+	unsigned int numEquilibriumReactions() const CADET_NOEXCEPT
+	{
+		return static_cast<unsigned int>(_L.cols() - _L.rows());
+	}
 
-        Eigen::MatrixXd _S; // N dim: nStates x nReaction
-        Eigen::MatrixXd _eqS; // N_eq dim: nStates x nEqreaction
-        
-        Eigen::MatrixXd _L; // L dim: nMoities x nStates
-        unsigned int _rank = 0;
+	void clear()
+	{
+		_enabled = false;
+		_L.resize(0, 0);
+	}
 
-        double _TOL = 1e-15;
+	bool configure(unsigned int numStates, const std::vector<bool>& equilibriumReactionFlags, const Eigen::MatrixXd& stoichiometry, double rankTolerance)
+	{
+		cadet_assert(numStates == static_cast<unsigned int>(stoichiometry.rows()));
+		cadet_assert(equilibriumReactionFlags.size() == static_cast<std::size_t>(stoichiometry.cols()));
 
-        public:
-        const Eigen::MatrixXd& getConservedMoietiesMatrix() const { return _L; }
-        const Eigen::MatrixXd& conservedMoietyMatrix() const { return _L; }
-        const Eigen::MatrixXd& stoichiometryMatrix() const { return _S; }
-        const Eigen::MatrixXd& equilibriumStoichiometryMatrix() const { return _eqS; }
+		_enabled = false;
+		computeLeftNullspace(equilibriumReactionFlags, stoichiometry, rankTolerance);
+		_enabled = true;
+		return true;
+	}
 
+	/**
+	 * @brief Multiplies the conserved-moiety matrix with a state-sized vector
+	 * @param [out] targetVec Result vector with numMoieties() entries
+	 * @param [in] sourceVec Source vector with @p size entries, which must not alias @p targetVec
+	 * @param [in] size Number of source entries, equal to the number of states
+	 */
+	template <typename TargetType, typename SourceType>
+	void applyToVector(TargetType* const targetVec, SourceType const* const sourceVec, unsigned int size) const
+	{
+		cadet_assert(size == static_cast<unsigned int>(_L.cols()));
 
-        bool isEnabled() const {return _enabled; }
-        unsigned int rank() const {return _rank; }
-        unsigned int numMoieties() const  {return static_cast<unsigned int>(_L.rows()); }
-        unsigned int numEquilibriumReactions() const {return static_cast<unsigned int>(_eqS.cols()); }
+		for (unsigned int moiety = 0; moiety < numMoieties(); ++moiety)
+		{
+			targetVec[moiety] = TargetType{0.0};
+			for (unsigned int state = 0; state < size; ++state)
+				targetVec[moiety] += static_cast<double>(_L(moiety, state)) * sourceVec[state];
+		}
+	}
 
-        const std::vector<bool>& equilibriumReactionFlags() const { return _eqReactionMask;}
+	std::size_t matrixBufferSize(Eigen::SparseMatrix<double, Eigen::RowMajor> const& matrix, unsigned int numStates,
+		unsigned int rowOffset, Eigen::Index firstColumn, Eigen::Index lastColumn) const
+	{
+		cadet_assert(numStates == static_cast<unsigned int>(_L.cols()));
+		cadet_assert(rowOffset + numStates <= static_cast<unsigned int>(matrix.rows()));
+		cadet_assert((firstColumn >= 0) && (firstColumn <= lastColumn));
+		cadet_assert(lastColumn <= matrix.cols());
 
-        void clear()
-        {
-            _enabled = false;
-            _nStates = 0;
-            _nReactionTotal = 0;
-            _nReactionEquilibirum = 0;
-            _reactionColumnOffset.clear();
-            _eqReactionMask.clear();
-            _S.resize(0, 0);
-            _eqS.resize(0, 0);
-            _L.resize(0, 0);
-            _rank = 0;
-        }
+		std::size_t numEntries = 0;
+		for (unsigned int state = 0; state < numStates; ++state)
+		{
+			for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(matrix, rowOffset + state); it; ++it)
+			{
+				if ((it.col() >= firstColumn) && (it.col() < lastColumn))
+					++numEntries;
+			}
+		}
+		return numEntries;
+	}
 
-        bool configure(unsigned int states, std::vector<unsigned int>&& reactionColumnOffset,
-            std::vector<bool>&& eqReactionFlags, Eigen::MatrixXd&& stoichiometry, double rankTol)
-        {
-            _enabled = false;
-            _nStates = states;
-            _nReactionTotal = static_cast<unsigned int>(eqReactionFlags.size());
-            _reactionColumnOffset = std::move(reactionColumnOffset);
-            _eqReactionMask = std::move(eqReactionFlags);
-            _S = std::move(stoichiometry);
-            _TOL = rankTol;
+	/**
+	 * @brief Replaces a sparse row block in place using caller-provided buffer memory
+	 * @details The affected source entries are preserved in @p buffer before their rows are
+	 *          cleared. The buffer array must contain at least matrixBufferSize() entries. The
+	 *          matrix pattern must contain the union of all source row patterns in every
+	 *          conserved-moiety row.
+	 */
+	void applyToMatrix(Eigen::SparseMatrix<double, Eigen::RowMajor>& matrix, unsigned int numStates, unsigned int rowOffset, Eigen::Index firstColumn, Eigen::Index lastColumn, Eigen::Triplet<double>* const buffer, std::size_t bufferSize) const
+	{
+		cadet_assert(numStates == static_cast<unsigned int>(_L.cols()));
+		cadet_assert(rowOffset + numStates <= static_cast<unsigned int>(matrix.rows()));
+		cadet_assert((firstColumn >= 0) && (firstColumn <= lastColumn));
+		cadet_assert(lastColumn <= matrix.cols());
 
-            extractEquilibriumStoichiometry();
-            computeLeftNullspace();
+		std::size_t numEntries = 0;
+		for (unsigned int state = 0; state < numStates; ++state)
+		{
+			for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(matrix, rowOffset + state); it; ++it)
+			{
+				if ((it.col() < firstColumn) || (it.col() >= lastColumn))
+					continue;
 
-            _enabled = true;
-            return true;
-        }
+				cadet_assert(numEntries < bufferSize);
+				buffer[numEntries++] = Eigen::Triplet<double>(state, it.col(), it.value());
+				it.valueRef() = 0.0;
+			}
+		}
+		cadet_assert(numEntries <= bufferSize);
 
-        void extractEquilibriumStoichiometry()
-        {
-            unsigned int nEq = 0;
-            for (bool isEq : _eqReactionMask)
-            {
-                if (isEq) ++nEq;
-            }
+		for (std::size_t entryIndex = 0; entryIndex < numEntries; ++entryIndex)
+		{
+			const Eigen::Triplet<double>& entry = buffer[entryIndex];
+			for (unsigned int moiety = 0; moiety < numMoieties(); ++moiety)
+			{
+				const double factor = _L(moiety, entry.row());
+				if (factor != 0.0)
+					matrix.coeffRef(rowOffset + moiety, entry.col()) += factor * entry.value();
+			}
+		}
+	}
 
-            _nReactionEquilibirum = nEq;
-            _eqS.resize(_S.rows(), nEq);
-            unsigned int col = 0;
-            for (unsigned int r = 0; r < _eqReactionMask.size(); ++r)
-            {
-                if (!_eqReactionMask[r])
-                    continue;
-                _eqS.col(col++) = _S.col(r);
-            }
+	/**
+	 * @brief Multiplies the conserved-moiety transformation to a time-derivative result
+	 * @details Conserved-moiety rows are transformed and equilibrium-reaction rows are
+	 *          set to zero because equilibrium equations are algebraic.
+	 */
+	template <typename TargetType, typename SourceType>
+	void applyToDerivativeVector(TargetType* const targetVec, SourceType const* const sourceVec, unsigned int size) const
+	{
+		cadet_assert(numMoieties() + numEquilibriumReactions() == size);
+		applyToVector(targetVec, sourceVec, size);
+		std::fill_n(targetVec + numMoieties(), numEquilibriumReactions(), TargetType{0.0});
+	}
 
-        }
+	/**
+	 * @brief Adds the row-pattern for one or more conserved-moiety row blocks
+	 * @details Every conserved-moiety row receives the union of the patterns of all source rows
+	 *          in its block and within the selected column range. All blocks are processed in one
+	 *          pass over @p entries. Only entries present when the method is called are used as
+	 *          source entries, so generated entries are never transformed recursively.
+	 */
+	void addPatternToBlocks(std::vector<Eigen::Triplet<double>>& entries, unsigned int numStates, unsigned int firstRowOffset, unsigned int numBlocks, unsigned int rowStride, Eigen::Index firstColumn, Eigen::Index lastColumn) const
+	{
+		cadet_assert(numStates == static_cast<unsigned int>(_L.cols()));
+		cadet_assert(rowStride >= numStates);
+		cadet_assert(firstColumn <= lastColumn);
+		if ((numBlocks == 0) || (numStates == 0))
+			return;
 
-        void computeLeftNullspace()
-        {
-            if (_eqS.cols() == 0)
-            { 
-                _rank = 0;
-                _L = Eigen::MatrixXd::Identity(_eqS.rows(), _eqS.rows());
-                return;
-            }
+		const std::size_t originalSize = entries.size();
+		std::size_t sourceEntries = 0;
+		for (std::size_t i = 0; i < originalSize; ++i)
+		{
+			const Eigen::Index column = entries[i].col();
+			if ((column < firstColumn) || (column >= lastColumn))
+				continue;
 
-            Eigen::MatrixXd A = _eqS.transpose();
-            Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeFullV);
-            
-            const auto& singularValues = svd.singularValues();
+			const Eigen::Index relativeRow = entries[i].row() - static_cast<Eigen::Index>(firstRowOffset);
+			if (relativeRow < 0)
+				continue;
 
-            _rank = 0;
-            for (int i = 0; i < singularValues.size(); ++i)
-            {
-                if (singularValues(i) > _TOL)
-                    ++_rank;
-            }
+			const unsigned int block = static_cast<unsigned int>(relativeRow) / rowStride;
+			const unsigned int localRow = static_cast<unsigned int>(relativeRow) % rowStride;
+			if ((block < numBlocks) && (localRow < numStates))
+				++sourceEntries;
+		}
 
-            if (_nReactionEquilibirum != _rank)
-	            throw InvalidParameterException("Conserved Moieties: Redundant equilibrium reactions are not supported");
+		entries.reserve(entries.size() + static_cast<std::size_t>(numMoieties()) * sourceEntries);
+		for (std::size_t i = 0; i < originalSize; ++i)
+		{
+			const Eigen::Index sourceColumn = entries[i].col();
+			if ((sourceColumn < firstColumn) || (sourceColumn >= lastColumn))
+				continue;
 
-            const unsigned int nullity = static_cast<unsigned int>(A.cols()) - _rank;
-            
-            if (nullity == 0)
-            {
-                _L = Eigen::MatrixXd::Zero(0, _eqS.rows());
-                return;
-            }
-            
-            const Eigen::MatrixXd V = svd.matrixV();
-            
-            // Columns rank ... end span null(A)
-            const Eigen::MatrixXd nullspace = V.rightCols(nullity);
-            // L such that L * N = 0
-            _L = nullspace.transpose();
-        }
+			const Eigen::Index relativeRow = entries[i].row() - static_cast<Eigen::Index>(firstRowOffset);
+			if (relativeRow < 0)
+				continue;
 
-        /**
-         * @brief Multiplies the conserved-moiety matrix with a state-sized vector
-         * @param [out] targetVec Result vector with numMoieties() entries
-         * @param [in] sourceVec Source vector with @p size entries, which must not alias @p targetVec
-         * @param [in] size Number of source entries, equal to the number of states
-         */
-        template <typename TargetType, typename SourceType>
-        void multiplyToVector(TargetType* const targetVec, SourceType const* const sourceVec, unsigned int size) const
-        {
-            cadet_assert(size == static_cast<unsigned int>(_L.cols()));
+			const unsigned int block = static_cast<unsigned int>(relativeRow) / rowStride;
+			const unsigned int localRow = static_cast<unsigned int>(relativeRow) % rowStride;
+			if ((block >= numBlocks) || (localRow >= numStates))
+				continue;
 
-            for (unsigned int moiety = 0; moiety < numMoieties(); ++moiety)
-            {
-                targetVec[moiety] = TargetType{0.0};
-                for (unsigned int state = 0; state < size; ++state)
-                    targetVec[moiety] += static_cast<double>(_L(moiety, state)) * sourceVec[state];
-            }
-        }
+			const Eigen::Index targetRowOffset = firstRowOffset + block * rowStride;
+			for (unsigned int moiety = 0; moiety < numMoieties(); ++moiety)
+				entries.emplace_back(targetRowOffset + moiety, sourceColumn, 0.0);
+		}
+	}
 
-        /**
-         * @brief Replaces a sparse row block by its conserved-moiety transformation
-         * @details All @p numStates rows in the target block are cleared. The first numMoieties()
-         *          rows are then set to L times the corresponding source rows. The source and
-         *          target matrices must not alias. The target pattern must contain the union
-         *          of all source row patterns.
-         */
-        void multiplyToMatrix(Eigen::SparseMatrix<double, Eigen::RowMajor>& targetMat,
-            Eigen::SparseMatrix<double, Eigen::RowMajor> const& sourceMat, unsigned int numStates, unsigned int rowOffset) const
-        {
-            multiplyToMatrix(targetMat, sourceMat, numStates, rowOffset, 0, targetMat.cols());
-        }
+private:
+	bool _enabled = false;
+	Eigen::MatrixXd _L; // L dim: nMoities x nStates
 
-        void multiplyToMatrix(Eigen::SparseMatrix<double, Eigen::RowMajor>& targetMat,
-            Eigen::SparseMatrix<double, Eigen::RowMajor> const& sourceMat, unsigned int numStates,
-            unsigned int rowOffset, Eigen::Index firstColumn, Eigen::Index lastColumn) const
-        {
-            cadet_assert(numStates == static_cast<unsigned int>(_L.cols()));
-            cadet_assert(rowOffset + numStates <= static_cast<unsigned int>(targetMat.rows()));
-            cadet_assert(rowOffset + numStates <= static_cast<unsigned int>(sourceMat.rows()));
-            cadet_assert((firstColumn >= 0) && (firstColumn <= lastColumn));
-            cadet_assert(lastColumn <= targetMat.cols());
-            cadet_assert(lastColumn <= sourceMat.cols());
-            cadet_assert(&targetMat != &sourceMat);
+	void computeLeftNullspace(const std::vector<bool>& equilibriumReactionFlags, const Eigen::MatrixXd& stoichiometry, double rankTolerance)
+	{
+		const unsigned int numEquilibriumReactions = static_cast<unsigned int>(std::count(equilibriumReactionFlags.begin(), equilibriumReactionFlags.end(), true));
+		if (numEquilibriumReactions == 0)
+		{
+			_L = Eigen::MatrixXd::Identity(stoichiometry.rows(), stoichiometry.rows());
+			return;
+		}
 
-            // Clear the transformed row block once.
-            for (unsigned int row = 0; row < numStates; ++row)
-            {
-                for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(targetMat, rowOffset + row); it; ++it)
-                {
-                    if ((it.col() >= firstColumn) && (it.col() < lastColumn))
-                        it.valueRef() = 0.0;
-                }
-            }
+		Eigen::MatrixXd transposedStoichiometry(numEquilibriumReactions, stoichiometry.rows());
+		unsigned int equilibriumRow = 0;
+		for (unsigned int reaction = 0; reaction < equilibriumReactionFlags.size(); ++reaction)
+		{
+			if (equilibriumReactionFlags[reaction])
+				transposedStoichiometry.row(equilibriumRow++) = stoichiometry.col(reaction).transpose();
+		}
 
-            // Apply L to complete sparse rows.
-            for (unsigned int moiety = 0; moiety < numMoieties(); ++moiety)
-            {
-                const Eigen::Index targetRow = rowOffset + moiety;
-                for (unsigned int state = 0; state < numStates; ++state)
-                {
-                    const double factor = _L(moiety, state);
-                    if (factor == 0.0)
-                        continue;
+		Eigen::JacobiSVD<Eigen::MatrixXd> svd(transposedStoichiometry, Eigen::ComputeFullV);
 
-                    for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(sourceMat, rowOffset + state); it; ++it)
-                    {
-                        if ((it.col() >= firstColumn) && (it.col() < lastColumn))
-                            targetMat.coeffRef(targetRow, it.col()) += factor * it.value();
-                    }
-                }
-            }
-        }
+		unsigned int rank = 0;
+		for (int singularValue = 0; singularValue < svd.singularValues().size(); ++singularValue)
+		{
+			if (svd.singularValues()(singularValue) > rankTolerance)
+				++rank;
+		}
 
-        struct EigenSparseMatrixEntry
-        {
-            unsigned int sourceRow;
-            Eigen::Index column;
-            double value;
-        };
+		if (numEquilibriumReactions != rank)
+			throw InvalidParameterException("Conserved Moieties: Redundant equilibrium reactions are not supported");
 
-        /**
-         * @brief Replaces a sparse row block in place by its conserved-moiety transformation
-         * @details The affected source entries are preserved in @p scratch before their rows are
-         *          cleared. The scratch capacity is retained between calls. The matrix pattern must
-         *          contain the union of all source row patterns in every conserved-moiety row.
-         */
-        void multiplyToMatrix(Eigen::SparseMatrix<double, Eigen::RowMajor>& matrix, unsigned int numStates, unsigned int rowOffset,
-            Eigen::Index firstColumn, Eigen::Index lastColumn, std::vector<EigenSparseMatrixEntry>& orig) const
-        {
-            cadet_assert(numStates == static_cast<unsigned int>(_L.cols()));
-            cadet_assert(rowOffset + numStates <= static_cast<unsigned int>(matrix.rows()));
-            cadet_assert((firstColumn >= 0) && (firstColumn <= lastColumn));
-            cadet_assert(lastColumn <= matrix.cols());
+		const unsigned int nullity = static_cast<unsigned int>(transposedStoichiometry.cols()) - rank;
+		_L = svd.matrixV().rightCols(nullity).transpose();
+	}
 
-            orig.clear();
-
-            // Save and clear source rows
-            for (unsigned int state = 0; state < numStates; ++state)
-            {
-                for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(matrix, rowOffset + state); it; ++it)
-                {
-                    if ((it.col() < firstColumn) || (it.col() >= lastColumn))
-                        continue;
-
-                    orig.push_back({state, it.col(), it.value()});
-                    it.valueRef() = 0.0;
-                }
-            }
-
-            // Rebuild conserved rows from the preserved entries
-            for (const EigenSparseMatrixEntry& entry : orig)
-            {
-                for (unsigned int m = 0; m < numMoieties(); ++m)
-                {
-                    const double factor = _L(m, entry.sourceRow);
-                    if (factor == 0.0)
-                        continue;
-
-                    matrix.coeffRef(rowOffset + m, entry.column) += factor * entry.value;
-                }
-            }
-        }
-
-        void multiplyToMatrix(Eigen::SparseMatrix<double, Eigen::RowMajor>& matrix, unsigned int numStates, unsigned int rowOffset,
-            std::vector<EigenSparseMatrixEntry>& scratch) const
-        {
-            multiplyToMatrix(
-                matrix, numStates, rowOffset, 0, matrix.cols(), scratch);
-        }
-
-    };
+};
 
 
-} //model
+} // namespace model
 
-} //cadet
+} // namespace cadet
