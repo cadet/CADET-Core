@@ -646,7 +646,7 @@
         0.0
       ],
       "NCOMP": 1,
-      "COLUMN_POROSITY": 1,
+      "COL_POROSITY": 1,
       "UNIT_TYPE": "COLUMN_MODEL_1D",
       "GEOMETRY": "AXIAL_FLOW_CYLINDER",
       "FORWARD_FLOW": 1

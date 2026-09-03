@@ -268,7 +268,7 @@ TEST_CASE("Column_1D as pseudo-LRMP (GRM with single FV cell) numerical Benchmar
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 
 	// FV_BOUNDARY_ORDER = 1 und disabled surfaceDiffusion (otherwise surface diffusion contributes to film diffusion when binding is dynamic)
-	auto discDGFV = cadet::test::column::createDGFVParams(0, 3, 8, 0, 0, 1);
+	auto discDGFV = cadet::test::column::createDGFVParams(1, 3, 8, 0, 0, 1);
 	discDGFV->setParticleDiscParam("FV_BOUNDARY_ORDER", 1);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, *discDGFV, true);
 }

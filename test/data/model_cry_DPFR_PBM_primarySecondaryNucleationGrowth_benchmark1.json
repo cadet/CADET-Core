@@ -253,6 +253,7 @@
         "GEOMETRY": "AXIAL_FLOW_CYLINDER",
         "FORWARD_FLOW": 1,
         "NPARTYPE": 0,
+        "COL_POROSITY": 1.0,
         "COL_DISPERSION": 4.2e-05,
         "BED_LENGTH": 0.47,
         "CROSS_SECTION_AREA": 0.00003066,

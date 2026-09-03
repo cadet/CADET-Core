@@ -178,6 +178,7 @@
         },
       "unit_001": {
         "COL_DISPERSION": 4.2e-05,
+        "COL_POROSITY": 1.0,
         "BED_LENGTH": 0.47,
         "CROSS_SECTION_AREA": 3.066e-05,
         "INIT_C": [
