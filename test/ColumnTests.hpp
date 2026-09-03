@@ -702,8 +702,12 @@ namespace column
 	 * @param [in] h Step size of centered finite differences
 	 * @param [in] absTol Absolute error tolerance
 	 * @param [in] relTol Relative error tolerance
+	 * @param [in] sensParamNames Candidate parameter names to try (in order) as the sensitive
+	 *             parameter; the first one the unit operation actually has is used. Not every unit
+	 *             operation exposes the same parameters (e.g. MultiChannelTransportModel has no
+	 *             porosity), so callers for which the default doesn't apply must override this.
 	 */
-	void testFwdSensJacobians(JsonParameterProvider jpp, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0, const bool hasBinding=true);
+	void testFwdSensJacobians(JsonParameterProvider jpp, double h = 1e-6, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0, const bool hasBinding=true, const std::vector<std::string>& sensParamNames = { "COL_POROSITY", "TOTAL_POROSITY" });
 
 	/**
 	 * @brief Checks the forward sensitivity solution against finite differences

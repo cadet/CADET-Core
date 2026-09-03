@@ -555,7 +555,9 @@ TEST_CASE("MCT sensitivity Jacobians", "[MCT],[UnitOp],[Sensitivity],[CI]")
 {
 	// Use some test case parameters
 	cadet::JsonParameterProvider jpp = createMCTModelJson({ 1.0, 1.0 }, { 1.0, 1.0 }, { 0.0, 0.01, 0.0, 0.0 });
-	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7, std::numeric_limits<float>::epsilon() * 100.0, false);
+	// MultiChannelTransportModel has no porosity parameter (it uses per-channel cross sections
+	// instead), so the default sensParamNames (porosity) doesn't apply here; COL_DISPERSION does.
+	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7, std::numeric_limits<float>::epsilon() * 100.0, false, { "COL_DISPERSION" });
 }
 
 TEST_CASE("MCT consistent sensitivity initialization", "[MCT],[ConsistentInit],[Sensitivity],[CI]")

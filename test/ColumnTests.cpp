@@ -1298,7 +1298,7 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testFwdSensJacobians(cadet::JsonParameterProvider jpp, double h, double absTol, double relTol, const bool hasBinding)
+	void testFwdSensJacobians(cadet::JsonParameterProvider jpp, double h, double absTol, double relTol, const bool hasBinding, const std::vector<std::string>& sensParamNames)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
@@ -1318,9 +1318,17 @@ namespace column
 				const AdJacobianParams adParams{adRes, nullptr, 0};
 				unit->prepareADvectors(adParams);
 
-				// Add dispersion parameter sensitivity
-				const bool dispSens = unit->setSensitiveParameter(makeParamId(hashString("COL_DISPERSION"), 0, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep), 0, 1.0) ||
-					unit->setSensitiveParameter(makeParamId(hashString("COL_DISPERSION_AXIAL"), 0, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep), 0, 1.0);
+				// Add a parameter sensitivity. Different unit operations expose different parameters
+				// (e.g. not every geometry supports COL_DISPERSION sensitivities, and MultiChannelTransportModel
+				// has no porosity at all), so sensParamNames lets each caller pick a parameter that
+				// actually exists on its unit operation; the first matching name is used.
+				bool dispSens = false;
+				for (const std::string& sensParamName : sensParamNames)
+				{
+					dispSens = unit->setSensitiveParameter(makeParamId(hashStringRuntime(sensParamName), 0, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep), 0, 1.0);
+					if (dispSens)
+						break;
+				}
 				REQUIRE(dispSens);
 
 				// Obtain memory for state, Jacobian multiply direction, Jacobian column

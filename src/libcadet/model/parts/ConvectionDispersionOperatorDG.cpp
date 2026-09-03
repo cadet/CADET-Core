@@ -1631,30 +1631,33 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::setSensitiveParamet
 
 bool VariableCrossSectionConvectionDispersionOperatorBaseDG::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
 {
-	auto checkAvailabilityOfParameter = [&](const ParameterId& pId,
-		const std::string& pName)
+	// No geometric and axial diffusion sensitivities available since that would dispatch active type DG operators which is currently not implemented.
+	// Only report and reject pId if it actually names one of these parameters; any other parameter must fall through so it can be handled elsewhere.
+	auto checkAvailabilityOfParameter = [&](const std::string& pName) -> bool
 		{
+			if (pId.name != hashStringRuntime(pName))
+				return false;
+
 			if (_geometryType == GeometryType::AxialFlowCylinder)
-				throw InvalidParameterException(
-					"Sensitivities for " + pName +
-					" not supported for exact integration DG, please change to collocation DG or FV discretization.");
+				LOG(Error) << "Sensitivities for " << pName <<
+					" not supported for exact integration DG, please change to collocation DG or FV discretization.";
 			else
-				throw InvalidParameterException(
-					"Sensitivities for " + pName +
-					" in variable cross section column geometries are not supported.");
+				LOG(Error) << "Sensitivities for " << pName <<
+					" in variable cross section column geometries are not supported.";
+
+			return true;
 		};
 
-	// No geometric and axial diffusion sensitivities available since that would dispatch active type DG operators which is currently not implemented
-	checkAvailabilityOfParameter(pId, "COL_DISPERSION");
-	checkAvailabilityOfParameter(pId, "CROSS_SECTION_AREA_LARGE_END");
-	checkAvailabilityOfParameter(pId, "CROSS_SECTION_AREA_SMALL_END");
-	checkAvailabilityOfParameter(pId, "BED_LENGTH");
-	checkAvailabilityOfParameter(pId, "CYLINDER_HEIGHT");
-	checkAvailabilityOfParameter(pId, "CROSS_SECTION_AREA_INNER");
-	checkAvailabilityOfParameter(pId, "CROSS_SECTION_AREA_OUTER");
-	checkAvailabilityOfParameter(pId, "CROSS_SECTION_AREA");
+	if (checkAvailabilityOfParameter("COL_DISPERSION")) return false;
+	if (checkAvailabilityOfParameter("CROSS_SECTION_AREA_LARGE_END")) return false;
+	if (checkAvailabilityOfParameter("CROSS_SECTION_AREA_SMALL_END")) return false;
+	if (checkAvailabilityOfParameter("BED_LENGTH")) return false;
+	if (checkAvailabilityOfParameter("CYLINDER_HEIGHT")) return false;
+	if (checkAvailabilityOfParameter("CROSS_SECTION_AREA_INNER")) return false;
+	if (checkAvailabilityOfParameter("CROSS_SECTION_AREA_OUTER")) return false;
+	if (checkAvailabilityOfParameter("CROSS_SECTION_AREA")) return false;
 
-	return true;
+	return false;
 }
 
 template int AxialConvectionDispersionOperatorBaseCollocationDG::calcTransportJacobian<double>(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, RowMajor>&, Eigen::MatrixXd&, const int, const double* const);
