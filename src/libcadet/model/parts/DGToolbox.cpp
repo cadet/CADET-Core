@@ -770,6 +770,31 @@ Eigen::MatrixXd weightedQuadMassMatrix(
 	return M_AD;
 }
 
+Eigen::MatrixXd nodalAveragingWeights(const Eigen::VectorXd& LGLnodes, const Eigen::VectorXd& QNodes, const Eigen::VectorXd& QWeights, const Eigen::VectorXd& geomAtQNodes)
+{
+	const int nNodes = LGLnodes.size();
+	const int nQuad = QNodes.size();
+
+	Eigen::MatrixXd W = Eigen::MatrixXd::Zero(nNodes, nQuad);
+
+	for (int i = 0; i < nNodes; i++)
+	{
+		const Eigen::VectorXd basisAtQuad = evalLagrangeBasis(i, LGLnodes, QNodes);
+
+		double norm = 0.0;
+		for (int q = 0; q < nQuad; q++)
+		{
+			W(i, q) = QWeights[q] * basisAtQuad[q] * geomAtQNodes[q];
+			norm += W(i, q);
+		}
+
+		// The geometric weight is positive, so the normalization cannot vanish for a sane discretization
+		W.row(i) /= norm;
+	}
+
+	return W;
+}
+
 } // namespace dgtoolbox
 } // namespace parts
 } // namespace model

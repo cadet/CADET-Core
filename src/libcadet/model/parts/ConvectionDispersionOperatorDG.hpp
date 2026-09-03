@@ -1234,6 +1234,9 @@ namespace cadet
 						   (static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius));
 				}
 
+				int couplingQuadratureOrder() const CADET_NOEXCEPT override;
+				void writeCouplingQuadrature(unsigned int nPoints, double* relPos, double* weights) const CADET_NOEXCEPT override;
+
 				inline const double* nodes() const CADET_NOEXCEPT { return &_nodes[0]; }
 				inline const active& currentVelocityCoeff() const CADET_NOEXCEPT { return _curVelocity; }
 				inline const active* currentDispersion(const int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_colDispersion, _nComp, secIdx); }
@@ -1731,6 +1734,20 @@ namespace cadet
 					const double x = floor(idx / _nNodes) * static_cast<double>(_deltaX)
 						+ 0.5 * static_cast<double>(_deltaX) * (1.0 + _nodes[idx % _nNodes]);
 					return x / static_cast<double>(_bedLength);
+				}
+
+				int couplingQuadratureOrder() const CADET_NOEXCEPT override;
+				void writeCouplingQuadrature(unsigned int nPoints, double* relPos, double* weights) const CADET_NOEXCEPT override;
+
+				/**
+				 * @brief Returns the spatially dependent interstitial velocity
+				 * @param [in] pos relative spatial position x in [0, 1]
+				 */
+				inline active currentVelocity(double pos) const CADET_NOEXCEPT
+				{
+					const double pi = 3.1415926535897932384626434;
+					const active radius = _radiusXStart + pos * (_radiusXEnd - _radiusXStart);
+					return _QOverEps / (pi * radius * radius);
 				}
 
 				inline const double* nodes() const CADET_NOEXCEPT { return &_nodes[0]; }

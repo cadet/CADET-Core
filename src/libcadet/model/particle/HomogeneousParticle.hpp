@@ -53,6 +53,7 @@ namespace model
 
 class IDynamicReactionModel;
 class IParameterStateDependence;
+class IParameterParameterDependence;
 
 namespace parts
 {
@@ -113,7 +114,7 @@ namespace parts
 
 		unsigned int jacobianNNZperParticle() const override;
 		int calcParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac) override;
-		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool crossDepsOnly = false) override;
+		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, const CouplingQuadrature& filmDiffQuad, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool crossDepsOnly = false) override;
 
 		bool setParameter(const ParameterId& pId, double value) override;
 		bool setParameter(const ParameterId& pId, int value) override;
@@ -133,8 +134,18 @@ namespace parts
 	protected:
 
 		/* diffusion */
-		std::vector<active> _filmDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
+		std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$
 		MultiplexMode _filmDiffusionMode;
+		IParameterParameterDependence* _filmDiffDep; //!< Dependence of film diffusion on bulk position and interstitial velocity (nullptr if none)
+
+		/**
+		 * @brief Computes the nodal film diffusion coefficients at a bulk-particle coupling point
+		 * @details Averages the film diffusion parameter dependence over the quadrature rule supplied by the
+		 *          bulk discretization. The same nodal value is used in the bulk and in the particle equation,
+		 *          so the mass exchanged between the phases balances exactly for any dependence.
+		 */
+		template <typename ParamType>
+		void evaluateFilmDiffusion(unsigned int secIdx, const CouplingQuadrature& quad, ParamType* buffer) const;
 		std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
 		MultiplexMode _poreAccessFactorMode;
 

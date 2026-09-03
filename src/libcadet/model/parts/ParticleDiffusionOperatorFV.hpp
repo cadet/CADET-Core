@@ -91,10 +91,10 @@ namespace parts
 
 		bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
 
-		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity);
-		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity);
-		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity);
-		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity);
+		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, linalg::BandedEigenSparseRowIterator& jacIt, double const* effFilmDiff, WithoutParamSensitivity);
+		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, active const* effFilmDiff, WithParamSensitivity);
+		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, double const* effFilmDiff, WithoutParamSensitivity);
+		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, active const* effFilmDiff, WithParamSensitivity);
 
 		std::vector<active> _parOuterSurfAreaPerVolume; //!< Particle element outer sphere surface to volume ratio
 		std::vector<active> _parInnerSurfAreaPerVolume; //!< Particle element inner sphere surface to volume ratio
@@ -124,7 +124,7 @@ namespace parts
 			return static_cast<double>(std::accumulate(&_deltaR[0], &_deltaR[cellIdx], _deltaR[cellIdx] * 0.5) / (_parRadius - _parCoreRadius));
 		}
 
-		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly = false);
+		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, const CouplingQuadrature& filmDiffQuad, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly = false);
 
 		int writeParticleCoordinates(double* coords) const;
 
@@ -142,20 +142,33 @@ namespace parts
 
 		bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
 
-		active discretizedFilmDiffusionFactor(const int comp) const CADET_NOEXCEPT
+		double discretizedFilmDiffusionFactor(const int comp, const unsigned int secIdx, const double effFilmDiff) const CADET_NOEXCEPT override
 		{
-			if (_boundaryOrderFV == 2 && nDiscPoints() > 1)
-				return 1.0 / (0.5 * _deltaR[_nParPoints - 1] * _filmDiffusion[comp] / _parPorosity / _poreAccessFactor[comp] / _parDiffusion[comp] + 1.0);
-			else
-				return active(1.0);
+			return discretizedFilmDiffusionFactorImpl<double>(comp, secIdx, effFilmDiff);
+		}
+		active discretizedFilmDiffusionFactor(const int comp, const unsigned int secIdx, const active& effFilmDiff) const CADET_NOEXCEPT override
+		{
+			return discretizedFilmDiffusionFactorImpl<active>(comp, secIdx, effFilmDiff);
 		}
 
 	protected:
 
+		template <typename ParamType>
+		ParamType discretizedFilmDiffusionFactorImpl(const int comp, const unsigned int secIdx, const ParamType& effFilmDiff) const CADET_NOEXCEPT
+		{
+			if (_boundaryOrderFV == 2 && nDiscPoints() > 1)
+			{
+				active const* const parDiff = getSectionDependentSlice(_parDiffusion, _nComp, secIdx);
+				return 1.0 / (0.5 * static_cast<ParamType>(_deltaR[_nParPoints - 1]) * effFilmDiff / static_cast<ParamType>(_parPorosity) / static_cast<ParamType>(_poreAccessFactor[comp]) / static_cast<ParamType>(parDiff[comp]) + 1.0);
+			}
+			else
+				return ParamType(1.0);
+		}
+
 		void parBindingPattern(std::vector<Eigen::Triplet<double>>& tripletList, const int offset, const unsigned int colNode);
 
 		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, linalg::BandedEigenSparseRowIterator& jacBase);
+		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, linalg::BandedEigenSparseRowIterator& jacBase, ParamType const* effFilmDiff);
 
 		ParticleDiscretizationMode _parDiscMode; //!< Particle discretization mode
 

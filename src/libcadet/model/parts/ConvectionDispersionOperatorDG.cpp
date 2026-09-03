@@ -1163,6 +1163,48 @@ void RadialConvectionDispersionOperatorBaseDG::TransposedADWeightedStiffnessMatr
 	}
 }
 
+int RadialConvectionDispersionOperatorBaseDG::couplingQuadratureOrder() const CADET_NOEXCEPT
+{
+	// Same rule as for the parameter weighted stiffness matrix, see TransposedADWeightedStiffnessMatrix()
+	return _overintegrate ? static_cast<int>((3 * _polyDeg + 1) / 2 + 1) : static_cast<int>(_polyDeg + 2);
+}
+
+void RadialConvectionDispersionOperatorBaseDG::writeCouplingQuadrature(unsigned int nPoints, double* relPos, double* weights) const CADET_NOEXCEPT
+{
+	const int nQuad = couplingQuadratureOrder();
+
+	Eigen::VectorXd quadNodes = Eigen::VectorXd::Zero(nQuad);
+	Eigen::VectorXd quadWeights = Eigen::VectorXd::Zero(nQuad);
+	dgtoolbox::lgNodesWeights(nQuad - 1, quadNodes, quadWeights, false);
+
+	const double innerRadius = static_cast<double>(_innerRadius);
+	const double outerRadius = static_cast<double>(_outerRadius);
+	const double deltaRho = static_cast<double>(_deltaRho);
+
+	Eigen::VectorXd rhoAtQNodes(nQuad);
+
+	for (unsigned int elem = 0; elem < _nElem; ++elem)
+	{
+		const double rhoLeft = _rhoCellBounds[elem];
+
+		for (int q = 0; q < nQuad; ++q)
+			rhoAtQNodes[q] = rhoLeft + 0.5 * deltaRho * (1.0 + quadNodes[q]);
+
+		// The radial mass matrix carries the radius as geometric weight
+		const Eigen::MatrixXd avgWeights = dgtoolbox::nodalAveragingWeights(_nodes, quadNodes, quadWeights, rhoAtQNodes);
+
+		for (unsigned int node = 0; node < _nNodes; ++node)
+		{
+			const int offset = (elem * _nNodes + node) * nQuad;
+			for (int q = 0; q < nQuad; ++q)
+			{
+				relPos[offset + q] = (rhoAtQNodes[q] - innerRadius) / (outerRadius - innerRadius);
+				weights[offset + q] = avgWeights(node, q);
+			}
+		}
+	}
+}
+
 /**
  * @brief Returns the current velocity at a given relative position
  */
@@ -2072,6 +2114,56 @@ bool FrustumConvectionDispersionOperatorBaseDG::notifyDiscontinuousSectionTransi
 	computeOperators(secIdx);
 
 	return flowDirChange;
+}
+
+int FrustumConvectionDispersionOperatorBaseDG::couplingQuadratureOrder() const CADET_NOEXCEPT
+{
+	// The cross section area contributes a polynomial of degree two, see updateWeightedMassMatrices()
+	const int frustumGeomFactorDegree = 2;
+	return static_cast<int>(std::ceil((frustumGeomFactorDegree + 2 * _polyDeg + 1) / 2.0)) + 1;
+}
+
+void FrustumConvectionDispersionOperatorBaseDG::writeCouplingQuadrature(unsigned int nPoints, double* relPos, double* weights) const CADET_NOEXCEPT
+{
+	const int nQuad = couplingQuadratureOrder();
+
+	Eigen::VectorXd quadNodes = Eigen::VectorXd::Zero(nQuad);
+	Eigen::VectorXd quadWeights = Eigen::VectorXd::Zero(nQuad);
+	dgtoolbox::lgNodesWeights(nQuad - 1, quadNodes, quadWeights, false);
+
+	const double bedLength = static_cast<double>(_bedLength);
+	const double deltaX = static_cast<double>(_deltaX);
+	const double r0 = static_cast<double>(_radiusXStart);
+	const double rDiff = static_cast<double>(_radiusXEnd) - r0;
+
+	Eigen::VectorXd xAtQNodes(nQuad);
+	Eigen::VectorXd areaAtQNodes(nQuad);
+
+	for (unsigned int elem = 0; elem < _nElem; ++elem)
+	{
+		const double xLeft = elem * deltaX;
+
+		for (int q = 0; q < nQuad; ++q)
+		{
+			xAtQNodes[q] = xLeft + 0.5 * deltaX * (1.0 + quadNodes[q]);
+			// The frustum mass matrix carries the cross section area as geometric weight; the constant
+			// factor pi cancels in the normalization of the averaging weights
+			const double radius = r0 + (xAtQNodes[q] / bedLength) * rDiff;
+			areaAtQNodes[q] = radius * radius;
+		}
+
+		const Eigen::MatrixXd avgWeights = dgtoolbox::nodalAveragingWeights(_nodes, quadNodes, quadWeights, areaAtQNodes);
+
+		for (unsigned int node = 0; node < _nNodes; ++node)
+		{
+			const int offset = (elem * _nNodes + node) * nQuad;
+			for (int q = 0; q < nQuad; ++q)
+			{
+				relPos[offset + q] = xAtQNodes[q] / bedLength;
+				weights[offset + q] = avgWeights(node, q);
+			}
+		}
+	}
 }
 
 void FrustumConvectionDispersionOperatorBaseDG::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT

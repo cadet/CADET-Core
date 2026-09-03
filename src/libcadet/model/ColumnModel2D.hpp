@@ -219,14 +219,26 @@ protected:
 		}
 
 		// film diffusion Jacobian
+		// The two dimensional operators evaluate the exchange coefficient at the bulk points themselves
+		std::vector<ColumnPosition> couplingPos(_disc.radNNodes);
+		std::vector<active> couplingVelocity(_disc.radNNodes);
+		const std::vector<double> couplingWeights(_disc.radNNodes, 1.0);
+
 		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 		{
 			for (unsigned int z = 0; z < _disc.axNPoints; z++)
 			{
 				for (unsigned int r = 0; r < _disc.radNElem; r++)
 				{
+					for (unsigned int node = 0; node < _disc.radNNodes; ++node)
+					{
+						couplingPos[node] = ColumnPosition{ _convDispOp.relativeAxialCoordinate(z), _convDispOp.relativeRadialCoordinate(r * _disc.radNNodes + node), 0.0 };
+						couplingVelocity[node] = _convDispOp.currentVelocity(r);
+					}
+					const CouplingQuadrature filmDiffQuad{ 1, couplingPos.data(), couplingVelocity.data(), couplingWeights.data() };
+
 					const unsigned int colNode = z * _disc.radNPoints + r * _disc.radNNodes;
-					_particles[parType]->calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }) - idxr.offsetC(), colNode * idxr.strideColRadialNode(), _disc.radNNodes, _disc.nParType, static_cast<double>(_convDispOp.columnPorosity(r)), &_parTypeVolFrac[colNode * _disc.nParType], _globalJac);
+					_particles[parType]->calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }) - idxr.offsetC(), colNode * idxr.strideColRadialNode(), _disc.radNNodes, _disc.nParType, static_cast<double>(_convDispOp.columnPorosity(r)), &_parTypeVolFrac[colNode * _disc.nParType], filmDiffQuad, _globalJac);
 				}
 			}
 		}
