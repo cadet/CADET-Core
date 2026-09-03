@@ -12,6 +12,7 @@
 
 #include <json.hpp>
 #include <string>
+#include <cmath>
 
 #include "common/JsonParameterProvider.hpp"
 
@@ -45,6 +46,23 @@ void getSpatialMethods(const std::string& spatialMethod, std::string& bulkMethod
 		throw std::invalid_argument("Invalid spatial method length: " + spatialMethod);
 }
 
+// Derives the UNIT_TYPE string from a test uoType tag such as
+std::string columnUnitType(const std::string& uoType)
+{
+	std::string type = uoType;
+	if (type.size() >= 4 && type.compare(type.size() - 4, 4, "_GRM") == 0)
+		type = type.substr(0, type.size() - 4);
+	else if (type.size() >= 5 && type.compare(type.size() - 5, 5, "_LRMP") == 0)
+		type = type.substr(0, type.size() - 5);
+
+	if (type.compare(0, 7, "RADIAL_") == 0)
+		type = type.substr(7);
+	else if (type.compare(0, 8, "FRUSTUM_") == 0)
+		type = type.substr(8);
+
+	return type;
+}
+
 json createColumnWithSMAJson(const std::string& uoType, const std::string& spatialMethod)
 {
 	std::string bulkMethod;
@@ -54,10 +72,7 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 	json config;
 	json particle;
 
-	config["UNIT_TYPE"] =
-		(uoType.size() >= 3 && uoType.compare(uoType.size() - 4, 4, "_GRM") == 0) ? uoType.substr(0, uoType.size() - 4) :
-		(uoType.size() >= 4 && uoType.compare(uoType.size() - 5, 5, "_LRMP") == 0) ? uoType.substr(0, uoType.size() - 5) :
-		uoType;
+	config["UNIT_TYPE"] = columnUnitType(uoType);
 	config["NCOMP"] = 4;
 	config["NPARTYPE"] = 1;
 	if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
@@ -98,10 +113,12 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 	else
 	{
 		config["GEOMETRY"] = "AXIAL_FLOW_CYLINDER";
+		config["COL_RADIUS"] = 0.01;
 		config["CROSS_SECTION_AREA"] = inletA;
-		config["VELOCITY"] = 5.75e-4;
 	}
-	config["BED_LENGTH"] = 0.014;
+	// avoid a floating-point mismatch against that derived value.
+	if (uoType.substr(0, 6) != "RADIAL")
+		config["BED_LENGTH"] = 0.014;
 	config["FORWARD_FLOW"] = 1;
 	config["COL_POROSITY"] = 0.37;
 	config["TOTAL_POROSITY"] = 0.37 + (1.0 - 0.37) * 0.75;
@@ -281,10 +298,7 @@ json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(cons
 	getSpatialMethods(spatialMethod, bulkMethod, parMethod);
 
 	json config;
-	config["UNIT_TYPE"] =
-		(uoType.size() >= 3 && uoType.compare(uoType.size() - 4, 4, "_GRM") == 0) ? uoType.substr(0, uoType.size() - 4) :
-		(uoType.size() >= 4 && uoType.compare(uoType.size() - 5, 5, "_LRMP") == 0) ? uoType.substr(0, uoType.size() - 5) :
-		uoType;
+	config["UNIT_TYPE"] = columnUnitType(uoType);
 	config["NCOMP"] = 2;
 	config["NPARTYPE"] = 2;
 	config["PAR_TYPE_VOLFRAC"] = { 0.6, 0.4 };
@@ -306,9 +320,10 @@ json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(cons
 		config["GEOMETRY"] = "RADIAL_FLOW_CYLINDER_SHELL";
 		const double flowRate = 5.75e-4 * (pi * 0.01 * 0.01) * 0.37;
 		// A = 2.0 * pi * H * r_outer = flowRate / (v*eps) -> H = flowRate / (v*eps) / (2 pi r_outer)
-		config["CYLINDER_HEIGHT"] = flowRate / (5.75e-4 * 0.37) / (2.0 * pi * 0.024);
-		config["CROSS_SECTION_AREA_OUTER"] = 2.0 * pi * 0.024 * config["CYLINDER_HEIGHT"];
-		config["CROSS_SECTION_AREA_INNER"] = 2.0 * pi * 0.01 * config["CYLINDER_HEIGHT"];
+		const double radCylinderHeight = flowRate / (5.75e-4 * 0.37) / (2.0 * pi * 0.024);
+		config["CYLINDER_HEIGHT"] = radCylinderHeight;
+		config["CROSS_SECTION_AREA_OUTER"] = 2.0 * pi * 0.024 * radCylinderHeight;
+		config["CROSS_SECTION_AREA_INNER"] = 2.0 * pi * 0.01 * radCylinderHeight;
 	}
 	else if (uoType.substr(0, 7) == "FRUSTUM")
 	{
@@ -322,7 +337,9 @@ json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(cons
 		config["COL_RADIUS"] = 0.01;
 		config["CROSS_SECTION_AREA"] = pi * 0.01 * 0.01;
 	}
-	config["BED_LENGTH"] = 0.014;
+	// avoid a floating-point mismatch against that derived value.
+	if (uoType.substr(0, 6) != "RADIAL")
+		config["BED_LENGTH"] = 0.014;
 	config["FORWARD_FLOW"] = 1;
 	config["COL_POROSITY"] = 0.37;
 	config["TOTAL_POROSITY"] = 0.37 + (1.0 - 0.37) * (0.6 * 0.75 + 0.4 * 0.5);
@@ -434,10 +451,7 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 
 	json config;
 	json particle;
-	config["UNIT_TYPE"] =
-		(uoType.size() >= 3 && uoType.compare(uoType.size() - 4, 4, "_GRM") == 0) ? uoType.substr(0, uoType.size() - 4) :
-		(uoType.size() >= 4 && uoType.compare(uoType.size() - 5, 5, "_LRMP") == 0) ? uoType.substr(0, uoType.size() - 5) :
-		uoType;
+	config["UNIT_TYPE"] = columnUnitType(uoType);
 	config["NCOMP"] = 2;
 	config["NPARTYPE"] = 1;
 	if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
@@ -461,9 +475,10 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 		config["GEOMETRY"] = "RADIAL_FLOW_CYLINDER_SHELL";
 		const double flowRate = 5.75e-4 * (pi * 0.01 * 0.01) * 0.37;
 		// A = 2.0 * pi * H * r_outer = flowRate / (v*eps) -> H = flowRate / (v*eps) / (2 pi r_outer)
-		config["CYLINDER_HEIGHT"] = flowRate / (5.75e-4 * 0.37) / (2.0 * pi * 0.024);
-		config["CROSS_SECTION_AREA_OUTER"] = 2.0 * pi * 0.024 * config["CYLINDER_HEIGHT"];
-		config["CROSS_SECTION_AREA_INNER"] = 2.0 * pi * 0.01 * config["CYLINDER_HEIGHT"];
+		const double radCylinderHeight = flowRate / (5.75e-4 * 0.37) / (2.0 * pi * 0.024);
+		config["CYLINDER_HEIGHT"] = radCylinderHeight;
+		config["CROSS_SECTION_AREA_OUTER"] = 2.0 * pi * 0.024 * radCylinderHeight;
+		config["CROSS_SECTION_AREA_INNER"] = 2.0 * pi * 0.01 * radCylinderHeight;
 	}
 	else if (uoType.substr(0, 7) == "FRUSTUM")
 	{
@@ -474,9 +489,13 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 	else
 	{
 		config["GEOMETRY"] = "AXIAL_FLOW_CYLINDER";
+		// needed in 2D models
+		config["COL_RADIUS"] = 0.01;
 		config["CROSS_SECTION_AREA"] = pi * 0.01 * 0.01;
 	}
-	config["BED_LENGTH"] = 0.014;
+	// avoid a floating-point mismatch against that derived value
+	if (uoType.substr(0, 6) != "RADIAL")
+		config["BED_LENGTH"] = 0.014;
 	config["FORWARD_FLOW"] = 1;
 	particle["PAR_RADIUS"] = 4.5e-5;
 	config["COL_POROSITY"] = 0.37;
@@ -826,10 +845,7 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 		{
 			json grm;
 			json particle;
-			grm["UNIT_TYPE"] =
-				(uoType.size() >= 3 && uoType.compare(uoType.size() - 4, 4, "_GRM") == 0) ? uoType.substr(0, uoType.size() - 4) :
-				(uoType.size() >= 4 && uoType.compare(uoType.size() - 5, 5, "_LRMP") == 0) ? uoType.substr(0, uoType.size() - 5) :
-				uoType;
+			grm["UNIT_TYPE"] = columnUnitType(uoType);
 			grm["NCOMP"] = 1;
 			grm["NPARTYPE"] = 1;
 			if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
@@ -847,20 +863,35 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 				grm["NCHANNEL"] = 3;
 
 			// Geometry
-			if (uoType.substr(0, 6) == "RADIAL" || uoType.substr(0, 7) == "FRUSTUM")
+			const double pi = 3.14159265358979323846;
+			if (uoType.substr(0, 6) == "RADIAL")
 			{
-				grm["COL_RADIUS_INNER"] = 0.001;
-				grm["COL_RADIUS_OUTER"] = 0.004;
-				if (uoType.substr(0, 7) == "FRUSTUM")
-					grm["BED_LENGTH"] = 0.01;
-				grm["VELOCITY_COEFF"] = 5.75e-4;
+				grm["GEOMETRY"] = "RADIAL_FLOW_CYLINDER_SHELL";
+				// Historically v(r) = VELOCITY_COEFF / r, i.e. Q / (2*pi*H*eps) = VELOCITY_COEFF, so
+				// H = Q / (2*pi*eps*VELOCITY_COEFF); A(r) = 2*pi*r*H for r_inner = 0.001, r_outer = 0.004.
+				const double radCylinderHeight = 1.0 / (2.0 * pi * 0.37 * 5.75e-4);
+				grm["CYLINDER_HEIGHT"] = radCylinderHeight;
+				grm["CROSS_SECTION_AREA_INNER"] = 2.0 * pi * 0.001 * radCylinderHeight;
+				grm["CROSS_SECTION_AREA_OUTER"] = 2.0 * pi * 0.004 * radCylinderHeight;
+			}
+			else if (uoType.substr(0, 7) == "FRUSTUM")
+			{
+				grm["GEOMETRY"] = "AXIAL_FLOW_FRUSTUM";
+				grm["BED_LENGTH"] = 0.01;
+				grm["CROSS_SECTION_AREA_SMALL_END"] = pi * 0.001 * 0.001;
+				grm["CROSS_SECTION_AREA_LARGE_END"] = pi * 0.004 * 0.004;
 			}
 			else
 			{
+				grm["GEOMETRY"] = "AXIAL_FLOW_CYLINDER";
 				grm["BED_LENGTH"] = 0.014;
-				grm["COL_RADIUS"] = 0.01;
-				grm["VELOCITY"] = 5.75e-4;
+				// A = Q / (v*eps) = 1.0 / (5.75e-4 * 0.37) = 4700.3525264395
+				const double crossSectionArea = 1.0 / (5.75e-4 * 0.37);
+				grm["CROSS_SECTION_AREA"] = crossSectionArea;
+				// needed in 2D models
+				grm["COL_RADIUS"] = std::sqrt(crossSectionArea / pi);
 			}
+			grm["FORWARD_FLOW"] = 1;
 			particle["PAR_RADIUS"] = 4.5e-5;
 			particle["PAR_CORERADIUS"] = 0.0;
 			grm["COL_POROSITY"] = 0.37;
@@ -1138,10 +1169,7 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 
 	json grm;
 	json particle;
-	grm["UNIT_TYPE"] =
-		(uoType.size() >= 3 && uoType.compare(uoType.size() - 4, 4, "_GRM") == 0) ? uoType.substr(0, uoType.size() - 4) :
-		(uoType.size() >= 4 && uoType.compare(uoType.size() - 5, 5, "_LRMP") == 0) ? uoType.substr(0, uoType.size() - 5) :
-		uoType;
+	grm["UNIT_TYPE"] = columnUnitType(uoType);
 	grm["NCOMP"] = 1;
 	grm["NPARTYPE"] = 1;
 	if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
@@ -1162,14 +1190,12 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 	if (uoType.substr(0, 6) == "RADIAL")
 	{
 		grm["GEOMETRY"] = "RADIAL_FLOW_CYLINDER_SHELL";
-		//grm["COL_RADIUS_INNER"] = 0.001;
-		//grm["COL_RADIUS_OUTER"] = 0.004;
-		// A = Q / (v*eps) and A = 2 * pi * r * h -> h = Q / (v*eps*2*pi*r)
-		grm["CROSS_SECTION_AREA_INNER"] = 1.0 / (5.75e-4 * 0.4 * 2.0 * pi * 0.001);
-		grm["CROSS_SECTION_AREA_OUTER"] = 1.0 / (5.75e-4 * 0.4 * 2.0 * pi * 0.004);
-		grm["BED_LENGTH"] = 0.03;
-		grm["CYLINDER_HEIGHT"] = 0.03;
-		grm["VELOCITY_COEFF"] = 5.75e-4;
+		// Historically v(r) = VELOCITY_COEFF / r, i.e. Q / (2*pi*H*eps) = VELOCITY_COEFF, so
+		// H = Q / (2*pi*eps*VELOCITY_COEFF); A(r) = 2*pi*r*H for r_inner = 0.001, r_outer = 0.004.
+		const double radCylinderHeight = 1.0 / (2.0 * pi * 0.4 * 5.75e-4);
+		grm["CYLINDER_HEIGHT"] = radCylinderHeight;
+		grm["CROSS_SECTION_AREA_INNER"] = 2.0 * pi * 0.001 * radCylinderHeight;
+		grm["CROSS_SECTION_AREA_OUTER"] = 2.0 * pi * 0.004 * radCylinderHeight;
 	}
 	else if (uoType.substr(0, 7) == "FRUSTUM")
 	{
