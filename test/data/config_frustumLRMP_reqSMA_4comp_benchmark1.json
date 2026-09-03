@@ -193,7 +193,7 @@
         }
     },
     "return": {
-        "SPLIT_COMPONENTS_DATA": 0,
+        "SPLIT_COMPONENTS_DATA": 1,
         "SPLIT_PORTS_DATA": 0,
         "WRITE_SOLUTION_TIMES": 1,
         "unit_000": {

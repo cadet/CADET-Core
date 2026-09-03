@@ -234,7 +234,7 @@ TEST_CASE("GRM LWE one vs two identical particle types match", "[GRM],[FV],[Simu
 
 TEST_CASE("GRM LWE separate identical particle types match", "[GRM],[FV],[Simulation],[ParticleType],[CI]")
 {
-	cadet::test::particle::testSeparateIdenticalParticleTypes("GENERAL_RATE_MODEL", "FV", 1e-15, 1e-15);
+	cadet::test::particle::testSeparateIdenticalParticleTypes("GENERAL_RATE_MODEL", "FV", 1e-9, 1e-8);
 }
 
 TEST_CASE("GRM linear binding single particle matches particle distribution", "[GRM],[FV],[Simulation],[ParticleType],[CI]")

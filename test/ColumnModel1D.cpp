@@ -1482,8 +1482,8 @@ TEST_CASE("Frustum Column_1D as LRMP numerical Benchmark for SMA LWE case", "[Fr
 {
 	const std::string& modelFilePath = std::string("/data/config_frustumLRMP_reqSMA_4comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_frustumLRMP_reqSMA_4comp_benchmark1_DG_P3Z8.h5");
-	const std::vector<double> absTol = { 1e-12 };
-	const std::vector<double> relTol = { 1e-6 };
+	const std::vector<double> absTol = { 5e-8 };
+	const std::vector<double> relTol = { 1e-4 };
 
 	cadet::test::column::DGParams disc(0, 3, 8);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, false);

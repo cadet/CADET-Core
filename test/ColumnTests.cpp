@@ -1015,24 +1015,9 @@ namespace column
 			cadet::test::compareJacobian(unitAna, unitAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 //				cadet::test::compareJacobianFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 
-			if (jpp.getString("UNIT_TYPE").substr(0, 6) == "RADIAL" || jpp.getString("UNIT_TYPE").substr(0, 7) == "FRUSTUM")
-			{
-				// Reverse flow
-				const bool paramSet = unitAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY_COEFF"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY_COEFF"));
-				REQUIRE(paramSet);
-				// Reverse flow
-				const bool paramSet2 = unitAD->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY_COEFF"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY_COEFF"));
-				REQUIRE(paramSet2);
-			}
-			else
-			{
-				// Reverse flow
-				const bool paramSet = unitAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
-				REQUIRE(paramSet);
-				// Reverse flow
-				const bool paramSet2 = unitAD->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
-				REQUIRE(paramSet2);
-			}
+				reverseFlow(jpp);
+				REQUIRE(unitAna->configure(jpp));
+				REQUIRE(unitAD->configure(jpp));
 
 			// Setup
 			unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
@@ -1127,9 +1112,8 @@ namespace column
 				cadet::test::checkJacobianPatternFD(unit, unit, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
 				cadet::test::compareJacobianFD(unit, unit, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls, h, absTol, relTol);
 
-				// Reverse flow
-				const bool paramSet = unit->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
-				REQUIRE(paramSet);
+				reverseFlow(jpp);
+				REQUIRE(unit->configure(jpp));
 
 				// Setup
 				unit->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
@@ -1250,7 +1234,10 @@ namespace column
 			auto ms = util::makeOptionalGroupScope(jpp, "model");
 			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
 
-			const double velocityCoeff = jpp.getDouble("VELOCITY_COEFF"); // 5.75e-4
+			// VELOCITY_COEFF is no longer a JSON input field (velocity is now derived from
+			// CROSS_SECTION_AREA*); this is only used as an arbitrary representative scale for the
+			// synthetic film-diffusion dependency below, so the historical value is used directly.
+			const double velocityCoeff = 5.75e-4;
 
 			auto ps = util::makeOptionalGroupScope(jpp, "particle_type_000");
 
