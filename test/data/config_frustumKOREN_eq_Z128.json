@@ -74,7 +74,7 @@
         "NCOMP": 1,
         "NPARTYPE": 0,
         "TOTAL_POROSITY": 0.37,
-        "UNIT_TYPE": "FRUSTUM_COLUMN_MODEL_1D",
+        "UNIT_TYPE": "COLUMN_MODEL_1D",
         "discretization": {
           "GS_TYPE": 0,
           "MAX_KRYLOV": 10,
