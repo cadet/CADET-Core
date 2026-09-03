@@ -1074,7 +1074,7 @@ bool RadialConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransit
 void RadialConvectionDispersionOperatorBaseFV::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
 {
 	const double pi = 3.1415926535897932384626434;
-	_curVelCoeff = in / (2.0 * pi * _colHeight * colPorosity * _circleFraction) / _outerRadius; // this coefficient is later divided by r
+	_curVelCoeff = in / (2.0 * pi * _colHeight * colPorosity * _circleFraction); // this coefficient is later divided by r
 }
 
 active RadialConvectionDispersionOperatorBaseFV::currentVelocity(double pos) const CADET_NOEXCEPT
@@ -1805,7 +1805,7 @@ bool FrustumConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransi
 void FrustumConvectionDispersionOperatorBaseFV::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
 {
 	const double pi = 3.1415926535897932384626434;
-	_curVelCoeff = in / (pi * _outerRadius * _outerRadius * colPorosity); // this coefficient is later divided by r^2
+	_curVelCoeff = in / (pi * colPorosity); // this coefficient is later divided by r^2
 }
 
 /**
