@@ -98,7 +98,7 @@ private:
 };
 
 
-HDF5Writer::HDF5Writer() :
+inline HDF5Writer::HDF5Writer() :
 		_writeScalar(false),
 		_writeExtendible(true),
 		_writeCompressed(false),
@@ -107,32 +107,32 @@ HDF5Writer::HDF5Writer() :
 		_chunkFactor(1.5)
 {}
 
-HDF5Writer::~HDF5Writer() CADET_NOEXCEPT { }
+inline HDF5Writer::~HDF5Writer() CADET_NOEXCEPT { }
 
 
 // ============================================================================================================
 //   Template specializations of member function write() for diffenet data types
 // ============================================================================================================
 template <>
-void HDF5Writer::write<double>(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const double* buffer, const std::size_t stride, const std::size_t blockSize)
+inline void HDF5Writer::write<double>(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const double* buffer, const std::size_t stride, const std::size_t blockSize)
 {
 	writeWork(dataSetName, H5T_NATIVE_DOUBLE, H5T_IEEE_F64LE, rank, dims, buffer, stride, blockSize);
 }
 
 template <>
-void HDF5Writer::write<int>(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const int* buffer, const std::size_t stride, const std::size_t blockSize)
+inline void HDF5Writer::write<int>(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const int* buffer, const std::size_t stride, const std::size_t blockSize)
 {
 	writeWork(dataSetName, H5T_NATIVE_INT, H5T_STD_I32LE, rank, dims, buffer, stride, blockSize);
 }
 
 template <>
-void HDF5Writer::write<uint64_t>(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const uint64_t* buffer, const std::size_t stride, const std::size_t blockSize)
+inline void HDF5Writer::write<uint64_t>(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const uint64_t* buffer, const std::size_t stride, const std::size_t blockSize)
 {
 	writeWork(dataSetName, H5T_NATIVE_UINT64, H5T_STD_I32LE, rank, dims, buffer, stride, blockSize);
 }
 
 template <>
-void HDF5Writer::write<std::string>(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const std::string* buffer, const std::size_t stride, const std::size_t blockSize)
+inline void HDF5Writer::write<std::string>(const std::string& dataSetName, const std::size_t rank, const std::size_t* dims, const std::string* buffer, const std::size_t stride, const std::size_t blockSize)
 {
 	hid_t dataType = H5Tcopy(H5T_C_S1);
 	H5Tset_size(dataType, H5T_VARIABLE);
@@ -235,13 +235,13 @@ void HDF5Writer::scalar(const std::string& dataSetName, const T buffer)
 // ============================================================================================================
 
 
-void HDF5Writer::unlinkGroup(const std::string& groupName)
+inline void HDF5Writer::unlinkGroup(const std::string& groupName)
 {
 	H5Ldelete(_file, groupName.c_str(), H5P_DEFAULT);
 }
 
 
-void HDF5Writer::unlinkDataset(const std::string& dsName)
+inline void HDF5Writer::unlinkDataset(const std::string& dsName)
 {
 	bool wasOpen = !_groupsOpened.empty();
 
@@ -255,7 +255,7 @@ void HDF5Writer::unlinkDataset(const std::string& dsName)
 }
 
 
-void HDF5Writer::writeWork(const std::string& dataSetName, hid_t memType, hid_t fileType, const std::size_t rank, const std::size_t* dims, const void* buffer, const std::size_t stride, const std::size_t blockSize)
+inline void HDF5Writer::writeWork(const std::string& dataSetName, hid_t memType, hid_t fileType, const std::size_t rank, const std::size_t* dims, const void* buffer, const std::size_t stride, const std::size_t blockSize)
 {
 	hid_t propList = H5Pcreate(H5P_DATASET_CREATE);
 	hid_t dataSpace;
