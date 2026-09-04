@@ -606,13 +606,13 @@ void ColumnModel1D<ConvDispOperator>::notifyDiscontinuousSectionTransition(doubl
 {
 	Indexer idxr(_disc);
 
+	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
+
 	// todo: only reset jacobian pattern if it changes, i.e. once in configuration and then only for changes in SurfDiff+kinetic binding.
 	bool hasReaction = _reaction.getDynReactionVector("liquid")[0];
 	setJacobianPattern(_globalJac, 0, hasReaction);
 	reserveConservedMoietyJacobian();
 	_globalJacDisc = _globalJac;
-
-	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{

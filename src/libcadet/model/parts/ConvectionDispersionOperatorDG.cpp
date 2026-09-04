@@ -240,6 +240,11 @@ bool AxialConvectionDispersionOperatorBaseCollocationDG::notifyDiscontinuousSect
 	_curSection = secIdx;
 	_newStaticJac = true;
 
+	const double curDir = getSectionDependentScalar(_dir, secIdx);
+	const bool changedDirection = secIdx > 0 ? (getSectionDependentScalar(_dir, secIdx - 1) * curDir < 0) : false;
+	if (curDir < 0)
+		_curVelocity *= -1.0;
+
 	 // recompute convection jacobian block, which depends on flow direction
 	_DGjacAxConvBlock = DGjacobianConvBlock();
 
@@ -250,12 +255,6 @@ bool AxialConvectionDispersionOperatorBaseCollocationDG::notifyDiscontinuousSect
 		jacInlet(0, 0) = static_cast<double>(_curVelocity) * _DGjacAxConvBlock(0, 0); // only first node depends on inlet concentration
 	else // backward flow upwind convection
 		jacInlet(0, 0) = static_cast<double>(_curVelocity) * _DGjacAxConvBlock(_DGjacAxConvBlock.rows() - 1, _DGjacAxConvBlock.cols() - 1); // only last node depends on inlet concentration
-
-	// Detect change in flow direction
-	const double curDir = getSectionDependentScalar(_dir, secIdx);
-	const bool changedDirection = secIdx > 0 ? (getSectionDependentScalar(_dir, secIdx - 1) * curDir < 0) : false;
-	if (changedDirection)
-		_curVelocity *= -1.0;
 
 	return changedDirection;
 }
@@ -859,7 +858,7 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::notifyDiscontinuous
 
 	// note: flow direction is set by setFlowRates() before notifyDiscontinuousSectionTransition() is called
 	_curFwdFlow = static_cast<bool>(getSectionDependentScalar(_forwardFlow, secIdx));
-	const bool changedDirection = secIdx > 0 ? (static_cast<bool>(getSectionDependentScalar(_forwardFlow, secIdx - 1)) && _curFwdFlow) : false;
+	const bool changedDirection = secIdx > 0 ? (static_cast<bool>(getSectionDependentScalar(_forwardFlow, secIdx - 1)) != _curFwdFlow) : false;
 
 	// Recompute Jacobian blocks
 	for (unsigned int elem = 0; elem < _nElem; elem++)
