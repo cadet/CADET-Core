@@ -460,34 +460,39 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 		_parDepSurfDiffusion = std::vector<IParameterStateDependence*>(_disc.nParType, nullptr);
 	}
 
+	paramProvider.popScope();
+
 	if (optimizeParticleJacobianBandwidth)
 	{
 		// Check whether surface diffusion is present
 		_hasSurfaceDiffusion = std::vector<bool>(_disc.nParType, false);
-		if (paramProvider.exists("SURFACE_DIFFUSION"))
+		for (unsigned int i = 0; i < _disc.nParType; ++i)
 		{
-			const std::vector<double> surfDiff = paramProvider.getDoubleArray("SURFACE_DIFFUSION");
-			for (unsigned int i = 0; i < _disc.nParType; ++i)
+			// Assume particle surface diffusion if a parameter dependence is present
+			if (_parDepSurfDiffusion[i])
 			{
-				// Assume particle surface diffusion if a parameter dependence is present
-				if (_parDepSurfDiffusion[i])
-				{
-					_hasSurfaceDiffusion[i] = true;
-					continue;
-				}
+				_hasSurfaceDiffusion[i] = true;
+				continue;
+			}
 
-				double const* const lsd = surfDiff.data() + _disc.nBoundBeforeType[i];
+			paramProvider.pushScope("particle_type_" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i));
 
-				// Check surface diffusion coefficients of each particle type
-				for (unsigned int j = 0; j < _disc.strideBound[i]; ++j)
+			if (paramProvider.exists("SURFACE_DIFFUSION"))
+			{
+				const std::vector<double> surfDiff = paramProvider.getDoubleArray("SURFACE_DIFFUSION");
+
+				// Check surface diffusion coefficients of this particle type
+				for (unsigned int j = 0; j < surfDiff.size(); ++j)
 				{
-					if (lsd[j] != 0.0)
+					if (surfDiff[j] != 0.0)
 					{
 						_hasSurfaceDiffusion[i] = true;
 						break;
 					}
 				}
 			}
+
+			paramProvider.popScope();
 		}
 	}
 	else
@@ -495,8 +500,6 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 		// Assume that surface diffusion is present
 		_hasSurfaceDiffusion = std::vector<bool>(_disc.nParType, true);
 	}
-
-	paramProvider.popScope();
 
 	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nCol);
 
