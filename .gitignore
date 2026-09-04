@@ -90,3 +90,12 @@ build_DEBUG
 build_DEBUG_with_Tests
 install
 vcpkg_installed
+
+# Ignore AI folders
+.claude
+.claude/
+.cursor/
+.aider*
+.copilot/
+.continue/
+.codeium/
