@@ -606,9 +606,13 @@ protected:
 			}
 		}
 
+		std::vector<active> pointVelocities(_disc.nPoints);
+		for (unsigned int pt = 0; pt < _disc.nPoints; ++pt)
+			pointVelocities[pt] = _convDispOp.currentVelocity(_convDispOp.relativeCoordinate(pt));
+
 		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 		{
-			_particles[parType]->calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], _globalJac);
+			_particles[parType]->calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], &pointVelocities[0], _globalJac);
 		}
 
 		return _globalJac.isCompressed(); // check if the jacobian estimation fits the pattern

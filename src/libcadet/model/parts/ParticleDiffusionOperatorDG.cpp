@@ -1575,35 +1575,35 @@ namespace parts
 		return true;
 	}
 
-	int ParticleDiffusionOperatorDG::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
+	int ParticleDiffusionOperatorDG::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
 	{
 		// lifting matrix entry for exact integration scheme depends on metrics for sphere and cylinder
 		double exIntLiftContribution = static_cast<double>(_Ir[_nParElem - 1][_nParNode - 1]);
 		if (_parGeomSurfToVol == _SurfVolRatioSlab)
 			exIntLiftContribution = 1.0;
 
-		// Ordering of diffusion:
-		// sec0type0comp0, sec0type0comp1, sec0type0comp2, sec0type1comp0, sec0type1comp1, sec0type1comp2,
-		// sec1type0comp0, sec1type0comp1, sec1type0comp2, sec1type1comp0, sec1type1comp1, sec1type1comp2, ...
-		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _nComp, secIdx);
-
 		linalg::BandedEigenSparseRowIterator jacCl(globalJac, offsetC);
 		linalg::BandedEigenSparseRowIterator jacCp(globalJac, offsetCp + (_nParPoints - 1) * strideParNode()); // iterator at the outer particle boundary
 
 		for (unsigned int blk = 0; blk < nBulkPoints; blk++)
 		{
+			// FILM_DIFFUSION_DEP is evaluated pointwise at this bulk point's local velocity
+			// (mass-lumped, same fidelity as FV's own midpoint-rule approximation of this term).
+			// Position is a no-op for the only supported dependency (POWER_LAW), which only uses velocity.
 			for (unsigned int comp = 0; comp < _nComp; comp++, ++jacCp, ++jacCl) {
+				const active filmDiff_comp = modifiedFilmDiffusion(secIdx, comp, ColumnPosition{ 0.0, 0.0, 0.0 }, pointVelocity[blk]);
+
 				// add Cl on Cl entries (added since these entries are also touched by bulk jacobian)
 				// row: already at bulk phase. already at current node and component.
 				// col: already at bulk phase. already at current node and component.
 				if (!outliersOnly)
-					jacCl[0] += static_cast<double>(filmDiff[comp]) * (1.0 - colPorosity) / colPorosity
+					jacCl[0] += static_cast<double>(filmDiff_comp) * (1.0 - colPorosity) / colPorosity
 					* _parGeomSurfToVol / static_cast<double>(_parRadius)
 					* static_cast<double>(parTypeVolFrac[_parTypeIdx + blk * nParType]);
 				// add Cl on Cp entries
 				// row: already at bulk phase. already at current node and component.
 				// col: go to current particle phase entry.
-				jacCl[jacCp.row() - jacCl.row()] = -static_cast<double>(filmDiff[comp]) * (1.0 - colPorosity) / colPorosity
+				jacCl[jacCp.row() - jacCl.row()] = -static_cast<double>(filmDiff_comp) * (1.0 - colPorosity) / colPorosity
 					* _parGeomSurfToVol / static_cast<double>(_parRadius)
 					* static_cast<double>(parTypeVolFrac[_parTypeIdx + blk * nParType]);
 
@@ -1614,11 +1614,11 @@ namespace parts
 					// col: original entry at outer node.
 					if (!outliersOnly) // Cp on Cp
 						jacCp[entry - jacCp.row()]
-						+= static_cast<double>(filmDiff[comp]) * 2.0 / static_cast<double>(_deltaR[0]) * _parInvMM[_nParElem - 1](node, _nParNode - 1) * exIntLiftContribution / static_cast<double>(_parPorosity) / static_cast<double>(_poreAccessFactor[comp]);
+						+= static_cast<double>(filmDiff_comp) * 2.0 / static_cast<double>(_deltaR[0]) * _parInvMM[_nParElem - 1](node, _nParNode - 1) * exIntLiftContribution / static_cast<double>(_parPorosity) / static_cast<double>(_poreAccessFactor[comp]);
 					// row: already at particle. Already at current node and liquid state.
 					// col: go to current bulk phase.
 					jacCp[jacCl.row() - jacCp.row()]
-						= -static_cast<double>(filmDiff[comp]) * 2.0 / static_cast<double>(_deltaR[0]) * _parInvMM[_nParElem - 1](node, _nParNode - 1) * exIntLiftContribution / static_cast<double>(_parPorosity) / static_cast<double>(_poreAccessFactor[comp]);
+						= -static_cast<double>(filmDiff_comp) * 2.0 / static_cast<double>(_deltaR[0]) * _parInvMM[_nParElem - 1](node, _nParNode - 1) * exIntLiftContribution / static_cast<double>(_parPorosity) / static_cast<double>(_poreAccessFactor[comp]);
 				}
 				// set back iterator to first node as required by component loop
 				jacCp += _nParNode * strideParNode();

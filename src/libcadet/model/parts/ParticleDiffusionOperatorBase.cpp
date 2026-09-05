@@ -25,7 +25,7 @@ namespace model
 
 namespace parts
 {
-	ParticleDiffusionOperatorBase::ParticleDiffusionOperatorBase() : _parDepSurfDiffusion(nullptr), _reqBinding(nullptr), _boundOffset(nullptr)
+	ParticleDiffusionOperatorBase::ParticleDiffusionOperatorBase() : _parDepSurfDiffusion(nullptr), _filmDiffusionDep(nullptr), _reqBinding(nullptr), _boundOffset(nullptr)
 	{
 	}
 
@@ -33,6 +33,7 @@ namespace parts
 	{
 		delete[] _boundOffset;
 		delete[] _parDepSurfDiffusion;
+		delete _filmDiffusionDep;
 	}
 	
 	bool ParticleDiffusionOperatorBase::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp)
@@ -79,6 +80,19 @@ namespace parts
 		_hasParDepSurfDiffusion = false;
 		_paramDepSurfDiffTypeDep =  false;
 		_parDepSurfDiffusion = nullptr;
+
+		// ==== Construct film diffusion parameter dependence (e.g. on velocity), mirrors COL_DISPERSION_DEP
+		delete _filmDiffusionDep;
+		_filmDiffusionDep = nullptr;
+		_filmDiffusionDepTypeDep = true;
+		if (paramProvider.exists("FILM_DIFFUSION_DEP"))
+		{
+			const std::string paramDepName = paramProvider.getString("FILM_DIFFUSION_DEP");
+			_filmDiffusionDep = helper.createParameterParameterDependence(paramDepName);
+			if (!_filmDiffusionDep)
+				throw InvalidParameterException("Unknown parameter dependence " + paramDepName + " in FILM_DIFFUSION_DEP for particle type " + std::to_string(_parTypeIdx));
+			_filmDiffusionDep->configureModelDiscretization(paramProvider);
+		}
 
 		_hasSurfaceDiffusion = paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false;
 
@@ -174,6 +188,15 @@ namespace parts
 		bool filmDiffParTypeDep = paramProvider.exists("FILM_DIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getBool("FILM_DIFFUSION_PARTYPE_DEPENDENT") : true;
 		_filmDiffusionMode = readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", _nComp, _parTypeIdx, filmDiffParTypeDep, unitOpIdx);
 
+		bool filmDiffDepConfSuccess = true;
+		if (_filmDiffusionDep)
+		{
+			_filmDiffusionDepTypeDep = paramProvider.exists("FILM_DIFFUSION_DEP_PARTYPE_DEPENDENT") ? paramProvider.getBool("FILM_DIFFUSION_DEP_PARTYPE_DEPENDENT") : true;
+			filmDiffDepConfSuccess = _filmDiffusionDep->configure(paramProvider, unitOpIdx, _filmDiffusionDepTypeDep ? static_cast<ParticleTypeIdx>(_parTypeIdx) : ParTypeIndep, BoundStateIndep, "FILM_DIFFUSION_DEP");
+			if (!filmDiffDepConfSuccess)
+				throw InvalidParameterException("Failed to configure film diffusion parameter dependency (FILM_DIFFUSION_DEP) for particle type " + std::to_string(_parTypeIdx));
+		}
+
 		if (paramProvider.exists("PORE_ACCESSIBILITY"))
 		{
 			bool poreAccessParTypeDep = paramProvider.exists("PORE_ACCESSIBILITY_PARTYPE_DEPENDENT") ? paramProvider.getBool("PORE_ACCESSIBILITY_PARTYPE_DEPENDENT") : true;
@@ -216,7 +239,7 @@ namespace parts
 			}
 		}
 
-		return parSurfDiffDepConfSuccess;
+		return parSurfDiffDepConfSuccess && filmDiffDepConfSuccess;
 	}
 
 	bool ParticleDiffusionOperatorBase::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
@@ -246,6 +269,12 @@ namespace parts
 			if (_parDepSurfDiffusion && _parDepSurfDiffusion->setParameter(pId, value))
 				return true;
 
+		if ((!_filmDiffusionDepTypeDep || pId.particleType == _parTypeIdx) && _filmDiffusionDep && _filmDiffusionDep->hasParameter(pId))
+		{
+			_filmDiffusionDep->setParameter(pId, value);
+			return true;
+		}
+
 		return false;
 	}
 
@@ -255,6 +284,12 @@ namespace parts
 			if (_parDepSurfDiffusion && _parDepSurfDiffusion->setParameter(pId, value))
 				return true;
 
+		if ((!_filmDiffusionDepTypeDep || pId.particleType == _parTypeIdx) && _filmDiffusionDep && _filmDiffusionDep->hasParameter(pId))
+		{
+			_filmDiffusionDep->setParameter(pId, value);
+			return true;
+		}
+
 		return false;
 	}
 
@@ -263,6 +298,12 @@ namespace parts
 		if (!_paramDepSurfDiffTypeDep || pId.particleType == _parTypeIdx)
 			if (_parDepSurfDiffusion && _parDepSurfDiffusion->setParameter(pId, value))
 				return true;
+
+		if ((!_filmDiffusionDepTypeDep || pId.particleType == _parTypeIdx) && _filmDiffusionDep && _filmDiffusionDep->hasParameter(pId))
+		{
+			_filmDiffusionDep->setParameter(pId, value);
+			return true;
+		}
 
 		return false;
 	}
@@ -289,6 +330,12 @@ namespace parts
 		if (model::setSensitiveParameterValue(pId, value, sensParams, std::vector< IParameterStateDependence*>(1, _parDepSurfDiffusion), _paramDepSurfDiffTypeDep))
 			return true;
 
+		if ((!_filmDiffusionDepTypeDep || pId.particleType == _parTypeIdx) && _filmDiffusionDep)
+		{
+			active* const param = _filmDiffusionDep->getParameter(pId);
+			if (param) { param->setValue(value); return true; }
+		}
+
 		return false;
 	}
 
@@ -310,6 +357,17 @@ namespace parts
 		{
 			LOG(Debug) << "Found parameter " << pId << " in surface diffusion parameter dependence: Dir " << adDirection << " is set to " << adValue;
 			return true;
+		}
+
+		if ((!_filmDiffusionDepTypeDep || pId.particleType == _parTypeIdx) && _filmDiffusionDep)
+		{
+			active* const param = _filmDiffusionDep->getParameter(pId);
+			if (param)
+			{
+				LOG(Debug) << "Found parameter " << pId << " in film diffusion parameter dependence: Dir " << adDirection << " is set to " << adValue;
+				param->setADValue(adDirection, adValue);
+				return true;
+			}
 		}
 
 		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_RADIUS"), _parRadiusParTypeDep, _parRadius, _parTypeIdx, adDirection, adValue, sensParams))

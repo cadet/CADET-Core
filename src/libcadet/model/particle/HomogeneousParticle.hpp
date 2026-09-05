@@ -30,6 +30,7 @@
 #include "linalg/BandedEigenSparseRowIterator.hpp"
 #include "model/parts/DGToolbox.hpp"
 #include "model/ParameterMultiplexing.hpp"
+#include "model/ParameterDependence.hpp"
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -103,6 +104,20 @@ namespace parts
 		inline const active& getPorosity() const CADET_NOEXCEPT  override { return _parPorosity; }
 		inline const active* getPoreAccessFactor() const CADET_NOEXCEPT  override { return &_poreAccessFactor[0]; }
 		inline const active* getFilmDiffusion(const unsigned int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_filmDiffusion, _nComp, secIdx); }
+		/**
+		 * @brief Returns the film diffusion coefficient for a given component, position, and (velocity-dependent) parameter dependence
+		 * @details Evaluates FILM_DIFFUSION_DEP (defaults to CONSTANT_ONE, i.e. no dependence) pointwise at the given
+		 *          normalized column position and interstitial velocity, mirroring ParticleDiffusionOperatorBase's
+		 *          identically named helper used by GeneralRateParticle.
+		 */
+		template <typename ParamType>
+		active modifiedFilmDiffusion(unsigned int secIdx, unsigned int comp, const ColumnPosition& colPos, const ParamType& velocity) const
+		{
+			const active kf = getFilmDiffusion(secIdx)[comp];
+			if (!_filmDiffusionDep)
+				return kf;
+			return kf * _filmDiffusionDep->getValue(colPos, comp, _filmDiffusionDepTypeDep ? static_cast<int>(_parTypeIdx) : ParTypeIndep, BoundStateIndep, velocity);
+		}
 
 		inline int nDiscPoints() const CADET_NOEXCEPT  override { return 1; }
 		inline int strideParBlock() const CADET_NOEXCEPT  override { return nDiscPoints() * stridePoint(); }
@@ -113,7 +128,7 @@ namespace parts
 
 		unsigned int jacobianNNZperParticle() const override;
 		int calcParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac) override;
-		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool crossDepsOnly = false) override;
+		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool crossDepsOnly = false) override;
 
 		bool setParameter(const ParameterId& pId, double value) override;
 		bool setParameter(const ParameterId& pId, int value) override;
@@ -135,6 +150,8 @@ namespace parts
 		/* diffusion */
 		std::vector<active> _filmDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
 		MultiplexMode _filmDiffusionMode;
+		IParameterParameterDependence* _filmDiffusionDep; //!< Parameter dependence of film diffusion on (e.g.) velocity, nullptr if FILM_DIFFUSION_DEP is not configured
+		bool _filmDiffusionDepTypeDep; //!< Determines whether parameter dependence of film diffusion is particle type dependent
 		std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
 		MultiplexMode _poreAccessFactorMode;
 

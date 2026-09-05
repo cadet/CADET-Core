@@ -26,6 +26,7 @@
 #include "SimulationTypes.hpp"
 #include "ParamReaderHelper.hpp"
 #include "model/ParameterMultiplexing.hpp"
+#include "model/ParameterDependence.hpp"
 #include "linalg/BandedEigenSparseRowIterator.hpp"
 
 #include <unordered_map>
@@ -120,7 +121,7 @@ namespace parts
 		virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity) = 0;
 		virtual int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity) = 0;
 
-		virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac, bool outliersOnly = false) = 0;
+		virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac, bool outliersOnly = false) = 0;
 		virtual int calcParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac) = 0;
 		
 		/**
@@ -179,6 +180,21 @@ namespace parts
 		inline const active& getPorosity() const CADET_NOEXCEPT { return _parPorosity; }
 		inline const active* getPoreAccessFactor() const CADET_NOEXCEPT { return &_poreAccessFactor[0]; }
 		inline const active* getFilmDiffusion(const unsigned int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_filmDiffusion, _nComp, secIdx); }
+		/**
+		 * @brief Returns the film diffusion coefficient for a given component, position, and (velocity-dependent) parameter dependence
+		 * @details Evaluates FILM_DIFFUSION_DEP (defaults to CONSTANT_ONE, i.e. no dependence) pointwise at the given
+		 *          normalized column position and interstitial velocity, mirroring how COL_DISPERSION_DEP is evaluated
+		 *          pointwise in the bulk operator (see ConvectionDispersionOperator{FV,DG}). The caller (unit operation)
+		 *          is responsible for supplying the local velocity, since only it has access to the bulk operator.
+		 */
+		template <typename ParamType>
+		active modifiedFilmDiffusion(unsigned int secIdx, unsigned int comp, const ColumnPosition& colPos, const ParamType& velocity) const
+		{
+			const active kf = getFilmDiffusion(secIdx)[comp];
+			if (!_filmDiffusionDep)
+				return kf;
+			return kf * _filmDiffusionDep->getValue(colPos, comp, _filmDiffusionDepTypeDep ? static_cast<int>(_parTypeIdx) : ParTypeIndep, BoundStateIndep, velocity);
+		}
 		inline IParameterStateDependence* getParDepSurfDiffusion() const CADET_NOEXCEPT { return _parDepSurfDiffusion; }
 		inline bool paramDepSurfDiffParTypeIndep() const CADET_NOEXCEPT { return !_paramDepSurfDiffTypeDep; }
 		inline MultiplexMode parDiffMode() const CADET_NOEXCEPT { return _parDiffusionMode; }
@@ -207,6 +223,8 @@ namespace parts
 		/* diffusion rates */
 		std::vector<active> _filmDiffusion; //!< Film diffusion coefficient \f$ k_f \f$
 		MultiplexMode _filmDiffusionMode; //!< Determines the multiplex of film diffusion, needed for sensitivitites
+		IParameterParameterDependence* _filmDiffusionDep; //!< Parameter dependence of film diffusion on (e.g.) velocity, nullptr if FILM_DIFFUSION_DEP is not configured
+		bool _filmDiffusionDepTypeDep; //!< Determines whether parameter dependence of film diffusion is particle type dependent
 		std::vector<active> _parDiffusion; //!< Particle diffusion coefficient \f$ D_p \f$
 		MultiplexMode _parDiffusionMode; //!< Determines the multiplex of particle diffusion, needed for sensitivitites
 		std::vector<active> _parSurfDiffusion; //!< Particle surface diffusion coefficient \f$ D_s \f$

@@ -1119,7 +1119,8 @@ int ColumnModel2D::residualImpl(double t, unsigned int secIdx, StateType const* 
 			{
 				_parTypeVolFrac[colPoint * _disc.nParType + parType],
 				_convDispOp.columnPorosity(radElem),
-				ColumnPosition{ _convDispOp.relativeAxialCoordinate(axPoint), _convDispOp.relativeRadialCoordinate(radPoint), 0.0 }
+				ColumnPosition{ _convDispOp.relativeAxialCoordinate(axPoint), _convDispOp.relativeRadialCoordinate(radPoint), 0.0 },
+				_convDispOp.currentVelocity(radElem)
 			};
 
 			_particles[parType]->residual(t, secIdx,

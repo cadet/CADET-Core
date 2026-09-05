@@ -310,7 +310,6 @@ namespace model
 		if (wantRes)
 		{
 			// film diffusion bulk eq. term
-			active const* const filmDiff = _parDiffOp->getFilmDiffusion(secIdx);
 			const ParamType invBetaC = 1.0 / static_cast<ParamType>(packing.colPorosity) - 1.0;
 			const ParamType jacCF_val = invBetaC * static_cast<ParamType>(surfaceToVolumeRatio());
 
@@ -318,9 +317,11 @@ namespace model
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
 				ParamType discretizedFilmDiffusionFactor = static_cast<ParamType>(_parDiffOp->discretizedFilmDiffusionFactor(comp));
+				// FILM_DIFFUSION_DEP evaluated pointwise at this bulk point's position/velocity
+				const ParamType filmDiff_comp = static_cast<ParamType>(_parDiffOp->modifiedFilmDiffusion(secIdx, comp, packing.colPos, packing.velocity));
 
 				// + 1/Beta^c * (surfaceToVolumeRatio^p_j) * d_j * (k_f * [c^b - c^p])
-				resBulk[comp] += discretizedFilmDiffusionFactor * static_cast<ParamType>(filmDiff[comp]) * jacCF_val * static_cast<ParamType>(packing.parTypeVolFrac) * (yBulk[comp] - yPar[(nDiscPoints() - 1) * stridePoint() + comp]);
+				resBulk[comp] += discretizedFilmDiffusionFactor * filmDiff_comp * jacCF_val * static_cast<ParamType>(packing.parTypeVolFrac) * (yBulk[comp] - yPar[(nDiscPoints() - 1) * stridePoint() + comp]);
 			}
 		}
 
@@ -339,9 +340,9 @@ namespace model
 		return _parDiffOp->calcParticleDiffJacobian(secIdx, colNode, offsetLocalCp, globalJac);
 	}
 	
-	int GeneralRateParticle::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
+	int GeneralRateParticle::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
 	{
-		return _parDiffOp->calcFilmDiffJacobian(secIdx, offsetCp, offsetC, nBulkPoints, nParType, colPorosity, parTypeVolFrac, globalJac, outliersOnly);
+		return _parDiffOp->calcFilmDiffJacobian(secIdx, offsetCp, offsetC, nBulkPoints, nParType, colPorosity, parTypeVolFrac, pointVelocity, globalJac, outliersOnly);
 	}
 
 	bool GeneralRateParticle::setParameter(const ParameterId& pId, double value)

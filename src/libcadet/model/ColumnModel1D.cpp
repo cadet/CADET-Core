@@ -748,9 +748,13 @@ void ColumnModel1D<ConvDispOperator>::extractJacobianFromAD(active const* const 
 
 	/* Add analytically derived flux entries (only those that are part of the outlier bands) */
 	// todo extract these entries instead of analytical calculation?
+	std::vector<active> pointVelocities(_disc.nPoints);
+	for (unsigned int pt = 0; pt < _disc.nPoints; ++pt)
+		pointVelocities[pt] = _convDispOp.currentVelocity(_convDispOp.relativeCoordinate(pt));
+
 	for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 	{
-		_particles[parType]->calcFilmDiffJacobian(_disc.curSection, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(parType)}), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], _globalJac, true);
+		_particles[parType]->calcFilmDiffJacobian(_disc.curSection, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(parType)}), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], &pointVelocities[0], _globalJac, true);
 	}
 
 	const auto& cm = _reaction.conservedMoieties("liquid");
@@ -1053,11 +1057,13 @@ int ColumnModel1D<ConvDispOperator>::residualImpl(double t, unsigned int secIdx,
 				);
 			}
 
+			const active pointVelocity = _convDispOp.currentVelocity(_convDispOp.relativeCoordinate(colNode));
 			model::columnPackingParameters packing
 			{
 				_parTypeVolFrac[parType + _disc.nParType * colNode],
 				_colPorosity,
-				ColumnPosition{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 }
+				ColumnPosition{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 },
+				pointVelocity
 			};
 
 
