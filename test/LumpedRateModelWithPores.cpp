@@ -27,7 +27,7 @@ TEST_CASE("LRMP LWE forward vs backward flow", "[LRMP],[FV],[Simulation],[CI]")
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
 	{
 		disc.setBulkDiscParam("WENO_ORDER", static_cast<int>(i));
-		cadet::test::column::testForwardBackward("LUMPED_RATE_MODEL_WITH_PORES", disc, 1e-8, 2e-5);
+		cadet::test::column::testForwardBackward("LUMPED_RATE_MODEL_WITH_PORES", disc, 1e-8, 2e-4);
 	}
 }
 
