@@ -301,11 +301,10 @@ bool AxialConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, IPa
  */
 bool AxialConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 {
-	// setFlowRates was called before, setting current velocity
-	// Detect change in flow direction
+	// setFlowRates() was called before, unconditionally setting _curVelCoeff to a non-negative value
 	const double curDir = getSectionDependentScalar(_dir, secIdx);
 	const bool changedDirection = secIdx > 0 ? (getSectionDependentScalar(_dir, secIdx - 1) * curDir < 0) : false;
-	if (changedDirection)
+	if (curDir < 0)
 		_curVelCoeff *= -1.0;
 
 	return changedDirection;
@@ -1053,11 +1052,10 @@ bool RadialConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, IP
  */
 bool RadialConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 {
-	// setFlowRates was called before, setting current velocity
-	// Detect change in flow direction
+	// setFlowRates() was called before, unconditionally setting _curVelCoeff to a non-negative value
 	const double curDir = getSectionDependentScalar(_dir, secIdx);
 	const bool changedDirection = secIdx > 0 ? (getSectionDependentScalar(_dir, secIdx - 1) * curDir < 0) : false;
-	if (changedDirection)
+	if (curDir < 0)
 		_curVelCoeff *= -1.0;
 
 	return changedDirection;
@@ -1784,11 +1782,10 @@ bool FrustumConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, I
  */
 bool FrustumConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 {
-	// setFlowRates was called before, setting current velocity
-	// Detect change in flow direction
+	// setFlowRates() was called before, unconditionally setting _curVelCoeff to a non-negative value
 	const double curDir = getSectionDependentScalar(_dir, secIdx);
 	const bool changedDirection = secIdx > 0 ? (getSectionDependentScalar(_dir, secIdx - 1) * curDir < 0) : false;
-	if (changedDirection)
+	if (curDir < 0)
 		_curVelCoeff *= -1.0;
 
 	return changedDirection;
