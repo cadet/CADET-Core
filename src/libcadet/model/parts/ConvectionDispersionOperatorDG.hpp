@@ -987,6 +987,7 @@ namespace parts
 		std::vector<Eigen::MatrixXd> _invMM_A;							//!< per element inverse of the weighted mass matrix (w0 M^{(0,0) + w1 M^{(0,1) + w2 M^{(0,2)})^{-1}
 		std::vector<std::vector<Eigen::MatrixXd>> _invMM_A_times_ST_AD;	//!< per-compnent per-element matrix product (M^A)^-1 * D^T * \tilde{S}^{AD}
 		std::vector<Eigen::MatrixXd> _invMM_A_times_DT_timesM00;		//!< per-element matrix product (M^A)^-1 * D^T * M^(0,0)
+		std::vector<std::vector<double>> _dispAtInterfaces;			//!< per-component dispersion (base * dependence, if any) evaluated exactly at each of the _nElem+1 element interfaces; used by the DG surface/interface flux terms (surfaceIntegralMainImpl, DGjacobianDispBlock) so they are consistent with the position-dependent volume-term dispersion above rather than the raw constant COL_DISPERSION value
 
 		// Per-element Jacobian blocks
 		std::vector<std::vector<Eigen::MatrixXd>> _DGjacDispBlocks;
@@ -1130,21 +1131,23 @@ namespace parts
 		template<typename StateType, typename ResidualType>
 		void surfaceIntegralMainImpl(ResidualType* res, const int comp)
 		{
-			const double d_comp = static_cast<double>(getSectionDependentSlice(_colDispersion, _nComp, _curSection)[comp]);
-
 			for (unsigned int elem = 0; elem < _nElem; elem++)
 			{
 				const double Aleft = _crossSectionArea[elem * _nNodes];
 				const double Aright = _crossSectionArea[(elem + 1) * _nNodes - 1];
+				// dispersion evaluated exactly at each interface (matches the
+				// position-dependent volume-term dispersion, see _dispAtInterfaces)
+				const double dLeft = _dispAtInterfaces[comp][elem];
+				const double dRight = _dispAtInterfaces[comp][elem + 1];
 
 				ResidualType left_flux = static_cast<ResidualType>(
 					-_QOverEps * _surfaceFluxC[elem]
-					- Aleft * d_comp * _surfaceFluxG[elem]
+					- Aleft * dLeft * _surfaceFluxG[elem]
 					);
 
 				ResidualType right_flux = static_cast<ResidualType>(
 					+_QOverEps * _surfaceFluxC[elem + 1]
-					+ Aright * d_comp * _surfaceFluxG[elem + 1]
+					+ Aright * dRight * _surfaceFluxG[elem + 1]
 					);
 
 				for (unsigned int node = 0; node < _nNodes; node++)
