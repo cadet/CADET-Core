@@ -343,11 +343,11 @@ namespace impl
 					const double relCoord = (static_cast<double>(p.cellBounds[col]) - static_cast<double>(p.cellBounds[0])) / (static_cast<double>(p.cellBounds[p.nCol - 1]) - static_cast<double>(p.cellBounds[0]));
 					const ParamType d_rad_left = d_rad * p.parDep->getValue(ColumnPosition{ relCoord, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<ParamType>(p.u) / static_cast<ParamType>(p.cellBounds[col]));
 					if (wantRes)
-						resBulkComp[col * p.strideCell] -= d_rad_left * static_cast<ParamType>(p.cellBounds[col]) / denom * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col - 1]) - static_cast<ParamType>(p.cellCenters[col]));
+						resBulkComp[col * p.strideCell] -= d_rad_left * static_cast<ParamType>(p.cellBounds[col]) / denom * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col]) - static_cast<ParamType>(p.cellCenters[col - 1]));
 					// Jacobian entries
 					if (wantJac)
 					{
-						const double val = static_cast<double>(d_rad_left) * static_cast<double>(p.cellBounds[col]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col - 1]) - static_cast<double>(p.cellCenters[col]));
+						const double val = static_cast<double>(d_rad_left) * static_cast<double>(p.cellBounds[col]) / static_cast<double>(denom) / (static_cast<double>(p.cellCenters[col]) - static_cast<double>(p.cellCenters[col - 1]));
 						jac[0] += val;
 						jac[-p.strideCell] -= val;
 					}
