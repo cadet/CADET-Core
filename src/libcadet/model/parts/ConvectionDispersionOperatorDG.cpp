@@ -1095,9 +1095,11 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsRad
 					// Normalize position to [0, 1] for parameter dependence evaluation
 					const double relPos = physicalPos / static_cast<double>(_bedLength);
 
-					// Evaluate D(rho) = baseDispersion * dependence_factor(rho)
-					dispAtQNodes[node] = _dispersionDep->getValue(ColumnPosition{ relPos, 0.0, 0.0 },
-						comp, ParTypeIndep, BoundStateIndep, baseDispersion);
+					// Evaluate D(rho) = baseDispersion * dependence_factor(v(rho)). The
+					const double localArea = 2.0 * pi * static_cast<double>(_colHeight) * physicalPos;
+					const double localVelocity = static_cast<double>(_QOverEps) / localArea;
+					dispAtQNodes[node] = baseDispersion * _dispersionDep->getValue(ColumnPosition{ relPos, 0.0, 0.0 },
+						comp, ParTypeIndep, BoundStateIndep, localVelocity);
 				}
 
 				// \tilde{M}^(AD)_{i,j} = \int_{-1}^1 \ell_i(\xi) \frac{\partial \ell_j(\xi)}{\partial \xi} w(\xi) d\xi
@@ -1206,9 +1208,12 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsFru
 					// Normalize position to [0, 1] for parameter dependence evaluation
 					const double relPos = physicalPos / H;
 
-					// Evaluate D(rho) = baseDispersion * dependence_factor(rho)
-					dispAtQNodes[node] = _dispersionDep->getValue(ColumnPosition{ relPos, 0.0, 0.0 },
-						comp, ParTypeIndep, BoundStateIndep, baseDispersion);
+					// Evaluate D(x) = baseDispersion * dependence_factor(v(x)) -- see the
+					const double localRadius = r0 + (physicalPos / H) * rDiff;
+					const double localArea = pi * localRadius * localRadius;
+					const double localVelocity = static_cast<double>(_QOverEps) / localArea;
+					dispAtQNodes[node] = baseDispersion * _dispersionDep->getValue(ColumnPosition{ relPos, 0.0, 0.0 },
+						comp, ParTypeIndep, BoundStateIndep, localVelocity);
 				}
 
 				// \tilde{M}^(AD)_{i,j} = \int_{-1}^1 \ell_i(\xi) \frac{\partial \ell_j(\xi)}{\partial \xi} w(\xi) d\xi
