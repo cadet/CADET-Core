@@ -894,6 +894,13 @@ namespace parts
 			return x / static_cast<double>(_bedLength);
 		}
 
+		/**
+		 * @brief Returns the interstitial velocity at a given normalized position
+		 * @param [in] pos Normalized position in [0, 1] (column inlet = 0, column outlet = 1),
+		 *             same convention as relativeCoordinate() and *ConvectionDispersionOperatorBaseFV::currentVelocity()
+		 */
+		active currentVelocity(double pos) const CADET_NOEXCEPT;
+
 		inline const double* nodes() const CADET_NOEXCEPT { return &_nodes[0]; }
 		inline const active* currentDispersion(const int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_colDispersion, _nComp, secIdx); }
 		inline bool dispersionCompIndep() const CADET_NOEXCEPT { return _dispersionCompIndep; }

@@ -839,12 +839,11 @@ namespace parts
 		return 1;
 	}
 
-	int ParticleDiffusionOperatorFV::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
+	int ParticleDiffusionOperatorFV::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
 	{
 		// Ordering of diffusion:
 		// sec0type0comp0, sec0type0comp1, sec0type0comp2, sec0type1comp0, sec0type1comp1, sec0type1comp2,
 		// sec1type0comp0, sec1type0comp1, sec1type0comp2, sec1type1comp0, sec1type1comp1, sec1type1comp2, ...
-		active const* const filmDiff = getSectionDependentSlice(_filmDiffusion, _nComp, secIdx);
 		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _nComp, secIdx);
 		const double epsP = static_cast<double>(_parPorosity);
 		const double outerAreaPerVolume = static_cast<double>(_parOuterSurfAreaPerVolume[_nParPoints - 1]);
@@ -855,17 +854,22 @@ namespace parts
 
 		for (int blk = 0; blk < nBulkPoints; blk++)
 		{
+			// FILM_DIFFUSION_DEP is evaluated pointwise at this bulk point's local velocity
+			// (mass-lumped, same fidelity as FV's own midpoint-rule approximation of this term).
+			// Position is a no-op for the only supported dependency (POWER_LAW), which only uses velocity.
 			for (int comp = 0; comp < _nComp; comp++, ++jacCp, ++jacCl) {
+				const active filmDiff_comp = modifiedFilmDiffusion(secIdx, comp, ColumnPosition{ 0.0, 0.0, 0.0 }, pointVelocity[blk]);
+
 				// Discretized film diffusion kf for finite volumes (per component)
 				double kf_FV = 0.0;
 				if (cadet_likely(_boundaryOrderFV == 2))
 				{
 					const double absOuterShellHalfRadius = 0.5 * static_cast<double>(_deltaR[_nParPoints - 1]);
-					kf_FV = 1.0 / (absOuterShellHalfRadius / epsP / static_cast<double>(_poreAccessFactor[comp]) / static_cast<double>(parDiff[comp]) + 1.0 / static_cast<double>(filmDiff[comp]));
+					kf_FV = 1.0 / (absOuterShellHalfRadius / epsP / static_cast<double>(_poreAccessFactor[comp]) / static_cast<double>(parDiff[comp]) + 1.0 / static_cast<double>(filmDiff_comp));
 				}
 				else
 				{
-					kf_FV = static_cast<double>(filmDiff[comp]);
+					kf_FV = static_cast<double>(filmDiff_comp);
 				}
 
 				// Cb on Cb entries (added since these entries are also touched by bulk jacobian)
@@ -894,7 +898,7 @@ namespace parts
 					active const* const parCenterRadius = _parCenterRadius.data();
 					const double absOuterShellHalfRadius = 0.5 * static_cast<double>(_deltaR[_nParPoints - 1]);
 
-					kf_FV = (1.0 - static_cast<double>(_parPorosity)) / (1.0 + epsP * static_cast<double>(_poreAccessFactor[comp]) * static_cast<double>(parDiff[comp]) / (absOuterShellHalfRadius * static_cast<double>(filmDiff[comp])));
+					kf_FV = (1.0 - static_cast<double>(_parPorosity)) / (1.0 + epsP * static_cast<double>(_poreAccessFactor[comp]) * static_cast<double>(parDiff[comp]) / (absOuterShellHalfRadius * static_cast<double>(filmDiff_comp)));
 
 					const double dr = static_cast<double>(parCenterRadius[_nParPoints - 1]) - static_cast<double>(parCenterRadius[_nParPoints - 2]);
 

@@ -124,7 +124,7 @@ namespace parts
 			return static_cast<double>(std::accumulate(&_deltaR[0], &_deltaR[cellIdx], _deltaR[cellIdx] * 0.5) / (_parRadius - _parCoreRadius));
 		}
 
-		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly = false);
+		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly = false);
 
 		int writeParticleCoordinates(double* coords) const;
 

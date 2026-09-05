@@ -226,7 +226,8 @@ protected:
 				for (unsigned int r = 0; r < _disc.radNElem; r++)
 				{
 					const unsigned int colNode = z * _disc.radNPoints + r * _disc.radNNodes;
-					_particles[parType]->calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }) - idxr.offsetC(), colNode * idxr.strideColRadialNode(), _disc.radNNodes, _disc.nParType, static_cast<double>(_convDispOp.columnPorosity(r)), &_parTypeVolFrac[colNode * _disc.nParType], _globalJac);
+					const std::vector<active> pointVelocities(_disc.radNNodes, _convDispOp.currentVelocity(r));
+					_particles[parType]->calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }) - idxr.offsetC(), colNode * idxr.strideColRadialNode(), _disc.radNNodes, _disc.nParType, static_cast<double>(_convDispOp.columnPorosity(r)), &_parTypeVolFrac[colNode * _disc.nParType], &pointVelocities[0], _globalJac);
 				}
 			}
 		}
