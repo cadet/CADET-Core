@@ -172,6 +172,7 @@ set(LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/DummyParameterDependence.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/IdentityParameterDependence.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/PowerLawParameterDependence.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/VanDeemterParameterDependence.cpp
 )
 
 # LIBCADET_NONLINALG_SOURCES holds all source files for LIBCADET_NONLINALG target
