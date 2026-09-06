@@ -981,6 +981,27 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperators(co
 	}
 }
 
+active VariableCrossSectionConvectionDispersionOperatorBaseDG::currentVelocity(double pos) const CADET_NOEXCEPT
+{
+	const double pi = 3.14159265358979323846;
+	switch (_geometryType)
+	{
+	case GeometryType::RadialFlowCylinderShell:
+	{
+		const active radius = pos * (_radiusXEnd - _radiusXStart) + _radiusXStart;
+		return _QOverEps / (2.0 * pi * _colHeight * radius);
+	}
+	case GeometryType::AxialFlowFrustum:
+	{
+		const active radius = pos * (_radiusXEnd - _radiusXStart) + _radiusXStart;
+		return _QOverEps / (pi * radius * radius);
+	}
+	case GeometryType::AxialFlowCylinder:
+	default:
+		return _QOverEps / (pi * _radiusXStart * _radiusXStart);
+	}
+}
+
 void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeGeometryAxial()
 {
 	_crossSectionArea.resize(_nPoints);

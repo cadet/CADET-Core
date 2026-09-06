@@ -13,8 +13,8 @@ Group /input/model/unit_XXX
 
 ``COL_DISPERSION_DEP``
 
-   Parameter dependence of column dispersion on the interstitial velocity. Available for the arrow-head optimzed (see `FV_ARROW_HEAD_OPTIMIZATION`) LRM, LRMP and GRM units.
-   
+   Parameter dependence of column dispersion on the interstitial velocity. Available for all 1D units and both the FV and DG discretization.
+
    ================  =====================================  =============
    **Type:** string  **Range:** :math:`\texttt{POWER_LAW}`  **Length:** 1
    ================  =====================================  =============
@@ -24,8 +24,10 @@ Group /input/model/unit_XXX/particle_type_YYY
 
 ``FILM_DIFFUSION_DEP``
 
-   Parameter dependence of film diffusion on the interstitial velocity. Available for the arrow-head optimzed (see `FV_ARROW_HEAD_OPTIMIZATION`) LRMP unit.
-   
+   Parameter dependence of film diffusion on the interstitial velocity.
+   Available For all 1D unit operations and bothe the FV and DG discretizations.
+   For the DG discretization there might be a loss of accuracy since the current implementation only supports a pointwise/"mass-lumped" evaluation.
+
    ================  =====================================  =============
    **Type:** string  **Range:** :math:`\texttt{POWER_LAW}`  **Length:** 1
    ================  =====================================  =============
