@@ -1033,6 +1033,17 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsAxi
 	for (auto& v : _dispAtInterfaces)
 		v.assign(_nElem + 1, 0.0);
 
+	const double localVelocity = static_cast<double>(currentVelocity(0.0));
+	std::vector<double> effectiveDispersion(_nComp);
+	for (int comp = 0; comp < _nComp; comp++)
+	{
+		const double baseDispersion = static_cast<double>(_colDispersion[comp]);
+		effectiveDispersion[comp] = _variableDispersion
+			? baseDispersion * static_cast<double>(_dispersionDep->getValue(ColumnPosition{ 0.0, 0.0, 0.0 },
+				comp, ParTypeIndep, BoundStateIndep, localVelocity))
+			: baseDispersion;
+	}
+
 	for (unsigned int elem = 0; elem < _nElem; ++elem)
 	{
 		_invMM_A[elem] = M_A.inverse();  // = (1/A) * M00^{-1}
@@ -1041,21 +1052,18 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsAxi
 		{
 			// (M^A)^{-1} * D^T * d * M^A = M00^{-1} * D^T * d * M00
 			_invMM_A_times_ST_AD[comp][elem] = _invMM_A[elem] * _polyDerM.transpose()
-				* static_cast<double>(_colDispersion[comp]) * M_A;
+				* effectiveDispersion[comp] * M_A;
 		}
 		// (M^A)^{-1} * D^T * M00 = (1/A) * M00^{-1} * D^T * M00
 		_invMM_A_times_DT_timesM00[elem] = _invMM_A[elem] * _polyDerM.transpose() * _M00;
 	}
 
-	// Axial geometry has constant cross section and velocity, so the surface
-	// (interface) dispersion equals the constant configured value everywhere,
-	// consistent with the volume term above (no position dependence support
-	// for this geometry).
+	// Surface (interface) dispersion, consistent with the (constant, but
+	// possibly dependency-scaled) volume term above.
 	for (int comp = 0; comp < _nComp; comp++)
 	{
-		const double baseDispersion = static_cast<double>(_colDispersion[comp]);
 		for (unsigned int iface = 0; iface <= _nElem; iface++)
-			_dispAtInterfaces[comp][iface] = baseDispersion;
+			_dispAtInterfaces[comp][iface] = effectiveDispersion[comp];
 	}
 }
 
@@ -1239,15 +1247,14 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsFru
 	for (unsigned int elem = 0; elem < _nElem; ++elem)
 	{
 		const double x_L = elem * dx;
-		const double beta1 = (r0 * rDiff * dx / H + rDiff * rDiff / H / H * x_L * dx);
-		const double beta2 = (rDiff * rDiff / H / H * dx * dx / 2.0 / 2.0);
+		const double beta1 = pi * (r0 * rDiff * dx / H + rDiff * rDiff / H / H * x_L * dx);
+		const double beta2 = pi * (rDiff * rDiff / H / H * dx * dx / 2.0 / 2.0);
 		beta[0] = beta1; beta[1] = beta2;
-		const double gamma = (r0 * r0 + 2.0 * r0 * x_L / H * rDiff + x_L * x_L / H / H * rDiff * rDiff);
+		const double gamma = pi * (r0 * r0 + 2.0 * r0 * x_L / H * rDiff + x_L * x_L / H / H * rDiff * rDiff);
 
 		Eigen::MatrixXd M_A = gamma * _M00;
 		M_A += beta1 * M01;
 		M_A += beta2 * M02;
-		M_A *= pi;
 		_invMM_A[elem] = M_A.inverse();
 
 		for (int comp = 0; comp < _nComp; comp++)
