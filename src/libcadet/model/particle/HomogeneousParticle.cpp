@@ -43,7 +43,7 @@ namespace model
 	/**
 	 * @brief Creates a HomogeneousParticle
 	 */
-	HomogeneousParticle::HomogeneousParticle() : _boundOffset(nullptr), _filmDiffusionDep(nullptr)
+	HomogeneousParticle::HomogeneousParticle() : _filmDiffusionDep(nullptr), _boundOffset(nullptr)
 	{
 	}
 

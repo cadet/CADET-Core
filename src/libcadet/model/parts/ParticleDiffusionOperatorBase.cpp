@@ -25,7 +25,7 @@ namespace model
 
 namespace parts
 {
-	ParticleDiffusionOperatorBase::ParticleDiffusionOperatorBase() : _parDepSurfDiffusion(nullptr), _filmDiffusionDep(nullptr), _reqBinding(nullptr), _boundOffset(nullptr)
+	ParticleDiffusionOperatorBase::ParticleDiffusionOperatorBase() : _filmDiffusionDep(nullptr), _parDepSurfDiffusion(nullptr), _reqBinding(nullptr), _boundOffset(nullptr)
 	{
 	}
 
