@@ -1008,6 +1008,9 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsAxi
 	for (auto& comps : _invMM_A_times_ST_AD)
 		comps.resize(_nElem);
 	_invMM_A_times_DT_timesM00.resize(_nElem);
+	_dispAtInterfaces.resize(_nComp);
+	for (auto& v : _dispAtInterfaces)
+		v.assign(_nElem + 1, 0.0);
 
 	for (unsigned int elem = 0; elem < _nElem; ++elem)
 	{
@@ -1021,6 +1024,17 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsAxi
 		}
 		// (M^A)^{-1} * D^T * M00 = (1/A) * M00^{-1} * D^T * M00
 		_invMM_A_times_DT_timesM00[elem] = _invMM_A[elem] * _polyDerM.transpose() * _M00;
+	}
+
+	// Axial geometry has constant cross section and velocity, so the surface
+	// (interface) dispersion equals the constant configured value everywhere,
+	// consistent with the volume term above (no position dependence support
+	// for this geometry).
+	for (int comp = 0; comp < _nComp; comp++)
+	{
+		const double baseDispersion = static_cast<double>(_colDispersion[comp]);
+		for (unsigned int iface = 0; iface <= _nElem; iface++)
+			_dispAtInterfaces[comp][iface] = baseDispersion;
 	}
 }
 
@@ -1054,6 +1068,9 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsRad
 	for (auto& comps : _invMM_A_times_ST_AD)
 		comps.resize(_nElem);
 	_invMM_A_times_DT_timesM00.resize(_nElem);
+	_dispAtInterfaces.resize(_nComp);
+	for (auto& v : _dispAtInterfaces)
+		v.assign(_nElem + 1, 0.0);
 
 	// number of nodes for exact gauss quadrature of the integral with dispersion weight and geometric factor -> _axDispQuadDeg + 1
 	const int nQuadNodes = std::ceil((_axDispQuadDeg + 1 + 2 * _polyDeg + 1) / 2);
@@ -1095,9 +1112,11 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsRad
 					// Normalize position to [0, 1] for parameter dependence evaluation
 					const double relPos = physicalPos / static_cast<double>(_bedLength);
 
-					// Evaluate D(rho) = baseDispersion * dependence_factor(rho)
-					dispAtQNodes[node] = _dispersionDep->getValue(ColumnPosition{ relPos, 0.0, 0.0 },
-						comp, ParTypeIndep, BoundStateIndep, baseDispersion);
+					// Evaluate D(rho) = baseDispersion * dependence_factor(v(rho)). The
+					const double localArea = 2.0 * pi * static_cast<double>(_colHeight) * physicalPos;
+					const double localVelocity = static_cast<double>(_QOverEps) / localArea;
+					dispAtQNodes[node] = baseDispersion * _dispersionDep->getValue(ColumnPosition{ relPos, 0.0, 0.0 },
+						comp, ParTypeIndep, BoundStateIndep, localVelocity);
 				}
 
 				// \tilde{M}^(AD)_{i,j} = \int_{-1}^1 \ell_i(\xi) \frac{\partial \ell_j(\xi)}{\partial \xi} w(\xi) d\xi
@@ -1116,6 +1135,32 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsRad
 		}
 		// Matrix product (M^A)^-1 D^T * M00
 		_invMM_A_times_DT_timesM00[elem] = _invMM_A[elem] * _polyDerM.transpose() * _M00;
+	}
+
+	// Evaluate the (possibly position-dependent) dispersion exactly at each
+	// of the _nElem+1 element interfaces, for consistent use in the DG
+	// surface/interface flux terms (surfaceIntegralMainImpl,
+	// DGjacobianDispBlock). These must represent the SAME local physics as
+	// the position-dependent volume-term dispersion above (an interface's
+	// physical position is shared by its two neighbouring elements), not the
+	// raw constant COL_DISPERSION value.
+	for (int comp = 0; comp < _nComp; comp++)
+	{
+		const double baseDispersion = static_cast<double>(currentDispersion(secIdx)[comp]);
+		for (unsigned int iface = 0; iface <= _nElem; iface++)
+		{
+			const double physicalPos = static_cast<double>(_radiusXStart) + iface * static_cast<double>(_deltaX);
+			if (!_variableDispersion)
+			{
+				_dispAtInterfaces[comp][iface] = baseDispersion;
+				continue;
+			}
+			const double relPos = physicalPos / static_cast<double>(_bedLength);
+			const double localArea = 2.0 * pi * static_cast<double>(_colHeight) * physicalPos;
+			const double localVelocity = static_cast<double>(_QOverEps) / localArea;
+			_dispAtInterfaces[comp][iface] = baseDispersion * _dispersionDep->getValue(ColumnPosition{ relPos, 0.0, 0.0 },
+				comp, ParTypeIndep, BoundStateIndep, localVelocity);
+		}
 	}
 }
 
@@ -1158,6 +1203,9 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsFru
 	for (auto& comps : _invMM_A_times_ST_AD)
 		comps.resize(_nElem);
 	_invMM_A_times_DT_timesM00.resize(_nElem);
+	_dispAtInterfaces.resize(_nComp);
+	for (auto& v : _dispAtInterfaces)
+		v.assign(_nElem + 1, 0.0);
 
 	// number of nodes for exact gauss quadrature of the integral with dispersion weight
 	const int frustumGeomFactorDegree = 2; // we have r(x)^2 = (r0 + x/H * (rH - r0))^2, which is a polynomial of degree 2 in x
@@ -1206,9 +1254,12 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsFru
 					// Normalize position to [0, 1] for parameter dependence evaluation
 					const double relPos = physicalPos / H;
 
-					// Evaluate D(rho) = baseDispersion * dependence_factor(rho)
-					dispAtQNodes[node] = _dispersionDep->getValue(ColumnPosition{ relPos, 0.0, 0.0 },
-						comp, ParTypeIndep, BoundStateIndep, baseDispersion);
+					// Evaluate D(x) = baseDispersion * dependence_factor(v(x)) -- see the
+					const double localRadius = r0 + (physicalPos / H) * rDiff;
+					const double localArea = pi * localRadius * localRadius;
+					const double localVelocity = static_cast<double>(_QOverEps) / localArea;
+					dispAtQNodes[node] = baseDispersion * _dispersionDep->getValue(ColumnPosition{ relPos, 0.0, 0.0 },
+						comp, ParTypeIndep, BoundStateIndep, localVelocity);
 				}
 
 				// \tilde{M}^(AD)_{i,j} = \int_{-1}^1 \ell_i(\xi) \frac{\partial \ell_j(\xi)}{\partial \xi} w(\xi) d\xi
@@ -1227,6 +1278,31 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsFru
 		}
 		// Matrix product (M^A)^-1 D^T * M00
 		_invMM_A_times_DT_timesM00[elem] = _invMM_A[elem] * _polyDerM.transpose() * _M00;
+	}
+
+	// Evaluate the (possibly position-dependent) dispersion exactly at each
+	// of the _nElem+1 element interfaces, for consistent use in the DG
+	// surface/interface flux terms (surfaceIntegralMainImpl,
+	// DGjacobianDispBlock) -- see the analogous comment in
+	// computeOperatorsRadial().
+	for (int comp = 0; comp < _nComp; comp++)
+	{
+		const double baseDispersion = static_cast<double>(currentDispersion(secIdx)[comp]);
+		for (unsigned int iface = 0; iface <= _nElem; iface++)
+		{
+			const double physicalPos = iface * dx;
+			if (!_variableDispersion)
+			{
+				_dispAtInterfaces[comp][iface] = baseDispersion;
+				continue;
+			}
+			const double relPos = physicalPos / H;
+			const double localRadius = r0 + (physicalPos / H) * rDiff;
+			const double localArea = pi * localRadius * localRadius;
+			const double localVelocity = static_cast<double>(_QOverEps) / localArea;
+			_dispAtInterfaces[comp][iface] = baseDispersion * _dispersionDep->getValue(ColumnPosition{ relPos, 0.0, 0.0 },
+				comp, ParTypeIndep, BoundStateIndep, localVelocity);
+		}
 	}
 }
 
@@ -1296,7 +1372,6 @@ Eigen::MatrixXd VariableCrossSectionConvectionDispersionOperatorBaseDG::DGjacobi
 Eigen::MatrixXd VariableCrossSectionConvectionDispersionOperatorBaseDG::DGjacobianDispBlock(unsigned int elemIdx, unsigned int comp)
 {
 	const double invHalfDeltaX = 2.0 / static_cast<double>(_deltaX);
-	const double d_comp = static_cast<double>(getSectionDependentSlice(_colDispersion, _nComp, _curSection)[comp]);
 
 	Eigen::MatrixXd dispBlock = Eigen::MatrixXd::Zero(_nNodes, 3 * _nNodes + 2);
 	Eigen::MatrixXd G_curr = getGBlock(elemIdx);
@@ -1306,15 +1381,21 @@ Eigen::MatrixXd VariableCrossSectionConvectionDispersionOperatorBaseDG::DGjacobi
 
 	const double Aleft = _crossSectionArea[elemIdx * _nNodes];
 	const double Aright = _crossSectionArea[(elemIdx + 1) * _nNodes - 1];
+	// dispersion evaluated exactly at each interface (matches the
+	// position-dependent volume-term dispersion, see _dispAtInterfaces), so
+	// this analytic Jacobian stays consistent with surfaceIntegralMainImpl's
+	// residual (which uses the same table)
+	const double dLeft = _dispAtInterfaces[comp][elemIdx];
+	const double dRight = _dispAtInterfaces[comp][elemIdx + 1];
 
 	// Left surface
 	if (elemIdx > 0)
 	{
 		Eigen::MatrixXd G_prev = getGBlock(elemIdx - 1);
 		dispBlock.block(0, 0, _nNodes, _nNodes + 2) +=
-			invHalfDeltaX * 0.5 * Aleft * d_comp * _invMM_A[elemIdx].col(0) * G_prev.row(_nNodes - 1);
+			invHalfDeltaX * 0.5 * Aleft * dLeft * _invMM_A[elemIdx].col(0) * G_prev.row(_nNodes - 1);
 		dispBlock.block(0, _nNodes, _nNodes, _nNodes + 2) +=
-			invHalfDeltaX * 0.5 * Aleft * d_comp * _invMM_A[elemIdx].col(0) * G_curr.row(0);
+			invHalfDeltaX * 0.5 * Aleft * dLeft * _invMM_A[elemIdx].col(0) * G_curr.row(0);
 	}
 
 	// Right surface
@@ -1322,9 +1403,9 @@ Eigen::MatrixXd VariableCrossSectionConvectionDispersionOperatorBaseDG::DGjacobi
 	{
 		Eigen::MatrixXd G_next = getGBlock(elemIdx + 1);
 		dispBlock.block(0, _nNodes, _nNodes, _nNodes + 2) -=
-			invHalfDeltaX * 0.5 * Aright * d_comp * _invMM_A[elemIdx].col(_nNodes - 1) * G_curr.row(_nNodes - 1);
+			invHalfDeltaX * 0.5 * Aright * dRight * _invMM_A[elemIdx].col(_nNodes - 1) * G_curr.row(_nNodes - 1);
 		dispBlock.block(0, 2 * _nNodes, _nNodes, _nNodes + 2) -=
-			invHalfDeltaX * 0.5 * Aright * d_comp * _invMM_A[elemIdx].col(_nNodes - 1) * G_next.row(0);
+			invHalfDeltaX * 0.5 * Aright * dRight * _invMM_A[elemIdx].col(_nNodes - 1) * G_next.row(0);
 	}
 
 	return dispBlock;
