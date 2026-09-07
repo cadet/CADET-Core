@@ -1255,9 +1255,14 @@ namespace column
 			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
 
 			// VELOCITY_COEFF is no longer a JSON input field (velocity is now derived from
-			// CROSS_SECTION_AREA*); this is only used as an arbitrary representative scale for the
-			// synthetic film-diffusion dependency below, so the historical value is used directly.
-			const double velocityCoeff = 5.75e-4;
+			// CROSS_SECTION_AREA*). Deliberately chosen well away from the model's actual
+			// interstitial velocity (unlike the historical 5.75e-4, which happened to coincide
+			// with it): this is what exposes a residual/Jacobian (or bulk/particle) inconsistency
+			// in the FILM_DIFFUSION_DEP evaluation, since a calibration point that coincides with
+			// the actual velocity makes the dependence numerically a no-op and would silently hide
+			// such a bug (as it previously did for the bulk<->particle mismatch fixed alongside
+			// this test change; see GeneralRateParticle/ParticleDiffusionOperator{FV,DG}).
+			const double velocityCoeff = 5.75e-4 * 4.0;
 
 			auto ps = util::makeOptionalGroupScope(jpp, "particle_type_000");
 

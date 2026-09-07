@@ -334,44 +334,44 @@ namespace parts
 		return _nParPoints;
 	}
 
-	int ParticleDiffusionOperatorFV::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity)
+	int ParticleDiffusionOperatorFV::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, const ColumnPosition& colPos, const active& velocity, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity)
 	{
 		if (resPar)
 		{
 			if (jacIt.data())
-				return residualImpl<double, double, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacIt);
+				return residualImpl<double, double, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, velocity, jacIt);
 			else
-				return residualImpl<double, double, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacIt);
+				return residualImpl<double, double, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, velocity, jacIt);
 		}
 		else if (jacIt.data())
-			return residualImpl<double, double, double, true, false>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacIt);
+			return residualImpl<double, double, double, true, false>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, velocity, jacIt);
 		else
 			return -1;
 	}
-	int ParticleDiffusionOperatorFV::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity)
+	int ParticleDiffusionOperatorFV::residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, const ColumnPosition& colPos, const active& velocity, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity)
 	{
 		 if (jacIt.data())
-			return residualImpl<double, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacIt);
+			return residualImpl<double, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, velocity, jacIt);
 		else
-			 return residualImpl<double, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacIt);
+			 return residualImpl<double, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, velocity, jacIt);
 	}
-	int ParticleDiffusionOperatorFV::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity)
+	int ParticleDiffusionOperatorFV::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, const ColumnPosition& colPos, const active& velocity, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity)
 	{
 		if (jacIt.data())
-			return residualImpl<active, active, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacIt);
+			return residualImpl<active, active, double, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, velocity, jacIt);
 		else
-			return residualImpl<active, active, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacIt);
+			return residualImpl<active, active, double, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, velocity, jacIt);
 	}
-	int ParticleDiffusionOperatorFV::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity)
+	int ParticleDiffusionOperatorFV::residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, const ColumnPosition& colPos, const active& velocity, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity)
 	{
 		if (jacIt.data())
-			return residualImpl<active, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacIt);
+			return residualImpl<active, active, active, true, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, velocity, jacIt);
 		else
-			return residualImpl<active, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, jacIt);
+			return residualImpl<active, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, colPos, velocity, jacIt);
 	}
 
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-	int ParticleDiffusionOperatorFV::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, linalg::BandedEigenSparseRowIterator& jacBase)
+	int ParticleDiffusionOperatorFV::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, const ColumnPosition& colPos, const active& velocity, linalg::BandedEigenSparseRowIterator& jacBase)
 	{
 		// Add the solid entries of the transport jacobian that get overwritten by the binding kernel.
 		// These entries only exist for the combination of dynamic reactions with surface diffusion
@@ -382,7 +382,6 @@ namespace parts
 		if (!wantRes)
 			return 0;
 
-		const active* const filmDiff = getSectionDependentSlice(_filmDiffusion, _nComp, secIdx);
 		active const* const parDiff = getSectionDependentSlice(_parDiffusion, _nComp, secIdx);
 		active const* const parSurfDiff = getSectionDependentSlice(_parSurfDiffusion, _strideBound, secIdx);
 
@@ -521,12 +520,14 @@ namespace parts
 		// bead boundary condition in outer bead shell equation
 		for (int comp = 0; comp < _nComp; ++comp)
 		{
+			const ParamType filmDiff_comp = static_cast<ParamType>(modifiedFilmDiffusion(secIdx, comp, colPos, velocity));
+
 			// Discretized film diffusion kf for finite volumes (per component)
 			ParamType kf_FV = 1.0;
 			if (cadet_likely(_boundaryOrderFV == 2))
-				kf_FV = 1.0 / (absOuterShellHalfRadius * static_cast<ParamType>(filmDiff[comp]) / epsP / static_cast<ParamType>(_poreAccessFactor[comp]) / static_cast<ParamType>(parDiff[comp]) + 1.0);
+				kf_FV = 1.0 / (absOuterShellHalfRadius * filmDiff_comp / epsP / static_cast<ParamType>(_poreAccessFactor[comp]) / static_cast<ParamType>(parDiff[comp]) + 1.0);
 
-			ResidualType flux = kf_FV * static_cast<ParamType>(filmDiff[comp]) * (yBulk[comp * strideBulkComp()] - yPar[(_nParPoints - 1) * strideParPoint() + comp]);
+			ResidualType flux = kf_FV * filmDiff_comp * (yBulk[comp * strideBulkComp()] - yPar[(_nParPoints - 1) * strideParPoint() + comp]);
 			resPar[(_nParPoints - 1) * strideParPoint() + comp] += jacPF_val / static_cast<ParamType>(_poreAccessFactor[comp]) * flux;
 		}
 
@@ -540,8 +541,10 @@ namespace parts
 
 			for (int comp = 0; comp < _nComp; ++comp)
 			{
-				// Recalculate kf_FV for surface diffusion (per component)
-				const ParamType kf_FV = (1.0 - static_cast<ParamType>(_parPorosity)) / (1.0 + epsP * static_cast<ParamType>(_poreAccessFactor[comp]) * static_cast<ParamType>(parDiff[comp]) / (absOuterShellHalfRadius * static_cast<ParamType>(filmDiff[comp])));
+				// Recalculate kf_FV for surface diffusion (per component); use the same
+				// FILM_DIFFUSION_DEP-modified value as the boundary condition above.
+				const ParamType filmDiff_comp = static_cast<ParamType>(modifiedFilmDiffusion(secIdx, comp, colPos, velocity));
+				const ParamType kf_FV = (1.0 - static_cast<ParamType>(_parPorosity)) / (1.0 + epsP * static_cast<ParamType>(_poreAccessFactor[comp]) * static_cast<ParamType>(parDiff[comp]) / (absOuterShellHalfRadius * filmDiff_comp));
 
 				const unsigned int nBound = _nBound[comp];
 				ResidualType surfFlux = 0.0;

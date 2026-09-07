@@ -305,7 +305,7 @@ namespace model
 		// particle diffusion, including film diffusion boundary condition
 		ResidualType* wantResPtr = wantRes ? resPar : nullptr;
 		linalg::BandedEigenSparseRowIterator jacSafe = wantNonLinJac ? jacBase : linalg::BandedEigenSparseRowIterator{};
-		_parDiffOp->residual(t, secIdx, yPar, yBulk, yDotPar, wantResPtr, jacSafe, typename ParamSens<ParamType>::enabled());
+		_parDiffOp->residual(t, secIdx, yPar, yBulk, yDotPar, wantResPtr, packing.colPos, packing.velocity, jacSafe, typename ParamSens<ParamType>::enabled());
 
 		if (wantRes)
 		{
