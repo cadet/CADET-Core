@@ -91,10 +91,10 @@ namespace parts
 
 		bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
 
-		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity);
-		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity);
-		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity);
-		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity);
+		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, double* resPar, const ColumnPosition& colPos, const active& velocity, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity);
+		int residual(double t, unsigned int secIdx, double const* yPar, double const* yBulk, double const* yDotPar, active* resPar, const ColumnPosition& colPos, const active& velocity, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity);
+		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, const ColumnPosition& colPos, const active& velocity, linalg::BandedEigenSparseRowIterator& jacIt, WithoutParamSensitivity);
+		int residual(double t, unsigned int secIdx, active const* yPar, active const* yBulk, double const* yDotPar, active* resPar, const ColumnPosition& colPos, const active& velocity, linalg::BandedEigenSparseRowIterator& jacIt, WithParamSensitivity);
 
 		std::vector<active> _parOuterSurfAreaPerVolume; //!< Particle element outer sphere surface to volume ratio
 		std::vector<active> _parInnerSurfAreaPerVolume; //!< Particle element inner sphere surface to volume ratio
@@ -146,7 +146,7 @@ namespace parts
 		void parBindingAndReactionPattern(std::vector<Eigen::Triplet<double>>& tripletList, const int offset, const unsigned int colNode);
 
 		template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, linalg::BandedEigenSparseRowIterator& jacBase);
+		int residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, const ColumnPosition& colPos, const active& velocity, linalg::BandedEigenSparseRowIterator& jacBase);
 
 		void initializeDG();
 
