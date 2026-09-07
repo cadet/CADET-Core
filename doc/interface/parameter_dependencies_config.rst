@@ -14,10 +14,19 @@ Group /input/model/unit_XXX
 ``COL_DISPERSION_DEP``
 
    Parameter dependence of column dispersion on the interstitial velocity. Available for all 1D units and both the FV and DG discretization.
+   For the DG discretization, ``DISPERSION_SPATIAL_DEPENDENCE_POLYDEG`` must additionally be set (see below).
 
-   ================  =====================================  =============
-   **Type:** string  **Range:** :math:`\texttt{POWER_LAW}`  **Length:** 1
-   ================  =====================================  =============
+   ================  ===========================================================  =============
+   **Type:** string  **Range:** :math:`\texttt{POWER_LAW}, \texttt{VAN_DEEMTER}`  **Length:** 1
+   ================  ===========================================================  =============
+
+``DISPERSION_SPATIAL_DEPENDENCE_POLYDEG``
+
+   Quadrature polynomial degree used to evaluate the position-dependent (velocity-dependent) dispersion integral when ``COL_DISPERSION_DEP`` is set together with DG bulk discretization. Required in that case only; ignored for FV.
+
+   =============  =========================  =============
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
+   =============  =========================  =============
 
 Group /input/model/unit_XXX/particle_type_YYY
 ---------------------------------------------
@@ -25,12 +34,12 @@ Group /input/model/unit_XXX/particle_type_YYY
 ``FILM_DIFFUSION_DEP``
 
    Parameter dependence of film diffusion on the interstitial velocity.
-   Available For all 1D unit operations and bothe the FV and DG discretizations.
+   Available For all 1D unit operations and both the FV and DG discretizations.
    For the DG discretization there might be a loss of accuracy since the current implementation only supports a pointwise/"mass-lumped" evaluation.
 
-   ================  =====================================  =============
-   **Type:** string  **Range:** :math:`\texttt{POWER_LAW}`  **Length:** 1
-   ================  =====================================  =============
+   ================  ===========================================================  =============
+   **Type:** string  **Range:** :math:`\texttt{POWER_LAW}, \texttt{VAN_DEEMTER}`  **Length:** 1
+   ================  ===========================================================  =============
 
 
 **Correlations**
@@ -68,10 +77,49 @@ Here, :math:`p_{dep}` is the dependent parameter and :math:`p_{on}` is the param
 ``COL_DISPERSION_DEP_ABS``
 
    Specifies whether or not the absolute value should be computed. Optional, defaults to :math:`1`
-   
+
    =============  ===========================  =============
    **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1
    =============  ===========================  =============
+
+**Van Deemter**
+
+The van Deemter parameter dependence reproduces the classical van Deemter plate-height correlation :math:`H(v) = A + B / |v| + C\, |v|` and applies it to a dispersion-type parameter via the standard equilibrium-dispersive-model relation :math:`D_\mathrm{ax}(v) = H(v)\, v / 2`.
+Concretely,
+
+.. math::
+
+    \begin{aligned}
+        p_{dep} &= p_{dep} \cdot \left( A\, |p_{on}| + B + C\, p_{on}^2 \right) / 2
+    \end{aligned}
+
+Here, :math:`p_{dep}` is the dependent parameter (e.g. ``COL_DISPERSION``) and :math:`p_{on}` is the parameter it depends on (e.g. the local interstitial velocity).
+Using this dependence with the associated base parameter left at its default (dimensionless placeholder :math:`1`) directly evaluates :math:`D_\mathrm{ax}(v) = H(v)\, v / 2` for a local, velocity-dependent plate height :math:`H(v)`.
+Unlike ``POWER_LAW``, the absolute value of :math:`p_{on}` is always taken (there is no ``_ABS`` flag).
+
+``COL_DISPERSION_DEP_A``
+
+   Coefficient :math:`A` (eddy diffusion / flow-independent term) of the van Deemter parameter dependence
+
+   ================  =============================  =============
+   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
+   ================  =============================  =============
+
+``COL_DISPERSION_DEP_B``
+
+   Coefficient :math:`B` (longitudinal molecular diffusion term) of the van Deemter parameter dependence
+
+   ================  =============================  =============
+   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
+   ================  =============================  =============
+
+``COL_DISPERSION_DEP_C``
+
+   Coefficient :math:`C` (mass transfer resistance term) of the van Deemter parameter dependence
+
+   ================  =============================  =============
+   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
+   ================  =============================  =============
 
 
 Parameter-State Dependencies

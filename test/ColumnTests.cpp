@@ -1273,6 +1273,35 @@ namespace column
 		testJacobianAD(jpp, 1e-14);
 	}
 
+	void testJacobianADVariableColDispersionVanDeemter(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding)
+	{
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
+		setBindingMode(jpp, dynamicBinding);
+		{
+			auto ms = util::makeOptionalGroupScope(jpp, "model");
+			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
+
+			// A, B, C chosen to give an O(1) dependence factor H(v)*v/2 at this test
+			// model's representative velocity scale (~5.75e-4, see testJacobianADVariableFilmDiff
+			// above), so the resulting effective dispersion stays well-conditioned; the exact
+			// values are otherwise arbitrary for a Jacobian-correctness check.
+			jpp.set("COL_DISPERSION_DEP", "VAN_DEEMTER");
+			jpp.set("COL_DISPERSION_DEP_A", 100.0);
+			jpp.set("COL_DISPERSION_DEP_B", 0.5);
+			jpp.set("COL_DISPERSION_DEP_C", 100000.0);
+
+			if (spatialMethod == "DG")
+			{
+				// Required quadrature degree for the variable-dispersion integral whenever
+				// COL_DISPERSION_DEP is set with DG bulk discretization; matches the POLYDEG
+				// set for the bulk discretization by createColumnWithTwoCompLinearJson() above.
+				jpp.set("DISPERSION_SPATIAL_DEPENDENCE_POLYDEG", 3);
+			}
+		}
+
+		testJacobianAD(jpp, 1e-14);
+	}
+
 	void testArrowHeadJacobianFD(cadet::JsonParameterProvider& jpp, double h, double absTol, double relTol)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();

@@ -616,6 +616,14 @@ namespace column
 	 */
 	void testJacobianADVariableParSurfDiff(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding);
 	void testJacobianADVariableFilmDiff(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding);
+	/**
+	 * @brief Checks the full Jacobian against AD in case of a VAN_DEEMTER-dependent column dispersion coefficient
+	 * @details Checks the analytic Jacobian against the AD Jacobian for COL_DISPERSION_DEP='VAN_DEEMTER'.
+	 * @param [in] uoType Unit operation type
+	 * @param [in] spatialMethod Bulk spatial discretization ("FV" or "DG")
+	 * @param [in] dynamicBinding Determines whether dynamic binding is used
+	 */
+	void testJacobianADVariableColDispersionVanDeemter(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding);
 
 	/**
 	 * @brief Checks the full Jacobian against AD and FD pattern switching from forward to backward flow and back
