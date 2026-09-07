@@ -842,6 +842,36 @@ TEST_CASE("Column_1D as LRMP film diffusion par dep Jacobian analytic vs AD DG",
 	cadet::test::column::testJacobianADVariableFilmDiff("COLUMN_MODEL_1D_LRMP", "DG", false);
 }
 
+TEST_CASE("Column_1D as frustum GRM col dispersion van Deemter par dep Jacobian analytic vs AD FV", "[FrustumColumn1D],[FV],[UnitOp],[Jacobian],[AD],[ParameterDependence],[CI]")
+{
+	cadet::test::column::testJacobianADVariableColDispersionVanDeemter("FRUSTUM_COLUMN_MODEL_1D_GRM", "FV", false);
+}
+
+TEST_CASE("Column_1D as frustum GRM col dispersion van Deemter par dep Jacobian analytic vs AD DG", "[FrustumColumn1D],[DG],[DG1D],[UnitOp],[Jacobian],[AD],[ParameterDependence],[CI]")
+{
+	cadet::test::column::testJacobianADVariableColDispersionVanDeemter("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG", false);
+}
+
+TEST_CASE("Column_1D as frustum LRMP col dispersion van Deemter par dep Jacobian analytic vs AD FV", "[FrustumColumn1D],[FV],[UnitOp],[Jacobian],[AD],[ParameterDependence],[CI]")
+{
+	cadet::test::column::testJacobianADVariableColDispersionVanDeemter("FRUSTUM_COLUMN_MODEL_1D_LRMP", "FV", false);
+}
+
+TEST_CASE("Column_1D as frustum LRMP col dispersion van Deemter par dep Jacobian analytic vs AD DG", "[FrustumColumn1D],[DG],[DG1D],[UnitOp],[Jacobian],[AD],[ParameterDependence],[CI]")
+{
+	cadet::test::column::testJacobianADVariableColDispersionVanDeemter("FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG", false);
+}
+
+TEST_CASE("Column_1D as radial GRM col dispersion van Deemter par dep Jacobian analytic vs AD FV", "[RadialColumn1D],[FV],[UnitOp],[Jacobian],[AD],[ParameterDependence],[CI]")
+{
+	cadet::test::column::testJacobianADVariableColDispersionVanDeemter("RADIAL_COLUMN_MODEL_1D_GRM", "FV", false);
+}
+
+TEST_CASE("Column_1D as radial GRM col dispersion van Deemter par dep Jacobian analytic vs AD DG", "[RadialColumn1D],[DG],[DG1D],[UnitOp],[Jacobian],[AD],[ParameterDependence],[CI]")
+{
+	cadet::test::column::testJacobianADVariableColDispersionVanDeemter("RADIAL_COLUMN_MODEL_1D_GRM", "DG", false);
+}
+
 TEST_CASE("Column_1D as GRM dynamic reactions Jacobian vs AD modified particle", "[AxialColumn1D],[DG],[DG1D],[Jacobian],[AD],[ReactionModel],[CI]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("COLUMN_MODEL_1D_GRM", "DG", false, true, true, 1e-14);
