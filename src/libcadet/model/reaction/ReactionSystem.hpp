@@ -292,13 +292,8 @@ struct ReactionSystem
             auto& cm = phase.consMoities;
             
             unsigned int totalCols = 0;
-            std::vector<unsigned int> reactionColumnOffset;
-            reactionColumnOffset.reserve(phase.dynReactions.size());
-            
             for (const auto* reaction : phase.dynReactions)
             {
-                reactionColumnOffset.push_back(totalCols);
-
                 if (!reaction)
                     continue;
                 
@@ -333,7 +328,7 @@ struct ReactionSystem
                 colOffset += nReac;
             }
 
-            bool conservedMoitiesSuccess = cm.configure(nStates, std::move(reactionColumnOffset), std::move(eqReactionFlags), std::move(S), rankTol);
+            bool conservedMoitiesSuccess = cm.configure(nStates, eqReactionFlags, S, rankTol);
 
             if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
             {
