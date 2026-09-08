@@ -190,7 +190,7 @@ protected:
 	bool _givenAd = true;
 	bool _activeAeration = false;
 
-	static constexpr double XH_MIN_THRESHOLD = 0.1;
+	static constexpr double XH_MIN_THRESHOLD = 1e-6;
 	static constexpr double XH_SMOOTH_EPS = 1e-4; //!< Smoothing parameter for smooth max of XH lower bound
 
 	// Temperature correction factors (Arrhenius-type)
@@ -428,8 +428,10 @@ protected:
 		_stoichiometry.native(_idxSALK, 11) = c12a;
 		_stoichiometry.native(_idxSALK, 12) = c2a;
 		if (_givenAd)
+		{
 			_stoichiometry.native(_idxSALK, 13) = c3a;
-
+			_stoichiometry.native(_idxSALK, 14) = c3a;
+		}
 		// SI
 		_stoichiometry.native(_idxSI, 0) = fSI * (1 - fSI_ad);
 
