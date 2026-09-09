@@ -804,7 +804,7 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::configure(UnitOpIdx
 	readScalarParameterOrArray(_colDispersion, paramProvider, "COL_DISPERSION", 1);
 
 	readScalarParameterOrArray(_forwardFlow, paramProvider, "FORWARD_FLOW", 1);
-	_curFwdFlow = static_cast<bool>(_forwardFlow[0]);
+	_curFwdFlow = internalForwardFlow(_forwardFlow[0]);
 
 	if (paramProvider.exists("COL_DISPERSION_MULTIPLEX"))
 	{
@@ -855,8 +855,19 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::configure(UnitOpIdx
 			}, _nComp);
 
 	parameters[makeParamId(hashString("BED_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_bedLength;
-	parameters[makeParamId(hashString("COL_RADIUS_SMALL_END"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_radiusXStart;
-	parameters[makeParamId(hashString("COL_RADIUS_LARGE_END"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_radiusXEnd;
+	// Which end of the transport coordinate carries the smaller radius is geometry
+	// specific: the frustum places the large end at x = 0, whereas the radius of the
+	// radial cylinder shell grows from the inner radius at x = 0 to the outer radius.
+	if (_geometryType == GeometryType::AxialFlowFrustum)
+	{
+		parameters[makeParamId(hashString("COL_RADIUS_LARGE_END"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_radiusXStart;
+		parameters[makeParamId(hashString("COL_RADIUS_SMALL_END"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_radiusXEnd;
+	}
+	else
+	{
+		parameters[makeParamId(hashString("COL_RADIUS_SMALL_END"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_radiusXStart;
+		parameters[makeParamId(hashString("COL_RADIUS_LARGE_END"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_radiusXEnd;
+	}
 
 	// Geometry dependent operators
 	computeGeometry();
@@ -871,8 +882,8 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::notifyDiscontinuous
 	_newStaticJac = true;
 
 	// note: flow direction is set by setFlowRates() before notifyDiscontinuousSectionTransition() is called
-	_curFwdFlow = static_cast<bool>(getSectionDependentScalar(_forwardFlow, secIdx));
-	const bool changedDirection = secIdx > 0 ? (static_cast<bool>(getSectionDependentScalar(_forwardFlow, secIdx - 1)) != _curFwdFlow) : false;
+	_curFwdFlow = internalForwardFlow(getSectionDependentScalar(_forwardFlow, secIdx));
+	const bool changedDirection = secIdx > 0 ? (internalForwardFlow(getSectionDependentScalar(_forwardFlow, secIdx - 1)) != _curFwdFlow) : false;
 
 	// Some model parameters are baked into the DG operators but may be updated at section transitions
 	computeOperators(secIdx);

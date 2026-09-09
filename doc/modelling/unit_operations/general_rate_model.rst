@@ -285,11 +285,8 @@ The final behavior for axial flow models is controlled by the interplay of cross
 
 - If both cross section area :math:`A` and interstitial velocity :math:`u` are given, the magnitude of the actual interstitial velocity :math:`u` is inferred from the volumetric flow rate and the flow direction is given by the sign of the provided :math:`u`.
 
-The final behavior for radial flow models is controlled by the interplay of column length/height and interstitial velocity coefficient:
-
-- If :math:`L` is given, the interstitial velocity field is inferred from the volumetric flow rate.
-
-- If :math:`u` is given and :math:`L` is not, the provided interstitial velocity coefficient is used to calculate the interstitial velocity field.
+For the radial flow and frustum geometries, the interstitial velocity field is always inferred from the volumetric flow rate and the geometry, i.e. from the mandatory cross section area fields (see :ref:`radial_flow_column_1D_config` and :ref:`frustum_flow_column_1D_config`).
+The direction of the flow is given by the mandatory field ``FORWARD_FLOW``, whose default (:math:`1`) means flow from the larger towards the smaller radius for both geometries, so that the fluid accelerates as the cross section narrows.
 
 
 For information on model parameters see :ref:`axial_flow_column_1D_config` and :ref:`particle_model_config`.  
@@ -352,20 +349,22 @@ If reactions are considered, the term :math:`f_{\text{react},i}^\ell\left(c^\ell
 Danckwerts boundary conditions :cite:`Danckwerts1953` are applied to inlet and outlet of the column:
 
 .. math::
-    :label: BCOutletRadial
-
-    \begin{aligned}
-        u c_{\text{in},i}(t) &= u c^\ell_i(t,0) - D_{\text{rad},i} \frac{\partial c^\ell_i}{\partial \rho}(t, 0) & \forall t > 0,
-    \end{aligned}
-
-.. math::
     :label: BCInletRadial
 
     \begin{aligned}
-        \frac{\partial c^\ell_i}{\partial \rho}(t, \mathrm{P}) &= 0 & \forall t > 0. 
+        u c_{\text{in},i}(t) &= u c^\ell_i(t,\mathrm{P}) + D_{\text{rad},i}\, \mathrm{P} \frac{\partial c^\ell_i}{\partial \rho}(t, \mathrm{P}) & \forall t > 0,
     \end{aligned}
 
-Note that the outlet boundary condition Eq. :eq:`BCOutletRadial` is also known as “do nothing” or natural outflow condition.
+.. math::
+    :label: BCOutletRadial
+
+    \begin{aligned}
+        \frac{\partial c^\ell_i}{\partial \rho}(t, \mathrm{P}_c) &= 0 & \forall t > 0. 
+    \end{aligned}
+
+Under the default flow direction (``FORWARD_FLOW`` :math:`= 1`) the fluid enters at the outer radius :math:`\mathrm{P}` and leaves at the inner radius :math:`\mathrm{P}_c`, so the inlet condition Eq. :eq:`BCInletRadial` is imposed at :math:`\mathrm{P}` and the outlet condition Eq. :eq:`BCOutletRadial` at :math:`\mathrm{P}_c`; setting ``FORWARD_FLOW`` :math:`= 0` swaps the two boundaries.
+Note that the radial coordinate :math:`\rho`, and with it the ordering of the bulk solution, always runs from the inner to the outer radius, i.e. it is oriented against the default flow direction.
+Note further that the outlet boundary condition Eq. :eq:`BCOutletRadial` is also known as “do nothing” or natural outflow condition.
 
 The complementing mass transport and binding equations for the liquid and solid phases of the porous beads are described by the same equations as for the axial GRM.
 
@@ -374,7 +373,7 @@ For information on model parameters see :ref:`radial_flow_column_1D_config` and 
 Frustum device GRM
 ^^^^^^^^^^^^^^^^^^
 
-The frustum GRM describes transport of solute molecules through the interstitial column volume by convective flow from the smaller to the larger radius of the frustum device ("axial" direction), band broadening caused by dispersion, mass transfer resistance through a stagnant film around the beads, pore (and surface) diffusion in the porous beads :cite:`Ma1996,Schneider1968a,Miyabe2007`, and adsorption to the inner bead surfaces.
+The frustum GRM describes transport of solute molecules through the interstitial column volume by convective flow from the larger to the smaller radius of the frustum device ("axial" direction), band broadening caused by dispersion, mass transfer resistance through a stagnant film around the beads, pore (and surface) diffusion in the porous beads :cite:`Ma1996,Schneider1968a,Miyabe2007`, and adsorption to the inner bead surfaces.
 Figure :numref:`GeometryGRMFrustumColumn` shows the geometry of the frustum column.
 
 .. _GeometryGRMFrustumColumn: 
@@ -423,19 +422,20 @@ If reactions are considered, the term :math:`f_{\text{react},i}^\ell\left(c^\ell
 Danckwerts boundary conditions :cite:`Danckwerts1953` are applied to inlet and outlet of the column:
 
 .. math::
-    :label: BCOutletFrustum
-
-    \begin{aligned}
-        u c_{\text{in},i}(t) &= u c^\ell_i(t,0) - D_{i} \frac{\partial c^\ell_i}{\partial \rho}(t, 0) & \forall t > 0,
-    \end{aligned}
-
-.. math::
     :label: BCInletFrustum
 
     \begin{aligned}
-        \frac{\partial c^\ell_i}{\partial \rho}(t, \mathrm{P}) &= 0 & \forall t > 0. 
+        u c_{\text{in},i}(t) &= u c^\ell_i(t,0) - D_{i}\, r(0)^2 \frac{\partial c^\ell_i}{\partial x}(t, 0) & \forall t > 0,
     \end{aligned}
 
+.. math::
+    :label: BCOutletFrustum
+
+    \begin{aligned}
+        \frac{\partial c^\ell_i}{\partial x}(t, H) &= 0 & \forall t > 0. 
+    \end{aligned}
+
+Under the default flow direction (``FORWARD_FLOW`` :math:`= 1`) the fluid enters at the large end :math:`x = 0` and leaves at the small end :math:`x = H`; setting ``FORWARD_FLOW`` :math:`= 0` swaps the two boundaries.
 Note that the outlet boundary condition Eq. :eq:`BCOutletFrustum` is also known as “do nothing” or natural outflow condition.
 
 The complementing mass transport and binding equations for the liquid and solid phases of the porous beads are described by the same equations as for the axial GRM.

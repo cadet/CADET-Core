@@ -969,8 +969,13 @@ bool RadialConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, IP
 	// Read section dependent parameters (transport)
 	_dir.clear();
 	const std::vector<double> fwdFlow = paramProvider.getDoubleArray("FORWARD_FLOW");
+	// In contrast to the axial and frustum operators, whose transport coordinate runs
+	// along the flow path, the transport coordinate of the radial operator is the radius
+	// itself and increases with the cell index. The default (forward) flow direction runs
+	// from the larger to the smaller radius, i.e. from the last cell towards the first
+	// one, which is represented internally by a negative velocity coefficient.
 	for (std::size_t i = 0; i < fwdFlow.size(); ++i)
-		_dir.push_back(fwdFlow[i] ? 1.0 : -1.0);
+		_dir.push_back(fwdFlow[i] ? -1.0 : 1.0);
 
 	readScalarParameterOrArray(_colDispersion, paramProvider, "COL_DISPERSION", 1);
 	if (paramProvider.exists("COL_DISPERSION_MULTIPLEX"))
@@ -1038,6 +1043,10 @@ bool RadialConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, IP
 		registerParam2DArray(parameters, _colDispersion, [=](bool multi, unsigned int sec, unsigned int comp) { return makeParamId(hashString("COL_DISPERSION"), unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _nComp);
 
 	parameters[makeParamId(hashString("VELOCITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_curVelCoeff;
+	// Registered like in the axial and frustum operators, so that sensitivities and
+	// parameter changes with respect to the bed length work for the radial geometry too.
+	// CYLINDER_HEIGHT is not registered because _colHeight is not an AD type.
+	parameters[makeParamId(hashString("BED_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_bedLength;
 
 	return true;
 }
@@ -1361,7 +1370,12 @@ unsigned int RadialConvectionDispersionOperatorBaseFV::jacobianDiscretizedBandwi
 
 double RadialConvectionDispersionOperatorBaseFV::inletJacobianFactor() const CADET_NOEXCEPT
 {
-	const double denom = static_cast<double>(_cellCenters[0]) * static_cast<double>(_cellSizes[0]);
+	// The inlet couples into the first cell for forward and into the last cell for backward
+	// flow (see residualForwardsRadialFlow / residualBackwardsRadialFlow); as the cells of
+	// this operator do not share the same geometric measure, the factor depends on which
+	// one of them the inlet feeds.
+	const unsigned int inletCell = forwardFlow() ? 0u : _nCol - 1u;
+	const double denom = static_cast<double>(_cellCenters[inletCell]) * static_cast<double>(_cellSizes[inletCell]);
 	const double u = static_cast<double>(_curVelCoeff);
 	return u / denom;
 }
@@ -1558,15 +1572,15 @@ bool FrustumConvectionDispersionOperatorBaseFV::configureModelDiscretization(IPa
 	const double areaLarge = paramProvider.getDouble("CROSS_SECTION_AREA_LARGE_END");
 	const double areaSmall = paramProvider.getDouble("CROSS_SECTION_AREA_SMALL_END");
 	const double pi = 3.14159265358979323846;
-	// A = pi r^2 => r = sqrt(A / pi)
-	_outerRadius = sqrt(areaLarge / pi);
-	_innerRadius = sqrt(areaSmall / pi);
-	_bedLength = paramProvider.getDouble("BED_LENGTH");
+	// A = pi r^2 => r = sqrt(A / pi). The large end is placed at x = 0, i.e. forward
+	// flow runs from the large to the small radius
+	_radiusXStart = sqrt(areaLarge / pi);
+	_radiusXEnd = sqrt(areaSmall / pi);
 	_bedLength = paramProvider.getDouble("BED_LENGTH");
 
-	if (!(_innerRadius > 0.0 && _outerRadius > 0.0 && _bedLength > 0.0))
+	if (!(_radiusXEnd > 0.0 && _radiusXStart > 0.0 && _bedLength > 0.0))
 		throw InvalidParameterException("Geometry parameters CROSS_SECTION_AREA_LARGE_END, CROSS_SECTION_AREA_SMALL_END, BED_LENGTH must be > 0.0");
-	if (_innerRadius > _outerRadius)
+	if (_radiusXEnd > _radiusXStart)
 		throw InvalidParameterException("Geometry parameters are inconsistent, model requires CROSS_SECTION_AREA_SMALL_END <= CROSS_SECTION_AREA_LARGE_END for consistency reasons. Please check the documentation for control of the flow direction.");
 
 	if (paramProvider.exists("COL_DISPERSION_DEP"))
@@ -1656,13 +1670,14 @@ bool FrustumConvectionDispersionOperatorBaseFV::configureModelDiscretization(IPa
 
 		// Precompute geometry-exact WENO coefficients from the r(z)^2-weighted moment systems
 		// (the FV DOFs are cross-section weighted cell averages with A(z) ~ r(z)^2 and
-		// r(z) = r_in + (r_out - r_in) * z / L). Used on equidistant and non-equidistant grids.
+		// r(z) = r_xStart + (r_xEnd - r_xStart) * z / L). Used on equidistant and
+		// non-equidistant grids.
 		{
 			std::vector<double> faces(_cellFaces.size());
 			for (std::size_t i = 0; i < _cellFaces.size(); ++i)
 				faces[i] = static_cast<double>(_cellFaces[i]);
-			const double slope = (static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius)) / static_cast<double>(_bedLength);
-			_weno->prepareGeometryExactCoefficients(static_cast<double>(_innerRadius), slope, 2, faces);
+			const double slope = (static_cast<double>(_radiusXEnd) - static_cast<double>(_radiusXStart)) / static_cast<double>(_bedLength);
+			_weno->prepareGeometryExactCoefficients(static_cast<double>(_radiusXStart), slope, 2, faces);
 		}
 	}
 	else if (recType == "KOREN")
@@ -1810,7 +1825,7 @@ void FrustumConvectionDispersionOperatorBaseFV::setFlowRates(const active& in, c
  */
 active FrustumConvectionDispersionOperatorBaseFV::currentVelocity(double pos) const CADET_NOEXCEPT
 {
-	const active radius = pos * (_outerRadius - _innerRadius) + _innerRadius;
+	const active radius = pos * (_radiusXEnd - _radiusXStart) + _radiusXStart;
 	return _curVelCoeff / radius / radius;
 }
 
@@ -2103,7 +2118,12 @@ unsigned int FrustumConvectionDispersionOperatorBaseFV::jacobianDiscretizedBandw
 
 double FrustumConvectionDispersionOperatorBaseFV::inletJacobianFactor() const CADET_NOEXCEPT
 {
-	return static_cast<double>(_curVelCoeff) * 3.1415926535897932384626434 / static_cast<double>(_cellVolume[0]);
+	// The inlet couples into the first cell for forward and into the last cell for backward
+	// flow (see residualForwardsFrustumFlow / residualBackwardsFrustumFlow); as the cells of
+	// this operator do not share the same volume, the factor depends on which one of them
+	// the inlet feeds.
+	const unsigned int inletCell = forwardFlow() ? 0u : _nCol - 1u;
+	return static_cast<double>(_curVelCoeff) * 3.1415926535897932384626434 / static_cast<double>(_cellVolume[inletCell]);
 }
 
 bool FrustumConvectionDispersionOperatorBaseFV::setParameter(const ParameterId& pId, double value)
@@ -2261,13 +2281,13 @@ void FrustumConvectionDispersionOperatorBaseFV::computeCellCentersAndSizes(const
 		centers[i] = static_cast<active>(0.5) * (cellFaces[i] + cellFaces[i + 1]);
 		sizes[i] = cellFaces[i + 1] - cellFaces[i];
 
-		active centerRadius = _innerRadius + (centers[i] / _bedLength) * (_outerRadius - _innerRadius);
+		active centerRadius = _radiusXStart + (centers[i] / _bedLength) * (_radiusXEnd - _radiusXStart);
 		centerRadiiSq[i] = centerRadius * centerRadius;
 
-		active faceRadius = _innerRadius + (cellFaces[i] / _bedLength) * (_outerRadius - _innerRadius);
+		active faceRadius = _radiusXStart + (cellFaces[i] / _bedLength) * (_radiusXEnd - _radiusXStart);
 		faceRadiiSq[i] = faceRadius * faceRadius;
 	}
-	active lastFaceRadius = _innerRadius + (cellFaces[_nCol] / _bedLength) * (_outerRadius - _innerRadius);
+	active lastFaceRadius = _radiusXStart + (cellFaces[_nCol] / _bedLength) * (_radiusXEnd - _radiusXStart);
 	faceRadiiSq[_nCol] = lastFaceRadius * lastFaceRadius;
 
 	_cellCenters = std::move(centers);

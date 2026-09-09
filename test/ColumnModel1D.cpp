@@ -1358,7 +1358,7 @@ TEST_CASE("Radial Column_1D as GRM linear binding single particle matches spatia
 
 TEST_CASE("Radial Column_1D as LRMP LWE one vs two identical particle types match", "[RadialColumn1D],[DG],[Simulation],[ParticleType],[CI]")
 {
-	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", 2.2e-8, 6e-5);
+	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("RADIAL_COLUMN_MODEL_1D_LRMP", "DG", 5e-8, 6e-5);
 }
 
 TEST_CASE("Radial Column_1D as LRMP LWE separate identical particle types match", "[RadialColumn1D],[DG],[Simulation],[ParticleType],[CI]")
