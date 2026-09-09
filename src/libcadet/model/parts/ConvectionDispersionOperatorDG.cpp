@@ -860,12 +860,7 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::notifyDiscontinuous
 	_curFwdFlow = static_cast<bool>(getSectionDependentScalar(_forwardFlow, secIdx));
 	const bool changedDirection = secIdx > 0 ? (static_cast<bool>(getSectionDependentScalar(_forwardFlow, secIdx - 1)) != _curFwdFlow) : false;
 
-	// Some model parameters are baked into the DG operators but may be updated at section
-	// transitions. This has to happen BEFORE the Jacobian blocks below are recomputed, since they
-	// are assembled from these operators: with a velocity dependent COL_DISPERSION_DEP, the
-	// operators built at configure() time are evaluated at zero interstitial velocity (the flow
-	// rate is only known once the network is connected), so recomputing them afterwards would leave
-	// the analytic Jacobian holding a dispersion contribution that does not match the residual.
+	// Some model parameters are baked into the DG operators but may be updated at section transitions
 	computeOperators(secIdx);
 
 	// Recompute Jacobian blocks
