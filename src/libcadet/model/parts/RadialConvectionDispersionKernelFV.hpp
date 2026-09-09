@@ -119,7 +119,7 @@ namespace impl
 			for (int i = -std::max(p.reconstruction->order(), 2) + 1; i < 0; ++i)
 				stencil[i] = 0.0;
 			for (int i = 0; i < std::max(p.reconstruction->order(), 2); ++i)
-				stencil[i] = yBulkComp[i * p.strideCell];
+				stencil[i] = (static_cast<unsigned int>(i) < p.nCol) ? yBulkComp[i * p.strideCell] : StateType(0.0);
 
 			// Reset reconstruction output
 			StateType vm(0.0); // reconstructed value
@@ -303,7 +303,10 @@ namespace impl
 			for (int i = -std::max(p.reconstruction->order(), 2) + 1; i < 0; ++i)
 				stencil[i] = 0.0;
 			for (int i = 0; i < std::max(p.reconstruction->order(), 2); ++i)
-				stencil[i] = yBulkComp[(p.nCol - static_cast<unsigned int>(i) - 1) * p.strideCell];
+			{
+				const int cell = static_cast<int>(p.nCol) - i - 1;
+				stencil[i] = (cell >= 0) ? yBulkComp[cell * p.strideCell] : StateType(0.0);
+			}
 
 			// Reset reconstruction output
 			StateType vm(0.0); // reconstructed value
