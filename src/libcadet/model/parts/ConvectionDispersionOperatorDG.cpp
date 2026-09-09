@@ -860,6 +860,9 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::notifyDiscontinuous
 	_curFwdFlow = static_cast<bool>(getSectionDependentScalar(_forwardFlow, secIdx));
 	const bool changedDirection = secIdx > 0 ? (static_cast<bool>(getSectionDependentScalar(_forwardFlow, secIdx - 1)) != _curFwdFlow) : false;
 
+	// Some model parameters are baked into the DG operators but may be updated at section transitions
+	computeOperators(secIdx);
+
 	// Recompute Jacobian blocks
 	for (unsigned int elem = 0; elem < _nElem; elem++)
 	{
@@ -872,9 +875,6 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::notifyDiscontinuous
 		jacInlet = _DGjacConvBlocks[0].col(0);
 	else
 		jacInlet = _DGjacConvBlocks[_nElem - 1].col(_DGjacConvBlocks[_nElem - 1].cols() - 1);
-
-	// some model parameters are baked into the DG operators but may be updated at section transitions
-	computeOperators(secIdx);
 
 	return changedDirection;
 }
