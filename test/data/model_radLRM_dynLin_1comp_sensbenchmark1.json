@@ -68,7 +68,6 @@
         "BED_LENGTH": 0.19,
         "NCOMP": 1,
         "TOTAL_POROSITY": 0.8425,
-        "VELOCITY_COEFF": 0.000575,
         "COL_DISPERSION": 5.75e-08,
         "NPARTYPE": 1,
         "INIT_C": [

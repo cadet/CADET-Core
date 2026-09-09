@@ -75,7 +75,6 @@
         "NCOMP": 1,
         "NPARTYPE": 0,
         "TOTAL_POROSITY": 0.37,
-        "VELOCITY_COEFF": 1,
         "discretization": {
           "GRID_FACES": [
             1.3473580395936362e-16,

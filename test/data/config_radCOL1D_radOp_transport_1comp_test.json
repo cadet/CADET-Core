@@ -74,7 +74,6 @@
         "COL_HEIGHT": 3183.098861837907,
         "UNIT_TYPE": "RADIAL_COLUMN_MODEL_1D",
         "FORWARD_FLOW": true,
-        "VELOCITY_COEFF": 5e-05,
         "discretization": {
           "NELEM": 8,
           "POLYDEG": 3,

@@ -1025,7 +1025,25 @@ namespace parts
 		active _flowRate;
 		active _QOverEps;	//!< flow rate divided by porosity (Q/eps)
 		std::vector<int> _forwardFlow; // 1 for forward flow, 0 and other for backward flow, per time section
-		bool _curFwdFlow;
+		bool _curFwdFlow; // whether the flow runs towards increasing x, see internalForwardFlow()
+
+		/**
+		 * @brief Maps the FORWARD_FLOW input to the internal flow direction
+		 * @details The internal direction refers to the transport coordinate x, i.e. it is
+		 *          true if the flow runs towards increasing x (and thus increasing element
+		 *          index). For the axial cylinder and the frustum, x runs along the flow path
+		 *          and x = 0 is the inlet under forward flow. For the radial cylinder shell,
+		 *          x is the radius itself and increases from the inner to the outer radius,
+		 *          whereas the default (forward) flow direction runs from the larger to the
+		 *          smaller radius, i.e. towards decreasing x.
+		 * @param [in] fwdFlow Value of the FORWARD_FLOW field of the current section
+		 * @return @c true if the flow runs towards increasing x
+		 */
+		inline bool internalForwardFlow(int fwdFlow) const CADET_NOEXCEPT
+		{
+			const bool fwd = static_cast<bool>(fwdFlow);
+			return (_geometryType == GeometryType::RadialFlowCylinderShell) ? !fwd : fwd;
+		}
 
 		int _curSection;
 		bool _newStaticJac;

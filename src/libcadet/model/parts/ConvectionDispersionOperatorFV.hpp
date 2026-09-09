@@ -414,16 +414,15 @@ public:
 	unsigned int requiredADdirs() const CADET_NOEXCEPT { return jacobianLowerBandwidth() + 1u + jacobianUpperBandwidth(); }
 
 	inline const active& columnLength() const CADET_NOEXCEPT { return _bedLength; }
-	inline const active& innerRadius() const CADET_NOEXCEPT { return _innerRadius; }
-	inline const active& outerRadius() const CADET_NOEXCEPT { return _outerRadius; }
+	inline const active& radiusXStart() const CADET_NOEXCEPT { return _radiusXStart; }
+	inline const active& radiusXEnd() const CADET_NOEXCEPT { return _radiusXEnd; }
 	active currentVelocity(double pos) const CADET_NOEXCEPT;
 	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelCoeff >= 0.0; }
 
 	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return static_cast<double>(_cellCenters[idx]); }
 	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT
 	{
-		return (static_cast<double>(_cellCenters[idx]) - static_cast<double>(_innerRadius)) /
-		       (static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius));
+		return static_cast<double>(_cellCenters[idx]) / static_cast<double>(_bedLength);
 	}
 
 	inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
@@ -463,9 +462,9 @@ protected:
 	unsigned int _strideCell; //!< Number of elements between the same item in two adjacent cells
 
 	active _bedLength; //!< Column length \f$ L \f$
-	active _innerRadius; //!< Inner radius
-	active _outerRadius; //!< Outer radius
-	std::vector<active> _cellVolume; //!< Outer radius
+	active _radiusXStart; //!< Frustum radius at x = 0, i.e. at the large end
+	active _radiusXEnd; //!< Frustum radius at x = L, i.e. at the small end
+	std::vector<active> _cellVolume; //!< Volume of each cell
 
 	// Section dependent parameters
 	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{rad}} \f$
