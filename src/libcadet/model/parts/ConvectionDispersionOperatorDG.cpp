@@ -227,6 +227,15 @@ bool AxialConvectionDispersionOperatorBaseCollocationDG::configure(UnitOpIdx uni
 	return true;
 }
 
+double AxialConvectionDispersionOperatorBaseCollocationDG::effectiveDispersion(const int secIdx, const int comp) const CADET_NOEXCEPT
+{
+	const double baseDispersion = static_cast<double>(currentDispersion(secIdx)[comp]);
+	if (!_dispersionDep)
+		return baseDispersion;
+
+	return baseDispersion * _dispersionDep->getValue(ColumnPosition{ 0.0, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, static_cast<double>(_curVelocity));
+}
+
 /**
  * @brief Notifies the operator that a discontinuous section transition is in progress
  * @details In addition to changing flow direction internally, if necessary, the function returns whether
@@ -348,7 +357,12 @@ int AxialConvectionDispersionOperatorBaseCollocationDG::residualImpl(const IMode
 			_resC.setZero();
 
 		const ParamType u = static_cast<ParamType>(_curVelocity);
-		const ParamType d_ax = static_cast<ParamType>(getSectionDependentSlice(_colDispersion, _nComp, secIdx)[comp]);
+		// Apply the (velocity dependent) COL_DISPERSION_DEP factor. This geometry has a constant
+		// cross section and hence a constant interstitial velocity, so the resulting coefficient is
+		// still constant along the column and can be evaluated once per component. Without a
+		// dependence configured, _dispersionDep is CONSTANT_ONE and this is a no-op.
+		const ParamType d_ax = static_cast<ParamType>(getSectionDependentSlice(_colDispersion, _nComp, secIdx)[comp])
+			* _dispersionDep->getValue(ColumnPosition{ 0.0, 0.0, 0.0 }, comp, ParTypeIndep, BoundStateIndep, u);
 
 		// ===================================//
 		// reset cache                        //

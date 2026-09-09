@@ -887,6 +887,39 @@ TEST_CASE("Column_1D as radial GRM col dispersion power law par dep Jacobian ana
 	cadet::test::column::testJacobianADVariableColDispersionPowerLaw("RADIAL_COLUMN_MODEL_1D_GRM", "DG", false);
 }
 
+TEST_CASE("Column_1D as GRM col dispersion par dep is applied by collocation DG", "[AxialColumn1D],[DG],[DG1D],[Simulation],[ParameterDependence],[CI]")
+{
+	// The collocation DG operator used to configure COL_DISPERSION_DEP and then never evaluate it,
+	// so the dependence was silently ignored. Both settings below describe the same physics: the
+	// LWE model's axial cylinder geometry is dimensioned for an interstitial velocity of exactly
+	// 5.75e-4, so D(v) = (COL_DISPERSION / 5.75e-4) * |v| reproduces the reference setting's plain,
+	// constant COL_DISPERSION. They must therefore give the same result.
+	const double velocity = 5.75e-4;
+
+	cadet::JsonParameterProvider jpp1 = createLWE("COLUMN_MODEL_1D_GRM", "DG");
+	cadet::JsonParameterProvider jpp2 = createLWE("COLUMN_MODEL_1D_GRM", "DG");
+	cadet::test::column::DGParams disc(1, 3, 8); // collocation DG
+	disc.setDisc(jpp1);
+	disc.setDisc(jpp2);
+
+	jpp1.pushScope("model");
+	jpp1.pushScope("unit_000");
+	const double baseDispersion = jpp1.getDouble("COL_DISPERSION");
+	jpp1.set("COL_DISPERSION", baseDispersion / velocity);
+	jpp1.set("COL_DISPERSION_DEP", "POWER_LAW");
+	jpp1.set("COL_DISPERSION_DEP_BASE", 1.0);
+	jpp1.set("COL_DISPERSION_DEP_EXPONENT", 1.0);
+	jpp1.popScope();
+	jpp1.popScope();
+
+	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
+}
+
+TEST_CASE("Column_1D as GRM col dispersion power law par dep Jacobian analytic vs AD collocation DG", "[AxialColumn1D],[DG],[DG1D],[UnitOp],[Jacobian],[AD],[ParameterDependence],[CI]")
+{
+	cadet::test::column::testJacobianADVariableColDispersionPowerLaw("COLUMN_MODEL_1D_GRM", "DG", false, true);
+}
+
 TEST_CASE("Column_1D as GRM dynamic reactions Jacobian vs AD modified particle", "[AxialColumn1D],[DG],[DG1D],[Jacobian],[AD],[ReactionModel],[CI]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("COLUMN_MODEL_1D_GRM", "DG", false, true, true, 1e-14);

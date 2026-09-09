@@ -635,8 +635,9 @@ namespace column
 	 * @param [in] uoType Unit operation type
 	 * @param [in] spatialMethod Spatial discretization method
 	 * @param [in] dynamicBinding Determines whether dynamic binding is used
+	 * @param [in] useCollocationDG Selects the collocation DG bulk operator (axial cylinder only)
 	 */
-	void testJacobianADVariableColDispersionPowerLaw(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding);
+	void testJacobianADVariableColDispersionPowerLaw(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding, bool useCollocationDG = false);
 
 	/**
 	 * @brief Checks the full Jacobian against AD and FD pattern switching from forward to backward flow and back

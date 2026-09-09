@@ -1307,13 +1307,19 @@ namespace column
 		testJacobianAD(jpp, 1e-14);
 	}
 
-	void testJacobianADVariableColDispersionPowerLaw(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding)
+	void testJacobianADVariableColDispersionPowerLaw(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding, bool useCollocationDG)
 	{
 		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
 		setBindingMode(jpp, dynamicBinding);
 		{
 			auto ms = util::makeOptionalGroupScope(jpp, "model");
 			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
+
+			if (useCollocationDG)
+			{
+				auto ds = util::makeOptionalGroupScope(jpp, "discretization");
+				jpp.set("USE_COLLOCATION_DG", 1);
+			}
 
 			// D(x) = COL_DISPERSION * |v(x)|, i.e. COL_DISPERSION acts as a dispersivity. Note that
 			// this dependence vanishes identically at zero velocity, so a nonzero flow rate has to be
