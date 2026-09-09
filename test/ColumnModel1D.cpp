@@ -872,6 +872,21 @@ TEST_CASE("Column_1D as radial GRM col dispersion van Deemter par dep Jacobian a
 	cadet::test::column::testJacobianADVariableColDispersionVanDeemter("RADIAL_COLUMN_MODEL_1D_GRM", "DG", false);
 }
 
+TEST_CASE("Column_1D as axial GRM col dispersion power law par dep Jacobian analytic vs AD DG", "[AxialColumn1D],[DG],[DG1D],[UnitOp],[Jacobian],[AD],[ParameterDependence],[CI]")
+{
+	cadet::test::column::testJacobianADVariableColDispersionPowerLaw("COLUMN_MODEL_1D_GRM", "DG", false);
+}
+
+TEST_CASE("Column_1D as frustum GRM col dispersion power law par dep Jacobian analytic vs AD DG", "[FrustumColumn1D],[DG],[DG1D],[UnitOp],[Jacobian],[AD],[ParameterDependence],[CI]")
+{
+	cadet::test::column::testJacobianADVariableColDispersionPowerLaw("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG", false);
+}
+
+TEST_CASE("Column_1D as radial GRM col dispersion power law par dep Jacobian analytic vs AD DG", "[RadialColumn1D],[DG],[DG1D],[UnitOp],[Jacobian],[AD],[ParameterDependence],[CI]")
+{
+	cadet::test::column::testJacobianADVariableColDispersionPowerLaw("RADIAL_COLUMN_MODEL_1D_GRM", "DG", false);
+}
+
 TEST_CASE("Column_1D as GRM dynamic reactions Jacobian vs AD modified particle", "[AxialColumn1D],[DG],[DG1D],[Jacobian],[AD],[ReactionModel],[CI]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("COLUMN_MODEL_1D_GRM", "DG", false, true, true, 1e-14);

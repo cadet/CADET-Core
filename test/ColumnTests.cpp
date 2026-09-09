@@ -1307,6 +1307,47 @@ namespace column
 		testJacobianAD(jpp, 1e-14);
 	}
 
+	void testJacobianADVariableColDispersionPowerLaw(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding)
+	{
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
+		setBindingMode(jpp, dynamicBinding);
+		{
+			auto ms = util::makeOptionalGroupScope(jpp, "model");
+			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
+
+			// D(x) = COL_DISPERSION * |v(x)|, i.e. COL_DISPERSION acts as a dispersivity. Note that
+			// this dependence vanishes identically at zero velocity, so a nonzero flow rate has to be
+			// imposed below for this test to exercise anything at all.
+			// Rescale COL_DISPERSION by the representative interstitial velocity of this test model
+			// (see createColumnWithTwoCompLinearJson(): all three geometries are dimensioned for
+			// v ~ 5.75e-4 at the flow rate imposed below), so that the resulting effective dispersion
+			// stays at the same magnitude as the constant-dispersion default and hence contributes to
+			// the Jacobian at the same magnitude instead of being swamped by the other blocks.
+			const double baseDispersion = jpp.getDouble("COL_DISPERSION");
+			jpp.set("COL_DISPERSION", baseDispersion / 5.75e-4);
+			jpp.set("COL_DISPERSION_DEP", "POWER_LAW");
+			jpp.set("COL_DISPERSION_DEP_BASE", 1.0);
+			jpp.set("COL_DISPERSION_DEP_EXPONENT", 1.0);
+
+			if (spatialMethod == "DG")
+			{
+				// Required quadrature degree for the variable-dispersion integral whenever
+				// COL_DISPERSION_DEP is set with DG bulk discretization; matches the POLYDEG
+				// set for the bulk discretization by createColumnWithTwoCompLinearJson() above.
+				jpp.set("DISPERSION_SPATIAL_DEPENDENCE_POLYDEG", 3);
+			}
+		}
+
+		// Impose the flow rate the test models' geometry was dimensioned for (see
+		// createColumnWithTwoCompLinearJson()), so that the interstitial velocity -- and hence the
+		// velocity dependent dispersion coefficient -- is nonzero and, for the radial and frustum
+		// geometries, actually varies over the column (by a factor of ~4 here).
+		const double pi = 3.14159265358979323846;
+		const double flowRate = 5.75e-4 * (pi * 0.01 * 0.01) * 0.37;
+
+		testJacobianAD(jpp, 1e-14, std::numeric_limits<float>::epsilon() * 100.0, { flowRate });
+	}
+
 	void testArrowHeadJacobianFD(cadet::JsonParameterProvider& jpp, double h, double absTol, double relTol)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();

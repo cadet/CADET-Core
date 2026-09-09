@@ -626,6 +626,19 @@ namespace column
 	void testJacobianADVariableColDispersionVanDeemter(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding);
 
 	/**
+	 * @brief Checks the analytic Jacobian against AD for a POWER_LAW COL_DISPERSION_DEP
+	 * @details Unlike VAN_DEEMTER (whose dependence factor is nonzero at zero velocity), POWER_LAW
+	 *          collapses to zero dispersion when no flow rate is set, so this test explicitly imposes
+	 *          a nonzero volumetric flow rate. For the non-axial geometries that is also what makes
+	 *          the dispersion coefficient genuinely position dependent, since the interstitial
+	 *          velocity varies with the position dependent cross section area.
+	 * @param [in] uoType Unit operation type
+	 * @param [in] spatialMethod Spatial discretization method
+	 * @param [in] dynamicBinding Determines whether dynamic binding is used
+	 */
+	void testJacobianADVariableColDispersionPowerLaw(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding);
+
+	/**
 	 * @brief Checks the full Jacobian against AD and FD pattern switching from forward to backward flow and back
 	 * @details Checks the analytic Jacobian against the AD Jacobian and checks both against the FD pattern.
 	 *          Checks both forward and backward flow mode as well as switching between them.
