@@ -117,6 +117,15 @@ namespace parts
 		inline const double* nodes() const CADET_NOEXCEPT { return &_nodes[0]; }
 		inline const active& currentVelocity() const CADET_NOEXCEPT { return _curVelocity; }
 		inline const active* currentDispersion(const int secIdx) const CADET_NOEXCEPT { return getSectionDependentSlice(_colDispersion, _nComp, secIdx); }
+		/**
+		 * @brief Column dispersion including the COL_DISPERSION_DEP factor, as a plain double
+		 * @details This geometry has a constant cross section and hence a constant interstitial
+		 *          velocity, so a velocity dependent COL_DISPERSION_DEP yields a coefficient that is
+		 *          still constant along the column and can simply be evaluated once here. Used by the
+		 *          analytic Jacobian; the residual applies the same factor in its own arithmetic type
+		 *          so that parameter sensitivities are propagated.
+		 */
+		double effectiveDispersion(const int secIdx, const int comp) const CADET_NOEXCEPT;
 		inline bool dispersionCompIndep() const CADET_NOEXCEPT { return _dispersionCompIndep; }
 
 		inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
@@ -665,6 +674,7 @@ namespace parts
 				for (unsigned int element = 1; element < _nElem - 1; element++) {
 					for (unsigned int i = 0; i < dispBlock.rows(); i++, jacIt += strideColBound) {
 						for (unsigned int comp = 0; comp < _nComp; comp++, ++jacIt) {
+							const double d_ax = effectiveDispersion(_curSection, comp);
 							for (unsigned int j = 0; j < dispBlock.cols(); j++) {
 								// pattern is more sparse than a nNodes x 3*nNodes block.
 								if ((j >= _nNodes - 1 && j <= 2 * _nNodes) ||
@@ -672,7 +682,7 @@ namespace parts
 									(i == _nNodes - 1 && j >= _nNodes - 1))
 									// row: iterator is at current node i and current component comp
 									// col: start at previous element and jump to node j
-									jacIt[-strideColElement() + (j - i) * strideColNode()] = dispBlock(i, j) * static_cast<double>(currentDispersion(_curSection)[comp]);
+									jacIt[-strideColElement() + (j - i) * strideColNode()] = dispBlock(i, j) * d_ax;
 							}
 						}
 					}
@@ -689,6 +699,7 @@ namespace parts
 
 				for (unsigned int i = 0; i < dispBlock.rows(); i++, jacIt += strideColBound) {
 					for (unsigned int comp = 0; comp < _nComp; comp++, ++jacIt) {
+						const double d_ax = effectiveDispersion(_curSection, comp);
 						for (unsigned int j = _nNodes; j < dispBlock.cols(); j++) {
 							// pattern is more sparse than a nNodes x 2*nNodes block.
 							if ((j >= _nNodes - 1 && j <= 2 * _nNodes) ||
@@ -696,7 +707,7 @@ namespace parts
 								(i == _nNodes - 1 && j >= _nNodes - 1))
 								// row: iterator is at current node i and current component comp
 								// col: jump to node j
-								jacIt[((j - _nNodes) - i) * strideColNode()] = dispBlock(i, j) * static_cast<double>(currentDispersion(_curSection)[comp]);
+								jacIt[((j - _nNodes) - i) * strideColNode()] = dispBlock(i, j) * d_ax;
 						}
 					}
 				}
@@ -705,10 +716,11 @@ namespace parts
 				linalg::BandedEigenSparseRowIterator jacIt(jacobian, offC); // row iterator starting at first element and component
 				for (unsigned int i = 0; i < dispBlock.rows(); i++, jacIt += strideColBound) {
 					for (unsigned int comp = 0; comp < _nComp; comp++, ++jacIt) {
+						const double d_ax = effectiveDispersion(_curSection, comp);
 						for (unsigned int j = _nNodes; j < _nNodes * 2u; j++) {
 							// row: iterator is at current node i and current component comp
 							// col: jump to node j
-							jacIt[((j - _nNodes) - i) * strideColNode()] = dispBlock(i, j) * static_cast<double>(currentDispersion(_curSection)[comp]);
+							jacIt[((j - _nNodes) - i) * strideColNode()] = dispBlock(i, j) * d_ax;
 						}
 					}
 				}
@@ -721,6 +733,7 @@ namespace parts
 
 				for (unsigned int i = 0; i < dispBlock.rows(); i++, jacIt += strideColBound) {
 					for (unsigned int comp = 0; comp < _nComp; comp++, ++jacIt) {
+						const double d_ax = effectiveDispersion(_curSection, comp);
 						for (unsigned int j = 0; j < 2 * _nNodes; j++) {
 							// pattern is more sparse than a nNodes x 2*nNodes block.
 							if ((j >= _nNodes - 1 && j <= 2 * _nNodes) ||
@@ -728,7 +741,7 @@ namespace parts
 								(i == _nNodes - 1 && j >= _nNodes - 1))
 								// row: iterator is at current node i and current component comp
 								// col: start at previous element and jump to node j
-								jacIt[-strideColElement() + (j - i) * strideColNode()] = dispBlock(i, j) * static_cast<double>(currentDispersion(_curSection)[comp]);
+								jacIt[-strideColElement() + (j - i) * strideColNode()] = dispBlock(i, j) * d_ax;
 						}
 					}
 				}
