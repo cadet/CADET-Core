@@ -90,20 +90,53 @@ namespace model
 			throw InvalidParameterException("Unsupported column geometry " + colGeometry + " was specified for unit " + std::to_string(uoId));
 		}
 
+		// The dedicated arrow-head FV unit operations (LRM, LRMP, GRM) discretize the particles with FV as well, i.e.
+		// they cannot represent a particle discretization that differs from the bulk one. Determine the particle
+		// discretization of general rate particles up front, so that a mixed bulk/particle discretization is routed
+		// to the modular ColumnModel1D, which combines any bulk with any particle discretization.
+		// Only general rate particles are spatially resolved, all other particle models ignore SPATIAL_METHOD.
+		std::string parDiscName = "FV";
+		if (paramProvider.getInt("NPARTYPE") > 0 && paramProvider.exists("particle_type_000"))
+		{
+			paramProvider.pushScope("particle_type_000");
+
+			const bool filmDiffusion = paramProvider.exists("HAS_FILM_DIFFUSION") ? paramProvider.getBool("HAS_FILM_DIFFUSION") : true;
+			const bool poreDiffusion = paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false;
+			const bool surfaceDiffusion = paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false;
+			const bool generalRateParticle = (filmDiffusion && (poreDiffusion || surfaceDiffusion)) || uoType == "GENERAL_RATE_MODEL" || uoType == "GRM";
+
+			if (generalRateParticle && paramProvider.exists("discretization"))
+			{
+				paramProvider.pushScope("discretization");
+
+				if (paramProvider.exists("SPATIAL_METHOD"))
+					parDiscName = paramProvider.getString("SPATIAL_METHOD");
+
+				paramProvider.popScope(); // discretization
+			}
+
+			paramProvider.popScope(); // particle_type_000
+		}
+
 		paramProvider.pushScope("discretization");
 		
 		const std::string discName = paramProvider.getString("SPATIAL_METHOD");
 
-		// ARROW_HEAD_OPTIMIZATION defaults to true for FV, preserving the existing block-structured
-		// (arrow-head) Jacobian solver in the dedicated FV unit operation classes.
+		// ARROW_HEAD_OPTIMIZATION defaults to true for FV bulk and FV particle discretization, preserving the
+		// existing block-structured (arrow-head) Jacobian solver in the dedicated FV unit operation classes.
 		// Set it to false to route FV through ColumnModel1D (global sparse solver).
 		const bool arrowHeadOpt = paramProvider.exists("FV_ARROW_HEAD_OPTIMIZATION")
 			? paramProvider.getBool("FV_ARROW_HEAD_OPTIMIZATION")
-			: discName == "FV";
+			: (discName == "FV" && parDiscName == "FV");
 
 		if (arrowHeadOpt && discName != "FV")
 		{
 			throw InvalidParameterException("FV_ARROW_HEAD_OPTIMIZATION is only available for FV discretization but " + discName + " was specifiedfor unit " + std::to_string(uoId));
+		}
+
+		if (arrowHeadOpt && parDiscName != "FV")
+		{
+			throw InvalidParameterException("FV_ARROW_HEAD_OPTIMIZATION requires FV discretization of the particles but " + parDiscName + " was specified for unit " + std::to_string(uoId));
 		}
 
 		bool axialCollocationDG = (colGeometry == "AXIAL_FLOW_CYLINDER");

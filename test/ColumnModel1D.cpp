@@ -186,6 +186,16 @@ TEST_CASE("Column_1D as GRM linear pulse vs analytic solution with bulk DG and p
 	cadet::test::column::testAnalyticBenchmark("COLUMN_MODEL_1D_GRM", "/data/grm-pulseBenchmark.data", false, false, *discDGFV, "DGFV", 6e-5, 1e-7);
 }
 
+TEST_CASE("Column_1D as GRM linear pulse vs analytic solution with bulk FV and particle DG discretization", "[AxialColumn1D],[FVDG],[Simulation],[Analytic],[CI]")
+{
+	// Regression test: an FV bulk discretization combined with a DG particle discretization must be routed to
+	// ColumnModel1D. The arrow head FV unit operations discretize the particles with FV only and used to be
+	// selected for any FV bulk discretization, which made this combination fail during configuration.
+	auto discFVDG = cadet::test::column::createFVDGParams(512, 3, 0, 3, 1); // 512 axial FV cells, as in the pure FV analytic benchmarks
+	cadet::test::column::testAnalyticBenchmark("COLUMN_MODEL_1D_GRM", "/data/grm-pulseBenchmark.data", true, true, *discFVDG, "FVDG", 6e-5, 1e-7);
+	cadet::test::column::testAnalyticBenchmark("COLUMN_MODEL_1D_GRM", "/data/grm-pulseBenchmark.data", false, false, *discFVDG, "FVDG", 6e-5, 1e-7);
+}
+
 TEST_CASE("Column_1D as LRMP linear pulse vs analytic solution", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Analytic],[CI]")
 {
 	cadet::test::column::DGParams disc;
