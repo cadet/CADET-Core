@@ -142,10 +142,17 @@ namespace parts
 
 		bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
 
-		active discretizedFilmDiffusionFactor(const int comp) const CADET_NOEXCEPT
+		active discretizedFilmDiffusionFactor(const unsigned int secIdx, const int comp, const ColumnPosition& colPos, const active& velocity) const CADET_NOEXCEPT
 		{
 			if (_boundaryOrderFV == 2 && nDiscPoints() > 1)
-				return 1.0 / (0.5 * _deltaR[_nParPoints - 1] * _filmDiffusion[comp] / _parPorosity / _poreAccessFactor[comp] / _parDiffusion[comp] + 1.0);
+			{
+				// Use the section dependent slices and the FILM_DIFFUSION_DEP modified film diffusion, i.e. exactly the
+				// coefficients that residualImpl() and calcFilmDiffJacobian() use for the outer shell boundary condition.
+				const active filmDiff = modifiedFilmDiffusion(secIdx, comp, colPos, velocity);
+				active const* const parDiff = getSectionDependentSlice(_parDiffusion, _nComp, secIdx);
+
+				return 1.0 / (0.5 * _deltaR[_nParPoints - 1] * filmDiff / _parPorosity / _poreAccessFactor[comp] / parDiff[comp] + 1.0);
+			}
 			else
 				return active(1.0);
 		}

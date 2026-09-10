@@ -202,7 +202,13 @@ namespace parts
 		inline MultiplexMode parDiffMode() const CADET_NOEXCEPT { return _parDiffusionMode; }
 		inline MultiplexMode parSurfDiffMode() const CADET_NOEXCEPT { return _parSurfDiffusionMode; }
 		
-		virtual active discretizedFilmDiffusionFactor(const int comp) const CADET_NOEXCEPT { return active(1.0); }
+		/**
+		 * @brief Returns the discretization dependent correction factor of the film diffusion coefficient
+		 * @details The bulk phase film diffusion flux is computed as factor * modifiedFilmDiffusion() * (c^b - c^p).
+		 *          The factor must be evaluated with the same (section and FILM_DIFFUSION_DEP dependent) coefficients
+		 *          that the particle side boundary condition uses, otherwise both sides of the flux disagree.
+		 */
+		virtual active discretizedFilmDiffusionFactor(const unsigned int secIdx, const int comp, const ColumnPosition& colPos, const active& velocity) const CADET_NOEXCEPT { return active(1.0); }
 
 	protected:
 
