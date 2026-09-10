@@ -728,6 +728,47 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::configureModelDiscr
 
 		break;
 	}
+	case GeometryType::SmoothlyVaryingCrossSection:
+	{
+		_bedLength = paramProvider.getDouble("BED_LENGTH");
+		_colHeight = _bedLength;
+
+		if (!(static_cast<double>(_bedLength) > 0.0))
+			throw InvalidParameterException("Geometry parameters for SMOOTHLY_VARYING must satisfy BED_LENGTH > 0.0");
+
+		_userCrossSectionArea = paramProvider.getDoubleArray("CROSS_SECTIONAL_AREA_AT_NODES");
+
+		if (_userCrossSectionArea.size() != _nPoints)
+			throw InvalidParameterException("Field CROSS_SECTIONAL_AREA_AT_NODES must have " + std::to_string(_nPoints) +
+				" entries (one per DG node, i.e. (POLYDEG + 1) * NELEM, with the element interface nodes listed twice), but has " +
+				std::to_string(_userCrossSectionArea.size()));
+
+		for (std::size_t i = 0; i < _userCrossSectionArea.size(); ++i)
+		{
+			if (!(_userCrossSectionArea[i] > 0.0))
+				throw InvalidParameterException("Field CROSS_SECTIONAL_AREA_AT_NODES must be strictly positive, but entry " +
+					std::to_string(i) + " is " + std::to_string(_userCrossSectionArea[i]));
+		}
+
+		// The two node values that share an element interface must agree: the dispersive
+		// interface flux A * D * g^* would be two-valued otherwise, which breaks conservation.
+		// A smoothly varying cross section is continuous, so this only rejects inconsistent input.
+		for (unsigned int elem = 1; elem < _nElem; ++elem)
+		{
+			const double left = _userCrossSectionArea[elem * _nNodes - 1u];
+			const double right = _userCrossSectionArea[elem * _nNodes];
+			if (std::abs(left - right) > 1e-10 * std::max(1.0, std::abs(left)))
+				throw InvalidParameterException("Field CROSS_SECTIONAL_AREA_AT_NODES must be continuous at the element interfaces, but the two entries at the interface between element " +
+					std::to_string(elem - 1u) + " and " + std::to_string(elem) + " are " + std::to_string(left) + " and " + std::to_string(right));
+		}
+
+		// Equivalent radii of the end areas, only used for the COL_RADIUS_* parameter registration
+		const double pi = 3.14159265358979323846;
+		_radiusXStart = std::sqrt(_userCrossSectionArea[0] / pi);
+		_radiusXEnd = std::sqrt(_userCrossSectionArea[_nPoints - 1u] / pi);
+
+		break;
+	}
 	default:
 		throw InvalidParameterException("Unsupported geometry type " + paramProvider.getString("COL_GEOMETRY"));
 		break;
@@ -983,6 +1024,9 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeGeometry()
 	case GeometryType::AxialFlowFrustum:
 		computeGeometryFrustum();
 		break;
+	case GeometryType::SmoothlyVaryingCrossSection:
+		computeGeometrySmoothlyVarying();
+		break;
 	default:
 		break;
 	}
@@ -1000,6 +1044,9 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperators(co
 		break;
 	case GeometryType::AxialFlowFrustum:
 		computeOperatorsFrustum(secIdx);
+		break;
+	case GeometryType::SmoothlyVaryingCrossSection:
+		computeOperatorsSmoothlyVarying(secIdx);
 		break;
 	default:
 		break;
@@ -1020,6 +1067,16 @@ active VariableCrossSectionConvectionDispersionOperatorBaseDG::currentVelocity(d
 	{
 		const active radius = pos * (_radiusXEnd - _radiusXStart) + _radiusXStart;
 		return _QOverEps / (pi * radius * radius);
+	}
+	case GeometryType::SmoothlyVaryingCrossSection:
+	{
+		// Locate the element that contains the given position and evaluate the piecewise
+		// polynomial cross section area there
+		const double dx = static_cast<double>(_deltaX);
+		const double x = std::min(std::max(pos, 0.0), 1.0) * static_cast<double>(_bedLength);
+		const unsigned int elem = std::min(static_cast<unsigned int>(x / dx), _nElem - 1u);
+		const double xi = 2.0 * (x - elem * dx) / dx - 1.0;
+		return _QOverEps / interpolatedCrossSectionArea(elem, xi);
 	}
 	case GeometryType::AxialFlowCylinder:
 	default:
@@ -1131,8 +1188,7 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsRad
 	// Number of nodes for exact gauss quadrature of the integral with dispersion weight and
 	// geometric factor. Gauss quadrature with n nodes is exact up to degree 2n - 1, so
 	// n = ceil((degree + 1) / 2) with degree = _axDispQuadDeg + radialGeomFactorDegree + 2 * _polyDeg.
-	// Note that the operands are integers, so the ceiling has to be taken by the division itself.
-	const int nQuadNodes = (_axDispQuadDeg + radialGeomFactorDegree + 2 * _polyDeg + 2) / 2;
+	const int nQuadNodes = (_axDispQuadDeg + radialGeomFactorDegree + 2 * _polyDeg + 2) / 2; // note: integer division rounds down, so +2 instead of +1
 	// geometric weight factors as ( \sum_n (1 - \xi)^n \alpha_n + \sum_m (1 + \xi)^m \beta_m + gamma) = A(x^e(\xi)) = A((\xi + 1) \DeltaX_i / 2 + x_i)
 	// with A = 2 * \pi *  H * [ (\xi + 1) \DeltaX_i / 2 + x_i ]
 	const std::vector<double> alpha = { };
@@ -1270,8 +1326,7 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsFru
 	// Number of nodes for exact gauss quadrature of the integral with dispersion weight and
 	// geometric factor. Gauss quadrature with n nodes is exact up to degree 2n - 1, so
 	// n = ceil((degree + 1) / 2) with degree = _axDispQuadDeg + frustumGeomFactorDegree + 2 * _polyDeg.
-	// Note that the operands are integers, so the ceiling has to be taken by the division itself.
-	const int nQuadNodes = (_axDispQuadDeg + frustumGeomFactorDegree + 2 * _polyDeg + 2) / 2;
+	const int nQuadNodes = (_axDispQuadDeg + frustumGeomFactorDegree + 2 * _polyDeg + 2) / 2; // note: integer division rounds down, so +2 instead of +1
 	// geometric weight factors as ( \sum_n (1 - \xi)^n \alpha_n + \sum_m (1 + \xi)^m \beta_m + gamma) = A(x^e(\xi)) = A((\xi + 1) \DeltaX_i / 2 + x_i)
 	// with A = \pi r(x)^2 and r(x) = r_0 + \frac{x}{H} \left( r_{L^\mathrm{b}} - r_0 \right)
 	const std::vector<double> alpha = { };
@@ -1360,6 +1415,162 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsFru
 			const double relPos = physicalPos / H;
 			const double localRadius = r0 + (physicalPos / H) * rDiff;
 			const double localArea = pi * localRadius * localRadius;
+			const double localVelocity = static_cast<double>(_QOverEps) / localArea;
+			_dispAtInterfaces[comp][iface] = baseDispersion * _dispersionDep->getValue(ColumnPosition{ relPos, 0.0, 0.0 },
+				comp, ParTypeIndep, BoundStateIndep, localVelocity);
+		}
+	}
+}
+
+double VariableCrossSectionConvectionDispersionOperatorBaseDG::interpolatedCrossSectionArea(const unsigned int elem, const double xi) const
+{
+	double area = 0.0;
+
+	for (unsigned int j = 0; j < _nNodes; ++j)
+	{
+		double lagrangeBasis = 1.0;
+		for (unsigned int m = 0; m < _nNodes; ++m)
+		{
+			if (m == j)
+				continue;
+			lagrangeBasis *= (xi - _nodes[m]) / (_nodes[j] - _nodes[m]);
+		}
+		area += lagrangeBasis * _crossSectionArea[elem * _nNodes + j];
+	}
+
+	return area;
+}
+
+void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeGeometrySmoothlyVarying()
+{
+	// The user prescribes the area at every DG node, i.e. exactly the degrees of freedom
+	// of the nodal representation used everywhere else in this operator
+	_crossSectionArea = _userCrossSectionArea;
+}
+
+void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsSmoothlyVarying(const unsigned int secIdx)
+{
+	const double H = static_cast<double>(_bedLength);
+	const double dx = static_cast<double>(_deltaX);
+
+	_invMM_A.resize(_nElem);
+	_invMM_A_times_ST_AD.resize(_nComp);
+	for (auto& comps : _invMM_A_times_ST_AD)
+		comps.resize(_nElem);
+	_invMM_A_times_DT_timesM00.resize(_nElem);
+	_dispAtInterfaces.resize(_nComp);
+	for (auto& v : _dispAtInterfaces)
+		v.assign(_nElem + 1, 0.0);
+
+	// The cross section area is represented by its nodal Lagrange interpolant, i.e. by a
+	// polynomial of degree _polyDeg per element, so the geometric factor contributes
+	// _polyDeg to the degree of the integrand.
+	const int geomFactorDegree = _polyDeg;
+	// Number of nodes for exact gauss quadrature of the integral with dispersion weight and
+	// geometric factor. Gauss quadrature with n nodes is exact up to degree 2n - 1, so
+	// n = ceil((degree + 1) / 2) with degree = _axDispQuadDeg + geomFactorDegree + 2 * _polyDeg.
+	const int nQuadNodes = (_axDispQuadDeg + geomFactorDegree + 2 * _polyDeg + 2) / 2; // note: integer division rounds down, so +2 instead of +1
+
+	Eigen::VectorXd quadNodes = Eigen::VectorXd::Zero(nQuadNodes);
+	Eigen::VectorXd quadWeights = Eigen::VectorXd::Zero(nQuadNodes);
+	dgtoolbox::lgNodesWeights(nQuadNodes - 1, quadNodes, quadWeights, false);
+
+	// Unlike the other geometries, A(x) is not available in the closed polynomial form
+	// ( \sum_n (1 - \xi)^n \alpha_n + \sum_m (1 + \xi)^m \beta_m + gamma ) expected by
+	// weightedQuadMassMatrix. It is instead passed in through the values at the quadrature
+	// nodes, which leaves the geometric weight of that routine at one.
+	const std::vector<double> alpha = { };
+	const std::vector<double> beta = { };
+	const double gamma = 1.0;
+
+	Eigen::VectorXd areaAtQNodes(nQuadNodes);
+
+	for (unsigned int elem = 0; elem < _nElem; ++elem)
+	{
+		const double x_L = elem * dx;
+
+		for (int node = 0; node < nQuadNodes; ++node)
+			areaAtQNodes[node] = interpolatedCrossSectionArea(elem, quadNodes[node]);
+
+		// M^A_{i,j} = \int_{-1}^1 \ell_i(\xi) \ell_j(\xi) A(x^e(\xi)) d\xi
+		const Eigen::MatrixXd M_A = dgtoolbox::weightedQuadMassMatrix(
+			_nodes,
+			areaAtQNodes,
+			alpha,
+			beta,
+			gamma,
+			quadNodes,
+			quadWeights);
+		_invMM_A[elem] = M_A.inverse();
+
+		for (int comp = 0; comp < _nComp; comp++)
+		{
+			const double baseDispersion = static_cast<double>(currentDispersion(secIdx)[comp]);
+
+			if (!_variableDispersion)
+			{
+				// the dispersion is constant, so the area weighted mass matrix already is the integral
+				Eigen::MatrixXd gaussMM_AD = baseDispersion * M_A;
+				// Matrix product (M^A)^-1 * D^T * \tilde{S}^(AD) = (M^A)^-1 * D^T * \tilde{M}^(AD)
+				_invMM_A_times_ST_AD[comp][elem] = _invMM_A[elem] * _polyDerM.transpose() * gaussMM_AD;
+			}
+			else
+			{
+				// Evaluate the product of area and dispersion at each quadrature node
+				Eigen::VectorXd areaTimesDispAtQNodes(nQuadNodes);
+
+				for (int node = 0; node < nQuadNodes; ++node)
+				{
+					const double physicalPos = x_L + 0.5 * dx * (1.0 + quadNodes[node]);
+					// Normalize position to [0, 1] for parameter dependence evaluation
+					const double relPos = physicalPos / H;
+
+					// Evaluate D(x) = baseDispersion * dependence_factor(v(x)) -- see the
+					// analogous comment in computeOperatorsRadial().
+					const double localVelocity = static_cast<double>(_QOverEps) / areaAtQNodes[node];
+					areaTimesDispAtQNodes[node] = areaAtQNodes[node] * baseDispersion
+						* _dispersionDep->getValue(ColumnPosition{ relPos, 0.0, 0.0 },
+							comp, ParTypeIndep, BoundStateIndep, localVelocity);
+				}
+
+				// \tilde{M}^(AD)_{i,j} = \int_{-1}^1 \ell_i(\xi) \ell_j(\xi) A(x^e(\xi)) D(x^e(\xi)) d\xi
+				Eigen::MatrixXd gaussMM_AD = dgtoolbox::weightedQuadMassMatrix(
+					_nodes,
+					areaTimesDispAtQNodes,
+					alpha,
+					beta,
+					gamma,
+					quadNodes,
+					quadWeights);
+
+				// Matrix product (M^A)^-1 * D^T * \tilde{S}^(AD) = (M^A)^-1 * D^T * \tilde{M}^(AD)
+				_invMM_A_times_ST_AD[comp][elem] = _invMM_A[elem] * _polyDerM.transpose() * gaussMM_AD;
+			}
+		}
+		// Matrix product (M^A)^-1 D^T * M00
+		_invMM_A_times_DT_timesM00[elem] = _invMM_A[elem] * _polyDerM.transpose() * _M00;
+	}
+
+	// Evaluate the (possibly position-dependent) dispersion exactly at each
+	// of the _nElem+1 element interfaces, for consistent use in the DG
+	// surface/interface flux terms (surfaceIntegralMainImpl,
+	// DGjacobianDispBlock) -- see the analogous comment in
+	// computeOperatorsRadial().
+	for (int comp = 0; comp < _nComp; comp++)
+	{
+		const double baseDispersion = static_cast<double>(currentDispersion(secIdx)[comp]);
+		for (unsigned int iface = 0; iface <= _nElem; iface++)
+		{
+			if (!_variableDispersion)
+			{
+				_dispAtInterfaces[comp][iface] = baseDispersion;
+				continue;
+			}
+			const double physicalPos = iface * dx;
+			const double relPos = physicalPos / H;
+			// The area is continuous across the interfaces (checked when reading
+			// CROSS_SECTIONAL_AREA_AT_NODES), so either of the two node values may be used
+			const double localArea = (iface < _nElem) ? _crossSectionArea[iface * _nNodes] : _crossSectionArea[_nPoints - 1u];
 			const double localVelocity = static_cast<double>(_QOverEps) / localArea;
 			_dispAtInterfaces[comp][iface] = baseDispersion * _dispersionDep->getValue(ColumnPosition{ relPos, 0.0, 0.0 },
 				comp, ParTypeIndep, BoundStateIndep, localVelocity);
@@ -1796,6 +2007,7 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::setSensitiveParamet
 	if (checkAvailabilityOfParameter("CROSS_SECTION_AREA_INNER")) return false;
 	if (checkAvailabilityOfParameter("CROSS_SECTION_AREA_OUTER")) return false;
 	if (checkAvailabilityOfParameter("CROSS_SECTION_AREA")) return false;
+	if (checkAvailabilityOfParameter("CROSS_SECTIONAL_AREA_AT_NODES")) return false;
 
 	return false;
 }

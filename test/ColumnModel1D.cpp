@@ -27,6 +27,11 @@
 #include "UnitOperationTests.hpp"
 #include "Utils.hpp"
 #include "common/Driver.hpp"
+#include "model/parts/DGToolbox.hpp"
+
+#include <cmath>
+#include <functional>
+#include <vector>
 
 /**
  * @brief Returns the absolute path to the test/ folder of the project
@@ -34,6 +39,88 @@
  * @return Absolute path to the test/ folder
  */
 const char* getTestDirectory();
+
+namespace
+{
+	/**
+	 * @brief Computes the cross section area at every DG node of a column unit
+	 * @details Evaluates the given area profile at the LGL nodes of all elements, in the
+	 *          ordering expected by CROSS_SECTIONAL_AREA_AT_NODES, i.e. element-major with
+	 *          the element interface nodes listed twice.
+	 * @param [in] polyDeg DG polynomial degree
+	 * @param [in] nElem number of DG elements
+	 * @param [in] area cross section area as a function of the normalized axial coordinate x / H in [0, 1]
+	 * @return cross section area at every DG node
+	 */
+	std::vector<double> crossSectionAreaAtNodes(const int polyDeg, const int nElem, const std::function<double(double)>& area)
+	{
+		Eigen::VectorXd nodes(polyDeg + 1);
+		Eigen::VectorXd weights(polyDeg + 1);
+		cadet::model::parts::dgtoolbox::lglNodesWeights(polyDeg, nodes, weights, false);
+
+		std::vector<double> areaAtNodes(nElem * (polyDeg + 1));
+
+		for (int elem = 0; elem < nElem; ++elem)
+		{
+			for (int node = 0; node <= polyDeg; ++node)
+				areaAtNodes[elem * (polyDeg + 1) + node] = area((elem + 0.5 * (1.0 + nodes[node])) / nElem);
+		}
+
+		return areaAtNodes;
+	}
+
+	/**
+	 * @brief Replaces the geometry of a column unit by the SMOOTHLY_VARYING geometry
+	 * @details The parameter provider has to be scoped to the column unit group.
+	 * @param [in,out] jpp parameter provider, scoped to the column unit
+	 * @param [in] area cross section area as a function of the normalized axial coordinate x / H in [0, 1]
+	 */
+	void setSmoothlyVaryingGeometry(cadet::JsonParameterProvider& jpp, const std::function<double(double)>& area)
+	{
+		jpp.pushScope("discretization");
+		const int polyDeg = jpp.getInt("POLYDEG");
+		const int nElem = jpp.getInt("NELEM");
+		jpp.popScope();
+
+		jpp.set("GEOMETRY", std::string("SMOOTHLY_VARYING"));
+		jpp.set("CROSS_SECTIONAL_AREA_AT_NODES", crossSectionAreaAtNodes(polyDeg, nElem, area));
+	}
+
+	/**
+	 * @brief Replaces the geometry of a column unit of a full model system by the SMOOTHLY_VARYING geometry
+	 * @param [in,out] jpp parameter provider, scoped to the root of the model system
+	 * @param [in] unitId unit group name, e.g. "unit_000"
+	 * @param [in] area cross section area as a function of the normalized axial coordinate x / H in [0, 1]
+	 */
+	void setSmoothlyVaryingGeometry(cadet::JsonParameterProvider& jpp, const std::string& unitId, const std::function<double(double)>& area)
+	{
+		jpp.pushScope("model");
+		jpp.pushScope(unitId);
+
+		setSmoothlyVaryingGeometry(jpp, area);
+
+		jpp.popScope();
+		jpp.popScope();
+	}
+
+	/**
+	 * @brief Returns the cross section area of a frustum with the given end areas
+	 * @param [in] areaLargeEnd cross section area at x = 0
+	 * @param [in] areaSmallEnd cross section area at x = H
+	 */
+	std::function<double(double)> frustumArea(const double areaLargeEnd, const double areaSmallEnd)
+	{
+		const double pi = 3.14159265358979323846;
+		const double radiusLargeEnd = std::sqrt(areaLargeEnd / pi);
+		const double radiusSmallEnd = std::sqrt(areaSmallEnd / pi);
+
+		return [=](double normalizedPos)
+			{
+				const double radius = radiusLargeEnd + normalizedPos * (radiusSmallEnd - radiusLargeEnd);
+				return pi * radius * radius;
+			};
+	}
+}
 
 TEST_CASE("Column_1D as axial GRM with FV equivalence with arrow head implementation", "[AxialColumn1D],[FV],[Simulation],[CI]")
 {
@@ -1628,4 +1715,107 @@ TEST_CASE("Frustum Column_1D as LRMP numerical Benchmark for SMA LWE case", "[Fr
 
 	cadet::test::column::DGParams disc(0, 3, 8);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, false);
+}
+
+TEST_CASE("Smoothly varying Column_1D as GRM equivalence with frustum geometry", "[SmoothlyVaryingColumn1D],[DG],[DG1D],[Simulation],[CI]")
+{
+	// The frustum cross section area is a quadratic polynomial in the axial coordinate and is
+	// thus represented exactly by the nodal interpolant of the smoothly varying geometry (for
+	// POLYDEG >= 2). Both settings must therefore describe the very same column.
+	cadet::JsonParameterProvider jpp1 = createLWE("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG");
+	cadet::JsonParameterProvider jpp2 = createLWE("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG");
+
+	// end areas of the frustum test model, see createColumnWithSMAJson
+	const double areaLargeEnd = 0.000314159265358;
+	setSmoothlyVaryingGeometry(jpp2, "unit_000", frustumArea(areaLargeEnd, 0.75 * areaLargeEnd));
+
+	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
+}
+
+TEST_CASE("Smoothly varying Column_1D as GRM transport Jacobian", "[SmoothlyVaryingColumn1D],[DG],[UnitOp],[Jacobian],[CI]")
+{
+	// createColumnLinearBenchmark returns the configuration of the column unit itself
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "FRUSTUM_COLUMN_MODEL_1D_GRM", "DG");
+
+	// sine hump around the large end area of the frustum benchmark, i.e. an area profile that
+	// none of the other geometries can represent
+	const double areaLargeEnd = 4347.826086956522;
+	setSmoothlyVaryingGeometry(jpp, [=](double normalizedPos)
+		{
+			return areaLargeEnd * (1.0 + 0.5 * std::sin(3.14159265358979323846 * normalizedPos));
+		});
+
+	std::vector<double> flowRate;
+	flowRate.push_back(0.01);
+
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0, std::numeric_limits<float>::epsilon() * 100.0, flowRate);
+}
+
+TEST_CASE("Smoothly varying Column_1D rejects invalid cross sectional areas", "[SmoothlyVaryingColumn1D],[DG],[DG1D],[CI]")
+{
+	const double areaLargeEnd = 0.000314159265358;
+
+	// Builds a valid smoothly varying setting and then breaks its area field in one specific way.
+	// The break receives the number of nodes per element, so that a specific node of the grid
+	// (e.g. an element interface node) can be addressed.
+	auto brokenSetting = [=](const std::function<void(std::vector<double>&, int)>& breakArea)
+		{
+			cadet::JsonParameterProvider jpp = createLWE("FRUSTUM_COLUMN_MODEL_1D_GRM", "DG");
+			setSmoothlyVaryingGeometry(jpp, "unit_000", frustumArea(areaLargeEnd, 0.75 * areaLargeEnd));
+
+			jpp.pushScope("model");
+			jpp.pushScope("unit_000");
+
+			jpp.pushScope("discretization");
+			const int nNodes = jpp.getInt("POLYDEG") + 1;
+			jpp.popScope();
+
+			std::vector<double> areas = jpp.getDoubleArray("CROSS_SECTIONAL_AREA_AT_NODES");
+			breakArea(areas, nNodes);
+			jpp.set("CROSS_SECTIONAL_AREA_AT_NODES", areas);
+			jpp.popScope();
+			jpp.popScope();
+
+			return jpp;
+		};
+
+	SECTION("Wrong number of entries")
+	{
+		cadet::JsonParameterProvider jpp = brokenSetting([](std::vector<double>& areas, int nNodes) { areas.pop_back(); });
+
+		cadet::Driver drv;
+		REQUIRE_THROWS_WITH(drv.configure(jpp), Catch::Contains("CROSS_SECTIONAL_AREA_AT_NODES must have"));
+	}
+
+	SECTION("Non-positive entry")
+	{
+		cadet::JsonParameterProvider jpp = brokenSetting([](std::vector<double>& areas, int nNodes) { areas[0] = 0.0; });
+
+		cadet::Driver drv;
+		REQUIRE_THROWS_WITH(drv.configure(jpp), Catch::Contains("CROSS_SECTIONAL_AREA_AT_NODES must be strictly positive"));
+	}
+
+	SECTION("Discontinuous at an element interface")
+	{
+		// first node of the second element, which shares its position with the last node of the first element
+		cadet::JsonParameterProvider jpp = brokenSetting([](std::vector<double>& areas, int nNodes) { areas[nNodes] *= 1.5; });
+
+		cadet::Driver drv;
+		REQUIRE_THROWS_WITH(drv.configure(jpp), Catch::Contains("CROSS_SECTIONAL_AREA_AT_NODES must be continuous"));
+	}
+}
+
+TEST_CASE("Smoothly varying Column_1D numerical Benchmark for pure transport case", "[SmoothlyVaryingColumn1D],[DG],[DG1D],[Simulation],[CI],[numRef]")
+{
+	// Sine cross section area profile with combined convection and dispersion, i.e. the setting
+	// of the corresponding EOC study in CADET-Verification (scripts/verify_geometries.py).
+	// The discretization must not be changed here: both CROSS_SECTIONAL_AREA_AT_NODES and the
+	// nodal initial condition INIT_STATE of this setting are tied to the DG grid.
+	const std::string& modelFilePath = std::string("/data/config_smoothlyVaryingCOL1D_transport_1comp_benchmark1.json");
+	const std::string& refFilePath = std::string("/data/ref_smoothlyVaryingCOL1D_transport_1comp_benchmark1_DG_P3Z8.h5");
+	const std::vector<double> absTol = { 1e-10 };
+	const std::vector<double> relTol = { 1e-6 };
+
+	cadet::test::column::DGParams disc(0, 3, 8);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }

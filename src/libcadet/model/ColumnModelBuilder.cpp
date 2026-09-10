@@ -85,7 +85,7 @@ namespace model
 
 		std::string colGeometry = paramProvider.getString("GEOMETRY");
 
-		if (!(colGeometry == "AXIAL_FLOW_CYLINDER" || colGeometry == "RADIAL_FLOW_CYLINDER_SHELL" || colGeometry == "AXIAL_FLOW_FRUSTUM"))
+		if (!(colGeometry == "AXIAL_FLOW_CYLINDER" || colGeometry == "RADIAL_FLOW_CYLINDER_SHELL" || colGeometry == "AXIAL_FLOW_FRUSTUM" || colGeometry == "SMOOTHLY_VARYING"))
 		{
 			throw InvalidParameterException("Unsupported column geometry " + colGeometry + " was specified for unit " + std::to_string(uoId));
 		}
@@ -121,6 +121,12 @@ namespace model
 		paramProvider.pushScope("discretization");
 		
 		const std::string discName = paramProvider.getString("SPATIAL_METHOD");
+
+		// The smoothly varying cross section is prescribed at the DG nodes and thus has no FV counterpart
+		if (colGeometry == "SMOOTHLY_VARYING" && discName != "DG")
+		{
+			throw InvalidParameterException("Column geometry SMOOTHLY_VARYING is only available for DG discretization but " + discName + " was specified for unit " + std::to_string(uoId));
+		}
 
 		// ARROW_HEAD_OPTIMIZATION defaults to true for FV bulk and FV particle discretization, preserving the
 		// existing block-structured (arrow-head) Jacobian solver in the dedicated FV unit operation classes.
