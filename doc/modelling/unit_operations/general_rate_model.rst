@@ -285,7 +285,7 @@ Column Geometry
 ~~~~~~~~~~~~~~~
 
 In the model above, a cylindrical axial flow column is considered, see figure :numref:`GeometryGRMAxialColumn`.
-Other geometries are being used, and CADET-Core additionally supports cylindrical radial flow and frustum columns.
+Other geometries are being used, and CADET-Core additionally supports cylindrical radial flow columns, frustum columns, and columns whose cross section area varies smoothly along the flow path and is prescribed by the user.
 
 
 .. _GeometryGRMAxialColumn:
@@ -428,3 +428,35 @@ Note that the outlet boundary condition Eq. :eq:`BCOutletFrustum` is also known
 The complementing mass transport and binding equations for the liquid and solid phases of the porous beads are described by the same equations as for the axial GRM.
 
 For information on model parameters see :ref:`frustum_flow_column_1D_config` and :ref:`particle_model_config`.
+
+.. _MUOPGRMsmoothlyVarying:
+
+Smoothly varying cross section GRM
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The radial flow and frustum geometries both prescribe the cross section area :math:`A(x)` through a small number of geometric parameters, namely the end radii and, for the radial flow column, the cylinder height.
+The smoothly varying cross section GRM instead lets the user prescribe :math:`A(x)` directly, which covers columns and devices whose shape is neither a cylinder shell nor a frustum.
+
+We consider axial flow along the coordinate :math:`x \in (0, H)`, with a cross section area :math:`A \colon [0, H] \to \mathbb{R}^{>0}` that is smooth and strictly positive, and a constant volumetric flow rate :math:`Q`.
+The *averaged bulk velocity* at position :math:`x` is then :math:`\overline{u}(x) = \frac{Q}{A(x)}`, and the mass balance in the interstitial column volume reads
+
+.. math::
+    :label: ModelSmoothlyVaryingColumnGRM
+
+    \begin{aligned}
+        \frac{\partial c}{\partial t}
+        = -\frac{Q}{A(x)} \frac{\partial c}{\partial x}
+        + \frac{1}{A(x)} \frac{\partial}{\partial x} \left( D(x) A(x) \frac{\partial c}{\partial x} \right)
+        &- \frac{1}{\beta_c} \sum_j d_j \frac{3}{r_{p,j}} k_{f,j,i} \left[ c^\ell_i - c^p_{j,i}(\cdot, \cdot, r_{p,j}) \right] \\
+        &+ f_{\text{react},i}^\ell\left(c^\ell\right).
+    \end{aligned}
+
+Danckwerts boundary conditions are applied as before, with :math:`A(0)` in place of :math:`r(0)^2` in Eq. :eq:`BCInletFrustum`.
+Under the default flow direction (``FORWARD_FLOW`` :math:`= 1`) the fluid enters at :math:`x = 0` and leaves at :math:`x = H`.
+
+The area is supplied as the field ``CROSS_SECTIONAL_AREA_AT_NODES``, i.e. by its values at the nodes of the DG discretization, and is represented within the scheme by the nodal Lagrange interpolant of those values on each element.
+The area therefore lives in the same polynomial space as the solution, and the integrals weighted by :math:`A` (and by :math:`A D`) that the discretization requires are evaluated by Gauss quadrature that is exact for the resulting integrands.
+For a smooth area profile, the interpolation error is of the same order as the discretization error of the scheme itself, so this representation does not reduce the order of convergence.
+Since the representation is tied to the DG grid, this geometry is only available for the DG spatial discretization, and the field has to be recomputed whenever the discretization is refined.
+
+For information on model parameters see :ref:`smoothly_varying_column_1D_config` and :ref:`particle_model_config`.

@@ -969,7 +969,8 @@ namespace parts
 		{
 			AxialFlowCylinder,
 			RadialFlowCylinderShell,
-			AxialFlowFrustum
+			AxialFlowFrustum,
+			SmoothlyVaryingCrossSection
 		};
 
 		GeometryType geometryTypeFromString(const std::string& str)
@@ -986,7 +987,10 @@ namespace parts
 			if (str == "AXIAL_FLOW_FRUSTUM")
 				return GeometryType::AxialFlowFrustum;
 
-			throw std::invalid_argument("Unknown GeometryType: " + str + " (valid options are: AXIAL_FLOW_CYLINDER, RADIAL_FLOW_CYLINDER_SHELL, RADIAL_FLOW_CYLINDER_SHELL_WEDGE, AXIAL_FLOW_FRUSTUM)");
+			if (str == "SMOOTHLY_VARYING")
+				return GeometryType::SmoothlyVaryingCrossSection;
+
+			throw std::invalid_argument("Unknown GeometryType: " + str + " (valid options are: AXIAL_FLOW_CYLINDER, RADIAL_FLOW_CYLINDER_SHELL, RADIAL_FLOW_CYLINDER_SHELL_WEDGE, AXIAL_FLOW_FRUSTUM, SMOOTHLY_VARYING)");
 		}
 
 		GeometryType _geometryType;				//!< column geometry type
@@ -995,6 +999,7 @@ namespace parts
 		active _radiusXStart;					//!< radius at domain start
 		active _radiusXEnd;					    //!< radius at domain end
 		std::vector<double> _crossSectionArea;	//!< cross section area at each node
+		std::vector<double> _userCrossSectionArea;	//!< user-supplied cross section area at each node (CROSS_SECTIONAL_AREA_AT_NODES), only applicable for SMOOTHLY_VARYING geometry
 		double _flowFraction;					//!< through-flow cross-sectional area fraction excluding column porosity
 
 		// DG operators
@@ -1061,9 +1066,22 @@ namespace parts
 		void computeGeometryAxial();
 		void computeGeometryRadial();
 		void computeGeometryFrustum();
+		void computeGeometrySmoothlyVarying();
 		void computeOperatorsAxial();
 		void computeOperatorsRadial(const unsigned int secIdx);
 		void computeOperatorsFrustum(const unsigned int secIdx);
+		void computeOperatorsSmoothlyVarying(const unsigned int secIdx);
+
+		/**
+		 * @brief Evaluates the piecewise polynomial cross section area within an element
+		 * @details Evaluates the nodal Lagrange interpolant of the per-node cross section
+		 *          areas of element @p elem at the reference coordinate @p xi. Only used
+		 *          for the SMOOTHLY_VARYING geometry, where the area is represented in the
+		 *          same DG space as the solution.
+		 * @param [in] elem element index
+		 * @param [in] xi reference coordinate in [-1, 1]
+		 */
+		double interpolatedCrossSectionArea(const unsigned int elem, const double xi) const;
 
 		/* ===================================================================
 			*  Jacobian block helpers
