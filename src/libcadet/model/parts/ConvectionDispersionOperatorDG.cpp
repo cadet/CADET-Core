@@ -1126,8 +1126,13 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsRad
 	for (auto& v : _dispAtInterfaces)
 		v.assign(_nElem + 1, 0.0);
 
-	// number of nodes for exact gauss quadrature of the integral with dispersion weight and geometric factor -> _axDispQuadDeg + 1
-	const int nQuadNodes = std::ceil((_axDispQuadDeg + 1 + 2 * _polyDeg + 1) / 2);
+	// The geometric factor A(x) = 2 pi H x is linear in x, so it contributes one to the degree of the integrand.
+	const int radialGeomFactorDegree = 1;
+	// Number of nodes for exact gauss quadrature of the integral with dispersion weight and
+	// geometric factor. Gauss quadrature with n nodes is exact up to degree 2n - 1, so
+	// n = ceil((degree + 1) / 2) with degree = _axDispQuadDeg + radialGeomFactorDegree + 2 * _polyDeg.
+	// Note that the operands are integers, so the ceiling has to be taken by the division itself.
+	const int nQuadNodes = (_axDispQuadDeg + radialGeomFactorDegree + 2 * _polyDeg + 2) / 2;
 	// geometric weight factors as ( \sum_n (1 - \xi)^n \alpha_n + \sum_m (1 + \xi)^m \beta_m + gamma) = A(x^e(\xi)) = A((\xi + 1) \DeltaX_i / 2 + x_i)
 	// with A = 2 * \pi *  H * [ (\xi + 1) \DeltaX_i / 2 + x_i ]
 	const std::vector<double> alpha = { };
@@ -1261,9 +1266,12 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsFru
 	for (auto& v : _dispAtInterfaces)
 		v.assign(_nElem + 1, 0.0);
 
-	// number of nodes for exact gauss quadrature of the integral with dispersion weight
 	const int frustumGeomFactorDegree = 2; // we have r(x)^2 = (r0 + x/H * (rH - r0))^2, which is a polynomial of degree 2 in x
-	const int nQuadNodes = std::ceil((_axDispQuadDeg + frustumGeomFactorDegree + 2 * _polyDeg + 1) / 2);
+	// Number of nodes for exact gauss quadrature of the integral with dispersion weight and
+	// geometric factor. Gauss quadrature with n nodes is exact up to degree 2n - 1, so
+	// n = ceil((degree + 1) / 2) with degree = _axDispQuadDeg + frustumGeomFactorDegree + 2 * _polyDeg.
+	// Note that the operands are integers, so the ceiling has to be taken by the division itself.
+	const int nQuadNodes = (_axDispQuadDeg + frustumGeomFactorDegree + 2 * _polyDeg + 2) / 2;
 	// geometric weight factors as ( \sum_n (1 - \xi)^n \alpha_n + \sum_m (1 + \xi)^m \beta_m + gamma) = A(x^e(\xi)) = A((\xi + 1) \DeltaX_i / 2 + x_i)
 	// with A = \pi r(x)^2 and r(x) = r_0 + \frac{x}{H} \left( r_{L^\mathrm{b}} - r_0 \right)
 	const std::vector<double> alpha = { };
