@@ -196,6 +196,42 @@ TEST_CASE("Column_1D as GRM linear pulse vs analytic solution with bulk FV and p
 	cadet::test::column::testAnalyticBenchmark("COLUMN_MODEL_1D_GRM", "/data/grm-pulseBenchmark.data", false, false, *discFVDG, "FVDG", 6e-5, 1e-7);
 }
 
+TEST_CASE("Column_1D as GRM with FV particles is invariant to an equivalent constant FILM_DIFFUSION_DEP", "[AxialColumn1D],[DGFV],[Simulation],[ParameterDependence],[CI]")
+{
+	// Regression test: the FV particle operator corrects k_f for the resistance of the outer half shell. That
+	// correction has to be evaluated with the FILM_DIFFUSION_DEP modified k_f, just like the particle side
+	// boundary condition, otherwise the bulk and the particle side of the film diffusion flux disagree.
+	// A POWER_LAW dependence with exponent 0 and base b is a constant factor b, so scaling FILM_DIFFUSION by
+	// 1/b must reproduce the unmodified simulation exactly.
+	const double base = 4.0;
+
+	cadet::JsonParameterProvider jpp1 = createLWE("COLUMN_MODEL_1D_GRM", "DGFV");
+	cadet::JsonParameterProvider jpp2 = createLWE("COLUMN_MODEL_1D_GRM", "DGFV");
+
+	auto disc = cadet::test::column::createDGFVParams(0, 3, 8, 0, 0, 4);
+	disc->setDisc(jpp1);
+	disc->setDisc(jpp2);
+
+	jpp2.pushScope("model");
+	jpp2.pushScope("unit_000");
+	jpp2.pushScope("particle_type_000");
+
+	std::vector<double> filmDiff = jpp2.getDoubleArray("FILM_DIFFUSION");
+	for (double& fd : filmDiff)
+		fd /= base;
+
+	jpp2.set("FILM_DIFFUSION", filmDiff);
+	jpp2.set("FILM_DIFFUSION_DEP", std::string("POWER_LAW"));
+	jpp2.set("FILM_DIFFUSION_DEP_BASE", base);
+	jpp2.set("FILM_DIFFUSION_DEP_EXPONENT", 0.0);
+
+	jpp2.popScope();
+	jpp2.popScope();
+	jpp2.popScope();
+
+	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
+}
+
 TEST_CASE("Column_1D as LRMP linear pulse vs analytic solution", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Analytic],[CI]")
 {
 	cadet::test::column::DGParams disc;

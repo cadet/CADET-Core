@@ -316,7 +316,7 @@ namespace model
 			// Add flux to column void / bulk volume using discretized film diffusion
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
 			{
-				ParamType discretizedFilmDiffusionFactor = static_cast<ParamType>(_parDiffOp->discretizedFilmDiffusionFactor(comp));
+				const ParamType discretizedFilmDiffusionFactor = static_cast<ParamType>(_parDiffOp->discretizedFilmDiffusionFactor(secIdx, comp, packing.colPos, packing.velocity));
 				// FILM_DIFFUSION_DEP evaluated pointwise at this bulk point's position/velocity
 				const ParamType filmDiff_comp = static_cast<ParamType>(_parDiffOp->modifiedFilmDiffusion(secIdx, comp, packing.colPos, packing.velocity));
 
