@@ -157,7 +157,6 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 		if (bulkMethod == "FV")
 		{
 			disc["NCOL"] = 16;
-			discPar["NCELLS"] = 4;
 			disc["MAX_KRYLOV"] = 0;
 			disc["GS_TYPE"] = 1;
 			disc["MAX_RESTARTS"] = 10;
@@ -1256,7 +1255,6 @@ json createLinearBenchmarkColumnJson(bool dynamicBinding, bool nonBinding, const
 		if (bulkMethod == "FV")
 		{
 			disc["NCOL"] = 512;
-			parDisc["NCELLS"] = 4;
 			if (model2D)
 				disc["NRAD"] = 3;
 
