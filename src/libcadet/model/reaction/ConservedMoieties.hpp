@@ -22,7 +22,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <limits>
 #include <vector>
 
 namespace cadet
@@ -79,32 +78,6 @@ public:
 			for (unsigned int state = 0; state < size; ++state)
 				targetVec[moiety] += static_cast<double>(_L(moiety, state)) * sourceVec[state];
 		}
-	}
-
-	/**
-	 * @brief Replaces a vector prefix by its conserved-moiety transformation
-	 * @details The transformed values are first written to @p scratch so that @p vector can
-	 *          also serve as the source. The scratch buffer must provide numMoieties() entries.
-	 * @param [in,out] vector State-sized source vector whose first numMoieties() entries are replaced
-	 * @param [in] size Number of source entries, equal to the number of states
-	 * @param [out] scratch Temporary buffer with numMoieties() entries
-	 */
-	template <typename ValueType>
-	void applyToVector(ValueType* const vector, unsigned int size, ValueType* const scratch) const
-	{
-		applyToVector(scratch, vector, size);
-		std::copy_n(scratch, numMoieties(), vector);
-	}
-
-	/**
-	 * @brief Replaces a vector prefix by its conserved-moiety transformation
-	 * @details The scratch capacity is retained between calls.
-	 */
-	template <typename ValueType>
-	void applyToVector(ValueType* const vector, unsigned int size, std::vector<ValueType>& scratch) const
-	{
-		scratch.resize(numMoieties());
-		applyToVector(vector, size, scratch.data());
 	}
 
 	std::size_t matrixBufferSize(Eigen::SparseMatrix<double, Eigen::RowMajor> const& matrix, unsigned int numStates,
@@ -181,65 +154,6 @@ public:
 		std::fill_n(targetVec + numMoieties(), numEquilibriumReactions(), TargetType{0.0});
 	}
 
-	template <typename ValueType>
-	void applyToDerivativeVector(ValueType* const vector, unsigned int size, std::vector<ValueType>& scratch) const
-	{
-		cadet_assert(numMoieties() + numEquilibriumReactions() == size);
-		applyToVector(vector, size, scratch);
-		std::fill_n(vector + numMoieties(), numEquilibriumReactions(), ValueType{0.0});
-	}
-
-	/**
-	 * @brief Replaces rows of a dense matrix by their conserved-moiety transformation
-	 * @details Each column is transformed in place. The scratch buffer must provide
-	 *          numMoieties() entries, independent of the matrix size.
-	 */
-	template <typename MatrixType>
-	void applyToMatrix(MatrixType& matrix, unsigned int numStates, unsigned int rowOffset,
-		unsigned int firstColumn, unsigned int lastColumn, double* const scratch) const
-	{
-		cadet_assert(numStates == static_cast<unsigned int>(_L.cols()));
-
-		for (unsigned int column = firstColumn; column < lastColumn; ++column)
-		{
-			for (unsigned int moiety = 0; moiety < numMoieties(); ++moiety)
-			{
-				scratch[moiety] = 0.0;
-				for (unsigned int state = 0; state < numStates; ++state)
-					scratch[moiety] += _L(moiety, state) * matrix.native(rowOffset + state, column);
-			}
-
-			for (unsigned int moiety = 0; moiety < numMoieties(); ++moiety)
-				matrix.native(rowOffset + moiety, column) = scratch[moiety];
-		}
-	}
-
-	std::size_t matrixBufferSize(Eigen::SparseMatrix<double, Eigen::RowMajor> const& matrix,
-		unsigned int numStates, unsigned int rowOffset) const
-	{
-		return matrixBufferSize(matrix, numStates, rowOffset, 0, matrix.cols());
-	}
-
-	/**
-	 * @brief Replaces a sparse row block in place by its conserved-moiety transformation
-	 * @details The affected source entries are preserved in @p scratch before their rows are
-	 *          cleared. The scratch capacity is retained between calls. The matrix pattern must
-	 *          contain the union of all source row patterns in every conserved-moiety row.
-	 */
-	void applyToMatrix(Eigen::SparseMatrix<double, Eigen::RowMajor>& matrix, unsigned int numStates,
-		unsigned int rowOffset, Eigen::Index firstColumn, Eigen::Index lastColumn,
-		std::vector<Eigen::Triplet<double>>& scratch) const
-	{
-		scratch.resize(matrixBufferSize(matrix, numStates, rowOffset, firstColumn, lastColumn));
-		applyToMatrix(matrix, numStates, rowOffset, firstColumn, lastColumn, scratch.data(), scratch.size());
-	}
-
-	void applyToMatrix(Eigen::SparseMatrix<double, Eigen::RowMajor>& matrix, unsigned int numStates,
-		unsigned int rowOffset, std::vector<Eigen::Triplet<double>>& scratch) const
-	{
-		applyToMatrix(matrix, numStates, rowOffset, 0, matrix.cols(), scratch);
-	}
-
 	/**
 	 * @brief Adds the row-pattern for one or more conserved-moiety row blocks
 	 * @details Every conserved-moiety row receives the union of the patterns of all source rows
@@ -293,25 +207,6 @@ public:
 			for (unsigned int moiety = 0; moiety < numMoieties(); ++moiety)
 				entries.emplace_back(targetRowOffset + moiety, sourceColumn, 0.0);
 		}
-	}
-
-	/**
-	 * @brief Adds the row-pattern required by a conserved-moiety transformation
-	 * @details Every conserved-moiety row receives the union of the patterns of all
-	 *          source rows. Only entries present when the method is called are used as
-	 *          source entries, so generated entries are never transformed recursively.
-	 */
-	void applyToPattern(std::vector<Eigen::Triplet<double>>& entries, unsigned int numStates,
-		unsigned int rowOffset) const
-	{
-		applyToPattern(entries, numStates, rowOffset,
-			std::numeric_limits<Eigen::Index>::lowest(), std::numeric_limits<Eigen::Index>::max());
-	}
-
-	void applyToPattern(std::vector<Eigen::Triplet<double>>& entries, unsigned int numStates,
-		unsigned int rowOffset, Eigen::Index firstColumn, Eigen::Index lastColumn) const
-	{
-		addPatternToBlocks(entries, numStates, rowOffset, 1, numStates, firstColumn, lastColumn);
 	}
 
 private:
