@@ -330,7 +330,7 @@ protected:
 
 	parts::cell::CellParameters makeCellResidualParams(unsigned int parType, int const* qsReaction) const;
 
-	void reserveConservedMoietyBuffers();
+	void resizeConservedMoietyJacobianBuffer();
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
@@ -378,7 +378,7 @@ protected:
 	ReactionSystem _reaction; //!< Reaction system for bulk phase
 
 	std::vector<Eigen::Triplet<double>> _cMJacobianEntries; //!< Reusable scratch for in-place Jacobian transformations
-	std::vector<double> _cMVectorEntries; //!< Reusable scratch for in-place vector transformations
+	std::vector<double> _cMVectorEntries; //!< Source buffer for particle time-derivative transformations
 
 	cadet::linalg::EigenSolverBase* _linearSolver; //!< Linear solver
 

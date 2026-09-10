@@ -174,9 +174,9 @@ namespace cadet
 			 * @brief Applies particle-specific transformations to time-derivative Jacobian products
 			 * @param [in,out] result First particle block of this particle type
 			 * @param [in] numParticleBlocks Number of consecutive particle blocks
-			 * @param [in,out] scratch Reusable transformation scratch
+			 * @param [out] scratch Source buffer with at least nComp entries
 			 */
-			virtual void applyTimeDerivativeJacobianTransformation(double* result,unsigned int numParticleBlocks, std::vector<double>& scratch) const { }
+			virtual void applyTimeDerivativeJacobianTransformation(double* result, unsigned int numParticleBlocks, double* const scratch) const { }
 
 			virtual double relativeCoordinate(const unsigned int nodeIdx) const CADET_NOEXCEPT = 0;
 

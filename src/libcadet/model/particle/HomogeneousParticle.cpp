@@ -321,7 +321,7 @@ namespace model
 		{
 			dynReactionConfSuccess = _reaction.configure("liquid", _parTypeIdx, unitOpIdx, paramProvider) && dynReactionConfSuccess;
 			dynReactionConfSuccess = _reaction.configureConservedMoities("liquid", _nComp, 1e-14) && dynReactionConfSuccess;
-			_cMJacobianEntries.reserve(static_cast<std::size_t>(_nComp) * _nComp);
+			_cMJacobianEntries.resize(static_cast<std::size_t>(_nComp) * _nComp);
 		}
 		if (paramProvider.exists("NREAC_SOLID"))
 			dynReactionConfSuccess = _reaction.configure("solid", _parTypeIdx, unitOpIdx, paramProvider) && dynReactionConfSuccess;
@@ -394,7 +394,7 @@ namespace model
 			return residualImpl<active, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 	}
 
-	void HomogeneousParticle::applyTimeDerivativeJacobianTransformation(double* result, unsigned int numParticleBlocks, std::vector<double>& scratch) const
+	void HomogeneousParticle::applyTimeDerivativeJacobianTransformation(double* result, unsigned int numParticleBlocks, double* const scratch) const
 	{
 		const auto& cm = _reaction.conservedMoieties("liquid");
 		if (!cm.isEnabled() || (cm.numEquilibriumReactions() == 0))
@@ -404,7 +404,11 @@ namespace model
 		{
 			double* const particleResult = result + particle * strideParBlock();
 			for (int shell = 0; shell < nDiscPoints(); ++shell)
-				cm.applyToDerivativeVector(particleResult + shell * stridePoint(), _nComp, scratch);
+			{
+				double* const localResult = particleResult + shell * stridePoint();
+				std::copy_n(localResult, _nComp, scratch);
+				cm.applyToDerivativeVector(localResult, scratch, _nComp);
+			}
 		}
 	}
 
@@ -454,14 +458,25 @@ namespace model
 		{
 			const unsigned int nMoieties = cm.numMoieties();
 
-			BufferedArray<ResidualType> scratchBuffer = tlmAlloc.array<ResidualType>(nMoieties);
+			BufferedArray<ResidualType> scratchBuffer = tlmAlloc.array<ResidualType>(_nComp);
 			ResidualType* const scratch = static_cast<ResidualType*>(scratchBuffer);
 
 			StateType const* const c =  yPar;
 			ResidualType* const localRes = resPar;
 
-			cm.applyToVector(localRes, _nComp, scratch);
-			_reaction.writeEquilibriumResidual("liquid", t, secIdx, packing.colPos, _nComp, c, localRes + nMoieties, tlmAlloc.manageRemainingMemory());
+			std::copy_n(localRes, _nComp, scratch);
+			cm.applyToVector(localRes, scratch, _nComp);
+			std::fill_n(localRes + nMoieties, _reaction.conservedMoieties("liquid").numEquilibriumReactions(), 0.0);
+			unsigned int eqIdx = 0;
+			for (auto const* reaction : _reaction.getDynReactionVector("liquid"))
+			{
+				if (!reaction)
+					continue;
+
+				reaction->residualEquilibriumFlux(t, secIdx, packing.colPos, _nComp,
+					c, localRes + nMoieties, eqIdx, tlmAlloc.manageRemainingMemory());
+			}
+			cadet_assert(eqIdx == _reaction.conservedMoieties("liquid").numEquilibriumReactions());
 		}
 
 		if (wantNonLinJac && cm.isEnabled() && cm.numEquilibriumReactions() > 0)
@@ -469,13 +484,22 @@ namespace model
 
 			const unsigned int nMoieties = cm.numMoieties();
 			auto& jacobian = jacBase.matrix();
-			const std::size_t scratchSize = cm.matrixBufferSize(jacobian, _nComp, jacBase.row());
+			const std::size_t scratchSize = cm.matrixBufferSize(jacobian, _nComp, jacBase.row(), 0, jacobian.cols());
 			BufferedArray<Eigen::Triplet<double>> scratch = tlmAlloc.array<Eigen::Triplet<double>>(scratchSize);
 
 			cm.applyToMatrix(jacobian, _nComp, jacBase.row(), 0, jacobian.cols(), static_cast<Eigen::Triplet<double>*>(scratch), scratchSize);
 
 			linalg::BandedEigenSparseRowIterator equilibriumJacobian(jacobian, jacBase.row() + nMoieties);
-			_reaction.addEquilibriumJacobian("liquid", t, secIdx, packing.colPos, _nComp, reinterpret_cast<double const*>(yPar), nMoieties, equilibriumJacobian, tlmAlloc.manageRemainingMemory());
+			unsigned int eqIdx = 0;
+			for (auto const* reaction : _reaction.getDynReactionVector("liquid"))
+			{
+				if (!reaction)
+					continue;
+
+				reaction->analyticEquilibriumJacobian(t, secIdx, packing.colPos, _nComp,
+					reinterpret_cast<double const*>(yPar), eqIdx, nMoieties, equilibriumJacobian, tlmAlloc.manageRemainingMemory());
+			}
+			cadet_assert(eqIdx == _reaction.conservedMoieties("liquid").numEquilibriumReactions());
 
 		}
 
@@ -501,7 +525,7 @@ namespace model
 
 		const auto& cm = _reaction.conservedMoieties("liquid");
 		if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
-			cm.applyToPattern(tripletList, _nComp, offsetPar, offsetBulk, offsetBulk + _nComp);
+			cm.addPatternToBlocks(tripletList, _nComp, offsetPar, 1, stridePoint(), offsetBulk, offsetBulk + _nComp);
 
 	}
 
@@ -580,7 +604,7 @@ namespace model
 			}
 
 			if (crossDepAndEquilibriumReaction)
-				cm.applyToMatrix(globalJac, _nComp, particleRowOffset, bulkRowOffset, bulkRowOffset + _nComp, _cMJacobianEntries);
+				cm.applyToMatrix(globalJac, _nComp, particleRowOffset, bulkRowOffset, bulkRowOffset + _nComp, _cMJacobianEntries.data(), _cMJacobianEntries.size());
 		}
 
 		return 1;

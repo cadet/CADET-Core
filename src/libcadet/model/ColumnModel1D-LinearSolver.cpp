@@ -147,15 +147,18 @@ int ColumnModel1D<ConvDispOperator>::linearSolve(double t, double alpha, double 
 	const auto& cm = _reaction.conservedMoieties("liquid");
 	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
 	{
-		_cMVectorEntries.resize(cm.numMoieties());
-		cm.applyToVector(_cMVectorEntries.data(), rhs, _disc.nComp);
-		for (unsigned int moiety = 0; moiety < cm.numMoieties(); ++moiety)
-		{
-			for (int node = 0; node < static_cast<int>(_jacInlet.rows()); ++node)
-			{
-				r[idxr.offsetC() + offInlet + moiety * idxr.strideColComp() + node * idxr.strideColNode()] -= _jacInlet(node, 0) * _cMVectorEntries[moiety];
-			}
-		}
+		const auto& L = cm.conservedMoietyMatrix();
+        for (unsigned int moiety = 0; moiety < cm.numMoieties(); ++moiety)
+        {
+            double inletValue = 0.0;
+            for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+                inletValue += L(moiety, comp) * r[comp];
+
+            for (int node = 0; node < static_cast<int>(_jacInlet.rows()); ++node)
+            {
+                r[idxr.offsetC() + offInlet + moiety * idxr.strideColComp() + node * idxr.strideColNode()] -= _jacInlet(node, 0) * inletValue;
+            }
+        }
 
 	}
 	else
