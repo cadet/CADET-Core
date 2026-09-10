@@ -47,9 +47,9 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
 
    **Unit:** :math:`\mathrm{m}`
 
-   ==============  ==========================  ==================
-   **Type:** bool  **Range:** :math:`\{0,1\}`  **Length:** NSEC
-   ==============  ==========================  ==================
+   ==============  ==========================  =====================
+   **Type:** bool  **Range:** :math:`\{0,1\}`  **Length:** 1 or NSEC
+   ==============  ==========================  =====================
 
 ``COL_POROSITY``
 
@@ -84,14 +84,6 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
    ================  ========================  =============================================================================
    **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`\texttt{NPARTYPE} / \texttt{NCOL} \cdot \texttt{NPARTYPE}`
    ================  ========================  =============================================================================
-
-``VELOCITY``
-
-   Interstitial velocity of the mobile phase (optional if :math:`\texttt{CROSS_SECTION_AREA}` is present, see Section :ref:`MUOPGRMflow`)
-   **Unit:** :math:`\mathrm{m}\,\mathrm{s}^{-1}`
-   
-   ================  =============================  =======================================
-   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`1 / \texttt{NSEC}`
    ================  =============================  =======================================
 
 ``COL_DISPERSION``
