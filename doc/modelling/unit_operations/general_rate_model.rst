@@ -262,7 +262,7 @@ Note that multiple particle types can also be used to aid in modeling size exclu
 Specification of flow rate / velocity and direction
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Since volumetric flow rates are specified for each network connection, the unit operation can infer its interstitial velocity via
+Since volumetric flow rates are specified for each network connection, the unit operation always infers its interstitial velocity via
 
 .. math::
 
@@ -273,21 +273,8 @@ Since volumetric flow rates are specified for each network connection, the unit 
 where :math:`F_{\text{in}}` denotes the volumetric flow rate and :math:`A` the cross section area.
 Note that without the bulk porosity :math:`\varepsilon_c`, the superficial velocity would be obtained.  
 
-The direction of flow inside the unit operation is governed by the sign of the interstitial velocity :math:`u`.
-A positive sign results in (standard) forward flow, whereas a negative sign reverses the flow direction.
+The direction of flow inside the unit operation is governed by the field ``FORWARD_FLOW``, whose default (:math:`1`) means flow from the larger towards the smaller radius for the radial flow and frustum geometries.
 Note that in case of reversed flow, the chromatogram is returned at the unit operation’s `INLET`, which may not be returned from simulation by default.
-
-The final behavior for axial flow models is controlled by the interplay of cross section area and interstitial velocity:
-
-- If cross section area :math:`A` is given and :math:`u` is not, :math:`u` is inferred from the volumetric flow rate.
-
-- If :math:`u` is given and :math:`A` is not, the volumetric flow rate is ignored and the provided interstitial velocity is used.
-
-- If both cross section area :math:`A` and interstitial velocity :math:`u` are given, the magnitude of the actual interstitial velocity :math:`u` is inferred from the volumetric flow rate and the flow direction is given by the sign of the provided :math:`u`.
-
-For the radial flow and frustum geometries, the interstitial velocity field is always inferred from the volumetric flow rate and the geometry, i.e. from the mandatory cross section area fields (see :ref:`radial_flow_column_1D_config` and :ref:`frustum_flow_column_1D_config`).
-The direction of the flow is given by the mandatory field ``FORWARD_FLOW``, whose default (:math:`1`) means flow from the larger towards the smaller radius for both geometries, so that the fluid accelerates as the cross section narrows.
-
 
 For information on model parameters see :ref:`axial_flow_column_1D_config` and :ref:`particle_model_config`.  
 

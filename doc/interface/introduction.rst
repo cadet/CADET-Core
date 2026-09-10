@@ -113,7 +113,7 @@ For example, the velocity a column is operated with could differ in the load, wa
 Section dependency is recognized by specifying the appropriate number of values for the parameters (see *Length* column in the following tables).
 If a parameter depends on both the component and the section, the ordering is section-major.
 
-For instance, the *Length* field of the parameter ``VELOCITY`` reads :math:`1 / NSEC` which means that it is not recognized as section dependent if only :math:`1` value (scalar) is passed. However, if ``NSEC`` many values (vector) are present, it will be treated as section dependent.
+For instance, the *Length* field of the parameter ``FILM_DIFFUSION`` reads :math:`1 / NSEC` which means that it is not recognized as section dependent if only :math:`1` value (scalar) is passed. However, if ``NSEC`` many values (vector) are present, it will be treated as section dependent.
 
 Note that all components of component dependent datasets have to be section dependent (e.g., you cannot have a section dependency on component :math:`2` only while the other components are not section dependent).
 
