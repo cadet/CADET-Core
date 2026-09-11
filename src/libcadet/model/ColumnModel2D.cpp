@@ -692,6 +692,10 @@ bool ColumnModel2D::configure(IParameterProvider& paramProvider)
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
 		particleConfSuccess = particleConfSuccess && _particles[parType]->configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType]);
+
+		const auto& cm = _particles[parType]->getReaction()->conservedMoieties("liquid");
+		if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0))
+			throw InvalidParameterException("Particle liquid-phase equilibrium reactions (conserved moieties) are not supported yet in ColumnModel2D (particle type " + std::to_string(parType) + ")");
 	}
 
 	// Reconfigure reaction model
