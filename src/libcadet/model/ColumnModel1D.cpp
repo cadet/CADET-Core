@@ -1454,8 +1454,26 @@ void ColumnModel1D<ConvDispOperator>::multiplyWithDerivativeJacobian(const Simul
 		}
 	}
 
+	// Transform particle products after parallel assembly to reuse the source buffer.
+	double* const scratch = _cMVectorEntries.data();
+
 	for (unsigned int type = 0; type < _disc.nParType; ++type)
-		_particles[type]->applyTimeDerivativeJacobianTransformation(ret + idxr.offsetCp(ParticleTypeIndex{type}), _disc.nPoints, _cMVectorEntries.data());
+	{
+		const auto& particleCm = _particles[type]->getReaction()->conservedMoieties("liquid");
+		if (!particleCm.isEnabled() || (particleCm.numEquilibriumReactions() == 0))
+			continue;
+
+		for (unsigned int particle = 0; particle < _disc.nPoints; ++particle)
+		{
+			double* const particleResult = ret + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{particle});
+			for (unsigned int shell = 0; shell < _disc.nParPoints[type]; ++shell)
+			{
+				double* const localResult = particleResult + shell * idxr.strideParNode(type);
+				std::copy_n(localResult, _disc.nComp, scratch);
+				particleCm.applyToDerivativeVector(localResult, scratch, _disc.nComp);
+			}
+		}
+	}
 
 	// Handle inlet DOFs (all algebraic)
 	std::fill_n(ret, _disc.nComp, 0.0);

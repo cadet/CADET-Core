@@ -274,24 +274,6 @@ namespace model
 			return residualImpl<active, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 	}
 
-	void GeneralRateParticle::applyTimeDerivativeJacobianTransformation(double* result, unsigned int numParticleBlocks, double* const scratch) const
-	{
-		const auto& cm = _reaction.conservedMoieties("liquid");
-		if (!cm.isEnabled() || (cm.numEquilibriumReactions() == 0))
-			return;
-
-		for (unsigned int particle = 0; particle < numParticleBlocks; ++particle)
-		{
-			double* const particleResult = result + particle * strideParBlock();
-			for (int shell = 0; shell < nDiscPoints(); ++shell)
-			{
-				double* const localResult = particleResult + shell * stridePoint();
-				std::copy_n(localResult, _nComp, scratch);
-				cm.applyToDerivativeVector(localResult, scratch, _nComp);
-			}
-		}
-	}
-
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantNonLinJac, bool wantRes>
 	int GeneralRateParticle::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ResidualType* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
 	{
@@ -395,8 +377,7 @@ namespace model
 			for (unsigned int par = 0; par < nDiscPoints(); ++par)
 			{
 				const unsigned int rowOffset = jacBase.row() + par * stridePoint();
-				const std::size_t shellScratchSize = cm.matrixBufferSize(jacobian, _nComp, rowOffset, 0, jacobian.cols());
-				cm.applyToMatrix(jacobian, _nComp, rowOffset, 0, jacobian.cols(), static_cast<Eigen::Triplet<double>*>(scratch), shellScratchSize);
+				cm.applyToMatrix(jacobian, _nComp, rowOffset, 0, jacobian.cols(), static_cast<Eigen::Triplet<double>*>(scratch), scratchSize);
 
 				packing.colPos.particle = relativeCoordinate(par);
 				linalg::BandedEigenSparseRowIterator equilibriumJacobian(jacobian, rowOffset + nMoieties);

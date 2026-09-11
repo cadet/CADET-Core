@@ -394,24 +394,6 @@ namespace model
 			return residualImpl<active, active, active, false, true>(t, secIdx, yPar, yBulk, yDotPar, resPar, resBulk, packing, jacIt, tlmAlloc);
 	}
 
-	void HomogeneousParticle::applyTimeDerivativeJacobianTransformation(double* result, unsigned int numParticleBlocks, double* const scratch) const
-	{
-		const auto& cm = _reaction.conservedMoieties("liquid");
-		if (!cm.isEnabled() || (cm.numEquilibriumReactions() == 0))
-			return;
-
-		for (unsigned int particle = 0; particle < numParticleBlocks; ++particle)
-		{
-			double* const particleResult = result + particle * strideParBlock();
-			for (int shell = 0; shell < nDiscPoints(); ++shell)
-			{
-				double* const localResult = particleResult + shell * stridePoint();
-				std::copy_n(localResult, _nComp, scratch);
-				cm.applyToDerivativeVector(localResult, scratch, _nComp);
-			}
-		}
-	}
-
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantNonLinJac, bool wantRes>
 	int HomogeneousParticle::residualImpl(double t, unsigned int secIdx, StateType const* yPar, StateType const* yBulk, double const* yDotPar, ResidualType* resPar, ResidualType* resBulk, columnPackingParameters packing, linalg::BandedEigenSparseRowIterator& jacIt, LinearBufferAllocator tlmAlloc)
 	{
