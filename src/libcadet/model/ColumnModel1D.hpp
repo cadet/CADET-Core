@@ -291,15 +291,38 @@ protected:
 
 	int multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue);
 	int multiplexInitialConditions(const cadet::ParameterId& pId, double val, bool checkSens);
-	void consistentInitialBulkLiquidEquilibrium(const SimulationTime& simTime, double* const vecStateY, double errorTol, util::ThreadLocalStorage& threadLocalMem);
-	void consistentInitialBindingEquilibrium(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem, unsigned int type);
-	void consistentInitialBulkTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem);
-	void consistentInitialBindingTimeDerivative(const SimulationTime& simTime, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem, unsigned int type, unsigned int par);
+	void consistentInitialBulkLiquidEquilibrium(const SimulationTime& simTime, double* const vecStateY,
+		double errorTol, util::ThreadLocalStorage& threadLocalMem);
+	void consistentInitialParticleLiquidEquilibrium(const SimulationTime& simTime, double* const vecStateY,
+		double errorTol, util::ThreadLocalStorage& threadLocalMem);
+	void consistentInitialBindingEquilibrium(const SimulationTime& simTime, double* const vecStateY,
+		const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem, unsigned int parType);
+	void consistentInitialParticleLiquidBindingEquilibrium(const SimulationTime& simTime, double* const vecStateY,
+		double errorTol, util::ThreadLocalStorage& threadLocalMem, unsigned int parType);
+	void consistentInitialBulkTimeDerivative(const SimulationTime& simTime, double const* vecStateY,
+		double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem);
+	void consistentInitialParticleTimeDerivative(unsigned int parType, unsigned int par);
+	void consistentInitialParticleLiquidEquilibriumTimeDerivative(const SimulationTime& simTime, double const* vecStateY,
+		double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem, unsigned int parType, unsigned int par);
+	void consistentInitialBindingTimeDerivative(const SimulationTime& simTime, double* const vecStateYdot,
+		util::ThreadLocalStorage& threadLocalMem, unsigned int parType, unsigned int par);
+	void consistentInitialParticleLiquidBindingEquilibriumTimeDerivative(const SimulationTime& simTime,
+		double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem,
+		unsigned int parType, unsigned int par);
+	void addInitialBindingTimeDerivativeEquilibriumRows(const SimulationTime& simTime, double* const vecStateYdot,
+		util::ThreadLocalStorage& threadLocalMem, unsigned int parType, unsigned int par);
+	void consistentInitialBulkLiquidEquilibriumSensitivity(const SimulationTime& simTime, double const* vecStateY,
+		double* const vecSensY, active const* adRes, unsigned int param, util::ThreadLocalStorage& threadLocalMem);
+	void consistentInitialParticleLiquidEquilibriumSensitivity(const SimulationTime& simTime, double const* vecStateY,
+		double* const vecSensY, active const* adRes, unsigned int param, util::ThreadLocalStorage& threadLocalMem,
+		unsigned int parType);
+	void consistentInitialParticleLiquidBindingEquilibriumSensitivity(const SimulationTime& simTime, double const* vecStateY,
+		double* const vecSensY, active const* adRes, unsigned int param, util::ThreadLocalStorage& threadLocalMem,
+		unsigned int parType);
+
 	void initializeSensitivityBulkStates(double* const sensY, std::size_t param) const;
 	void initializeSensitivityParticleStates(double* const sensY, std::size_t param, unsigned int type) const;
 	void consistentInitialSensitivityBindingEquilibrium(double* const sensY, double const* const sensYdot, util::ThreadLocalStorage& threadLocalMem, unsigned int type);
-	void consistentInitialSensitivityBulkTimeDerivative();
-	void consistentInitialSensitivityBindingTimeDerivative(double* const sensYdot, unsigned int pblk);
 	void leanConsistentInitialBindingEquilibrium(const SimulationTime& simTime, double* const vecStateY, util::ThreadLocalStorage& threadLocalMem, unsigned int type);
 	void leanConsistentInitialBulkTimeDerivative(double t, double* const vecStateYdot, double* const res);
 	void leanConsistentInitialSensitivityBulkTimeDerivative(const SimulationTime& simTime, const ConstSimulationState& simState,
@@ -354,7 +377,8 @@ protected:
 	ConvDispOperator _convDispOp; //!< Convection dispersion operator base for interstitial volume transport
 	ReactionSystem _reaction; //!< Reaction system for bulk phase
 
-	std::vector<Eigen::Triplet<double>> _cMJacobianEntries;
+	std::vector<Eigen::Triplet<double>> _cMJacobianEntries; //!< Reusable scratch for in-place Jacobian transformations
+	std::vector<double> _cMVectorEntries; //!< Source buffer for particle time-derivative transformations
 
 	cadet::linalg::EigenSolverBase* _linearSolver; //!< Linear solver
 
@@ -566,7 +590,7 @@ protected:
 
 		const auto& cm = _reaction.conservedMoieties("liquid");
 		if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
-				cm.addPatternToBlocks(tripletList, _disc.nComp, idxr.offsetC(), _disc.nPoints, idxr.strideColNode(), 0, globalJ.cols());
+			cm.addPatternToBlocks(tripletList, _disc.nComp, idxr.offsetC(), _disc.nPoints, idxr.strideColNode(), 0, globalJ.cols());
 
 		globalJ.setFromTriplets(tripletList.begin(), tripletList.end());
 	}
