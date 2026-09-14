@@ -250,9 +250,12 @@ Note that :math:`F_{\text{acc},j,i} = 0` is not allowed in a simulation, which c
 
 By default, :math:`F_{\text{acc},j,i} = 1` for all components :math:`i` and all particle types :math:`j`, which disables size exclusion chromatography.
 
-It is important to note that in the presence of size exlusion effects, the saturation capacity (e.g., :math:`q_{\text{max}}` of Langmuir-type binding models) will differ for solutes with different accessible porosity values.
-However, this leads to inconsistencies in the equations which account for the full pore volume fraction :math:`\varepsilon_{p,j}`.
-For this reason, SEC should only be modelled without binding models!
+Note that the solid phase weighting :math:`\left(1 - \varepsilon_{p,j}\right) / \left(F_{\text{acc},j,i} \varepsilon_{p,j}\right)` in Eq. :eq:`ModelBead` retains the full solid volume fraction :math:`1 - \varepsilon_{p,j}`, that is, the accessible porosity replaces :math:`\varepsilon_{p,j}` in the pore liquid transport and reaction terms only.
+The pore accessibility factor can hence only be combined with a binding model, if the binding capacities remain well-defined.
+Physically, a solute that reaches only part of the pore space will also reach only part of the immobilized ligands, so its saturation capacity (e.g., :math:`q_{\text{max}}` of Langmuir-type binding models) is reduced accordingly.
+As long as the affected components do not compete for the same bound states, this reduction is simply expressed in the respective component's own capacity parameter.
+If, however, components with different accessible porosities compete for one shared population of binding sites (e.g., multi component Langmuir binding, whose saturation term is shared by all components), no single set of capacity parameters can represent their different accessible ligand fractions consistently.
+Binding models should therefore only be combined with the pore accessibility factor if this case is excluded.
 In order to simulate pure SEC, binding is disabled by setting :math:`N_{\text{bnd},i} = 0` for all components :math:`i` and applying no binding model.
 
 Note that multiple particle types can also be used to aid in modeling size exclusion effects, see Section :ref:`MUOPGRMMultiParticleTypes`.

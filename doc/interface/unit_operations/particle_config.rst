@@ -38,7 +38,7 @@ Group /input/model/unit_XXX/particle_type_XXX
 ``PORE_ACCESSIBILITY``
 
    Pore accessibility factor of each component in each particle type (optional, defaults to :math:`1`).
-   Note: Should not be used in combination with any binding model!
+   Note: When combined with a binding model, components that compete for the same bound states must use the same value, see :ref:`MUOPGRMSizeExclusion`.
    
    ================  =========================  =============================================================
    **Type:** double  **Range:** :math:`(0, 1]`  **Length:** see :math:`\texttt{PORE_ACCESSIBILITY_MULTIPLEX}`
