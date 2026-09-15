@@ -401,6 +401,7 @@ protected:
 	std::vector<active> _initC; //!< Liquid bulk phase initial conditions
 	std::vector<active> _initCp; //!< Liquid particle phase initial conditions
 	std::vector<active> _initCs; //!< Solid phase initial conditions
+	std::vector<std::vector<double>> _initQsBoundDelta; //!< Initial minus consistent quasi-stationary bound totals per particle type, node, and component
 	std::vector<double> _initState; //!< Initial conditions for state vector if given
 	std::vector<double> _initStateDot; //!< Initial conditions for time derivative
 
