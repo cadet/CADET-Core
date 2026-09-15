@@ -477,9 +477,16 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 
 	// Reconfigure particle model
 	bool particleConfSuccess = true;
+	_initQsBoundDelta.resize(_disc.nParType);
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
 		particleConfSuccess = particleConfSuccess && _particles[parType]->configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType]);
+
+		const auto& cm = _particles[parType]->getReaction()->conservedMoieties("liquid");
+		if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0) && _binding[parType]->hasQuasiStationaryReactions())
+			_initQsBoundDelta[parType].assign(static_cast<std::size_t>(_disc.nPoints) * _disc.nParPoints[parType] * _disc.nComp, 0.0);
+		else
+			_initQsBoundDelta[parType].clear();
 	}
 
 	// Reconfigure bulk liquid reaction model
