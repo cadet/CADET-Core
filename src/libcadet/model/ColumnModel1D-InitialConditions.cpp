@@ -775,16 +775,21 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialParticleLiquidBindingEqui
 
 			const double epsP = static_cast<double>(_particles[type]->getPorosity());
 			const double epsQ = 1.0 - epsP;
+			double* const boundDelta = _initQsBoundDelta[type].data() + (pblk * _disc.nParPoints[type] + node) * _disc.nComp;
 			unsigned int boundIdx = 0;
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
 				const double invBetaP = epsQ
 					/ (static_cast<double>(_particles[type]->getPoreAccessFactor()[comp]) * epsP);
 				fullResidual[comp] = (qShell - _disc.nComp)[comp];
+				boundDelta[comp] = 0.0;
 				for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++boundIdx)
 				{
 					if (qsMaskSrc[boundIdx])
+					{
 						fullResidual[comp] += invBetaP * qShell[boundIdx];
+						boundDelta[comp] += qShell[boundIdx];
+					}
 				}
 			}
 			particleCm.applyToVector(conservedQuants, fullResidual, _disc.nComp);
@@ -879,6 +884,17 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialParticleLiquidBindingEqui
 
 			linalg::applyVectorSubset(solution, mask, qShell - idxr.strideParLiquid());
 			_binding[type]->postConsistentInitialState(simTime.t, simTime.secIdx, colPos, qShell, qShell - idxr.strideParLiquid(), tlmAlloc);
+
+			// Retain the change in bound totals for parameter derivatives of the conservation equations.
+			boundIdx = 0;
+			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+			{
+				for (unsigned int bnd = 0; bnd < _disc.nBound[_disc.nComp * type + comp]; ++bnd, ++boundIdx)
+				{
+					if (qsMaskSrc[boundIdx])
+						boundDelta[comp] -= qShell[boundIdx];
+				}
+			}
 		}
 
 		const bool hasBulkReaction = _reaction.hasReactions();
@@ -1634,21 +1650,22 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialParticleLiquidBindingEqui
 			unsigned int bound = 0;
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
-				const double invBetaP = (1.0 - static_cast<double>(_particles[type]->getPorosity()))
-					/ (static_cast<double>(_particles[type]->getPoreAccessFactor()[comp])
-						* static_cast<double>(_particles[type]->getPorosity()));
+				const active invBetaP = (1.0 - _particles[type]->getPorosity())
+					/ (_particles[type]->getPoreAccessFactor()[comp] * _particles[type]->getPorosity());
 				for (unsigned int moiety = 0; moiety < nMoieties; ++moiety)
 					jacobianMatrix.native(moiety, comp) = cm.conservedMoietyMatrix()(moiety, comp);
 
-				componentTotalSensitivity[comp] = vecSensY[shellOffset + comp];
+				// Differentiate both sides of L * (c + B * q) = L * (c_initial + B * q_initial).
+				const double boundDelta = _initQsBoundDelta[type][(point * _disc.nParPoints[type] + shell) * _disc.nComp + comp];
+				componentTotalSensitivity[comp] = vecSensY[shellOffset + comp] + invBetaP.getADValue(param) * boundDelta;
 				for (unsigned int localBound = 0; localBound < _disc.nBound[type * _disc.nComp + comp]; ++localBound, ++bound)
 				{
 					if (!qsMask[bound])
 						continue;
 
 					for (unsigned int moiety = 0; moiety < nMoieties; ++moiety)
-						jacobianMatrix.native(moiety, selectedBoundColumn) = cm.conservedMoietyMatrix()(moiety, comp) * invBetaP;
-					componentTotalSensitivity[comp] += invBetaP * vecSensY[shellOffset + _disc.nComp + bound];
+						jacobianMatrix.native(moiety, selectedBoundColumn) = cm.conservedMoietyMatrix()(moiety, comp) * static_cast<double>(invBetaP);
+					componentTotalSensitivity[comp] += static_cast<double>(invBetaP) * vecSensY[shellOffset + _disc.nComp + bound];
 					++selectedBoundColumn;
 				}
 			}
