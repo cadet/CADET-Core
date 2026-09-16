@@ -1703,12 +1703,15 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::calcConvDispDGSEMJa
 			{
 				for (unsigned int j = 0; j < 3 * _nNodes + 2; j++)
 				{
-					const double val = _DGjacDispBlocks[comp][elem](i, j);
-					if (std::abs(val) > 1e-15)
-					{
-						const int relOffset = static_cast<int>(j) - static_cast<int>(_nNodes) - 1 - static_cast<int>(i);
-						elemJac[relOffset * strideNode] += val;
-					}
+					const int relOffset = static_cast<int>(j) - static_cast<int>(_nNodes) - 1 - static_cast<int>(i);
+
+					// The stencil of the boundary elements reaches outside the column,
+					// where the block is zero but the entry does not exist
+					const int point = static_cast<int>(elem * _nNodes + i) + relOffset;
+					if (point < 0 || point >= static_cast<int>(_nPoints))
+						continue;
+
+					elemJac[relOffset * strideNode] = _DGjacDispBlocks[comp][elem](i, j);
 				}
 			}
 		}

@@ -667,9 +667,9 @@ namespace parts
 
 			/*		Inner element dispersion blocks		*/
 
-					if (_nElem >= 3u) {
-						const auto& dispBlock = _DGjacAxDispBlocks[1];
-						linalg::BandedEigenSparseRowIterator jacIt(jacobian, offC + strideColElement()); // row iterator starting at second element and component
+			if (_nElem >= 3u) {
+				const auto& dispBlock = _DGjacAxDispBlocks[1];
+				linalg::BandedEigenSparseRowIterator jacIt(jacobian, offC + strideColElement()); // row iterator starting at second element and component
 
 				for (unsigned int element = 1; element < _nElem - 1; element++) {
 					for (unsigned int i = 0; i < dispBlock.rows(); i++, jacIt += strideColBound) {
@@ -691,8 +691,8 @@ namespace parts
 
 			/*				Boundary element Dispersion blocks			*/
 
-					/* left element */
-					const auto& dispBlock = _DGjacAxDispBlocks[0];
+			/* left element */
+			const auto& dispBlock = _DGjacAxDispBlocks[0];
 
 			if (_nElem != 1u) { // "standard" case
 				linalg::BandedEigenSparseRowIterator jacIt(jacobian, offC); // row iterator starting at first element and component
@@ -726,10 +726,10 @@ namespace parts
 				}
 			}
 
-					/* right element */
-					if (_nElem != 1u) { // "standard" case
-						const auto& dispBlock = _DGjacAxDispBlocks[std::min(_nElem, 3u) - 1];
-						linalg::BandedEigenSparseRowIterator jacIt(jacobian, offC + (_nElem - 1) * strideColElement()); // row iterator starting at last element
+			/* right element */
+			if (_nElem != 1u) { // "standard" case
+				const auto& dispBlock = _DGjacAxDispBlocks[std::min(_nElem, 3u) - 1];
+				linalg::BandedEigenSparseRowIterator jacIt(jacobian, offC + (_nElem - 1) * strideColElement()); // row iterator starting at last element
 
 				for (unsigned int i = 0; i < dispBlock.rows(); i++, jacIt += strideColBound) {
 					for (unsigned int comp = 0; comp < _nComp; comp++, ++jacIt) {
@@ -751,9 +751,9 @@ namespace parts
 			/*			Compute Convection Jacobian Block			*/
 			/*======================================================*/
 
-					// Convection block [ d RHS_conv / d c ], also depends on first entry of previous element
-					const auto& convBlock = _DGjacAxConvBlock;
-					linalg::BandedEigenSparseRowIterator jacIt(jacobian, offC); // row iterator starting at first element and component
+			// Convection block [ d RHS_conv / d c ], also depends on first entry of previous element
+			const auto& convBlock = _DGjacAxConvBlock;
+			linalg::BandedEigenSparseRowIterator jacIt(jacobian, offC); // row iterator starting at first element and component
 
 			if (_curVelocity > 0.0) { // forward flow upwind convection
 				// special inlet DOF treatment for first element (inlet boundary element)
@@ -830,12 +830,12 @@ namespace parts
 			}
 		}
 		/**
-			* @brief adds liquid state blocks for all components to the system jacobian
-			* @param [in] block Block to be added
-			* @param [in] jac row iterator at first (i.e. upper left) entry
-			* @param [in] offCol Column to row offset (i.e. start at upper left corner of block)
-			* @param [in] nelements determines how often the block is added (diagonally)
-			*/
+		 * @brief adds liquid state blocks for all components to the system jacobian
+		 * @param [in] block Block to be added
+		 * @param [in] jac row iterator at first (i.e. upper left) entry
+		 * @param [in] offCol Column to row offset (i.e. start at upper left corner of block)
+		 * @param [in] nelements determines how often the block is added (diagonally)
+		 */
 		void addLiquidJacBlock(Eigen::MatrixXd block, linalg::BandedEigenSparseRowIterator& jac, int offCol, unsigned int nelements) {
 
 			unsigned int strideColBound = strideColNode() - _nComp;
@@ -856,12 +856,12 @@ namespace parts
 
 
 	/**
-		* @brief Convection-dispersion transport operator based on a DG discretization
-		*        for one-dimensional geometries with smoothly varying cross-sectional area.
-		* @details Provides a common DG formulation for axial, radial, and frustum geometries.
-		*          Geometry-dependent mass matrices account for variations in cross-sectional area,
-		*          velocity, and dispersion along the flow-directional coordinate.
-		*/
+	 * @brief Convection-dispersion transport operator based on a DG discretization
+	 *        for one-dimensional geometries with smoothly varying cross-sectional area.
+	 * @details Provides a common DG formulation for axial, radial, and frustum geometries.
+	 *          Geometry-dependent mass matrices account for variations in cross-sectional area,
+	 *          velocity, and dispersion along the flow-directional coordinate.
+	 */
 	class VariableCrossSectionConvectionDispersionOperatorBaseDG : public IConvectionDispersionOperatorBase1D
 	{
 	public:

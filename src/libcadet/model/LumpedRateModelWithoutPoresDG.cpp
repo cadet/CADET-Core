@@ -672,25 +672,20 @@ namespace cadet
 
 			bool success = 1;
 
-			// determine wether we have a section switch. If so, set velocity, dispersion, newStaticJac
-
-			if (wantJac) {
-
-				if (!wantRes || _disc.newStaticJac) {
-
-					success = _convDispOp.calcTransportJacobian(*this, t, secIdx, _jac, _jacInlet, 0, y_);
-
-					_disc.newStaticJac = false;
-				}
+			if (wantRes)
+			{
+				Eigen::Map<Eigen::Vector<ResidualType, Dynamic>> resi(res_, numDofs());
+				resi.setZero();
+				_convDispOp.residual(*this, t, secIdx, y_, yDot_, res_, typename cadet::ParamSens<ParamType>::enabled());
+			}
+			if (wantJac)
+			{
+				_jac.coeffs().setZero();
+				success = _convDispOp.calcTransportJacobian(*this, t, secIdx, _jac, _jacInlet, 0, y_);
 
 				if (cadet_unlikely(!success))
 					LOG(Error) << "Jacobian pattern did not fit the Jacobian estimation";
-
 			}
-
-			/*	Compute bulk convection dispersion residual	*/
-			if (wantRes)
-				_convDispOp.residual(*this, t, secIdx, y_, yDot_, res_, typename cadet::ParamSens<ParamType>::enabled());
 
 			/* Compute binding, reaction residual */
 

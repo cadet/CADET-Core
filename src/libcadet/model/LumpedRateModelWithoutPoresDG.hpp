@@ -238,7 +238,6 @@ namespace cadet
 				unsigned int strideBound; //!< Total number of bound states
 
 				int curSection; //!< current section index
-				bool newStaticJac; //!< determines wether static analytical jacobian needs to be computed (every section)
 			
 				~Discretization() // make sure this memory is freed correctly
 				{
@@ -384,7 +383,6 @@ namespace cadet
 
 				if (_disc.curSection != secIdx) {
 					_disc.curSection = secIdx;
-					_disc.newStaticJac = true;
 				}
 			}
 
