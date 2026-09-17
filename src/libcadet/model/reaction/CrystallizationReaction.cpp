@@ -18,6 +18,8 @@
 #include "SimulationTypes.hpp"
 #include "linalg/ActiveDenseMatrix.hpp"
 #include "Memory.hpp"
+#include "LoggingUtils.hpp"
+#include "Logging.hpp"
 
 #include <functional>
 #include <algorithm>
@@ -389,6 +391,9 @@ public:
 			_aggregationRateConstant = paramProvider.getDouble("CRY_AGGREGATION_RATE_CONSTANT");
 			_parameters[makeParamId(hashString("CRY_AGGREGATION_RATE_CONSTANT"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_aggregationRateConstant;
 
+			if (static_cast<double>(_aggregationRateConstant) == 0.0)
+				LOG(Warning) << "CRY_MODE enables aggregation, but CRY_AGGREGATION_RATE_CONSTANT is 0.0, i.e. aggregation has no effect";
+
 			_aggregationIndex = paramProvider.getInt("CRY_AGGREGATION_INDEX");
 			if (_aggregationIndex < 0 || _aggregationIndex > 4)
 				throw InvalidParameterException("CRY_AGGREGATION_INDEX needs to be an integer in [0, 4]");
@@ -399,13 +404,15 @@ public:
 				_agg = nullptr;
 			}
 
-			if (_aggregationRateConstant != 0.0)
-				_agg = new detail::AggCoefficients(_binCenters, _bins, _binSizes);
+			_agg = new detail::AggCoefficients(_binCenters, _bins, _binSizes);
 		}
 		if (_mode.hasFragmentation())
 		{
 			_fragRateConstant = paramProvider.getDouble("CRY_FRAGMENTATION_RATE_CONSTANT");
 			_parameters[makeParamId(hashString("CRY_FRAGMENTATION_RATE_CONSTANT"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_fragRateConstant;
+
+			if (static_cast<double>(_fragRateConstant) == 0.0)
+				LOG(Warning) << "CRY_MODE enables fragmentation, but CRY_FRAGMENTATION_RATE_CONSTANT is 0.0, i.e. fragmentation has no effect";
 
 			_fragKernelGamma = paramProvider.getDouble("CRY_FRAGMENTATION_KERNEL_GAMMA");
 			if (_fragKernelGamma <= 1.0)
@@ -421,8 +428,7 @@ public:
 				_frag = nullptr;
 			}
 
-			if (_fragRateConstant != 0.0)
-				_frag = new detail::FragCoefficients(_binCenters, _bins, _fragKernelGamma);
+			_frag = new detail::FragCoefficients(_binCenters, _bins, _fragKernelGamma);
 		}
 
 		return true;
