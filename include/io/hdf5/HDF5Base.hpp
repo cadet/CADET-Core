@@ -34,10 +34,10 @@ class HDF5Base
 {
 public:
 	/// \brief Constructor
-	HDF5Base();
+	inline HDF5Base();
 
 	/// \brief Destructor
-	~HDF5Base() CADET_NOEXCEPT;
+	inline ~HDF5Base() CADET_NOEXCEPT;
 
 	/// \brief Open an HDF5 file
 	inline void openFile(const std::string& fileName, const std::string& mode = "r");
@@ -100,11 +100,11 @@ protected:
 	std::stack<hid_t> _groupsOpened;
 	std::vector<std::string> _groupNames;
 
-	void openGroup(bool forceCreation = false);
-	void closeGroup();
-	std::string getFullGroupName();
+	inline void openGroup(bool forceCreation = false);
+	inline void closeGroup();
+	inline std::string getFullGroupName();
 
-	bool isDataType(const std::string& elementName, hid_t refType);
+	inline bool isDataType(const std::string& elementName, hid_t refType);
 };
 
 
