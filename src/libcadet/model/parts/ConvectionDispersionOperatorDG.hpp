@@ -1226,8 +1226,16 @@ namespace parts
 				Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>> gMap(g + elem * _nNodes, _nNodes, InnerStride<Dynamic>(1));
 				Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>> resMap(res + elem * strideColElement(), _nNodes, InnerStride<Dynamic>(strideColNode()));
 
-				resMap -= 2.0 / static_cast<ResidualType>(_deltaX) * (static_cast<ResidualType>(_QOverEps) * (_invMM_A_times_DT_timesM00[elem] * cMap).template cast<ResidualType>()
-					+ (_invMM_A_times_ST_AD[comp][elem] * gMap).template cast<ResidualType>());
+				if constexpr (std::is_same_v<StateType, double>)
+				{
+					resMap -= 2.0 / static_cast<ResidualType>(_deltaX) * (static_cast<ResidualType>(_QOverEps) * (_invMM_A_times_DT_timesM00[elem] * cMap).template cast<ResidualType>()
+						+ (_invMM_A_times_ST_AD[comp][elem] * gMap).template cast<ResidualType>());
+				}
+				else
+				{
+					resMap -= 2.0 / static_cast<ResidualType>(_deltaX) * (static_cast<ResidualType>(_QOverEps) * (_invMM_A_times_DT_timesM00[elem].template cast<ResidualType>() * cMap)
+						+ (_invMM_A_times_ST_AD[comp][elem].template cast<ResidualType>() * gMap));
+				}
 			}
 		}
 
