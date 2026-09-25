@@ -621,6 +621,17 @@ void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& si
 		}
 	}
 
+	// Consistent sensitivity initialization may alter dynamic outlet sensitivities.
+	// Update the coupling sensitivities so that all inlet sensitivity DOFs reflect the final outlet sensitivities.
+	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	{
+		double* const vsy = vecSensY[param];
+		for (unsigned int i = finalOffset; i < numDofs(); ++i)
+			vsy[i] = -adRes[i].getADValue(param);
+
+		solveCouplingDOF(vsy);
+	}
+
 	for (unsigned int i = 0; i < vecSensY.size(); ++i)
 	{
 		double* const vsyd = vecSensYdot[i];
