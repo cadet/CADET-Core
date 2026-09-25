@@ -76,7 +76,7 @@ add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp Unit
 	ConvectionDispersionOperatorFV.cpp
 	CellKernelTests.cpp
 	BindingModelTests.cpp BindingModels.cpp BindingModelAutoJacobian.cpp
-	ReactionModelTests.cpp ReactionModels.cpp
+	ReactionModelTests.cpp ReactionModels.cpp ConservedMoieties.cpp
 	ParamDepTests.cpp ParameterDependencies.cpp
 	ModelSystem.cpp
 	BandMatrix.cpp DenseMatrix.cpp SparseMatrix.cpp StringHashing.cpp LogUtils.cpp AD.cpp Subset.cpp Graph.cpp
@@ -144,4 +144,3 @@ unset(TEST_ADDITIONAL_SOURCES)
 
 # Info message
 message(STATUS "Added tests")
-
