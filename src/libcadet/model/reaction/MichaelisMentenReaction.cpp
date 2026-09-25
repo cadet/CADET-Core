@@ -37,7 +37,6 @@
             
             { "type": "ComponentDependentReactionDependentParameter", "varName": "kInhibitComp", "confName": "MM_KI_C"},
             { "type": "ComponentDependentReactionDependentParameter", "varName": "kInhibitUnComp", "confName": "MM_KI_UC"},
-            { "type": "ComponentDependentReactionDependentParameter", "varName": "kInhibit", "confName": "MM_KI"},
             { "type": "ComponentDependentReactionDependentParameter", "varName": "KPrefactor", "confName": "MM_PRE_K"}
         ]
 }
@@ -152,7 +151,7 @@ public:
 		return true;
 	}
 	virtual unsigned int numReactions() const CADET_NOEXCEPT { return _stoichiometry.columns(); }
-	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return 0; }
+	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometry.columns(); }
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return 0; }
 
     CADET_DYNAMICREACTIONMODEL_BOILERPLATE
@@ -248,30 +247,46 @@ protected:
                 // Pre-identify inhibitors for each substrate in this reaction
                 const size_t numSubstrates = idxSubstrateReaction_r.size();
 
-                _idxCompInhibitors[r].resize(numSubstrates);
-                _idxUncompInhibitors[r].resize(numSubstrates);
-
-                for (size_t subIdx = 0; subIdx < numSubstrates; ++subIdx)
+                 _idxCompInhibitors[r].resize(numSubstrates);
+                if (KIC.size() > 0)
                 {
-                    int j = idxSubstrateReaction_r[subIdx]; // Substrate index
-                    std::unordered_set<int> compInhibitors;
-                    std::unordered_set<int> uncompInhibitors;
-
-                    for (unsigned int k = 0; k < _nComp; ++k)
+                    for (size_t subIdx = 0; subIdx < numSubstrates; ++subIdx)
                     {
-                        const unsigned int paramIdx = get3DParamIndex(r, j, k);
-                        double kIC = static_cast<double>(KIC[paramIdx]);
-                        double kIUC = static_cast<double>(KIUC[paramIdx]);
+                        int j = idxSubstrateReaction_r[subIdx]; // Substrate index
+                        std::unordered_set<int> compInhibitors;
 
-                        if (kIC > 0.0)
-                            compInhibitors.insert(static_cast<int>(k));
+                        for (unsigned int k = 0; k < _nComp; ++k)
+                        {
+                            const unsigned int paramIdx = get3DParamIndex(r, j, k);
+                            double kIC = static_cast<double>(KIC[paramIdx]);
 
-                        if (kIUC > 0.0)
-                            uncompInhibitors.insert(static_cast<int>(k));
+                            if (kIC > 0.0)
+                                compInhibitors.insert(static_cast<int>(k));
+
+                        }
+                        _idxCompInhibitors[r][subIdx] = std::move(compInhibitors);
                     }
+                }
 
-                    _idxCompInhibitors[r][subIdx] = std::move(compInhibitors);
-                    _idxUncompInhibitors[r][subIdx] = std::move(uncompInhibitors);
+                _idxUncompInhibitors[r].resize(numSubstrates);
+                if (KIUC.size() > 0)
+                {
+                    for (size_t subIdx = 0; subIdx < numSubstrates; ++subIdx)
+                    {
+                        int j = idxSubstrateReaction_r[subIdx]; // Substrate index
+                        std::unordered_set<int> uncompInhibitors;
+
+                        for (unsigned int k = 0; k < _nComp; ++k)
+                        {
+                            const unsigned int paramIdx = get3DParamIndex(r, j, k);
+                            double kIUC = static_cast<double>(KIUC[paramIdx]);
+
+                            if (kIUC > 0.0)
+                                uncompInhibitors.insert(static_cast<int>(k));
+                        }
+
+                        _idxUncompInhibitors[r][subIdx] = std::move(uncompInhibitors);
+                    }
                 }
 
             }
@@ -340,8 +355,11 @@ protected:
                 // Calculate substrate contribution to production rate
                 const flux_t numerator = y[j];
                 const flux_t denominator = (kMM_j * (1.0 + compInhSum)) + y[j] * (1.0 + uncompInhSum);
-
-                vProd *= numerator / denominator;
+                
+                if (denominator > 1e-10)
+                    vProd *= numerator / denominator;
+                else
+                    vProd = 0.0;
             }
 
             // Multiplication with vMax
@@ -419,7 +437,9 @@ protected:
                 // Calculate substrate term
                 const double numerator = y[j];
                 const double denominator = (kMM_j * (1.0 + compInhSum)) + y[j] * (1.0 + uncompInhSum);
-                const double subValue = numerator / denominator;
+                double subValue = 0.0;
+                if (denominator > 1e-10)
+                    subValue = numerator / denominator;
 
                 substratValues[subIdx] = subValue;
                 flux *= subValue;
@@ -479,11 +499,14 @@ protected:
                     const double denominator = (kMM_j * (1.0 + compInhSum)) + y[j] * (1.0 + uncompInhSum);
 
                     // Derivative dv/dj for a substrate j
-                    const double dsubs_dj = (kMM_j * (1.0 + compInhSum)) / (denominator * denominator);
+                    double dsubs_dj = 0.0;
+                    if (denominator > 1e-15)
+                        dsubs_dj = (kMM_j * (1.0 + compInhSum)) / (denominator * denominator);
 
                     // Calculate total derivative for the substrate
                     const double factor_j = flux / substratValues[substrateIdx];
-                    dvdy += factor_j * dsubs_dj;
+                    if ( dsubs_dj > 0)
+                        dvdy += factor_j * dsubs_dj;
                 }
 
                 // Case 2: Check for each substrate if this component is an inhibitor
@@ -513,10 +536,15 @@ protected:
                         const double denominator = (kMM_j * (1.0 + compInhSum)) + y[j] * (1.0 + uncompInhSum);
 
                         // Derivative for competitive inhibition
-                        const double dsubs_di_comp = -y[j] * kMM_j * kICinv / (denominator * denominator);
+                        double dsubs_di_comp = 0.0;
+                        if (denominator > 1e-10)
+                            dsubs_di_comp = -y[j] * kMM_j * kICinv / (denominator * denominator);
 
                         // Calculate total derivative for the competitive inhibitor
-                        const double factor_i = flux / substratValues[subIdx];
+                        double factor_i = 0.0;
+                        if (substratValues[subIdx] > 0.0)
+                            factor_i = flux / substratValues[subIdx];
+                        
                         dvdy += factor_i * dsubs_di_comp;
                     }
 
