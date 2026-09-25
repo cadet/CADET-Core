@@ -1,7 +1,7 @@
 // =============================================================================
 //  CADET - The Chromatography Analysis and Design Toolkit
 //
-//  Copyright © 2008-present: The CADET-Core Authors
+//  Copyright Â© 2008-present: The CADET-Core Authors
 //            Please see the AUTHORS.md file.
 //
 //  All rights reserved. This program and the accompanying materials
@@ -37,7 +37,7 @@
             
             { "type": "ComponentDependentReactionDependentParameter", "varName": "kInhibitComp", "confName": "MM_KI_C"},
             { "type": "ComponentDependentReactionDependentParameter", "varName": "kInhibitUnComp", "confName": "MM_KI_UC"},
-            { "type": "ComponentDependentReactionDependentParameter", "varName": "kInhibit", "confName": "MM_KI"}
+            { "type": "ComponentDependentReactionDependentParameter", "varName": "KPrefactor", "confName": "MM_PRE_K"}
         ]
 }
 </codegen>*/
@@ -48,8 +48,7 @@
  MM_KMM     - Michaelis-Menten constant for each component (dim: number of reactions x number of components)
  MM_KI_C    - Competitive inhibition constants (\tilde{K}_{i,j,k}) ( dim: number of reactions x number of components x number of componetns)
  MM_KI_UC   - Uncompetitive inhibition constants (K_{i,j,k}) (dim: number of reactions x number of components x number of componetns)
- MM_KI      - Old interface for non competitive inhibition constants (K_{i,k}) (dim: number of reactions x number of components) 
-                In the new interface non competative inhibition is initialized with \tilde{K}_{i,j,k} = K_{i,j,k}
+ MM_PRE_K   - Prefactor component influcence constant (dim: number of reactions x number of components)
 */
 
 
@@ -152,7 +151,7 @@ public:
 		return true;
 	}
 	virtual unsigned int numReactions() const CADET_NOEXCEPT { return _stoichiometry.columns(); }
-	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return 0; }
+	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return _stoichiometry.columns(); }
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return 0; }
 
     CADET_DYNAMICREACTIONMODEL_BOILERPLATE
@@ -164,60 +163,38 @@ protected:
     std::vector<std::vector<int>> _idxSubstrate; //!< Indices of substrate components for each reaction [reaction][substrate indices]
     std::vector<std::vector<std::unordered_set<int>>> _idxCompInhibitors; //!< Indices of competitive inhibitors [reaction][substrate][inhibitor indices]
     std::vector<std::vector<std::unordered_set<int>>> _idxUncompInhibitors; //!< Indices of uncompetitive inhibitors [reaction][substrate][inhibitor indices]
-    bool _oldInterface;
 
     // Helper function to calculate the parameter index for inhibition
-    inline unsigned int getInhibitionParamIndex(unsigned int reaction, int substrate, unsigned int inhibitor, bool oldInterface) const
+    inline unsigned int get3DParamIndex(unsigned int reaction, int substrate, unsigned int inhibitor) const
     {
         // Calculate 3D parameter index: (reaction, substrate, inhibitor)
-        if (!oldInterface)
             return (reaction * _nComp + static_cast<unsigned int>(substrate)) * _nComp + inhibitor;
-        else
-            return reaction * _nComp + inhibitor;
     }
 
     // Helper function to calculate the parameter index for km value
-    inline unsigned int getKmmParamIndex(unsigned int reaction, int substrate, bool oldInterface) const
+    inline unsigned int get2DParamIndex(unsigned int reaction, int substrate) const
     {
         // Calculate 2D parameter index: (reaction, substrate)
-        if (!oldInterface)
-            return (reaction * _nComp + static_cast<unsigned int>(substrate));
-        else
-            return reaction;
+        return (reaction * _nComp + static_cast<unsigned int>(substrate));
     }
 
     virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
     {
         _paramHandler.configure(paramProvider, _stoichiometry.columns(), _nComp, _nBoundStates);
         _paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
-        _oldInterface = false;
-
-        // handle old interface
-        // - kmm is the number of reactions 
-        // - kI refers to the non competative inhibition konstants
-        if (((_stoichiometry.columns() > 0) && (_paramHandler.kMM().size() == _stoichiometry.columns())) || (paramProvider.exists("MM_KI")))
-        {
-            _oldInterface = true;
-            LOG(Warning) << "MM_KI is only is only supported for backwards compatibility, but the implementation of Michaelis Menten kinetics has changed, please refer to the documentation for CADET version >= 5.2.0";
-        }
 
         // Parameter validations
         if ((_stoichiometry.columns() > 0) && ((_paramHandler.vMax().size() < _stoichiometry.columns())))
             throw InvalidParameterException("MM_VMAX have to have the size (number of reactions)");
 
-        if (_oldInterface && (_stoichiometry.columns() > 0) && (_paramHandler.kMM().size() < _stoichiometry.columns()))
-            throw InvalidParameterException("MM_KMM have to have the size (number of reactions)");
-
-        if (!_oldInterface && (_stoichiometry.columns() > 0) && (_paramHandler.kMM().size() < _stoichiometry.columns() * _nComp))
-            throw InvalidParameterException("MM_KMM must have the size (number of reactions) x (number of components)");
-
         // kInhibitComp and kInhibitUnComp are 3D parameters with size (number of reactions) x (number of substrates) x (number of components)
         if (paramProvider.exists("MM_STOICHIOMETRY"))
         {
             const std::vector<double> s = paramProvider.getDoubleArray("MM_STOICHIOMETRY");
-            std::vector<double> KIC(_stoichiometry.columns() * _nComp * _nComp); 
-            std::vector<double> KIUC(_stoichiometry.columns() * _nComp * _nComp);
-//            bool hasCompetiveInhibition = false;
+            std::vector<double> KIC(0.0, _stoichiometry.columns() * _nComp * _nComp); 
+            std::vector<double> KIUC(0.0,_stoichiometry.columns() * _nComp * _nComp);
+            std::vector<double> PRE_K(0.0, _stoichiometry.columns() * _nComp);
+            //bool hasCompetiveInhibition = false;
             
             if (paramProvider.exists("MM_KI_C"))
             {
@@ -232,13 +209,14 @@ protected:
                 if (KIUC.size() != _stoichiometry.columns() * _nComp * _nComp)
                     throw InvalidParameterException("MM_KI_UC must have the size (number of reactions) x (number of components) x (number of components)");
             }
-            if (paramProvider.exists("MM_KI"))
+            
+            if (paramProvider.exists("MM_PRE_K"))
             {
-                KIUC = paramProvider.getDoubleArray("MM_KI");
-                KIC = paramProvider.getDoubleArray("MM_KI");
+                PRE_K = paramProvider.getDoubleArray("MM_PRE_K");
+                if (PRE_K.size() != _stoichiometry.columns() * _nComp)
+                    throw InvalidParameterException("MM_PRE_K must have the size (number of reactions) x (number of components) ");
             }
-
-
+            
             if (s.size() != _stoichiometry.elements())
                 throw InvalidParameterException("MM_STOICHIOMETRY size mismatch: Expected " +
                     std::to_string(_stoichiometry.elements()) + " elements but got " + std::to_string(s.size()));
@@ -250,10 +228,11 @@ protected:
             _idxSubstrate.clear();
             _idxCompInhibitors.resize(nReactions);
             _idxUncompInhibitors.resize(nReactions);
-
+            
             for (unsigned int r = 0; r < nReactions; ++r)
             {
                 std::vector<int> idxSubstrateReaction_r;
+
                 for (unsigned int c = 0; c < _nComp; ++c)
                 {
                     if (_stoichiometry.native(c, r) < 0.0)
@@ -262,44 +241,56 @@ protected:
 
                 if (idxSubstrateReaction_r.empty())
                     throw InvalidParameterException("Michaelis Menten: No substrates found for reaction " + std::to_string(r));
-                if (idxSubstrateReaction_r.size() > 1 && _oldInterface)
-                    throw InvalidParameterException("Michaelis Menten: The old interface is used which does not support multiple substrats. Please refer to the documentation of CADET version >= 5.2.0");
 
                 _idxSubstrate.push_back(idxSubstrateReaction_r);
 
                 // Pre-identify inhibitors for each substrate in this reaction
                 const size_t numSubstrates = idxSubstrateReaction_r.size();
 
-
-                _idxCompInhibitors[r].resize(numSubstrates);
-                _idxUncompInhibitors[r].resize(numSubstrates);
-
-                for (size_t subIdx = 0; subIdx < numSubstrates; ++subIdx)
+                 _idxCompInhibitors[r].resize(numSubstrates);
+                if (KIC.size() > 0)
                 {
-                    int j = idxSubstrateReaction_r[subIdx]; // Substrate index
-                    std::unordered_set<int> compInhibitors;
-                    std::unordered_set<int> uncompInhibitors;
-
-                    for (unsigned int k = 0; k < _nComp; ++k)
+                    for (size_t subIdx = 0; subIdx < numSubstrates; ++subIdx)
                     {
-                        const unsigned int paramIdx = getInhibitionParamIndex(r, j, k, _oldInterface);
-                        double kIC = static_cast<double>(KIC[paramIdx]);
-                        double kIUC = static_cast<double>(KIUC[paramIdx]);
+                        int j = idxSubstrateReaction_r[subIdx]; // Substrate index
+                        std::unordered_set<int> compInhibitors;
 
-                        if (kIC > 0.0)
-                            compInhibitors.insert(static_cast<int>(k));
+                        for (unsigned int k = 0; k < _nComp; ++k)
+                        {
+                            const unsigned int paramIdx = get3DParamIndex(r, j, k);
+                            double kIC = static_cast<double>(KIC[paramIdx]);
 
-                        if (kIUC > 0.0)
-                            uncompInhibitors.insert(static_cast<int>(k));
+                            if (kIC > 0.0)
+                                compInhibitors.insert(static_cast<int>(k));
+
+                        }
+                        _idxCompInhibitors[r][subIdx] = std::move(compInhibitors);
                     }
+                }
 
-                    _idxCompInhibitors[r][subIdx] = std::move(compInhibitors);
-                    _idxUncompInhibitors[r][subIdx] = std::move(uncompInhibitors);
+                _idxUncompInhibitors[r].resize(numSubstrates);
+                if (KIUC.size() > 0)
+                {
+                    for (size_t subIdx = 0; subIdx < numSubstrates; ++subIdx)
+                    {
+                        int j = idxSubstrateReaction_r[subIdx]; // Substrate index
+                        std::unordered_set<int> uncompInhibitors;
+
+                        for (unsigned int k = 0; k < _nComp; ++k)
+                        {
+                            const unsigned int paramIdx = get3DParamIndex(r, j, k);
+                            double kIUC = static_cast<double>(KIUC[paramIdx]);
+
+                            if (kIUC > 0.0)
+                                uncompInhibitors.insert(static_cast<int>(k));
+                        }
+
+                        _idxUncompInhibitors[r][subIdx] = std::move(uncompInhibitors);
+                    }
                 }
 
             }
         }
-
         registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MM_STOICHIOMETRY", _stoichiometry);
         return true;
     }
@@ -318,7 +309,20 @@ protected:
         {
             unsigned int nSub = _idxSubstrate[r].size();
             flux_t vProd = 1.0;
-
+            flux_t preProd = 1.0;
+            for (unsigned int rowIdx = 0; rowIdx < static_cast<unsigned int>(_stoichiometry.rows()); ++rowIdx)
+            {
+                if (p->KPrefactor.size() != 0) 
+                {
+                    unsigned int prekIdx = get2DParamIndex(r, static_cast<unsigned int>(rowIdx));
+                    ParamType pre_k_j = static_cast<ParamType>(p->KPrefactor[prekIdx]);
+                    bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
+                    if (isSubstrate)
+                        throw InvalidParameterException("Michaelis Menten residual: Prefactor component should not be a substrate");
+                    if (pre_k_j != 0 && !isSubstrate)
+                        preProd *= pre_k_j * y[rowIdx];
+                }
+            }
             // Product over all substrates
             for (unsigned int subIdx = 0; subIdx < nSub; ++subIdx)
             {
@@ -328,16 +332,9 @@ protected:
                 flux_t compInhSum = 0.0;
                 for (int k : _idxCompInhibitors[r][subIdx])
                 {
-                    const unsigned int paramIdx = getInhibitionParamIndex(r, j, static_cast<unsigned int>(k), _oldInterface);
+                    const unsigned int paramIdx = get3DParamIndex(r, j, static_cast<unsigned int>(k));
 
-
-                    flux_t kIC = 0.0;
-                    if (!_oldInterface)
-                        kIC = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kInhibitComp[paramIdx]);
-                    else
-                        kIC = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kInhibit[paramIdx]);
-
-
+                    flux_t kIC = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kInhibitComp[paramIdx]);
                     compInhSum += y[k] / kIC;
                 }
 
@@ -345,32 +342,29 @@ protected:
                 flux_t uncompInhSum = 0.0;
                 for (int k : _idxUncompInhibitors[r][subIdx])
                 {
-                    const unsigned int paramIdx = getInhibitionParamIndex(r, j, static_cast<unsigned int>(k), _oldInterface);
-
-                    flux_t kIU = 0.0;
-                    if (!_oldInterface)
-                        kIU = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kInhibitUnComp[paramIdx]);
-                    else
-                        kIU = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kInhibit[paramIdx]);
-
+                    const unsigned int paramIdx = get3DParamIndex(r, j, static_cast<unsigned int>(k));
+                    flux_t kIU = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kInhibitUnComp[paramIdx]);
                     uncompInhSum += y[k] / kIU;
                 }
 
                 // KMM for this substrate
 
-                const unsigned int kmmIdx = getKmmParamIndex(r, static_cast<unsigned int>(j), _oldInterface);
+                const unsigned int kmmIdx = get2DParamIndex(r, static_cast<unsigned int>(j));
                 const flux_t kMM_j = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kMM[kmmIdx]);
 
                 // Calculate substrate contribution to production rate
                 const flux_t numerator = y[j];
                 const flux_t denominator = (kMM_j * (1.0 + compInhSum)) + y[j] * (1.0 + uncompInhSum);
-
-                vProd *= numerator / denominator;
+                
+                if (denominator > 1e-10)
+                    vProd *= numerator / denominator;
+                else
+                    vProd = 0.0;
             }
 
             // Multiplication with vMax
-            const flux_t vMax = static_cast<typename DoubleActiveDemoter<flux_t, active>::type>(p->vMax[r]);
-            fluxes[r] = vMax * vProd;
+            const flux_t vMax = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->vMax[r]);
+            fluxes[r] = preProd * vMax * vProd;
         }
 
         // Add reaction terms to residual
@@ -406,6 +400,7 @@ protected:
             std::vector<double> substratValues(nSub);    // Values for each substrate term
             std::vector<double> compInhSums(nSub, 0.0);  // Competitive inhibition sums
             std::vector<double> uncompInhSums(nSub, 0.0); // Uncompetitive inhibition sums
+
             double flux = 1.0; // Total flux
 
             // Calculate inhibition sums and substrate values
@@ -417,14 +412,9 @@ protected:
                 double compInhSum = 0.0;
                 for (int k : _idxCompInhibitors[r][subIdx])
                 {
-                    const unsigned int paramIdx = getInhibitionParamIndex(r, j, static_cast<unsigned int>(k), _oldInterface);
+                    const unsigned int paramIdx = get3DParamIndex(r, j, static_cast<unsigned int>(k));
 
-                    double kIC = 0.0;
-                    if (!_oldInterface)
-                        kIC = static_cast<double>(p->kInhibitComp[paramIdx]);
-                    else
-                        kIC = static_cast<double>(p->kInhibit[paramIdx]);
-
+                    double kIC =  static_cast<double>(p->kInhibitComp[paramIdx]);
                     compInhSum += y[k] / kIC;
                 }
                 compInhSums[subIdx] = compInhSum;
@@ -433,34 +423,47 @@ protected:
                 double uncompInhSum = 0.0;
                 for (int k : _idxUncompInhibitors[r][subIdx])
                 {
-                    const unsigned int paramIdx = getInhibitionParamIndex(r, j, static_cast<unsigned int>(k), _oldInterface);
+                    const unsigned int paramIdx = get3DParamIndex(r, j, static_cast<unsigned int>(k));
 
-                    double kIU = 0.0;
-                    if (!_oldInterface)
-                        kIU = static_cast<double>(p->kInhibitUnComp[paramIdx]);
-                    else
-                        kIU = static_cast<double>(p->kInhibit[paramIdx]);
-
+                    double kIU = static_cast<double>(p->kInhibitUnComp[paramIdx]);
                     uncompInhSum += y[k] / kIU;
                 }
                 uncompInhSums[subIdx] = uncompInhSum;
 
                 // KMM for this substrate
-                const unsigned int kmmIdx = getKmmParamIndex(r, static_cast<unsigned int>(j), _oldInterface);
+                const unsigned int kmmIdx = get2DParamIndex(r, static_cast<unsigned int>(j));
                 const double kMM_j = static_cast<double>(p->kMM[kmmIdx]);
 
                 // Calculate substrate term
                 const double numerator = y[j];
                 const double denominator = (kMM_j * (1.0 + compInhSum)) + y[j] * (1.0 + uncompInhSum);
-                const double subValue = numerator / denominator;
+                double subValue = 0.0;
+                if (denominator > 1e-10)
+                    subValue = numerator / denominator;
 
                 substratValues[subIdx] = subValue;
                 flux *= subValue;
             }
-
+			//  Calculate pre-factor product
+            double preProd = 1.0;
+            
+            for (unsigned int rowIdx = 0; rowIdx < static_cast<unsigned int>(_stoichiometry.rows()); ++rowIdx)
+            {
+                if (p->KPrefactor.size() != 0) 
+                {
+                    unsigned int prekIdx = get2DParamIndex(r, static_cast<unsigned int>(rowIdx));
+                    double pre_k_j = static_cast<double>(p->KPrefactor[prekIdx]);
+                    bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
+                    if (isSubstrate)
+                        throw InvalidParameterException("Michaelis Menten jacobian: Prefactor component should not be a substrate");
+                    if (pre_k_j != 0 && !isSubstrate)
+                        preProd *= pre_k_j * y[rowIdx];
+                    
+                }
+            }
             // Multiplication with vMax
             const double vMax = static_cast<double>(p->vMax[r]);
-            flux *= vMax;
+            flux *= preProd * vMax;
 
             // Calculate Jacobian derivatives for all components
             for (unsigned int comp = 0; comp < _nComp; ++comp)
@@ -485,7 +488,7 @@ protected:
                     int j = static_cast<int>(comp); // Component is substrate j
 
                     // KMM for this substrate
-                    const unsigned int kmmIdx = getKmmParamIndex(r, comp, _oldInterface);
+                    const unsigned int kmmIdx = get2DParamIndex(r, comp);
                     const double kMM_j = static_cast<double>(p->kMM[kmmIdx]);
 
                     // Inhibition sums
@@ -496,11 +499,14 @@ protected:
                     const double denominator = (kMM_j * (1.0 + compInhSum)) + y[j] * (1.0 + uncompInhSum);
 
                     // Derivative dv/dj for a substrate j
-                    const double dsubs_dj = (kMM_j * (1.0 + compInhSum)) / (denominator * denominator);
+                    double dsubs_dj = 0.0;
+                    if (denominator > 1e-15)
+                        dsubs_dj = (kMM_j * (1.0 + compInhSum)) / (denominator * denominator);
 
                     // Calculate total derivative for the substrate
                     const double factor_j = flux / substratValues[substrateIdx];
-                    dvdy += factor_j * dsubs_dj;
+                    if ( dsubs_dj > 0)
+                        dvdy += factor_j * dsubs_dj;
                 }
 
                 // Case 2: Check for each substrate if this component is an inhibitor
@@ -511,18 +517,15 @@ protected:
                     // Check if comp is a competitive inhibitor for substrate j
                     if (_idxCompInhibitors[r][subIdx].count(static_cast<int>(comp)) > 0)
                     {
-                        const unsigned int paramIdx = getInhibitionParamIndex(r, j, comp, _oldInterface);
+                        const unsigned int paramIdx = get3DParamIndex(r, j, comp);
 
                         double kIC = 0.0;
-                        if (!_oldInterface)
-                            kIC = static_cast<double>(p->kInhibitComp[paramIdx]);
-                        else
-                            kIC = static_cast<double>(p->kInhibit[paramIdx]);
+                        kIC = static_cast<double>(p->kInhibitComp[paramIdx]);
 
                         const double kICinv = 1.0 / kIC;
 
                         // KMM for this substrate
-                        const unsigned int kmmIdx = getKmmParamIndex(r, static_cast<unsigned int>(j), _oldInterface);
+                        const unsigned int kmmIdx = get2DParamIndex(r, static_cast<unsigned int>(j));
                         const double kMM_j = static_cast<double>(p->kMM[kmmIdx]);
 
                         // Inhibition sums
@@ -533,29 +536,28 @@ protected:
                         const double denominator = (kMM_j * (1.0 + compInhSum)) + y[j] * (1.0 + uncompInhSum);
 
                         // Derivative for competitive inhibition
-                        const double dsubs_di_comp = -y[j] * kMM_j * kICinv / (denominator * denominator);
+                        double dsubs_di_comp = 0.0;
+                        if (denominator > 1e-10)
+                            dsubs_di_comp = -y[j] * kMM_j * kICinv / (denominator * denominator);
 
                         // Calculate total derivative for the competitive inhibitor
-                        const double factor_i = flux / substratValues[subIdx];
+                        double factor_i = 0.0;
+                        if (substratValues[subIdx] > 0.0)
+                            factor_i = flux / substratValues[subIdx];
+                        
                         dvdy += factor_i * dsubs_di_comp;
                     }
 
                     // Check if comp is an uncompetitive inhibitor for substrate j
                     if (_idxUncompInhibitors[r][subIdx].count(static_cast<int>(comp)) > 0)
                     {
-                        const unsigned int paramIdx = getInhibitionParamIndex(r, j, comp, _oldInterface);
+                        const unsigned int paramIdx = get3DParamIndex(r, j, comp);
 
-
-                        double kIU = 0.0;
-                        if (!_oldInterface)
-                            kIU = static_cast<double>(p->kInhibitUnComp[paramIdx]);
-                        else
-                            kIU = static_cast<double>(p->kInhibit[paramIdx]);
-
+                        double kIU = static_cast<double>(p->kInhibitUnComp[paramIdx]);
                         const double kIUinv = 1.0 / kIU;
 
                         // KMM for this substrate
-                        const unsigned int kmmIdx = getKmmParamIndex(r, static_cast<unsigned int>(j), _oldInterface);
+                        const unsigned int kmmIdx = get2DParamIndex(r, static_cast<unsigned int>(j));
                         const double kMM_j = static_cast<double>(p->kMM[kmmIdx]);
 
                         // Inhibition sums
@@ -574,6 +576,17 @@ protected:
                     }
                 }
 
+				// Check for pre-factor contribution
+                if (!isSubstrate)
+                {
+                    if ((p->KPrefactor.size() != 0) && y[comp] != 0.0) {
+                        unsigned int prekIdx = get2DParamIndex(r, static_cast<unsigned int>(comp));
+                        double pre_k_j = static_cast<double>(p->KPrefactor[prekIdx]);
+                        if (pre_k_j != 0.0)
+                            dvdy += flux / y[comp];
+                    }
+                
+                }
                 if (std::abs(dvdy) < 1e-12)
                     continue;
 
