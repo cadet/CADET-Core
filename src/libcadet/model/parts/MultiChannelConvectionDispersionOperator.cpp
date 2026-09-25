@@ -1196,7 +1196,7 @@ void MultiChannelConvectionDispersionOperator::setSparsityPattern()
 
 						const unsigned int idxCur_orig = idxColRadBlock_orig + comp;
 						const unsigned int idxCur_dest = idxColRadBlock_dest + comp;
-						pattern.add(idxCur_orig, idxCur_dest);
+						pattern.add(idxCur_dest, idxCur_orig);
 					}
 				}
 			}

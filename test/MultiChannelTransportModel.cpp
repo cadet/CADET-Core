@@ -531,8 +531,7 @@ TEST_CASE("MCT compare AD with analytical Jacobian for 2 channels and linear exc
 	cadet::JsonParameterProvider jpp = createMCT({ 1.0, 1.0 }, { 1.0, 1.0 }, { 1.0, 0.2 }, { 1.0, 1.0 }, { 0.0, 0.01, 0.0, 0.0 }, 1e-4); // increased col dispersion so that jacobian entries are above tolerances
 	jpp.pushScope("model");
 	jpp.pushScope("unit_000");
-	const double FDtolerance = 0.02; // large tolerance to effectively disable FD pattern check, which fails with 0.0 != -0.01
-	cadet::test::column::testJacobianAD(jpp, FDtolerance);
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon());
 }
 
 TEST_CASE("MCT compare AD with analytical Jacobian for 2 channels with opposing flow directions and linear exchange", "[MCT],[UnitOp],[Jacobian],[CI]")
@@ -540,8 +539,7 @@ TEST_CASE("MCT compare AD with analytical Jacobian for 2 channels with opposing 
 	cadet::JsonParameterProvider jpp = createMCT({ 1.0, 1.0 }, { 1.0, -1.0 }, { 1.0, 0.2 }, { 1.0, 1.0 }, { 0.0, 0.01, 0.0, 0.0 }, 1e-4); // increased col dispersion so that jacobian entries are above tolerances
 	jpp.pushScope("model");
 	jpp.pushScope("unit_000");
-	const double FDtolerance = 0.02; // large tolerance to effectively disable FD pattern check, which fails with 0.0 != -0.01
-	cadet::test::column::testJacobianAD(jpp, FDtolerance);
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon());
 }
 
 TEST_CASE("MCT time derivative Jacobian vs FD", "[MCT],[UnitOp],[Residual],[Jacobian],[CI],[FD]")
@@ -617,8 +615,7 @@ TEST_CASE("MCT compare AD with analytical Jacobian for 2 channels and langmuir e
 	cadet::JsonParameterProvider jpp = createMCT({ 1.0, 1.0 }, { 1.0, 1.0 }, { 1.0, 0.2 }, { 1.0, 1.0 }, { 0.0, 0.01, 0.0, 0.0 }, 1e-4); // increased col dispersion so that jacobian entries are above tolerances
 	jpp.pushScope("model");
 	jpp.pushScope("unit_000");
-	const double FDtolerance = 0.02; // large tolerance to effectively disable FD pattern check, which fails with 0.0 != -0.01
-	cadet::test::column::testJacobianAD(jpp, FDtolerance);
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon());
 }
 
 TEST_CASE("MCT numerical Benchmark comparison with langmuir binding LRM (2 channel with langmuir exchange, no reaction case)", "[MCT],[Simulation],[Reference],[CI]")
