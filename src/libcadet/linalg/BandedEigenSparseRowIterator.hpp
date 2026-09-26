@@ -248,6 +248,7 @@ public:
 	 * @brief Returns the underlying matrix this iterator is pointing into
 	 * @return Matrix this iterator is pointing into
 	 */
+	inline Eigen::SparseMatrix<double, 0x1>& matrix() CADET_NOEXCEPT { return *_matrix; }
 	inline const Eigen::SparseMatrix<double, 0x1>& matrix() const CADET_NOEXCEPT { return *_matrix; }
 
 	/**

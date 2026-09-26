@@ -318,7 +318,11 @@ namespace model
 		if (paramProvider.exists("NREAC_CROSS_PHASE"))
 			dynReactionConfSuccess = _reaction.configure("cross_phase", _parTypeIdx, unitOpIdx, paramProvider) && dynReactionConfSuccess;
 		if (paramProvider.exists("NREAC_LIQUID"))
+		{
 			dynReactionConfSuccess = _reaction.configure("liquid", _parTypeIdx, unitOpIdx, paramProvider) && dynReactionConfSuccess;
+			dynReactionConfSuccess = _reaction.configureConservedMoities("liquid", _nComp, 1e-14) && dynReactionConfSuccess;
+			_cMJacobianEntries.resize(static_cast<std::size_t>(_nComp) * _nComp);
+		}
 		if (paramProvider.exists("NREAC_SOLID"))
 			dynReactionConfSuccess = _reaction.configure("solid", _parTypeIdx, unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
@@ -431,6 +435,56 @@ namespace model
 			}
 		}
 
+		const auto& cm = _reaction.conservedMoieties("liquid");
+		if (wantRes && cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+		{
+			const unsigned int nMoieties = cm.numMoieties();
+
+			BufferedArray<ResidualType> scratchBuffer = tlmAlloc.array<ResidualType>(_nComp);
+			ResidualType* const scratch = static_cast<ResidualType*>(scratchBuffer);
+
+			StateType const* const c =  yPar;
+			ResidualType* const localRes = resPar;
+
+			std::copy_n(localRes, _nComp, scratch);
+			cm.applyToVector(localRes, scratch, _nComp);
+			std::fill_n(localRes + nMoieties, _reaction.conservedMoieties("liquid").numEquilibriumReactions(), 0.0);
+			unsigned int eqIdx = 0;
+			for (auto const* reaction : _reaction.getDynReactionVector("liquid"))
+			{
+				if (!reaction)
+					continue;
+
+				reaction->residualEquilibriumFlux(t, secIdx, packing.colPos, _nComp,
+					c, localRes + nMoieties, eqIdx, tlmAlloc.manageRemainingMemory());
+			}
+			cadet_assert(eqIdx == _reaction.conservedMoieties("liquid").numEquilibriumReactions());
+		}
+
+		if (wantNonLinJac && cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+		{
+
+			const unsigned int nMoieties = cm.numMoieties();
+			auto& jacobian = jacBase.matrix();
+			const std::size_t scratchSize = cm.matrixBufferSize(jacobian, _nComp, jacBase.row(), 0, jacobian.cols());
+			BufferedArray<Eigen::Triplet<double>> scratch = tlmAlloc.array<Eigen::Triplet<double>>(scratchSize);
+
+			cm.applyToMatrix(jacobian, _nComp, jacBase.row(), 0, jacobian.cols(), static_cast<Eigen::Triplet<double>*>(scratch), scratchSize);
+
+			linalg::BandedEigenSparseRowIterator equilibriumJacobian(jacobian, jacBase.row() + nMoieties);
+			unsigned int eqIdx = 0;
+			for (auto const* reaction : _reaction.getDynReactionVector("liquid"))
+			{
+				if (!reaction)
+					continue;
+
+				reaction->analyticEquilibriumJacobian(t, secIdx, packing.colPos, _nComp,
+					reinterpret_cast<double const*>(yPar), eqIdx, nMoieties, equilibriumJacobian, tlmAlloc.manageRemainingMemory());
+			}
+			cadet_assert(eqIdx == _reaction.conservedMoieties("liquid").numEquilibriumReactions());
+
+		}
+
 		return true;
 	}
 
@@ -450,11 +504,19 @@ namespace model
 			tripletList.push_back(Eigen::Triplet<double>(offsetPar + comp, offsetBulk + comp, 0.0));
 			tripletList.push_back(Eigen::Triplet<double>(offsetBulk + comp, offsetPar + comp, 0.0));
 		}
+
+		const auto& cm = _reaction.conservedMoieties("liquid");
+		if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+			cm.addPatternToBlocks(tripletList, _nComp, offsetPar, 1, stridePoint(), offsetBulk, offsetBulk + _nComp);
+
 	}
 
 	unsigned int HomogeneousParticle::jacobianNNZperParticle() const
 	{
-		return (_nComp + _strideBound) * (_nComp + _strideBound) + _nComp * 4; // reaction, binding patter + film diffusion pattern for one particle
+		const auto& cm = _reaction.conservedMoieties("liquid");
+		const unsigned int conservedMoietyEntries = (cm.isEnabled() && cm.numEquilibriumReactions() > 0) ? cm.numMoieties() * _nComp: 0u;
+
+		return (_nComp + _strideBound) * (_nComp + _strideBound) + _nComp * 4 + conservedMoietyEntries;
 	}
 
 	int HomogeneousParticle::calcParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac)
@@ -476,9 +538,26 @@ namespace model
 
 		linalg::BandedEigenSparseRowIterator jacC(globalJac, offsetC);
 		linalg::BandedEigenSparseRowIterator jacP(globalJac, offsetCp);
+		const auto& cm = _reaction.conservedMoieties("liquid");
+		const bool crossDepAndEquilibriumReaction = crossDepsOnly && cm.isEnabled() && (cm.numEquilibriumReactions() > 0);
 
 		for (unsigned int colNode = 0; colNode < nBulkPoints; colNode++, jacP += _strideBound)
 		{
+			const int bulkRowOffset = jacC.row();
+			const int particleRowOffset = jacP.row();
+			if (crossDepAndEquilibriumReaction)
+			{
+				// Remove values left by a previous transformed Jacobian before assembling the raw diagonal block.
+				for (unsigned int state = 0; state < _nComp; ++state)
+				{
+					for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(globalJac, particleRowOffset + state); it; ++it)
+					{
+						if ((it.col() >= bulkRowOffset) && (it.col() < bulkRowOffset + _nComp))
+							it.valueRef() = 0.0;
+					}
+				}
+			}
+
 			// FILM_DIFFUSION_DEP is evaluated pointwise at this bulk point's local velocity
 			// (mass-lumped, same fidelity as FV's own midpoint-rule approximation of this term).
 			// Position is a no-op for the only supported dependency (POWER_LAW), which only uses velocity.
@@ -505,6 +584,9 @@ namespace model
 				// col: go to flux of current parType and adjust for offsetC. jump over previous colNodes and add component offset
 				jacP[jacC.row() - jacP.row()] = jacPF_val / static_cast<double>(poreAccFactor[comp]) * filmDiff_comp;
 			}
+
+			if (crossDepAndEquilibriumReaction)
+				cm.applyToMatrix(globalJac, _nComp, particleRowOffset, bulkRowOffset, bulkRowOffset + _nComp, _cMJacobianEntries.data(), _cMJacobianEntries.size());
 		}
 
 		return 1;

@@ -193,8 +193,6 @@ namespace reaction
 	 */
 	void testTimeDerivativeJacobianDynamicReactionsFD(const std::string& uoType, const std::string& spatialMethod, bool bulk, bool particle, bool particleModifiers, double h, double absTol, double relTol);
 
-	void checkNullSpace(const Eigen::MatrixXd& left, const Eigen::MatrixXd& right);
-	Eigen::MatrixXd conservedMoietiesFromMassActionLaw(unsigned int nComp, const char* config);
 
 
 } // namespace reaction
