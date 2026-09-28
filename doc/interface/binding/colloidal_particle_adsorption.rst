@@ -77,7 +77,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Type:** double                                **Length:** 1
 ===================  =========================  =========================================
 
-``CPA_SURFACE_AREA``
+``CPA_SPECIFIC_SURFACE_AREA``
    Specific adsorber surface area per skeleton volume :math:`A_{s,i}`
 
 **Unit:** :math:`\mathrm{m^{-1}}`

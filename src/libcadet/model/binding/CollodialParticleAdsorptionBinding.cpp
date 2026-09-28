@@ -39,7 +39,7 @@ using std::numbers::pi;
 			{ "type": "ScalarParameter", "varName": "surfaceDensity", "confName": "CPA_SURFACE_DENSITY"},
 			{ "type": "ScalarParameter", "varName": "chargeFullLigand", "confName": "CPA_CHARGE_FULL_LIGAND"},
 			{ "type": "ScalarParameter", "varName": "pKLigand", "confName": "CPA_PK_LIGAND"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "adSurfaceArea", "confName": "CPA_SURFACE_AREA"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "adSurfaceArea", "confName": "CPA_SPECIFIC_SURFACE_AREA"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "compRadius", "confName": "CPA_PROTEIN_RADIUS"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "latCharge", "confName": "CPA_COMP_LAT_CHARGE"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "refCompCharge", "confName": "CPA_COMP_CHARGE_REF"},
@@ -48,7 +48,7 @@ using std::numbers::pi;
 			{ "type": "ScalarParameter", "varName": "refpH", "confName": "CPA_PH_REF"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "refDelta", "confName": "CPA_DELTA_REF"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "linDelta", "confName": "CPA_DELTA_LIN"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "diffCoeff", "confName": "CPA_DIFFUSION_COEFF"}
+			{ "type": "ScalarComponentDependentParameter", "varName": "k_kin", "confName": "CPA_KKIN"}
 		],
 	"constantParameters":
 		[
@@ -59,15 +59,15 @@ using std::numbers::pi;
 
 /* Parameter description
  ------------------------
- CPA_TEMPERATURE:         Temperature [K]
- CPA_IONIC_STRENGTH:      Ionic strength [mol/m^3]
- CPA_PERMITTIVITY:        Relative permittivity [-]
- CPA_SURFACE_DENSITY:     Ligand surface density Gamma_L [mol/m^2]
- CPA_CHARGE_FULL_LIGAND:  Charge of fully protonated ligand zeta_L [-]
- CPA_PK_LIGAND:           pK of the ligand [-]
- CPA_PH:                  Bulk pH [-]
- CPA_SURFACE_AREA:        Specific adsorber surface per skeleton volume A_{s,i} [m^-1] (per component)
- CPA_PROTEIN_RADIUS:      Protein radius a_i [m] (per component)
+ CPA_TEMPERATURE:         	Temperature [K]
+ CPA_IONIC_STRENGTH:      	Ionic strength [mol/m^3]
+ CPA_PERMITTIVITY:        	Relative permittivity [-]
+ CPA_SURFACE_DENSITY:     	Ligand surface density Gamma_L [mol/m^2]
+ CPA_CHARGE_FULL_LIGAND:  	Charge of fully protonated ligand zeta_L [-]
+ CPA_PK_LIGAND:           	pK of the ligand [-]
+ CPA_PH:                  	Bulk pH [-]
+ CPA_SPECIFIC_SURFACE_AREA: Specific adsorber surface per skeleton volume A_{s,i} [m^-1] (per component)
+ CPA_PROTEIN_RADIUS:      	Protein radius a_i [m] (per component)
  CPA_COMP_CHARGE_REF:	
  CPA_COMP_CHARGE_LIN:
  CPA_COMP_CHARGE_QUAD:
@@ -339,8 +339,7 @@ protected:
 			: -log(gammaHp* yCp[_idxProton] * 1e-3) / log(10.0);
 
 		// Solve adsorber surface potential psi_{0,A}
-		const CpStateParamType psiA = solvePsiAdsorber(
-			pH, kappa, GammaL, zetaL, pKL, eps, T);
+		const CpStateParamType psiA = solvePsiAdsorber(pH, kappa, GammaL, zetaL, pKL, eps, T);
 
 		// beta_{i,j}: e^2 / (4*pi*eps*eps0)
 		const ParamType elecPrefactor = e * e / (4.0 * pi * eps * eps0);
@@ -408,8 +407,7 @@ protected:
 
 			// 4. Protein-adsorber interaction: u_{A,i}(delta_{m,i})
 			//    u_{A,i}(z) = pi * a_i * eps * eps0 *
-			//      [ 2*psi_A*psi_i * ln((1+exp(-kappa*z))/(1-exp(-kappa*z)))
-			//        - (psi_A^2 + psi_i^2) * ln(1 - exp(-2*kappa*z)) ]
+			//      [ 2*psi_A*psi_i * ln((1+exp(-kappa*z))/(1-exp(-kappa*z))) - (psi_A^2 + psi_i^2) * ln(1 - exp(-2*kappa*z)) ]
 			const CpStateParamType ekz = exp(-kappa * dm_i);
 			const CpStateParamType uA_i = pi * a_i * eps * eps0 * (
 				2.0 * psiA * psi_i * log((1.0 + ekz) / (1.0 - ekz))
@@ -483,11 +481,10 @@ protected:
 			const CpStateParamType Kv_i = As_i * (dstar_i - dm_i) * KH_i * B_i * exp(-ulat_i / kbT);
 
 			// 9. k_{kin,i} = D_i / (2*Delta^2) * (u_A/(k_bT))^2 / (cosh(u_A/(k_bT)) - 1)
-			const ParamType D_i = static_cast<ParamType>(p->diffCoeff[i]); // Typical protein pore diffusion coefficient [m^2/s]
-			const CpStateParamType kKin_i_star = D_i / (2.0 * (dstar_i - dm_i) * (dstar_i - dm_i));
+			const ParamType k_kin_star = static_cast<ParamType>(p->k_kin[i]); // Typical protein pore diffusion coefficient [m^2/s]
+			//const CpStateParamType kKin_i_star = D_i / (2.0 * (dstar_i - dm_i) * (dstar_i - dm_i));
 			const CpStateParamType uARatio = uA_i / kbT;
-			const CpStateParamType kKin_i = kKin_i_star * uARatio * uARatio / (cosh(uARatio) - 1.0);
-
+			const CpStateParamType kKin_i =  k_kin_star * uARatio * uARatio /  2 * (cosh(uARatio) - 1.0);
 
 			res[bndIdx] = kKin_i * (y[bndIdx] - Kv_i * yCp[i]);
 
@@ -706,12 +703,12 @@ protected:
 			}
 
 			// --- k_{kin,i} ---
-			const double D_i = static_cast<double>(p->diffCoeff[i]);
+			const double k_kin_star = static_cast<double>(p->k_kin[i]);
 			const double Delta_i = dstar_i - dm_i;
-			const double kKin_star = D_i / (2.0 * Delta_i * Delta_i);
+			//const double kKin_star = D_i / (2.0 * Delta_i * Delta_i);
 			const double uAratio = uA_i / kbT;
 			const double coshUA = cosh(uAratio);
-			const double kKin_i = kKin_star * uAratio * uAratio / (coshUA - 1.0);
+			const double kKin_i = 0.5 * k_kin_star * uAratio * uAratio / (coshUA - 1.0);
 
 			// dkKin/duA: let x = uA/kbT, kKin = kKin_star * x^2 / (cosh(x)-1)
 			// d/dx [x^2/(cosh(x)-1)] = [2x(cosh(x)-1) - x^2 sinh(x)] / (cosh(x)-1)^2
@@ -720,7 +717,7 @@ protected:
 			{
 				const double sinhUA = sinh(uAratio);
 				const double coshM1 = coshUA - 1.0;
-				dkKin_duA = kKin_star / kbT * (2.0 * uAratio * coshM1 - uAratio * uAratio * sinhUA) / (coshM1 * coshM1);
+				dkKin_duA = 0.5 * k_kin_star / kbT * (2.0 * uAratio * coshM1 - uAratio * uAratio * sinhUA) / (coshM1 * coshM1);
 			}
 
 			// --- B_i(Theta) ---
@@ -867,8 +864,8 @@ protected:
 				const double dKH_dpH = dKH_duA * duA_dpH;
 
 				// dkKin/dpH: kKin depends on Delta_i and uA_i
-				const double dkKin_dDelta = (std::abs(Delta_i) > 1e-30) ? -2.0 * kKin_i / Delta_i : 0.0;
-				const double dkKin_dpH = dkKin_dDelta * dDelta_dpH + dkKin_duA * duA_dpH;
+				//const double dkKin_dDelta = (std::abs(Delta_i) > 1e-30) ? -2.0 * kKin_i / Delta_i : 0.0;
+				const double dkKin_dpH = dkKin_duA * duA_dpH;
 
 				// dKv/dpH: B_i and ulat_i are independent of pH
 				const double dKv_dpH = As_i * B_i * expUlat * (dDelta_dpH * KH_i + Delta_i * dKH_dpH);

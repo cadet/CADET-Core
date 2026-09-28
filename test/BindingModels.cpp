@@ -637,7 +637,7 @@ CADET_BINDINGTEST_ALLBINDING_SINGLE_IMPL_FD("NEURAL_NETWORK", "1Comp", "[NEURAL_
 			}
 	)json",
 	1e-9, 1e-6, 1e-6)
-	
+
 TEST_CASE("COLLOIDAL_PARTICAL_ADSORPTION binding model analytic Jacobian vs AD with PH low conc no salt", "[Jacobian],[AD],[BindingModel],[COLLOIDAL_PARTICAL_ADSORPTION],[CI]")
 {
 	const unsigned int nBound[] = {0, 1};
@@ -688,7 +688,7 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD pH only", "[Jacobian],[A
 		"CPA_CHARGE_FULL_LIGAND": 0.0,
 		"CPA_PK_LIGAND": 2.3,
 		"CPA_PROTON_IDX": 0,
-		"CPA_SURFACE_AREA": [0.0, 0.22e9],
+		"CPA_SPECIFIC_SURFACE_AREA": [0.0, 0.22e9],
 		"CPA_PROTEIN_RADIUS": [0.0, 5.5e-9],
 		"CPA_COMP_LAT_CHARGE": [0.0, 19.07],
 		"CPA_COMP_CHARGE_REF": [0.0, 80.45],
@@ -697,7 +697,7 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD pH only", "[Jacobian],[A
 		"CPA_PH_REF": 5.0,
 		"CPA_DELTA_REF": [0.0, -1.90],
 		"CPA_DELTA_LIN": [0.0, 0.0],
-		"CPA_DIFFUSION_COEFF": [0.0, 1e-11]
+		"CPA_KKIN": [0.0, 1.0]
 	})json";
 	cadet::test::binding::testJacobianAD("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, true, config, state, true, 0.0, 1e-6, 0.0);
 }
@@ -717,7 +717,7 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD with salt component", "[
 		"CPA_PK_LIGAND": 2.3,
 		"CPA_PROTON_IDX": 0,
 		"CPA_SALT_IDX": 1,
-		"CPA_SURFACE_AREA": [0.0, 0.0, 0.22e9],
+		"CPA_SPECIFIC_SURFACE_AREA": [0.0, 0.0, 0.22e9],
 		"CPA_PROTEIN_RADIUS": [0.0, 0.0, 5.5e-9],
 		"CPA_COMP_LAT_CHARGE": [0.0, 0.0, 19.07],
 		"CPA_COMP_CHARGE_REF": [0.0, 0.0, 80.45],
@@ -726,7 +726,7 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD with salt component", "[
 		"CPA_PH_REF": 5.0,
 		"CPA_DELTA_REF": [0.0, 0.0, -1.90],
 		"CPA_DELTA_LIN": [0.0, 0.0, 0.0],
-		"CPA_DIFFUSION_COEFF": [0.0, 0.0, 1e-11]
+		"CPA_KKIN": [0.0, 0.0, 1.0]
 	})json";
 	cadet::test::binding::testJacobianAD("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, true, config, state, true, 0.0, 1e-6, 0.0);
 }
