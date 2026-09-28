@@ -637,7 +637,8 @@ CADET_BINDINGTEST_ALLBINDING_SINGLE_IMPL_FD("NEURAL_NETWORK", "1Comp", "[NEURAL_
 			}
 	)json",
 	1e-9, 1e-6, 1e-6)
-TEST_CASE("COLLOIDAL_PARTICAL_ADSORPTION binding model analytic Jacobian vs AD with PH low conc no salt", "[Jacobian],[AD],[BindingModel],[COLLOIDAL_PARTICAL_ADSORPTION]")
+	
+TEST_CASE("COLLOIDAL_PARTICAL_ADSORPTION binding model analytic Jacobian vs AD with PH low conc no salt", "[Jacobian],[AD],[BindingModel],[COLLOIDAL_PARTICAL_ADSORPTION],[CI]")
 {
 	const unsigned int nBound[] = {0, 1};
 	const double state[] = {0.9, 1.1, 1.5e-2};
@@ -672,7 +673,7 @@ TEST_CASE("COLLOIDAL_PARTICAL_ADSORPTION binding model analytic Jacobian vs AD w
 	}
 }
 
-TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD pH only", "[Jacobian],[AD],[BindingModel],[CPA]")
+TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD pH only", "[Jacobian],[AD],[BindingModel],[CPA],[CI]")
 {
 	// Minimal case: 2 components (pH, protein), nBound = {0, 1}
 	// state: [yCp_pH, yCp_protein, q_protein]
@@ -701,7 +702,7 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD pH only", "[Jacobian],[A
 	cadet::test::binding::testJacobianAD("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, true, config, state, true, 0.0, 1e-6, 0.0);
 }
 
-TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD with salt component", "[Jacobian],[AD],[BindingModel],[CPA]")
+TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD with salt component", "[Jacobian],[AD],[BindingModel],[CPA],[CI]")
 {
 	// 3 components: pH (idx 0), salt (idx 1), protein (idx 2), nBound = {0, 0, 1}
 	// state: [yCp_pH, yCp_salt, yCp_protein, q_protein]
