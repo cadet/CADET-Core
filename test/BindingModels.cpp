@@ -14,6 +14,8 @@
 
 #include "BindingModelTests.hpp"
 #include "BindingModels.hpp"
+#include "model/BindingModel.hpp"
+#include "SimulationTypes.hpp"
 
 CADET_BINDINGTEST("LINEAR", "EXT_LINEAR", (1,1), (1,0,1), (1.0, 2.0, 0.0, 0.0), (1.0, 3.0, 2.0, 0.0, 0.0), \
 	R"json( "LIN_KA": [1.0, 2.0],
@@ -731,3 +733,47 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD with salt component", "[
 	cadet::test::binding::testJacobianAD("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, true, config, state, true, 0.0, 1e-6, 0.0);
 }
 
+TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION rapid-equilibrium Jacobian with two proteins", "[Jacobian],[AD],[BindingModel],[CPA],[CI]")
+{
+	const unsigned int nBound[] = {0, 0, 1, 1};
+	const double state[] = {1e-2, 100.0, 0.05, 0.035, 0.6, 0.35};
+	char const* const config = R"json({
+		"CPA_TEMPERATURE": 298.15,
+		"CPA_IONIC_STRENGTH": 100.0,
+		"CPA_PERMITTIVITY": 78.3,
+		"CPA_SURFACE_DENSITY": 2.89e-6,
+		"CPA_CHARGE_FULL_LIGAND": 0.0,
+		"CPA_PK_LIGAND": 2.3,
+		"CPA_PROTON_IDX": 0,
+		"CPA_COMPONENT_CHARGE": [1, 1, 0, 0],
+		"CPA_SPECIFIC_SURFACE_AREA": [0.0, 0.0, 0.22e9, 0.18e9],
+		"CPA_PROTEIN_RADIUS": [0.0, 0.0, 5.5e-9, 6.5e-9],
+		"CPA_COMP_LAT_CHARGE": [0.0, 0.0, 19.07, 14.2],
+		"CPA_COMP_CHARGE_REF": [0.0, 0.0, 80.45, 55.0],
+		"CPA_COMP_CHARGE_LIN": [0.0, 0.0, -5.0, -3.0],
+		"CPA_COMP_CHARGE_QUAD": [0.0, 0.0, 0.1, 0.2],
+		"CPA_PH_REF": 5.0,
+		"CPA_DELTA_REF": [0.0, 0.0, -1.90, -1.70],
+		"CPA_DELTA_LIN": [0.0, 0.0, 0.5, -0.25],
+		"CPA_KKIN": [0.0, 0.0, 0.0, 0.0]
+	})json";
+
+	cadet::test::binding::ConfiguredBindingModel cbm = cadet::test::binding::ConfiguredBindingModel::create("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, false, config);
+	CHECK(cbm.model().hasQuasiStationaryReactions());
+	CHECK_FALSE(cbm.model().hasDynamicReactions());
+	CHECK(cbm.model().reactionQuasiStationarity()[0]);
+	CHECK(cbm.model().reactionQuasiStationarity()[1]);
+
+	double residual[] = {0.0, 0.0};
+	REQUIRE(cbm.model().flux(1.0, 0u, cadet::ColumnPosition{0.0, 0.0, 0.0}, state + cbm.nComp(), state, residual, cbm.buffer()) == 0);
+	CHECK(residual[0] != 0.0);
+	CHECK(residual[1] != 0.0);
+
+	cadet::linalg::DenseMatrix jacobian;
+	jacobian.resize(cbm.nComp() + cbm.numBoundStates(), cbm.nComp() + cbm.numBoundStates());
+	cbm.model().analyticJacobian(1.0, 0u, cadet::ColumnPosition{0.0, 0.0, 0.0}, state + cbm.nComp(), cbm.nComp(), jacobian.row(cbm.nComp()), cbm.buffer());
+	CHECK(jacobian.native(cbm.nComp(), cbm.nComp() + 1) != 0.0);
+	CHECK(jacobian.native(cbm.nComp() + 1, cbm.nComp()) != 0.0);
+
+	cadet::test::binding::testJacobianAD("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, false, config, state, true, 0.0, 1e-9, 1e-10);
+}

@@ -17,6 +17,14 @@ The kinetic formulation reads for each binding component :math:`i`:
 
 where :math:`q_{v,i}` is the volumetric solid phase concentration, :math:`c_{p,i}` is the pore liquid phase concentration, :math:`K_{v,i}` is the volumetric equilibrium constant, and :math:`k_{\mathrm{kin},i}` is the kinetic rate constant.
 
+In rapid-equilibrium mode, the corresponding bound-state equation is algebraic:
+
+.. math::
+
+    0 = q_{v,i} - K_{v,i} \, c_{p,i}.
+
+The adsorption mode is selected by ``IS_KINETIC`` and can be specified either once for all bound states or separately for each bound state.
+
 Multiple bound states per component are not supported.
 
 
@@ -38,11 +46,11 @@ Since the standard definition of pH is based on concentration in mol/L, :math:`m
 
       I_m = \frac{1}{2} \sum_i z_i^2 \, c_{p,i},
 
-  and the Davies model is applied to correct the proton activity before computing pH:
+  For the Davies model, this value is converted from :math:`\mathrm{mol\,m^{-3}}` to :math:`\mathrm{mol\,L^{-1}}` as :math:`I_M = 10^{-3} I_m`. The activity correction is then
 
   .. math::
 
-      \log_{10}\gamma_i = -0.509 \, z_i^2 \left( \frac{\sqrt{I_m}}{1 + \sqrt{I_m}} - 0.3 \, I_m \right),
+      \log_{10}\gamma_i = -0.509 \, z_i^2 \left( \frac{\sqrt{I_M}}{1 + \sqrt{I_M}} - 0.3 \, I_M \right),
 
   so that
 
@@ -163,7 +171,7 @@ The available surface function :math:`B_i(\Theta)` follows scaled-particle theor
 
 .. math::
 
-    B_i(\Theta) = (1 - \Theta) \exp\!\left( -\frac{\pi a_i^2 \, N_A \sum_j \tilde{q}_j + 2\pi a_i \, N_A \sum_j a_j \tilde{q}_j}{1 - \Theta} - \frac{\pi a_i^2 \left(N_A \sum_j a_j \tilde{q}_j\right)^2}{(1 - \Theta)^2} \right),
+    B_i(\Theta) = (1 - \Theta) \exp\!\left( -\frac{\pi a_i^2 \, N_A \sum_j \tilde{q}_j + 2\pi a_i \, N_A \sum_j a_j \tilde{q}_j}{1 - \Theta} - \frac{\pi^2 a_i^2 \left(N_A \sum_j a_j \tilde{q}_j\right)^2}{(1 - \Theta)^2} \right),
 
 where :math:`\tilde{q}_j = q_{v,j} / A_{s,j}` denotes the surface concentration, and the total surface coverage is
 
@@ -209,11 +217,13 @@ Combining all contributions, the volumetric equilibrium constant is
 Kinetic rate constant
 ^^^^^^^^^^^^^^^^^^^^^
 
-The kinetic rate constant :math:`k_{\mathrm{kin},i}` is related to the pore diffusion coefficient :math:`D_i`:
+The kinetic rate constant :math:`k_{\mathrm{kin},i}` is calculated from the kinetic prefactor :math:`k^*_{\mathrm{kin},i}` supplied by ``CPA_KKIN``:
 
 .. math::
 
-    k_{\mathrm{kin},i} = \frac{D_i}{2 \left(d_i^* - \delta_{m,i}\right)^2} \cdot \frac{\left(u_{A,i} / (k_B T)\right)^2}{\cosh\!\left(u_{A,i} / (k_B T)\right) - 1}.
+    k_{\mathrm{kin},i} = \frac{k^*_{\mathrm{kin},i}}{2} \cdot \frac{\left(u_{A,i} / (k_B T)\right)^2}{\cosh\!\left(u_{A,i} / (k_B T)\right) - 1}.
+
+The kinetic rate and ``CPA_KKIN`` are not evaluated for bound states in rapid-equilibrium mode.
 
 
 Model assumptions and limitations
@@ -221,6 +231,7 @@ Model assumptions and limitations
 
 - One component must serve as a non-binding proton/pH state (index configurable, default 0).
 - If ``CPA_COMPONENT_CHARGE`` is provided, the ionic strength is computed from the pore-phase concentrations and the Davies activity correction is applied to the proton activity. Otherwise, ``CPA_IONIC_STRENGTH`` is used as a fixed parameter.
+- Kinetic and rapid-equilibrium adsorption can be selected globally or per bound state through ``IS_KINETIC``.
 - Multiple bound states per component are not supported.
 - Physical constants (:math:`e`, :math:`N_A`, :math:`k_B`, :math:`\varepsilon_0`) are hard-coded to CODATA 2018 values.
 

@@ -74,6 +74,7 @@ using std::numbers::pi;
  CPA_PH_REF:
  CPA_DELTA_REF:
  CPA_DELTA_LIN:
+ CPA_KKIN:                 Kinetic prefactor k^*_{kin,i} [s^-1] (per component)
  CPA_COMPONENT_CHARGE: (temporally)
 */
 
@@ -94,6 +95,7 @@ inline bool ColloidalParticleAdsorptionParamHandler::validateConfig(unsigned int
 		|| (_compRadius.size() != _adSurfaceArea.size())
 		|| (_compRadius.size() != _refDelta.size())
 		|| (_compRadius.size() != _linDelta.size())
+		|| (_compRadius.size() != _k_kin.size())
 		|| (_compRadius.size() < nComp))
 		throw InvalidParameterException("CPA component-dependent parameters must all have the same size (nComp)");
 
@@ -111,6 +113,7 @@ inline bool ExtColloidalParticleAdsorptionParamHandler::validateConfig(unsigned 
 		|| (_compRadius.size() != _adSurfaceArea.size())
 		|| (_compRadius.size() != _refDelta.size())
 		|| (_compRadius.size() != _linDelta.size())
+		|| (_compRadius.size() != _k_kin.size())
 		|| (_compRadius.size() < nComp))
 		throw InvalidParameterException("CPA component-dependent parameters must all have the same size (nComp)");
 
@@ -128,6 +131,7 @@ inline bool ExtColloidalParticleAdsorptionParamHandler::validateConfig(unsigned 
  *          - Steric blocking via scaled-particle theory (hard-disc ASF)
  *
  *          Kinetic formulation: dq_{v,i}/dt = k_{kin,i} * (K_{v,i} * c_{p,i} - q_{v,i})
+ *          Rapid-equilibrium formulation: 0 = q_{v,i} - K_{v,i} * c_{p,i}
  *
  *          Multiple bound states are not supported.
  * @tparam ParamHandler_t Type that can add support for external function dependence
@@ -161,7 +165,6 @@ public:
 	virtual bool hasSalt() const CADET_NOEXCEPT { return false; }
 	virtual bool supportsMultistate() const CADET_NOEXCEPT { return false; }
 	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return false; }
-	virtual bool hasQuasiStationaryReactions() const CADET_NOEXCEPT { return false; }
 
 	CADET_BINDINGMODELBASE_BOILERPLATE
 
@@ -176,6 +179,7 @@ protected:
 	static constexpr double _avogadroNum = 6.02214076e23;     // avogadro number N_A [1/mol]
 	static constexpr double _boltzmann   = 1.380649e-23;      // boltzmann constant k_b [J/K]
 	static constexpr double _vacuumPermi = 8.854187818814e-12;  // vacuumPermittivity eps_0 [F/m]
+	static constexpr double _daviesFactor = -0.509;
 	int _MAXITER = 100; // for newtoniteration in solvePsiAdsorber()
 	int _idxProton = 0;
 
@@ -280,22 +284,22 @@ protected:
 		return 0.5 * sum;
 	}
 
-	static double daviesActivityCoeff(double ionicStrength, int charge)
+	template <typename CpStateParamType>
+	static CpStateParamType daviesActivityCoeff(CpStateParamType ionicStrength, int charge)
 	{
-		const double I_M = ionicStrength * 1e-3;
-		const double sqrtI = std::sqrt(I_M);
-		const double logGamma = -0.509 * charge * charge * (sqrtI / (1.0 + sqrtI) - 0.3 * I_M);
-		return std::pow(10.0, logGamma);
+		const CpStateParamType ionicStrengthMolar = ionicStrength * 1e-3;
+		const CpStateParamType sqrtI = sqrt(ionicStrengthMolar);
+		const CpStateParamType logGamma =  _daviesFactor * charge * charge * (sqrtI / (1.0 + sqrtI) - 0.3 * ionicStrengthMolar);
+		return pow(10.0, logGamma);
 	}
 
 	// d(log10(gamma_i))/d(I_m), needed for the activity-corrected pH Jacobian
 	static double dDaviesLogGammaDI(double ionicStrength, int charge)
 	{
 		if (ionicStrength < 1e-30) return 0.0;
-		//const double I_M = ionicStrength * 1e-3;
 		const double sqrtI = std::sqrt(ionicStrength * 1e-3);
-		// d/dI [ sqrt(I)/(1+sqrt(I)) - 0.3*I ] = 1/(2*sqrt(I)*(1+sqrt(I))^2) - 0.3
-		return -0.509 * charge * charge * (1.0 / (2.0 * sqrtI * (1.0 + sqrtI) * (1.0 + sqrtI)) - 0.3);
+		// d/dI_m [sqrt(I_M)/(1+sqrt(I_M)) - 0.3*I_M], where I_M = 1e-3*I_m
+		return _daviesFactor*1e-3 * charge * charge * (1.0 / (2.0 * sqrtI * (1.0 + sqrtI) * (1.0 + sqrtI)) - 0.3);
 	}
 
 	template <typename StateType, typename CpStateType, typename ResidualType, typename ParamType>
@@ -332,9 +336,9 @@ protected:
 		const ParamType kbT = kb * T;
 
 		// pH = -log10(a_H+ [mol/L]) = -log10(gamma_H+ * c_H+ * 1e-3)  (c in mol/m^3, factor 1e-3 converts to mol/L)
-		const double gammaHp = !_compCharge.empty() ? daviesActivityCoeff(static_cast<double>(Im), _compCharge[_idxProton]) :daviesActivityCoeff(static_cast<double>(Im), 1.0) ;
+		const CpStateParamType gammaHp = !_compCharge.empty() ? daviesActivityCoeff(Im, _compCharge[_idxProton]) : daviesActivityCoeff(Im, 1);
 
-		const CpStateType pH = _compCharge.empty()
+		const CpStateParamType pH = _compCharge.empty()
 			? -log(yCp[_idxProton] * 1e-3) / log(10.0)
 			: -log(gammaHp* yCp[_idxProton] * 1e-3) / log(10.0);
 
@@ -424,7 +428,7 @@ protected:
 			//    Hard-disc ASF
 			//    B_i = (1 - Theta) * exp(
 			//      -(pi*a_i^2 * sum_j(q_j*N_A) + 2*pi*a_i * sum_j(a_j*q_j*N_A)) / (1 - Theta)
-			//      - pi*a_i^2 * (sum_j(a_j*q_j*N_A))^2 / (1 - Theta)^2 )
+			//      - pi^2*a_i^2 * (sum_j(a_j*q_j*N_A))^2 / (1 - Theta)^2 )
 
 			CpStateParamType B_i = 0.0;
 			if (std::abs(static_cast<double>(Theta)) < 1.0)
@@ -480,13 +484,16 @@ protected:
 			// 8. K_{v,i} = As_i * (dstar_i - dm_i) * K_{H,i} * B_i(Theta) * exp(-u_{lat,i} / (k_b*T))
 			const CpStateParamType Kv_i = As_i * (dstar_i - dm_i) * KH_i * B_i * exp(-ulat_i / kbT);
 
-			// 9. k_{kin,i} = D_i / (2*Delta^2) * (u_A/(k_bT))^2 / (cosh(u_A/(k_bT)) - 1)
-			const ParamType k_kin_star = static_cast<ParamType>(p->k_kin[i]); // Typical protein pore diffusion coefficient [m^2/s]
-			//const CpStateParamType kKin_i_star = D_i / (2.0 * (dstar_i - dm_i) * (dstar_i - dm_i));
-			const CpStateParamType uARatio = uA_i / kbT;
-			const CpStateParamType kKin_i =  k_kin_star * uARatio * uARatio /  2 * (cosh(uARatio) - 1.0);
-
-			res[bndIdx] = kKin_i * (y[bndIdx] - Kv_i * yCp[i]);
+			if (_reactionQuasistationarity[bndIdx])
+				res[bndIdx] = y[bndIdx] - Kv_i * yCp[i];
+			else
+			{
+				// 9. k_{kin,i} = k^*_{kin,i}/2 * (u_A/(k_b*T))^2 / (cosh(u_A/(k_b*T)) - 1)
+				const ParamType kKinScale = static_cast<ParamType>(p->k_kin[i]);
+				const CpStateParamType uARatio = uA_i / kbT;
+				const CpStateParamType kKin_i = 0.5 * kKinScale * uARatio * uARatio / (cosh(uARatio) - 1.0);
+				res[bndIdx] = kKin_i * (y[bndIdx] - Kv_i * yCp[i]);
+			}
 
 			++bndIdx;
 		}
@@ -702,22 +709,19 @@ protected:
 				dKH_duA = (-KH_i + expUA) / uA_i;
 			}
 
-			// --- k_{kin,i} ---
-			const double k_kin_star = static_cast<double>(p->k_kin[i]);
+			// --- Kinetic scaling ---
+			const bool isQuasiStationary = _reactionQuasistationarity[bndIdx];
 			const double Delta_i = dstar_i - dm_i;
-			//const double kKin_star = D_i / (2.0 * Delta_i * Delta_i);
-			const double uAratio = uA_i / kbT;
-			const double coshUA = cosh(uAratio);
-			const double kKin_i = 0.5 * k_kin_star * uAratio * uAratio / (coshUA - 1.0);
-
-			// dkKin/duA: let x = uA/kbT, kKin = kKin_star * x^2 / (cosh(x)-1)
-			// d/dx [x^2/(cosh(x)-1)] = [2x(cosh(x)-1) - x^2 sinh(x)] / (cosh(x)-1)^2
+			double kKin_i = 1.0;
 			double dkKin_duA = 0.0;
-			if (std::abs(uA_i) > 1e-30)
+			if (!isQuasiStationary)
 			{
+				const double kKinScale = static_cast<double>(p->k_kin[i]);
+				const double uAratio = uA_i / kbT;
+				const double coshM1 = cosh(uAratio) - 1.0;
 				const double sinhUA = sinh(uAratio);
-				const double coshM1 = coshUA - 1.0;
-				dkKin_duA = 0.5 * k_kin_star / kbT * (2.0 * uAratio * coshM1 - uAratio * uAratio * sinhUA) / (coshM1 * coshM1);
+				kKin_i = 0.5 * kKinScale * uAratio * uAratio / coshM1;
+				dkKin_duA = 0.5 * kKinScale / kbT * (2.0 * uAratio * coshM1 - uAratio * uAratio * sinhUA) / (coshM1 * coshM1);
 			}
 
 			// --- B_i(Theta) ---
@@ -800,11 +804,11 @@ protected:
 
 					// d(ulatPrefactor)/dDhex
 					// let g(D) = 3*sqrt3*D*NA*exp(-k*D) / (1 - exp(-c*k*D)) where c = 3*sqrt3/(2*pi)
-					// g'(D) = 3*sqrt3*NA * [exp(-k*D)*(1 - k*D) * denom + D*exp(-k*D)*c*k*exp(-c*k*D)] / denom^2
-					// Simplify: g'(D) = 3*sqrt3*NA*exp(-k*D)/denom * [(1-k*D) + D*c*k*exp(-c*k*D)/denom]
+					// g'(D) = 3*sqrt3*NA * [exp(-k*D)*(1 - k*D) * denom - D*exp(-k*D)*c*k*exp(-c*k*D)] / denom^2
+					// Simplify: g'(D) = 3*sqrt3*NA*exp(-k*D)/denom * [(1-k*D) - D*c*k*exp(-c*k*D)/denom]
 					const double c = 3.0 * sqrt3 / (2.0 * pi);
 					dulatPrefactor_dDhex = 3.0 * sqrt3 * NA * expKD / denom
-						* ((1.0 - kappa * Dhex) + Dhex * c * kappa * denomExp / denom);
+						* ((1.0 - kappa * Dhex) - Dhex * c * kappa * denomExp / denom);
 				}
 			}
 
@@ -818,7 +822,7 @@ protected:
 			const double expUlat = exp(-ulat_i / kbT);
 			const double Kv_i = As_i * Delta_i * KH_i * B_i * expUlat;
 
-			// res_i = kKin_i * (Kv_i * yCp[i] - y[bndIdx])
+			// res_i = scale_i * (y[bndIdx] - Kv_i * yCp[i]), where scale_i is 1 for rapid equilibrium and kKin_i for kinetic binding
 			// We need:
 			//   dres_i / dc_{p,i}    (direct)
 			//   dres_i / dc_{p,pH}   (through psiA -> uA -> KH, kKin)
@@ -826,7 +830,7 @@ protected:
 			//   dres_i / dq_i        (direct + through above)
 
 			// dres_i / dc_{p,i}
-			// dres_i / dc_{p,i} = -kKin_i * Kv_i
+			// dres_i / dc_{p,i} = -scale_i * Kv_i
 			jac[i - bndIdx - offsetCp] = -kKin_i * Kv_i;
 
 			// dres_i / dc_{p,proton}
@@ -863,8 +867,7 @@ protected:
 				// dKH/dpH
 				const double dKH_dpH = dKH_duA * duA_dpH;
 
-				// dkKin/dpH: kKin depends on Delta_i and uA_i
-				//const double dkKin_dDelta = (std::abs(Delta_i) > 1e-30) ? -2.0 * kKin_i / Delta_i : 0.0;
+				// Kinetic scaling only depends on uA_i and is constant for rapid-equilibrium states
 				const double dkKin_dpH = dkKin_duA * duA_dpH;
 
 				// dKv/dpH: B_i and ulat_i are independent of pH
@@ -977,7 +980,7 @@ protected:
 				}
 			}
 
-			// === dres_i / dq_i (direct term: +kKin_i due to negative sign in res) ===
+			// === dres_i / dq_i (direct term from scale_i * y[bndIdx]) ===
 			jac[0] = +kKin_i;
 
 			// === dres_i / dq_j (through Kv_i which depends on B_i, ulat_i via Theta, sumQ, sumAjQj, Dhex) ===
@@ -1024,7 +1027,7 @@ protected:
 				else
 					dKv_dqk = As_i * Delta_i * KH_i * expUlat * (dBi_dqk - B_i * dulat_dqk / kbT);
 
-				// dres_i / dq_k = -kKin_i * dKv_i/dq_k * c_{p,i}
+				// dres_i / dq_k = -scale_i * dKv_i/dq_k * c_{p,i}
 				const double dres_dqk = -kKin_i * dKv_dqk * yCp[i];
 
 				// jac[bndIdx2 - bndIdx] points to q_{bndIdx2}
