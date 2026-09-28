@@ -292,7 +292,7 @@ protected:
 	static double dDaviesLogGammaDI(double ionicStrength, int charge)
 	{
 		if (ionicStrength < 1e-30) return 0.0;
-		const double I_M = ionicStrength * 1e-3;
+		//const double I_M = ionicStrength * 1e-3;
 		const double sqrtI = std::sqrt(ionicStrength * 1e-3);
 		// d/dI [ sqrt(I)/(1+sqrt(I)) - 0.3*I ] = 1/(2*sqrt(I)*(1+sqrt(I))^2) - 0.3
 		return -0.509 * charge * charge * (1.0 / (2.0 * sqrtI * (1.0 + sqrtI) * (1.0 + sqrtI)) - 0.3);
@@ -753,9 +753,9 @@ protected:
 
 				// dB_i / dsumAjQj (through nom1 and nom2)
 				// dnom1/dsumAjQj = 2*pi*a_i*NA
-				// dnom2/dsumAjQj = 2*pi*a_i^2 * sumAjQj * NA^2
-				const double dexpArg_dsumAjQj = -2.0 * pi * pi * a_i * NA / oneMinusTheta
-					- 2.0 * pi * a_i * a_i * sumAjQj * NA * NA / (oneMinusTheta * oneMinusTheta);
+				// dnom2/dsumAjQj = 2*pi^2*a_i^2 * sumAjQj * NA^2
+				const double dexpArg_dsumAjQj = -2.0 * pi * a_i * NA / oneMinusTheta
+					- 2.0 * pi * pi * a_i * a_i * sumAjQj * NA * NA / (oneMinusTheta * oneMinusTheta);
 				dBi_dsumAjQj = B_i * dexpArg_dsumAjQj;
 			}
 
