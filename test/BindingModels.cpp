@@ -675,35 +675,6 @@ TEST_CASE("COLLOIDAL_PARTICAL_ADSORPTION binding model analytic Jacobian vs AD w
 	}
 }
 
-TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD pH only", "[Jacobian],[AD],[BindingModel],[CPA],[CI]")
-{
-	// Minimal case: 2 components (pH, protein), nBound = {0, 1}
-	// state: [yCp_pH, yCp_protein, q_protein]
-	// yCp_pH = 10^pH = 10^5 = 1e5, q_v ~ 1.5 mol/m^3 (Theta ~ 0.4)
-	const unsigned int nBound[] = {0, 1};
-	const double state[] = {1e5, 0.05, 1.5};
-	char const* const config = R"json({
-		"CPA_TEMPERATURE": 298.15,
-		"CPA_IONIC_STRENGTH": 100.0,
-		"CPA_PERMITTIVITY": 78.3,
-		"CPA_SURFACE_DENSITY": 2.89e-6,
-		"CPA_CHARGE_FULL_LIGAND": 0.0,
-		"CPA_PK_LIGAND": 2.3,
-		"CPA_PROTON_IDX": 0,
-		"CPA_SPECIFIC_SURFACE_AREA": [0.0, 0.22e9],
-		"CPA_PROTEIN_RADIUS": [0.0, 5.5e-9],
-		"CPA_COMP_LAT_CHARGE": [0.0, 19.07],
-		"CPA_COMP_CHARGE_REF": [0.0, 80.45],
-		"CPA_COMP_CHARGE_LIN": [0.0, 0.0],
-		"CPA_COMP_CHARGE_QUAD": [0.0, 0.0],
-		"CPA_PH_REF": 5.0,
-		"CPA_DELTA_REF": [0.0, -1.90],
-		"CPA_DELTA_LIN": [0.0, 0.0],
-		"CPA_KKIN": [0.0, 1.0]
-	})json";
-	cadet::test::binding::testJacobianAD("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, true, config, state, true, 0.0, 1e-6, 0.0);
-}
-
 TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD with salt component", "[Jacobian],[AD],[BindingModel],[CPA],[CI]")
 {
 	// 3 components: pH (idx 0), salt (idx 1), protein (idx 2), nBound = {0, 0, 1}

@@ -9,14 +9,13 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 
 
 ``IS_KINETIC``
-   So far, only "kinetic" has been implemented.
    Selects kinetic or quasi-stationary adsorption mode: 1 = kinetic, 0 =
    quasi-stationary. If a single value is given, the mode is set for all
    bound states. Otherwise, the adsorption mode is set for each bound
    state separately.
 
 ===================  =========================  =========================================
-**Type:** int        **Range:** {1}           **Length:** 1/NTOTALBND
+**Type:** int        **Range:** {0,1}           **Length:** 1/NTOTALBND
 ===================  =========================  =========================================
 
 ``CPA_TEMPERATURE``
@@ -78,12 +77,12 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 ===================  =========================  =========================================
 
 ``CPA_SPECIFIC_SURFACE_AREA``
-   Specific adsorber surface area per skeleton volume :math:`A_{s,i}`
+   Specific adsorber surface area per skeleton volume :math:`A_{s,i}`.
 
 **Unit:** :math:`\mathrm{m^{-1}}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\gt 0`   **Length:** NCOMP
+**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
 ===================  =========================  =========================================
 
 ``CPA_PROTEIN_RADIUS``
@@ -144,11 +143,11 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Type:** double                                **Length:** NCOMP
 ===================  =========================  =========================================
 
-``CPA_DIFFUSION_COEFF``
-   Pore diffusion coefficient :math:`D_i` used in the kinetic rate
-   constant :math:`k_{\mathrm{kin},i}`
+``CPA_KKIN``
+   Kinetic prefactor :math:`k^*_{\mathrm{kin},i}` used to calculate the
+   kinetic rate constant :math:`k_{\mathrm{kin},i}`.
 
-**Unit:** :math:`\mathrm{m^{2} \, s^{-1}}`
+**Unit:** :math:`\mathrm{s^{-1}}`
 
 ===================  =========================  =========================================
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
