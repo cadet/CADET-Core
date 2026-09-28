@@ -471,6 +471,211 @@ TEST_CASE("1D column liquid equilibrium MAL consistent initialization", "[Column
 	destroyModelBuilder(mb);
 }
 
+TEST_CASE("LRM DG liquid equilibrium MAL consistent initialization", "[LRM],[DG],[MassActionLaw],[ReactionModel],[ConsistentInit],[CI],[ConservedMoieties]")
+{
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	for (int adMode = 0; adMode < 2; ++adMode)
+	{
+		const bool adEnabled = adMode > 0;
+		SECTION(std::string("AD ") + (adEnabled ? "enabled" : "disabled"))
+		{
+			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
+			jpp.set("INIT_C", std::vector<double>{2.7, 0.3});
+			jpp.set("NREAC_LIQUID", 1);
+			jpp.addScope("liquid_reaction_000");
+			jpp.pushScope("liquid_reaction_000");
+			jpp.set("TYPE", "MASS_ACTION_LAW");
+			jpp.set("MAL_KFWD", std::vector<double>{2.0});
+			jpp.set("MAL_KBWD", std::vector<double>{1.0});
+			jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+			jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+			jpp.popScope();
+
+			cadet::IUnitOperation* const unit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
+			std::vector<double> y(unit->numDofs(), 0.0);
+			y[0] = 1.0;
+			y[1] = 2.0;
+			const unsigned int nComp = unit->numComponents();
+			const unsigned int pointStride = 2 * nComp;
+			const unsigned int nPoints = (unit->numDofs() - nComp) / pointStride;
+			for (unsigned int point = 0; point < nPoints; ++point)
+			{
+				y[nComp + point * pointStride] = 2.7;
+				y[nComp + point * pointStride + 1] = 0.3;
+			}
+
+			cadet::test::unitoperation::testConsistentInitialization(unit, adEnabled, y.data(), 1e-14, 1e-11);
+			for (unsigned int point = 0; point < nPoints; ++point)
+			{
+				const double* const c = y.data() + nComp + point * pointStride;
+				CHECK(c[0] == cadet::test::makeApprox(1.0, 1e-12, 1e-12));
+				CHECK(c[1] == cadet::test::makeApprox(2.0, 1e-12, 1e-12));
+				CHECK((c[0] + c[1]) == cadet::test::makeApprox(3.0, 1e-12, 1e-12));
+			}
+
+			mb->destroyUnitOperation(unit);
+		}
+	}
+
+	destroyModelBuilder(mb);
+}
+
+TEST_CASE("LRM DG liquid equilibrium MAL Jacobians", "[LRM],[DG],[MassActionLaw],[ReactionModel],[Jacobian],[AD],[FD],[ConservedMoieties]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
+	jpp.set("NREAC_LIQUID", 1);
+	jpp.addScope("liquid_reaction_000");
+	jpp.pushScope("liquid_reaction_000");
+	jpp.set("TYPE", "MASS_ACTION_LAW");
+	jpp.set("MAL_KFWD", std::vector<double>{2.0});
+	jpp.set("MAL_KBWD", std::vector<double>{1.0});
+	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.popScope();
+
+	SECTION("State Jacobian")
+	{
+		cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+	}
+	SECTION("Time derivative Jacobian")
+	{
+		cadet::test::unitoperation::testTimeDerivativeJacobianFD(jpp, 1e-6, 0.0, std::numeric_limits<float>::epsilon() * 100.0);
+	}
+}
+
+TEST_CASE("LRM DG liquid equilibrium MAL initial concentration sensitivity", "[LRM],[DG],[MassActionLaw],[ReactionModel],[Sensitivity],[ConsistentInit],[CI],[ConservedMoieties]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
+	jpp.set("INIT_C", std::vector<double>{2.7, 0.3});
+	jpp.set("TOTAL_POROSITY", 0.75);
+	jpp.set("NREAC_LIQUID", 1);
+	jpp.addScope("liquid_reaction_000");
+	jpp.pushScope("liquid_reaction_000");
+	jpp.set("TYPE", "MASS_ACTION_LAW");
+	jpp.set("MAL_KFWD", std::vector<double>{2.0});
+	jpp.set("MAL_KBWD", std::vector<double>{1.0});
+	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.popScope();
+
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+	cadet::ad::setDirections(cadet::ad::getMaxDirections());
+	cadet::IUnitOperation* const unit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
+	REQUIRE(unit->setSensitiveParameter(cadet::makeParamId("INIT_C", 0, 0, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0));
+	REQUIRE(unit->numSensParams() == 1);
+
+	const unsigned int nDofs = unit->numDofs();
+	const unsigned int nComp = unit->numComponents();
+	const unsigned int pointStride = 2 * nComp;
+	const unsigned int nPoints = (nDofs - nComp) / pointStride;
+	std::vector<double> y(nDofs, 0.0);
+	std::vector<double> yDot(nDofs, 0.0);
+	std::vector<cadet::active> adRes(nDofs);
+	const cadet::AdJacobianParams adParams{adRes.data(), nullptr, 1u};
+	unit->prepareADvectors(adParams);
+	unit->readInitialCondition(jpp);
+	unit->applyInitialCondition(cadet::SimulationState{y.data(), yDot.data()});
+	cadet::util::ThreadLocalStorage tls;
+	tls.resize(unit->threadLocalMemorySize());
+	const cadet::SimulationTime simTime{0.0, 0u};
+	unit->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), yDot.data()}, adParams);
+	unit->consistentInitialState(simTime, y.data(), adParams, 1e-14, tls);
+	unit->residualWithJacobian(simTime, {y.data(), nullptr}, yDot.data(), adParams, tls);
+	unit->consistentInitialTimeDerivative(simTime, y.data(), yDot.data(), tls);
+	unit->residualSensFwdWithJacobian(simTime, {y.data(), yDot.data()}, adParams, tls);
+
+	std::vector<double> sensY(nDofs, 0.0);
+	std::vector<double> sensYdot(nDofs, 0.0);
+	std::vector<double*> sensYPtr{sensY.data()};
+	std::vector<double*> sensYdotPtr{sensYdot.data()};
+	unit->initializeSensitivityStates(sensYPtr);
+	unit->consistentInitialSensitivity(simTime, {y.data(), yDot.data()}, sensYPtr, sensYdotPtr, adRes.data(), tls);
+	for (unsigned int point = 0; point < nPoints; ++point)
+	{
+		const unsigned int pointOffset = nComp + point * pointStride;
+		CHECK(sensY[pointOffset] == cadet::test::makeApprox(1.0 / 3.0, 1e-11, 1e-11));
+		CHECK(sensY[pointOffset + 1] == cadet::test::makeApprox(2.0 / 3.0, 1e-11, 1e-11));
+	}
+
+	std::vector<double> sensRes(nDofs, 0.0);
+	std::vector<const double*> sensYConst{sensY.data()};
+	std::vector<const double*> sensYdotConst{sensYdot.data()};
+	std::vector<double*> sensResPtr{sensRes.data()};
+	std::vector<double> tmp1(nDofs, 0.0);
+	std::vector<double> tmp2(nDofs, 0.0);
+	std::vector<double> tmp3(nDofs, 0.0);
+	unit->residualSensFwdAdOnly(simTime, {y.data(), yDot.data()}, adRes.data(), tls);
+	unit->residualSensFwdCombine(simTime, {y.data(), yDot.data()}, sensYConst, sensYdotConst, sensResPtr, adRes.data(), tmp1.data(), tmp2.data(), tmp3.data());
+	CHECK(cadet::linalg::linfNorm(sensRes.data() + nComp, nDofs - nComp) <= 1e-10);
+
+	mb->destroyUnitOperation(unit);
+	destroyModelBuilder(mb);
+}
+
+TEST_CASE("LRM DG liquid equilibrium MAL coupled binding initialization", "[LRM],[DG],[MassActionLaw],[ReactionModel],[Binding],[ConsistentInit],[CI],[ConservedMoieties]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
+	jpp.set("INIT_C", std::vector<double>{2.7, 0.3});
+	jpp.set("TOTAL_POROSITY", 0.75);
+	jpp.pushScope("particle_type_000");
+	jpp.set("INIT_CS", std::vector<double>{0.4, 0.6});
+	jpp.pushScope("adsorption");
+	jpp.set("IS_KINETIC", 0);
+	jpp.popScope();
+	jpp.popScope();
+	jpp.set("NREAC_LIQUID", 1);
+	jpp.addScope("liquid_reaction_000");
+	jpp.pushScope("liquid_reaction_000");
+	jpp.set("TYPE", "MASS_ACTION_LAW");
+	jpp.set("MAL_KFWD", std::vector<double>{2.0});
+	jpp.set("MAL_KBWD", std::vector<double>{1.0});
+	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.popScope();
+
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+	cadet::IUnitOperation* const unit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
+	std::vector<double> y(unit->numDofs(), 0.0);
+	std::vector<double> yDot(unit->numDofs(), 0.0);
+	unit->readInitialCondition(jpp);
+	unit->applyInitialCondition(cadet::SimulationState{y.data(), yDot.data()});
+
+	const unsigned int nComp = unit->numComponents();
+	const unsigned int inletDofs = nComp * unit->numInletPorts();
+	const unsigned int pointStride = 2 * nComp;
+	REQUIRE((unit->numDofs() - inletDofs) % pointStride == 0);
+	const unsigned int nPoints = (unit->numDofs() - inletDofs) / pointStride;
+	const double invBeta = 1.0 / 0.75 - 1.0;
+	const double initialConservedMass = 2.7 + 0.3 + invBeta * (0.4 + 0.6);
+	cadet::test::unitoperation::testConsistentInitialization(unit, false, y.data(), 1e-14, 1e-10);
+	for (unsigned int point = 0; point < nPoints; ++point)
+	{
+		double const* const c = y.data() + inletDofs + point * pointStride;
+		double const* const q = c + nComp;
+		CHECK(c[1] == cadet::test::makeApprox(2.0 * c[0], 1e-11, 1e-11));
+		CHECK(q[0] == cadet::test::makeApprox((12.3 / 45.0) * c[0], 1e-11, 1e-11));
+		CHECK(q[1] == cadet::test::makeApprox((35.5 / 20.0) * c[1], 1e-11, 1e-11));
+		CHECK((c[0] + c[1] + invBeta * (q[0] + q[1])) == cadet::test::makeApprox(initialConservedMass, 1e-11, 1e-11));
+	}
+
+	REQUIRE(unit->setSensitiveParameter(cadet::makeParamId("TOTAL_POROSITY", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0));
+	cadet::util::ThreadLocalStorage tls;
+	tls.resize(unit->threadLocalMemorySize());
+	const cadet::SimulationTime simTime{0.0, 0u};
+	const cadet::AdJacobianParams adParams{nullptr, nullptr, 1u};
+	unit->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), yDot.data()}, adParams);
+	unit->residualWithJacobian(simTime, {y.data(), nullptr}, yDot.data(), adParams, tls);
+	unit->consistentInitialTimeDerivative(simTime, y.data(), yDot.data(), tls);
+	cadet::test::unitoperation::testConsistentInitializationSensitivity(unit, false, y.data(), yDot.data(), 1e-9);
+
+	mb->destroyUnitOperation(unit);
+	destroyModelBuilder(mb);
+}
+
 TEST_CASE("1D column particle liquid and binding equilibrium consistent initialization", "[Column_1D],[MassActionLaw],[ReactionModel],[ConsistentInit],[Binding],[Particle],[CI],[ConservedMoieties]")
 {
 	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
