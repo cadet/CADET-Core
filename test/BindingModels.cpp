@@ -15,6 +15,7 @@
 #include "BindingModelTests.hpp"
 #include "BindingModels.hpp"
 #include "model/BindingModel.hpp"
+#include "ParamIdUtil.hpp"
 #include "SimulationTypes.hpp"
 
 CADET_BINDINGTEST("LINEAR", "EXT_LINEAR", (1,1), (1,0,1), (1.0, 2.0, 0.0, 0.0), (1.0, 3.0, 2.0, 0.0, 0.0), \
@@ -659,15 +660,15 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD pH only", "[Jacobian],[A
 		"CPA_SPECIFIC_SURFACE_AREA": [0.0, 0.22e9],
 		"CPA_PROTEIN_RADIUS": [0.0, 5.5e-9],
 		"CPA_COMP_LAT_CHARGE": [0.0, 19.07],
-		"CPA_COMP_CHARGE_REF": [0.0, 80.45],
-		"CPA_COMP_CHARGE_LIN": [0.0, 0.0],
-		"CPA_COMP_CHARGE_QUAD": [0.0, 0.0],
+		"CPA_PROTEIN_CHARGE": [0.0, 80.45, 0.0, 0.0, 0.0, 0.0],
 		"CPA_PH_REF": 5.0,
 		"CPA_DELTA_REF": [0.0, -1.90],
 		"CPA_DELTA_LIN": [0.0, 0.0],
 		"CPA_KKIN": [0.0, 1.0]
 	})json";
 	cadet::test::binding::testJacobianAD("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, true, config, state, true, 0.0, 1e-6, 0.0);
+	const double clampedPHState[] = {1e-12, 0.05, 1.5};
+	cadet::test::binding::testJacobianAD("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, true, config, clampedPHState, true, 0.0, 1e-6, 0.0);
 }
 
 TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD with salt component", "[Jacobian],[AD],[BindingModel],[CPA],[CI]")
@@ -688,9 +689,7 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD with salt component", "[
 		"CPA_SPECIFIC_SURFACE_AREA": [0.0, 0.0, 0.22e9],
 		"CPA_PROTEIN_RADIUS": [0.0, 0.0, 5.5e-9],
 		"CPA_COMP_LAT_CHARGE": [0.0, 0.0, 19.07],
-		"CPA_COMP_CHARGE_REF": [0.0, 0.0, 80.45],
-		"CPA_COMP_CHARGE_LIN": [0.0, 0.0, 0.0],
-		"CPA_COMP_CHARGE_QUAD": [0.0, 0.0, 0.0],
+		"CPA_PROTEIN_CHARGE": [0.0, 0.0, 80.45, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
 		"CPA_PH_REF": 5.0,
 		"CPA_DELTA_REF": [0.0, 0.0, -1.90],
 		"CPA_DELTA_LIN": [0.0, 0.0, 0.0],
@@ -701,6 +700,7 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD with salt component", "[
 
 TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION rapid-equilibrium Jacobian with two proteins", "[Jacobian],[AD],[BindingModel],[CPA],[CI]")
 {
+	// Four polynomial-order rows with one coefficient per component
 	const unsigned int nBound[] = {0, 0, 1, 1};
 	const double state[] = {1e-2, 100.0, 0.05, 0.035, 0.6, 0.35};
 	char const* const config = R"json({
@@ -715,9 +715,7 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION rapid-equilibrium Jacobian with two pro
 		"CPA_SPECIFIC_SURFACE_AREA": [0.0, 0.0, 0.22e9, 0.18e9],
 		"CPA_PROTEIN_RADIUS": [0.0, 0.0, 5.5e-9, 6.5e-9],
 		"CPA_COMP_LAT_CHARGE": [0.0, 0.0, 19.07, 14.2],
-		"CPA_COMP_CHARGE_REF": [0.0, 0.0, 80.45, 55.0],
-		"CPA_COMP_CHARGE_LIN": [0.0, 0.0, -5.0, -3.0],
-		"CPA_COMP_CHARGE_QUAD": [0.0, 0.0, 0.1, 0.2],
+		"CPA_PROTEIN_CHARGE": [0.0, 0.0, 80.45, 55.0, 0.0, 0.0, 5.0, 3.0, 0.0, 0.0, 0.1, 0.2, 0.0, 0.0, 0.015, -0.01],
 		"CPA_PH_REF": 5.0,
 		"CPA_DELTA_REF": [0.0, 0.0, -1.90, -1.70],
 		"CPA_DELTA_LIN": [0.0, 0.0, 0.5, -0.25],
@@ -725,6 +723,11 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION rapid-equilibrium Jacobian with two pro
 	})json";
 
 	cadet::test::binding::ConfiguredBindingModel cbm = cadet::test::binding::ConfiguredBindingModel::create("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, false, config);
+	const std::unordered_map<cadet::ParameterId, double> parameters = cbm.model().getAllParameterValues();
+	CHECK(parameters.at(cadet::makeParamId("CPA_PROTEIN_CHARGE", 0, 2, 0, cadet::BoundStateIndep, 0, cadet::SectionIndep)) == 80.45);
+	CHECK(parameters.at(cadet::makeParamId("CPA_PROTEIN_CHARGE", 0, 2, 0, cadet::BoundStateIndep, 1, cadet::SectionIndep)) == 5.0);
+	CHECK(parameters.at(cadet::makeParamId("CPA_PROTEIN_CHARGE", 0, 2, 0, cadet::BoundStateIndep, 3, cadet::SectionIndep)) == 0.015);
+	CHECK(parameters.at(cadet::makeParamId("CPA_PROTEIN_CHARGE", 0, 3, 0, cadet::BoundStateIndep, 3, cadet::SectionIndep)) == -0.01);
 	CHECK(cbm.model().hasQuasiStationaryReactions());
 	CHECK_FALSE(cbm.model().hasDynamicReactions());
 	CHECK(cbm.model().reactionQuasiStationarity()[0]);
@@ -742,4 +745,6 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION rapid-equilibrium Jacobian with two pro
 	CHECK(jacobian.native(cbm.nComp() + 1, cbm.nComp()) != 0.0);
 
 	cadet::test::binding::testJacobianAD("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, false, config, state, true, 0.0, 1e-9, 1e-10);
+	const double clampedActivityState[] = {1e-12, 100.0, 0.05, 0.035, 0.6, 0.35};
+	cadet::test::binding::testJacobianAD("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, false, config, clampedActivityState, true, 0.0, 1e-9, 1e-10);
 }

@@ -42,7 +42,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
    Relative permittivity :math:`\varepsilon` of the solvent
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\gt 0`   **Length:** 1
+**Type:** double     **Range:** :math:`> 0`   **Length:** 1
 ===================  =========================  =========================================
 
 ``CPA_LIGAND_DENSITY``
@@ -70,7 +70,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 
 ``CPA_PH_REF``
    Reference pH value :math:`\mathrm{pH}_{\mathrm{ref}}` for the
-   quadratic protein charge model
+   protein charge polynomial
 
 ===================  =========================  =========================================
 **Type:** double                                **Length:** 1
@@ -94,28 +94,30 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Type:** double     **Range:** :math:`> 0`   **Length:** NCOMP
 ===================  =========================  =========================================
 
-``CPA_COMP_CHARGE_REF``
-   Reference protein net charge :math:`Z_{i,\mathrm{ref}}` at
-   :math:`\mathrm{pH}_{\mathrm{ref}}`
+``CPA_PROTEIN_CHARGE``
+   Matrix of coefficients :math:`z_{i,k}` for the pH-dependent protein
+   net charge. Matrix rows correspond to increasing polynomial powers
+   :math:`k=0,\ldots,P`, and columns correspond to components. The first row
+   therefore contains the constant charges :math:`z_{i,0}` at
+   :math:`\mathrm{pH}=\mathrm{pH}_{\mathrm{ref}}`. The net charge is
+
+   .. math::
+
+      Z_i(\mathrm{pH}) = z_{i,0} + \sum_{k=1}^{P} z_{i,k}
+      \left(\mathrm{pH}_{\mathrm{ref}}-\mathrm{pH}\right)^k.
+
+   The matrix is supplied in polynomial-order-row-major ordering. Its number
+   of rows is inferred from the total number of values divided by ``NCOMP``;
+   consequently, its polynomial degree is :math:`P=N_{\mathrm{rows}}-1`.
+   Every row must contain one value for every component, including non-binding
+   components. Thus, the flattened order is
+   :math:`[z_{0,0},\ldots,z_{N-1,0},z_{0,1},\ldots,z_{N-1,1},\ldots]`.
+   Coefficients that do not apply should be set to zero.
+   This parameter replaces ``CPA_COMP_CHARGE_REF``,
+   ``CPA_COMP_CHARGE_LIN``, and ``CPA_COMP_CHARGE_QUAD``.
 
 ===================  =========================  =========================================
-**Type:** double                                **Length:** NCOMP
-===================  =========================  =========================================
-
-``CPA_COMP_CHARGE_LIN``
-   Linear coefficient :math:`Z_{i,\mathrm{lin}}` of the
-   pH-dependent protein net charge
-
-===================  =========================  =========================================
-**Type:** double                                **Length:** NCOMP
-===================  =========================  =========================================
-
-``CPA_COMP_CHARGE_QUAD``
-   Quadratic coefficient :math:`Z_{i,\mathrm{quad}}` of the
-   pH-dependent protein net charge
-
-===================  =========================  =========================================
-**Type:** double                                **Length:** NCOMP
+**Type:** double                                **Length:** NCOMP * (P + 1)
 ===================  =========================  =========================================
 
 ``CPA_COMP_LAT_CHARGE``
@@ -176,7 +178,8 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 
 ``CPA_MAXITER``
    Maximum number of Newton iterations for solving the adsorber surface
-   potential :math:`\psi_{0,A}` (optional, defaults to 100)
+   potential :math:`\psi_{0,A}` (optional, defaults to 100). If the solver
+   does not converge, a warning is emitted and the last iterate is used.
 
 ===================  =========================  =========================================
 **Type:** int        **Range:** :math:`\ge 1`   **Length:** 1

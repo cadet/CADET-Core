@@ -64,6 +64,8 @@ Since the standard definition of pH is based on concentration in mol/L, :math:`m
 
   The constant 0.509 is the Debye–Hückel slope for water at 25 °C.  The factor :math:`10^{-3}` converts the pore-phase concentration from :math:`mol/m^3` to mol/L, as required by the pH definition.
 
+In both cases, a proton activity less than or equal to :math:`10^{-14}` mol/L is mapped to pH 14. Within this clamped branch, the pH derivatives in the analytic Jacobian are zero.
+
 
 
 Inverse Debye length
@@ -111,11 +113,22 @@ Here, :math:`\Gamma_L` is the ligand surface density, :math:`\zeta_L` the charge
 Protein net charge and surface potential
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The protein net charge :math:`Z_i` depends on pH via a quadratic relation:
+The protein net charge :math:`Z_i` depends on pH through a polynomial of
+arbitrary degree :math:`P`:
 
 .. math::
 
-    Z_i(\mathrm{pH}) = Z_{i,\mathrm{ref}} + Z_{i,\mathrm{lin}} \left(\mathrm{pH} - \mathrm{pH}_{\mathrm{ref}}\right) + Z_{i,\mathrm{quad}} \left(\mathrm{pH} - \mathrm{pH}_{\mathrm{ref}}\right)^2.
+    Z_i(\mathrm{pH}) = z_{i,0} + \sum_{k=1}^{P} z_{i,k} \left(\mathrm{pH}_{\mathrm{ref}} - \mathrm{pH}\right)^k.
+
+The coefficients are supplied by ``CPA_PROTEIN_CHARGE`` as a
+polynomial-order-row-major matrix. Its rows correspond to increasing powers,
+its columns to components, and :math:`z_{i,0}` is the charge at
+:math:`\mathrm{pH}_{\mathrm{ref}}`. The number of matrix rows determines
+the polynomial degree. The pH derivative used by the analytic Jacobian is
+
+.. math::
+
+    \frac{\partial Z_i}{\partial \mathrm{pH}} = -\sum_{k=1}^{P} k\,z_{i,k} \left(\mathrm{pH}_{\mathrm{ref}} - \mathrm{pH}\right)^{k-1}.
 
 
 .. math::
@@ -144,7 +157,7 @@ The interaction layer thickness :math:`\delta_i` is parameterised in terms of th
 
     \log_{10}(\delta_i) = \delta_{i,\mathrm{ref}} + \delta_{i,\mathrm{lin}} \left( |\sigma_{I,i}| - |\sigma_{I,i}^{\mathrm{ref}}| \right),
 
-where :math:`\sigma_{I,i}^{\mathrm{ref}} = Z_{i,\mathrm{ref}} \, e / (4\pi a_i^2)`.
+where :math:`\sigma_{I,i}^{\mathrm{ref}} = z_{i,0} \, e / (4\pi a_i^2)`.
 The effective adsorption distance is then :math:`d_i^* = \delta_{m,i} + \delta_i / A_{s,i}`.
 
 
@@ -235,6 +248,7 @@ Model assumptions and limitations
 
 - One component must serve as a non-binding proton/pH state (index configurable, default 0).
 - If ``CPA_COMPONENT_CHARGE`` is provided, the ionic strength is computed from the pore-phase concentrations and the Davies activity correction is applied to the proton activity. Otherwise, ``CPA_IONIC_STRENGTH`` is used as a fixed parameter.
+- The degree of the protein charge polynomial is inferred from the number of rows in ``CPA_PROTEIN_CHARGE`` and is the same for all components.
 - Kinetic and rapid-equilibrium adsorption can be selected globally or per bound state through ``IS_KINETIC``.
 - Multiple bound states per component are not supported.
 - Physical constants (:math:`e`, :math:`N_A`, :math:`k_B`, :math:`\varepsilon_0`) are hard-coded to CODATA 2018 values.

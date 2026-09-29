@@ -131,7 +131,11 @@ public:
 	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 {% for p in parameters %}
+	{% if existsIn(p, "useReactionDimensions") %}
+		_{{ p/varName }}.reserve(numElem / nComp, nComp, 0u);
+	{% else %}
 		_{{ p/varName }}.reserve(numElem, numSlices, nComp, nBoundStates);
+	{% endif %}
 {% endfor %}
 {% if exists("constantParameters") %}
 	{% for p in constantParameters %}
@@ -311,7 +315,11 @@ public:
 	inline void reserve(unsigned int numElem, unsigned int numSlices, unsigned int nComp, unsigned int const* nBoundStates)
 	{
 {% for p in parameters %}
+	{% if existsIn(p, "useReactionDimensions") %}
+		_{{ p/varName }}.reserve(numElem / nComp, nComp, 0u);
+	{% else %}
 		_{{ p/varName }}.reserve(numElem, numSlices, nComp, nBoundStates);
+	{% endif %}
 {% endfor %}
 {% if exists("constantParameters") %}
 	{% for p in constantParameters %}
@@ -387,7 +395,11 @@ public:
 	{
 		return 2 * sizeof(params_t) + alignof(params_t) + 2 * {{ length(parameters) }} * sizeof(double) + alignof(double) + 2 * (
 {% for p in parameters %}
+	{% if existsIn(p, "useReactionDimensions") %}
+		_{{ p/varName }}.size() * sizeof(active) + alignof(active) {% if not is_last %} + {% endif %}
+	{% else %}
 		_{{ p/varName }}.additionalDynamicMemory(nComp, totalNumBoundStates, nBoundStates) {% if not is_last %} + {% endif %}
+	{% endif %}
 {% endfor %}
 		);
 	}

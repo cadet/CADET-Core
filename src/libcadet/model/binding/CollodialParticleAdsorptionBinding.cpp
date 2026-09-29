@@ -18,6 +18,7 @@
 #include "LocalVector.hpp"
 #include "SimulationTypes.hpp"
 #include "MathUtil.hpp"
+#include "Logging.hpp"
 
 #include <functional>
 #include <unordered_map>
@@ -42,17 +43,11 @@ using std::numbers::pi;
 			{ "type": "ScalarComponentDependentParameter", "varName": "adSurfaceArea", "confName": "CPA_SPECIFIC_SURFACE_AREA"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "compRadius", "confName": "CPA_PROTEIN_RADIUS"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "latCharge", "confName": "CPA_COMP_LAT_CHARGE"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "refCompCharge", "confName": "CPA_COMP_CHARGE_REF"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "linCompCharge", "confName": "CPA_COMP_CHARGE_LIN"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "quadCompCharge", "confName": "CPA_COMP_CHARGE_QUAD"},
+			{ "type": "ComponentDependentReactionDependentParameter", "varName": "proteinCharge", "confName": "CPA_PROTEIN_CHARGE", "useReactionDimensions": true},
 			{ "type": "ScalarParameter", "varName": "refpH", "confName": "CPA_PH_REF"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "refDelta", "confName": "CPA_DELTA_REF"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "linDelta", "confName": "CPA_DELTA_LIN"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "k_kin", "confName": "CPA_KKIN"}
-		],
-	"constantParameters":
-		[
-			{ "type": "ScalarParameter", "varName": "phIdx", "confName": "CPA_PROTON_IDX"}
 		]
 }
 </codegen>*/
@@ -68,9 +63,7 @@ using std::numbers::pi;
  CPA_PH:                  	Bulk pH [-]
  CPA_SPECIFIC_SURFACE_AREA: Specific adsorber surface per skeleton volume A_{s,i} [m^-1] (per component)
  CPA_PROTEIN_RADIUS:      	Protein radius a_i [m] (per component)
- CPA_COMP_CHARGE_REF:	
- CPA_COMP_CHARGE_LIN:
- CPA_COMP_CHARGE_QUAD:
+ CPA_PROTEIN_CHARGE:     Protein charge polynomial coefficients, polynomial-order-row-major [-]
  CPA_PH_REF:
  CPA_DELTA_REF:
  CPA_DELTA_LIN:
@@ -88,16 +81,16 @@ inline const char* ColloidalParticleAdsorptionParamHandler::identifier() CADET_N
 
 inline bool ColloidalParticleAdsorptionParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
-	if ((_compRadius.size() != _refCompCharge.size())
-		|| (_compRadius.size() != _linCompCharge.size())
-		|| (_compRadius.size() != _quadCompCharge.size())
-		|| (_compRadius.size() != _latCharge.size())
+	if ((_compRadius.size() != _latCharge.size())
 		|| (_compRadius.size() != _adSurfaceArea.size())
 		|| (_compRadius.size() != _refDelta.size())
 		|| (_compRadius.size() != _linDelta.size())
 		|| (_compRadius.size() != _k_kin.size())
 		|| (_compRadius.size() < nComp))
 		throw InvalidParameterException("CPA component-dependent parameters must all have the same size (nComp)");
+
+	if ((nComp == 0) || (_proteinCharge.size() < nComp) || (_proteinCharge.size() % nComp != 0))
+		throw InvalidParameterException("CPA_PROTEIN_CHARGE must contain complete polynomial-order rows with NCOMP coefficients each");
 
 	return true;
 }
@@ -106,16 +99,16 @@ inline const char* ExtColloidalParticleAdsorptionParamHandler::identifier() CADE
 
 inline bool ExtColloidalParticleAdsorptionParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
-	if ((_compRadius.size() != _refCompCharge.size())
-		|| (_compRadius.size() != _linCompCharge.size())
-		|| (_compRadius.size() != _quadCompCharge.size())
-		|| (_compRadius.size() != _latCharge.size())
+	if ((_compRadius.size() != _latCharge.size())
 		|| (_compRadius.size() != _adSurfaceArea.size())
 		|| (_compRadius.size() != _refDelta.size())
 		|| (_compRadius.size() != _linDelta.size())
 		|| (_compRadius.size() != _k_kin.size())
 		|| (_compRadius.size() < nComp))
 		throw InvalidParameterException("CPA component-dependent parameters must all have the same size (nComp)");
+
+	if ((nComp == 0) || !_proteinCharge.allSameSize() || (_proteinCharge.size() < nComp) || (_proteinCharge.size() % nComp != 0))
+		throw InvalidParameterException("EXT_CPA_PROTEIN_CHARGE matrices must contain complete polynomial-order rows with NCOMP coefficients each");
 
 	return true;
 }
@@ -202,8 +195,11 @@ protected:
 		const double NA = _avogadroNum;
 
 		StateParamType psi = -0.01; // Initial guess
+		bool _converged_psi = false;
+		int _iter_psi = 0;
 		for (int iter = 0; iter < _MAXITER; ++iter)
 		{
+			_iter_psi = iter + 1;
 			// pH at surface: pH_0 = pH + (e * psi) / (ln(10) * k_b * T)
 			const StateParamType pH0 = pH + (e * psi) / (std::log(10.0) * kb * T);
 
@@ -225,15 +221,28 @@ protected:
 			const StateParamType drhs = 2.0 * eps * eps0 * kappa * (kb * T / e) * cosh(sinArg * psi) * sinArg;
 			const StateParamType dF = dlhs - drhs;
 
-			if (abs(dF) < 1e-30)
+			if (abs(F) < 1e-14)
+			{
+				_converged_psi = true;
+				break;
+			}
+
+			if (abs(dF) < 1e-14)
 				break;
 
 			const StateParamType delta = -F / dF;
 			psi += delta;
 
-			if (abs(delta) < 1e-15 * (1.0 + abs(psi)))
-				break; 
+			if (abs(delta) < 1e-14 * (1.0 + abs(psi)))
+			{
+				_converged_psi = true;
+				break;
+			}
 		}
+
+		if (!_converged_psi)
+			LOG(Warning) << "CPA adsorber surface-potential Newton iteration did not converge after " << _iter_psi << " iteration(s); using the last iterate.";
+
 		return psi;
 	}
 
@@ -249,6 +258,9 @@ protected:
 
 		if(paramProvider.exists("CPA_PROTON_IDX"))// default index is 0
 			_idxProton = paramProvider.getInt("CPA_PROTON_IDX");
+
+		if ((_idxProton < 0) || (_idxProton >= _nComp))
+			throw InvalidParameterException("CPA binding: PH index must be smaller than the number of components");
 
 		if (_nBoundStates[_idxProton] != 0)
 		 	throw InvalidParameterException("PH component must be non-binding (NBOUND = 0)");
@@ -268,7 +280,11 @@ protected:
 			if (_compCharge.size() != _nComp)
 				throw InvalidParameterException("CPA Binding: For every component a charge needs to be provided");
 
-			LOG(Info) << "The definition of component charges is a temporary implementation and will soon be replaced by a general pH modul.";
+			LOG(Info) << "The definition of component charges is a temporary implementation and will be replaced by a general pH modul in the future.";
+
+			double temperatur = paramProvider.getDouble("CPA_TEMPERATURE");
+			if (temperatur != 25.0)
+				LOG(Warning) << "CPA Binding: Given Teperatur does not fullfill the assumption of 25 C for the implemented activity implementation with the Debye–Hückel coefficient of 0.509";  
 		}
 	
 		return valid;
@@ -296,7 +312,7 @@ protected:
 	// d(log10(gamma_i))/d(I_m), needed for the activity-corrected pH Jacobian
 	static double dDaviesLogGammaDI(double ionicStrength, int charge)
 	{
-		if (ionicStrength < 1e-30) return 0.0;
+		if (ionicStrength < 1e-14) return 0.0;
 		const double sqrtI = std::sqrt(ionicStrength * 1e-3);
 		// d/dI_m [sqrt(I_M)/(1+sqrt(I_M)) - 0.3*I_M], where I_M = 1e-3*I_m
 		return _daviesFactor*1e-3 * charge * charge * (1.0 / (2.0 * sqrtI * (1.0 + sqrtI) * (1.0 + sqrtI)) - 0.3);
@@ -335,10 +351,11 @@ protected:
 
 		// pH = -log10(a_H+ [mol/L]) = -log10(gamma_H+ * c_H+ * 1e-3)  (c in mol/m^3, factor 1e-3 converts to mol/L)
 		const CpStateParamType gammaHp = !_compCharge.empty() ? daviesActivityCoeff(Im, _compCharge[_idxProton]) : daviesActivityCoeff(Im, 1);
-
-		const CpStateParamType pH = _compCharge.empty()
-			? -log(yCp[_idxProton] * 1e-3) / log(10.0)
-			: -log(gammaHp* yCp[_idxProton] * 1e-3) / log(10.0);
+		const CpStateParamType protonActivity = (_compCharge.empty() ? yCp[_idxProton] : gammaHp * yCp[_idxProton]) * 1e-3;
+		// Clamp the proton activity at 1e-14 mol/L, which limits the computed pH to 14
+		CpStateParamType pH = 14.0;
+		if (protonActivity > 1e-14)
+			pH = -log(protonActivity) / log(10.0);
 
 		// Solve adsorber surface potential psi_{0,A}
 		const CpStateParamType psiA = solvePsiAdsorber(pH, kappa, GammaL, zetaL, pKL, eps, T);
@@ -371,10 +388,11 @@ protected:
 
 		// D_hex^2 = 2*sqrt(3) / (3 * N_A * sum_j(q_j))
 		CpStateParamType Dhex = 0.0;
-		if (static_cast<double>(sumQSurface) > 1e-30)
+		if (static_cast<double>(sumQSurface) > 1e-14)
 			Dhex = sqrt(2.0 * std::sqrt(3.0) / (3.0 * NA) / sumQSurface);
 
 		bndIdx = 0;
+		const std::size_t nChargeCoeffs = p->proteinCharge.size() / _nComp;
 		for (int i = 0; i < _nComp; ++i)
 		{
 			if (_nBoundStates[i] == 0)
@@ -383,11 +401,15 @@ protected:
 			const ParamType a_i      = static_cast<ParamType>(p->compRadius[i]);
 			const ParamType As_i     = static_cast<ParamType>(p->adSurfaceArea[i]);
 			const ParamType Zlat_i   = static_cast<ParamType>(p->latCharge[i]);
-			const ParamType refZi	 = static_cast<ParamType>(p->refCompCharge[i]);
-			const ParamType linZi	 = static_cast<ParamType>(p->linCompCharge[i]);
-			const ParamType quadZi   = static_cast<ParamType>(p->quadCompCharge[i]);	
-
-			const CpStateParamType Zi = refZi + linZi * (pH - refpH) + quadZi * (pH - refpH) * (pH - refpH);
+			const ParamType refZi    = static_cast<ParamType>(p->proteinCharge[i]);
+			const CpStateParamType pHDifference = refpH - pH;
+			CpStateParamType Zi = refZi;
+			CpStateParamType pHPower = 1.0;
+			for (std::size_t coef = 1; coef < nChargeCoeffs; ++coef)
+			{
+				pHPower *= pHDifference;
+				Zi += static_cast<ParamType>(p->proteinCharge[coef * _nComp + i]) * pHPower;
+			}
 
 			// 1. Protein surface potential psi_{0,i}
 			//    psi_i = (2*k_b*T/e) * asinh(Z_i*e^2 / (8*pi*a_i^2*eps*eps0*kappa*k_b*T))
@@ -396,7 +418,7 @@ protected:
 
 			// 2. Compute delta_m analytically: z^* = -ln( -2*psiA*psi_i / (psiA^2 + psi_i^2))/kappa
 			const CpStateParamType dmRatio = -2.0 * psiA * psi_i / (psiA * psiA + psi_i * psi_i);
-			if (dmRatio < 1e-15)
+			if (dmRatio < 1e-14)
 				throw InvalidParameterException("CPA Binding: While computing delta_m a log(0) would have been calculated, check your parameter settings ");
 			const CpStateParamType dm_i = -log(dmRatio) / kappa;
 
@@ -405,7 +427,7 @@ protected:
 			const ParamType dLin_i = static_cast<ParamType>(p->linDelta[i]);
 			const CpStateParamType sigmaI_i = Zi * e / (4.0 * pi * a_i * a_i);
 			const ParamType sigmaRef_I = refZi * e / (4.0 * pi * a_i * a_i);
-			const CpStateParamType logDelta = std::log10(static_cast<double>(dRef_i)) + dLin_i * (abs(sigmaI_i) - abs(sigmaRef_I));
+			const CpStateParamType logDelta = dRef_i + dLin_i * (abs(sigmaI_i) - abs(sigmaRef_I));
 			const CpStateParamType delta_i = exp(std::log(10.0) * logDelta);
 			const CpStateParamType dstar_i = dm_i + delta_i / As_i;
 
@@ -421,7 +443,7 @@ protected:
 			// 5. K_{H,i}
 			//    K_{H,i} = (k_b*T / u_{A,i}) * (1 - exp(-u_{A,i} / (k_b*T)))
 			CpStateParamType KH_i = 1.0;
-			if (std::abs(static_cast<double>(uA_i)) > 1e-30)
+			if (std::abs(static_cast<double>(uA_i)) > 1e-14)
 				KH_i = (kbT / uA_i) * (1.0 - exp(-uA_i / kbT));
 
 			// 6. B_i(Theta)
@@ -475,7 +497,7 @@ protected:
 
 			const CpStateParamType ulatDenom = 1.0 - exp(-(3.0 * std::sqrt(3.0) / (2.0 * pi)) * kappa * Dhex);
 
-			if (std::abs(static_cast<double>(ulatDenom)) > 1e-30)
+			if (std::abs(static_cast<double>(ulatDenom)) > 1e-14)
 			{
 				ulat_i = 3.0 * std::sqrt(3.0) * Dhex * NA
 					* exp(-kappa * Dhex) / ulatDenom
@@ -494,7 +516,7 @@ protected:
 				const CpStateParamType uARatio = uA_i / kbT;
 				
 				CpStateParamType kKin_i = kKinScale;
-				if (uARatio > 1e-15)
+				if (std::abs(static_cast<double>(uARatio)) > 1e-14)
 					kKin_i = 0.5 * kKinScale * uARatio * uARatio / (cosh(uARatio) - 1.0);
 				
 				res[bndIdx] = kKin_i * (y[bndIdx] - Kv_i * yCp[i]);
@@ -531,7 +553,7 @@ protected:
 		// dF/dpH: dsigma_I/dpH = -e*NA*GammaL*ln10*x/(1+x)^2
 		const double dF_dpH = -e * NA * GammaL * std::log(10.0) * expTerm / ((1.0 + expTerm) * (1.0 + expTerm));
 
-		if (std::abs(dF_dpsi) < 1e-30)
+		if (std::abs(dF_dpsi) < 1e-14)
 			return 0.0;
 
 		return -dF_dpH / dF_dpsi;
@@ -563,7 +585,7 @@ protected:
 		// sigma_D = 2*eps*eps0*kappa*(kbT/e)*sinh(e*psi/(2*kbT))
 		const double dF_dkappa = -2.0 * eps * eps0 * (kb * T / e) * std::sinh(sinArg * psiA);
 
-		if (std::abs(dF_dpsi) < 1e-30)
+		if (std::abs(dF_dpsi) < 1e-14)
 			return 0.0;
 
 		return -dF_dkappa / dF_dpsi;
@@ -593,9 +615,10 @@ protected:
 		const double pKL     = static_cast<double>(p->pKLigand);
 
 		// pH = -log10(gamma_H+ * c_H+ * 1e-3)  (c in mol/m^3, factor 1e-3 converts to mol/L)
-		const double pH_val = _compCharge.empty()
-			? -std::log10(yCp[_idxProton] * 1e-3)
-			: -std::log10(daviesActivityCoeff(Im, _compCharge[_idxProton]) * yCp[_idxProton] * 1e-3);
+		const double protonActivity = (_compCharge.empty() ? yCp[_idxProton] : daviesActivityCoeff(Im, _compCharge[_idxProton]) * yCp[_idxProton]) * 1e-3;
+		// The pH is constant in the clamped branch, so its concentration derivatives vanish there
+		const bool isPHClamped = protonActivity <= 1e-14;
+		const double pH_val = isPHClamped ? 14.0 : -std::log10(protonActivity);
 		const double kappa = sqrt(2.0 * e * e * Im * NA / (kb * T * eps * eps0));
 		const double kbT = kb * T;
 
@@ -644,11 +667,12 @@ protected:
 		Theta *= (pi * NA);
 
 		double Dhex = 0.0;
-		if (sumQSurface > 1e-30)
+		if (sumQSurface > 1e-14)
 			Dhex = sqrt(2.0 * std::sqrt(3.0) / (3.0 * NA) / sumQSurface);
 
 		// --- Main Jacobian loop: one row per bound state ---
 		bndIdx = 0;
+		const std::size_t nChargeCoeffs = p->proteinCharge.size() / _nComp;
 		for (int i = 0; i < _nComp; ++i)
 		{
 			if (_nBoundStates[i] == 0)
@@ -656,13 +680,20 @@ protected:
 
 			const double a_i      = static_cast<double>(p->compRadius[i]);
 			const double As_i     = static_cast<double>(p->adSurfaceArea[i]);
-			const double refZi    = static_cast<double>(p->refCompCharge[i]);
-			const double linZi    = static_cast<double>(p->linCompCharge[i]);
-			const double quadZi   = static_cast<double>(p->quadCompCharge[i]);
+			const double refZi    = static_cast<double>(p->proteinCharge[i]);
 			const double Zlat_i   = static_cast<double>(p->latCharge[i]);
 			const double refpH    = static_cast<double>(p->refpH);
 
-			const double Zi = refZi + linZi * (pH_val - refpH) + quadZi * (pH_val - refpH) * (pH_val - refpH);
+			const double pHDifference = refpH - pH_val;
+			double Zi = refZi;
+			double dZi_dpH = 0.0;
+			double pHPower = 1.0;
+			for (std::size_t coef = 1; coef < nChargeCoeffs; ++coef)
+			{
+				dZi_dpH -= coef * static_cast<double>(p->proteinCharge[coef * _nComp + i]) * pHPower;
+				pHPower *= pHDifference;
+				Zi += static_cast<double>(p->proteinCharge[coef * _nComp + i]) * pHPower;
+			}
 
 			// --- Protein surface potential psi_i ---
 			const double psiArg = Zi * e * e / (8.0 * pi * a_i * a_i * eps * eps0 * kappa * kbT);
@@ -706,9 +737,9 @@ protected:
 				* (2.0 * psiA * psi_i + (psiA * psiA + psi_i * psi_i) * ekz);
 
 			// --- K_{H,i} ---
-			double KH_i = 0.0;
+			double KH_i = 1.0;
 			double dKH_duA = 0.0;
-			if (std::abs(uA_i) > 1e-30)
+			if (std::abs(uA_i) > 1e-14)
 			{
 				const double expUA = exp(-uA_i / kbT);
 				KH_i = (kbT / uA_i) * (1.0 - expUA);
@@ -727,10 +758,14 @@ protected:
 			{
 				const double kKinScale = static_cast<double>(p->k_kin[i]);
 				const double uAratio = uA_i / kbT;
-				const double coshM1 = cosh(uAratio) - 1.0;
-				const double sinhUA = sinh(uAratio);
-				kKin_i = 0.5 * kKinScale * uAratio * uAratio / coshM1;
-				dkKin_duA = 0.5 * kKinScale / kbT * (2.0 * uAratio * coshM1 - uAratio * uAratio * sinhUA) / (coshM1 * coshM1);
+				kKin_i = kKinScale;
+				if (std::abs(uAratio) > 1e-14)
+				{
+					const double coshM1 = cosh(uAratio) - 1.0;
+					const double sinhUA = sinh(uAratio);
+					kKin_i = 0.5 * kKinScale * uAratio * uAratio / coshM1;
+					dkKin_duA = 0.5 * kKinScale / kbT * (2.0 * uAratio * coshM1 - uAratio * uAratio * sinhUA) / (coshM1 * coshM1);
+				}
 			}
 
 			// --- B_i(Theta) ---
@@ -802,14 +837,14 @@ protected:
 			double ulatPrefactor = 0.0;  // 3*sqrt(3)*Dhex*NA * exp(-kappa*Dhex) / denom
 			double dulatPrefactor_dDhex = 0.0;
 
-			if (Dhex > 1e-30)
+			if (Dhex > 1e-14)
 			{
 				const double expKD = exp(-kappa * Dhex);
 				const double denomArg = 3.0 * sqrt3 / (2.0 * pi) * kappa * Dhex;
 				const double denomExp = exp(-denomArg);
 				const double denom = 1.0 - denomExp;
 
-				if (std::abs(denom) > 1e-30)
+				if (std::abs(denom) > 1e-14)
 				{
 					ulatPrefactor = 3.0 * sqrt3 * Dhex * NA * expKD / denom;
 					ulat_i = ulatPrefactor * betaQSum;
@@ -827,7 +862,7 @@ protected:
 			// dDhex/dsumQSurface: Dhex = sqrt(2*sqrt3 / (3*NA*sumQ))
 			// dDhex/dsumQ = -0.5 * Dhex / sumQSurface  (if sumQ > 0)
 			double dDhex_dsumQ = 0.0;
-			if (sumQSurface > 1e-30)
+			if (sumQSurface > 1e-14)
 				dDhex_dsumQ = -0.5 * Dhex / sumQSurface;
 
 			// --- Kv_i = As_i * Delta_i * KH_i * B_i * exp(-ulat_i / kbT) ---
@@ -848,10 +883,8 @@ protected:
 			// dres_i / dc_{p,proton}
 			// pH affects: Zi -> psi_i, sigmaI -> delta_i, and psiA (via dPsiA_dpH)
 			// These propagate through: dm_i, uA_i, KH_i, kKin_i, Delta_i, Kv_i
+			if (!isPHClamped)
 			{
-				// dZi/dpH
-				const double dZi_dpH = linZi + 2.0 * quadZi * (pH_val - refpH);
-
 				// dpsi_i/dpH: psi_i = (2*kbT/e)*arcsinh(Zi*C1), so dpsi_i/dpH = (2*kbT/e)*C1*dZi/dpH / sqrt(arg^2+1)
 				const double C1_psi = e * e / (8.0 * pi * a_i * a_i * eps * eps0 * kappa * kbT);
 				const double dpsi_i_dpH = (2.0 * kbT / e) * dZi_dpH * C1_psi / sqrt(psiArg * psiArg + 1.0);
@@ -860,14 +893,14 @@ protected:
 				const double S_pot = psiA * psiA + psi_i * psi_i;
 				const double dR_dpsiA = 2.0 * psi_i * (psiA * psiA - psi_i * psi_i) / (S_pot * S_pot);
 				const double dR_dpsi_i = 2.0 * psiA * (psi_i * psi_i - psiA * psiA) / (S_pot * S_pot);
-				const double ddm_dpH = (std::abs(dmRatio) > 1e-30)
+				const double ddm_dpH = (std::abs(dmRatio) > 1e-14)
 					? (-1.0 / (dmRatio * kappa)) * (dR_dpsiA * dpsiA_dpH_val + dR_dpsi_i * dpsi_i_dpH)
 					: 0.0;
 
 				// ddelta_i/dpH via sigmaI_i
 				const double dsigmaI_dpH = dZi_dpH * e / (4.0 * pi * a_i * a_i);
 				double ddelta_dpH = 0.0;
-				if (std::abs(sigmaI_i) > 1e-30)
+				if (std::abs(sigmaI_i) > 1e-14)
 					ddelta_dpH = delta_i * std::log(10.0) * dLin_i * (sigmaI_i > 0.0 ? 1.0 : -1.0) * dsigmaI_dpH;
 				const double dDelta_dpH = ddelta_dpH / As_i;
 
@@ -891,13 +924,13 @@ protected:
 				// dpH/dc_proton = -1/(c_proton*ln10) - dlog10(gamma_H+)/dIm * dIm/dc_proton
 				// (negative signs from pH = -log10(...))
 				double dpH_dc_proton = -1.0 / (yCp[_idxProton] * std::log(10.0));
-				if (!_compCharge.empty() && std::abs(Im) > 1e-30)
+				if (!_compCharge.empty() && std::abs(Im) > 1e-14)
 				{
 					const double dpH_dIm = -dDaviesLogGammaDI(Im, _compCharge[_idxProton]);
 					for (int jj = 0; jj < _nComp; ++jj)
 					{
 						const double dIm_dcjj = 0.5 * static_cast<double>(_compCharge[jj] * _compCharge[jj]);
-						if (std::abs(dIm_dcjj) < 1e-30) continue;
+						if (std::abs(dIm_dcjj) < 1e-14) continue;
 						if (jj == _idxProton)
 							dpH_dc_proton += dpH_dIm * dIm_dcjj;
 						else
@@ -909,7 +942,7 @@ protected:
 
 			// Im = 0.5 * sum_j(z_j^2 * c_j), so dIm/dc_j = 0.5 * z_j^2
 			// dkappa/dc_j = dkappa/dIm * dIm/dc_j = (kappa/(2*Im)) * 0.5 * z_j^2
-			if (!_compCharge.empty() && std::abs(Im) > 1e-30)
+			if (!_compCharge.empty() && std::abs(Im) > 1e-14)
 			{
 				const double dkappa_dIm = kappa / (2.0 * Im);
 
@@ -928,7 +961,7 @@ protected:
 				const double dR_dpsi_i_k = 2.0 * psiA * (psi_i * psi_i - psiA * psiA) / (S_pot_k * S_pot_k);
 				const double dR_dkappa = dR_dpsiA_k * dpsiA_dkappa_val + dR_dpsi_i_k * dpsi_i_dkappa;
 				double ddm_dkappa = 0.0;
-				if (std::abs(dmRatio) > 1e-30)
+				if (std::abs(dmRatio) > 1e-14)
 					ddm_dkappa = log(dmRatio) / (kappa * kappa) - dR_dkappa / (dmRatio * kappa);
 
 				// duA/dkappa: through psiA, psi_i, and explicit kappa in ekz
@@ -962,12 +995,12 @@ protected:
 
 				// dulatPrefactor/dkappa: ulatPrefactor = 3*sqrt3*Dhex*NA*exp(-kappa*Dhex) / (1-exp(-c*kappa*Dhex))
 				double dulatPrefactor_dkappa = 0.0;
-				if (Dhex > 1e-30)
+				if (Dhex > 1e-14)
 				{
 					const double c_lat = 3.0 * sqrt3 / (2.0 * pi);
 					const double hLat = exp(-c_lat * kappa * Dhex);
 					const double denomLat = 1.0 - hLat;
-					if (std::abs(denomLat) > 1e-30)
+					if (std::abs(denomLat) > 1e-14)
 						dulatPrefactor_dkappa = ulatPrefactor * (-Dhex) * (1.0 + (c_lat - 1.0) * hLat) / denomLat;
 				}
 
@@ -986,7 +1019,7 @@ protected:
 				for (int j = 0; j < _nComp; ++j)
 				{
 					const double dIm_dcj = 0.5 * static_cast<double>(_compCharge[j] * _compCharge[j]);
-					if (std::abs(dIm_dcj) < 1e-30)
+					if (std::abs(dIm_dcj) < 1e-14)
 						continue;
 					jac[j - bndIdx - offsetCp] += dres_dkappa * dkappa_dIm * dIm_dcj;
 				}
@@ -1034,7 +1067,7 @@ protected:
 
 				// dKv_i / dq_k
 				double dKv_dqk = 0.0;
-				if (std::abs(B_i) > 1e-30)
+				if (std::abs(B_i) > 1e-14)
 					dKv_dqk = Kv_i * (dBi_dqk / B_i - dulat_dqk / kbT);
 				else
 					dKv_dqk = As_i * Delta_i * KH_i * expUlat * (dBi_dqk - B_i * dulat_dqk / kbT);
