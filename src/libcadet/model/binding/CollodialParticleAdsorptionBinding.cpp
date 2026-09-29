@@ -36,9 +36,9 @@ using std::numbers::pi;
 			{ "type": "ScalarParameter", "varName": "temperature", "confName": "CPA_TEMPERATURE"},
 			{ "type": "ScalarParameter", "varName": "ionicStrength", "confName": "CPA_IONIC_STRENGTH"},
 			{ "type": "ScalarParameter", "varName": "permittivity", "confName": "CPA_PERMITTIVITY"},
-			{ "type": "ScalarParameter", "varName": "surfaceDensity", "confName": "CPA_SURFACE_DENSITY"},
+			{ "type": "ScalarParameter", "varName": "surfaceDensity", "confName": "CPA_LIGAND_DENSITY"},
 			{ "type": "ScalarParameter", "varName": "chargeFullLigand", "confName": "CPA_CHARGE_FULL_LIGAND"},
-			{ "type": "ScalarParameter", "varName": "pKLigand", "confName": "CPA_PK_LIGAND"},
+			{ "type": "ScalarParameter", "varName": "pKLigand", "confName": "CPA_LIGAND_PK"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "adSurfaceArea", "confName": "CPA_SPECIFIC_SURFACE_AREA"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "compRadius", "confName": "CPA_PROTEIN_RADIUS"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "latCharge", "confName": "CPA_COMP_LAT_CHARGE"},
@@ -75,7 +75,7 @@ using std::numbers::pi;
  CPA_DELTA_REF:
  CPA_DELTA_LIN:
  CPA_KKIN:                 Kinetic prefactor k^*_{kin,i} [s^-1] (per component)
- CPA_COMPONENT_CHARGE: (temporally)
+ CPA_COMPONENT_CHARGE: 
 */
 
 namespace cadet
@@ -232,7 +232,7 @@ protected:
 			psi += delta;
 
 			if (abs(delta) < 1e-15 * (1.0 + abs(psi)))
-				break;
+				break; 
 		}
 		return psi;
 	}
@@ -321,9 +321,7 @@ protected:
 
 		// Scalar parameters
 		const ParamType T       = static_cast<ParamType>(p->temperature);
-		const CpStateParamType Im = !_compCharge.empty()
-			? static_cast<CpStateParamType>(calcIonicStrength(yCp))
-			: static_cast<CpStateParamType>(p->ionicStrength);
+		const CpStateParamType Im = !_compCharge.empty()? static_cast<CpStateParamType>(calcIonicStrength(yCp)) : static_cast<CpStateParamType>(p->ionicStrength);
 		const ParamType eps     = static_cast<ParamType>(p->permittivity);
 		const ParamType GammaL  = static_cast<ParamType>(p->surfaceDensity);
 		const ParamType zetaL   = static_cast<ParamType>(p->chargeFullLigand);
@@ -460,8 +458,7 @@ protected:
 				const ParamType a_j    = static_cast<ParamType>(p->compRadius[j]);
 				const ParamType As_j   = static_cast<ParamType>(p->adSurfaceArea[j]);
 
-				// beta_{i,j} = Zlat_i * Zlat_j * e^2/(4*pi*eps*eps0)
-				//              * exp(kappa*(a_i+a_j)) / ((1+kappa*a_i)*(1+kappa*a_j))
+				// beta_{i,j} = Zlat_i * Zlat_j * e^2/(4*pi*eps*eps0) * exp(kappa*(a_i+a_j)) / ((1+kappa*a_i)*(1+kappa*a_j))
 				const CpStateParamType beta_ij = Zlat_i * Zlat_j * elecPrefactor
 					* exp(kappa * (a_i + a_j))
 					/ ((1.0 + kappa * a_i) * (1.0 + kappa * a_j));

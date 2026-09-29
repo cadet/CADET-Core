@@ -45,7 +45,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Type:** double     **Range:** :math:`\gt 0`   **Length:** 1
 ===================  =========================  =========================================
 
-``CPA_SURFACE_DENSITY``
+``CPA_LIGAND_DENSITY``
    Ligand surface density :math:`\Gamma_L`
 
 **Unit:** :math:`\mathrm{mol \, m^{-2}}`
