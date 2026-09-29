@@ -52,7 +52,7 @@ using std::numbers::pi;
 		],
 	"constantParameters":
 		[
-			{ "type": "ScalarBoolParameter", "varName": "phIdx", "confName": "CPA_PROTON_IDX"}
+			{ "type": "ScalarParameter", "varName": "phIdx", "confName": "CPA_PROTON_IDX"}
 		]
 }
 </codegen>*/
@@ -62,9 +62,9 @@ using std::numbers::pi;
  CPA_TEMPERATURE:         	Temperature [K]
  CPA_IONIC_STRENGTH:      	Ionic strength [mol/m^3]
  CPA_PERMITTIVITY:        	Relative permittivity [-]
- CPA_SURFACE_DENSITY:     	Ligand surface density Gamma_L [mol/m^2]
+ CPA_LIGAND_DENSITY:     	Ligand surface density Gamma_L [mol/m^2]
  CPA_CHARGE_FULL_LIGAND:  	Charge of fully protonated ligand zeta_L [-]
- CPA_PK_LIGAND:           	pK of the ligand [-]
+ CPA_LIGAND_PK:           	pK of the ligand [-]
  CPA_PH:                  	Bulk pH [-]
  CPA_SPECIFIC_SURFACE_AREA: Specific adsorber surface per skeleton volume A_{s,i} [m^-1] (per component)
  CPA_PROTEIN_RADIUS:      	Protein radius a_i [m] (per component)
@@ -164,7 +164,7 @@ public:
 
 	virtual bool hasSalt() const CADET_NOEXCEPT { return false; }
 	virtual bool supportsMultistate() const CADET_NOEXCEPT { return false; }
-	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return false; }
+	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
 
 	CADET_BINDINGMODELBASE_BOILERPLATE
 
@@ -396,6 +396,8 @@ protected:
 
 			// 2. Compute delta_m analytically: z^* = -ln( -2*psiA*psi_i / (psiA^2 + psi_i^2))/kappa
 			const CpStateParamType dmRatio = -2.0 * psiA * psi_i / (psiA * psiA + psi_i * psi_i);
+			if (dmRatio < 1e-15)
+				throw InvalidParameterException("CPA Binding: While computing delta_m a log(0) would have been calculated, check your parameter settings ");
 			const CpStateParamType dm_i = -log(dmRatio) / kappa;
 
 			// 3. Compute delta_i and dstar_i
@@ -403,7 +405,7 @@ protected:
 			const ParamType dLin_i = static_cast<ParamType>(p->linDelta[i]);
 			const CpStateParamType sigmaI_i = Zi * e / (4.0 * pi * a_i * a_i);
 			const ParamType sigmaRef_I = refZi * e / (4.0 * pi * a_i * a_i);
-			const CpStateParamType logDelta = dRef_i + dLin_i * (abs(sigmaI_i) - abs(sigmaRef_I));
+			const CpStateParamType logDelta = std::log10(static_cast<double>(dRef_i)) + dLin_i * (abs(sigmaI_i) - abs(sigmaRef_I));
 			const CpStateParamType delta_i = exp(std::log(10.0) * logDelta);
 			const CpStateParamType dstar_i = dm_i + delta_i / As_i;
 
@@ -418,7 +420,7 @@ protected:
 
 			// 5. K_{H,i}
 			//    K_{H,i} = (k_b*T / u_{A,i}) * (1 - exp(-u_{A,i} / (k_b*T)))
-			CpStateParamType KH_i = 0.0;
+			CpStateParamType KH_i = 1.0;
 			if (std::abs(static_cast<double>(uA_i)) > 1e-30)
 				KH_i = (kbT / uA_i) * (1.0 - exp(-uA_i / kbT));
 
@@ -429,7 +431,7 @@ protected:
 			//      - pi^2*a_i^2 * (sum_j(a_j*q_j*N_A))^2 / (1 - Theta)^2 )
 
 			CpStateParamType B_i = 0.0;
-			if (std::abs(static_cast<double>(Theta)) < 1.0)
+			if ((Theta >= 0.0) && (Theta < 1.0))
 			{
 				const CpStateParamType oneMinusTheta = 1.0 - Theta;
 				const CpStateParamType nom1 = pi * a_i * a_i * sumQSurface * NA + 2.0 * pi * a_i * sumAjQj * NA;
@@ -437,6 +439,8 @@ protected:
 
 				B_i = oneMinusTheta * exp( - nom1 / oneMinusTheta - nom2 / (oneMinusTheta * oneMinusTheta));
 			}
+			else
+				throw InvalidParameterException("CPA Binding: While computing B_i(Theta) Theta must satisfy 0 <= Theta < 1 check your parameter settings");
 
 			// 7. u_{lat,i} 
 			//    u_{lat,i} = 3*sqrt(3)*D_hex*N_A
@@ -458,7 +462,7 @@ protected:
 				const ParamType a_j    = static_cast<ParamType>(p->compRadius[j]);
 				const ParamType As_j   = static_cast<ParamType>(p->adSurfaceArea[j]);
 
-				// beta_{i,j} = Zlat_i * Zlat_j * e^2/(4*pi*eps*eps0) * exp(kappa*(a_i+a_j)) / ((1+kappa*a_i)*(1+kappa*a_j))
+				// beta_{i,j} = Zlat_i * Zlat_j * e^2/(4*pi*eps*eps0 * exp(kappa*(a_i+a_j)) / ((1+kappa*a_i)*(1+kappa*a_j))
 				const CpStateParamType beta_ij = Zlat_i * Zlat_j * elecPrefactor
 					* exp(kappa * (a_i + a_j))
 					/ ((1.0 + kappa * a_i) * (1.0 + kappa * a_j));
@@ -488,7 +492,11 @@ protected:
 				// 9. k_{kin,i} = k^*_{kin,i}/2 * (u_A/(k_b*T))^2 / (cosh(u_A/(k_b*T)) - 1)
 				const ParamType kKinScale = static_cast<ParamType>(p->k_kin[i]);
 				const CpStateParamType uARatio = uA_i / kbT;
-				const CpStateParamType kKin_i = 0.5 * kKinScale * uARatio * uARatio / (cosh(uARatio) - 1.0);
+				
+				CpStateParamType kKin_i = kKinScale;
+				if (uARatio > 1e-15)
+					kKin_i = 0.5 * kKinScale * uARatio * uARatio / (cosh(uARatio) - 1.0);
+				
 				res[bndIdx] = kKin_i * (y[bndIdx] - Kv_i * yCp[i]);
 			}
 
@@ -662,6 +670,10 @@ protected:
 
 			// --- Compute delta_m analytically ---
 			const double dmRatio = -2.0 * psiA * psi_i / (psiA * psiA + psi_i * psi_i);
+			
+			if (dmRatio < 1e-14)
+				throw InvalidParameterException("CPA Binding: While computing delta_m a log(0) would have been calculated, check your parameter settings ");
+			
 			const double dm_i = -log(dmRatio) / kappa;
 
 			// --- Compute delta_i via Eq. (39) and dstar_i ---
@@ -727,7 +739,7 @@ protected:
 			double dBi_dsumQ = 0.0;
 			double dBi_dsumAjQj = 0.0;
 
-			if (std::abs(Theta) < 1.0)
+			if ((Theta >= 0.0) && (Theta < 1.0))
 			{
 				const double oneMinusTheta = 1.0 - Theta;
 				const double nom1 = pi * a_i * a_i * sumQSurface * NA + 2.0 * pi * a_i * sumAjQj * NA;
@@ -756,6 +768,9 @@ protected:
 					- 2.0 * pi * pi * a_i * a_i * sumAjQj * NA * NA / (oneMinusTheta * oneMinusTheta);
 				dBi_dsumAjQj = B_i * dexpArg_dsumAjQj;
 			}
+			else
+				throw InvalidParameterException("CPA Binding: While computing B_i(Theta) Theta must satisfy 0 <= Theta < 1 check your parameter settings");
+
 
 			// --- u_{lat,i} and its derivatives ---
 			double ulat_i = 0.0;

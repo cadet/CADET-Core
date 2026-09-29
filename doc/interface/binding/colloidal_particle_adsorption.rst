@@ -24,7 +24,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Unit:** :math:`\mathrm{K}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\gt 0`   **Length:** 1
+**Type:** double     **Range:** :math:`> 0`   **Length:** 1
 ===================  =========================  =========================================
 
 ``CPA_IONIC_STRENGTH``
@@ -35,7 +35,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Unit:** :math:`\mathrm{mol \, m^{-3}}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\ge 0`   **Length:** 1
+**Type:** double     **Range:** :math:`> 0`   **Length:** 1
 ===================  =========================  =========================================
 
 ``CPA_PERMITTIVITY``
@@ -61,7 +61,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Type:** double                                **Length:** 1
 ===================  =========================  =========================================
 
-``CPA_PK_LIGAND``
+``CPA_LIGAND_PK``
    Dissociation constant :math:`\mathrm{p}K_L` of the ligand
 
 ===================  =========================  =========================================
@@ -82,7 +82,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Unit:** :math:`\mathrm{m^{-1}}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
+**Type:** double     **Range:** :math:`> 0`   **Length:** NCOMP
 ===================  =========================  =========================================
 
 ``CPA_PROTEIN_RADIUS``
@@ -91,7 +91,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Unit:** :math:`\mathrm{m}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
+**Type:** double     **Range:** :math:`> 0`   **Length:** NCOMP
 ===================  =========================  =========================================
 
 ``CPA_COMP_CHARGE_REF``
@@ -165,11 +165,10 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 ``CPA_COMPONENT_CHARGE``
    Integer valence charge :math:`z_i` for each component (optional).
    If provided, the ionic strength is computed from the pore-phase
-   concentrations as :math:`I_m = \tfrac{1}{2}\sum_i z_i^2 c_{p,i}`,
-   and the Davies activity correction is applied to the proton
+   concentrations, and the Davies activity correction is applied to the proton
    component when computing pH.  The vector must contain one entry per
-   component (``NCOMP`` values).  Non-ionic components should be
-   assigned a charge of 0.
+   component (``NCOMP`` values).Components that should not contribute to the ionic 
+   strength, should be assigned a charge of zero. 
 
 ===================  =========================  =========================================
 **Type:** int                                   **Length:** NCOMP

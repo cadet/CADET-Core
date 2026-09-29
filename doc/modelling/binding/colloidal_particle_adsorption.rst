@@ -40,11 +40,15 @@ Since the standard definition of pH is based on concentration in mol/L, :math:`m
 
       \mathrm{pH} = -\log_{10}\!\left(c_{p,\mathrm{pH}} \cdot 10^{-3}\right).
 
+  This case represents the setting of :cite:`Briskot2021`. As an addionally option $Im$ can be calculated dynamicly with the Davies activity correction.
+
 - **Computed from concentrations**: if component charges :math:`z_i` are provided via ``CPA_COMPONENT_CHARGE``, the ionic strength is computed from the pore-phase concentrations at each time step,
 
   .. math::
 
-      I_m = \frac{1}{2} \sum_i z_i^2 \, c_{p,i},
+      I_m = \frac{1}{2} \sum_i z_i^2 \, c_{p,i}.
+
+  Components that should not contribute to the ionic strength, should be assigned a charge of zero. 
 
   For the Davies model, this value is converted from :math:`\mathrm{mol\,m^{-3}}` to :math:`\mathrm{mol\,L^{-1}}` as :math:`I_M = 10^{-3} I_m`. The activity correction is then
 
@@ -59,6 +63,7 @@ Since the standard definition of pH is based on concentration in mol/L, :math:`m
       \mathrm{pH} = -\log_{10}\!\left(\gamma_{\mathrm{H}^+} \, c_{p,\mathrm{pH}} \cdot 10^{-3}\right).
 
   The constant 0.509 is the Debye–Hückel slope for water at 25 °C.  The factor :math:`10^{-3}` converts the pore-phase concentration from :math:`mol/m^3` to mol/L, as required by the pH definition.
+
 
 
 Inverse Debye length
@@ -112,7 +117,6 @@ The protein net charge :math:`Z_i` depends on pH via a quadratic relation:
 
     Z_i(\mathrm{pH}) = Z_{i,\mathrm{ref}} + Z_{i,\mathrm{lin}} \left(\mathrm{pH} - \mathrm{pH}_{\mathrm{ref}}\right) + Z_{i,\mathrm{quad}} \left(\mathrm{pH} - \mathrm{pH}_{\mathrm{ref}}\right)^2.
 
-The protein surface potential :math:`\psi_{0,i}` is obtained from the Debye–Hückel approximation for a sphere:
 
 .. math::
 
@@ -147,7 +151,7 @@ The effective adsorption distance is then :math:`d_i^* = \delta_{m,i} + \delta_i
 Protein–adsorber interaction energy
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The electrostatic interaction energy between protein :math:`i` and the adsorber at distance :math:`\delta_{m,i}` follows the Hogg–Healy–Fuerstenau model:
+The electrostatic interaction energy between protein :math:`i` and the adsorber at distance :math:`\delta_{m,i}`:
 
 .. math::
 
