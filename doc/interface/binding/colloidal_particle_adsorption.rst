@@ -120,7 +120,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Type:** double                                **Length:** NCOMP * (P + 1)
 ===================  =========================  =========================================
 
-``CPA_COMP_LAT_CHARGE``
+``CPA_PROTEIN_LAT_CHARGE``
    Lateral charge :math:`Z_{\mathrm{lat},i}` used for computing
    the pairwise Yukawa coefficient :math:`\beta_{ij}` in the lateral
    protein–protein interaction

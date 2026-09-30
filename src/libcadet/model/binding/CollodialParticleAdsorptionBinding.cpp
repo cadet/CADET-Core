@@ -42,7 +42,7 @@ using std::numbers::pi;
 			{ "type": "ScalarParameter", "varName": "pKLigand", "confName": "CPA_LIGAND_PK"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "adSurfaceArea", "confName": "CPA_SPECIFIC_SURFACE_AREA"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "compRadius", "confName": "CPA_PROTEIN_RADIUS"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "latCharge", "confName": "CPA_COMP_LAT_CHARGE"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "latCharge", "confName": "CPA_PROTEIN_LAT_CHARGE"},
 			{ "type": "ComponentDependentReactionDependentParameter", "varName": "proteinCharge", "confName": "CPA_PROTEIN_CHARGE", "useReactionDimensions": true},
 			{ "type": "ScalarParameter", "varName": "refpH", "confName": "CPA_PH_REF"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "refDelta", "confName": "CPA_DELTA_REF"},
@@ -453,7 +453,7 @@ protected:
 			//      - pi^2*a_i^2 * (sum_j(a_j*q_j*N_A))^2 / (1 - Theta)^2 )
 
 			CpStateParamType B_i = 0.0;
-			if ((Theta >= 0.0) && (Theta < 1.0))
+			if ((Theta < 1.0))
 			{
 				const CpStateParamType oneMinusTheta = 1.0 - Theta;
 				const CpStateParamType nom1 = pi * a_i * a_i * sumQSurface * NA + 2.0 * pi * a_i * sumAjQj * NA;
@@ -774,7 +774,7 @@ protected:
 			double dBi_dsumQ = 0.0;
 			double dBi_dsumAjQj = 0.0;
 
-			if ((Theta >= 0.0) && (Theta < 1.0))
+			if ((Theta < 1.0))
 			{
 				const double oneMinusTheta = 1.0 - Theta;
 				const double nom1 = pi * a_i * a_i * sumQSurface * NA + 2.0 * pi * a_i * sumAjQj * NA;
