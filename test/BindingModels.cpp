@@ -645,10 +645,10 @@ CADET_BINDINGTEST_ALLBINDING_SINGLE_IMPL_FD("NEURAL_NETWORK", "1Comp", "[NEURAL_
 TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD pH only", "[Jacobian],[AD],[BindingModel],[CPA],[CI]")
 {
 	// Minimal case: 2 components (pH, protein), nBound = {0, 1}
-	// state: [yCp_pH, yCp_protein, q_protein]
-	// yCp_pH = 10^pH = 10^5 = 1e5, q_v ~ 1.5 mol/m^3 (Theta ~ 0.4)
+	// state: [yCp_proton, yCp_protein, q_protein]
+	// yCp_proton = 10^-pH / 1e-3 = 1e-2 mol/m^3 at pH 5, q_v ~ 1.5 mol/m^3 (Theta ~ 0.4)
 	const unsigned int nBound[] = {0, 1};
-	const double state[] = {1e5, 0.05, 1.5};
+	const double state[] = {1e-2, 0.05, 1.5};
 	char const* const config = R"json({
 		"CPA_TEMPERATURE": 298.15,
 		"CPA_IONIC_STRENGTH": 100.0,
@@ -659,7 +659,7 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD pH only", "[Jacobian],[A
 		"CPA_PROTON_IDX": 0,
 		"CPA_SPECIFIC_SURFACE_AREA": [0.0, 0.22e9],
 		"CPA_PROTEIN_RADIUS": [0.0, 5.5e-9],
-		"CPA_COMP_LAT_CHARGE": [0.0, 19.07],
+		"CPA_PROTEIN_LAT_CHARGE": [0.0, 19.07],
 		"CPA_PROTEIN_CHARGE": [0.0, 80.45, 0.0, 0.0, 0.0, 0.0],
 		"CPA_PH_REF": 5.0,
 		"CPA_DELTA_REF": [0.0, 0.012589254117941675],
@@ -676,7 +676,7 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD with salt component", "[
 	// 3 components: pH (idx 0), salt (idx 1), protein (idx 2), nBound = {0, 0, 1}
 	// state: [yCp_pH, yCp_salt, yCp_protein, q_protein]
 	const unsigned int nBound[] = {0, 0, 1};
-	const double state[] = {1e5, 100.0, 0.05, 1.5};
+	const double state[] = {1e-2, 100.0, 0.05, 1.5};
 	char const* const config = R"json({
 		"CPA_TEMPERATURE": 298.15,
 		"CPA_IONIC_STRENGTH": 100.0,
@@ -685,10 +685,9 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD with salt component", "[
 		"CPA_CHARGE_FULL_LIGAND": 0.0,
 		"CPA_LIGAND_PK": 2.3,
 		"CPA_PROTON_IDX": 0,
-		"CPA_SALT_IDX": 1,
 		"CPA_SPECIFIC_SURFACE_AREA": [0.0, 0.0, 0.22e9],
 		"CPA_PROTEIN_RADIUS": [0.0, 0.0, 5.5e-9],
-		"CPA_COMP_LAT_CHARGE": [0.0, 0.0, 19.07],
+		"CPA_PROTEIN_LAT_CHARGE": [0.0, 0.0, 19.07],
 		"CPA_PROTEIN_CHARGE": [0.0, 0.0, 80.45, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
 		"CPA_PH_REF": 5.0,
 		"CPA_DELTA_REF": [0.0, 0.0, 0.012589254117941675],
@@ -714,7 +713,7 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION rapid-equilibrium Jacobian with two pro
 		"CPA_COMPONENT_CHARGE": [1, 1, 0, 0],
 		"CPA_SPECIFIC_SURFACE_AREA": [0.0, 0.0, 0.22e9, 0.18e9],
 		"CPA_PROTEIN_RADIUS": [0.0, 0.0, 5.5e-9, 6.5e-9],
-		"CPA_COMP_LAT_CHARGE": [0.0, 0.0, 19.07, 14.2],
+		"CPA_PROTEIN_LAT_CHARGE": [0.0, 0.0, 19.07, 14.2],
 		"CPA_PROTEIN_CHARGE": [0.0, 0.0, 80.45, 55.0, 0.0, 0.0, 5.0, 3.0, 0.0, 0.0, 0.1, 0.2, 0.0, 0.0, 0.015, -0.01],
 		"CPA_PH_REF": 5.0,
 		"CPA_DELTA_REF": [0.0, 0.0, 0.012589254117941675, 0.0199526231496888],

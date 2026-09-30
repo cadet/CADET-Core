@@ -402,7 +402,7 @@ protected:
 			const ParamType As_i     = static_cast<ParamType>(p->adSurfaceArea[i]);
 			const ParamType Zlat_i   = static_cast<ParamType>(p->latCharge[i]);
 			const ParamType refZi    = static_cast<ParamType>(p->proteinCharge[i]);
-			const CpStateParamType pHDifference = refpH - pH;
+			const CpStateParamType pHDifference = pH - refpH ;
 			CpStateParamType Zi = refZi;
 			CpStateParamType pHPower = 1.0;
 			for (std::size_t coef = 1; coef < nChargeCoeffs; ++coef)
@@ -443,8 +443,9 @@ protected:
 			// 5. K_{H,i}
 			//    K_{H,i} = (k_b*T / u_{A,i}) * (1 - exp(-u_{A,i} / (k_b*T)))
 			CpStateParamType KH_i = 1.0;
-			if (std::abs(static_cast<double>(uA_i)) > 1e-14)
-				KH_i = (kbT / uA_i) * (1.0 - exp(-uA_i / kbT));
+			const CpStateParamType uARatio = uA_i / kbT;
+			if (std::abs(static_cast<double>(uARatio)) > 1e-14)
+				KH_i = (1.0 - exp(-uARatio)) / uARatio;
 
 			// 6. B_i(Theta)
 			//    Hard-disc ASF
@@ -462,7 +463,7 @@ protected:
 				B_i = oneMinusTheta * exp( - nom1 / oneMinusTheta - nom2 / (oneMinusTheta * oneMinusTheta));
 			}
 			else
-				throw InvalidParameterException("CPA Binding: While computing B_i(Theta) Theta must satisfy 0 <= Theta < 1 check your parameter settings");
+				throw InvalidParameterException("CPA Binding: While computing B_i(Theta) Theta must satisfy Theta < 1 check your parameter settings");
 
 			// 7. u_{lat,i} 
 			//    u_{lat,i} = 3*sqrt(3)*D_hex*N_A
@@ -739,14 +740,15 @@ protected:
 			// --- K_{H,i} ---
 			double KH_i = 1.0;
 			double dKH_duA = 0.0;
-			if (std::abs(uA_i) > 1e-14)
+			const double uAratio = uA_i / kbT;
+
+			if (std::abs(uAratio) > 1e-14)
 			{
-				const double expUA = exp(-uA_i / kbT);
-				KH_i = (kbT / uA_i) * (1.0 - expUA);
+				KH_i = (1.0 - exp(-uAratio))/uAratio;
 				// dKH/duA = d/du [ kbT/u * (1 - e^{-u/kbT}) ]
 				//         = -kbT/u^2 * (1 - e^{-u/kbT}) + kbT/u * e^{-u/kbT}/kbT
 				//         = -KH_i/u + e^{-u/kbT}/u
-				dKH_duA = (-KH_i + expUA) / uA_i;
+				dKH_duA = (-KH_i + exp(-uAratio)) / uA_i;
 			}
 
 			// --- Kinetic scaling ---
@@ -754,10 +756,10 @@ protected:
 			const double Delta_i = dstar_i - dm_i;
 			double kKin_i = 1.0;
 			double dkKin_duA = 0.0;
+
 			if (!isQuasiStationary)
 			{
 				const double kKinScale = static_cast<double>(p->k_kin[i]);
-				const double uAratio = uA_i / kbT;
 				kKin_i = kKinScale;
 				if (std::abs(uAratio) > 1e-14)
 				{
@@ -804,7 +806,7 @@ protected:
 				dBi_dsumAjQj = B_i * dexpArg_dsumAjQj;
 			}
 			else
-				throw InvalidParameterException("CPA Binding: While computing B_i(Theta) Theta must satisfy 0 <= Theta < 1 check your parameter settings");
+				throw InvalidParameterException("CPA Binding: While computing B_i(Theta) Theta must satisfy Theta < 1 check your parameter settings");
 
 
 			// --- u_{lat,i} and its derivatives ---
