@@ -685,7 +685,7 @@ protected:
 			const double Zlat_i   = static_cast<double>(p->latCharge[i]);
 			const double refpH    = static_cast<double>(p->refpH);
 
-			const double pHDifference = refpH - pH_val;
+			const double pHDifference = pH_val - refpH;
 			double Zi = refZi;
 			double dZi_dpH = 0.0;
 			double pHPower = 1.0;

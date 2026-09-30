@@ -121,7 +121,7 @@ arbitrary degree :math:`P`:
 
 .. math::
 
-    Z_i(\mathrm{pH}) = z_{i,0} + \sum_{k=1}^{P} z_{i,k} \left(\mathrm{pH}_{\mathrm{ref}} - \mathrm{pH}\right)^k.
+    Z_i(\mathrm{pH}) = z_{i,0} + \sum_{k=1}^{P} z_{i,k} \left(\mathrm{pH}\right - \mathrm{pH}_{\mathrm{ref}})^k.
 
 The coefficients are supplied by ``CPA_PROTEIN_CHARGE`` as a polynomial-order-row-major matrix. Its rows correspond to increasing powers, its columns to components, and :math:`z_{i,0}` is the charge at
 :math:`\mathrm{pH}_{\mathrm{ref}}`. The number of matrix rows determines the polynomial degree.
