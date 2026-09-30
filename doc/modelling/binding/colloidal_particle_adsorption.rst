@@ -3,7 +3,7 @@
 Colloidal Particle Adsorption
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The colloidal particle adsorption (CPA) model describes protein adsorption on ion exchange resins based on colloidal interaction theory :cite:`Briskot2021`.
+The colloidal particle adsorption (CPA) model describes protein adsorption based on colloidal interaction theory.
 The model captures three key contributions to adsorption: electrostatic protein-adsorber interactions, lateral protein-protein interactions on the surface, and steric exclusion effects via scaled-particle theory (hard-disc available surface function).
 
 A designated proton component :math:`c_{p,\mathrm{pH}}` (by default the first component, index configurable via ``CPA_PROTON_IDX``) acts as a non-binding pH state.
@@ -23,7 +23,7 @@ In rapid-equilibrium mode, the corresponding bound-state equation is algebraic:
 
     0 = q_{v,i} - K_{v,i} \, c_{p,i}.
 
-The adsorption mode is selected by ``IS_KINETIC`` and can be specified either once for all bound states or separately for each bound state.
+The adsorption mode is selected by ``IS_KINETIC``.
 
 Multiple bound states per component are not supported.
 
@@ -40,7 +40,7 @@ Since the standard definition of pH is based on concentration in mol/L, :math:`m
 
       \mathrm{pH} = -\log_{10}\!\left(c_{p,\mathrm{pH}} \cdot 10^{-3}\right).
 
-  This case represents the setting of :cite:`Briskot2021`. As an addionally option $Im$ can be calculated dynamicly with the Davies activity correction.
+  This case represents the setting of :cite:`Briskot2021_1`. As an addionally option :math:`Im` can be calculated dynamicly with the Davies activity correction.
 
 - **Computed from concentrations**: if component charges :math:`z_i` are provided via ``CPA_COMPONENT_CHARGE``, the ionic strength is computed from the pore-phase concentrations at each time step,
 
@@ -49,7 +49,6 @@ Since the standard definition of pH is based on concentration in mol/L, :math:`m
       I_m = \frac{1}{2} \sum_i z_i^2 \, c_{p,i}.
 
   Components that should not contribute to the ionic strength, should be assigned a charge of zero. 
-
   For the Davies model, this value is converted from :math:`\mathrm{mol\,m^{-3}}` to :math:`\mathrm{mol\,L^{-1}}` as :math:`I_M = 10^{-3} I_m`. The activity correction is then
 
   .. math::
@@ -62,11 +61,9 @@ Since the standard definition of pH is based on concentration in mol/L, :math:`m
 
       \mathrm{pH} = -\log_{10}\!\left(\gamma_{\mathrm{H}^+} \, c_{p,\mathrm{pH}} \cdot 10^{-3}\right).
 
-  The constant 0.509 is the Debye–Hückel slope for water at 25 °C.  The factor :math:`10^{-3}` converts the pore-phase concentration from :math:`mol/m^3` to mol/L, as required by the pH definition.
+  **The constant 0.509 is the Debye–Hückel slope for water at 25 °C**.  The factor :math:`10^{-3}` converts the pore-phase concentration from :math:`mol/m^3` to mol/L, as required by the pH definition.
 
-In both cases, a proton activity less than or equal to :math:`10^{-14}` mol/L is mapped to pH 14. Within this clamped branch, the pH derivatives in the analytic Jacobian are zero.
-
-
+In both cases, a proton activity less than or equal to :math:`10^{-14}\mathrm{mol\,m^{-3}}` is mapped to pH 14.
 
 Inverse Debye length
 ^^^^^^^^^^^^^^^^^^^^
@@ -109,6 +106,12 @@ and the diffuse layer charge density is
 
 Here, :math:`\Gamma_L` is the ligand surface density, :math:`\zeta_L` the charge of the fully protonated ligand, and :math:`\mathrm{p}K_L` the dissociation constant of the ligand.
 
+.. math::
+
+    \psi_{0,i} = \frac{2 \, k_B T}{e} \operatorname{arcsinh}\!\left( \frac{Z_i \, e^2}{8 \pi \, a_i^2 \, \varepsilon \, \varepsilon_0 \, \kappa \, k_B T} \right),
+
+where :math:`a_i` is the protein hydrodynamic radius.
+
 
 Protein net charge and surface potential
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -120,32 +123,26 @@ arbitrary degree :math:`P`:
 
     Z_i(\mathrm{pH}) = z_{i,0} + \sum_{k=1}^{P} z_{i,k} \left(\mathrm{pH}_{\mathrm{ref}} - \mathrm{pH}\right)^k.
 
-The coefficients are supplied by ``CPA_PROTEIN_CHARGE`` as a
-polynomial-order-row-major matrix. Its rows correspond to increasing powers,
-its columns to components, and :math:`z_{i,0}` is the charge at
-:math:`\mathrm{pH}_{\mathrm{ref}}`. The number of matrix rows determines
-the polynomial degree. The pH derivative used by the analytic Jacobian is
-
-.. math::
-
-    \frac{\partial Z_i}{\partial \mathrm{pH}} = -\sum_{k=1}^{P} k\,z_{i,k} \left(\mathrm{pH}_{\mathrm{ref}} - \mathrm{pH}\right)^{k-1}.
-
-
-.. math::
-
-    \psi_{0,i} = \frac{2 \, k_B T}{e} \operatorname{arcsinh}\!\left( \frac{Z_i \, e^2}{8 \pi \, a_i^2 \, \varepsilon \, \varepsilon_0 \, \kappa \, k_B T} \right),
-
-where :math:`a_i` is the protein hydrodynamic radius.
+The coefficients are supplied by ``CPA_PROTEIN_CHARGE`` as a polynomial-order-row-major matrix. Its rows correspond to increasing powers, its columns to components, and :math:`z_{i,0}` is the charge at
+:math:`\mathrm{pH}_{\mathrm{ref}}`. The number of matrix rows determines the polynomial degree.
 
 
 Distance of closest approach
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The distance of closest approach :math:`\delta_{m,i}` between protein :math:`i` and the adsorber surface is computed analytically from the superposition of the two surface potentials:
+The distance of closest approach :math:`\delta_{m,i}` between protein :math:`i` and the adsorber surface is defined as the positive distance at which the protein--adsorber interaction potential :math:`u_{A,i}(z)` attains its minimum:
+
+.. math::
+
+    \delta_{m,i} := \operatorname*{arg\,min}_{z>0} u_{A,i}(z).
+
+Setting :math:`\partial u_{A,i}(z) / \partial z = 0` gives the analytical expression
 
 .. math::
 
     \delta_{m,i} = -\frac{1}{\kappa} \ln\!\left( \frac{-2 \, \psi_{0,A} \, \psi_{0,i}}{\psi_{0,A}^2 + \psi_{0,i}^2} \right).
+
+The analytical minimum requires opposite signs of :math:`\psi_{0,A}` and :math:`\psi_{0,i}` and a logarithm argument strictly between zero and one.
 
 
 Interaction layer thickness
@@ -155,9 +152,9 @@ The interaction layer thickness :math:`\delta_i` is parameterised in terms of th
 
 .. math::
 
-    \log_{10}(\delta_i) = \delta_{i,\mathrm{ref}} + \delta_{i,\mathrm{lin}} \left( |\sigma_{I,i}| - |\sigma_{I,i}^{\mathrm{ref}}| \right),
+    \log_{10}(\delta_i) = \log_{10}(\delta_{i,\mathrm{ref}}) + \delta_{i,\mathrm{lin}} \left( |\sigma_{I,i}| - |\sigma_{I,i}^{\mathrm{ref}}| \right),
 
-where :math:`\sigma_{I,i}^{\mathrm{ref}} = z_{i,0} \, e / (4\pi a_i^2)`.
+where :math:`\delta_{i,\mathrm{ref}} > 0` and :math:`\sigma_{I,i}^{\mathrm{ref}} = z_{i,0} \, e / (4\pi a_i^2)`.
 The effective adsorption distance is then :math:`d_i^* = \delta_{m,i} + \delta_i / A_{s,i}`.
 
 
@@ -200,19 +197,19 @@ where :math:`\tilde{q}_j = q_{v,j} / A_{s,j}` denotes the surface concentration,
 Lateral protein–protein interaction
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Lateral interactions between adsorbed proteins are modelled via a screened Coulomb (Yukawa) potential on a hexagonal lattice with spacing
+Lateral interactions between adsorbed proteins are modelled via
 
 .. math::
 
     D_{\mathrm{hex}} = \sqrt{\frac{2\sqrt{3}}{3 \, N_A \sum_j \tilde{q}_j}}.
 
-The lateral interaction energy for component :math:`i` reads
+The lateral interaction energy for component :math:`i` is given by
 
 .. math::
 
     u_{\mathrm{lat},i} = \frac{3\sqrt{3} \, D_{\mathrm{hex}} \, N_A \, e^{-\kappa D_{\mathrm{hex}}}}{1 - \exp\!\left(-\frac{3\sqrt{3}}{2\pi} \kappa D_{\mathrm{hex}}\right)} \sum_j \tilde{q}_j \, \beta_{ij},
 
-with the pairwise Yukawa coefficient
+with
 
 .. math::
 
@@ -253,4 +250,10 @@ Model assumptions and limitations
 - Multiple bound states per component are not supported.
 - Physical constants (:math:`e`, :math:`N_A`, :math:`k_B`, :math:`\varepsilon_0`) are hard-coded to CODATA 2018 values.
 
-For more information on model parameters required to configure in CADET format, see :ref:`colloidal_particle_adsorption_config`.
+For more information on model parameters required to configure in CADET-Core, see :ref:`colloidal_particle_adsorption_config`.
+
+
+Literature
+^^^^^^^^^^
+- :cite:`Briskot2021_1`
+- :cite:`Briskot2021_2`
