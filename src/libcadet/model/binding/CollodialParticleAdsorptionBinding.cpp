@@ -41,9 +41,8 @@ using std::numbers::pi;
 			{ "type": "ScalarParameter", "varName": "chargeFullLigand", "confName": "CPA_CHARGE_FULL_LIGAND"},
 			{ "type": "ScalarParameter", "varName": "pKLigand", "confName": "CPA_LIGAND_PK"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "adSurfaceArea", "confName": "CPA_SPECIFIC_SURFACE_AREA"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "compRadius", "confName": "CPA_PROTEIN_RADIUS"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "latCharge", "confName": "CPA_PROTEIN_LAT_CHARGE"},
-			{ "type": "ComponentDependentReactionDependentParameter", "varName": "proteinCharge", "confName": "CPA_PROTEIN_CHARGE", "useReactionDimensions": true},
+			{ "type": "ScalarComponentDependentParameter", "varName": "compRadius", "confName": "CPA_RADIUS"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "latCharge", "confName": "CPA_LAT_CHATHE"},
 			{ "type": "ScalarParameter", "varName": "refpH", "confName": "CPA_PH_REF"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "refDelta", "confName": "CPA_DELTA_REF"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "linDelta", "confName": "CPA_DELTA_LIN"},
@@ -62,13 +61,13 @@ using std::numbers::pi;
  CPA_LIGAND_PK:           	pK of the ligand [-]
  CPA_PH:                  	Bulk pH [-]
  CPA_SPECIFIC_SURFACE_AREA: Specific adsorber surface per skeleton volume A_{s,i} [m^-1] (per component)
- CPA_PROTEIN_RADIUS:      	Protein radius a_i [m] (per component)
- CPA_PROTEIN_CHARGE:     Protein charge polynomial coefficients, polynomial-order-row-major [-]
+ CPA_RADIUS:              	Protein radius a_i [m] (per component)
+ CPA_EFFECTIVE_CHARGE_COEF:    Protein charge polynomial coefficients, polynomial-order-row-major [-]
  CPA_PH_REF:
  CPA_DELTA_REF:
  CPA_DELTA_LIN:
  CPA_KKIN:                 Kinetic prefactor k^*_{kin,i} [s^-1] (per component)
- CPA_COMPONENT_CHARGE: 
+ CPA_IONIC_VALENCE:
 */
 
 namespace cadet
@@ -89,9 +88,6 @@ inline bool ColloidalParticleAdsorptionParamHandler::validateConfig(unsigned int
 		|| (_compRadius.size() < nComp))
 		throw InvalidParameterException("CPA component-dependent parameters must all have the same size (nComp)");
 
-	if ((nComp == 0) || (_proteinCharge.size() < nComp) || (_proteinCharge.size() % nComp != 0))
-		throw InvalidParameterException("CPA_PROTEIN_CHARGE must contain complete polynomial-order rows with NCOMP coefficients each");
-
 	return true;
 }
 
@@ -106,9 +102,6 @@ inline bool ExtColloidalParticleAdsorptionParamHandler::validateConfig(unsigned 
 		|| (_compRadius.size() != _k_kin.size())
 		|| (_compRadius.size() < nComp))
 		throw InvalidParameterException("CPA component-dependent parameters must all have the same size (nComp)");
-
-	if ((nComp == 0) || !_proteinCharge.allSameSize() || (_proteinCharge.size() < nComp) || (_proteinCharge.size() % nComp != 0))
-		throw InvalidParameterException("EXT_CPA_PROTEIN_CHARGE matrices must contain complete polynomial-order rows with NCOMP coefficients each");
 
 	return true;
 }
@@ -177,6 +170,7 @@ protected:
 	int _idxProton = 0;
 
 	std::vector<int> _compCharge;
+	std::vector<active> _proteinCharge;
 	
 	/**
 	 * @brief Solve for adsorber surface potential psi_{0,A} using Newton*
@@ -251,7 +245,18 @@ protected:
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
 		const bool valid = ParamHandlerBindingModelBase<ParamHandler_t>::configureImpl(paramProvider, unitOpIdx, parTypeIdx);
+		readParameterMatrix(_proteinCharge, paramProvider, "CPA_EFFECTIVE_CHARGE_COEF", 1, 1);
 
+		if ((_nComp == 0) || (_proteinCharge.size() < static_cast<std::size_t>(_nComp)) || (_proteinCharge.size() % _nComp != 0))
+			throw InvalidParameterException("CPA_EFFECTIVE_CHARGE_COEF must contain complete polynomial-order rows with NCOMP coefficients each");
+
+		const StringHash proteinChargeHash = hashString("CPA_EFFECTIVE_CHARGE_COEF");
+		const std::size_t nChargeCoeffs = _proteinCharge.size() / _nComp;
+		for (std::size_t coef = 0; coef < nChargeCoeffs; ++coef)
+		{
+			for (int comp = 0; comp < _nComp; ++comp)
+				this->_parameters[makeParamId(proteinChargeHash, unitOpIdx, comp, parTypeIdx, BoundStateIndep, coef, SectionIndep)] = &_proteinCharge[coef * _nComp + comp];
+		}
 
 		if (_nComp <= 1)
 			throw InvalidParameterException("CPA model: To use PH as a state at least two components need to present");
@@ -274,9 +279,9 @@ protected:
 		if(paramProvider.exists("CPA_MAXITER"))// default index is 0
 			_MAXITER = paramProvider.getInt("CPA_MAXITER");
 
-		if(paramProvider.exists("CPA_COMPONENT_CHARGE"))
+		if(paramProvider.exists("CPA_IONIC_VALENCE"))
 		{
-			_compCharge = paramProvider.getIntArray("CPA_COMPONENT_CHARGE");
+			_compCharge = paramProvider.getIntArray("CPA_IONIC_VALENCE");
 			if (_compCharge.size() != _nComp)
 				throw InvalidParameterException("CPA Binding: For every component a charge needs to be provided");
 
@@ -392,7 +397,7 @@ protected:
 			Dhex = sqrt(2.0 * std::sqrt(3.0) / (3.0 * NA) / sumQSurface);
 
 		bndIdx = 0;
-		const std::size_t nChargeCoeffs = p->proteinCharge.size() / _nComp;
+		const std::size_t nChargeCoeffs = _proteinCharge.size() / _nComp;
 		for (int i = 0; i < _nComp; ++i)
 		{
 			if (_nBoundStates[i] == 0)
@@ -401,14 +406,14 @@ protected:
 			const ParamType a_i      = static_cast<ParamType>(p->compRadius[i]);
 			const ParamType As_i     = static_cast<ParamType>(p->adSurfaceArea[i]);
 			const ParamType Zlat_i   = static_cast<ParamType>(p->latCharge[i]);
-			const ParamType refZi    = static_cast<ParamType>(p->proteinCharge[i]);
-			const CpStateParamType pHDifference = pH - refpH ;
+			const ParamType refZi    = static_cast<ParamType>(_proteinCharge[i]);
+			const CpStateParamType pHDifference = pH - refpH;
 			CpStateParamType Zi = refZi;
 			CpStateParamType pHPower = 1.0;
 			for (std::size_t coef = 1; coef < nChargeCoeffs; ++coef)
 			{
 				pHPower *= pHDifference;
-				Zi += static_cast<ParamType>(p->proteinCharge[coef * _nComp + i]) * pHPower;
+				Zi += static_cast<ParamType>(_proteinCharge[coef * _nComp + i]) * pHPower;
 			}
 
 			// 1. Protein surface potential psi_{0,i}
@@ -673,7 +678,7 @@ protected:
 
 		// --- Main Jacobian loop: one row per bound state ---
 		bndIdx = 0;
-		const std::size_t nChargeCoeffs = p->proteinCharge.size() / _nComp;
+		const std::size_t nChargeCoeffs = _proteinCharge.size() / _nComp;
 		for (int i = 0; i < _nComp; ++i)
 		{
 			if (_nBoundStates[i] == 0)
@@ -681,7 +686,7 @@ protected:
 
 			const double a_i      = static_cast<double>(p->compRadius[i]);
 			const double As_i     = static_cast<double>(p->adSurfaceArea[i]);
-			const double refZi    = static_cast<double>(p->proteinCharge[i]);
+			const double refZi    = static_cast<double>(_proteinCharge[i]);
 			const double Zlat_i   = static_cast<double>(p->latCharge[i]);
 			const double refpH    = static_cast<double>(p->refpH);
 
@@ -691,9 +696,9 @@ protected:
 			double pHPower = 1.0;
 			for (std::size_t coef = 1; coef < nChargeCoeffs; ++coef)
 			{
-				dZi_dpH -= coef * static_cast<double>(p->proteinCharge[coef * _nComp + i]) * pHPower;
+				dZi_dpH += coef * static_cast<double>(_proteinCharge[coef * _nComp + i]) * pHPower;
 				pHPower *= pHDifference;
-				Zi += static_cast<double>(p->proteinCharge[coef * _nComp + i]) * pHPower;
+				Zi += static_cast<double>(_proteinCharge[coef * _nComp + i]) * pHPower;
 			}
 
 			// --- Protein surface potential psi_i ---
@@ -704,7 +709,7 @@ protected:
 			const double dmRatio = -2.0 * psiA * psi_i / (psiA * psiA + psi_i * psi_i);
 			
 			if (dmRatio < 1e-14)
-				throw InvalidParameterException("CPA Binding: While computing delta_m a log(0) would have been calculated, check your parameter settings ");
+				throw InvalidParameterException("CPA Binding: While computing delta_m  would have been calculated, check your parameter settings ");
 			
 			const double dm_i = -log(dmRatio) / kappa;
 

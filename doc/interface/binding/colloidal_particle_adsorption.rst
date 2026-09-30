@@ -29,7 +29,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 
 ``CPA_IONIC_STRENGTH``
    Ionic strength :math:`I_m` of the mobile phase. Ignored if
-   ``CPA_COMPONENT_CHARGE`` is set (ionic strength is then computed
+   ``CPA_IONIC_VALENCE`` is set (ionic strength is then computed
    from the pore-phase concentrations).
 
 **Unit:** :math:`\mathrm{mol \, m^{-3}}`
@@ -85,7 +85,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Type:** double     **Range:** :math:`> 0`   **Length:** NCOMP
 ===================  =========================  =========================================
 
-``CPA_PROTEIN_RADIUS``
+``CPA_RADIUS``
    Hydrodynamic radius :math:`a_i` of each protein component
 
 **Unit:** :math:`\mathrm{m}`
@@ -94,7 +94,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Type:** double     **Range:** :math:`> 0`   **Length:** NCOMP
 ===================  =========================  =========================================
 
-``CPA_PROTEIN_CHARGE``
+``CPA_EFFECTIVE_CHARGE_COEF``
    Matrix of coefficients :math:`z_{i,k}` for the pH-dependent protein
    net charge. Matrix rows correspond to increasing polynomial powers
    :math:`k=0,\ldots,P`, and columns correspond to components. The first row
@@ -104,7 +104,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
    .. math::
 
       Z_i(\mathrm{pH}) = z_{i,0} + \sum_{k=1}^{P} z_{i,k}
-      \left(\mathrm{pH}_{\mathrm{ref}}-\mathrm{pH}\right)^k.
+      \left(\mathrm{pH}-\mathrm{pH}_{\mathrm{ref}}\right)^k.
 
    The matrix is supplied in polynomial-order-row-major ordering. Its number
    of rows is inferred from the total number of values divided by ``NCOMP``;
@@ -113,14 +113,12 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
    components. Thus, the flattened order is
    :math:`[z_{0,0},\ldots,z_{N-1,0},z_{0,1},\ldots,z_{N-1,1},\ldots]`.
    Coefficients that do not apply should be set to zero.
-   This parameter replaces ``CPA_COMP_CHARGE_REF``,
-   ``CPA_COMP_CHARGE_LIN``, and ``CPA_COMP_CHARGE_QUAD``.
 
 ===================  =========================  =========================================
 **Type:** double                                **Length:** NCOMP * (P + 1)
 ===================  =========================  =========================================
 
-``CPA_PROTEIN_LAT_CHARGE``
+``CPA_LAT_CHATHE``
    Lateral charge :math:`Z_{\mathrm{lat},i}` used for computing
    the pairwise Yukawa coefficient :math:`\beta_{ij}` in the lateral
    protein–protein interaction
@@ -163,13 +161,13 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Type:** int        **Range:** :math:`\ge 0`   **Length:** 1
 ===================  =========================  =========================================
 
-``CPA_COMPONENT_CHARGE``
+``CPA_IONIC_VALENCE``
    Integer valence charge :math:`z_i` for each component (optional).
    If provided, the ionic strength is computed from the pore-phase
    concentrations, and the Davies activity correction is applied to the proton
    component when computing pH.  The vector must contain one entry per
    component (``NCOMP`` values).Components that should not contribute to the ionic 
-   strength, should be assigned a charge of zero. 
+   strength, should be assigned a charge of zero.
 
 ===================  =========================  =========================================
 **Type:** int                                   **Length:** NCOMP

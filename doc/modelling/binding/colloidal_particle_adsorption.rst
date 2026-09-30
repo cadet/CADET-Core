@@ -42,7 +42,7 @@ Since the standard definition of pH is based on concentration in mol/L, :math:`m
 
   This case represents the setting of :cite:`Briskot2021_1`. As an addionally option :math:`Im` can be calculated dynamicly with the Davies activity correction.
 
-- **Computed from concentrations**: if component charges :math:`z_i` are provided via ``CPA_COMPONENT_CHARGE``, the ionic strength is computed from the pore-phase concentrations at each time step,
+- **Computed from concentrations**: if component charges :math:`z_i` are provided via ``CPA_IONIC_VALENCE``, the ionic strength is computed from the pore-phase concentrations at each time step,
 
   .. math::
 
@@ -121,9 +121,9 @@ arbitrary degree :math:`P`:
 
 .. math::
 
-    Z_i(\mathrm{pH}) = z_{i,0} + \sum_{k=1}^{P} z_{i,k} \left(\mathrm{pH}\right - \mathrm{pH}_{\mathrm{ref}})^k.
+    Z_i(\mathrm{pH}) = z_{i,0} + \sum_{k=1}^{P} z_{i,k} \left(\mathrm{pH} - \mathrm{pH}_{\mathrm{ref}}\right)^k.
 
-The coefficients are supplied by ``CPA_PROTEIN_CHARGE`` as a polynomial-order-row-major matrix. Its rows correspond to increasing powers, its columns to components, and :math:`z_{i,0}` is the charge at
+The coefficients are supplied by ``CPA_EFFECTIVE_CHARGE_COEF`` as a polynomial-order-row-major matrix. Its rows correspond to increasing powers, its columns to components, and :math:`z_{i,0}` is the charge at
 :math:`\mathrm{pH}_{\mathrm{ref}}`. The number of matrix rows determines the polynomial degree.
 
 
@@ -244,8 +244,8 @@ Model assumptions and limitations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - One component must serve as a non-binding proton/pH state (index configurable, default 0).
-- If ``CPA_COMPONENT_CHARGE`` is provided, the ionic strength is computed from the pore-phase concentrations and the Davies activity correction is applied to the proton activity. Otherwise, ``CPA_IONIC_STRENGTH`` is used as a fixed parameter.
-- The degree of the protein charge polynomial is inferred from the number of rows in ``CPA_PROTEIN_CHARGE`` and is the same for all components.
+- If ``CPA_IONIC_VALENCE`` is provided, the ionic strength is computed from the pore-phase concentrations and the Davies activity correction is applied to the proton activity. Otherwise, ``CPA_IONIC_STRENGTH`` is used as a fixed parameter.
+- The degree of the protein charge polynomial is inferred from the number of rows in ``CPA_EFFECTIVE_CHARGE_COEF`` and is the same for all components.
 - Kinetic and rapid-equilibrium adsorption can be selected globally or per bound state through ``IS_KINETIC``.
 - Multiple bound states per component are not supported.
 - Physical constants (:math:`e`, :math:`N_A`, :math:`k_B`, :math:`\varepsilon_0`) are hard-coded to CODATA 2018 values.

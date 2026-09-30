@@ -658,9 +658,9 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD pH only", "[Jacobian],[A
 		"CPA_LIGAND_PK": 2.3,
 		"CPA_PROTON_IDX": 0,
 		"CPA_SPECIFIC_SURFACE_AREA": [0.0, 0.22e9],
-		"CPA_PROTEIN_RADIUS": [0.0, 5.5e-9],
-		"CPA_PROTEIN_LAT_CHARGE": [0.0, 19.07],
-		"CPA_PROTEIN_CHARGE": [0.0, 80.45, 0.0, 0.0, 0.0, 0.0],
+		"CPA_RADIUS": [0.0, 5.5e-9],
+		"CPA_LAT_CHATHE": [0.0, 19.07],
+		"CPA_EFFECTIVE_CHARGE_COEF": [0.0, 80.45, 0.0, 0.0, 0.0, 0.0],
 		"CPA_PH_REF": 5.0,
 		"CPA_DELTA_REF": [0.0, 0.012589254117941675],
 		"CPA_DELTA_LIN": [0.0, 0.0],
@@ -686,9 +686,9 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD with salt component", "[
 		"CPA_LIGAND_PK": 2.3,
 		"CPA_PROTON_IDX": 0,
 		"CPA_SPECIFIC_SURFACE_AREA": [0.0, 0.0, 0.22e9],
-		"CPA_PROTEIN_RADIUS": [0.0, 0.0, 5.5e-9],
-		"CPA_PROTEIN_LAT_CHARGE": [0.0, 0.0, 19.07],
-		"CPA_PROTEIN_CHARGE": [0.0, 0.0, 80.45, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+		"CPA_RADIUS": [0.0, 0.0, 5.5e-9],
+		"CPA_LAT_CHATHE": [0.0, 0.0, 19.07],
+		"CPA_EFFECTIVE_CHARGE_COEF": [0.0, 0.0, 80.45, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
 		"CPA_PH_REF": 5.0,
 		"CPA_DELTA_REF": [0.0, 0.0, 0.012589254117941675],
 		"CPA_DELTA_LIN": [0.0, 0.0, 0.0],
@@ -710,11 +710,11 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION rapid-equilibrium Jacobian with two pro
 		"CPA_CHARGE_FULL_LIGAND": 0.0,
 		"CPA_LIGAND_PK": 2.3,
 		"CPA_PROTON_IDX": 0,
-		"CPA_COMPONENT_CHARGE": [1, 1, 0, 0],
+		"CPA_IONIC_VALENCE": [1, 1, 0, 0],
 		"CPA_SPECIFIC_SURFACE_AREA": [0.0, 0.0, 0.22e9, 0.18e9],
-		"CPA_PROTEIN_RADIUS": [0.0, 0.0, 5.5e-9, 6.5e-9],
-		"CPA_PROTEIN_LAT_CHARGE": [0.0, 0.0, 19.07, 14.2],
-		"CPA_PROTEIN_CHARGE": [0.0, 0.0, 80.45, 55.0, 0.0, 0.0, 5.0, 3.0, 0.0, 0.0, 0.1, 0.2, 0.0, 0.0, 0.015, -0.01],
+		"CPA_RADIUS": [0.0, 0.0, 5.5e-9, 6.5e-9],
+		"CPA_LAT_CHATHE": [0.0, 0.0, 19.07, 14.2],
+		"CPA_EFFECTIVE_CHARGE_COEF": [0.0, 0.0, 80.45, 55.0, 0.0, 0.0, 5.0, 3.0, 0.0, 0.0, 0.1, 0.2, 0.0, 0.0, 0.015, -0.01],
 		"CPA_PH_REF": 5.0,
 		"CPA_DELTA_REF": [0.0, 0.0, 0.012589254117941675, 0.0199526231496888],
 		"CPA_DELTA_LIN": [0.0, 0.0, 0.5, -0.25],
@@ -723,10 +723,10 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION rapid-equilibrium Jacobian with two pro
 
 	cadet::test::binding::ConfiguredBindingModel cbm = cadet::test::binding::ConfiguredBindingModel::create("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, false, config);
 	const std::unordered_map<cadet::ParameterId, double> parameters = cbm.model().getAllParameterValues();
-	CHECK(parameters.at(cadet::makeParamId("CPA_PROTEIN_CHARGE", 0, 2, 0, cadet::BoundStateIndep, 0, cadet::SectionIndep)) == 80.45);
-	CHECK(parameters.at(cadet::makeParamId("CPA_PROTEIN_CHARGE", 0, 2, 0, cadet::BoundStateIndep, 1, cadet::SectionIndep)) == 5.0);
-	CHECK(parameters.at(cadet::makeParamId("CPA_PROTEIN_CHARGE", 0, 2, 0, cadet::BoundStateIndep, 3, cadet::SectionIndep)) == 0.015);
-	CHECK(parameters.at(cadet::makeParamId("CPA_PROTEIN_CHARGE", 0, 3, 0, cadet::BoundStateIndep, 3, cadet::SectionIndep)) == -0.01);
+	CHECK(parameters.at(cadet::makeParamId("CPA_EFFECTIVE_CHARGE_COEF", 0, 2, 0, cadet::BoundStateIndep, 0, cadet::SectionIndep)) == 80.45);
+	CHECK(parameters.at(cadet::makeParamId("CPA_EFFECTIVE_CHARGE_COEF", 0, 2, 0, cadet::BoundStateIndep, 1, cadet::SectionIndep)) == 5.0);
+	CHECK(parameters.at(cadet::makeParamId("CPA_EFFECTIVE_CHARGE_COEF", 0, 2, 0, cadet::BoundStateIndep, 3, cadet::SectionIndep)) == 0.015);
+	CHECK(parameters.at(cadet::makeParamId("CPA_EFFECTIVE_CHARGE_COEF", 0, 3, 0, cadet::BoundStateIndep, 3, cadet::SectionIndep)) == -0.01);
 	CHECK(cbm.model().hasQuasiStationaryReactions());
 	CHECK_FALSE(cbm.model().hasDynamicReactions());
 	CHECK(cbm.model().reactionQuasiStationarity()[0]);

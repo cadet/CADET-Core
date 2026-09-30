@@ -190,7 +190,7 @@
                 "PAR_RADIUS": 3.25e-05,
                 "adsorption": {
                     "CPA_CHARGE_FULL_LIGAND": 0.0,
-                    "CPA_COMPONENT_CHARGE": [
+                    "CPA_IONIC_VALENCE": [
                         0,
                         -1,
                         -1,
@@ -221,7 +221,7 @@
                     "CPA_MAXITER": 1000,
                     "CPA_PERMITTIVITY": 78.3,
                     "CPA_PH_REF": 5.0,
-                    "CPA_PROTEIN_CHARGE": [
+                    "CPA_EFFECTIVE_CHARGE_COEF": [
                         0.0,
                         0.0,
                         0.0,
@@ -235,13 +235,13 @@
                         0.0,
                         0.0
                     ],
-                    "CPA_PROTEIN_LAT_CHARGE": [
+                    "CPA_LAT_CHATHE": [
                         0.0,
                         0.0,
                         0.0,
                         61.87
                     ],
-                    "CPA_PROTEIN_RADIUS": [
+                    "CPA_RADIUS": [
                         0.0,
                         0.0,
                         0.0,
