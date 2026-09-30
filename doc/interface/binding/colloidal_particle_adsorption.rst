@@ -126,12 +126,11 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
    protein–protein interaction
 
 ===================  =========================  =========================================
-**Type:** double                                **Length:** NCOMP
+**Type:** double     **Range:** :math:`> 0`     **Length:** NCOMP
 ===================  =========================  =========================================
 
 ``CPA_DELTA_REF``
-   Reference value :math:`\delta_{i,\mathrm{ref}}` for the
-   logarithmic interaction layer thickness parameterisation
+   Positive reference interaction layer thickness :math:`\delta_{i,\mathrm{ref}}`.
 
 ===================  =========================  =========================================
 **Type:** double                                **Length:** NCOMP

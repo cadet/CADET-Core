@@ -427,7 +427,7 @@ protected:
 			const ParamType dLin_i = static_cast<ParamType>(p->linDelta[i]);
 			const CpStateParamType sigmaI_i = Zi * e / (4.0 * pi * a_i * a_i);
 			const ParamType sigmaRef_I = refZi * e / (4.0 * pi * a_i * a_i);
-			const CpStateParamType logDelta = dRef_i + dLin_i * (abs(sigmaI_i) - abs(sigmaRef_I));
+			const CpStateParamType logDelta = log10(dRef_i) + dLin_i * (abs(sigmaI_i) - abs(sigmaRef_I));
 			const CpStateParamType delta_i = exp(std::log(10.0) * logDelta);
 			const CpStateParamType dstar_i = dm_i + delta_i / As_i;
 
@@ -712,7 +712,7 @@ protected:
 			const double dLin_i = static_cast<double>(p->linDelta[i]);
 			const double sigmaI_i = Zi * e / (4.0 * pi * a_i * a_i);
 			const double sigmaRef_I = refZi * e / (4.0 * pi * a_i * a_i);
-			const double delta_i = std::pow(10.0, dRef_i + dLin_i * (std::abs(sigmaI_i) - std::abs(sigmaRef_I)));
+			const double delta_i = std::pow(10.0, std::log10(dRef_i) + dLin_i * (std::abs(sigmaI_i) - std::abs(sigmaRef_I)));
 			const double dstar_i = dm_i + delta_i / As_i;
 
 			// --- Protein-adsorber interaction u_{A,i} ---

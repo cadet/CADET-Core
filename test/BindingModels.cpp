@@ -662,7 +662,7 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD pH only", "[Jacobian],[A
 		"CPA_COMP_LAT_CHARGE": [0.0, 19.07],
 		"CPA_PROTEIN_CHARGE": [0.0, 80.45, 0.0, 0.0, 0.0, 0.0],
 		"CPA_PH_REF": 5.0,
-		"CPA_DELTA_REF": [0.0, -1.90],
+		"CPA_DELTA_REF": [0.0, 0.012589254117941675],
 		"CPA_DELTA_LIN": [0.0, 0.0],
 		"CPA_KKIN": [0.0, 1.0]
 	})json";
@@ -691,7 +691,7 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD with salt component", "[
 		"CPA_COMP_LAT_CHARGE": [0.0, 0.0, 19.07],
 		"CPA_PROTEIN_CHARGE": [0.0, 0.0, 80.45, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
 		"CPA_PH_REF": 5.0,
-		"CPA_DELTA_REF": [0.0, 0.0, -1.90],
+		"CPA_DELTA_REF": [0.0, 0.0, 0.012589254117941675],
 		"CPA_DELTA_LIN": [0.0, 0.0, 0.0],
 		"CPA_KKIN": [0.0, 0.0, 1.0]
 	})json";
@@ -717,7 +717,7 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION rapid-equilibrium Jacobian with two pro
 		"CPA_COMP_LAT_CHARGE": [0.0, 0.0, 19.07, 14.2],
 		"CPA_PROTEIN_CHARGE": [0.0, 0.0, 80.45, 55.0, 0.0, 0.0, 5.0, 3.0, 0.0, 0.0, 0.1, 0.2, 0.0, 0.0, 0.015, -0.01],
 		"CPA_PH_REF": 5.0,
-		"CPA_DELTA_REF": [0.0, 0.0, -1.90, -1.70],
+		"CPA_DELTA_REF": [0.0, 0.0, 0.012589254117941675, 0.0199526231496888],
 		"CPA_DELTA_LIN": [0.0, 0.0, 0.5, -0.25],
 		"CPA_KKIN": [0.0, 0.0, 0.0, 0.0]
 	})json";
