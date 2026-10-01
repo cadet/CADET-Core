@@ -522,6 +522,69 @@ TEST_CASE("LRM DG liquid equilibrium MAL consistent initialization", "[LRM],[DG]
 	destroyModelBuilder(mb);
 }
 
+TEST_CASE("LRM DG kinetic and equilibrium MAL share liquid equilibrium", "[LRM],[DG],[MassActionLaw],[ReactionModel],[ConsistentInit],[CI],[ConservedMoieties]")
+{
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
+	jpp.set("INIT_C", std::vector<double>{2.7, 0.3});
+	jpp.set("NREAC_LIQUID", 1);
+	jpp.addScope("liquid_reaction_000");
+	jpp.pushScope("liquid_reaction_000");
+	jpp.set("TYPE", "MASS_ACTION_LAW");
+	jpp.set("MAL_KFWD", std::vector<double>{2.0});
+	jpp.set("MAL_KBWD", std::vector<double>{1.0});
+	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.popScope();
+
+	cadet::IUnitOperation* const eqUnit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
+	const unsigned int nComp = eqUnit->numComponents();
+	const unsigned int inletDofs = nComp * eqUnit->numInletPorts();
+	const unsigned int pointStride = 2 * nComp;
+	REQUIRE((eqUnit->numDofs() - inletDofs) % pointStride == 0);
+	const unsigned int nPoints = (eqUnit->numDofs() - inletDofs) / pointStride;
+	std::vector<double> yEq(eqUnit->numDofs(), 0.0);
+	yEq[0] = 1.0;
+	yEq[1] = 2.0;
+	for (unsigned int point = 0; point < nPoints; ++point)
+	{
+		const unsigned int offset = inletDofs + point * pointStride;
+		yEq[offset] = 2.7;
+		yEq[offset + 1] = 0.3;
+		yEq[offset + nComp] = 12.3 / 45.0;
+		yEq[offset + nComp + 1] = 2.0 * 35.5 / 20.0;
+	}
+	cadet::test::unitoperation::testConsistentInitialization(eqUnit, false, yEq.data(), 1e-14, 1e-11);
+
+	jpp.pushScope("liquid_reaction_000");
+	jpp.set("MAL_IS_KINETIC", std::vector<int>{1});
+	jpp.popScope();
+	cadet::IUnitOperation* const kinUnit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
+	REQUIRE(kinUnit->numDofs() == eqUnit->numDofs());
+
+	std::vector<double> yKin = yEq;
+	std::vector<double> residual(kinUnit->numDofs(), 0.0);
+	cadet::util::ThreadLocalStorage tls;
+	tls.resize(kinUnit->threadLocalMemorySize());
+	const cadet::AdJacobianParams noAdParams{nullptr, nullptr, 0u};
+	kinUnit->notifyDiscontinuousSectionTransition(0.0, 0u, {yKin.data(), nullptr}, noAdParams);
+	kinUnit->residual(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{yKin.data(), nullptr}, residual.data(), tls);
+	for (unsigned int point = 0; point < nPoints; ++point)
+	{
+		const double* const c = yKin.data() + inletDofs + point * pointStride;
+		CHECK(c[0] == cadet::test::makeApprox(1.0, 1e-12, 1e-12));
+		CHECK(c[1] == cadet::test::makeApprox(2.0, 1e-12, 1e-12));
+	}
+	for (unsigned int dof = inletDofs; dof < residual.size(); ++dof)
+		CHECK(std::abs(residual[dof]) <= 1e-11);
+
+	mb->destroyUnitOperation(eqUnit);
+	mb->destroyUnitOperation(kinUnit);
+	destroyModelBuilder(mb);
+}
+
 TEST_CASE("LRM DG liquid equilibrium MAL Jacobians", "[LRM],[DG],[MassActionLaw],[ReactionModel],[Jacobian],[AD],[FD],[ConservedMoieties]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");

@@ -347,11 +347,6 @@ namespace cadet
 			setPattern(_jacDisc, true, hasReaction);
 			resizeConservedMoietyJacobianBuffer();
 			_cMVectorEntries.resize(_disc.nComp);
-			const auto& cm = _reaction.conservedMoieties("liquid");
-			if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0) && _binding[0]->hasQuasiStationaryReactions())
-				_initQsBoundDelta.assign(static_cast<std::size_t>(_disc.nPoints) * _disc.nComp, 0.0);
-			else
-				_initQsBoundDelta.clear();
 			useAnalyticJacobian(_analyticJac);
 
 			// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
@@ -402,19 +397,10 @@ namespace cadet
 		}
 
 		template <typename ConvDispOperator>
-		unsigned int LumpedRateModelWithoutPoresDG<ConvDispOperator>::jacobianLowerBandwidth() const CADET_NOEXCEPT
+		unsigned int LumpedRateModelWithoutPoresDG<ConvDispOperator>::conservedMoietyBandwidthExtension() const CADET_NOEXCEPT
 		{
 			const auto& cm = _reaction.conservedMoieties("liquid");
-			const unsigned int extension = (cm.isEnabled() && (cm.numEquilibriumReactions() > 0) && (_disc.nComp > 0)) ? _disc.nComp - 1 : 0;
-			return _convDispOp.jacobianLowerBandwidth() + extension;
-		}
-
-		template <typename ConvDispOperator>
-		unsigned int LumpedRateModelWithoutPoresDG<ConvDispOperator>::jacobianUpperBandwidth() const CADET_NOEXCEPT
-		{
-			const auto& cm = _reaction.conservedMoieties("liquid");
-			const unsigned int extension = (cm.isEnabled() && (cm.numEquilibriumReactions() > 0) && (_disc.nComp > 0)) ? _disc.nComp - 1 : 0;
-			return _convDispOp.jacobianUpperBandwidth() + extension;
+			return (cm.isEnabled() && (cm.numEquilibriumReactions() > 0) && (_disc.nComp > 0)) ? _disc.nComp - 1 : 0;
 		}
 
 		template <typename ConvDispOperator>
@@ -443,12 +429,12 @@ namespace cadet
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 			_analyticJac = analyticJac;
 			if (!_analyticJac)
-				_jacobianAdDirs = jacobianLowerBandwidth() + 1u + jacobianUpperBandwidth();
+				_jacobianAdDirs = _convDispOp.requiredADdirs() + 2u * conservedMoietyBandwidthExtension();
 			else
 				_jacobianAdDirs = 0;
 #else
 			_analyticJac = false;
-			_jacobianAdDirs = jacobianLowerBandwidth() + 1u + jacobianUpperBandwidth();
+			_jacobianAdDirs = _convDispOp.requiredADdirs() + 2u * conservedMoietyBandwidthExtension();
 #endif
 		}
 
@@ -502,7 +488,7 @@ namespace cadet
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 			return numDirsBinding + _jacobianAdDirs;
 #else
-			return numDirsBinding + _convDispOp.requiredADdirs();
+			return numDirsBinding + _jacobianAdDirs;
 #endif
 		}
 
@@ -519,8 +505,8 @@ namespace cadet
 			// We have different jacobian structure for exact integration and collocation DG scheme, i.e. we need different seed vectors
 			// collocation DG: 2 * N_n * (N_c + N_q) + 1 = total bandwidth (main diagonal entries maximally depend on the next and last N_n liquid phase entries of same component)
 			//    ex. int. DG: 4 * N_n * (N_c + N_q) + 1 = total bandwidth (main diagonal entries maximally depend on the next and last 2*N_n liquid phase entries of same component)
-			const int lowerBandwidth = jacobianLowerBandwidth();
-			const int upperBandwidth = jacobianUpperBandwidth();
+			const int lowerBandwidth = _convDispOp.jacobianLowerBandwidth() + conservedMoietyBandwidthExtension();
+			const int upperBandwidth = _convDispOp.jacobianUpperBandwidth() + conservedMoietyBandwidthExtension();
 
 			ad::prepareAdVectorSeedsForBandMatrix(adJac.adY + _disc.nComp, adJac.adDirOffset, _jac.rows(), lowerBandwidth, upperBandwidth, lowerBandwidth);
 		}
@@ -536,8 +522,8 @@ namespace cadet
 			Indexer idxr(_disc);
 
 			const active* const adVec = adRes + idxr.offsetC();
-			const int lowerBandwidth = jacobianLowerBandwidth();
-			const int upperBandwidth = jacobianUpperBandwidth();
+			const int lowerBandwidth = _convDispOp.jacobianLowerBandwidth() + conservedMoietyBandwidthExtension();
+			const int upperBandwidth = _convDispOp.jacobianUpperBandwidth() + conservedMoietyBandwidthExtension();
 
 			int diagDir = lowerBandwidth;
 			const int nRows = _jac.rows();
@@ -560,8 +546,8 @@ namespace cadet
 		{
 			Indexer idxr(_disc);
 
-			const int lowerBandwidth = jacobianLowerBandwidth();
-			const int upperBandwidth = jacobianUpperBandwidth();
+			const int lowerBandwidth = _convDispOp.jacobianLowerBandwidth() + conservedMoietyBandwidthExtension();
+			const int upperBandwidth = _convDispOp.jacobianUpperBandwidth() + conservedMoietyBandwidthExtension();
 			const int stride = lowerBandwidth + 1 + upperBandwidth;
 
 			const double maxDiff = ad::compareBandedEigenJacobianWithAd(adRes + idxr.offsetC(), adDirOffset, lowerBandwidth, lowerBandwidth, upperBandwidth, 0, _jac.rows(), _jac, 0);
@@ -979,12 +965,12 @@ namespace cadet
 			const auto& cm = _reaction.conservedMoieties("liquid");
 			if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0))
 			{
-				double* const scratch = _cMVectorEntries.data();
+				double* const buffer = _cMVectorEntries.data();
 				for (unsigned int point = 0; point < _disc.nPoints; ++point)
 				{
 					double* const localRet = ret + idxr.offsetC() + point * idxr.strideColNode();
-					std::copy_n(localRet, _disc.nComp, scratch);
-					cm.applyToDerivativeVector(localRet, scratch, _disc.nComp);
+					std::copy_n(localRet, _disc.nComp, buffer);
+					cm.applyToDerivativeVector(localRet, buffer, _disc.nComp);
 				}
 			}
 
@@ -1650,19 +1636,14 @@ namespace cadet
 				linalg::selectVectorSubset(cLocal, mask, solution);
 
 				const double invBeta = 1.0 / static_cast<double>(_totalPorosity) - 1.0;
-				double* const boundDelta = _initQsBoundDelta.data() + point * _disc.nComp;
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 				{
 					fullResidual[comp] = cLocal[comp];
-					boundDelta[comp] = 0.0;
 					for (unsigned int bound = 0; bound < _disc.nBound[comp]; ++bound)
 					{
 						const unsigned int boundIndex = _disc.boundOffset[comp] + bound;
 						if (qsMask[boundIndex])
-						{
 							fullResidual[comp] += invBeta * qLocal[boundIndex];
-							boundDelta[comp] += qLocal[boundIndex];
-						}
 					}
 				}
 				cm.applyToVector(conserved, fullResidual, _disc.nComp);
@@ -1740,15 +1721,6 @@ namespace cadet
 				else
 					LOG(Error) << "Consistent coupled liquid and binding equilibrium initialization failed at axial point " << point;
 				_binding[0]->postConsistentInitialState(simTime.t, simTime.secIdx, colPos, qLocal, cLocal, tlmAlloc);
-				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-				{
-					for (unsigned int bound = 0; bound < _disc.nBound[comp]; ++bound)
-					{
-						const unsigned int boundIndex = _disc.boundOffset[comp] + bound;
-						if (qsMask[boundIndex])
-							boundDelta[comp] -= qLocal[boundIndex];
-					}
-				}
 			}
 
 			setPattern(_jacDisc, true, _reaction.hasReactions());
@@ -2069,11 +2041,13 @@ namespace cadet
 			BufferedArray<double> scaleBuffer = tlmAlloc.array<double>(probSize);
 			BufferedArray<double> componentTotalBuffer = tlmAlloc.array<double>(_disc.nComp);
 			BufferedArray<double> fixedSensitivityBuffer = tlmAlloc.array<double>(mask.len);
+			BufferedArray<double> initialStateBuffer = tlmAlloc.array<double>(mask.len);
 			BufferedArray<lapackInt_t> pivotBuffer = tlmAlloc.array<lapackInt_t>(probSize);
 			double* const rhs = static_cast<double*>(rhsBuffer);
 			double* const scaleFactors = static_cast<double*>(scaleBuffer);
 			double* const componentTotalSensitivity = static_cast<double*>(componentTotalBuffer);
 			double* const fixedSensitivity = static_cast<double*>(fixedSensitivityBuffer);
+			double* const initialState = static_cast<double*>(initialStateBuffer);
 			linalg::DenseMatrixView jacobianMatrix(static_cast<double*>(matrixBuffer), static_cast<lapackInt_t*>(pivotBuffer), probSize, probSize);
 
 			for (unsigned int point = 0; point < _disc.nPoints; ++point)
@@ -2081,6 +2055,17 @@ namespace cadet
 				const int stateOffset = idxr.offsetC() + point * idxr.strideColNode();
 				const int jacOffset = point * idxr.strideColNode();
 				const ColumnPosition colPos{_convDispOp.relativeCoordinate(point), 0.0, 0.0};
+				if (!_initState.empty())
+					std::copy_n(_initState.data() + point * idxr.strideColNode(), mask.len, initialState);
+				else
+				{
+					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+						initialState[comp] = static_cast<double>(_initC[comp]);
+					for (unsigned int bound = 0; bound < _disc.strideBound; ++bound)
+						initialState[_disc.nComp + bound] = static_cast<double>(_initCs[bound]);
+				}
+				// Recover the bound state used before coupled initialization without storing a per-node delta.
+				_binding[0]->preConsistentInitialState(simTime.t, simTime.secIdx, colPos, initialState + _disc.nComp, initialState, tlmAlloc.manageRemainingMemory());
 				jacobianMatrix.setAll(0.0);
 				linalg::copyMatrixSubset(_jac, mask, mask, jacOffset, jacOffset, jacobianMatrix);
 				jacobianMatrix.submatrixSetAll(0.0, 0, 0, _disc.nComp, probSize);
@@ -2091,7 +2076,7 @@ namespace cadet
 				{
 					for (unsigned int moiety = 0; moiety < nMoieties; ++moiety)
 						jacobianMatrix.native(moiety, comp) = cm.conservedMoietyMatrix()(moiety, comp);
-					componentTotalSensitivity[comp] = vecSensY[stateOffset + comp] + invBeta.getADValue(param) * _initQsBoundDelta[point * _disc.nComp + comp];
+					componentTotalSensitivity[comp] = vecSensY[stateOffset + comp];
 					for (unsigned int bound = 0; bound < _disc.nBound[comp]; ++bound)
 					{
 						const unsigned int boundIndex = _disc.boundOffset[comp] + bound;
@@ -2099,6 +2084,7 @@ namespace cadet
 							continue;
 						for (unsigned int moiety = 0; moiety < nMoieties; ++moiety)
 							jacobianMatrix.native(moiety, selectedBoundColumn) = cm.conservedMoietyMatrix()(moiety, comp) * static_cast<double>(invBeta);
+						componentTotalSensitivity[comp] += invBeta.getADValue(param) * (initialState[_disc.nComp + boundIndex] - vecStateY[stateOffset + _disc.nComp + boundIndex]);
 						componentTotalSensitivity[comp] += static_cast<double>(invBeta) * vecSensY[stateOffset + _disc.nComp + boundIndex];
 						++selectedBoundColumn;
 					}
