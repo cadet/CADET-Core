@@ -160,12 +160,12 @@ namespace cadet
 
 			virtual void expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut);
 
-			virtual void multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret);
+			virtual void multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* stateDirection, double alpha, double beta, double* ret);
 			virtual void multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret);
 
-			inline void multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double* ret)
+			inline void multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* stateDirection, double* ret)
 			{
-				multiplyWithJacobian(simTime, simState, yS, 1.0, 0.0, ret);
+				multiplyWithJacobian(simTime, simState, stateDirection, 1.0, 0.0, ret);
 			}
 
 			virtual bool setParameter(const ParameterId& pId, double value);
@@ -219,6 +219,16 @@ namespace cadet
 
 			void assembleDiscretizedJacobian(double alpha, const Indexer& idxr);
 			void addTimeDerivativeToJacobianNode(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, double invBetaP) const;
+			void addConservedMoietyTimeDerivativeToJacobianNode(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, double invBeta) const;
+			unsigned int conservedMoietyBandwidthExtension() const CADET_NOEXCEPT;
+			void resizeConservedMoietyJacobianBuffer();
+
+			void consistentInitialLiquidEquilibrium(const SimulationTime& simTime, double* const vecStateY, double errorTol, util::ThreadLocalStorage& threadLocalMem);
+			void consistentInitialBindingEquilibrium(const SimulationTime& simTime, double* const vecStateY, double errorTol, util::ThreadLocalStorage& threadLocalMem);
+			void consistentInitialLiquidBindingEquilibrium(const SimulationTime& simTime, double* const vecStateY, double errorTol, util::ThreadLocalStorage& threadLocalMem);
+			void addInitialBindingTimeDerivativeEquilibriumRows(const SimulationTime& simTime, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem);
+			void consistentInitialLiquidEquilibriumSensitivity(const SimulationTime& simTime, double const* vecStateY, double* const vecSensY, active const* adRes, unsigned int param, util::ThreadLocalStorage& threadLocalMem);
+			void consistentInitialLiquidBindingEquilibriumSensitivity(const SimulationTime& simTime, double const* vecStateY, double* const vecSensY, active const* adRes, unsigned int param, util::ThreadLocalStorage& threadLocalMem);
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 			void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
@@ -273,6 +283,8 @@ namespace cadet
 			std::vector<active> _initCs; //!< Solid phase initial conditions
 			std::vector<double> _initState; //!< Initial conditions for state vector if given
 			std::vector<double> _initStateDot; //!< Initial conditions for time derivative
+			std::vector<Eigen::Triplet<double>> _cMJacobianEntries; //!< Reusable buffer for in-place Jacobian transformations
+			std::vector<double> _cMVectorEntries; //!< Reusable buffer for conserved-moiety vector transformations
 
 			BENCH_TIMER(_timerResidual)
 				BENCH_TIMER(_timerResidualPar)
@@ -410,6 +422,10 @@ namespace cadet
 				_convDispOp.convDispJacPattern(tripletList);
 
 				bindingAndReactionPattern(tripletList, has_reaction);
+
+				const auto& cm = _reaction.conservedMoieties("liquid");
+				if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0))
+					cm.addPatternToBlocks(tripletList, _disc.nComp, 0, _disc.nPoints, Indexer(_disc).strideColNode(), 0, mat.cols());
 
 				if (stateDer)
 					stateDerPattern(tripletList); // only adds [ d convDisp / d q_t ] because main diagonal is already included !

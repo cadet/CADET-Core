@@ -477,9 +477,16 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 
 	// Reconfigure particle model
 	bool particleConfSuccess = true;
+	_initQsBoundDelta.resize(_disc.nParType);
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
 		particleConfSuccess = particleConfSuccess && _particles[parType]->configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType]);
+
+		const auto& cm = _particles[parType]->getReaction()->conservedMoieties("liquid");
+		if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0) && _binding[parType]->hasQuasiStationaryReactions())
+			_initQsBoundDelta[parType].assign(static_cast<std::size_t>(_disc.nPoints) * _disc.nParPoints[parType] * _disc.nComp, 0.0);
+		else
+			_initQsBoundDelta[parType].clear();
 	}
 
 	// Reconfigure bulk liquid reaction model
@@ -494,6 +501,8 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 	bool hasBulkReaction = false;
 	if (_reaction.getDynReactionVector("liquid")[0] != nullptr)
 		hasBulkReaction = true;
+
+	_cMVectorEntries.resize(_disc.nComp);
 
 	setJacobianPattern(_globalJac, 0, hasBulkReaction);
 	resizeConservedMoietyJacobianBuffer();
@@ -515,6 +524,8 @@ unsigned int ColumnModel1D<ConvDispOperator>::threadLocalMemorySize() const CADE
 	{
 		if (_binding[i] && _binding[i]->requiresWorkspace())
 			lms.fitBlock(_binding[i]->workspaceSize(_disc.nComp, _disc.strideBound[i], _disc.nBound + i * _disc.nComp));
+
+		_particles[i]->getReaction()->setWorkspaceRequirements("liquid", _disc.nComp, _disc.strideBound[i], lms);
 	}
 	// Bulk reaction
 	_reaction.setWorkspaceRequirements("liquid", _disc.nComp, 0, lms);
@@ -524,6 +535,28 @@ unsigned int ColumnModel1D<ConvDispOperator>::threadLocalMemorySize() const CADE
 		: 0u;
 	lms.add<active>(_disc.nComp + maxStrideBound);
 	lms.add<double>((maxStrideBound + _disc.nComp) * (maxStrideBound + _disc.nComp));
+
+	std::size_t maxParticleJacobianScratch = 0;
+	Indexer idxr(_disc);
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
+	{
+		const auto& cm = _particles[type]->getReaction()->conservedMoieties("liquid");
+		if (!cm.isEnabled() || (cm.numEquilibriumReactions() == 0))
+			continue;
+
+		for (unsigned int point = 0; point < _disc.nPoints; ++point)
+		{
+			const int particleOffset = idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{point});
+			for (unsigned int shell = 0; shell < _disc.nParPoints[type]; ++shell)
+			{
+				const int rowOffset = particleOffset + shell * idxr.strideParNode(type);
+				maxParticleJacobianScratch = std::max(maxParticleJacobianScratch,
+					cm.matrixBufferSize(_globalJac, _disc.nComp, rowOffset, 0, _globalJac.cols()));
+			}
+		}
+	}
+	if (maxParticleJacobianScratch > 0)
+		lms.add<Eigen::Triplet<double>>(maxParticleJacobianScratch);
 
 	lms.commit();
 	const std::size_t resImplSize = lms.bufferSize();
@@ -535,13 +568,19 @@ unsigned int ColumnModel1D<ConvDispOperator>::threadLocalMemorySize() const CADE
 	lms.add<double>(_disc.nComp + maxStrideBound);
 	lms.add<double>((_disc.nComp + maxStrideBound) * (_disc.nComp + maxStrideBound));
 	lms.add<double>(_disc.nComp);
+	lms.add<double>(_disc.nComp);
 
 	lms.addBlock(resImplSize);
 	lms.commit();
 
 	// Memory for consistentInitialSensitivity
-	lms.add<double>(_disc.nComp + maxStrideBound);
-	lms.add<double>(maxStrideBound);
+	const std::size_t maxSensitivityProblemSize = _disc.nComp + maxStrideBound;
+	lms.add<double>(maxSensitivityProblemSize * maxSensitivityProblemSize);
+	lms.add<double>(maxSensitivityProblemSize);
+	lms.add<double>(maxSensitivityProblemSize);
+	lms.add<double>(maxSensitivityProblemSize);
+	lms.add<double>(maxSensitivityProblemSize);
+	lms.add<lapackInt_t>(maxSensitivityProblemSize);
 	lms.commit();
 
 	return lms.bufferSize();
@@ -1421,6 +1460,28 @@ void ColumnModel1D<ConvDispOperator>::multiplyWithDerivativeJacobian(const Simul
 			cm.applyToDerivativeVector(localRet, localSDot, _disc.nComp);
 		}
 	}
+
+	// Transform particle products after parallel assembly to reuse the source buffer.
+	double* const scratch = _cMVectorEntries.data();
+
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
+	{
+		const auto& particleCm = _particles[type]->getReaction()->conservedMoieties("liquid");
+		if (!particleCm.isEnabled() || (particleCm.numEquilibriumReactions() == 0))
+			continue;
+
+		for (unsigned int particle = 0; particle < _disc.nPoints; ++particle)
+		{
+			double* const particleResult = ret + idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{particle});
+			for (unsigned int shell = 0; shell < _disc.nParPoints[type]; ++shell)
+			{
+				double* const localResult = particleResult + shell * idxr.strideParNode(type);
+				std::copy_n(localResult, _disc.nComp, scratch);
+				particleCm.applyToDerivativeVector(localResult, scratch, _disc.nComp);
+			}
+		}
+	}
+
 	// Handle inlet DOFs (all algebraic)
 	std::fill_n(ret, _disc.nComp, 0.0);
 }
