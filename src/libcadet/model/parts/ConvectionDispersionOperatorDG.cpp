@@ -963,29 +963,44 @@ unsigned int VariableCrossSectionConvectionDispersionOperatorBaseDG::jacobianUpp
 
 unsigned int VariableCrossSectionConvectionDispersionOperatorBaseDG::nJacEntries(bool pureNNZ) const CADET_NOEXCEPT
 {
+	// Upper bound of the entries inserted by convDispJacPattern: every interpolation
+	// node couples to the 3 * nNodes + 2 nodes of the dispersion stencil, within its
+	// own component. Nodes close to a column end couple to fewer.
+	const unsigned int bulkEntries = _nComp * _nPoints * (3u * _nNodes + 2u);
+
 	if (pureNNZ)
-		return _nComp * ((3u * _nElem - 2u) * _nNodes * _nNodes + (2u * _nElem - 3u) * _nNodes);
-	return _nComp * _nNodes * _nNodes + _nNodes
-		+ _nComp * ((3u * _nElem - 2u) * _nNodes * _nNodes + (2u * _nElem - 3u) * _nNodes);
+		return bulkEntries;
+
+	return _nComp * _nNodes * _nNodes + _nNodes + bulkEntries;
 }
 
 void VariableCrossSectionConvectionDispersionOperatorBaseDG::convDispJacPattern(
 	std::vector<T>& tripletList, const int bulkOffset) const
 {
-	const int lowerBW = static_cast<int>(jacobianLowerBandwidth());
-	const int upperBW = static_cast<int>(jacobianUpperBandwidth());
+	// The dispersion blocks are nNodes x (3 * nNodes + 2) and are written at the node
+	// offset j - nNodes - 1 - i, see calcConvDispDGSEMJacobian, so a node couples to
+	// the nodes of its own element, of both neighbouring elements and to one node
+	// beyond those. The convection blocks are contained in that stencil. Neither term
+	// couples the components, which is what keeps this pattern considerably sparser
+	// than the band spanned by jacobianLowerBandwidth and jacobianUpperBandwidth.
+	const int strideNode = strideColNode();
+	const int nNodes = static_cast<int>(_nNodes);
+	const int nPoints = static_cast<int>(_nPoints);
 
-	for (unsigned int point = 0; point < _nPoints; ++point)
+	for (int point = 0; point < nPoints; ++point)
 	{
-		for (unsigned int comp = 0; comp < _nComp; ++comp)
+		const int node = point % nNodes;
+
+		for (int j = 0; j < 3 * nNodes + 2; ++j)
 		{
-			const int row = bulkOffset + static_cast<int>(point) * strideColNode() + static_cast<int>(comp);
-			for (int diag = -lowerBW; diag <= upperBW; ++diag)
-			{
-				const int col = row + diag;
-				if (col >= bulkOffset && col < static_cast<int>(bulkOffset + _nPoints * strideColNode()))
-					tripletList.push_back(T(row, col, 0.0));
-			}
+			// The stencil of the boundary elements reaches outside the column
+			const int neighbour = point + j - nNodes - 1 - node;
+			if (neighbour < 0 || neighbour >= nPoints)
+				continue;
+
+			for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+				tripletList.push_back(T(bulkOffset + point * strideNode + comp,
+					bulkOffset + neighbour * strideNode + comp, 0.0));
 		}
 	}
 }
