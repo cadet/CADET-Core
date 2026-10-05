@@ -154,6 +154,7 @@ namespace parts
 		bool _filmDiffusionDepTypeDep; //!< Determines whether parameter dependence of film diffusion is particle type dependent
 		std::vector<active> _poreAccessFactor; //!< Pore accessibility factor \f$ F_{\text{acc}} \f$
 		MultiplexMode _poreAccessFactorMode;
+		std::vector<Eigen::Triplet<double>> _cMJacobianEntries; //!< Reusable scratch for conserved-moiety Jacobian transformations
 
 		/* geometry */
 		double _SurfVolRatioSphere = 3.0; //!< Surface to volume ratio for a spherical particle
