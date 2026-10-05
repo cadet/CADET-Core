@@ -1233,8 +1233,8 @@ namespace parts
 				}
 				else
 				{
-					resMap -= 2.0 / static_cast<ResidualType>(_deltaX) * (static_cast<ResidualType>(_QOverEps) * (_invMM_A_times_DT_timesM00[elem].template cast<ResidualType>() * cMap)
-						+ (_invMM_A_times_ST_AD[comp][elem].template cast<ResidualType>() * gMap));
+					resMap -= 2.0 / static_cast<ResidualType>(_deltaX) * (static_cast<ResidualType>(_QOverEps) * (_invMM_A_times_DT_timesM00[elem].template cast<StateType>() * cMap)
+						+ (_invMM_A_times_ST_AD[comp][elem].template cast<StateType>() * gMap));
 				}
 			}
 		}
