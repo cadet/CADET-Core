@@ -189,7 +189,7 @@
                 "PAR_POROSITY": 0.39,
                 "PAR_RADIUS": 3.25e-05,
                 "adsorption": {
-                    "CPA_CHARGE_FULL_LIGAND": 0.0,
+                    "CPA_LIGAND_CHARGE_FULL": 0.0,
                     "CPA_IONIC_VALENCE": [
                         0,
                         -1,
@@ -235,7 +235,7 @@
                         0.0,
                         0.0
                     ],
-                    "CPA_LAT_CHATHE": [
+                    "CPA_LAT_CHARGE": [
                         0.0,
                         0.0,
                         0.0,

@@ -42,7 +42,7 @@ using std::numbers::pi;
 			{ "type": "ScalarParameter", "varName": "pKLigand", "confName": "CPA_LIGAND_PK"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "adSurfaceArea", "confName": "CPA_SPECIFIC_SURFACE_AREA"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "compRadius", "confName": "CPA_RADIUS"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "latCharge", "confName": "CPA_LAT_CHATHE"},
+			{ "type": "ScalarComponentDependentParameter", "varName": "latCharge", "confName": "CPA_LAT_CHARGE"},
 			{ "type": "ScalarParameter", "varName": "refpH", "confName": "CPA_PH_REF"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "refDelta", "confName": "CPA_DELTA_REF"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "linDelta", "confName": "CPA_DELTA_LIN"},
