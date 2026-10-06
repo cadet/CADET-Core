@@ -24,7 +24,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Unit:** :math:`\mathrm{K}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`> 0`   **Length:** 1
+**Type:** double     **Range:** :math:`> 0`     **Length:** 1
 ===================  =========================  =========================================
 
 ``CPA_IONIC_STRENGTH``
@@ -35,14 +35,14 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Unit:** :math:`\mathrm{mol \, m^{-3}}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`> 0`   **Length:** 1
+**Type:** double     **Range:** :math:`> 0`     **Length:** 1
 ===================  =========================  =========================================
 
 ``CPA_PERMITTIVITY``
    Relative permittivity :math:`\varepsilon` of the solvent
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`> 0`   **Length:** 1
+**Type:** double     **Range:** :math:`> 0`     **Length:** 1
 ===================  =========================  =========================================
 
 ``CPA_LIGAND_DENSITY``
@@ -54,18 +54,18 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** 1
 ===================  =========================  =========================================
 
-``CPA_CHARGE_FULL_LIGAND``
+``CPA_LIGAND_CHARGE_FULL``
    Charge of the fully protonated ligand :math:`\zeta_L`
 
 ===================  =========================  =========================================
-**Type:** double                                **Length:** 1
+**Type:** double     **Range:** :math:`\ge 0`     **Length:** 1
 ===================  =========================  =========================================
 
 ``CPA_LIGAND_PK``
    Dissociation constant :math:`\mathrm{p}K_L` of the ligand
 
 ===================  =========================  =========================================
-**Type:** double                                **Length:** 1
+**Type:** double     **Range:** :math:`> 0`     **Length:** 1
 ===================  =========================  =========================================
 
 ``CPA_PH_REF``
@@ -73,7 +73,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
    protein charge polynomial
 
 ===================  =========================  =========================================
-**Type:** double                                **Length:** 1
+**Type:** double     **Range:** :math:`\ge 0`     **Length:** 1
 ===================  =========================  =========================================
 
 ``CPA_SPECIFIC_SURFACE_AREA``
@@ -82,7 +82,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Unit:** :math:`\mathrm{m^{-1}}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`> 0`   **Length:** NCOMP
+**Type:** double     **Range:** :math:`> 0`     **Length:** NCOMP
 ===================  =========================  =========================================
 
 ``CPA_RADIUS``
@@ -91,7 +91,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 **Unit:** :math:`\mathrm{m}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`> 0`   **Length:** NCOMP
+**Type:** double     **Range:** :math:`> 0`     **Length:** NCOMP
 ===================  =========================  =========================================
 
 ``CPA_EFFECTIVE_CHARGE_COEF``
@@ -106,32 +106,29 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
       Z_i(\mathrm{pH}) = z_{i,0} + \sum_{k=1}^{P} z_{i,k}
       \left(\mathrm{pH}-\mathrm{pH}_{\mathrm{ref}}\right)^k.
 
-   The matrix is supplied in polynomial-order-row-major ordering. Its number
-   of rows is inferred from the total number of values divided by ``NCOMP``;
-   consequently, its polynomial degree is :math:`P=N_{\mathrm{rows}}-1`.
+   The matrix is supplied in polynomial-order-row-major ordering.
    Every row must contain one value for every component, including non-binding
-   components. Thus, the flattened order is
-   :math:`[z_{0,0},\ldots,z_{N-1,0},z_{0,1},\ldots,z_{N-1,1},\ldots]`.
+   components.
    Coefficients that do not apply should be set to zero.
 
 ===================  =========================  =========================================
-**Type:** double                                **Length:** NCOMP * (P + 1)
+**Type:** double     **Range:** :math:`\ge 0`     **Length:** NCOMP * (P + 1)
 ===================  =========================  =========================================
 
-``CPA_LAT_CHATHE``
+``CPA_LAT_CHARGE``
    Lateral charge :math:`Z_{\mathrm{lat},i}` used for computing
    the pairwise Yukawa coefficient :math:`\beta_{ij}` in the lateral
    protein–protein interaction
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`> 0`     **Length:** NCOMP
+**Type:** double     **Range:** :math:`\ge 0`     **Length:** NCOMP
 ===================  =========================  =========================================
 
 ``CPA_DELTA_REF``
    Positive reference interaction layer thickness :math:`\delta_{i,\mathrm{ref}}`.
 
 ===================  =========================  =========================================
-**Type:** double                                **Length:** NCOMP
+**Type:** double     **Range:** :math:`\ge 0`     **Length:** NCOMP
 ===================  =========================  =========================================
 
 ``CPA_DELTA_LIN``
@@ -139,7 +136,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
    logarithmic interaction layer thickness parameterisation
 
 ===================  =========================  =========================================
-**Type:** double                                **Length:** NCOMP
+**Type:** double     **Range:** :math:`\ge 0`      **Length:** NCOMP
 ===================  =========================  =========================================
 
 ``CPA_KKIN``
@@ -170,7 +167,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
    strength, should be assigned a charge of zero.
 
 ===================  =========================  =========================================
-**Type:** int                                   **Length:** NCOMP
+**Type:** int        **Range:** :math:`\ge 0`     **Length:** NCOMP
 ===================  =========================  =========================================
 
 ``CPA_MAXITER``

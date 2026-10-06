@@ -38,7 +38,7 @@ using std::numbers::pi;
 			{ "type": "ScalarParameter", "varName": "ionicStrength", "confName": "CPA_IONIC_STRENGTH"},
 			{ "type": "ScalarParameter", "varName": "permittivity", "confName": "CPA_PERMITTIVITY"},
 			{ "type": "ScalarParameter", "varName": "surfaceDensity", "confName": "CPA_LIGAND_DENSITY"},
-			{ "type": "ScalarParameter", "varName": "chargeFullLigand", "confName": "CPA_CHARGE_FULL_LIGAND"},
+			{ "type": "ScalarParameter", "varName": "chargeFullLigand", "confName": "CPA_LIGAND_CHARGE_FULL"},
 			{ "type": "ScalarParameter", "varName": "pKLigand", "confName": "CPA_LIGAND_PK"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "adSurfaceArea", "confName": "CPA_SPECIFIC_SURFACE_AREA"},
 			{ "type": "ScalarComponentDependentParameter", "varName": "compRadius", "confName": "CPA_RADIUS"},

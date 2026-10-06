@@ -4,24 +4,28 @@ Colloidal Particle Adsorption
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The colloidal particle adsorption (CPA) model describes protein adsorption based on colloidal interaction theory.
-The model captures three key contributions to adsorption: electrostatic protein-adsorber interactions, lateral protein-protein interactions on the surface, and steric exclusion effects via scaled-particle theory (hard-disc available surface function).
+The model captures three key contributions to adsorption:
 
-A designated proton component :math:`c_{p,\mathrm{pH}}` (by default the first component, index configurable via ``CPA_PROTON_IDX``) acts as a non-binding pH state.
+- electrostatic protein-adsorber interactions, 
+- lateral protein-protein interactions on the surface, 
+- steric exclusion effects via scaled-particle theory (hard-disc available surface function).
+
+A defined proton component :math:`c^p_{\mathrm{H}+}` (by default the first component, index configurable via ``CPA_PROTON_IDX``) acts as a non-binding pH state.
 The proton component must be non-binding.
 
 The kinetic formulation reads for each binding component :math:`i`:
 
 .. math::
 
-    \frac{\mathrm{d} q_{v,i}}{\mathrm{d} t} = k_{\mathrm{kin},i} \left( K_{v,i} \, c_{p,i} - q_{v,i} \right),
+    \frac{\mathrm{d} c^{s}_{i}}{\mathrm{d} t} = k_{\mathrm{kin},i} \left( K_{v,i} \, c^p_i - c^{s}_{i} \right),
 
-where :math:`q_{v,i}` is the volumetric solid phase concentration, :math:`c_{p,i}` is the pore liquid phase concentration, :math:`K_{v,i}` is the volumetric equilibrium constant, and :math:`k_{\mathrm{kin},i}` is the kinetic rate constant.
+where :math:`c^{s}_{i}` is the volumetric solid phase concentration, :math:`c^p_i` is the pore liquid phase concentration, :math:`K_{v,i}` is the volumetric equilibrium constant, and :math:`k_{\mathrm{kin},i}` is the kinetic rate constant.
 
 In rapid-equilibrium mode, the corresponding bound-state equation is algebraic:
 
 .. math::
 
-    0 = q_{v,i} - K_{v,i} \, c_{p,i}.
+    0 = c^{s}_{i} - K_{v,i} \, c^p_i.
 
 The adsorption mode is selected by ``IS_KINETIC``.
 
@@ -34,22 +38,23 @@ Ionic strength and activity coefficients
 The ionic strength :math:`I_m` can be supplied in two ways:
 
 - **Fixed parameter** (default): :math:`I_m` is read from ``CPA_IONIC_STRENGTH`` and the pH is computed directly from the proton component concentration.
-Since the standard definition of pH is based on concentration in mol/L, :math:`mol/m^3` is converted to mol/L via the factor :math:`10^{-3}`:
+Since the standard definition of pH is based on concentration in mol/L, :math:`\mathrm{mol}/\mathrm{m}^3` is converted to mol/L via the factor :math:`10^{-3}`:
 
   .. math::
 
-      \mathrm{pH} = -\log_{10}\!\left(c_{p,\mathrm{pH}} \cdot 10^{-3}\right).
+      \mathrm{pH} = -\log_{10}\!\left(c^p_{\mathrm{H}+} \cdot 10^{-3}\right).
 
-  This case represents the setting of :cite:`Briskot2021_1`. As an addionally option :math:`Im` can be calculated dynamicly with the Davies activity correction.
+  This case represents the setting of :cite:`Briskot2021_1`.
+  As an addionally option :math:`Im` can be calculated dynamicly with the Davies activity correction.
 
 - **Computed from concentrations**: if component charges :math:`z_i` are provided via ``CPA_IONIC_VALENCE``, the ionic strength is computed from the pore-phase concentrations at each time step,
 
   .. math::
 
-      I_m = \frac{1}{2} \sum_i z_i^2 \, c_{p,i}.
+      I_m = \frac{1}{2} \sum_i z_i^2 \, c^p_i.
 
   Components that should not contribute to the ionic strength, should be assigned a charge of zero. 
-  For the Davies model, this value is converted from :math:`\mathrm{mol\,m^{-3}}` to :math:`\mathrm{mol\,L^{-1}}` as :math:`I_M = 10^{-3} I_m`. The activity correction is then
+  For the Davies model, this value is converted from :math:`\mathrm{mol}/\mathrm{m}^3` to :math:`\mathrm{mol\,/ L}` as :math:`I_M = 10^{-3} I_m`. The activity correction is then
 
   .. math::
 
@@ -59,11 +64,11 @@ Since the standard definition of pH is based on concentration in mol/L, :math:`m
 
   .. math::
 
-      \mathrm{pH} = -\log_{10}\!\left(\gamma_{\mathrm{H}^+} \, c_{p,\mathrm{pH}} \cdot 10^{-3}\right).
+      \mathrm{pH} = -\log_{10}\!\left(\gamma_{\mathrm{H}^+} \, c^p_{\mathrm{H}+} \cdot 10^{-3}\right).
 
-  **The constant 0.509 is the Debye–Hückel slope for water at 25 °C**.  The factor :math:`10^{-3}` converts the pore-phase concentration from :math:`mol/m^3` to mol/L, as required by the pH definition.
+  **The constant 0.509 is the Debye–Hückel slope for water at 25 °C**.  The factor :math:`10^{-3}` converts the pore-phase concentration from :math:`\mathrm{mol}/\mathrm{m}^3` to mol/L, as required by the pH definition.
 
-In both cases, a proton activity less than or equal to :math:`10^{-14}\mathrm{mol\,m^{-3}}` is mapped to pH 14.
+In both cases, a proton activity less than or equal to :math:`10^{-14}\mathrm{mol}/\mathrm{m}^3` is mapped to pH 14.
 
 Inverse Debye length
 ^^^^^^^^^^^^^^^^^^^^
@@ -185,13 +190,13 @@ The available surface function :math:`B_i(\Theta)` follows scaled-particle theor
 
 .. math::
 
-    B_i(\Theta) = (1 - \Theta) \exp\!\left( -\frac{\pi a_i^2 \, N_A \sum_j \tilde{q}_j + 2\pi a_i \, N_A \sum_j a_j \tilde{q}_j}{1 - \Theta} - \frac{\pi^2 a_i^2 \left(N_A \sum_j a_j \tilde{q}_j\right)^2}{(1 - \Theta)^2} \right),
+    B_i(\Theta) = (1 - \Theta) \exp\!\left( -\frac{\pi a_i^2 \, N_A \sum_j \tilde{c}^{s}_{j} + 2\pi a_i \, N_A \sum_j a_j \tilde{c}^{s}_{j}}{1 - \Theta} - \frac{\pi^2 a_i^2 \left(N_A \sum_j a_j \tilde{c}^{s}_{j}\right)^2}{(1 - \Theta)^2} \right),
 
-where :math:`\tilde{q}_j = q_{v,j} / A_{s,j}` denotes the surface concentration, and the total surface coverage is
+where :math:`\tilde{c}^{s}_{j} = c^{s}_{j} / A_{s,j}` denotes the surface concentration, and the total surface coverage is
 
 .. math::
 
-    \Theta = \pi \, N_A \sum_j a_j^2 \, \tilde{q}_j.
+    \Theta = \pi \, N_A \sum_j a_j^2 \, \tilde{c}^{s}_{j}.
 
 
 Lateral protein–protein interaction
@@ -201,13 +206,13 @@ Lateral interactions between adsorbed proteins are modelled via
 
 .. math::
 
-    D_{\mathrm{hex}} = \sqrt{\frac{2\sqrt{3}}{3 \, N_A \sum_j \tilde{q}_j}}.
+    D_{\mathrm{hex}} = \sqrt{\frac{2\sqrt{3}}{3 \, N_A \sum_j \tilde{c}^{s}_{j}}}.
 
 The lateral interaction energy for component :math:`i` is given by
 
 .. math::
 
-    u_{\mathrm{lat},i} = \frac{3\sqrt{3} \, D_{\mathrm{hex}} \, N_A \, e^{-\kappa D_{\mathrm{hex}}}}{1 - \exp\!\left(-\frac{3\sqrt{3}}{2\pi} \kappa D_{\mathrm{hex}}\right)} \sum_j \tilde{q}_j \, \beta_{ij},
+    u_{\mathrm{lat},i} = \frac{3\sqrt{3} \, D_{\mathrm{hex}} \, N_A \, e^{-\kappa D_{\mathrm{hex}}}}{1 - \exp\!\left(-\frac{3\sqrt{3}}{2\pi} \kappa D_{\mathrm{hex}}\right)} \sum_j \tilde{c}^{s}_{j} \, \beta_{ij},
 
 with
 
