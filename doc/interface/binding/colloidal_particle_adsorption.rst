@@ -28,8 +28,8 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 ===================  =========================  =========================================
 
 ``CPA_IONIC_STRENGTH``
-   Ionic strength :math:`I_m` of the mobile phase. Ignored if
-   ``CPA_IONIC_VALENCE`` is set (ionic strength is then computed
+   Ionic strength :math:`I_m` of the mobile phase. Always required, but
+   ignored if ``CPA_IONIC_VALENCE`` is set (ionic strength is then computed
    from the pore-phase concentrations).
 
 **Unit:** :math:`\mathrm{mol \, m^{-3}}`
@@ -78,20 +78,24 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
 
 ``CPA_SPECIFIC_SURFACE_AREA``
    Specific adsorber surface area per skeleton volume :math:`A_{s,i}`.
+   Must be positive for every binding component; entries of non-binding
+   components are not used and may be set to zero.
 
 **Unit:** :math:`\mathrm{m^{-1}}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`> 0`     **Length:** NCOMP
+**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
 ===================  =========================  =========================================
 
 ``CPA_RADIUS``
-   Hydrodynamic radius :math:`a_i` of each protein component
+   Hydrodynamic radius :math:`a_i` of each protein component.
+   Must be positive for every binding component; entries of non-binding
+   components are not used and may be set to zero.
 
 **Unit:** :math:`\mathrm{m}`
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`> 0`     **Length:** NCOMP
+**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
 ===================  =========================  =========================================
 
 ``CPA_EFFECTIVE_CHARGE_COEF``
@@ -111,33 +115,38 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
    components.
    Coefficients that do not apply should be set to zero.
 
-===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\ge 0`     **Length:** NCOMP * (P + 1)
-===================  =========================  =========================================
+===================  ==============================  =========================================
+**Type:** double     **Range:** :math:`\mathbb{R}`   **Length:** NCOMP * (P + 1)
+===================  ==============================  =========================================
 
 ``CPA_LAT_CHARGE``
    Lateral charge :math:`Z_{\mathrm{lat},i}` used for computing
    the pairwise Yukawa coefficient :math:`\beta_{ij}` in the lateral
    protein–protein interaction
 
-===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\ge 0`     **Length:** NCOMP
-===================  =========================  =========================================
+===================  ==============================  =========================================
+**Type:** double     **Range:** :math:`\mathbb{R}`   **Length:** NCOMP
+===================  ==============================  =========================================
 
 ``CPA_DELTA_REF``
-   Positive reference interaction layer thickness :math:`\delta_{i,\mathrm{ref}}`.
+   Reference interaction layer parameter :math:`\delta_{i,\mathrm{ref}}`
+   (:math:`\Delta_i` at :math:`\mathrm{pH}_{\mathrm{ref}}`).
+   Must be positive for every binding component; entries of non-binding
+   components are not used and may be set to zero.
 
 ===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\ge 0`     **Length:** NCOMP
+**Type:** double     **Range:** :math:`\ge 0`   **Length:** NCOMP
 ===================  =========================  =========================================
 
 ``CPA_DELTA_LIN``
    Linear coefficient :math:`\delta_{i,\mathrm{lin}}` for the
    logarithmic interaction layer thickness parameterisation
 
-===================  =========================  =========================================
-**Type:** double     **Range:** :math:`\ge 0`      **Length:** NCOMP
-===================  =========================  =========================================
+**Unit:** :math:`\mathrm{m^2 \, C^{-1}}`
+
+===================  ==============================  =========================================
+**Type:** double     **Range:** :math:`\mathbb{R}`   **Length:** NCOMP
+===================  ==============================  =========================================
 
 ``CPA_KKIN``
    Kinetic prefactor :math:`k^*_{\mathrm{kin},i}` used to calculate the
@@ -163,12 +172,14 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
    If provided, the ionic strength is computed from the pore-phase
    concentrations, and the Davies activity correction is applied to the proton
    component when computing pH.  The vector must contain one entry per
-   component (``NCOMP`` values).Components that should not contribute to the ionic 
-   strength, should be assigned a charge of zero.
+   component (``NCOMP`` values). Components that should not contribute to the ionic
+   strength, should be assigned a charge of zero. Note that a charge of zero also
+   disables the Davies activity correction for that component, so assigning
+   :math:`z = 0` to the proton component yields :math:`\gamma_{\mathrm{H}^+} = 1`.
 
-===================  =========================  =========================================
-**Type:** int        **Range:** :math:`\ge 0`     **Length:** NCOMP
-===================  =========================  =========================================
+===================  ==============================  =========================================
+**Type:** int        **Range:** :math:`\mathbb{Z}`   **Length:** NCOMP
+===================  ==============================  =========================================
 
 ``CPA_MAXITER``
    Maximum number of Newton iterations for solving the adsorber surface
