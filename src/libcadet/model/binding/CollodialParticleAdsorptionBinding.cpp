@@ -263,7 +263,8 @@ protected:
 		if (_nComp <= 1)
 			throw InvalidParameterException("CPA model: To use PH as a state at least two components need to present");
 
-		if(paramProvider.exists("CPA_PROTON_IDX"))// default index is 0
+		_idxProton = 0; // default index is 0
+		if(paramProvider.exists("CPA_PROTON_IDX"))
 			_idxProton = paramProvider.getInt("CPA_PROTON_IDX");
 
 		if ((_idxProton < 0) || (_idxProton >= _nComp))
@@ -278,7 +279,8 @@ protected:
 				throw InvalidParameterException("Binding model supports at most one bound state per component");
 		}
 
-		if(paramProvider.exists("CPA_MAXITER"))// default index is 0
+		_MAXITER = 100; // default iteration limit
+		if(paramProvider.exists("CPA_MAXITER"))
 			_MAXITER = paramProvider.getInt("CPA_MAXITER");
 
 		_compCharge.clear();
