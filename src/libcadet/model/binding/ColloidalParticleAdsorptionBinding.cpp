@@ -314,6 +314,24 @@ protected:
 		return valid;
 	}
 
+	/**
+	 * @brief Reports a state outside the validity range of the model as a recoverable error
+	 * @details The time integrator probes states that the CPA expressions are not defined for (an over-saturated
+	 *          adsorber surface, or protein and adsorber potentials that leave u_{A,i} without a minimum at a
+	 *          positive distance). Those are transient iterates rather than configuration errors, so the flux is
+	 *          zeroed and @c 1 is returned, which lets the caller retry with a smaller step instead of aborting.
+	 *          Note that cell::bindingFlux currently discards the return code.
+	 */
+	template <typename ResidualType>
+	int failRecoverable(ResidualType* res) const
+	{
+		const unsigned int nTotalBound = numBoundStates(_nBoundStates, _nComp);
+		for (unsigned int i = 0; i < nTotalBound; ++i)
+			res[i] = 0.0;
+
+		return 1;
+	}
+
 	// Returns ionic strength I = 0.5 * sum_i(z_i^2 * c_i), preserving the AD type of yCp
 	template <typename CpStateType>
 	CpStateType calcIonicStrength(CpStateType const* yCp) const
@@ -414,6 +432,14 @@ protected:
 		}
 		Theta = Theta * (pi * NA);
 
+		// The hard-disc ASF is only defined for Theta < 1. A larger coverage is outside the model, but the
+		// time integrator does probe such states, so report a recoverable error instead of aborting the run.
+		if (static_cast<double>(Theta) >= 1.0)
+		{
+			LOG(Warning) << "CPA Binding: surface coverage Theta = " << static_cast<double>(Theta) << " >= 1, B_i(Theta) is undefined";
+			return failRecoverable(res);
+		}
+
 		// D_hex^2 = 2*sqrt(3) / (3 * N_A * sum_j(q_j))
 		CpStateParamType Dhex = 0.0;
 		if (static_cast<double>(sumQSurface) > 1e-14)
@@ -449,9 +475,15 @@ protected:
 			// 2. exp(-kappa*delta_{m,i}) at the minimum of u_{A,i}, obtained from d u_{A,i} / dz = 0.
 			//    delta_{m,i} itself is never needed: it enters u_{A,i} only through this exponential,
 			//    and A_{s,i}*(d*_i - delta_{m,i}) = delta_i by definition of d*_i
+			//    It lies in (0,1) whenever psi_{0,A} and psi_{0,i} have opposite signs and differ in magnitude;
+			//    outside that range u_{A,i} has no interior minimum and the expressions below would evaluate log(0)
 			const CpStateParamType ekz = -2.0 * psiA * psi_i / (psiA * psiA + psi_i * psi_i);
-			if (ekz < 1e-14)
-				throw InvalidParameterException("CPA Binding: While computing delta_m a log(0) would have been calculated, check your parameter settings ");
+			if ((ekz < 1e-14) || (ekz >= 1.0))
+			{
+				LOG(Warning) << "CPA Binding: u_A has no minimum at a positive distance for component " << i
+					<< " (exp(-kappa*delta_m) = " << static_cast<double>(ekz) << " outside (0,1))";
+				return failRecoverable(res);
+			}
 
 			// 3. Compute delta_i
 			const ParamType dRef_i = static_cast<ParamType>(p->refDelta[i]);
@@ -482,17 +514,11 @@ protected:
 			//      -(pi*a_i^2 * sum_j(q_j*N_A) + 2*pi*a_i * sum_j(a_j*q_j*N_A)) / (1 - Theta)
 			//      - pi^2*a_i^2 * (sum_j(a_j*q_j*N_A))^2 / (1 - Theta)^2 )
 
-			CpStateParamType B_i = 0.0;
-			if ((Theta < 1.0))
-			{
-				const CpStateParamType oneMinusTheta = 1.0 - Theta;
-				const CpStateParamType nom1 = pi * a_i * a_i * sumQSurface * NA + 2.0 * pi * a_i * sumAjQj * NA;
-				const CpStateParamType nom2 = pi * pi * a_i * a_i * (sumAjQj * NA) * (sumAjQj * NA);
+			const CpStateParamType oneMinusTheta = 1.0 - Theta;
+			const CpStateParamType nom1 = pi * a_i * a_i * sumQSurface * NA + 2.0 * pi * a_i * sumAjQj * NA;
+			const CpStateParamType nom2 = pi * pi * a_i * a_i * (sumAjQj * NA) * (sumAjQj * NA);
 
-				B_i = oneMinusTheta * exp( - nom1 / oneMinusTheta - nom2 / (oneMinusTheta * oneMinusTheta));
-			}
-			else
-				throw InvalidParameterException("CPA Binding: While computing B_i(Theta) Theta must satisfy Theta < 1 check your parameter settings");
+			const CpStateParamType B_i = oneMinusTheta * exp( - nom1 / oneMinusTheta - nom2 / (oneMinusTheta * oneMinusTheta));
 
 			// 7. u_{lat,i}
 			//    u_{lat,i} = 3*sqrt(3)*D_hex*N_A
@@ -690,6 +716,11 @@ protected:
 		}
 		Theta *= (pi * NA);
 
+		// Outside the validity range of B_i(Theta); fluxImpl reports this as a recoverable error, so leave the
+		// Jacobian rows untouched rather than evaluating undefined expressions
+		if (Theta >= 1.0)
+			return;
+
 		double Dhex = 0.0;
 		if (sumQSurface > 1e-14)
 			Dhex = sqrt(2.0 * std::sqrt(3.0) / (3.0 * NA) / sumQSurface);
@@ -724,8 +755,9 @@ protected:
 			// --- exp(-kappa*delta_{m,i}) at the minimum of u_{A,i} ---
 			const double ekz = -2.0 * psiA * psi_i / (psiA * psiA + psi_i * psi_i);
 
-			if (ekz < 1e-14)
-				throw InvalidParameterException("CPA Binding: While computing delta_m a log(0) would have been calculated, check your parameter settings ");
+			// u_{A,i} has no minimum at a positive distance, see fluxImpl
+			if ((ekz < 1e-14) || (ekz >= 1.0))
+				return;
 
 			// --- Compute delta_i via Eq. (39) ---
 			const double dRef_i = static_cast<double>(p->refDelta[i]);
@@ -785,13 +817,12 @@ protected:
 				}
 			}
 
-			// --- B_i(Theta) ---
 			double B_i = 0.0;
 			double dBi_dTheta = 0.0;
 			double dBi_dsumQ = 0.0;
 			double dBi_dsumAjQj = 0.0;
 
-			if ((Theta < 1.0))
+			// --- B_i(Theta) ---
 			{
 				const double oneMinusTheta = 1.0 - Theta;
 				const double nom1 = pi * a_i * a_i * sumQSurface * NA + 2.0 * pi * a_i * sumAjQj * NA;
@@ -820,8 +851,6 @@ protected:
 					- 2.0 * pi * pi * a_i * a_i * sumAjQj * NA * NA / (oneMinusTheta * oneMinusTheta);
 				dBi_dsumAjQj = B_i * dexpArg_dsumAjQj;
 			}
-			else
-				throw InvalidParameterException("CPA Binding: While computing B_i(Theta) Theta must satisfy Theta < 1 check your parameter settings");
 
 
 			// --- u_{lat,i} and its derivatives ---
