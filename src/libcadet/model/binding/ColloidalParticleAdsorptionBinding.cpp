@@ -198,9 +198,10 @@ protected:
 			_iter_psi = iter + 1;
 			// pH at surface: pH_0 = pH + (e * psi) / (ln(10) * k_b * T)
 			const StateParamType pH0 = pH + (e * psi) / (std::log(10.0) * kb * T);
+			const StateParamType expTerm = pow(10.0, pKL - pH0);
 
 			// lhs: sigma_{I,A} = e * N_A * Gamma_L * [zeta_L - 1/(1 + 10^{pK_L - pH_0})]
-			const StateParamType lhs = e * NA * GammaL * (zetaL - 1.0 / (1.0 + pow(10.0, pKL - pH0)));
+			const StateParamType lhs = e * NA * GammaL * (zetaL - 1.0 / (1.0 + expTerm));
 
 			// rhs: sigma_D = 2 * eps * eps0 * kappa * (k_b*T/e) * sinh(e*psi/(2*k_b*T))
 			const StateParamType sinArg = e  / (2.0 * kb * T);
@@ -211,7 +212,6 @@ protected:
 			// Derivatives for Newton step
 			// dlhs/dpsi: let x = 10^{pKL-pH0}, dx/dpsi = -x*e/(kb*T)
 			// dlhs/dpsi = e*NA*GammaL * dx/dpsi / (1+x)^2 = -e^2*NA*GammaL*x / (kb*T*(1+x)^2)
-			const StateParamType expTerm = pow(10.0, pKL - pH0);
 			const StateParamType dlhs = -e * (e / (kb * T)) * NA * GammaL * expTerm / ((1.0 + expTerm) * (1.0 + expTerm));
 
 			const StateParamType drhs = 2.0 * eps * eps0 * kappa * (kb * T / e) * cosh(sinArg * psi) * sinArg;
@@ -391,6 +391,9 @@ protected:
 		CpStateParamType Theta = 0.0;
 		CpStateParamType sumQSurface = 0.0;
 		CpStateParamType sumAjQj = 0.0;
+		// beta_{i,j} factorizes into g_i * g_j (up to elecPrefactor) with g_i = Zlat_i * exp(kappa*a_i) / (1 + kappa*a_i),
+		// so sum_j(beta_{i,j} * q_j) = elecPrefactor * g_i * sum_j(g_j * q_j) and the pairwise loop collapses
+		CpStateParamType gQSum = 0.0;
 
 		int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
@@ -405,6 +408,7 @@ protected:
 			Theta       += a_i * a_i * q_i;
 			sumQSurface += q_i;
 			sumAjQj     += a_i * q_i;
+			gQSum       += static_cast<ParamType>(p->latCharge[i]) * exp(kappa * a_i) / (1.0 + kappa * a_i) * q_i;
 
 			++bndIdx;
 		}
@@ -423,7 +427,6 @@ protected:
 				continue;
 
 			const ParamType a_i      = static_cast<ParamType>(p->compRadius[i]);
-			const ParamType As_i     = static_cast<ParamType>(p->adSurfaceArea[i]);
 			const ParamType Zlat_i   = static_cast<ParamType>(p->latCharge[i]);
 			const ParamType refZi    = static_cast<ParamType>(_proteinCharge[i]);
 			const CpStateParamType pHDifference = pH - refpH;
@@ -437,28 +440,30 @@ protected:
 
 			// 1. Protein surface potential psi_{0,i}
 			//    psi_i = (2*k_b*T/e) * asinh(Z_i*e^2 / (8*pi*a_i^2*eps*eps0*kappa*k_b*T))
+			//    asinh is evaluated on |psiArg| to avoid the cancellation of log(x + sqrt(x^2+1)) for x << 0
 			const CpStateParamType psiArg = Zi * e * e / (8.0 * pi * a_i * a_i * eps * eps0 * kappa * kbT);
-			const CpStateParamType psi_i = (2.0 * kbT / e) * log(psiArg + sqrt(psiArg * psiArg + 1.0));
+			const CpStateParamType absPsiArg = abs(psiArg);
+			const CpStateParamType asinhAbs = log(absPsiArg + sqrt(absPsiArg * absPsiArg + 1.0));
+			const CpStateParamType psi_i = (2.0 * kbT / e) * (static_cast<double>(psiArg) < 0.0 ? -asinhAbs : asinhAbs);
 
-			// 2. Compute delta_m analytically: z^* = -ln( -2*psiA*psi_i / (psiA^2 + psi_i^2))/kappa
-			const CpStateParamType dmRatio = -2.0 * psiA * psi_i / (psiA * psiA + psi_i * psi_i);
-			if (dmRatio < 1e-14)
+			// 2. exp(-kappa*delta_{m,i}) at the minimum of u_{A,i}, obtained from d u_{A,i} / dz = 0.
+			//    delta_{m,i} itself is never needed: it enters u_{A,i} only through this exponential,
+			//    and A_{s,i}*(d*_i - delta_{m,i}) = delta_i by definition of d*_i
+			const CpStateParamType ekz = -2.0 * psiA * psi_i / (psiA * psiA + psi_i * psi_i);
+			if (ekz < 1e-14)
 				throw InvalidParameterException("CPA Binding: While computing delta_m a log(0) would have been calculated, check your parameter settings ");
-			const CpStateParamType dm_i = -log(dmRatio) / kappa;
 
-			// 3. Compute delta_i and dstar_i
+			// 3. Compute delta_i
 			const ParamType dRef_i = static_cast<ParamType>(p->refDelta[i]);
 			const ParamType dLin_i = static_cast<ParamType>(p->linDelta[i]);
 			const CpStateParamType sigmaI_i = Zi * e / (4.0 * pi * a_i * a_i);
 			const ParamType sigmaRef_I = refZi * e / (4.0 * pi * a_i * a_i);
 			const CpStateParamType logDelta = log10(dRef_i) + dLin_i * (abs(sigmaI_i) - abs(sigmaRef_I));
 			const CpStateParamType delta_i = exp(std::log(10.0) * logDelta);
-			const CpStateParamType dstar_i = dm_i + delta_i / As_i;
 
 			// 4. Protein-adsorber interaction: u_{A,i}(delta_{m,i})
 			//    u_{A,i}(z) = pi * a_i * eps * eps0 *
 			//      [ 2*psi_A*psi_i * ln((1+exp(-kappa*z))/(1-exp(-kappa*z))) - (psi_A^2 + psi_i^2) * ln(1 - exp(-2*kappa*z)) ]
-			const CpStateParamType ekz = exp(-kappa * dm_i);
 			const CpStateParamType uA_i = pi * a_i * eps * eps0 * (
 				2.0 * psiA * psi_i * log((1.0 + ekz) / (1.0 - ekz))
 				- (psiA * psiA + psi_i * psi_i) * log(1.0 - ekz * ekz)
@@ -489,36 +494,18 @@ protected:
 			else
 				throw InvalidParameterException("CPA Binding: While computing B_i(Theta) Theta must satisfy Theta < 1 check your parameter settings");
 
-			// 7. u_{lat,i} 
+			// 7. u_{lat,i}
 			//    u_{lat,i} = 3*sqrt(3)*D_hex*N_A
 			//                * exp(-kappa*D_hex) / (1 - exp(-3*sqrt(3)/(2*pi)*kappa*D_hex))
 			//                * sum_j(q_j * beta_{i,j})
-			//    beta_{i,j} computed inline (Eq. 22)
+			//    with beta_{i,j} = Zlat_i * Zlat_j * e^2/(4*pi*eps*eps0) * exp(kappa*(a_i+a_j)) / ((1+kappa*a_i)*(1+kappa*a_j))
+			//    (Eq. 22), which factorizes into g_i * g_j as described at gQSum above
 
 			CpStateParamType ulat_i = 0.0;
 
 			// sum_j(q_j * beta_{i,j})
-			CpStateParamType betaQSum = 0.0;
-			int bndIdx2 = 0;
-			for (int j = 0; j < _nComp; ++j)
-			{
-				if (_nBoundStates[j] == 0)
-					continue;
-
-				const ParamType Zlat_j = static_cast<ParamType>(p->latCharge[j]);
-				const ParamType a_j    = static_cast<ParamType>(p->compRadius[j]);
-				const ParamType As_j   = static_cast<ParamType>(p->adSurfaceArea[j]);
-
-				// beta_{i,j} = Zlat_i * Zlat_j * e^2/(4*pi*eps*eps0 * exp(kappa*(a_i+a_j)) / ((1+kappa*a_i)*(1+kappa*a_j))
-				const CpStateParamType beta_ij = Zlat_i * Zlat_j * elecPrefactor
-					* exp(kappa * (a_i + a_j))
-					/ ((1.0 + kappa * a_i) * (1.0 + kappa * a_j));
-
-				const CpStateParamType q_j = y[bndIdx2] / As_j;
-				betaQSum += beta_ij * q_j;
-
-				++bndIdx2;
-			}
+			const CpStateParamType g_i = Zlat_i * exp(kappa * a_i) / (1.0 + kappa * a_i);
+			const CpStateParamType betaQSum = elecPrefactor * g_i * gQSum;
 
 			const CpStateParamType ulatDenom = 1.0 - exp(-(3.0 * std::sqrt(3.0) / (2.0 * pi)) * kappa * Dhex);
 
@@ -530,7 +517,8 @@ protected:
 			}
 
 			// 8. K_{v,i} = As_i * (dstar_i - dm_i) * K_{H,i} * B_i(Theta) * exp(-u_{lat,i} / (k_b*T))
-			const CpStateParamType Kv_i = As_i * (dstar_i - dm_i) * KH_i * B_i * exp(-ulat_i / kbT);
+			//    with As_i * (dstar_i - dm_i) = delta_i
+			const CpStateParamType Kv_i = delta_i * KH_i * B_i * exp(-ulat_i / kbT);
 
 			if (_reactionQuasistationarity[bndIdx])
 				res[bndIdx] = y[bndIdx] - Kv_i * yCp[i];
@@ -538,8 +526,7 @@ protected:
 			{
 				// 9. k_{kin,i} = k^*_{kin,i}/2 * (u_A/(k_b*T))^2 / (cosh(u_A/(k_b*T)) - 1)
 				const ParamType kKinScale = static_cast<ParamType>(p->k_kin[i]);
-				const CpStateParamType uARatio = uA_i / kbT;
-				
+
 				CpStateParamType kKin_i = kKinScale;
 				if (std::abs(static_cast<double>(uARatio)) > 1e-14)
 					kKin_i = 0.5 * kKinScale * uARatio * uARatio / (cosh(uARatio) - 1.0);
@@ -665,12 +652,16 @@ protected:
 		double* const aVec = static_cast<double*>(aArray);
 		BufferedArray<double> AsArray = workSpace.array<double>(nTotalBound);        // As_j
 		double* const AsVec = static_cast<double*>(AsArray);
-		BufferedArray<double> betaArray = workSpace.array<double>(nTotalBound);      // beta_{i,j} of the current row i
-		double* const beta_ij_vec = static_cast<double*>(betaArray);
+		BufferedArray<double> gArray = workSpace.array<double>(nTotalBound);         // g_j of the beta_{i,j} factorization
+		double* const gVec = static_cast<double*>(gArray);
 
 		double Theta = 0.0;
 		double sumQSurface = 0.0;
 		double sumAjQj = 0.0;
+		// beta_{i,j} = elecPrefactor * g_i * g_j with g_i = Zlat_i * exp(kappa*a_i) / (1 + kappa*a_i), so that
+		// sum_j(beta_{i,j} * q_j) = elecPrefactor * g_i * gQSum and its kappa derivative follows the product rule
+		double gQSum = 0.0;
+		double dgQSum_dkappa = 0.0;
 
 		int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
@@ -681,14 +672,19 @@ protected:
 			const double a_i  = static_cast<double>(p->compRadius[i]);
 			const double As_i = static_cast<double>(p->adSurfaceArea[i]);
 			const double q_i_surf = y[bndIdx] / As_i;
+			const double g_i = static_cast<double>(p->latCharge[i]) * exp(kappa * a_i) / (1.0 + kappa * a_i);
 
 			qSurface[bndIdx] = q_i_surf;
 			aVec[bndIdx] = a_i;
 			AsVec[bndIdx] = As_i;
+			gVec[bndIdx] = g_i;
 
 			Theta       += a_i * a_i * q_i_surf;
 			sumQSurface += q_i_surf;
 			sumAjQj     += a_i * q_i_surf;
+			gQSum       += g_i * q_i_surf;
+			// dg_i/dkappa = g_i * (a_i - a_i / (1 + kappa*a_i))
+			dgQSum_dkappa += g_i * (a_i - a_i / (1.0 + kappa * a_i)) * q_i_surf;
 
 			++bndIdx;
 		}
@@ -707,9 +703,7 @@ protected:
 				continue;
 
 			const double a_i      = static_cast<double>(p->compRadius[i]);
-			const double As_i     = static_cast<double>(p->adSurfaceArea[i]);
 			const double refZi    = static_cast<double>(_proteinCharge[i]);
-			const double Zlat_i   = static_cast<double>(p->latCharge[i]);
 			const double refpH    = static_cast<double>(p->refpH);
 
 			const double pHDifference = pH_val - refpH;
@@ -723,28 +717,24 @@ protected:
 				Zi += static_cast<double>(_proteinCharge[coef * _nComp + i]) * pHPower;
 			}
 
-			// --- Protein surface potential psi_i ---
+			// --- Protein surface potential psi_i, asinh evaluated on |psiArg| for stability ---
 			const double psiArg = Zi * e * e / (8.0 * pi * a_i * a_i * eps * eps0 * kappa * kbT);
-			const double psi_i = (2.0 * kbT / e) * log(psiArg + sqrt(psiArg * psiArg + 1.0));
+			const double psi_i = (2.0 * kbT / e) * std::asinh(psiArg);
 
-			// --- Compute delta_m analytically ---
-			const double dmRatio = -2.0 * psiA * psi_i / (psiA * psiA + psi_i * psi_i);
-			
-			if (dmRatio < 1e-14)
+			// --- exp(-kappa*delta_{m,i}) at the minimum of u_{A,i} ---
+			const double ekz = -2.0 * psiA * psi_i / (psiA * psiA + psi_i * psi_i);
+
+			if (ekz < 1e-14)
 				throw InvalidParameterException("CPA Binding: While computing delta_m a log(0) would have been calculated, check your parameter settings ");
-			
-			const double dm_i = -log(dmRatio) / kappa;
 
-			// --- Compute delta_i via Eq. (39) and dstar_i ---
+			// --- Compute delta_i via Eq. (39) ---
 			const double dRef_i = static_cast<double>(p->refDelta[i]);
 			const double dLin_i = static_cast<double>(p->linDelta[i]);
 			const double sigmaI_i = Zi * e / (4.0 * pi * a_i * a_i);
 			const double sigmaRef_I = refZi * e / (4.0 * pi * a_i * a_i);
 			const double delta_i = std::pow(10.0, std::log10(dRef_i) + dLin_i * (std::abs(sigmaI_i) - std::abs(sigmaRef_I)));
-			const double dstar_i = dm_i + delta_i / As_i;
 
 			// --- Protein-adsorber interaction u_{A,i} ---
-			const double ekz = exp(-kappa * dm_i);
 			const double logRatio = log((1.0 + ekz) / (1.0 - ekz));
 			const double logTerm = log(1.0 - ekz * ekz);
 
@@ -753,16 +743,15 @@ protected:
 				- (psiA * psiA + psi_i * psi_i) * logTerm
 			);
 
-			// Partial derivatives of uA w.r.t. psiA, psi_i, and dm_i
+			// Derivatives of uA w.r.t. psiA and psi_i. Since ekz locates the minimum of u_{A,i}, du_{A,i}/d(ekz)
+			// vanishes here, so the partials at fixed ekz already are the total derivatives (envelope theorem)
+			// and ekz carries no explicit kappa dependence.
 			const double duA_dpsiA = pi * a_i * eps * eps0 * (
 				2.0 * psi_i * logRatio - 2.0 * psiA * logTerm
 			);
 			const double duA_dpsi_i = pi * a_i * eps * eps0 * (
 				2.0 * psiA * logRatio - 2.0 * psi_i * logTerm
 			);
-			const double duA_ddm = pi * a_i * eps * eps0
-				* (-2.0 * kappa * ekz / (1.0 - ekz * ekz))
-				* (2.0 * psiA * psi_i + (psiA * psiA + psi_i * psi_i) * ekz);
 
 			// --- K_{H,i} ---
 			double KH_i = 1.0;
@@ -780,7 +769,6 @@ protected:
 
 			// --- Kinetic scaling ---
 			const bool isQuasiStationary = _reactionQuasistationarity[bndIdx];
-			const double Delta_i = dstar_i - dm_i;
 			double kKin_i = 1.0;
 			double dkKin_duA = 0.0;
 
@@ -839,26 +827,9 @@ protected:
 			// --- u_{lat,i} and its derivatives ---
 			double ulat_i = 0.0;
 
-			// betaQSum = sum_j(beta_{i,j} * q_j_surf)
-			double betaQSum = 0.0;
-			int bndIdx2 = 0;
-			for (int j = 0; j < _nComp; ++j)
-			{
-				if (_nBoundStates[j] == 0)
-					continue;
-
-				const double Zlat_j = static_cast<double>(p->latCharge[j]);
-				const double a_j    = static_cast<double>(p->compRadius[j]);
-
-				const double beta_ij = Zlat_i * Zlat_j * elecPrefactor
-					* exp(kappa * (a_i + a_j))
-					/ ((1.0 + kappa * a_i) * (1.0 + kappa * a_j));
-
-				beta_ij_vec[bndIdx2] = beta_ij;
-				betaQSum += beta_ij * qSurface[bndIdx2];
-
-				++bndIdx2;
-			}
+			// betaQSum = sum_j(beta_{i,j} * q_j_surf) = elecPrefactor * g_i * gQSum
+			const double g_i = gVec[bndIdx];
+			const double betaQSum = elecPrefactor * g_i * gQSum;
 
 			// Dhex-dependent prefactor for u_lat
 			const double sqrt3 = std::sqrt(3.0);
@@ -893,9 +864,9 @@ protected:
 			if (sumQSurface > 1e-14)
 				dDhex_dsumQ = -0.5 * Dhex / sumQSurface;
 
-			// --- Kv_i = As_i * Delta_i * KH_i * B_i * exp(-ulat_i / kbT) ---
+			// --- Kv_i = delta_i * KH_i * B_i * exp(-ulat_i / kbT), using As_i * (dstar_i - dm_i) = delta_i ---
 			const double expUlat = exp(-ulat_i / kbT);
-			const double Kv_i = As_i * Delta_i * KH_i * B_i * expUlat;
+			const double Kv_i = delta_i * KH_i * B_i * expUlat;
 
 			// res_i = scale_i * (y[bndIdx] - Kv_i * yCp[i]), where scale_i is 1 for rapid equilibrium and kKin_i for kinetic binding
 			// We need:
@@ -910,32 +881,22 @@ protected:
 
 			// dres_i / dc_{p,proton}
 			// pH affects: Zi -> psi_i, sigmaI -> delta_i, and psiA (via dPsiA_dpH)
-			// These propagate through: dm_i, uA_i, KH_i, kKin_i, Delta_i, Kv_i
+			// These propagate through: uA_i, KH_i, kKin_i, delta_i, Kv_i
 			if (!isPHClamped)
 			{
 				// dpsi_i/dpH: psi_i = (2*kbT/e)*arcsinh(Zi*C1), so dpsi_i/dpH = (2*kbT/e)*C1*dZi/dpH / sqrt(arg^2+1)
 				const double C1_psi = e * e / (8.0 * pi * a_i * a_i * eps * eps0 * kappa * kbT);
 				const double dpsi_i_dpH = (2.0 * kbT / e) * dZi_dpH * C1_psi / sqrt(psiArg * psiArg + 1.0);
 
-				// ddm_i/dpH via R = -2*psiA*psi_i/(psiA^2+psi_i^2)
-				const double S_pot = psiA * psiA + psi_i * psi_i;
-				const double dR_dpsiA = 2.0 * psi_i * (psiA * psiA - psi_i * psi_i) / (S_pot * S_pot);
-				const double dR_dpsi_i = 2.0 * psiA * (psi_i * psi_i - psiA * psiA) / (S_pot * S_pot);
-				const double ddm_dpH = (std::abs(dmRatio) > 1e-14)
-					? (-1.0 / (dmRatio * kappa)) * (dR_dpsiA * dpsiA_dpH_val + dR_dpsi_i * dpsi_i_dpH)
-					: 0.0;
-
 				// ddelta_i/dpH via sigmaI_i
 				const double dsigmaI_dpH = dZi_dpH * e / (4.0 * pi * a_i * a_i);
 				double ddelta_dpH = 0.0;
 				if (std::abs(sigmaI_i) > 1e-14)
 					ddelta_dpH = delta_i * std::log(10.0) * dLin_i * (sigmaI_i > 0.0 ? 1.0 : -1.0) * dsigmaI_dpH;
-				const double dDelta_dpH = ddelta_dpH / As_i;
 
-				// Total duA_i/dpH = duA/dpsiA * dpsiA/dpH + duA/dpsi_i * dpsi_i/dpH + duA/ddm * ddm/dpH
+				// Total duA_i/dpH = duA/dpsiA * dpsiA/dpH + duA/dpsi_i * dpsi_i/dpH
 				const double duA_dpH = duA_dpsiA * dpsiA_dpH_val
-					+ duA_dpsi_i * dpsi_i_dpH
-					+ duA_ddm * ddm_dpH;
+					+ duA_dpsi_i * dpsi_i_dpH;
 
 				// dKH/dpH
 				const double dKH_dpH = dKH_duA * duA_dpH;
@@ -944,7 +905,7 @@ protected:
 				const double dkKin_dpH = dkKin_duA * duA_dpH;
 
 				// dKv/dpH: B_i and ulat_i are independent of pH
-				const double dKv_dpH = As_i * B_i * expUlat * (dDelta_dpH * KH_i + Delta_i * dKH_dpH);
+				const double dKv_dpH = B_i * expUlat * (ddelta_dpH * KH_i + delta_i * dKH_dpH);
 
 				// dres/dpH
 				const double dres_dpH = -(dkKin_dpH * (Kv_i * yCp[i] - y[bndIdx]) + kKin_i * dKv_dpH * yCp[i]);
@@ -982,44 +943,20 @@ protected:
 				const double dpsiArg_dkappa = -psiArg / kappa;
 				const double dpsi_i_dkappa = (2.0 * kbT / e) * dpsiArg_dkappa / sqrt(psiArg * psiArg + 1.0);
 
-				// ddm_i/dkappa: dm_i = -log(R)/kappa, R = -2*psiA*psi_i/(psiA^2+psi_i^2)
-				// dR/dkappa through psiA and psi_i
-				const double S_pot_k = psiA * psiA + psi_i * psi_i;
-				const double dR_dpsiA_k = 2.0 * psi_i * (psiA * psiA - psi_i * psi_i) / (S_pot_k * S_pot_k);
-				const double dR_dpsi_i_k = 2.0 * psiA * (psi_i * psi_i - psiA * psiA) / (S_pot_k * S_pot_k);
-				const double dR_dkappa = dR_dpsiA_k * dpsiA_dkappa_val + dR_dpsi_i_k * dpsi_i_dkappa;
-				double ddm_dkappa = 0.0;
-				if (std::abs(dmRatio) > 1e-14)
-					ddm_dkappa = log(dmRatio) / (kappa * kappa) - dR_dkappa / (dmRatio * kappa);
-
-				// duA/dkappa: through psiA, psi_i, and explicit kappa in ekz
-				// ekz = exp(-kappa*dm_i), duA_ddm accounts for d(ekz)/d(dm_i) at constant kappa
-				// Extra term for explicit kappa: duA_ddm * dm_i / kappa
+				// duA/dkappa: only through psiA and psi_i, since ekz locates the minimum of u_{A,i}
 				const double duA_dkappa = duA_dpsiA * dpsiA_dkappa_val
-					+ duA_dpsi_i * dpsi_i_dkappa
-					+ duA_ddm * (ddm_dkappa + dm_i / kappa);
+					+ duA_dpsi_i * dpsi_i_dkappa;
 
 				// dKH/dkappa
 				const double dKH_dkappa = dKH_duA * duA_dkappa;
 
-				// dkKin/dkappa: Delta_i = delta_i/As_i doesn't depend on kappa, only uA does
+				// dkKin/dkappa: delta_i doesn't depend on kappa, only uA does
 				const double dkKin_dkappa = dkKin_duA * duA_dkappa;
 
-				// dulat_i/dkappa: through beta_ij and ulatPrefactor
-				// dbeta_ij/dkappa = beta_ij * [(a_i+a_j) - a_i/(1+kappa*a_i) - a_j/(1+kappa*a_j)]
-				double dbetaQSum_dkappa = 0.0;
-				int bndIdx3 = 0;
-				for (int j = 0; j < _nComp; ++j)
-				{
-					if (_nBoundStates[j] == 0)
-						continue;
-
-					const double a_j = aVec[bndIdx3];
-					const double dbeta_dkappa = beta_ij_vec[bndIdx3]
-						* ((a_i + a_j) - a_i / (1.0 + kappa * a_i) - a_j / (1.0 + kappa * a_j));
-					dbetaQSum_dkappa += dbeta_dkappa * qSurface[bndIdx3];
-					++bndIdx3;
-				}
+				// dulat_i/dkappa: through beta_ij and ulatPrefactor, with
+				// d(elecPrefactor*g_i*gQSum)/dkappa = elecPrefactor * (dg_i/dkappa * gQSum + g_i * dgQSum/dkappa)
+				const double dg_i_dkappa = g_i * (a_i - a_i / (1.0 + kappa * a_i));
+				const double dbetaQSum_dkappa = elecPrefactor * (dg_i_dkappa * gQSum + g_i * dgQSum_dkappa);
 
 				// dulatPrefactor/dkappa: ulatPrefactor = 3*sqrt3*Dhex*NA*exp(-kappa*Dhex) / (1-exp(-c*kappa*Dhex))
 				double dulatPrefactor_dkappa = 0.0;
@@ -1034,9 +971,9 @@ protected:
 
 				const double dulat_dkappa = dulatPrefactor_dkappa * betaQSum + ulatPrefactor * dbetaQSum_dkappa;
 
-				// dKv/dkappa: Kv = As*Delta*KH*B*exp(-ulat/kbT)
-				// B_i and Delta_i don't depend on kappa
-				const double dKv_dkappa = As_i * Delta_i * B_i * expUlat
+				// dKv/dkappa: Kv = delta_i*KH*B*exp(-ulat/kbT)
+				// B_i and delta_i don't depend on kappa
+				const double dKv_dkappa = delta_i * B_i * expUlat
 					* (dKH_dkappa - KH_i * dulat_dkappa / kbT);
 
 				// dres/dkappa
@@ -1057,8 +994,8 @@ protected:
 			jac[0] = +kKin_i;
 
 			// === dres_i / dq_j (through Kv_i which depends on B_i, ulat_i via Theta, sumQ, sumAjQj, Dhex) ===
-			// Kv_i = As*Delta*KH * B_i * exp(-ulat/kbT)
-			// dKv/dq_j = As*Delta*KH * [dB_i/dq_j * exp(-ulat/kbT) + B_i * exp(-ulat/kbT) * (-1/kbT) * dulat/dq_j]
+			// Kv_i = delta_i*KH * B_i * exp(-ulat/kbT)
+			// dKv/dq_j = delta_i*KH * [dB_i/dq_j * exp(-ulat/kbT) + B_i * exp(-ulat/kbT) * (-1/kbT) * dulat/dq_j]
 			//          = Kv_i * [dB_i/dq_j / B_i  -  dulat/dq_j / kbT]   (when B_i != 0)
 
 			// For each q_j (bound state index k):
@@ -1070,7 +1007,7 @@ protected:
 			// dulat_i/dq_k = ulatPrefactor * beta_{ik} / As_k
 			//              + dulatPrefactor/dDhex * dDhex/dsumQ * dsumQ/dq_k * betaQSum
 
-			bndIdx2 = 0;
+			int bndIdx2 = 0;
 			for (int j = 0; j < _nComp; ++j)
 			{
 				if (_nBoundStates[j] == 0)
@@ -1089,7 +1026,7 @@ protected:
 					+ dBi_dsumAjQj * dsumAjQj_dqk;
 
 				// dulat_i/dq_k: direct (beta * q term) + indirect (Dhex depends on sumQ)
-				const double dulat_direct = ulatPrefactor * beta_ij_vec[bndIdx2] / As_k;
+				const double dulat_direct = ulatPrefactor * elecPrefactor * g_i * gVec[bndIdx2] / As_k;
 				const double dulat_indirect = dulatPrefactor_dDhex * dDhex_dsumQ * dsumQ_dqk * betaQSum;
 				const double dulat_dqk = dulat_direct + dulat_indirect;
 
@@ -1098,7 +1035,7 @@ protected:
 				if (std::abs(B_i) > 1e-14)
 					dKv_dqk = Kv_i * (dBi_dqk / B_i - dulat_dqk / kbT);
 				else
-					dKv_dqk = As_i * Delta_i * KH_i * expUlat * (dBi_dqk - B_i * dulat_dqk / kbT);
+					dKv_dqk = delta_i * KH_i * expUlat * (dBi_dqk - B_i * dulat_dqk / kbT);
 
 				// dres_i / dq_k = -scale_i * dKv_i/dq_k * c_{p,i}
 				const double dres_dqk = -kKin_i * dKv_dqk * yCp[i];
