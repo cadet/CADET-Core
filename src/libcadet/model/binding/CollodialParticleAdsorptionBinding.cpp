@@ -57,17 +57,19 @@ using std::numbers::pi;
  CPA_IONIC_STRENGTH:      	Ionic strength [mol/m^3]
  CPA_PERMITTIVITY:        	Relative permittivity [-]
  CPA_LIGAND_DENSITY:     	Ligand surface density Gamma_L [mol/m^2]
- CPA_CHARGE_FULL_LIGAND:  	Charge of fully protonated ligand zeta_L [-]
+ CPA_LIGAND_CHARGE_FULL:  	Charge of fully protonated ligand zeta_L [-]
  CPA_LIGAND_PK:           	pK of the ligand [-]
- CPA_PH:                  	Bulk pH [-]
  CPA_SPECIFIC_SURFACE_AREA: Specific adsorber surface per skeleton volume A_{s,i} [m^-1] (per component)
  CPA_RADIUS:              	Protein radius a_i [m] (per component)
- CPA_EFFECTIVE_CHARGE_COEF:    Protein charge polynomial coefficients, polynomial-order-row-major [-]
- CPA_PH_REF:
- CPA_DELTA_REF:
- CPA_DELTA_LIN:
+ CPA_EFFECTIVE_CHARGE_COEF:    Protein charge polynomial coefficients z_{i,k}, polynomial-order-row-major [-]
+ CPA_LAT_CHARGE:           	Lateral protein charge Z_{lat,i} [-] (per component)
+ CPA_PH_REF:               	Reference pH of the protein charge polynomial [-]
+ CPA_DELTA_REF:            	Interaction layer parameter Delta_i at pH_ref [-] (per component)
+ CPA_DELTA_LIN:            	Slope Delta_{1,i} of log10(Delta_i) w.r.t. |sigma_{I,i}| [m^2/C] (per component)
  CPA_KKIN:                 Kinetic prefactor k^*_{kin,i} [s^-1] (per component)
- CPA_IONIC_VALENCE:
+ CPA_IONIC_VALENCE:        	Ionic valence z_i [-] (per component, optional; enables I_m from the pore phase)
+ CPA_PROTON_IDX:           	0-based index of the proton component [-] (optional, default 0)
+ CPA_MAXITER:              	Maximum number of Newton iterations for psi_{0,A} [-] (optional, default 100)
 */
 
 namespace cadet
@@ -649,7 +651,6 @@ protected:
 		std::vector<double> qSurface(nTotalBound, 0.0);  // q_j / As_j
 		std::vector<double> aVec(nTotalBound, 0.0);       // a_j (radius)
 		std::vector<double> AsVec(nTotalBound, 0.0);       // As_j
-		std::vector<int> compIdx(nTotalBound, 0);          // component index for each bound index
 
 		double Theta = 0.0;
 		double sumQSurface = 0.0;
@@ -668,7 +669,6 @@ protected:
 			qSurface[bndIdx] = q_i_surf;
 			aVec[bndIdx] = a_i;
 			AsVec[bndIdx] = As_i;
-			compIdx[bndIdx] = i;
 
 			Theta       += a_i * a_i * q_i_surf;
 			sumQSurface += q_i_surf;
@@ -715,7 +715,7 @@ protected:
 			const double dmRatio = -2.0 * psiA * psi_i / (psiA * psiA + psi_i * psi_i);
 			
 			if (dmRatio < 1e-14)
-				throw InvalidParameterException("CPA Binding: While computing delta_m  would have been calculated, check your parameter settings ");
+				throw InvalidParameterException("CPA Binding: While computing delta_m a log(0) would have been calculated, check your parameter settings ");
 			
 			const double dm_i = -log(dmRatio) / kappa;
 
