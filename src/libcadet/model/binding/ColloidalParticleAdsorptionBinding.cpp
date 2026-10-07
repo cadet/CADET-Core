@@ -244,6 +244,15 @@ protected:
 
 	virtual bool implementsAnalyticJacobian() const CADET_NOEXCEPT { return true; }
 
+	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return true; }
+
+	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
+	{
+		// jacobianImpl needs four scratch arrays of size totalNumBoundStates (q_j / As_j, a_j, As_j, beta_{i,j})
+		return ParamHandlerBindingModelBase<ParamHandler_t>::workspaceSize(nComp, totalNumBoundStates, nBoundStates)
+			+ 4u * (totalNumBoundStates * sizeof(double) + alignof(double));
+	}
+
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
 		const bool valid = ParamHandlerBindingModelBase<ParamHandler_t>::configureImpl(paramProvider, unitOpIdx, parTypeIdx);
@@ -649,10 +658,15 @@ protected:
 		// Precompute surface concentrations q_j / As_j and auxiliary sums
 		const int nTotalBound = std::accumulate(_nBoundStates, _nBoundStates + _nComp, 0);
 
-		// Store per-bound-component data
-		std::vector<double> qSurface(nTotalBound, 0.0);  // q_j / As_j
-		std::vector<double> aVec(nTotalBound, 0.0);       // a_j (radius)
-		std::vector<double> AsVec(nTotalBound, 0.0);       // As_j
+		// Store per-bound-component data in the work space, this function runs per particle shell and Newton iteration
+		BufferedArray<double> qSurfaceArray = workSpace.array<double>(nTotalBound);  // q_j / As_j
+		double* const qSurface = static_cast<double*>(qSurfaceArray);
+		BufferedArray<double> aArray = workSpace.array<double>(nTotalBound);         // a_j (radius)
+		double* const aVec = static_cast<double*>(aArray);
+		BufferedArray<double> AsArray = workSpace.array<double>(nTotalBound);        // As_j
+		double* const AsVec = static_cast<double*>(AsArray);
+		BufferedArray<double> betaArray = workSpace.array<double>(nTotalBound);      // beta_{i,j} of the current row i
+		double* const beta_ij_vec = static_cast<double*>(betaArray);
 
 		double Theta = 0.0;
 		double sumQSurface = 0.0;
@@ -827,7 +841,6 @@ protected:
 
 			// betaQSum = sum_j(beta_{i,j} * q_j_surf)
 			double betaQSum = 0.0;
-			std::vector<double> beta_ij_vec(nTotalBound, 0.0);
 			int bndIdx2 = 0;
 			for (int j = 0; j < _nComp; ++j)
 			{
