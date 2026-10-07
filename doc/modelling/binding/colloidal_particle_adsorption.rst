@@ -272,6 +272,7 @@ Model assumptions and limitations
 - Physical constants (:math:`e`, :math:`N_A`, :math:`k_B`, :math:`\varepsilon_0`) are hard-coded to CODATA 2018 values.
 - The Davies activity correction uses the Debye--Hückel slope for water at 25 °C. Setting ``CPA_TEMPERATURE`` to a different value while ``CPA_IONIC_VALENCE`` is given triggers a warning.
 - Treating the pH as a transported state derived from a proton component is a CADET-Core extension; in :cite:`Briskot2020,Briskot2021_3,Briskot2021_2` the pH is a prescribed property of the mobile phase.
+- The model is only defined for :math:`\Theta < 1` and for :math:`\psi_{0,A}` and :math:`\psi_{0,i}` of opposite sign and different magnitude. States violating this are reported as a recoverable error and logged, so that the time integrator can retry with a smaller step rather than aborting the simulation. Repeated warnings of this kind indicate an unsuitable parameter set.
 
 For more information on model parameters required to configure in CADET-Core, see :ref:`colloidal_particle_adsorption_config`.
 
