@@ -279,6 +279,7 @@ protected:
 		if(paramProvider.exists("CPA_MAXITER"))// default index is 0
 			_MAXITER = paramProvider.getInt("CPA_MAXITER");
 
+		_compCharge.clear();
 		if(paramProvider.exists("CPA_IONIC_VALENCE"))
 		{
 			_compCharge = paramProvider.getIntArray("CPA_IONIC_VALENCE");
@@ -287,9 +288,14 @@ protected:
 
 			LOG(Info) << "The definition of component charges is a temporary implementation and will be replaced by a general pH modul in the future.";
 
-			double temperatur = paramProvider.getDouble("CPA_TEMPERATURE");
-			if (temperatur != 25.0)
-				LOG(Warning) << "CPA Binding: Given Teperatur does not fullfill the assumption of 25 C for the implemented activity implementation with the Debye–Hückel coefficient of 0.509";  
+			// CPA_TEMPERATURE is given in Kelvin, the Davies correction below is hard-coded for 25 C = 298.15 K.
+			// The externally dependent variant does not provide CPA_TEMPERATURE, so the check is skipped there.
+			if (paramProvider.exists("CPA_TEMPERATURE"))
+			{
+				const double temperature = paramProvider.getDouble("CPA_TEMPERATURE");
+				if (std::abs(temperature - 298.15) > 1e-10)
+					LOG(Warning) << "CPA Binding: The given temperature of " << temperature << " K deviates from 25 C (298.15 K), which is assumed by the Debye-Hueckel coefficient of 0.509 used in the Davies activity correction";
+			}
 		}
 	
 		return valid;
