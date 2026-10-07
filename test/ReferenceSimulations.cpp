@@ -394,3 +394,12 @@ TEST_CASE("Reference test: Briskot Fig. 2b with CPA binding", "[Column_1D],[CPA]
 	cadet::test::column::FVParams disc(100, 0, 3);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false, 1, 4, 3);
 }
+
+TEST_CASE("Reference test: Briskot Fig. 2b with CPA binding, analytic Jacobian vs AD", "[Column_1D],[CPA],[UnitOp],[Jacobian],[AD],[Binding],[CI]")
+{
+	// The reference simulation above runs with the analytic Jacobian, so compare it against AD on the same unit
+	cadet::JsonParameterProvider jppFull = cadet::test::column::getReferenceFile("/data/config_COL1D_CPA_Briskot_Fig2b.json");
+	cadet::JsonParameterProvider jpp((*jppFull.data())["model"]["unit_001"]);
+
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}

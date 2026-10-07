@@ -150,7 +150,7 @@
             "NCOMP": 4,
             "NPARTYPE": 1,
             "UNIT_TYPE": "COLUMN_MODEL_1D",
-            "USE_ANALYTIC_JACOBIAN": 0,
+            "USE_ANALYTIC_JACOBIAN": 1,
             "discretization": {
                 "GS_TYPE": 1,
                 "MAX_KRYLOV": 0,
@@ -159,7 +159,7 @@
                 "RECONSTRUCTION": "WENO",
                 "SCHUR_SAFETY": 1e-08,
                 "SPATIAL_METHOD": "FV",
-                "USE_ANALYTIC_JACOBIAN": 0,
+                "USE_ANALYTIC_JACOBIAN": 1,
                 "weno": {
                     "BOUNDARY_MODEL": 0,
                     "WENO_EPS": 1e-10,
