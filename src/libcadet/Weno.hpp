@@ -139,6 +139,7 @@ public:
 	 * @param [in] cellIdx Index of the current cell (in flow direction)
 	 * @param [in] numCells Number of cells
 	 * @param [in] zeta Outer face radius of the current cell divided by the cell width, \f$ \rho_{i+1/2} / \Delta\rho \f$
+	 *             (ignored if the coefficients have been precomputed by prepareRadialCoefficients())
 	 * @param [in] forwardFlow @c true for outward flow (reconstruction at the outer face \f$ \rho_{i+1/2} \f$),
 	 *             @c false for inward flow (reconstruction at the inner face \f$ \rho_{i-1/2} \f$)
 	 * @param [in] w Stencil in flow orientation (index 0 is the current cell, positive indices are upstream
@@ -164,6 +165,27 @@ public:
 	{
 		return reconstructRadial<StateType, StencilType, false>(cellIdx, numCells, zeta, forwardFlow, w, result, nullptr);
 	}
+
+	/**
+	 * @brief Precomputes the radial WENO coefficients of a grid
+	 * @details The radial coefficients are closed-form functions of \f$ \zeta = \rho_{i+1/2} / \Delta\rho \f$
+	 *          alone, so they are constant for a given grid. Evaluating them once per cell here instead
+	 *          of inside every reconstruction keeps them, and the factorization of their smoothness
+	 *          indicators, out of the residual evaluation. The stored values are bitwise identical to
+	 *          the ones reconstructRadial() computes on the fly, which it still does if this has not
+	 *          been called.
+	 *
+	 *          Must be called after order() has been set and whenever the grid changes.
+	 *
+	 * @param [in] zeta Outer face radius divided by the cell width, \f$ \rho_{i+1/2} / \Delta\rho \f$,
+	 *             for every cell (size number of cells)
+	 */
+	void prepareRadialCoefficients(const std::vector<double>& zeta);
+
+	/**
+	 * @brief Returns whether radial coefficients have been precomputed
+	 */
+	inline bool hasRadialCoefficients() const CADET_NOEXCEPT { return !_radialForward.empty(); }
 
 	/**
 	 * @brief Precomputes geometry-exact WENO coefficients for a general weighted geometry and grid
@@ -771,6 +793,119 @@ private:
 
 
 	/**
+	 * @brief Factors a smoothness indicator quadratic form into a sum of squares
+	 * @details The Jiang-Shu indicator \f$ \beta_r = u^T B_r u \f$ of a substencil vanishes for constant
+	 *          data, so \f$ B_r \f$ is symmetric positive semi-definite with \f$ B_r \mathbf{1} = 0 \f$
+	 *          and hence of rank at most \f$ n - 1 \f$. Evaluating the expanded quadratic form cancels
+	 *          \f$ \lVert B_r \rVert \lVert u \rVert^2 \f$ down to \f$ \beta_r \f$, which leaves an
+	 *          absolute error of \f$ \varepsilon_\text{mach} \lVert B_r \rVert \lVert u \rVert^2 \f$
+	 *          irrespective of the true \f$ \beta_r \f$; for smooth data that error swamps
+	 *          \f$ \beta_r \f$ (and can make it negative). The factored form
+	 *          \f$ \beta_r = \sum_k \left( \sum_m L[k][m] u_m \right)^2 \f$ moves the cancellation down
+	 *          to the stencil values, where it is benign, and yields \f$ \beta_r = 0 \f$ exactly for a
+	 *          constant stencil because every row of @p L sums to zero.
+	 *
+	 *          The factor is obtained from a symmetrically pivoted Cholesky (LDL^T) decomposition of
+	 *          @p B; the numerically zero mode is dropped, the row sums are enforced to vanish exactly
+	 *          (a correction of the order of round-off), and the result is checked against @p B.
+	 *
+	 * @param [in] n Size of the quadratic form (2 or 3)
+	 * @param [in] B Row-major symmetric quadratic form of size @p n x @p n
+	 * @param [out] L Row-major factor of size (@p n - 1) x @p n
+	 * @return @c true if the factorization succeeded, @c false if @p B is not positive semi-definite of
+	 *         rank at most @p n - 1 or is not reproduced by the factor
+	 */
+	static bool factorSmoothnessIndicator(int n, const double* B, double* L)
+	{
+		const int nModes = n - 1;
+		for (int i = 0; i < nModes * n; ++i)
+			L[i] = 0.0;
+
+		double A[9];
+		for (int i = 0; i < n * n; ++i)
+			A[i] = B[i];
+
+		int perm[3];
+		for (int i = 0; i < n; ++i)
+			perm[i] = i;
+
+		double maxDiag = 0.0;
+		for (int i = 0; i < n; ++i)
+			maxDiag = std::max(maxDiag, A[i * n + i]);
+		if (maxDiag <= 0.0)
+			return false;
+
+		// Pivoted Cholesky: the diagonal of the Schur complement drops to round-off once the rank is
+		// exhausted, which is where the zero mode is detected and discarded
+		const double tol = 1e-12 * maxDiag;
+		int rank = 0;
+		for (int k = 0; k < n; ++k)
+		{
+			int piv = k;
+			for (int i = k + 1; i < n; ++i)
+			{
+				if (A[i * n + i] > A[piv * n + piv])
+					piv = i;
+			}
+			if (A[piv * n + piv] <= tol)
+				break;
+
+			// The constant stencil is in the null space of B, so the rank cannot exceed n - 1
+			if (rank >= nModes)
+				return false;
+
+			if (piv != k)
+			{
+				for (int i = 0; i < n; ++i)
+					std::swap(A[piv * n + i], A[k * n + i]);
+				for (int i = 0; i < n; ++i)
+					std::swap(A[i * n + piv], A[i * n + k]);
+				std::swap(perm[piv], perm[k]);
+			}
+
+			const double s = std::sqrt(A[k * n + k]);
+			double row[3] = { 0.0, 0.0, 0.0 };
+			for (int j = k; j < n; ++j)
+				row[j] = A[k * n + j] / s;
+
+			for (int i = k; i < n; ++i)
+				for (int j = k; j < n; ++j)
+					A[i * n + j] -= row[i] * row[j];
+
+			// Column j of the factor belongs to stencil value perm[j]
+			for (int j = k; j < n; ++j)
+				L[rank * n + perm[j]] = row[j];
+			++rank;
+		}
+
+		// Enforce the exact invariant beta = 0 for a constant stencil (the row sums vanish in exact
+		// arithmetic because 1^T B 1 = 0 and B is positive semi-definite)
+		for (int k = 0; k < rank; ++k)
+		{
+			double mean = 0.0;
+			for (int j = 0; j < n; ++j)
+				mean += L[k * n + j];
+			mean /= static_cast<double>(n);
+			for (int j = 0; j < n; ++j)
+				L[k * n + j] -= mean;
+		}
+
+		for (int i = 0; i < n; ++i)
+		{
+			for (int j = 0; j < n; ++j)
+			{
+				double v = 0.0;
+				for (int k = 0; k < rank; ++k)
+					v += L[k * n + i] * L[k * n + j];
+				if (std::abs(v - B[i * n + j]) > 1e-8 * maxDiag)
+					return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
 	 * @brief Evaluates the radial WENO coefficients of order 3 (fifth order scheme) at a given \f$ \zeta \f$
 	 * @details Fills the value weights @p C, the optimal weights @p D, and the smoothness indicator
 	 *          quadratic forms @p B in flow-oriented substencil indexing: substencil \f$ r \f$ uses the
@@ -780,8 +915,12 @@ private:
 	 *          derived from exact reproduction of rho-weighted cell averages (symbolically verified;
 	 *          they agree with Shadab et al. 2019, Appendix A.2, and reduce to the Jiang-Shu
 	 *          coefficients for \f$ \zeta \to \infty \f$).
+	 *
+	 *          The smoothness indicators are additionally returned in factored form
+	 *          \f$ \beta_r = \sum_k \left( \sum_m L[r][k][m] u_m \right)^2 \f$, which is the form the
+	 *          reconstruction evaluates (see factorSmoothnessIndicator()).
 	 */
-	static void radialCoefficientsOrder3(double zeta, bool forwardFlow, double C[3][3], double D[3], double B[3][3][3])
+	static void radialCoefficientsOrder3(double zeta, bool forwardFlow, double C[3][3], double D[3], double B[3][3][3], double L[3][2][3])
 	{
 		const double z = zeta;
 		const double z2 = z * z;
@@ -926,6 +1065,14 @@ private:
 				}
 			}
 		}
+
+		// Factor the quadratic forms; the reconstruction evaluates beta from L, not from B
+		for (int r = 0; r < 3; ++r)
+		{
+			const bool ok = factorSmoothnessIndicator(3, &B[r][0][0], &L[r][0][0]);
+			cadet_assert(ok);
+			(void) ok;
+		}
 	}
 
 	/**
@@ -987,6 +1134,27 @@ private:
 	}
 
 	/**
+	 * @brief Per-cell precomputed radial WENO coefficients (one flow direction)
+	 * @details Flow-oriented indexing as in radialCoefficientsOrder3() and radialCoefficientsOrder2():
+	 *          substencil \f$ r \f$ uses the stencil values \f$ u_j = w[j - r] \f$. Only the members
+	 *          belonging to the stored order are filled.
+	 */
+	struct RadialCellCoefficients
+	{
+		int order; //!< WENO order used at this cell (after boundary reduction)
+		double C[3][3]; //!< Substencil value weights
+		double D[3]; //!< Optimal weights
+		double L[3][2][3]; //!< Factored smoothness indicator quadratic forms (order 3)
+		double G[2]; //!< Smoothness indicator geometry factors (order 2)
+	};
+
+	//! Radial coefficients, indexed by the cell index that reconstructRadial() receives. That index
+	//! is flow-oriented, so the backward table runs against the grid (entry @c k belongs to cell
+	//! @c numCells-1-k), unlike the geometry-exact tables which are indexed by the physical cell.
+	std::vector<RadialCellCoefficients> _radialForward;
+	std::vector<RadialCellCoefficients> _radialBackward;
+
+	/**
 	 * @brief Reconstructs a cell face value from geometry-weighted (radial) volume averages
 	 * @details See the public reconstructRadial() methods. Boundary cells always use order
 	 *          reduction because the radial optimal weights do not exist for stencils that
@@ -1015,15 +1183,25 @@ private:
 
 		const int sl = 2 * order - 1;
 
-		// Evaluate the zeta-dependent coefficients
-		double C[3][3];
-		double D[3];
-		double B[3][3][3];  // beta quadratic forms (order 3)
-		double G[2];        // beta geometry factors (order 2)
-		if (order == 3)
-			radialCoefficientsOrder3(zeta, forwardFlow, C, D, B);
+		// Use the coefficients precomputed by prepareRadialCoefficients() if they are available and
+		// evaluate them from zeta otherwise; both give bitwise identical values
+		RadialCellCoefficients onTheFly;
+		const RadialCellCoefficients* ccPtr;
+		if (hasRadialCoefficients())
+		{
+			ccPtr = forwardFlow ? &_radialForward[cellIdx] : &_radialBackward[cellIdx];
+			cadet_assert(ccPtr->order == order);
+		}
 		else
-			radialCoefficientsOrder2(zeta, forwardFlow, C, D, G);
+		{
+			double B[3][3][3];  // beta quadratic forms (order 3), only needed for the factorization
+			if (order == 3)
+				radialCoefficientsOrder3(zeta, forwardFlow, onTheFly.C, onTheFly.D, B, onTheFly.L);
+			else
+				radialCoefficientsOrder2(zeta, forwardFlow, onTheFly.C, onTheFly.D, onTheFly.G);
+			ccPtr = &onTheFly;
+		}
+		const RadialCellCoefficients& cc = *ccPtr;
 
 		// Allocate memory for intermediate values: beta, alpha (= omega), and vr
 		StateType* const work = _intermediateValues.create<StateType>(3 * order);
@@ -1035,18 +1213,27 @@ private:
 		// Substencil r uses the stencil values u_j = w[j - r], j = 0, ..., order-1
 		if (order == 3)
 		{
+			// beta_r = sum_k (L[r][k] . u)^2; the expanded quadratic form sum_{m,n} B[r][m][n] u_m u_n
+			// would cancel |B| |u|^2 down to beta and leave nothing but round-off (see
+			// factorSmoothnessIndicator)
 			for (int r = 0; r < 3; ++r)
 			{
 				beta[r] = 0.0;
-				for (int m = 0; m < 3; ++m)
-					for (int n = 0; n < 3; ++n)
-						beta[r] += B[r][m][n] * w[m - r] * w[n - r];
+				for (int k = 0; k < 2; ++k)
+				{
+					// The rows of L sum to zero, so subtracting the first substencil value leaves the
+					// sum unchanged but makes beta vanish exactly for a constant stencil
+					StateType s = 0.0;
+					for (int m = 1; m < 3; ++m)
+						s += cc.L[r][k][m] * (w[m - r] - w[-r]);
+					beta[r] += s * s;
+				}
 			}
 		}
 		else
 		{
-			beta[0] = G[0] * sqr(w[1] - w[0]);
-			beta[1] = G[1] * sqr(w[0] - w[-1]);
+			beta[0] = cc.G[0] * sqr(w[1] - w[0]);
+			beta[1] = cc.G[1] * sqr(w[0] - w[-1]);
 		}
 
 		// Add eps to avoid divide-by-zeros
@@ -1055,7 +1242,7 @@ private:
 
 		// Calculate weights
 		for (int r = 0; r < order; ++r)
-			alpha[r] = D[r] / sqr(beta[r]);
+			alpha[r] = cc.D[r] / sqr(beta[r]);
 
 		// Normalize weights
 		StateType alpha_sum = alpha[0];
@@ -1069,7 +1256,7 @@ private:
 		{
 			vr[r] = 0.0;
 			for (int j = 0; j < order; ++j)
-				vr[r] += C[r][j] * w[j - r];
+				vr[r] += cc.C[r][j] * w[j - r];
 		}
 
 		// Weighted sum
@@ -1089,20 +1276,31 @@ private:
 			double dBeta[3][5] = { { 0.0 } };
 			if (order == 3)
 			{
+				// d(beta_r)/d(u_m) = 2 sum_k L[r][k][m] (L[r][k] . u)
 				for (int r = 0; r < 3; ++r)
+				{
+					double s[2];
+					for (int k = 0; k < 2; ++k)
+					{
+						s[k] = 0.0;
+						for (int m = 1; m < 3; ++m)
+							s[k] += cc.L[r][k][m] * static_cast<double>(w[m - r] - w[-r]);
+					}
+
 					for (int m = 0; m < 3; ++m)
 					{
 						double dot = 0.0;
-						for (int n = 0; n < 3; ++n)
-							dot += B[r][m][n] * static_cast<double>(w[n - r]);
+						for (int k = 0; k < 2; ++k)
+							dot += cc.L[r][k][m] * s[k];
 						dBeta[r][m - r + order - 1] = 2.0 * dot;
 					}
+				}
 			}
 			else
 			{
-				dBeta[0][2] = 2.0 * G[0] * static_cast<double>(w[1] - w[0]);
+				dBeta[0][2] = 2.0 * cc.G[0] * static_cast<double>(w[1] - w[0]);
 				dBeta[0][1] = -dBeta[0][2];
-				dBeta[1][1] = 2.0 * G[1] * static_cast<double>(w[0] - w[-1]);
+				dBeta[1][1] = 2.0 * cc.G[1] * static_cast<double>(w[0] - w[-1]);
 				dBeta[1][0] = -dBeta[1][1];
 			}
 
@@ -1111,7 +1309,7 @@ private:
 			for (int r = 0; r < order; ++r)
 			{
 				const double betaR = static_cast<double>(beta[r]);
-				const double fac = -2.0 * D[r] / (betaR * betaR * betaR);
+				const double fac = -2.0 * cc.D[r] / (betaR * betaR * betaR);
 				for (int i = 0; i < sl; ++i)
 					dAlpha[r][i] = fac * dBeta[r][i];
 			}
@@ -1133,7 +1331,7 @@ private:
 					// contributes to substencil r via j = o + r
 					const int j = i - order + 1 + r;
 					if ((j >= 0) && (j < order))
-						val += static_cast<double>(omega[r]) * C[r][j];
+						val += static_cast<double>(omega[r]) * cc.C[r][j];
 				}
 				Dvm[i] = val;
 			}
@@ -1148,6 +1346,10 @@ private:
 	 * @details Flow-oriented indexing as in the equidistant schemes: substencil \f$ r \f$ uses the
 	 *          stencil values \f$ u_j = w[j - r] \f$, \f$ j = 0, \ldots, \text{order}-1 \f$, with
 	 *          \f$ q_r = \sum_j C[r][j] u_j \f$ and \f$ \beta_r = \sum_{m,n} B[r][m][n] u_m u_n \f$.
+	 *          The indicators are evaluated in the factored form
+	 *          \f$ \beta_r = \sum_k \left( \sum_m L[r][k][m] u_m \right)^2 \f$ (see
+	 *          factorSmoothnessIndicator()), which is free of the cancellation that the expanded
+	 *          quadratic form suffers from.
 	 */
 	struct GeomExactCellCoefficients
 	{
@@ -1155,6 +1357,7 @@ private:
 		double C[3][3]; //!< Substencil value weights
 		double D[3]; //!< Optimal weights
 		double B[3][3][3]; //!< Smoothness indicator quadratic forms
+		double L[3][2][3]; //!< Factored smoothness indicator quadratic forms (order - 1 modes used)
 	};
 
 	/**
@@ -1201,13 +1404,22 @@ private:
 		StateType* const omega = work + order;
 		StateType* const vr = work + 2 * order; // Reconstructed values
 
-		// Smoothness indicators: beta_r = u_r^T B_r u_r with u_j = w[j - r]
+		// Smoothness indicators in factored form: beta_r = sum_k (L[r][k] . u)^2 with u_j = w[j - r].
+		// The expanded form u_r^T B_r u_r would cancel |B| |u|^2 down to beta and leave nothing but
+		// round-off (see factorSmoothnessIndicator). The quadratic form has at most order - 1 modes.
+		const int nModes = order - 1;
 		for (int r = 0; r < order; ++r)
 		{
 			beta[r] = 0.0;
-			for (int m = 0; m < order; ++m)
-				for (int n = 0; n < order; ++n)
-					beta[r] += cc.B[r][m][n] * w[m - r] * w[n - r];
+			for (int k = 0; k < nModes; ++k)
+			{
+				// The rows of L sum to zero, so subtracting the first substencil value leaves the sum
+				// unchanged but makes beta vanish exactly for a constant stencil
+				StateType s = 0.0;
+				for (int m = 1; m < order; ++m)
+					s += cc.L[r][k][m] * (w[m - r] - w[-r]);
+				beta[r] += s * s;
+			}
 
 			// Add eps to avoid divide-by-zeros
 			beta[r] += _epsilon;
@@ -1244,15 +1456,25 @@ private:
 			const double aSum = static_cast<double>(alpha_sum);
 
 			// dBeta[r][i]: derivative of beta_r w.r.t. stencil position i (i = 0 corresponds to w[-order+1])
+			// d(beta_r)/d(u_m) = 2 sum_k L[r][k][m] (L[r][k] . u)
 			double dBeta[3][5] = { { 0.0 } };
 			for (int r = 0; r < order; ++r)
+			{
+				double s[2] = { 0.0, 0.0 };
+				for (int k = 0; k < nModes; ++k)
+				{
+					for (int m = 1; m < order; ++m)
+						s[k] += cc.L[r][k][m] * static_cast<double>(w[m - r] - w[-r]);
+				}
+
 				for (int m = 0; m < order; ++m)
 				{
 					double dot = 0.0;
-					for (int n = 0; n < order; ++n)
-						dot += cc.B[r][m][n] * static_cast<double>(w[n - r]);
+					for (int k = 0; k < nModes; ++k)
+						dot += cc.L[r][k][m] * s[k];
 					dBeta[r][m - r + order - 1] = 2.0 * dot;
 				}
+			}
 
 			double dAlpha[3][5] = { { 0.0 } };
 			for (int r = 0; r < order; ++r)

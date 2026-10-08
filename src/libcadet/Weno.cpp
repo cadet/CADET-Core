@@ -317,6 +317,21 @@ bool Weno::computeGeomExactCellCoefficients(double a, double b, int weightPower,
 				out.B[rIdx][j][l] = bjl;
 			}
 		}
+
+		// Factor the quadratic form; the reconstruction evaluates beta from L, not from B, in order
+		// to avoid the catastrophic cancellation of the expanded form (see factorSmoothnessIndicator)
+		double Bflat[9];
+		for (int j = 0; j < r; ++j)
+			for (int l = 0; l < r; ++l)
+				Bflat[j * r + l] = out.B[rIdx][j][l];
+
+		double Lflat[6] = { 0.0 };
+		if (!factorSmoothnessIndicator(r, Bflat, Lflat))
+			return false;
+
+		for (int k = 0; k < 2; ++k)
+			for (int j = 0; j < 3; ++j)
+				out.L[rIdx][k][j] = ((k < r - 1) && (j < r)) ? Lflat[k * r + j] : 0.0;
 	}
 
 	return true;
@@ -350,6 +365,43 @@ void Weno::prepareGeometryExactCoefficients(double a, double b, int weightPower,
 				--order;
 
 			out.order = order;
+		}
+	}
+}
+
+void Weno::prepareRadialCoefficients(const std::vector<double>& zeta)
+{
+	if (zeta.empty())
+		throw InvalidParameterException("prepareRadialCoefficients requires at least one cell");
+
+	const int nCells = static_cast<int>(zeta.size());
+	_radialForward.resize(nCells);
+	_radialBackward.resize(nCells);
+
+	for (int flowIdx = 0; flowIdx < nCells; ++flowIdx)
+	{
+		for (int dirIdx = 0; dirIdx < 2; ++dirIdx)
+		{
+			const bool fwd = (dirIdx == 0);
+			RadialCellCoefficients& out = fwd ? _radialForward[flowIdx] : _radialBackward[flowIdx];
+
+			// The tables are indexed in flow orientation, as reconstructRadial() is called; the
+			// zeta of a cell is a property of the grid and therefore indexed physically
+			const int cell = fwd ? flowIdx : (nCells - 1 - flowIdx);
+
+			// Reduce order near boundaries such that the stencil always fits inside the domain
+			// (same reduction as in reconstructRadial())
+			const int order = std::max(1, std::min(std::min(flowIdx + 1, _order), std::min(nCells - flowIdx, _order)));
+			out.order = order;
+
+			if (order == 1)
+				continue;
+
+			double B[3][3][3];  // beta quadratic forms (order 3), only needed for the factorization
+			if (order == 3)
+				radialCoefficientsOrder3(zeta[cell], fwd, out.C, out.D, B, out.L);
+			else
+				radialCoefficientsOrder2(zeta[cell], fwd, out.C, out.D, out.G);
 		}
 	}
 }

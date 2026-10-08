@@ -1,0 +1,105 @@
+================================================================================
+2026-10-08  WENO smoothness indicators of the geometry-aware reconstructions
+================================================================================
+
+Jan's reasoning behind the factored smoothness indicator (src/libcadet/Weno.hpp).
+
+Why the expanded quadratic form is wrong, not merely inaccurate
+--------------------------------------------------------------
+beta vanishes for a constant stencil by construction, so every B[r] annihilates
+the constant vector. Evaluating beta[r] = sum_{m,n} B[r][m][n] u_m u_n therefore
+cancels |B| |u|^2 down to beta: the absolute error is eps_mach |B| |u|^2 no
+matter how small the true beta is. At the salt scale of the SMA-LRMP benchmark
+(|u| = 371) that error is 1.3e-10 ... 2.0e-10, and a flat stencil came out at
+beta = -1.2e-10. With WENO_EPS = 1e-10 the sum beta + eps goes negative and
+alpha = D / beta^2 lands about 39x off, differently per cell and per residual
+evaluation. This is independent of the grid: equidistant grids are affected too.
+
+The equidistant axial path is unaffected because it squares differences
+(13/12 (w0 - 2w1 + w2)^2 + 1/4 (3w0 - 4w1 + w2)^2), and the order-2 radial
+branch is unaffected because its indicator is G[r] (u1 - u0)^2.
+
+Why it matters even though the results stay correct
+---------------------------------------------------
+In smooth regions all substencils reconstruct nearly the same value, so the
+noisy weights barely move the result. What they do is make the residual a noisy
+function of the state, which caps the IDAS/BDF step size. SMA-LRMP at 128
+equidistant cells took 8 235 steps axially but 20 680 on the frustum and 26 313
+on the radial geometry.
+
+Why raising WENO_EPS is not the fix
+-----------------------------------
+WENO_EPS = 1e-6 does collapse the step counts (7 666 / 8 015 / 10 042) with the
+L_inf error unchanged to four significant figures, which is how the cause was
+identified. But it also disables genuine shock detection, so it treats the
+symptom.
+
+The fix
+-------
+Each B[r] is symmetric positive semi-definite of rank at most r-1, so it factors
+as beta_r = sum_k (sum_m L[r][k][m] u_m)^2. The cancellation then happens once,
+at the level of the stencil values, where it is benign. The factorization is
+done at setup (per cell for the precomputed geometry-exact coefficients, per
+coefficient evaluation for the closed-form radial ones), never per residual
+evaluation. Enforcing that every row of L sums to zero is what restores the
+invariant beta = 0 for a constant stencil.
+
+
+================================================================================
+2026-10-08  Where the radial coefficients are evaluated
+================================================================================
+
+Follow-up to the entry above, after measuring what the factorization costs.
+
+What the measurement showed
+---------------------------
+Per call, order 3, HEAD vs the factored version: reconstructGeomExact 85 -> 78 ns
+(unchanged, if anything cheaper), reconstructRadial 106 -> 345 ns. The frustum is
+unaffected because its coefficients, and hence the factorization, are computed
+once per cell in computeGeomExactCellCoefficients at configure time. The
+equidistant radial branch pays per call because radialCoefficientsOrder3 derives
+C, D and B from zeta inside every reconstruction. End to end the fix still won
+by a wide margin (radial Z128 34.7 s -> 16.8 s, driven by 26 313 -> 10 177
+steps), but the per-step cost rose from 1.32 to 1.65 ms.
+
+Why the radial branch evaluated on the fly at all
+-------------------------------------------------
+For an equidistant radial grid the coefficients are closed-form rational
+functions of zeta = rho_{i+1/2}/drho, so the branch was built to need no setup
+and no per-cell storage. That was a sound trade while inline cost 106 ns against
+85 ns from a table. Adding the factorization inverted it.
+
+The decision
+------------
+Keep the factored smoothness indicator exactly as it is, and move the radial
+coefficients to setup instead, the way the geometry-exact path already does.
+Same function, same zeta, same doubles, evaluated once per cell rather than once
+per face per residual evaluation, so results are bitwise identical and the whole
+coefficient evaluation leaves the hot loop rather than just the factorization.
+
+Two alternatives were considered and rejected. Writing beta in the difference
+variables d1 = u1 - u0, d2 = u2 - u1 turns it into a 2x2 form (M11 = B11 + 2 B12
++ B22, M12 = B12 + B22, M22 = B22) that is exactly zero for a constant stencil
+without any factorization, which is less code than factorSmoothnessIndicator and
+makes the invariant structural. It was rejected because it changes the numerics
+of both paths and would cost a full re-verification to buy tidiness, and because
+precomputing removes the cost argument that motivated it. Worth revisiting
+whenever Weno.hpp is next reworked. Retiring the closed-form branch and routing
+equidistant radial grids through reconstructGeomExact was rejected because it
+shifts every existing equidistant radial result at round-off level and removes
+working code.
+
+Two facts that came out of checking the alternatives
+----------------------------------------------------
+B[r] is not always rank 2. In the difference variables it degenerates to rank 1
+at isolated zeta (M11 = M12 = 0 at zeta = 2.5 for r = 2 and at zeta = 1.5 for
+r = 1), which is why a fixed unpivoted factorization would produce NaN there.
+The kernel passes zeta = rho_in/drho + col + 1 and order 3 needs col >= 2, so
+zeta >= 3 in practice; over zeta in [3, 1e4] there is no degeneracy and the 2x2
+form has lmax/lmin <= 19.3 (Jiang-Shu limit 18.05). The guarantee lives in the
+caller, not in reconstructRadial, which takes zeta as a free argument.
+
+Precomputing introduces no staleness: equidistantCells() and
+computeCellCentersAndSizes() are called only from configureModelDiscretization
+and never again, so the cell geometry is already fixed after configuration and
+computing zeta per call buys no freshness.
