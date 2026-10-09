@@ -17,6 +17,7 @@
 #include <limits>
 #include <algorithm>
 
+#include "linalg/BandedEigenSparseRowIterator.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"
 #include "linalg/DenseMatrix.hpp"
 
@@ -214,5 +215,48 @@ TEST_CASE("CompressedSparseMatrix matrix-vector multiplication with factor", "[S
 	{
 		CAPTURE(row);
 		CHECK(ys[row] == cadet::test::makeApprox(yd[row], std::numeric_limits<double>::epsilon() * 100.0, 0.0));
+	}
+}
+
+TEST_CASE("BandedEigenSparseRowIterator reaches the first row", "[SparseMatrix],[LinAlg],[CI]")
+{
+	// Walking an iterator down to the first row has to be possible: the particle Jacobian of a DG
+	// discretized particle is assembled by stepping backwards from the outer node, which reaches
+	// row 0 whenever the particle block starts at the top of the state vector.
+	const int n = 4;
+	Eigen::SparseMatrix<double, Eigen::RowMajor> mat(n, n);
+
+	std::vector<Eigen::Triplet<double>> triplets;
+	for (int row = 0; row < n; ++row)
+		triplets.push_back(Eigen::Triplet<double>(row, row, 0.0));
+
+	mat.setFromTriplets(triplets.begin(), triplets.end());
+
+	SECTION("Decrement by one")
+	{
+		cadet::linalg::BandedEigenSparseRowIterator it(mat, n - 1);
+		for (int row = n - 1; row >= 0; --row, --it)
+		{
+			CAPTURE(row);
+			CHECK(it.row() == row);
+			it[0] = row + 1.0;
+		}
+
+		for (int row = 0; row < n; ++row)
+		{
+			CAPTURE(row);
+			CHECK(mat.coeff(row, row) == row + 1.0);
+		}
+	}
+
+	SECTION("Decrement by several rows")
+	{
+		cadet::linalg::BandedEigenSparseRowIterator it(mat, n - 1);
+		it -= (n - 1);
+
+		CHECK(it.row() == 0);
+
+		it[0] = 1.0;
+		CHECK(mat.coeff(0, 0) == 1.0);
 	}
 }
