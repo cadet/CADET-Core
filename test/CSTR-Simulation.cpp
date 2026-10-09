@@ -337,8 +337,12 @@ TEST_CASE("CSTR initial condition read and apply correctly", "[CSTR],[InitialCon
 	cadet::JsonParameterProvider jppState("{}");
 	jppState.set("INIT_STATE", std::vector<double>{-1.0, -2.0, -3.0});
 	jppState.set("INIT_C", 4.0);
-	jppState.set("INIT_CS", 5.0);
 	jppState.set("INIT_LIQUID_VOLUME", 6.0);
+
+	jppState.addScope("particle_type_000");
+	jppState.pushScope("particle_type_000");
+	jppState.set("INIT_CS", 5.0);
+	jppState.popScope();
 	std::fill(vecStateY.begin(), vecStateY.end(), 0.0);
 	std::fill(vecStateYdot.begin(), vecStateYdot.end(), 0.0);
 

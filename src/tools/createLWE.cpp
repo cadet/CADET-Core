@@ -241,6 +241,7 @@ void configureUnitSolver(cadet::io::HDF5Writer& writer)
 void configureCstr(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp)
 {
     writer.scalar<double>("POROSITY", 0.37 + (1.0 - 0.37) * 0.75);
+    writer.scalar<int>("NPARTYPE", opts.nParType);
     configureParticles(writer, opts.nParType, opts.isKinetic, opts.velocityDependence, "EQUILIBRIUM_PARTICLE", opts.polyDeg, opts.nPar);
 
     writer.scalar<double>("INIT_VOLUME", 1e-3);
@@ -376,22 +377,12 @@ void configureInitialConditions(cadet::io::HDF5Writer& writer, int nParType)
     const double initCs[] = {1.2e3, 0.0, 0.0, 0.0};
     writer.vector<double>("INIT_C", 4, initC);
 
-    if (nParType > 1)
+    // The initial bound state concentrations belong to the particle type they are bound in
+    for (int i = 0; i < nParType; ++i)
     {
-        //std::vector<double> init_cps;
-        std::vector<double> INIT_CSs;
-
-        for (int i = 0; i < nParType; ++i)
-        {
-            //init_cps.insert(init_cps.end(), initC, initC + 4);
-            INIT_CSs.insert(INIT_CSs.end(), initCs, initCs + 4);
-        }
-
-        //writer.vector<double>("INIT_CP", init_cps.size(), INIT_CSs.data());
-        writer.vector<double>("INIT_CS", INIT_CSs.size(), INIT_CSs.data());
-    }
-    else
+        Scope<cadet::io::HDF5Writer> s(writer, "particle_type_" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i));
         writer.vector<double>("INIT_CS", 4, initCs);
+    }
 }
 
 void configureInlet(cadet::io::HDF5Writer& writer, double startTime)

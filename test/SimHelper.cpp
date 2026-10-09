@@ -15,6 +15,64 @@
 
 #include <iterator>
 #include <algorithm>
+#include <functional>
+#include <numeric>
+#include <string>
+
+namespace
+{
+	/**
+	 * @brief Returns the name of the parameter group that holds the configuration of a particle type
+	 * @param [in] parType Index of the particle type
+	 * @return Name of the group, e.g. @c particle_type_000
+	 */
+	inline std::string particleGroupName(int parType)
+	{
+		return "particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType);
+	}
+
+	/**
+	 * @brief Enters the group of a particle type, creating it if it does not exist yet
+	 * @param [in,out] jpp Parameter provider scoped to the unit operation
+	 * @param [in] parType Index of the particle type
+	 */
+	inline void pushParticleTypeScope(cadet::JsonParameterProvider& jpp, int parType)
+	{
+		const std::string parGroup = particleGroupName(parType);
+
+		if (!jpp.exists(parGroup))
+			jpp.addScope(parGroup);
+
+		jpp.pushScope(parGroup);
+	}
+
+	/**
+	 * @brief Sets a binding model in every particle type of a unit operation
+	 * @param [in,out] jpp Parameter provider scoped to the unit operation
+	 * @param [in] name Name of the binding model
+	 * @param [in] params Fills the adsorption group of the current particle type
+	 */
+	void addBindingModel(cadet::JsonParameterProvider& jpp, const std::string& name, const std::function<void(cadet::JsonParameterProvider&)>& params)
+	{
+		const int nParType = jpp.getInt("NPARTYPE");
+
+		for (int type = 0; type < nParType; ++type)
+		{
+			pushParticleTypeScope(jpp, type);
+
+			jpp.set("ADSORPTION_MODEL", name);
+
+			if (!jpp.exists("adsorption"))
+				jpp.addScope("adsorption");
+			jpp.pushScope("adsorption");
+
+			params(jpp);
+
+			jpp.popScope(); // adsorption
+			jpp.popScope(); // particle_type_xxx
+		}
+	}
+}
 
 namespace cadet
 {
@@ -34,8 +92,26 @@ namespace test
 
 		jpp.set("INIT_C", c);
 		jpp.set("INIT_LIQUID_VOLUME", v);
-		if (!q.empty())
-			jpp.set("INIT_CS", q);
+
+		if (q.empty())
+			return;
+
+		// Distribute the bound state initial conditions over the particle types
+		const int nParType = jpp.getInt("NPARTYPE");
+		int offset = 0;
+
+		for (int type = 0; type < nParType; ++type)
+		{
+			pushParticleTypeScope(jpp, type);
+
+			const std::vector<int> nBound = jpp.getIntArray("NBOUND");
+			const int strideBound = std::accumulate(nBound.begin(), nBound.end(), 0);
+
+			jpp.set("INIT_CS", std::vector<double>(q.begin() + offset, q.begin() + offset + strideBound));
+			offset += strideBound;
+
+			jpp.popScope(); // particle_type_xxx
+		}
 	}
 
 	void setInitialConditions(cadet::JsonParameterProvider& jpp, const std::vector<double>& c, const std::vector<double>& cp, const std::vector<double>& q)
@@ -134,66 +210,72 @@ namespace test
 	{
 		auto gs = util::makeModelGroupScope(jpp);
 
-		jpp.set("NBOUND", nBound);
+		const int nComp = jpp.getInt("NCOMP");
+		const int nParType = nBound.size() / nComp;
+
+		jpp.set("NPARTYPE", nParType);
 		jpp.set("CONST_SOLID_VOLUME", vSolid);
+
+		for (int type = 0; type < nParType; ++type)
+		{
+			pushParticleTypeScope(jpp, type);
+			jpp.set("NBOUND", std::vector<int>(nBound.begin() + type * nComp, nBound.begin() + (type + 1) * nComp));
+			jpp.popScope();
+		}
 	}
 
 	void addDummyBindingModel(cadet::JsonParameterProvider& jpp)
 	{
 		auto gs = util::makeModelGroupScope(jpp);
-		jpp.set("ADSORPTION_MODEL", "NONE");
+
+		const int nParType = jpp.getInt("NPARTYPE");
+
+		for (int type = 0; type < nParType; ++type)
+		{
+			pushParticleTypeScope(jpp, type);
+			jpp.set("ADSORPTION_MODEL", "NONE");
+			jpp.popScope();
+		}
 	}
 
 	void addLinearBindingModel(cadet::JsonParameterProvider& jpp, bool kinetic, const std::vector<double>& kA, const std::vector<double>& kD)
 	{
 		auto gs = util::makeModelGroupScope(jpp);
 
-		jpp.set("ADSORPTION_MODEL", "LINEAR");
-
-		jpp.addScope("adsorption");
-		jpp.pushScope("adsorption");
-
-		jpp.set("IS_KINETIC", kinetic);
-		jpp.set("LIN_KA", kA);
-		jpp.set("LIN_KD", kD);
-
-		jpp.popScope();
+		addBindingModel(jpp, "LINEAR", [&](cadet::JsonParameterProvider& ads)
+		{
+			ads.set("IS_KINETIC", kinetic);
+			ads.set("LIN_KA", kA);
+			ads.set("LIN_KD", kD);
+		});
 	}
 
 	void addSMABindingModel(cadet::JsonParameterProvider& jpp, bool kinetic, double lambda, const std::vector<double>& kA, const std::vector<double>& kD, const std::vector<double>& nu, const std::vector<double>& sigma)
 	{
 		auto gs = util::makeModelGroupScope(jpp);
 
-		jpp.set("ADSORPTION_MODEL", "STERIC_MASS_ACTION");
-
-		jpp.addScope("adsorption");
-		jpp.pushScope("adsorption");
-
-		jpp.set("IS_KINETIC", kinetic);
-		jpp.set("SMA_LAMBDA", lambda);
-		jpp.set("SMA_KA", kA);
-		jpp.set("SMA_KD", kD);
-		jpp.set("SMA_NU", nu);
-		jpp.set("SMA_SIGMA", sigma);
-
-		jpp.popScope();
+		addBindingModel(jpp, "STERIC_MASS_ACTION", [&](cadet::JsonParameterProvider& ads)
+		{
+			ads.set("IS_KINETIC", kinetic);
+			ads.set("SMA_LAMBDA", lambda);
+			ads.set("SMA_KA", kA);
+			ads.set("SMA_KD", kD);
+			ads.set("SMA_NU", nu);
+			ads.set("SMA_SIGMA", sigma);
+		});
 	}
 
 	void addLangmuirBindingModel(cadet::JsonParameterProvider& jpp, bool kinetic, const std::vector<double>& kA, const std::vector<double>& kD, const std::vector<double>& qMax)
 	{
 		auto gs = util::makeModelGroupScope(jpp);
 
-		jpp.set("ADSORPTION_MODEL", "MULTI_COMPONENT_LANGMUIR");
-
-		jpp.addScope("adsorption");
-		jpp.pushScope("adsorption");
-
-		jpp.set("IS_KINETIC", kinetic);
-		jpp.set("MCL_KA", kA);
-		jpp.set("MCL_KD", kD);
-		jpp.set("MCL_QMAX", qMax);
-
-		jpp.popScope();
+		addBindingModel(jpp, "MULTI_COMPONENT_LANGMUIR", [&](cadet::JsonParameterProvider& ads)
+		{
+			ads.set("IS_KINETIC", kinetic);
+			ads.set("MCL_KA", kA);
+			ads.set("MCL_KD", kD);
+			ads.set("MCL_QMAX", qMax);
+		});
 	}
 
 	void setBindingMode(cadet::JsonParameterProvider& jpp, bool isKinetic)

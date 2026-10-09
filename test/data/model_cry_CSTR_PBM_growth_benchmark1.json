@@ -449,7 +449,6 @@
             }
         },
       "unit_001": {
-        "ADSORPTION_MODEL": "NONE",
         "INIT_C": [
           2.0,
           7.919966265592558e-18,
