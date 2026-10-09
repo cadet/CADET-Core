@@ -59,6 +59,18 @@ namespace
 	{
 		binding->flux(t, secIdx, colPos, yQ, yCp, res, buffer);
 	}
+
+	/**
+	 * @brief Returns the name of the parameter group that holds the configuration of a particle type
+	 * @param [in] parType Index of the particle type
+	 * @return Name of the group, e.g. @c particle_type_000
+	 */
+	inline std::string particleGroupName(unsigned int parType)
+	{
+		char buffer[32];
+		snprintf(buffer, sizeof(buffer), "particle_type_%03u", parType);
+		return std::string(buffer);
+	}
 }
 
 
@@ -110,16 +122,25 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 {
 	_nComp = paramProvider.getInt("NCOMP");
 
-	if (paramProvider.exists("NBOUND"))
+	// The CSTR represents the particles of a particle type distribution in rapid equilibrium with the bulk
+	// liquid, i.e. without pores. Such a particle type only contributes bound states to the state vector,
+	// its configuration is read from the group particle_type_xxx.
+	if (paramProvider.exists("NPARTYPE"))
 	{
-		const std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
-		if (nBound.size() < _nComp)
-			throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_nComp) + " required)");
+		if (paramProvider.getInt("NPARTYPE") < 0)
+			throw InvalidParameterException("Number of particle types must be >= 0!");
 
-		_nParType = nBound.size() / _nComp;
-		
+		_nParType = paramProvider.getInt("NPARTYPE");
+	}
+	else
+		_nParType = 0;
+
+	if ((_nParType == 0) && paramProvider.exists("particle_type_000"))
+		throw InvalidParameterException("NPARTYPE is set to 0, but group particle_type_000 exists.");
+
+	if (_nParType > 0)
+	{
 		_nBound = new unsigned int[_nComp * _nParType];
-		std::copy(nBound.begin(), nBound.begin() + _nComp * _nParType, _nBound);
 
 		// Precompute offsets and total number of bound states (DOFs in solid phase)
 		_boundOffset = new unsigned int[_nComp * _nParType];
@@ -129,8 +150,25 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 		_offsetParType[0] = 0;
 		for (unsigned int j = 0; j < _nParType; ++j)
 		{
+			const std::string parGroup = particleGroupName(j);
+			if (!paramProvider.exists(parGroup))
+				throw InvalidParameterException("Group " + parGroup + " is missing");
+
+			paramProvider.pushScope(parGroup);
+
+			if (paramProvider.exists("HAS_FILM_DIFFUSION") && paramProvider.getBool("HAS_FILM_DIFFUSION"))
+				throw InvalidParameterException("Unit operation CSTR only supports particles in rapid equilibrium with the bulk liquid, but HAS_FILM_DIFFUSION is set for particle type " + std::to_string(j));
+
+			const std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
+			if (nBound.size() < _nComp)
+				throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_nComp) + " required) in particle type " + std::to_string(j));
+
+			paramProvider.popScope(); // particle_type_xxx
+
 			unsigned int* const bo = _boundOffset + j * _nComp;
 			unsigned int* const nb = _nBound + j * _nComp;
+
+			std::copy(nBound.begin(), nBound.begin() + _nComp, nb);
 
 			bo[0] = 0;
 			for (unsigned int i = 1; i < _nComp; ++i)
@@ -146,16 +184,12 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 	}
 	else
 	{
-		_nParType = 0;
 		_totalBound = 0;
 		_nBound = nullptr;
 		_boundOffset = nullptr;
 		_strideBound = nullptr;
 		_offsetParType = nullptr;
 	}
-
-	if ((_nParType > 1) && (_totalBound == 0))
-		throw InvalidParameterException("Multiple particle types but not a single bound state detected");
 
 	// Make sure each particle type has at least one bound state
 	for (unsigned int i = 0; i < _nParType; ++i)
@@ -198,25 +232,25 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 	clearBindingModels();
 	_binding = std::vector<IBindingModel*>(_nParType, nullptr);
 
-	if ((_nParType > 0) && !paramProvider.exists("ADSORPTION_MODEL"))
-		throw InvalidParameterException("Binding model required when using at least one particle type");
-
 	bool bindingConfSuccess = true;
-	if (_nParType > 0)
+	for (unsigned int i = 0; i < _nParType; ++i)
 	{
-		const std::vector<std::string> bindModelNames = paramProvider.getStringArray("ADSORPTION_MODEL");
-		if (bindModelNames.size() < _nParType)
-			throw InvalidParameterException("Field ADSORPTION_MODEL contains too few elements (" + std::to_string(_nParType) + " required)");
+		paramProvider.pushScope(particleGroupName(i));
 
-		for (unsigned int i = 0; i < _nParType; ++i)
+		if (!paramProvider.exists("ADSORPTION_MODEL"))
+			throw InvalidParameterException("Binding model required for particle type " + std::to_string(i));
+
+		const std::string bindModelName = paramProvider.getString("ADSORPTION_MODEL");
+		_binding[i] = helper.createBindingModel(bindModelName);
+		if (!_binding[i])
+			throw InvalidParameterException("Unknown binding model " + bindModelName);
+
 		{
-			_binding[i] = helper.createBindingModel(bindModelNames[i]);
-			if (!_binding[i])
-				throw InvalidParameterException("Unknown binding model " + bindModelNames[i]);
-
-			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _nParType == 1, i, _nParType == 1, _binding[i]->usesParamProviderInDiscretizationConfig());
+			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _binding[i]->usesParamProviderInDiscretizationConfig());
 			bindingConfSuccess = _binding[i]->configureModelDiscretization(paramProvider, _nComp, _nBound + i * _nComp, _boundOffset + i * _nComp) && bindingConfSuccess;
 		}
+
+		paramProvider.popScope(); // particle_type_xxx
 	}
 
 	// ==== Construct and configure dynamic reaction model
@@ -244,57 +278,46 @@ bool CSTRModel::configureModelDiscretization(IParameterProvider& paramProvider, 
 	_reacParticle = std::vector<ReactionSystem*>(_nParType, nullptr);
  	ReactionSystem::create(_reacParticle);;
 
-	if (_nParType > 0)
+	for (unsigned int par = 0; par < _nParType; par++)
 	{
-		for (unsigned int par = 0; par < _nParType; par++)
+		paramProvider.pushScope(particleGroupName(par)); // particle_type_xxx
+
+		if (paramProvider.exists("NREAC_CROSS_PHASE"))
 		{
-			char particleScope[32];
-			snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
+			int nReactions = paramProvider.getInt("NREAC_CROSS_PHASE");
+			reactionConfSuccess = _reacParticle[par]->configureDiscretization("cross_phase",
+				nReactions,
+				_nComp,
+				_nBound + par * _nComp,
+				_boundOffset + par * _nComp,
+				paramProvider,
+				helper) && reactionConfSuccess;
 
-			if (paramProvider.exists(particleScope))
-			{
-				paramProvider.pushScope(particleScope); // particle_type_xxx
-
-				//ReactionSystem parReaction;
-		
-				if (paramProvider.exists("NREAC_CROSS_PHASE"))
-				{
-					int nReactions = paramProvider.getInt("NREAC_CROSS_PHASE");
-					reactionConfSuccess = _reacParticle[par]->configureDiscretization("cross_phase",
-						nReactions,
-						_nComp,
-						_nBound + par * _nComp,
-						_boundOffset + par * _nComp,
-						paramProvider,
-						helper) && reactionConfSuccess;
-
-				}
-				if (paramProvider.exists("NREAC_LIQUID"))
-				{
-					int nReactions = paramProvider.getInt("NREAC_LIQUID");
-					reactionConfSuccess = _reacParticle[par]->configureDiscretization("liquid",
-						nReactions,
-						_nComp,
-						_nBound + par * _nComp,
-						_boundOffset + par * _nComp,
-						paramProvider,
-						helper) && reactionConfSuccess;
-				}
-				if (paramProvider.exists("NREAC_SOLID"))
-				{
-					int nReactions = paramProvider.getInt("NREAC_SOLID");
-					reactionConfSuccess = _reacParticle[par]->configureDiscretization("solid",
-						nReactions,
-						_nComp,
-						_nBound + par * _nComp,
-						_boundOffset + par * _nComp,
-						paramProvider,
-						helper) && reactionConfSuccess;
-
-				}
-				paramProvider.popScope(); // particle_type_xxx
-			}
 		}
+		if (paramProvider.exists("NREAC_LIQUID"))
+		{
+			int nReactions = paramProvider.getInt("NREAC_LIQUID");
+			reactionConfSuccess = _reacParticle[par]->configureDiscretization("liquid",
+				nReactions,
+				_nComp,
+				_nBound + par * _nComp,
+				_boundOffset + par * _nComp,
+				paramProvider,
+				helper) && reactionConfSuccess;
+		}
+		if (paramProvider.exists("NREAC_SOLID"))
+		{
+			int nReactions = paramProvider.getInt("NREAC_SOLID");
+			reactionConfSuccess = _reacParticle[par]->configureDiscretization("solid",
+				nReactions,
+				_nComp,
+				_nBound + par * _nComp,
+				_boundOffset + par * _nComp,
+				paramProvider,
+				helper) && reactionConfSuccess;
+
+		}
+		paramProvider.popScope(); // particle_type_xxx
 	}
 
 	return bindingConfSuccess && reactionConfSuccess;
@@ -378,16 +401,19 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 
 	// Reconfigure binding model
 	bool bindingConfSuccess = true;
-	if (!_binding.empty())
+	for (unsigned int type = 0; type < _nParType; ++type)
 	{
-		for (unsigned int type = 0; type < _nParType; ++type)
-		{
- 			if (!_binding[type] || !_binding[type]->requiresConfiguration())
- 				continue;
+		if (!_binding[type] || !_binding[type]->requiresConfiguration())
+			continue;
 
-			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", type, _nParType == 1, true);
+		paramProvider.pushScope(particleGroupName(type));
+
+		{
+			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", true);
 			bindingConfSuccess = _binding[type]->configure(paramProvider, _unitOpIdx, type) && bindingConfSuccess;
 		}
+
+		paramProvider.popScope(); // particle_type_xxx
 	}
 
 	// Reconfigure reaction model
@@ -402,22 +428,16 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 
 	for (unsigned int par = 0; par < _nParType; par++)
 	{
-		char particleScope[32];
-		snprintf(particleScope, sizeof(particleScope), "particle_type_%03d", par);
+		paramProvider.pushScope(particleGroupName(par)); // particle_type_xxx
 
-		if (paramProvider.exists(particleScope))
-		{
-			paramProvider.pushScope(particleScope); // particle_type_xxx
+		if (paramProvider.exists("NREAC_CROSS_PHASE"))
+			dynReactionConfSuccess = _reacParticle[par]->configure("cross_phase", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+		if (paramProvider.exists("NREAC_LIQUID"))
+			dynReactionConfSuccess = _reacParticle[par]->configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+		if (paramProvider.exists("NREAC_SOLID"))
+			dynReactionConfSuccess = _reacParticle[par]->configure("solid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
-			if (paramProvider.exists("NREAC_CROSS_PHASE"))
-				dynReactionConfSuccess = _reacParticle[par]->configure("cross_phase", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
-			if (paramProvider.exists("NREAC_LIQUID"))
-				dynReactionConfSuccess = _reacParticle[par]->configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
-			if (paramProvider.exists("NREAC_SOLID"))
-				dynReactionConfSuccess = _reacParticle[par]->configure("solid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
-
-			paramProvider.popScope(); // particle_type_xxx
-		}
+		paramProvider.popScope(); // particle_type_xxx
 	}
 
 	return bindingConfSuccess && dynReactionConfSuccess;
@@ -574,13 +594,27 @@ void CSTRModel::readInitialCondition(IParameterProvider& paramProvider)
 	
 	ad::copyToAd(initC.data(), _initConditions.data(), _nComp);
 
-	if (paramProvider.exists("INIT_CS"))
+	ad::fillAd(_initConditions.data() + _nComp, _totalBound, 0.0);
+
+	for (unsigned int type = 0; type < _nParType; ++type)
 	{
-		const std::vector<double> initCs = paramProvider.getDoubleArray("INIT_CS");
-		ad::copyToAd(initCs.data(), _initConditions.data() + _nComp, _totalBound);
+		if (!paramProvider.exists(particleGroupName(type)))
+			continue;
+
+		paramProvider.pushScope(particleGroupName(type));
+
+		if (paramProvider.exists("INIT_CS"))
+		{
+			const std::vector<double> initCs = paramProvider.getDoubleArray("INIT_CS");
+
+			if (initCs.size() < _strideBound[type])
+				throw InvalidParameterException("INIT_CS does not contain enough values for all bound states of particle type " + std::to_string(type));
+
+			ad::copyToAd(initCs.data(), _initConditions.data() + _nComp + _offsetParType[type], _strideBound[type]);
+		}
+
+		paramProvider.popScope(); // particle_type_xxx
 	}
-	else
-		ad::fillAd(_initConditions.data() + _nComp, _totalBound, 0.0);
 
 	if (paramProvider.exists("INIT_LIQUID_VOLUME"))
 		_initConditions[_nComp + _totalBound].setValue(paramProvider.getDouble("INIT_LIQUID_VOLUME"));

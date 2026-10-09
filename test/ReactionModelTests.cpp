@@ -175,7 +175,6 @@ namespace reaction
 
 		const std::string uoType = jpp.getString("UNIT_TYPE");
 		const bool isLRM = (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES");
-		const bool isCSTR = (uoType == "CSTR");
 
 		if (bulk)
 		{
@@ -208,14 +207,10 @@ namespace reaction
 			jpp.set("MAL_KBWD", rateBwd);
 		}
 
-		if (!jpp.exists("NPARTYPE") && !isCSTR)
+		if (!jpp.exists("NPARTYPE"))
 			return;
 
-		int nParType = 0;
-		if (!isCSTR)
-			nParType = jpp.getInt("NPARTYPE");
-		else
-			nParType = jpp.getIntArray("NBOUND").size() / jpp.getInt("NCOMP");
+		const int nParType = jpp.getInt("NPARTYPE");
 
 		if ((!isLRM && particle))
 		{
@@ -223,30 +218,10 @@ namespace reaction
 
 			for (int i = 0; i < nParType; ++i)
 			{
-				std::vector<int> nBound;
-				int nTotalBound;
-				if (isCSTR)
-				{
-					nBound = jpp.getIntArray("NBOUND");
+				jpp.pushScope("particle_type_" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i)); // particle_type_xxx
 
-					int start = i * nComp;
-					int end = start + nComp;
-
-					nTotalBound = std::accumulate(
-						nBound.begin() + start,
-						nBound.begin() + end,
-						0
-					);
-
-					jpp.addScope("particle_type_" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i));
-					jpp.pushScope("particle_type_" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i)); // particle_type_xxx
-				}
-				else
-				{
-					jpp.pushScope("particle_type_" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i)); // particle_type_xxx
-					nBound = jpp.getIntArray("NBOUND");
-					nTotalBound = std::accumulate(nBound.begin(), nBound.end(), 0);
-				}
+				const std::vector<int> nBound = jpp.getIntArray("NBOUND");
+				const int nTotalBound = std::accumulate(nBound.begin(), nBound.end(), 0);
 
 				int nReac = 1;
 				jpp.set("NREAC_CROSS_PHASE", nReac);
