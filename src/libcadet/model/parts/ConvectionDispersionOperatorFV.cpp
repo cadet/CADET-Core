@@ -930,14 +930,22 @@ bool RadialConvectionDispersionOperatorBaseFV::configureModelDiscretization(IPar
 		_reconstrDerivatives = new double[Weno::maxStencilSize()];
 
 		// Precompute geometry-exact WENO coefficients for non-equidistant grids from the
-		// rho-weighted moment systems (weight A(rho) ~ rho); equidistant grids use
-		// closed-form coefficients evaluated in the reconstruction itself.
+		// rho-weighted moment systems (weight A(rho) ~ rho); equidistant grids have closed-form
+		// coefficients, which are precomputed from the zeta of every cell.
 		if (!_gridEquidistant)
 		{
 			std::vector<double> faces(_cellFaces.size());
 			for (std::size_t i = 0; i < _cellFaces.size(); ++i)
 				faces[i] = static_cast<double>(_cellFaces[i]);
 			_weno->prepareGeometryExactCoefficients(0.0, 1.0, 1, faces);
+		}
+		else
+		{
+			// zeta as the reconstruction kernel computes it, rho_{i+1/2} / drho
+			std::vector<double> zeta(_nCol);
+			for (unsigned int i = 0; i < _nCol; ++i)
+				zeta[i] = static_cast<double>(_cellFaces[i + 1]) / static_cast<double>(_cellSizes[i]);
+			_weno->prepareRadialCoefficients(zeta);
 		}
 	}
 	else if (recType == "KOREN")
