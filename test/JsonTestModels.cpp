@@ -1537,7 +1537,15 @@ cadet::JsonParameterProvider createCSTR(unsigned int nComp)
 	return cadet::JsonParameterProvider(createCSTRJson(nComp));
 }
 
-cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTime, double interval)
+/**
+ * @brief Creates a model system with a single well mixed unit operation between an inlet and an outlet
+ * @param [in] unit Configuration of the well mixed unit operation, which becomes unit_000
+ * @param [in] nComp Number of components
+ * @param [in] nSec Number of time sections
+ * @param [in] endTime Simulation end time
+ * @param [in] interval Interval between two user solution times
+ */
+json createStirredTankBenchmarkJson(const json& unit, unsigned int nComp, unsigned int nSec, double endTime, double interval)
 {
 	std::ostringstream ss;
 
@@ -1547,8 +1555,8 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 		json model;
 		model["NUNITS"] = 3;
 
-		// CSTR - unit 000
-		model["unit_000"] = createCSTRJson(1);
+		// Well mixed vessel - unit 000
+		model["unit_000"] = unit;
 
 		// Inlet - unit 001
 		{
@@ -1556,16 +1564,16 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 
 			inlet["UNIT_TYPE"] = std::string("INLET");
 			inlet["INLET_TYPE"] = std::string("PIECEWISE_CUBIC_POLY");
-			inlet["NCOMP"] = 1;
+			inlet["NCOMP"] = static_cast<int>(nComp);
 
 			for (unsigned int i = 0; i < nSec; ++i)
 			{
 				json sec;
 
-				sec["CONST_COEFF"] = { 0.0 };
-				sec["LIN_COEFF"] = { 0.0 };
-				sec["QUAD_COEFF"] = { 0.0 };
-				sec["CUBE_COEFF"] = { 0.0 };
+				sec["CONST_COEFF"] = std::vector<double>(nComp, 0.0);
+				sec["LIN_COEFF"] = std::vector<double>(nComp, 0.0);
+				sec["QUAD_COEFF"] = std::vector<double>(nComp, 0.0);
+				sec["CUBE_COEFF"] = std::vector<double>(nComp, 0.0);
 
 				ss << "sec_" << std::setfill('0') << std::setw(3) << i;
 				inlet[ss.str()] = sec;
@@ -1580,7 +1588,7 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 			json outlet;
 
 			outlet["UNIT_TYPE"] = std::string("OUTLET");
-			outlet["NCOMP"] = 1;
+			outlet["NCOMP"] = static_cast<int>(nComp);
 
 			model["unit_002"] = outlet;
 		}
@@ -1699,5 +1707,97 @@ cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTi
 
 		config["solver"] = solver;
 	}
-	return cadet::JsonParameterProvider(config);
+	return config;
+}
+
+cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTime, double interval)
+{
+	return cadet::JsonParameterProvider(createStirredTankBenchmarkJson(createCSTRJson(1), 1, nSec, endTime, interval));
+}
+
+json createFiniteBathJson(const std::string& particleType, const std::string& parMethod, bool binding)
+{
+	json config;
+	config["UNIT_TYPE"] = std::string("FINITE_BATH");
+	config["NCOMP"] = 2;
+	config["NPARTYPE"] = 1;
+
+	config["LIQUID_VOLUME"] = 1e-3;
+	config["BULK_POROSITY"] = 0.37;
+
+	config["INIT_C"] = { 1.0, 2.0 };
+
+	// Particle type
+	{
+		json particle;
+
+		particle["HAS_FILM_DIFFUSION"] = true;
+		particle["FILM_DIFFUSION"] = { 6.9e-6, 6.9e-6 };
+		particle["PAR_GEOM"] = std::string("SPHERE");
+		particle["PAR_RADIUS"] = 4.5e-5;
+		particle["PAR_POROSITY"] = 0.75;
+
+		if (particleType == "GENERAL_RATE_PARTICLE")
+		{
+			particle["HAS_PORE_DIFFUSION"] = true;
+			particle["HAS_SURFACE_DIFFUSION"] = true;
+			particle["PORE_DIFFUSION"] = { 7e-10, 6.07e-11 };
+			particle["SURFACE_DIFFUSION"] = { 1e-10, 5e-11 };
+
+			json parDisc;
+			parDisc["SPATIAL_METHOD"] = parMethod;
+			parDisc["PAR_DISC_TYPE"] = std::string("EQUIDISTANT");
+
+			if (parMethod == "FV")
+				parDisc["NCELLS"] = 4;
+			else
+			{
+				parDisc["PAR_POLYDEG"] = 3;
+				parDisc["PAR_NELEM"] = 1;
+			}
+
+			particle["discretization"] = parDisc;
+		}
+
+		particle["INIT_CP"] = { 0.5, 0.7 };
+
+		if (binding)
+		{
+			particle["ADSORPTION_MODEL"] = std::string("LINEAR");
+			particle["NBOUND"] = { 1, 1 };
+			particle["INIT_CS"] = { 5.0, 6.0 };
+
+			json ads;
+			ads["IS_KINETIC"] = 1;
+			ads["LIN_KA"] = { 12.3, 35.5 };
+			ads["LIN_KD"] = { 45.0, 20.0 };
+			particle["adsorption"] = ads;
+		}
+		else
+		{
+			particle["ADSORPTION_MODEL"] = std::string("NONE");
+			particle["NBOUND"] = { 0, 0 };
+		}
+
+		config["particle_type_000"] = particle;
+	}
+
+	// Discretization
+	{
+		json disc;
+		disc["USE_ANALYTIC_JACOBIAN"] = true;
+		config["discretization"] = disc;
+	}
+
+	return config;
+}
+
+cadet::JsonParameterProvider createFiniteBath(const std::string& particleType, const std::string& parMethod, bool binding)
+{
+	return cadet::JsonParameterProvider(createFiniteBathJson(particleType, parMethod, binding));
+}
+
+cadet::JsonParameterProvider createFiniteBathBenchmark(const std::string& particleType, const std::string& parMethod, bool binding, unsigned int nSec, double endTime, double interval)
+{
+	return cadet::JsonParameterProvider(createStirredTankBenchmarkJson(createFiniteBathJson(particleType, parMethod, binding), 2, nSec, endTime, interval));
 }

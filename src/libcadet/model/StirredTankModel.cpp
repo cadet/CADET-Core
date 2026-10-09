@@ -2488,10 +2488,8 @@ int CSTRModel::Exporter::writeOutlet(double* buffer) const
 
 
 
-void registerCSTRModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models)
-{
-	models[CSTRModel::identifier()] = [](UnitOpIdx uoId, IParameterProvider&) { return new CSTRModel(uoId); };
-}
+// The CSTR is registered in ColumnModelBuilder, which selects between the CSTR and the finite bath
+// based on the particle types, see selectStirredTankUnitOperation().
 
 }  // namespace model
 

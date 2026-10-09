@@ -229,6 +229,7 @@ list (APPEND LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ParticleDiffusionOperatorFV.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithoutPoresDG.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/ColumnModel1D.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/FiniteBath.cpp
 )
 if (ENABLE_2D_MODELS)
 	list (APPEND LIBCADET_SOURCES

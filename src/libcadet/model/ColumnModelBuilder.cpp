@@ -12,6 +12,8 @@
  
  #include "model/particle/ParticleModel.hpp"
 #include "model/ColumnModel1D.hpp"
+#include "model/FiniteBath.hpp"
+#include "model/StirredTankModel.hpp"
 #ifdef ENABLE_2D_MODELS
 	#include "model/ColumnModel2D.hpp"
 	#include "model/GeneralRateModel2D.hpp"
@@ -65,6 +67,67 @@ namespace model
 		return nullptr;
 	}
 #endif
+
+	/*
+	 * @brief Selects the appropriate well mixed vessel unit operation based on the given parameters
+	 * @detail Both unit operations use a homogeneous bulk model. They differ in the particles: the CSTR holds
+	 *		   particles that are in rapid equilibrium with the bulk liquid (i.e. without pores) and supports a
+	 *		   variable volume, whereas the finite bath holds particles with a finite film diffusion resistance
+	 *		   and has a constant volume.
+	 */
+	IUnitOperation* selectStirredTankUnitOperation(UnitOpIdx uoId, IParameterProvider& paramProvider)
+	{
+		// The particles of a CSTR are in rapid equilibrium with the bulk liquid, those of a finite bath are
+		// not, so the unit type that was specified provides the default of HAS_FILM_DIFFUSION
+		const bool defaultFilmDiffusion = paramProvider.getString("UNIT_TYPE") != "CSTR";
+
+		const int nParType = paramProvider.exists("NPARTYPE") ? paramProvider.getInt("NPARTYPE") : 0;
+
+		if (nParType < 0)
+			throw InvalidParameterException("Number of particle types must be >= 0 for unit " + std::to_string(uoId));
+
+		if (nParType == 0)
+		{
+			// Without particles, both models only differ in the volume: the CSTR is selected by its volume fields
+			if (paramProvider.exists("INIT_LIQUID_VOLUME") || paramProvider.exists("CONST_SOLID_VOLUME"))
+				return new CSTRModel(uoId);
+
+			return new FiniteBath(uoId);
+		}
+
+		// Determine the particle transport type of every particle type
+		bool anyEquilibrium = false;
+		bool allEquilibrium = true;
+
+		for (int parType = 0; parType < nParType; ++parType)
+		{
+			const std::string parGroup = "particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType);
+
+			if (!paramProvider.exists(parGroup))
+				throw InvalidParameterException("Group " + parGroup + " is missing for unit " + std::to_string(uoId));
+
+			paramProvider.pushScope(parGroup);
+
+			const bool filmDiffusion = paramProvider.exists("HAS_FILM_DIFFUSION") ? paramProvider.getBool("HAS_FILM_DIFFUSION") : defaultFilmDiffusion;
+			const bool poreDiffusion = paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false;
+			const bool surfaceDiffusion = paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false;
+
+			paramProvider.popScope(); // particle_type_xxx
+
+			const bool isEquilibrium = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType() == "EQUILIBRIUM_PARTICLE";
+
+			anyEquilibrium = anyEquilibrium || isEquilibrium;
+			allEquilibrium = allEquilibrium && isEquilibrium;
+		}
+
+		if (anyEquilibrium && !allEquilibrium)
+			throw InvalidParameterException("Particle types in rapid equilibrium with the bulk liquid must not be mixed with other particle types in unit " + std::to_string(uoId));
+
+		if (allEquilibrium)
+			return new CSTRModel(uoId);
+
+		return new FiniteBath(uoId);
+	}
 
 	/*
 	 * @brief Selects the appropriate column unit operation based on the given parameters
@@ -312,6 +375,9 @@ namespace model
 	{
 		models[ColumnModel2D::identifier()] = selectColumnUnitOperation;
 		models[GeneralRateModel2D::identifier()] = selectColumnUnitOperation;
+
+		models[CSTRModel::identifier()] = selectStirredTankUnitOperation;
+		models[FiniteBath::identifier()] = selectStirredTankUnitOperation;
 
 		models["COLUMN_MODEL_1D"] = selectColumnUnitOperation;
 		models["GENERAL_RATE_MODEL"] = selectColumnUnitOperation;

@@ -140,4 +140,5 @@ The specific order implemented for chromatography column units is given in the f
 
 .. [#] Samuel Lewekes PhD thesis, available at: https://publications.rwth-aachen.de/record/840314
 
-Note that the finite bath / tank (CSTR) unit operation has an additional first entry that defines the tank volume.
+The finite bath (see :ref:`finite_bath_model`) uses the same ordering with a single bulk point, :math:`N^{\mathrm{z}} = 1`.
+Note that the tank (CSTR, see :ref:`cstr_model`) has an additional last entry that holds the liquid volume.
