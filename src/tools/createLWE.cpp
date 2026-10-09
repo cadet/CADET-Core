@@ -240,11 +240,14 @@ void configureUnitSolver(cadet::io::HDF5Writer& writer)
 
 void configureCstr(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp)
 {
-    writer.scalar<double>("POROSITY", 0.37 + (1.0 - 0.37) * 0.75);
+    const double totalPorosity = 0.37 + (1.0 - 0.37) * 0.75;
+    const double initLiquidVolume = 1e-3;
+
     writer.scalar<int>("NPARTYPE", opts.nParType);
     configureParticles(writer, opts.nParType, opts.isKinetic, opts.velocityDependence, "EQUILIBRIUM_PARTICLE", opts.polyDeg, opts.nPar);
 
-    writer.scalar<double>("INIT_VOLUME", 1e-3);
+    writer.scalar<double>("INIT_LIQUID_VOLUME", initLiquidVolume);
+    writer.scalar<double>("CONST_SOLID_VOLUME", initLiquidVolume * (1.0 - totalPorosity) / totalPorosity);
 }
 
 void configureLRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp)

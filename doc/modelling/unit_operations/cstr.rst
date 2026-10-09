@@ -51,4 +51,8 @@ The additional parameter :math:`F_{\text{filter}}`, which denotes the flow rate 
 
 Note that it is the user’s duty to make sure that the volume of the CSTR does not fall below 0. If it does, the simulation may fail to run or may produce unreasonable (e.g., unphysical) results.
 
+Alternatively, the liquid volume can be prescribed as constant.
+It is then given directly, together with the total porosity :math:`\varepsilon_t = V^{\ell} / (V^{\ell} + V^{s})`, instead of being initialized and evolved, and the solid volume follows as :math:`V^{s} = V^{\ell} (1 - \varepsilon_t) / \varepsilon_t`.
+Since the volume equation above still has to hold, this requires the flow rates to cancel, that is :math:`F_{\text{in}} = F_{\text{out}} + F_{\text{filter}}` in every section.
+
 See :ref:`cstr_config`.
