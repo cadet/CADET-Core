@@ -540,8 +540,10 @@ unsigned int ColumnModel1D<ConvDispOperator>::threadLocalMemorySize() const CADE
 	lms.commit();
 
 	// Memory for consistentInitialSensitivity
-	lms.add<double>(_disc.nComp + maxStrideBound);
-	lms.add<double>(maxStrideBound);
+	lms.add<double>(_disc.nComp + maxStrideBound); // rhs
+	lms.add<double>(maxStrideBound); // rhsUnmasked
+	lms.add<double>(_disc.nComp + maxStrideBound); // maskedMultiplier
+	lms.add<double>(_disc.nComp + maxStrideBound); // scaleFactors
 	lms.commit();
 
 	return lms.bufferSize();

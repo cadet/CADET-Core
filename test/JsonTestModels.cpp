@@ -201,8 +201,9 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 			discPar["PAR_POLYDEG"] = 3;
 			discPar["PAR_NELEM"] = 1;
 		}
-		else if (parMethod == "FV")
+		else if (parMethod == "FV" && discPar.find("NCELLS") == discPar.end())
 		{
+			// The 2D model sets its own number of particle cells above
 			discPar["NCELLS"] = 4;
 		}
 

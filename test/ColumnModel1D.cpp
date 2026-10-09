@@ -549,22 +549,20 @@ TEST_CASE("Column_1D as LRMP sensitivity Jacobians", "[AxialColumn1D],[DG],[DG1D
 //	cadet::test::column::testFwdSensSolutionForwardBackward("COLUMN_MODEL_1D_GRM", "DG", absTols, relTols, passRatio);
 //}
 
-// todo fix consistent initialization for AD with req binding
 TEST_CASE("Column_1D as GRM consistent initialization with linear binding", "[AxialColumn1D],[DG],[DG1D],[ConsistentInit],[CI]")
 {
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-14, 0, 0);
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-12, 1, 0);
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-14, 0, 1);
-	//cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-14, 1, 1);
+	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-12, 1, 1);
 }
 
-// todo fix consistent initialization for AD with req binding
 TEST_CASE("Column_1D as LRMP consistent initialization with linear binding", "[AxialColumn1D],[DG],[DG1D],[ConsistentInit],[CI]")
 {
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12, 0, 0);
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12, 1, 0);
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12, 0, 1);
-	//cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12, 1, 1);
+	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12, 1, 1);
 }
 
 TEST_CASE("1D column liquid equilibrium MAL consistent initialization", "[Column_1D],[MassActionLaw],[ReactionModel],[ConsistentInit],[CI]")
@@ -821,13 +819,12 @@ TEST_CASE("Column_1D as GRM consistent sensitivity initialization with linear bi
 	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, numDofs);
 	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
 
-	//cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D_GRM", "DG", y.data(), yDot.data(), true, 1e-14, 0, 0);
+	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D_GRM", "DG", y.data(), yDot.data(), true, 1e-14, 0, 0);
 	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D_GRM", "DG", y.data(), yDot.data(), true, 1e-14, 1, 0);
-	//cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D_GRM", "DG", y.data(), yDot.data(), true, 1e-14, 0, 1);
+	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D_GRM", "DG", y.data(), yDot.data(), true, 1e-14, 0, 1);
 	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D_GRM", "DG", y.data(), yDot.data(), true, 1e-14, 1, 1);
 }
 
-// todo fix kinetic binding sensitivity init
 TEST_CASE("Column_1D LRMP consistent sensitivity initialization with linear binding", "[AxialColumn1D],[DG],[DG1D],[ConsistentInit],[Sensitivity],[CI]")
 {
 	// Fill state vector with given initial values
@@ -837,10 +834,10 @@ TEST_CASE("Column_1D LRMP consistent sensitivity initialization with linear bind
 	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, numDofs);
 	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
 
-	//cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D_LRMP", "DG", y.data(), yDot.data(), true, 1e-14, 0, 0); // doesnt work
-	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D_LRMP", "DG", y.data(), yDot.data(), true, 1e-14, 1, 0); // works
-	//cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D_LRMP", "DG", y.data(), yDot.data(), true, 1e-14, 0, 1); // doesnt work
-	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D_LRMP", "DG", y.data(), yDot.data(), true, 1e-14, 1, 1); // works
+	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D_LRMP", "DG", y.data(), yDot.data(), true, 1e-14, 0, 0);
+	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D_LRMP", "DG", y.data(), yDot.data(), true, 1e-14, 1, 0);
+	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D_LRMP", "DG", y.data(), yDot.data(), true, 1e-14, 0, 1);
+	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_1D_LRMP", "DG", y.data(), yDot.data(), true, 1e-14, 1, 1);
 }
 
 //// todo fix memory stuff (works for FV) 
