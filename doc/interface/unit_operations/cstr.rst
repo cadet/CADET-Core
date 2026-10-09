@@ -51,9 +51,15 @@ For information on model equations, refer to :ref:`cstr_model`.
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NCOMP}`
    ================  =========================  ==================================
 
+The volumes are given by one of two mutually exclusive parameterizations.
+Specifying fields of both is an error.
+
+1. Variable volume: :math:`\texttt{INIT_LIQUID_VOLUME}` and :math:`\texttt{CONST_SOLID_VOLUME}`. The liquid volume is a state that evolves with the net flow rate.
+2. Constant volume: :math:`\texttt{LIQUID_VOLUME}` and :math:`\texttt{TOTAL_POROSITY}`. The liquid volume is prescribed and does not change.
+
 ``INIT_LIQUID_VOLUME``
 
-   Initial liquid volume
+   Initial liquid volume of the variable volume parameterization
 
    **Unit:** :math:`\mathrm{m}^{3}`
 
@@ -61,9 +67,40 @@ For information on model equations, refer to :ref:`cstr_model`.
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
    ================  =========================  =============
 
+``CONST_SOLID_VOLUME``
+
+   Volume of solid phase of the variable volume parameterization (optional, defaults to 0)
+
+   **Unit:** :math:`\mathrm{m}^{3}`
+
+   ================  =========================  =============
+   **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
+   ================  =========================  =============
+
+``LIQUID_VOLUME``
+
+   Constant liquid volume. Requires the flow rates to cancel in every section, that is :math:`F_{\text{in}} = F_{\text{out}} + F_{\text{filter}}`.
+
+   **Unit:** :math:`\mathrm{m}^{3}`
+
+   ================  =========================  =============
+   **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
+   ================  =========================  =============
+
+``TOTAL_POROSITY``
+
+   Ratio of liquid volume to total volume, :math:`\varepsilon_t = V^{\ell} / (V^{\ell} + V^{s})` (optional, defaults to 1). Only used together with :math:`\texttt{LIQUID_VOLUME}` and fixes the solid volume to :math:`V^{s} = V^{\ell} (1 - \varepsilon_t) / \varepsilon_t`.
+
+   ================  ========================  =============
+   **Type:** double  **Range:** :math:`(0,1]`  **Length:** 1
+   ================  ========================  =============
+
+Sensitivities are available with respect to :math:`\texttt{CONST_SOLID_VOLUME}` in both parameterizations and with respect to the liquid volume under the name that was used to specify it, that is :math:`\texttt{INIT_LIQUID_VOLUME}` or :math:`\texttt{LIQUID_VOLUME}`.
+Note that changing one of the two volumes leaves the other one untouched, so the total porosity changes implicitly.
+
 ``INIT_STATE``
 
-   Full state vector for initialization (optional, :math:`\texttt{INIT_C}`, :math:`\texttt{INIT_CS}`, and :math:`\texttt{INIT_LIQUID_VOLUME}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives).
+   Full state vector for initialization (optional, :math:`\texttt{INIT_C}`, :math:`\texttt{INIT_CS}`, and the liquid volume field will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives).
    The ordering of the state vector is defined in :ref:`UnitOperationStateOrdering`.
 
    **Unit:** :math:`various`
@@ -71,16 +108,6 @@ For information on model equations, refer to :ref:`cstr_model`.
    ================  =============================  ====================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NDOF} / 2\texttt{NDOF}`
    ================  =============================  ====================================================
-
-``CONST_SOLID_VOLUME``
-
-   Volume of solid phase
-
-   **Unit:** :math:`\mathrm{m}^{3}` (defaults to 0)
-
-   ================  =========================  =============
-   **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
-   ================  =========================  =============
 
 ``FLOWRATE_FILTER``
 

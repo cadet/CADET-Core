@@ -162,6 +162,7 @@ protected:
 	unsigned int _totalBound; //!< Total number of all bound states in all particle types
 
 	active _constSolidVolume; //!< Solid volume \f$ V^s \f$
+	bool _constantVolume; //!< Determines whether the liquid volume is prescribed as constant instead of being initialized and evolved
 	active _flowRateIn; //!< Volumetric flow rate of incoming stream
 	active _flowRateOut; //!< Volumetric flow rate of drawn outgoing stream
 	active _curFlowRateFilter; //!< Current volumetric flow rate of liquid outtake stream for this section

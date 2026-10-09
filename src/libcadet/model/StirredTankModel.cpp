@@ -30,6 +30,7 @@
 #include "Logging.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
 
 namespace cadet
@@ -75,7 +76,7 @@ namespace
 
 
 CSTRModel::CSTRModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx), _nComp(0), _nParType(0), _nBound(nullptr), _boundOffset(nullptr), _strideBound(nullptr), _offsetParType(nullptr),
-    _totalBound(0), _analyticJac(true), _jac(), _jacFact(), _factorizeJac(false), _initConditions(0), _initConditionsDot(0)
+    _totalBound(0), _constantVolume(false), _analyticJac(true), _jac(), _jacFact(), _factorizeJac(false), _initConditions(0), _initConditionsDot(0)
 {
 	// Mutliplexed binding and reaction models make no sense in CSTR
 	_singleBinding = false;
@@ -331,28 +332,39 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 	if (hasFlowrateFilter)
 		readScalarParameterOrArray(_flowRateFilter, paramProvider, "FLOWRATE_FILTER", 1);
 
+	// The volumes are given by one of two mutually exclusive parameterizations:
+	//  - variable volume: INIT_LIQUID_VOLUME is the initial liquid volume, which evolves with the net flow rate,
+	//    and CONST_SOLID_VOLUME is the solid volume
+	//  - constant volume: LIQUID_VOLUME is the constant liquid volume and TOTAL_POROSITY the ratio of liquid
+	//    volume to total volume, which together fix the solid volume
+	const bool hasVariableVolume = paramProvider.exists("INIT_LIQUID_VOLUME") || paramProvider.exists("CONST_SOLID_VOLUME");
+	const bool hasConstantVolume = paramProvider.exists("LIQUID_VOLUME") || paramProvider.exists("TOTAL_POROSITY");
+
+	if (hasVariableVolume && hasConstantVolume)
+		throw InvalidParameterException("Fields LIQUID_VOLUME and TOTAL_POROSITY must not be combined with INIT_LIQUID_VOLUME or CONST_SOLID_VOLUME");
+
+	if (!hasVariableVolume && !hasConstantVolume)
+		throw InvalidParameterException("Field INIT_LIQUID_VOLUME or LIQUID_VOLUME required");
+
+	_constantVolume = hasConstantVolume;
 	_constSolidVolume = 0.0;
-	if (paramProvider.exists("CONST_SOLID_VOLUME"))
-		_constSolidVolume = paramProvider.getDouble("CONST_SOLID_VOLUME");
-	else if (paramProvider.exists("POROSITY")) // todo delete for breaking change with new interface version
+
+	if (_constantVolume)
 	{
-		LOG(Warning) << "Field POROSITY is only supported for backwards compatibility, but the implementation of the CSTR has changed, please refer to the documentation. The POROSITY will be used to compute the constant solid volume from the liquid volume.";
+		if (!paramProvider.exists("LIQUID_VOLUME"))
+			throw InvalidParameterException("Field LIQUID_VOLUME required when TOTAL_POROSITY is given");
 
-		double init_liquid_volume = 0.0;
-		if (paramProvider.exists("INIT_LIQUID_VOLUME"))
-			init_liquid_volume = paramProvider.getDouble("INIT_LIQUID_VOLUME");
+		const double totalPorosity = paramProvider.exists("TOTAL_POROSITY") ? paramProvider.getDouble("TOTAL_POROSITY") : 1.0;
 
-		else if (paramProvider.exists("INIT_VOLUME")) // todo delete for breaking change with new interface version
-			init_liquid_volume = paramProvider.getDouble("INIT_VOLUME");
+		if ((totalPorosity <= 0.0) || (totalPorosity > 1.0))
+			throw InvalidParameterException("Field TOTAL_POROSITY has to be in (0, 1]");
 
-		else
-			throw InvalidParameterException("Field CONST_SOLID_VOLUME or INIT_LIQUID_VOLUME required");
-
-		const double epsilon = paramProvider.getDouble("POROSITY");
-
-		if (epsilon > 0.0) // else, constant solid volume is already set to zero
-			_constSolidVolume = init_liquid_volume * (1.0 - epsilon) / epsilon; // V_s = (V_l + V_s) * (1 - epsilon) -> V_s = V_l * (1 - \epsilon) / \epsilon
+		// V_s = (V_l + V_s) * (1 - epsilon_t) -> V_s = V_l * (1 - epsilon_t) / epsilon_t
+		_constSolidVolume = paramProvider.getDouble("LIQUID_VOLUME") * (1.0 - totalPorosity) / totalPorosity;
 	}
+	else if (paramProvider.exists("CONST_SOLID_VOLUME"))
+		_constSolidVolume = paramProvider.getDouble("CONST_SOLID_VOLUME");
+
 	_parameters[makeParamId(hashString("CONST_SOLID_VOLUME"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_constSolidVolume;
 
 	if (_totalBound > 0)
@@ -397,7 +409,11 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 			_parameters[initParams[i]] = ic + i;
 	}
 
-	_parameters[makeParamId(hashString("INIT_LIQUID_VOLUME"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = _initConditions.data() + _nComp + _totalBound;
+	// The liquid volume is registered under the name it was specified with
+	if (_constantVolume)
+		_parameters[makeParamId(hashString("LIQUID_VOLUME"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = _initConditions.data() + _nComp + _totalBound;
+	else
+		_parameters[makeParamId(hashString("INIT_LIQUID_VOLUME"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = _initConditions.data() + _nComp + _totalBound;
 
 	// Reconfigure binding model
 	bool bindingConfSuccess = true;
@@ -519,6 +535,17 @@ void CSTRModel::notifyDiscontinuousSectionTransition(double t, unsigned int secI
 	{
 		_curFlowRateFilter = _flowRateFilter[0];
 	}
+
+	// A prescribed constant liquid volume requires a vanishing net flow rate
+	if (_constantVolume)
+	{
+		const double flowIn = static_cast<double>(_flowRateIn);
+		const double flowOut = static_cast<double>(_flowRateOut);
+		const double flowFilter = static_cast<double>(_curFlowRateFilter);
+
+		if (std::abs(flowIn - flowOut - flowFilter) > 1e-12 * std::max(1.0, std::abs(flowIn)))
+			throw InvalidParameterException("Inlet, outlet and filter flow rate of unit " + std::to_string(_unitOpIdx) + " do not cancel in section " + std::to_string(secIdx) + ", which is required for the constant liquid volume given by LIQUID_VOLUME");
+	}
 }
 
 void CSTRModel::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
@@ -618,8 +645,8 @@ void CSTRModel::readInitialCondition(IParameterProvider& paramProvider)
 
 	if (paramProvider.exists("INIT_LIQUID_VOLUME"))
 		_initConditions[_nComp + _totalBound].setValue(paramProvider.getDouble("INIT_LIQUID_VOLUME"));
-	else if (paramProvider.exists("INIT_VOLUME")) // todo delete for breaking change with new interface version
-		_initConditions[_nComp + _totalBound].setValue(paramProvider.getDouble("INIT_VOLUME"));
+	else if (paramProvider.exists("LIQUID_VOLUME"))
+		_initConditions[_nComp + _totalBound].setValue(paramProvider.getDouble("LIQUID_VOLUME"));
 	else
 		_initConditions[_nComp + _totalBound].setValue(0.0);
 }

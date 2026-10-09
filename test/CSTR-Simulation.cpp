@@ -42,6 +42,61 @@ inline void setFlowRateFilter(cadet::JsonParameterProvider& jpp, double filter)
 	jpp.popScope();
 }
 
+/**
+ * @brief Replaces the variable volume parameterization of a CSTR by an equivalent constant volume one
+ * @param [in,out] jpp Parameter provider of the full model
+ * @param [in] liquidVolume Constant liquid volume
+ * @param [in] solidVolume Solid volume that the total porosity has to reproduce
+ */
+inline void setConstantVolume(cadet::JsonParameterProvider& jpp, double liquidVolume, double solidVolume)
+{
+	jpp.pushScope("model");
+	jpp.pushScope("unit_000");
+
+	jpp.remove("INIT_LIQUID_VOLUME");
+	jpp.remove("CONST_SOLID_VOLUME");
+
+	jpp.set("LIQUID_VOLUME", liquidVolume);
+	jpp.set("TOTAL_POROSITY", liquidVolume / (liquidVolume + solidVolume));
+
+	jpp.popScope();
+	jpp.popScope();
+}
+
+/**
+ * @brief Creates a CSTR with one bound state that is fed and drawn at the same flow rate
+ * @details The volumes are given by the variable volume parameterization, which in this
+ *          setting describes a tank of constant volume.
+ * @return Runnable model
+ */
+inline cadet::JsonParameterProvider createConstantVolumeTestCase()
+{
+	cadet::JsonParameterProvider jpp = createCSTRBenchmark(1, 100.0, 1.0);
+	cadet::test::setSectionTimes(jpp, {0.0, 100.0});
+	cadet::test::addBoundStates(jpp, {1}, 2.0);
+	cadet::test::addLinearBindingModel(jpp, true, {0.1}, {10.0});
+	cadet::test::setInitialConditions(jpp, {0.0}, {0.0}, 1.0);
+	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
+	cadet::test::setFlowRates(jpp, 0, 0.1, 0.1, 0.0);
+
+	return jpp;
+}
+
+/**
+ * @brief Runs a simulation and returns the outlet concentration of the first component
+ */
+inline std::vector<double> runAndCollectOutlet(cadet::JsonParameterProvider& jpp)
+{
+	cadet::Driver drv;
+	drv.configure(jpp);
+	drv.run();
+
+	cadet::InternalStorageUnitOpRecorder const* const simData = drv.solution()->unitOperation(0);
+	double const* const outlet = simData->outlet();
+
+	return std::vector<double>(outlet, outlet + simData->numDataPoints());
+}
+
 inline cadet::JsonParameterProvider createMultiParticleTypesTestCase()
 {
 	cadet::JsonParameterProvider jpp = createCSTRBenchmark(2, 100.0, 1.0);
@@ -474,4 +529,48 @@ TEST_CASE("CSTR linear binding single particle matches particle distribution", "
 {
 	cadet::JsonParameterProvider jpp = createMultiParticleTypesTestCase();
 	cadet::test::particle::testLinearMixedParticleTypes(jpp, 5e-8, 5e-5);
+}
+
+TEST_CASE("CSTR constant volume matches equivalent variable volume", "[CSTR],[Simulation],[CI]")
+{
+	cadet::JsonParameterProvider jppVariable = createConstantVolumeTestCase();
+	cadet::JsonParameterProvider jppConstant = createConstantVolumeTestCase();
+	setConstantVolume(jppConstant, 1.0, 2.0);
+
+	const std::vector<double> outletVariable = runAndCollectOutlet(jppVariable);
+	const std::vector<double> outletConstant = runAndCollectOutlet(jppConstant);
+
+	REQUIRE(outletVariable.size() == outletConstant.size());
+	REQUIRE(outletVariable.size() > 0);
+
+	for (std::size_t i = 0; i < outletVariable.size(); ++i)
+	{
+		CAPTURE(i);
+		CHECK(outletConstant[i] == cadet::test::makeApprox(outletVariable[i], 1e-10, 1e-14));
+	}
+}
+
+TEST_CASE("CSTR rejects mixed volume parameterizations", "[CSTR],[Simulation],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createConstantVolumeTestCase();
+
+	jpp.pushScope("model");
+	jpp.pushScope("unit_000");
+	jpp.set("LIQUID_VOLUME", 1.0);
+	jpp.popScope();
+	jpp.popScope();
+
+	cadet::Driver drv;
+	REQUIRE_THROWS_WITH(drv.configure(jpp), Catch::Contains("must not be combined"));
+}
+
+TEST_CASE("CSTR constant volume rejects unbalanced flow rates", "[CSTR],[Simulation],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createConstantVolumeTestCase();
+	setConstantVolume(jpp, 1.0, 2.0);
+	cadet::test::setFlowRates(jpp, 0, 0.1, 0.05, 0.0);
+
+	cadet::Driver drv;
+	drv.configure(jpp);
+	REQUIRE_THROWS_WITH(drv.run(), Catch::Contains("do not cancel"));
 }
