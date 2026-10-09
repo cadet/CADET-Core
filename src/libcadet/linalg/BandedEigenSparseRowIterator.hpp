@@ -196,7 +196,7 @@ public:
 
 	inline BandedEigenSparseRowIterator& operator--() CADET_NOEXCEPT
 	{
-		if (_row - 1 > 0)
+		if (_row - 1 >= 0)
 		{
 			--_row;
 			updateOnRowChange();
@@ -216,7 +216,7 @@ public:
 
 	inline BandedEigenSparseRowIterator& operator-=(int idx) CADET_NOEXCEPT
 	{
-		if (_row - idx > 0)
+		if (_row - idx >= 0)
 		{
 			_row -= idx;
 			updateOnRowChange();
