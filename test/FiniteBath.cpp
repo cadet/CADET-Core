@@ -17,6 +17,7 @@
 #define CADET_LOGGING_DISABLE
 #include "Logging.hpp"
 
+#include "ColumnTests.hpp"
 #include "JacobianHelper.hpp"
 #include "JsonTestModels.hpp"
 #include "ParticleHelper.hpp"
@@ -348,6 +349,23 @@ TEST_CASE("FiniteBath batch uptake vs analytic solution", "[FiniteBath],[Simulat
 		CAPTURE(*time);
 		CHECK(outlet[0] == cadet::test::makeApprox(ref, 1e-6, 1e-10));
 	}
+}
+
+TEST_CASE("FiniteBath batch uptake numerical Benchmark for rapid equilibrium Langmuir case", "[FiniteBath],[DG],[Simulation],[Reference],[CI]")
+{
+	// Uptake of m-xylene from solution by Y zeolite beads in a closed, well stirred vessel, taken from
+	// S. Brandani, "Kinetics of liquid phase batch adsorption experiments", Adsorption 27 (2021) 353-368,
+	// Fig. 2, the m-xylene curve at Sh = 2. The beads are general rate particles with a Langmuir isotherm
+	// in local equilibrium with the pore liquid, and the vessel is closed, so both flow rates are zero.
+	// The derivation of the CADET parameters from the parameters of the paper and the comparison against
+	// the published curve are part of the CADET-Verification study of the same name.
+	const std::string& modelFilePath = std::string("/data/model_finiteBath_GRP_reqLangmuir_1comp_Brandani2021.json");
+	const std::string& refFilePath = std::string("/data/ref_finiteBath_GRP_reqLangmuir_1comp_Brandani2021_parDGP4Z8.h5");
+	const std::vector<double> absTol = { 1e-10 };
+	const std::vector<double> relTol = { 1e-6 };
+
+	cadet::test::column::DGParams disc(-1, 0, 0, 4, 8);
+	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
 TEST_CASE("FiniteBath without particles matches constant volume CSTR", "[FiniteBath],[Simulation],[CI]")
