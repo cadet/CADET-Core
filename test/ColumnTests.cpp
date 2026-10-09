@@ -1751,7 +1751,7 @@ namespace column
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
 
-		for (int bindingMode = 0; bindingMode < 1; ++bindingMode)
+		for (int bindingMode = 0; bindingMode < 2; ++bindingMode)
 		{
 			if ((bindingMode == 0 && reqBnd == 1) || (bindingMode == 1 && reqBnd == 0))
 				continue;

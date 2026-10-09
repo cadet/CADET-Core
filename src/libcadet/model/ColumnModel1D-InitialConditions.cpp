@@ -331,6 +331,11 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialState(const SimulationTim
 
 		consistentInitialBindingEquilibrium(simTime, vecStateY, adJac, errorTol, threadLocalMem, type);
 	}
+
+	// The binding equilibrium above writes plain values into the AD state vector, which resets the
+	// seed vectors (see sfad::Fwd::operator=), so they have to be restored for the next AD evaluation
+	if (adJac.adY)
+		prepareADvectors(adJac);
 }
 
 template <typename ConvDispOperator>
@@ -470,9 +475,6 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialBindingEquilibrium(const 
 	{
 		LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
-		// Reuse memory of sparse matrix for dense matrix
-		linalg::DenseMatrixView fullJacobianMatrix(_globalJacDisc.valuePtr() + _globalJacDisc.outerIndexPtr()[idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ static_cast<unsigned int>(pblk) })], nullptr, mask.len, mask.len);
-
 		// z coordinate (column length normed to 1) of current node - needed in externally dependent adsorption kinetic
 		const double z = _convDispOp.relativeCoordinate(pblk);
 
@@ -489,14 +491,22 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialBindingEquilibrium(const 
 		BufferedArray<double> fullXBuffer = tlmAlloc.array<double>(mask.len);
 		double* const fullX = static_cast<double*>(fullXBuffer);
 
-		BufferedArray<double> jacobianMemBuffer = tlmAlloc.array<double>(probSize * probSize);
-		double* const jacobianMem = static_cast<double*>(jacobianMemBuffer);
+		BufferedArray<double> fullJacobianBuffer = tlmAlloc.array<double>(mask.len * mask.len);
+		linalg::DenseMatrixView fullJacobianMatrix(static_cast<double*>(fullJacobianBuffer), nullptr, mask.len, mask.len);
 
 		BufferedArray<double> conservedQuantsBuffer = tlmAlloc.array<double>(numActiveComp);
 		double* const conservedQuants = static_cast<double*>(conservedQuantsBuffer);
 
-		linalg::DenseMatrixView jacobianMatrix(jacobianMem, _globalJacDisc.outerIndexPtr(), probSize, probSize);
+		// The nonlinear solver factorizes this matrix, so it has to own its pivot array
+		linalg::DenseMatrix jacobianMatrix;
+		jacobianMatrix.resize(probSize, probSize);
+
 		const parts::cell::CellParameters cellResParams = makeCellResidualParams(type, mask.mask + _disc.nComp);
+
+		// AD directions of this particle type, see prepareADvectors()
+		unsigned int parDirOffset = adJac.adDirOffset + bulkJacobianAdDirs();
+		for (unsigned int t = 0; t < type; ++t)
+			parDirOffset += idxr.strideParBlock(t);
 
 		// This loop cannot be run in parallel without creating a Jacobian matrix for each thread which would increase memory usage
 		const int localOffsetToParticle = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ static_cast<unsigned int>(pblk) });
@@ -561,22 +571,11 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialBindingEquilibrium(const 
 //						LOG(Debug) << "MaxDiff: " << diff;
 //#endif
 
-					// Extract Jacobian from AD
-					// Read particle Jacobian entries from dedicated AD directions
-					int offsetParticleTypeDirs = adJac.adDirOffset + _convDispOp.requiredADdirs() + idxr.strideParBlock(type);
-					const active* const adRes = adJac.adRes;
-
-					for (unsigned int par = 0; par < _disc.nPoints; par++)
+					// Extract the dense cell Jacobian from the dedicated AD directions of this particle type
+					for (int row = 0; row < mask.len; ++row)
 					{
-						const int eqOffset_res = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par });
-						const int eqOffset_mat = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ par });
-						for (unsigned int phase = 0; phase < idxr.strideParBlock(type); phase++)
-						{
-							for (unsigned int phaseTo = 0; phaseTo < idxr.strideParBlock(type); phaseTo++)
-							{
-								_globalJac.coeffRef(eqOffset_mat + phase, eqOffset_mat + phaseTo) = adRes[eqOffset_res + phase].getADValue(offsetParticleTypeDirs + phaseTo);
-							}
-						}
+						for (int col = 0; col < mask.len; ++col)
+							fullJacobianMatrix.native(row, col) = localAdRes[row].getADValue(parDirOffset + localOffsetInParticle + col);
 					}
 
 					// Extract Jacobian from full Jacobian
@@ -621,6 +620,9 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialBindingEquilibrium(const 
 					// Prepare input vector by overwriting masked items
 					std::copy_n(qShell - _disc.nComp, mask.len, fullX);
 					linalg::applyVectorSubset(x, mask, fullX);
+
+					// The residual kernel only adds to the Jacobian, so the scratch matrix has to be cleared
+					fullJacobianMatrix.setAll(0.0);
 
 					// Call residual function
 					parts::cell::residualKernel<double, double, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, true, true>(
@@ -717,10 +719,6 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialBindingEquilibrium(const 
 			_binding[type]->postConsistentInitialState(simTime.t, simTime.secIdx, colPos, qShell, qShell - idxr.strideParLiquid(), tlmAlloc);
 		}
 
-		// reset jacobian pattern
-		bool hasBulkReaction = _reaction.hasReactions();
-		setJacobianPattern(_globalJacDisc, _disc.curSection, hasBulkReaction);
-
 	} CADET_PARFOR_END;
 }
 
@@ -779,6 +777,10 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialTimeDerivative(const Simu
 	// Step 2: Compute the correct time derivative of the state vector
 
 	// Step 2a: Assemble, factorize, and solve diagonal blocks of linear system
+
+	// Rows are copied from the system Jacobian below, which requires both matrices to have the same
+	// sparsity pattern. An AD Jacobian may have added entries to it, so take the pattern over here.
+	_globalJacDisc = _globalJac;
 
 	double* entries = _globalJacDisc.valuePtr();
 	for (unsigned int entry = 0; entry < _globalJacDisc.nonZeros(); entry++)
@@ -1260,7 +1262,8 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialSensitivity(const Simulat
 			consistentInitialSensitivityBindingTimeDerivative(sensYdot, pblk);
 		} CADET_PARFOR_END;
 
-		Eigen::Map<VectorXd> yDot(sensYdot, numPureDofs());
+		// The right hand side of the pure DOFs starts after the inlet DOFs, just as the Jacobian block below
+		Eigen::Map<VectorXd> yDot(sensYdot + idxr.offsetC(), numPureDofs());
 
 		// Factorize
 		_linearSolver->factorize(_globalJacDisc.block(idxr.offsetC(), idxr.offsetC(), numPureDofs(), numPureDofs()));
@@ -1292,6 +1295,9 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialSensitivityBindingEquilib
 	const linalg::ConstMaskArray mask{ qsMask, static_cast<int>(_disc.strideBound[type]) };
 	const int probSize = linalg::numMaskActive(mask);
 
+	if (probSize == 0)
+		return;
+
 #ifdef CADET_PARALLELIZE
 	BENCH_SCOPE(_timerConsistentInitPar);
 	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nPoints), [&](std::size_t pblk)
@@ -1299,9 +1305,6 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialSensitivityBindingEquilib
 	for (unsigned int pblk = 0; pblk < _disc.nPoints; ++pblk)
 #endif
 	{
-		// Reuse memory of band matrix for dense matrix
-		linalg::DenseMatrixView jacobianMatrix(_globalJacDisc.valuePtr() + _globalJacDisc.outerIndexPtr()[idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ static_cast<unsigned int>(pblk) }) - idxr.offsetC()] + pblk * probSize * probSize, nullptr, probSize, probSize);
-
 		// Get workspace memory
 		LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
@@ -1311,30 +1314,36 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialSensitivityBindingEquilib
 		BufferedArray<double> rhsUnmaskedBuffer = tlmAlloc.array<double>(idxr.strideParBound(type));
 		double* const rhsUnmasked = static_cast<double*>(rhsUnmaskedBuffer);
 
-		double* const maskedMultiplier = _tempState + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ static_cast<unsigned int>(pblk) });
-		double* const scaleFactors = _tempState + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ static_cast<unsigned int>(pblk) });
+		BufferedArray<double> maskedMultiplierBuffer = tlmAlloc.array<double>(idxr.strideParNode(type));
+		double* const maskedMultiplier = static_cast<double*>(maskedMultiplierBuffer);
+
+		BufferedArray<double> scaleFactorBuffer = tlmAlloc.array<double>(probSize);
+		double* const scaleFactors = static_cast<double*>(scaleFactorBuffer);
+
+		// The matrix is factorized, so it has to own its pivot array
+		linalg::DenseMatrix jacobianMatrix;
+		jacobianMatrix.resize(probSize, probSize);
 
 		for (unsigned int shell = 0; shell < _disc.nParPoints[type]; ++shell)
 		{
-			const int jacRowOffset = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ static_cast<unsigned int>(pblk) }) + static_cast<int>(shell) * idxr.strideParNode(type) + _disc.nComp;
-			const int jacColOffset = jacRowOffset;
-			const int localQOffset = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ static_cast<unsigned int>(pblk) }) + static_cast<int>(shell) * idxr.strideParNode(type) + idxr.strideParLiquid();
+			const int shellOffset = idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ static_cast<unsigned int>(pblk) }) + static_cast<int>(shell) * idxr.strideParNode(type);
+			const int qOffset = shellOffset + idxr.strideParLiquid();
 
 			// Extract subproblem Jacobian from full Jacobian
 			jacobianMatrix.setAll(0.0);
-			linalg::copyMatrixSubset(_globalJac, mask, mask, jacRowOffset, jacColOffset, jacobianMatrix);
+			linalg::copyMatrixSubset(_globalJac, mask, mask, qOffset, qOffset, jacobianMatrix);
 
-			// Construct right hand side
-			linalg::selectVectorSubset(sensYdot + localQOffset, mask, rhs);
+			// Construct right hand side, which holds -dF / dp - dF / dy * s at this point
+			linalg::selectVectorSubset(sensYdot + qOffset, mask, rhs);
 
-			// Zero out masked elements
-			std::copy_n(sensY + localQOffset - idxr.strideParLiquid(), idxr.strideParNode(type), maskedMultiplier);
+			// Zero out the unknown (masked) elements, the remainder of the shell is already known
+			std::copy_n(sensY + shellOffset, idxr.strideParNode(type), maskedMultiplier);
 			linalg::fillVectorSubset(maskedMultiplier + _disc.nComp, mask, 0.0);
 
-			// Assemble right hand side
-			Eigen::Map<VectorXd> maskedMultiplier_eigen(maskedMultiplier, idxr.strideParBlock(type));
-			Eigen::Map<VectorXd> rhsUnmasked_eigen(rhsUnmasked, idxr.strideParBlock(type));
-			rhsUnmasked_eigen = _globalJac.block(jacRowOffset, jacColOffset, idxr.strideParBlock(type), idxr.strideParBlock(type)) * maskedMultiplier_eigen;
+			// Subtract the contribution of the known part of the shell from the right hand side
+			Eigen::Map<VectorXd> maskedMultiplier_eigen(maskedMultiplier, idxr.strideParNode(type));
+			Eigen::Map<VectorXd> rhsUnmasked_eigen(rhsUnmasked, idxr.strideParBound(type));
+			rhsUnmasked_eigen = _globalJac.block(qOffset, shellOffset, idxr.strideParBound(type), idxr.strideParNode(type)) * maskedMultiplier_eigen;
 			linalg::vectorSubsetAdd(rhsUnmasked, mask, -1.0, 1.0, rhs);
 
 			// Precondition
@@ -1346,7 +1355,7 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialSensitivityBindingEquilib
 			jacobianMatrix.solve(scaleFactors, rhs);
 
 			// Write back
-			linalg::applyVectorSubset(rhs, mask, sensY + localQOffset);
+			linalg::applyVectorSubset(rhs, mask, sensY + qOffset);
 		}
 	} CADET_PARFOR_END;
 }
@@ -1355,6 +1364,10 @@ template <typename ConvDispOperator>
 void ColumnModel1D<ConvDispOperator>::consistentInitialSensitivityBulkTimeDerivative()
 {
 	Indexer idxr(_disc);
+
+	// Rows are copied from the system Jacobian later on, which requires both matrices to have the
+	// same sparsity pattern, see consistentInitialTimeDerivative()
+	_globalJacDisc = _globalJac;
 
 	// Assemble bulk block
 	double* vPtr = _globalJacDisc.valuePtr();
