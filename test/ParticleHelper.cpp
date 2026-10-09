@@ -112,32 +112,6 @@ namespace
 		if (volFrac)
 			jpp.set("PAR_TYPE_VOLFRAC", std::vector<double>(volFrac, volFrac + nTypes));
 
-		if (jpp.getString("UNIT_TYPE") == "CSTR")
-		{
-			replicateFieldDataDouble(jpp, "INIT_CP", nTypes);
-			replicateFieldDataDouble(jpp, "INIT_CS", nTypes);
-
-			replicateFieldDataString(jpp, "ADSORPTION_MODEL", nTypes);
-			replicateFieldDataInt(jpp, "NBOUND", nTypes);
-
-			// Move group "adsorption" to "adsorption_000"
-			if (jpp.exists("adsorption"))
-			{
-				jpp.copy("adsorption", "adsorption_000");
-				jpp.remove("adsorption");
-			}
-
-			// Replicate "adsorption_000"
-			std::ostringstream ss;
-			for (unsigned int i = 1; i < nTypes; ++i)
-			{
-				ss.str("");
-				ss << "adsorption_" << std::setfill('0') << std::setw(3) << i;
-				jpp.copy("adsorption_000", ss.str());
-			}
-			return;
-		}
-
 		for (int type = 1; type < nTypes; type++)
 		{
 			jpp.copy("particle_type_000", "particle_type_" + std::string(3 - std::to_string(type).length(), '0') + std::to_string(type));

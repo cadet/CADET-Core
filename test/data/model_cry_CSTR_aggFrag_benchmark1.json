@@ -425,7 +425,6 @@
             }
         },
         "unit_001": {
-            "ADSORPTION_MODEL": "NONE",
             "CONST_SOLID_VOLUME": 0.0,
             "INIT_C": [
                 1.5340673022506102e-09,
