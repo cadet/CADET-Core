@@ -55,4 +55,7 @@ Alternatively, the liquid volume can be prescribed as constant.
 It is then given directly, together with the total porosity :math:`\varepsilon_t = V^{\ell} / (V^{\ell} + V^{s})`, instead of being initialized and evolved, and the solid volume follows as :math:`V^{s} = V^{\ell} (1 - \varepsilon_t) / \varepsilon_t`.
 Since the volume equation above still has to hold, this requires the flow rates to cancel, that is :math:`F_{\text{in}} = F_{\text{out}} + F_{\text{filter}}` in every section.
 
+The particles of a CSTR are in rapid equilibrium with the bulk liquid, that is, they have no pores and film diffusion is not limiting.
+A well mixed vessel whose particles have a film diffusion resistance is described by the :ref:`finite_bath_model` instead.
+
 See :ref:`cstr_config`.

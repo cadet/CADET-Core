@@ -15,6 +15,7 @@ Unit Operations
     smoothly_varying_column_1D_config
     axial_flow_column_2D_config
     cstr
+    finite_bath
     multi_channel_transport_model
     ../population_balance_model
 

@@ -51,6 +51,12 @@ is given in :numref:`table_features_unit_operations`.
      - ×
      - ×
      - ✓
+   * - :ref:`finite_bath_model`
+     - ×
+     - ✓
+     - ✓
+     - ✓
+     - ✓
    * - :ref:`multi_channel_transport_model_model`
      - ×
      - ×
@@ -79,5 +85,6 @@ We further note that column geometry variants, specifically axial-flow, radial-f
     2d_general_rate_model
     multi_channel_transport_model
     cstr
+    finite_bath
     inlet
     outlet
