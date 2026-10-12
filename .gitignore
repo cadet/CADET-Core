@@ -92,6 +92,8 @@ install
 vcpkg_installed
 
 # Ignore AI folders
+_CLAUDE
+_CLAUDE/
 .claude
 .claude/
 .cursor/
