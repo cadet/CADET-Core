@@ -49,9 +49,9 @@ private:
 };
 
 
-HDF5Reader::HDF5Reader() { }
+inline HDF5Reader::HDF5Reader() { }
 
-HDF5Reader::~HDF5Reader() CADET_NOEXCEPT { }
+inline HDF5Reader::~HDF5Reader() CADET_NOEXCEPT { }
 
 
 // ============================================================================================================
@@ -59,27 +59,27 @@ HDF5Reader::~HDF5Reader() CADET_NOEXCEPT { }
 // ============================================================================================================
 // Double specialization of vector()
 template <>
-std::vector<double> HDF5Reader::vector<double>(const std::string& dataSetName)
+inline std::vector<double> HDF5Reader::vector<double>(const std::string& dataSetName)
 {
 	return read<double>(dataSetName, H5T_NATIVE_DOUBLE);
 }
 
 // Integer specializations of vector()
 template <>
-std::vector<int> HDF5Reader::vector<int>(const std::string& dataSetName)
+inline std::vector<int> HDF5Reader::vector<int>(const std::string& dataSetName)
 {
 	return read<int>(dataSetName, H5T_NATIVE_INT);
 }
 
 template <>
-std::vector<uint64_t> HDF5Reader::vector<uint64_t>(const std::string& dataSetName)
+inline std::vector<uint64_t> HDF5Reader::vector<uint64_t>(const std::string& dataSetName)
 {
 	return read<uint64_t>(dataSetName, H5T_NATIVE_UINT64);
 }
 
 // std::string specialization of vector()
 template <>
-std::vector<std::string> HDF5Reader::vector<std::string>(const std::string& dataSetName)
+inline std::vector<std::string> HDF5Reader::vector<std::string>(const std::string& dataSetName)
 {
 	// Get the dataset we want to read from
 	openGroup();
