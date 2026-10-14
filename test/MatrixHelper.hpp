@@ -56,9 +56,9 @@ Matrix_t createBandMatrix(unsigned int rows, unsigned int lower, unsigned int up
 	double val = 1.0;
 	for (int row = 0; row < bm.rows(); ++row)
 	{
-		const int lower = std::max(-static_cast<int>(bm.lowerBandwidth()), -static_cast<int>(row));
-		const int upper = std::min(static_cast<int>(bm.upperBandwidth()), static_cast<int>(bm.rows() - row) - 1);
-		for (int col = lower; col <= upper; ++col)
+		const int low = std::max(-static_cast<int>(bm.lowerBandwidth()), -static_cast<int>(row));
+		const int up = std::min(static_cast<int>(bm.upperBandwidth()), static_cast<int>(bm.rows() - row) - 1);
+		for (int col = low; col <= up; ++col)
 		{
 			bm.centered(row, col) = val;
 			val += 1.0;
