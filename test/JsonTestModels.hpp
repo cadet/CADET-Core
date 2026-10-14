@@ -29,5 +29,6 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType, const std::string& spatialScheme);
 cadet::JsonParameterProvider createCSTR(unsigned int nComp);
 cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTime, double interval);
+nlohmann::json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(const std::string& uoType, const std::string& spatialMethod);
 
 #endif  // CADETTEST_JSONTESTMODELS_HPP_

@@ -21,7 +21,8 @@
 #include "model/UnitOperationBase.hpp"
 #include "cadet/StrongTypes.hpp"
 #include "cadet/SolutionExporter.hpp"
-#include "model/parts/TwoDimensionalConvectionDispersionOperator.hpp"
+#include "model/parts/TwoDimensionalConvectionDispersionOperatorFV.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/SparseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
@@ -276,8 +277,8 @@ protected:
 	Discretization _disc; //!< Discretization info
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
-	parts::TwoDimensionalConvectionDispersionOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
-	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
+	parts::TwoDimensionalConvectionDispersionOperatorFV _convDispOp; //!< Convection dispersion operator for interstitial volume transport
+	ReactionSystem _reaction; //!< Reaction system for bulk
 
 	linalg::BandMatrix* _jacP; //!< Particle jacobian diagonal blocks (all of them)
 	linalg::FactorizableBandMatrix* _jacPdisc; //!< Particle jacobian diagonal blocks (all of them) with time derivatives from BDF method
@@ -331,8 +332,8 @@ protected:
 	bool _singleRadiusInitC;
 	std::vector<active> _initCp; //!< Liquid particle phase initial conditions
 	bool _singleRadiusInitCp;
-	std::vector<active> _initQ; //!< Solid phase initial conditions
-	bool _singleRadiusInitQ;
+	std::vector<active> _initCs; //!< Solid phase initial conditions
+	bool _singleRadiusInitCs;
 	std::vector<double> _initState; //!< Initial conditions for state vector if given
 	std::vector<double> _initStateDot; //!< Initial conditions for time derivative
 
@@ -413,8 +414,9 @@ protected:
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return true; }
 		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound[_disc.nParType] > 0; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
-		virtual bool isParticleLumped() const CADET_NOEXCEPT { return false; }
+		virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return false; }
 		virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return true; }
+		virtual bool discHasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
 		virtual unsigned int numPrimaryCoordinates() const CADET_NOEXCEPT { return _disc.nCol; }
@@ -424,6 +426,7 @@ protected:
 		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return _disc.nParType; }
 		virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return _disc.nParCell[parType]; }
 		virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound[parType]; }
+		virtual unsigned int numBoundStates(unsigned int parType, unsigned int comp) const CADET_NOEXCEPT { return _disc.nBound[parType * _disc.nComp + comp]; }
 		virtual unsigned int numMobilePhaseDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol * _disc.nRad; }
 		virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _disc.nCol * _disc.nRad * _disc.nParCell[parType] * _disc.nComp; }
 		virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT
@@ -456,6 +459,7 @@ protected:
 		virtual int writeInlet(double* buffer) const;
 		virtual int writeOutlet(unsigned int port, double* buffer) const;
 		virtual int writeOutlet(double* buffer) const;
+		virtual int writeSmoothnessIndicator(double* buffer) const { return _model._convDispOp.writeSmoothnessIndicator(buffer); }
 
 		virtual int writePrimaryCoordinates(double* coords) const
 		{

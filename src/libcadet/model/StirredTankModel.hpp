@@ -23,6 +23,7 @@
 #include "AutoDiff.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "model/ModelUtils.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 #include "Memory.hpp"
 
 #include <array>
@@ -175,7 +176,7 @@ protected:
 	std::vector<active> _initConditions; //!< Initial conditions, ordering: Liquid phase concentration, solid phase concentration, liquid volume
 	std::vector<double> _initConditionsDot; //!< Initial conditions for time derivative
 
-	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
+	ReactionSystem _reactionSystemBulk; //!< Reaction system for bulk reactions
 
 	class Exporter : public ISolutionExporter
 	{
@@ -188,8 +189,9 @@ protected:
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return false; }
 		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _totalBound > 0; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return true; }
-		virtual bool isParticleLumped() const CADET_NOEXCEPT { return true; }
+		virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return true; }
 		virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return false; }
+		virtual bool discHasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
 		virtual unsigned int numPrimaryCoordinates() const CADET_NOEXCEPT { return 1; }
@@ -199,6 +201,7 @@ protected:
 		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return _nParType; }
 		virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return _strideBound[parType]; }
+		virtual unsigned int numBoundStates(unsigned int parType, unsigned int comp) const CADET_NOEXCEPT { return _nBound[parType * _nComp + comp]; }
 		virtual unsigned int numMobilePhaseDofs() const CADET_NOEXCEPT { return _nComp; }
 		virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return 0; }
@@ -219,6 +222,7 @@ protected:
 		virtual int writeInlet(double* buffer) const;
 		virtual int writeOutlet(unsigned int port, double* buffer) const;
 		virtual int writeOutlet(double* buffer) const;
+		virtual int writeSmoothnessIndicator(double* buffer) const { return 0; }
 
 		virtual double const* solidPhase(unsigned int parType) const { return _data + 2 * _nComp; }
 

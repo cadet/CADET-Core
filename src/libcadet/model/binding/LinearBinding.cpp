@@ -134,8 +134,7 @@ public:
 	/**
 	 * @brief Updates the parameter cache in order to take the external profile into account
 	 * @param [in] t Current time
-	 * @param [in] z Axial coordinate in the column
-	 * @param [in] r Radial coordinate in the bead
+	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
 	 * @param [in] secIdx Index of the current section
 	 * @param [in] nComp Number of components
 	 * @param [in] nBoundStates Array with number of bound states for each component
@@ -150,8 +149,7 @@ public:
 	/**
 	 * @brief Calculates time derivative in case of external dependence
 	 * @param [in] t Current time
-	 * @param [in] z Axial coordinate in the column
-	 * @param [in] r Radial coordinate in the bead
+	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
 	 * @param [in] secIdx Index of the current section
 	 * @param [in] nComp Number of components
 	 * @param [in] nBoundStates Array with number of bound states for each component
@@ -267,8 +265,7 @@ public:
 	 * @brief Updates the parameter cache in order to take the external profile into account
 	 * @details The data and the returned value are constructed in the given @p workSpace memory buffer.
 	 * @param [in] t Current time
-	 * @param [in] z Axial coordinate in the column
-	 * @param [in] r Radial coordinate in the bead
+	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
 	 * @param [in] secIdx Index of the current section
 	 * @param [in] nComp Number of components
 	 * @param [in] nBoundStates Array with number of bound states for each component
@@ -298,8 +295,7 @@ public:
 	 * @brief Calculates time derivative in case of external dependence
 	 * @details The time derivatives are constructed in the given @p workSpace memory buffer.
 	 * @param [in] t Current time
-	 * @param [in] z Axial coordinate in the column
-	 * @param [in] r Radial coordinate in the bead
+	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
 	 * @param [in] secIdx Index of the current section
 	 * @param [in] nComp Number of components
 	 * @param [in] nBoundStates Array with number of bound states for each component
@@ -458,7 +454,7 @@ public:
 		for (int c = 0; c < _nComp; ++c)
 		{
 			for (unsigned int bp = 0; bp < _nBoundStates[c]; ++bp, ++ctr)
-				params[ctr] = makeParamId(hashString("INIT_Q"), unitOpIdx, c, parTypeIdx, bp, ReactionIndep, SectionIndep);
+				params[ctr] = makeParamId(hashString("INIT_CS"), unitOpIdx, c, parTypeIdx, bp, ReactionIndep, SectionIndep);
 		}
 	}
 
@@ -555,12 +551,10 @@ public:
 		jacobianImpl(t, secIdx, colPos, y, offsetCp, jac, workSpace);
 	}
 
-#ifdef ENABLE_DG
 	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const
 	{
 		jacobianImpl(t, secIdx, colPos, y, offsetCp, jac, workSpace);
 	}
-#endif
 
 	virtual void timeDerivativeQuasiStationaryFluxes(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yCp, double const* y, double* dResDt, LinearBufferAllocator workSpace) const
 	{

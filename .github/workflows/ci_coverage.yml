@@ -1,0 +1,202 @@
+name: CI_coverage
+
+on:
+  push:
+    paths-ignore:
+      - 'doc/**'
+      - 'doc/ISSUE_TEMPLATE'
+      - 'doc/PULL_REQUEST_TEMPLATE'
+      - '.zenodo.json'
+      - 'AUTHORS.md'
+      - 'BUILD-LINUX.md'
+      - 'BUILD-WINDOWS.md'
+      - 'BUILD-OSX.md'
+      - 'CITATION.bib'
+      - 'CLA.md'
+      - 'CODE_OF_CONDUCT.md'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE.txt'
+      - 'README.rst'
+      - 'SECURITY.md'
+      - 'ThirdParty-LICENSES.txt'
+      - 'version.txt'
+    branches:
+      - master
+      - dev
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - 'doc/**'
+      - 'doc/ISSUE_TEMPLATE'
+      - 'doc/PULL_REQUEST_TEMPLATE'
+      - '.zenodo.json'
+      - 'AUTHORS.md'
+      - 'BUILD-LINUX.md'
+      - 'BUILD-WINDOWS.md'
+      - 'BUILD-OSX.md'
+      - 'CITATION.bib'
+      - 'CLA.md'
+      - 'CODE_OF_CONDUCT.md'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE.txt'
+      - 'README.rst'
+      - 'SECURITY.md'
+      - 'ThirdParty-LICENSES.txt'
+      - 'version.txt'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Commit hash, branch name, or tag to run the coverage pipeline for'
+        required: false
+        default: 'master'
+        type: string
+
+jobs:
+
+  coverage:
+    if: github.event.pull_request == null || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      SRC_DIR: ${{ github.workspace }}
+      BUILD_DIR: ${{ github.workspace }}/build
+      INSTALL_PREFIX: ${{ github.workspace }}/install
+      BUILD_TYPE: RelWithDebInfo 
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Install GCC-14
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-14 g++-14
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 60
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 60
+          gcc --version
+          g++ --version
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get install -y \
+            build-essential \
+            libhdf5-dev \
+            liblapack-dev \
+            libblas-dev \
+            libtbb-dev \
+            libsuperlu-dev \
+            python3-pip;
+
+          pip3 install --upgrade gcovr
+
+      - name: Build Eigen
+        run: |
+          git clone https://gitlab.com/libeigen/eigen.git
+          cd eigen
+          git fetch origin
+          git checkout --detach origin/5.0
+          cmake -S . -B build \
+            -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+            -DEIGEN_BUILD_BLAS=OFF \
+            -DEIGEN_BUILD_LAPACK=OFF \
+            -DBUILD_TESTING=OFF
+          cmake --install build
+      - name: Build and Install
+        id: build
+        run: |
+          cmake -E make_directory "${BUILD_DIR}"
+          cmake -E make_directory "${INSTALL_PREFIX}"
+          cd "${BUILD_DIR}"
+          cmake \
+            -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+            -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+            -DEIGEN3_DIR="${INSTALL_PREFIX}/eigen" \
+            "${SRC_DIR}" \
+            -DENABLE_TESTS=ON \
+            -DNUM_MAX_AD_DIRS=160 \
+            -DCODE_COVERAGE=ON
+          make install -j$(nproc)
+      - name: Check executable
+        if: always() && steps.build.conclusion == 'success'
+        run: |
+          set -e
+          export LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib:$LD_LIBRARY_PATH
+          ${INSTALL_PREFIX}/bin/cadet-cli --version
+          ${INSTALL_PREFIX}/bin/createLWE
+          ${INSTALL_PREFIX}/bin/cadet-cli LWE.h5
+      - name: Run CI test set I - bindings
+        if: always() && steps.build.conclusion == 'success'
+        run: |
+          ${BUILD_DIR}/test/testRunner [CI_binding]
+      - name: Run CI test set II - sensitivities
+        if: always() && steps.build.conclusion == 'success'
+        run: |
+          failed=0
+          failed_tests=()
+          for i in {1..24}; do
+            if ! ${BUILD_DIR}/test/testRunner "[CI_sens${i}]"; then
+              echo -e "::error::Test [CI_sens${i}] failed\n"
+
+              failed=1
+              failed_tests+=("[CI_sens${i}]")
+            fi
+          done
+          if [ $failed -ne 0 ]; then
+            echo "Failed tests: ${failed_tests[*]}"
+          fi
+          exit $failed
+      - name: Run CI test set III - crystallization
+        if: always() && steps.build.conclusion == 'success'
+        run: |
+          failed=0
+          failed_tests=()
+          for i in {1..20}; do
+            if ! ${BUILD_DIR}/test/testRunner "[CI_cry${i}]"; then
+              echo -e "::error::Test [CI_cry${i}] failed\n"
+
+              failed=1
+              failed_tests+=("[CI_cry${i}]")
+            fi
+          done
+          if [ $failed -ne 0 ]; then
+            echo "Failed tests: ${failed_tests[*]}"
+          fi
+
+          exit $failed
+      - name: Run CI test set IV - callbacks
+        if: always() && steps.build.conclusion == 'success'
+        run: |
+          ${BUILD_DIR}/test/testRunner [CI_callback]
+      - name: Run CI test set V
+        if: always() && steps.build.conclusion == 'success'
+        run: |
+          ${BUILD_DIR}/test/testRunner [CI]
+      - name: Run CI test set VI - CAPI
+        if: always() && steps.build.conclusion == 'success'
+        run: |
+          ${BUILD_DIR}/test/testCAPIv1
+
+      - name: Generate Coverage Report
+        run: |
+          gcovr \
+            --root "${{ github.workspace }}" \
+            --filter "${{ github.workspace }}/(src|include|build/src)" \
+            --exclude-directories '.*ThirdParty.*' \
+            --gcov-ignore-parse-errors=suspicious_hits.warn_once_per_file \
+            --cobertura -o coverage.xml \
+            --gcov-executable gcov-14 \
+            --txt=-
+      
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: cadet/CADET-Core
+          files: coverage.xml
+          fail_ci_if_error : true
+

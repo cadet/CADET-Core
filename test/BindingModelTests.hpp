@@ -137,6 +137,20 @@ namespace binding
 	void testJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, bool isKinetic, const char* config, double const* point, bool skipStructureTest = false, double FDsignAbsTol = 0.0, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
 
 	/**
+	 * @brief Tests analytic Jacobian against finite differences
+	 * @param [in] modelName Name of the binding model
+	 * @param [in] nComp Number of components
+	 * @param [in] nBound Array with number of bound states for each component
+	 * @param [in] isKinetic Determines whether quasi-stationary or dynamic binding is used
+	 * @param [in] config Model configuration
+	 * @param [in] point Pointer to state vector with which the test is performed
+	 * @param [in] h Step size for finite differences
+	 * @param [in] absTol Absolute error tolerance
+	 * @param [in] relTol Relative error tolerance
+	 */
+	void testJacobianFD(const char* modelName, unsigned int nComp, unsigned int const* nBound, bool isKinetic, const char* config, double const* point, double h = 1e-12, double absTol = 1e-12, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
+
+	/**
 	 * @brief Checks residual and analytic Jacobian of normal model variant against externally dependent ones
 	 * @param [in] modelName Name of the binding model
 	 * @param [in] modelNameExt Name of the externally dependent binding model variant

@@ -11,7 +11,7 @@
 # =============================================================================
  
 # Require a fairly new cmake version
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.14)
 
 # Prohibit in-source build
 set(CMAKE_DISABLE_SOURCE_CHANGES ON)
@@ -28,7 +28,7 @@ find_package(Git)
 # Write the current version number to variable
 if (GIT_FOUND)
 	if (EXISTS "${CMAKE_SOURCE_DIR}/.git")
-		execute_process(COMMAND ${GIT_EXECUTABLE} describe --abbrev=0 HEAD
+		execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --abbrev=0 HEAD
 		                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 		                OUTPUT_VARIABLE CADET_VERSION
 		                OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -63,9 +63,12 @@ if (NOT DEFINED GIT_SHA1)
 endif()
 message(STATUS "Current git HEAD: ${GIT_REFSPEC} SHA1 ${GIT_SHA1}")
 
+# Remove pre-release suffix (cmake does not accept hyphen) to name the project
+string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" CADET_VERSION_NUM "${CADET_VERSION}")
+
 # Name of the current project
 project(CadetFramework
-	VERSION ${CADET_VERSION}
+	VERSION ${CADET_VERSION_NUM}
 	DESCRIPTION "Liquid column chromatography simulator"
 	HOMEPAGE_URL "https://github.com/cadet/cadet-core"
 	LANGUAGES CXX C)
@@ -117,9 +120,6 @@ add_feature_info(ENABLE_DEBUG_THREADING ENABLE_DEBUG_THREADING "Use multi-thread
 option(ENABLE_2D_MODELS "Build 2D models (e.g., 2D general rate model, multichannel transport)" ON)
 add_feature_info(ENABLE_2D_MODELS ENABLE_2D_MODELS "Build 2D models (e.g., 2D general rate model, multichannel transport)")
 
-option(ENABLE_DG "Build DG variants of models" ON)
-add_feature_info(ENABLE_DG ENABLE_DG "Build DG variants of models")
-
 option(ENABLE_SUNDIALS_OPENMP "Prefer OpenMP vector implementation of SUNDIALS if available (for large problems)" OFF)
 add_feature_info(ENABLE_SUNDIALS_OPENMP ENABLE_SUNDIALS_OPENMP "Prefer OpenMP vector implementation of SUNDIALS if available (for large problems)")
 
@@ -140,8 +140,8 @@ add_feature_info(ENABLE_CADET_TOOLS ENABLE_CADET_TOOLS "Build CADET tools")
 option(ENABLE_TESTS "Build CADET tests" OFF)
 add_feature_info(ENABLE_TESTS ENABLE_TESTS "Build CADET tests")
 
-option(ENABLE_PACKAGED_SUNDIALS "Use packaged SUNDIALS code" ON)
-add_feature_info(ENABLE_PACKAGED_SUNDIALS ENABLE_PACKAGED_SUNDIALS "Use packaged SUNDIALS code")
+option(ENABLE_CADETTEST_LOGGING "Enable logging for CadetTest" OFF)
+add_feature_info(ENABLE_CADETTEST_LOGGING ENABLE_CADETTEST_LOGGING "Enables logging in Testsets")
 
 option(ENABLE_IPO "Enable interprocedural optimization if compiler supports it" ${DEFAULT_IPO_ENABLED})
 add_feature_info(ENABLE_IPO ENABLE_IPO "Enable interprocedural optimization if compiler supports it")
@@ -166,10 +166,14 @@ add_feature_info(CMAKE_INSTALL_RPATH_USE_LINK_PATH CMAKE_INSTALL_RPATH_USE_LINK_
 
 option(CODE_COVERAGE "Enable coverage reporting" OFF)
 
+option(ENABLE_TEST_RADIAL "Build TimeIntegrator and radial tests" OFF)
+add_feature_info(ENABLE_TEST_RADIAL ENABLE_TEST_RADIAL "Build TimeIntegrator and radial tests")
+
+
 if(CODE_COVERAGE)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         message(STATUS "Enabling coverage flags")
-        add_compile_options(-g --coverage)
+        add_compile_options(-g --coverage -O1 -fprofile-abs-path)
         add_link_options(--coverage)
     else()
         message(WARNING "Coverage only supported with GCC/Clang")
@@ -199,7 +203,44 @@ set(TBB_TARGET "")
 if (ENABLE_THREADING)
 	set(TBB_PREFER_STATIC_LIBS ${ENABLE_STATIC_LINK_DEPS})
 	set(TBB_USE_DEBUG_BUILD OFF)
-	find_package(TBB COMPONENTS tbb OPTIONAL_COMPONENTS tbb_preview)
+	# Prefer modern config package (conda-forge, oneAPI, vcpkg, system installs)
+	find_package(TBB CONFIG QUIET COMPONENTS tbb OPTIONAL_COMPONENTS tbb_preview)
+	# Fallback to legacy FindTBB.cmake
+	if(NOT TBB_FOUND)
+		find_package(TBB COMPONENTS tbb OPTIONAL_COMPONENTS tbb_preview)
+	endif()
+	
+	# Detect TBB_INTERFACE_VERSION for modern TBB CONFIG mode
+	if (TBB_FOUND AND NOT DEFINED TBB_INTERFACE_VERSION)
+		# Get include directory from target
+		if(TARGET TBB::tbb)
+			get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+		elseif(TARGET TBB::tbb_preview)
+			get_target_property(TBB_INCLUDE_DIRS TBB::tbb_preview INTERFACE_INCLUDE_DIRECTORIES)
+		endif()
+		
+		if (TBB_INCLUDE_DIRS)
+			list(GET TBB_INCLUDE_DIRS 0 TBB_INCLUDE_DIR)
+			
+			if (EXISTS "${TBB_INCLUDE_DIR}/oneapi/tbb/version.h")
+				file(READ "${TBB_INCLUDE_DIR}/oneapi/tbb/version.h" _tbb_version_file)
+			elseif (EXISTS "${TBB_INCLUDE_DIR}/tbb/tbb_stddef.h")
+				file(READ "${TBB_INCLUDE_DIR}/tbb/tbb_stddef.h" _tbb_version_file)
+			endif()
+			
+			if (_tbb_version_file)
+				string(REGEX REPLACE ".*#define TBB_VERSION_MAJOR ([0-9]+).*" "\\1"
+					TBB_VERSION_MAJOR "${_tbb_version_file}")
+				string(REGEX REPLACE ".*#define TBB_VERSION_MINOR ([0-9]+).*" "\\1"
+					TBB_VERSION_MINOR "${_tbb_version_file}")
+				string(REGEX REPLACE ".*#define TBB_INTERFACE_VERSION ([0-9]+).*" "\\1"
+					TBB_INTERFACE_VERSION "${_tbb_version_file}")
+				
+				message(STATUS "Detected TBB interface version: ${TBB_INTERFACE_VERSION}")
+			endif()
+		endif()
+	endif()
+	
 	set_package_properties(TBB PROPERTIES
 		TYPE RECOMMENDED
 		PURPOSE "Accelerates computation via multi-threading"
@@ -208,8 +249,12 @@ if (ENABLE_THREADING)
 	set(CADET_PARALLEL_FLAG "")
 	if (TBB_FOUND)
 		# Use tbb_preview instead of tbb if it has been found
-		if (TBB_tbb_preview_FOUND)
+		if(TARGET TBB::tbb_preview)
+			set(TBB_TARGET "TBB::tbb_preview")
+		elseif(TARGET TBB::TBBpreview)
 			set(TBB_TARGET "TBB::TBBpreview")
+		elseif(TARGET TBB::tbb)
+			set(TBB_TARGET "TBB::tbb")
 		else()
 			set(TBB_TARGET "TBB::TBB")
 		endif()
@@ -222,30 +267,16 @@ if (ENABLE_THREADING)
 			set(CADET_PARALLEL_FLAG "CADET_PARALLELIZE")
 		endif()
 
-		get_target_property(TBB_IFACE_COMP_DEF ${TBB_TARGET} INTERFACE_COMPILE_DEFINITIONS)
-		if (TBB_IFACE_COMP_DEF)
-			list(APPEND TBB_IFACE_COMP_DEF ${CADET_PARALLEL_FLAG})
-		else()
-			set(TBB_IFACE_COMP_DEF ${CADET_PARALLEL_FLAG})
+		# Set compile definitions using modern CMake approach
+		if (CADET_PARALLEL_FLAG)
+			target_compile_definitions(${TBB_TARGET} INTERFACE ${CADET_PARALLEL_FLAG})
 		endif()
-		if (TBB_IFACE_COMP_DEF)
-			set_target_properties(${TBB_TARGET} PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${TBB_IFACE_COMP_DEF}")
-		endif()
-		unset(TBB_IFACE_COMP_DEF)
 
 		if (TBB_INTERFACE_VERSION GREATER_EQUAL 11004)
-			# Use global_control instead of task_scheduler_init
-			get_target_property(TBB_IFACE_COMP_DEF ${TBB_TARGET} INTERFACE_COMPILE_DEFINITIONS)
-			set_target_properties(${TBB_TARGET} PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${TBB_IFACE_COMP_DEF}")
-			if (TBB_IFACE_COMP_DEF)
-				list(APPEND TBB_IFACE_COMP_DEF "CADET_TBB_GLOBALCTRL")
-			else()
-				set(TBB_IFACE_COMP_DEF "CADET_TBB_GLOBALCTRL")
-			endif()
-			if (TBB_IFACE_COMP_DEF)
-				set_target_properties(${TBB_TARGET} PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${TBB_IFACE_COMP_DEF}")
-			endif()
-			unset(TBB_IFACE_COMP_DEF)
+			message(STATUS "Using TBB global_control (TBB_INTERFACE_VERSION=${TBB_INTERFACE_VERSION} >= 11004)")
+			target_compile_definitions(${TBB_TARGET} INTERFACE CADET_TBB_GLOBALCTRL)
+		else()
+			message(STATUS "Using TBB task_scheduler_init (TBB_INTERFACE_VERSION=${TBB_INTERFACE_VERSION} < 11004)")
 		endif()
 	endif()
 endif()
@@ -256,58 +287,86 @@ set_package_properties(LAPACK PROPERTIES
 	TYPE RECOMMENDED
 	PURPOSE "Solution of dense linear systems"
 )
+	
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
-if (NOT ENABLE_PACKAGED_SUNDIALS)
-	# SUNDIALS_ROOT environment variable can be used to find SUNDIALS package
-	set(SUNDIALS_PREFER_STATIC_LIBRARIES ${ENABLE_STATIC_LINK_DEPS})
-	find_package(SUNDIALS REQUIRED COMPONENTS sundials_idas sundials_nvecserial OPTIONAL_COMPONENTS sundials_nvecopenmp)
-	set_package_properties(SUNDIALS PROPERTIES
-		TYPE REQUIRED
-		PURPOSE "Time integration"
-	)
-
-	# Check whether OpenMP is available in SUNDIAL'S NVECTOR module
-	set(SUNDIALS_NVEC_TARGET "SUNDIALS::sundials_nvecserial")
-	if (SUNDIALS_sundials_nvecopenmp_LIBRARY AND ENABLE_SUNDIALS_OPENMP)
-		# Prefer OpenMP over serial version
-		set(SUNDIALS_NVEC_TARGET "SUNDIALS::sundials_nvecopenmp")
-
-		get_target_property(SUNDIALS_IFACE_COMP_DEF SUNDIALS::sundials_nvecopenmp INTERFACE_COMPILE_DEFINITIONS)
-		if (SUNDIALS_IFACE_COMP_DEF)
-			list(APPEND SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_OPENMP")
-		else()
-			set(SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_OPENMP")
-		endif()
-		set_target_properties(SUNDIALS::sundials_nvecopenmp PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${SUNDIALS_IFACE_COMP_DEF}")
-		unset(SUNDIALS_IFACE_COMP_DEF)
-	endif()
-
-	# Determine SUNDIALS interface version
-	if (SUNDIALS_FOUND)
-		get_target_property(SUNDIALS_IFACE_COMP_DEF SUNDIALS::sundials_idas INTERFACE_COMPILE_DEFINITIONS)
-		if (SUNDIALS_IFACE_COMP_DEF)
-			list(APPEND SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_IFACE=${SUNDIALS_VERSION_MAJOR}")
-		else()
-			set(SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_IFACE=${SUNDIALS_VERSION_MAJOR}")
-		endif()
-		set_target_properties(SUNDIALS::sundials_idas PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${SUNDIALS_IFACE_COMP_DEF}")
-		unset(SUNDIALS_IFACE_COMP_DEF)
-	endif()
-else()
-	set(SUNDIALS_FOUND TRUE)
-	set(SUNDIALS_VERSION "3.2.1")
-	set(SUNDIALS_NVEC_TARGET "SUNDIALS::sundials_nvecserial")
-	add_subdirectory(ThirdParty/sundials)
-
-	add_library(SUNDIALS::sundials_idas INTERFACE IMPORTED)
-	target_link_libraries(SUNDIALS::sundials_idas INTERFACE sundials_idas_static)
-	target_include_directories(SUNDIALS::sundials_idas INTERFACE ThirdParty/sundials/include ThirdParty/sundials/src "${CMAKE_BINARY_DIR}/ThirdParty/sundials/include")
-	set_target_properties(SUNDIALS::sundials_idas PROPERTIES INTERFACE_COMPILE_DEFINITIONS "CADET_SUNDIALS_IFACE=3")
-
-	add_library(SUNDIALS::sundials_nvecserial INTERFACE IMPORTED)
-	target_include_directories(SUNDIALS::sundials_nvecserial INTERFACE ThirdParty/sundials/include "${CMAKE_BINARY_DIR}/ThirdParty/sundials/include")
-	target_link_libraries(SUNDIALS::sundials_nvecserial INTERFACE sundials_nvecserial_static)
+if(NOT ENABLE_TESTS)
+    set(SUNDIALS_LOGGING_LEVEL 0)
 endif()
+
+
+find_package(SUNDIALS 7.0.0 QUIET)
+
+if(NOT SUNDIALS_FOUND)
+	message(STATUS "SUNDIALS not found, try downloading via FetchContent.")
+	include(FetchContent)
+	set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
+
+	# SUNDIALS-spezifische Optionen
+
+	set(BUILD_ARKODE OFF)
+	set(BUILD_CVODE OFF)
+	set(BUILD_CVODES OFF)
+	set(BUILD_KINSOL OFF)
+	set(EXAMPLES_ENABLE_C OFF CACHE BOOL "" FORCE)
+	set(EXAMPLES_ENABLE_CXX OFF CACHE BOOL "" FORCE)
+	set(EXAMPLES_ENABLE OFF CACHE BOOL "" FORCE)
+ 
+	if(GIT_FOUND)
+		FetchContent_Declare(
+			sundials
+			GIT_REPOSITORY https://github.com/LLNL/sundials.git
+			GIT_TAG        v7.6.0
+		)
+	else()
+		message(STATUS "Git not found, loading directly via URL")
+		FetchContent_Declare(
+			sundials
+			URL https://github.com/LLNL/sundials/archive/refs/tags/v7.6.0.tar.gz
+			DOWNLOAD_EXTRACT_TIMESTAMP FALSE
+		)
+	endif()
+    
+	FetchContent_MakeAvailable(sundials)
+	set(SUNDIALS_FOUND TRUE)
+	set(SUNDIALS_VERSION "7.6.0")
+endif()
+# SUNDIALS_ROOT environment variable can be used to find SUNDIALS package
+set(SUNDIALS_PREFER_STATIC_LIBRARIES ${ENABLE_STATIC_LINK_DEPS})
+	
+
+# Check whether OpenMP is available in SUNDIAL'S NVECTOR module
+set(SUNDIALS_NVEC_TARGET "SUNDIALS::sundials_nvecserial")
+if (SUNDIALS_sundials_nvecopenmp_LIBRARY AND ENABLE_SUNDIALS_OPENMP)
+	# Prefer OpenMP over serial version
+	set(SUNDIALS_NVEC_TARGET "SUNDIALS::sundials_nvecopenmp")
+
+	get_target_property(SUNDIALS_IFACE_COMP_DEF SUNDIALS::sundials_nvecopenmp INTERFACE_COMPILE_DEFINITIONS)
+	if (SUNDIALS_IFACE_COMP_DEF)
+		list(APPEND SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_OPENMP")
+	else()
+		set(SUNDIALS_IFACE_COMP_DEF "CADET_SUNDIALS_OPENMP")
+	endif()
+	set_target_properties(SUNDIALS::sundials_nvecopenmp PROPERTIES INTERFACE_COMPILE_DEFINITIONS "${SUNDIALS_IFACE_COMP_DEF}")
+	unset(SUNDIALS_IFACE_COMP_DEF)
+endif()
+
+if(NOT TARGET SUNDIALS::sundials_idas)
+	add_library(SUNDIALS::sundials_idas INTERFACE IMPORTED)
+	target_link_libraries(SUNDIALS::sundials_idas INTERFACE SUNDIALS::idas)
+endif()
+
+if(NOT TARGET SUNDIALS::sundials_nvecserial)
+	add_library(SUNDIALS::sundials_nvecserial INTERFACE IMPORTED)
+	target_link_libraries(SUNDIALS::sundials_nvecserial INTERFACE SUNDIALS::nvecserial)
+endif()
+
+if(NOT TARGET SUNDIALS::sundials_core)
+	add_library(SUNDIALS::sundials_core INTERFACE IMPORTED)
+	target_link_libraries(SUNDIALS::sundials_core INTERFACE SUNDIALS::core)
+endif()
+
+
 
 if (ENABLE_CADET_TOOLS OR ENABLE_CADET_CLI)
 	set(HDF5_USE_STATIC_LIBRARIES ${ENABLE_STATIC_LINK_DEPS})
@@ -424,18 +483,9 @@ if (ENABLE_2D_MODELS)
 	)
 endif()
 
-set(EIGEN_TARGET "")
-if (ENABLE_DG)
-	find_package(Eigen3 3.4 REQUIRED NO_MODULE)
+find_package(Eigen3 REQUIRED NO_MODULE)
+set(EIGEN_TARGET "Eigen3::Eigen")
 
-	# Disable DG if Eigen is not present
-	if (NOT TARGET Eigen3::Eigen)
-		message(STATUS "Disabling DG support because Eigen3 could not be found")
-		set(ENABLE_DG OFF)
-	else()
-		set(EIGEN_TARGET "Eigen3::Eigen")
-	endif()
-endif()
 
 set(IPO_AVAILABLE OFF)
 if (ENABLE_IPO)
@@ -478,6 +528,10 @@ else()
 	target_compile_definitions(CADET::CompileOptions INTERFACE CADET_LOGLEVEL_MIN=Warning NDEBUG)
 endif()
 
+if(ENABLE_CADETTEST_LOGGING)
+    target_compile_definitions(CADET::CompileOptions INTERFACE ENABLE_CADETTEST_LOGGING)
+endif()
+
 if (ENABLE_BENCHMARK)
 	target_compile_definitions(CADET::CompileOptions INTERFACE CADET_BENCHMARK_MODE)
 endif()
@@ -491,9 +545,15 @@ endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 	target_compile_options(CADET::CompileOptions INTERFACE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
-		-Wall -pedantic-errors -Wextra -Wno-unused-parameter -Wno-unused-function> #-Wconversion -Wsign-conversion
+		-Wall -pedantic-errors -Wextra -Wno-unused-parameter -Wno-unused-function -Wno-sign-compare -Wno-cpp> #-Wconversion -Wsign-conversion
 	$<$<CXX_COMPILER_ID:MSVC>:
 		/W4 /wd4100 /bigobj /MP>
+)
+elseif (CMAKE_BUILD_TYPE STREQUAL "Release-strict")
+	target_compile_options(CADET::CompileOptions INTERFACE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
+		-O3 -DNDEBUG -Werror -Wall -pedantic-errors -Wextra -Wno-unused-parameter -Wno-unused-function -Wno-sign-compare -Wno-cpp>#-Wconversion -Wsign-conversion
+	$<$<CXX_COMPILER_ID:MSVC>:
+		/W4 /wd4100 /MP>
 )
 else()
 	target_compile_options(CADET::CompileOptions INTERFACE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
@@ -573,7 +633,7 @@ file(APPEND "${CMAKE_BINARY_DIR}/LICENSE.txt" "#################################
 file(READ "${CMAKE_SOURCE_DIR}/LICENSE.txt" LICENSE_TEXT)
 file(APPEND "${CMAKE_BINARY_DIR}/LICENSE.txt" "\n${LICENSE_TEXT}")
 
-file(READ "${CMAKE_SOURCE_DIR}/ThirdParty-LICENSES.txt" LICENSE_THIRDPARTY)
+file(READ "${CMAKE_SOURCE_DIR}/licenses/ThirdParty-LICENSES.txt" LICENSE_THIRDPARTY)
 file(APPEND "${CMAKE_BINARY_DIR}/LICENSE.txt" "\n\n${LICENSE_THIRDPARTY}")
 
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_BINARY_DIR}/LICENSE.txt")
@@ -635,17 +695,11 @@ if (TBB_FOUND)
 	message("  Libs ${TBB_LIBRARIES}")
 endif()
 
-if (ENABLE_PACKAGED_SUNDIALS)
+if (SUNDIALS_FOUND)
 	message("Found SUNDIALS: ${SUNDIALS_FOUND}")
 	message("  Version ${SUNDIALS_VERSION}")
-	message("  Packaged")
-else()
-	message("Found SUNDIALS: ${SUNDIALS_FOUND}")
-	if (SUNDIALS_FOUND)
-		message("  Version ${SUNDIALS_VERSION}")
-		message("  Includes ${SUNDIALS_INCLUDE_DIRS}")
-		message("  Libs ${SUNDIALS_LIBRARIES}")
-	endif()
+	message("  Includes ${SUNDIALS_SOURCE_DIR}")
+	message("  Libs ${SUNDIALS_BINARY_DIR}")
 endif()
 
 if (ENABLE_2D_MODELS)
@@ -664,12 +718,10 @@ if (ENABLE_2D_MODELS)
 	endif()
 endif()
 
-if (ENABLE_DG)
-	message("Found Eigen3: ${Eigen3_FOUND}")
-	if (TARGET Eigen3::Eigen)
-		message("  Version ${Eigen3_VERSION}")
-		message("  Includes ${Eigen3_INCLUDE_DIRS}")
-	endif()
+message("Found Eigen3: ${Eigen3_FOUND}")
+if (TARGET Eigen3::Eigen)
+	message("  Version ${Eigen3_VERSION}")
+	message("  Includes ${Eigen3_INCLUDE_DIRS}")
 endif()
 
 message("Found HDF5: ${HDF5_FOUND}")

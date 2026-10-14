@@ -26,6 +26,8 @@
 #include "cadet/cadet.hpp"
 
 #include "common/SolutionRecorderImpl.hpp"
+#include "common/MultiCallback.hpp"
+#include "common/TimeoutCallback.hpp"
 
 namespace cadet
 {
@@ -95,6 +97,11 @@ void readDataOutputConfig(ParamProvider_t& pp, StorageConfig_t& cfg, const std::
 		cfg.storeVolume = pp.getBool("WRITE_" + dataType + "_VOLUME");
 	else
 		cfg.storeVolume = false;
+
+	if (pp.exists("WRITE_" + dataType + "_SMOOTHNESS_INDICATOR"))
+		cfg.storeSmoothnessIndicator = pp.getBool("WRITE_" + dataType + "_SMOOTHNESS_INDICATOR");
+	else
+		cfg.storeSmoothnessIndicator = false;
 }
 
 template <class ParamProvider_t>
@@ -111,6 +118,12 @@ void configureSystemRecorder(cadet::InternalStorageSystemRecorder& recorder, Par
 	bool singleAsMultiPort = false;
 	if (pp.exists("SINGLE_AS_MULTI_PORT"))
 		singleAsMultiPort = pp.getBool("SINGLE_AS_MULTI_PORT");
+
+	bool writeIDASMeta = false;
+	if (pp.exists("WRITE_IDAS_META"))
+		writeIDASMeta = pp.getBool("WRITE_IDAS_META");
+
+	recorder.setStoreIDASMeta(writeIDASMeta);
 
 	recorder.deleteRecorders();
 
@@ -182,6 +195,7 @@ public:
 	Driver() : _sim(nullptr), _builder(nullptr), _storage(nullptr), _writeLastState(false), _writeLastStateSens(false)
 	{
 		_builder = cadetCreateModelBuilder();
+		_callbacks.addCallback(&_timeout);
 	}
 
 	~Driver() CADET_NOEXCEPT
@@ -236,15 +250,26 @@ public:
 			cadetDestroySimulator(_sim);
 
 		_sim = cadetCreateSimulator();
+		_sim->setNotificationCallback(&_callbacks);
 
 		// Configure main solver parameters
 		pp.pushScope("solver");
 		_sim->configure(pp);
-		
+
 		// Configure section times
 		std::vector<double> secTimes;
 		std::vector<bool> secCont;
 		extractSectionTimes(pp, secTimes, secCont);
+
+		// Set timeout if provided, otherwise keep previously set timeout
+		if (pp.exists("TIMEOUT"))
+		{
+			const double timeoutSec = pp.getDouble("TIMEOUT");
+			if (timeoutSec > 0.0)
+				_timeout.setTimeout(timeoutSec);
+			else
+				_timeout.setTimeout(-1.0);
+		}
 
 		pp.popScope(); // solver scope
 
@@ -333,8 +358,8 @@ public:
 				// Convert to ParameterIds
 				std::vector<cadet::ParameterId> sensParams;
 				sensParams.reserve(sensName.size());
-				for (std::size_t i = 0; i < sensName.size(); ++i)
-					sensParams.push_back(cadet::makeParamId(sensName[i], sensUnit[i], sensComp[i], sensParType[i], sensBoundState[i], sensReaction[i], sensSection[i]));
+				for (std::size_t sensIdx = 0; sensIdx < sensName.size(); ++sensIdx)
+					sensParams.push_back(cadet::makeParamId(sensName[sensIdx], sensUnit[sensIdx], sensComp[sensIdx], sensParType[sensIdx], sensBoundState[sensIdx], sensReaction[sensIdx], sensSection[sensIdx]));
 
 				double sensTol = 1e-05;
 				if (pp.exists("SENS_ABSTOL"))
@@ -593,7 +618,6 @@ public:
 			const std::vector<double const*> lastY = _sim->getLastSensitivities(len);
 			const std::vector<double const*> lastYdot = _sim->getLastSensitivityDerivatives(len);
 
-			std::ostringstream oss;
 			for (std::size_t i = 0; i < lastY.size(); ++i)
 			{
 				oss.str("");
@@ -624,14 +648,14 @@ public:
 
 			const int nSens = lastSens.size();
 
-			for (int i = 0; i < nSens; i++)
+			for (int sensIdx = 0; sensIdx < nSens; sensIdx++)
 			{
 				oss.str("");
-				oss << std::setfill('0') << std::setw(3) << std::setprecision(0) << i;
+				oss << std::setfill('0') << std::setw(3) << std::setprecision(0) << sensIdx;
 				writer.pushGroup("param_" + oss.str());
 				writer.pushGroup(unitID);
-				writer.template vector<double>("LAST_SENS_Y", sliceEnd - sliceStart, lastSens[i] + sliceStart);
-				writer.template vector<double>("LAST_SENS_YDOT", sliceEnd - sliceStart, lastSensdot[i] + sliceStart);
+				writer.template vector<double>("LAST_SENS_Y", sliceEnd - sliceStart, lastSens[sensIdx] + sliceStart);
+				writer.template vector<double>("LAST_SENS_YDOT", sliceEnd - sliceStart, lastSensdot[sensIdx] + sliceStart);
 				writer.popGroup();
 				writer.popGroup();
 			}
@@ -653,7 +677,7 @@ public:
 				writer.unlinkDataset("CADET_BRANCH");
 			if (writer.exists("TIME_SIM"))
 				writer.unlinkDataset("TIME_SIM");
-		}
+			}
 		else
 			writer.pushGroup("meta");
 
@@ -664,9 +688,42 @@ public:
 		writer.scalar("TIME_SIM", _sim->lastSimulationDuration());
 
 		if (!writer.exists("FILE_FORMAT"))
-			writer.scalar("FILE_FORMAT", 50000);
+			writer.scalar("FILE_FORMAT", std::string("1.1.0a3"));
 
-		writer.popGroup();
+		if (writer.exists("idas"))
+		{
+			writer.pushGroup("idas");
+
+			if (writer.exists("IDAS_NTIMESTEPS"))
+				writer.unlinkDataset("IDAS_NTIMESTEPS");
+			if (writer.exists("IDAS_NEXT_BDF_ORDER"))
+				writer.unlinkDataset("IDAS_NEXT_BDF_ORDER");
+			if (writer.exists("IDAS_NEXT_STEP_SIZE"))
+				writer.unlinkDataset("IDAS_NEXT_STEP_SIZE");
+			if (writer.exists("IDAS_NEXT_TIME_POINT"))
+				writer.unlinkDataset("IDAS_NEXT_TIME_POINT");
+			if (writer.exists("IDAS_KUMULATIVE_NTIMESTEPS"))
+				writer.unlinkDataset("IDAS_KUMULATIVE_NTIMESTEPS");
+			if (writer.exists("IDAS_N_RESIDUAL_CALLS"))
+				writer.unlinkDataset("IDAS_N_RESIDUAL_CALLS");
+			if (writer.exists("IDAS_N_LINSOLVER_SETUP_CALLS"))
+				writer.unlinkDataset("IDAS_N_LINSOLVER_SETUP_CALLS");
+			if (writer.exists("IDAS_N_LOCAL_ERROR_TEST_FAILURES"))
+				writer.unlinkDataset("IDAS_N_LOCAL_ERROR_TEST_FAILURES");
+			if (writer.exists("IDAS_BDF_ORDER"))
+				writer.unlinkDataset("IDAS_BDF_ORDER");
+			if (writer.exists("IDAS_FIRST_INTEGRATION_STEP_SIZE"))
+				writer.unlinkDataset("IDAS_FIRST_INTEGRATION_STEP_SIZE");
+			if (writer.exists("IDAS_INTEGRATION_STEP_SIZE"))
+				writer.unlinkDataset("IDAS_INTEGRATION_STEP_SIZE");
+		}
+		else
+			writer.pushGroup("idas");
+
+		_storage->writeIDASMeta(writer);
+
+		writer.popGroup(); // idas
+		writer.popGroup(); // meta
 	}
 
 	/**
@@ -735,10 +792,20 @@ public:
 	inline cadet::InternalStorageSystemRecorder* solution() CADET_NOEXCEPT { return _storage; }
 	inline cadet::InternalStorageSystemRecorder const* solution() const CADET_NOEXCEPT { return _storage; }
 
+	void clearCallbacks() CADET_NOEXCEPT {
+		_callbacks.clear();
+		_callbacks.addCallback(&_timeout);
+	}
+
+	void addCallback(cadet::INotificationCallback* cb) { _callbacks.addCallback(cb); }
+
+	void setTimeout(double seconds) { _timeout.setTimeout(seconds); }
 protected:
 	cadet::ISimulator* _sim; //!< Simulator owned by this driver
 	cadet::IModelBuilder* _builder; //!< Model builder owned by this driver
 	cadet::InternalStorageSystemRecorder* _storage; //!< Storage for results
+	cadet::MultiCallback _callbacks; //!< Callbacks considered during time integration
+	cadet::TimeoutCallback _timeout; //!< Timeout for simulations
 
 	bool _writeLastState;
 	std::vector<UnitOpIdx> _writeLastStateUnitId;

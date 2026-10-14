@@ -76,6 +76,17 @@ public:
 	 * @return @c true if time integrator should continue, otherwise @c false
 	 */
 	virtual bool timeIntegrationStep(unsigned int section, double time, double const* state, double const* stateDot, double progress) = 0;
+
+	/**
+	 * @brief Called when the time integrator performs a linear solve (e.g., in a Newton iteration)
+	 *
+	 * @param[in]  section   Index of the current time section
+	 * @param[in]  time      Current process time
+	 * @param[in]  state     Current state vector
+	 * @param[in]  stateDot  Current time derivative of the state vector
+	 * @return @c true if time integrator should continue, otherwise @c false
+	 */
+	virtual bool timeIntegrationLinearSolve(unsigned int section, double time, double const* state, double const* stateDot) = 0;
 };
 
 } // namespace cadet

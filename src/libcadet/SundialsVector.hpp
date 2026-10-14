@@ -21,6 +21,7 @@
 #define LIBCADET_SUNDIALSVECTOR_HPP_
 
 #ifdef CADET_SUNDIALS_OPENMP
+	#include <sundials/sundials_core.h>
 	#include <nvector/nvector_openmp.h>
 	#include <omp.h>
 
@@ -34,15 +35,16 @@
  	#define NVec_NewEmpty(x) N_VNewEmpty_OpenMP(x, omp_get_max_threads())
 	#define NVec_SetThreads(x, nThreads) NV_NUM_THREADS_OMP(x) = nThreads
 #else
+	#include <sundials/sundials_core.h>
 	#include <nvector/nvector_serial.h>
 
 	#define NVEC_DATA(x) NV_DATA_S(x)
 	#define NVEC_LENGTH(x) NV_LENGTH_S(x)
 
-	#define NVec_New(x) N_VNew_Serial(x)
+	#define NVec_New(x, context) N_VNew_Serial(x, context)
 	#define NVec_Destroy N_VDestroy_Serial
-	#define NVec_DestroyArray N_VDestroyVectorArray_Serial
-	#define NVec_CloneArray N_VCloneVectorArray_Serial
+	#define NVec_DestroyArray N_VDestroyVectorArray
+	#define NVec_CloneArray N_VCloneVectorArray
 	#define NVec_NewEmpty N_VNewEmpty_Serial
 	#define NVec_SetThreads(x, nThreads) 
 #endif

@@ -3,7 +3,7 @@
 Multi Component Bi-Langmuir LDF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_BILANGMUIR_LDF**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_BILANGMUIR_LDF**
 
 For information on model equations, refer to :ref:`multi_component_bi_langmuir_ldf_model`.
 

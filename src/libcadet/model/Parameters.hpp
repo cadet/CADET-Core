@@ -805,7 +805,7 @@ public:
 	 * @brief Prepares the cache for the updated values
 	 * @details The cache is a local version of storage_t (e.g., LocalVector).
 	 * @param [in,out] cache Cache object to be prepared
-	 * @param [in] ptr Pointer to cache buffer
+	 * @param [in] buffer Buffer allocator used to prepare the cache
 	 */
 	template <typename T>
 	inline void prepareCache(T& cache, LinearBufferAllocator& buffer) const { }

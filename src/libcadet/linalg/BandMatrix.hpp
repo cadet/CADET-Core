@@ -352,7 +352,6 @@ public:
 
 	/**
 	 * @brief Creates an empty ConstBandedRowIterator pointing to nothing
-	 * @param [in] mat MatrixType of the ConstBandedRowIterator
 	 */
 	ConstBandedRowIterator() CADET_NOEXCEPT : _matrix(nullptr), _pos(nullptr)
 	{

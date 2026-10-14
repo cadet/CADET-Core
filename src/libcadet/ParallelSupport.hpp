@@ -192,7 +192,6 @@
 
 			/**
 			 * @brief Allocates arrays for each thread with the given number of elements
-			 * @param [in] numThreads Number of threads
 			 * @param [in] storageSize Number of bytes to store
 			 */
 			inline void resize(unsigned int storageSize)

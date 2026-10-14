@@ -63,7 +63,14 @@ public:
 	 * @details If particles are lumped to a single element, the singleton particle shell dimension can be removed.
 	 * @return @c true if particles are always represented by a single element, otherwise @c false
 	 */
-	virtual bool isParticleLumped() const CADET_NOEXCEPT = 0;
+	virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT = 0;
+
+	/**
+	 * @brief Returns whether the discretization of the model has a smoothness indicator
+	 * @details spatial discretization may contain a smoothness indicator reporting on the solution
+	 * @return @c true if indicator is present, otherwise @c false
+	 */
+	virtual bool discHasSmoothnessIndicator() const CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Returns whether the primary coordinate is always a single element
@@ -123,6 +130,8 @@ public:
 	 * @return Total number of bound states for all components of a particle type
 	 */
 	virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT = 0;
+
+	virtual unsigned int numBoundStates(unsigned int parType, unsigned int comp) const CADET_NOEXCEPT = 0;
 
 	/**
 	 * @brief Returns the total number of DOFs in the main mobile phase (e.g., bulk volume)
@@ -321,6 +330,12 @@ public:
 	 */
 	virtual int writeOutlet(double* buffer) const = 0;
 
+	/**
+	 * @brief Writes the smoothness indicator if present
+	 * @param [out] buffer Pointer to buffer that receives the data
+	 * @return Number of written items
+	 */
+	virtual int writeSmoothnessIndicator(double* buffer) const = 0;
 
 	/**
 	 * @brief Returns primary coordinates (e.g., axial for axial flow columns)

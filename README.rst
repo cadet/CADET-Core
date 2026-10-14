@@ -7,6 +7,12 @@ CADET-Core
 .. image:: https://github.com/cadet/cadet-core/actions/workflows/ci.yml/badge.svg?branch=master
    :target: https://github.com/cadet/cadet-core/actions/workflows/ci.yml?query=branch%3Amaster
 
+.. image:: https://codecov.io/gh/cadet/CADET-Core/graph/badge.svg?token=NKLJL03PA5
+   :target: https://codecov.io/gh/cadet/CADET-Core/graph
+
+.. image:: https://joss.theoj.org/papers/282a9ec56a0680e51ed4f1fa8fda3650/status.svg
+   :target: https://joss.theoj.org/papers/282a9ec56a0680e51ed4f1fa8fda3650
+
 .. image:: https://anaconda.org/conda-forge/cadet/badges/downloads.svg
    :target: https://anaconda.org/conda-forge/cadet
 
@@ -20,8 +26,8 @@ CADET-Core
 - **Forum:** https://forum.cadet-web.de
 - **Source:** https://github.com/cadet/cadet-core
 - **Bug reports:** https://github.com/cadet/cadet-core/issues
-- **Demo:** https://www.cadet-web.de 
-- **Newsletter:** https://cadet-web.de/newsletter/
+
+To stay up to date on CADET news, development updates, and workshops, please subscribe to our `Newsletter <http://eepurl.com/hzN4EP>`_.
 
 Installation
 ------------
@@ -42,6 +48,8 @@ Therefore, we kindly ask that any publications or projects leveraging the capabi
 
 **General:**
 
+- Leweke, S.; Breuer, J.; Schmölder, J.; Jäpel, R.; Lanzrath, H.; Rao, J.; Hassan, J.; Zhang, W.; Berger, A.; Heymann, W.; von Lieres, E.: `CADET-Core 5.0: High-Performance Solver for Advanced Biotechnology Process Modeling <https://doi.org/10.21105/joss.07881>`_, Journal of Open Source Software **10** (2025), 7881.
+
 - Leweke, S.; von Lieres, E.: `Chromatography Analysis and Design Toolkit (CADET) <https://doi.org/10.1016/j.compchemeng.2018.02.025>`_, Computers and Chemical Engineering **113** (2018), 274–294.
 
 - von Lieres, E.; Andersson, J.: `A fast and accurate solver for the general rate model of column liquid chromatography <https://doi.org/10.1016/j.compchemeng.2010.03.008>`_, Computers and Chemical Engineering **34,8** (2010), 1180–1191.
@@ -56,7 +64,7 @@ Therefore, we kindly ask that any publications or projects leveraging the capabi
 
 - Püttmann, A.; Schnittert, S.; Naumann, U.; von Lieres, E.: `Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography <http://dx.doi.org/10.1016/j.compchemeng.2013.04.021>`_, Computers and Chemical Engineering **56** (2013), 46–57.
 
-Additionally, to ensure reproducibility of your work, we recommend citing the zenodo doi corresponding to the specific CADET-Core release that you used.
+Additionally, to ensure reproducibility of your work, we recommend citing the `zenodo doi <https://doi.org/10.5281/zenodo.8179015>`_ corresponding to the specific CADET-Core release that you used.
 
 For a comprehensive list and guidance on citing CADET-Core publications, please refer to the publications section of the `documentation <https://cadet.github.io/master/publications.html>`_.
 
@@ -81,16 +89,28 @@ Copyright and License Notice
 
 Copyright (C) 2008-present: The CADET-Core Authors (see `AUTHORS.md <https://github.com/cadet/cadet-core/blob/master/AUTHORS.md>`_).
 
-This program is free software: you can redistribute it and/or modify it under the terms of the
-GNU General Public License as published by the Free Software Foundation, either version 3 of
-the License, or (at your option) any later version (see `LICENSE.txt <https://github.com/cadet/cadet-core/blob/master/LICENSE.txt>`_).
+As of 24th June 2024, newly added files are licensed under the GNU AGPL v3.0-or-later.
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
-even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
+Files existing in the repository before 24th June 2024 remain licensed under the GNU GPL v3.0-or-later unless their file header states otherwise.
 
-You should have received a copy of the GNU General Public License along with this program, see below.
+When a file contains an SPDX license identifier, that identifier governs the license for that file.
+
+This repository contains files licensed under both the GNU General Public
+License (GPL) and the GNU Affero General Public License (AGPL), as described
+above.
+
+You may redistribute and/or modify each file under the terms of the license
+that applies to that file, i.e. either the GNU GPL or the GNU AGPL as
+published by the Free Software Foundation, either version 3 of the applicable
+license, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+See the applicable license for more details.
+
+You should have received a copy of the applicable license along with this program, the full texts are available in `LICENSE.txt <LICENSE.txt>`_ (AGPL) and `LICENSE-GPL.txt <licenses/LICENSE-GPL.txt>`_ (GPL).
 If not, see <https://www.gnu.org/licenses/>.
+ThirdParty licenses are listed in `LICENSE-ThirdParty.txt <licenses/ThirdParty-LICENSES.txt>`_.
 
 Except as contained in this notice, the name of a copyright holder shall not be used in advertising
 or otherwise to promote the sale, use, or other dealings in this Software without prior written

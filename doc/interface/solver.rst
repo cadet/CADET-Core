@@ -16,7 +16,20 @@ Group /input/solver
    
 ``USER_SOLUTION_TIMES``
 
-   Vector with timepoints at which the solution is evaluated
+   Vector with timepoints at which the solution is evaluated.
+   Optional: if not specified, the solution is written for every time integration step, which may be many, leading to large output files.
+
+   **Unit:** :math:`\mathrm{s}`
+   
+   ================  =========================  =====================
+   **Type:** double  **Range:** :math:`\geq 0`  **Length:** Arbitrary
+   ================  =========================  =====================
+   
+``USER_SOLUTION_TIMES_UNIT_STATE``
+
+   Vector with timepoints at which the solution is evaluated and, if the according fields (see e.g. ``WRITE_BULK_SOLUTION``) are enabled, the unit state solutions are written at these time points.
+   This way, the unit state solutions can be written at a different time resolution than e.g. the outlet solution.
+   Optional: if not specified, the solution is evaluated and written according to ``USER_SOLUTION_TIMES``.
 
    **Unit:** :math:`\mathrm{s}`
    
@@ -57,6 +70,15 @@ Group /input/solver
    =============  ===================================  =============
    **Type:** int  **Range:** :math:`\{ 0, \dots, 7\}`  **Length:** 1
    =============  ===================================  =============
+   
+``TIMEOUT``
+
+   Timeout in seconds. Simulation is aborted if wall clock time exceeds the provided value.
+   Values less than or equal :math:`0` are ignored (i.e., no timeout is applied).
+   
+   ================  ======================  =============
+   **Type:** double  **Range:** :math:`> 0`  **Length:** 1
+   ================  ======================  =============
    
 .. _FFSolverTime:
 
@@ -105,7 +127,7 @@ Group /solver/time_integrator
    
 ``INIT_STEP_SIZE``
 
-   Initial time integrator step size for each section or one value for all sections (0.0: IDAS default value), see IDAS guide 4.5, p.\ 36f.
+   Initial time integrator step size for each section or one value for all sections (0.0: IDAS default value), see `IDAS <https://sundials.readthedocs.io/en/latest/idas/Usage/SIM.html#idas-usage-sim-user-callable-optional-input>` documentation.
 
    **Unit:** :math:`\mathrm{s}`
    
@@ -115,7 +137,7 @@ Group /solver/time_integrator
    
 ``MAX_STEPS``
 
-   Maximum number of timesteps taken by IDAS (0: IDAS default = 500), see IDAS guide Sec.~4.5
+   Maximum number of timesteps taken by IDAS (0: IDAS default = 500), see `IDAS <https://sundials.readthedocs.io/en/latest/idas/Usage/SIM.html#idas-usage-sim-user-callable-optional-input>` documentation.
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
@@ -123,7 +145,7 @@ Group /solver/time_integrator
    
 ``MAX_STEP_SIZE``
 
-   Maximum size of timesteps taken by IDAS (optional, defaults to unlimited 0.0), see IDAS guide Sec.~4.5
+   Maximum size of timesteps taken by IDAS (optional, defaults to unlimited 0.0), see `IDAS <https://sundials.readthedocs.io/en/latest/idas/Usage/SIM.html#idas-usage-sim-user-callable-optional-input>` documentation.
 
    **Unit:** :math:`\mathrm{s}`
    

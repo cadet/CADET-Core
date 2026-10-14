@@ -24,6 +24,8 @@
 #include "UnitOperationBase.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "model/parts/ConvectionDispersionOperatorDG.hpp"
+#include "model/particle/ParticleModel.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/SparseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
@@ -41,6 +43,24 @@
 #include <Eigen/Sparse>
 
 using namespace Eigen;
+
+namespace
+{
+	template <typename Operator>
+	struct LumpedRateModelWithoutPoresDGName { };
+
+	template <>
+	struct LumpedRateModelWithoutPoresDGName<cadet::model::parts::AxialConvectionDispersionOperatorBaseCollocationDG>
+	{
+		static const char* identifier() CADET_NOEXCEPT { return "LUMPED_RATE_MODEL_WITHOUT_PORES_COLLOCATIONDG"; }
+	};
+
+	template <>
+	struct LumpedRateModelWithoutPoresDGName<cadet::model::parts::VariableCrossSectionConvectionDispersionOperatorBaseDG>
+	{
+		static const char* identifier() CADET_NOEXCEPT { return "LUMPED_RATE_MODEL_WITHOUT_PORES_DG"; }
+	};
+}
 
 namespace cadet
 {
@@ -63,6 +83,7 @@ namespace cadet
 			\end{align} @f]
 		* Methods are described in @cite Breuer2023 (DGSEM discretization), @cite Puttmann2013 @cite Puttmann2016 (forward sensitivities, AD, band compression)
 		*/
+		template <typename ConvDispOperator = parts::AxialConvectionDispersionOperatorBaseCollocationDG>
 		class LumpedRateModelWithoutPoresDG : public UnitOperationBase
 		{
 		public:
@@ -82,7 +103,7 @@ namespace cadet
 			virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
 			virtual bool canAccumulate() const CADET_NOEXCEPT { return false; }
 
-			static const char* identifier() { return "LUMPED_RATE_MODEL_WITHOUT_PORES_DG"; }
+			static const char* identifier() { return LumpedRateModelWithoutPoresDGName<ConvDispOperator>::identifier(); }
 			virtual const char* unitOperationName() const CADET_NOEXCEPT { return identifier(); }
 
 			virtual bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper);
@@ -211,14 +232,12 @@ namespace cadet
 				unsigned int polyDeg; //!< polynomial degree
 				unsigned int nNodes; //!< Number of nodes per cell
 				unsigned int nPoints; //!< Number of discrete Points
-				bool exactInt;	//!< 1 for exact integration, 0 for LGL quadrature
 
 				unsigned int* nBound; //!< Array with number of bound states for each component
 				unsigned int* boundOffset; //!< Array with offset to the first bound state of each component in the solid phase
 				unsigned int strideBound; //!< Total number of bound states
 
 				int curSection; //!< current section index
-				bool newStaticJac; //!< determines wether static analytical jacobian needs to be computed (every section)
 			
 				~Discretization() // make sure this memory is freed correctly
 				{
@@ -232,7 +251,7 @@ namespace cadet
 		//	IExternalFunction* _extFun; //!< External function (owned by library user)
 
 			// used as auxiliary supplier 
-			parts::AxialConvectionDispersionOperatorBaseDG _convDispOp; //!< Convection dispersion operator for interstitial volume transport
+			ConvDispOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
 
 			cadet::linalg::EigenSolverBase* _linearSolver; //!< Linear solver
 
@@ -243,13 +262,15 @@ namespace cadet
 
 			active _totalPorosity; //!< Total porosity \f$ \varepsilon_t \f$
 
+			ReactionSystem _reaction;
+
 			bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used
 			unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation
 			bool _factorizeJacobian; //!< Determines whether the Jacobian needs to be factorized
 			double* _tempState; //!< Temporary storage with the size of the state vector or larger if binding models require it
 
 			std::vector<active> _initC; //!< Liquid phase initial conditions
-			std::vector<active> _initQ; //!< Solid phase initial conditions
+			std::vector<active> _initCs; //!< Solid phase initial conditions
 			std::vector<double> _initState; //!< Initial conditions for state vector if given
 			std::vector<double> _initStateDot; //!< Initial conditions for time derivative
 
@@ -304,8 +325,9 @@ namespace cadet
 				virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return false; }
 				virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound > 0; }
 				virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
-				virtual bool isParticleLumped() const CADET_NOEXCEPT { return true; }
+				virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return true; }
 				virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return true; }
+				virtual bool discHasSmoothnessIndicator() const CADET_NOEXCEPT { return _model._convDispOp.hasSmoothnessIndicator(); }
 
 				virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
 				virtual unsigned int numPrimaryCoordinates() const CADET_NOEXCEPT { return _disc.nPoints; }
@@ -315,6 +337,7 @@ namespace cadet
 				virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return 1; }
 				virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return 0; }
 				virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound; }
+				virtual unsigned int numBoundStates(unsigned int parType, unsigned int comp) const CADET_NOEXCEPT { return _disc.nBound[comp]; }
 				virtual unsigned int numMobilePhaseDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nPoints; }
 				virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return 0; }
 				virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT { return 0; }
@@ -335,19 +358,13 @@ namespace cadet
 				virtual int writeInlet(double* buffer) const;
 				virtual int writeOutlet(unsigned int port, double* buffer) const;
 				virtual int writeOutlet(double* buffer) const;
+				virtual int writeSmoothnessIndicator(double* buffer) const { return _model._convDispOp.writeSmoothnessIndicator(buffer); }
 				/**
-				 * @brief calculates the physical node coordinates of the DG discretization with double! interface nodes
+				* @brief calculates, writes the physical axial/column coordinates of the DG or FV discretization
+				* @details double interface nodes for DG, single interface nodes for FV with nNodes == 1
 				 */
-				virtual int writePrimaryCoordinates(double* coords) const
-				{
-					for (unsigned int i = 0; i < _disc.nElem; i++) {
-						for (unsigned int j = 0; j < _disc.nNodes; j++) {
-							// mapping 
-							coords[i * _disc.nNodes + j] = _model._convDispOp.elemLeftBound(i) + 0.5 * (static_cast<double>(_model._convDispOp.columnLength()) / static_cast<double>(_disc.nElem)) * (1.0 + _model._convDispOp.LGLnodes()[j]);
-						}
-					}
-					return _disc.nPoints;
-				}
+				virtual int writePrimaryCoordinates(double* coords) const { return _model._convDispOp.writeCoordinates(coords); }
+
 
 				virtual int writeSecondaryCoordinates(double* coords) const { return 0; }
 				virtual int writeParticleCoordinates(unsigned int parType, double* coords) const { return 0; }
@@ -366,7 +383,6 @@ namespace cadet
 
 				if (_disc.curSection != secIdx) {
 					_disc.curSection = secIdx;
-					_disc.newStaticJac = true;
 				}
 			}
 
@@ -389,7 +405,7 @@ namespace cadet
 				unsigned int isotherm_entries = _disc.nPoints * _disc.strideBound * (_disc.strideBound + _disc.nComp);
 				unsigned int reaction_entries = has_reaction ? _disc.nPoints * _disc.nComp * (_disc.strideBound + _disc.nComp) : 0;
 
-				tripletList.reserve(_convDispOp.nConvDispEntries(false) + isotherm_entries + reaction_entries);
+				tripletList.reserve(_convDispOp.nJacEntries(false) + isotherm_entries + reaction_entries);
 
 				_convDispOp.convDispJacPattern(tripletList);
 
@@ -530,6 +546,9 @@ namespace cadet
 			}
 
 		};
+
+		IUnitOperation* createAxialLRMDG(UnitOpIdx uoId);
+		IUnitOperation* createVariableCrossSectionLRMDG(UnitOpIdx uoId);
 
 	} // namespace model
 } // namespace cadet

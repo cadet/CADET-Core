@@ -190,1676 +190,15 @@ CADET_BINDINGTEST("MULTI_COMPONENT_LANGMUIR", "EXT_MULTI_COMPONENT_LANGMUIR", (1
 	)json", \
 		1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
 
-CADET_BINDINGTEST("MULTI_COMPONENT_ANTILANGMUIR", "EXT_MULTI_COMPONENT_ANTILANGMUIR", (1,1), (1,0,1), (1.0, 2.0, 0.0, 0.0), (1.0, 3.0, 2.0, 0.0, 0.0), \
-	R"json( "MCAL_KA": [1.14, 2.0],
-	        "MCAL_KD": [0.004, 0.008],
-	        "MCAL_QMAX": [4.88, 3.5],
-	        "MCAL_ANTILANGMUIR": [1.0, -1.0]
-	)json", \
-	R"json( "MCAL_KA": [1.14, 1.0, 2.0],
-	        "MCAL_KD": [0.004, 2.0, 0.008],
-	        "MCAL_QMAX": [4.88, 3.0, 3.5],
-	        "MCAL_ANTILANGMUIR": [1.0, 0.0, -1.0]
-	)json", \
-	R"json( "EXT_MCAL_KA": [0.0, 0.0],
-	        "EXT_MCAL_KA_T": [1.14, 2.0],
-	        "EXT_MCAL_KA_TT": [0.0, 0.0],
-	        "EXT_MCAL_KA_TTT": [0.0, 0.0],
-	        "EXT_MCAL_KD": [0.0, 0.0],
-	        "EXT_MCAL_KD_T": [0.004, 0.008],
-	        "EXT_MCAL_KD_TT": [0.0, 0.0],
-	        "EXT_MCAL_KD_TTT": [0.0, 0.0],
-	        "EXT_MCAL_QMAX": [0.0, 0.0],
-	        "EXT_MCAL_QMAX_T": [4.88, 3.5],
-	        "EXT_MCAL_QMAX_TT": [0.0, 0.0],
-	        "EXT_MCAL_QMAX_TTT": [0.0, 0.0],
-	        "EXT_MCAL_ANTILANGMUIR": [1.0, -1.0],
-	        "EXT_MCAL_ANTILANGMUIR_T": [0.0, 0.0],
-	        "EXT_MCAL_ANTILANGMUIR_TT": [0.0, 0.0],
-	        "EXT_MCAL_ANTILANGMUIR_TTT": [0.0, 0.0]
-	)json", \
-	R"json( "EXT_MCAL_KA": [0.0, 0.0, 0.0],
-	        "EXT_MCAL_KA_T": [1.14, 1.0, 2.0],
-	        "EXT_MCAL_KA_TT": [0.0, 0.0, 0.0],
-	        "EXT_MCAL_KA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_MCAL_KD": [0.0, 0.0, 0.0],
-	        "EXT_MCAL_KD_T": [0.004, 2.0, 0.008],
-	        "EXT_MCAL_KD_TT": [0.0, 0.0, 0.0],
-	        "EXT_MCAL_KD_TTT": [0.0, 0.0, 0.0],
-	        "EXT_MCAL_QMAX": [0.0, 0.0, 0.0],
-	        "EXT_MCAL_QMAX_T": [4.88, 3.0, 3.5],
-	        "EXT_MCAL_QMAX_TT": [0.0, 0.0, 0.0],
-	        "EXT_MCAL_QMAX_TTT": [0.0, 0.0, 0.0],
-	        "EXT_MCAL_ANTILANGMUIR": [1.0, 0.0, -1.0],
-	        "EXT_MCAL_ANTILANGMUIR_T": [0.0, 0.0, 0.0],
-	        "EXT_MCAL_ANTILANGMUIR_TT": [0.0, 0.0, 0.0],
-	        "EXT_MCAL_ANTILANGMUIR_TTT": [0.0, 0.0, 0.0]
-	)json", \
-	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
-
-
-CADET_BINDINGTEST("MOBILE_PHASE_MODULATOR", "EXT_MOBILE_PHASE_MODULATOR", (1,1,1), (1,1,0,1), (1.2, 1.5, 2.0, 0.5, 1.5, 1.8), (1.2, 1.5, 1.0, 2.0, 0.5, 1.5, 1.8), \
-	R"json( "MPM_KA": [0.0, 1.14, 2.0],
-	        "MPM_KD": [0.0, 0.004, 0.008],
-	        "MPM_QMAX": [0.0, 4.88, 3.5],
-	        "MPM_GAMMA": [0.0, 0.5, -1.0],
-	        "MPM_BETA": [0.0, 1.5, 2.0],
-			"MPM_LINEAR_THRESHOLD": 1e-10
-	)json", \
-	R"json( "MPM_KA": [0.0, 1.14, 1.0, 2.0],
-	        "MPM_KD": [0.0, 0.004, 2.0, 0.008],
-	        "MPM_QMAX": [0.0, 4.88, 3.0, 3.5],
-	        "MPM_GAMMA": [0.0, 0.5, 0.0, -1.0],
-	        "MPM_BETA": [0.0, 1.5, 0.0, 2.0],
-			"MPM_LINEAR_THRESHOLD": 1e-10
-	)json", \
-	R"json( "EXT_MPM_KA": [0.0, 0.0, 0.0],
-	        "EXT_MPM_KA_T": [0.0, 1.14, 2.0],
-	        "EXT_MPM_KA_TT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_KA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_KD": [0.0, 0.0, 0.0],
-	        "EXT_MPM_KD_T": [0.0, 0.004, 0.008],
-	        "EXT_MPM_KD_TT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_KD_TTT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_QMAX": [0.0, 0.0, 0.0],
-	        "EXT_MPM_QMAX_T": [0.0, 4.88, 3.5],
-	        "EXT_MPM_QMAX_TT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_QMAX_TTT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_GAMMA": [0.0, 0.0, 0.0],
-	        "EXT_MPM_GAMMA_T": [0.0, 0.5, -1.0],
-	        "EXT_MPM_GAMMA_TT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_GAMMA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_BETA": [0.0, 0.0, 0.0],
-	        "EXT_MPM_BETA_T": [0.0, 1.5, 2.0],
-	        "EXT_MPM_BETA_TT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_BETA_TTT": [0.0, 0.0, 0.0],
-			"MPM_LINEAR_THRESHOLD": 1e-10
-	)json", \
-	R"json( "EXT_MPM_KA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_KA_T": [0.0, 1.14, 1.0, 2.0],
-	        "EXT_MPM_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_KA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_KD_T": [0.0, 0.004, 2.0, 0.008],
-	        "EXT_MPM_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_QMAX": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_QMAX_T": [0.0, 4.88, 3.0, 3.5],
-	        "EXT_MPM_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_QMAX_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_GAMMA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_GAMMA_T": [0.0, 0.5, 0.0, -1.0],
-	        "EXT_MPM_GAMMA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_GAMMA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_BETA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_BETA_T": [0.0, 1.5, 0.0, 2.0],
-	        "EXT_MPM_BETA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_BETA_TTT": [0.0, 0.0, 0.0, 0.0],
-			"MPM_LINEAR_THRESHOLD": 1e-10
-	)json", \
-	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
-	
-	CADET_BINDINGTEST_MULTI("MOBILE_PHASE_MODULATOR", "EXT_MOBILE_PHASE_MODULATOR", "_NEGATIVE", (1, 1, 1), (1, 1, 0, 1), (-1e-11, 1.5, 2.0, 0.5, 1.5, 1.8), (-1e-11, 1.5, 0.5, 2.0, 0.5, 1.5, 1.8), \
-	R"json( "MPM_KA": [0.0, 1.14, 2.0],
-	        "MPM_KD": [0.0, 0.004, 0.008],
-	        "MPM_QMAX": [0.0, 4.88, 3.5],
-	        "MPM_GAMMA": [0.0, 0.5, -1.0],
-	        "MPM_BETA": [0.0, 1.5, 2.0],
-			"MPM_LINEAR_THRESHOLD": 1e-10
-	)json", \
-	R"json( "MPM_KA": [0.0, 1.14, 1.0, 2.0],
-	        "MPM_KD": [0.0, 0.004, 2.0, 0.008],
-	        "MPM_QMAX": [0.0, 4.88, 3.0, 3.5],
-	        "MPM_GAMMA": [0.0, 0.5, 0.0, -1.0],
-	        "MPM_BETA": [0.0, 1.5, 0.0, 2.0],
-			"MPM_LINEAR_THRESHOLD": 1e-10
-	)json", \
-	R"json( "EXT_MPM_KA": [0.0, 0.0, 0.0],
-	        "EXT_MPM_KA_T": [0.0, 1.14, 2.0],
-	        "EXT_MPM_KA_TT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_KA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_KD": [0.0, 0.0, 0.0],
-	        "EXT_MPM_KD_T": [0.0, 0.004, 0.008],
-	        "EXT_MPM_KD_TT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_KD_TTT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_QMAX": [0.0, 0.0, 0.0],
-	        "EXT_MPM_QMAX_T": [0.0, 4.88, 3.5],
-	        "EXT_MPM_QMAX_TT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_QMAX_TTT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_GAMMA": [0.0, 0.0, 0.0],
-	        "EXT_MPM_GAMMA_T": [0.0, 0.5, -1.0],
-	        "EXT_MPM_GAMMA_TT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_GAMMA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_BETA": [0.0, 0.0, 0.0],
-	        "EXT_MPM_BETA_T": [0.0, 1.5, 2.0],
-	        "EXT_MPM_BETA_TT": [0.0, 0.0, 0.0],
-	        "EXT_MPM_BETA_TTT": [0.0, 0.0, 0.0],
-			"MPM_LINEAR_THRESHOLD": 1e-10
-	)json", \
-	R"json( "EXT_MPM_KA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_KA_T": [0.0, 1.14, 1.0, 2.0],
-	        "EXT_MPM_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_KA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_KD_T": [0.0, 0.004, 2.0, 0.008],
-	        "EXT_MPM_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_QMAX": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_QMAX_T": [0.0, 4.88, 3.0, 3.5],
-	        "EXT_MPM_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_QMAX_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_GAMMA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_GAMMA_T": [0.0, 0.5, 0.0, -1.0],
-	        "EXT_MPM_GAMMA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_GAMMA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_BETA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_BETA_T": [0.0, 1.5, 0.0, 2.0],
-	        "EXT_MPM_BETA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MPM_BETA_TTT": [0.0, 0.0, 0.0, 0.0],
-			"MPM_LINEAR_THRESHOLD": 1e-10
-	)json", \
-	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
-
-
-CADET_BINDINGTEST_MULTI("EXTENDED_MOBILE_PHASE_MODULATOR", "EXT_EXTENDED_MOBILE_PHASE_MODULATOR", " all linear", (1,1,1), (1,1,0,1), (1.2, 1.5, 2.0, 0.5, 1.5, 1.8), (1.2, 1.5, 0.0, 2.0, 0.5, 1.5, 1.8), \
-	R"json( "EMPM_KA": [0.0, 1.14, 2.0],
-	        "EMPM_KD": [0.0, 0.004, 0.008],
-	        "EMPM_QMAX": [0.0, 4.88, 3.5],
-	        "EMPM_GAMMA": [0.0, 0.5, -1.0],
-	        "EMPM_BETA": [0.0, 1.5, 2.0],
-	        "EMPM_COMP_MODE": [1,1,1]
-	)json", \
-	R"json( "EMPM_KA": [0.0, 1.14, 1.0, 2.0],
-	        "EMPM_KD": [0.0, 0.004, 2.0, 0.008],
-	        "EMPM_QMAX": [0.0, 4.88, 3.0, 3.5],
-	        "EMPM_GAMMA": [0.0, 0.5, 0.0, -1.0],
-	        "EMPM_BETA": [0.0, 1.5, 0.0, 2.0],
-	        "EMPM_COMP_MODE": [1,1,1,1]
-	)json", \
-	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_T": [0.0, 1.14, 2.0],
-	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_T": [0.0, 0.004, 0.008],
-	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_T": [0.0, 4.88, 3.5],
-	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_T": [0.0, 0.5, -1.0],
-	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_T": [0.0, 1.5, 2.0],
-	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0],
-	        "EMPM_COMP_MODE": [1,1,1]
-	)json", \
-	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_T": [0.0, 1.14, 1.0, 2.0],
-	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_T": [0.0, 0.004, 2.0, 0.008],
-	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_T": [0.0, 4.88, 3.0, 3.5],
-	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_T": [0.0, 0.5, 0.0, -1.0],
-	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_T": [0.0, 1.5, 0.0, 2.0],
-	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EMPM_COMP_MODE": [1,1,1,1]
-	)json", \
-	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
-
-
-CADET_BINDINGTEST_MULTI("EXTENDED_MOBILE_PHASE_MODULATOR", "EXT_EXTENDED_MOBILE_PHASE_MODULATOR", " all Langmuir", (1,1,1), (1,1,0,1), (1.2, 1.5, 2.0, 0.5, 1.5, 1.8), (1.2, 1.5, 0.0, 2.0, 0.5, 1.5, 1.8), \
-	R"json( "EMPM_KA": [1.6, 1.14, 2.0],
-	        "EMPM_KD": [0.006, 0.004, 0.008],
-	        "EMPM_QMAX": [1.0, 4.88, 3.5],
-	        "EMPM_GAMMA": [1.5, 0.5, -1.0],
-	        "EMPM_BETA": [0.8, 1.5, 2.0],
-	        "EMPM_COMP_MODE": [2,2,2]
-	)json", \
-	R"json( "EMPM_KA": [1.6, 1.14, 1.0, 2.0],
-	        "EMPM_KD": [0.006, 0.004, 2.0, 0.008],
-	        "EMPM_QMAX": [1.0, 4.88, 3.0, 3.5],
-	        "EMPM_GAMMA": [1.5, 0.5, 0.0, -1.0],
-	        "EMPM_BETA": [0.8, 1.5, 0.0, 2.0],
-	        "EMPM_COMP_MODE": [2,2,2,2]
-	)json", \
-	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_T": [1.6, 1.14, 2.0],
-	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_T": [0.006, 0.004, 0.008],
-	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_T": [1.0, 4.88, 3.5],
-	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_T": [1.5, 0.5, -1.0],
-	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_T": [0.8, 1.5, 2.0],
-	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0],
-	        "EMPM_COMP_MODE": [2,2,2]
-	)json", \
-	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_T": [1.6, 1.14, 1.0, 2.0],
-	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_T": [0.006, 0.004, 2.0, 0.008],
-	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_T": [1.0, 4.88, 3.0, 3.5],
-	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_T": [1.5, 0.5, 0.0, -1.0],
-	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_T": [0.8, 1.5, 0.0, 2.0],
-	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EMPM_COMP_MODE": [2,2,2,2]
-	)json", \
-	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
-
-
-CADET_BINDINGTEST_MULTI("EXTENDED_MOBILE_PHASE_MODULATOR", "EXT_EXTENDED_MOBILE_PHASE_MODULATOR", " mixed", (1,1,1), (1,1,0,1), (1.2, 1.5, 2.0, 0.5, 1.5, 1.8), (1.2, 1.5, 0.0, 2.0, 0.5, 1.5, 1.8), \
-	R"json( "EMPM_KA": [1.6, 1.14, 2.0],
-	        "EMPM_KD": [0.006, 0.004, 0.008],
-	        "EMPM_QMAX": [1.0, 4.88, 3.5],
-	        "EMPM_GAMMA": [1.5, 0.5, -1.0],
-	        "EMPM_BETA": [0.8, 1.5, 2.0],
-	        "EMPM_COMP_MODE": [2,1,2]
-	)json", \
-	R"json( "EMPM_KA": [1.6, 1.14, 1.0, 2.0],
-	        "EMPM_KD": [0.006, 0.004, 2.0, 0.008],
-	        "EMPM_QMAX": [1.0, 4.88, 3.0, 3.5],
-	        "EMPM_GAMMA": [1.5, 0.5, 0.0, -1.0],
-	        "EMPM_BETA": [0.8, 1.5, 0.0, 2.0],
-	        "EMPM_COMP_MODE": [2,1,2,2]
-	)json", \
-	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_T": [1.6, 1.14, 2.0],
-	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_T": [0.006, 0.004, 0.008],
-	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_T": [1.0, 4.88, 3.5],
-	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_T": [1.5, 0.5, -1.0],
-	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_T": [0.8, 1.5, 2.0],
-	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0],
-	        "EMPM_COMP_MODE": [2,1,2]
-	)json", \
-	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_T": [1.6, 1.14, 1.0, 2.0],
-	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_T": [0.006, 0.004, 2.0, 0.008],
-	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_T": [1.0, 4.88, 3.0, 3.5],
-	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_T": [1.5, 0.5, 0.0, -1.0],
-	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_T": [0.8, 1.5, 0.0, 2.0],
-	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EMPM_COMP_MODE": [2,1,2,2]
-	)json", \
-	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
-
-
-CADET_BINDINGTEST_MULTI("EXTENDED_MOBILE_PHASE_MODULATOR", "EXT_EXTENDED_MOBILE_PHASE_MODULATOR", " Langmuir modified", (1,1,1), (1,1,0,1), (1.2, 1.5, 2.0, 0.5, 1.5, 1.8), (1.2, 1.5, 0.0, 2.0, 0.5, 1.5, 1.8), \
-	R"json( "EMPM_KA": [1.6, 1.14, 2.0],
-	        "EMPM_KD": [0.006, 0.004, 0.008],
-	        "EMPM_QMAX": [1.0, 4.88, 3.5],
-	        "EMPM_GAMMA": [1.5, 0.5, -1.0],
-	        "EMPM_BETA": [0.8, 1.5, 2.0],
-	        "EMPM_COMP_MODE": [2,2,0]
-	)json", \
-	R"json( "EMPM_KA": [1.6, 1.14, 1.0, 2.0],
-	        "EMPM_KD": [0.006, 0.004, 2.0, 0.008],
-	        "EMPM_QMAX": [1.0, 4.88, 3.0, 3.5],
-	        "EMPM_GAMMA": [1.5, 0.5, 0.0, -1.0],
-	        "EMPM_BETA": [0.8, 1.5, 0.0, 2.0],
-	        "EMPM_COMP_MODE": [2,2,2,0]
-	)json", \
-	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_T": [1.6, 1.14, 2.0],
-	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_T": [0.006, 0.004, 0.008],
-	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_T": [1.0, 4.88, 3.5],
-	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_T": [1.5, 0.5, -1.0],
-	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_T": [0.8, 1.5, 2.0],
-	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0],
-	        "EMPM_COMP_MODE": [2,2,0]
-	)json", \
-	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_T": [1.6, 1.14, 1.0, 2.0],
-	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_T": [0.006, 0.004, 2.0, 0.008],
-	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_T": [1.0, 4.88, 3.0, 3.5],
-	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_T": [1.5, 0.5, 0.0, -1.0],
-	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_T": [0.8, 1.5, 0.0, 2.0],
-	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EMPM_COMP_MODE": [2,2,2,0]
-	)json", \
-	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
-
-
-CADET_BINDINGTEST_MULTI("EXTENDED_MOBILE_PHASE_MODULATOR", "EXT_EXTENDED_MOBILE_PHASE_MODULATOR", " mixed modified", (1,1,1), (1,1,0,1), (1.2, 1.5, 2.0, 0.5, 1.5, 1.8), (1.2, 1.5, 0.0, 2.0, 0.5, 1.5, 1.8), \
-	R"json( "EMPM_KA": [1.6, 1.14, 2.0],
-	        "EMPM_KD": [0.006, 0.004, 0.008],
-	        "EMPM_QMAX": [1.0, 4.88, 3.5],
-	        "EMPM_GAMMA": [1.5, 0.5, -1.0],
-	        "EMPM_BETA": [0.8, 1.5, 2.0],
-	        "EMPM_COMP_MODE": [2,1,0]
-	)json", \
-	R"json( "EMPM_KA": [1.6, 1.14, 1.0, 2.0],
-	        "EMPM_KD": [0.006, 0.004, 2.0, 0.008],
-	        "EMPM_QMAX": [1.0, 4.88, 3.0, 3.5],
-	        "EMPM_GAMMA": [1.5, 0.5, 0.0, -1.0],
-	        "EMPM_BETA": [0.8, 1.5, 0.0, 2.0],
-	        "EMPM_COMP_MODE": [2,1,2,0]
-	)json", \
-	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_T": [1.6, 1.14, 2.0],
-	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_T": [0.006, 0.004, 0.008],
-	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_T": [1.0, 4.88, 3.5],
-	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_T": [1.5, 0.5, -1.0],
-	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_T": [0.8, 1.5, 2.0],
-	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0],
-	        "EMPM_COMP_MODE": [2,1,0]
-	)json", \
-	R"json( "EXT_EMPM_KA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_T": [1.6, 1.14, 1.0, 2.0],
-	        "EXT_EMPM_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_T": [0.006, 0.004, 2.0, 0.008],
-	        "EXT_EMPM_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_T": [1.0, 4.88, 3.0, 3.5],
-	        "EXT_EMPM_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_QMAX_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_T": [1.5, 0.5, 0.0, -1.0],
-	        "EXT_EMPM_GAMMA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_GAMMA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_T": [0.8, 1.5, 0.0, 2.0],
-	        "EXT_EMPM_BETA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_EMPM_BETA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EMPM_COMP_MODE": [2,1,2,0]
-	)json", \
-	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
-
-
-CADET_BINDINGTEST("KUMAR_MULTI_COMPONENT_LANGMUIR", "EXT_KUMAR_MULTI_COMPONENT_LANGMUIR", (0,1,1), (0,1,0,1), (1.2, 1.5, 2.0, 0.75, 1.5), (1.2, 1.5, 0.0, 2.0, 0.75, 1.5), \
-	R"json( "KMCL_KA": [0.0, 1.14, 2.0],
-	        "KMCL_KD": [0.0, 0.004, 0.008],
-	        "KMCL_QMAX": [0.0, 4.88, 3.5],
-	        "KMCL_TEMP": 0.5,
-	        "KMCL_NU": [0.0, 1.2, 2.2],
-	        "KMCL_KACT": [0.0, 1.5, 2.0]
-	)json", \
-	R"json( "KMCL_KA": [0.0, 1.14, 1.0, 2.0],
-	        "KMCL_KD": [0.0, 0.004, 2.0, 0.008],
-	        "KMCL_QMAX": [0.0, 4.88, 3.0, 3.5],
-	        "KMCL_TEMP": 0.5,
-	        "KMCL_NU": [0.0, 1.2, 0.0, 2.2],
-	        "KMCL_KACT": [0.0, 1.5, 0.0, 2.0]
-	)json", \
-	R"json( "EXT_KMCL_KA": [0.0, 0.0, 0.0],
-	        "EXT_KMCL_KA_T": [0.0, 1.14, 2.0],
-	        "EXT_KMCL_KA_TT": [0.0, 0.0, 0.0],
-	        "EXT_KMCL_KA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_KMCL_KD": [0.0, 0.0, 0.0],
-	        "EXT_KMCL_KD_T": [0.0, 0.004, 0.008],
-	        "EXT_KMCL_KD_TT": [0.0, 0.0, 0.0],
-	        "EXT_KMCL_KD_TTT": [0.0, 0.0, 0.0],
-	        "EXT_KMCL_TEMP": 0.0,
-	        "EXT_KMCL_TEMP_T": 0.5,
-	        "EXT_KMCL_TEMP_TT": 0.0,
-	        "EXT_KMCL_TEMP_TTT": 0.0,
-	        "EXT_KMCL_QMAX": [0.0, 0.0, 0.0],
-	        "EXT_KMCL_QMAX_T": [0.0, 4.88, 3.5],
-	        "EXT_KMCL_QMAX_TT": [0.0, 0.0, 0.0],
-	        "EXT_KMCL_QMAX_TTT": [0.0, 0.0, 0.0],
-	        "EXT_KMCL_NU": [0.0, 0.0, 0.0],
-	        "EXT_KMCL_NU_T": [0.0, 1.2, 2.2],
-	        "EXT_KMCL_NU_TT": [0.0, 0.0, 0.0],
-	        "EXT_KMCL_NU_TTT": [0.0, 0.0, 0.0],
-	        "EXT_KMCL_KACT": [0.0, 0.0, 0.0],
-	        "EXT_KMCL_KACT_T": [0.0, 1.5, 2.0],
-	        "EXT_KMCL_KACT_TT": [0.0, 0.0, 0.0],
-	        "EXT_KMCL_KACT_TTT": [0.0, 0.0, 0.0]
-	)json", \
-	R"json( "EXT_KMCL_KA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_KMCL_KA_T": [0.0, 1.14, 1.0, 2.0],
-	        "EXT_KMCL_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_KMCL_KA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_KMCL_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_KMCL_KD_T": [0.0, 0.004, 2.0, 0.008],
-	        "EXT_KMCL_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_KMCL_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_KMCL_QMAX": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_KMCL_QMAX_T": [0.0, 4.88, 3.0, 3.5],
-	        "EXT_KMCL_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_KMCL_QMAX_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_KMCL_TEMP": 0.0,
-	        "EXT_KMCL_TEMP_T": 0.5,
-	        "EXT_KMCL_TEMP_TT": 0.0,
-	        "EXT_KMCL_TEMP_TTT": 0.0,
-	        "EXT_KMCL_NU": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_KMCL_NU_T": [0.0, 1.2, 0.0, 2.2],
-	        "EXT_KMCL_NU_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_KMCL_NU_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_KMCL_KACT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_KMCL_KACT_T": [0.0, 1.5, 0.0, 2.0],
-	        "EXT_KMCL_KACT_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_KMCL_KACT_TTT": [0.0, 0.0, 0.0, 0.0]
-	)json", \
-	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_USED, CADET_DONT_COMPARE_BINDING_VS_NONBINDING)
-// Note that we cannot enable binding vs non-binding test since the first component has to be non-binding,
-// the liquid phase component matters in the Jacobian is not a column to ignore.
-
-
-CADET_BINDINGTEST_ALLBINDING("MULTI_COMPONENT_BILANGMUIR", "EXT_MULTI_COMPONENT_BILANGMUIR", (2,2), (1.0, 2.0, 0.0, 0.0, 0.0, 0.0), \
-	R"json( "MCBL_KA": [1.14, 2.0, 2.28, 4.0],
-	        "MCBL_KD": [0.004, 0.008, 0.002, 0.003],
-	        "MCBL_QMAX": [4.88, 3.5, 3.88, 2.5]
-	)json", \
-	R"json( "EXT_MCBL_KA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCBL_KA_T": [1.14, 2.0, 2.28, 4.0],
-	        "EXT_MCBL_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCBL_KA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCBL_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCBL_KD_T": [0.004, 0.008, 0.002, 0.003],
-	        "EXT_MCBL_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCBL_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCBL_QMAX": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCBL_QMAX_T": [4.88, 3.5, 3.88, 2.5],
-	        "EXT_MCBL_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCBL_QMAX_TTT": [0.0, 0.0, 0.0, 0.0]
-	)json", \
-	1e-10, 1e-10)
-CADET_BINDINGTEST_ALLBINDING("MULTI_COMPONENT_BILANGMUIR_LDF", "EXT_MULTI_COMPONENT_BILANGMUIR_LDF", (2, 2), (1.0, 2.0, 0.0, 0.0, 0.0, 0.0), \
-		R"json( "MCBLLDF_KEQ": [1.14, 2.0, 2.28, 4.0],
-	        "MCBLLDF_KKIN": [0.004, 0.008, 0.002, 0.003],
-	        "MCBLLDF_QMAX": [4.88, 3.5, 3.88, 2.5]
-	)json", \
-		R"json( "EXT_MCBLLDF_KEQ": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCBLLDF_KEQ_T": [1.14, 2.0, 2.28, 4.0],
-	        "EXT_MCBLLDF_KEQ_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCBLLDF_KEQ_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCBLLDF_KKIN": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCBLLDF_KKIN_T": [0.004, 0.008, 0.002, 0.003],
-	        "EXT_MCBLLDF_KKIN_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCBLLDF_KKIN_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCBLLDF_QMAX": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCBLLDF_QMAX_T": [4.88, 3.5, 3.88, 2.5],
-	        "EXT_MCBLLDF_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCBLLDF_QMAX_TTT": [0.0, 0.0, 0.0, 0.0]
-	)json", \
-		1e-10, 1e-10)
-
-CADET_BINDINGTEST("STERIC_MASS_ACTION", "EXT_STERIC_MASS_ACTION", (1,1,1), (1,1,0,1), (1.2, 2.0, 1.5, 80.0, 3.5, 2.7), (1.2, 2.0, 3.0, 1.5, 80.0, 3.5, 2.7), \
-	R"json( "SMA_KA": [0.0, 3.55, 1.59],
-	        "SMA_KD": [0.0, 10.0, 10.0],
-	        "SMA_NU": [1.5, 2.0, 1.5],
-	        "SMA_SIGMA": [0.0, 11.83, 10.6],
-	        "SMA_LAMBDA": 100.0,
-	        "SMA_REFC0": 2.0,
-	        "SMA_REFQ": 1.1
-	)json", \
-	R"json( "SMA_KA": [0.0, 3.55, 7.7, 1.59],
-	        "SMA_KD": [0.0, 10.0, 10.0, 10.0],
-	        "SMA_NU": [1.5, 2.0, 3.7, 1.5],
-	        "SMA_SIGMA": [0.0, 11.83, 10.0, 10.6],
-	        "SMA_LAMBDA": 100.0,
-	        "SMA_REFC0": 2.0,
-	        "SMA_REFQ": 1.1
-	)json", \
-	R"json( "EXT_SMA_KA": [0.0, 0.0, 0.0],
-	        "EXT_SMA_KA_T": [0.0, 3.55, 1.59],
-	        "EXT_SMA_KA_TT": [0.0, 0.0, 0.0],
-	        "EXT_SMA_KA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_SMA_KD": [0.0, 0.0, 0.0],
-	        "EXT_SMA_KD_T": [0.0, 10.0, 10.0],
-	        "EXT_SMA_KD_TT": [0.0, 0.0, 0.0],
-	        "EXT_SMA_KD_TTT": [0.0, 0.0, 0.0],
-	        "EXT_SMA_NU": [1.5, 0.0, 0.0],
-	        "EXT_SMA_NU_T": [0.0, 2.0, 1.5],
-	        "EXT_SMA_NU_TT": [0.0, 0.0, 0.0],
-	        "EXT_SMA_NU_TTT": [0.0, 0.0, 0.0],
-	        "EXT_SMA_SIGMA": [0.0, 0.0, 0.0],
-	        "EXT_SMA_SIGMA_T": [0.0, 11.83, 10.6],
-	        "EXT_SMA_SIGMA_TT": [0.0, 0.0, 0.0],
-	        "EXT_SMA_SIGMA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_SMA_LAMBDA": 0.0,
-	        "EXT_SMA_LAMBDA_T": 100.0,
-	        "EXT_SMA_LAMBDA_TT": 0.0,
-	        "EXT_SMA_LAMBDA_TTT": 0.0,
-	        "EXT_SMA_REFC0": 2.0,
-	        "EXT_SMA_REFQ": 1.1
-	)json", \
-	R"json( "EXT_SMA_KA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SMA_KA_T": [0.0, 3.55, 7.7, 1.59],
-	        "EXT_SMA_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SMA_KA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SMA_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SMA_KD_T": [0.0, 10.0, 10.0, 10.0],
-	        "EXT_SMA_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SMA_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SMA_NU": [1.5, 0.0, 0.0, 0.0],
-	        "EXT_SMA_NU_T": [0.0, 2.0, 3.7, 1.5],
-	        "EXT_SMA_NU_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SMA_NU_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SMA_SIGMA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SMA_SIGMA_T": [0.0, 11.83, 10.0, 10.6],
-	        "EXT_SMA_SIGMA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SMA_SIGMA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SMA_LAMBDA": 0.0,
-	        "EXT_SMA_LAMBDA_T": 100.0,
-	        "EXT_SMA_LAMBDA_TT": 0.0,
-	        "EXT_SMA_LAMBDA_TTT": 0.0,
-	        "EXT_SMA_REFC0": 2.0,
-	        "EXT_SMA_REFQ": 1.1
-	)json", \
-	1e-10, 1e-8, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
-
-
-CADET_BINDINGTEST_ALLBINDING("BI_STERIC_MASS_ACTION", "EXT_BI_STERIC_MASS_ACTION", (2,2,2), (1.2, 2.0, 1.5, 80.0, 80.0, 3.5, 3.5, 2.7, 2.7), \
-	R"json( "BISMA_KA": [0.0, 3.55, 1.59, 0.0, 3.55, 1.59],
-	        "BISMA_KD": [0.0, 10.0, 10.0, 0.0, 10.0, 10.0],
-	        "BISMA_NU": [1.2, 2.0, 1.5, 1.5, 2.0, 1.5],
-	        "BISMA_SIGMA": [0.0, 11.83, 10.6, 0.0, 11.83, 10.6],
-	        "BISMA_LAMBDA": [100.0, 100.0]
-	)json", \
-	R"json( "EXT_BISMA_KA": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_BISMA_KA_T": [0.0, 3.55, 1.59, 0.0, 3.55, 1.59],
-	        "EXT_BISMA_KA_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_BISMA_KA_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_BISMA_KD": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_BISMA_KD_T": [0.0, 10.0, 10.0, 0.0, 10.0, 10.0],
-	        "EXT_BISMA_KD_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_BISMA_KD_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_BISMA_NU": [1.2, 0.0, 0.0, 1.5, 0.0, 0.0],
-	        "EXT_BISMA_NU_T": [0.0, 2.0, 1.5, 0.0, 2.0, 1.5],
-	        "EXT_BISMA_NU_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_BISMA_NU_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_BISMA_SIGMA": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_BISMA_SIGMA_T": [0.0, 11.83, 10.6, 0.0, 11.83, 10.6],
-	        "EXT_BISMA_SIGMA_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_BISMA_SIGMA_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_BISMA_LAMBDA": [0.0, 0.0],
-	        "EXT_BISMA_LAMBDA_T": [100.0, 100.0],
-	        "EXT_BISMA_LAMBDA_TT": [0.0, 0.0],
-	        "EXT_BISMA_LAMBDA_TTT": [0.0, 0.0]
-	)json", \
-	1e-10, 1e-8)
-
-
-CADET_BINDINGTEST("SELF_ASSOCIATION", "EXT_SELF_ASSOCIATION", (1,1,1), (1,1,0,1), (1.2, 2.0, 1.5, 80.0, 3.5, 2.7), (1.2, 2.0, 3.0, 1.5, 80.0, 3.5, 2.7), \
-	R"json( "SAI_KA1": [0.0, 3.55, 1.59],
-	        "SAI_KA2": [0.0, 1.5, 2.5],
-	        "SAI_KD": [0.0, 10.0, 10.0],
-	        "SAI_NU": [1.5, 2.0, 1.5],
-	        "SAI_SIGMA": [0.0, 11.83, 10.6],
-	        "SAI_LAMBDA": 100.0
-	)json", \
-	R"json( "SAI_KA1": [0.0, 3.55, 7.7, 1.59],
-	        "SAI_KA2": [0.0, 1.5, 2.0, 2.5],
-	        "SAI_KD": [0.0, 10.0, 10.0, 10.0],
-	        "SAI_NU": [1.5, 2.0, 3.7, 1.5],
-	        "SAI_SIGMA": [0.0, 11.83, 10.0, 10.6],
-	        "SAI_LAMBDA": 100.0
-	)json", \
-	R"json( "EXT_SAI_KA1": [0.0, 0.0, 0.0],
-	        "EXT_SAI_KA1_T": [0.0, 3.55, 1.59],
-	        "EXT_SAI_KA1_TT": [0.0, 0.0, 0.0],
-	        "EXT_SAI_KA1_TTT": [0.0, 0.0, 0.0],
-	        "EXT_SAI_KA2": [0.0, 0.0, 0.0],
-	        "EXT_SAI_KA2_T": [0.0, 1.5, 2.5],
-	        "EXT_SAI_KA2_TT": [0.0, 0.0, 0.0],
-	        "EXT_SAI_KA2_TTT": [0.0, 0.0, 0.0],
-	        "EXT_SAI_KD": [0.0, 0.0, 0.0],
-	        "EXT_SAI_KD_T": [0.0, 10.0, 10.0],
-	        "EXT_SAI_KD_TT": [0.0, 0.0, 0.0],
-	        "EXT_SAI_KD_TTT": [0.0, 0.0, 0.0],
-	        "EXT_SAI_NU": [1.5, 0.0, 0.0],
-	        "EXT_SAI_NU_T": [0.0, 2.0, 1.5],
-	        "EXT_SAI_NU_TT": [0.0, 0.0, 0.0],
-	        "EXT_SAI_NU_TTT": [0.0, 0.0, 0.0],
-	        "EXT_SAI_SIGMA": [0.0, 0.0, 0.0],
-	        "EXT_SAI_SIGMA_T": [0.0, 11.83, 10.6],
-	        "EXT_SAI_SIGMA_TT": [0.0, 0.0, 0.0],
-	        "EXT_SAI_SIGMA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_SAI_LAMBDA": 0.0,
-	        "EXT_SAI_LAMBDA_T": 100.0,
-	        "EXT_SAI_LAMBDA_TT": 0.0,
-	        "EXT_SAI_LAMBDA_TTT": 0.0
-	)json", \
-	R"json( "EXT_SAI_KA1": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SAI_KA1_T": [0.0, 3.55, 7.7, 1.59],
-	        "EXT_SAI_KA1_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SAI_KA1_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SAI_KA2": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SAI_KA2_T": [0.0, 1.5, 2.0, 2.5],
-	        "EXT_SAI_KA2_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SAI_KA2_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SAI_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SAI_KD_T": [0.0, 10.0, 10.0, 10.0],
-	        "EXT_SAI_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SAI_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SAI_NU": [1.5, 0.0, 0.0, 0.0],
-	        "EXT_SAI_NU_T": [0.0, 2.0, 3.7, 1.5],
-	        "EXT_SAI_NU_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SAI_NU_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SAI_SIGMA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SAI_SIGMA_T": [0.0, 11.83, 10.0, 10.6],
-	        "EXT_SAI_SIGMA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SAI_SIGMA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SAI_LAMBDA": 0.0,
-	        "EXT_SAI_LAMBDA_T": 100.0,
-	        "EXT_SAI_LAMBDA_TT": 0.0,
-	        "EXT_SAI_LAMBDA_TTT": 0.0
-	)json", \
-	1e-10, 1e-4, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
-
-
-CADET_BINDINGTEST("SASKA", "EXT_SASKA", (1,1), (1,0,1), (1.0, 2.0, 0.0, 0.0), (1.0, 3.0, 2.0, 0.0, 0.0), \
-	R"json( "SASKA_H": [1.5, 2.0],
-	        "SASKA_K": [0.1, 0.3, 0.4, 0.5]
-	)json", \
-	R"json( "SASKA_H": [1.5, 3.0, 2.0],
-	        "SASKA_K": [0.1, 0.0, 0.3, 0.0, 0.0, 0.0, 0.4, 0.0, 0.5]
-	)json", \
-	R"json( "EXT_SASKA_H": [0.0, 0.0],
-	        "EXT_SASKA_H_T": [1.5, 2.0],
-	        "EXT_SASKA_H_TT": [0.0, 0.0],
-	        "EXT_SASKA_H_TTT": [0.0, 0.0],
-	        "EXT_SASKA_K": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SASKA_K_T": [0.1, 0.3, 0.4, 0.5],
-	        "EXT_SASKA_K_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SASKA_K_TTT": [0.0, 0.0, 0.0, 0.0]
-	)json", \
-	R"json( "EXT_SASKA_H": [0.0, 0.0, 0.0],
-	        "EXT_SASKA_H_T": [1.5, 3.0, 2.0],
-	        "EXT_SASKA_H_TT": [0.0, 0.0, 0.0],
-	        "EXT_SASKA_H_TTT": [0.0, 0.0, 0.0],
-	        "EXT_SASKA_K": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_SASKA_K_T": [0.1, 0.0, 0.3, 0.0, 0.0, 0.0, 0.4, 0.0, 0.5],
-	        "EXT_SASKA_K_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_SASKA_K_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-	)json", \
-	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_USED, CADET_COMPARE_BINDING_VS_NONBINDING)
-
-
-CADET_BINDINGTEST("MULTI_COMPONENT_LDF_FREUNDLICH", "EXT_MULTI_COMPONENT_LDF_FREUNDLICH", (1,1), (1,0,1), (1.0, 2.0, 0.0, 0.0), (1.0, 3.0, 2.0, 0.0, 0.0), \
-	R"json( "MCLDFFRL_KLDF": [1.14, 2.0],
-	        "MCLDFFRL_KF": [1.3, 0.9],
-	        "MCLDFFRL_EXP": [0.8, 3.5],
-	        "MCLDFFRL_A": [3.0, 2.2, 1.5, 0.5],
-	        "MCLDFFRL_TAU": 0.1
-	)json", \
-	R"json( "MCLDFFRL_KLDF": [1.14, 1.0, 2.0],
-	        "MCLDFFRL_KF": [1.3, 2.0, 0.9],
-	        "MCLDFFRL_EXP": [0.8, 3.0, 3.5],
-	        "MCLDFFRL_A": [2.2, 1.1, 0.4, 0.1, 0.94, 2.8, 0.5, 1.2, 2.4],
-	        "MCLDFFRL_TAU": 0.1
-	)json", \
-	R"json( "EXT_MCLDFFRL_KLDF": [0.0, 0.0],
-	        "EXT_MCLDFFRL_KLDF_T": [1.14, 2.0],
-	        "EXT_MCLDFFRL_KLDF_TT": [0.0, 0.0],
-	        "EXT_MCLDFFRL_KLDF_TTT": [0.0, 0.0],
-	        "EXT_MCLDFFRL_KF": [0.0, 0.0],
-	        "EXT_MCLDFFRL_KF_T": [1.3, 0.9],
-	        "EXT_MCLDFFRL_KF_TT": [0.0, 0.0],
-	        "EXT_MCLDFFRL_KF_TTT": [0.0, 0.0],
-	        "EXT_MCLDFFRL_EXP": [0.0, 0.0],
-	        "EXT_MCLDFFRL_EXP_T": [0.8, 3.5],
-	        "EXT_MCLDFFRL_EXP_TT": [0.0, 0.0],
-	        "EXT_MCLDFFRL_EXP_TTT": [0.0, 0.0],
-	        "EXT_MCLDFFRL_A": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCLDFFRL_A_T": [3.0, 2.2, 1.5, 0.5],
-	        "EXT_MCLDFFRL_A_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCLDFFRL_A_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "MCLDFFRL_TAU": 0.1
-	)json", \
-	R"json( "EXT_MCLDFFRL_KLDF": [0.0, 0.0, 0.0],
-	        "EXT_MCLDFFRL_KLDF_T": [1.14, 1.0, 2.0],
-	        "EXT_MCLDFFRL_KLDF_TT": [0.0, 0.0, 0.0],
-	        "EXT_MCLDFFRL_KLDF_TTT": [0.0, 0.0, 0.0],
-	        "EXT_MCLDFFRL_KF": [0.0, 0.0, 0.0],
-	        "EXT_MCLDFFRL_KF_T": [1.3, 2.0, 0.9],
-	        "EXT_MCLDFFRL_KF_TT": [0.0, 0.0, 0.0],
-	        "EXT_MCLDFFRL_KF_TTT": [0.0, 0.0, 0.0],
-	        "EXT_MCLDFFRL_EXP": [0.0, 0.0, 0.0],
-	        "EXT_MCLDFFRL_EXP_T": [0.8, 3.0, 3.5],
-	        "EXT_MCLDFFRL_EXP_TT": [0.0, 0.0, 0.0],
-	        "EXT_MCLDFFRL_EXP_TTT": [0.0, 0.0, 0.0],
-	        "EXT_MCLDFFRL_A": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCLDFFRL_A_T": [2.2, 1.1, 0.4, 0.1, 0.94, 2.8, 0.5, 1.2, 2.4],
-	        "EXT_MCLDFFRL_A_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCLDFFRL_A_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "MCLDFFRL_TAU": 0.1
-	)json", \
-	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_USED, CADET_DONT_COMPARE_BINDING_VS_NONBINDING)
-
-CADET_BINDINGTEST("MULTI_COMPONENT_SIPS", "EXT_MULTI_COMPONENT_SIPS", (1, 1, 1, 1), (1, 0, 1, 1, 1), (1.0, 0.0, 2.0, -1e-4, 0.0, 0.0, 0.0, 0.0), (1.0, 3.0, 0.0, 2.0, -1e-4, 0.0, 0.0, 0.0, 0.0), \
-	R"json( "SIPS_KA": [1.14, 2.0, 1.14, 2.0],
-	        "SIPS_KD": [0.004, 0.008, 0.004, 0.008],
-	        "SIPS_QMAX": [4.88, 3.5, 4.88, 3.5],
-	        "SIPS_EXP": [1.2, 1.6, 1.2, 1.6],
-	        "SIPS_REFC0": 2.0,
-	        "SIPS_REFQ": 1.1,
-	        "SIPS_LINEAR_THRESHOLD": 1e-10
-	)json", \
-	R"json( "SIPS_KA": [1.14, 1.0, 2.0, 1.14, 2.0],
-	        "SIPS_KD": [0.004, 2.0, 0.008, 0.004, 0.008],
-	        "SIPS_QMAX": [4.88, 3.0, 3.5, 4.88, 3.5],
-	        "SIPS_EXP": [1.2, 1.5,  1.6, 1.2, 1.6],
-	        "SIPS_REFC0": 2.0,
-	        "SIPS_REFQ": 1.1,
-	        "SIPS_LINEAR_THRESHOLD": 1e-10
-	)json", \
-	R"json( "EXT_SIPS_KA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_KA_T": [1.14, 2.0, 1.14, 2.0],
-	        "EXT_SIPS_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_KA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_KD_T": [0.004, 0.008, 0.004, 0.008],
-	        "EXT_SIPS_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_QMAX": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_QMAX_T": [4.88, 3.5, 4.88, 3.5],
-	        "EXT_SIPS_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_QMAX_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_EXP": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_EXP_T": [1.2, 1.6, 1.2, 1.6],
-	        "EXT_SIPS_EXP_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_EXP_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_REFC0": 2.0,
-	        "EXT_SIPS_REFQ": 1.1,
-	        "SIPS_LINEAR_THRESHOLD": 1e-10
-	)json", \
-	R"json( "EXT_SIPS_KA": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_KA_T": [1.14, 1.0, 2.0, 1.14, 2.0],
-	        "EXT_SIPS_KA_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_KA_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_KD": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_KD_T": [0.004, 2.0, 0.008, 0.004, 0.008],
-	        "EXT_SIPS_KD_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_KD_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_QMAX": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_QMAX_T": [4.88, 3.0, 3.5, 4.88, 3.5],
-	        "EXT_SIPS_QMAX_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_QMAX_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_EXP": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_EXP_T": [1.2, 1.5, 1.6, 1.2, 1.6],
-	        "EXT_SIPS_EXP_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_EXP_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_SIPS_REFC0": 2.0,
-	        "EXT_SIPS_REFQ": 1.1,
-	        "SIPS_LINEAR_THRESHOLD": 1e-10
-	)json", \
-	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
-
-
-CADET_BINDINGTEST("MULTI_COMPONENT_SPREADING", "EXT_MULTI_COMPONENT_SPREADING", (2,2), (2,0,2), (1.2, 1.5, 0.1, 0.2, 0.3, 0.4), (1.2, 0.5, 1.5, 0.1, 0.2, 0.3, 0.4), \
-	R"json( "MCSPR_KA": [1.14, 2.0, 1.5, 1.9],
-	        "MCSPR_KD": [0.004, 0.008, 0.006, 0.002],
-	        "MCSPR_QMAX": [4.88, 3.5, 4.5, 3.7],
-	        "MCSPR_K12": [0.5, 1.1, 0.7, 1.2],
-	        "MCSPR_K21": [0.6, 1.5, 2.0, 0.8]
-	)json", \
-	R"json( "MCSPR_KA": [1.14, 0.0, 2.0, 1.5, 0.0, 1.9],
-	        "MCSPR_KD": [0.004, 0.0, 0.008, 0.006, 0.0, 0.002],
-	        "MCSPR_QMAX": [4.88, 0.0, 3.5, 4.5, 0.0, 3.7],
-	        "MCSPR_K12": [0.5, 0.0, 1.1, 0.7, 0.0, 1.2],
-	        "MCSPR_K21": [0.6, 0.0, 1.5, 2.0, 0.0, 0.8]
-	)json", \
-	R"json( "EXT_MCSPR_KA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_KA_T": [1.14, 2.0, 1.5, 1.9],
-	        "EXT_MCSPR_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_KA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_KD_T": [0.004, 0.008, 0.006, 0.002],
-	        "EXT_MCSPR_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_QMAX": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_QMAX_T": [4.88, 3.5, 4.5, 3.7],
-	        "EXT_MCSPR_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_QMAX_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_K12": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_K12_T": [0.5, 1.1, 0.7, 1.2],
-	        "EXT_MCSPR_K12_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_K12_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_K21": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_K21_T": [0.6, 1.5, 2.0, 0.8],
-	        "EXT_MCSPR_K21_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_K21_TTT": [0.0, 0.0, 0.0, 0.0]
-	)json", \
-	R"json( "EXT_MCSPR_KA": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_KA_T": [1.14, 0.0, 2.0, 1.5, 0.0, 1.9],
-	        "EXT_MCSPR_KA_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_KA_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_KD": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_KD_T": [0.004, 0.0, 0.008, 0.006, 0.0, 0.002],
-	        "EXT_MCSPR_KD_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_KD_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_QMAX": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_QMAX_T": [4.88, 0.0, 3.5, 4.5, 0.0, 3.7],
-	        "EXT_MCSPR_QMAX_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_QMAX_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_K12": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_K12_T": [0.5, 0.0, 1.1, 0.7, 0.0, 1.2],
-	        "EXT_MCSPR_K12_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_K12_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_K21": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_K21_T": [0.6, 0.0, 1.5, 2.0, 0.0, 0.8],
-	        "EXT_MCSPR_K21_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MCSPR_K21_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-	)json", \
-	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
-
-
-// @todo Find a better starting point for consistent initialization
-CADET_BINDINGTEST("MULTISTATE_STERIC_MASS_ACTION", "EXT_MULTISTATE_STERIC_MASS_ACTION", (1,2,1), (1,2,0,1), (1.2, 2.0, 1.5, 80.0, 2.5, 2.7, 1.8), (1.2, 2.0, 3.0, 1.5, 80.0, 2.5, 2.7, 1.8), \
-	R"json( "MSSMA_KA": [0.0, 3.55, 1.59, 4.0],
-	        "MSSMA_KD": [0.0, 10.0, 10.0, 10.0],
-	        "MSSMA_NU": [1.2, 1.5, 2.0, 1.9],
-	        "MSSMA_SIGMA": [0.0, 11.83, 10.6, 9.8],
-	        "MSSMA_RATES": [0.0, 0.9, 0.8, 1.2, 1.1, 1.4],
-	        "MSSMA_LAMBDA": 100.0
-	)json", \
-	R"json( "MSSMA_KA": [0.0, 3.55, 1.59, 4.0],
-	        "MSSMA_KD": [0.0, 10.0, 10.0, 10.0],
-	        "MSSMA_NU": [1.2, 1.5, 2.0, 1.9],
-	        "MSSMA_SIGMA": [0.0, 11.83, 10.6, 9.8],
-	        "MSSMA_RATES": [0.0, 0.9, 0.8, 1.2, 1.1, 1.4],
-	        "MSSMA_LAMBDA": 100.0
-	)json", \
-	R"json( "EXT_MSSMA_KA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_KA_T": [0.0, 3.55, 1.59, 4.0],
-	        "EXT_MSSMA_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_KA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_KD_T": [0.0, 10.0, 10.0, 10.0, 0.0],
-	        "EXT_MSSMA_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_NU": [1.2, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_NU_T": [0.0, 1.5, 2.0, 1.9],
-	        "EXT_MSSMA_NU_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_NU_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_SIGMA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_SIGMA_T": [0.0, 11.83, 10.6, 9.8],
-	        "EXT_MSSMA_SIGMA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_SIGMA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_RATES": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_RATES_T": [0.0, 0.9, 0.8, 1.2, 1.1, 1.4],
-	        "EXT_MSSMA_RATES_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_RATES_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_LAMBDA": 0.0,
-	        "EXT_MSSMA_LAMBDA_T": 100.0,
-	        "EXT_MSSMA_LAMBDA_TT": 0.0,
-	        "EXT_MSSMA_LAMBDA_TTT": 0.0
-	)json", \
-	R"json( "EXT_MSSMA_KA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_KA_T": [0.0, 3.55, 1.59, 4.0],
-	        "EXT_MSSMA_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_KA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_KD_T": [0.0, 10.0, 10.0, 10.0, 0.0],
-	        "EXT_MSSMA_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_NU": [1.2, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_NU_T": [0.0, 1.5, 2.0, 1.9],
-	        "EXT_MSSMA_NU_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_NU_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_SIGMA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_SIGMA_T": [0.0, 11.83, 10.6, 9.8],
-	        "EXT_MSSMA_SIGMA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_SIGMA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_RATES": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_RATES_T": [0.0, 0.9, 0.8, 1.2, 1.1, 1.4],
-	        "EXT_MSSMA_RATES_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_RATES_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_MSSMA_LAMBDA": 0.0,
-	        "EXT_MSSMA_LAMBDA_T": 100.0,
-	        "EXT_MSSMA_LAMBDA_TT": 0.0,
-	        "EXT_MSSMA_LAMBDA_TTT": 0.0
-	)json", \
-	1e-10, 5e-2, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
-
-
-CADET_BINDINGTEST_SINGLE("SIMPLIFIED_MULTISTATE_STERIC_MASS_ACTION", (1,2,1), (1,2,0,1), (1.2, 2.0, 1.5, 80.0, 2.5, 2.7, 1.8), (1.2, 2.0, 3.0, 1.5, 80.0, 2.5, 2.7, 1.8), \
-	R"json( "SMSSMA_KA": [0.0, 3.55, 1.59, 4.0],
-	        "SMSSMA_KD": [0.0, 10.0, 10.0, 10.0],
-	        "SMSSMA_NU_MIN": [0.0, 1.5, 1.9],
-	        "SMSSMA_NU_MAX": [0.0, 2.0, 2.1],
-	        "SMSSMA_NU_QUAD": [0.0, 0.1, 0.1],
-	        "SMSSMA_SIGMA_MIN": [0.0, 10.6, 9.8],
-	        "SMSSMA_SIGMA_MAX": [0.0, 11.83, 10.1],
-	        "SMSSMA_SIGMA_QUAD": [0.0, -0.1, -0.8],
-	        "SMSSMA_KSW": [0.0, 0.9, 1.4],
-	        "SMSSMA_KSW_LIN": [0.0, 0.1, 0.1],
-	        "SMSSMA_KSW_QUAD": [0.0, -0.2, -0.1],
-	        "SMSSMA_KWS": [0.0, 0.8, 1.1],
-	        "SMSSMA_KWS_LIN": [0.0, 0.2, 0.3],
-	        "SMSSMA_KWS_QUAD": [0.0, -0.1, -0.1],
-	        "SMSSMA_LAMBDA": 100.0,
-	        "SMSSMA_NU_SALT": 1.2
-	)json", \
-	R"json( "SMSSMA_KA": [0.0, 3.55, 1.59, 4.0],
-	        "SMSSMA_KD": [0.0, 10.0, 10.0, 10.0],
-	        "SMSSMA_NU_MIN": [0.0, 1.5, 0.0, 1.9],
-	        "SMSSMA_NU_MAX": [0.0, 2.0, 0.0, 2.1],
-	        "SMSSMA_NU_QUAD": [0.0, 0.1, 0.0, 0.1],
-	        "SMSSMA_SIGMA_MIN": [0.0, 10.6, 0.0, 9.8],
-	        "SMSSMA_SIGMA_MAX": [0.0, 11.83, 0.0, 10.1],
-	        "SMSSMA_SIGMA_QUAD": [0.0, -0.1, 0.0, -0.8],
-	        "SMSSMA_KSW": [0.0, 0.9, 0.0, 1.4],
-	        "SMSSMA_KSW_LIN": [0.0, 0.1, 0.0, 0.1],
-	        "SMSSMA_KSW_QUAD": [0.0, -0.2, 0.0, -0.1],
-	        "SMSSMA_KWS": [0.0, 0.8, 0.0, 1.1],
-	        "SMSSMA_KWS_LIN": [0.0, 0.2, 0.0, 0.3],
-	        "SMSSMA_KWS_QUAD": [0.0, -0.1, 0.0, -0.1],
-	        "SMSSMA_LAMBDA": 100.0,
-	        "SMSSMA_NU_SALT": 1.2
-	)json", \
-	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
-
-CADET_BINDINGTEST("GENERALIZED_ION_EXCHANGE", "EXT_GENERALIZED_ION_EXCHANGE", (1,0,1,1), (1,0,1,0,1), (1.2, 0.5, 2.0, 1.5, 80.0, 3.5, 2.7), (1.2, 0.5, 2.0, 3.0, 1.5, 80.0, 3.5, 2.7), \
-	R"json( "GIEX_KA": [0.0, 0.0, 3.55, 1.59],
-	        "GIEX_KA_LIN": [0.0, 0.0, 0.8, 0.9],
-	        "GIEX_KA_QUAD": [0.0, 0.0, 0.5, 0.6],
-	        "GIEX_KA_SALT": [0.0, 0.0, 1.2, 0.8],
-	        "GIEX_KA_PROT": [0.0, 0.0, 1.1, 0.9],
-	        "GIEX_KD": [0.0, 0.0, 10.0, 10.0],
-	        "GIEX_KD_LIN": [0.0, 0.0, 0.6, 0.5],
-	        "GIEX_KD_QUAD": [0.0, 0.0, 0.9, 0.7],
-	        "GIEX_KD_SALT": [0.0, 0.0, 1.0, 1.2],
-	        "GIEX_KD_PROT": [0.0, 0.0, 0.9, 1.1],
-	        "GIEX_NU": [1.2, 0.0, 2.0, 1.5],
-	        "GIEX_NU_LIN": [0.0, 0.0, 0.5, 1.1],
-	        "GIEX_NU_QUAD": [0.0, 0.0, 0.8, 0.9],
-	        "GIEX_SIGMA": [0.0, 0.0, 11.83, 10.6],
-	        "GIEX_LAMBDA": 100.0,
-	        "GIEX_REFC0": 2.0,
-	        "GIEX_REFQ": 50.0,
-	        "GIEX_PHREFC0": 2.5,
-	        "GIEX_PHREFQ": 45.0
-	)json", \
-	R"json( "GIEX_KA": [0.0, 0.0, 3.55, 7.7, 1.59],
-	        "GIEX_KA_LIN": [0.0, 0.0, 0.8, 1.2, 0.9],
-	        "GIEX_KA_QUAD": [0.0, 0.0, 0.5, 3.2, 0.6],
-	        "GIEX_KA_SALT": [0.0, 0.0, 1.2, 4.1, 0.8],
-	        "GIEX_KA_PROT": [0.0, 0.0, 1.1, 6.1, 0.9],
-	        "GIEX_KD": [0.0, 0.0, 10.0, 10.0, 10.0],
-	        "GIEX_KD_LIN": [0.0, 0.0, 0.6, 0.9, 0.5],
-	        "GIEX_KD_QUAD": [0.0, 0.0, 0.9, 2.1, 0.7],
-	        "GIEX_KD_SALT": [0.0, 0.0, 1.0, 3.7, 1.2],
-	        "GIEX_KD_PROT": [0.0, 0.0, 0.9, 4.8, 1.1],
-	        "GIEX_NU": [1.2, 0.0, 2.0, 3.7, 1.5],
-	        "GIEX_NU_LIN": [0.0, 0.0, 0.5, 1.3, 1.1],
-	        "GIEX_NU_QUAD": [0.0, 0.0, 0.8, 4.7, 0.9],
-	        "GIEX_SIGMA": [0.0, 0.0, 11.83, 10.0, 10.6],
-	        "GIEX_LAMBDA": 100.0,
-	        "GIEX_REFC0": 2.0,
-	        "GIEX_REFQ": 50.0,
-	        "GIEX_PHREFC0": 2.5,
-	        "GIEX_PHREFQ": 45.0
-	)json", \
-	R"json( "EXT_GIEX_KA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_T": [0.0, 0.0, 3.55, 1.59],
-	        "EXT_GIEX_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_LIN": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_LIN_T": [0.0, 0.0, 0.8, 0.9],
-	        "EXT_GIEX_KA_LIN_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_LIN_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_QUAD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_QUAD_T": [0.0, 0.0, 0.5, 0.6],
-	        "EXT_GIEX_KA_QUAD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_QUAD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_SALT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_SALT_T": [0.0, 0.0, 1.2, 0.8],
-	        "EXT_GIEX_KA_SALT_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_SALT_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_PROT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_PROT_T": [0.0, 0.0, 1.1, 0.9],
-	        "EXT_GIEX_KA_PROT_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_PROT_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_T": [0.0, 0.0, 10.0, 10.0],
-	        "EXT_GIEX_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_LIN": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_LIN_T": [0.0, 0.0, 0.6, 0.5],
-	        "EXT_GIEX_KD_LIN_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_LIN_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_QUAD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_QUAD_T": [0.0, 0.0, 0.9, 0.7],
-	        "EXT_GIEX_KD_QUAD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_QUAD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_SALT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_SALT_T": [0.0, 0.0, 1.0, 1.2],
-	        "EXT_GIEX_KD_SALT_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_SALT_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_PROT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_PROT_T": [0.0, 0.0, 0.9, 1.1],
-	        "EXT_GIEX_KD_PROT_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_PROT_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU": [1.2, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU_T": [0.0, 0.0, 2.0, 1.5],
-	        "EXT_GIEX_NU_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU_LIN": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU_LIN_T": [0.0, 0.0, 0.5, 1.1],
-	        "EXT_GIEX_NU_LIN_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU_LIN_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU_QUAD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU_QUAD_T": [0.0, 0.0, 0.8, 0.9],
-	        "EXT_GIEX_NU_QUAD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU_QUAD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_SIGMA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_SIGMA_T": [0.0, 0.0, 11.83, 10.6],
-	        "EXT_GIEX_SIGMA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_SIGMA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_LAMBDA": 0.0,
-	        "EXT_GIEX_LAMBDA_T": 100.0,
-	        "EXT_GIEX_LAMBDA_TT": 0.0,
-	        "EXT_GIEX_LAMBDA_TTT": 0.0,
-	        "EXT_GIEX_REFC0": 2.0,
-	        "EXT_GIEX_REFQ": 50.0,
-	        "EXT_GIEX_PHREFC0": 2.5,
-	        "EXT_GIEX_PHREFQ": 45.0
-	)json", \
-	R"json( "EXT_GIEX_KA": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_T": [0.0, 0.0, 3.55, 7.7, 1.59],
-	        "EXT_GIEX_KA_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_LIN": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_LIN_T": [0.0, 0.0, 0.8, 5.5, 0.9],
-	        "EXT_GIEX_KA_LIN_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_LIN_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_QUAD": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_QUAD_T": [0.0, 0.0, 0.5, 4.2, 0.6],
-	        "EXT_GIEX_KA_QUAD_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_QUAD_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_SALT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_SALT_T": [0.0, 0.0, 1.2, 6.3, 0.8],
-	        "EXT_GIEX_KA_SALT_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_SALT_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_PROT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_PROT_T": [0.0, 0.0, 1.1, 3.6, 0.9],
-	        "EXT_GIEX_KA_PROT_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KA_PROT_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_T": [0.0, 0.0, 10.0, 10.0, 10.0],
-	        "EXT_GIEX_KD_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_LIN": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_LIN_T": [0.0, 0.0, 0.6, 2.4, 0.5],
-	        "EXT_GIEX_KD_LIN_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_LIN_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_QUAD": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_QUAD_T": [0.0, 0.0, 0.9, 2.1, 0.7],
-	        "EXT_GIEX_KD_QUAD_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_QUAD_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_SALT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_SALT_T": [0.0, 0.0, 1.0, 3.4, 1.2],
-	        "EXT_GIEX_KD_SALT_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_SALT_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_PROT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_PROT_T": [0.0, 0.0, 0.9, 8.0, 1.1],
-	        "EXT_GIEX_KD_PROT_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_KD_PROT_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU": [1.2, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU_T": [0.0, 0.0, 2.0, 3.7, 1.5],
-	        "EXT_GIEX_NU_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU_LIN": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU_LIN_T": [0.0, 0.0, 0.5, 3.0, 1.1],
-	        "EXT_GIEX_NU_LIN_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU_LIN_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU_QUAD": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU_QUAD_T": [0.0, 0.0, 0.8, 2.2, 0.9],
-	        "EXT_GIEX_NU_QUAD_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_NU_QUAD_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_SIGMA": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_SIGMA_T": [0.0, 0.0, 11.83, 10.0, 10.6],
-	        "EXT_GIEX_SIGMA_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_SIGMA_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_GIEX_LAMBDA": 0.0,
-	        "EXT_GIEX_LAMBDA_T": 100.0,
-	        "EXT_GIEX_LAMBDA_TT": 0.0,
-	        "EXT_GIEX_LAMBDA_TTT": 0.0,
-	        "EXT_GIEX_REFC0": 2.0,
-	        "EXT_GIEX_REFQ": 50.0,
-	        "EXT_GIEX_PHREFC0": 2.5,
-	        "EXT_GIEX_PHREFQ": 45.0
-	)json", \
-	1e-10, 1e-8, CADET_NONBINDING_LIQUIDPHASE_COMP_USED, CADET_COMPARE_BINDING_VS_NONBINDING)
-
-	TEST_CASE("MULTI_COMPONENT_COLLOIDAL binding model analytic Jacobian vs AD with PH single protein", "[Jacobian],[AD],[BindingModel],[MULTI_COMPONENT_COLLOIDAL]")
-			{
-				const unsigned int nBound[] = { 0, 0, 1 };
-				const double state[] = { 0.9, 1.1, 1.5e-2, 3.2e-2 };
-				char const* const config = R"json({
-			"COL_PHI": 49232983.6522396,
-			"COL_KAPPA_EXP": 1.8,
-			"COL_KAPPA_FACT": 1e7,
-			"COL_KAPPA_CONST": 1.2,
-			"COL_CORDNUM": 4.0,
-			"COL_LOGKEQ_PH_EXP": [0.0, 0.0, 1.3, 2.3, 1.8],
-			"COL_LOGKEQ_SALT_POWEXP": [0.0, 0.0, 1.4, 1.5, 1.6],
-			"COL_LOGKEQ_SALT_POWFACT": [0.0, 0.0, 1.7, 1.9, 2.0],
-			"COL_LOGKEQ_SALT_EXPFACT": [0.0, 0.0, 2.1, 2.2, 2.4],
-			"COL_LOGKEQ_SALT_EXPARGMULT": [0.0, 0.0, 2.5, 2.6, 0.6],
-			"COL_BPP_PH_EXP": [0.0, 0.0, 2.5, 2.4, 2.3],
-			"COL_BPP_SALT_POWEXP": [0.0, 0.0, 1.1, 1.2, 1.3],
-			"COL_BPP_SALT_POWFACT": [0.0, 0.0, 2.9, 2.8, 2.7],
-			"COL_BPP_SALT_EXPFACT": [0.0, 0.0, 1.3, 1.7, 2.1],
-			"COL_BPP_SALT_EXPARGMULT": [0.0, 0.0, 3.0, 2.8, 2.6],
-			"COL_PROTEIN_RADIUS": [0.0, 0.0, 1.1e-8, 2.0e-8, 3.0e-8],
-			"COL_KKIN": [0.0, 0.0, 0.9, 1.4, 1.9],
-			"COL_LINEAR_THRESHOLD": 1e-12,
-			"COL_USE_PH": 1
-		})json";
-				for (int bindMode = 0; bindMode < 2; ++bindMode)
-				{
-					const bool isKinetic = bindMode;
-					SECTION(std::string("Binding mode ") + (isKinetic ? "dynamic" : "quasi-stationary"))
-					{
-						cadet::test::binding::testJacobianAD("MULTI_COMPONENT_COLLOIDAL", sizeof(nBound) / sizeof(unsigned int), nBound, isKinetic, config, state);
-					}
-				}
-			}	
-
-
-	TEST_CASE("MULTI_COMPONENT_COLLOIDAL binding model analytic Jacobian vs AD with PH multi protein", "[Jacobian],[AD],[BindingModel],[MULTI_COMPONENT_COLLOIDAL]")
-	{
-		const unsigned int nBound[] = { 0, 0, 1, 1, 1};
-		const double state[] = { 0.9, 1.1, 1.5e-2, 3.2e-3, 1.5e-5, 3.2e-5, 1.5e-5, 3.2e-5 };
-		double FDsignAbsTol = 1e-10; // specific tolerance for this test, non-default value
-		char const* const config = R"json({
-			"COL_PHI": 49232983.6522396,
-			"COL_KAPPA_EXP": 1.8,
-			"COL_KAPPA_FACT": 1e7,
-			"COL_KAPPA_CONST": 1.2,
-			"COL_CORDNUM": 4.0,
-			"COL_LOGKEQ_PH_EXP": [0.0, 0.0, 1.3, 2.3, 1.8],
-			"COL_LOGKEQ_SALT_POWEXP": [0.0, 0.0, 1.4, 1.5, 1.6],
-			"COL_LOGKEQ_SALT_POWFACT": [0.0, 0.0, 1.7, 1.9, 2.0],
-			"COL_LOGKEQ_SALT_EXPFACT": [0.0, 0.0, 2.1, 2.2, 2.4],
-			"COL_LOGKEQ_SALT_EXPARGMULT": [0.0, 0.0, 2.5, 2.6, 0.6],
-			"COL_BPP_PH_EXP": [0.0, 0.0, 2.5, 2.4, 2.3],
-			"COL_BPP_SALT_POWEXP": [0.0, 0.0, 1.1, 1.2, 1.3],
-			"COL_BPP_SALT_POWFACT": [0.0, 0.0, 2.9, 2.8, 2.7],
-			"COL_BPP_SALT_EXPFACT": [0.0, 0.0, 1.3, 1.7, 2.1],
-			"COL_BPP_SALT_EXPARGMULT": [0.0, 0.0, 3.0, 2.8, 2.6],
-			"COL_PROTEIN_RADIUS": [0.0, 0.0, 1.1e-8, 2.0e-8, 3.0e-8],
-			"COL_KKIN": [0.0, 0.0, 0.9, 1.4, 1.9],
-			"COL_LINEAR_THRESHOLD": 1e-12,
-			"COL_USE_PH": 1
-		})json";
-		for (int bindMode = 0; bindMode < 2; ++bindMode)
-		{
-			const bool isKinetic = bindMode;
-			SECTION(std::string("Binding mode ") + (isKinetic ? "dynamic" : "quasi-stationary"))
-			{
-				cadet::test::binding::testJacobianAD("MULTI_COMPONENT_COLLOIDAL", sizeof(nBound) / sizeof(unsigned int), nBound, isKinetic, config, state, FDsignAbsTol);
-			}
-		}
-	}
-
-TEST_CASE("MULTI_COMPONENT_COLLOIDAL binding model analytic Jacobian vs AD without PH", "[Jacobian],[AD],[BindingModel],[MULTI_COMPONENT_COLLOIDAL]")
-{
-	const unsigned int nBound[] = {0, 1, 1, 1};
-	const double state[] = {0.9, 1.1e-1, 3.2e-3, 1e-2, 2e-3, 1e-4, 1e-3};
-	char const* const config = R"json({
-			"COL_PHI": 49232983.6522396,
-			"COL_KAPPA_EXP": 1.8,
-			"COL_KAPPA_FACT": 1e7,
-			"COL_KAPPA_CONST": 1.2,
-			"COL_CORDNUM": 4.0,
-			"COL_LOGKEQ_PH_EXP": [0.0, 1.3, 2.3, 1.8],
-			"COL_LOGKEQ_SALT_POWEXP": [0.0, 1.4, 1.5, 1.6],
-			"COL_LOGKEQ_SALT_POWFACT": [0.0, 1.7, 1.9, 2.0],
-			"COL_LOGKEQ_SALT_EXPFACT": [0.0, 2.1, 2.2, 2.4],
-			"COL_LOGKEQ_SALT_EXPARGMULT": [0.0, 2.5, 2.6, 0.6],
-			"COL_BPP_PH_EXP": [0.0, 2.5, 2.4, 2.3],
-			"COL_BPP_SALT_POWEXP": [0.0, 1.1, 1.2, 1.3],
-			"COL_BPP_SALT_POWFACT": [0.0, 2.9, 2.8, 2.7],
-			"COL_BPP_SALT_EXPFACT": [0.0, 1.3, 1.7, 2.1],
-			"COL_BPP_SALT_EXPARGMULT": [0.0, 3.0, 2.8, 2.6],
-			"COL_PROTEIN_RADIUS": [0.0, 1.1e-8, 2.0e-8, 3.0e-8],
-			"COL_KKIN": [0.0, 0.9, 1.4, 1.9],
-			"COL_LINEAR_THRESHOLD": 1e-12,
-			"COL_USE_PH": 0
-		})json";
-	for (int bindMode = 0; bindMode < 2; ++bindMode)
-	{
-		const bool isKinetic = bindMode;
-		SECTION(std::string("Binding mode ") + (isKinetic ? "dynamic" : "quasi-stationary"))
-		{
-			cadet::test::binding::testJacobianAD("MULTI_COMPONENT_COLLOIDAL", sizeof(nBound) / sizeof(unsigned int), nBound, isKinetic, config, state);
-		}
-	}
-}
-
-TEST_CASE("MULTI_COMPONENT_COLLOIDAL binding model analytic Jacobian vs AD with PH low conc", "[Jacobian],[AD],[BindingModel],[MULTI_COMPONENT_COLLOIDAL]")
-{
-	const unsigned int nBound[] = {0, 0, 1, 1, 1};
-	const double state[] = {0.9, 1.1, 1.5, 2.3, 2.9, 1e-7, 2e-7, 5e-7};
-	char const* const config = R"json({
-			"COL_PHI": 0.56,
-			"COL_KAPPA_EXP": 0.8,
-			"COL_KAPPA_FACT": 1e7,
-			"COL_KAPPA_CONST": 1.2,
-			"COL_CORDNUM": 4.0,
-			"COL_LOGKEQ_PH_EXP": [0.0, 0.0, 1.3, 2.3, 1.8],
-			"COL_LOGKEQ_SALT_POWEXP": [0.0, 0.0, 1.4, 1.5, 1.6],
-			"COL_LOGKEQ_SALT_POWFACT": [0.0, 0.0, 1.7, 1.9, 2.0],
-			"COL_LOGKEQ_SALT_EXPFACT": [0.0, 0.0, 2.1, 2.2, 2.4],
-			"COL_LOGKEQ_SALT_EXPARGMULT": [0.0, 0.0, 2.5, 2.6, 0.6],
-			"COL_BPP_PH_EXP": [0.0, 0.0, 0.5, 0.4, 0.3],
-			"COL_BPP_SALT_POWEXP": [0.0, 0.0, 1.1, 1.2, 1.3],
-			"COL_BPP_SALT_POWFACT": [0.0, 0.0, 2.9, 2.8, 2.7],
-			"COL_BPP_SALT_EXPFACT": [0.0, 0.0, 1.3, 1.7, 2.1],
-			"COL_BPP_SALT_EXPARGMULT": [0.0, 0.0, 3.0, 2.8, 2.6],
-			"COL_PROTEIN_RADIUS": [0.0, 0.0, 1.1e-8, 2.0e-8, 3.0e-8],
-			"COL_KKIN": [0.0, 0.0, 0.9, 1.4, 1.9],
-			"COL_LINEAR_THRESHOLD": 1e-5,
-			"COL_USE_PH": 1
-		})json";
-	for (int bindMode = 0; bindMode < 2; ++bindMode)
-	{
-		const bool isKinetic = bindMode;
-		SECTION(std::string("Binding mode ") + (isKinetic ? "dynamic" : "quasi-stationary"))
-		{
-			cadet::test::binding::testJacobianAD("MULTI_COMPONENT_COLLOIDAL", sizeof(nBound) / sizeof(unsigned int), nBound, isKinetic, config, state, true);
-		}
-	}
-}
-
-TEST_CASE("MULTI_COMPONENT_COLLOIDAL binding model analytic Jacobian vs AD without PH low conc", "[Jacobian],[AD],[BindingModel],[MULTI_COMPONENT_COLLOIDAL]")
-{
-	const unsigned int nBound[] = {0, 1, 1, 1};
-	const double state[] = {0.9, 1.1, 2.3, 2.9, 1e-7, 2e-7, 5e-7};
-	char const* const config = R"json({
-			"COL_PHI": 0.56,
-			"COL_KAPPA_EXP": 0.8,
-			"COL_KAPPA_FACT": 1e7,
-			"COL_KAPPA_CONST": 1.2,
-			"COL_CORDNUM": 4.0,
-			"COL_LOGKEQ_PH_EXP": [0.0, 1.3, 2.3, 1.8],
-			"COL_LOGKEQ_SALT_POWEXP": [0.0, 1.4, 1.5, 1.6],
-			"COL_LOGKEQ_SALT_POWFACT": [0.0, 1.7, 1.9, 2.0],
-			"COL_LOGKEQ_SALT_EXPFACT": [0.0, 2.1, 2.2, 2.4],
-			"COL_LOGKEQ_SALT_EXPARGMULT": [0.0, 2.5, 2.6, 0.6],
-			"COL_BPP_PH_EXP": [0.0, 0.5, 0.4, 0.3],
-			"COL_BPP_SALT_POWEXP": [0.0, 1.1, 1.2, 1.3],
-			"COL_BPP_SALT_POWFACT": [0.0, 2.9, 2.8, 2.7],
-			"COL_BPP_SALT_EXPFACT": [0.0, 1.3, 1.7, 2.1],
-			"COL_BPP_SALT_EXPARGMULT": [0.0, 3.0, 2.8, 2.6],
-			"COL_PROTEIN_RADIUS": [0.0, 1.1e-8, 2.0e-8, 3.0e-8],
-			"COL_KKIN": [0.0, 0.9, 1.4, 1.9],
-			"COL_LINEAR_THRESHOLD": 1e-5,
-			"COL_USE_PH": 0
-		})json";
-	for (int bindMode = 0; bindMode < 2; ++bindMode)
-	{
-		const bool isKinetic = bindMode;
-		SECTION(std::string("Binding mode ") + (isKinetic ? "dynamic" : "quasi-stationary"))
-		{
-			cadet::test::binding::testJacobianAD("MULTI_COMPONENT_COLLOIDAL", sizeof(nBound) / sizeof(unsigned int), nBound, isKinetic, config, state, true);
-		}
-	}
-}
-
-CADET_BINDINGTEST("HIC_WATER_ON_HYDROPHOBIC_SURFACES", "EXT_HIC_WATER_ON_HYDROPHOBIC_SURFACES", (0,1,1), (0,1,1,0), (1.0, 2.0, 3.0, 0.0, 0.0), (1.0, 2.0, 3.0, 4.0, 0.0, 0.0), \
-	R"json( "HICWHS_KA": [0.0, 0.872767843365959, 1.74553568673192],
-	        "HICWHS_KD": [0.0, 44.9707701873943, 89.9415403747886],
-	        "HICWHS_BETA0": 0.0184390384521496,
-	        "HICWHS_BETA1": 0.000797098469630127,
-	        "HICWHS_NU": [0.0, 10, 20],
-	        "HICWHS_QMAX": [0.0, 1000, 2000]
-	)json", \
-	R"json( "HICWHS_KA": [0.0, 0.872767843365959, 1.74553568673192, 2.61830353009788],
-	        "HICWHS_KD": [0.0, 44.9707701873943, 89.9415403747886, 134.912310562183],
-	        "HICWHS_BETA0": 0.0184390384521496,
-	        "HICWHS_BETA1": 0.000797098469630127,
-	        "HICWHS_NU": [0.0, 10, 20, 30],
-	        "HICWHS_QMAX": [0.0, 1000, 2000, 3000]
-	)json", \
-	R"json( "EXT_HICWHS_KA": [0.0, 0.0, 0.0],
-	        "EXT_HICWHS_KA_T": [0.0, 0.872767843365959, 1.74553568673192],
-	        "EXT_HICWHS_KA_TT": [0.0, 0.0, 0.0],
-	        "EXT_HICWHS_KA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_HICWHS_KD": [0.0, 0.0, 0.0],
-	        "EXT_HICWHS_KD_T": [0.0, 44.9707701873943, 89.9415403747886],
-	        "EXT_HICWHS_KD_TT": [0.0, 0.0, 0.0],
-	        "EXT_HICWHS_KD_TTT": [0.0, 0.0, 0.0],
-	        "EXT_HICWHS_BETA0": 0.0,
-	        "EXT_HICWHS_BETA0_T": 0.0184390384521496,
-	        "EXT_HICWHS_BETA0_TT": 0.0,
-	        "EXT_HICWHS_BETA0_TTT": 0.0,
-	        "EXT_HICWHS_BETA1": 0.0,
-	        "EXT_HICWHS_BETA1_T": 0.000797098469630127,
-	        "EXT_HICWHS_BETA1_TT": 0.0,
-	        "EXT_HICWHS_BETA1_TTT": 0.0,
-	        "EXT_HICWHS_NU": [0.0, 0.0, 0.0],
-	        "EXT_HICWHS_NU_T": [0.0, 10, 20],
-	        "EXT_HICWHS_NU_TT": [0.0, 0.0, 0.0],
-	        "EXT_HICWHS_NU_TTT": [0.0, 0.0, 0.0],
-	        "EXT_HICWHS_QMAX": [0.0, 0.0, 0.0],
-	        "EXT_HICWHS_QMAX_T": [0.0, 1000, 2000],
-	        "EXT_HICWHS_QMAX_TT": [0.0, 0.0, 0.0],
-	        "EXT_HICWHS_QMAX_TTT": [0.0, 0.0, 0.0]
-	)json", \
-	R"json( "EXT_HICWHS_KA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICWHS_KA_T": [0.0, 0.872767843365959, 1.74553568673192, 2.61830353009788],
-	        "EXT_HICWHS_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICWHS_KA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICWHS_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICWHS_KD_T": [0.0, 44.9707701873943, 89.9415403747886, 134.912310562183],
-	        "EXT_HICWHS_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICWHS_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICWHS_BETA0": 0.0,
-	        "EXT_HICWHS_BETA0_T": 0.0184390384521496,
-	        "EXT_HICWHS_BETA0_TT": 0.0,
-	        "EXT_HICWHS_BETA0_TTT": 0.0,
-	        "EXT_HICWHS_BETA1": 0.0,
-	        "EXT_HICWHS_BETA1_T": 0.000797098469630127,
-	        "EXT_HICWHS_BETA1_TT": 0.0,
-	        "EXT_HICWHS_BETA1_TTT": 0.0,
-	        "EXT_HICWHS_NU": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICWHS_NU_T": [0.0, 10, 20, 30],
-	        "EXT_HICWHS_NU_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICWHS_NU_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICWHS_QMAX": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICWHS_QMAX_T": [0.0, 1000, 2000, 3000],
-	        "EXT_HICWHS_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICWHS_QMAX_TTT": [0.0, 0.0, 0.0, 0.0]
-	)json", \
-	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
-
-CADET_BINDINGTEST("HIC_CONSTANT_WATER_ACTIVITY", "EXT_HIC_CONSTANT_WATER_ACTIVITY", (0,1,1), (0,1,1,0), (1.0, 2.0, 3.0, 1.0, 1.0), (1.0, 2.0, 3.0, 4.0, 1.0, 1.0), \
-	R"json( "HICCWA_KA": [0.0, 0.474361388031419, 0.948722776062837],
-	        "HICCWA_KD": [0.0, 2045.88163309217, 4091.763266184343],
-	        "HICCWA_BETA0": 0.326934960685602,
-	        "HICCWA_BETA1": 0.000221461823367185,
-	        "HICCWA_NU": [0.0, 10, 20],
-	        "HICCWA_QMAX": [0.0, 10, 20]
-	)json", \
-	R"json( "HICCWA_KA": [0.0, 0.474361388031419, 0.948722776062837, 1.42308416409426],
-	        "HICCWA_KD": [0.0, 2045.88163309217, 4091.763266184343, 6137.64489927651],
-	        "HICCWA_BETA0": 0.326934960685602,
-	        "HICCWA_BETA1": 0.000221461823367185,
-	        "HICCWA_NU": [0.0, 10, 20, 30],
-	        "HICCWA_QMAX": [0.0, 10, 20, 30]
-	)json", \
-	R"json( "EXT_HICCWA_KA": [0.0, 0.0, 0.0],
-	        "EXT_HICCWA_KA_T": [0.0, 0.474361388031419, 0.948722776062837],
-	        "EXT_HICCWA_KA_TT": [0.0, 0.0, 0.0],
-	        "EXT_HICCWA_KA_TTT": [0.0, 0.0, 0.0],
-	        "EXT_HICCWA_KD": [0.0, 0.0, 0.0],
-	        "EXT_HICCWA_KD_T": [0.0, 2045.88163309217, 4091.7632661843],
-	        "EXT_HICCWA_KD_TT": [0.0, 0.0, 0.0],
-	        "EXT_HICCWA_KD_TTT": [0.0, 0.0, 0.0],
-	        "EXT_HICCWA_BETA0": 0.0,
-	        "EXT_HICCWA_BETA0_T": 0.326934960685602,
-	        "EXT_HICCWA_BETA0_TT": 0.0,
-	        "EXT_HICCWA_BETA0_TTT": 0.0,
-	        "EXT_HICCWA_BETA1": 0.0,
-	        "EXT_HICCWA_BETA1_T": 0.000221461823367185,
-	        "EXT_HICCWA_BETA1_TT": 0.0,
-	        "EXT_HICCWA_BETA1_TTT": 0.0,
-	        "EXT_HICCWA_NU": [0.0, 0.0, 0.0],
-	        "EXT_HICCWA_NU_T": [0.0, 10, 20],
-	        "EXT_HICCWA_NU_TT": [0.0, 0.0, 0.0],
-	        "EXT_HICCWA_NU_TTT": [0.0, 0.0, 0.0],
-	        "EXT_HICCWA_QMAX": [0.0, 0.0, 0.0],
-	        "EXT_HICCWA_QMAX_T": [0.0, 10, 20],
-	        "EXT_HICCWA_QMAX_TT": [0.0, 0.0, 0.0],
-	        "EXT_HICCWA_QMAX_TTT": [0.0, 0.0, 0.0]
-	)json", \
-	R"json( "EXT_HICCWA_KA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICCWA_KA_T": [0.0, 0.474361388031419, 0.948722776062837, 1.42308416409426],
-	        "EXT_HICCWA_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICCWA_KA_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICCWA_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICCWA_KD_T": [0.0, 2045.88163309217, 4091.7632661843, 6137.64489927651],
-	        "EXT_HICCWA_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICCWA_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICCWA_BETA0": 0.0,
-	        "EXT_HICCWA_BETA0_T": 0.326934960685602,
-	        "EXT_HICCWA_BETA0_TT": 0.0,
-	        "EXT_HICCWA_BETA0_TTT": 0.0,
-	        "EXT_HICCWA_BETA1": 0.0,
-	        "EXT_HICCWA_BETA1_T": 0.000221461823367185,
-	        "EXT_HICCWA_BETA1_TT": 0.0,
-	        "EXT_HICCWA_BETA1_TTT": 0.0,
-	        "EXT_HICCWA_NU": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICCWA_NU_T": [0.0, 10, 20, 30],
-	        "EXT_HICCWA_NU_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICCWA_NU_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICCWA_QMAX": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICCWA_QMAX_T": [0.0, 10, 20, 30],
-	        "EXT_HICCWA_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICCWA_QMAX_TTT": [0.0, 0.0, 0.0, 0.0]
-	)json", \
-	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_USED, CADET_COMPARE_BINDING_VS_NONBINDING)
-
-	CADET_BINDINGTEST("HIC_UNIFIED", "EXT_HIC_UNIFIED", (0, 0, 1, 1), (0, 0, 1, 1, 0), (1.0, 7.0, 2.0, 3.0, 1.0, 1.0), (1.0, 7.0, 2.0, 3.0, 4.0, 1.0, 1.0), \
-		R"json( "HICUNI_KA": [0.0, 0.0, 0.474361388031419, 0.948722776062837],
-	        "HICUNI_KA_LIN": [0.0, 0.0, 0.0, 0.0],
-	        "HICUNI_KD": [0.0, 0.0, 2045.88163309217, 4091.763266184343],
-	        "HICUNI_KS": [0.0, 0.0, 0.0, 0.0],
-	        "HICUNI_KP": [0.0, 0.0, 0.5, 0.5],
-	        "HICUNI_EPSILON": [0.0, 0.0, 0.5, 0.5],
-	        "HICUNI_BETA0": 0.326934960685602,
-	        "HICUNI_BETA1": 0.000221461823367185,
-	        "HICUNI_NU": [0.0, 0.0, 10, 20],
-	        "HICUNI_NU_LIN": [0.0, 0.0, 0.0, 0.0],
-	        "HICUNI_QMAX": [0.0, 0.0, 10, 20],
-			"HICUNI_REFC1": 7.0
-	)json", \
-		R"json( "HICUNI_KA": [0.0, 0.0, 0.474361388031419, 0.948722776062837, 1.42308416409426],
-	        "HICUNI_KA_LIN": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "HICUNI_KD": [0.0, 0.0, 2045.88163309217, 4091.763266184343, 6137.64489927651],
-	        "HICUNI_KS": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "HICUNI_KP": [0.0, 0.0, 0.5, 0.5, 0.5],
-	        "HICUNI_EPSILON": [0.0, 0.0, 0.5, 0.5, 0.5],
-	        "HICUNI_BETA0": 0.326934960685602,
-	        "HICUNI_BETA1": 0.000221461823367185,
-	        "HICUNI_NU": [0.0, 0.0, 10, 20, 30],
-	        "HICUNI_NU_LIN": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "HICUNI_QMAX": [0.0, 0.0, 10, 20, 30],
-			"HICUNI_REFC1": 7.0
-	)json", \
-	R"json( "EXT_HICUNI_KA": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KA_T": [0.0,0.0,  0.474361388031419, 0.948722776062837],
-	        "EXT_HICUNI_KA_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KA_TTT": [0.0, 0.0, 0.0, 0.0],
-			"EXT_HICUNI_KA_LIN": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KA_LIN_T": [0.0,0.0,  0.0, 0.0],
-	        "EXT_HICUNI_KA_LIN_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KA_LIN_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KD": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KD_T": [0.0, 0.0, 2045.88163309217, 4091.7632661843],
-	        "EXT_HICUNI_KD_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KD_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KP": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KP_T": [0.0, 0.0, 0.5, 0.5],
-	        "EXT_HICUNI_KP_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KP_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KS": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KS_T": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KS_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KS_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_EPSILON": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_EPSILON_T": [0.0, 0.0, 0.5, 0.5],
-	        "EXT_HICUNI_EPSILON_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_EPSILON_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_BETA0": 0.0,
-	        "EXT_HICUNI_BETA0_T": 0.326934960685602,
-	        "EXT_HICUNI_BETA0_TT": 0.0,
-	        "EXT_HICUNI_BETA0_TTT": 0.0,
-	        "EXT_HICUNI_BETA1": 0.0,
-	        "EXT_HICUNI_BETA1_T": 0.000221461823367185,
-	        "EXT_HICUNI_BETA1_TT": 0.0,
-	        "EXT_HICUNI_BETA1_TTT": 0.0,
-	        "EXT_HICUNI_NU": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_NU_T": [0.0, 0.0, 10, 20],
-	        "EXT_HICUNI_NU_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_NU_TTT": [0.0, 0.0, 0.0, 0.0],
-			"EXT_HICUNI_NU_LIN": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_NU_LIN_T": [0.0,0.0,  0.0, 0.0],
-	        "EXT_HICUNI_NU_LIN_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_NU_LIN_TTT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_QMAX": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_QMAX_T": [0.0, 0.0, 10, 20],
-	        "EXT_HICUNI_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_QMAX_TTT": [0.0, 0.0, 0.0, 0.0],
-			"EXT_HICUNI_REFC1": 7.0
-	)json", \
-		R"json( "EXT_HICUNI_KA": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KA_T": [0.0, 0.0, 0.474361388031419, 0.948722776062837, 1.42308416409426],
-	        "EXT_HICUNI_KA_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KA_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-			"EXT_HICUNI_KA_LIN": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KA_LIN_T": [0.0,0.0, 0.0,  0.0, 0.0],
-	        "EXT_HICUNI_KA_LIN_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KA_LIN_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KD": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KD_T": [0.0, 0.0, 2045.88163309217, 4091.7632661843, 6137.64489927651],
-	        "EXT_HICUNI_KD_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KD_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KP": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KP_T": [0.0, 0.0, 0.5, 0.5, 0.5],
-	        "EXT_HICUNI_KP_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KP_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KS": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KS_T": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KS_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_KS_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_EPSILON": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_EPSILON_T": [0.0, 0.0, 0.5, 0.5, 0.5],
-	        "EXT_HICUNI_EPSILON_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_EPSILON_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_BETA0": 0.0,
-	        "EXT_HICUNI_BETA0_T": 0.326934960685602,
-	        "EXT_HICUNI_BETA0_TT": 0.0,
-	        "EXT_HICUNI_BETA0_TTT": 0.0,
-	        "EXT_HICUNI_BETA1": 0.0,
-	        "EXT_HICUNI_BETA1_T": 0.000221461823367185,
-	        "EXT_HICUNI_BETA1_TT": 0.0,
-	        "EXT_HICUNI_BETA1_TTT": 0.0,
-	        "EXT_HICUNI_NU": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_NU_T": [0.0, 0.0, 10, 20, 30],
-	        "EXT_HICUNI_NU_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_NU_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-			"EXT_HICUNI_NU_LIN": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_NU_LIN_T": [0.0,0.0, 0.0,  0.0, 0.0],
-	        "EXT_HICUNI_NU_LIN_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_NU_LIN_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_QMAX": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_QMAX_T": [0.0, 0.0, 10, 20, 30],
-	        "EXT_HICUNI_QMAX_TT": [0.0, 0.0, 0.0, 0.0, 0.0],
-	        "EXT_HICUNI_QMAX_TTT": [0.0, 0.0, 0.0, 0.0, 0.0],
-			"EXT_HICUNI_REFC1": 7.0
-	)json", \
-		1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_USED, CADET_COMPARE_BINDING_VS_NONBINDING)
-CADET_BINDINGTEST("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITRATION", (0, 1), (0, 0, 1), (5.5, 0.06666667, 0.0), (5.5, 0.1, 0.06666667, 0.0), \
+CADET_BINDINGTEST_MULTI("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITRATION", " with log10 values (pH)", (0, 1), (0, 0, 1), (5.5, 0.06666667, 0.0), (5.5, 0.1, 0.06666667, 0.0), \
 	R"json( "ACT_KA": [1.0, 1386.9],
 	        "ACT_KD": [1.0, 1.0],
 	        "ACT_QMAX": [0.0000000001, 10.7439614],
 	        "ACT_ETAA": [0.0, 1.81],
 	        "ACT_ETAG": [0.0, 2.28],
 	        "ACT_PKAA": [0.0, 2.07],
-            "ACT_PKAG": [0.0, 5.29]
+            "ACT_PKAG": [0.0, 5.29],
+            "ACT_USE_ION_CONC": 0 
 	)json", \
 	R"json( "ACT_KA": [1.0, 1.0, 1386.9],
 	        "ACT_KD": [1.0, 1.0, 1.0],
@@ -1867,7 +206,8 @@ CADET_BINDINGTEST("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITRATION"
 	        "ACT_ETAA": [0.0, 0.0, 1.81],
 	        "ACT_ETAG": [0.0, 0.0, 2.28],
 	        "ACT_PKAA": [0.0, 0.0, 2.07],
-            "ACT_PKAG": [0.0, 0.0, 5.29]
+            "ACT_PKAG": [0.0, 0.0, 5.29],
+            "ACT_USE_ION_CONC": 0 
 	)json", \
 	R"json( "EXT_ACT_KA": [0.0, 0.0],
 	        "EXT_ACT_KA_T": [1.0, 1386.9],
@@ -1896,7 +236,8 @@ CADET_BINDINGTEST("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITRATION"
 	        "EXT_ACT_PKAG": [0.0, 0.0],
 	        "EXT_ACT_PKAG_T": [0.0, 5.29],
 	        "EXT_ACT_PKAG_TT": [0.0, 0.0],
-	        "EXT_ACT_PKAG_TTT": [0.0, 0.0]
+	        "EXT_ACT_PKAG_TTT": [0.0, 0.0],
+            "EXT_ACT_USE_ION_CONC": 0 
 	)json", \
 	R"json( "EXT_ACT_KA": [0.0, 0.0, 0.0],
 	        "EXT_ACT_KA_T": [1.0, 1.0, 1386.9],
@@ -1925,6 +266,374 @@ CADET_BINDINGTEST("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITRATION"
 	        "EXT_ACT_PKAG": [0.0, 0.0, 0.0],
 	        "EXT_ACT_PKAG_T": [0.0, 0.0, 5.29],
 	        "EXT_ACT_PKAG_TT": [0.0, 0.0, 0.0],
-	        "EXT_ACT_PKAG_TTT": [0.0, 0.0, 0.0]
+	        "EXT_ACT_PKAG_TTT": [0.0, 0.0, 0.0],
+            "EXT_ACT_USE_ION_CONC": 0 
 	)json", \
 	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_USED, CADET_COMPARE_BINDING_VS_NONBINDING)
+
+	CADET_BINDINGTEST_MULTI("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITRATION", " with raw values (ions in mol)", (0, 1), (0, 0, 1), (0.4, 0.06666667, 0.0), (0.4, 0.1, 0.06666667, 0.0), \
+	R"json( "ACT_KA": [1.0, 1386.9],
+	        "ACT_KD": [1.0, 1.0],
+	        "ACT_QMAX": [0.0000000001, 10.7439614],
+	        "ACT_ETAA": [0.0, 1.81],
+	        "ACT_ETAG": [0.0, 2.28],
+	        "ACT_CMID_A": [0.0, 0.380],
+            "ACT_CMID_G": [0.0, 0.2],
+            "ACT_USE_ION_CONC": 1
+	)json", \
+	R"json( "ACT_KA": [1.0, 1.0, 1386.9],
+	        "ACT_KD": [1.0, 1.0, 1.0],
+	        "ACT_QMAX": [0.0000000001, 0.0000000001, 10.7439614],
+	        "ACT_ETAA": [0.0, 0.0, 1.81],
+	        "ACT_ETAG": [0.0, 0.0, 2.28],
+	        "ACT_CMID_A": [0.0, 0.0, 0.38],
+            "ACT_CMID_G": [0.0, 0.0, 0.2],
+            "ACT_USE_ION_CONC": 1
+	)json", \
+	R"json( "EXT_ACT_KA": [0.0, 0.0],
+	        "EXT_ACT_KA_T": [1.0, 1386.9],
+	        "EXT_ACT_KA_TT": [0.0, 0.0],
+	        "EXT_ACT_KA_TTT": [0.0, 0.0],
+	        "EXT_ACT_KD": [0.0, 0.0],
+	        "EXT_ACT_KD_T": [1.0, 1.0],
+	        "EXT_ACT_KD_TT": [0.0, 0.0],
+	        "EXT_ACT_KD_TTT": [0.0, 0.0],
+	        "EXT_ACT_QMAX": [0.0, 0.0],
+	        "EXT_ACT_QMAX_T": [0.0000000001, 10.7439614],
+	        "EXT_ACT_QMAX_TT": [0.0, 0.0],
+	        "EXT_ACT_QMAX_TTT": [0.0, 0.0],
+	        "EXT_ACT_ETAA": [0.0, 0.0],
+	        "EXT_ACT_ETAA_T": [0.0, 1.81],
+	        "EXT_ACT_ETAA_TT": [0.0, 0.0],
+	        "EXT_ACT_ETAA_TTT": [0.0, 0.0],
+	        "EXT_ACT_ETAG": [0.0, 0.0],
+	        "EXT_ACT_ETAG_T": [0.0, 2.28],
+	        "EXT_ACT_ETAG_TT": [0.0, 0.0],
+	        "EXT_ACT_ETAG_TTT": [0.0, 0.0],
+	        "EXT_ACT_CMID_A": [0.0, 0.0],
+	        "EXT_ACT_CMID_A_T": [0.0, 0.38],
+	        "EXT_ACT_CMID_A_TT": [0.0, 0.0],
+	        "EXT_ACT_CMID_A_TTT": [0.0, 0.0],
+	        "EXT_ACT_CMID_G": [0.0, 0.0],
+	        "EXT_ACT_CMID_G_T": [0.0, 0.2],
+	        "EXT_ACT_CMID_G_TT": [0.0, 0.0],
+	        "EXT_ACT_CMID_G_TTT": [0.0, 0.0],
+            "EXT_ACT_USE_ION_CONC": 1
+	)json", \
+	R"json( "EXT_ACT_KA": [0.0, 0.0, 0.0],
+	        "EXT_ACT_KA_T": [1.0, 1.0, 1386.9],
+	        "EXT_ACT_KA_TT": [0.0, 0.0, 0.0],
+	        "EXT_ACT_KA_TTT": [0.0, 0.0, 0.0],
+	        "EXT_ACT_KD": [0.0, 0.0, 0.0],
+	        "EXT_ACT_KD_T": [1.0, 1.0, 1.0],
+	        "EXT_ACT_KD_TT": [0.0, 0.0, 0.0],
+	        "EXT_ACT_KD_TTT": [0.0, 0.0, 0.0],
+	        "EXT_ACT_QMAX": [0.0, 0.0, 0.0],
+	        "EXT_ACT_QMAX_T": [0.0000000001, 0.0000000001, 10.7439614],
+	        "EXT_ACT_QMAX_TT": [0.0, 0.0, 0.0],
+	        "EXT_ACT_QMAX_TTT": [0.0, 0.0, 0.0],
+	        "EXT_ACT_ETAA": [0.0, 0.0, 0.0],
+	        "EXT_ACT_ETAA_T": [0.0, 0.0, 1.81],
+	        "EXT_ACT_ETAA_TT": [0.0, 0.0, 0.0],
+	        "EXT_ACT_ETAA_TTT": [0.0, 0.0, 0.0],
+	        "EXT_ACT_ETAG": [0.0, 0.0, 0.0],
+	        "EXT_ACT_ETAG_T": [0.0, 0.0, 2.28],
+	        "EXT_ACT_ETAG_TT": [0.0, 0.0, 0.0],
+	        "EXT_ACT_ETAG_TTT": [0.0, 0.0, 0.0],
+	        "EXT_ACT_CMID_A": [0.0, 0.0, 0.0],
+	        "EXT_ACT_CMID_A_T": [0.0, 0.0, 0.38],
+	        "EXT_ACT_CMID_A_TT": [0.0, 0.0, 0.0],
+	        "EXT_ACT_CMID_A_TTT": [0.0, 0.0, 0.0],
+	        "EXT_ACT_CMID_G": [0.0, 0.0, 0.0],
+	        "EXT_ACT_CMID_G_T": [0.0, 0.0, 0.2],
+	        "EXT_ACT_CMID_G_TT": [0.0, 0.0, 0.0],
+	        "EXT_ACT_CMID_G_TTT": [0.0, 0.0, 0.0],
+            "EXT_ACT_USE_ION_CONC": 1
+	)json", \
+	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_USED, CADET_COMPARE_BINDING_VS_NONBINDING)
+
+	// Note: the allBinding has six components to test both interpolation and extrapolation of the data, i.e. different initial values that are within or beyond the range of the provided data.
+	CADET_BINDINGTEST("SPLINE_INTERPOLATION", "EXT_SPLINE_INTERPOLATION", (1, 1, 1, 1, 1, 1), (1, 0, 1, 1, 1, 1, 1), (1.5, 0.0, 0.1, 1.1, 0.3, 1.8, 0.2, 0.3, 0.8, 0.33, 0.1, 0.75), (1.5, 1.0, 0.0, 0.1, 1.1, 0.3, 1.8, 0.2, 0.3, 0.8, 0.33, 0.1, 0.75), \
+	R"json( "INTERPOLATION_MODE" : "INDEPENDENT",
+			"CP_VALS_COMP_000": [
+                0.0, 0.19219219, 0.37837838, 0.75075075, 1.5015015, 3.003003, 6.0
+            ],
+            "CP_VALS_COMP_001": [
+                0.0, 0.38438438, 0.75675676, 1.5015015, 3.003003, 6.006006, 12.0
+            ],
+            "CP_VALS_COMP_002": [
+                0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                1.5, 1.6, 1.7, 1.8, 1.9, 2.0,
+                2.5, 2.6, 2.7, 2.8, 2.9, 3.0,
+                3.5, 3.6, 3.7, 3.8, 3.9, 4.0,
+                4.5, 4.6, 4.7, 4.8, 4.9, 5.0
+            ],
+            "CP_VALS_COMP_003": [ 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 ],
+            "CP_VALS_COMP_004": [ 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 ],
+            "CP_VALS_COMP_005": [ 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 ],
+	        "CS_VALS_COMP_000_BND_000": [
+				1.29198742, 76.84778516, 110.14325476, 141.59781958, 165.80146634, 181.33282173, 190.23846417
+			],
+	        "CS_VALS_COMP_001_BND_000": [
+				1.93798113, 115.27167774, 165.21488214, 212.39672937, 248.70219951, 271.99923260, 285.35769626
+			],
+            "CS_VALS_COMP_002_BND_000": [
+                0.5, 0.6, 1.7, 0.8, 2.9, 1.0,
+                1.5, 1.6, 4.7, 4.8, 1.9, 2.0,
+                2.5, 3.6, 2.7, 3.8, 2.9, 3.0,
+                3.5, 2.6, 3.7, 2.8, 3.9, 4.0,
+                4.5, 1.6, 4.7, 1.8, 4.9, 5.0
+            ],
+            "CS_VALS_COMP_003_BND_000": [ 0.1, 0.3, 0.35, 0.4, 0.5, 0.5 ],
+            "CS_VALS_COMP_004_BND_000": [ 0.2, 0.3, 0.35, 0.4, 0.41, 0.5 ],
+            "CS_VALS_COMP_005_BND_000": [ 0.3, 0.31, 0.35, 0.4, 0.45, 0.5 ],
+			"SPLINE_KKIN": [2.0, 1.0, 1.2, 1.1, 3.2, 4.0]
+	)json", \
+	R"json( "INTERPOLATION_MODE" : "INDEPENDENT",
+			"CP_VALS_COMP_000": [
+				0.0, 0.19219219, 0.37837838, 0.75075075, 1.5015015, 3.003003, 6.0
+            ],
+            "CP_VALS_COMP_002": [
+				0.0, 0.38438438, 0.75675676, 1.5015015, 3.003003, 6.006006, 12.0
+            ],
+            "CP_VALS_COMP_003": [
+                0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                1.5, 1.6, 1.7, 1.8, 1.9, 2.0,
+                2.5, 2.6, 2.7, 2.8, 2.9, 3.0,
+                3.5, 3.6, 3.7, 3.8, 3.9, 4.0,
+                4.5, 4.6, 4.7, 4.8, 4.9, 5.0
+            ],
+            "CP_VALS_COMP_004": [ 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 ],
+            "CP_VALS_COMP_005": [ 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 ],
+            "CP_VALS_COMP_006": [ 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 ],
+	        "CS_VALS_COMP_000_BND_000": [
+				1.29198742, 76.84778516, 110.14325476, 141.59781958, 165.80146634, 181.33282173, 190.23846417
+			],
+	        "CS_VALS_COMP_002_BND_000": [
+				1.93798113, 115.27167774, 165.21488214, 212.39672937, 248.70219951, 271.99923260, 285.35769626
+			],
+            "CS_VALS_COMP_003_BND_000": [
+                0.5, 0.6, 1.7, 0.8, 2.9, 1.0,
+                1.5, 1.6, 4.7, 4.8, 1.9, 2.0,
+                2.5, 3.6, 2.7, 3.8, 2.9, 3.0,
+                3.5, 2.6, 3.7, 2.8, 3.9, 4.0,
+                4.5, 1.6, 4.7, 1.8, 4.9, 5.0
+            ],
+            "CS_VALS_COMP_004_BND_000": [ 0.1, 0.3, 0.35, 0.4, 0.5, 0.5 ],
+            "CS_VALS_COMP_005_BND_000": [ 0.2, 0.3, 0.35, 0.4, 0.41, 0.5 ],
+            "CS_VALS_COMP_006_BND_000": [ 0.3, 0.31, 0.35, 0.4, 0.45, 0.5 ],
+			"SPLINE_KKIN": [2.0, 1.0, 1.2, 1.1, 3.2, 4.0]
+	)json", \
+	R"json( "INTERPOLATION_MODE" : "INDEPENDENT",
+			"CP_VALS_COMP_000": [
+                0.0, 0.19219219, 0.37837838, 0.75075075, 1.5015015, 3.003003, 6.0
+            ],
+            "CP_VALS_COMP_001": [
+                0.0, 0.38438438, 0.75675676, 1.5015015, 3.003003, 6.006006, 12.0
+            ],
+            "CP_VALS_COMP_002": [
+                0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                1.5, 1.6, 1.7, 1.8, 1.9, 2.0,
+                2.5, 2.6, 2.7, 2.8, 2.9, 3.0,
+                3.5, 3.6, 3.7, 3.8, 3.9, 4.0,
+                4.5, 4.6, 4.7, 4.8, 4.9, 5.0
+            ],
+            "CP_VALS_COMP_003": [ 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 ],
+            "CP_VALS_COMP_004": [ 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 ],
+            "CP_VALS_COMP_005": [ 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 ],
+	        "CS_VALS_COMP_000_BND_000": [
+				1.29198742, 76.84778516, 110.14325476, 141.59781958, 165.80146634, 181.33282173, 190.23846417
+			],
+	        "CS_VALS_COMP_001_BND_000": [
+				1.93798113, 115.27167774, 165.21488214, 212.39672937, 248.70219951, 271.99923260, 285.35769626
+			],
+            "CS_VALS_COMP_002_BND_000": [
+                0.5, 0.6, 1.7, 0.8, 2.9, 1.0,
+                1.5, 1.6, 4.7, 4.8, 1.9, 2.0,
+                2.5, 3.6, 2.7, 3.8, 2.9, 3.0,
+                3.5, 2.6, 3.7, 2.8, 3.9, 4.0,
+                4.5, 1.6, 4.7, 1.8, 4.9, 5.0
+            ],
+            "CS_VALS_COMP_003_BND_000": [ 0.1, 0.3, 0.35, 0.4, 0.5, 0.5 ],
+            "CS_VALS_COMP_004_BND_000": [ 0.2, 0.3, 0.35, 0.4, 0.41, 0.5 ],
+            "CS_VALS_COMP_005_BND_000": [ 0.3, 0.31, 0.35, 0.4, 0.45, 0.5 ],
+			"EXT_SPLINE_KKIN": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+			"EXT_SPLINE_KKIN_T": [2.0, 1.0, 1.2, 1.1, 3.2, 4.0],
+	        "EXT_SPLINE_KKIN_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_SPLINE_KKIN_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+	)json", \
+	R"json( "INTERPOLATION_MODE" : "INDEPENDENT",
+			"CP_VALS_COMP_000": [
+                0.0, 0.19219219, 0.37837838, 0.75075075, 1.5015015, 3.003003, 6.0
+            ],
+            "CP_VALS_COMP_002": [
+                0.0, 0.38438438, 0.75675676, 1.5015015, 3.003003, 6.006006, 12.0
+            ],
+            "CP_VALS_COMP_003": [
+                0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                1.5, 1.6, 1.7, 1.8, 1.9, 2.0,
+                2.5, 2.6, 2.7, 2.8, 2.9, 3.0,
+                3.5, 3.6, 3.7, 3.8, 3.9, 4.0,
+                4.5, 4.6, 4.7, 4.8, 4.9, 5.0
+            ],
+            "CP_VALS_COMP_004": [ 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 ],
+            "CP_VALS_COMP_005": [ 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 ],
+            "CP_VALS_COMP_006": [ 0.5, 0.6, 0.7, 0.8, 0.9, 1.0 ],
+	        "CS_VALS_COMP_000_BND_000": [
+				1.29198742, 76.84778516, 110.14325476, 141.59781958, 165.80146634, 181.33282173, 190.23846417
+			],
+	        "CS_VALS_COMP_002_BND_000": [
+				1.93798113, 115.27167774, 165.21488214, 212.39672937, 248.70219951, 271.99923260, 285.35769626
+			],
+            "CS_VALS_COMP_003_BND_000": [
+                0.5, 0.6, 1.7, 0.8, 2.9, 1.0,
+                1.5, 1.6, 4.7, 4.8, 1.9, 2.0,
+                2.5, 3.6, 2.7, 3.8, 2.9, 3.0,
+                3.5, 2.6, 3.7, 2.8, 3.9, 4.0,
+                4.5, 1.6, 4.7, 1.8, 4.9, 5.0
+            ],
+            "CS_VALS_COMP_004_BND_000": [ 0.1, 0.3, 0.35, 0.4, 0.5, 0.5 ],
+            "CS_VALS_COMP_005_BND_000": [ 0.2, 0.3, 0.35, 0.4, 0.41, 0.5 ],
+            "CS_VALS_COMP_006_BND_000": [ 0.3, 0.31, 0.35, 0.4, 0.45, 0.5 ],
+			"EXT_SPLINE_KKIN": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+			"EXT_SPLINE_KKIN_T": [2.0, 1.0, 1.2, 1.1, 3.2, 4.0],
+	        "EXT_SPLINE_KKIN_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_SPLINE_KKIN_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+	)json", \
+	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
+
+// Note: AD is not available for GPR, so we only test the single implementation with finite differences.
+CADET_BINDINGTEST_ALLBINDING_SINGLE_IMPL_FD("GAUSSIAN_PROCESS_REGRESSION", "RBF 1Comp", "[GAUSSIAN_PROCESS_REGRESSION]",
+	(1), (1.0, 100.0),
+	R"json( "GPR_KKIN": [1.0],
+		"KERNEL": "RBF_Linear",
+		"CP_NDIM": 1,
+		"CP_VALS": [0.0, 0.42857143, 0.85714286, 1.28571429, 1.71428571, 2.14285714, 2.57142857, 3.0, 3.42857143, 3.85714286, 4.28571429, 4.71428571, 5.14285714, 5.57142857, 6.0],
+		"CS_NDIM": 1,
+		"CS_VALS": [0.0, 116.26794275, 147.04992449, 161.28318594, 169.48561458, 174.82014386, 178.56705449, 181.34328358, 183.4827749, 185.18204912, 186.56429944, 187.71067415, 188.67680362, 189.50209958, 190.21526419],
+		"LINEAR_VARIANCE": [6.89934599],
+		"RBF_LENGTHSCALE": [0.932978701],
+		"RBF_VARIANCE": [15254.353],
+		"GAUSSIAN_NOISE_VARIANCE": [1473.38643]
+	)json",
+	1e-9, 1e-6, 1e-6)
+
+CADET_BINDINGTEST_ALLBINDING_SINGLE_IMPL_FD("GAUSSIAN_PROCESS_REGRESSION", "MLP 2Comp", "[GAUSSIAN_PROCESS_REGRESSION1]",
+	(1, 1), (1.0, 10.0, 0.0, 0.0),
+	R"json( "GPR_KKIN": [1000.0, 1000.0],
+			"KERNEL": "MLP",
+			"CP_NDIM": 2,
+			"CP_VALS": [
+				0.0, 0.0, 0.0, 1.0, 0.0, 2.0, 0.0, 3.0, 0.0, 4.0, 0.0, 5.0, 0.0, 6.0, 0.0, 7.0, 0.0, 8.0, 0.0, 9.0, 0.0, 10.0,
+				1.0, 0.0, 1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0, 1.0, 5.0, 1.0, 6.0, 1.0, 7.0, 1.0, 8.0, 1.0, 9.0, 1.0, 10.0,
+				2.0, 0.0, 2.0, 1.0, 2.0, 2.0, 2.0, 3.0, 2.0, 4.0, 2.0, 5.0, 2.0, 6.0, 2.0, 7.0, 2.0, 8.0, 2.0, 9.0, 2.0, 10.0,
+				3.0, 0.0, 3.0, 1.0, 3.0, 2.0, 3.0, 3.0, 3.0, 4.0, 3.0, 5.0, 3.0, 6.0, 3.0, 7.0, 3.0, 8.0, 3.0, 9.0, 3.0, 10.0,
+				4.0, 0.0, 4.0, 1.0, 4.0, 2.0, 4.0, 3.0, 4.0, 4.0, 4.0, 5.0, 4.0, 6.0, 4.0, 7.0, 4.0, 8.0, 4.0, 9.0, 4.0, 10.0,
+				5.0, 0.0, 5.0, 1.0, 5.0, 2.0, 5.0, 3.0, 5.0, 4.0, 5.0, 5.0, 5.0, 6.0, 5.0, 7.0, 5.0, 8.0, 5.0, 9.0, 5.0, 10.0,
+				6.0, 0.0, 6.0, 1.0, 6.0, 2.0, 6.0, 3.0, 6.0, 4.0, 6.0, 5.0, 6.0, 6.0, 6.0, 7.0, 6.0, 8.0, 6.0, 9.0, 6.0, 10.0,
+				7.0, 0.0, 7.0, 1.0, 7.0, 2.0, 7.0, 3.0, 7.0, 4.0, 7.0, 5.0, 7.0, 6.0, 7.0, 7.0, 7.0, 8.0, 7.0, 9.0, 7.0, 10.0,
+				8.0, 0.0, 8.0, 1.0, 8.0, 2.0, 8.0, 3.0, 8.0, 4.0, 8.0, 5.0, 8.0, 6.0, 8.0, 7.0, 8.0, 8.0, 8.0, 9.0, 8.0, 10.0,
+				9.0, 0.0, 9.0, 1.0, 9.0, 2.0, 9.0, 3.0, 9.0, 4.0, 9.0, 5.0, 9.0, 6.0, 9.0, 7.0, 9.0, 8.0, 9.0, 9.0, 9.0, 10.0,
+				10.0, 0.0, 10.0, 1.0, 10.0, 2.0, 10.0, 3.0, 10.0, 4.0, 10.0, 5.0, 10.0, 6.0, 10.0, 7.0, 10.0, 8.0, 10.0, 9.0, 10.0, 10.0
+			],
+			"CS_NDIM": 2,
+			"CS_VALS": [
+				0.0, 0.0, 0.0, 0.47619047619047616, 0.0, 0.9090909090909091, 0.0, 1.3043478260869565, 0.0, 1.6666666666666667, 0.0, 2.0, 0.0, 2.3076923076923075, 0.0, 2.5925925925925926, 0.0, 2.857142857142857, 0.0, 3.103448275862069, 0.0, 3.3333333333333335,
+				0.9090909090909091, 0.0, 0.8695652173913044, 0.4347826086956522, 0.8333333333333334, 0.8333333333333334, 0.8, 1.2, 0.7692307692307692, 1.5384615384615383, 0.7407407407407407, 1.8518518518518516, 0.7142857142857143, 2.142857142857143, 0.689655172413793, 2.4137931034482754, 0.6666666666666666, 2.6666666666666665, 0.6451612903225806, 2.903225806451613, 0.625, 3.125,
+				1.6666666666666667, 0.0, 1.6, 0.4, 1.5384615384615383, 0.7692307692307692, 1.4814814814814814, 1.111111111111111, 1.4285714285714286, 1.4285714285714286, 1.3793103448275863, 1.7241379310344829, 1.3333333333333333, 2.0, 1.2903225806451613, 2.258064516129032, 1.25, 2.5, 1.2121212121212122, 2.7272727272727275, 1.1764705882352942, 2.9411764705882355,
+				2.3076923076923075, 0.0, 2.222222222222222, 0.37037037037037035, 2.142857142857143, 0.7142857142857143, 2.068965517241379, 1.0344827586206895, 2.0, 1.3333333333333333, 1.9354838709677418, 1.6129032258064515, 1.875, 1.875, 1.8181818181818181, 2.121212121212121, 1.764705882352941, 2.352941176470588, 1.7142857142857142, 2.5714285714285716, 1.6666666666666665, 2.7777777777777777,
+				2.857142857142857, 0.0, 2.7586206896551726, 0.3448275862068966, 2.6666666666666665, 0.6666666666666666, 2.5806451612903225, 0.9677419354838709, 2.5, 1.25, 2.4242424242424243, 1.5151515151515151, 2.352941176470588, 1.764705882352941, 2.2857142857142856, 2.0, 2.2222222222222223, 2.2222222222222223, 2.162162162162162, 2.4324324324324325, 2.1052631578947367, 2.6315789473684212,
+				3.3333333333333335, 0.0, 3.225806451612903, 0.3225806451612903, 3.125, 0.625, 3.0303030303030303, 0.9090909090909092, 2.9411764705882355, 1.1764705882352942, 2.857142857142857, 1.4285714285714286, 2.7777777777777777, 1.6666666666666665, 2.7027027027027026, 1.8918918918918919, 2.6315789473684212, 2.1052631578947367, 2.5641025641025643, 2.307692307692308, 2.5, 2.5,
+				3.75, 0.0, 3.6363636363636362, 0.303030303030303, 3.529411764705882, 0.588235294117647, 3.4285714285714284, 0.8571428571428571, 3.333333333333333, 1.1111111111111112, 3.243243243243243, 1.3513513513513513, 3.157894736842105, 1.5789473684210524, 3.0769230769230766, 1.7948717948717947, 3.0, 2.0, 2.9268292682926833, 2.1951219512195124, 2.857142857142857, 2.380952380952381,
+				4.117647058823529, 0.0, 4.0, 0.2857142857142857, 3.888888888888889, 0.5555555555555556, 3.7837837837837838, 0.8108108108108107, 3.6842105263157894, 1.0526315789473684, 3.5897435897435894, 1.282051282051282, 3.5, 1.5, 3.414634146341464, 1.707317073170732, 3.333333333333333, 1.9047619047619047, 3.2558139534883717, 2.093023255813953, 3.1818181818181817, 2.2727272727272725,
+				4.444444444444445, 0.0, 4.324324324324324, 0.27027027027027023, 4.2105263157894735, 0.5263157894736842, 4.102564102564102, 0.7692307692307692, 4.0, 1.0, 3.9024390243902443, 1.2195121951219514, 3.8095238095238093, 1.4285714285714286, 3.720930232558139, 1.6279069767441858, 3.6363636363636362, 1.8181818181818181, 3.5555555555555554, 2.0, 3.4782608695652177, 2.173913043478261,
+				4.736842105263158, 0.0, 4.615384615384615, 0.2564102564102564, 4.5, 0.5, 4.390243902439025, 0.7317073170731708, 4.285714285714286, 0.9523809523809523, 4.186046511627907, 1.1627906976744187, 4.090909090909091, 1.3636363636363635, 4.0, 1.5555555555555556, 3.91304347826087, 1.7391304347826089, 3.829787234042553, 1.9148936170212765, 3.75, 2.0833333333333335,
+				5.0, 0.0, 4.878048780487806, 0.24390243902439027, 4.761904761904762, 0.47619047619047616, 4.651162790697675, 0.6976744186046512, 4.545454545454545, 0.9090909090909091, 4.444444444444445, 1.1111111111111112, 4.347826086956522, 1.3043478260869565, 4.25531914893617, 1.4893617021276595, 4.166666666666667, 1.6666666666666667, 4.081632653061225, 1.8367346938775508, 4.0, 2.0
+			],
+			"MLP_WEIGHT_VARIANCE_BND_000": 0.029548059154365466,
+			"MLP_WEIGHT_VARIANCE_BND_001": 0.005365920492034766,
+			"MLP_BIAS_VARIANCE_BND_000": 9.785251186028872e-09,
+			"MLP_BIAS_VARIANCE_BND_001": 1.0546614194958932e-07,
+			"MLP_VARIANCE_BND_000": 26.161283207315705,
+			"MLP_VARIANCE_BND_001": 15.968238058987849,
+			"GAUSSIAN_NOISE_VARIANCE_BND_000": 0.009999999768755773,
+			"GAUSSIAN_NOISE_VARIANCE_BND_001": 0.009999994965235032,
+			"LINEAR_VARIANCE_BND_000": 0.0,
+			"LINEAR_VARIANCE_BND_001": 0.0,
+			"RBF_LENGTHSCALE_BND_000": 0.0,
+			"RBF_LENGTHSCALE_BND_001": 0.0,
+			"RBF_VARIANCE_BND_000": 0.0,
+			"RBF_VARIANCE_BND_001": 0.0,
+			"MCL_KA": [0.1, 0.05],
+			"MCL_KD": [1.0, 1.0],
+			"MCL_QMAX": [10.0, 10.0]
+	)json",
+	1e-8, 1e-4, 1e-5)
+
+CADET_BINDINGTEST_ALLBINDING_SINGLE_IMPL_FD("NEURAL_NETWORK", "1Comp", "[NEURAL_NETWORK]",
+	(1), (1.0, 100.0),
+	R"json( "NLAYERS": 2, "NNODES": 8, "NN_KKIN": 1.0,
+			"bound_state_000": {
+				"NORM_FACTOR": 2.0000000000000004,
+				"POROSITY_FACTOR": 1.0,
+                "layer_0": {
+                    "BIAS": [
+                        0.2875892221927643,
+                        0.19059115648269653,
+                        0.3307907283306122,
+                        0.1599307656288147,
+                        0.1861191838979721,
+                        0.1581258624792099,
+                        0.37623605132102966,
+                        0.3112340271472931
+                    ],
+                    "KERNEL": [
+                        0.1830393224954605,
+                        -0.674653172492981,
+                        0.15619923174381256,
+                        -0.660468339920044,
+                        -0.6646636724472046,
+                        -0.6720495223999023,
+                        0.15588828921318054,
+                        0.19886037707328796
+                    ]
+                },
+                "layer_1": {
+                    "BIAS": [
+                        0.13756421208381653,
+                        0.6125074028968811,
+                        0.13840067386627197,
+                        0.15217815339565277,
+                        0.13754436373710632,
+                        0.14411617815494537,
+                        0.1439632922410965,
+                        0.6119943857192993
+                    ],
+                    "KERNEL": [
+						-0.3580138087272644, 0.1278117150068283, -0.3522106409072876, -0.2839900255203247, -0.35414919257164, -0.324948251247406, -0.33888548612594604, 0.18476040661334991, 0.6312119960784912, -0.6597867608070374,
+						0.6278061270713806, 0.6757614612579346, 0.6851419806480408, 0.6673421859741211, 0.6620061993598938, -0.6754399538040161, -0.23139263689517975, 0.1644035428762436, -0.2876514494419098, -0.27145710587501526,
+						-0.2579924166202545, -0.2909504473209381, -0.28719162940979004, 0.23003695905208588, 0.6528182625770569, -0.7130200266838074, 0.644696831703186, 0.6861284971237183, 0.6388441324234009, 0.6835697293281555,
+						0.6229261159896851, -0.647135317325592, 0.6235140562057495, -0.6592257618904114, 0.5874439477920532, 0.6417683362960815, 0.6438143849372864, 0.587661623954773, 0.6006590127944946, -0.6382016539573669,
+						0.6536856293678284, -0.7104759216308594, 0.6260204315185547, 0.6853742003440857, 0.6524712443351746, 0.6361338496208191, 0.6057403087615967, -0.7080027461051941, -0.19925354421138763, 0.24038566648960114,
+						-0.21203075349330902, -0.23904258012771606, -0.23393984138965607, -0.204909548163414, -0.2672604024410248, 0.1591280847787857, -0.3650013208389282, 0.1510671079158783, -0.35676309466362, -0.28554773330688477,
+						-0.2738364338874817, -0.33128032088279724, -0.3191737234592438, 0.17421364784240723
+						]
+                },
+                "layer_2": {
+                    "BIAS": [
+                        0.6075541377067566
+                    ],
+                    "KERNEL": [
+                        -0.9111145734786987,
+                        1.0892874002456665,
+                        -1.3891652822494507,
+                        -1.3340799808502197,
+                        -0.7503432035446167,
+                        -1.5007131099700928,
+                        -1.0155473947525024,
+                        1.153419017791748
+                    ]
+                }
+			}
+	)json",
+	1e-9, 1e-6, 1e-6)

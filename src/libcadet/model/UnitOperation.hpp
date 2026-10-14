@@ -550,7 +550,7 @@ public:
 	 * @param [in] in Array with total volumetric inlet flow rate for each port
 	 * @param [in] out Array with total volumetric outlet flow rate for each port
 	 */
-	virtual void setFlowRates(active const* in, active const* out) CADET_NOEXCEPT = 0;
+	virtual void setFlowRates(active const* in, active const* out) = 0;
 
 	/**
 	* @brief Returns whether this unit operation supports non-matching volumetric inlet and outlet flow rates

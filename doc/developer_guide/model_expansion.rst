@@ -36,6 +36,16 @@ A more concise description is given in the following:
    Finally, the Jacobian needs to be implemented in the function ``void jacobianImpl()`` We note that the Jacobian implementation is optional but highly recommended to speed up the simulation.
    If you have trouble with deriving the Jacobian or if you want to test you model first, modify the ``implementsAnalyticJacobian()`` function to return false.
    By doing so, CADET-Core defaults to computing the binding `Jacobian via Algorithmic differentiation (AD) <https://doi.org/10.1016/j.ces.2015.08.050>`_.
+   
+ 4.
+	Proper testing of a new binding model must include verification of the analytical Jacobian.
+	For this purpose, the templated utilities in ``test/BindingModels.hpp`` can be used.
+	The ``CADET_BINDINGTEST`` template automatically generates tests for binding models that support external function dependence and provide both a non-binding and an all-binding variant.
+	Only the configuration data needs to be specified in JSON format, see ``test/BindingModelTests.cpp`` for examples.
+	For other types of binding models, similar templates can be used or may serve as reference if a custom implementation is required.
+	In addition, a test should be added to **CADET-Verification**, which is part of the continuous deployment (CD) pipeline.
+	A meaningful example ´(preferably from a publication) should be defined and compared against a stored reference solution (``.h5`` file).
+	Optionally, the simulation’s outlet profile can also be plotted for visual assessment.
 
 Unit Operation
 ^^^^^^^^^^^^^^
@@ -45,7 +55,7 @@ The first, model independent steps are:
 
 1. Add ``NewModel.cpp`` and ``NewModel.hpp`` files in ``src\libcadet\model`` folder (copy and rename existing ones). Note that we'll call the new model "NewModel" from here on, so make sure to substitute this with the actual name of your model.
 2. Add ``${CMAKE_SOURCE_DIR}/src/libcadet/model/NewModel.cpp`` to the ``src/libcadet/CMakeLists.txt``
-3. (Optional) In the root/CMakeLists.txt file, you can add a build option to make building your new model optional. This enables building CADET versions with and without the new extension. This can be done, e.g., when additional dependencies are required or when build time should be reduced. See e.g. ``ENABLE_GRM_2D`` or ``ENABLE_DG``.
+3. (Optional) In the root/CMakeLists.txt file, you can add a build option to make building your new model optional. This enables building CADET versions with and without the new extension. This can be done, e.g., when additional dependencies are required or when build time should be reduced.
 4. Add new model to ModelBuilder (in ModelBuilderImpl.cpp, just like the other models are included):
 5. Rename everything to the new model
    a. Change the ``identifier()`` function in the ``NewModel.hpp`` to return a new unique model name (here: "NewModel")

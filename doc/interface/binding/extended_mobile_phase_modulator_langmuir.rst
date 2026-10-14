@@ -3,7 +3,7 @@
 Extended Mobile Phase Modulator Langmuir
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = EXTENDED_MOBILE_PHASE_MODULATOR**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = EXTENDED_MOBILE_PHASE_MODULATOR**
 
 For information on model equations, refer to :ref:`extended_mobile_phase_modulator_langmuir_model`.
 

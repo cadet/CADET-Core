@@ -159,8 +159,9 @@ protected:
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return false; }
 		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return false; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
-		virtual bool isParticleLumped() const CADET_NOEXCEPT { return false; }
+		virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return false; }
 		virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return false; }
+		virtual bool discHasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
 		virtual unsigned int numPrimaryCoordinates() const CADET_NOEXCEPT { return 0; }
@@ -170,6 +171,7 @@ protected:
 		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int numBoundStates(unsigned int parType, unsigned int comp) const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numMobilePhaseDofs() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return 0; }
@@ -191,6 +193,7 @@ protected:
 		virtual int writeOutlet(unsigned int port, double* buffer) const;
 		virtual int writeOutlet(double* buffer) const;
 
+		virtual int writeSmoothnessIndicator(double* indicator) const { return 0; }
 		virtual int writePrimaryCoordinates(double* coords) const { return 0; }
 		virtual int writeSecondaryCoordinates(double* coords) const { return 0; }
 		virtual int writeParticleCoordinates(unsigned int parType, double* coords) const { return 0; }

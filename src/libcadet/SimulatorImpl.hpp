@@ -22,7 +22,6 @@
 #include <unordered_map>
 
 #include "SundialsVector.hpp"
-#include <idas/idas_impl.h>
 
 #include "cadet/Simulator.hpp"
 #include "AutoDiff.hpp"
@@ -34,9 +33,8 @@ namespace cadet
 
 int residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* userData);
 
-int linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector yCur, N_Vector yDotCur, N_Vector resCur);
-
-int jacobianUpdateWrapper(IDAMem IDA_mem, N_Vector y, N_Vector yDot, N_Vector res, N_Vector tempv1, N_Vector tempv2, N_Vector tempv3);
+int linearSolverSolve(SUNLinearSolver ls, SUNMatrix, N_Vector x, N_Vector b, double tol);
+int linearSolverSetScalingVectors(SUNLinearSolver ls, N_Vector weight, N_Vector);
 
 int residualSensWrapper(int ns, double t, N_Vector y, N_Vector yDot, N_Vector res, 
 		N_Vector* yS, N_Vector* ySDot, N_Vector* resS,
@@ -55,7 +53,7 @@ class Simulator : public ISimulator
 {
 public:
 
-	Simulator();
+	Simulator(unsigned int solver = 0);
 
 	virtual ~Simulator() CADET_NOEXCEPT;
 
@@ -74,10 +72,15 @@ public:
 
 	virtual void setSolutionTimes(const std::vector<double>& solutionTimes);
 	virtual const std::vector<double>& getSolutionTimes() const;
+	virtual void setSolutionTimesUnitState(const std::vector<double>& solutionTimesUnitState);
+	virtual const std::vector<double>& getSolutionTimesUnitState() const;
 	virtual void setSectionTimes(const std::vector<double>& sectionTimes);
 	virtual void setSectionTimes(const std::vector<double>& sectionTimes, const std::vector<bool>& sectionContinuity);
 
 	virtual void initializeModel(IModelSystem& model);
+
+	virtual void setLinearSolver(unsigned int solver);
+	virtual void setIDALinearSolver();
 
 	virtual void applyInitialCondition();
 	virtual void setInitialCondition(IParameterProvider& paramProvider);
@@ -135,6 +138,8 @@ public:
 	virtual double totalSimulationDuration() const CADET_NOEXCEPT { return _timerIntegration.totalElapsedTime(); }
 
 	virtual void setNotificationCallback(INotificationCallback* nc) CADET_NOEXCEPT;
+	virtual bool stoppedByNotificationCallback() CADET_NOEXCEPT { return _stoppedByCallback; }
+
 protected:
 
 	/**
@@ -145,8 +150,9 @@ protected:
 	/**
 	 * @brief Writes the solution at time point t
 	 * @param [in] t Current time point
+	 * @param [in] writeUnitState If @c true, internal unit state (bulk, particle, etc.) is written in addition to inlet/outlet
 	 */
-	void writeSolution(double t);
+	void writeSolution(double t, bool writeUnitState = true);
 
 	/**
 	 * @brief Computes the index of the next section from the given time @p t
@@ -215,11 +221,32 @@ protected:
 	 */
 	void updateMainErrorTolerances();
 
+	/**
+	 * @brief Prepares the simulator for step-by-step integration
+	 * @details Performs all initialization steps normally done in integrate(),
+	 *          but stops before the actual time integration loop.
+	 */
+	virtual void prepareIntegrator();
+
+	/**
+	 * @brief Performs one integration step until target time
+	 * @param [in] tEnd Target time
+	 * @param [out] tReached Actually reached time
+	 * @return 0 on success, negative error code otherwise
+	 */
+	virtual int integrateStep(double tEnd, double& tReached);
+
+	/**
+	 * @brief Reinitializes the integrator at the given time
+	 * @param [in] currentTime Current simulation time
+	 * @return 0 on success, negative error code otherwise
+	 */
+	virtual int reinitialize(double currentTime) override;
+
 	friend int ::cadet::residualDaeWrapper(double t, N_Vector y, N_Vector yDot, N_Vector res, void* userData);
 
-	friend int ::cadet::linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector yCur, N_Vector yDotCur, N_Vector resCur);
-
-	friend int ::cadet::jacobianUpdateWrapper(IDAMem IDA_mem, N_Vector y, N_Vector yDot, N_Vector res, N_Vector tempv1, N_Vector tempv2, N_Vector tempv3);
+	friend int ::cadet::linearSolverSolve(SUNLinearSolver ls, SUNMatrix, N_Vector x, N_Vector b, double tol);
+	friend int ::cadet::linearSolverSetScalingVectors(SUNLinearSolver ls, N_Vector weight, N_Vector);
 
 //	friend int ::cadet::weightWrapper(N_Vector y, N_Vector ewt, void *user_data);
 
@@ -233,6 +260,7 @@ protected:
 
 	void* _idaMemBlock; //!< IDAS internal memory
 
+
 	/**
 	 * @brief Determines whether the transition from section i to section i+1 is continuous.
 	 * @details The solver will be reset only at discontinuous transitions. The i-th element 
@@ -242,6 +270,7 @@ protected:
 	std::vector<bool> _sectionContinuity;
 
 	std::vector<double> _solutionTimes; //!< Contains the time transformed user specified times for writing solutions to the output
+	std::vector<double> _solutionTimesUnitState; //!< Subset of _solutionTimes at which internal unit state (bulk, particle, etc.) is written
 
 	N_Vector _vecStateY; //!< IDAS state vector	
 	N_Vector _vecStateYdot; //!< IDAS state vector time derivative
@@ -285,6 +314,13 @@ protected:
 	double _lastIntTime; //!< Last simulation duration
 
 	INotificationCallback* _notification; //!< Callback handler for notifications
+	bool _stoppedByCallback; //!< Flag that is set to @c true if the simulation was stopped by the notification callback
+	SUNLinearSolver _linearSolver; //!< Sunlinearsolver object.
+	N_Vector _linearSolverWeight; //!< Weight vector.
+	SUNContext _sunctx; //!< Idas suncontext object
+	unsigned int _linSolverType; //!< which linear solver to Use
+	double _nonLinCoeff; //!< Idas nonlinearsolver coefficient
+	double _alpha; //!< Idas inverse stepsize
 };
 
 } // namespace cadet

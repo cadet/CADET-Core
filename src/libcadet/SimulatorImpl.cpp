@@ -19,9 +19,13 @@
 #include "ParamIdUtil.hpp"
 #include "SimulationTypes.hpp"
 
-#include <idas/idas.h>
-#include <idas/idas_impl.h>
 #include "SundialsVector.hpp"
+#include <idas/idas.h>
+#include <idas/idas_ls.h>
+#include <sundials/sundials_matrix.h>
+#include <sunmatrix/sunmatrix_dense.h>
+#include <sunlinsol/sunlinsol_spgmr.h>
+#include <sunlinsol/sunlinsol_sptfqmr.h>
 
 #include <vector>
 #include <sstream>
@@ -186,7 +190,7 @@ namespace cadet
 	 * @brief IDAS error handler function
 	 * @details Handles errors reported by the IDAS solver. See section 4.6.2 of the IDAS manual for details.
 	 */
-	void idasErrorHandler(int error_code, const char* module, const char* function, char* msg, void* eh_data)
+	void idasErrorHandler(int line, const char* function, const char* module, const char* msg, int error_code, void* eh_data, SUNContext _sct)
 	{
 //		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(eh_data);
 
@@ -222,19 +226,7 @@ namespace cadet
 		return sim->_model->residualWithJacobian(cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res),
 			cadet::AdJacobianParams{sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections()});
 	}
-
-	int jacobianUpdateWrapper(IDAMem IDA_mem, N_Vector y, N_Vector yDot, N_Vector res, N_Vector tempv1, N_Vector tempv2, N_Vector tempv3)
-	{
-		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(IDA_mem->ida_lmem);
-		const double t = IDA_mem->ida_tn;
-		const unsigned int secIdx = sim->getCurrentSection(t);
-
-		LOG(Trace) << "==> Jacobian at t = " << t;
-
-		return sim->_model->jacobian(cadet::SimulationTime{ t, secIdx }, cadet::ConstSimulationState{ NVEC_DATA(y), NVEC_DATA(yDot) }, NVEC_DATA(tempv1),
-			cadet::AdJacobianParams{ sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections() });
-	}
-
+	
 	/**
 	* @brief Change the error weights in the state vector
 	* @details This sets the error weight to 0 for the network coupling equations, duplicated inlets
@@ -315,24 +307,9 @@ namespace cadet
 	}
 */
 
-	/**
-	* @brief IDAS wrapper function to call the model's linearSolve() method
-	*/
-	int linearSolveWrapper(IDAMem IDA_mem, N_Vector rhs, N_Vector weight, N_Vector y, N_Vector yDot, N_Vector res)
-	{
-		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(IDA_mem->ida_lmem);
-		const double t = IDA_mem->ida_tn;
-		const double alpha = IDA_mem->ida_cj;
-		const double tol = IDA_mem->ida_epsNewt;
-
-		LOG(Trace) << "==> Solve at t = " << t << " alpha = " << alpha << " tol = " << tol;
-
-		return sim->_model->linearSolve(t, alpha, tol, NVEC_DATA(rhs), NVEC_DATA(weight), cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)});
-	}
-
-	/**
+/**
 	* @brief IDAS wrapper function to call the model's residualSensFwd() method
-	*/
+*/
 	int residualSensWrapper(int ns, double t, N_Vector y, N_Vector yDot, N_Vector res,
 			N_Vector* yS, N_Vector* ySDot, N_Vector* resS,
 			void *userData, N_Vector tmp1, N_Vector tmp2, N_Vector tmp3)
@@ -361,13 +338,100 @@ namespace cadet
 			sensY, sensYdot, sensRes, sim->_vecADres, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
 	}
 
-	Simulator::Simulator() : _model(nullptr), _solRecorder(nullptr), _idaMemBlock(nullptr), _vecStateY(nullptr),
+	/**
+	* @brief returns type for the sundials linear solver interface
+	* @details set type of our solver to MATRIX_EMBEDDED so idas won't scale the tolerance factor down according depending
+	*	on the type of the matrix	
+	*/
+	SUNLinearSolver_Type linearSolverGetType(SUNLinearSolver)
+	{
+		return SUNLINEARSOLVER_MATRIX_EMBEDDED;
+	}
+
+	/**
+	* @brief solver function for our model system
+	* @details This is the main function that the linear solver object calls at each evaluation of the system
+	*     due to sundials >= v4 using a default interface for linear solver, the function solves a generic
+	*     Ax = b system with a tolerance factor tol that is scaled down from the newton convergence factor
+	*     epsnewton=0.33 by the system size and safety factor.
+	*	  In case of modified newton, we implement the logic to update the jacobian by ourselves. It still follows
+	*     the specific cases described in the sundials documentation 6.2.2.1.
+	*     The solution is written to rhs by linear solve, therefore we need to copy the solution to x.
+	*     The rhs values are negated in v7 compared to v3.
+	* @param [in] ls  linear solver object
+	* @param [in] null SUNMatrix not used
+	* @param [in, out] x nvector input guess, output solution vector
+	* @param [in] rhs nvector b of the linear system
+	* @param [in] tol newton convergence factor
+ 	*/
+	int linearSolverSolve(SUNLinearSolver ls, SUNMatrix, N_Vector x, N_Vector rhs, double tol)
+	{
+		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(ls->content);
+
+		double t;
+		double alpha;
+		N_Vector y;
+		N_Vector yDot;
+		N_Vector unused1;
+		N_Vector unused2;
+		N_Vector res;
+		void* unused4;
+
+		IDAGetNonlinearSystemData(sim->_idaMemBlock, &t, &unused1, &unused2, &y, &yDot, &res, &alpha, &unused4);
+		
+		if (sim->_modifiedNewton)
+		{
+			const unsigned int secIdx = sim->getCurrentSection(t);
+			double vgl = sim->_alpha / alpha;
+			if (vgl < 0.6 || vgl > 1.666666667)
+			{
+				sim->_model->jacobian(cadet::SimulationTime{ t, secIdx }, cadet::ConstSimulationState{ NVEC_DATA(y), NVEC_DATA(yDot) }, NVEC_DATA(res),
+					cadet::AdJacobianParams{ sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections() });
+				sim->_alpha = alpha;
+			}
+		}
+
+
+		LOG(Trace) << "==> Solve at t = " << t << " alpha = " << alpha << " tol = " << tol;
+
+		if (sim->_notification)
+		{
+			const unsigned int secIdx = sim->getCurrentSection(t);
+
+			sim->_stoppedByCallback = !sim->_notification->timeIntegrationLinearSolve(secIdx, t, NVEC_DATA(y), NVEC_DATA(yDot));
+
+			// Abort the linear solve with a code that IDAS classifies as an unrecoverable failure, so that
+			// IDASolve() returns IDA_LSOLVE_FAIL right away (see integrate()). Codes that IDAS does not know,
+			// such as the IDA_* return codes, are silently treated as a successful solve, which would leave
+			// the Newton iteration with a stale solution vector and hence a spurious integration error.
+			if (sim->_stoppedByCallback)
+				return SUN_ERR_EXT_FAIL;
+		}
+
+		const int ret = sim->_model->linearSolve(t, alpha, tol, NVEC_DATA(rhs), NVEC_DATA(sim->_linearSolverWeight), cadet::ConstSimulationState{ NVEC_DATA(y), NVEC_DATA(yDot) });
+		N_VScale(1.0, rhs, x);
+		return ret;
+	}
+
+	/**
+	* Scaling function that the newton solver calls in every iteration to set the errorweights.
+	*/
+	int linearSolverSetScalingVectors(SUNLinearSolver ls, N_Vector weight, N_Vector)
+	{
+		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(ls->content);
+		sim->_linearSolverWeight = weight;
+		return 0;
+	}
+
+
+	Simulator::Simulator(unsigned int solver) : _model(nullptr), _solRecorder(nullptr), _idaMemBlock(nullptr), _vecStateY(nullptr),
 		_vecStateYdot(nullptr), _vecFwdYs(nullptr), _vecFwdYsDot(nullptr),
 		_relTolS(1.0e-9), _absTol(1, 1.0e-12), _relTol(1.0e-9), _initStepSize(1, 1.0e-6), _maxSteps(10000), _maxStepSize(0.0),
-		_nThreads(0), _sensErrorTestEnabled(true), _maxNewtonIter(4), _maxErrorTestFail(10), _maxConvTestFail(10),
+		_nThreads(0), _modifiedNewton(false), _sensErrorTestEnabled(true), _maxNewtonIter(4), _maxErrorTestFail(10), _maxConvTestFail(10),
 		_maxNewtonIterSens(4), _curSec(0), _skipConsistencyStateY(false), _skipConsistencySensitivity(false),
 		_consistentInitMode(ConsistentInitialization::Full), _consistentInitModeSens(ConsistentInitialization::Full),
-		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr)
+		_vecADres(nullptr), _vecADy(nullptr), _lastIntTime(0.0), _notification(nullptr), _stoppedByCallback(false), _linearSolver(nullptr),
+		_sunctx(nullptr), _linSolverType(solver), _nonLinCoeff(0.33), _alpha(-1)
 	{
 #if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
 		LOG(Debug) << "Resetting AD directions from " << ad::getDirections() << " to default " << ad::getMaxDirections();
@@ -396,9 +460,16 @@ namespace cadet
 			NVec_Destroy(_vecStateYdot);
 		if (_vecStateY)
 			NVec_Destroy(_vecStateY);
-
+		
+		if (_linearSolver)
+			SUNLinSolFreeEmpty(_linearSolver);
+		
 		if (_idaMemBlock)
 			IDAFree(&_idaMemBlock);
+
+		if (_sunctx) {
+			SUNContext_Free(&_sunctx);
+		}
 	}
 
 	void Simulator::initializeModel(IModelSystem& model)
@@ -410,9 +481,11 @@ namespace cadet
 		_model = reinterpret_cast<ISimulatableModel*>(&model);
 
 		// Allocate and initialize state vectors
+		SUNContext_Create(SUN_COMM_NULL, &_sunctx);
 		const unsigned int nDOFs = _model->numDofs();
-		_vecStateY = NVec_New(nDOFs);
-		_vecStateYdot = NVec_New(nDOFs);
+		_vecStateY = NVec_New(nDOFs, _sunctx);
+		_vecStateYdot = NVec_New(nDOFs, _sunctx);
+		_linearSolverWeight = NVec_New(nDOFs, _sunctx);
 
 		// Propagate section times if available
 		if (_sectionTimes.size() > 0)
@@ -436,12 +509,11 @@ namespace cadet
 		NVec_Const(0.0, _vecStateYdot);
 
 		// Create IDAS internal memory
-		_idaMemBlock = IDACreate();
+		_idaMemBlock = IDACreate(_sunctx);
 
-		// IDAS Step 4.1: Specify error handler function
-		IDASetErrHandlerFn(_idaMemBlock, &idasErrorHandler, this);
+		// Specify error handler function
+		SUNContext_PushErrHandler(_sunctx, &idasErrorHandler, this);
 
-		// IDAS Step 5: Initialize the solver
 		_model->applyInitialCondition(SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
 
 		// Use 0.0 as beginning of simulation time if we haven't set section times yet
@@ -450,10 +522,16 @@ namespace cadet
 		else
 			IDAInit(_idaMemBlock, &residualDaeWrapper, 0.0, _vecStateY, _vecStateYdot);
 
-		// IDAS Step 6: Specify integration tolerances (S: scalar; V: array)
+		// IDAS Step 9: Specify integration tolerances (S: scalar; V: array)
 		updateMainErrorTolerances();
 
-		// IDAS Step 7.1: Set optional inputs
+		// IDAS Step 10: Initialize and attach the solver		
+		setIDALinearSolver();
+
+		
+		// Attach user data structure
+		IDASetUserData(_idaMemBlock, this);
+
 
 		// Set time integrator parameters
 		IDASetMaxNumSteps(_idaMemBlock, _maxSteps);
@@ -461,25 +539,8 @@ namespace cadet
 		IDASetMaxNonlinIters(_idaMemBlock, _maxNewtonIter);
 		IDASetMaxErrTestFails(_idaMemBlock, _maxErrorTestFail);
 		IDASetMaxConvFails(_idaMemBlock, _maxConvTestFail);
-		IDASetSensMaxNonlinIters(_idaMemBlock, _maxNewtonIterSens);
 
-		// Specify the linear solver.
-		IDAMem IDA_mem = static_cast<IDAMem>(_idaMemBlock);
-
-		IDA_mem->ida_lsolve         = &linearSolveWrapper;
-		IDA_mem->ida_lmem           = this;
-		IDA_mem->ida_linit          = nullptr;
-		IDA_mem->ida_lsetup         = _modifiedNewton ? &jacobianUpdateWrapper : nullptr;
-		IDA_mem->ida_lperf          = nullptr;
-		IDA_mem->ida_lfree          = nullptr;
-//		IDA_mem->ida_efun           = &weightWrapper;
-//		IDA_mem->ida_user_efun      = 1;
-#if CADET_SUNDIALS_IFACE <= 2
-		IDA_mem->ida_setupNonNull   = false;
-#endif
-
-		// Attach user data structure
-		IDASetUserData(_idaMemBlock, this);
+		IDASetNonlinConvCoef(_idaMemBlock, _nonLinCoeff);
 
 		// Allocate memory for AD if required
 		if (_model->usesAD())
@@ -488,6 +549,65 @@ namespace cadet
 			_vecADy = new active[nDOFs];
 		}
 	}
+
+	void Simulator::setLinearSolver(unsigned int solver)
+	{
+		if (solver > 9)
+		{
+			LOG(Warning) << "Warning: Unkown solver int " << solver << " given. Using default Solver.";
+			solver = 0;
+		}
+		_linSolverType = solver;	
+	}
+
+	/**
+	*
+	* @brief setter function to set the linear solver to the idas memblock
+	* @details depending on _linsolverType the choosen solver will be set. 0 is the default value with our own one.
+	*		SUNLinSolNewEmpty creates an Linear Solver object that satisfy the structure of idas solvers. Every function
+	*       that is not set is automaticaly NULL. In case of our Linear solver, Epslin and lsNormfac are both set to 1.0,
+	*       so that the IDASNewton solver won't scale down the newton factore from 0.33.
+	*		Cases 1 and 2 are generic linear solvers provided by sundials. Without preconditioning as implemented here,
+	*		they won't perform as efficient as they might could, but this would require more work.
+	*/
+	void Simulator::setIDALinearSolver()
+	{
+		switch (_linSolverType)
+		{
+			case(0):
+			{
+				_linearSolver = SUNLinSolNewEmpty(_sunctx);
+				_linearSolver->content = this;
+				_linearSolver->ops->solve = linearSolverSolve;
+				_linearSolver->ops->setscalingvectors = linearSolverSetScalingVectors;
+				_linearSolver->ops->gettype = linearSolverGetType;
+				break;
+			}
+			case(1):
+			{
+				_modifiedNewton = true;
+				_linearSolver = SUNLinSol_SPGMR(_vecStateY, SUN_PREC_NONE, 0, _sunctx);
+				break;
+			}
+			case(2):
+			{
+
+				_modifiedNewton = true;
+				_linearSolver = SUNLinSol_SPTFQMR(_vecStateY, SUN_PREC_NONE, 0, _sunctx);
+				break;
+			}
+		}
+		IDASetLinearSolver(_idaMemBlock, _linearSolver, NULL);
+
+
+		if (_linSolverType == 0)
+		{
+			// Specify tolerances for linear solver
+			IDASetEpsLin(_idaMemBlock, 1);
+			IDASetLSNormFactor(_idaMemBlock, 1);
+		}
+	}
+
 
 	void Simulator::updateMainErrorTolerances()
 	{
@@ -499,7 +619,7 @@ namespace cadet
 			if (!_model)
 				return;
 
-			N_Vector absTolTemp = NVec_New(_model->numDofs());
+			N_Vector absTolTemp = NVec_New(_model->numDofs(), _sunctx);
 			const unsigned int pureDofs = _model->numPureDofs();
 
 			// Check whether user has given us full absolute error for all (pure) DOFs
@@ -564,6 +684,9 @@ namespace cadet
 
 		// Activate sensitivity error control
 		IDASetSensErrCon(_idaMemBlock, _sensErrorTestEnabled);
+
+		// Set Maximum of Sensitivity System Non linear Iterations
+		IDASetSensMaxNonlinIters(_idaMemBlock, _maxNewtonIterSens);
 	}
 
 	void Simulator::initializeFwdSensitivities()
@@ -767,7 +890,7 @@ namespace cadet
 
 			if (!paramFound)
 			{
-				LOG(Warning) << "Warning: Unkown parameter " << ids[i] << " in parameter join was ignored";
+				throw InvalidParameterException("Error: Unkown parameter " + to_string(ids[i]) + " does not exist.");
 			}
 		}
 
@@ -935,6 +1058,16 @@ namespace cadet
 		return _solutionTimes;
 	}
 
+	void Simulator::setSolutionTimesUnitState(const std::vector<double>& solutionTimesUnitState)
+	{
+		_solutionTimesUnitState = solutionTimesUnitState;
+	}
+
+	const std::vector<double>& Simulator::getSolutionTimesUnitState() const
+	{
+		return _solutionTimesUnitState;
+	}
+
 	void Simulator::setSectionTimes(const std::vector<double>& sectionTimes)
 	{
 		setSectionTimes(sectionTimes, std::vector<bool>(sectionTimes.size() - 1, false));
@@ -1042,6 +1175,8 @@ namespace cadet
 		ad::setDirections(numSensitivityAdDirections() + _model->requiredADdirs());
 #endif
 
+		_stoppedByCallback = false;
+
 		if (_notification)
 			_notification->timeIntegrationStart();
 
@@ -1051,10 +1186,21 @@ namespace cadet
 		_model->prepareADvectors(AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()});
 
 		std::vector<double>::const_iterator it;
+		std::vector<double>::const_iterator itUnitState = _solutionTimesUnitState.begin();
 		double tOut = 0.0;
 
 		const bool writeAtUserTimes = _solutionTimes.size() > 0;
+		const bool hasUnitStateTimes = !_solutionTimesUnitState.empty();
 		const bool wantSensitivities = _sensitiveParams.slices() > 0;
+
+		auto isUnitStateTime = [&](double t) -> bool {
+			if (!hasUnitStateTimes)
+				return true;
+			// Advance iterator past times before t
+			while (itUnitState != _solutionTimesUnitState.end() && *itUnitState < t)
+				++itUnitState;
+			return itUnitState != _solutionTimesUnitState.end() && *itUnitState == t;
+		};
 
 		LOG(Debug) << "#MaxNewton: " << _maxNewtonIter << ", #MaxErrTestFail: " << _maxErrorTestFail << ", #MaxConvTestFail: " << _maxConvTestFail;
 		if (wantSensitivities)
@@ -1219,7 +1365,10 @@ namespace cadet
 			if (_notification)
 			{
 				const double progress = (curT - static_cast<double>(_sectionTimes[0])) / (tEnd - static_cast<double>(_sectionTimes[0]));
-				if (!_notification->timeIntegrationSection(_curSec, curT, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), progress))
+
+				_stoppedByCallback = !_notification->timeIntegrationSection(_curSec, curT, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), progress);
+
+				if (_stoppedByCallback)
 				{
 					_lastIntTime = _timerIntegration.stop();
 					return;
@@ -1238,7 +1387,7 @@ namespace cadet
 			{
 				// Write initial conditions only if desired by user
 				if (_curSec == 0 && _solutionTimes.front() == curT)
-					writeSolution(curT);
+					writeSolution(curT, isUnitStateTime(curT));
 
 				// Initialize iterator and forward it to the first solution time that lies inside the current section
 				it = _solutionTimes.begin();
@@ -1247,7 +1396,7 @@ namespace cadet
 			else
 			{
 				// Always write initial conditions if solutions are written at integration times
-				if (_curSec == 0) writeSolution(curT);
+				if (_curSec == 0) writeSolution(curT, isUnitStateTime(curT));
 
 				// Here tOut - only during the first call to IDASolve - specifies the direction
 				// and rough scale of the independent variable, see IDAS Guide p.33
@@ -1332,7 +1481,7 @@ namespace cadet
 						IDAGetSens(_idaMemBlock, &curT, _vecFwdYs);
 						IDAGetSensDky(_idaMemBlock, curT, 1, _vecFwdYsDot);
 					}
-					writeSolution(curT);
+					writeSolution(curT, isUnitStateTime(curT));
 
 					if (writeAtUserTimes)
 						++it;
@@ -1341,7 +1490,10 @@ namespace cadet
 					if (_notification)
 					{
 						const double progress = (curT - static_cast<double>(_sectionTimes[0])) / (tEnd - static_cast<double>(_sectionTimes[0]));
-						if (!_notification->timeIntegrationStep(_curSec, curT, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), progress))
+
+						_stoppedByCallback = !_notification->timeIntegrationStep(_curSec, curT, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), progress);
+
+						if (_stoppedByCallback)
 						{
 							_lastIntTime = _timerIntegration.stop();
 							return;
@@ -1361,19 +1513,23 @@ namespace cadet
 						IDAGetSensDky(_idaMemBlock, curT, 1, _vecFwdYsDot);
 					}
 
-					// Section end time was reached (in previous step)
-					if (!writeAtUserTimes && (endTime == static_cast<double>(_sectionTimes.back())))
+
+					if (!(tOut > curT))
 					{
-						// Write a solution for the ultimate endTime in the last section,
-						// when we write at integration times.
-						writeSolution(curT);
+						writeSolution(curT, isUnitStateTime(curT));
+
+						if (writeAtUserTimes)
+							++it;
 					}
 
 					// Notify user and check for user abort
 					if (_notification)
 					{
 						const double progress = (curT - static_cast<double>(_sectionTimes[0])) / (tEnd - static_cast<double>(_sectionTimes[0]));
-						if (!_notification->timeIntegrationStep(_curSec, curT, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), progress))
+						
+						_stoppedByCallback = !_notification->timeIntegrationStep(_curSec, curT, NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot), progress);
+						
+						if (_stoppedByCallback)
 						{
 							_lastIntTime = _timerIntegration.stop();
 							return;
@@ -1381,6 +1537,16 @@ namespace cadet
 					}
 					break;
 				default:
+
+					// A notification callback that requests a stop aborts the current linear solve, which IDAS
+					// reports as IDA_LSOLVE_FAIL. Since IDAS is free to report the aborted solve differently, any
+					// error flag is treated as a regular stop as long as a callback asked for it.
+					if (_stoppedByCallback)
+					{
+						_lastIntTime = _timerIntegration.stop();
+						return;
+					}
+
 					_lastIntTime = _timerIntegration.stop();
 
 					// An error occured
@@ -1519,6 +1685,26 @@ namespace cadet
 		_solutionTimes.clear();
 		if (paramProvider.exists("USER_SOLUTION_TIMES"))
 			_solutionTimes = paramProvider.getDoubleArray("USER_SOLUTION_TIMES");
+
+		_solutionTimesUnitState.clear();
+		if (paramProvider.exists("USER_SOLUTION_TIMES_UNIT_STATE"))
+		{
+			_solutionTimesUnitState = paramProvider.getDoubleArray("USER_SOLUTION_TIMES_UNIT_STATE");
+
+			if (!_solutionTimes.empty() && !_solutionTimesUnitState.empty())
+			{
+				// Validate that unit state times are a subset of solution times
+				std::size_t j = 0;
+				for (std::size_t i = 0; i < _solutionTimesUnitState.size(); ++i)
+				{
+					while (j < _solutionTimes.size() && _solutionTimes[j] < _solutionTimesUnitState[i])
+						++j;
+
+					if (j >= _solutionTimes.size() || _solutionTimes[j] != _solutionTimesUnitState[i])
+						throw InvalidParameterException("USER_SOLUTION_TIMES_UNIT_STATE must be a subset of USER_SOLUTION_TIMES, but time " + std::to_string(_solutionTimesUnitState[i]) + " is not in USER_SOLUTION_TIMES");
+				}
+			}
+		}
 
 		if (paramProvider.exists("CONSISTENT_INIT_MODE"))
 			_consistentInitMode = toConsistentInitialization(paramProvider.getInt("CONSISTENT_INIT_MODE"));
@@ -1668,12 +1854,27 @@ namespace cadet
 		return success;
 	}
 
-	void Simulator::writeSolution(double t)
+	void Simulator::writeSolution(double t, bool writeUnitState)
 	{
 		if (!_solRecorder)
 			return;
 
-		_solRecorder->beginTimestep(t);
+		_solRecorder->beginTimestep(t, writeUnitState);
+
+		IDASMeta idasMeta;
+		long int nsteps, nrevals, nlinsetups, netfails;
+
+		IDAGetIntegratorStats(_idaMemBlock, &nsteps, &nrevals,
+			&nlinsetups, &netfails, &idasMeta.klast,
+			&idasMeta.kcur, &idasMeta.hinused, &idasMeta.hlast,
+			&idasMeta.hcur, &idasMeta.tcur);
+
+		idasMeta.nsteps = static_cast<unsigned long>(nsteps);
+		idasMeta.nrevals = static_cast<unsigned long>(nrevals);
+		idasMeta.nlinsetups = static_cast<unsigned long>(nlinsetups);
+		idasMeta.netfails = static_cast<unsigned long>(netfails);
+
+		_solRecorder->integratorMetaData(idasMeta);
 
 		_solRecorder->beginSolution();
 		_model->reportSolution(*_solRecorder, NVEC_DATA(_vecStateY));
@@ -1751,4 +1952,273 @@ namespace cadet
 		_notification = nc;
 	}
 
+	void Simulator::prepareIntegrator()
+	{
+
+#ifdef CADET_PARALLELIZE
+	#ifdef CADET_TBB_GLOBALCTRL
+		tbb::global_control tbbGlobalControl(tbb::global_control::max_allowed_parallelism, (_nThreads > 0) ? _nThreads : tbb::this_task_arena::max_concurrency());
+	#else
+		tbb::task_scheduler_init init(tbb::task_scheduler_init::deferred);
+		if (_nThreads > 0)
+			init.initialize(_nThreads);
+		else
+			init.initialize(tbb::task_scheduler_init::default_num_threads());
+	#endif
+		_model->setupParallelization(tbb::this_task_arena::max_concurrency());
+#else
+		_model->setupParallelization(1);
+#endif
+
+		// Set number of threads in SUNDIALS OpenMP-enabled implementation
+#ifdef CADET_SUNDIALS_OPENMP
+		if (_vecStateY)
+			NVec_SetThreads(_vecStateY, _nThreads);
+		if (_vecStateYdot)
+			NVec_SetThreads(_vecStateYdot, _nThreads);
+
+		for (unsigned int i = 0; i < _sensitiveParams.slices(); ++i)
+		{
+			NVec_SetThreads(_vecFwdYs[i], _nThreads);
+			NVec_SetThreads(_vecFwdYsDot[i], _nThreads);
+		}
+#endif
+
+		// Set number of AD directions
+		// @todo This is problematic if multiple Simulators are run concurrently!
+#if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)
+		LOG(Debug) << "Setting AD directions from " << ad::getDirections() << " to " << numSensitivityAdDirections() + _model->requiredADdirs();
+		if (numSensitivityAdDirections() + _model->requiredADdirs() > ad::getMaxDirections())
+			throw InvalidParameterException("Requested " + std::to_string(numSensitivityAdDirections() + _model->requiredADdirs()) + " AD directions, but only "
+				+ std::to_string(ad::getMaxDirections()) + " are supported");
+
+		ad::setDirections(numSensitivityAdDirections() + _model->requiredADdirs());
+#endif
+
+		// Setup AD vectors by model
+		_model->prepareADvectors(AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()});
+
+		if (_solRecorder)
+		{
+			_solRecorder->notifyIntegrationStart(NVEC_LENGTH(_vecStateY), _sensitiveParams.slices(), _solutionTimes.size());
+			_model->reportSolutionStructure(*_solRecorder);
+		}
+
+		double startTime = static_cast<double>(_sectionTimes[0]);
+		_curSec = 0;
+
+		// Update Jacobian
+		_model->notifyDiscontinuousSectionTransition(startTime, _curSec, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()});
+
+		// Compute consistent initial values
+		LOG(Debug) << "---====--- CONSISTENCY ---====--- ";
+		const double consPrev = _model->residualNorm(SimulationTime{startTime, _curSec}, ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)});
+		LOG(Debug) << " ==========> Consistency error prev: " << consPrev;
+
+		if (!_skipConsistencyStateY && (_consistentInitMode != ConsistentInitialization::None))
+		{
+			const ConsistentInitialization mode = currentConsistentInitMode(_consistentInitMode, 0);
+			if (mode == ConsistentInitialization::Full)
+			{
+				_model->consistentInitialConditions( SimulationTime{startTime, _curSec}, SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, 
+				AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()}, _algTol);
+			}
+			else if (mode == ConsistentInitialization::Lean)
+			{
+				_model->leanConsistentInitialConditions( SimulationTime{startTime, _curSec}, SimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)}, 
+				AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()}, _algTol);
+			}
+		}
+		_skipConsistencyStateY = false;
+
+		const bool wantSensitivities = _sensitiveParams.slices() > 0;
+		if (wantSensitivities && !_skipConsistencySensitivity && 
+			(_consistentInitModeSens != ConsistentInitialization::None))
+		{
+			const ConsistentInitialization mode = currentConsistentInitMode(_consistentInitModeSens, 0);
+			if (mode == ConsistentInitialization::Full)
+			{
+				std::vector<double*> sensY = convertNVectorToStdVectorPtrs<double*>(_vecFwdYs, _sensitiveParams.slices());
+				std::vector<double*> sensYdot = convertNVectorToStdVectorPtrs<double*>(_vecFwdYsDot, _sensitiveParams.slices());
+				_model->consistentInitialSensitivity(SimulationTime{startTime, 0}, 
+					ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
+					sensY, sensYdot, _vecADres, _vecADy);
+			}
+			else if (mode == ConsistentInitialization::Lean)
+			{
+				std::vector<double*> sensY = convertNVectorToStdVectorPtrs<double*>(_vecFwdYs, _sensitiveParams.slices());
+				std::vector<double*> sensYdot = convertNVectorToStdVectorPtrs<double*>(_vecFwdYsDot, _sensitiveParams.slices());
+				_model->leanConsistentInitialSensitivity(SimulationTime{startTime, 0}, 
+					ConstSimulationState{NVEC_DATA(_vecStateY), NVEC_DATA(_vecStateYdot)},
+					sensY, sensYdot, _vecADres, _vecADy);
+			}
+		}
+		_skipConsistencySensitivity = false;
+
+		// IDAS Step 5.2: Re-initialization of the solver
+		IDAReInit(_idaMemBlock, startTime, _vecStateY, _vecStateYdot);
+		if (wantSensitivities)
+			IDASensReInit(_idaMemBlock, IDA_STAGGERED, _vecFwdYs, _vecFwdYsDot);
+
+		const double stepSize = _initStepSize.size() > 1 ? _initStepSize[0] : _initStepSize[0];
+		IDASetInitStep(_idaMemBlock, stepSize);
+
+		LOG(Info) << "Integration prepared successfully at t = " << startTime; 
+	}
+
+	int Simulator::reinitialize(double currentTime)
+	{
+		if (!_idaMemBlock)
+			return -1;
+
+		// Determine current section
+		_curSec = 0; 
+		for (unsigned int i = 0; i < _sectionTimes.size()-1; ++i)
+		{
+			if (currentTime >= static_cast<double>(_sectionTimes[i]) && currentTime < static_cast<double>(_sectionTimes[i + 1]) )
+			{
+				_curSec = i;
+				break;
+			}
+		}
+
+		// Get pointers to state vectors
+		double* yData = NVEC_DATA(_vecStateY);
+		double* yDotData = NVEC_DATA(_vecStateYdot);
+
+		// Zero yDot
+		const unsigned int numDof = numDofs();
+		for (unsigned int i = 0; i < numDof; ++i)
+			yDotData[i] = 0.0;
+
+		// Notify model about section/time change
+		_model->notifyDiscontinuousSectionTransition(
+			currentTime,
+			_curSec,
+			ConstSimulationState{yData, yDotData},
+			AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()}
+		);
+
+
+		// Use LEAN consistent initialization to fixes algebraic variables
+		_model->leanConsistentInitialConditions(
+			SimulationTime{currentTime, _curSec},
+			SimulationState{yData, yDotData},
+			AdJacobianParams{_vecADres, _vecADy, numSensitivityAdDirections()},
+			_algTol
+		);
+
+		// IDAS Reinitialization
+		int solverFlag = IDAReInit(_idaMemBlock, currentTime, _vecStateY, _vecStateYdot);
+		if (solverFlag != IDA_SUCCESS)
+			return solverFlag;
+
+		// Handle sensitivities
+		const bool wantSensitivities = _sensitiveParams.slices() > 0;
+		if (wantSensitivities)
+		{
+			solverFlag = IDASensReInit(_idaMemBlock, IDA_STAGGERED, _vecFwdYs, _vecFwdYsDot);
+			if (solverFlag != IDA_SUCCESS)
+				return solverFlag;
+		}
+
+		// Set step size
+		const double stepSize = _initStepSize.size() > _curSec ? _initStepSize[_curSec] : _initStepSize[0];
+		IDASetInitStep(_idaMemBlock, stepSize);
+
+		// Increase max steps
+		IDASetMaxNumSteps(_idaMemBlock, 100000);
+
+		// Set stop time
+		const double tEnd = static_cast<double>(_sectionTimes.back());
+		if (tEnd > currentTime)
+		{
+			IDASetStopTime(_idaMemBlock, tEnd);
+		}
+
+		_lastIntTime = currentTime;
+
+
+		return 0;
+	}
+
+	int Simulator::integrateStep(double tEnd, double& tReached)
+	{
+		if(!_idaMemBlock)
+		{
+			LOG(Error) << "IDAS not initialized.";
+			return -1;
+		}
+
+		// Get current time from IDAS
+		double curT = 0.0;
+		IDAGetCurrentTime(_idaMemBlock, &curT);
+
+		// Check if tEnd is too close to current time
+		const double minTimeStep = 1e-12;
+		if (std::abs(tEnd - curT) < minTimeStep)
+		{
+			LOG(Warning) << "tEnd (" << tEnd << ") too close to current time (" << curT << "). Skipping integration step.";
+			tReached = curT;
+			return 0;
+		}
+
+		// Check if tEnd is in the past
+		if (tEnd <= curT)
+		{
+			LOG(Warning) << "tEnd (" << tEnd << ") is not greater than current time (" << curT << "). Skipping integration step.";
+			tReached = curT;
+			return 0;
+		}
+
+		// integrateStep() only supports single-section integration
+		if (_sectionTimes.size() > 2)
+		{
+			LOG(Error) << "integrateStep() only supports single-section integration."
+					   << "Found " << _sectionTimes.size() - 1 << " sections.";
+			return -1;
+		}
+
+		_curSec = getCurrentSection(curT);
+
+		LOG(Debug) << " ###### INTEGRATION sec " << _curSec << " from " << curT << " to " << tEnd;
+
+		const double stepSize = _initStepSize.size() > _curSec ? _initStepSize[_curSec] : _initStepSize[0];
+		IDASetInitStep(_idaMemBlock, stepSize);
+		IDASetStopTime(_idaMemBlock, tEnd);
+
+		// Use endTime for IDASolve, not tEnd
+		const int solverFlag = IDASolve(_idaMemBlock, tEnd, &tReached, _vecStateY, _vecStateYdot, IDA_NORMAL);
+
+		// Extract sensitivity information if available
+		const bool wantSensitivities = _sensitiveParams.slices() > 0;
+		if (wantSensitivities && (solverFlag == IDA_SUCCESS || solverFlag == IDA_TSTOP_RETURN))
+		{
+			IDAGetSens(_idaMemBlock, &tReached, _vecFwdYs);
+			IDAGetSensDky(_idaMemBlock, tReached, 1, _vecFwdYsDot);
+		}
+
+		if (solverFlag == IDA_ROOT_RETURN)
+		{
+			_lastIntTime = tReached;
+			LOG(Warning) << "Root found at t = " << tReached;
+			return 1;
+		}
+
+		if (solverFlag != IDA_SUCCESS && solverFlag != IDA_TSTOP_RETURN)
+		{
+			LOG(Error) << "IDASolve failed with code " << solverFlag
+					<< ": " << getIDAReturnFlagName(solverFlag);
+			return solverFlag;
+		}
+
+		_lastIntTime = tReached;
+		curT = tReached;
+
+		writeSolution(curT);
+
+		tReached = curT;
+		return 0;
+
+	}
 } // namespace cadet

@@ -113,6 +113,67 @@ void lglNodesWeights(const unsigned int polyDeg, VectorXd& nodes, VectorXd& invW
 	invWeights = invWeights.cwiseInverse();
 }
 /**
+ * @brief computes the Chebyshev-Gauss-Lobatto nodes and Clenshaw-Curtis quadrature weights
+ * @param [in] polyDeg polynomial degree
+ * @param [in, out] nodes Chebyshev Gauss Lobatto nodes
+ * @param [in, out] invWeights Clenshaw-Curtis quadrature weights
+ * @param [in] invertWeights specifies if weights should be inverted
+ */
+void cglNodesWeights(const unsigned int polyDeg, VectorXd& nodes, VectorXd& invWeights, bool invertWeights)
+{
+	const double pi = 3.1415926535897932384626434;
+	const unsigned int N = polyDeg;
+
+	if (N == 0)
+		throw std::invalid_argument("Polynomial degree must be at least 1 !");
+
+	// CGL nodes: x_j = -cos(pi * j / N), j = 0, ..., N
+	for (unsigned int j = 0; j <= N; j++)
+		nodes[j] = -std::cos(pi * j / N);
+
+	// Clenshaw-Curtis weights via DCT-based formula
+	// w_0 = w_N = 1/(N^2 - 1) for even N, 1/N^2 for odd N
+	// Interior weights computed from the closed-form formula
+	for (unsigned int j = 0; j <= N; j++)
+	{
+		double w = 0.0;
+		for (unsigned int k = 1; k <= N / 2; k++)
+		{
+			double b = (k == N / 2 && N % 2 == 0) ? 1.0 : 2.0;
+			w += b / (4.0 * k * k - 1.0) * std::cos(2.0 * pi * k * j / N);
+		}
+		invWeights[j] = (1.0 - w) * 2.0 / N;
+		if (j == 0 || j == N)
+			invWeights[j] *= 0.5;
+	}
+
+	if (invertWeights)
+		invWeights = invWeights.cwiseInverse();
+}
+/**
+ * @brief computes the Chebyshev-Gauss (interior) nodes and quadrature weights
+ * @param [in] polyDeg polynomial degree (N where N+1 is number of points)
+ * @param [in, out] nodes Chebyshev Gauss nodes
+ * @param [in, out] weights Chebyshev Gauss quadrature weights
+ * @param [in] invertWeights specifies if weights should be inverted
+ */
+void cgNodesWeights(const unsigned int polyDeg, VectorXd& nodes, VectorXd& weights, bool invertWeights)
+{
+	const double pi = 3.1415926535897932384626434;
+	const unsigned int N = polyDeg + 1; // number of points
+
+	// CG nodes: x_j = -cos((2j+1)/(2N) * pi), j = 0, ..., N-1
+	for (unsigned int j = 0; j < N; j++)
+		nodes[j] = -std::cos((2.0 * j + 1.0) / (2.0 * N) * pi);
+
+	// Chebyshev-Gauss quadrature weights: w_j = pi / N
+	for (unsigned int j = 0; j < N; j++)
+		weights[j] = pi / N;
+
+	if (invertWeights)
+		weights = weights.cwiseInverse();
+}
+/**
  * @brief computes the Legendre polynomial and its derivative
  * @param [in] polyDeg polynomial degree
  * @param [in, out] leg Legendre polynomial
@@ -153,7 +214,7 @@ void legendrePolynomialAndDerivative(const int polyDeg, double& leg, double& leg
  * @param [in, out] weights Legendre Gauss quadrature weights
  * @param [in] invertWeights specifies if weights should be inverted
  */
-void lgNodesWeights(const unsigned int polyDeg, VectorXd& nodes, VectorXd& weights, bool invertWeights = true)
+void lgNodesWeights(const unsigned int polyDeg, VectorXd& nodes, VectorXd& weights, bool invertWeights)
 {
 	const double pi = 3.1415926535897932384626434;
 
@@ -272,7 +333,7 @@ MatrixXd gaussQuadratureMMatrix(const VectorXd LGLnodes, const int nLGNodes)
 /**
  * @brief calculates the barycentric weights for fast polynomial evaluation
  * @param [in] polyDeg polynomial degree
- * @param [in, out] baryWeights vector to store barycentric weights. Must already be initialized with ones!
+ * @param [in] nodes polynomial interpolation nodes vector
  */
 VectorXd barycentricWeights(const unsigned int polyDeg, const VectorXd nodes)
 {
@@ -526,16 +587,188 @@ MatrixXd liftingMatrix(const unsigned int size)
 	return liftingMatrix;
 }
 
+/**
+ * @brief Computes subcell integration matrix A_{ij} = \int_{subcell i} ell_j(x) dx
+ * @detail Subcells are defined via LGL weights (partition of [-1,1])
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] LGLweights corresponding quadrature weights
+ * @param [in] nQuad number of quadrature points per subcell (>= polyDeg+1 recommended)
+ */
+Eigen::MatrixXd subcellIntegrationMatrix(const Eigen::VectorXd& LGLnodes,
+	const Eigen::VectorXd& LGLweights,
+	const unsigned int nQuad)
+{
+	const unsigned int nNodes = LGLnodes.size();
+
+	Eigen::MatrixXd A = Eigen::MatrixXd::Zero(nNodes, nNodes);
+
+	// --- build subcell boundaries from weights ---
+	Eigen::VectorXd bounds(nNodes + 1);
+	bounds[0] = -1.0;
+	for (unsigned int i = 0; i < nNodes; ++i)
+		bounds[i + 1] = bounds[i] + LGLweights[i];
+
+	// enforce exact right boundary
+	bounds[nNodes] = 1.0;
+
+	// --- Gauss nodes/weights on [-1,1] ---
+	Eigen::VectorXd quadNodes = Eigen::VectorXd::Zero(nQuad);
+	Eigen::VectorXd quadWeights = Eigen::VectorXd::Zero(nQuad);
+	lgNodesWeights(nQuad - 1, quadNodes, quadWeights, false);
+
+	// --- loop over subcells ---
+	for (unsigned int i = 0; i < nNodes; ++i)
+	{
+		const double a = bounds[i];
+		const double b = bounds[i + 1];
+
+		// map quadrature nodes to subcell
+		Eigen::VectorXd mappedNodes = 0.5 * (b - a) * quadNodes.array() + 0.5 * (a + b);
+
+		// evaluate all Lagrange basis functions at mapped nodes
+		Eigen::MatrixXd ell(nNodes, nQuad);
+		for (unsigned int j = 0; j < nNodes; ++j)
+			ell.row(j) = evalLagrangeBasis(j, LGLnodes, mappedNodes);
+
+		// integrate
+		for (unsigned int j = 0; j < nNodes; ++j)
+		{
+			double integral = 0.0;
+			for (unsigned int k = 0; k < nQuad; ++k)
+				integral += ell(j, k) * quadWeights[k];
+
+			A(i, j) = 0.5 * (b - a) * integral;
+		}
+	}
+
+	return A;
+}
+
 void writeDGCoordinates(double* coords, const int nElem, const int nNodes, const double* DGnodes, const double length, const double* leftElemBndries)
 {
 	for (unsigned int i = 0; i < nElem; i++) {
 		for (unsigned int j = 0; j < nNodes; j++) {
-			// mapping 
+			// mapping
 			coords[i * nNodes + j] = leftElemBndries[i] + 0.5 * (length / nElem) * (1.0 + DGnodes[j]);
 		}
 	}
 }
+/**
+ * @brief evaluates the derivative of the jth Lagrange basis function at given nodes
+ * @detail Uses the formula: dL_j/dξ(x) = sum_{m≠j} [1/(ξ_j - ξ_m) * prod_{k≠j,m} (x - ξ_k)/(ξ_j - ξ_k)]
+ * @param [in] j index of Lagrange basis function
+ * @param [in] baseNodes interpolation nodes of Lagrange basis
+ * @param [in] evalNodes evaluation nodes in [-1, 1]
+ */
+VectorXd evalLagrangeBasisDerivative(const int j, const VectorXd baseNodes, const VectorXd evalNodes)
+{
+	const int nIntNodes = baseNodes.size();
+	const int nEvalNodes = evalNodes.size();
+	VectorXd evalDerEll = VectorXd::Zero(nEvalNodes);
 
+	for (int k = 0; k < nEvalNodes; k++)
+	{
+		double sumTerms = 0.0;
+		for (int m = 0; m < nIntNodes; m++)
+		{
+			if (m != j)
+			{
+				double term = 1.0 / (baseNodes[j] - baseNodes[m]);
+				for (int p = 0; p < nIntNodes; p++)
+				{
+					if (p != j && p != m)
+					{
+						term *= (evalNodes[k] - baseNodes[p]) / (baseNodes[j] - baseNodes[p]);
+					}
+				}
+				sumTerms += term;
+			}
+		}
+		evalDerEll[k] = sumTerms;
+	}
+
+	return evalDerEll;
+}
+
+Eigen::MatrixXd weightedQuadMassMatrix(
+	const Eigen::VectorXd& LegNodes,
+	const Eigen::VectorXd& paramAtQNodes,
+	const std::vector<double>& alpha,
+	const std::vector<double>& beta,
+	const double gamma,
+	const Eigen::VectorXd& QNodes,
+	const Eigen::VectorXd& QWeights)
+{
+	const unsigned int nNodes = LegNodes.size();
+	const int nQuad = QNodes.size();
+
+	// Sanity check: paramAtQuad must correspond to the quadrature points.
+	if (paramAtQNodes.size() != nQuad)
+	{
+		throw std::invalid_argument(
+			"weightedMassMatrix: paramAtQuad.size() must equal nQuadPoints.");
+	}
+
+	Eigen::MatrixXd basisAtQuad(nNodes, nQuad);
+
+	for (unsigned int i = 0; i < nNodes; ++i)
+		basisAtQuad.row(i) = evalLagrangeBasis(i, LegNodes, QNodes);
+
+	// Compute the geometric weight g(xi) * parameter at every
+	// quadrature point.
+	Eigen::VectorXd weightAtQuad = Eigen::VectorXd::Zero(nQuad);
+
+	for (int k = 0; k < nQuad; ++k)
+	{
+		const double xi = QNodes[k];
+
+		double geometricWeight = gamma;
+
+		// alpha[p-1] * (1 - xi)^p
+		double minusPower = 1.0 - xi;
+		for (std::size_t p = 0; p < alpha.size(); ++p)
+		{
+			geometricWeight += alpha[p] * minusPower;
+			minusPower *= (1.0 - xi);
+		}
+
+		// beta[p-1] * (1 + xi)^p
+		double plusPower = 1.0 + xi;
+		for (std::size_t p = 0; p < beta.size(); ++p)
+		{
+			geometricWeight += beta[p] * plusPower;
+			plusPower *= (1.0 + xi);
+		}
+
+		weightAtQuad[k] =
+			QWeights[k] *
+			paramAtQNodes[k] *
+			geometricWeight;
+	}
+
+	// Assemble weighted mass matrix:
+	//
+	// M_AD[i,j] = sum_k w_k * param_k * g(xi_k)
+	//                   * L_i(xi_k) * L_j(xi_k)
+	//
+	Eigen::MatrixXd M_AD = Eigen::MatrixXd::Zero(nNodes, nNodes);
+
+	for (unsigned int i = 0; i < nNodes; ++i)
+	{
+		for (unsigned int j = 0; j < nNodes; ++j)
+		{
+			for (int k = 0; k < nQuad; ++k)
+			{
+				M_AD(i, j) +=
+					weightAtQuad[k] *
+					basisAtQuad(i, k) *
+					basisAtQuad(j, k);
+			}
+		}
+	}
+
+	return M_AD;
+}
 
 } // namespace dgtoolbox
 } // namespace parts

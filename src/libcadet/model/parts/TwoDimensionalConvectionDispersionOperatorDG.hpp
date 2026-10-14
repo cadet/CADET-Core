@@ -1,14 +1,14 @@
-// =============================================================================
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// =================================================================================
 //  CADET
-//  
+//
 //  Copyright © 2008-present: The CADET-Core Authors
 //            Please see the AUTHORS.md file.
-//  
+//
 //  All rights reserved. This program and the accompanying materials
-//  are made available under the terms of the GNU Public License v3.0 (or, at
-//  your option, any later version) which accompanies this distribution, and
-//  is available at http://www.gnu.org/licenses/gpl.html
-// =============================================================================
+//  are made available under the terms of the GNU Affero General Public
+//  License v3.0 (or, at your option, any later version).
+// =================================================================================
 
 /**
  * @file 
@@ -71,8 +71,9 @@ public:
 	TwoDimensionalConvectionDispersionOperatorDG();
 	~TwoDimensionalConvectionDispersionOperatorDG() CADET_NOEXCEPT;
 
-	void setFlowRates(int compartment, const active& in, const active& out) CADET_NOEXCEPT;
-	void setFlowRates(active const* in, active const* out) CADET_NOEXCEPT;
+	void setFlowRates(int compartment, const active& in, const active& out);
+	void setFlowRates(active const* in, active const* out);
+
 
 	bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const unsigned int nComp, const unsigned int radNodeStride);
 	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
@@ -89,13 +90,15 @@ public:
 	bool computeConvDispJacobianBlocks();
 	template <typename Action>
 	void addAxElemBlockToJac(const Eigen::MatrixXd& block, const int offRow, const int offColumn, const int depElem, Action addEntry, const active* const compFac = nullptr);
+	void insertAxElemBlockToJac(const Eigen::MatrixXd& block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int offColumn, const int depElem, const active* const compFac = nullptr);
 	void addAxElemBlockToJac(const Eigen::MatrixXd& block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int offColumn, const int depElem, const active* const compFac = nullptr);
 	void addAxElemBlockToJac(const Eigen::MatrixXd& block, std::vector<T>& tripletList, const int offRow, const int offColumn, const int depElem);
 	template <typename Action>
 	void addRadElemBlockToJac(const Eigen::MatrixXd* block, const int offRow, const int nLeftRadElemDep, const int depElem, Action addEntry);
+	void insertRadElemBlockToJac(const Eigen::MatrixXd* block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int nLeftRadElemDep, const int depElem);
 	void addRadElemBlockToJac(const Eigen::MatrixXd* block, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, const int offRow, const int nLeftRadElemDep, const int depElem);
 	void addRadElemBlockToJac(const Eigen::MatrixXd* block, std::vector<T>& tripletList, const int offRow, const int nLeftRadElemDep, const int depElem);
-	bool assembleConvDispJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset = 0);
+	bool assembleConvDispJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const bool addJac, const int bulkOffset = 0);
 
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 	void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset = 0);
@@ -104,25 +107,25 @@ public:
 	bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
 	bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& id, double value);
 
-	inline const active& columnLength() const CADET_NOEXCEPT { return _colLength; }
+	inline const active& columnLength() const CADET_NOEXCEPT { return _bedLength; }
 	inline const active& columnRadius() const CADET_NOEXCEPT { return _colRadius; }
 	inline const active& currentVelocity(int idx) const CADET_NOEXCEPT { return _curVelocity[idx]; }
 	inline const active& columnPorosity(int idx) const CADET_NOEXCEPT { return _colPorosities[idx]; }
 
-	inline const int axNNodes() const { return _axNNodes; }
-	inline const int axNElem() const { return _axNElem; }
-	inline const int radNNodes() const { return _radNNodes; }
-	inline const int radNElem() const { return _radNElem; }
-	inline const int elemNPoints() const { return _elemNPoints; }
-	inline const unsigned int axNPoints() const { return _axNPoints; }
-	inline const unsigned int radNPoints() const { return _radNPoints; }
+	inline int axNNodes() const { return _axNNodes; }
+	inline int axNElem() const { return _axNElem; }
+	inline int radNNodes() const { return _radNNodes; }
+	inline int radNElem() const { return _radNElem; }
+	inline int elemNPoints() const { return _elemNPoints; }
+	inline unsigned int axNPoints() const { return _axNPoints; }
+	inline unsigned int radNPoints() const { return _radNPoints; }
 
 	double relativeAxialCoordinate(unsigned int idx) const
 	{
 		// const unsigned int cell = floor(idx / _nNodes);
 		// const unsigned int node = idx % _nNodes;
 		// divide by column length to get relative position
-		return (floor(idx / _axNNodes) * static_cast<double>(_axDelta) + 0.5 * static_cast<double>(_axDelta) * (1.0 + _axNodes[idx % _axNNodes])) / static_cast<double>(_colLength);
+		return (floor(idx / _axNNodes) * static_cast<double>(_axDelta) + 0.5 * static_cast<double>(_axDelta) * (1.0 + _axNodes[idx % _axNNodes])) / static_cast<double>(_bedLength);
 	}
 	double relativeRadialCoordinate(unsigned int idx) const
 	{
@@ -137,6 +140,12 @@ public:
 
 	void writeRadialCoordinates(double* coords) const;
 	void writeAxialCoordinates(double* coords) const;
+
+	double getRadialAvgNodalValue(const double* const val, int nodeIdx) const CADET_NOEXCEPT;
+	void getRadialAvgNodalValuesElem(const double* const val, double* buffer) const CADET_NOEXCEPT;
+
+	inline bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
+	inline int writeSmoothnessIndicator(double* buffer) const CADET_NOEXCEPT { return 0; }
 
 protected:
 
@@ -217,6 +226,7 @@ protected:
 	//Eigen::MatrixXd _radPolyDerM; //!< Radial polynomial derivative matrix
 	Eigen::MatrixXd _axLiftM; //!< Axial lifting matrix
 	Eigen::MatrixXd _radLiftM; //!< Radial lifting matrix
+	Eigen::MatrixXd _radSubcellIntegrationM; //!< Subcell integration matrix needed in outlet nodal concentration averaging
 	// main eq. operators
 	Eigen::MatrixXd* _radLiftMCyl; //!< Radial lifting matrices with radial metrics for each radial element
 	Eigen::MatrixXd* _transMrCyl; //!< Radial transposed mass matrix with cylinder metrics
@@ -242,7 +252,7 @@ protected:
 	bool _hasDynamicReactions; //!< Determines whether the model has dynamic reactions (only relevant for sparsity pattern)
 
 	// geometry
-	active _colLength; //!< Column length \f$ L \f$
+	active _bedLength; //!< Column length \f$ L \f$
 	active _colRadius; //!< Column radius \f$ r_c \f$
 	active _axDelta; //!< Axial equidistant element spacing
 	std::vector<active> _radDelta; //!< Radial element spacing

@@ -46,15 +46,11 @@ namespace
 		}
 		else
 		{
-			std::ostringstream oss;
-			oss << name << "_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << parTypeIdx;
-
-			if (paramProvider.exists(oss.str()))
+			if (paramProvider.exists(name))
 			{
-				const std::vector<double> tmp = paramProvider.getDoubleArray(oss.str());
+				const std::vector<double> tmp = paramProvider.getDoubleArray(name);
 				if (static_cast<int>(tmp.size()) < nElements)
-					throw InvalidParameterException(oss.str() + " contains too few elements (" + std::to_string(nElements) + " required)");
-
+					throw InvalidParameterException(name + " contains too few elements (" + std::to_string(nElements) + " required)");
 				out.reserve(nElements);
 				for (int i = 0; i < nElements; ++i)
 					out.push_back(tmp[i]);
@@ -62,7 +58,7 @@ namespace
 				registerParam1DArray(params, out, [=](bool multi, unsigned int comp) { return makeParamId(nameHash, unitOpIdx, comp, parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep); });
 			}
 			else
-				throw InvalidParameterException("Field " + oss.str() + " not found");
+				throw InvalidParameterException("Field " + name + " not found");
 		}
 	}
 }
@@ -84,7 +80,7 @@ public:
 	virtual int jacobianElementsPerRowLiquid() const CADET_NOEXCEPT { return 0; }
 	virtual int jacobianElementsPerRowCombined() const CADET_NOEXCEPT { return 1; }
 
-	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
+	virtual void analyticJacobianAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
 	virtual void analyticJacobianCombinedAddLiquid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
 
 	virtual void analyticJacobianCombinedAddSolid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int bnd, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const
@@ -113,7 +109,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void analyticJacobianLiquidAddImpl(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, RowIterator jac) const { }
+	void analyticJacobianAddImpl(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, RowIterator jac) const { }
 
 	template <typename StateType, typename ParamType>
 	typename DoubleActivePromoter<StateType, ParamType>::type combinedParameterLiquidImpl(const ColumnPosition& colPos, const ParamType& param, StateType const* yLiquid, StateType const* ySolid, int comp) const
@@ -154,7 +150,7 @@ public:
 	virtual int jacobianElementsPerRowLiquid() const CADET_NOEXCEPT { return 0; }
 	virtual int jacobianElementsPerRowCombined() const CADET_NOEXCEPT { return 1; }
 
-	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
+	virtual void analyticJacobianAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
 	virtual void analyticJacobianCombinedAddLiquid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
 
 	virtual void analyticJacobianCombinedAddSolid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int bnd, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const
@@ -183,7 +179,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void analyticJacobianLiquidAddImpl(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, RowIterator jac) const { }
+	void analyticJacobianAddImpl(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, RowIterator jac) const { }
 
 	template <typename StateType, typename ParamType>
 	typename DoubleActivePromoter<StateType, ParamType>::type combinedParameterLiquidImpl(const ColumnPosition& colPos, const ParamType& param, StateType const* yLiquid, StateType const* ySolid, int comp) const
@@ -224,7 +220,7 @@ public:
 	virtual int jacobianElementsPerRowLiquid() const CADET_NOEXCEPT { return 0; }
 	virtual int jacobianElementsPerRowCombined() const CADET_NOEXCEPT { return 1; }
 
-	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
+	virtual void analyticJacobianAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
 	virtual void analyticJacobianCombinedAddLiquid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const { }
 
 	virtual void analyticJacobianCombinedAddSolid(const ColumnPosition& colPos, double param, double const* yLiquid, double const* ySolid, int bnd, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const
@@ -269,7 +265,7 @@ protected:
 	}
 
 	template <typename RowIterator>
-	void analyticJacobianLiquidAddImpl(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, RowIterator jac) const { }
+	void analyticJacobianAddImpl(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, RowIterator jac) const { }
 
 	template <typename StateType, typename ParamType>
 	typename DoubleActivePromoter<StateType, ParamType>::type combinedParameterLiquidImpl(const ColumnPosition& colPos, const ParamType& param, StateType const* yLiquid, StateType const* ySolid, int comp) const
