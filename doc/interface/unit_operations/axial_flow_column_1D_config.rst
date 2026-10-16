@@ -14,6 +14,14 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
    **Type:** string  **Range:** :math:`\texttt{COLUMN_MODEL_1D}`  **Length:** 1
    ================  ===========================================  =============
 
+``GEOMETRY``
+
+   Column geometry
+
+   ================  ===============================================  =============
+   **Type:** string  **Range:** :math:`\texttt{AXIAL_FLOW_CYLINDER}`  **Length:** 1
+   ================  ===============================================  =============
+
 ``NCOMP``
 
    Number of chemical components in the chromatographic medium
