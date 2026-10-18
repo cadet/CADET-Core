@@ -84,6 +84,10 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 # Enable folders for IDEs
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+# Enable LTO (link time optimization) for the project
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto=auto")
+
 # ---------------------------------------------------
 #   Other configuration options
 # ---------------------------------------------------
