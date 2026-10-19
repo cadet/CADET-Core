@@ -3,16 +3,24 @@
 Radial Flow Column 1D
 =====================
 
-Group /input/model/unit_XXX - UNIT_TYPE - RADIAL_COLUMN_MODEL_1D
-----------------------------------------------------------------
+Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
+---------------------------------------------------------
 
 ``UNIT_TYPE``
 
    Specifies the type of unit operation model
    
-   ================  ==================================================  =============
-   **Type:** string  **Range:** :math:`\texttt{RADIAL_COLUMN_MODEL_1D}`  **Length:** 1
-   ================  ==================================================  =============
+   ================  ===========================================  =============
+   **Type:** string  **Range:** :math:`\texttt{COLUMN_MODEL_1D}`  **Length:** 1
+   ================  ============================================ =============
+
+``GEOMETRY``
+
+   Column geometry
+
+   ================  ======================================================  =============
+   **Type:** string  **Range:** :math:`\texttt{RADIAL_FLOW_CYLINDER_SHELL}`  **Length:** 1
+   ================  ======================================================  =============
 
 ``NCOMP``
 
@@ -72,13 +80,6 @@ Group /input/model/unit_XXX - UNIT_TYPE - RADIAL_COLUMN_MODEL_1D
    **Type:** bool  **Range:** :math:`\{0,1\}`  **Length:** NSEC
    ==============  ==========================  ==================
 
-``COLUMN_GEOMETRY``
-
-   Optional, specifies whether the radial flow model is a full cylinder shell or a fraction, i.e. a wedge
-   
-   ================  ==========================================================  =============
-   **Type:** string  **Range:** :math:`\texttt{CYLINDER_SHELL}, \texttt{WEDGE}`  **Length:** 1
-   ================  ==========================================================  =============
 
 ``CIRCLE_FRACTION``
 
