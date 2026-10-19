@@ -19,7 +19,7 @@ After the core simulator is installed, you can verify the installation via
     createLWE
     cadet-cli LWE.h5
 
-The first command calls the ``createLWE``, which generates an ``h5`` configuration file for a fully configured `Load-Wash-Elute` process (some parameters can be changed, run ``createLWE --help`` for input options). The model is then simulated via the second command.
+The first command calls ``createLWE``, which generates an ``h5`` configuration file for a fully configured `Load-Wash-Elute` process (some parameters can be changed, run ``createLWE --help`` for input options). The model is then simulated via the second command.
 
 Next, in order to build your own model from scratch, we recommend installing a frontend.
 

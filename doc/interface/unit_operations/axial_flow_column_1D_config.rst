@@ -32,7 +32,8 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
 
 ``CROSS_SECTION_AREA``
 
-   Cross section area of the column (optional if :math:`\texttt{VELOCITY}` is present, see Section :ref:`MUOPGRMflow`)
+   Cross section area of the column, see Section :ref:`MUOPGRMflow`
+
    **Unit:** :math:`\mathrm{m}^{2}`
    
    ================  =====================  =============
@@ -53,8 +54,6 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
 
    Flow direction of the column.
 
-   **Unit:** :math:`\mathrm{m}`
-
    ==============  ==========================  =====================
    **Type:** bool  **Range:** :math:`\{0,1\}`  **Length:** 1 or NSEC
    ==============  ==========================  =====================
@@ -70,7 +69,7 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
 
 ``TOTAL_POROSITY``
 
-   Total porosity of including the porosity of the particles.
+   Total porosity including the porosity of the particles.
    Only applicable for the Lumped Rate Model without pores, i.e. when ``NPARTYPE = 1`` **AND** ``particle_type_000\HAS_FILM_DIFFUSION = 0``
    
    ================  ========================  =============
@@ -79,7 +78,7 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
 
 ``NPARTYPE``
 
-   Number of particle types. Defaults to 0.
+   Number of particle types. A value of :math:`0` means that no particles are present.
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
@@ -92,7 +91,6 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
    ================  ========================  =============================================================================
    **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`\texttt{NPARTYPE} / \texttt{NCOL} \cdot \texttt{NPARTYPE}`
    ================  ========================  =============================================================================
-   ================  =============================  =======================================
 
 ``COL_DISPERSION``
 
@@ -172,7 +170,7 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE - COLUMN_MODEL_1D
 Spatial discretization - Numerical Methods
 ------------------------------------------
 
-CADET offers two spatial discretization methods: Finite Volumes (FV) and Discontinuous Galerkin (DG). Each method has it's own set of input fields.
+CADET offers two spatial discretization methods: Finite Volumes (FV) and Discontinuous Galerkin (DG). Each method has its own set of input fields.
 While both methods approximate the same solution to the same underlying model, they may differ in terms of computational performance.
 With our currently implemented variants of FV and DG, FV perform better for solutions with steep gradients or discontinuities, while DG can be much faster for rather smooth solutions.
 For the same number of discrete points, DG will generally be slower but often more accurate.
@@ -216,7 +214,7 @@ Discontinuous Galerkin
 
 ``USE_COLLOCATION_DG``
 
-   Specifies whether the collocation DG variant should be used. Optional, only existend for axial cylinder columns, defaults to 1.
+   Specifies whether the collocation DG variant should be used. Optional, only available for axial cylinder columns, defaults to 1.
 
    =============  ===========================  =============
    **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1
@@ -226,9 +224,9 @@ Discontinuous Galerkin
 
    Specifies the linear solver variant used to factorize the semidiscretized system. Optional, defaults to ``SparseLU``. For more information on these solvers, we refer to the `Eigen documentation <https://eigen.tuxfamily.org/>`_
    
-   =============  ===================================================================================  =============
-   **Type:** int  **Range:** :math:`\{\texttt{SparseLU}, \texttt{SparseQR}, ..., \texttt{BiCGSTAB}\}`  **Length:** 1
-   =============  ===================================================================================  =============
+   ================  ===================================================================================  =============
+   **Type:** string  **Range:** :math:`\{\texttt{SparseLU}, \texttt{SparseQR}, ..., \texttt{BiCGSTAB}\}`  **Length:** 1
+   ================  ===================================================================================  =============
    
 
    When using the DG method, we generally recommend specifying ``USE_MODIFIED_NEWTON = 1`` in :ref:`FFSolverTime`, i.e. to use the modified Newton method to solve the linear system within the time integrator.
@@ -237,7 +235,7 @@ Discontinuous Galerkin
 Finite Volumes
 --------------
 
-``NCELLS``
+``NCOL``
 
    Number of axial column discretization points, i.e. FV cells
    
@@ -283,7 +281,7 @@ The following FV discretization parameters are only required if particles are pr
 
 ``SCHUR_SAFETY``
 
-   Schur safety factor; Influences the tradeoff between linear iterations and nonlinear error control; see IDAS guide Section~2.1 and 5.
+   Schur safety factor; Influences the tradeoff between linear iterations and nonlinear error control; see IDAS guide Section 2.1 and 5.
    
    ================  =========================  =============
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
@@ -291,7 +289,7 @@ The following FV discretization parameters are only required if particles are pr
 
 ``FV_ARROW_HEAD_OPTIMIZATION``
 
-   Optional, specifies whether an optimized Jacobian block structure is exploited by a custommized linear solver module for improved computational efficiency.
+   Optional, specifies whether an optimized Jacobian block structure is exploited by a customized linear solver module for improved computational efficiency.
    Prohibits mix of particle types and mix of FV, DG discretizations for bulk and particles.
    
    =============  ==========================  =============

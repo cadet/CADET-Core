@@ -12,7 +12,7 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
    
    ================  ===========================================  =============
    **Type:** string  **Range:** :math:`\texttt{COLUMN_MODEL_1D}`  **Length:** 1
-   ================  ============================================ =============
+   ================  ===========================================  =============
 
 ``GEOMETRY``
 
@@ -34,7 +34,7 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
 
 	Cross section area of the inner column radius (optional, only triggers a geometry check against ``CROSS_SECTION_AREA_OUTER``, ``CYLINDER_HEIGHT``, and ``BED_LENGTH``).
 
-	**Unit:** :math:`\mathrm{m}`
+	**Unit:** :math:`\mathrm{m}^2`
 
 	================  ======================  =============
 	**Type:** double  **Range:** :math:`> 0`  **Length:** 1
@@ -44,7 +44,7 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
 
 	Cross section area of the outer column radius
 
-	**Unit:** :math:`\mathrm{m}`
+	**Unit:** :math:`\mathrm{m}^2`
 
 	================  ======================  =============
 	**Type:** double  **Range:** :math:`> 0`  **Length:** 1
@@ -74,11 +74,9 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
 
    Flow direction of the column. If set to 1, the flow is from the outer radius to the inner radius.
 
-   **Unit:** :math:`\mathrm{m}`
-
-   ==============  ==========================  ==================
-   **Type:** bool  **Range:** :math:`\{0,1\}`  **Length:** NSEC
-   ==============  ==========================  ==================
+   ==============  ==========================  =====================
+   **Type:** bool  **Range:** :math:`\{0,1\}`  **Length:** 1 or NSEC
+   ==============  ==========================  =====================
 
 
 ``CIRCLE_FRACTION``
@@ -144,10 +142,6 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
    =============  =========================  =============
 
-Group /input/model/unit_XXX/liquid_reaction_YYY
------------------------------------------------
-Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`FFReaction`.
-
 ``INIT_C``
 
    Initial concentrations for each component in the bulk mobile phase
@@ -170,14 +164,18 @@ Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`
    ================  =============================  ==================================================
 
 
+Group /input/model/unit_XXX/liquid_reaction_YYY
+-----------------------------------------------
+Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`FFReaction`.
+
 Group /input/model/unit_XXX/particle_type_XXX
 ---------------------------------------------
 
 Each particle type is specified in another subgroup `particle_type_XXX`, see :ref:`particle_model_config`.
 
 
-Group /input/model/unit_XXX/discretization - UNIT_TYPE - RADIAL_COLUMN_MODEL_1D
--------------------------------------------------------------------------------
+Group /input/model/unit_XXX/discretization - UNIT_TYPE - COLUMN_MODEL_1D
+-------------------------------------------------------------------------
 
 ``USE_ANALYTIC_JACOBIAN``
 
@@ -242,9 +240,9 @@ Discontinuous Galerkin
 
    Specifies the linear solver variant used to factorize the semidiscretized system. Optional, defaults to ``SparseLU``. For more information on these solvers, we refer to the `Eigen documentation <https://eigen.tuxfamily.org/>`_
 
-   =============  ===================================================================================  =============
-   **Type:** int  **Range:** :math:`\{\texttt{SparseLU}, \texttt{SparseQR}, ..., \texttt{BiCGSTAB}\}`  **Length:** 1
-   =============  ===================================================================================  =============
+   ================  ===================================================================================  =============
+   **Type:** string  **Range:** :math:`\{\texttt{SparseLU}, \texttt{SparseQR}, ..., \texttt{BiCGSTAB}\}`  **Length:** 1
+   ================  ===================================================================================  =============
 
 When using the DG method, we generally recommend specifying ``USE_MODIFIED_NEWTON = 1`` in :ref:`FFSolverTime`, i.e. to use the modified Newton method to solve the linear system within the time integrator.
 
@@ -252,7 +250,7 @@ When using the DG method, we generally recommend specifying ``USE_MODIFIED_NEWTO
 Finite Volumes
 ^^^^^^^^^^^^^^
 
-``NCELLS``
+``NCOL``
 
    Number of radial column discretization points, i.e. FV cells
 
@@ -298,7 +296,7 @@ The following FV discretization parameters are only required if particles are pr
 
 ``SCHUR_SAFETY``
 
-   Schur safety factor; Influences the tradeoff between linear iterations and nonlinear error control; see IDAS guide Section~2.1 and 5.
+   Schur safety factor; Influences the tradeoff between linear iterations and nonlinear error control; see IDAS guide Section 2.1 and 5.
 
    ================  =========================  =============
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
@@ -306,7 +304,7 @@ The following FV discretization parameters are only required if particles are pr
 
 ``FV_ARROW_HEAD_OPTIMIZATION``
 
-   Optional, specifies whether an optimized Jacobian block structure is exploited by a custommized linear solver module for improved computational efficiency.
+   Optional, specifies whether an optimized Jacobian block structure is exploited by a customized linear solver module for improved computational efficiency.
    Prohibits mix of particle types and mix of FV, DG discretizations for bulk and particles.
    
    =============  ==========================  =============

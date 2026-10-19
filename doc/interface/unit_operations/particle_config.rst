@@ -86,7 +86,7 @@ Group /input/model/unit_XXX/particle_type_XXX
 
 ``HAS_PORE_DIFFUSION``
 
-	Specifies whether radial transport within the particle pores is limited by pore diffusion kinetics.
+	Specifies whether radial transport within the particle pores is limited by pore diffusion kinetics. Optional, defaults to :math:`0`.
 
    =============  ============================  =============
    **Type:** int  **Range:** :math:`\{0, 1 \}`  **Length:** 1
@@ -116,7 +116,7 @@ Group /input/model/unit_XXX/particle_type_XXX
 
 ``HAS_SURFACE_DIFFUSION``
 
-   Specifies whether radial transport within the particle is supported but limited by surface diffusion kinetics.
+   Specifies whether radial transport within the particle is supported but limited by surface diffusion kinetics. Optional, defaults to :math:`0`.
 
    =============  ============================  =============
    **Type:** int  **Range:** :math:`\{0, 1 \}`  **Length:** 1
@@ -125,7 +125,7 @@ Group /input/model/unit_XXX/particle_type_XXX
 ``SURFACE_DIFFUSION``
 
    Particle surface diffusion coefficients of each bound state of each component in each particle type.
-   Ooptional, defaults to all 0 :math:`\mathrm{m}_{\mathrm{SP}}^{2}\,\mathrm{s}^{-1}`, required if :math:`\texttt{HAS_SURFACE_DIFFUSION} == 1`, otherwise ignored.
+   Optional, defaults to all 0 :math:`\mathrm{m}_{\mathrm{SP}}^{2}\,\mathrm{s}^{-1}`, required if :math:`\texttt{HAS_SURFACE_DIFFUSION} == 1`, otherwise ignored.
 
    **Unit:** :math:`\mathrm{m}_{\mathrm{SP}}^{2}\,\mathrm{s}^{-1}`
 
@@ -164,7 +164,7 @@ Group /input/model/unit_XXX/particle_type_XXX
 
 ``NBOUND``
 
-   Number of bound states for each component in each particle type in particle type major ordering
+   Number of bound states for each component of this particle type
    
    =============  =========================  ==========================================
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NCOMP}`
@@ -192,9 +192,9 @@ Group /input/model/unit_XXX/particle_type_XXX
 
    **Unit:** :math:`\mathrm{mol}\,\mathrm{m}_{\mathrm{SP}}^{-3}`
    
-   ================  =========================
-   **Type:** double  **Range:** :math:`\geq 0`
-   ================  =========================
+   ================  =========================  ===================================
+   **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NBOUND}`
+   ================  =========================  ===================================
 
 ``PARAMNAME_PARTYPE_DEPENDENT``
 	
@@ -202,7 +202,7 @@ Group /input/model/unit_XXX/particle_type_XXX
 	Specifies whether or not a parameter (parameter name substitutes the `PARAMNAME` prefix of field name) is the same across particle types or 'dependent' on the particle type.
 	In the first case, the parameter sensitivity should be computed jointly across particle types, by specifying this field as 0.
 	Can be specified for any of the above parameters except `NCOMP` and `NBOUND`.
-	For more information on parameter sensitivities, see :ref:`spatial_discretization_methods`.
+	For more information on parameter sensitivities, see :ref:`sensitivity`.
    
    =============  ============================  =============
    **Type:** int  **Range:** :math:`\{0, 1 \}`  **Length:** 1
@@ -240,11 +240,11 @@ Group /input/model/unit_XXX/particle_type_XXX/discretization
 
 ``PAR_DISC_TYPE``
 
-   Specifies the discretization scheme inside the particles for all or each particle type. Valid values are :math:`\texttt{EQUIDISTANT}`, :math:`\texttt{EQUIVOLUME}`, and :math:`\texttt{USER_DEFINED}`.
-   
-   ================  =================================================
-   **Type:** string  **Length:** 1
-   ================  =================================================
+   Specifies the discretization scheme inside the particles for all or each particle type. Optional, defaults to :math:`\texttt{EQUIDISTANT}`.
+
+   ================  ====================================================================================================  =============
+   **Type:** string  **Range:** :math:`\{\texttt{EQUIDISTANT}, \texttt{EQUIVOLUME}, \texttt{USER_DEFINED} \}`              **Length:** 1
+   ================  ====================================================================================================  =============
 
 ``PAR_DISC_VECTOR``
 
@@ -253,23 +253,23 @@ Group /input/model/unit_XXX/particle_type_XXX/discretization
    They are later linearly mapped to the true radial range :math:`[r_{c,j}, r_{p,j}]`.
    The coordinates for each particle type are appended to one long vector in particle type major ordering.
    
-   ================  ========================  ======================================
-   **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`\texttt{NELEM} + 1`
-   ================  ========================  ======================================
+   ================  ========================  ==========================================================================
+   **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`\texttt{PAR_NELEM} + 1` (DG) / :math:`\texttt{NCELLS} + 1` (FV)
+   ================  ========================  ==========================================================================
 
 Spatial discretization - Numerical Methods
 ------------------------------------------
 
-CADET offers two spatial discretization methods: Finite Volumes (FV) and Discontinuous Galerkin (DG). Each method has it's own set of input fields.
+CADET offers two spatial discretization methods: Finite Volumes (FV) and Discontinuous Galerkin (DG). Each method has its own set of input fields.
 While both methods approximate the same solution to the same underlying model, they may differ in terms of computational performance.
 With our currently implemented variants of FV and DG, FV perform better for solutions with steep gradients or discontinuities, while DG can be much faster for rather smooth solutions.
 For the same number of discrete points, DG will generally be slower but often more accurate.
 
-For further information on the choice of discretization methods and their parameters, see :ref:`sensitivity`.
+For further information on the choice of discretization methods and their parameters, see :ref:`spatial_discretization_methods`.
 
 ``SPATIAL_METHOD``
 
-   Spatial discretization method. Optional, defaults to :math:`\texttt{DG}`
+   Spatial discretization method
 
    ================  ===============================================  =============
    **Type:** string  **Range:** :math:`\{\texttt{FV}, \texttt{DG}\}`  **Length:** 1
@@ -280,7 +280,7 @@ Discontinuous Galerkin
 
 ``PAR_POLYDEG``
 
-   DG particle (radial) polynomial degree. Optional, defaults to 3. The total number of particle (radial) discrete points is given by (``PARPOLYDEG`` + 1 ) * ``PAR_NELEM``.
+   DG particle (radial) polynomial degree. The total number of particle (radial) discrete points is given by (``PAR_POLYDEG`` + 1 ) * ``PAR_NELEM``.
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
@@ -325,10 +325,10 @@ Finite Volumes
 
 ``OPTIMIZE_PAR_BANDWIDTH``
 
-   Only available if both particle and bulk spatial methods are all FV
+   Only available if both particle and bulk spatial methods are FV, and specified in the unit operation's discretization group, i.e. in `/input/model/unit_XXX/discretization`.
    Determines whether the surface diffusion parameters :math:`\texttt{SURFACE_DIFFUSION}` are fixed if the parameters are zero.
-   If the parameters are fixed to zero (:math:`\texttt{FIX_ZERO_SURFACE_DIFFUSION} = 1`, :math:`\texttt{SURFACE_DIFFUSION} = 0`), the parameters must not become non-zero during this or subsequent simulation runs.
-   The internal data structures are optimized for a more efficient simulation.  This field is optional and defaults to :math:`0` (optimization disabled in favor of flexibility).
+   If the parameters are fixed to zero (:math:`\texttt{OPTIMIZE_PAR_BANDWIDTH} = 1`, :math:`\texttt{SURFACE_DIFFUSION} = 0`), the parameters must not become non-zero during this or subsequent simulation runs.
+   The internal data structures are optimized for a more efficient simulation.  This field is optional and defaults to :math:`1` (optimization enabled).
    
    =============  ===========================  =============
    **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1

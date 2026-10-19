@@ -40,7 +40,7 @@ and :math:`S` is the selection function which determines the rate of fragmentati
 where :math:`\alpha > 0` reckons the breakage rate as a function of particle volume.
 
 
-The propability breakage function is defined as
+The probability breakage function is defined as
 
 .. math::
     :label: propabilityDensityFunc

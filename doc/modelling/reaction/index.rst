@@ -22,8 +22,8 @@ It is possible to combine reaction models within the same phase.
 Cross phase reaction models
 ---------------------------
 
-If a reaction is defined between a liquid phase and solid phases, the net fluxes of the reaction are defined
-as a function of the concentrations in the respective phases and is called a cross phase reaction.
+If a reaction is defined between a liquid phase and a solid phase, the net fluxes of the reaction are defined
+as a function of the concentrations in the respective phases, and the reaction is called a cross phase reaction.
 
 CADET features the following cross phase reaction types:
 
@@ -65,7 +65,7 @@ The 0-based indices of the external source for each parameter is given in the da
 By assigning only one index to ``EXTFUN``, all parameters use the same source.
 The ordering of the parameters in ``EXTFUN`` is given by the ordering in the file format specification.
 
-For the configuration of external function dependence and more information on model parameters required to define in CADET file format, see section :ref:`FFReaction`.
+For the configuration of external function dependence and more information on the model parameters to be defined in the CADET file format, see section :ref:`FFReaction`.
 
 .. toctree::
     :hidden:

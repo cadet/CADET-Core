@@ -39,6 +39,6 @@ If ion concentration :math:`c_\mathrm{ion}` is used, the modification factors be
         f_{A, i} =\frac{1}{1+\left(\frac{c_\mathrm{ion}}{c_{\mathrm{mid},A,i}}\right)^{\eta_{A, i}}} , \quad f_{G, i} =\frac{1}{1+\left(\frac{c_\mathrm{ion}}{c_{\mathrm{mid},G,i}}\right)^{\eta_{G, i}}}.
     \end{aligned}
 
-In this form, :math:`c_{\mathrm{mid},A,i}` and :math:`c_{\mathrm{mid},G,i}` are the midpoint ion concentrations corresponding to ion concentraion changes. 
+In this form, :math:`c_{\mathrm{mid},A,i}` and :math:`c_{\mathrm{mid},G,i}` are the midpoint ion concentrations corresponding to ion concentration changes. 
 
 For more information on model parameters required to define in CADET file format, see :ref:`affinity_complex_titration_config`.

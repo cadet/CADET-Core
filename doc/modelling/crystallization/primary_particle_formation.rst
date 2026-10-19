@@ -14,7 +14,7 @@ For more information on the PBM implemented in CADET, please refer to :cite:`Zha
 Population Balance Model in a CSTR
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-We assume a well-mixed tank and choose the particle size :math:`x\in (x_c, \infty)` as the internal coodinate, with :math:`x_c>0` being the minimal particle size considered.
+We assume a well-mixed tank and choose the particle size :math:`x\in (x_c, \infty)` as the internal coordinate, with :math:`x_c>0` being the minimal particle size considered.
 The corresponding PBM is given as
 
 .. math::

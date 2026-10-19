@@ -15,8 +15,8 @@ Group /input/model/unit_XXX/discretization
 
     .. note::
         - For the 2D General Rate Model (``GENERAL_RATE_MODEL_2D``), this parameter is called ``AXIAL_GRID_FACES`` to distinguish it from the radial direction.
-        - Large ratios of adjacent cells sizes **may** reduce reconstruction accuracy. Recommendation :math:`r = max(Δx_{i+1}/Δx_i, Δx_i/Δx_{i+1}) < 3`.
-        - Avoid large ratios :math:`Δx_{max} / Δx_{min}`, which **might** cause stiff ODE systems and thus slow, unstable time integration.
+        - Large ratios of adjacent cells sizes **may** reduce reconstruction accuracy. Recommendation :math:`r = \max(\Delta x_{i+1}/\Delta x_i, \Delta x_i/\Delta x_{i+1}) < 3`.
+        - Avoid large ratios :math:`\Delta x_{\max} / \Delta x_{\min}`, which **might** cause stiff ODE systems and thus slow, unstable time integration.
 
    ================  =========================  ============================
    **Type:** double  **Range:** :math:`[0, L]`  **Length:** :math:`NCOL + 1`

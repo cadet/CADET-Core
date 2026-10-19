@@ -55,9 +55,9 @@ Group /input/model/unit_XXX/liquid_reaction_000 - TYPE = CRYSTALLIZATION - UNIT_
   6. Combined aggregation and fragmentation.
   7. Combined primary particle formation, aggregation, and fragmentation.
 
-   ================  =========================  =====================================
-   **Type:** double  **Range:** :math:`\geq 1`   **Length:** :math:`\mathrm{N_x} + 1`
-   ================  =========================  =====================================
+   =============  ===================================  =============
+   **Type:** int  **Range:** :math:`\{1, \dots, 7 \}`  **Length:** 1
+   =============  ===================================  =============
 
 ``CRY_BINS``
 
@@ -72,7 +72,7 @@ Population and Mass Balance input parameters
 
 ``CRY_NUCLEI_MASS_DENSITY``
 
-   Nulcei mass density
+   Nuclei mass density
 
    ================  =========================  =============
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1

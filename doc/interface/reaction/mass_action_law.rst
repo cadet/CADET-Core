@@ -10,7 +10,7 @@ For information on model equations, refer to :ref:`mass_action_law_model`.
 Notes
 -----
 
-- ``phase_reaction_ZZZ`` refers to one of the phase-specific raction groups listed in :ref:`FFReaction`, e.g., ``liquid_reaction_ZZZ``, ``solid_reaction_ZZZ``.
+- ``phase_reaction_ZZZ`` refers to one of the phase-specific reaction groups listed in :ref:`FFReaction`, e.g., ``liquid_reaction_ZZZ``, ``solid_reaction_ZZZ``.
 - Some dimensions below depend on the hosting phase of this model instance:
    - Bulk phase or particle liquid phase: ``NVAR = NCOMP``
    - Particle solid phase: ``NVAR = NTOTALBOUND`` (total number of bound states across all components)
@@ -30,6 +30,15 @@ Notes
    ================  =========================  ===================================
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NREACT}`
    ================  =========================  ===================================
+
+``MAL_IS_KINETIC``
+
+   Selects kinetic (:math:`1`) or quasi-stationary (:math:`0`) mode for each reaction.
+   Optional, defaults to kinetic for all reactions.
+   
+   =============  ==========================  ===================================
+   **Type:** int  **Range:** :math:`\{0,1\}`  **Length:** :math:`\texttt{NREACT}`
+   =============  ==========================  ===================================
 
 ``MAL_STOICHIOMETRY``
 
@@ -58,28 +67,27 @@ Notes
 CADET Python Interface Example
 ------------------------------
 This example shows the configuration of one mass-action-law reaction system.
-The system has two components A and B, where A reactions to B.
+The system has two components A and B, where A reacts to B.
 In addition to that the model includes:
+
 - A forward reaction rate constant of 1.0
 - A backward reaction rate constant of 1.0
 
-.. code-block::
-
-# Reaction in a bulk liquid phase::
+Reaction in a bulk liquid phase::
 
    input.model.unit_000.NREAC_LIQUID = 1
-   input.model.unit_000.reaction_liquid_000.type = MASS_ACTION_LAW
-   input.model.unit_000.reaction_liquid_000.MAL_KFWD = [1.0]
-   input.model.unit_000.reaction_liquid_000.MAL_KBWD = [1.0]
-   input.model.unit_000.reaction_liquid_000.MAL_STOICHIOMETRY = [-1.0, 1.0] # A -> B
+   input.model.unit_000.liquid_reaction_000.TYPE = 'MASS_ACTION_LAW'
+   input.model.unit_000.liquid_reaction_000.MAL_KFWD = [1.0]
+   input.model.unit_000.liquid_reaction_000.MAL_KBWD = [1.0]
+   input.model.unit_000.liquid_reaction_000.MAL_STOICHIOMETRY = [-1.0, 1.0] # A -> B
 
-# Reaction in a particle liquid phase::
+Reaction in a particle liquid phase::
 
-   input.model.unit_000.particle_type_000.NREAC_PORE = 1
-   input.model.unit_000.particle_type_000.reaction_liquid_000.type = MASS_ACTION_LAW
-   input.model.unit_000.particle_type_000.reaction_liquid_000.MAL_KFWD = [1.0]
-   input.model.unit_000.particle_type_000.reaction_liquid_000.MAL_KBWD = [1.0]
-   input.model.unit_000.particle_type_000.reaction_liquid_000.MAL_STOICHIOMETRY = [-1.0, 1.0] # A -> B
+   input.model.unit_000.particle_type_000.NREAC_LIQUID = 1
+   input.model.unit_000.particle_type_000.liquid_reaction_000.TYPE = 'MASS_ACTION_LAW'
+   input.model.unit_000.particle_type_000.liquid_reaction_000.MAL_KFWD = [1.0]
+   input.model.unit_000.particle_type_000.liquid_reaction_000.MAL_KBWD = [1.0]
+   input.model.unit_000.particle_type_000.liquid_reaction_000.MAL_STOICHIOMETRY = [-1.0, 1.0] # A -> B
 
 See also
 --------

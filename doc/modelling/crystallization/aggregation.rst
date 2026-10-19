@@ -69,6 +69,7 @@ Differential force kernel
     .. math::
 
         \beta(x, \lambda) = \beta_0 (x + \lambda)^2 (x^2 - \lambda^2)
+
 where :math:`\beta_0 > 0` is the aggregation rate constant. Please reach out to us for customized aggregation kernels. 
 
 For information on model parameters and how to specify the model interface, see :ref:`pbm_config`.

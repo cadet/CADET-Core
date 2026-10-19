@@ -8,10 +8,12 @@ Group /input/solver
 
 ``NTHREADS``
 
-   Number of used threads
-   
+   Number of used threads (optional, defaults to :math:`0`).
+   A value of :math:`0` lets the runtime choose the number of threads.
+   In a non-parallelized build, only the value :math:`1` is accepted.
+
    =============  =========================  =============
-   **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
    =============  =========================  =============
    
 ``USER_SOLUTION_TIMES``
@@ -82,8 +84,8 @@ Group /input/solver
    
 .. _FFSolverTime:
 
-Group /solver/time_integrator
------------------------------
+Group /input/solver/time_integrator
+-----------------------------------
 
 ``USE_MODIFIED_NEWTON``
 
@@ -127,7 +129,7 @@ Group /solver/time_integrator
    
 ``INIT_STEP_SIZE``
 
-   Initial time integrator step size for each section or one value for all sections (0.0: IDAS default value), see `IDAS <https://sundials.readthedocs.io/en/latest/idas/Usage/SIM.html#idas-usage-sim-user-callable-optional-input>` documentation.
+   Initial time integrator step size for each section or one value for all sections (0.0: IDAS default value), see `IDAS <https://sundials.readthedocs.io/en/latest/idas/Usage/SIM.html#idas-usage-sim-user-callable-optional-input>`__ documentation.
 
    **Unit:** :math:`\mathrm{s}`
    
@@ -137,7 +139,7 @@ Group /solver/time_integrator
    
 ``MAX_STEPS``
 
-   Maximum number of timesteps taken by IDAS (0: IDAS default = 500), see `IDAS <https://sundials.readthedocs.io/en/latest/idas/Usage/SIM.html#idas-usage-sim-user-callable-optional-input>` documentation.
+   Maximum number of timesteps taken by IDAS (0: IDAS default = 500), see `IDAS <https://sundials.readthedocs.io/en/latest/idas/Usage/SIM.html#idas-usage-sim-user-callable-optional-input>`__ documentation.
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
@@ -145,7 +147,7 @@ Group /solver/time_integrator
    
 ``MAX_STEP_SIZE``
 
-   Maximum size of timesteps taken by IDAS (optional, defaults to unlimited 0.0), see `IDAS <https://sundials.readthedocs.io/en/latest/idas/Usage/SIM.html#idas-usage-sim-user-callable-optional-input>` documentation.
+   Maximum size of timesteps taken by IDAS (optional, defaults to unlimited 0.0), see `IDAS <https://sundials.readthedocs.io/en/latest/idas/Usage/SIM.html#idas-usage-sim-user-callable-optional-input>`__ documentation.
 
    **Unit:** :math:`\mathrm{s}`
    
@@ -195,8 +197,8 @@ Group /solver/time_integrator
    
 .. _FFSolverSections:
 
-Group /solver/sections
-----------------------
+Group /input/solver/sections
+----------------------------
 
 ``NSEC``
 
@@ -208,7 +210,7 @@ Group /solver/sections
    
 ``SECTION_TIMES``
 
-   Simulation times at which the model changes or behaves discontinously; including start and end times
+   Simulation times at which the model changes or behaves discontinuously; including start and end times
 
    **Unit:** :math:`\mathrm{s}`
    
@@ -218,7 +220,7 @@ Group /solver/sections
    
 ``SECTION_CONTINUITY``
 
-   Continuity indicator for each section transition: 0 (discontinuous) or 1 (continuous).
+   Continuity indicator for each section transition: 0 (discontinuous) or 1 (continuous). Optional, defaults to all 0.
    
    =============  ==========================  ===================================
    **Type:** int  **Range:** :math:`\{0,1\}`  **Length:** :math:`\texttt{NSEC}-1`

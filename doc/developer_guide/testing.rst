@@ -45,12 +45,12 @@ To debug specific tests (with flag [testHere]) from the Visual Studio IDE, you c
 
 Select the testRunner.exe in the startup item dropdown menu and you can start debugging tests with the specified flag.
 To see the options, run `testrunner --help`. To get the available test flags for instance, execute the testrunner with the corresponding option, i.e. `testrunner -t`.
-You can provide multiple arguments like `"[testHere][testHere2]"` to run all test that have both flags, or with comma separation `"[testHere],[testHere2]"` to run all tests with the first and/or the second flag.
+You can provide multiple arguments like `"[testHere][testHere2]"` to run all tests that have both flags, or with comma separation `"[testHere],[testHere2]"` to run all tests with the first and/or the second flag.
 
 Adding tests for your model
 ---------------------------
 
-Every model and numerical method implemented in CADET-Core has to be tested adequatly.
+Every model and numerical method implemented in CADET-Core has to be tested adequately.
 Here, we distinguish between unit tests and numerical reference tests.
 
 Unit tests
@@ -74,8 +74,8 @@ We utilize `CADET-Verification <https://github.com/cadet/CADET-Verification>`_ a
 There are many benchmark cases already implemented in CADET-Verification, please refer to them and adopt style, naming conventions and integration into the codebase.
 
 **2. Add tests to CADET-Verification script:**
-Add (potentially reduced/minimallized) test cases, e.g. case studies from a paper publication to `CADET-Verification <https://github.com/cadet/CADET-Verification>`_.
-These tests should be added to the main scipt of CADET-Verification (refer to the README file), so that they are executed as part of the CADET-Core CD pipeline.
+Add (potentially reduced/minimized) test cases, e.g. case studies from a paper publication to `CADET-Verification <https://github.com/cadet/CADET-Verification>`_.
+These tests should be added to the main script of CADET-Verification (refer to the README file), so that they are executed as part of the CADET-Core CD pipeline.
 For numerical additions to the code, please add tests that verify these methods, e.g. experimental order-of-convergence (EOC) tests.
 
 **3. Add numerical reference tests to CADET-Core:**
@@ -92,8 +92,8 @@ A manufactured solution was implemented e.g. for the radial flow model, see test
 General CADET-Core testing procedure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Create a new test file ``test\NewModelMethod.cpp``, an easy way to begin with is to copy one of the files that implements tests which are the closest to the ones that you are planning on, e.g. LumpedRateModelWithPores to test a new unit operation.
-Add your tests to the testrunner executable by adding ``NewModelMethod.cpp`` to the list in the command ``add_executable(testrunner`` within the ``test\CmakeList.txt`` file.
-Note that every test needs an unique name, which is specified for each test by ``TEST_CASE("My first test", "[FLAG1],[FLAG2]")``.
+Add your tests to the testrunner executable by adding ``NewModelMethod.cpp`` to the list in the command ``add_executable(testrunner`` within the ``test/CMakeLists.txt`` file.
+Note that every test needs a unique name, which is specified for each test by ``TEST_CASE("My first test", "[FLAG1],[FLAG2]")``.
 Flags are used as options for the testrunner.exe and are specified within square brackets.
 Reuse existing flags and add new ones for your extension.
 The ``[CI]`` flag is used for tests that shall be rerun as part of our github continuous integration (CI) pipeline.
@@ -102,7 +102,7 @@ Maintenance of the tests
 ------------------------
 
 Some changes will break the tests without them being necessarily wrong. A change in the numerics for instance, will most likely break some tests.
-This can be fixed by carefully adapting the absolute and relative tolerances for the broken tests. These changes should not change the magnitude of the tolerances, except if this is within an acceptable and expected new tolerance).
+This can be fixed by carefully adapting the absolute and relative tolerances for the broken tests. These changes should not change the magnitude of the tolerances, except if this is within an acceptable and expected new tolerance.
 
 Test coverage
 -------------
@@ -113,4 +113,4 @@ Tests marked with the ``[CI]`` flag are automatically included in the coverage a
 The goal is to maintain complete test coverage by ensuring every new functionality or code change includes corresponding tests executed with Codecov.
 The file ``.codecov.yml`` defines a target coverage percentage. If the coverage falls below that, the workflow fails.
 This percentage should be updated as we continuously expand our test coverage.
-Further, the file defines ignored paths, such as the `ThirdParty` directory as we dont consider test coverage of third party software.
+Further, the file defines ignored paths, such as the `ThirdParty` directory as we don't consider test coverage of third party software.

@@ -87,7 +87,7 @@ Group /input/sensitivity/param_XXX
    
 ``SENS_ABSTOL``
 
-   Absolute tolerance used in the computation of the sensitivities (optional). Rule of thumb: :math:`\texttt{ABSTOL} / \texttt{PARAM_VALUE}`
+   Absolute tolerance used in the computation of the sensitivities (optional, defaults to :math:`10^{-5}`). Rule of thumb: :math:`\texttt{ABSTOL} / \texttt{PARAM_VALUE}`
    
    ================  ===========================  ==========================
    **Type:** double  **Range:** :math:`\geq 0.0`  **Length:** :math:`\geq 1`

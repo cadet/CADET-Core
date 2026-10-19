@@ -12,15 +12,15 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
    
    ================  ===========================================  =============
    **Type:** string  **Range:** :math:`\texttt{COLUMN_MODEL_1D}`  **Length:** 1
-   ================  ============================================ =============
+   ================  ===========================================  =============
 
 ``GEOMETRY``
 
    Column geometry
 
-   ================  ===============================================  =============
+   ================  ==============================================  =============
    **Type:** string  **Range:** :math:`\texttt{AXIAL_FLOW_FRUSTUM}`  **Length:** 1
-   ================  ===============================================  =============
+   ================  ==============================================  =============
 
 ``NCOMP``
 
@@ -63,13 +63,12 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
 
 ``FORWARD_FLOW``
 
-   Flow direction of the column. If set to 1, the flow is from the larger radius to the smaller radius.
+   Flow direction of the column.
+   If set to 1, the flow is from the larger radius to the smaller radius.
 
-   **Unit:** :math:`\mathrm{m}`
-
-   ==============  ==========================  ==================
-   **Type:** bool  **Range:** :math:`\{0,1\}`  **Length:** NSEC
-   ==============  ==========================  ==================
+   ==============  ==========================  =====================
+   **Type:** bool  **Range:** :math:`\{0,1\}`  **Length:** 1 or NSEC
+   ==============  ==========================  =====================
 
 ``COL_POROSITY``
 
@@ -89,7 +88,9 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
 
 ``PAR_TYPE_VOLFRAC``
 
-   Volume fractions of the particle types. The volume fractions can be set for all axial cells together or for each individual axial cell. For each cell, the volume fractions have to sum to :math:`1`. In case of a spatially inhomogeneous setting, the data is expected in cell-major ordering and the :math:`\texttt{SENS_SECTION}` field is used for indexing the axial cell when specifying parameter sensitivities.  This field is optional in case of only one particle type.
+   Volume fractions of the particle types.
+   The volume fractions can be set for all axial cells together or for each individual axial cell.
+   For each cell, the volume fractions have to sum to :math:`1`. In case of a spatially inhomogeneous setting, the data is expected in cell-major ordering and the :math:`\texttt{SENS_SECTION}` field is used for indexing the axial cell when specifying parameter sensitivities.  This field is optional in case of only one particle type.
    
    ================  ========================  =============================================================================
    **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`\texttt{NPARTYPE} / \texttt{NCOL} \cdot \texttt{NPARTYPE}`
@@ -107,7 +108,8 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
 
 ``COL_DISPERSION_MULTIPLEX``
 
-   Multiplexing mode of :math:`\texttt{COL_DISPERSION}`. Determines whether :math:`\texttt{COL_DISPERSION}` is treated as component- and/or section-independent.  This field is optional. When left out, multiplexing behavior is inferred from the length of :math:`\texttt{COL_DISPERSION}`.  Valid modes are: 
+   Multiplexing mode of :math:`\texttt{COL_DISPERSION}`.
+   Determines whether :math:`\texttt{COL_DISPERSION}` is treated as component- and/or section-independent.  This field is optional. When left out, multiplexing behavior is inferred from the length of :math:`\texttt{COL_DISPERSION}`.  Valid modes are: 
 
    0. Component-independent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is :math:`1` 
    1. Component-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP}` 
@@ -125,10 +127,6 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
    =============  =========================  =============
-
-Group /input/model/unit_XXX/liquid_reaction_YYY
------------------------------------------------
-Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`FFReaction`.
 
 ``INIT_C``
 
@@ -152,14 +150,18 @@ Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`
    ================  =============================  ==================================================
 
 
+Group /input/model/unit_XXX/liquid_reaction_YYY
+-----------------------------------------------
+Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`FFReaction`.
+
 Group /input/model/unit_XXX/particle_type_XXX
 ---------------------------------------------
 
 Each particle type is specified in another subgroup `particle_type_XXX`, see :ref:`particle_model_config`.
 
 
-Group /input/model/unit_XXX/discretization - UNIT_TYPE - FRUSTUM_COLUMN_MODEL_1D
---------------------------------------------------------------------------------
+Group /input/model/unit_XXX/discretization - UNIT_TYPE - COLUMN_MODEL_1D
+-------------------------------------------------------------------------
 
 ``USE_ANALYTIC_JACOBIAN``
 
@@ -172,17 +174,17 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE - FRUSTUM_COLUMN_MODEL_1D
 Spatial discretization - Numerical Methods
 ------------------------------------------
 
-CADET offers a 1st order upwind FV method for frustum flow chromatography
+CADET offers an FV method for frustum flow chromatography.
 
 ``SPATIAL_METHOD``
 
-   Spatial discretization method. Optional, defaults to :math:`\texttt{FV}`
+   Spatial discretization method
 
    ================  ==================================  =============
    **Type:** string  **Range:** :math:`\{\texttt{FV}\}`  **Length:** 1
    ================  ==================================  =============
 
-``NCELLS``
+``NCOL``
 
    Number of axial column discretization points, i.e. FV cells
    
@@ -218,7 +220,7 @@ The following FV discretization parameters are only required if particles are pr
 
 ``SCHUR_SAFETY``
 
-   Schur safety factor; Influences the tradeoff between linear iterations and nonlinear error control; see IDAS guide Section~2.1 and 5.
+   Schur safety factor; Influences the tradeoff between linear iterations and nonlinear error control; see IDAS guide Section 2.1 and 5.
    
    ================  =========================  =============
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
@@ -226,7 +228,7 @@ The following FV discretization parameters are only required if particles are pr
 
 ``FV_ARROW_HEAD_OPTIMIZATION``
 
-   Optional, specifies whether an optimized Jacobian block structure is exploited by a custommized linear solver module for improved computational efficiency.
+   Optional, specifies whether an optimized Jacobian block structure is exploited by a customized linear solver module for improved computational efficiency.
    Prohibits mix of particle types and mix of FV, DG discretizations for bulk and particles.
    
    =============  ==========================  =============

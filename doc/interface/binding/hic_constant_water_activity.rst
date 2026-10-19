@@ -78,3 +78,13 @@ For information on model equations, refer to :ref:`hic_constant_water_activity_m
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** 1
 ===================  =========================  =========================================
 
+``HICCWA_WATER_ACTIVITY``
+   Water activity of the bulk solution (optional, defaults to
+   :math:`0.1`)
+
+**Unit:** [-]
+
+===================  =========================  =========================================
+**Type:** double     **Range:** :math:`\ge 0`   **Length:** 1
+===================  =========================  =========================================
+

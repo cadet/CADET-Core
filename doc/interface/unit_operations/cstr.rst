@@ -74,9 +74,9 @@ For information on model equations, refer to :ref:`cstr_model`.
 
 ``CONST_SOLID_VOLUME``
 
-   Volume of solid phase
+   Volume of solid phase (optional, defaults to :math:`0`)
 
-   **Unit:** :math:`\mathrm{m}^{3}` (defaults to 0)
+   **Unit:** :math:`\mathrm{m}^{3}`
 
    ================  =========================  =============
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
@@ -84,7 +84,7 @@ For information on model equations, refer to :ref:`cstr_model`.
 
 ``FLOWRATE_FILTER``
 
-   Flow rate of pure liquid without components (optional, defaults to :math:`\mathrm{m}^{3}\,\mathrm{s}^{-1}`)
+   Flow rate of pure liquid without components (optional, defaults to :math:`0`)
 
    **Unit:** :math:`\mathrm{m}^{3}\,\mathrm{s}^{-1}`
 
