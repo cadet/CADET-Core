@@ -4,7 +4,7 @@ Binding models
 ==============
 
 The following binding models are presented in dynamic binding mode.
-By replacing all occurrences of :math:`\mathrm{d}q / \mathrm{d}t` with :math:`0`, quasi-stationary (rapid-equlibrium) binding mode is achieved.
+By replacing all occurrences of :math:`\mathrm{d}q / \mathrm{d}t` with :math:`0`, quasi-stationary (rapid-equilibrium) binding mode is achieved.
 In quasi-stationary binding, it is assumed that ad- and desorption take place on a much faster time scale than the other transport processes such that bead liquid phase :math:`c_{p,i}` (or bulk liquid phase :math:`c_i` for certain unit operation models) are always in equilibrium with the solid phase :math:`q_i`.
 
 Equilibrium constants
@@ -54,25 +54,25 @@ Linear Driving Force (LDF)
 Some authors use the linear driving force (LDF) approximation instead of the native kinetic form of an isotherm.
 All three approaches are equivalent in rapid equilibrium (``IS_KINETIC = 0``) but not equivalent when binding kinetics are considered (``IS_KINETIC = 1``).
 
-1. In the native approach, :math:`\frac{dq}{dt}` is an explicit funtion of :math:`c` and :math:`q`. For example :math:`\frac{dq}{dt}=k_a c (q_m - q)-k_d q` in the Langmuir model.
+1. In the native approach, :math:`\frac{dq}{dt}` is an explicit function of :math:`c` and :math:`q`. For example :math:`\frac{dq}{dt}=k_a c (q_m - q)-k_d q` in the Langmuir model.
 
 2. A linear driving force approximation is based on the equilibrium concentration :math:`q^*` for given :math:`c`.
 For example :math:`q^*= \frac{q_m k_{eq} c}{1 + k_{eq} c}` in the Langmuir model.
 Here, :math:`\frac{dq}{dt}` is proportional to the actual difference from equilibrium, i.e. :math:`\frac{dq}{dt} = k_{kin}(q^*-q)`.
-Note that, the sign of :math:`\frac{dq}{dt}` causes the resulting flux to act towards the equilibrium.
+Note that the sign of :math:`\frac{dq}{dt}` causes the resulting flux to act towards the equilibrium.
 In CADET, this approach is denoted by ``LDF``, for example in ``MULTI_COMPONENT_LANGMUIR_LDF``.
 
 3. An alternative linear driving force approximation is based on the equilibrium concentration :math:`c^*` for given :math:`q`.
 For example :math:`c^*=\frac{q}{k_{eq} \left(q_{m}-q\right)}` in the Langmuir model.
 Here, :math:`\frac{dq}{dt}` is proportional to the actual difference from equilibrium concentrations, i.e. :math:`\frac{dq}{dt} = k_{kin}(c-c^*)`.
-Note that, the sign of :math:`\frac{dq}{dt}` causes the resulting flux to act towards the equilibrium.
+Note that the sign of :math:`\frac{dq}{dt}` causes the resulting flux to act towards the equilibrium.
 In CADET, this approach is denoted by ``LDF_LIQUID_PHASE``, for example in ``MULTI_COMPONENT_LANGMUIR_LDF_LIQUID_PHASE``.
 
-In both LDF examples, the original rate constants :math:`k_a` and :math:`k_d` are replaced by the equilibrium contant :math:`k_{eq}=\frac{k_a}{k_d}`.
+In both LDF examples, the original rate constants :math:`k_a` and :math:`k_d` are replaced by the equilibrium constant :math:`k_{eq}=\frac{k_a}{k_d}`.
 The linear driving force approximations are based on a new kinetic constant, :math:`k_{kin}`.
 
 Note that some isotherms, such as the Freundlich model, don't have a native representation in the above sense.
-LDF versions are availabe for some but not all binding models implemented in CADET.
+LDF versions are available for some but not all binding models implemented in CADET.
 
 .. _reference_concentrations:
 

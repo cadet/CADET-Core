@@ -5,10 +5,11 @@ Meta Group
 
 ``FILE_FORMAT``
 
-   Version of the file format (defaults to 040000 = 4.0.0 if omitted) with two digits per part (Major.Minor.Patch)
+   Version of the file format in the form Major.Minor.Patch.
+   If omitted, the version of the file format the simulator writes is inserted.
    
    ================  =========================
-   **In/out:** In    **Type:** int
+   **In/out:** In    **Type:** string
    ================  =========================
    
 ``CADET_VERSION``
@@ -54,7 +55,7 @@ The ratio nniters/nsteps measures the performance of the nonlinear solver in sol
 The ratio njevals/nniters (in the case of a matrix-based linear solver), and the ratio npevals/nniters (in the case of an iterative linear solver) measure the overall degree of nonlinearity in these systems, and also the quality of the approximate Jacobian or preconditioner being used.
 Thus, for example, njevals/nniters can indicate if a user-supplied Jacobian is inaccurate, if this ratio is larger than for the case of the corresponding internal Jacobian.
 The ratio nliters/nniters measures the performance of the Krylov iterative linear solver, and thus (indirectly) the quality of the preconditioner.
-In the following, `NSOLUTIONTIMES` denotes the number of time points at which the solution is reported, see `USER_SOLUTION_TIMES`.
+In the following, ``NSOLUTIONTIMES`` denotes the number of time points at which the solution is reported, see ``USER_SOLUTION_TIMES``.
 
 ``IDAS_NTIMESTEPS``
 
@@ -125,13 +126,13 @@ In the following, `NSOLUTIONTIMES` denotes the number of time points at which th
     Integration step size taken on the last internal step at corresponding time point
 
    	================  ======================  ===============================
-	**In/out:** Out   **Type:** int           **Length:** ``NSOLUTIONTIMES``
+	**In/out:** Out   **Type:** double        **Length:** ``NSOLUTIONTIMES``
 	================  ======================  ===============================
 
 ``IDAS_FIRST_INTEGRATION_STEP_SIZE``
 
-    Value of the integration step size used on the first step
+    Value of the integration step size used on the first step at corresponding time point
 
    	================  ======================  ===============================
-	**In/out:** Out   **Type:** int           **Length:** ``NSOLUTIONTIMES``
+	**In/out:** Out   **Type:** double        **Length:** ``NSOLUTIONTIMES``
 	================  ======================  ===============================

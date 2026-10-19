@@ -3,7 +3,7 @@
 Unit operation models
 =====================
 
-A comprehensive collection of chromatographic unit-operation models is provided through the Python-based tool `CADET-Equations <https://github.com/cadet/CADET-Equations>`_
+A comprehensive collection of chromatographic unit-operation models is provided through the Python-based tool `CADET-Equations <https://github.com/cadet/CADET-Equations>`_.
 The tool provides a graphical interface and allows users to export the corresponding governing equations in LaTeX or PDF format.
 The application is `currently hosted on streamlit <https://cadet-equations-74ko8eryoxmsbqspggxrj2.streamlit.app/>`_ and is planned to be integrated into the CADET website in the future.
 
@@ -66,7 +66,7 @@ is given in :numref:`table_features_unit_operations`.
 
 
 Moreover, the pseudo unit operations :ref:`inlet_model`, and :ref:`outlet_model` act as sources and sinks for the system. 
-We further note that radial flow model variants are available for the LRM, LRMP and GRM.
+We further note that column geometry variants, specifically axial-flow, radial-flow and concical frustum, are available for the LRM, LRMP and GRM.
 
 
 .. toctree::

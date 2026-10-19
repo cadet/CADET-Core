@@ -28,7 +28,7 @@ where
 - :math:`K_{\mathrm{M}_{i,j}}` is the Michaelis constant for substrate :math:`i` in reaction :math:`j`.
 
 The selection of which components act as substrates is controlled via the sign of the entries of the stoichiometric matrix.
-For more information about the configuration can be found in :ref:`michaelis_menten_kinetics_config`.
+More information about the configuration can be found in :ref:`michaelis_menten_kinetics_config`.
 
 In addition, CADET supports three types of inhibition reactions.
 In this case the flux :math:`\nu_{i,j}` can be modified as one of the following:
@@ -97,6 +97,7 @@ where
  - :math:`c_{i,j}` is the substrate component and :math:`c_{k}` is one the inhibitor acting on substrate :math:`c_{i,j}`.
  - :math:`K^{n}_{I_{k}}` is the inhibition constant with respect to component :math:`c_{k}` in reaction :math:`j` i.e if :math:`K^{n}_{I_{k}} > 0`, component :math:`c_{k}` acts as an inhibitor to substrate :math:`c_{i,j}`.
  - :math:`\mathcal{I}_{i,j}` is the index set of inhibitors in reaction :math:`j`, i.e the indices :math:`k` where :math:`K^{n}_{I_{k}} > 0`.
+
 Note that the inhibition constant for the non-competitive inhibition is indirectly given if :math:`K^{c}_{I_{k}} = K^{uc}_{I_{k}} = K^{n}_{I_{k}}`
 
 For configuration information please refer to :ref:`michaelis_menten_kinetics_config`.

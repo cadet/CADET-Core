@@ -69,9 +69,9 @@ discretization group) are identical to :ref:`axial_flow_column_1D_config`.
    :math:`x = \texttt{BED_LENGTH}`, i.e. the inlet is the end whose area is the first entry of
    ``CROSS_SECTIONAL_AREA_AT_NODES``.
 
-   ==============  ==========================  ==================
-   **Type:** bool  **Range:** :math:`\{0,1\}`  **Length:** NSEC
-   ==============  ==========================  ==================
+   ==============  ==========================  =====================
+   **Type:** bool  **Range:** :math:`\{0,1\}`  **Length:** 1 or NSEC
+   ==============  ==========================  =====================
 
 Group /input/model/unit_XXX/discretization - UNIT_TYPE - COLUMN_MODEL_1D
 -------------------------------------------------------------------------

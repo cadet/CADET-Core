@@ -33,10 +33,6 @@ For information on model equations, refer to :ref:`multi_channel_transport_model
    =============  =========================  =============
 
 
-Group /input/model/unit_XXX/liquid_reaction_YYY
------------------------------------------------
-Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`FFReaction`.
-
 ``INIT_C``
 
    Initial concentrations for each component in all channels of the bulk mobile phase (length :math:`\texttt{NCOMP}`), or for each component in each channel (length :math:`\texttt{NCOMP} \cdot \texttt{NCHANNEL}`, ordering channel-major)
@@ -78,7 +74,7 @@ Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`
   3. Component-dependent, channel-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NCHANNEL}`; ordering is channel-major
   4. Component-independent, channel-independent, section-dependent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NSEC}`
   5. Component-independent, channel-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCHANNEL} \cdot \texttt{NSEC}`; ordering is section-major
-  6. Component-dependent, channel-independent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NSEC}`; ordering is section-major
+  6. Component-dependent, channel-independent, section-dependent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NSEC}`; ordering is section-major
   7. Component-dependent, channel-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NCHANNEL} \cdot \texttt{NSEC}`; ordering is section-channel-major
 
    =============  ===================================  =============
@@ -101,7 +97,7 @@ Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`
 
    **Unit:** :math:`\mathrm{m}\,\mathrm{s}^{-1}`
 
-   Indicates flow direction in each channel (forward if value is positive, backward if value is negative), see Section :ref:`MUOPGRMflow2D`).  In case of a spatially inhomogeneous setting, the :math:`\texttt{SENS_PARTYPE}` field is used for indexing the channel when specifying parameter sensitivities.
+   Optional; if left out, the velocity is inferred from the volumetric flow rates of the network connections. Indicates flow direction in each channel (forward if value is positive, backward if value is negative), see Section :ref:`MUOPGRMflow2D`.  In case of a spatially inhomogeneous setting, the :math:`\texttt{SENS_PARTYPE}` field is used for indexing the channel when specifying parameter sensitivities.
 
    ================  =============================  ===================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** see :math:`\texttt{VELOCITY_MULTIPLEX}`
@@ -120,20 +116,18 @@ Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`
    **Type:** int  **Range:** :math:`\{0, \dots, 3 \}`  **Length:** 1
    =============  ===================================  =============
 
-``EXCHANGE_TYPE``
+``EXCHANGE_MODEL``
 
-   Type of exchange model to be used (optional)
-
-   **Unit:** N/A
+   Type of exchange model to be used (optional, defaults to ``LINEAR``)
 
    Specifies the exchange model to be applied for inter-channel transport. Possible values are:
 
-   - `LINEAR_EX`: Linear Exchange model (default)
-   - `LANGMUIR_EX`: Langmuir Exchange model
+   - ``LINEAR``: Linear Exchange model (default)
+   - ``LANGMUIR_EX``: Langmuir Exchange model
 
-   ===================  ===================================  ==============
-   **Type:** string     **Range:** {LANGMUIR_EX, LINEAR_EX}   **Length:** 1
-   ===================  ===================================  ==============
+   ================  ============================================================  =============
+   **Type:** string  **Range:** :math:`\{\texttt{LINEAR}, \texttt{LANGMUIR_EX}\}`  **Length:** 1
+   ================  ============================================================  =============
 
 ``EXCHANGE_MATRIX``
 
@@ -152,7 +146,7 @@ Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`
     e^k_{N1} & \dots & e^k_{N(N-1)} & 0
     \end{bmatrix}
 
-   For addressing the exchange rates as a parameter senstivity, the mapping is as follows:
+   For addressing the exchange rates as a parameter sensitivity, the mapping is as follows:
 
   - :math:`\texttt{SENS_BOUNDPHASE}` *Channel from*
   - :math:`\texttt{SENS_PARTYPE}` *Channel to*
@@ -166,7 +160,7 @@ Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`
    Maximum exchange saturation matrix (optional)
    Only when using the Langmuir Exchange model.
 
-   **Unit:** :math:`mol~m_{channel}^{-3}`
+   **Unit:** :math:`\mathrm{mol}\,\mathrm{m}_{\mathrm{channel}}^{-3}`
 
    Matrix containing maximum saturation levels :math:`q_{max,i}^{k}` for each component :math:`i` in each channel :math:`k`.
    This parameter determines the saturation limit for the Langmuir-type exchange kinetics.
@@ -195,10 +189,14 @@ Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`
 
    Defines the cross section area of each channel. The :math:`\texttt{SENS_PARTYPE}` field is used for indexing the channel when specifying parameter sensitivities.
 
-   ================  ====================== ======================================
+   ================  ======================  ======================================
    **Type:** double  **Range:** :math:`> 0`  **Length:** :math:`\texttt{NCHANNEL}`
-   ================  ====================== ======================================
+   ================  ======================  ======================================
 
+
+Group /input/model/unit_XXX/liquid_reaction_YYY
+-----------------------------------------------
+Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`FFReaction`.
 
 Group /input/model/unit_XXX/discretization - UNIT_TYPE = MULTI_CHANNEL_TRANSPORT
 --------------------------------------------------------------------------------

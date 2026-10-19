@@ -19,7 +19,7 @@ For information on model equations, refer to :ref:`multi_component_langmuir_ldf_
 ===================  =========================  =========================================
 
 ``MCLLDF_KEQ``
-   Equillibrium loading constants
+   Equilibrium loading constants
 
 **Unit:** :math:`m_{MP}^3~mol^{-1}`
 

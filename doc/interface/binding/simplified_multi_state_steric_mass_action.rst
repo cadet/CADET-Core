@@ -157,6 +157,16 @@ For information on model equations, refer to :ref:`simplified_multi_state_steric
 **Type:** double     **Range:** :math:`\mathbb{R}`   **Length:** NCOMP
 ===================  ==============================  =========================================
 
+``SMSSMA_NU_SALT``
+   Characteristic charge of the salt component (optional, defaults to
+   :math:`1.0`)
+
+**Unit:** [-]
+
+===================  =========================  =========================================
+**Type:** double     **Range:** :math:`\gt 0`   **Length:** 1
+===================  =========================  =========================================
+
 ``SMSSMA_REFC0``
    Reference liquid phase concentration (optional, defaults to
    :math:`1.0`)

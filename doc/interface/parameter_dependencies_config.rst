@@ -34,7 +34,7 @@ Group /input/model/unit_XXX/particle_type_YYY
 ``FILM_DIFFUSION_DEP``
 
    Parameter dependence of film diffusion on the interstitial velocity.
-   Available For all 1D unit operations and both the FV and DG discretizations.
+   Available for all 1D unit operations and both the FV and DG discretizations.
    For the DG discretization there might be a loss of accuracy since the current implementation only supports a pointwise/"mass-lumped" evaluation.
 
    ================  ===========================================================  =============
@@ -125,7 +125,7 @@ Unlike ``POWER_LAW``, the absolute value of :math:`p_{on}` is always taken (ther
 Parameter-State Dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Currently, the dependence of surface diffusion on the particle liquid salt component is the only available parameter-state dependence and is only implemented for the arrow-head optimzed (see `FV_ARROW_HEAD_OPTIMIZATION`) GRM unit.
+Currently, the dependence of surface diffusion on the particle liquid salt component is the only available parameter-state dependence and is only implemented for the arrow-head optimized (see ``FV_ARROW_HEAD_OPTIMIZATION``) GRM unit.
 
 Group /input/model/unit_XXX/particle_type_YYY
 ---------------------------------------------
@@ -140,10 +140,11 @@ Group /input/model/unit_XXX/particle_type_YYY
    - :math:`\texttt{LIQUID_SALT_COLLOIDAL_AFFINITY}` Original parameter is modified by colloidal binding affinity based on liquid phase salt concentration.
 
    Optional: If left out, no parameter dependence is assumed and the original surface diffusion coefficients are used unmodified.
+   The field is read from ``particle_type_000``; a single entry is applied to all particle types.
    
-   ================  =========================================
-   **Type:** string  **Length:** :math:`1 / \texttt{NPARTYPE}`
-   ================  =========================================
+   ================  ==========================================================================================================================================================  =========================================
+   **Type:** string  **Range:** :math:`\{\texttt{NONE}, \texttt{LIQUID_SALT_EXPONENTIAL}, \texttt{LIQUID_SALT_POWER}, \texttt{LIQUID_SALT_COLLOIDAL_AFFINITY}\}`                  **Length:** :math:`1 / \texttt{NPARTYPE}`
+   ================  ==========================================================================================================================================================  =========================================
 
 ``SURFACE_DIFFUSION_EXPFACTOR``
 
@@ -187,7 +188,7 @@ Group /input/model/unit_XXX/particle_type_YYY
 
 ``SURFACE_DIFFUSION_POWEXP``
 
-   Fjactor :math:`\texttt{p2}` in power law particle surface diffusion relation
+   Factor :math:`\texttt{p2}` in power law particle surface diffusion relation
    :math:`D_{s, i, m} = \tilde{D}_{s, i, m} p_{1, i, m} \left( c_{0}^{p} \right)^{p_{2, i, m}}`
    where :math:`\tilde{D}_{s, i, m}` is the original surface diffusion coefficient. Only required if :math:`\texttt{SURFACE_DIFFUSION_DEP}` is :math:`\texttt{LIQUID_SALT_POWER}`.
    

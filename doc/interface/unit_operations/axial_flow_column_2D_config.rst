@@ -24,7 +24,8 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
 
 ``CROSS_SECTION_AREA``
 
-   Cross section area of the column. This parameter is optional and will be ignored if `COL_RADIUS` is provided.
+   Cross section area of the column. This parameter is only read by the FV discretization and is ignored if ``COL_RADIUS`` is provided.
+
    **Unit:** :math:`\mathrm{m}^{2}`
    
    ================  =====================  =============
@@ -43,7 +44,7 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
 
 ``COL_RADIUS``
 
-   Column radius. This parameter is optional if ``CROSS_SECTION_AREA`` is provided.
+   Column radius. Required for the DG discretization; for the FV discretization it is optional if ``CROSS_SECTION_AREA`` is provided.
 
    **Unit:** :math:`\mathrm{m}`
 
@@ -62,7 +63,7 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
 
 ``NPARTYPE``
 
-   Number of particle types. Defaults to 0.
+   Number of particle types. A value of :math:`0` means that no particles are present.
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
@@ -87,9 +88,13 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
   2. Axial-dependent; length of :math:`\texttt{PAR_TYPE_VOLFRAC}` is :math:`\texttt{NCOL} \cdot \texttt{NPARTYPE}`; ordering is axial-major
   3. Radial-dependent, axial-dependent; length of :math:`\texttt{PAR_TYPE_VOLFRAC}` is :math:`\texttt{NCOL} \cdot \texttt{RAD_NELEM} \cdot \texttt{NPARTYPE}`; ordering is axial-radial-major
 
+   =============  ===================================  =============
+   **Type:** int  **Range:** :math:`\{0, \dots, 3 \}`  **Length:** 1
+   =============  ===================================  =============
+
 ``VELOCITY``
 
-   Indicates flow direction in each radial zone (forward if value is positive, backward if value is negative), see Section :ref:`MUOPGRMflow2D`).  In case of a spatially inhomogeneous setting, the :math:`\texttt{SENS_PARTYPE}` field is used for indexing the radial cell when specifying parameter sensitivities.
+   Interstitial velocity and flow direction in each radial zone (forward if value is positive, backward if value is negative), see Section :ref:`MUOPGRMflow2D`. Optional; if left out, the velocity is inferred from the volumetric flow rates of the network connections.  In case of a spatially inhomogeneous setting, the :math:`\texttt{SENS_PARTYPE}` field is used for indexing the radial cell when specifying parameter sensitivities.
 
    ================  =============================  ===================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** see :math:`\texttt{VELOCITY_MULTIPLEX}`
@@ -103,6 +108,10 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
   1. Radial-dependent, section-independent; length of :math:`\texttt{VELOCITY}` is :math:`\texttt{RAD_NELEM}`
   2. Section-dependent; length of :math:`\texttt{VELOCITY}` is :math:`\texttt{NSEC}`
   3. Radial-dependent, section-dependent; length of :math:`\texttt{VELOCITY}` is :math:`\texttt{RAD_NELEM} \cdot \texttt{NSEC}`; ordering is section-major
+
+   =============  ===================================  =============
+   **Type:** int  **Range:** :math:`\{0, \dots, 3 \}`  **Length:** 1
+   =============  ===================================  =============
 
 ``COL_DISPERSION_AXIAL``
 
@@ -124,7 +133,7 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
   3. Component-dependent, radial-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{RAD_NELEM}`; ordering is radial-major
   4. Component-independent, radial-independent, section-dependent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NSEC}`
   5. Component-independent, radial-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{RAD_NELEM} \cdot \texttt{NSEC}`; ordering is section-major
-  6. Component-dependent, radial-independent, section-independent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{NSEC}`; ordering is section-major
+  6. Component-dependent, radial-independent, section-dependent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{NSEC}`; ordering is section-major
   7. Component-dependent, radial-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION_AXIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{RAD_NELEM} \cdot \texttt{NSEC}`; ordering is section-radial-major
    
    =============  ===================================  =============
@@ -151,7 +160,7 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
   3. Component-dependent, radial-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION_RADIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{RAD_NELEM}`; ordering is radial-major
   4. Component-independent, radial-independent, section-dependent; length of :math:`\texttt{COL_DISPERSION_RADIAL}` is :math:`\texttt{NSEC}`
   5. Component-independent, radial-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION_RADIAL}` is :math:`\texttt{RAD_NELEM} \cdot \texttt{NSEC}`; ordering is section-major
-  6. Component-dependent, radial-independent, section-independent; length of :math:`\texttt{COL_DISPERSION_RADIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{NSEC}`; ordering is section-major
+  6. Component-dependent, radial-independent, section-dependent; length of :math:`\texttt{COL_DISPERSION_RADIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{NSEC}`; ordering is section-major
   7. Component-dependent, radial-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION_RADIAL}` is :math:`\texttt{NCOMP} \cdot \texttt{RAD_NELEM} \cdot \texttt{NSEC}`; ordering is section-radial-major
 
    =============  ===================================  =============
@@ -161,7 +170,7 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D
 
 ``INIT_C``
 
-   Initial concentrations for each component in all radial zones the bulk mobile phase (length :math:`\texttt{NCOMP}`), or for each component in each radial zone (length :math:`\texttt{NCOMP} \cdot \texttt{RAD_NELEM}`, ordering radial-major)
+   Initial concentrations for each component in all radial zones of the bulk mobile phase (length :math:`\texttt{NCOMP}`), or for each component in each radial zone (length :math:`\texttt{NCOMP} \cdot \texttt{RAD_NELEM}`, ordering radial-major)
 
    **Unit:** :math:`\mathrm{mol}\,\mathrm{m}_{\mathrm{IV}}^{-3}`
 
@@ -214,7 +223,7 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE - COLUMN_MODEL_2D
 Spatial discretization - Numerical Methods
 ------------------------------------------
 
-CADET offers two spatial discretization methods: Finite Volumes (FV) and Discontinuous Galerkin (DG). Each method has it's own set of input fields.
+CADET offers two spatial discretization methods: Finite Volumes (FV) and Discontinuous Galerkin (DG). Each method has its own set of input fields.
 While both methods approximate the same solution to the same underlying model, they may differ in terms of computational performance.
 With our currently implemented variants of FV and DG, FV perform better for solutions with steep gradients or discontinuities, while DG can be much faster for rather smooth solutions.
 For the same number of discrete points, DG will generally be slower but often more accurate.
@@ -223,7 +232,7 @@ For further information on the choice of discretization methods and their parame
 
 ``SPATIAL_METHOD``
 
-   Spatial discretization method. Optional, defaults to :math:`\texttt{FV}`
+   Spatial discretization method
 
    ================  ===============================================  =============
    **Type:** string  **Range:** :math:`\{\texttt{FV}, \texttt{DG}\}`  **Length:** 1
@@ -231,21 +240,21 @@ For further information on the choice of discretization methods and their parame
 
 ``RADIAL_DISC_TYPE``
 
-   Specifies the radial discretization scheme. Valid values are :math:`\texttt{EQUIDISTANT}`, :math:`\texttt{EQUIVOLUME}`, and :math:`\texttt{USER_DEFINED}`.
+   Specifies the radial discretization scheme.
 
-   ================  =============
-   **Type:** string  **Length:** 1
-   ================  =============
+   ================  ====================================================================================================  =============
+   **Type:** string  **Range:** :math:`\{\texttt{EQUIDISTANT}, \texttt{EQUIVOLUME}, \texttt{USER_DEFINED} \}`              **Length:** 1
+   ================  ====================================================================================================  =============
 
 ``RADIAL_DISC_VECTOR``
 
-   Coordinates for the radial compartment boundaries (ignored if :math:`\texttt{RADIAL_DISC_TYPE} \neq \texttt{USER_DEFINED}`). The coordinates are absolute and have to include the endpoints 0 and :math:`\texttt{COLUMN_RADIUS}`. The values are expected in ascending order (i.e., 0 is the first and :math:`\texttt{COLUMN_RADIUS}` the last value in the array).
+   Coordinates for the radial compartment boundaries (ignored if :math:`\texttt{RADIAL_DISC_TYPE} \neq \texttt{USER_DEFINED}`). The coordinates are absolute and have to include the endpoints 0 and :math:`\texttt{COL_RADIUS}`. The values are expected in ascending order (i.e., 0 is the first and :math:`\texttt{COL_RADIUS}` the last value in the array).
 
    **Unit:** :math:`\mathrm{m}`
 
-   ================  =============================================  ====================================
-   **Type:** double  **Range:** :math:`[0,\texttt{COLUMN_RADIUS}]`  **Length:** :math:`\texttt{RAD_NELEM} + 1`
-   ================  =============================================  ====================================
+   ================  ==========================================  =========================================
+   **Type:** double  **Range:** :math:`[0,\texttt{COL_RADIUS}]`  **Length:** :math:`\texttt{RAD_NELEM} + 1`
+   ================  ==========================================  =========================================
 
 Discontinuous Galerkin
 ----------------------
@@ -261,7 +270,7 @@ Discontinuous Galerkin
 
 ``AX_NELEM``
 
-   Number of axial column discretization DG elements. The total number of axial discrete points is given by (``POLYDEG`` + 1 ) * ``NELEM``
+   Number of axial column discretization DG elements. Optional and inferred from ``NCOL`` if left out. The total number of axial discrete points is given by (``AX_POLYDEG`` + 1 ) * ``AX_NELEM``
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
@@ -278,7 +287,9 @@ Discontinuous Galerkin
 
 ``RAD_NELEM``
 
-   Number of radial column discretization DG elements. The total number of axial discrete points is given by (``POLYDEG`` + 1 ) * ``NELEM``.
+   Number of radial column discretization DG elements.
+   Optional and inferred from ``NRAD`` if left out.
+   The total number of radial discrete points is given by (``RAD_POLYDEG`` + 1 ) * ``RAD_NELEM``.
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
@@ -288,9 +299,9 @@ Discontinuous Galerkin
 
    Specifies the linear solver variant used to factorize the semidiscretized system. Optional, defaults to ``SparseLU``. For more information on these solvers, we refer to the `Eigen documentation <https://eigen.tuxfamily.org/>`_
    
-   =============  ===================================================================================  =============
-   **Type:** int  **Range:** :math:`\{\texttt{SparseLU}, \texttt{SparseQR}, ..., \texttt{BiCGSTAB}\}`  **Length:** 1
-   =============  ===================================================================================  =============
+   ================  ===================================================================================  =============
+   **Type:** string  **Range:** :math:`\{\texttt{SparseLU}, \texttt{SparseQR}, ..., \texttt{BiCGSTAB}\}`  **Length:** 1
+   ================  ===================================================================================  =============
    
 
    For further information on discretization parameters, see also :ref:`non_consistency_solver_parameters`.
@@ -347,7 +358,7 @@ Finite Volumes
 
 ``GS_TYPE``
 
-   Type of Gram-Schmidt orthogonalization, see IDAS guide Section~4.5.7.3, p.~41f. A value of 0 enables classical Gram-Schmidt, a value of 1 uses modified Gram-Schmidt.
+   Type of Gram-Schmidt orthogonalization, see IDAS guide Section 4.5.7.3, p. 41f. A value of 0 enables classical Gram-Schmidt, a value of 1 uses modified Gram-Schmidt.
 
    =============  ===========================  =============
    **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1
@@ -371,7 +382,7 @@ Finite Volumes
 
 ``SCHUR_SAFETY``
 
-   Schur safety factor; Influences the tradeoff between linear iterations and nonlinear error control; see IDAS guide Section~2.1 and 5.
+   Schur safety factor; Influences the tradeoff between linear iterations and nonlinear error control; see IDAS guide Section 2.1 and 5.
 
    ================  =========================  =============
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1

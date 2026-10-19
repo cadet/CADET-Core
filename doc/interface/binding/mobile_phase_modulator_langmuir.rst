@@ -63,3 +63,13 @@ For information on model equations, refer to :ref:`mobile_phase_modulator_langmu
 ===================  ==============================  =========================================
 **Type:** double     **Range:** :math:`\mathbb{R}`   **Length:** NCOMP
 ===================  ==============================  =========================================
+
+``MPM_LINEAR_THRESHOLD``
+   Concentration of the modifier component below which the exponential
+   term is linearized (optional)
+
+**Unit:** :math:`mol~m_{MP}^{-3}`
+
+===================  =========================  =========================================
+**Type:** double     **Range:** :math:`\ge 0`   **Length:** 1
+===================  =========================  =========================================

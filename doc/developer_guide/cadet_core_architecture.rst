@@ -3,7 +3,7 @@
 Software Architecture
 =====================
 
-This section gives a general overview of the object-oriented c++ implementation of CADET-Core and is based on the Software Architecture chapter 3.2 in Samuel Lewekes PhD thesis :cite:`leweke_unified_2021`.
+This section gives a general overview of the object-oriented C++ implementation of CADET-Core and is based on the Software Architecture chapter 3.2 in Samuel Leweke's PhD thesis :cite:`leweke_unified_2021`.
 
 The CADET-Core software is designed to be modular, extendable, maintainable and computationally efficient and robust.
 To promote these goals, CADET-Core is implemented in C++, a highly performant, object-oriented language that supports cross-platform compatibility.
@@ -13,7 +13,7 @@ Features and Capabilities
 
 CADET-Core
 
-- Builds on Windows, Linux and MacOs
+- Builds on Windows, Linux and macOS
 
 - Allows to easily add new frontends as the core simulator is implemented in the library ``libcadet``, which can be called from different frontends.
   Currently, CADET-Core features the command line interface ``cadet-cli`` and CADET-Python, which includes a ``Cadet`` class that serves as a generic HDF5 frontend and calls the ``cadet-cli``.
@@ -32,7 +32,7 @@ CADET-Core
 Implementation Details
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Classes and realationships
+Classes and relationships
 
 .. _LibcadetClasses:
 .. figure:: _images/architecture_libcadet_classes.png
@@ -40,7 +40,7 @@ Classes and realationships
 
    Selected relationships of classes in ``libcadet`` [1]_.
 
-.. [#] Samuel Lewekes PhD thesis, available at: https://publications.rwth-aachen.de/record/840314
+.. [1] Samuel Leweke's PhD thesis, available at: https://publications.rwth-aachen.de/record/840314
 
 In the following, we briefly describe the purpose of some of the items in the figure above:
 
@@ -97,7 +97,7 @@ Unit Operation submodel assumption
 
 - Each submodel has :math:`N_{c,n} \in \mathbb{N}` components, :math:`N_{in, n} \in \mathbb{N}` inlet ports and :math:`N_{out, n} \in \mathbb{N}` outlet ports.
 
-- The dynamics of each submodel n are described by a fully implicit equation (e.g., PDE, PDAE, DAE, ODER) of the form
+- The dynamics of each submodel n are described by a fully implicit equation (e.g., PDE, PDAE, DAE, ODE) of the form
 
 .. math::
 
@@ -120,7 +120,7 @@ We refer to the solution of the spatially semi-discretized unit operation model 
 The order of the state vector impacts performance of the solver and has to adhere to submodule interfaces, such as binding models.
 The specific order implemented for chromatography column units is given in the figures below
 
-.. _StateVectorOrder:
+.. _StateVectorOrder2D:
 .. figure:: _images/state_vector_grm2D.png
 
 
@@ -132,12 +132,12 @@ The specific order implemented for chromatography column units is given in the f
 
    State vector order of the general rate model, lumped rate model with pores :math:`(N^{\mathrm{r}}=1)`, and Finite Bath / Tank :math:`(N^{\mathrm{z}}=1, N^{\mathrm{r}}=1)` [1]_.
 
-.. _StateVectorOrder:
+.. _StateVectorOrderLRM:
 .. figure:: _images/state_vector_lrm.png
 
 
-   State vector order of model variants with non-limiting film diffusion :math:`(k^\mathrm{f}_i \to \infty)`, such as the lumped rate model without pores [1]_.
+   State vector order of model variants with non-limiting film diffusion :math:`(k^\mathrm{f}_i \to \infty)`, such as the lumped rate model without pores [2]_.
 
-.. [#] Samuel Lewekes PhD thesis, available at: https://publications.rwth-aachen.de/record/840314
+.. [2] Samuel Leweke's PhD thesis, available at: https://publications.rwth-aachen.de/record/840314
 
 Note that the finite bath / tank (CSTR) unit operation has an additional first entry that defines the tank volume.

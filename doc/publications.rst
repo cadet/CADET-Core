@@ -42,7 +42,7 @@ CADET-Core Numerics and Modeling
    Zhang2025
    Zhang2024
 
-**Publications on Parameter sensitivites and (compressed) algorithmic differentiation**
+**Publications on Parameter sensitivities and (compressed) algorithmic differentiation**
 
 .. bibliography::
    :filter: False

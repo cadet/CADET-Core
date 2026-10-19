@@ -66,6 +66,8 @@ Group /input/return
 Group /input/return/unit_XXX
 ----------------------------
 
+All fields of this group are optional and default to :math:`0`, i.e. nothing is written unless it is requested.
+
 ``WRITE_COORDINATES``
 
    Write coordinates of discretization nodes

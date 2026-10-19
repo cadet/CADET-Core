@@ -84,7 +84,7 @@ The Langmuir Exchange Model incorporates saturation-limited exchange kinetics be
 
 where:
 
-- :math:`e_{lk}^i` is the exchange rate constant for component :math:`i` from channel :math:`l`
+- :math:`e_{lk}^i` is the exchange rate constant for component :math:`i` from channel :math:`l` to channel :math:`k`
 - :math:`q_{\max,i}^k` is the maximum saturation level for component :math:`i` in destination channel :math:`k`
 - :math:`\sum_{j=1}^{N_c} \frac{c_{j,k}^\ell}{q_{\max,j}^k}` is the relative occupancy in destination channel :math:`k`
 
@@ -144,7 +144,7 @@ There, the model class is defined by a system of partial differential equations:
      0 &  & v_N
     \end{bmatrix}
 
-- The diagolal matrix :math:`D` contains the dispersion coefficients :math:`d_{l}` for each channel.
+- The diagonal matrix :math:`D` contains the dispersion coefficients :math:`d_{l}` for each channel.
 
 .. math::
 
@@ -166,7 +166,7 @@ The MCT can be used to model a LRM with linear binding, if specific parameters a
 To demonstrate this, we derive the LRM with linear binding equations from the MCT defined above.
 
 We consider the MCT with two channels, which are used to represent the liquid and solid phase of the LRM, and only take one component into account, for the sake of brevity.
-The channel volumes :math:`V_1, V_2 > 0` and cross section areas :math:`A_1,A_2>0` are chosen according to the total column porosity (here :math:`\varepsilon_t \in (0,1)` of the LRM, i.e. e.g. :math:`A_1 = \varepsilon_t A`, with :math:`A` being the LRM column cross section area.
+The channel volumes :math:`V_1, V_2 > 0` and cross section areas :math:`A_1,A_2>0` are chosen according to the total column porosity :math:`\varepsilon_t \in (0,1)` of the LRM, e.g. :math:`A_1 = \varepsilon_t A`, with :math:`A` being the LRM column cross section area.
 We set the transport parameters of the second channel to zero, change notation for the concentrations, :math:`c_{0,1}^\ell, c_{0,2}^\ell \rightarrow c^\ell, c^s`, and get
 
 .. math::

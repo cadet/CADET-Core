@@ -62,13 +62,13 @@ The radial flow LRM describes transport of solute molecules through the intersti
 
 The main assumptions are:
 
-- The shells of the column are homogenous in terms of interstitial volume, fluid flow, and distribution of components.
+- The shells of the column are homogeneous in terms of interstitial volume, fluid flow, and distribution of components.
   Thus, only one spatial coordinate in radial direction :math:`\rho` is needed and axial transport is neglected in the column bulk volume.
 
-- The bead radii :math:`r_{p}` are much smaller than the column radius :math:`\mathrm{P}-\mathrm{P}_c`, with :math:`\mathrm{P}` and :math:`\mathrm{P}_c` being the inner and outer column radius respectively, and the column length :math:`L`.
+- The bead radii :math:`r_{p}` are much smaller than the column radius :math:`\mathrm{P}-\mathrm{P}_c`, with :math:`\mathrm{P}` and :math:`\mathrm{P}_c` being the outer and inner column radius, respectively, and the column length :math:`L`.
   Therefore, the beads can be seen as continuously distributed inside the column (i.e., at each point there is interstitial and bead volume).
 
-- The fluids are incompressible, i.e. the velocity field :math:`\mathrm{V} \colon \mathbb{R}^3 \to \mathbb{R}^3` submits to :math:`\operatorname{div}\left( \mathrm{V} \right) \equiv 0`.
+- The fluids are incompressible, i.e. the velocity field :math:`\mathrm{V} \colon \mathbb{R}^3 \to \mathbb{R}^3` satisfies :math:`\operatorname{div}\left( \mathrm{V} \right) \equiv 0`.
   That is, the volumetric flow rate at the inner and outer column radius are the same.
 
 Consider a hollow (double walled) column with inner column diameter :math:`\mathrm{P}_c>0` and outer diameter :math:`\mathrm{P}>\mathrm{P}_c`, filled with spherical beads. The mass balance in the interstitial column volume is described by

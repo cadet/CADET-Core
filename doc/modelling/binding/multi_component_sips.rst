@@ -18,7 +18,7 @@ As for the :ref:`Freundlich<freundlich_ldf_model>` isotherm, the first order Jac
 Additionally, the isotherm is undefined for :math:`c_{p} < 0` if :math:`\frac{1}{n_i}` can be expressed as :math:`\frac{p}{q}` with :math:`p,q \in \mathbb{N}` where :math:`q` is an even number.
 Negative concentrations can arise during simulations due to numerical fluctuations.
 To address these issues an approximation of the isotherm is considered below a threshold concentration :math:`c_p < \varepsilon`.
-This approximation matches the isotherm in such a way that :math:`q=0` at :math:`c_p=0` and also matches the value and the first derivative of the istotherm at :math:`c_p = \varepsilon`, where :math:`\varepsilon` is a very small number, for example :math:`1e-10`.
+This approximation matches the isotherm in such a way that :math:`q=0` at :math:`c_p=0` and also matches the value and the first derivative of the isotherm at :math:`c_p = \varepsilon`, where :math:`\varepsilon` is a very small number, for example :math:`1e-10`.
 The form of approximation and its derivative is given below for :math:`c_p < \varepsilon`:
 
 .. math::

@@ -19,7 +19,7 @@ For information on model equations, refer to :ref:`multi_component_bi_langmuir_l
 ===================  =========================  =========================================
 
 ``MCBLLDF_KEQ``
-   Equillibrium loading constants in state-major ordering (see :ref:`ordering_multi_dimensional_data`)
+   Equilibrium loading constants in state-major ordering (see :ref:`ordering_multi_dimensional_data`)
 
 **Unit:** :math:`m_{MP}^3~mol^{-1}`
 

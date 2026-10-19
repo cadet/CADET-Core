@@ -7,7 +7,8 @@ There are 7+ transport models and 20+ adsorption models implemented in CADET.
 Please make sure that the one you are interested in is not implemented.
 Additionally, some models can be mimicked by or are even equivalent to already implemented models when specific parameters are chosen, see e.g. the LRM use-case section for the :ref:`multi_channel_transport_model_model`.
 
-The implementation of a new model follows three main steps:
+The implementation of a new model follows four main steps:
+
 1. Create a template binding/unit/reaction model from existing code
 2. Register the binding/unit/reaction model in the respective CADET binding/unit/reaction model factory and add it to cmake
 3. Implementation of model equations and Jacobian matrix
@@ -20,21 +21,21 @@ An extensive description on how to add a new binding model to CADET-Core is give
 A more concise description is given in the following:
 
 1.
-   Use the `binding model template <https://github.com/cadet/CADET-Core/tree/master/doc/developer_guide/TemplateBinding.cpp>`_ to create a new binding model file in the CADET binding model source directory ``\src\libcadet\model\binding\YourModelNameBinding.cpp`` and rename the model in the file (i.e. Template to YoureModelName).
+   Use the `binding model template <https://github.com/cadet/CADET-Core/tree/master/doc/developer_guide/TemplateBinding.cpp>`_ to create a new binding model file in the CADET binding model source directory ``\src\libcadet\model\binding\YourModelNameBinding.cpp`` and rename the model in the file (i.e. Template to YourModelName).
    Note that the provided template binding model is an implementation of the multi-component Langmuir binding.
 2.
    Register the binding model by adding ``void registerYourModelNameModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);`` to the ``src\libcadet\BindingModelFactory.cpp`` at the end of all the other registering functions such as ``void registerLinearModel``.
-   Then add ``model::binding::registerExampleModel(_bindingModels);`` to the ``BindingModelFactory.cpp`` at the end of all the other registering functions such as ``model::binding::registerLinearModel(_bindingModels)``.
-   The final step to register your model is to add your model to the ``\src\libcadet\CMakeLists.txt`` (again look for similar statements for the other binding models) by adding ``${CMAKE_SOURCE_DIR} /src/libcadet/model/binding/ExampleBinding.cpp``.
+   Then add ``model::binding::registerYourModelNameModel(_bindingModels);`` to the ``BindingModelFactory.cpp`` at the end of all the other registering functions such as ``model::binding::registerLinearModel(_bindingModels)``.
+   The final step to register your model is to add your model to the ``\src\libcadet\CMakeLists.txt`` (again look for similar statements for the other binding models) by adding ``${CMAKE_SOURCE_DIR} /src/libcadet/model/binding/YourModelNameBinding.cpp``.
    Before continuing with the third step, you should rebuild CADET-Core to verify that the first two steps went well.
 3.
    The actual implementation of the new binding model follows two main steps: the configuration of the relevant mechanistic parameters and implementation of adsorption flux and Jacobian.
    To set up the configuration of isotherm parameters a macro (.json script) has been included in the code, which generates the relevant code section when the user defines the parameters in the scope of this script.
    To modify the script go to Line 30 in the provided file template and adjust the parameters to your needs, a more detailed description for that is provided in the `aforementioned forum post <https://forum.cadet-web.de/t/registration-implementation-and-testing-of-new-binding-model-in-cadet/533>`_.
-   Next, the adsorption flux equations need to be implemented int the corresponding function ``int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y, CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const``.
+   Next, the adsorption flux equations need to be implemented in the corresponding function ``int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y, CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const``.
    For an explanation of ``active`` types for the template arguments ``StateType``, ``ParamType``, ``ResidualType``, please refer to the Algorithmic Differentiation section.
-   Finally, the Jacobian needs to be implemented in the function ``void jacobianImpl()`` We note that the Jacobian implementation is optional but highly recommended to speed up the simulation.
-   If you have trouble with deriving the Jacobian or if you want to test you model first, modify the ``implementsAnalyticJacobian()`` function to return false.
+   Finally, the Jacobian needs to be implemented in the function ``void jacobianImpl()``. We note that the Jacobian implementation is optional but highly recommended to speed up the simulation.
+   If you have trouble with deriving the Jacobian or if you want to test your model first, modify the ``implementsAnalyticJacobian()`` function to return false.
    By doing so, CADET-Core defaults to computing the binding `Jacobian via Algorithmic differentiation (AD) <https://doi.org/10.1016/j.ces.2015.08.050>`_.
    
  4.
@@ -71,7 +72,7 @@ Most important functionality to be implemented:
 1. configure(): Model configuration parameters are read from the .h5 file and exceptions are thrown if parameters are missing or have the wrong size or format. Furthermore, if required, implicitly given parameters are determined and memory is allocated.
 2. configureModelDiscretization(): Similar to the function above but treats the numerical discretization part.
 3. residualImpl(): Implements the residual formulation (i.e. function :math:`F = 0`) of the equations. Triggers updates of the (possibly state dependent) system Jacobian.
-4. System Jacobian: Owned by the unit operation. Defined given by :math:`J := \frac{\partial F}{\partial y} + \alpha \frac{\partial F}{\partial \dot{y}}`, i.e. both the state and state derivative Jacobian need to be implemented.
+4. System Jacobian: Owned by the unit operation. Given by :math:`J := \frac{\partial F}{\partial y} + \alpha \frac{\partial F}{\partial \dot{y}}`, i.e. both the state and state derivative Jacobian need to be implemented.
 5. Linear solve: Solves the system :math:`J x = b` with given :math:`b`.
 6. Algorithmic differentiation (AD):
    a. Parameter sensitivities: Use ``ParamType`` for all parameters and ``ResidualType`` for the residual. A more detailed guide on parameter sensitivities can be found in the corresponding section below.
@@ -80,9 +81,9 @@ Most important functionality to be implemented:
 Testing and Publication
 ^^^^^^^^^^^^^^^^^^^^^^^
 Many extensions of CADET-Core result in both software and paper publications.
-Over the years we have established standard procedures to ensure good quality of the publication, including research data management and reproducability of the results.
+Over the years we have established standard procedures to ensure good quality of the publication, including research data management and reproducibility of the results.
 An important part of the publication procedure on the software side is the implementation of tests:
-Every model or method extension of CADET-Core has to be tested adequatly before it can be merged into the master branch.
+Every model or method extension of CADET-Core has to be tested adequately before it can be merged into the master branch.
 Even if your extension is not planned to become a contribution to the master branch, rigorous testing should still be implemented as it is essential to ensure confidence in your code.
 Please refer to the :ref:`testing` section for more technical information on the implementation of tests in CADET-Core.
 
@@ -110,6 +111,6 @@ Parameter sensitivity estimation in CADET-Core leverages the capabilities provid
 To enable a parameter sensitivity for you model, you only have to take care about calling and interfacing to the existing infrastructure, which is briefly described in the following steps:
 - The parameter must be defined as an `active` type
 - In the residual function, the parameter must be used as a `ParamType`
-- The parameter must be registered, i.e. added to the `_parameters` map, e.g. ``_parameters[makeParamId(hashString("TOTAL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_totalPorosity;`` which creates a unique parameter ID. ALso, the dependencies of the parameter need to be specified here, e.g. if it depends on a particle type or component etc. This map is called by the modelsystem to set up the sensitivity equations.
+- The parameter must be registered, i.e. added to the `_parameters` map, e.g. ``_parameters[makeParamId(hashString("TOTAL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_totalPorosity;`` which creates a unique parameter ID. Also, the dependencies of the parameter need to be specified here, e.g. if it depends on a particle type or component etc. This map is read by the model system to set up the sensitivity equations.
 - If the parameter is vector valued, the sensitivities for each entry of the 1D or 2D vector can be computed. To this end, you need to call the corresponding registering function, e.g. ``registerParam1DArray(_parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });``
--CADET-Core takes care of the rest
+- CADET-Core takes care of the rest.

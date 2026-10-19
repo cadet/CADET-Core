@@ -79,8 +79,8 @@ Kernel-Specific Hyperparameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Each bound state requires its own kernel configuration specified using the
-suffix ``_BNDXXX``, where ``XXX`` is the zero-padded bound state index
-(e.g., ``_BND000``, ``_BND001``, ``_BND002``).
+suffix ``_BND_XXX``, where ``XXX`` is the zero-padded bound state index
+(e.g., ``_BND_000``, ``_BND_001``, ``_BND_002``).
 
 Bound state indices are assigned sequentially across components: if component 0
 has 2 bound states and component 1 has 1 bound state, the indices are:

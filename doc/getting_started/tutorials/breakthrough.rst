@@ -19,7 +19,7 @@ Moreover, components can be named which automatically adds legends to the plot m
 Inlet Model
 ^^^^^^^^^^^
 
-In CADET, the ``Inlet`` pseudo unit operation serves as a source for the system and is used to create arbitary concentration profiles as boundary conditions.
+In CADET, the ``Inlet`` pseudo unit operation serves as a source for the system and is used to create arbitrary concentration profiles as boundary conditions.
 The concentration profile is described using a piecewise cubic polynomial (cubic spline in the continuous case) for each component, where the pieces are given by the time sections.
 In this example we set a constant inlet concentration of 1 mM.
 

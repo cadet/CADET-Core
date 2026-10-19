@@ -10,7 +10,7 @@ A reaction can be located in:
 - **Unit Operation**: The reaction group is defined under the corresponding transport phase i.e. ``unit_XXX/liquid_reaction_YYY``.
 - **Particle**: The reaction group is defined under the corresponding particle phase i.e. ``particle_type_XXX/liquid_reaction_YYY`` or ``particle_type_XXX/solid_reaction_YYY``.
 
-Furthermore, we differ between reactions which take place in either a single phase or between two phases.
+Furthermore, we distinguish between reactions which take place in either a single phase or between two phases.
 
 Single Phase Reactions
 ----------------------
@@ -18,7 +18,7 @@ Single phase reactions take place either in the liquid phase or the solid phase.
 
 The number of reaction models is specified at the unit or particle level using the following parameters:
 
-  - ``NREAC_LIQUID`` for liquid phase reactions i.e. ``unit_XXX/NREAC_LIQUID`` or ``particle_type_XXX/NREAC_LIQUID``.,
+  - ``NREAC_LIQUID`` for liquid phase reactions i.e. ``unit_XXX/NREAC_LIQUID`` or ``particle_type_XXX/NREAC_LIQUID``,
   - ``NREAC_SOLID`` for solid phase reactions i.e. ``unit_XXX/NREAC_SOLID`` or ``particle_type_XXX/NREAC_SOLID``.
 
 The input group for parameters of single reactions is given by ``phase_reaction_YYY`` where ``phase`` is one of ``liquid`` or ``solid`` and ``YYY`` is a 0-based index for the reaction group.
@@ -53,14 +53,15 @@ The input group for cross-phase reactions is given by ``cross_phase_reaction_YYY
 
 Step by Step guide to define reaction model
 -------------------------------------------
-1. Select the phase(s) the reaction (liquid, solid or cross phase) will take place.
+1. Select the phase(s) in which the reaction (liquid, solid or cross phase) will take place.
 
 2. Choose how many reaction model types you want to define and set up the corresponding parameter in the configuration file (e.g., ``NREAC_LIQUID``, ``NREAC_SOLID``, ``NREAC_CROSS_PHASE``).
-  **Note**:
-    - The input group depends on whether the reaction is defined in a particle phase(s) or bulk phases.
-    - It is possible to define multiple reactions of the same type.
+   **Note**:
 
-3. Choose the appropriate reaction model for each of the reaction model type based on the kinetics of your system (e.g., Mass Action Law (:ref:`mass_action_law_config`), Michaelis-Menten (:ref:`michaelis_menten_kinetics_config`)) and write it under the corresponding input group (e.g., ``liquid_reaction_000``, ``solid_reaction_001``, ``cross_phase_reaction_002``).
+   - The input group depends on whether the reaction is defined in a particle phase(s) or bulk phases.
+   - It is possible to define multiple reactions of the same type.
+
+3. Choose the appropriate reaction model for each reaction model type based on the kinetics of your system (e.g., Mass Action Law (:ref:`mass_action_law_config`), Michaelis-Menten (:ref:`michaelis_menten_kinetics_config`)) and write it under the corresponding input group (e.g., ``liquid_reaction_000``, ``solid_reaction_001``, ``cross_phase_reaction_002``).
 
 4. Define the reaction parameters according to the chosen model's specifications. Refer to the specific reaction model documentation for details on required parameters.
 
@@ -68,7 +69,7 @@ Step by Step guide to define reaction model
 Externally dependent reaction models
 ------------------------------------
 
-Some reaction models have a variant that can use external sources as specified :ref:`/input/model/external/<FFModelExternalSourceLinInterp>` (also see Section :ref:`dependence-on-external-function_react`).
+Some reaction models have a variant that can use external sources as specified in :ref:`/input/model/external/<FFModelExternalSourceLinInterp>` (also see Section :ref:`dependence-on-external-function_react`).
 For the sake of brevity, only the standard variant of those reaction models is specified below.
 In order to obtain the format for the externally dependent variant, first replace the reaction model name ``XXX`` by ``EXT_XXX``.
 Each parameter :math:`p` (except for stoichiometric and exponent matrices) depends on a (possibly distinct) external source in a polynomial way:

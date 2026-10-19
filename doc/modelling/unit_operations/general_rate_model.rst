@@ -7,7 +7,7 @@ The general rate model is the most comprehensive model of mass transfer in colum
 
 The main assumptions are:
 
-- The cross sections of the column are homogenous in terms of interstitial volume, fluid flow, and distribution of components.
+- The cross sections of the column are homogeneous in terms of interstitial volume, fluid flow, and distribution of components.
   Thus, only one spatial coordinate in axial direction is needed and radial transport is neglected in the column bulk volume.
 
 - The bead radii :math:`r_{p}` are much smaller than the column radius :math:`\mathrm{P}` and the column length :math:`L`.
@@ -175,7 +175,7 @@ See Table :ref:`axial_flow_column_1D_config` and :ref:`particle_model_config`.
 Multiple particle types
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-A particle type has its own set of mass transfer parameters :math:`\varepsilon_{p,j}`, :math:`D_{p,j}`, :math:`D_{s,j}`, etc (see Eq. :eq:`ModelBead`) and its own binding model :math:`f_{\mathrm{ads}}` (including a possibly differing number of bound states).
+A particle type has its own set of mass transfer parameters :math:`\varepsilon_{p,j}`, :math:`D_{p,j}`, :math:`D_{s,j}`, etc. (see Eq. :eq:`ModelBead`) and its own binding model :math:`f_{\mathrm{ads}}` (including a possibly differing number of bound states).
 This allows, for example, modeling of particle size distributions or potential applications with differently functionalized beads (e.g., immobilized enzymes).
 
 The distribution of the particle types is governed by their volume fractions :math:`d_j` in Eq.
@@ -276,7 +276,7 @@ Since volumetric flow rates are specified for each network connection, the unit 
 where :math:`F_{\text{in}}` denotes the volumetric flow rate and :math:`A` the cross section area.
 Note that without the bulk porosity :math:`\varepsilon_c`, the superficial velocity would be obtained.  
 
-The direction of flow inside the unit operation is governed by the field ``FORWARD_FLOW``, whose default (:math:`1`) means flow from the larger towards the smaller radius for the radial flow and frustum geometries.
+The direction of flow inside the unit operation is governed by the field ``FORWARD_FLOW``, where the value :math:`1` means flow from the larger towards the smaller radius for the radial flow and frustum geometries.
 Note that in case of reversed flow, the chromatogram is returned at the unit operation’s `INLET`, which may not be returned from simulation by default.
 
 For information on model parameters see :ref:`axial_flow_column_1D_config` and :ref:`particle_model_config`.  
@@ -312,13 +312,13 @@ Figure :numref:`GeometryGRMRadialColumn` shows the geometry of the radial flow c
 
 The main assumptions are:
 
-- The cylindrical shells of the column are homogenous in terms of interstitial volume, fluid flow, and distribution of components.
+- The cylindrical shells of the column are homogeneous in terms of interstitial volume, fluid flow, and distribution of components.
   Thus, only one spatial coordinate in radial direction :math:`\rho` is needed and axial transport is neglected in the column bulk volume.
 
-- The bead radii :math:`r_{p}` are much smaller than the column radius :math:`\mathrm{P}-\mathrm{P}_c`, with :math:`\mathrm{P}` and :math:`\mathrm{P}_c` being the inner and outer column radius respectively, and the column length :math:`L`.
+- The bead radii :math:`r_{p}` are much smaller than the column radius :math:`\mathrm{P}-\mathrm{P}_c`, with :math:`\mathrm{P}` and :math:`\mathrm{P}_c` being the outer and inner column radius, respectively, and the column length :math:`L`.
   Therefore, the beads can be seen as continuously distributed inside the column (i.e., at each point there is interstitial and bead volume).
 
-- The fluids are incompressible, i.e. the velocity field :math:`\mathrm{V} \colon \mathbb{R}^3 \to \mathbb{R}^3` submits to :math:`\operatorname{div}\left( \mathrm{V} \right) \equiv 0`.
+- The fluids are incompressible, i.e. the velocity field :math:`\mathrm{V} \colon \mathbb{R}^3 \to \mathbb{R}^3` satisfies :math:`\operatorname{div}\left( \mathrm{V} \right) \equiv 0`.
   That is, the volumetric flow rate at the inner and outer column radius are the same.
 
 Consider a hollow (double walled) column with inner column diameter :math:`\mathrm{P}_c>0` and outer diameter :math:`\mathrm{P}>\mathrm{P}_c`, filled with spherical beads of (possibly) multiple types with radius :math:`r_{p,j} \ll L` (see :numref:`ModelGRMColumn`), where :math:`j` is the particle type index.
@@ -373,13 +373,13 @@ Figure :numref:`GeometryGRMFrustumColumn` shows the geometry of the frustum colu
 
 The main assumptions are:
 
-- The frustum shells of the column are homogenous in terms of interstitial volume, fluid flow, and distribution of components.
+- The frustum shells of the column are homogeneous in terms of interstitial volume, fluid flow, and distribution of components.
   Thus, only one spatial coordinate in axial direction :math:`x` is needed.
 
 - The bead radii :math:`r_{p}` are much smaller than the column length :math:`H` and radius :math:`r(x) \forall x\in(0,H)`.
   Therefore, the beads can be seen as continuously distributed inside the column (i.e., at each point there is interstitial and bead volume).
 
-- The fluids are incompressible, i.e. the velocity field :math:`\mathrm{V} \colon \mathbb{R}^3 \to \mathbb{R}^3` submits to :math:`\operatorname{div}\left( \mathrm{V} \right) \equiv 0`.
+- The fluids are incompressible, i.e. the velocity field :math:`\mathrm{V} \colon \mathbb{R}^3 \to \mathbb{R}^3` satisfies :math:`\operatorname{div}\left( \mathrm{V} \right) \equiv 0`.
   That is, the volumetric flow rate at the inner and outer column radius are the same.
 
 - A cross-sectional average :math:`\overline{u}(x) := \int_A \vec{u} dA` of the velocity is considered. This is a necessary assumption to derive the one-dimensionalized model.

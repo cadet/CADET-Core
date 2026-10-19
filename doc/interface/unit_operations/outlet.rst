@@ -3,7 +3,7 @@
 Outlet
 ======
 
-Group /input/model/unit_XXX - UNIT-TYPE = OUTLET
+Group /input/model/unit_XXX - UNIT_TYPE = OUTLET
 ------------------------------------------------
 
 For information on model equations, refer to :ref:`outlet_model`.
