@@ -635,6 +635,10 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 	// Check if liquid volume is 0
 	if (vLiquid == 0.0)
 	{
+		const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
+		if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0))
+			throw InvalidParameterException("CSTR consistent initialization: reactions in rapid equilibrium require a non-zero liquid volume");
+
 		const double flowIn = static_cast<double>(_flowRateIn);
 		const double flowOut = static_cast<double>(_flowRateOut);
 
@@ -1142,6 +1146,10 @@ void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, d
 	// Check if volume is 0
 	if (vLiquid == 0.0)
 	{
+		const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
+		if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0))
+			throw InvalidParameterException("CSTR consistent initialization: reactions in rapid equilibrium require a non-zero liquid volume");
+
 		// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
 		const double vDot = flowIn - flowOut - static_cast<double>(_curFlowRateFilter);
 		_jacFact.native(_nComp + _totalBound, _nComp + _totalBound) = 1.0;
@@ -1335,6 +1343,13 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 {
 	// It is assumed that the bound states are (approximately) correctly initialized.
 	// Thus, only the liquid phase has to be initialized
+
+	// Both branches below solve the untransformed liquid phase equations for \dot{c}. With
+	// reactions in rapid equilibrium the residual holds the conserved moiety combinations and the
+	// equilibrium residuals instead, so neither branch applies to the equations actually solved.
+	const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
+	if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0))
+		throw InvalidParameterException("CSTR lean consistent initialization: reactions in rapid equilibrium are not supported yet");
 
 	double const* const c = vecStateY + _nComp;
 	double* const cDot = vecStateYdot + _nComp;
@@ -1954,6 +1969,15 @@ void CSTRModel::consistentInitialSensitivity(const SimulationTime& simTime, cons
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	// TODO: Handle v = 0
+
+	// The liquid equilibrium equations are algebraic, so dF / dyDot has nEq zero rows and the
+	// state sensitivity has to satisfy the linearized equilibrium constraint. Neither is handled
+	// here: step 1 below only covers quasi-stationary bound states (which cannot occur together
+	// with rapid equilibrium, see consistentInitialState()), and step 2 would solve a singular
+	// system.
+	const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
+	if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0))
+		throw InvalidParameterException("CSTR consistent sensitivity initialization: reactions in rapid equilibrium are not supported yet");
 
 	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 	BufferedArray<int> qsMaskBuffer = tlmAlloc.array<int>(_totalBound);
