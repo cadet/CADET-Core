@@ -5,7 +5,7 @@ Unit operation models
 
 A comprehensive collection of chromatographic unit-operation models is provided through the Python-based tool `CADET-Equations <https://github.com/cadet/CADET-Equations>`_.
 The tool provides a graphical interface and allows users to export the corresponding governing equations in LaTeX or PDF format.
-The application is `currently hosted on streamlit <https://cadet-equations-74ko8eryoxmsbqspggxrj2.streamlit.app/>`_ and is planned to be integrated into the CADET website in the future.
+The application is `hosted as a web application <https://equations.cadet-web.de/>`_ and will be integrated into the CADET modeling documentation in the future.
 
 A short comparison of the most prominent unit operation model features
 is given in :numref:`table_features_unit_operations`.
