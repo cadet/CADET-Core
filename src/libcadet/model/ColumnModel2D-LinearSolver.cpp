@@ -112,7 +112,7 @@ int ColumnModel2D::linearSolve(double t, double alpha, double outerTol, double* 
 		// Assemble and factorize discretized bulk Jacobian
 		assembleDiscretizedGlobalJacobian(alpha, idxr);
 
-		_linearSolver->factorize(_globalJacDisc);
+		_linearSolver->factorize(_globalJacDisc, 0, static_cast<int>(_globalJacDisc.rows()));
 
 		if (cadet_unlikely(_linearSolver->info() != Eigen::Success)) {
 			LOG(Error) << "Factorize() failed";
@@ -137,7 +137,7 @@ int ColumnModel2D::linearSolve(double t, double alpha, double outerTol, double* 
 
 	Eigen::Map<Eigen::VectorXd> r(rhs, numDofs());
 
-	r.segment(idxr.offsetC(), numPureDofs()) = _linearSolver->solve(r.segment(idxr.offsetC(), numPureDofs()));
+	_linearSolver->solve(r.data() + idxr.offsetC(), numPureDofs());
 
 	if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 	{

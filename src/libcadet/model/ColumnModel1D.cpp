@@ -500,7 +500,7 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 	_globalJacDisc = _globalJac;
 	// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
 	// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
-	_linearSolver->analyzePattern(_globalJacDisc.block(_disc.nComp, _disc.nComp, numPureDofs(), numPureDofs()));
+	_linearSolver->analyzePattern(_globalJacDisc, _disc.nComp, numPureDofs());
 
 	return transportSuccess && particleConfSuccess && dynReactionConfSuccess;
 }

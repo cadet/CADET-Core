@@ -813,14 +813,14 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialTimeDerivative(const Simu
 #endif
 
 	// Factorize
-	_linearSolver->factorize(_globalJacDisc.block(idxr.offsetC(), idxr.offsetC(), numPureDofs(), numPureDofs()));
+	_linearSolver->factorize(_globalJacDisc, idxr.offsetC(), numPureDofs());
 	if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 	{
 		LOG(Error) << "Factorize() failed";
 	}
 
 	// Solve
-	yDot.segment(idxr.offsetC(), numPureDofs()) = _linearSolver->solve(yDot.segment(idxr.offsetC(), numPureDofs()));
+	_linearSolver->solve(yDot.data() + idxr.offsetC(), numPureDofs());
 	if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 	{
 		LOG(Error) << "Solve() failed";
@@ -1266,14 +1266,14 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialSensitivity(const Simulat
 		Eigen::Map<VectorXd> yDot(sensYdot + idxr.offsetC(), numPureDofs());
 
 		// Factorize
-		_linearSolver->factorize(_globalJacDisc.block(idxr.offsetC(), idxr.offsetC(), numPureDofs(), numPureDofs()));
+		_linearSolver->factorize(_globalJacDisc, idxr.offsetC(), numPureDofs());
 
 		if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 		{
 			LOG(Error) << "Factorize() failed";
 		}
 		// Solve
-		yDot.segment(0, numPureDofs()) = _linearSolver->solve(yDot.segment(0, numPureDofs()));
+		_linearSolver->solve(yDot.data(), numPureDofs());
 
 		if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 		{
@@ -1442,15 +1442,15 @@ void ColumnModel1D<ConvDispOperator>::solveBulkTimeDerivativeSystem(const Simula
 	}
 
 	const int bulkRows = idxr.offsetCp() - idxr.offsetC();
-	_linearSolver->analyzePattern(_globalJacDisc.block(idxr.offsetC(), idxr.offsetC(), bulkRows, bulkRows));
-	_linearSolver->factorize(_globalJacDisc.block(idxr.offsetC(), idxr.offsetC(), bulkRows, bulkRows));
+	_linearSolver->analyzePattern(_globalJacDisc, idxr.offsetC(), bulkRows);
+	_linearSolver->factorize(_globalJacDisc, idxr.offsetC(), bulkRows);
 
 	if (_linearSolver->info() != Success) {
 		LOG(Error) << "factorization failed in sensitivity initialization";
 	}
 
 	Eigen::Map<Eigen::VectorXd> ret_vec(rhs, bulkRows);
-	ret_vec = _linearSolver->solve(ret_vec);
+	_linearSolver->solve(ret_vec.data(), static_cast<int>(ret_vec.size()));
 
 	// Use the factors to solve the linear system 
 	if (_linearSolver->info() != Success) {
@@ -1458,7 +1458,7 @@ void ColumnModel1D<ConvDispOperator>::solveBulkTimeDerivativeSystem(const Simula
 	}
 
 	// reset linear solver to global Jacobian
-	_linearSolver->analyzePattern(_globalJacDisc.block(idxr.offsetC(), idxr.offsetC(), numPureDofs(), numPureDofs()));
+	_linearSolver->analyzePattern(_globalJacDisc, idxr.offsetC(), numPureDofs());
 }
 
 /**
