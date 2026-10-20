@@ -710,7 +710,7 @@ bool ColumnModel2D::configure(IParameterProvider& paramProvider)
 
 	// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
 	// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
-	_linearSolver->analyzePattern(_globalJacDisc);
+	_linearSolver->analyzePattern(_globalJacDisc, 0, static_cast<int>(_globalJacDisc.rows()));
 
 
 	return transportSuccess && particleConfSuccess && dynReactionConfSuccess;

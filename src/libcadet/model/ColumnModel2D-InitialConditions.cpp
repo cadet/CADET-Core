@@ -1012,7 +1012,7 @@ void ColumnModel2D::consistentInitialTimeDerivative(const SimulationTime& simTim
 
 	} CADET_PARFOR_END;
 
-	_linearSolver->factorize(_globalJacDisc);
+	_linearSolver->factorize(_globalJacDisc, 0, static_cast<int>(_globalJacDisc.rows()));
 
 	if (cadet_unlikely(_linearSolver->info() != Eigen::Success)) {
 		LOG(Error) << "Factorize() failed";
@@ -1020,7 +1020,7 @@ void ColumnModel2D::consistentInitialTimeDerivative(const SimulationTime& simTim
 
 	Eigen::Map<Eigen::VectorXd> yDot(vecStateYdot + idxr.offsetC(), numPureDofs());
 
-	yDot = _linearSolver->solve(yDot);
+	_linearSolver->solve(yDot.data(), static_cast<int>(yDot.size()));
 
 	if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 	{
@@ -1356,14 +1356,14 @@ void ColumnModel2D::consistentInitialSensitivity(const SimulationTime& simTime, 
 		Eigen::Map<Eigen::VectorXd> yDot(sensYdot, numPureDofs());
 
 		// Factorize
-		_linearSolver->factorize(_globalJacDisc);
+		_linearSolver->factorize(_globalJacDisc, 0, static_cast<int>(_globalJacDisc.rows()));
 
 		if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 		{
 			LOG(Error) << "Factorize() failed";
 		}
 		// Solve
-		yDot.segment(0, numPureDofs()) = _linearSolver->solve(yDot.segment(0, numPureDofs()));
+		_linearSolver->solve(yDot.data(), numPureDofs());
 
 		if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 		{
@@ -1457,15 +1457,15 @@ void ColumnModel2D::leanConsistentInitialSensitivity(const SimulationTime& simTi
 		}
 
 		const int bulkRows = idxr.offsetCp() - idxr.offsetC();
-		_linearSolver->analyzePattern(_globalJacDisc.block(0, 0, bulkRows, bulkRows));
-		_linearSolver->factorize(_globalJacDisc.block(0, 0, bulkRows, bulkRows));
+		_linearSolver->analyzePattern(_globalJacDisc, 0, bulkRows);
+		_linearSolver->factorize(_globalJacDisc, 0, bulkRows);
 
 		if (_linearSolver->info() != Eigen::Success) {
 			LOG(Error) << "factorization failed in sensitivity initialization";
 		}
 
 		Eigen::Map<Eigen::VectorXd> ret_vec(sensYdot + idxr.offsetC(), bulkRows);
-		ret_vec = _linearSolver->solve(ret_vec);
+		_linearSolver->solve(ret_vec.data(), static_cast<int>(ret_vec.size()));
 
 		// Use the factors to solve the linear system 
 		if (_linearSolver->info() != Eigen::Success) {
@@ -1473,7 +1473,7 @@ void ColumnModel2D::leanConsistentInitialSensitivity(const SimulationTime& simTi
 		}
 
 		// reset linear solver to global Jacobian
-		_linearSolver->analyzePattern(_globalJacDisc);
+		_linearSolver->analyzePattern(_globalJacDisc, 0, static_cast<int>(_globalJacDisc.rows()));
 	}
 }
 

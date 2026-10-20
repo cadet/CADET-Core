@@ -347,7 +347,7 @@ namespace cadet
 
 			// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
 			// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
-			_linearSolver->analyzePattern(_jacDisc);
+			_linearSolver->analyzePattern(_jacDisc, 0, static_cast<int>(_jacDisc.rows()));
 
 			return bindingConfSuccess && dynReactionConfSuccess;
 		}
@@ -942,7 +942,7 @@ namespace cadet
 			// Factorize Jacobian only if required
 			if (_factorizeJacobian)
 			{
-				_linearSolver->factorize(_jacDisc);
+				_linearSolver->factorize(_jacDisc, 0, static_cast<int>(_jacDisc.rows()));
 
 				if (_linearSolver->info() != Success) {
 					LOG(Error) << "factorization failed";
@@ -951,7 +951,7 @@ namespace cadet
 			}
 
 			// Use the factors to solve the linear system 
-			r.segment(idxr.offsetC(), numPureDofs()) = _linearSolver->solve(r.segment(idxr.offsetC(), numPureDofs()));
+			_linearSolver->solve(r.data() + idxr.offsetC(), numPureDofs());
 
 			if (_linearSolver->info() != Success) {
 				LOG(Error) << "solve() failed";
@@ -1468,7 +1468,7 @@ namespace cadet
 				}
 			}
 
-			_linearSolver->factorize(_jacDisc);
+			_linearSolver->factorize(_jacDisc, 0, static_cast<int>(_jacDisc.rows()));
 			
 			if (_linearSolver->info() != Success) {
 				LOG(Error) << "factorization failed in consistent initialization";
@@ -1476,7 +1476,7 @@ namespace cadet
 
 			Eigen::Map<VectorXd> yp(vecStateYdot + idxr.offsetC(), numPureDofs());
 
-			yp = _linearSolver->solve(yp);
+			_linearSolver->solve(yp.data(), static_cast<int>(yp.size()));
 
 			if (_linearSolver->info() != Success) {
 				LOG(Error) << "Solve failed in consistent initialization";
@@ -1772,14 +1772,14 @@ namespace cadet
 					}
 				}
 		
-				_linearSolver->factorize(_jacDisc);
+				_linearSolver->factorize(_jacDisc, 0, static_cast<int>(_jacDisc.rows()));
 
 				if (_linearSolver->info() != Success) {
 					LOG(Error) << "factorization failed in sensitivity initialization";
 				}
 
 				Map<VectorXd> sensYdot_vec(sensYdot + idxr.offsetC(), numPureDofs());
-				sensYdot_vec = _linearSolver->solve(sensYdot_vec);
+				_linearSolver->solve(sensYdot_vec.data(), static_cast<int>(sensYdot_vec.size()));
 
 				// Use the factors to solve the linear system 
 				if (_linearSolver->info() != Success) {

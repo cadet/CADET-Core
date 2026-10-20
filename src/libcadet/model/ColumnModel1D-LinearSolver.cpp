@@ -127,7 +127,7 @@ int ColumnModel1D<ConvDispOperator>::linearSolve(double t, double alpha, double 
 		// Assemble and factorize discretized bulk Jacobian
 		assembleDiscretizedGlobalJacobian(alpha, idxr);
 
-		_linearSolver->factorize(_globalJacDisc.block(idxr.offsetC(), idxr.offsetC(), numPureDofs(), numPureDofs()));
+		_linearSolver->factorize(_globalJacDisc, idxr.offsetC(), numPureDofs());
 
 		if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 		{
@@ -175,7 +175,7 @@ int ColumnModel1D<ConvDispOperator>::linearSolve(double t, double alpha, double 
 	// ==== Step 2: Solve system of pure DOFs
 	// The result is stored in rhs (in-place solution)
 
-	r.segment(idxr.offsetC(), numPureDofs()) = _linearSolver->solve(r.segment(idxr.offsetC(), numPureDofs()));
+	_linearSolver->solve(r.data() + idxr.offsetC(), numPureDofs());
 
 	if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 	{
