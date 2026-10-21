@@ -14,6 +14,9 @@
 
 #include "BindingModelTests.hpp"
 #include "BindingModels.hpp"
+#include "model/BindingModel.hpp"
+#include "ParamIdUtil.hpp"
+#include "SimulationTypes.hpp"
 
 CADET_BINDINGTEST("LINEAR", "EXT_LINEAR", (1,1), (1,0,1), (1.0, 2.0, 0.0, 0.0), (1.0, 3.0, 2.0, 0.0, 0.0), \
 	R"json( "LIN_KA": [1.0, 2.0],
@@ -271,7 +274,7 @@ CADET_BINDINGTEST_MULTI("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITR
 	)json", \
 	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_USED, CADET_COMPARE_BINDING_VS_NONBINDING)
 
-	CADET_BINDINGTEST_MULTI("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITRATION", " with raw values (ions in mol)", (0, 1), (0, 0, 1), (0.4, 0.06666667, 0.0), (0.4, 0.1, 0.06666667, 0.0), \
+CADET_BINDINGTEST_MULTI("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITRATION", " with raw values (ions in mol)", (0, 1), (0, 0, 1), (0.4, 0.06666667, 0.0), (0.4, 0.1, 0.06666667, 0.0), \
 	R"json( "ACT_KA": [1.0, 1386.9],
 	        "ACT_KD": [1.0, 1.0],
 	        "ACT_QMAX": [0.0000000001, 10.7439614],
@@ -637,3 +640,151 @@ CADET_BINDINGTEST_ALLBINDING_SINGLE_IMPL_FD("NEURAL_NETWORK", "1Comp", "[NEURAL_
 			}
 	)json",
 	1e-9, 1e-6, 1e-6)
+
+
+TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD pH only", "[Jacobian],[AD],[BindingModel],[CPA],[CI]")
+{
+	// Minimal case: 2 components (pH, protein), nBound = {0, 1}
+	// state: [yCp_proton, yCp_protein, q_protein]
+	// yCp_proton = 10^-pH / 1e-3 = 1e-2 mol/m^3 at pH 5, q_v ~ 1.5 mol/m^3 (Theta ~ 0.4)
+	const unsigned int nBound[] = {0, 1};
+	const double state[] = {1e-2, 0.05, 1.5};
+	char const* const config = R"json({
+		"CPA_TEMPERATURE": 298.15,
+		"CPA_IONIC_STRENGTH": 100.0,
+		"CPA_PERMITTIVITY": 78.3,
+		"CPA_LIGAND_DENSITY": 2.89e-6,
+		"CPA_LIGAND_CHARGE_FULL": 0.0,
+		"CPA_LIGAND_PK": 2.3,
+		"CPA_PROTON_IDX": 0,
+		"CPA_SPECIFIC_SURFACE_AREA": [0.0, 0.22e9],
+		"CPA_RADIUS": [0.0, 5.5e-9],
+		"CPA_LAT_CHARGE": [0.0, 19.07],
+		"CPA_EFFECTIVE_CHARGE_COEF": [0.0, 80.45, 0.0, 0.0, 0.0, 0.0],
+		"CPA_PH_REF": 5.0,
+		"CPA_DELTA_REF": [0.0, 0.012589254117941675],
+		"CPA_DELTA_LIN": [0.0, 0.0],
+		"CPA_KKIN": [0.0, 1.0]
+	})json";
+	cadet::test::binding::testJacobianAD("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, true, config, state, true, 0.0, 1e-6, 0.0);
+	const double clampedPHState[] = {1e-12, 0.05, 1.5};
+	cadet::test::binding::testJacobianAD("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, true, config, clampedPHState, true, 0.0, 1e-6, 0.0);
+
+}
+
+TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION external function consistency", "[ExternalFunction],[EXT_COLLOIDAL_PARTICLE_ADSORPTION],[BindingModel],[CPA],[CI]")
+{
+	// The externally dependent variant has to reduce to the normal one when the full parameter value
+	// is put into the linear coefficient and the external profile evaluates to T = 1
+	const unsigned int nBound[] = {0, 1};
+	const double state[] = {1e-2, 0.05, 1.5};
+	char const* const config = R"json({
+		"CPA_TEMPERATURE": 298.15,
+		"CPA_IONIC_STRENGTH": 100.0,
+		"CPA_PERMITTIVITY": 78.3,
+		"CPA_LIGAND_DENSITY": 2.89e-6,
+		"CPA_LIGAND_CHARGE_FULL": 0.0,
+		"CPA_LIGAND_PK": 2.3,
+		"CPA_PROTON_IDX": 0,
+		"CPA_SPECIFIC_SURFACE_AREA": [0.0, 0.22e9],
+		"CPA_RADIUS": [0.0, 5.5e-9],
+		"CPA_LAT_CHARGE": [0.0, 19.07],
+		"CPA_EFFECTIVE_CHARGE_COEF": [0.0, 80.45, 0.0, 0.0, 0.0, 0.0],
+		"CPA_PH_REF": 5.0,
+		"CPA_DELTA_REF": [0.0, 0.012589254117941675],
+		"CPA_DELTA_LIN": [0.0, 0.0],
+		"CPA_KKIN": [0.0, 1.0],
+		"EXT_CPA_TEMPERATURE": 0.0, "EXT_CPA_TEMPERATURE_T": 298.15, "EXT_CPA_TEMPERATURE_TT": 0.0, "EXT_CPA_TEMPERATURE_TTT": 0.0,
+		"EXT_CPA_IONIC_STRENGTH": 0.0, "EXT_CPA_IONIC_STRENGTH_T": 100.0, "EXT_CPA_IONIC_STRENGTH_TT": 0.0, "EXT_CPA_IONIC_STRENGTH_TTT": 0.0,
+		"EXT_CPA_PERMITTIVITY": 0.0, "EXT_CPA_PERMITTIVITY_T": 78.3, "EXT_CPA_PERMITTIVITY_TT": 0.0, "EXT_CPA_PERMITTIVITY_TTT": 0.0,
+		"EXT_CPA_LIGAND_DENSITY": 0.0, "EXT_CPA_LIGAND_DENSITY_T": 2.89e-6, "EXT_CPA_LIGAND_DENSITY_TT": 0.0, "EXT_CPA_LIGAND_DENSITY_TTT": 0.0,
+		"EXT_CPA_LIGAND_CHARGE_FULL": 0.0, "EXT_CPA_LIGAND_CHARGE_FULL_T": 0.0, "EXT_CPA_LIGAND_CHARGE_FULL_TT": 0.0, "EXT_CPA_LIGAND_CHARGE_FULL_TTT": 0.0,
+		"EXT_CPA_LIGAND_PK": 0.0, "EXT_CPA_LIGAND_PK_T": 2.3, "EXT_CPA_LIGAND_PK_TT": 0.0, "EXT_CPA_LIGAND_PK_TTT": 0.0,
+		"EXT_CPA_SPECIFIC_SURFACE_AREA": [0.0, 0.0], "EXT_CPA_SPECIFIC_SURFACE_AREA_T": [0.0, 0.22e9], "EXT_CPA_SPECIFIC_SURFACE_AREA_TT": [0.0, 0.0], "EXT_CPA_SPECIFIC_SURFACE_AREA_TTT": [0.0, 0.0],
+		"EXT_CPA_RADIUS": [0.0, 0.0], "EXT_CPA_RADIUS_T": [0.0, 5.5e-9], "EXT_CPA_RADIUS_TT": [0.0, 0.0], "EXT_CPA_RADIUS_TTT": [0.0, 0.0],
+		"EXT_CPA_LAT_CHARGE": [0.0, 0.0], "EXT_CPA_LAT_CHARGE_T": [0.0, 19.07], "EXT_CPA_LAT_CHARGE_TT": [0.0, 0.0], "EXT_CPA_LAT_CHARGE_TTT": [0.0, 0.0],
+		"EXT_CPA_PH_REF": 0.0, "EXT_CPA_PH_REF_T": 5.0, "EXT_CPA_PH_REF_TT": 0.0, "EXT_CPA_PH_REF_TTT": 0.0,
+		"EXT_CPA_DELTA_REF": [0.0, 0.0], "EXT_CPA_DELTA_REF_T": [0.0, 0.012589254117941675], "EXT_CPA_DELTA_REF_TT": [0.0, 0.0], "EXT_CPA_DELTA_REF_TTT": [0.0, 0.0],
+		"EXT_CPA_DELTA_LIN": [0.0, 0.0], "EXT_CPA_DELTA_LIN_T": [0.0, 0.0], "EXT_CPA_DELTA_LIN_TT": [0.0, 0.0], "EXT_CPA_DELTA_LIN_TTT": [0.0, 0.0],
+		"EXT_CPA_KKIN": [0.0, 0.0], "EXT_CPA_KKIN_T": [0.0, 1.0], "EXT_CPA_KKIN_TT": [0.0, 0.0], "EXT_CPA_KKIN_TTT": [0.0, 0.0]
+	})json";
+
+	cadet::test::binding::testNormalExternalConsistency("COLLOIDAL_PARTICLE_ADSORPTION", "EXT_COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, true, config, state);
+}
+
+TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION Jacobian vs AD with salt component", "[Jacobian],[AD],[BindingModel],[CPA],[CI]")
+{
+	// 3 components: pH (idx 0), salt (idx 1), protein (idx 2), nBound = {0, 0, 1}
+	// state: [yCp_pH, yCp_salt, yCp_protein, q_protein]
+	const unsigned int nBound[] = {0, 0, 1};
+	const double state[] = {1e-2, 100.0, 0.05, 1.5};
+	char const* const config = R"json({
+		"CPA_TEMPERATURE": 298.15,
+		"CPA_IONIC_STRENGTH": 100.0,
+		"CPA_PERMITTIVITY": 78.3,
+		"CPA_LIGAND_DENSITY": 2.89e-6,
+		"CPA_LIGAND_CHARGE_FULL": 0.0,
+		"CPA_LIGAND_PK": 2.3,
+		"CPA_PROTON_IDX": 0,
+		"CPA_SPECIFIC_SURFACE_AREA": [0.0, 0.0, 0.22e9],
+		"CPA_RADIUS": [0.0, 0.0, 5.5e-9],
+		"CPA_LAT_CHARGE": [0.0, 0.0, 19.07],
+		"CPA_EFFECTIVE_CHARGE_COEF": [0.0, 0.0, 80.45, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+		"CPA_PH_REF": 5.0,
+		"CPA_DELTA_REF": [0.0, 0.0, 0.012589254117941675],
+		"CPA_DELTA_LIN": [0.0, 0.0, 0.0],
+		"CPA_KKIN": [0.0, 0.0, 1.0]
+	})json";
+	cadet::test::binding::testJacobianAD("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, true, config, state, true, 0.0, 1e-6, 0.0);
+}
+
+TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION rapid-equilibrium Jacobian with two proteins", "[Jacobian],[AD],[BindingModel],[CPA],[CI]")
+{
+	// Four polynomial-order rows with one coefficient per component
+	const unsigned int nBound[] = {0, 0, 1, 1};
+	const double state[] = {1e-2, 100.0, 0.05, 0.035, 0.6, 0.35};
+	char const* const config = R"json({
+		"CPA_TEMPERATURE": 298.15,
+		"CPA_IONIC_STRENGTH": 100.0,
+		"CPA_PERMITTIVITY": 78.3,
+		"CPA_LIGAND_DENSITY": 2.89e-6,
+		"CPA_LIGAND_CHARGE_FULL": 0.0,
+		"CPA_LIGAND_PK": 2.3,
+		"CPA_PROTON_IDX": 0,
+		"CPA_IONIC_VALENCE": [1, 1, 0, 0],
+		"CPA_SPECIFIC_SURFACE_AREA": [0.0, 0.0, 0.22e9, 0.18e9],
+		"CPA_RADIUS": [0.0, 0.0, 5.5e-9, 6.5e-9],
+		"CPA_LAT_CHARGE": [0.0, 0.0, 19.07, 14.2],
+		"CPA_EFFECTIVE_CHARGE_COEF": [0.0, 0.0, 80.45, 55.0, 0.0, 0.0, 5.0, 3.0, 0.0, 0.0, 0.1, 0.2, 0.0, 0.0, 0.015, -0.01],
+		"CPA_PH_REF": 5.0,
+		"CPA_DELTA_REF": [0.0, 0.0, 0.012589254117941675, 0.0199526231496888],
+		"CPA_DELTA_LIN": [0.0, 0.0, 0.5, -0.25],
+		"CPA_KKIN": [0.0, 0.0, 0.0, 0.0]
+	})json";
+
+	cadet::test::binding::ConfiguredBindingModel cbm = cadet::test::binding::ConfiguredBindingModel::create("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, false, config);
+	const std::unordered_map<cadet::ParameterId, double> parameters = cbm.model().getAllParameterValues();
+	CHECK(parameters.at(cadet::makeParamId("CPA_EFFECTIVE_CHARGE_COEF", 0, 2, 0, cadet::BoundStateIndep, 0, cadet::SectionIndep)) == 80.45);
+	CHECK(parameters.at(cadet::makeParamId("CPA_EFFECTIVE_CHARGE_COEF", 0, 2, 0, cadet::BoundStateIndep, 1, cadet::SectionIndep)) == 5.0);
+	CHECK(parameters.at(cadet::makeParamId("CPA_EFFECTIVE_CHARGE_COEF", 0, 2, 0, cadet::BoundStateIndep, 3, cadet::SectionIndep)) == 0.015);
+	CHECK(parameters.at(cadet::makeParamId("CPA_EFFECTIVE_CHARGE_COEF", 0, 3, 0, cadet::BoundStateIndep, 3, cadet::SectionIndep)) == -0.01);
+	CHECK(cbm.model().hasQuasiStationaryReactions());
+	CHECK_FALSE(cbm.model().hasDynamicReactions());
+	CHECK(cbm.model().reactionQuasiStationarity()[0]);
+	CHECK(cbm.model().reactionQuasiStationarity()[1]);
+
+	double residual[] = {0.0, 0.0};
+	REQUIRE(cbm.model().flux(1.0, 0u, cadet::ColumnPosition{0.0, 0.0, 0.0}, state + cbm.nComp(), state, residual, cbm.buffer()) == 0);
+	CHECK(residual[0] != 0.0);
+	CHECK(residual[1] != 0.0);
+
+	cadet::linalg::DenseMatrix jacobian;
+	jacobian.resize(cbm.nComp() + cbm.numBoundStates(), cbm.nComp() + cbm.numBoundStates());
+	cbm.model().analyticJacobian(1.0, 0u, cadet::ColumnPosition{0.0, 0.0, 0.0}, state + cbm.nComp(), cbm.nComp(), jacobian.row(cbm.nComp()), cbm.buffer());
+	CHECK(jacobian.native(cbm.nComp(), cbm.nComp() + 1) != 0.0);
+	CHECK(jacobian.native(cbm.nComp() + 1, cbm.nComp()) != 0.0);
+
+	cadet::test::binding::testJacobianAD("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, false, config, state, true, 0.0, 1e-9, 1e-10);
+	const double clampedActivityState[] = {1e-12, 100.0, 0.05, 0.035, 0.6, 0.35};
+	cadet::test::binding::testJacobianAD("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, false, config, clampedActivityState, true, 0.0, 1e-9, 1e-10);
+}
