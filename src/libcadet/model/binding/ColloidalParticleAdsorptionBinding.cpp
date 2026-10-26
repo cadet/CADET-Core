@@ -183,6 +183,8 @@ protected:
 	solvePsiAdsorber(CpStateType pH, KappaType kappa, ParamType GammaL,
 		ParamType zetaL, ParamType pKL, ParamType eps, ParamType T) const
 	{
+		using std::abs;
+
 		using StateParamType = typename DoubleActivePromoter<typename DoubleActivePromoter<CpStateType, ParamType>::type, KappaType>::type;
 
 		const double e = _elemCharge;
@@ -345,6 +347,7 @@ protected:
 		CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
 	{
 		using std::log;
+		using std::abs;
 
 		using CpStateParamType = typename DoubleActivePromoter<CpStateType, ParamType>::type;
 		//using StateParamType = typename DoubleActivePromoter<StateType, ParamType>::type;
