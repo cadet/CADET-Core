@@ -51,9 +51,9 @@ jobs:
               Thank you for your submission, we really appreciate it!
 
               Like many open-source projects we ask that you sign our [Contributor License Agreement](${{ env.PATH_TO_CLA }}) before we can accept your contribution.
-              To sign, please post two separate comments based on the following templates 👇
+              To sign, please post the following **two separate comments** 👇
 
-              1. Comment:
+              **1.** This template, with the applicable boxes ticked:
 
               ----
               ```markdown
@@ -68,7 +68,7 @@ jobs:
 
               ----
 
-              2. Comment:
+              **2.** A comment containing *exactly* the sentence below.
           custom-pr-sign-comment: I have read the CLA Document and I hereby sign the CLA.
           #custom-allsigned-prcomment: 'pull request comment when all contributors has signed, defaults to **CLA Assistant Lite bot** All Contributors have signed the CLA.'
           # 👇 prevent contributors from revoking signatures after the merge (this is also the default)
