@@ -480,7 +480,7 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 	_initQsBoundDelta.resize(_disc.nParType);
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		particleConfSuccess = particleConfSuccess && _particles[parType]->configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType], false);
+		particleConfSuccess = particleConfSuccess && _particles[parType]->configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType], true);
 
 		const auto& cm = _particles[parType]->getReaction()->conservedMoieties("liquid");
 		if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0) && _binding[parType]->hasQuasiStationaryReactions())
