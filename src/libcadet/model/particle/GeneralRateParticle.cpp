@@ -335,6 +335,7 @@ namespace model
 		if (wantRes && hasLiquidEquilibrium)
 		{
 			const unsigned int nMoieties = cm.numMoieties();
+			const unsigned int nEquilibriumReactions = cm.numEquilibriumReactions();
 			BufferedArray<ResidualType> scratchBuffer = tlmAlloc.array<ResidualType>(_nComp);
 			ResidualType* const scratch = static_cast<ResidualType*>(scratchBuffer);
 
@@ -346,7 +347,7 @@ namespace model
 
 				std::copy_n(localRes, _nComp, scratch);
 				cm.applyToVector(localRes, scratch, _nComp);
-				std::fill_n(localRes + nMoieties, _reaction.conservedMoieties("liquid").numEquilibriumReactions(), 0.0);
+				std::fill_n(localRes + nMoieties, nEquilibriumReactions, 0.0);
 				unsigned int eqIdx = 0;
 				for (auto const* reaction : _reaction.getDynReactionVector("liquid"))
 				{
@@ -356,13 +357,14 @@ namespace model
 					reaction->residualEquilibriumFlux(t, secIdx, packing.colPos, _nComp,
 						c, localRes + nMoieties, eqIdx, tlmAlloc.manageRemainingMemory());
 				}
-				cadet_assert(eqIdx == _reaction.conservedMoieties("liquid").numEquilibriumReactions());
+				cadet_assert(eqIdx == nEquilibriumReactions);
 			}
 		}
 
 		if (wantNonLinJac && hasLiquidEquilibrium)
 		{
 			const unsigned int nMoieties = cm.numMoieties();
+			const unsigned int nEquilibriumReactions = cm.numEquilibriumReactions();
 			auto& jacobian = jacBase.matrix();
 			std::size_t scratchSize = 0;
 			for (unsigned int par = 0; par < nDiscPoints(); ++par)
@@ -390,7 +392,7 @@ namespace model
 					reaction->analyticEquilibriumJacobian(t, secIdx, packing.colPos, _nComp,
 						reinterpret_cast<double const*>(yPar + par * stridePoint()), eqIdx, nMoieties, equilibriumJacobian, tlmAlloc.manageRemainingMemory());
 				}
-				cadet_assert(eqIdx == _reaction.conservedMoieties("liquid").numEquilibriumReactions());
+				cadet_assert(eqIdx == nEquilibriumReactions);
 			}
 		}
 
