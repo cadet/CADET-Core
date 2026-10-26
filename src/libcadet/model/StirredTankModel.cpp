@@ -2094,9 +2094,20 @@ void CSTRModel::multiplyWithJacobian(const SimulationTime& simTime, const ConstS
 	_jac.multiplyVector(yS + _nComp, alpha, beta, resTank);
 
 	// Map inlet DOFs to the tank (tank cells)
-	for (unsigned int i = 0; i < _nComp; ++i)
+	const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
+	if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0))
 	{
-		resTank[i] -= alpha * flowIn * yS[i];
+		const auto& L = cm.conservedMoietyMatrix();
+		for (unsigned int moiety = 0; moiety < cm.numMoieties(); ++moiety)
+		{
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
+				resTank[moiety] -= alpha * flowIn * L(moiety, comp) * yS[comp];
+		}
+	}
+	else
+	{
+		for (unsigned int i = 0; i < _nComp; ++i)
+			resTank[i] -= alpha * flowIn * yS[i];
 	}
 }
 
@@ -2168,7 +2179,6 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 		const unsigned int nPure = numPureDofs();
 		const Eigen::MatrixXd& L = cm.conservedMoietyMatrix();
 		const unsigned int nMoieties = cm.numMoieties();
-		const unsigned int nEq = cm.numEquilibriumReactions();
 
 		std::vector<double> oldRes(nPure);
 		for (unsigned int i = 0; i < _nComp + _totalBound; ++i)
@@ -2183,8 +2193,8 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 		}
 		
 		// Equilibrium rows
-		for (unsigned int i = nMoieties; i < nEq; ++i)
-			r[i + nMoieties] = 0.0;
+		for (unsigned int i = nMoieties; i < _nComp; ++i)
+			r[i] = 0.0;
 	}
 }
 
@@ -2194,9 +2204,20 @@ int CSTRModel::linearSolve(double t, double alpha, double tol, double* const rhs
 	const double flowIn = static_cast<double>(_flowRateIn);
 
 	// Handle inlet equations by backsubstitution
-	for (unsigned int i = 0; i < _nComp; ++i)
+	const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
+	if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0))
 	{
-		rhs[i + _nComp] += flowIn * rhs[i];
+		const auto& L = cm.conservedMoietyMatrix();
+		for (unsigned int moiety = 0; moiety < cm.numMoieties(); ++moiety)
+		{
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
+				rhs[moiety + _nComp] += flowIn * L(moiety, comp) * rhs[comp];
+		}
+	}
+	else
+	{
+		for (unsigned int i = 0; i < _nComp; ++i)
+			rhs[i + _nComp] += flowIn * rhs[i];
 	}
 
 	bool success = true;
@@ -2233,6 +2254,9 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 	// Assemble Jacobian: dRes / dyDot
 	for (unsigned int i = 0; i < _nComp; ++i)
 	{
+		if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0))
+			continue;
+
 		mat.native(i, i) += timeV; // dRes / dcDot
 
 		for (unsigned int type = 0; type < _nParType; ++type)
