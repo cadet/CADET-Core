@@ -490,7 +490,9 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 		dynReactionConfSuccess = _reaction.configureConservedMoities("liquid", _disc.nComp, 1e-14) && dynReactionConfSuccess;
 	}
 
-	// jaobian pattern set after binding and particle surface diffusion are configured
+	_reaction.validateEquilibriumSupport(std::string(unitOperationName()) + " (unit " + std::to_string(_unitOpIdx) + ")");
+
+	// jacobian pattern set after binding and particle surface diffusion are configured
 	bool hasBulkReaction = false;
 	if (_reaction.getDynReactionVector("liquid")[0] != nullptr)
 		hasBulkReaction = true;

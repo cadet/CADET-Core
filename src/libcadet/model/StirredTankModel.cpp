@@ -426,6 +426,9 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 		dynReactionConfSuccess = _reactionSystemBulk.configureConservedMoities("liquid", _nComp, 1e-14) && dynReactionConfSuccess;
 	}
 
+	const std::string hostDescription = std::string(unitOperationName()) + " (unit " + std::to_string(_unitOpIdx) + ")";
+	_reactionSystemBulk.validateEquilibriumSupport(hostDescription);
+
 	for (unsigned int par = 0; par < _nParType; par++)
 	{
 		paramProvider.pushScope(particleGroupName(par)); // particle_type_xxx
@@ -436,6 +439,8 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 			dynReactionConfSuccess = _reacParticle[par]->configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 		if (paramProvider.exists("NREAC_SOLID"))
 			dynReactionConfSuccess = _reacParticle[par]->configure("solid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+
+		_reacParticle[par]->validateEquilibriumSupport("particle type " + std::to_string(par) + " of " + hostDescription);
 
 		paramProvider.popScope(); // particle_type_xxx
 	}

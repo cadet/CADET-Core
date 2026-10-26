@@ -571,6 +571,9 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configure(IParameterProvider& p
 	if (paramProvider.exists("NREAC_LIQUID"))
 		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
+	const std::string hostDescription = std::string(unitOperationName()) + " (unit " + std::to_string(_unitOpIdx) + ")";
+	_reaction.validateEquilibriumSupport(hostDescription, "The COLUMN_MODEL_1D implementation selected by FV_ARROW_HEAD_OPTIMIZATION = 0 supports quasi-stationary reactions in the bulk liquid phase.");
+
 	for (unsigned int par = 0; par < _disc.nParType; par++)
 	{
 		char particleScope[32];
@@ -585,6 +588,8 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configure(IParameterProvider& p
 				dynReactionConfSuccess = _reacParticle[par]->configure("liquid", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 			if (paramProvider.exists("NREAC_SOLID"))
 				dynReactionConfSuccess = _reacParticle[par]->configure("solid", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+
+			_reacParticle[par]->validateEquilibriumSupport("particle type " + std::to_string(par) + " of " + hostDescription);
 
 			paramProvider.popScope();
 		}

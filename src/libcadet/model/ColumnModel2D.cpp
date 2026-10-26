@@ -700,6 +700,8 @@ bool ColumnModel2D::configure(IParameterProvider& paramProvider)
 	if (paramProvider.exists("NREAC_LIQUID"))
 		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
+	_reaction.validateEquilibriumSupport(std::string(unitOperationName()) + " (unit " + std::to_string(_unitOpIdx) + ")");
+
 	// jaobian pattern set after binding and particle surface diffusion are configured
 	bool hasBulkReaction = false;
 	if (_reaction.getDynReactionVector("liquid")[0] != nullptr)
