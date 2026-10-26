@@ -362,7 +362,7 @@ protected:
 
 		// Scalar parameters
 		const ParamType T       = static_cast<ParamType>(p->temperature);
-		const CpStateParamType Im = !_compCharge.empty()? static_cast<CpStateParamType>(calcIonicStrength(yCp)) : static_cast<CpStateParamType>(p->ionicStrength);
+		const CpStateParamType Im = !_compCharge.empty()? static_cast<CpStateType>(calcIonicStrength(yCp)) : static_cast<ParamType>(p->ionicStrength);
 		const ParamType eps     = static_cast<ParamType>(p->permittivity);
 		const ParamType GammaL  = static_cast<ParamType>(p->surfaceDensity);
 		const ParamType zetaL   = static_cast<ParamType>(p->chargeFullLigand);
