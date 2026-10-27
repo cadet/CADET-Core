@@ -33,7 +33,7 @@ TEST_CASE("MassActionLaw conserved moieties nullspace", "[MassActionLaw],[Reacti
 				"MAL_KBWD": [2.0],
 				"MAL_STOICHIOMETRY": [-1.0,
 				                       1.0],
-				"MAL_IS_KINETIC": [0]
+				"IS_KINETIC": [0]
 			})json");
 
 		Eigen::MatrixXd S(2, 1);
@@ -53,7 +53,7 @@ TEST_CASE("MassActionLaw conserved moieties nullspace", "[MassActionLaw],[Reacti
 				"MAL_STOICHIOMETRY": [-1.0,
 				                      -1.0,
 				                       1.0],
-				"MAL_IS_KINETIC": [0]
+				"IS_KINETIC": [0]
 			})json");
 
 		Eigen::MatrixXd S(3, 1);
@@ -73,7 +73,7 @@ TEST_CASE("MassActionLaw conserved moieties nullspace", "[MassActionLaw],[Reacti
 				"MAL_STOICHIOMETRY": [-1.0,-1.0,
 				                      -1.0, 1.0,
 				                       1.0, 0.0],
-				"MAL_IS_KINETIC": [0,1]
+				"IS_KINETIC": [0,1]
 			})json");
 
 		Eigen::MatrixXd S(3, 1);
@@ -94,7 +94,7 @@ TEST_CASE("MassActionLaw conserved moieties nullspace", "[MassActionLaw],[Reacti
 				"MAL_STOICHIOMETRY": [-1.0,
 				                      -1.0,
 				                       1.0],
-				"MAL_IS_KINETIC": [1]
+				"IS_KINETIC": [1]
 			})json");
 
  		Eigen::MatrixXd expected;

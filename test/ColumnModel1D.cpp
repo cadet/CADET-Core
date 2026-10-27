@@ -593,7 +593,7 @@ TEST_CASE("1D column liquid equilibrium MAL consistent initialization", "[Column
 			jpp.set("MAL_KFWD", std::vector<double>{2.0});
 			jpp.set("MAL_KBWD", std::vector<double>{1.0});
 			jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-			jpp.set("MAL_IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
+			jpp.set("IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
 			jpp.popScope();
 
 			cadet::IUnitOperation* const unit =cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
@@ -653,7 +653,7 @@ TEST_CASE("1D liquid equilibrium MAL Jacobian vs AD", "[Column_1D],[MassActionLa
 		jpp.set("MAL_KFWD", std::vector<double>{2.0});
 		jpp.set("MAL_KBWD", std::vector<double>{1.0});
 		jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-		jpp.set("MAL_IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
+		jpp.set("IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
 		jpp.popScope();
 
 		cadet::test::column::testJacobianAD(
@@ -680,7 +680,7 @@ TEST_CASE("1D liquid equilibrium MAL Jacobian vs AD", "[Column_1D],[MassActionLa
 		jpp.set("MAL_KFWD", std::vector<double>{2.0});
 		jpp.set("MAL_KBWD", std::vector<double>{1.0});
 		jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-		jpp.set("MAL_IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
+		jpp.set("IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
 		jpp.popScope();
 		cadet::test::column::testJacobianAD(
 			jpp, std::numeric_limits<float>::epsilon() * 100.0);
@@ -711,7 +711,7 @@ TEST_CASE("1D kinetic and equilibrium MAL share liquid equilibrium", "[Column_1D
 	eqJpp.set("MAL_KFWD", std::vector<double>{2.0});
 	eqJpp.set("MAL_KBWD", std::vector<double>{1.0});
 	eqJpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	eqJpp.set("MAL_IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
+	eqJpp.set("IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
 	eqJpp.popScope();
 
 	cadet::IUnitOperation* const eqUnit =
@@ -749,7 +749,7 @@ TEST_CASE("1D kinetic and equilibrium MAL share liquid equilibrium", "[Column_1D
 	kinJpp.set("MAL_KFWD", std::vector<double>{2.0});
 	kinJpp.set("MAL_KBWD", std::vector<double>{1.0});
 	kinJpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	kinJpp.set("MAL_IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
+	kinJpp.set("IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
 	kinJpp.popScope();
 
 	cadet::IUnitOperation* const kinUnit =

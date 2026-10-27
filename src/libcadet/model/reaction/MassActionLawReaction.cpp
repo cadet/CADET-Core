@@ -344,11 +344,11 @@ protected:
 		registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MAL_EXPONENTS_BWD", _expBwd);
 
 		_eqMaskVector.assign(maxNumReactions(), false);
-		if (paramProvider.exists("MAL_IS_KINETIC"))
+		if (paramProvider.exists("IS_KINETIC"))
 		{
-			const std::vector<int> isKinetic = paramProvider.getIntArray("MAL_IS_KINETIC");
+			const std::vector<int> isKinetic = paramProvider.getIntArray("IS_KINETIC");
 			if (static_cast<int>(isKinetic.size()) != _stoichiometry.columns())
-				throw InvalidParameterException("Expected MAL_IS_KINETIC and MAL_STOICHIOMETRY columns has to be of the same size (" + std::to_string(_stoichiometry.columns()) + ")");
+				throw InvalidParameterException("Expected IS_KINETIC and MAL_STOICHIOMETRY columns has to be of the same size (" + std::to_string(_stoichiometry.columns()) + ")");
 
 			for (int r = 0; r < _stoichiometry.columns(); ++r)
 				_eqMaskVector[r] = (isKinetic[r] == 0);

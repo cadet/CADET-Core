@@ -31,7 +31,7 @@ Notes
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NREACT}`
    ================  =========================  ===================================
 
-``MAL_IS_KINETIC``
+``IS_KINETIC``
 
    Selects kinetic (:math:`1`) or quasi-stationary (:math:`0`) mode for each reaction.
    Optional, defaults to kinetic for all reactions.
