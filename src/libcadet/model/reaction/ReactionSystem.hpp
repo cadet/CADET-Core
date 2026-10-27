@@ -57,6 +57,7 @@ struct ReactionSystem
         {
             std::vector<IDynamicReactionModel*> dynReactions; //!< Dynamic reactions in the phase
             ConservedMoieties consMoities;
+            unsigned int nStates = 0; //!< Number of states of the phase, set by configureDiscretization()
 
             /**
              * @brief Default constructor initializing phase data with safe defaults
@@ -198,6 +199,11 @@ struct ReactionSystem
             auto& dynReaction = getDynReactionVector(phaseType);
             configureDimensions(phaseType, nReactions);
 
+            // A solid phase reaction acts on the bound states, every other phase on the components
+            getPhaseData(phaseType).nStates = (phaseType == "solid") && nBound
+                ? std::accumulate(nBound, nBound + nComp, 0u)
+                : nComp;
+
             bool reactionConfSuccess = true;
             // Determine the number of reactions to configure
             const unsigned int nReac = nReactions;
@@ -249,13 +255,24 @@ struct ReactionSystem
 
         /**
          * @brief Configures reaction models for a specific phase and particle type
+         * @details If any reaction of the phase is declared to be in rapid equilibrium
+         *          (@c IS_KINETIC = 0), the conserved-moiety reformulation is set up right after the
+         *          reaction models themselves, and the configuration is rejected when either the phase
+         *          or the hosting unit operation cannot solve it.
          * @param phaseType The phase type to configure
          * @param parType The particle type index
          * @param unitOpIdx Unit operation index
          * @param paramProvider Parameter provider for configuration
+         * @param uoImplementsReqReactions Whether the hosting unit operation implements rapid-equilibrium
+         *        reactions for this phase. Passing @c true asserts that the host applies the
+         *        conserved-moiety transform next to its transport operators in all three places that
+         *        touch the state: residual, Jacobian and consistent initialization. ColumnModel1D is the
+         *        reference implementation.
+         * @param rankTol Tolerance on the singular values determining the stoichiometric rank
          * @return True if configuration succeeded, false otherwise
+         * @throws InvalidParameterException if a rapid-equilibrium reaction is not supported here
          */
-        bool configure(std::string phaseType, unsigned int parType, unsigned int unitOpIdx, IParameterProvider& paramProvider)
+        bool configure(std::string phaseType, unsigned int parType, unsigned int unitOpIdx, IParameterProvider& paramProvider, bool uoImplementsReqReactions, double rankTol = 1e-14)
         {
             auto& dynReaction = getDynReactionVector(phaseType);
             bool dynReactionConfSuccess = true;
@@ -279,7 +296,13 @@ struct ReactionSystem
 
                 paramProvider.popScope();//scope reaction_xxx
             }
-        
+
+            if (hasEquilibriumReactions(phaseType))
+            {
+                requireEquilibriumSupport(phaseType, unitOpIdx, uoImplementsReqReactions);
+                dynReactionConfSuccess = configureConservedMoities(phaseType, getPhaseData(phaseType).nStates, rankTol) && dynReactionConfSuccess;
+            }
+
             return dynReactionConfSuccess;
         }
         
@@ -289,12 +312,12 @@ struct ReactionSystem
          *          which trades their state rows for conserved-moiety rows plus algebraic equilibrium
          *          equations.
          *
-         *          Calling this is also how a hosting model declares support:
-         *          validateEquilibriumSupport() rejects quasi-stationary reactions in every phase for
-         *          which it was not called. A host that calls it must apply the transform alongside its
-         *          transport operators in all three places that touch the state (residual, Jacobian and
-         *          consistent initialization) or the reaction is still solved incorrectly. ColumnModel1D
-         *          is the reference implementation.
+         *          Called by configure() whenever a phase holds a rapid-equilibrium reaction, after
+         *          requireEquilibriumSupport() has established that phase and hosting unit operation can
+         *          solve it. The host then has to apply the transform alongside its transport operators
+         *          in all three places that touch the state (residual, Jacobian and consistent
+         *          initialization) or the reaction is still solved incorrectly. ColumnModel1D is the
+         *          reference implementation.
          * @param [in] phaseType Phase to configure, must not be "cross_phase"
          * @param [in] nStates Number of states of the phase (components, or total bound states for solid)
          * @param [in] rankTol Tolerance on the singular values determining the stoichiometric rank
@@ -392,30 +415,37 @@ struct ReactionSystem
          *          configuration instead of silently returning the solution of a system in which
          *          the reaction does not happen.
          *
-         *          Hosting models call this once after configuring their reaction models. A phase
-         *          counts as supported once its conserved moieties are configured, so phases gained
-         *          or lost by a model are covered without touching this check.
-         * @param hostDescription Description of the hosting model, used in the error message
-         * @param errorMsgSuffix Optional sentence appended to the error message, e.g. naming a setting that
-         *        selects an implementation which does support the configuration
-         * @throws InvalidParameterException if an unsupported phase holds a quasi-stationary reaction
+         *          The reformulation replaces the balance equations of the participating states, so it
+         *          has to be carried by the hosting unit operation as well. Both conditions are checked
+         *          here: the phase has to be one the reformulation is implemented for, and the host has
+         *          to declare that it implements it.
+         * @param phaseType The phase holding the rapid-equilibrium reactions
+         * @param unitOpIdx Unit operation index, used in the error message
+         * @param uoImplementsReqReactions Whether the hosting unit operation implements the reformulation
+         * @throws InvalidParameterException if rapid-equilibrium reactions are unsupported here
          */
-        void validateEquilibriumSupport(const std::string& hostDescription, const std::string& errorMsgSuffix = "") const
+        void requireEquilibriumSupport(const std::string& phaseType, unsigned int unitOpIdx, bool uoImplementsReqReactions) const
         {
-            for (const auto& phasePair : _phaseMap)
-            {
-                const std::string& phaseType = phasePair.first;
-                if (phasePair.second.consMoities.isEnabled() || !hasEquilibriumReactions(phaseType))
-                    continue;
+            const std::string where = "the " + phaseType + " phase of unit operation " + std::to_string(unitOpIdx);
 
-                std::string msg = "Quasi-stationary reactions are not supported in the "
-                    + phaseType + " phase of " + hostDescription + ". Use kinetic reactions instead or find a unit operation that supports this in the documentation.";
+            if (!isPhaseEquilibriumCapable(phaseType))
+                throw InvalidParameterException("Rapid-equilibrium reactions (IS_KINETIC = 0) are not implemented for " + where
+                    + ". Use kinetic reactions instead.");
 
-                if (!errorMsgSuffix.empty())
-                    msg += " " + errorMsgSuffix;
+            if (!uoImplementsReqReactions)
+                throw InvalidParameterException("Rapid-equilibrium reactions (IS_KINETIC = 0) are not supported by " + where
+                    + ". Use kinetic reactions instead, or see the documentation for the unit operations that support them.");
+        }
 
-                throw InvalidParameterException(msg);
-            }
+        /**
+         * @brief Returns whether the conserved-moiety reformulation is implemented for a phase
+         * @details Independent of the hosting unit operation. A cross phase reaction couples a bulk
+         *          equation to a boundary condition and a solid phase reaction has no transport of its
+         *          own, so neither is covered by the reformulation.
+         */
+        static bool isPhaseEquilibriumCapable(const std::string& phaseType) CADET_NOEXCEPT
+        {
+            return phaseType == "liquid";
         }
 
         /**

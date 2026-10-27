@@ -31,15 +31,6 @@ Notes
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NREACT}`
    ================  =========================  ===================================
 
-``MAL_IS_KINETIC``
-
-   Selects kinetic (:math:`1`) or quasi-stationary (:math:`0`) mode for each reaction.
-   Optional, defaults to kinetic for all reactions.
-   
-   =============  ==========================  ===================================
-   **Type:** int  **Range:** :math:`\{0,1\}`  **Length:** :math:`\texttt{NREACT}`
-   =============  ==========================  ===================================
-
 ``MAL_STOICHIOMETRY``
 
    Stoichiometric matrix as :math:`\texttt{NVAR} \times \texttt{NREACT}` matrix in row-major storage (phase-dependent ``NVAR``, see Notes)

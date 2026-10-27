@@ -273,7 +273,6 @@ public:
 	
 	virtual bool supportsConservedMoieties() const CADET_NOEXCEPT { return true; }
 
-	virtual bool isInEquilibrium(unsigned int reaction) const CADET_NOEXCEPT { return _eqMaskVector[reaction];}
 	virtual double getStoichiometry(unsigned int component, unsigned int reaction) const CADET_NOEXCEPT { return static_cast<double>(_stoichiometry.native(component, reaction));}
 
 	CADET_DYNAMICREACTIONMODEL_BOILERPLATE
@@ -284,8 +283,6 @@ protected:
 	linalg::ActiveDenseMatrix _stoichiometry;
 	linalg::ActiveDenseMatrix _expFwd;
 	linalg::ActiveDenseMatrix _expBwd;
-
-	std::vector<bool> _eqMaskVector;
 
 	
 	
@@ -343,17 +340,6 @@ protected:
 		}
 		registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MAL_EXPONENTS_BWD", _expBwd);
 
-		_eqMaskVector.assign(maxNumReactions(), false);
-		if (paramProvider.exists("MAL_IS_KINETIC"))
-		{
-			const std::vector<int> isKinetic = paramProvider.getIntArray("MAL_IS_KINETIC");
-			if (static_cast<int>(isKinetic.size()) != _stoichiometry.columns())
-				throw InvalidParameterException("Expected MAL_IS_KINETIC and MAL_STOICHIOMETRY columns has to be of the same size (" + std::to_string(_stoichiometry.columns()) + ")");
-
-			for (int r = 0; r < _stoichiometry.columns(); ++r)
-				_eqMaskVector[r] = (isKinetic[r] == 0);
-		}
-
 		return true;
 	}
 
@@ -369,7 +355,7 @@ protected:
 
 		for (int r = 0; r < _stoichiometry.columns(); ++r)
 		{
-			if (_eqMaskVector[r])
+			if (_reactionQuasistationarity[r])
 			{
 				fluxes[r] = 0.0;
 				continue;
@@ -433,7 +419,7 @@ protected:
 		
 		for (int r = 0; r < _stoichiometry.columns(); ++r)
 		{
-			if (_eqMaskVector[r])
+			if (_reactionQuasistationarity[r])
 				continue;
 			
 			// Calculate gradients of forward and backward fluxes
@@ -476,7 +462,7 @@ protected:
 
 		for (int r = 0; r < _stoichiometry.columns(); ++r)
 		{
-			if (!_eqMaskVector[r])
+			if (!_reactionQuasistationarity[r])
 				continue;
 			
 			ResidualType fwd = rateConstantOrZero(static_cast<ResidualType>(p->kFwd[r]), r, _expFwd, nStates);
@@ -533,7 +519,7 @@ protected:
 		
 		for (int r = 0; r < _stoichiometry.columns(); ++r)
 		{
-			if (!_eqMaskVector[r])
+			if (!_reactionQuasistationarity[r])
 				continue;
 			
 			// Calculate gradients of forward and backward fluxes

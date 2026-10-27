@@ -530,7 +530,7 @@ TEST_CASE("CSTR liquid equilibrium MAL consistent initialization", "[CSTR],[Mass
 			jpp.set("MAL_KFWD", std::vector<double>{2.0});
 			jpp.set("MAL_KBWD", std::vector<double>{1.0});
 			jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-			jpp.set("MAL_IS_KINETIC", std::vector<int>{false ? 1 : 0});
+			jpp.set("IS_KINETIC", std::vector<int>{false ? 1 : 0});
 			jpp.popScope();
 
 			cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(*mb, jpp);
@@ -565,7 +565,7 @@ TEST_CASE("CSTR liquid equilibrium MAL Jacobian vs AD", "[CSTR],[MassActionLaw],
 		jpp.set("MAL_KFWD", std::vector<double>{2.0});
 		jpp.set("MAL_KBWD", std::vector<double>{1.0});
 		jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-		jpp.set("MAL_IS_KINETIC", std::vector<int>{false ? 1 : 0});
+		jpp.set("IS_KINETIC", std::vector<int>{false ? 1 : 0});
 		jpp.popScope();
 
 	});
@@ -585,7 +585,7 @@ TEST_CASE("CSTR kinetic and equilibrium MAL share liquid equilibrium", "[CSTR],[
 	eqJpp.set("MAL_KFWD", std::vector<double>{2.0});
 	eqJpp.set("MAL_KBWD", std::vector<double>{1.0});
 	eqJpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	eqJpp.set("MAL_IS_KINETIC", std::vector<int>{false ? 1 : 0});
+	eqJpp.set("IS_KINETIC", std::vector<int>{false ? 1 : 0});
 	eqJpp.popScope();
 
 	cadet::model::CSTRModel* const eqCstr = createAndConfigureCSTR(*mb, eqJpp);
@@ -606,7 +606,7 @@ TEST_CASE("CSTR kinetic and equilibrium MAL share liquid equilibrium", "[CSTR],[
 	kinjpp.set("MAL_KFWD", std::vector<double>{2.0});
 	kinjpp.set("MAL_KBWD", std::vector<double>{1.0});
 	kinjpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	kinjpp.set("MAL_IS_KINETIC", std::vector<int>{true ? 1 : 0});
+	kinjpp.set("IS_KINETIC", std::vector<int>{true ? 1 : 0});
 	kinjpp.popScope();
 
 	cadet::model::CSTRModel* const kinCstr = createAndConfigureCSTR(*mb, kinjpp);

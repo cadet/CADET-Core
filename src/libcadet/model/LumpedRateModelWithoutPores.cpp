@@ -384,17 +384,16 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configure(IParameterProvider
 		}
 
 		if (paramProvider.exists("NREAC_CROSS_PHASE"))
-			dynReactionConfSuccess = _reaction.configure("cross_phase", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+			dynReactionConfSuccess = _reaction.configure("cross_phase", 0, _unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
 		if (paramProvider.exists("NREAC_SOLID"))
-			dynReactionConfSuccess = _reaction.configure("solid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+			dynReactionConfSuccess = _reaction.configure("solid", 0, _unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
 
 		paramProvider.popScope();// particle_type_000
 	}
 
 	if (paramProvider.exists("NREAC_LIQUID"))
-		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
 
-	_reaction.validateEquilibriumSupport(std::string(unitOperationName()) + " (unit " + std::to_string(_unitOpIdx) + ")", "The COLUMN_MODEL_1D implementation selected by FV_ARROW_HEAD_OPTIMIZATION = 0 supports quasi-stationary reactions in the bulk liquid phase.");
 
 	return transportSuccess && bindingConfSuccess && dynReactionConfSuccess;
 }

@@ -15,6 +15,7 @@
 #include "ReactionModelTests.hpp"
 #include "ColumnTests.hpp"
 #include "ReactionModelFactory.hpp"
+#include "cadet/Exceptions.hpp"
 #include "common/JsonParameterProvider.hpp"
 #include "model/reaction/ConservedMoieties.hpp"
 
@@ -33,7 +34,7 @@ TEST_CASE("MassActionLaw conserved moieties nullspace", "[MassActionLaw],[Reacti
 				"MAL_KBWD": [2.0],
 				"MAL_STOICHIOMETRY": [-1.0,
 				                       1.0],
-				"MAL_IS_KINETIC": [0]
+				"IS_KINETIC": [0]
 			})json");
 
 		Eigen::MatrixXd S(2, 1);
@@ -53,7 +54,7 @@ TEST_CASE("MassActionLaw conserved moieties nullspace", "[MassActionLaw],[Reacti
 				"MAL_STOICHIOMETRY": [-1.0,
 				                      -1.0,
 				                       1.0],
-				"MAL_IS_KINETIC": [0]
+				"IS_KINETIC": [0]
 			})json");
 
 		Eigen::MatrixXd S(3, 1);
@@ -73,7 +74,7 @@ TEST_CASE("MassActionLaw conserved moieties nullspace", "[MassActionLaw],[Reacti
 				"MAL_STOICHIOMETRY": [-1.0,-1.0,
 				                      -1.0, 1.0,
 				                       1.0, 0.0],
-				"MAL_IS_KINETIC": [0,1]
+				"IS_KINETIC": [0,1]
 			})json");
 
 		Eigen::MatrixXd S(3, 1);
@@ -94,7 +95,7 @@ TEST_CASE("MassActionLaw conserved moieties nullspace", "[MassActionLaw],[Reacti
 				"MAL_STOICHIOMETRY": [-1.0,
 				                      -1.0,
 				                       1.0],
-				"MAL_IS_KINETIC": [1]
+				"IS_KINETIC": [1]
 			})json");
 
  		Eigen::MatrixXd expected;
@@ -415,4 +416,33 @@ TEST_CASE("MassActionLaw one reaction vs. two separate reactions", "[MassActionL
 
 	cadet::test::column::DummyParams disc;
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
+}
+
+
+TEST_CASE("IS_KINETIC is rejected by reaction models that do not report reactions", "[MassActionLaw],[ReactionModel],[CI]")
+{
+	// A cross phase mass action law couples a liquid and a solid reaction and does not report
+	// individual reactions, so rapid equilibrium cannot be honoured for it. Refuse the request
+	// instead of silently ignoring it.
+	cadet::ReactionModelFactory rmf;
+	std::unique_ptr<cadet::model::IDynamicReactionModel> model(rmf.createDynamic("MASS_ACTION_LAW_CROSS_PHASE"));
+	REQUIRE(model);
+	REQUIRE(model->numReactions() == 0u);
+
+	const unsigned int nComp = 2;
+	const std::vector<unsigned int> nBound(nComp, 1u);
+	const std::vector<unsigned int> boundOffset{ 0u, 1u };
+
+	cadet::JsonParameterProvider jpp(R"json({
+		"MAL_KFWD_LIQUID": [1.0],
+		"MAL_KBWD_LIQUID": [1.0],
+		"MAL_KFWD_SOLID": [1.0],
+		"MAL_KBWD_SOLID": [1.0],
+		"MAL_STOICHIOMETRY_LIQUID": [-1.0, 1.0],
+		"MAL_STOICHIOMETRY_SOLID": [-1.0, 1.0],
+		"IS_KINETIC": [0]
+	})json");
+
+	REQUIRE(model->configureModelDiscretization(jpp, nComp, nBound.data(), boundOffset.data()));
+	REQUIRE_THROWS_AS(model->configure(jpp, 0, 0), cadet::InvalidParameterException);
 }

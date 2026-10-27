@@ -21,7 +21,9 @@
 #include "model/ReactionModel.hpp"
 #include "ParamIdUtil.hpp"
 
+#include <algorithm>
 #include <unordered_map>
+#include <vector>
 
 namespace cadet
 {
@@ -58,11 +60,26 @@ public:
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { }
 
+	virtual bool isInEquilibrium(unsigned int reaction) const CADET_NOEXCEPT
+	{
+		return (reaction < _reactionQuasistationarity.size()) ? _reactionQuasistationarity[reaction] : false;
+	}
+
+	/**
+	 * @brief Returns whether at least one reaction of this model is in rapid equilibrium
+	 */
+	bool hasQuasiStationaryReactions() const CADET_NOEXCEPT
+	{
+		return std::any_of(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), [](bool qs) { return qs; });
+	}
+
 protected:
 	int _nComp; //!< Number of components
 	unsigned int const* _nBoundStates; //!< Array with number of bound states for each component
 	unsigned int const* _boundOffset; //!< Array with offsets to the first bound state of each component
 	int _nTotalBoundStates;
+
+	std::vector<bool> _reactionQuasistationarity; //!< Determines whether each reaction is in rapid equilibrium (@c true) or kinetic (@c false)
 
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
 
@@ -77,6 +94,18 @@ protected:
 	 * @return @c true if the configuration was successful, otherwise @c false
 	 */
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx) = 0;
+
+	/**
+	 * @brief Reads the reaction dynamics (kinetic or rapid equilibrium) of every reaction
+	 * @details Reads the optional field @c IS_KINETIC, which is either a scalar applying to all
+	 *          reactions or an array with one entry per reaction. Reactions default to kinetic.
+	 *          Called after configureImpl(), since only then is numReactions() known.
+	 * @param [in] paramProvider Parameter provider
+	 * @throws InvalidParameterException if @c IS_KINETIC is given for a model without reactions or
+	 *         has too few elements
+	 * @return @c true if the configuration was successful, otherwise @c false
+	 */
+	bool readQuasiStationarity(IParameterProvider& paramProvider);
 };
 
 

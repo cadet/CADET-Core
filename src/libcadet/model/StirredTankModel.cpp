@@ -421,26 +421,19 @@ bool CSTRModel::configure(IParameterProvider& paramProvider)
 
 	// Reconfigure reaction model
 	if (paramProvider.exists("NREAC_LIQUID"))
-	{
-		dynReactionConfSuccess = _reactionSystemBulk.configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
-		dynReactionConfSuccess = _reactionSystemBulk.configureConservedMoities("liquid", _nComp, 1e-14) && dynReactionConfSuccess;
-	}
-
-	const std::string hostDescription = std::string(unitOperationName()) + " (unit " + std::to_string(_unitOpIdx) + ")";
-	_reactionSystemBulk.validateEquilibriumSupport(hostDescription);
+		dynReactionConfSuccess = _reactionSystemBulk.configure("liquid", 0, _unitOpIdx, paramProvider, true) && dynReactionConfSuccess;
 
 	for (unsigned int par = 0; par < _nParType; par++)
 	{
 		paramProvider.pushScope(particleGroupName(par)); // particle_type_xxx
 
 		if (paramProvider.exists("NREAC_CROSS_PHASE"))
-			dynReactionConfSuccess = _reacParticle[par]->configure("cross_phase", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+			dynReactionConfSuccess = _reacParticle[par]->configure("cross_phase", 0, _unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
 		if (paramProvider.exists("NREAC_LIQUID"))
-			dynReactionConfSuccess = _reacParticle[par]->configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+			dynReactionConfSuccess = _reacParticle[par]->configure("liquid", 0, _unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
 		if (paramProvider.exists("NREAC_SOLID"))
-			dynReactionConfSuccess = _reacParticle[par]->configure("solid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+			dynReactionConfSuccess = _reacParticle[par]->configure("solid", 0, _unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
 
-		_reacParticle[par]->validateEquilibriumSupport("particle type " + std::to_string(par) + " of " + hostDescription);
 
 		paramProvider.popScope(); // particle_type_xxx
 	}

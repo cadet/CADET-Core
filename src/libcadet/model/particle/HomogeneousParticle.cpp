@@ -204,7 +204,7 @@ namespace model
 		return bindingConfSuccess && reactionConfSuccess;
 	}
 
-	bool HomogeneousParticle::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound)
+	bool HomogeneousParticle::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, bool uoImplementsReqReactions)
 	{
 		std::ostringstream parTypeIdxString;
 		parTypeIdxString << std::setfill('0') << std::setw(3) << std::setprecision(0) << _parTypeIdx;
@@ -316,13 +316,12 @@ namespace model
 		bool dynReactionConfSuccess = true;
 
 		if (paramProvider.exists("NREAC_CROSS_PHASE"))
-			dynReactionConfSuccess = _reaction.configure("cross_phase", _parTypeIdx, unitOpIdx, paramProvider) && dynReactionConfSuccess;
+			dynReactionConfSuccess = _reaction.configure("cross_phase", _parTypeIdx, unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
 		if (paramProvider.exists("NREAC_LIQUID"))
-			dynReactionConfSuccess = _reaction.configure("liquid", _parTypeIdx, unitOpIdx, paramProvider) && dynReactionConfSuccess;
+			dynReactionConfSuccess = _reaction.configure("liquid", _parTypeIdx, unitOpIdx, paramProvider, uoImplementsReqReactions) && dynReactionConfSuccess;
 		if (paramProvider.exists("NREAC_SOLID"))
-			dynReactionConfSuccess = _reaction.configure("solid", _parTypeIdx, unitOpIdx, paramProvider) && dynReactionConfSuccess;
+			dynReactionConfSuccess = _reaction.configure("solid", _parTypeIdx, unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
 
-		_reaction.validateEquilibriumSupport("particle type " + std::to_string(_parTypeIdx) + " of unit " + std::to_string(unitOpIdx));
 
 		paramProvider.popScope(); // particle_type_{:03}
 

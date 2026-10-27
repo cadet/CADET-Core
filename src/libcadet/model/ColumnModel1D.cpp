@@ -479,18 +479,13 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 	bool particleConfSuccess = true;
 	for (int parType = 0; parType < _disc.nParType; parType++)
 	{
-		particleConfSuccess = particleConfSuccess && _particles[parType]->configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType]);
+		particleConfSuccess = particleConfSuccess && _particles[parType]->configure(_unitOpIdx, paramProvider, _parameters, _disc.nParType, _disc.nBoundBeforeType, _disc.strideBound[_disc.nParType], false);
 	}
 
 	// Reconfigure bulk liquid reaction model
 	bool dynReactionConfSuccess = true;
 	if (paramProvider.exists("NREAC_LIQUID"))
-	{
-		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
-		dynReactionConfSuccess = _reaction.configureConservedMoities("liquid", _disc.nComp, 1e-14) && dynReactionConfSuccess;
-	}
-
-	_reaction.validateEquilibriumSupport(std::string(unitOperationName()) + " (unit " + std::to_string(_unitOpIdx) + ")");
+		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider, true) && dynReactionConfSuccess;
 
 	// jacobian pattern set after binding and particle surface diffusion are configured
 	bool hasBulkReaction = false;
