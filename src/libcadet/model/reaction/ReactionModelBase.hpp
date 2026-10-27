@@ -104,7 +104,7 @@ protected:
 	 * @throws InvalidParameterException if @c IS_KINETIC is given for a model without reactions or
 	 *         has too few elements
 	 */
-	void readQuasiStationarity(IParameterProvider& paramProvider);
+	bool readQuasiStationarity(IParameterProvider& paramProvider);
 };
 
 

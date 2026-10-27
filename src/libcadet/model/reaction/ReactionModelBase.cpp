@@ -55,11 +55,11 @@ bool DynamicReactionModelBase::configure(IParameterProvider& paramProvider, Unit
 
 	// Read reaction dynamics (kinetic, rapid equilibrium). This has to happen after configureImpl()
 	// because only then does the model know how many reactions it has.
-	readQuasiStationarity(paramProvider);
-	return true;
+	const bool successQSConfig = readQuasiStationarity(paramProvider);
+	return successQSConfig;
 }
 
-void DynamicReactionModelBase::readQuasiStationarity(IParameterProvider& paramProvider)
+bool DynamicReactionModelBase::readQuasiStationarity(IParameterProvider& paramProvider)
 {
 	const unsigned int nReactions = numReactions();
 	_reactionQuasistationarity.assign(nReactions, false);
@@ -92,6 +92,8 @@ void DynamicReactionModelBase::readQuasiStationarity(IParameterProvider& paramPr
 		const bool kineticReaction = paramProvider.getInt("IS_KINETIC");
 		std::fill(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), !kineticReaction);
 	}
+
+	return true;
 }
 
 std::unordered_map<ParameterId, double> DynamicReactionModelBase::getAllParameterValues() const
