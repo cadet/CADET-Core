@@ -260,7 +260,26 @@ namespace cadet
 			Eigen::MatrixXd _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
 			//MatrixXd FDjac; // test purpose FD Jacobian
 
-			active _totalPorosity; //!< Total porosity \f$ \varepsilon_t \f$
+			std::vector<active> _totalPorosity; //!< Total porosity \f$ \varepsilon_t \f$ at each axial node, always holds nPoints entries
+			bool _axiallyConstantTotalPorosity; //!< Determines whether the total porosity is homogeneous across the axial coordinate
+			active _unitPorosity; //!< Constant 1.0, handed to the transport operator in place of the porosity for an axially varying TOTAL_POROSITY, see configure()
+
+			/**
+			 * @brief Returns the total porosity at the given discrete bulk point
+			 * @param [in] node Zero-based global discrete bulk point (node) index
+			 */
+			inline const active& totalPorosity(unsigned int node) const CADET_NOEXCEPT { return _totalPorosity[node]; }
+
+			/**
+			 * @brief Returns the solid phase prefactor \f$ \left(1 - \varepsilon_t\right) / \varepsilon_t \f$ at a point
+			 * @details The solid source is evaluated at the discrete points, i.e. by LGL collocation of the element
+			 *          integral that weights it with the solid cross section area \f$ A (1 - \varepsilon_t) \f$,
+			 *          whereas the time derivative carries the flow through area \f$ \varepsilon_t A \f$. That is
+			 *          the same inexact integration the surrounding DG scheme uses, and it is exact whenever the
+			 *          porosity is constant on an element, which includes every column with a scalar TOTAL_POROSITY.
+			 * @param [in] node Zero-based global discrete bulk point (node) index
+			 */
+			inline double invBeta(unsigned int node) const CADET_NOEXCEPT { return 1.0 / static_cast<double>(_totalPorosity[node]) - 1.0; }
 
 			ReactionSystem _reaction;
 

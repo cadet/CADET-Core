@@ -81,12 +81,20 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
 
 ``TOTAL_POROSITY``
 
-   Total porosity including the porosity of the particles.
+   Total porosity including the porosity of the particles, either as a single value for the whole
+   column or as one value per DG node.
    Only applicable for the Lumped Rate Model without pores, i.e. when ``NPARTYPE = 1`` **AND** ``particle_type_000\HAS_FILM_DIFFUSION = 0``
-   
-   ================  ========================  =============
-   **Type:** double  **Range:** :math:`(0,1]`  **Length:** 1
-   ================  ========================  =============
+
+   The second form describes a packing density that varies along the flow path and is available
+   for every geometry under the same conditions as a nodal ``COL_POROSITY`` above, see
+   :ref:`MUOPGRMvaryingPorosity`.
+   The solid phase source is evaluated at the discrete points, i.e. by collocation of the element
+   integral that weights it with the solid cross section area, which is exact whenever the
+   porosity is constant on an element.
+
+   ================  ========================  ===========================================================================
+   **Type:** double  **Range:** :math:`(0,1]`  **Length:** :math:`1` or :math:`(\texttt{POLYDEG} + 1) \cdot \texttt{NELEM}`
+   ================  ========================  ===========================================================================
 
 ``NPARTYPE``
 

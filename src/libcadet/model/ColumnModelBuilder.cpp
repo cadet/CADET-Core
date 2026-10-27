@@ -68,20 +68,24 @@ namespace model
 
 	/**
 	 * @brief Determines whether the bulk porosity varies along the column
-	 * @details COL_POROSITY may be given as a single value or as a profile with one entry per
-	 *          discrete bulk point. A profile turns the weight of the transport operator from the
-	 *          geometric cross section area A(x) into the flow through area eps_c(x) A(x), which
-	 *          none of the operators with a baked-in analytic weight can represent. It is
-	 *          therefore routed to the variable coefficient operator, independently of GEOMETRY:
-	 *          the bulk porosity may vary for every geometry, not only for the user prescribed
-	 *          cross section, which used to be the only way to express it.
+	 * @details The porosity -- COL_POROSITY, or TOTAL_POROSITY for the lumped rate model without
+	 *          pores -- may be given as a single value or as a profile with one entry per discrete
+	 *          bulk point. A profile turns the weight of the transport operator from the geometric
+	 *          cross section area A(x) into the flow through area eps(x) A(x), which none of the
+	 *          operators with a baked-in analytic weight can represent. It is therefore routed to
+	 *          the variable coefficient operator, independently of GEOMETRY: the bulk porosity may
+	 *          vary for every geometry, not only for the user prescribed cross section, which used
+	 *          to be the only way to express it.
 	 */
 	bool hasAxiallyVaryingColumnPorosity(IParameterProvider& paramProvider)
 	{
-		if (!paramProvider.exists("COL_POROSITY") || !paramProvider.isArray("COL_POROSITY"))
-			return false;
+		for (const std::string field : { "COL_POROSITY", "TOTAL_POROSITY" })
+		{
+			if (paramProvider.exists(field) && paramProvider.isArray(field) && (paramProvider.numElements(field) > 1))
+				return true;
+		}
 
-		return paramProvider.numElements("COL_POROSITY") > 1;
+		return false;
 	}
 
 	/*
@@ -154,7 +158,7 @@ namespace model
 		// only the variable coefficient DG operator can represent it
 		if (varyingPorosity && discName != "DG")
 		{
-			throw InvalidParameterException("An axially varying COL_POROSITY is only available for DG discretization but " + discName + " was specified for unit " + std::to_string(uoId));
+			throw InvalidParameterException("An axially varying bulk porosity is only available for DG discretization but " + discName + " was specified for unit " + std::to_string(uoId));
 		}
 
 		// ARROW_HEAD_OPTIMIZATION defaults to true for FV bulk and FV particle discretization, preserving the
@@ -193,7 +197,7 @@ namespace model
 			if (varyingPorosity)
 			{
 				if (paramProvider.exists("USE_COLLOCATION_DG") && paramProvider.getBool("USE_COLLOCATION_DG"))
-					throw InvalidParameterException("USE_COLLOCATION_DG is not available for an axially varying COL_POROSITY, which was specified for unit " + std::to_string(uoId));
+					throw InvalidParameterException("USE_COLLOCATION_DG is not available for an axially varying bulk porosity, which was specified for unit " + std::to_string(uoId));
 
 				axialCollocationDG = false;
 			}
