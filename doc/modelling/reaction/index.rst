@@ -39,6 +39,36 @@ Historically, a chromatography system is modeled as a reaction system without co
  - :ref:`thomas_model`
  - :ref:`rate_constant_distribution_theory`
 
+.. _rapid_equilibrium_reactions:
+
+Reactions in rapid equilibrium
+------------------------------
+
+A reaction that is much faster than the surrounding transport can be treated as being in rapid equilibrium (quasi-stationary) by setting the corresponding entry of ``IS_KINETIC`` to :math:`0`, see :ref:`FFReactionIsKinetic`.
+Its net flux :math:`\varphi_j` is then no longer integrated in time; instead it becomes an unknown that is fixed by the vanishing rate condition :math:`\varphi_j(c) = 0`.
+
+Since the unknown fluxes have to be eliminated from the mass balances, the equations of the participating components are reformulated in terms of *conserved moieties*.
+Let :math:`S` be the stoichiometric matrix of the phase, so that its reaction source term reads :math:`S \varphi(c)`, and let :math:`S_{\mathrm{re}}` collect the columns of :math:`S` that belong to the rapid-equilibrium reactions.
+The rows of the conservation matrix :math:`M` span the left null space of :math:`S_{\mathrm{re}}`, that is, :math:`M S_{\mathrm{re}} = 0`, so multiplying the phase equation by :math:`M` removes the unknown fluxes.
+The mass balances of the participating components are thereby replaced by
+
+.. math::
+
+    \begin{aligned}
+        M \frac{\partial c}{\partial t} &= M \left[ \mathcal{T}(c) + S_{\mathrm{kin}} \varphi_{\mathrm{kin}}(c) \right], \\
+        0 &= \varphi_j(c) \qquad \text{for every rapid-equilibrium reaction } j,
+    \end{aligned}
+
+where :math:`\mathcal{T}` denotes the transport terms of the hosting phase and the index :math:`\mathrm{kin}` refers to the remaining kinetic reactions.
+Components that participate in no rapid-equilibrium reaction keep their original equation, as their rows of :math:`M` are unit vectors.
+Boundary conditions of the hosting phase are multiplied by :math:`M` as well.
+
+The reformulated system is a DAE, so the initial values have to satisfy the algebraic conditions :math:`\varphi_j(c) = 0`.
+Consistent initialization enforces this by solving these conditions while preserving the conserved moieties :math:`M c` of the given initial values.
+The initial state used by the simulation therefore generally differs from the configured ``INIT_C`` or ``INIT_CP``.
+
+The rapid-equilibrium reactions of a phase must be linearly independent; redundant ones are rejected during configuration.
+
 .. _dependence-on-external-function_react:
 
 Dependence on external function

@@ -55,6 +55,14 @@ Notes
    **Type:** double  **Length:** :math:`\texttt{NVAR} \cdot \texttt{NREACT}`
    ================  ========================================================
 
+``IS_KINETIC``
+   Selects kinetic or quasi-stationary reaction mode: 1 = kinetic, 0 =
+   quasi-stationary.
+
+===================  ================  ===================================
+**Type:** int        **Range:** {0,1}  **Length:** :math:`\texttt{NREACT}`
+===================  ================  ===================================
+
 CADET Python Interface Example
 ------------------------------
 This example shows the configuration of one mass-action-law reaction system.

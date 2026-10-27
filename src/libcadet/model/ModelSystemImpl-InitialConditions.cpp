@@ -503,6 +503,10 @@ void ModelSystem::consistentInitialConditionAlgorithm(const SimulationTime& simT
 		}
 	} CADET_PARFOR_END;
 
+	// Consistent initialization may alter dynamic outlet states, for example when calculated with rapid-reaction equilibrium.
+	// Update the coupling states so that all inlet DOFs reflect the final outlet states before evaluating the residual.
+	std::fill(simState.vecStateY + finalOffset, simState.vecStateY + numDofs(), 0.0);
+	solveCouplingDOF(simState.vecStateY);
 
 	// Phase 2: Calculate residual with current state
 
@@ -615,6 +619,17 @@ void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& si
 
 			ConsistentInit<tag_t>::parameterSensitivity(m, simTime, applyOffset(simState, offset), vecSensYlocal, vecSensYdotLocal, adRes + offset, _threadLocalStorage);
 		}
+	}
+
+	// Consistent sensitivity initialization may alter dynamic outlet sensitivities.
+	// Update the coupling sensitivities so that all inlet sensitivity DOFs reflect the final outlet sensitivities.
+	for (unsigned int param = 0; param < vecSensY.size(); ++param)
+	{
+		double* const vsy = vecSensY[param];
+		for (unsigned int i = finalOffset; i < numDofs(); ++i)
+			vsy[i] = -adRes[i].getADValue(param);
+
+		solveCouplingDOF(vsy);
 	}
 
 	for (unsigned int i = 0; i < vecSensY.size(); ++i)

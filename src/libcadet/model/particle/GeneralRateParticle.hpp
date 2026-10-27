@@ -119,10 +119,7 @@ namespace parts
 
 		int writeParticleCoordinates(double* coords) const override;
 
-		void setParJacPattern(std::vector<Eigen::Triplet<double>>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx) const override
-		{
-			_parDiffOp->setParticleJacobianPattern(tripletList, offsetPar, offsetBulk, colNode, secIdx);
-		}
+		void setParJacPattern(std::vector<Eigen::Triplet<double>>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx) const override;
 
 		unsigned int jacobianNNZperParticle() const override;
 		int calcParticleDiffJacobian(const int secIdx, const int colNode, const int offsetLocalCp, Eigen::SparseMatrix<double, RowMajor>& globalJac) override;
@@ -163,6 +160,7 @@ namespace parts
 		virtual bool isParticleLumped() const CADET_NOEXCEPT { return false; }
 
 	protected:
+		std::vector<Eigen::Triplet<double>> _cMJacobianEntries; //!< Reusable scratch for conserved-moiety film Jacobian transformations
 
 		/**
 		 * @brief stride over one discrete point

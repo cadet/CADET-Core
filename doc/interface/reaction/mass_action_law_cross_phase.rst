@@ -120,6 +120,14 @@ For information on model equations, refer to :ref:`mass_action_law_model_cross_p
    **Type:** double  **Length:** :math:`\texttt{NCOMP} \cdot \texttt{NREACT}`
    ================  ========================================================
 
+``IS_KINETIC``
+   Selects kinetic or quasi-stationary reaction mode: 1 = kinetic, 0 =
+   quasi-stationary.
+
+===================  ================  ===================================
+**Type:** int        **Range:** {0,1}  **Length:** :math:`\texttt{NREACT}`
+===================  ================  ===================================
+
 Examples
 --------
 
