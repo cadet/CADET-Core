@@ -364,7 +364,6 @@ namespace model
 		if (wantNonLinJac && hasLiquidEquilibrium)
 		{
 			const unsigned int nMoieties = cm.numMoieties();
-			const unsigned int nEquilibriumReactions = cm.numEquilibriumReactions();
 			auto& jacobian = jacBase.matrix();
 			std::size_t scratchSize = 0;
 			for (unsigned int par = 0; par < nDiscPoints(); ++par)
@@ -392,7 +391,7 @@ namespace model
 					reaction->analyticEquilibriumJacobian(t, secIdx, packing.colPos, _nComp,
 						reinterpret_cast<double const*>(yPar + par * stridePoint()), eqIdx, nMoieties, equilibriumJacobian, tlmAlloc.manageRemainingMemory());
 				}
-				cadet_assert(eqIdx == nEquilibriumReactions);
+				cadet_assert(eqIdx == cm.numEquilibriumReactions());
 			}
 		}
 

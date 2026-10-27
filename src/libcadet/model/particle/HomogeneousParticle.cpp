@@ -466,7 +466,6 @@ namespace model
 		{
 
 			const unsigned int nMoieties = cm.numMoieties();
-			const unsigned int nEquilibriumReactions = cm.numEquilibriumReactions();
 			auto& jacobian = jacBase.matrix();
 			const std::size_t scratchSize = cm.matrixBufferSize(jacobian, _nComp, jacBase.row(), 0, jacobian.cols());
 			BufferedArray<Eigen::Triplet<double>> scratch = tlmAlloc.array<Eigen::Triplet<double>>(scratchSize);
@@ -483,7 +482,7 @@ namespace model
 				reaction->analyticEquilibriumJacobian(t, secIdx, packing.colPos, _nComp,
 					reinterpret_cast<double const*>(yPar), eqIdx, nMoieties, equilibriumJacobian, tlmAlloc.manageRemainingMemory());
 			}
-			cadet_assert(eqIdx == nEquilibriumReactions);
+			cadet_assert(eqIdx == cm.numEquilibriumReactions());
 
 		}
 
