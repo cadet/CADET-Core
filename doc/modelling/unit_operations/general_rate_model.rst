@@ -464,4 +464,49 @@ The area therefore lives in the same polynomial space as the solution, and the i
 For a smooth area profile, the interpolation error is of the same order as the discretization error of the scheme itself, so this representation does not reduce the order of convergence.
 Since the representation is tied to the DG grid, this geometry is only available for the DG spatial discretization, and the field has to be recomputed whenever the discretization is refined.
 
+Axially varying bulk porosity
+"""""""""""""""""""""""""""""
+
+If the packing density varies along the flow path, :math:`\varepsilon_c = \varepsilon_c(x)`, the structure of Eq. :eq:`ModelSmoothlyVaryingColumnGRM` is preserved.
+Convection and dispersion both act on the pore space rather than on the geometric cross section, so both fluxes carry the weight :math:`\varepsilon_c A` in place of :math:`A`.
+Introducing the *flow through area*
+
+.. math::
+    :label: FlowThroughArea
+
+    w(x) = \varepsilon_c(x) A(x),
+
+the quantity that is constant along the column is the delivered volumetric flow rate :math:`\dot V = w(x) \overline{u}(x)`, and the mass balance in the interstitial column volume becomes
+
+.. math::
+    :label: ModelSmoothlyVaryingColumnGRMVariablePorosity
+
+    \begin{aligned}
+        \frac{\partial c}{\partial t}
+        = -\frac{\dot V}{w(x)} \frac{\partial c}{\partial x}
+        + \frac{1}{w(x)} \frac{\partial}{\partial x} \left( D(x) w(x) \frac{\partial c}{\partial x} \right)
+        &- \frac{1 - \varepsilon_c(x)}{\varepsilon_c(x)} \sum_j d_j \frac{3}{r_{p,j}} k_{f,j,i} \left[ c^\ell_i - c^p_{j,i}(\cdot, \cdot, r_{p,j}) \right] \\
+        &+ f_{\text{react},i}^\ell\left(c^\ell\right).
+    \end{aligned}
+
+This is Eq. :eq:`ModelSmoothlyVaryingColumnGRM` with :math:`A` replaced by :math:`w` and :math:`Q` by :math:`\dot V`, and it returns to it for a constant porosity.
+A spatially varying bulk porosity is therefore not a separate model, but the same model evaluated with the flow through area in place of the geometric cross section area.
+
+The bulk transport operator depends on the porosity only through the product :math:`w`.
+The discretization consequently covers this case without any change, since it evaluates the geometry as a weight inside the element integrals: it suffices to supply :math:`w` instead of :math:`A` as ``CROSS_SECTIONAL_AREA_AT_NODES``.
+What does not follow from the weight is the film diffusion prefactor :math:`(1 - \varepsilon_c) / \varepsilon_c`, which becomes position dependent.
+It is therefore evaluated at every DG node from the nodal values of ``COL_POROSITY``, in the same way as the velocity dependent dispersion and film mass transfer coefficients already are.
+Both fields are nodal and are represented by their Lagrange interpolant, so a smooth porosity profile does not reduce the order of convergence of the scheme, just as a smooth area profile does not.
+
+.. warning::
+
+    Since the porosity is already contained in :math:`w`, the volumetric flow rate must not be divided by it a second time.
+    When ``COL_POROSITY`` is given per node, CADET-Core therefore treats the flow rate as the delivered :math:`\dot V` and computes the interstitial velocity as :math:`\dot V / w`.
+    For a scalar ``COL_POROSITY``, in contrast, it computes :math:`Q = \dot V / \varepsilon_c` and divides by the geometric area :math:`A`.
+    Supplying the geometric area :math:`A` together with a nodal ``COL_POROSITY`` would thus make both the interstitial velocity and the dispersive weighting wrong by a factor of :math:`\varepsilon_c`.
+
+Two restrictions apply.
+The porosity has to be constant over each cross section, since a porosity that varies within the cross section contributes further correlation terms to the cross sectional averaging that the one dimensional model rests on.
+And the case is only available for the DG discretization, because it is prescribed at the DG nodes, like the cross section area itself.
+
 For information on model parameters see :ref:`smoothly_varying_column_1D_config` and :ref:`particle_model_config`.

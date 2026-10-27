@@ -218,6 +218,24 @@ protected:
 			}
 		}
 
+		// The 2D model resolves the radial direction, so the velocity and the porosity are constant
+		// over the nodes of a radial element. Both are replicated once here to match the per bulk
+		// point interface of calcFilmDiffJacobian(), rather than inside the loops below.
+		std::vector<active> pointVelocities(_disc.radNElem * _disc.radNNodes);
+		std::vector<active> invBetaC(_disc.radNElem * _disc.radNNodes);
+
+		for (unsigned int r = 0; r < _disc.radNElem; r++)
+		{
+			const active velocity = _convDispOp.currentVelocity(r);
+			const active prefactor = 1.0 / _convDispOp.columnPorosity(r) - 1.0;
+
+			for (unsigned int node = 0; node < _disc.radNNodes; node++)
+			{
+				pointVelocities[r * _disc.radNNodes + node] = velocity;
+				invBetaC[r * _disc.radNNodes + node] = prefactor;
+			}
+		}
+
 		// film diffusion Jacobian
 		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 		{
@@ -226,8 +244,7 @@ protected:
 				for (unsigned int r = 0; r < _disc.radNElem; r++)
 				{
 					const unsigned int colNode = z * _disc.radNPoints + r * _disc.radNNodes;
-					const std::vector<active> pointVelocities(_disc.radNNodes, _convDispOp.currentVelocity(r));
-					_particles[parType]->calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }) - idxr.offsetC(), colNode * idxr.strideColRadialNode(), _disc.radNNodes, _disc.nParType, static_cast<double>(_convDispOp.columnPorosity(r)), &_parTypeVolFrac[colNode * _disc.nParType], &pointVelocities[0], _globalJac);
+					_particles[parType]->calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }) - idxr.offsetC(), colNode * idxr.strideColRadialNode(), _disc.radNNodes, _disc.nParType, &invBetaC[r * _disc.radNNodes], &_parTypeVolFrac[colNode * _disc.nParType], &pointVelocities[r * _disc.radNNodes], _globalJac);
 				}
 			}
 		}

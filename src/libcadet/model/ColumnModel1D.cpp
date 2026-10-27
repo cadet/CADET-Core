@@ -35,6 +35,7 @@
 #include "Logging.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
 #include <numeric>
 #include <iterator>
@@ -59,7 +60,7 @@ constexpr double SurfVolRatioSlab = 1.0;
 template <typename ConvDispOperator>
 ColumnModel1D<ConvDispOperator>::ColumnModel1D(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
 	_globalJac(), _globalJacDisc(), _jacInlet(),
-	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
+	_colPorosity(1, 1.0), _unitPorosity(1.0), _axiallyConstantColPorosity(true), _analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _initCp(0), _initCs(0), _initState(0), _initStateDot(0)
 {
 }
@@ -387,7 +388,59 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 	const bool transportSuccess = _convDispOp.configure(_unitOpIdx, paramProvider, _parameters);
 
 	// Read geometry parameters handled by unit operation
-	_colPorosity = paramProvider.getDouble("COL_POROSITY");
+	//
+	// COL_POROSITY is either a single value, or one value per axial node. The latter describes a
+	// packing density that varies along the flow path. It is restricted to GEOMETRY =
+	// SMOOTHLY_VARYING (and thus to the DG discretization), because the bulk transport operator
+	// sees the porosity only through the flow through area w = eps * A, which the user then has
+	// to supply as CROSS_SECTIONAL_AREA_AT_NODES. Consequently, the flow rate must not be divided
+	// by the porosity a second time, which is why setFlowRates() hands the transport operator a
+	// porosity of one in this case, see setFlowRates(). What does not follow from w is the film
+	// transfer term, whose bulk side prefactor (1 - eps) / eps is evaluated per axial node,
+	// see updateFilmTransferPrefactor().
+	readScalarParameterOrArray(_colPorosity, paramProvider, "COL_POROSITY", 1);
+
+	_axiallyConstantColPorosity = (_colPorosity.size() == 1);
+	_unitPorosity = 1.0;
+
+	if (_axiallyConstantColPorosity)
+	{
+		// Expand to all axial nodes. The copy is required because resize() may reallocate.
+		const active colPorosity = _colPorosity[0];
+		_colPorosity.resize(_disc.nPoints, colPorosity);
+	}
+	else
+	{
+		if (paramProvider.getString("GEOMETRY") != "SMOOTHLY_VARYING")
+			throw InvalidParameterException("Field COL_POROSITY may only be given per axial node for GEOMETRY = SMOOTHLY_VARYING, since the flow through area has to be prescribed along with it via CROSS_SECTIONAL_AREA_AT_NODES");
+
+		if (_colPorosity.size() != _disc.nPoints)
+			throw InvalidParameterException("Field COL_POROSITY must have either 1 or " + std::to_string(_disc.nPoints) +
+				" entries (one per DG node, i.e. (POLYDEG + 1) * NELEM, with the element interface nodes listed twice), but has " +
+				std::to_string(_colPorosity.size()));
+
+		for (unsigned int i = 0; i < _disc.nPoints; ++i)
+		{
+			const double eps = static_cast<double>(_colPorosity[i]);
+			if (!(eps > 0.0) || (eps > 1.0))
+				throw InvalidParameterException("Field COL_POROSITY must be in (0.0, 1.0], but entry " + std::to_string(i) + " is " + std::to_string(eps));
+		}
+
+		// A packing density that varies along the flow path is still continuous, just as the cross
+		// section area it is multiplied with. Rejecting a jump at an element interface catches an
+		// inconsistent profile that would otherwise silently disagree with the flow through area.
+		for (unsigned int elem = 1; elem < _disc.nElem; ++elem)
+		{
+			const double left = static_cast<double>(_colPorosity[elem * _disc.nNodes - 1u]);
+			const double right = static_cast<double>(_colPorosity[elem * _disc.nNodes]);
+			if (std::abs(left - right) > 1e-10 * std::max(1.0, std::abs(left)))
+				throw InvalidParameterException("Field COL_POROSITY must be continuous at the element interfaces, but the two entries at the interface between element " +
+					std::to_string(elem - 1u) + " and " + std::to_string(elem) + " are " + std::to_string(left) + " and " + std::to_string(right));
+		}
+	}
+
+	_invBetaC.resize(_disc.nPoints);
+	updateFilmTransferPrefactor();
 
 	// Check whether PAR_TYPE_VOLFRAC is required or not
 	if ((_disc.nParType > 1) && !paramProvider.exists("PAR_TYPE_VOLFRAC"))
@@ -435,7 +488,10 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 
 	// Read vectorial parameters (which may also be section dependent; transport)
 	// Add parameters to map
-	_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colPorosity;
+	if (_axiallyConstantColPorosity)
+		_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colPorosity[0];
+	else
+		registerParam1DArray(_parameters, _colPorosity, [=, this](bool multi, unsigned int node) { return makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, node); });
 
 	// Register initial conditions parameters
 	registerParam1DArray(_parameters, _initC, [=, this](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
@@ -624,7 +680,11 @@ void ColumnModel1D<ConvDispOperator>::notifyDiscontinuousSectionTransition(doubl
 template <typename ConvDispOperator>
 void ColumnModel1D<ConvDispOperator>::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 {
-	_convDispOp.setFlowRates(in[0], out[0], _colPorosity);
+	// For an axially varying porosity, the porosity is already contained in the flow through area
+	// w = eps * A that the transport operator was configured with (CROSS_SECTIONAL_AREA_AT_NODES),
+	// so the volumetric flow rate must not be divided by it again: the interstitial velocity is
+	// V / w, not V / (eps * w). See configure() for the convention.
+	_convDispOp.setFlowRates(in[0], out[0], _axiallyConstantColPorosity ? _colPorosity[0] : _unitPorosity);
 }
 
 template <typename ConvDispOperator>
@@ -753,7 +813,7 @@ void ColumnModel1D<ConvDispOperator>::extractJacobianFromAD(active const* const 
 
 	for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 	{
-		_particles[parType]->calcFilmDiffJacobian(_disc.curSection, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(parType)}), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], &pointVelocities[0], _globalJac, true);
+		_particles[parType]->calcFilmDiffJacobian(_disc.curSection, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(parType)}), idxr.offsetC(), _disc.nPoints, _disc.nParType, &_invBetaC[0], &_parTypeVolFrac[0], &pointVelocities[0], _globalJac, true);
 	}
 
 	const auto& cm = _reaction.conservedMoieties("liquid");
@@ -1061,7 +1121,7 @@ int ColumnModel1D<ConvDispOperator>::residualImpl(double t, unsigned int secIdx,
 			model::columnPackingParameters packing
 			{
 				_parTypeVolFrac[parType + _disc.nParType * colNode],
-				_colPorosity,
+				_invBetaC[colNode],
 				ColumnPosition{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 },
 				pointVelocity
 			};
@@ -1496,6 +1556,21 @@ bool ColumnModel1D<ConvDispOperator>::setParameter(const ParameterId& pId, doubl
 			return true;
 		}
 
+		// Intercept changes to COL_POROSITY when not specified per axial node (but once globally),
+		// since it is expanded to all axial nodes in configure() but registered only once
+		if (_axiallyConstantColPorosity && (pId.name == hashString("COL_POROSITY")))
+		{
+			if ((pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep))
+				return false;
+
+			for (unsigned int i = 0; i < _disc.nPoints; ++i)
+				_colPorosity[i].setValue(value);
+
+			updateFilmTransferPrefactor();
+
+			return true;
+		}
+
 		// Parameters with particle type independence will be set for all particle types that have this parameter.
 		// E.g. for a parameter type independent surface diffusion, the value is set for all particle types that have this parameter.
 		bool paramExists = false;
@@ -1616,6 +1691,23 @@ void ColumnModel1D<ConvDispOperator>::setSensitiveParameterValue(const Parameter
 			return;
 		}
 
+		// Intercept changes to COL_POROSITY when not specified per axial node (but once globally)
+		if (_axiallyConstantColPorosity && (pId.name == hashString("COL_POROSITY")))
+		{
+			if ((pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep))
+				return;
+
+			if (!contains(_sensParams, &_colPorosity[0]))
+				return;
+
+			for (unsigned int i = 0; i < _disc.nPoints; ++i)
+				_colPorosity[i].setValue(value);
+
+			updateFilmTransferPrefactor();
+
+			return;
+		}
+
 		// Parameters with particle type independence will be set for all particle types that have this parameter.
 		// E.g. for a parameter type independent surface diffusion sensitivity, the sensitivity is set for all particle types that have this parameter.
 		bool paramExists = false;
@@ -1675,6 +1767,24 @@ bool ColumnModel1D<ConvDispOperator>::setSensitiveParameter(const ParameterId& p
 			_sensParams.insert(&_parTypeVolFrac[pId.particleType]);
 			for (unsigned int i = 0; i < _disc.nPoints; ++i)
 				_parTypeVolFrac[i * _disc.nParType + pId.particleType].setADValue(adDirection, adValue);
+
+			return true;
+		}
+
+		// Intercept changes to COL_POROSITY when not specified per axial node (but once globally)
+		if (_axiallyConstantColPorosity && (pId.name == hashString("COL_POROSITY")))
+		{
+			if ((pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep))
+				return false;
+
+			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+
+			// Register parameter and set AD seed / direction
+			_sensParams.insert(&_colPorosity[0]);
+			for (unsigned int i = 0; i < _disc.nPoints; ++i)
+				_colPorosity[i].setADValue(adDirection, adValue);
+
+			updateFilmTransferPrefactor();
 
 			return true;
 		}

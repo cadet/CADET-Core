@@ -364,9 +364,12 @@ protected:
 
 	Eigen::MatrixXd _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
 
-	active _colPorosity; //!< Column porosity (external porosity) \f$ \varepsilon_c \f$
+	std::vector<active> _colPorosity; //!< Column porosity (external porosity) \f$ \varepsilon_c \f$ at each axial node, always holds nPoints entries
+	std::vector<active> _invBetaC; //!< Bulk side prefactor \f$ \left(1 - \varepsilon_c\right) / \varepsilon_c \f$ of the film transfer term at each axial node, see updateFilmTransferPrefactor()
+	active _unitPorosity; //!< Constant 1.0, handed to the transport operator in place of the porosity for an axially varying COL_POROSITY, see configure()
 	std::vector<active> _parTypeVolFrac; //!< Volume fraction of each particle type
 
+	bool _axiallyConstantColPorosity; //!< Determines whether COL_POROSITY was given as a single value instead of one value per axial node
 	bool _axiallyConstantParTypeVolFrac; //!< Determines whether particle type volume fraction is homogeneous across axial coordinate
 	bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used
 	unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation
@@ -515,6 +518,19 @@ protected:
 
 	typedef Eigen::Triplet<double> T;
 
+	/**
+	 * @brief Recomputes the bulk side prefactor of the film transfer term from the current porosity
+	 * @details The unit operation owns COL_POROSITY and hands the particle models the prefactor rather
+	 *          than the porosity itself, so that the particle models stay free of the bulk phase
+	 *          packing. Must be called whenever the porosity, its value or its AD seed, changes.
+	 */
+	inline void updateFilmTransferPrefactor()
+	{
+		for (unsigned int i = 0; i < _disc.nPoints; ++i)
+			_invBetaC[i] = 1.0 / _colPorosity[i] - 1.0;
+	}
+
+
 	void setJacobianPattern(SparseMatrix<double, RowMajor>& globalJ, unsigned int secIdx, bool hasBulkReaction)
 	{
 		Indexer idxr(_disc);
@@ -593,7 +609,7 @@ protected:
 
 		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 		{
-			_particles[parType]->calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }), idxr.offsetC(), _disc.nPoints, _disc.nParType, static_cast<double>(_colPorosity), &_parTypeVolFrac[0], &pointVelocities[0], _globalJac);
+			_particles[parType]->calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }), idxr.offsetC(), _disc.nPoints, _disc.nParType, &_invBetaC[0], &_parTypeVolFrac[0], &pointVelocities[0], _globalJac);
 		}
 
 		return _globalJac.isCompressed(); // check if the jacobian estimation fits the pattern

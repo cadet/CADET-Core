@@ -842,7 +842,7 @@ namespace parts
 		return 1;
 	}
 
-	int ParticleDiffusionOperatorFV::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
+	int ParticleDiffusionOperatorFV::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, active const* const invBetaC, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
 	{
 		// Ordering of diffusion:
 		// sec0type0comp0, sec0type0comp1, sec0type0comp2, sec0type1comp0, sec0type1comp1, sec0type1comp2,
@@ -857,6 +857,10 @@ namespace parts
 
 		for (int blk = 0; blk < nBulkPoints; blk++)
 		{
+			// The prefactor is evaluated at this bulk point. An axially varying COL_POROSITY is
+			// rejected for the FV discretization, so this is constant over blk in practice.
+			const double invBetaCblk = static_cast<double>(invBetaC[blk]);
+
 			// FILM_DIFFUSION_DEP is evaluated pointwise at this bulk point's local velocity
 			// (mass-lumped, same fidelity as FV's own midpoint-rule approximation of this term).
 			// Position is a no-op for the only supported dependency (POWER_LAW), which only uses velocity.
@@ -877,11 +881,11 @@ namespace parts
 
 				// Cb on Cb entries (added since these entries are also touched by bulk jacobian)
 				if (!outliersOnly)
-					jacCl[0] += kf_FV * (1.0 - colPorosity) / colPorosity
+					jacCl[0] += kf_FV * invBetaCblk
 					* _parGeomSurfToVol / static_cast<double>(_parRadius)
 					* static_cast<double>(parTypeVolFrac[_parTypeIdx + blk * nParType]);
 				// Cb on Cp entries
-				jacCl[jacCp.row() - jacCl.row()] = -kf_FV * (1.0 - colPorosity) / colPorosity
+				jacCl[jacCp.row() - jacCl.row()] = -kf_FV * invBetaCblk
 					* _parGeomSurfToVol / static_cast<double>(_parRadius)
 					* static_cast<double>(parTypeVolFrac[_parTypeIdx + blk * nParType]);
 
