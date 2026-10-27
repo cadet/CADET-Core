@@ -65,7 +65,7 @@ bool DynamicReactionModelBase::readQuasiStationarity(IParameterProvider& paramPr
 	_reactionQuasistationarity.assign(nReactions, false);
 
 	if (!paramProvider.exists("IS_KINETIC"))
-		return;
+		return true;
 
 	if (nReactions == 0)
 		throw InvalidParameterException("IS_KINETIC is not supported by reaction model " + std::string(name()));

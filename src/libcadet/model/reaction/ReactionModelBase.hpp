@@ -103,6 +103,7 @@ protected:
 	 * @param [in] paramProvider Parameter provider
 	 * @throws InvalidParameterException if @c IS_KINETIC is given for a model without reactions or
 	 *         has too few elements
+	 * @return @c true if the configuration was successful, otherwise @c false
 	 */
 	bool readQuasiStationarity(IParameterProvider& paramProvider);
 };
