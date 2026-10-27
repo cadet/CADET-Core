@@ -322,6 +322,8 @@ namespace model
 		if (paramProvider.exists("NREAC_SOLID"))
 			dynReactionConfSuccess = _reaction.configure("solid", _parTypeIdx, unitOpIdx, paramProvider) && dynReactionConfSuccess;
 
+		_reaction.validateEquilibriumSupport("particle type " + std::to_string(_parTypeIdx) + " of unit " + std::to_string(unitOpIdx));
+
 		paramProvider.popScope(); // particle_type_{:03}
 
 		return bindingConfSuccess && dynReactionConfSuccess && filmDiffDepConfSuccess;

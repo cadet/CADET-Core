@@ -342,6 +342,8 @@ namespace cadet
 				hasReaction = true;
 			}
 
+			_reaction.validateEquilibriumSupport(std::string(unitOperationName()) + " (unit " + std::to_string(_unitOpIdx) + ")");
+
 			setPattern(_jac, true, hasReaction);
 			setPattern(_jacDisc, true, hasReaction);
 

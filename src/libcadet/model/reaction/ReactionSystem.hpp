@@ -283,6 +283,25 @@ struct ReactionSystem
             return dynReactionConfSuccess;
         }
         
+        /**
+         * @brief Builds the conserved-moiety reformulation for the quasi-stationary reactions of a phase
+         * @details Computes the left nullspace of the stoichiometry of the phase's equilibrium reactions,
+         *          which trades their state rows for conserved-moiety rows plus algebraic equilibrium
+         *          equations.
+         *
+         *          Calling this is also how a hosting model declares support:
+         *          validateEquilibriumSupport() rejects quasi-stationary reactions in every phase for
+         *          which it was not called. A host that calls it must apply the transform alongside its
+         *          transport operators in all three places that touch the state (residual, Jacobian and
+         *          consistent initialization) or the reaction is still solved incorrectly. ColumnModel1D
+         *          is the reference implementation.
+         * @param [in] phaseType Phase to configure, must not be "cross_phase"
+         * @param [in] nStates Number of states of the phase (components, or total bound states for solid)
+         * @param [in] rankTol Tolerance on the singular values determining the stoichiometric rank
+         * @return True if configuration succeeded, false otherwise
+         * @throws InvalidParameterException for "cross_phase", for redundant equilibrium reactions, or
+         *         for a reformulation that does not close the system
+         */
         bool configureConservedMoities(const std::string& phaseType, unsigned int nStates, double rankTol)
         {
             if (phaseType == "cross_phase")
@@ -334,11 +353,69 @@ struct ReactionSystem
             {
                 if (cm.numMoieties() + cm.numEquilibriumReactions() != nStates)
                 {
-                    throw InvalidParameterException("ReaktionSytem configureConservedMoities(): equilibrium reactions require numMoieties + numEquilibriumReactions == nComp");
+                    throw InvalidParameterException("ReactionSytem configureConservedMoities(): equilibrium reactions require numMoieties + numEquilibriumReactions == nComp");
                 }
             }
 
             return conservedMoitiesSuccess;
+        }
+
+        /**
+         * @brief Checks whether a phase contains reactions that are declared quasi-stationary
+         * @param phaseType The phase type to inspect
+         * @return True if at least one reaction of the phase is in equilibrium, false otherwise
+         */
+        bool hasEquilibriumReactions(const std::string& phaseType) const
+        {
+            for (const auto* reaction : getPhaseData(phaseType).dynReactions)
+            {
+                if (!reaction)
+                    continue;
+
+                const unsigned int nReac = reaction->numReactions();
+                for (unsigned int r = 0; r < nReac; ++r)
+                {
+                    if (reaction->isInEquilibrium(r))
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        /**
+         * @brief Rejects quasi-stationary reactions in phases the hosting model cannot solve
+         * @details Quasi-stationary reactions turn the reaction terms of a phase into algebraic
+         *          equations, which requires the conserved-moiety reformulation set up by
+         *          configureConservedMoities(). A hosting model that does not call it for a phase
+         *          only evaluates kinetic reaction fluxes, so a quasi-stationary reaction would be
+         *          dropped from the residual without anything taking its place. Reject such a
+         *          configuration instead of silently returning the solution of a system in which
+         *          the reaction does not happen.
+         *
+         *          Hosting models call this once after configuring their reaction models. A phase
+         *          counts as supported once its conserved moieties are configured, so phases gained
+         *          or lost by a model are covered without touching this check.
+         * @param hostDescription Description of the hosting model, used in the error message
+         * @param errorMsgSuffix Optional sentence appended to the error message, e.g. naming a setting that
+         *        selects an implementation which does support the configuration
+         * @throws InvalidParameterException if an unsupported phase holds a quasi-stationary reaction
+         */
+        void validateEquilibriumSupport(const std::string& hostDescription, const std::string& errorMsgSuffix = "") const
+        {
+            for (const auto& phasePair : _phaseMap)
+            {
+                const std::string& phaseType = phasePair.first;
+                if (phasePair.second.consMoities.isEnabled() || !hasEquilibriumReactions(phaseType))
+                    continue;
+
+                std::string msg = "Quasi-stationary reactions are not supported in the "
+                    + phaseType + " phase of " + hostDescription + ". Use kinetic reactions instead or find a unit operation that supports this in the documentation.";
+
+                if (!errorMsgSuffix.empty())
+                    msg += " " + errorMsgSuffix;
+
+                throw InvalidParameterException(msg);
+            }
         }
 
         /**
