@@ -99,30 +99,22 @@ Donations
 Citing
 ------
 
-The development of CADET-Core has been a collaborative effort, with multiple dedicated individuals contributing their expertise to create a powerful and versatile open-source software tool.
-Countless hours of hard work have been invested to provide the scientific community with a valuable resource.
 As an open-source project, CADET-Core relies on the support and recognition from users and researchers to thrive.
 Therefore, we kindly ask that any publications or projects leveraging the capabilities of CADET-Core acknowledge its creators and their contributions by citing an adequate selection of our publications.
 
 **General:**
 
+- Breuer, J. M.; Leweke, S.; Schmölder, J.; Berger, A.; Gassner, G. J.; von Lieres, E.: `A unified and composable framework for modeling packed-bed liquid chromatography <https://doi.org/10.48550/arXiv.2610.33269>`_, arXiv preprint arXiv:2610.33269 (2026).
+
+- Leweke, S.; Breuer, J.; Schmölder, J.; Jäpel, R.; Lanzrath, H.; Rao, J.; Hassan, J.; Zhang, W.; Berger, A.; Heymann, W.; von Lieres, E.: `CADET-Core 5.0: High-Performance Solver for Advanced Biotechnology Process Modeling <https://doi.org/10.21105/joss.07881>`_, Journal of Open Source Software **10** (2025), 7881.
+
 - Leweke, S.; von Lieres, E.: `Chromatography Analysis and Design Toolkit (CADET) <https://doi.org/10.1016/j.compchemeng.2018.02.025>`_, Computers and Chemical Engineering **113** (2018), 274–294.
-
-- von Lieres, E.; Andersson, J.: `A fast and accurate solver for the general rate model of column liquid chromatography <https://doi.org/10.1016/j.compchemeng.2010.03.008>`_, Computers and Chemical Engineering **34,8** (2010), 1180–1191.
-
-**Major extensions:**
-
-- Breuer, J. M.; Leweke, S.; Schmölder, J.; Gassner, G.; von Lieres, E.: `Spatial discontinuous Galerkin spectral element method for a family of chromatography models in CADET <https://doi.org/10.1016/j.compchemeng.2023.108340>`_, Computers and Chemical Engineering **177** (2023), 108340.
-
-- Zhang, W.; Przybycien T., Breuer J. M. , Leweke S. , von Lieres E.: `Solving crystallization/precipitation population balance models in CADET, part II: Size-based Smoluchowski coagulation and fragmentation equations in batch and continuous modes <https://doi.org/10.1016/j.compchemeng.2024.108860>`_, Computers and Chemical Engineering **192** (2025), 108860.
-
-- Zhang, W.; Przybycien T., Schmölder J. , Leweke S. , von Lieres E.: `Solving crystallization/precipitation population balance models in CADET, part I: Nucleation growth and growth rate dispersion in batch and continuous modes on nonuniform grids <https://doi.org/10.1016/j.compchemeng.2024.108612>`_, Computers and Chemical Engineering 183 (2024), 108612.
-
-- Püttmann, A.; Schnittert, S.; Naumann, U.; von Lieres, E.: `Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography <http://dx.doi.org/10.1016/j.compchemeng.2013.04.021>`_, Computers and Chemical Engineering **56** (2013), 46–57.
 
 Additionally, to ensure reproducibility of your work, we recommend citing the `zenodo doi <https://doi.org/10.5281/zenodo.8179015>`_ corresponding to the specific CADET-Core release that you used.
 
-For a comprehensive list and guidance on citing CADET-Core publications, please refer to the publications section of the `documentation <https://cadet.github.io/master/publications.html>`_.
+Beyond these general references, major extensions have enabled specific features of CADET-Core, such as the DG discretization, the crystallization models, or the parameter sensitivities.
+If your work makes use of such a feature, please cite the corresponding publication as well.
+For a comprehensive list of our publications and guidance on citing them, please refer to the :ref:`publications` section of this documentation.
 
 Acknowledgments
 ---------------

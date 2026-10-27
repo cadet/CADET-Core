@@ -1,3 +1,5 @@
+.. _publications:
+
 Publications
 ============
 
@@ -8,6 +10,13 @@ Therefore, we kindly ask that any publications or projects leveraging the capabi
 General CADET-Core publications
 -------------------------------
 
+**Publication of the unified and composable model family implemented in CADET-Core**
+
+.. bibliography::
+   :filter: False
+
+   Breuer2026
+
 **Publication of CADET-Core with its current C++ architecture**
 
 .. bibliography::
@@ -15,13 +24,6 @@ General CADET-Core publications
 
    Leweke2025
    Leweke2018CADET
-
-**Original Publication of chromatography models and their FV discretization in CADET**
-
-.. bibliography::
-   :filter: False
-
-   VonLieres2010a
 
 
 CADET-Core Numerics and Modeling
@@ -49,6 +51,13 @@ CADET-Core Numerics and Modeling
 
    Puttmann2016
    Puttmann2013
+
+**Legacy Publication of the FV discretization**
+
+.. bibliography::
+   :filter: False
+
+   VonLieres2010a
 
 
 CADET-Core SELECTED APPLICATIONS AND USE-CASES

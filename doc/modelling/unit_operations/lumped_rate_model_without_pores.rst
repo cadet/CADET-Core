@@ -53,6 +53,8 @@ By default, the following initial conditions are applied for all :math:`z \in [0
 Note that by setting :math:`\varepsilon_t = 1`, removing all bound states by setting :math:`N_{\text{bnd},i} = 0` for all components :math:`i`, and applying no binding model, a dispersive plug flow reactor (DPFR) is obtained.
 For the specification of flow rate and direction, the same holds as for the general rate model (see Section :ref:`MUOPGRMflow`).
 
+This model follows the unified and composable modeling framework presented in :cite:`Breuer2026`.
+
 For information on model parameters see :ref:`axial_flow_column_1D_config` and :ref:`particle_model_config`.
 
 Radial flow LRM

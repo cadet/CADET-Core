@@ -167,6 +167,8 @@ By default, the following initial conditions are applied for all :math:`z \in [0
     Binding with multiple bound states
 
 
+This model follows the unified and composable modeling framework presented in :cite:`Breuer2026`.
+
 See Table :ref:`axial_flow_column_1D_config` and :ref:`particle_model_config`.
 
 
