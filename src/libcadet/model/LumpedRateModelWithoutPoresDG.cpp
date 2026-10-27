@@ -287,13 +287,62 @@ namespace cadet
 		{
 			_parameters.clear();
 
+			// Read geometry parameters
+			//
+			// TOTAL_POROSITY is either a single value, or one value per axial node. The latter describes a
+			// packing density that varies along the flow path, which the transport operator sees only
+			// through the flow through area w = eps_t * A, computed from its own geometric area once it has
+			// been handed the profile. The flow rate must then not be divided by the porosity a second
+			// time, which is why setFlowRates() hands the transport operator a porosity of one in that case.
+			//
+			// This has to happen before the transport operator is configured, since configure() assembles
+			// the geometry dependent operators, which a profile is baked into.
+			readScalarParameterOrArray(_totalPorosity, paramProvider, "TOTAL_POROSITY", 1);
+
+			_axiallyConstantTotalPorosity = (_totalPorosity.size() == 1);
+			_unitPorosity = 1.0;
+
+			if (_axiallyConstantTotalPorosity)
+			{
+				// Expand to all axial nodes. The copy is required because resize() may reallocate.
+				const active totalPorosity = _totalPorosity[0];
+				_totalPorosity.resize(_disc.nPoints, totalPorosity);
+			}
+			else if (_totalPorosity.size() != _disc.nPoints)
+			{
+				throw InvalidParameterException("Field TOTAL_POROSITY must have either 1 or " + std::to_string(_disc.nPoints) +
+					" entries (one per discrete bulk point), but has " + std::to_string(_totalPorosity.size()));
+			}
+
+			for (unsigned int i = 0; i < _disc.nPoints; ++i)
+			{
+				const double eps = static_cast<double>(_totalPorosity[i]);
+				if (!(eps > 0.0) || (eps > 1.0))
+					throw InvalidParameterException("Field TOTAL_POROSITY must be in (0.0, 1.0], but entry " + std::to_string(i) + " is " + std::to_string(eps));
+			}
+
+			// The profile is handed over as a pointer into _totalPorosity, so that a parameter update is
+			// picked up at the next section transition, when the operators are reassembled. Operators that
+			// cannot represent a varying weight report this here; the model builder already routes a
+			// varying porosity to one that can, so this is the second line of defence.
+			if (!_convDispOp.setPorosityProfile(_totalPorosity.data(), _axiallyConstantTotalPorosity ? 1u : _disc.nPoints))
+				throw InvalidParameterException("The transport operator of unit " + std::to_string(_unitOpIdx) + " does not support an axially varying TOTAL_POROSITY");
+
 			_convDispOp.configure(_unitOpIdx, paramProvider, _parameters);
 
-			// Read geometry parameters
-			_totalPorosity = paramProvider.getDouble("TOTAL_POROSITY");
-
 			// Add parameters to map
-			_parameters[makeParamId(hashString("TOTAL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_totalPorosity;
+			if (_axiallyConstantTotalPorosity)
+				_parameters[makeParamId(hashString("TOTAL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_totalPorosity[0];
+			else
+			{
+				// A nodal TOTAL_POROSITY is registered so that its values can be updated, but it does not
+				// support parameter sensitivities: the transport operator folds the porosity into its area
+				// weight, which is a plain double, so the derivative of the transport term with respect to
+				// the porosity is lost and only the solid phase source would contribute. Sensitivities are
+				// therefore only correct for a single TOTAL_POROSITY, which reaches the operator as an
+				// active through the interstitial velocity, see setFlowRates().
+				registerParam1DArray(_parameters, _totalPorosity, [=, this](bool multi, unsigned int node) { return makeParamId(hashString("TOTAL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, node); });
+			}
 
 			// Register initial conditions parameters
 			for (unsigned int i = 0; i < _disc.nComp; ++i)
@@ -432,7 +481,8 @@ namespace cadet
 		template <typename ConvDispOperator>
 		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 		{
-			_convDispOp.setFlowRates(in[0], out[0], _totalPorosity);
+			// An axially varying porosity is already part of the operator's area weight, see configure()
+			_convDispOp.setFlowRates(in[0], out[0], _axiallyConstantTotalPorosity ? _totalPorosity[0] : _unitPorosity);
 		}
 
 		template <typename ConvDispOperator>
@@ -706,7 +756,7 @@ namespace cadet
 					_disc.boundOffset,
 					_disc.strideBound,
 					_binding[0]->reactionQuasiStationarity(),
-					_totalPorosity,
+					totalPorosity(blk),
 					nullptr,
 					_binding[0],
 					&_reaction
@@ -848,8 +898,7 @@ namespace cadet
 		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
 		{
 			Indexer idxr(_disc);
-			const double invBeta = (1.0 / static_cast<double>(_totalPorosity) - 1.0);
-			
+
 			_convDispOp.multiplyWithDerivativeJacobian(simTime, sDot, ret);
 
 			for (unsigned int node = 0; node < _disc.nPoints; ++node)
@@ -858,7 +907,7 @@ namespace cadet
 				double const* const localSdot = sDot + localOffset;
 				double* const localRet = ret + localOffset;
 
-				parts::cell::multiplyWithDerivativeJacobianKernel<false>(localSdot, localRet, _disc.nComp, _disc.nBound, _disc.boundOffset, _disc.strideBound, _binding[0]->reactionQuasiStationarity(), 1.0, invBeta);
+				parts::cell::multiplyWithDerivativeJacobianKernel<false>(localSdot, localRet, _disc.nComp, _disc.nBound, _disc.boundOffset, _disc.strideBound, _binding[0]->reactionQuasiStationarity(), 1.0, invBeta(node));
 			}
 
 			// Handle inlet DOFs (all algebraic)
@@ -998,11 +1047,10 @@ namespace cadet
 			_convDispOp.addTimeDerivativeToJacobian(alpha, _jacDisc);
 
 			// add time derivative jacobian entries (dc_s / dt terms)
-			const double invBeta = 1.0 / static_cast<double>(_totalPorosity) - 1.0;
 			linalg::BandedEigenSparseRowIterator jac(_jacDisc, 0);
 			for (unsigned int j = 0; j < _disc.nPoints; ++j)
 			{
-				addTimeDerivativeToJacobianNode(jac, idxr, alpha, invBeta);
+				addTimeDerivativeToJacobianNode(jac, idxr, alpha, invBeta(j));
 			}
 		}
 		/**
@@ -1233,7 +1281,7 @@ namespace cadet
 					_disc.boundOffset,
 					_disc.strideBound,
 					_binding[0]->reactionQuasiStationarity(),
-					_totalPorosity,
+					totalPorosity(point),
 					nullptr,
 					_binding[0],
 					nullptr
@@ -1257,8 +1305,9 @@ namespace cadet
 				linalg::selectVectorSubset(qShell - _disc.nComp, mask, solution);
 
 				// Save values of conserved moieties
-				const double epsQ = 1.0 - static_cast<double>(_totalPorosity);
-				linalg::conservedMoietiesFromPartitionedMask(mask, _disc.nBound, _disc.nComp, qShell - _disc.nComp, conservedQuants, static_cast<double>(_totalPorosity), epsQ);
+				const double pointPorosity = static_cast<double>(totalPorosity(point));
+				const double epsQ = 1.0 - pointPorosity;
+				linalg::conservedMoietiesFromPartitionedMask(mask, _disc.nBound, _disc.nComp, qShell - _disc.nComp, conservedQuants, pointPorosity, epsQ);
 
 				std::function<bool(double const* const, linalg::detail::DenseMatrixBase&)> jacFunc;
 
@@ -1291,7 +1340,7 @@ namespace cadet
 							continue;
 						}
 
-						mat.native(rIdx, rIdx) = static_cast<double>(_totalPorosity);
+						mat.native(rIdx, rIdx) = pointPorosity;
 
 						for (unsigned int bnd = 0; bnd < _disc.nBound[comp]; ++bnd, ++bndIdx)
 						{
@@ -1337,7 +1386,7 @@ namespace cadet
 								continue;
 							}
 
-							r[rIdx] = static_cast<double>(_totalPorosity) * x[rIdx] - conservedQuants[rIdx];
+							r[rIdx] = pointPorosity * x[rIdx] - conservedQuants[rIdx];
 
 							for (unsigned int bnd = 0; bnd < _disc.nBound[comp]; ++bnd, ++bndIdx)
 							{
@@ -1425,7 +1474,6 @@ namespace cadet
 					}
 				}
 			}
-			const double invBeta = 1.0 / static_cast<double>(_totalPorosity) - 1.0;
 			double* const dFluxDt = _tempState + idxr.offsetC();
 			LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 			for (unsigned int col = 0; col < _disc.nPoints; ++col)
@@ -1434,7 +1482,7 @@ namespace cadet
 				linalg::BandedEigenSparseRowIterator jac(_jacDisc, idxr.strideColNode() * col);
 
 				// Mobile and solid phase (advances jac accordingly)
-				addTimeDerivativeToJacobianNode(jac, idxr, 1.0, invBeta);
+				addTimeDerivativeToJacobianNode(jac, idxr, 1.0, invBeta(col));
 
 				// Stationary phase
 				if (!_binding[0]->hasQuasiStationaryReactions())
@@ -1554,7 +1602,6 @@ namespace cadet
 
 			// Step 2: Compute the correct time derivative of the state vector (only mobile phase DOFs)
 
-			const double invBeta = (1.0 / static_cast<double>(_totalPorosity) - 1.0);
 			for (unsigned int node = 0; node < _disc.nPoints; ++node)
 			{
 				// Offset to current cell's c and q variables
@@ -1566,7 +1613,7 @@ namespace cadet
 					// dq_{i,j} / dt is assumed to be fixed, so bring it on the right hand side
 					for (unsigned int i = 0; i < _disc.nBound[comp]; ++i)
 					{
-						res[localOffset + comp] += invBeta * vecStateYdot[localOffsetQ + _disc.boundOffset[comp] + i];
+						res[localOffset + comp] += invBeta(node) * vecStateYdot[localOffsetQ + _disc.boundOffset[comp] + i];
 					}
 
 					vecStateYdot[localOffset + comp] = -res[localOffset + comp];
@@ -1736,14 +1783,13 @@ namespace cadet
 						}
 					}
 				}
-				const double invBeta = 1.0 / static_cast<double>(_totalPorosity) - 1.0;
 				for (unsigned int node = 0; node < _disc.nPoints; ++node)
 				{
 					// Assemble
 					linalg::BandedEigenSparseRowIterator jac(_jacDisc, idxr.strideColNode() * node);
 		
 					// Mobile and solid phase (advances jac accordingly)
-					addTimeDerivativeToJacobianNode(jac, idxr, 1.0, invBeta);
+					addTimeDerivativeToJacobianNode(jac, idxr, 1.0, invBeta(node));
 		
 					// Iterator jac has already been advanced to next shell
 		
@@ -1843,7 +1889,6 @@ namespace cadet
 				// Compute right hand side by adding -dF / dy * s = -J * s to -dF / dp which is already stored in _tempState
 				multiplyWithJacobian(simTime, simState, sensY, -1.0, 1.0, _tempState);
 
-				const double invBeta = (1.0 / static_cast<double>(_totalPorosity) - 1.0);
 				for (unsigned int node = 0; node < _disc.nPoints; ++node)
 				{
 					// Offset to current cell's c and q variables
@@ -1855,7 +1900,7 @@ namespace cadet
 						// dq_{i,j} / dt is assumed to be fixed, so bring it on the right hand side
 						for (unsigned int i = 0; i < _disc.nBound[comp]; ++i)
 						{
-							_tempState[localOffset + comp] -= invBeta * sensYdot[localOffsetQ + _disc.boundOffset[comp] + i];
+							_tempState[localOffset + comp] -= invBeta(node) * sensYdot[localOffsetQ + _disc.boundOffset[comp] + i];
 						}
 
 						sensYdot[localOffset + comp] = _tempState[localOffset + comp];
@@ -1870,6 +1915,19 @@ namespace cadet
 			if (_convDispOp.setParameter(pId, value))
 				return true;
 
+			// Intercept changes to TOTAL_POROSITY when not specified per axial node (but once globally),
+			// since it is expanded to all axial nodes in configure() but registered only once
+			if (_axiallyConstantTotalPorosity && (pId.name == hashString("TOTAL_POROSITY")))
+			{
+				if ((pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep))
+					return false;
+
+				for (unsigned int i = 0; i < _disc.nPoints; ++i)
+					_totalPorosity[i].setValue(value);
+
+				return true;
+			}
+
 			return UnitOperationBase::setParameter(pId, value);
 		}
 
@@ -1878,6 +1936,21 @@ namespace cadet
 		{
 			if (_convDispOp.setSensitiveParameterValue(_sensParams, pId, value))
 				return;
+
+			// Intercept changes to TOTAL_POROSITY when not specified per axial node (but once globally)
+			if (_axiallyConstantTotalPorosity && (pId.name == hashString("TOTAL_POROSITY")))
+			{
+				if ((pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep))
+					return;
+
+				if (!contains(_sensParams, &_totalPorosity[0]))
+					return;
+
+				for (unsigned int i = 0; i < _disc.nPoints; ++i)
+					_totalPorosity[i].setValue(value);
+
+				return;
+			}
 
 			UnitOperationBase::setSensitiveParameterValue(pId, value);
 		}
@@ -1888,6 +1961,21 @@ namespace cadet
 			if (_convDispOp.setSensitiveParameter(_sensParams, pId, adDirection, adValue))
 			{
 				LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+				return true;
+			}
+
+			// Intercept changes to TOTAL_POROSITY when not specified per axial node (but once globally)
+			if (_axiallyConstantTotalPorosity && (pId.name == hashString("TOTAL_POROSITY")))
+			{
+				if ((pId.section != SectionIndep) || (pId.component != CompIndep) || (pId.particleType != ParTypeIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep))
+					return false;
+
+				LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
+
+				_sensParams.insert(&_totalPorosity[0]);
+				for (unsigned int i = 0; i < _disc.nPoints; ++i)
+					_totalPorosity[i].setADValue(adDirection, adValue);
+
 				return true;
 			}
 

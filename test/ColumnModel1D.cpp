@@ -2156,7 +2156,7 @@ TEST_CASE("Smoothly varying Column_1D rejects an invalid axially varying COL_POR
 		jpp.popScope();
 
 		cadet::Driver drv;
-		REQUIRE_THROWS_WITH(drv.configure(jpp), Catch::Contains("USE_COLLOCATION_DG is not available for an axially varying COL_POROSITY"));
+		REQUIRE_THROWS_WITH(drv.configure(jpp), Catch::Contains("USE_COLLOCATION_DG is not available for an axially varying bulk porosity"));
 	}
 
 	SECTION("Finite volumes")
@@ -2175,7 +2175,7 @@ TEST_CASE("Smoothly varying Column_1D rejects an invalid axially varying COL_POR
 		jpp.popScope();
 
 		cadet::Driver drv;
-		REQUIRE_THROWS_WITH(drv.configure(jpp), Catch::Contains("axially varying COL_POROSITY is only available for DG"));
+		REQUIRE_THROWS_WITH(drv.configure(jpp), Catch::Contains("axially varying bulk porosity is only available for DG"));
 	}
 }
 
