@@ -978,10 +978,8 @@ bool GeneralRateModel2D::configure(IParameterProvider& paramProvider)
 	bool dynReactionConfSuccess = true;
 	// Reconfigure reaction model
 	if (paramProvider.exists("NREAC_LIQUID"))
-		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
 
-	const std::string hostDescription = std::string(unitOperationName()) + " (unit " + std::to_string(_unitOpIdx) + ")";
-	_reaction.validateEquilibriumSupport(hostDescription);
 
 	for (unsigned int par = 0; par < _disc.nParType; par++)
 	{
@@ -992,13 +990,12 @@ bool GeneralRateModel2D::configure(IParameterProvider& paramProvider)
 		{
 			paramProvider.pushScope(particleScope);
 			if (paramProvider.exists("NREAC_CROSS_PHASE"))
-				dynReactionConfSuccess = _reacParticle[par]->configure("cross_phase", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+				dynReactionConfSuccess = _reacParticle[par]->configure("cross_phase", par, _unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
 			if (paramProvider.exists("NREAC_LIQUID"))
-				dynReactionConfSuccess = _reacParticle[par]->configure("liquid", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+				dynReactionConfSuccess = _reacParticle[par]->configure("liquid", par, _unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
 			if (paramProvider.exists("NREAC_SOLID"))
-				dynReactionConfSuccess = _reacParticle[par]->configure("solid", par, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+				dynReactionConfSuccess = _reacParticle[par]->configure("solid", par, _unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
 
-			_reacParticle[par]->validateEquilibriumSupport("particle type " + std::to_string(par) + " of " + hostDescription);
 
 			paramProvider.popScope();
 		}

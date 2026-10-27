@@ -139,7 +139,13 @@ namespace cadet
 			}
 
 			virtual bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, const int nComp, const int parTypeIdx, const int nParType, const int strideBulkComp) = 0;
-			virtual bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound) = 0;
+			/**
+			 * @brief Configures the particle model
+			 * @param [in] uoImplementsReqReactions Whether the owning unit operation implements
+			 *             rapid-equilibrium reactions in the particle liquid phase. A particle model is
+			 *             shared between unit operations, so only its owner can answer this.
+			 */
+			virtual bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters, const int nParType, const unsigned int* nBoundBeforeType, const int nTotalBound, bool uoImplementsReqReactions) = 0;
 
 			virtual void updateRadialDisc() = 0;
 

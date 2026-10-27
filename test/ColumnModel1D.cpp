@@ -20,6 +20,7 @@
 #include "ParticleHelper.hpp"
 #include "ReactionModelTests.hpp"
 #include "JsonTestModels.hpp"
+#include "cadet/Exceptions.hpp"
 #include "model/UnitOperation.hpp"
 #include "ParallelSupport.hpp"
 #include "SimHelper.hpp"
@@ -1815,4 +1816,55 @@ TEST_CASE("Smoothly varying Column_1D numerical Benchmark for pure transport cas
 
 	cadet::test::column::DGParams disc(0, 3, 8);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
+}
+
+
+TEST_CASE("Rapid-equilibrium liquid reaction is rejected by a unit operation that cannot solve it", "[Column_1D],[MassActionLaw],[ReactionModel],[CI]")
+{
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	// A column without particles carrying a single rapid-equilibrium bulk liquid reaction. Which
+	// unit operation this ends up in depends on the arrow head optimization.
+	const auto makeConfig = [](bool arrowHeadOptimization)
+	{
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_LRMP", "FV");
+		jpp.set("NPARTYPE", 0);
+		jpp.remove("particle_type_000");
+		jpp.set("INIT_C", std::vector<double>{ 2.7, 0.3 });
+
+		jpp.pushScope("discretization");
+		jpp.set("FV_ARROW_HEAD_OPTIMIZATION", arrowHeadOptimization);
+		jpp.popScope();
+
+		jpp.set("NREAC_LIQUID", 1);
+		jpp.addScope("liquid_reaction_000");
+		jpp.pushScope("liquid_reaction_000");
+		jpp.set("TYPE", "MASS_ACTION_LAW");
+		jpp.set("MAL_KFWD", std::vector<double>{ 2.0 });
+		jpp.set("MAL_KBWD", std::vector<double>{ 1.0 });
+		jpp.set("MAL_STOICHIOMETRY", std::vector<double>{ -1.0, 1.0 });
+		jpp.set("IS_KINETIC", std::vector<int>{ 0 });
+		jpp.popScope();
+
+		return jpp;
+	};
+
+	SECTION("Arrow head FV unit operation rejects it")
+	{
+		// The dedicated FV unit operation only evaluates kinetic reaction fluxes, so it has to refuse
+		// the reaction instead of dropping it from the residual without replacement.
+		cadet::JsonParameterProvider jpp = makeConfig(true);
+		REQUIRE_THROWS_AS(cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb), cadet::InvalidParameterException);
+	}
+
+	SECTION("ColumnModel1D accepts it")
+	{
+		cadet::JsonParameterProvider jpp = makeConfig(false);
+		cadet::IUnitOperation* const unit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
+		REQUIRE(nullptr != unit);
+		mb->destroyUnitOperation(unit);
+	}
+
+	destroyModelBuilder(mb);
 }

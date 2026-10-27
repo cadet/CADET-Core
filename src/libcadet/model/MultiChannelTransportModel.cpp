@@ -449,9 +449,8 @@ bool MultiChannelTransportModel::configure(IParameterProvider& paramProvider)
 	bool dynReactionConfSuccess = true;
 	
 	if (paramProvider.exists("NREAC_LIQUID"))
-		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
 
-	_reaction.validateEquilibriumSupport(std::string(unitOperationName()) + " (unit " + std::to_string(_unitOpIdx) + ")");
 
 	// Reconfigure exchange model
 	bool exchangeConfSuccess = true;

@@ -324,12 +324,12 @@ namespace cadet
 			bool hasReaction = false;
 			if (paramProvider.exists("NREAC_CROSS_PHASE"))
 			{
-				dynReactionConfSuccess = _reaction.configure("cross_phase", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+				dynReactionConfSuccess = _reaction.configure("cross_phase", 0, _unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
 				hasReaction = true;
 			}
 			if (paramProvider.exists("NREAC_SOLID"))
 			{
-				dynReactionConfSuccess = _reaction.configure("solid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+				dynReactionConfSuccess = _reaction.configure("solid", 0, _unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
 				hasReaction = true;
 
 			}
@@ -338,11 +338,10 @@ namespace cadet
 
 			if (paramProvider.exists("NREAC_LIQUID"))
 			{
-				dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider) && dynReactionConfSuccess;
+				dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
 				hasReaction = true;
 			}
 
-			_reaction.validateEquilibriumSupport(std::string(unitOperationName()) + " (unit " + std::to_string(_unitOpIdx) + ")");
 
 			setPattern(_jac, true, hasReaction);
 			setPattern(_jacDisc, true, hasReaction);

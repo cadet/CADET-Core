@@ -23,6 +23,28 @@ The number of reaction models is specified at the unit or particle level using t
 
 The input group for parameters of single reactions is given by ``phase_reaction_YYY`` where ``phase`` is one of ``liquid`` or ``solid`` and ``YYY`` is a 0-based index for the reaction group.
 
+.. _FFReactionIsKinetic:
+
+Reaction dynamics
+-----------------
+
+Every single phase reaction model accepts the following optional field in its input group, which selects whether a reaction is integrated in time or treated as being in rapid equilibrium.
+A rapid-equilibrium reaction is not integrated in time; its rate is fixed by the condition that the net flux vanishes, and the balance equations of the participating components are reformulated in terms of conserved moieties.
+
+``IS_KINETIC``
+
+   Selects kinetic (:math:`1`) or rapid equilibrium (:math:`0`) mode.
+   Either a scalar applying to all reactions of the group, or one entry per reaction.
+   Optional, defaults to kinetic for all reactions.
+
+   =============  ==========================  ==============================================
+   **Type:** int  **Range:** :math:`\{0,1\}`  **Length:** :math:`1` / :math:`\texttt{NREACT}`
+   =============  ==========================  ==============================================
+
+Rapid equilibrium is only available in the liquid phase, and only for unit operations that implement the reformulation.
+Any other combination is rejected with an error.
+Note that rapid-equilibrium reactions change the initial state: consistent initialization projects the configured initial values onto the equilibrium manifold.
+
 **Single-Phase Reaction Models**:
 
 .. toctree::
