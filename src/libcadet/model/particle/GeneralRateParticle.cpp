@@ -311,8 +311,7 @@ namespace model
 		if (wantRes)
 		{
 			// film diffusion bulk eq. term
-			const ParamType invBetaC = 1.0 / static_cast<ParamType>(packing.colPorosity) - 1.0;
-			const ParamType jacCF_val = invBetaC * static_cast<ParamType>(surfaceToVolumeRatio());
+			const ParamType jacCF_val = static_cast<ParamType>(packing.invBetaC) * static_cast<ParamType>(surfaceToVolumeRatio());
 
 			// Add flux to column void / bulk volume using discretized film diffusion
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
@@ -341,9 +340,9 @@ namespace model
 		return _parDiffOp->calcParticleDiffJacobian(secIdx, colNode, offsetLocalCp, globalJac);
 	}
 	
-	int GeneralRateParticle::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
+	int GeneralRateParticle::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, active const* const invBetaC, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
 	{
-		return _parDiffOp->calcFilmDiffJacobian(secIdx, offsetCp, offsetC, nBulkPoints, nParType, colPorosity, parTypeVolFrac, pointVelocity, globalJac, outliersOnly);
+		return _parDiffOp->calcFilmDiffJacobian(secIdx, offsetCp, offsetC, nBulkPoints, nParType, invBetaC, parTypeVolFrac, pointVelocity, globalJac, outliersOnly);
 	}
 
 	bool GeneralRateParticle::setParameter(const ParameterId& pId, double value)

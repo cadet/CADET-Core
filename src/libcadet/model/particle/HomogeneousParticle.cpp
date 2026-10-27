@@ -414,8 +414,7 @@ namespace model
 			);
 
 		const ParamType jacPF_val = -static_cast<ParamType>(surfaceToVolumeRatio()) / static_cast<ParamType>(_parPorosity);
-		const ParamType invBetaC = 1.0 / static_cast<ParamType>(packing.colPorosity) - 1.0;
-		const ParamType jacCF_val = invBetaC * static_cast<ParamType>(surfaceToVolumeRatio());
+		const ParamType jacCF_val = static_cast<ParamType>(packing.invBetaC) * static_cast<ParamType>(surfaceToVolumeRatio());
 
 		// Film diffusion flux
 		if (wantRes)
@@ -463,11 +462,8 @@ namespace model
 		return 1;
 	}
 	
-	int HomogeneousParticle::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool crossDepsOnly)
+	int HomogeneousParticle::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, active const* const invBetaC, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool crossDepsOnly)
 	{
-		const double invBetaC = 1.0 / static_cast<double>(colPorosity) - 1.0;
-
-		const double jacCF_val = invBetaC * static_cast<double>(surfaceToVolumeRatio());
 		const double jacPF_val = -static_cast<double>(surfaceToVolumeRatio()) / static_cast<double>(_parPorosity);
 
 		// Ordering of diffusion:
@@ -480,6 +476,11 @@ namespace model
 
 		for (unsigned int colNode = 0; colNode < nBulkPoints; colNode++, jacP += _strideBound)
 		{
+			// The prefactor is evaluated at this bulk point, so that an axially varying COL_POROSITY
+			// enters the film transfer term with the same nodal (collocated) accuracy as the varying
+			// cross section area does in the transport operator.
+			const double jacCF_val = static_cast<double>(invBetaC[colNode]) * static_cast<double>(surfaceToVolumeRatio());
+
 			// FILM_DIFFUSION_DEP is evaluated pointwise at this bulk point's local velocity
 			// (mass-lumped, same fidelity as FV's own midpoint-rule approximation of this term).
 			// Position is a no-op for the only supported dependency (POWER_LAW), which only uses velocity.

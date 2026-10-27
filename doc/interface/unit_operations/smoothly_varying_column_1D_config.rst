@@ -11,8 +11,8 @@ the flow path and is prescribed by the user, see :ref:`MUOPGRMsmoothlyVarying`.
 It is selected by ``GEOMETRY`` :math:`= \texttt{SMOOTHLY_VARYING}` and is only available for the
 DG spatial discretization, since the area is given at the DG nodes.
 
-Only the geometry fields differ from the axial flow cylinder; all remaining fields of the unit
-(``NCOMP``, ``COL_POROSITY``, ``TOTAL_POROSITY``, ``NPARTYPE``, ``PAR_TYPE_VOLFRAC``,
+Only the geometry fields and ``COL_POROSITY`` differ from the axial flow cylinder; all remaining
+fields of the unit (``NCOMP``, ``TOTAL_POROSITY``, ``NPARTYPE``, ``PAR_TYPE_VOLFRAC``,
 ``COL_DISPERSION``, ``INIT_C``, ``INIT_STATE``, the reaction and particle subgroups, and the
 discretization group) are identical to :ref:`axial_flow_column_1D_config`.
 
@@ -52,6 +52,36 @@ discretization group) are identical to :ref:`axial_flow_column_1D_config`.
    ``WRITE_COORDINATES``, so a convenient way to obtain them is to run the same discretization
    once with any other geometry and evaluate the intended area profile at the reported
    coordinates.
+
+``COL_POROSITY``
+
+   Column porosity, either as a single value for the whole column, or as one value per DG node,
+   in the same ordering as ``CROSS_SECTIONAL_AREA_AT_NODES``.
+   The second form describes a packing density that varies along the flow path, see
+   :ref:`MUOPGRMsmoothlyVarying`.
+   As for the cross section area, the two entries that share an element interface node must be
+   equal.
+
+   **Unit:** :math:`-`
+
+   ================  =========================  ====================================================================
+   **Type:** double  **Range:** :math:`(0, 1]`  **Length:** :math:`1` or :math:`(\texttt{POLYDEG} + 1) \cdot \texttt{NELEM}`
+   ================  =========================  ====================================================================
+
+   .. warning::
+
+      With one value per node, ``CROSS_SECTIONAL_AREA_AT_NODES`` must be the *flow through area*
+      :math:`w(x) = \varepsilon_c(x) A(x)`, not the geometric cross section area :math:`A(x)`,
+      because the transport operator sees the porosity only through that product.
+      CADET-Core then treats the volumetric flow rate as the delivered :math:`\dot V` and computes
+      the interstitial velocity as :math:`\dot V / w`, i.e. it does *not* divide the flow rate by
+      the porosity a second time.
+      Passing the geometric area together with a nodal ``COL_POROSITY`` therefore yields an
+      interstitial velocity and a dispersive weighting that are both wrong by a factor of
+      :math:`\varepsilon_c`.
+
+   A nodal ``COL_POROSITY`` is only supported for this geometry, since no other geometry lets the
+   user prescribe the flow through area.
 
 ``BED_LENGTH``
 

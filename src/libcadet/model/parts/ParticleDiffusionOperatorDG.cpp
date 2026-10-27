@@ -1573,7 +1573,7 @@ namespace parts
 		return true;
 	}
 
-	int ParticleDiffusionOperatorDG::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const double colPorosity, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
+	int ParticleDiffusionOperatorDG::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, active const* const invBetaC, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
 	{
 		// lifting matrix entry for exact integration scheme depends on metrics for sphere and cylinder
 		double exIntLiftContribution = static_cast<double>(_Ir[_nParElem - 1][_nParNode - 1]);
@@ -1585,6 +1585,11 @@ namespace parts
 
 		for (unsigned int blk = 0; blk < nBulkPoints; blk++)
 		{
+			// The prefactor is evaluated at this bulk point, so that an axially varying COL_POROSITY
+			// enters the film transfer term with the same nodal (collocated) accuracy as the varying
+			// cross section area does in the transport operator.
+			const double invBetaCblk = static_cast<double>(invBetaC[blk]);
+
 			// FILM_DIFFUSION_DEP is evaluated pointwise at this bulk point's local velocity
 			// (mass-lumped, same fidelity as FV's own midpoint-rule approximation of this term).
 			// Position is a no-op for the only supported dependency (POWER_LAW), which only uses velocity.
@@ -1595,13 +1600,13 @@ namespace parts
 				// row: already at bulk phase. already at current node and component.
 				// col: already at bulk phase. already at current node and component.
 				if (!outliersOnly)
-					jacCl[0] += static_cast<double>(filmDiff_comp) * (1.0 - colPorosity) / colPorosity
+					jacCl[0] += static_cast<double>(filmDiff_comp) * invBetaCblk
 					* _parGeomSurfToVol / static_cast<double>(_parRadius)
 					* static_cast<double>(parTypeVolFrac[_parTypeIdx + blk * nParType]);
 				// add Cl on Cp entries
 				// row: already at bulk phase. already at current node and component.
 				// col: go to current particle phase entry.
-				jacCl[jacCp.row() - jacCl.row()] = -static_cast<double>(filmDiff_comp) * (1.0 - colPorosity) / colPorosity
+				jacCl[jacCp.row() - jacCl.row()] = -static_cast<double>(filmDiff_comp) * invBetaCblk
 					* _parGeomSurfToVol / static_cast<double>(_parRadius)
 					* static_cast<double>(parTypeVolFrac[_parTypeIdx + blk * nParType]);
 
