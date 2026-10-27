@@ -19,6 +19,7 @@
 #include "Logging.hpp"
 
 #include "ColumnTests.hpp"
+#include "cadet/Exceptions.hpp"
 #include "JsonTestModels.hpp"
 #include "ModelBuilderImpl.hpp"
 #include "ParallelSupport.hpp"
@@ -1126,4 +1127,28 @@ TEST_CASE("1D kinetic and equilibrium MAL share liquid equilibrium", "[Column_1D
 	mb->destroyUnitOperation(kinUnit);
 	destroyModelBuilder(mb);
 }
+
 TEST_CASE("2D column rejects a rapid-equilibrium particle liquid reaction", "[Column_2D],[MassActionLaw],[ReactionModel],[Particle],[CI],[ConservedMoieties]")
+{
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	// The 2D column does not apply the conserved moiety transform to its particle rows, so it has to
+	// refuse the reaction instead of dropping it from the residual without replacement
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_2D_GRM", "DG");
+	jpp.pushScope("particle_type_000");
+	jpp.set("NREAC_LIQUID", 1);
+	jpp.addScope("liquid_reaction_000");
+	jpp.pushScope("liquid_reaction_000");
+	jpp.set("TYPE", "MASS_ACTION_LAW");
+	jpp.set("MAL_KFWD", std::vector<double>{2.0});
+	jpp.set("MAL_KBWD", std::vector<double>{1.0});
+	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
+	jpp.set("IS_KINETIC", std::vector<int>{0});
+	jpp.popScope();
+	jpp.popScope();
+
+	REQUIRE_THROWS_AS(cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb), cadet::InvalidParameterException);
+
+	destroyModelBuilder(mb);
+}
