@@ -29,7 +29,7 @@ Reaction dynamics
 -----------------
 
 Every single phase reaction model accepts the following optional field in its input group, which selects whether a reaction is integrated in time or treated as being in rapid equilibrium.
-A rapid-equilibrium reaction is not integrated in time; its rate is fixed by the condition that the net flux vanishes, and the balance equations of the participating components are reformulated in terms of conserved moieties.
+A rapid-equilibrium reaction is not integrated in time; its rate is fixed by the condition that the net flux vanishes, and the balance equations of the participating components are reformulated in terms of conserved moieties, see :ref:`rapid_equilibrium_reactions`.
 
 ``IS_KINETIC``
 
@@ -42,6 +42,7 @@ A rapid-equilibrium reaction is not integrated in time; its rate is fixed by the
    =============  ==========================  ==============================================
 
 Rapid equilibrium is only available in the liquid phase, and only for unit operations that implement the reformulation.
+It is not planned for the specialized FV unit operations (``FV_ARROW_HEAD_OPTIMIZATION`` = ``1``).
 Any other combination is rejected with an error.
 Note that rapid-equilibrium reactions change the initial state: consistent initialization projects the configured initial values onto the equilibrium manifold.
 
@@ -86,6 +87,7 @@ Step by Step guide to define reaction model
 3. Choose the appropriate reaction model for each reaction model type based on the kinetics of your system (e.g., Mass Action Law (:ref:`mass_action_law_config`), Michaelis-Menten (:ref:`michaelis_menten_kinetics_config`)) and write it under the corresponding input group (e.g., ``liquid_reaction_000``, ``solid_reaction_001``, ``cross_phase_reaction_002``).
 
 4. Define the reaction parameters according to the chosen model's specifications. Refer to the specific reaction model documentation for details on required parameters.
+
 
 
 Externally dependent reaction models
