@@ -104,7 +104,7 @@ TEST_CASE("MassActionLaw conserved moieties nullspace", "[MassActionLaw],[Reacti
 				"MAL_KBWD": [2.0],
 				"MAL_STOICHIOMETRY": [-1.0,
 				                       1.0],
-				"MAL_IS_KINETIC": [0]
+				"IS_KINETIC": [0]
 			})json");
 
 		Eigen::MatrixXd S(2, 1);
@@ -124,7 +124,7 @@ TEST_CASE("MassActionLaw conserved moieties nullspace", "[MassActionLaw],[Reacti
 				"MAL_STOICHIOMETRY": [-1.0,
 				                      -1.0,
 				                       1.0],
-				"MAL_IS_KINETIC": [0]
+				"IS_KINETIC": [0]
 			})json");
 
 		Eigen::MatrixXd S(3, 1);
@@ -144,7 +144,7 @@ TEST_CASE("MassActionLaw conserved moieties nullspace", "[MassActionLaw],[Reacti
 				"MAL_STOICHIOMETRY": [-1.0,-1.0,
 				                      -1.0, 1.0,
 				                       1.0, 0.0],
-				"MAL_IS_KINETIC": [0,1]
+				"IS_KINETIC": [0,1]
 			})json");
 
 		Eigen::MatrixXd S(3, 1);
@@ -165,7 +165,7 @@ TEST_CASE("MassActionLaw conserved moieties nullspace", "[MassActionLaw],[Reacti
 				"MAL_STOICHIOMETRY": [-1.0,
 				                      -1.0,
 				                       1.0],
-				"MAL_IS_KINETIC": [1]
+				"IS_KINETIC": [1]
 			})json");
 
  		Eigen::MatrixXd expected;
@@ -300,7 +300,7 @@ TEST_CASE("CSTR liquid equilibrium MAL consistent initialization", "[CSTR],[Mass
 			jpp.set("MAL_KFWD", std::vector<double>{2.0});
 			jpp.set("MAL_KBWD", std::vector<double>{1.0});
 			jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-			jpp.set("MAL_IS_KINETIC", std::vector<int>{false ? 1 : 0});
+			jpp.set("IS_KINETIC", std::vector<int>{false ? 1 : 0});
 			jpp.popScope();
 
 			cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(*mb, jpp);
@@ -335,7 +335,7 @@ TEST_CASE("CSTR liquid equilibrium MAL Jacobian vs AD", "[CSTR],[MassActionLaw],
 		jpp.set("MAL_KFWD", std::vector<double>{2.0});
 		jpp.set("MAL_KBWD", std::vector<double>{1.0});
 		jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-		jpp.set("MAL_IS_KINETIC", std::vector<int>{false ? 1 : 0});
+		jpp.set("IS_KINETIC", std::vector<int>{false ? 1 : 0});
 		jpp.popScope();
 
 	});
@@ -355,7 +355,7 @@ TEST_CASE("CSTR kinetic and equilibrium MAL share liquid equilibrium", "[CSTR],[
 	eqJpp.set("MAL_KFWD", std::vector<double>{2.0});
 	eqJpp.set("MAL_KBWD", std::vector<double>{1.0});
 	eqJpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	eqJpp.set("MAL_IS_KINETIC", std::vector<int>{false ? 1 : 0});
+	eqJpp.set("IS_KINETIC", std::vector<int>{false ? 1 : 0});
 	eqJpp.popScope();
 
 	cadet::model::CSTRModel* const eqCstr = createAndConfigureCSTR(*mb, eqJpp);
@@ -376,7 +376,7 @@ TEST_CASE("CSTR kinetic and equilibrium MAL share liquid equilibrium", "[CSTR],[
 	kinjpp.set("MAL_KFWD", std::vector<double>{2.0});
 	kinjpp.set("MAL_KBWD", std::vector<double>{1.0});
 	kinjpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	kinjpp.set("MAL_IS_KINETIC", std::vector<int>{true ? 1 : 0});
+	kinjpp.set("IS_KINETIC", std::vector<int>{true ? 1 : 0});
 	kinjpp.popScope();
 
 	cadet::model::CSTRModel* const kinCstr = createAndConfigureCSTR(*mb, kinjpp);
@@ -433,7 +433,7 @@ TEST_CASE("1D column liquid equilibrium MAL consistent initialization", "[Column
 			jpp.set("MAL_KFWD", std::vector<double>{2.0});
 			jpp.set("MAL_KBWD", std::vector<double>{1.0});
 			jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-			jpp.set("MAL_IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
+			jpp.set("IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
 			jpp.popScope();
 
 			cadet::IUnitOperation* const unit =cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
@@ -491,7 +491,7 @@ TEST_CASE("1D column particle liquid and binding equilibrium consistent initiali
 	jpp.set("MAL_KFWD", std::vector<double>{2.0});
 	jpp.set("MAL_KBWD", std::vector<double>{1.0});
 	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.set("IS_KINETIC", std::vector<int>{0});
 	jpp.popScope();
 	jpp.popScope();
 
@@ -550,7 +550,7 @@ TEST_CASE("1D column general rate particle liquid and binding equilibrium consis
 	jpp.set("MAL_KFWD", std::vector<double>{2.0});
 	jpp.set("MAL_KBWD", std::vector<double>{1.0});
 	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.set("IS_KINETIC", std::vector<int>{0});
 	jpp.popScope();
 	jpp.popScope();
 
@@ -609,7 +609,7 @@ TEST_CASE("1D column general rate particle liquid equilibrium MAL consistent ini
 	jpp.set("MAL_KFWD", std::vector<double>{2.0});
 	jpp.set("MAL_KBWD", std::vector<double>{1.0});
 	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.set("IS_KINETIC", std::vector<int>{0});
 	jpp.popScope();
 	jpp.popScope();
 
@@ -658,7 +658,7 @@ TEST_CASE("1D column particle liquid equilibrium MAL Jacobian vs AD", "[Column_1
 	jpp.set("MAL_KFWD", std::vector<double>{2.0});
 	jpp.set("MAL_KBWD", std::vector<double>{1.0});
 	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.set("IS_KINETIC", std::vector<int>{0});
 	jpp.popScope();
 	jpp.popScope();
 
@@ -681,7 +681,7 @@ TEST_CASE("1D column general rate particle liquid equilibrium MAL Jacobian vs AD
 			jpp.set("MAL_KFWD", std::vector<double>{2.0});
 			jpp.set("MAL_KBWD", std::vector<double>{1.0});
 			jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-			jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+			jpp.set("IS_KINETIC", std::vector<int>{0});
 			jpp.popScope();
 			jpp.popScope();
 
@@ -702,7 +702,7 @@ TEST_CASE("1D column general rate particle liquid equilibrium MAL time derivativ
 	jpp.set("MAL_KFWD", std::vector<double>{2.0});
 	jpp.set("MAL_KBWD", std::vector<double>{1.0});
 	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.set("IS_KINETIC", std::vector<int>{0});
 	jpp.popScope();
 	jpp.popScope();
 
@@ -720,7 +720,7 @@ TEST_CASE("1D column liquid equilibrium MAL initial concentration sensitivities"
 	jpp.set("MAL_KFWD", std::vector<double>{2.0});
 	jpp.set("MAL_KBWD", std::vector<double>{1.0});
 	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.set("IS_KINETIC", std::vector<int>{0});
 	jpp.popScope();
 	jpp.pushScope("particle_type_000");
 	jpp.set("INIT_CP", std::vector<double>{2.7, 0.3});
@@ -731,7 +731,7 @@ TEST_CASE("1D column liquid equilibrium MAL initial concentration sensitivities"
 	jpp.set("MAL_KFWD", std::vector<double>{2.0});
 	jpp.set("MAL_KBWD", std::vector<double>{1.0});
 	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.set("IS_KINETIC", std::vector<int>{0});
 	jpp.popScope();
 	jpp.popScope();
 
@@ -818,7 +818,7 @@ TEST_CASE("1D column coupled particle liquid and binding equilibrium initial sen
 	jpp.set("MAL_KFWD", std::vector<double>{2.0});
 	jpp.set("MAL_KBWD", std::vector<double>{1.0});
 	jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	jpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	jpp.set("IS_KINETIC", std::vector<int>{0});
 	jpp.popScope();
 	jpp.popScope();
 
@@ -902,7 +902,7 @@ TEST_CASE("1D column liquid equilibrium MAL outlet sensitivity with respect to i
 	unitJpp.set("MAL_KFWD", std::vector<double>{2.0});
 	unitJpp.set("MAL_KBWD", std::vector<double>{1.0});
 	unitJpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	unitJpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	unitJpp.set("IS_KINETIC", std::vector<int>{0});
 	unitJpp.popScope();
 	unitJpp.pushScope("particle_type_000");
 	unitJpp.set("INIT_CP", std::vector<double>{2.7, 0.3});
@@ -913,7 +913,7 @@ TEST_CASE("1D column liquid equilibrium MAL outlet sensitivity with respect to i
 	unitJpp.set("MAL_KFWD", std::vector<double>{2.0});
 	unitJpp.set("MAL_KBWD", std::vector<double>{1.0});
 	unitJpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	unitJpp.set("MAL_IS_KINETIC", std::vector<int>{0});
+	unitJpp.set("IS_KINETIC", std::vector<int>{0});
 	unitJpp.popScope();
 	unitJpp.popScope();
 
@@ -987,7 +987,7 @@ TEST_CASE("1D liquid equilibrium MAL Jacobian vs AD", "[Column_1D],[MassActionLa
 		jpp.set("MAL_KFWD", std::vector<double>{2.0});
 		jpp.set("MAL_KBWD", std::vector<double>{1.0});
 		jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-		jpp.set("MAL_IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
+		jpp.set("IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
 		jpp.popScope();
 
 		cadet::test::column::testJacobianAD(
@@ -1014,7 +1014,7 @@ TEST_CASE("1D liquid equilibrium MAL Jacobian vs AD", "[Column_1D],[MassActionLa
 		jpp.set("MAL_KFWD", std::vector<double>{2.0});
 		jpp.set("MAL_KBWD", std::vector<double>{1.0});
 		jpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-		jpp.set("MAL_IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
+		jpp.set("IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
 		jpp.popScope();
 		cadet::test::column::testJacobianAD(
 			jpp, std::numeric_limits<float>::epsilon() * 100.0);
@@ -1045,7 +1045,7 @@ TEST_CASE("1D kinetic and equilibrium MAL share liquid equilibrium", "[Column_1D
 	eqJpp.set("MAL_KFWD", std::vector<double>{2.0});
 	eqJpp.set("MAL_KBWD", std::vector<double>{1.0});
 	eqJpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	eqJpp.set("MAL_IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
+	eqJpp.set("IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
 	eqJpp.popScope();
 
 	cadet::IUnitOperation* const eqUnit =
@@ -1083,7 +1083,7 @@ TEST_CASE("1D kinetic and equilibrium MAL share liquid equilibrium", "[Column_1D
 	kinJpp.set("MAL_KFWD", std::vector<double>{2.0});
 	kinJpp.set("MAL_KBWD", std::vector<double>{1.0});
 	kinJpp.set("MAL_STOICHIOMETRY", std::vector<double>{-1.0, 1.0});
-	kinJpp.set("MAL_IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
+	kinJpp.set("IS_KINETIC", std::vector<int>{kinetic ? 1 : 0});
 	kinJpp.popScope();
 
 	cadet::IUnitOperation* const kinUnit =
@@ -1126,3 +1126,4 @@ TEST_CASE("1D kinetic and equilibrium MAL share liquid equilibrium", "[Column_1D
 	mb->destroyUnitOperation(kinUnit);
 	destroyModelBuilder(mb);
 }
+TEST_CASE("2D column rejects a rapid-equilibrium particle liquid reaction", "[Column_2D],[MassActionLaw],[ReactionModel],[Particle],[CI],[ConservedMoieties]")
