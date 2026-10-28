@@ -372,7 +372,7 @@ struct ReactionSystem
 
             bool conservedMoitiesSuccess = cm.configure(nStates, eqReactionFlags, S, rankTol);
 
-            if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+            if (cm.hasRapidEquilibrium())
             {
                 if (cm.numMoieties() + cm.numEquilibriumReactions() != nStates)
                 {

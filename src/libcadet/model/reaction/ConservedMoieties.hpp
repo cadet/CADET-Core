@@ -44,6 +44,15 @@ public:
 		return static_cast<unsigned int>(_L.cols() - _L.rows());
 	}
 
+	/**
+	 * @brief Determines whether the conserved-moiety reformulation changes the phase equations
+	 * @details If so, the state rows of the phase are replaced by numMoieties() conserved-moiety
+	 *          rows followed by numEquilibriumReactions() algebraic equilibrium rows. Code that
+	 *          assumes the untransformed equations has to branch on this.
+	 * @return True if the phase holds rapid-equilibrium reactions and has been reformulated, false otherwise
+	 */
+	bool hasRapidEquilibrium() const CADET_NOEXCEPT { return _enabled && (numEquilibriumReactions() > 0); }
+
 	void clear()
 	{
 		_enabled = false;

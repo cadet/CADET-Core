@@ -633,8 +633,7 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 	// Check if liquid volume is 0
 	if (vLiquid == 0.0)
 	{
-		const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
-		if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0))
+		if (_reactionSystemBulk.conservedMoieties("liquid").hasRapidEquilibrium())
 			throw InvalidParameterException("CSTR consistent initialization: reactions in rapid equilibrium require a non-zero liquid volume");
 
 		const double flowIn = static_cast<double>(_flowRateIn);
@@ -703,14 +702,18 @@ void CSTRModel::consistentInitialState(const SimulationTime& simTime, double* co
 	else
 {
 	const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
-	if(cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+	if (cm.hasRapidEquilibrium())
 	{
+		// Quasi-stationary binding ties q to c through the isotherm, so it would have to be solved
+		// jointly with the liquid equilibrium below, which projects c alone onto the conserved
+		// moieties. The else branch that initializes the bound states is not reached from here.
+		// Dynamic binding is fine, as q is a differential state that is not initialized there either.
 		if (_totalBound > 0)
 		{
 			for (unsigned int type = 0; type < _nParType; ++type)
 			{
-				if (!_binding[type]->hasQuasiStationaryReactions())
-					throw InvalidParameterException("CSTR consistent initalisation: binding AND reactions in rapid equilibirum is not supported yet");
+				if (_binding[type]->hasQuasiStationaryReactions())
+					throw InvalidParameterException("CSTR consistent initialization: quasi-stationary binding together with reactions in rapid equilibrium is not supported yet");
 			}
 		}
 		LinearBufferAllocator tlmAlloc = threadLocalMem.get();
@@ -1096,15 +1099,18 @@ void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, d
 
 	const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
 
-	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+	if (cm.hasRapidEquilibrium())
 	{
-		
+
+		// Quasi-stationary binding ties q to c through the isotherm, so the bound states would have
+		// to be initialized together with the liquid equilibrium handled below. Dynamic binding is
+		// fine, as its bound states carry their own differential equations.
 		if (_totalBound > 0)
 		{
 			for (unsigned int type = 0; type < _nParType; ++type)
 			{
-				if (!_binding[type]->hasQuasiStationaryReactions())
-					throw InvalidParameterException("CSTR consistent initalisation: binding AND reactions in rapid equilibirum is not supported yet");
+				if (_binding[type]->hasQuasiStationaryReactions())
+					throw InvalidParameterException("CSTR consistent initialization: quasi-stationary binding together with reactions in rapid equilibrium is not supported yet");
 			}
 		}
 		
@@ -1144,8 +1150,7 @@ void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, d
 	// Check if volume is 0
 	if (vLiquid == 0.0)
 	{
-		const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
-		if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0))
+		if (cm.hasRapidEquilibrium())
 			throw InvalidParameterException("CSTR consistent initialization: reactions in rapid equilibrium require a non-zero liquid volume");
 
 		// Volume: \dot{V} = F_{in} - F_{out} - F_{filter}
@@ -1275,6 +1280,14 @@ void CSTRModel::leanConsistentInitialState(const SimulationTime& simTime, double
 	// It is assumed that the bound states are (approximately) correctly initialized.
 	// Thus, only the liquid phase has to be initialized
 
+	// The equilibrium equations are algebraic, so they hold no time derivative that
+	// leanConsistentInitialTimeDerivative() could use to absorb an inconsistent c. Leaving c in
+	// place, as done below for a non-zero liquid volume, therefore keeps a residual that the
+	// relaxed initialization cannot repair later on. The branch for a zero liquid volume is wrong
+	// on top of that, as it solves the untransformed liquid phase equations for c.
+	if (_reactionSystemBulk.conservedMoieties("liquid").hasRapidEquilibrium())
+		throw InvalidParameterException("CSTR lean consistent initialization: reactions in rapid equilibrium are not supported yet");
+
 			double* const c = vecStateY + _nComp;
 			const double vLiquid = c[_nComp];
 			const double vSolid = static_cast<double>(_constSolidVolume);
@@ -1345,8 +1358,7 @@ void CSTRModel::leanConsistentInitialTimeDerivative(double t, double const* cons
 	// Both branches below solve the untransformed liquid phase equations for \dot{c}. With
 	// reactions in rapid equilibrium the residual holds the conserved moiety combinations and the
 	// equilibrium residuals instead, so neither branch applies to the equations actually solved.
-	const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
-	if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0))
+	if (_reactionSystemBulk.conservedMoieties("liquid").hasRapidEquilibrium())
 		throw InvalidParameterException("CSTR lean consistent initialization: reactions in rapid equilibrium are not supported yet");
 
 	double const* const c = vecStateY + _nComp;
@@ -1752,8 +1764,8 @@ int CSTRModel::residualImpl(double t, unsigned int secIdx, StateType const* cons
 	res[2 * _nComp + _totalBound] = vDot - flowIn + flowOut + static_cast<ParamType>(_curFlowRateFilter);
 
 	const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
-	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
-	{ 
+	if (cm.hasRapidEquilibrium())
+	{
 		const Eigen::MatrixXd& L = cm.conservedMoietyMatrix();
 
 		const unsigned int nMoieties = cm.numMoieties() ;
@@ -1973,8 +1985,7 @@ void CSTRModel::consistentInitialSensitivity(const SimulationTime& simTime, cons
 	// here: step 1 below only covers quasi-stationary bound states (which cannot occur together
 	// with rapid equilibrium, see consistentInitialState()), and step 2 would solve a singular
 	// system.
-	const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
-	if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0))
+	if (_reactionSystemBulk.conservedMoieties("liquid").hasRapidEquilibrium())
 		throw InvalidParameterException("CSTR consistent sensitivity initialization: reactions in rapid equilibrium are not supported yet");
 
 	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
@@ -2185,7 +2196,7 @@ void CSTRModel::multiplyWithDerivativeJacobian(const SimulationTime& simTime, co
 	r[_nComp + _totalBound] = s[_nComp + _totalBound];
 
 	const auto& cm = _reactionSystemBulk.conservedMoieties("liquid");
-	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+	if (cm.hasRapidEquilibrium())
 	{
 		const unsigned int nPure = numPureDofs();
 		const Eigen::MatrixXd& L = cm.conservedMoietyMatrix();
@@ -2298,7 +2309,7 @@ void CSTRModel::addTimeDerivativeJacobian(double t, double alpha, const ConstSim
 		}
 	}
 
-	if (cm.isEnabled() &&  (cm.numEquilibriumReactions() > 0))
+	if (cm.hasRapidEquilibrium())
     {
         const auto& L = cm.conservedMoietyMatrix();
         const unsigned int nMoieties = cm.numMoieties();

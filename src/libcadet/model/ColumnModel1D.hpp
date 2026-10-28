@@ -565,7 +565,7 @@ protected:
 		}
 
 		const auto& cm = _reaction.conservedMoieties("liquid");
-		if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+		if (cm.hasRapidEquilibrium())
 				cm.addPatternToBlocks(tripletList, _disc.nComp, idxr.offsetC(), _disc.nPoints, idxr.strideColNode(), 0, globalJ.cols());
 
 		globalJ.setFromTriplets(tripletList.begin(), tripletList.end());
