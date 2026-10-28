@@ -385,19 +385,21 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 {
 	_parameters.clear();
 
-	const bool transportSuccess = _convDispOp.configure(_unitOpIdx, paramProvider, _parameters);
-
 	// Read geometry parameters handled by unit operation
 	//
 	// COL_POROSITY is either a single value, or one value per axial node. The latter describes a
-	// packing density that varies along the flow path. It is restricted to GEOMETRY =
-	// SMOOTHLY_VARYING (and thus to the DG discretization), because the bulk transport operator
-	// sees the porosity only through the flow through area w = eps * A, which the user then has
-	// to supply as CROSS_SECTIONAL_AREA_AT_NODES. Consequently, the flow rate must not be divided
-	// by the porosity a second time, which is why setFlowRates() hands the transport operator a
-	// porosity of one in this case, see setFlowRates(). What does not follow from w is the film
-	// transfer term, whose bulk side prefactor (1 - eps) / eps is evaluated per axial node,
+	// packing density that varies along the flow path, which is independent of the column
+	// geometry: a cylinder, a cylinder shell, a frustum and a user prescribed cross section may
+	// each be packed non-uniformly. The bulk transport operator sees the porosity only through
+	// the flow through area w = eps * A, which it computes from its own geometric area A once it
+	// has been handed the profile. Consequently, the flow rate must not be divided by the
+	// porosity a second time, which is why setFlowRates() hands the transport operator a porosity
+	// of one in this case, see setFlowRates(). What does not follow from w is the film transfer
+	// term, whose bulk side prefactor (1 - eps) / eps is evaluated per axial node,
 	// see updateFilmTransferPrefactor().
+	//
+	// This has to happen before the transport operator is configured, since configure() assembles
+	// the geometry dependent operators, which a profile is baked into.
 	readScalarParameterOrArray(_colPorosity, paramProvider, "COL_POROSITY", 1);
 
 	_axiallyConstantColPorosity = (_colPorosity.size() == 1);
@@ -409,35 +411,28 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 		const active colPorosity = _colPorosity[0];
 		_colPorosity.resize(_disc.nPoints, colPorosity);
 	}
-	else
+	else if (_colPorosity.size() != _disc.nPoints)
 	{
-		if (paramProvider.getString("GEOMETRY") != "SMOOTHLY_VARYING")
-			throw InvalidParameterException("Field COL_POROSITY may only be given per axial node for GEOMETRY = SMOOTHLY_VARYING, since the flow through area has to be prescribed along with it via CROSS_SECTIONAL_AREA_AT_NODES");
-
-		if (_colPorosity.size() != _disc.nPoints)
-			throw InvalidParameterException("Field COL_POROSITY must have either 1 or " + std::to_string(_disc.nPoints) +
-				" entries (one per DG node, i.e. (POLYDEG + 1) * NELEM, with the element interface nodes listed twice), but has " +
-				std::to_string(_colPorosity.size()));
-
-		for (unsigned int i = 0; i < _disc.nPoints; ++i)
-		{
-			const double eps = static_cast<double>(_colPorosity[i]);
-			if (!(eps > 0.0) || (eps > 1.0))
-				throw InvalidParameterException("Field COL_POROSITY must be in (0.0, 1.0], but entry " + std::to_string(i) + " is " + std::to_string(eps));
-		}
-
-		// A packing density that varies along the flow path is still continuous, just as the cross
-		// section area it is multiplied with. Rejecting a jump at an element interface catches an
-		// inconsistent profile that would otherwise silently disagree with the flow through area.
-		for (unsigned int elem = 1; elem < _disc.nElem; ++elem)
-		{
-			const double left = static_cast<double>(_colPorosity[elem * _disc.nNodes - 1u]);
-			const double right = static_cast<double>(_colPorosity[elem * _disc.nNodes]);
-			if (std::abs(left - right) > 1e-10 * std::max(1.0, std::abs(left)))
-				throw InvalidParameterException("Field COL_POROSITY must be continuous at the element interfaces, but the two entries at the interface between element " +
-					std::to_string(elem - 1u) + " and " + std::to_string(elem) + " are " + std::to_string(left) + " and " + std::to_string(right));
-		}
+		throw InvalidParameterException("Field COL_POROSITY must have either 1 or " + std::to_string(_disc.nPoints) +
+			" entries (one per discrete bulk point), but has " + std::to_string(_colPorosity.size()));
 	}
+
+	for (unsigned int i = 0; i < _disc.nPoints; ++i)
+	{
+		const double eps = static_cast<double>(_colPorosity[i]);
+		if (!(eps > 0.0) || (eps > 1.0))
+			throw InvalidParameterException("Field COL_POROSITY must be in (0.0, 1.0], but entry " + std::to_string(i) + " is " + std::to_string(eps));
+	}
+
+	// The profile is handed over as a pointer into _colPorosity, so that a parameter update is
+	// picked up at the next section transition, when the operators are reassembled. Operators
+	// that cannot represent a varying weight report this here; the model builder already routes a
+	// varying porosity to one that can, so this is the second line of defence. The operator also
+	// checks the profile against the grid it is discretized on.
+	if (!_convDispOp.setPorosityProfile(_colPorosity.data(), _axiallyConstantColPorosity ? 1u : _disc.nPoints))
+		throw InvalidParameterException("The transport operator of unit " + std::to_string(_unitOpIdx) + " does not support an axially varying COL_POROSITY");
+
+	const bool transportSuccess = _convDispOp.configure(_unitOpIdx, paramProvider, _parameters);
 
 	_invBetaC.resize(_disc.nPoints);
 	updateFilmTransferPrefactor();
@@ -491,7 +486,15 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 	if (_axiallyConstantColPorosity)
 		_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colPorosity[0];
 	else
+	{
+		// A nodal COL_POROSITY is registered so that its values can be updated, but it does not
+		// support parameter sensitivities: the transport operator folds the porosity into its area
+		// weight, which is a plain double, so the derivative of the transport term with respect to
+		// the porosity is lost and only the film transfer term would contribute. Sensitivities are
+		// therefore only correct for a single COL_POROSITY, which reaches the operator as an active
+		// through the interstitial velocity, see setFlowRates().
 		registerParam1DArray(_parameters, _colPorosity, [=, this](bool multi, unsigned int node) { return makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, node); });
+	}
 
 	// Register initial conditions parameters
 	registerParam1DArray(_parameters, _initC, [=, this](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
@@ -681,9 +684,9 @@ template <typename ConvDispOperator>
 void ColumnModel1D<ConvDispOperator>::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 {
 	// For an axially varying porosity, the porosity is already contained in the flow through area
-	// w = eps * A that the transport operator was configured with (CROSS_SECTIONAL_AREA_AT_NODES),
-	// so the volumetric flow rate must not be divided by it again: the interstitial velocity is
-	// V / w, not V / (eps * w). See configure() for the convention.
+	// w = eps * A that the transport operator weights its operators with, so the volumetric flow
+	// rate must not be divided by it again: the interstitial velocity is V / w, not V / (eps * w).
+	// See configure() for the convention.
 	_convDispOp.setFlowRates(in[0], out[0], _axiallyConstantColPorosity ? _colPorosity[0] : _unitPorosity);
 }
 

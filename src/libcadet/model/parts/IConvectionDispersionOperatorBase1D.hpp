@@ -92,6 +92,30 @@
 			*/
 			virtual void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT = 0;
 
+			/**
+			* @brief Hands an axially varying bulk porosity profile to the operator
+			* @details The transport operator sees the porosity only through the flow through area
+			*          @f$ w(x) = \varepsilon_c(x) A(x) @f$. A constant porosity cancels from every
+			*          ratio the operators are built from and is handed over through setFlowRates()
+			*          instead; a profile has to be baked into the operators, which requires an
+			*          operator whose weight is not a closed-form analytic expression. Operators
+			*          that cannot represent a varying weight return @c false, which the owning
+			*          unit operation turns into a configuration error.
+			*          Has to be called after configureModelDiscretization() and before configure(),
+			*          since configure() assembles the geometry dependent operators.
+			* @param [in] porosity Porosity profile with one entry per discrete bulk point, owned by
+			*             the caller, which has to outlive the operator. Pass @c nullptr for a
+			*             constant porosity.
+			* @param [in] nPoints Number of entries in @p porosity, i.e. @c 1 for a constant porosity
+			*             and the number of discrete bulk points for a profile
+			* @return @c true if the operator can represent the given profile
+			*/
+			virtual bool setPorosityProfile(active const* porosity, unsigned int nPoints)
+			{
+				// By default, an operator only supports a constant porosity
+				return (porosity == nullptr) || (nPoints <= 1u);
+			}
+
 			virtual int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity) = 0;
 
 			virtual int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity) = 0;

@@ -640,7 +640,7 @@ bool AxialConvectionDispersionOperatorBaseCollocationDG::setSensitiveParameter(s
 }
 
 VariableCrossSectionConvectionDispersionOperatorBaseDG::VariableCrossSectionConvectionDispersionOperatorBaseDG()
-	: _auxState(nullptr), _subsState(nullptr), _dispersionDep(nullptr)
+	: _colPorosityProfile(nullptr), _axiallyConstantPorosity(true), _auxState(nullptr), _subsState(nullptr), _dispersionDep(nullptr)
 {
 }
 
@@ -947,8 +947,39 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::notifyDiscontinuous
 
 void VariableCrossSectionConvectionDispersionOperatorBaseDG::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
 {
+	// For an axially varying porosity the weight of the operators already is the flow through area
+	// eps_c(x) A(x), see computeFlowArea(), so the unit operation hands a porosity of one down here
+	// and the flow rate is not divided by the porosity a second time.
 	_flowRate = in;
 	_QOverEps = _curFwdFlow ? _flowRate / colPorosity / _flowFraction : -_flowRate / colPorosity / _flowFraction;
+}
+
+bool VariableCrossSectionConvectionDispersionOperatorBaseDG::setPorosityProfile(active const* porosity, unsigned int nPoints)
+{
+	_colPorosityProfile = porosity;
+	_axiallyConstantPorosity = (porosity == nullptr) || (nPoints <= 1u);
+
+	if (_axiallyConstantPorosity)
+		return true;
+
+	if (nPoints != _nPoints)
+		throw InvalidParameterException("An axially varying bulk porosity must have one entry per discrete bulk point, i.e. " + std::to_string(_nPoints) +
+			" ((POLYDEG + 1) * NELEM, with the element interface nodes listed twice), but has " + std::to_string(nPoints));
+
+	// A packing density that varies along the flow path is still continuous, just as the cross
+	// section area it is multiplied with. Rejecting a jump at an element interface catches an
+	// inconsistent profile, which would make the dispersive interface flux w D g^* two-valued and
+	// thereby break conservation.
+	for (unsigned int elem = 1; elem < _nElem; ++elem)
+	{
+		const double left = static_cast<double>(porosity[elem * _nNodes - 1u]);
+		const double right = static_cast<double>(porosity[elem * _nNodes]);
+		if (std::abs(left - right) > 1e-10 * std::max(1.0, std::abs(left)))
+			throw InvalidParameterException("An axially varying bulk porosity must be continuous at the element interfaces, but the two entries at the interface between element " +
+				std::to_string(elem - 1u) + " and " + std::to_string(elem) + " are " + std::to_string(left) + " and " + std::to_string(right));
+	}
+
+	return true;
 }
 
 unsigned int VariableCrossSectionConvectionDispersionOperatorBaseDG::jacobianLowerBandwidth() const CADET_NOEXCEPT
@@ -1045,10 +1076,40 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeGeometry()
 	default:
 		break;
 	}
+
+	computeFlowArea();
+}
+
+void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeFlowArea()
+{
+	// The DG operators are weighted with the flow through area w(x) = eps_c(x) A(x), which is the
+	// weight the bulk mass balance is formulated with. A constant porosity cancels from every
+	// ratio the operators are built from, so it is left out here and carried by _QOverEps instead,
+	// see setFlowRates(), which keeps the operators of a constant porosity bit for bit identical.
+	_flowArea = _crossSectionArea;
+
+	if (_axiallyConstantPorosity)
+		return;
+
+	for (unsigned int i = 0; i < _nPoints; ++i)
+		_flowArea[i] *= static_cast<double>(_colPorosityProfile[i]);
 }
 
 void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperators(const unsigned int secIdx)
 {
+	if (!_axiallyConstantPorosity)
+	{
+		// The porosity profile is owned by the unit operation and its values may have changed
+		// since the last section transition, e.g. through a parameter update
+		computeFlowArea();
+
+		// eps_c(x) A(x) is not the closed-form polynomial that the analytic mass matrices of the
+		// cylinder, the cylinder shell and the frustum are derived from, so a varying porosity
+		// needs the general nodal quadrature assembly for every geometry.
+		computeOperatorsNodalArea(secIdx);
+		return;
+	}
+
 	switch (_geometryType)
 	{
 	case GeometryType::AxialFlowCylinder:
@@ -1061,7 +1122,7 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperators(co
 		computeOperatorsFrustum(secIdx);
 		break;
 	case GeometryType::SmoothlyVaryingCrossSection:
-		computeOperatorsSmoothlyVarying(secIdx);
+		computeOperatorsNodalArea(secIdx);
 		break;
 	default:
 		break;
@@ -1071,6 +1132,20 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperators(co
 active VariableCrossSectionConvectionDispersionOperatorBaseDG::currentVelocity(double pos) const CADET_NOEXCEPT
 {
 	const double pi = 3.14159265358979323846;
+
+	// Wherever the weight is only known through its nodal values -- the user prescribed area, or
+	// any geometry combined with a porosity profile -- it is evaluated by locating the element
+	// that contains the given position and interpolating there. The remaining geometries evaluate
+	// their analytic area exactly.
+	if (!_axiallyConstantPorosity || _geometryType == GeometryType::SmoothlyVaryingCrossSection)
+	{
+		const double dx = static_cast<double>(_deltaX);
+		const double x = std::min(std::max(pos, 0.0), 1.0) * static_cast<double>(_bedLength);
+		const unsigned int elem = std::min(static_cast<unsigned int>(x / dx), _nElem - 1u);
+		const double xi = 2.0 * (x - elem * dx) / dx - 1.0;
+		return _QOverEps / interpolatedFlowArea(elem, xi);
+	}
+
 	switch (_geometryType)
 	{
 	case GeometryType::RadialFlowCylinderShell:
@@ -1082,16 +1157,6 @@ active VariableCrossSectionConvectionDispersionOperatorBaseDG::currentVelocity(d
 	{
 		const active radius = pos * (_radiusXEnd - _radiusXStart) + _radiusXStart;
 		return _QOverEps / (pi * radius * radius);
-	}
-	case GeometryType::SmoothlyVaryingCrossSection:
-	{
-		// Locate the element that contains the given position and evaluate the piecewise
-		// polynomial cross section area there
-		const double dx = static_cast<double>(_deltaX);
-		const double x = std::min(std::max(pos, 0.0), 1.0) * static_cast<double>(_bedLength);
-		const unsigned int elem = std::min(static_cast<unsigned int>(x / dx), _nElem - 1u);
-		const double xi = 2.0 * (x - elem * dx) / dx - 1.0;
-		return _QOverEps / interpolatedCrossSectionArea(elem, xi);
 	}
 	case GeometryType::AxialFlowCylinder:
 	default:
@@ -1437,7 +1502,7 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsFru
 	}
 }
 
-double VariableCrossSectionConvectionDispersionOperatorBaseDG::interpolatedCrossSectionArea(const unsigned int elem, const double xi) const
+double VariableCrossSectionConvectionDispersionOperatorBaseDG::interpolatedFlowArea(const unsigned int elem, const double xi) const
 {
 	double area = 0.0;
 
@@ -1450,7 +1515,7 @@ double VariableCrossSectionConvectionDispersionOperatorBaseDG::interpolatedCross
 				continue;
 			lagrangeBasis *= (xi - _nodes[m]) / (_nodes[j] - _nodes[m]);
 		}
-		area += lagrangeBasis * _crossSectionArea[elem * _nNodes + j];
+		area += lagrangeBasis * _flowArea[elem * _nNodes + j];
 	}
 
 	return area;
@@ -1463,7 +1528,7 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeGeometrySmoo
 	_crossSectionArea = _userCrossSectionArea;
 }
 
-void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsSmoothlyVarying(const unsigned int secIdx)
+void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsNodalArea(const unsigned int secIdx)
 {
 	const double H = static_cast<double>(_bedLength);
 	const double dx = static_cast<double>(_deltaX);
@@ -1477,9 +1542,11 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsSmo
 	for (auto& v : _dispAtInterfaces)
 		v.assign(_nElem + 1, 0.0);
 
-	// The cross section area is represented by its nodal Lagrange interpolant, i.e. by a
-	// polynomial of degree _polyDeg per element, so the geometric factor contributes
-	// _polyDeg to the degree of the integrand.
+	// The flow through area eps_c(x) A(x) is represented by its nodal Lagrange interpolant, i.e.
+	// by a polynomial of degree _polyDeg per element, so the geometric factor contributes
+	// _polyDeg to the degree of the integrand. Note that for a porosity profile on an analytic
+	// geometry this interpolates a product whose area factor the other routines evaluate exactly,
+	// so a frustum needs POLYDEG >= 2 to represent its own area without an additional error.
 	const int geomFactorDegree = _polyDeg;
 	// Number of nodes for exact gauss quadrature of the integral with dispersion weight and
 	// geometric factor. Gauss quadrature with n nodes is exact up to degree 2n - 1, so
@@ -1490,7 +1557,7 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsSmo
 	Eigen::VectorXd quadWeights = Eigen::VectorXd::Zero(nQuadNodes);
 	dgtoolbox::lgNodesWeights(nQuadNodes - 1, quadNodes, quadWeights, false);
 
-	// Unlike the other geometries, A(x) is not available in the closed polynomial form
+	// Unlike the analytic geometries, the weight is not available in the closed polynomial form
 	// ( \sum_n (1 - \xi)^n \alpha_n + \sum_m (1 + \xi)^m \beta_m + gamma ) expected by
 	// weightedQuadMassMatrix. It is instead passed in through the values at the quadrature
 	// nodes, which leaves the geometric weight of that routine at one.
@@ -1505,7 +1572,7 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsSmo
 		const double x_L = elem * dx;
 
 		for (int node = 0; node < nQuadNodes; ++node)
-			areaAtQNodes[node] = interpolatedCrossSectionArea(elem, quadNodes[node]);
+			areaAtQNodes[node] = interpolatedFlowArea(elem, quadNodes[node]);
 
 		// M^A_{i,j} = \int_{-1}^1 \ell_i(\xi) \ell_j(\xi) A(x^e(\xi)) d\xi
 		const Eigen::MatrixXd M_A = dgtoolbox::weightedQuadMassMatrix(
@@ -1583,9 +1650,10 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsSmo
 			}
 			const double physicalPos = iface * dx;
 			const double relPos = physicalPos / H;
-			// The area is continuous across the interfaces (checked when reading
-			// CROSS_SECTIONAL_AREA_AT_NODES), so either of the two node values may be used
-			const double localArea = (iface < _nElem) ? _crossSectionArea[iface * _nNodes] : _crossSectionArea[_nPoints - 1u];
+			// The weight is continuous across the interfaces (checked when reading
+			// CROSS_SECTIONAL_AREA_AT_NODES and the porosity profile, see setPorosityProfile),
+			// so either of the two node values may be used
+			const double localArea = (iface < _nElem) ? _flowArea[iface * _nNodes] : _flowArea[_nPoints - 1u];
 			const double localVelocity = static_cast<double>(_QOverEps) / localArea;
 			_dispAtInterfaces[comp][iface] = baseDispersion * _dispersionDep->getValue(ColumnPosition{ relPos, 0.0, 0.0 },
 				comp, ParTypeIndep, BoundStateIndep, localVelocity);
@@ -1666,8 +1734,8 @@ Eigen::MatrixXd VariableCrossSectionConvectionDispersionOperatorBaseDG::DGjacobi
 	// Volume: invMA * S_g * G_curr
 	dispBlock.block(0, _nNodes, _nNodes, _nNodes + 2) = invHalfDeltaX * (_invMM_A_times_ST_AD[comp][elemIdx] * G_curr);
 
-	const double Aleft = _crossSectionArea[elemIdx * _nNodes];
-	const double Aright = _crossSectionArea[(elemIdx + 1) * _nNodes - 1];
+	const double Aleft = _flowArea[elemIdx * _nNodes];
+	const double Aright = _flowArea[(elemIdx + 1) * _nNodes - 1];
 	// dispersion evaluated exactly at each interface (matches the
 	// position-dependent volume-term dispersion, see _dispAtInterfaces), so
 	// this analytic Jacobian stays consistent with surfaceIntegralMainImpl's

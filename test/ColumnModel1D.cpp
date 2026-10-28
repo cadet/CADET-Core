@@ -106,9 +106,9 @@ namespace
 
 	/**
 	 * @brief Replaces the geometry of a column unit by a SMOOTHLY_VARYING geometry with an axially varying bulk porosity
-	 * @details The bulk transport operator sees the porosity only through the flow through area w = eps * A, which is
-	 *          therefore what CROSS_SECTIONAL_AREA_AT_NODES has to hold. The porosity itself is supplied at every DG
-	 *          node as COL_POROSITY, since the film diffusion prefactor (1 - eps) / eps does not follow from w.
+	 * @details Both the geometric cross section area and the porosity are supplied at every DG node. CADET-Core
+	 *          multiplies the two into the flow through area w = eps * A that the transport operator is weighted
+	 *          with, and evaluates the film diffusion prefactor (1 - eps) / eps, which does not follow from w.
 	 * @param [in,out] jpp parameter provider, scoped to the column unit
 	 * @param [in] area geometric cross section area as a function of the normalized axial coordinate x / H in [0, 1]
 	 * @param [in] porosity bulk porosity as a function of the normalized axial coordinate x / H in [0, 1]
@@ -121,8 +121,37 @@ namespace
 		jpp.popScope();
 
 		jpp.set("GEOMETRY", std::string("SMOOTHLY_VARYING"));
-		jpp.set("CROSS_SECTIONAL_AREA_AT_NODES", crossSectionAreaAtNodes(polyDeg, nElem, [=](double normalizedPos) { return porosity(normalizedPos) * area(normalizedPos); }));
+		jpp.set("CROSS_SECTIONAL_AREA_AT_NODES", crossSectionAreaAtNodes(polyDeg, nElem, area));
 		jpp.set("COL_POROSITY", crossSectionAreaAtNodes(polyDeg, nElem, porosity));
+	}
+
+	/**
+	 * @brief Sets an axially varying bulk porosity on a column unit, leaving its geometry untouched
+	 * @details The porosity is supplied at every DG node and CADET-Core multiplies it with the geometric cross
+	 *          section area of whatever geometry the unit uses, so this works for every geometry.
+	 * @param [in,out] jpp parameter provider, scoped to the column unit
+	 * @param [in] field porosity field of the unit, i.e. COL_POROSITY or, for the lumped rate model without
+	 *             pores, TOTAL_POROSITY
+	 * @param [in] porosity bulk porosity as a function of the normalized axial coordinate x / H in [0, 1]
+	 */
+	void setAxiallyVaryingPorosity(cadet::JsonParameterProvider& jpp, const std::string& field, const std::function<double(double)>& porosity)
+	{
+		jpp.pushScope("discretization");
+		const int polyDeg = jpp.getInt("POLYDEG");
+		const int nElem = jpp.getInt("NELEM");
+		jpp.popScope();
+
+		jpp.set(field, crossSectionAreaAtNodes(polyDeg, nElem, porosity));
+	}
+
+	/**
+	 * @brief Sets an axially varying COL_POROSITY on a column unit, leaving its geometry untouched
+	 * @param [in,out] jpp parameter provider, scoped to the column unit
+	 * @param [in] porosity bulk porosity as a function of the normalized axial coordinate x / H in [0, 1]
+	 */
+	void setAxiallyVaryingPorosity(cadet::JsonParameterProvider& jpp, const std::function<double(double)>& porosity)
+	{
+		setAxiallyVaryingPorosity(jpp, "COL_POROSITY", porosity);
 	}
 
 	/**
@@ -1859,10 +1888,10 @@ TEST_CASE("Smoothly varying Column_1D numerical Benchmark for pure transport cas
 TEST_CASE("Smoothly varying Column_1D as GRM with a constant nodal COL_POROSITY matches the scalar one", "[SmoothlyVaryingColumn1D],[DG],[DG1D],[Simulation],[CI]")
 {
 	// A nodal COL_POROSITY whose entries all agree with the scalar one describes the very same
-	// column, provided the flow through area convention is honoured: the nodal setting is given
-	// w = eps * A as its area and the volumetric flow rate must then not be divided by the
-	// porosity a second time. Were it divided again, the interstitial velocities of the two
-	// settings would differ by the factor 1 / eps.
+	// column. It takes the other route through the code: the porosity is folded into the flow
+	// through area of the transport operator instead of dividing the volumetric flow rate. Were
+	// it divided again, or not applied at all, the interstitial velocities of the two settings
+	// would differ by the factor eps.
 	const double areaLargeEnd = 0.000314159265358; // end areas of the frustum test model, see createColumnWithSMAJson
 	const std::function<double(double)> area = frustumArea(areaLargeEnd, 0.75 * areaLargeEnd);
 
@@ -2107,24 +2136,46 @@ TEST_CASE("Smoothly varying Column_1D rejects an invalid axially varying COL_POR
 		cadet::JsonParameterProvider jpp = brokenSetting([](std::vector<double>& porosity, int nNodes) { porosity[nNodes] *= 1.5; });
 
 		cadet::Driver drv;
-		REQUIRE_THROWS_WITH(drv.configure(jpp), Catch::Contains("COL_POROSITY must be continuous"));
+		REQUIRE_THROWS_WITH(drv.configure(jpp), Catch::Contains("bulk porosity must be continuous"));
 	}
 
-	SECTION("Geometry other than SMOOTHLY_VARYING")
+	SECTION("Collocation DG")
 	{
-		// The other geometries compute the cross section area from their own geometric parameters,
-		// so the user cannot supply the flow through area that a nodal porosity requires
+		// The collocation operator bakes a constant coefficient into its operators and has no place
+		// to put a porosity profile
 		cadet::JsonParameterProvider jpp = brokenSetting([](std::vector<double>& porosity, int nNodes) {});
 
 		jpp.pushScope("model");
 		jpp.pushScope("unit_000");
 		jpp.set("GEOMETRY", std::string("AXIAL_FLOW_CYLINDER"));
 		jpp.set("CROSS_SECTION_AREA", areaLargeEnd); // the cylinder reads its own geometry fields
+		jpp.pushScope("discretization");
+		jpp.set("USE_COLLOCATION_DG", true);
+		jpp.popScope();
 		jpp.popScope();
 		jpp.popScope();
 
 		cadet::Driver drv;
-		REQUIRE_THROWS_WITH(drv.configure(jpp), Catch::Contains("COL_POROSITY may only be given per axial node"));
+		REQUIRE_THROWS_WITH(drv.configure(jpp), Catch::Contains("USE_COLLOCATION_DG is not available for an axially varying COL_POROSITY"));
+	}
+
+	SECTION("Finite volumes")
+	{
+		// The porosity profile is prescribed at the DG nodes and has no FV counterpart
+		cadet::JsonParameterProvider jpp = brokenSetting([](std::vector<double>& porosity, int nNodes) {});
+
+		jpp.pushScope("model");
+		jpp.pushScope("unit_000");
+		jpp.set("GEOMETRY", std::string("AXIAL_FLOW_CYLINDER"));
+		jpp.set("CROSS_SECTION_AREA", areaLargeEnd); // the cylinder reads its own geometry fields
+		jpp.pushScope("discretization");
+		jpp.set("SPATIAL_METHOD", std::string("FV"));
+		jpp.popScope();
+		jpp.popScope();
+		jpp.popScope();
+
+		cadet::Driver drv;
+		REQUIRE_THROWS_WITH(drv.configure(jpp), Catch::Contains("axially varying COL_POROSITY is only available for DG"));
 	}
 }
 
@@ -2177,4 +2228,84 @@ TEST_CASE("Rapid-equilibrium liquid reaction is rejected by a unit operation tha
 	}
 
 	destroyModelBuilder(mb);
+}
+
+TEST_CASE("Column_1D equivalence of a varying geometry and a varying bulk porosity", "[AxialColumn1D],[SmoothlyVaryingColumn1D],[DG],[DG1D],[Simulation],[CI]")
+{
+	// The bulk transport operator sees the shape of the column and the packing of the bed only
+	// through the flow through area w(x) = eps(x) A(x). Varying the area at a constant porosity
+	// and varying the porosity at a constant area must therefore describe the very same column,
+	// as long as the product agrees.
+	//
+	// The model is a non-binding lumped rate model without pores, so that the porosity enters
+	// nowhere but w: the solid phase prefactor (1 - eps) / eps, which does not follow from w, has
+	// no state left to act on. Any difference seen here is thus one of the transport operator.
+	const auto setting = [](const std::function<void(cadet::JsonParameterProvider&, double, double)>& modify)
+		{
+			cadet::JsonParameterProvider jpp = createLinearBenchmark(false, true, "LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
+
+			jpp.pushScope("model");
+			jpp.pushScope("unit_000");
+
+			const double area = jpp.getDouble("CROSS_SECTION_AREA");
+			const double porosity = jpp.getDouble("TOTAL_POROSITY");
+			modify(jpp, area, porosity);
+
+			jpp.popScope();
+			jpp.popScope();
+
+			// The two settings assemble the same operators by different arithmetic, so their round-off
+			// differs and the adaptive time integration would otherwise amplify it to its own tolerance
+			jpp.pushScope("solver");
+			jpp.pushScope("time_integrator");
+			jpp.set("ABSTOL", 1e-12);
+			jpp.set("RELTOL", 1e-10);
+			jpp.popScope();
+			jpp.popScope();
+
+			return jpp;
+		};
+
+	SECTION("Against a frustum")
+	{
+		// The frustum evaluates its quadratic area analytically, whereas the porosity profile is
+		// represented by its nodal interpolant and assembled by quadrature. For POLYDEG >= 2 the
+		// interpolant of a quadratic is exact, so the two must still agree.
+		cadet::JsonParameterProvider jpp1 = setting([](cadet::JsonParameterProvider& jpp, double area, double porosity)
+			{
+				jpp.set("GEOMETRY", std::string("AXIAL_FLOW_FRUSTUM"));
+				jpp.set("CROSS_SECTION_AREA_LARGE_END", area);
+				jpp.set("CROSS_SECTION_AREA_SMALL_END", 0.75 * area);
+			});
+
+		cadet::JsonParameterProvider jpp2 = setting([](cadet::JsonParameterProvider& jpp, double area, double porosity)
+			{
+				// The cylinder keeps its constant area, so the porosity has to carry the shape
+				const std::function<double(double)> shape = frustumArea(1.0, 0.75);
+				setAxiallyVaryingPorosity(jpp, "TOTAL_POROSITY", [=](double normalizedPos) { return porosity * shape(normalizedPos); });
+			});
+
+		cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
+	}
+
+	SECTION("Against a prescribed area profile")
+	{
+		// A shape that is not a polynomial, so that both settings represent it by the very same
+		// nodal interpolant, one as part of the area and one as part of the porosity
+		const double pi = 3.14159265358979323846;
+		const std::function<double(double)> shape = [=](double normalizedPos) { return 1.0 + 0.3 * std::sin(pi * normalizedPos); };
+
+		cadet::JsonParameterProvider jpp1 = setting([=](cadet::JsonParameterProvider& jpp, double area, double porosity)
+			{
+				setSmoothlyVaryingGeometry(jpp, [=](double normalizedPos) { return area * shape(normalizedPos); });
+			});
+
+		cadet::JsonParameterProvider jpp2 = setting([=](cadet::JsonParameterProvider& jpp, double area, double porosity)
+			{
+				REQUIRE(porosity * 1.3 <= 1.0); // a porosity is a volume fraction
+				setAxiallyVaryingPorosity(jpp, "TOTAL_POROSITY", [=](double normalizedPos) { return porosity * shape(normalizedPos); });
+			});
+
+		cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
+	}
 }
