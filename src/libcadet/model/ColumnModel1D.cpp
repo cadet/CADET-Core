@@ -550,7 +550,7 @@ template <typename ConvDispOperator>
 unsigned int ColumnModel1D<ConvDispOperator>::bulkJacobianLowerBandwidth() const CADET_NOEXCEPT
 {
 	const auto& cm = _reaction.conservedMoieties("liquid");
-	const unsigned int extension = (cm.isEnabled() && (cm.numEquilibriumReactions() > 0) && (_disc.nComp > 0)) ? _disc.nComp - 1 : 0;
+	const unsigned int extension = (cm.hasRapidEquilibrium() && (_disc.nComp > 0)) ? _disc.nComp - 1 : 0;
 	return _convDispOp.jacobianLowerBandwidth() + extension;
 }
 
@@ -558,7 +558,7 @@ template <typename ConvDispOperator>
 unsigned int ColumnModel1D<ConvDispOperator>::bulkJacobianUpperBandwidth() const CADET_NOEXCEPT
 {
 	const auto& cm = _reaction.conservedMoieties("liquid");
-	const unsigned int extension = (cm.isEnabled() && (cm.numEquilibriumReactions() > 0) && (_disc.nComp > 0)) ? _disc.nComp - 1 : 0;
+	const unsigned int extension = (cm.hasRapidEquilibrium() && (_disc.nComp > 0)) ? _disc.nComp - 1 : 0;
 	return _convDispOp.jacobianUpperBandwidth() + extension;
 }
 
@@ -757,7 +757,7 @@ void ColumnModel1D<ConvDispOperator>::extractJacobianFromAD(active const* const 
 	}
 
 	const auto& cm = _reaction.conservedMoieties("liquid");
-	if (cm.isEnabled() && (cm.numEquilibriumReactions() > 0) && (_disc.nParType > 0))
+	if (cm.hasRapidEquilibrium() && (_disc.nParType > 0))
 	{
 		for (unsigned int point = 0; point < _disc.nPoints; ++point)
 		{
@@ -1081,7 +1081,7 @@ int ColumnModel1D<ConvDispOperator>::residualImpl(double t, unsigned int secIdx,
 	} CADET_PARFOR_END;
 
 	const auto& cm = _reaction.conservedMoieties("liquid");
-	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+	if (cm.hasRapidEquilibrium())
 	{
 		const unsigned int nMoieties = cm.numMoieties();
 		const unsigned int nEq = cm.numEquilibriumReactions();
@@ -1330,7 +1330,7 @@ void ColumnModel1D<ConvDispOperator>::multiplyWithJacobian(const SimulationTime&
 	unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
 
 	const auto& cm = _reaction.conservedMoieties("liquid");
-	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+	if (cm.hasRapidEquilibrium())
 	{
 
 		const auto& L = cm.conservedMoietyMatrix();
@@ -1408,7 +1408,7 @@ void ColumnModel1D<ConvDispOperator>::multiplyWithDerivativeJacobian(const Simul
 	} CADET_PARFOR_END;
 
 	const auto& cm = _reaction.conservedMoieties("liquid");
-	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+	if (cm.hasRapidEquilibrium())
 	{
 		for (unsigned int point = 0; point < _disc.nPoints; ++point)
 		{
@@ -1887,7 +1887,7 @@ template <typename ConvDispOperator>
 void ColumnModel1D<ConvDispOperator>::resizeConservedMoietyJacobianBuffer()
 {
 	const auto& cm = _reaction.conservedMoieties("liquid");
-	if (!cm.isEnabled() || (cm.numEquilibriumReactions() == 0))
+	if (!cm.hasRapidEquilibrium())
 		return;
 
 	Indexer idxr(_disc);

@@ -145,7 +145,7 @@ int ColumnModel1D<ConvDispOperator>::linearSolve(double t, double alpha, double 
 	unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
 
 	const auto& cm = _reaction.conservedMoieties("liquid");
-	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+	if (cm.hasRapidEquilibrium())
 	{
 		const auto& L = cm.conservedMoietyMatrix();
         for (unsigned int moiety = 0; moiety < cm.numMoieties(); ++moiety)
@@ -226,7 +226,7 @@ void ColumnModel1D<ConvDispOperator>::assembleDiscretizedGlobalJacobian(double a
 	}
 
 	const auto& cm = _reaction.conservedMoieties("liquid");
-	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+	if (cm.hasRapidEquilibrium())
 	{
 		const auto& L = cm.conservedMoietyMatrix();
 		const unsigned int nMoieties = cm.numMoieties();

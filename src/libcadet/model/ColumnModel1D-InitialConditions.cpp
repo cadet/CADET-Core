@@ -344,7 +344,7 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialBulkLiquidEquilibrium(con
 	Indexer idxr(_disc);
 
 	const auto& cm = _reaction.conservedMoieties("liquid");
-	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+	if (cm.hasRapidEquilibrium())
 	{
 		const auto& L = cm.conservedMoietyMatrix();
 		const unsigned int nMoieties = cm.numMoieties();
@@ -833,7 +833,7 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialBulkTimeDerivative(const 
 	Indexer idxr(_disc);
 
 	const auto& cm = _reaction.conservedMoieties("liquid");
-	if (cm.isEnabled() && cm.numEquilibriumReactions() > 0)
+	if (cm.hasRapidEquilibrium())
 	{
 		const auto& L = cm.conservedMoietyMatrix();
 		const unsigned int nMoieties = cm.numMoieties();
@@ -981,6 +981,13 @@ void ColumnModel1D<ConvDispOperator>::leanConsistentInitialState(const Simulatio
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
+	// Step 1 below omits consistentInitialBulkLiquidEquilibrium(), so the bulk liquid equilibrium
+	// equations are left unsolved. They are algebraic and hold no time derivative that
+	// leanConsistentInitialTimeDerivative() could use to absorb the resulting residual, so it
+	// remains in the initial state instead of being repaired in step 2.
+	if (_reaction.conservedMoieties("liquid").hasRapidEquilibrium())
+		throw InvalidParameterException("ColumnModel1D lean consistent initialization: reactions in rapid equilibrium are not supported yet");
+
 	for (int parType = 0; parType < _disc.nParType; parType++)
 		_particles[parType]->leanConsistentInitialStateValidity();
 
@@ -1075,6 +1082,13 @@ template <typename ConvDispOperator>
 void ColumnModel1D<ConvDispOperator>::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
+
+	// solveBulkTimeDerivativeSystem() below adds the identity to every bulk liquid row, i.e. it
+	// assumes that all of them are differential. With reactions in rapid equilibrium the bulk rows
+	// hold the conserved moiety combinations (dF / dyDot = L) and the algebraic equilibrium
+	// equations instead, so it does not apply to the equations actually solved.
+	if (_reaction.conservedMoieties("liquid").hasRapidEquilibrium())
+		throw InvalidParameterException("ColumnModel1D lean consistent initialization: reactions in rapid equilibrium are not supported yet");
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
 		_particles[parType]->leanConsistentInitialTimeDerivativeValidity();
@@ -1217,6 +1231,14 @@ void ColumnModel1D<ConvDispOperator>::consistentInitialSensitivity(const Simulat
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
+
+	// The bulk liquid equilibrium equations are algebraic, so dF / dyDot has nEq zero rows per bulk
+	// node and the state sensitivity has to satisfy the linearized equilibrium constraint. Neither
+	// is handled here: step 1 below only solves the quasi-stationary binding equilibria, and
+	// consistentInitialSensitivityBulkTimeDerivative() in step 2 adds the identity to every bulk
+	// liquid row instead of the conserved moiety matrix.
+	if (_reaction.conservedMoieties("liquid").hasRapidEquilibrium())
+		throw InvalidParameterException("ColumnModel1D consistent sensitivity initialization: reactions in rapid equilibrium are not supported yet");
 
 	Indexer idxr(_disc);
 
@@ -1511,6 +1533,11 @@ void ColumnModel1D<ConvDispOperator>::leanConsistentInitialSensitivity(const Sim
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
+
+	// Same as in consistentInitialSensitivity(), except that the algebraic bulk liquid rows are
+	// passed to solveBulkTimeDerivativeSystem(), which adds the identity to every bulk liquid row.
+	if (_reaction.conservedMoieties("liquid").hasRapidEquilibrium())
+		throw InvalidParameterException("ColumnModel1D lean consistent sensitivity initialization: reactions in rapid equilibrium are not supported yet");
 
 	for (int parType = 0; parType < _disc.nParType; parType++)
 		_particles[parType]->leanConsistentInitialStateValidity();
