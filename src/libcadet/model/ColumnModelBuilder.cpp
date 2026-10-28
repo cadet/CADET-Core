@@ -66,6 +66,24 @@ namespace model
 	}
 #endif
 
+	/**
+	 * @brief Determines whether the bulk porosity varies along the column
+	 * @details COL_POROSITY may be given as a single value or as a profile with one entry per
+	 *          discrete bulk point. A profile turns the weight of the transport operator from the
+	 *          geometric cross section area A(x) into the flow through area eps_c(x) A(x), which
+	 *          none of the operators with a baked-in analytic weight can represent. It is
+	 *          therefore routed to the variable coefficient operator, independently of GEOMETRY:
+	 *          the bulk porosity may vary for every geometry, not only for the user prescribed
+	 *          cross section, which used to be the only way to express it.
+	 */
+	bool hasAxiallyVaryingColumnPorosity(IParameterProvider& paramProvider)
+	{
+		if (!paramProvider.exists("COL_POROSITY") || !paramProvider.isArray("COL_POROSITY"))
+			return false;
+
+		return paramProvider.numElements("COL_POROSITY") > 1;
+	}
+
 	/*
 	 * @brief Selects the appropriate column unit operation based on the given parameters
 	 * @detail We have different unit operation types based on: numerical discretization, particle model, column geometry and spatial resolution of the column.
@@ -89,6 +107,10 @@ namespace model
 		{
 			throw InvalidParameterException("Unsupported column geometry " + colGeometry + " was specified for unit " + std::to_string(uoId));
 		}
+
+		// Has to be read before the discretization scope is entered, since COL_POROSITY lives in
+		// the unit scope
+		const bool varyingPorosity = hasAxiallyVaryingColumnPorosity(paramProvider);
 
 		// The dedicated arrow-head FV unit operations (LRM, LRMP, GRM) discretize the particles with FV as well, i.e.
 		// they cannot represent a particle discretization that differs from the bulk one. Determine the particle
@@ -128,6 +150,13 @@ namespace model
 			throw InvalidParameterException("Column geometry SMOOTHLY_VARYING is only available for DG discretization but " + discName + " was specified for unit " + std::to_string(uoId));
 		}
 
+		// Like the user prescribed cross section, a varying porosity is given at the DG nodes and
+		// only the variable coefficient DG operator can represent it
+		if (varyingPorosity && discName != "DG")
+		{
+			throw InvalidParameterException("An axially varying COL_POROSITY is only available for DG discretization but " + discName + " was specified for unit " + std::to_string(uoId));
+		}
+
 		// ARROW_HEAD_OPTIMIZATION defaults to true for FV bulk and FV particle discretization, preserving the
 		// existing block-structured (arrow-head) Jacobian solver in the dedicated FV unit operation classes.
 		// Set it to false to route FV through ColumnModel1D (global sparse solver).
@@ -155,6 +184,18 @@ namespace model
 			if (colGeometry != "AXIAL_FLOW_CYLINDER" && axialCollocationDG)
 			{
 				throw InvalidParameterException("USE_COLLOCATION_DG is only available for AXIAL_FLOW_CYLINDER geometry but " + colGeometry + " was specified for unit " + std::to_string(uoId));
+			}
+
+			// The collocation operator bakes a constant coefficient into its operators and has no
+			// place to put a porosity profile, so a varying porosity routes to the variable
+			// coefficient operator even for the axial flow cylinder, which is the geometry the
+			// collocation operator is the default for.
+			if (varyingPorosity)
+			{
+				if (paramProvider.exists("USE_COLLOCATION_DG") && paramProvider.getBool("USE_COLLOCATION_DG"))
+					throw InvalidParameterException("USE_COLLOCATION_DG is not available for an axially varying COL_POROSITY, which was specified for unit " + std::to_string(uoId));
+
+				axialCollocationDG = false;
 			}
 		}
 

@@ -60,12 +60,24 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
 
 ``COL_POROSITY``
 
-   Column porosity of the interstitial volume.
+   Column porosity of the interstitial volume, either as a single value for the whole column or
+   as one value per DG node.
    Used only if model is not a Lumped Rate Model without Pores, in which case ``TOTAL_POROSITY`` is used instead.
-   
-   ================  ========================  =============
-   **Type:** double  **Range:** :math:`(0,1]`  **Length:** 1
-   ================  ========================  =============
+
+   The second form describes a packing density that varies along the flow path and is available
+   for every geometry, see :ref:`MUOPGRMvaryingPorosity`.
+   The values are given in the ordering of the bulk solution, i.e. element by element from the
+   column inlet at :math:`x = 0` to :math:`x = \texttt{BED_LENGTH}`, with the nodes of each
+   element in ascending order, exactly as ``CROSS_SECTIONAL_AREA_AT_NODES``; the two entries that
+   share an element interface node must be equal.
+   CADET-Core multiplies the profile with the geometric cross section area of the chosen geometry
+   itself, so no further field has to be adjusted.
+   It requires ``SPATIAL_METHOD`` :math:`= \texttt{DG}` and ``USE_COLLOCATION_DG`` :math:`= 0`,
+   since the collocation operator bakes a constant coefficient into its operators.
+
+   ================  ========================  ===========================================================================
+   **Type:** double  **Range:** :math:`(0,1]`  **Length:** :math:`1` or :math:`(\texttt{POLYDEG} + 1) \cdot \texttt{NELEM}`
+   ================  ========================  ===========================================================================
 
 ``TOTAL_POROSITY``
 

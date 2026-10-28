@@ -871,6 +871,10 @@ namespace parts
 
 		void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
 
+		bool setPorosityProfile(active const* porosity, unsigned int nPoints) override;
+
+		inline bool axiallyConstantPorosity() const CADET_NOEXCEPT { return _axiallyConstantPorosity; }
+
 		bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nelements, unsigned int polyDeg, unsigned int strideNode);
 		bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 		bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, Eigen::MatrixXd& jacInlet);
@@ -998,9 +1002,14 @@ namespace parts
 		active _colHeight;						//!< column height H, only applicable for radial flow geometry
 		active _radiusXStart;					//!< radius at domain start
 		active _radiusXEnd;					    //!< radius at domain end
-		std::vector<double> _crossSectionArea;	//!< cross section area at each node
+		std::vector<double> _crossSectionArea;	//!< geometric cross section area A(x) at each node
+		std::vector<double> _flowArea;			//!< flow through area w(x) = eps_c(x) * A(x) at each node, i.e. the weight the DG operators are built with. Equals _crossSectionArea for a constant porosity, which is then carried by _QOverEps instead
 		std::vector<double> _userCrossSectionArea;	//!< user-supplied cross section area at each node (CROSS_SECTIONAL_AREA_AT_NODES), only applicable for SMOOTHLY_VARYING geometry
 		double _flowFraction;					//!< through-flow cross-sectional area fraction excluding column porosity
+
+		// Bulk porosity, which may vary along the column for every geometry
+		active const* _colPorosityProfile;		//!< bulk porosity at each node, owned by the unit operation; nullptr for a constant porosity
+		bool _axiallyConstantPorosity;			//!< whether the bulk porosity is constant along the column
 
 		// DG operators
 		active _deltaX;					//!< axial element spacing
@@ -1070,18 +1079,31 @@ namespace parts
 		void computeOperatorsAxial();
 		void computeOperatorsRadial(const unsigned int secIdx);
 		void computeOperatorsFrustum(const unsigned int secIdx);
-		void computeOperatorsSmoothlyVarying(const unsigned int secIdx);
 
 		/**
-		 * @brief Evaluates the piecewise polynomial cross section area within an element
-		 * @details Evaluates the nodal Lagrange interpolant of the per-node cross section
-		 *          areas of element @p elem at the reference coordinate @p xi. Only used
-		 *          for the SMOOTHLY_VARYING geometry, where the area is represented in the
-		 *          same DG space as the solution.
+		 * @brief Assembles the operators from the nodal values of the weight alone
+		 * @details General fallback that only needs the flow through area at the nodes and
+		 *          evaluates the weighted mass matrices by Gauss quadrature. Used for the
+		 *          SMOOTHLY_VARYING geometry, where the area has no closed form, and for every
+		 *          geometry combined with an axially varying bulk porosity, where the product
+		 *          eps_c(x) A(x) is not the closed-form polynomial the analytic routines assume.
+		 */
+		void computeOperatorsNodalArea(const unsigned int secIdx);
+
+		/**
+		 * @brief Evaluates the piecewise polynomial flow through area within an element
+		 * @details Evaluates the nodal Lagrange interpolant of the per-node flow through areas
+		 *          eps_c(x) A(x) of element @p elem at the reference coordinate @p xi, i.e. the
+		 *          weight is represented in the same DG space as the solution.
 		 * @param [in] elem element index
 		 * @param [in] xi reference coordinate in [-1, 1]
 		 */
-		double interpolatedCrossSectionArea(const unsigned int elem, const double xi) const;
+		double interpolatedFlowArea(const unsigned int elem, const double xi) const;
+
+		/**
+		 * @brief Folds the bulk porosity into the geometric area, giving the flow through area
+		 */
+		void computeFlowArea();
 
 		/* ===================================================================
 			*  Jacobian block helpers
@@ -1189,8 +1211,8 @@ namespace parts
 		{
 			for (unsigned int elem = 0; elem < _nElem; elem++)
 			{
-				const double Aleft = _crossSectionArea[elem * _nNodes];
-				const double Aright = _crossSectionArea[(elem + 1) * _nNodes - 1];
+				const double Aleft = _flowArea[elem * _nNodes];
+				const double Aright = _flowArea[(elem + 1) * _nNodes - 1];
 				// dispersion evaluated exactly at each interface (matches the
 				// position-dependent volume-term dispersion, see _dispAtInterfaces)
 				const double dLeft = _dispAtInterfaces[comp][elem];

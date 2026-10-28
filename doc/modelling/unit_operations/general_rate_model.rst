@@ -464,10 +464,15 @@ The area therefore lives in the same polynomial space as the solution, and the i
 For a smooth area profile, the interpolation error is of the same order as the discretization error of the scheme itself, so this representation does not reduce the order of convergence.
 Since the representation is tied to the DG grid, this geometry is only available for the DG spatial discretization, and the field has to be recomputed whenever the discretization is refined.
 
-Axially varying bulk porosity
-"""""""""""""""""""""""""""""
+For information on model parameters see :ref:`smoothly_varying_column_1D_config` and :ref:`particle_model_config`.
 
-If the packing density varies along the flow path, :math:`\varepsilon_c = \varepsilon_c(x)`, the structure of Eq. :eq:`ModelSmoothlyVaryingColumnGRM` is preserved.
+.. _MUOPGRMvaryingPorosity:
+
+Axially varying bulk porosity
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A packing whose density varies along the flow path, :math:`\varepsilon_c = \varepsilon_c(x)`, is independent of the column geometry: a cylinder, a cylinder shell, a frustum and a user prescribed cross section may each be packed non-uniformly.
+The structure of the mass balance is preserved in either case.
 Convection and dispersion both act on the pore space rather than on the geometric cross section, so both fluxes carry the weight :math:`\varepsilon_c A` in place of :math:`A`.
 Introducing the *flow through area*
 
@@ -479,7 +484,7 @@ Introducing the *flow through area*
 the quantity that is constant along the column is the delivered volumetric flow rate :math:`\dot V = w(x) \overline{u}(x)`, and the mass balance in the interstitial column volume becomes
 
 .. math::
-    :label: ModelSmoothlyVaryingColumnGRMVariablePorosity
+    :label: ModelColumnGRMVariablePorosity
 
     \begin{aligned}
         \frac{\partial c}{\partial t}
@@ -493,20 +498,17 @@ This is Eq. :eq:`ModelSmoothlyVaryingColumnGRM` with :math:`A` replaced by :math
 A spatially varying bulk porosity is therefore not a separate model, but the same model evaluated with the flow through area in place of the geometric cross section area.
 
 The bulk transport operator depends on the porosity only through the product :math:`w`.
-The discretization consequently covers this case without any change, since it evaluates the geometry as a weight inside the element integrals: it suffices to supply :math:`w` instead of :math:`A` as ``CROSS_SECTIONAL_AREA_AT_NODES``.
+``COL_POROSITY`` is prescribed at the DG nodes, in the same ordering as ``CROSS_SECTIONAL_AREA_AT_NODES``, and CADET-Core multiplies it with the geometric cross section area of the chosen geometry, so that no other field has to be adjusted.
+Since :math:`w` is then no longer the closed-form polynomial that the analytic mass matrices of the cylinder, the cylinder shell and the frustum are derived from, the element integrals are evaluated by the same Gauss quadrature as for the smoothly varying cross section, for every geometry.
+Note that this represents :math:`w` by its nodal Lagrange interpolant, so a frustum needs :math:`\texttt{POLYDEG} \geq 2` to represent its own quadratic area without an additional interpolation error.
+
 What does not follow from the weight is the film diffusion prefactor :math:`(1 - \varepsilon_c) / \varepsilon_c`, which becomes position dependent.
 It is therefore evaluated at every DG node from the nodal values of ``COL_POROSITY``, in the same way as the velocity dependent dispersion and film mass transfer coefficients already are.
-Both fields are nodal and are represented by their Lagrange interpolant, so a smooth porosity profile does not reduce the order of convergence of the scheme, just as a smooth area profile does not.
+All nodal fields are represented by their Lagrange interpolant, so a smooth porosity profile does not reduce the order of convergence of the scheme, just as a smooth area profile does not.
 
-.. warning::
-
-    Since the porosity is already contained in :math:`w`, the volumetric flow rate must not be divided by it a second time.
-    When ``COL_POROSITY`` is given per node, CADET-Core therefore treats the flow rate as the delivered :math:`\dot V` and computes the interstitial velocity as :math:`\dot V / w`.
-    For a scalar ``COL_POROSITY``, in contrast, it computes :math:`Q = \dot V / \varepsilon_c` and divides by the geometric area :math:`A`.
-    Supplying the geometric area :math:`A` together with a nodal ``COL_POROSITY`` would thus make both the interstitial velocity and the dispersive weighting wrong by a factor of :math:`\varepsilon_c`.
-
-Two restrictions apply.
+Three restrictions apply.
 The porosity has to be constant over each cross section, since a porosity that varies within the cross section contributes further correlation terms to the cross sectional averaging that the one dimensional model rests on.
-And the case is only available for the DG discretization, because it is prescribed at the DG nodes, like the cross section area itself.
+It is prescribed at the DG nodes, like the cross section area itself, and is therefore only available for the DG discretization and has to be recomputed whenever the discretization is refined.
+And it routes the unit to the variable coefficient operator, so ``USE_COLLOCATION_DG`` has to be :math:`0`, which is the default for every geometry other than the axial flow cylinder.
 
-For information on model parameters see :ref:`smoothly_varying_column_1D_config` and :ref:`particle_model_config`.
+For information on model parameters see :ref:`axial_flow_column_1D_config` and :ref:`particle_model_config`.
