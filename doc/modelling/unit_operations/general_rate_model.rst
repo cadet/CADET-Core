@@ -501,6 +501,7 @@ The bulk transport operator depends on the porosity only through the product :ma
 ``COL_POROSITY`` is prescribed at the DG nodes, in the same ordering as ``CROSS_SECTIONAL_AREA_AT_NODES``, and CADET-Core multiplies it with the geometric cross section area of the chosen geometry, so that no other field has to be adjusted.
 Since :math:`w` is then no longer the closed-form polynomial that the analytic mass matrices of the cylinder, the cylinder shell and the frustum are derived from, the element integrals are evaluated by the same Gauss quadrature as for the smoothly varying cross section, for every geometry.
 Note that this represents :math:`w` by its nodal Lagrange interpolant, so a frustum needs :math:`\texttt{POLYDEG} \geq 2` to represent its own quadratic area without an additional interpolation error.
+The rule is sized to integrate a weight of degree ``FLOW_AREA_QUADRATURE_POLYDEG`` exactly, which defaults to ``POLYDEG`` and is therefore exact for that interpolant.
 
 What does not follow from the weight is the film transfer term.
 Weighting the bulk balance with :math:`w` gives that term the weight :math:`w (1 - \varepsilon_c) / \varepsilon_c = A (1 - \varepsilon_c)`, the solid cross section area, whereas the time derivative carries :math:`w`.

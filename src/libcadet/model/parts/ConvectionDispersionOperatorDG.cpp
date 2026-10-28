@@ -831,6 +831,25 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::configureModelDiscr
 	}
 	else _axDispQuadDeg = 0;
 
+	// Wherever the weight of the operators is the nodal interpolant of the flow through area, the
+	// element integrals are evaluated by Gauss quadrature and the degree of that weight decides
+	// how many quadrature nodes it takes, see computeOperatorsNodalArea(). The interpolant itself
+	// is of degree POLYDEG, which is what the default integrates exactly, but the film transfer
+	// operator additionally weights with 1 / eps_c(x), which no polynomial rule integrates
+	// exactly. For a smooth profile the default already reaches that integral to round-off, so
+	// raising the degree is an escape hatch for a profile that is hard to integrate, not a knob
+	// that routinely pays off.
+	_flowAreaQuadDeg = _polyDeg;
+	if (paramProvider.exists("FLOW_AREA_QUADRATURE_POLYDEG"))
+	{
+		const int quadDeg = paramProvider.getInt("FLOW_AREA_QUADRATURE_POLYDEG");
+		if (quadDeg < static_cast<int>(_polyDeg))
+			throw InvalidParameterException("Field FLOW_AREA_QUADRATURE_POLYDEG must be at least POLYDEG = " + std::to_string(_polyDeg) +
+				", since the flow through area is represented by a polynomial of that degree, but is " + std::to_string(quadDeg));
+
+		_flowAreaQuadDeg = static_cast<unsigned int>(quadDeg);
+	}
+
 	// Allocate per-cell Jacobian blocks
 	_DGjacDispBlocks.resize(_nComp);
 	for (auto& comps : _DGjacDispBlocks)
@@ -1542,10 +1561,11 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsNod
 
 	// The flow through area eps_c(x) A(x) is represented by its nodal Lagrange interpolant, i.e.
 	// by a polynomial of degree _polyDeg per element, so the geometric factor contributes
-	// _polyDeg to the degree of the integrand. Note that for a porosity profile on an analytic
-	// geometry this interpolates a product whose area factor the other routines evaluate exactly,
-	// so a frustum needs POLYDEG >= 2 to represent its own area without an additional error.
-	const int geomFactorDegree = _polyDeg;
+	// _polyDeg to the degree of the integrand, which is what _flowAreaQuadDeg defaults to. Note
+	// that for a porosity profile on an analytic geometry this interpolates a product whose area
+	// factor the other routines evaluate exactly, so a frustum needs POLYDEG >= 2 to represent
+	// its own area without an additional error.
+	const int geomFactorDegree = _flowAreaQuadDeg;
 	// Number of nodes for exact gauss quadrature of the integral with dispersion weight and
 	// geometric factor. Gauss quadrature with n nodes is exact up to degree 2n - 1, so
 	// n = ceil((degree + 1) / 2) with degree = _axDispQuadDeg + geomFactorDegree + 2 * _polyDeg.
@@ -1702,8 +1722,11 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::assembleFilmTransfe
 		return false;
 
 	// Over-integration of the same degree as the area weighted operators of the transport term,
-	// see computeOperatorsNodalArea()
-	const int nQuadNodes = (_axDispQuadDeg + _polyDeg + 2 * _polyDeg + 2) / 2;
+	// see computeOperatorsNodalArea(). The integrand carries an additional factor 1 / eps_c(x),
+	// which is not a polynomial, so unlike there the rule is never exact. The error it leaves is
+	// at round-off for a smooth profile, which is what FLOW_AREA_QUADRATURE_POLYDEG is there to
+	// reduce for one that is not.
+	const int nQuadNodes = (_axDispQuadDeg + _flowAreaQuadDeg + 2 * _polyDeg + 2) / 2;
 	Eigen::VectorXd quadNodes = Eigen::VectorXd::Zero(nQuadNodes);
 	Eigen::VectorXd quadWeights = Eigen::VectorXd::Zero(nQuadNodes);
 	dgtoolbox::lgNodesWeights(nQuadNodes - 1, quadNodes, quadWeights, false);

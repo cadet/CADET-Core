@@ -2195,6 +2195,68 @@ TEST_CASE("Column_1D conserves mass for an axially varying COL_POROSITY on an an
 	CHECK(relativeDefect < 1e-8);
 }
 
+TEST_CASE("Smoothly varying Column_1D over-integrates the flow through area on request", "[SmoothlyVaryingColumn1D],[DG],[DG1D],[Simulation],[CI]")
+{
+	// FLOW_AREA_QUADRATURE_POLYDEG raises the degree the element integrals of the weight are
+	// evaluated exactly up to. Its default, POLYDEG, already integrates the nodal interpolant of
+	// the weight exactly, so for a constant porosity, where the film transfer term adds no
+	// non-polynomial factor, raising it must not change the solution at all.
+	const double areaLargeEnd = 4347.826086956522; // the area createLinearBenchmark carries its flow rate through
+	const std::function<double(double)> area = frustumArea(areaLargeEnd, 0.75 * areaLargeEnd);
+
+	const auto setting = [=](const int quadDeg)
+		{
+			cadet::JsonParameterProvider jpp = createLinearBenchmark(false, true, "COLUMN_MODEL_1D_LRMP", "DG");
+			setSmoothlyVaryingGeometry(jpp, "unit_000", area);
+
+			if (quadDeg >= 0)
+			{
+				jpp.pushScope("model");
+				jpp.pushScope("unit_000");
+				jpp.set("FLOW_AREA_QUADRATURE_POLYDEG", quadDeg);
+				jpp.popScope();
+				jpp.popScope();
+			}
+
+			// The two rules reach the same integral by different arithmetic, so their round-off differs
+			// and the adaptive time integration would otherwise amplify it to its own tolerance
+			jpp.pushScope("solver");
+			jpp.pushScope("time_integrator");
+			jpp.set("ABSTOL", 1e-12);
+			jpp.set("RELTOL", 1e-10);
+			jpp.popScope();
+			jpp.popScope();
+
+			return jpp;
+		};
+
+	cadet::JsonParameterProvider jpp1 = setting(-1); // the default
+	cadet::JsonParameterProvider jpp2 = setting(8);
+
+	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
+}
+
+TEST_CASE("Smoothly varying Column_1D rejects an under-integrating FLOW_AREA_QUADRATURE_POLYDEG", "[SmoothlyVaryingColumn1D],[DG],[DG1D],[CI]")
+{
+	// The weight is a polynomial of degree POLYDEG, so a lower degree would under-integrate it
+	const double areaLargeEnd = 4347.826086956522;
+
+	cadet::JsonParameterProvider jpp = createLinearBenchmark(false, true, "COLUMN_MODEL_1D_LRMP", "DG");
+	setSmoothlyVaryingGeometry(jpp, "unit_000", frustumArea(areaLargeEnd, 0.75 * areaLargeEnd));
+
+	jpp.pushScope("model");
+	jpp.pushScope("unit_000");
+	jpp.pushScope("discretization");
+	const int polyDeg = jpp.getInt("POLYDEG");
+	jpp.popScope();
+	jpp.set("FLOW_AREA_QUADRATURE_POLYDEG", polyDeg - 1);
+	jpp.popScope();
+	jpp.popScope();
+
+	cadet::Driver drv;
+	REQUIRE_THROWS_WITH(drv.configure(jpp), Catch::Contains("FLOW_AREA_QUADRATURE_POLYDEG must be at least POLYDEG"));
+}
+
 TEST_CASE("Smoothly varying Column_1D rejects an invalid axially varying COL_POROSITY", "[SmoothlyVaryingColumn1D],[DG],[DG1D],[CI]")
 {
 	const double areaLargeEnd = 0.000314159265358;

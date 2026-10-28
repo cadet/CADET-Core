@@ -967,6 +967,7 @@ namespace parts
 		unsigned int _nNodes;
 		unsigned int _nPoints;
 		unsigned int _axDispQuadDeg;
+		unsigned int _flowAreaQuadDeg;	//!< Polynomial degree the flow through area is integrated exactly with, see FLOW_AREA_QUADRATURE_POLYDEG
 
 		unsigned int _strideNode;
 		unsigned int _strideElem;
