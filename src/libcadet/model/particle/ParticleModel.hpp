@@ -116,7 +116,8 @@ namespace cadet
 		struct columnPackingParameters
 		{
 			const active& parTypeVolFrac;
-			const active& invBetaC; //!< Bulk side prefactor \f$ \left(1 - \varepsilon^{\mathrm{b}}\right) / \varepsilon^{\mathrm{b}} \f$ of the film transfer term at colPos
+			const bulkFilmTransfer& bulkFilm; //!< Bulk side operator of the film transfer term
+			int bulkPoint; //!< Index of this discrete bulk point within bulkFilm
 			ColumnPosition colPos;
 			const active& velocity; //!< Interstitial velocity at colPos, used to evaluate FILM_DIFFUSION_DEP
 		};
@@ -205,7 +206,7 @@ namespace cadet
 			/**
 			 * @brief sets the particle sparsity pattern wrt the global Jacobian
 			 */
-			virtual void setParJacPattern(std::vector<Eigen::Triplet<double>>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx) const = 0;
+			virtual void setParJacPattern(std::vector<Eigen::Triplet<double>>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx, const bulkFilmTransfer& bulkFilm) const = 0;
 
 			virtual unsigned int jacobianNNZperParticle() const = 0;
 			/**
@@ -216,12 +217,22 @@ namespace cadet
 			/**
 			 * @brief calculates the film diffusion Jacobian
 			 * @return 1 if jacobain calculation fits the predefined pattern of the jacobian, 0 if not
-			 * @param [in] invBetaC pointer to the bulk side film transfer prefactor \f$ \left(1 - \varepsilon^{\mathrm{b}}\right) / \varepsilon^{\mathrm{b}} \f$ at each bulk point (size nBulkPoints)
+			 * @param [in] bulkFilm bulk side operator of the film transfer term
 			 * @param [in] parTypeVolFrac pointer to the particle type volume fractions in column-position-major order
 			 * @param [in] pointVelocity pointer to the interstitial velocity at each bulk point (size nBulkPoints), used to evaluate FILM_DIFFUSION_DEP
 			 */
-			virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, active const* const invBetaC, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac, bool crossDepsOnly = false) = 0;
+			virtual int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const bulkFilmTransfer& bulkFilm, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, Eigen::RowMajor>& globalJac, bool crossDepsOnly = false) = 0;
 
+			/**
+			 * @brief Film transfer coefficient of the bulk side flux at each discrete bulk point
+			 * @details Returns the factor that multiplies \f$ c^{\mathrm{b}} - c^{\mathrm{p}} \f$ in the bulk side
+			 *          film transfer flux, i.e. FILM_DIFFUSION including its velocity dependence and, where the
+			 *          particle discretization calls for it, its discretized counterpart. The bulk transport
+			 *          operator needs it to assemble the bulk side operator of the term, see bulkFilmTransfer.
+			 * @param [in] pointVelocity Interstitial velocity at each bulk point (size nBulkPoints)
+			 * @param [out] filmDiffusion nBulkPoints * nComp coefficients, bulk point major
+			 */
+			virtual void bulkFilmTransferCoefficients(unsigned int secIdx, active const* const pointVelocity, const int nBulkPoints, active* filmDiffusion) const = 0;
 			virtual bool setParameter(const ParameterId& pId, double value) = 0;
 			virtual bool setParameter(const ParameterId& pId, int value) = 0;
 			virtual bool setParameter(const ParameterId& pId, bool value) = 0;

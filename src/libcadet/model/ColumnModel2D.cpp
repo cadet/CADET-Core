@@ -1117,14 +1117,17 @@ int ColumnModel2D::residualImpl(double t, unsigned int secIdx, StateType const* 
 
 			linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colPoint }) - idxr.offsetC());
 
-			// The 2D model resolves the radial direction, so the porosity is constant over this
-			// radial element and the bulk side film diffusion prefactor follows directly from it
+			// The 2D model resolves the radial direction, so the porosity is constant over this radial
+			// element and the bulk side of the film transfer term is node local with the prefactor
+			// (1 - eps) / eps
 			const active invBetaC = 1.0 / _convDispOp.columnPorosity(radElem) - 1.0;
+			const bulkFilmTransfer bulkFilm{ &invBetaC, nullptr, 1, 1, 0, idxr.strideColRadialNode() };
 
 			model::columnPackingParameters packing
 			{
 				_parTypeVolFrac[colPoint * _disc.nParType + parType],
-				invBetaC,
+				bulkFilm,
+				0,
 				ColumnPosition{ _convDispOp.relativeAxialCoordinate(axPoint), _convDispOp.relativeRadialCoordinate(radPoint), 0.0 },
 				_convDispOp.currentVelocity(radElem)
 			};

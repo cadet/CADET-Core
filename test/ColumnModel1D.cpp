@@ -173,6 +173,24 @@ namespace
 	}
 
 	/**
+	 * @brief Sets an axially varying bulk porosity on a column unit of a full model system, leaving its geometry untouched
+	 * @param [in,out] jpp parameter provider, scoped to the root of the model system
+	 * @param [in] unitId unit group name, e.g. "unit_000"
+	 * @param [in] field porosity field of the unit, i.e. COL_POROSITY or TOTAL_POROSITY
+	 * @param [in] porosity bulk porosity as a function of the normalized axial coordinate x / H in [0, 1]
+	 */
+	void setAxiallyVaryingPorosity(cadet::JsonParameterProvider& jpp, const std::string& unitId, const std::string& field, const std::function<double(double)>& porosity)
+	{
+		jpp.pushScope("model");
+		jpp.pushScope(unitId);
+
+		setAxiallyVaryingPorosity(jpp, field, porosity);
+
+		jpp.popScope();
+		jpp.popScope();
+	}
+
+	/**
 	 * @brief Returns the cross section area of a frustum with the given end areas
 	 * @param [in] areaLargeEnd cross section area at x = 0
 	 * @param [in] areaSmallEnd cross section area at x = H
@@ -1950,6 +1968,39 @@ TEST_CASE("Smoothly varying Column_1D as LRMP Jacobian analytic vs AD with axial
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0, std::numeric_limits<float>::epsilon() * 100.0, flowRate);
 }
 
+TEST_CASE("Column_1D as GRM Jacobian analytic vs AD with an axially varying COL_POROSITY on an analytic geometry", "[AxialColumn1D],[DG],[UnitOp],[Jacobian],[AD],[CI]")
+{
+	// A varying porosity turns the weight of the transport operator into the nodal interpolant of
+	// eps(x) A(x) for every geometry, not only for a prescribed cross section, and the film transfer
+	// term is then spread over the discrete points of an element. The geometry here is the frustum,
+	// whose area the operator folds into the weight itself, so this pins the resulting non local bulk
+	// side stencil of the film transfer Jacobian against AD.
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "FRUSTUM_COLUMN_MODEL_1D_GRM", "DG");
+
+	const double pi = 3.14159265358979323846;
+	setAxiallyVaryingPorosity(jpp, "COL_POROSITY", [=](double normalizedPos) { return 0.3 + 0.1 * std::sin(pi * normalizedPos); });
+
+	std::vector<double> flowRate;
+	flowRate.push_back(0.01);
+
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0, std::numeric_limits<float>::epsilon() * 100.0, flowRate);
+}
+
+TEST_CASE("Column_1D as LRMP Jacobian analytic vs AD with an axially varying COL_POROSITY on an analytic geometry", "[AxialColumn1D],[DG],[UnitOp],[Jacobian],[AD],[CI]")
+{
+	// Same as above for the homogeneous particle, which assembles the film diffusion Jacobian in
+	// a routine of its own
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG");
+
+	const double pi = 3.14159265358979323846;
+	setAxiallyVaryingPorosity(jpp, "COL_POROSITY", [=](double normalizedPos) { return 0.3 + 0.1 * std::sin(pi * normalizedPos); });
+
+	std::vector<double> flowRate;
+	flowRate.push_back(0.01);
+
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0, std::numeric_limits<float>::epsilon() * 100.0, flowRate);
+}
+
 TEST_CASE("Smoothly varying Column_1D keeps its order of convergence for an axially varying COL_POROSITY", "[SmoothlyVaryingColumn1D],[DG],[DG1D],[Simulation],[CI]")
 {
 	// Both the flow through area and the porosity are prescribed at the DG nodes and are thus
@@ -2020,10 +2071,11 @@ TEST_CASE("Smoothly varying Column_1D keeps its order of convergence for an axia
 
 TEST_CASE("Smoothly varying Column_1D conserves mass for an axially varying COL_POROSITY", "[SmoothlyVaryingColumn1D],[DG],[DG1D],[Simulation],[CI]")
 {
-	// A pulse that elutes completely has to leave the column with the mass it entered with. This
-	// is run on a coarse mesh with a strongly varying porosity, where an inconsistency between
-	// the bulk side of the film transfer term and the transport operator it feeds would show up
-	// most clearly in the balance.
+	// A pulse that elutes completely has to leave the column with the mass it entered with. The
+	// bulk side operator of the film transfer term spreads the exchange over the discrete points
+	// of an element and thereby touches both the bulk residual and the bulk rows of the Jacobian,
+	// so this is run on a coarse mesh with a strongly varying porosity, where an inconsistency
+	// between that operator and the transport operator it feeds would show up most clearly.
 	const double pi = 3.14159265358979323846;
 	const double areaLargeEnd = 4347.826086956522;
 
@@ -2067,6 +2119,64 @@ TEST_CASE("Smoothly varying Column_1D conserves mass for an axially varying COL_
 	// injected mass is known exactly. It is not integrated from the recorded inlet, since the
 	// trapezoidal rule does not reproduce a step. Both streams carry the same volumetric flow
 	// rate, so it cancels from the balance.
+	const double massIn = 20.0 * 60.0;
+
+	double massOut = 0.0;
+	for (int i = 0; i + 1 < nTimes; ++i)
+		massOut += 0.5 * deltaT * (outlet[i] + outlet[i + 1]);
+
+	// Everything has to have left the column by the end of the window
+	CHECK(outlet[nTimes - 1] < 1e-8);
+
+	const double relativeDefect = std::abs(massOut - massIn) / massIn;
+
+	CAPTURE(massIn);
+	CAPTURE(massOut);
+	CAPTURE(relativeDefect);
+
+	CHECK(relativeDefect < 1e-8);
+}
+
+TEST_CASE("Column_1D conserves mass for an axially varying COL_POROSITY on an analytic geometry", "[AxialColumn1D],[DG],[DG1D],[Simulation],[CI]")
+{
+	// As above, but with the geometry left to the frustum instead of prescribing the area at the
+	// nodes. The transport operator multiplies the porosity profile with its own analytic area, and
+	// the bulk side operator of the film transfer term has to stay consistent with the mass matrix
+	// that results, otherwise the pulse does not leave the column with the mass that entered it.
+	const double pi = 3.14159265358979323846;
+
+	cadet::JsonParameterProvider jpp = createLinearBenchmark(false, true, "FRUSTUM_COLUMN_MODEL_1D_LRMP", "DG");
+
+	cadet::test::column::DGParams disc(0, 3, 4);
+	disc.setDisc(jpp);
+
+	// The nodal fields depend on the grid and thus have to be set after the discretization
+	setAxiallyVaryingPorosity(jpp, "unit_000", "COL_POROSITY", [=](double normalizedPos) { return 0.3 + 0.1 * std::sin(pi * normalizedPos); });
+
+	const double deltaT = 0.1;
+	const int nTimes = 25001; // 0 to 2500 s, the simulation window of the benchmark
+	std::vector<double> solutionTimes(nTimes);
+	for (int i = 0; i < nTimes; ++i)
+		solutionTimes[i] = i * deltaT;
+
+	jpp.pushScope("solver");
+	jpp.set("USER_SOLUTION_TIMES", solutionTimes);
+	jpp.pushScope("time_integrator");
+	jpp.set("ABSTOL", 1e-12);
+	jpp.set("RELTOL", 1e-10);
+	jpp.popScope();
+	jpp.popScope();
+
+	cadet::Driver drv;
+	drv.configure(jpp);
+	drv.run();
+
+	cadet::InternalStorageUnitOpRecorder const* const data = drv.solution()->unitOperation(0);
+	double const* const outlet = data->outlet();
+
+	REQUIRE(data->numDataPoints() == nTimes);
+	REQUIRE(data->numComponents() == 1);
+
 	const double massIn = 20.0 * 60.0;
 
 	double massOut = 0.0;

@@ -127,13 +127,13 @@ namespace parts
 			return static_cast<double>((_deltaR[element] * element + 0.5 * _deltaR[element] * (1 + _parNodes[node])) / (_parRadius - _parCoreRadius));
 		}
 
-		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, active const* const invBetaC, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly = false);
+		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const bulkFilmTransfer& bulkFilm, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly = false);
 
 		int writeParticleCoordinates(double* coords) const;
 
 		typedef Eigen::Triplet<double> T;
 
-		void setParticleJacobianPattern(std::vector<T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx);
+		void setParticleJacobianPattern(std::vector<T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx, const bulkFilmTransfer& bulkFilm);
 
 		unsigned int jacobianNNZperParticle() const;
 

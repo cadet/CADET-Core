@@ -939,6 +939,9 @@ namespace parts
 			return _nPoints;
 		}
 
+		int filmTransferStencilSize() const CADET_NOEXCEPT override;
+		bool assembleFilmTransferOperator(active const* const colPorosity, active const* const filmDiffusion, const unsigned int nComp, active* weights, int* offsets) const override;
+
 		// Indexer functionality
 		inline int strideColElement() const CADET_NOEXCEPT { return static_cast<int>(_strideElem); }
 		inline int strideColNode() const CADET_NOEXCEPT { return static_cast<int>(_strideNode); }
@@ -1104,6 +1107,17 @@ namespace parts
 		 * @brief Folds the bulk porosity into the geometric area, giving the flow through area
 		 */
 		void computeFlowArea();
+
+		/**
+		 * @brief Determines whether the weight of the operators is given by its nodal interpolant
+		 * @details The weight of the bulk balance is the flow through area w = eps_c A. It is known in
+		 *          closed form for the cylinder, the cylinder shell and the frustum, which assemble
+		 *          their operators analytically, but not for a prescribed cross section and not for a
+		 *          porosity that varies along the column. In those two cases w is represented by its
+		 *          nodal Lagrange interpolant and every element integral is evaluated by quadrature of
+		 *          that interpolant, which is also what makes the film transfer term non local.
+		 */
+		inline bool nodalWeight() const CADET_NOEXCEPT { return !_axiallyConstantPorosity || _geometryType == GeometryType::SmoothlyVaryingCrossSection; }
 
 		/* ===================================================================
 			*  Jacobian block helpers

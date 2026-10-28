@@ -588,7 +588,7 @@ namespace parts
 	 * @brief calculates the particle dispersion jacobian Pattern, including entries for the dependence of particle entries on bulk entries through film diffusion boundary condition
 	 * @detail Does NOT add film diffusion entries for the dependence of bulk conc. on particle conc.
 	*/
-	void ParticleDiffusionOperatorFV::setParticleJacobianPattern(std::vector<ParticleDiffusionOperatorFV::T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx)
+	void ParticleDiffusionOperatorFV::setParticleJacobianPattern(std::vector<ParticleDiffusionOperatorFV::T>& tripletList, unsigned int offsetPar, unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx, const bulkFilmTransfer& bulkFilm)
 	{
 		/* particle binding and diffusion entries */
 		
@@ -614,7 +614,12 @@ namespace parts
 		for (int comp = 0; comp < _nComp; comp++)
 		{
 			// cb on cp dependence through source term
-			tripletList.push_back(Eigen::Triplet<double>(offsetBulk + comp, offsetPar + strideParBlock() - strideParPoint() + comp, 0.0));
+			// The bulk side operator may spread this flux over further discrete points, see bulkFilmTransfer
+			for (int k = 0; k < bulkFilm.stencilSize; ++k)
+			{
+				const int rowShift = bulkFilm.offsets ? bulkFilm.offset(colNode)[k] * bulkFilm.strideBulkPoint : 0;
+				tripletList.push_back(Eigen::Triplet<double>(offsetBulk + rowShift + comp, offsetPar + strideParBlock() - strideParPoint() + comp, 0.0));
+			}
 
 			// cp on cb dependence through BC
 			// row: add particle offset to current parType and particle, go to last cell and current cell and add component offset
@@ -842,7 +847,7 @@ namespace parts
 		return 1;
 	}
 
-	int ParticleDiffusionOperatorFV::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, active const* const invBetaC, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
+	int ParticleDiffusionOperatorFV::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const bulkFilmTransfer& bulkFilm, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
 	{
 		// Ordering of diffusion:
 		// sec0type0comp0, sec0type0comp1, sec0type0comp2, sec0type1comp0, sec0type1comp1, sec0type1comp2,
@@ -857,9 +862,9 @@ namespace parts
 
 		for (int blk = 0; blk < nBulkPoints; blk++)
 		{
-			// The prefactor is evaluated at this bulk point. An axially varying COL_POROSITY is
-			// rejected for the FV discretization, so this is constant over blk in practice.
-			const double invBetaCblk = static_cast<double>(invBetaC[blk]);
+			// An axially varying COL_POROSITY is rejected for the FV discretization, so the bulk side
+			// operator is always node local here.
+			int const* const bulkOffset = bulkFilm.offsets ? bulkFilm.offset(blk) : nullptr;
 
 			// FILM_DIFFUSION_DEP is evaluated pointwise at this bulk point's local velocity
 			// (mass-lumped, same fidelity as FV's own midpoint-rule approximation of this term).
@@ -879,15 +884,34 @@ namespace parts
 					kf_FV = static_cast<double>(filmDiff_comp);
 				}
 
-				// Cb on Cb entries (added since these entries are also touched by bulk jacobian)
-				if (!outliersOnly)
-					jacCl[0] += kf_FV * invBetaCblk
-					* _parGeomSurfToVol / static_cast<double>(_parRadius)
-					* static_cast<double>(parTypeVolFrac[_parTypeIdx + blk * nParType]);
-				// Cb on Cp entries
-				jacCl[jacCp.row() - jacCl.row()] = -kf_FV * invBetaCblk
-					* _parGeomSurfToVol / static_cast<double>(_parRadius)
-					* static_cast<double>(parTypeVolFrac[_parTypeIdx + blk * nParType]);
+				active const* const bulkWeight = bulkFilm.weight(blk, comp);
+
+				for (int k = 0; k < bulkFilm.stencilSize; ++k)
+				{
+					// The weight takes the place of the plain prefactor in the product, so that the node local
+					// operator reproduces the unweighted term bit for bit
+					const double weightedFlux = kf_FV * static_cast<double>(bulkWeight[k])
+						* _parGeomSurfToVol / static_cast<double>(_parRadius)
+						* static_cast<double>(parTypeVolFrac[_parTypeIdx + blk * nParType]);
+					const int rowShift = bulkOffset ? bulkOffset[k] * bulkFilm.strideBulkPoint : 0;
+
+					if (rowShift == 0)
+					{
+						// Cb on Cb entries (added since these entries are also touched by bulk jacobian)
+						if (!outliersOnly)
+							jacCl[0] += weightedFlux;
+						// Cb on Cp entries
+						jacCl[jacCp.row() - jacCl.row()] = -weightedFlux;
+					}
+					else
+					{
+						linalg::BandedEigenSparseRowIterator jacClk(globalJac, jacCl.row() + rowShift);
+
+						if (!outliersOnly)
+							jacClk[jacCl.row() - jacClk.row()] += weightedFlux;
+						jacClk[jacCp.row() - jacClk.row()] = -weightedFlux;
+					}
+				}
 
 				// Cp on Cb entry
 				jacCp[jacCl.row() - jacCp.row()] = kf_FV * jacPF_val / static_cast<double>(_poreAccessFactor[comp]);
