@@ -37,7 +37,7 @@ CADET-Core can be installed via conda from the ``conda-forge`` channel.
 
 This requires a working `conda installation <https://github.com/conda-forge/miniforge>`_.
 
-`Additional information <https://cadet.github.io/master/getting_started/installation>`_ and a `tutorial <https://cadet.github.io/master/getting_started/tutorials/breakthrough>`_ are available to guide you through the installation and the first steps of using CADET.
+`Additional information <https://cadet.github.io/master/getting_started/installation_core.html>`_ and a `tutorial <https://cadet.github.io/master/getting_started/tutorials/breakthrough>`_ are available to guide you through the installation and the first steps of using CADET.
 
 Citing
 ------------
