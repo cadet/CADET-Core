@@ -96,6 +96,26 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
    **Type:** double  **Range:** :math:`(0,1]`  **Length:** :math:`1` or :math:`(\texttt{POLYDEG} + 1) \cdot \texttt{NELEM}`
    ================  ========================  ===========================================================================
 
+``FLOW_AREA_QUADRATURE_POLYDEG``
+
+   Polynomial degree the flow through area :math:`w(x) = \varepsilon_c(x) A(x)` is integrated
+   exactly with when the element integrals are evaluated by Gauss quadrature, i.e. for
+   ``GEOMETRY`` :math:`= \texttt{SMOOTHLY_VARYING}` and for an axially varying porosity on any
+   geometry, see :ref:`MUOPGRMvaryingPorosity`. Optional; defaults to ``POLYDEG``, which
+   integrates the nodal interpolant of :math:`w` exactly and is all the transport operator can
+   profit from.
+   The bulk side operator of the film transfer term is integrated with the same rule but carries
+   an additional factor :math:`1 / \varepsilon_c(x)`, which is not a polynomial, so the rule is not
+   exact there. For a smooth porosity profile the default already reaches that integral to round-off,
+   so raising the degree is an escape hatch for a profile that is hard to integrate rather than a
+   knob that routinely pays off.
+   Ignored by the analytic geometries with a constant porosity, which integrate their weight in
+   closed form.
+
+   =============  ========================================  =============
+   **Type:** int  **Range:** :math:`\geq \texttt{POLYDEG}`  **Length:** 1
+   =============  ========================================  =============
+
 ``NPARTYPE``
 
    Number of particle types. A value of :math:`0` means that no particles are present.
