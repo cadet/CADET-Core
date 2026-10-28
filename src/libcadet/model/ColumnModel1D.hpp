@@ -365,7 +365,12 @@ protected:
 	Eigen::MatrixXd _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
 
 	std::vector<active> _colPorosity; //!< Column porosity (external porosity) \f$ \varepsilon_c \f$ at each axial node, always holds nPoints entries
-	std::vector<active> _invBetaC; //!< Bulk side prefactor \f$ \left(1 - \varepsilon_c\right) / \varepsilon_c \f$ of the film transfer term at each axial node, see updateFilmTransferPrefactor()
+	std::vector<active> _invBetaC; //!< Bulk side prefactor \f$ \left(1 - \varepsilon_c\right) / \varepsilon_c \f$ of the film transfer term at each axial node, used by the node local operator
+	std::vector<std::vector<active>> _filmTransferWeights; //!< Weights of a non-local bulk side film transfer operator, one array per particle type, empty for a node local operator
+	std::vector<int> _filmTransferOffsets; //!< Offsets of a non-local bulk side film transfer operator, shared by all particle types
+	std::vector<bulkFilmTransfer> _bulkFilmTransfer; //!< Bulk side film transfer operator of each particle type, see updateFilmTransferOperator()
+	std::vector<double> _filmFluxBulk; //!< Scratch for the nodal film transfer flux of the particle types with a non-local bulk side operator
+	std::vector<active> _filmFluxBulkAd; //!< Same as _filmFluxBulk for residuals carrying parameter sensitivities
 	active _unitPorosity; //!< Constant 1.0, handed to the transport operator in place of the porosity for an axially varying COL_POROSITY, see configure()
 	std::vector<active> _parTypeVolFrac; //!< Volume fraction of each particle type
 
@@ -519,16 +524,35 @@ protected:
 	typedef Eigen::Triplet<double> T;
 
 	/**
-	 * @brief Recomputes the bulk side prefactor of the film transfer term from the current porosity
-	 * @details The unit operation owns COL_POROSITY and hands the particle models the prefactor rather
-	 *          than the porosity itself, so that the particle models stay free of the bulk phase
-	 *          packing. Must be called whenever the porosity, its value or its AD seed, changes.
+	 * @brief Recomputes the bulk side operator of the film transfer term of every particle type
+	 * @details The unit operation owns COL_POROSITY and the particle models own the film transfer
+	 *          coefficient, while the shape of the operator is a property of the bulk discretization.
+	 *          This gathers the first two and lets the transport operator assemble the result, which
+	 *          the particle models then apply without having to interpret it. Must be called whenever
+	 *          the porosity, the film transfer coefficient or the transport operator changes.
+	 */
+	void updateFilmTransferOperator(unsigned int secIdx);
+
+	/**
+	 * @brief Sets the node local bulk side operator of the film transfer term from the current porosity
+	 * @details This is all that can be set up before the particle models and the transport operator are
+	 *          configured, and it is what every discretization and geometry but a smoothly varying cross
+	 *          section is restricted to anyway.
 	 */
 	inline void updateFilmTransferPrefactor()
 	{
+		Indexer idxr(_disc);
+
 		for (unsigned int i = 0; i < _disc.nPoints; ++i)
 			_invBetaC[i] = 1.0 / _colPorosity[i] - 1.0;
+
+		const bulkFilmTransfer nodeLocal{ _invBetaC.data(), nullptr, 1, 1, 0, idxr.strideColNode() };
+		std::fill(_bulkFilmTransfer.begin(), _bulkFilmTransfer.end(), nodeLocal);
 	}
+
+	//!< Scratch for the nodal film transfer flux, selected by the residual type
+	inline double* filmFluxBuffer(double*) CADET_NOEXCEPT { return _filmFluxBulk.data(); }
+	inline active* filmFluxBuffer(active*) CADET_NOEXCEPT { return _filmFluxBulkAd.data(); }
 
 
 	void setJacobianPattern(SparseMatrix<double, RowMajor>& globalJ, unsigned int secIdx, bool hasBulkReaction)
@@ -547,6 +571,9 @@ protected:
 		{
 			isothermNNZ = (idxr.strideParNode(type)) * _disc.nParPoints[type] * _disc.strideBound[type]; // every bound sate might depend on every bound and liquid state
 			particleEntries += _disc.nPoints * _particles[type]->jacobianNNZperParticle() + isothermNNZ;
+
+			// bulk rows that a non-local film transfer operator adds
+			particleEntries += _disc.nPoints * _disc.nComp * (_bulkFilmTransfer[type].stencilSize - 1);
 		}
 
 		tripletList.reserve(bulkEntries + particleEntries);
@@ -576,7 +603,7 @@ protected:
 		{
 			for (int type = 0; type < _disc.nParType; type++)
 			{
-				_particles[type]->setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}, ParticleIndex{static_cast<unsigned int>(colNode)}), idxr.offsetC() + colNode * idxr.strideColNode(), colNode, secIdx);
+				_particles[type]->setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(type)}, ParticleIndex{static_cast<unsigned int>(colNode)}), idxr.offsetC() + colNode * idxr.strideColNode(), colNode, secIdx, _bulkFilmTransfer[type]);
 			}
 		}
 
@@ -609,7 +636,7 @@ protected:
 
 		for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 		{
-			_particles[parType]->calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }), idxr.offsetC(), _disc.nPoints, _disc.nParType, &_invBetaC[0], &_parTypeVolFrac[0], &pointVelocities[0], _globalJac);
+			_particles[parType]->calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }), idxr.offsetC(), _disc.nPoints, _disc.nParType, _bulkFilmTransfer[parType], &_parTypeVolFrac[0], &pointVelocities[0], _globalJac);
 		}
 
 		return _globalJac.isCompressed(); // check if the jacobian estimation fits the pattern

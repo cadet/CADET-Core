@@ -1097,15 +1097,16 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeFlowArea()
 
 void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperators(const unsigned int secIdx)
 {
-	if (!_axiallyConstantPorosity)
+	if (nodalWeight())
 	{
-		// The porosity profile is owned by the unit operation and its values may have changed
-		// since the last section transition, e.g. through a parameter update
-		computeFlowArea();
-
 		// eps_c(x) A(x) is not the closed-form polynomial that the analytic mass matrices of the
 		// cylinder, the cylinder shell and the frustum are derived from, so a varying porosity
-		// needs the general nodal quadrature assembly for every geometry.
+		// needs the general nodal quadrature assembly for every geometry, just as a prescribed
+		// cross section does. The profile is owned by the unit operation and its values may have
+		// changed since the last section transition, e.g. through a parameter update.
+		if (!_axiallyConstantPorosity)
+			computeFlowArea();
+
 		computeOperatorsNodalArea(secIdx);
 		return;
 	}
@@ -1120,9 +1121,6 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperators(co
 		break;
 	case GeometryType::AxialFlowFrustum:
 		computeOperatorsFrustum(secIdx);
-		break;
-	case GeometryType::SmoothlyVaryingCrossSection:
-		computeOperatorsNodalArea(secIdx);
 		break;
 	default:
 		break;
@@ -1664,6 +1662,134 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeOperatorsNod
 // ============================================================================
 //  Jacobian block helpers
 // ============================================================================
+
+int VariableCrossSectionConvectionDispersionOperatorBaseDG::filmTransferStencilSize() const CADET_NOEXCEPT
+{
+	// The source is spread over the element exactly where the weight of the operators is the
+	// nodal interpolant of eps_c(x) A(x), i.e. for a prescribed cross section and for a porosity
+	// that varies along the column, whatever the geometry contributes to A(x). Only then is the
+	// mass matrix the term is divided by built from the same representation of the weight that
+	// the operator below integrates, which is what makes it collapse back onto the scalar
+	// prefactor for a constant porosity and film transfer coefficient.
+	// The weighted mass matrices are only available once the operators of the first section have
+	// been set up, before which the node local prefactor is all the caller can be given
+	return (nodalWeight() && _invMM_A.size() == _nElem) ? static_cast<int>(_nNodes) : 1;
+}
+
+bool VariableCrossSectionConvectionDispersionOperatorBaseDG::assembleFilmTransferOperator(active const* const colPorosity, active const* const filmDiffusion, const unsigned int nComp, active* weights, int* offsets) const
+{
+	// A porosity and a film transfer coefficient that are constant on every element leave the
+	// source proportional to the mass matrix, so that the node local prefactor is exact. That is
+	// the case for every column whose COL_POROSITY is a single value and whose film transfer
+	// coefficient does not depend on the velocity, and it is kept bit for bit identical here.
+	bool varies = false;
+	for (unsigned int elem = 0; elem < _nElem && !varies; ++elem)
+	{
+		for (unsigned int j = 1; j < _nNodes && !varies; ++j)
+		{
+			if (static_cast<double>(colPorosity[elem * _nNodes + j]) != static_cast<double>(colPorosity[elem * _nNodes]))
+				varies = true;
+
+			for (unsigned int comp = 0; comp < nComp && !varies; ++comp)
+			{
+				if (static_cast<double>(filmDiffusion[(elem * _nNodes + j) * nComp + comp]) != static_cast<double>(filmDiffusion[elem * _nNodes * nComp + comp]))
+					varies = true;
+			}
+		}
+	}
+
+	if (!varies)
+		return false;
+
+	// Over-integration of the same degree as the area weighted operators of the transport term,
+	// see computeOperatorsNodalArea()
+	const int nQuadNodes = (_axDispQuadDeg + _polyDeg + 2 * _polyDeg + 2) / 2;
+	Eigen::VectorXd quadNodes = Eigen::VectorXd::Zero(nQuadNodes);
+	Eigen::VectorXd quadWeights = Eigen::VectorXd::Zero(nQuadNodes);
+	dgtoolbox::lgNodesWeights(nQuadNodes - 1, quadNodes, quadWeights, false);
+
+	// The porosity and the film transfer coefficient are interpolated in the same polynomial space
+	// as the cross section area and the solution
+	Eigen::MatrixXd basisAtQuad(_nNodes, nQuadNodes);
+	for (unsigned int i = 0; i < _nNodes; ++i)
+		basisAtQuad.row(i) = dgtoolbox::evalLagrangeBasis(i, _nodes, quadNodes);
+
+	// The flux at a node reaches every node of its element, and no node beyond it
+	for (unsigned int elem = 0; elem < _nElem; ++elem)
+		for (unsigned int j = 0; j < _nNodes; ++j)
+			for (unsigned int i = 0; i < _nNodes; ++i)
+				offsets[(elem * _nNodes + j) * _nNodes + i] = static_cast<int>(i) - static_cast<int>(j);
+
+	std::vector<active> geometryAtQuad(nQuadNodes);
+	std::vector<active> weightAtQuad(nQuadNodes);
+	std::vector<active> weightedMM(static_cast<std::size_t>(_nNodes) * _nNodes);
+
+	for (unsigned int elem = 0; elem < _nElem; ++elem)
+	{
+		// The source carries the weight A^eps (1 - eps) / eps = A (1 - eps), the solid cross section
+		// area, whereas the time derivative carries A^eps. Only their quotient is needed, so the
+		// element Jacobian cancels and is left out of both.
+		for (int k = 0; k < nQuadNodes; ++k)
+		{
+			active porosity = 0.0;
+			for (unsigned int m = 0; m < _nNodes; ++m)
+				porosity += basisAtQuad(m, k) * colPorosity[elem * _nNodes + m];
+
+			geometryAtQuad[k] = interpolatedFlowArea(elem, quadNodes[k]) * (1.0 / porosity - 1.0) * quadWeights[k];
+		}
+
+		for (unsigned int comp = 0; comp < nComp; ++comp)
+		{
+			for (int k = 0; k < nQuadNodes; ++k)
+			{
+				active filmDiff = 0.0;
+				for (unsigned int m = 0; m < _nNodes; ++m)
+					filmDiff += basisAtQuad(m, k) * filmDiffusion[(elem * _nNodes + m) * nComp + comp];
+
+				weightAtQuad[k] = geometryAtQuad[k] * filmDiff;
+			}
+
+			for (unsigned int i = 0; i < _nNodes; ++i)
+			{
+				for (unsigned int j = 0; j < _nNodes; ++j)
+				{
+					active entry = 0.0;
+					for (int k = 0; k < nQuadNodes; ++k)
+						entry += basisAtQuad(i, k) * basisAtQuad(j, k) * weightAtQuad[k];
+
+					weightedMM[i * _nNodes + j] = entry;
+				}
+			}
+
+			for (unsigned int j = 0; j < _nNodes; ++j)
+			{
+				// The weights are applied to the film transfer flux, which already carries the nodal film
+				// transfer coefficient, so it is divided out here. A coefficient of zero means that there
+				// is no flux at this node to spread in the first place.
+				const active& nodalFilmDiff = filmDiffusion[(elem * _nNodes + j) * nComp + comp];
+				const bool hasFlux = static_cast<double>(nodalFilmDiff) != 0.0;
+				active* const dest = weights + ((static_cast<std::size_t>(elem) * _nNodes + j) * nComp + comp) * _nNodes;
+
+				for (unsigned int i = 0; i < _nNodes; ++i)
+				{
+					active entry = 0.0;
+
+					if (hasFlux)
+					{
+						for (unsigned int m = 0; m < _nNodes; ++m)
+							entry += _invMM_A[elem](i, m) * weightedMM[m * _nNodes + j];
+
+						entry = entry * (1.0 / nodalFilmDiff);
+					}
+
+					dest[i] = entry;
+				}
+			}
+		}
+	}
+
+	return true;
+}
 
 Eigen::MatrixXd VariableCrossSectionConvectionDispersionOperatorBaseDG::getGBlock(unsigned int elemIdx)
 {

@@ -205,6 +205,41 @@
 			*/
 			virtual int writeCoordinates(double* coords) const CADET_NOEXCEPT = 0;
 
+			/**
+			* @brief Number of discrete points that the bulk side of the film transfer term is spread over
+			* @details The weak form multiplies the bulk balance by the flow through area
+			*          \f$ A^\varepsilon = \varepsilon^{\mathrm{b}} A \f$, so that the time derivative carries the
+			*          weight \f$ A^\varepsilon \f$ while the film transfer source carries the weight
+			*          \f$ A^\varepsilon \left(1 - \varepsilon^{\mathrm{b}}\right) k^{\mathrm{f}} / \varepsilon^{\mathrm{b}} \f$.
+			*          The two are proportional, and the source is therefore integrated node locally, unless the
+			*          porosity or the film transfer coefficient varies within an element.
+			*          Returns one as long as this operator cannot produce anything but a node local source,
+			*          whether because of its geometry or because its operators are not set up yet.
+			* @return Upper bound on the number of discrete points of the stencil
+			*/
+			virtual int filmTransferStencilSize() const CADET_NOEXCEPT { return 1; }
+
+			/**
+			* @brief Assembles the bulk side operator of the film transfer term
+			* @details Inverting the mass matrix of the time derivative leaves the element-wise operator
+			*
+			*              T^(e) = (M^{A^eps})^{-1} Mtilde^{A^eps (1 - eps) kf / eps},
+			*
+			*          which maps the nodal values of \f$ k^{\mathrm{f}} \left(c^{\mathrm{b}} - c^{\mathrm{p}}\right) \f$
+			*          onto the bulk residual. The weights returned here are divided by the nodal film transfer
+			*          coefficient, so that they apply to the film transfer flux itself and reduce to
+			*          \f$ \left(1 - \varepsilon^{\mathrm{b}}\right) / \varepsilon^{\mathrm{b}} \f$ for a porosity and a
+			*          film transfer coefficient that are constant on an element.
+			* @param [in] colPorosity Bulk porosity at each of the nPoints discrete points
+			* @param [in] filmDiffusion Film transfer coefficient at each discrete point and component, point major
+			* @param [in] nComp Number of components
+			* @param [out] weights nPoints * nComp * filmTransferStencilSize() weights, point major, then component, then stencil
+			* @param [out] offsets nPoints * filmTransferStencilSize() signed offsets in discrete points
+			* @return @c false if the source is node local for the given porosity and film transfer coefficient,
+			*         in which case nothing is written and the caller keeps using the plain prefactor
+			*/
+			virtual bool assembleFilmTransferOperator(active const* const colPorosity, active const* const filmDiffusion, const unsigned int nComp, active* weights, int* offsets) const { return false; }
+
 			virtual bool setParameter(const ParameterId& pId, double value) = 0;
 
 			virtual bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue) = 0;

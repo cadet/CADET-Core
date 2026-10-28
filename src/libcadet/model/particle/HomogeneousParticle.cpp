@@ -414,7 +414,7 @@ namespace model
 			);
 
 		const ParamType jacPF_val = -static_cast<ParamType>(surfaceToVolumeRatio()) / static_cast<ParamType>(_parPorosity);
-		const ParamType jacCF_val = static_cast<ParamType>(packing.invBetaC) * static_cast<ParamType>(surfaceToVolumeRatio());
+		const ParamType surfToVol = static_cast<ParamType>(surfaceToVolumeRatio());
 
 		// Film diffusion flux
 		if (wantRes)
@@ -427,6 +427,14 @@ namespace model
 				// flux into particle
 				resPar[comp] += jacPF_val / static_cast<ParamType>(_poreAccessFactor[comp]) * filmDiff_comp * (yBulk[comp * _strideBulkComp] - yPar[comp]);
 				// flux into bulk
+				// A non-local bulk side operator is applied by the owning unit operation once every particle
+				// has contributed, so the bare flux is handed over in that case, see bulkFilmTransfer
+				const ParamType bulkWeight = packing.bulkFilm.nodeLocal() ? static_cast<ParamType>(*packing.bulkFilm.weight(packing.bulkPoint, comp)) : ParamType(1.0);
+
+				// The weight takes the place of the plain prefactor in the product, so that the node local
+				// operator reproduces the unweighted term bit for bit
+				const ParamType jacCF_val = bulkWeight * surfToVol;
+
 				resBulk[comp] += jacCF_val * filmDiff_comp * static_cast<ParamType>(packing.parTypeVolFrac) * (yBulk[comp] - yPar[comp]);
 			}
 		}
@@ -434,7 +442,7 @@ namespace model
 		return true;
 	}
 
-	void HomogeneousParticle::setParJacPattern(std::vector<Eigen::Triplet<double>>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx) const
+	void HomogeneousParticle::setParJacPattern(std::vector<Eigen::Triplet<double>>& tripletList, const unsigned int offsetPar, const unsigned int offsetBulk, unsigned int colNode, unsigned int secIdx, const bulkFilmTransfer& bulkFilm) const
 	{
 		// binding and reaction Jacobian pattern
 		// add dense nComp * nBound blocks, since all solid and liquid entries can be coupled through reaction and or binding.
@@ -448,7 +456,13 @@ namespace model
 		for (unsigned int comp = 0; comp < _nComp; comp++)
 		{
 			tripletList.push_back(Eigen::Triplet<double>(offsetPar + comp, offsetBulk + comp, 0.0));
-			tripletList.push_back(Eigen::Triplet<double>(offsetBulk + comp, offsetPar + comp, 0.0));
+
+			// The bulk side operator may spread this flux over further discrete points, see bulkFilmTransfer
+			for (int k = 0; k < bulkFilm.stencilSize; ++k)
+			{
+				const int rowShift = bulkFilm.offsets ? bulkFilm.offset(colNode)[k] * bulkFilm.strideBulkPoint : 0;
+				tripletList.push_back(Eigen::Triplet<double>(offsetBulk + rowShift + comp, offsetPar + comp, 0.0));
+			}
 		}
 	}
 
@@ -462,7 +476,7 @@ namespace model
 		return 1;
 	}
 	
-	int HomogeneousParticle::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, active const* const invBetaC, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool crossDepsOnly)
+	int HomogeneousParticle::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const bulkFilmTransfer& bulkFilm, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool crossDepsOnly)
 	{
 		const double jacPF_val = -static_cast<double>(surfaceToVolumeRatio()) / static_cast<double>(_parPorosity);
 
@@ -476,10 +490,8 @@ namespace model
 
 		for (unsigned int colNode = 0; colNode < nBulkPoints; colNode++, jacP += _strideBound)
 		{
-			// The prefactor is evaluated at this bulk point, so that an axially varying COL_POROSITY
-			// enters the film transfer term with the same nodal (collocated) accuracy as the varying
-			// cross section area does in the transport operator.
-			const double jacCF_val = static_cast<double>(invBetaC[colNode]) * static_cast<double>(surfaceToVolumeRatio());
+			const double surfToVol = static_cast<double>(surfaceToVolumeRatio());
+			int const* const bulkOffset = bulkFilm.offsets ? bulkFilm.offset(colNode) : nullptr;
 
 			// FILM_DIFFUSION_DEP is evaluated pointwise at this bulk point's local velocity
 			// (mass-lumped, same fidelity as FV's own midpoint-rule approximation of this term).
@@ -487,15 +499,38 @@ namespace model
 			for (unsigned int comp = 0; comp < _nComp; comp++, ++jacC, ++jacP) {
 				const double filmDiff_comp = static_cast<double>(modifiedFilmDiffusion(secIdx, comp, ColumnPosition{ 0.0, 0.0, 0.0 }, pointVelocity[colNode]));
 
-				// add Cl on Cl entries (added since already set in bulk jacobian)
-				// row: already at bulk phase. already at current node and component.
-				// col: already at bulk phase. already at current node and component.
-				if (!crossDepsOnly)
-					jacC[0] += jacCF_val * filmDiff_comp * static_cast<double>(parTypeVolFrac[_parTypeIdx + nParType * colNode]);
-				// add Cl on Cp entries
-				// row: already at bulk phase. already at current node and component.
-				// col: jump to particle phase
-				jacC[jacP.row() - jacC.row()] = -jacCF_val * filmDiff_comp * static_cast<double>(parTypeVolFrac[_parTypeIdx + nParType * colNode]);
+				active const* const bulkWeight = bulkFilm.weight(colNode, comp);
+
+				// The flux enters the bulk residual at every discrete point of the stencil, which for the
+				// node local operator is this bulk point alone
+				for (int k = 0; k < bulkFilm.stencilSize; ++k)
+				{
+					// The weight takes the place of the plain prefactor in the product, so that the node local
+					// operator reproduces the unweighted term bit for bit
+					const double weightedFlux = static_cast<double>(bulkWeight[k]) * surfToVol * filmDiff_comp * static_cast<double>(parTypeVolFrac[_parTypeIdx + nParType * colNode]);
+					const int rowShift = bulkOffset ? bulkOffset[k] * bulkFilm.strideBulkPoint : 0;
+
+					if (rowShift == 0)
+					{
+						// add Cl on Cl entries (added since already set in bulk jacobian)
+						// row: already at bulk phase. already at current node and component.
+						// col: already at bulk phase. already at current node and component.
+						if (!crossDepsOnly)
+							jacC[0] += weightedFlux;
+						// add Cl on Cp entries
+						// row: already at bulk phase. already at current node and component.
+						// col: jump to particle phase
+						jacC[jacP.row() - jacC.row()] = -weightedFlux;
+					}
+					else
+					{
+						linalg::BandedEigenSparseRowIterator jacCk(globalJac, jacC.row() + rowShift);
+
+						if (!crossDepsOnly)
+							jacCk[jacC.row() - jacCk.row()] += weightedFlux;
+						jacCk[jacP.row() - jacCk.row()] = -weightedFlux;
+					}
+				}
 
 				// add Cp on Cp entries
 				// row: already at particle. already at current node and liquid state.
@@ -510,6 +545,15 @@ namespace model
 		}
 
 		return 1;
+	}
+
+	void HomogeneousParticle::bulkFilmTransferCoefficients(unsigned int secIdx, active const* const pointVelocity, const int nBulkPoints, active* filmDiffusion) const
+	{
+		// FILM_DIFFUSION_DEP is evaluated at the local velocity of each bulk point. Position is a
+		// no-op for the only supported dependency (POWER_LAW), which only uses velocity.
+		for (int colNode = 0; colNode < nBulkPoints; ++colNode)
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
+				filmDiffusion[colNode * _nComp + comp] = modifiedFilmDiffusion(secIdx, comp, ColumnPosition{ 0.0, 0.0, 0.0 }, pointVelocity[colNode]);
 	}
 
 	bool HomogeneousParticle::setParameter(const ParameterId& pId, double value)

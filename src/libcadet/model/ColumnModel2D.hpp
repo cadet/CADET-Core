@@ -244,7 +244,8 @@ protected:
 				for (unsigned int r = 0; r < _disc.radNElem; r++)
 				{
 					const unsigned int colNode = z * _disc.radNPoints + r * _disc.radNNodes;
-					_particles[parType]->calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }) - idxr.offsetC(), colNode * idxr.strideColRadialNode(), _disc.radNNodes, _disc.nParType, &invBetaC[r * _disc.radNNodes], &_parTypeVolFrac[colNode * _disc.nParType], &pointVelocities[r * _disc.radNNodes], _globalJac);
+					const bulkFilmTransfer bulkFilm{ &invBetaC[r * _disc.radNNodes], nullptr, 1, 1, 0, idxr.strideColRadialNode() };
+					_particles[parType]->calcFilmDiffJacobian(secIdx, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }) - idxr.offsetC(), colNode * idxr.strideColRadialNode(), _disc.radNNodes, _disc.nParType, bulkFilm, &_parTypeVolFrac[colNode * _disc.nParType], &pointVelocities[r * _disc.radNNodes], _globalJac);
 				}
 			}
 		}
@@ -519,10 +520,14 @@ protected:
 			}
 		}
 
+		// The 2D model resolves the radial direction, so the bulk side of the film transfer term is
+		// node local and the pattern needs nothing beyond that
+		const bulkFilmTransfer nodeLocalFilm{};
+
 		for (int parType = 0; parType < _disc.nParType; parType++)
 		{
 			for (int colNode = 0; colNode < _disc.nBulkPoints; colNode++)
-				_particles[parType]->setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }) - idxr.offsetC(), colNode * idxr.strideColRadialNode(), colNode, secIdx);
+				_particles[parType]->setParJacPattern(tripletList, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(parType) }, ParticleIndex{ static_cast<unsigned int>(colNode) }) - idxr.offsetC(), colNode * idxr.strideColRadialNode(), colNode, secIdx, nodeLocalFilm);
 		}
 
 		mat.setFromTriplets(tripletList.begin(), tripletList.end());

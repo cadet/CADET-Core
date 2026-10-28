@@ -502,8 +502,22 @@ The bulk transport operator depends on the porosity only through the product :ma
 Since :math:`w` is then no longer the closed-form polynomial that the analytic mass matrices of the cylinder, the cylinder shell and the frustum are derived from, the element integrals are evaluated by the same Gauss quadrature as for the smoothly varying cross section, for every geometry.
 Note that this represents :math:`w` by its nodal Lagrange interpolant, so a frustum needs :math:`\texttt{POLYDEG} \geq 2` to represent its own quadratic area without an additional interpolation error.
 
-What does not follow from the weight is the film diffusion prefactor :math:`(1 - \varepsilon_c) / \varepsilon_c`, which becomes position dependent.
-It is therefore evaluated at every DG node from the nodal values of ``COL_POROSITY``, in the same way as the velocity dependent dispersion and film mass transfer coefficients already are.
+What does not follow from the weight is the film transfer term.
+Weighting the bulk balance with :math:`w` gives that term the weight :math:`w (1 - \varepsilon_c) / \varepsilon_c = A (1 - \varepsilon_c)`, the solid cross section area, whereas the time derivative carries :math:`w`.
+The two are no longer proportional once the porosity, or through the velocity the film mass transfer coefficient, varies within an element, so that the prefactor cannot be taken out of the element integral.
+Inverting the mass matrix of the time derivative then leaves the element wise operator
+
+.. math::
+    :label: FilmTransferOperator
+
+    \begin{aligned}
+        T^{(e)} = \left( \mathcal{M}^{w} \right)^{-1} \tilde{\mathcal{M}}^{w (1 - \varepsilon_c) k_{f} / \varepsilon_c},
+    \end{aligned}
+
+which takes the place of the scalar prefactor, so that the film transfer flux at one discrete point contributes to the bulk residual at every point of its element.
+For a porosity and a film mass transfer coefficient that are constant on an element, :math:`T^{(e)}` is that scalar times the identity; CADET-Core detects this case and keeps evaluating the term node locally.
+The operator is assembled wherever :math:`w` is represented by its nodal interpolant, i.e. for a prescribed cross section and for an axially varying porosity on any geometry.
+With a constant porosity on one of the analytic geometries, :math:`w` is instead integrated in closed form and the term stays node local, even if the film mass transfer coefficient varies within an element through its velocity dependence.
 All nodal fields are represented by their Lagrange interpolant, so a smooth porosity profile does not reduce the order of convergence of the scheme, just as a smooth area profile does not.
 
 Three restrictions apply.

@@ -311,7 +311,7 @@ namespace model
 		if (wantRes)
 		{
 			// film diffusion bulk eq. term
-			const ParamType jacCF_val = static_cast<ParamType>(packing.invBetaC) * static_cast<ParamType>(surfaceToVolumeRatio());
+			const ParamType surfToVol = static_cast<ParamType>(surfaceToVolumeRatio());
 
 			// Add flux to column void / bulk volume using discretized film diffusion
 			for (unsigned int comp = 0; comp < _nComp; ++comp)
@@ -320,7 +320,15 @@ namespace model
 				// FILM_DIFFUSION_DEP evaluated pointwise at this bulk point's position/velocity
 				const ParamType filmDiff_comp = static_cast<ParamType>(_parDiffOp->modifiedFilmDiffusion(secIdx, comp, packing.colPos, packing.velocity));
 
-				// + 1/Beta^c * (surfaceToVolumeRatio^p_j) * d_j * (k_f * [c^b - c^p])
+				// A non-local bulk side operator is applied by the owning unit operation once every particle
+				// has contributed, so the bare flux is handed over in that case, see bulkFilmTransfer
+				const ParamType bulkWeight = packing.bulkFilm.nodeLocal() ? static_cast<ParamType>(*packing.bulkFilm.weight(packing.bulkPoint, comp)) : ParamType(1.0);
+
+				// The weight takes the place of the plain prefactor in the product, so that the node local
+				// operator reproduces the unweighted term bit for bit
+				const ParamType jacCF_val = bulkWeight * surfToVol;
+
+				// + weight * (surfaceToVolumeRatio^p_j) * d_j * (k_f * [c^b - c^p])
 				resBulk[comp] += discretizedFilmDiffusionFactor * filmDiff_comp * jacCF_val * static_cast<ParamType>(packing.parTypeVolFrac) * (yBulk[comp] - yPar[(nDiscPoints() - 1) * stridePoint() + comp]);
 			}
 		}
@@ -340,9 +348,23 @@ namespace model
 		return _parDiffOp->calcParticleDiffJacobian(secIdx, colNode, offsetLocalCp, globalJac);
 	}
 	
-	int GeneralRateParticle::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, active const* const invBetaC, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
+	void GeneralRateParticle::bulkFilmTransferCoefficients(unsigned int secIdx, active const* const pointVelocity, const int nBulkPoints, active* filmDiffusion) const
 	{
-		return _parDiffOp->calcFilmDiffJacobian(secIdx, offsetCp, offsetC, nBulkPoints, nParType, invBetaC, parTypeVolFrac, pointVelocity, globalJac, outliersOnly);
+		// The bulk side flux carries the discretized film transfer coefficient of the particle
+		// discretization, which for a finite volume particle differs from FILM_DIFFUSION itself
+		for (int colNode = 0; colNode < nBulkPoints; ++colNode)
+		{
+			const ColumnPosition colPos{ 0.0, 0.0, 0.0 };
+
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
+				filmDiffusion[colNode * _nComp + comp] = _parDiffOp->discretizedFilmDiffusionFactor(secIdx, comp, colPos, pointVelocity[colNode])
+					* _parDiffOp->modifiedFilmDiffusion(secIdx, comp, colPos, pointVelocity[colNode]);
+		}
+	}
+
+	int GeneralRateParticle::calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const bulkFilmTransfer& bulkFilm, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly)
+	{
+		return _parDiffOp->calcFilmDiffJacobian(secIdx, offsetCp, offsetC, nBulkPoints, nParType, bulkFilm, parTypeVolFrac, pointVelocity, globalJac, outliersOnly);
 	}
 
 	bool GeneralRateParticle::setParameter(const ParameterId& pId, double value)

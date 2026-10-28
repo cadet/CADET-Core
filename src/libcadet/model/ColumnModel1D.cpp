@@ -395,8 +395,8 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 	// has been handed the profile. Consequently, the flow rate must not be divided by the
 	// porosity a second time, which is why setFlowRates() hands the transport operator a porosity
 	// of one in this case, see setFlowRates(). What does not follow from w is the film transfer
-	// term, whose bulk side prefactor (1 - eps) / eps is evaluated per axial node,
-	// see updateFilmTransferPrefactor().
+	// term, whose bulk side operator is assembled from the porosity and the film transfer
+	// coefficient, see updateFilmTransferOperator().
 	//
 	// This has to happen before the transport operator is configured, since configure() assembles
 	// the geometry dependent operators, which a profile is baked into.
@@ -435,6 +435,8 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 	const bool transportSuccess = _convDispOp.configure(_unitOpIdx, paramProvider, _parameters);
 
 	_invBetaC.resize(_disc.nPoints);
+	_filmTransferWeights.resize(_disc.nParType);
+	_bulkFilmTransfer.resize(_disc.nParType);
 	updateFilmTransferPrefactor();
 
 	// Check whether PAR_TYPE_VOLFRAC is required or not
@@ -666,6 +668,10 @@ void ColumnModel1D<ConvDispOperator>::notifyDiscontinuousSectionTransition(doubl
 
 	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
 
+	// The bulk side of the film transfer term follows the weighted mass matrices that the transport
+	// operator has just recomputed, and the film transfer coefficient of the new section
+	updateFilmTransferOperator(secIdx);
+
 	// todo: only reset jacobian pattern if it changes, i.e. once in configuration and then only for changes in SurfDiff+kinetic binding.
 	bool hasReaction = _reaction.getDynReactionVector("liquid")[0];
 	setJacobianPattern(_globalJac, 0, hasReaction);
@@ -678,6 +684,63 @@ void ColumnModel1D<ConvDispOperator>::notifyDiscontinuousSectionTransition(doubl
 	}
 
 	_disc.curSection = secIdx;
+}
+
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::updateFilmTransferOperator(unsigned int secIdx)
+{
+	updateFilmTransferPrefactor();
+
+	const int stencil = _convDispOp.filmTransferStencilSize();
+	if (stencil <= 1)
+	{
+		_filmFluxBulk.clear();
+		_filmFluxBulkAd.clear();
+		return;
+	}
+
+	Indexer idxr(_disc);
+
+	// The transport operator needs the film transfer coefficient at every discrete point, both to
+	// decide whether the source is node local after all and to weight it if it is not
+	std::vector<active> pointVelocities(_disc.nPoints);
+	for (unsigned int i = 0; i < _disc.nPoints; ++i)
+		pointVelocities[i] = _convDispOp.currentVelocity(_convDispOp.relativeCoordinate(i));
+
+	std::vector<active> filmDiffusion(static_cast<std::size_t>(_disc.nPoints) * _disc.nComp);
+	_filmTransferOffsets.resize(static_cast<std::size_t>(_disc.nPoints) * stencil);
+	bool anyNonLocal = false;
+
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
+	{
+		_particles[type]->bulkFilmTransferCoefficients(secIdx, &pointVelocities[0], _disc.nPoints, &filmDiffusion[0]);
+
+		_filmTransferWeights[type].resize(static_cast<std::size_t>(_disc.nPoints) * _disc.nComp * stencil);
+
+		if (!_convDispOp.assembleFilmTransferOperator(&_colPorosity[0], &filmDiffusion[0], _disc.nComp, &_filmTransferWeights[type][0], &_filmTransferOffsets[0]))
+		{
+			_filmTransferWeights[type].clear();
+			continue;
+		}
+
+		_bulkFilmTransfer[type] = bulkFilmTransfer{ _filmTransferWeights[type].data(), _filmTransferOffsets.data(), stencil,
+			static_cast<int>(_disc.nComp) * stencil, stencil, idxr.strideColNode() };
+		anyNonLocal = true;
+	}
+
+	// The flux of a discrete point reaches the bulk residual of its neighbours, which the parallel
+	// loop over the particles must not do itself, so it is staged and spread afterwards
+	if (anyNonLocal)
+	{
+		const std::size_t size = static_cast<std::size_t>(_disc.nParType) * _disc.nPoints * _disc.nComp;
+		_filmFluxBulk.resize(size);
+		_filmFluxBulkAd.resize(size);
+	}
+	else
+	{
+		_filmFluxBulk.clear();
+		_filmFluxBulkAd.clear();
+	}
 }
 
 template <typename ConvDispOperator>
@@ -816,7 +879,7 @@ void ColumnModel1D<ConvDispOperator>::extractJacobianFromAD(active const* const 
 
 	for (unsigned int parType = 0; parType < _disc.nParType; parType++)
 	{
-		_particles[parType]->calcFilmDiffJacobian(_disc.curSection, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(parType)}), idxr.offsetC(), _disc.nPoints, _disc.nParType, &_invBetaC[0], &_parTypeVolFrac[0], &pointVelocities[0], _globalJac, true);
+		_particles[parType]->calcFilmDiffJacobian(_disc.curSection, idxr.offsetCp(ParticleTypeIndex{static_cast<unsigned int>(parType)}), idxr.offsetC(), _disc.nPoints, _disc.nParType, _bulkFilmTransfer[parType], &_parTypeVolFrac[0], &pointVelocities[0], _globalJac, true);
 	}
 
 	const auto& cm = _reaction.conservedMoieties("liquid");
@@ -1086,6 +1149,15 @@ int ColumnModel1D<ConvDispOperator>::residualImpl(double t, unsigned int secIdx,
 	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 	Indexer idxr(_disc);
 
+	// A non-local bulk side film transfer operator lets the flux of one discrete point reach the
+	// bulk residual of its neighbours, which the parallel loop below must not do directly. Those
+	// particle types stage their flux here instead, and it is spread once the loop is done. The
+	// staging also happens for a Jacobian only call, which discards the residual it computes.
+	const bool stageFilmFlux = res && !_filmFluxBulk.empty();
+	ResidualType* const filmFlux = stageFilmFlux ? filmFluxBuffer(static_cast<ResidualType*>(nullptr)) : nullptr;
+	if (stageFilmFlux)
+		std::fill_n(filmFlux, static_cast<std::size_t>(_disc.nParType) * _disc.nPoints * _disc.nComp, ResidualType(0.0));
+
 #ifdef CADET_PARALLELIZE
 	tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nPoints * _disc.nParType + 1), [&](std::size_t pblk)
 #else
@@ -1124,24 +1196,58 @@ int ColumnModel1D<ConvDispOperator>::residualImpl(double t, unsigned int secIdx,
 			model::columnPackingParameters packing
 			{
 				_parTypeVolFrac[parType + _disc.nParType * colNode],
-				_invBetaC[colNode],
+				_bulkFilmTransfer[parType],
+				static_cast<int>(colNode),
 				ColumnPosition{ _convDispOp.relativeCoordinate(colNode), 0.0, 0.0 },
 				pointVelocity
 			};
 
+			// Either straight into the bulk residual, or into the staging buffer of this particle type
+			ResidualType* resBulk = nullptr;
+			if (res)
+				resBulk = (stageFilmFlux && !_bulkFilmTransfer[parType].nodeLocal())
+					? filmFlux + (static_cast<std::size_t>(parType) * _disc.nPoints + colNode) * _disc.nComp
+					: res + idxr.offsetC() + colNode * idxr.strideColNode();
 
 			_particles[parType]->residual(t, secIdx,
 				y + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }),
 				y + idxr.offsetC() + colNode * idxr.strideColNode(),
 				yDot ? yDot + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
 				res ? res + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr,
-				res ? res + idxr.offsetC() + colNode * idxr.strideColNode() : nullptr,
+				resBulk,
 				packing, jacIt, tlmAlloc,
 				typename cadet::ParamSens<ParamType>::enabled()
 			);
 		}
 
 	} CADET_PARFOR_END;
+
+	// Spread the staged film transfer flux over the discrete points of the bulk side operator
+	if (stageFilmFlux)
+	{
+		for (unsigned int type = 0; type < _disc.nParType; ++type)
+		{
+			const bulkFilmTransfer& bulkFilm = _bulkFilmTransfer[type];
+			if (bulkFilm.nodeLocal())
+				continue;
+
+			ResidualType const* const flux = filmFlux + static_cast<std::size_t>(type) * _disc.nPoints * _disc.nComp;
+
+			for (unsigned int point = 0; point < _disc.nPoints; ++point)
+			{
+				int const* const offsets = bulkFilm.offset(point);
+
+				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+				{
+					active const* const weights = bulkFilm.weight(point, comp);
+					const ResidualType pointFlux = flux[point * _disc.nComp + comp];
+
+					for (int k = 0; k < bulkFilm.stencilSize; ++k)
+						res[idxr.offsetC() + (point + offsets[k]) * idxr.strideColNode() + comp * idxr.strideColComp()] += static_cast<ParamType>(weights[k]) * pointFlux;
+				}
+			}
+		}
+	}
 
 	const auto& cm = _reaction.conservedMoieties("liquid");
 	if (cm.hasRapidEquilibrium())
@@ -1569,7 +1675,7 @@ bool ColumnModel1D<ConvDispOperator>::setParameter(const ParameterId& pId, doubl
 			for (unsigned int i = 0; i < _disc.nPoints; ++i)
 				_colPorosity[i].setValue(value);
 
-			updateFilmTransferPrefactor();
+			updateFilmTransferOperator(_disc.curSection);
 
 			return true;
 		}
@@ -1706,7 +1812,7 @@ void ColumnModel1D<ConvDispOperator>::setSensitiveParameterValue(const Parameter
 			for (unsigned int i = 0; i < _disc.nPoints; ++i)
 				_colPorosity[i].setValue(value);
 
-			updateFilmTransferPrefactor();
+			updateFilmTransferOperator(_disc.curSection);
 
 			return;
 		}
@@ -1787,7 +1893,7 @@ bool ColumnModel1D<ConvDispOperator>::setSensitiveParameter(const ParameterId& p
 			for (unsigned int i = 0; i < _disc.nPoints; ++i)
 				_colPorosity[i].setADValue(adDirection, adValue);
 
-			updateFilmTransferPrefactor();
+			updateFilmTransferOperator(_disc.curSection);
 
 			return true;
 		}
