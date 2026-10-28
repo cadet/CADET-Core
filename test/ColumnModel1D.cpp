@@ -2481,3 +2481,69 @@ TEST_CASE("Column_1D equivalence of a varying geometry and a varying bulk porosi
 		cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
 	}
 }
+
+TEST_CASE("Column_1D without particles equivalence of a frustum and an axially varying COL_POROSITY", "[AxialColumn1D],[FrustumColumn1D],[DG],[DG1D],[Simulation],[CI]")
+{
+	// Sanity check of an axially varying COL_POROSITY against a geometry whose cross section area
+	// CADET-Core knows analytically, in the pure transport setting of the EOC studies of
+	// CADET-Verification, which run the varying COL_POROSITY on a column without particles.
+	//
+	// Without particles the bulk porosity enters the transport equations only through the flow
+	// through area w(x) = eps(x) A(x). There is no second place that sees eps on its own: the film
+	// transfer prefactor (1 - eps) / eps, which does not follow from w and which would tell the two
+	// settings apart, needs a particle phase that is absent here. A frustum packed at a constant
+	// porosity and a cylinder of its large end area whose porosity falls off like the frustum area
+	// are therefore the same column, and the two simulations have to return the same result.
+	//
+	// The small end of the frustum is three quarters of its large end, as it is in the EOC studies.
+	const double areaRatioSmallEnd = 0.75;
+
+	const auto setting = [=](const std::function<void(cadet::JsonParameterProvider&, double, double)>& modify)
+		{
+			cadet::JsonParameterProvider jpp = createLinearBenchmark(false, true, "COLUMN_MODEL_1D_LRMP", "DG");
+
+			jpp.pushScope("model");
+			jpp.pushScope("unit_000");
+
+			// Strip the particle phase, leaving the bulk transport the setting is about
+			jpp.set("NPARTYPE", 0);
+			jpp.remove("particle_type_000");
+
+			const double area = jpp.getDouble("CROSS_SECTION_AREA");
+			const double porosity = jpp.getDouble("COL_POROSITY");
+			modify(jpp, area, porosity);
+
+			jpp.popScope();
+			jpp.popScope();
+
+			// The two settings assemble the same operators by different arithmetic, so their round-off
+			// differs and the adaptive time integration would otherwise amplify it to its own tolerance
+			jpp.pushScope("solver");
+			jpp.pushScope("time_integrator");
+			jpp.set("ABSTOL", 1e-12);
+			jpp.set("RELTOL", 1e-10);
+			jpp.popScope();
+			jpp.popScope();
+
+			return jpp;
+		};
+
+	// The frustum evaluates its quadratic area analytically, whereas the porosity profile is
+	// represented by its nodal interpolant and assembled by quadrature. The interpolant of a
+	// quadratic is exact for the POLYDEG of this setting, so the two must still agree.
+	cadet::JsonParameterProvider jppFrustum = setting([=](cadet::JsonParameterProvider& jpp, double area, double porosity)
+		{
+			jpp.set("GEOMETRY", std::string("AXIAL_FLOW_FRUSTUM"));
+			jpp.set("CROSS_SECTION_AREA_LARGE_END", area);
+			jpp.set("CROSS_SECTION_AREA_SMALL_END", areaRatioSmallEnd * area);
+		});
+
+	cadet::JsonParameterProvider jppPorosity = setting([=](cadet::JsonParameterProvider& jpp, double area, double porosity)
+		{
+			// The cylinder keeps the large end area of the frustum, so the porosity has to carry the shape
+			const std::function<double(double)> shape = frustumArea(1.0, areaRatioSmallEnd);
+			setAxiallyVaryingPorosity(jpp, [=](double normalizedPos) { return porosity * shape(normalizedPos); });
+		});
+
+	cadet::test::column::testEqualResults(jppFrustum, jppPorosity, 1e-10, 1e-8, 0);
+}
