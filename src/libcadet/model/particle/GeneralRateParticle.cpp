@@ -122,7 +122,6 @@ namespace model
 		_reaction.clearDynamicReactionModels();
 		bool hasReaction = false;
 
-		unsigned int noOfSet = 0;
 		if (paramProvider.exists("NREAC_CROSS_PHASE"))
 		{
 			hasReaction = true;
@@ -132,7 +131,7 @@ namespace model
 				nReac,
 				_nComp,
 				_nBound.get(),
-				&noOfSet,
+				_parDiffOp->offsetBoundComp(),
 				paramProvider,
 				helper) && reactionConfSuccess;
 
@@ -146,7 +145,7 @@ namespace model
 				nReac,
 				_nComp,
 				_nBound.get(),
-				&noOfSet,
+				_parDiffOp->offsetBoundComp(),
 				paramProvider,
 				helper) && reactionConfSuccess;
 		}
@@ -159,7 +158,7 @@ namespace model
 				nReac,
 				_nComp,
 				_nBound.get(),
-				&noOfSet,
+				_parDiffOp->offsetBoundComp(),
 				paramProvider,
 				helper) && reactionConfSuccess;
 
