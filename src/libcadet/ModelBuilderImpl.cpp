@@ -18,6 +18,7 @@
 #include "cadet/ExternalFunction.hpp"
 
 #include "model/ModelSystemImpl.hpp"
+#include "AutoDiff.hpp"
 #include "CompileTimeConfig.hpp"
 
 #include "LoggingUtils.hpp"
@@ -89,8 +90,11 @@ namespace cadet
 
 	IModelSystem* ModelBuilder::createSystem(IParameterProvider& paramProvider)
 	{
+		// See createUnitOperation() for why the direction count has to be raised before building a model
+		ad::setDirections(ad::getMaxDirections());
+
 		model::ModelSystem* sys = new model::ModelSystem();
-		
+
 		// Create and configure all unit operations
 		bool success = true;
 		unsigned int i = 0;
@@ -163,6 +167,14 @@ namespace cadet
 
 	IModel* ModelBuilder::createUnitOperation(IParameterProvider& paramProvider, UnitOpIdx uoId)
 	{
+		// An active zeroes its gradient only over the currently set number of AD directions, so it has to
+		// be constructed while that number is at least as large as the number of directions later read
+		// from it (see detail::globalGradSize in sfad-common.hpp). Simulator::integrate() lowers the count
+		// to what its model needs and leaves it there, so a model built afterwards would otherwise carry
+		// uninitialized gradients into the next simulation. Raising the count here is free: the Simulator
+		// lowers it again before time integration.
+		ad::setDirections(ad::getMaxDirections());
+
 		const std::string uoType = paramProvider.getString("UNIT_TYPE");
 		const auto it = _modelCreators.find(uoType);
 		if (it == _modelCreators.end())

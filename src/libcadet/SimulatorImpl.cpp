@@ -1831,6 +1831,11 @@ namespace cadet
 		if (!_model)
 			return false;
 
+		// Reconfiguring creates new actives, which zero their gradient only over the currently set number
+		// of directions. Time integration leaves that number lowered, so raise it again (see
+		// ModelBuilder::createUnitOperation). It is lowered to what the model needs in integrate().
+		ad::setDirections(ad::getMaxDirections());
+
 		// Reconfigure the model
 		const bool success = _model->configure(paramProvider);
 
@@ -1844,6 +1849,9 @@ namespace cadet
 	{
 		if (!_model)
 			return false;
+
+		// See the overload above
+		ad::setDirections(ad::getMaxDirections());
 
 		// Reconfigure the model
 		const bool success = _model->configureModel(paramProvider, unitOpIdx);

@@ -11,6 +11,7 @@
 // =============================================================================
 
 #include <catch.hpp>
+#include "cadet/cadet.hpp"
 
 #include <vector>
 #include <limits>
@@ -22,9 +23,12 @@
 #include "linalg/BandMatrix.hpp"
 #include "AdUtils.hpp"
 #include "AutoDiff.hpp"
+#include "ModelBuilderImpl.hpp"
 
 #include "MatrixHelper.hpp"
 #include "JacobianHelper.hpp"
+#include "JsonTestModels.hpp"
+#include "UnitOperationTests.hpp"
 
 /**
  * @brief Creates a residual that has a banded Jacobian matrix as created by createBandMatrix()
@@ -239,4 +243,24 @@ TEST_CASE("Banded AD Jacobian vs FD", "[AD],[BandMatrix]")
 		[&](double const* y, double* r) { bm.multiplyVector(y, r); },
 		y.data(), dir.data(), colA.data(), colB.data(), matSize, matSize, 1e-7, 0.0, 1e-15
 	);
+}
+
+TEST_CASE("Models are built with the maximum number of AD directions", "[AD],[UnitOp],[CI]")
+{
+	// Time integration lowers the global direction count to what its model needs and leaves it there.
+	// An active zeroes its gradient only over that many directions, so a model built afterwards must
+	// not inherit the lowered count: its parameters would carry uninitialized gradients into the next
+	// simulation, which then seeds and reads more directions than were ever initialized.
+	cadet::ad::setDirections(1);
+
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	cadet::JsonParameterProvider jpp = createCSTR(2);
+	cadet::IUnitOperation* const unit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
+
+	CHECK(cadet::ad::getDirections() == cadet::ad::getMaxDirections());
+
+	mb->destroyUnitOperation(unit);
+	destroyModelBuilder(mb);
 }
