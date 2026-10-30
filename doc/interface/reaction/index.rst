@@ -52,6 +52,7 @@ Note that rapid-equilibrium reactions change the initial state: consistent initi
 
     mass_action_law
     michaelis_menten_kinetics
+    activated_sludge_model
 
 
 Cross Phase Reactions
