@@ -244,7 +244,7 @@ void testJacobianAD(const char* modelName, unsigned int nComp, unsigned int cons
 		{
 			CAPTURE(row);
 			CAPTURE(col);
-			CHECK(jacAna.native(row + cbm.nComp(), col) == makeApprox(jacAD.native(row, col), absTol, relTol));
+			CHECK(jacAna.native(row + cbm.nComp(), col) == makeApprox(jacAD.native(row, col), relTol, absTol));
 		}
 	}
 }
