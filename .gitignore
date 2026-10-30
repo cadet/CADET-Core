@@ -88,6 +88,7 @@ build_RELEASE_with_Debug_Info
 build_RELEASE_with_Tests
 build_DEBUG
 build_DEBUG_with_Tests
+build_ASAN
 install
 vcpkg_installed
 
