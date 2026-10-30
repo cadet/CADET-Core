@@ -84,6 +84,10 @@ ConfiguredParameterDependence ConfiguredParameterDependence::create(const char* 
 
 void testLiquidJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, const char* config, double const* point, double absTol, double relTol)
 {
+	// Enable AD before the model is configured: an active only zeroes its gradient over the currently
+	// set number of directions (see the construct-before-grow invariant in sfad-common.hpp).
+	cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
 	ConfiguredParameterDependence cpd = ConfiguredParameterDependence::create(modelName, nComp, nBound, config);
 	const unsigned int numDofs = cpd.nComp();
 	const double factor = 0.9;
@@ -95,8 +99,7 @@ void testLiquidJacobianAD(const char* modelName, unsigned int nComp, unsigned in
 	for (unsigned int comp = 0; comp < nComp; ++comp)
 		cpd.model().analyticJacobianAdd(ColumnPosition{0.0, 0.0, 0.0}, 2.1, point, comp, factor, 0, jacAna.row(comp));
 
-	// Enable AD
-	cadet::ad::setDirections(cadet::ad::getMaxDirections());
+	// Enable AD (directions were already raised above, before the model was configured)
 	cadet::active* adRes = new cadet::active[numDofs];
 	cadet::active* adY = new cadet::active[numDofs];
 
@@ -141,6 +144,10 @@ void testLiquidJacobianAD(const char* modelName, unsigned int nComp, unsigned in
 
 void testCombinedJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, const char* config, double const* point, double absTol, double relTol)
 {
+	// Enable AD before the model is configured: an active only zeroes its gradient over the currently
+	// set number of directions (see the construct-before-grow invariant in sfad-common.hpp).
+	cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
 	ConfiguredParameterDependence cpd = ConfiguredParameterDependence::create(modelName, nComp, nBound, config);
 	const unsigned int numDofs = cpd.nComp() + cpd.numBoundStates();
 	const double factor = 0.9;
@@ -154,8 +161,7 @@ void testCombinedJacobianAD(const char* modelName, unsigned int nComp, unsigned 
 	for (unsigned int bnd = 0; bnd < cpd.numBoundStates(); ++bnd)
 		cpd.model().analyticJacobianCombinedAddSolid(ColumnPosition{0.0, 0.0, 0.0}, 2.1, point, point + nComp, bnd, factor, 0, jacAna.row(nComp + bnd));
 
-	// Enable AD
-	cadet::ad::setDirections(cadet::ad::getMaxDirections());
+	// Enable AD (directions were already raised above, before the model was configured)
 	cadet::active* adRes = new cadet::active[numDofs];
 	cadet::active* adY = new cadet::active[numDofs];
 

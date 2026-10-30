@@ -329,6 +329,10 @@ namespace reaction
 
 	void testDynamicJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, const char* config, double const* point, double absTol, double relTol)
 	{
+		// Enable AD before the model is configured: an active only zeroes its gradient over the currently
+		// set number of directions (see the construct-before-grow invariant in sfad-common.hpp).
+		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
 		ConfiguredDynamicReactionModel crm = ConfiguredDynamicReactionModel::create(modelName, nComp, nBound, config);
 
 		const unsigned int numDofs = crm.nComp() + crm.numBoundStates();
@@ -339,8 +343,7 @@ namespace reaction
 		std::vector<double> colA(numDofs, 0.0);
 		std::vector<double> colB(numDofs, 0.0);
 
-		// Enable AD
-		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+		// Enable AD (directions were already raised above, before the model was configured)
 		cadet::active* adRes = new cadet::active[numDofs];
 		cadet::active* adY = new cadet::active[numDofs];
 
