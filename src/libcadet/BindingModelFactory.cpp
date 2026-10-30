@@ -39,6 +39,7 @@ namespace cadet
 			void registerMultiComponentSpreadingModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerGeneralizedIonExchangeModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerColloidalModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
+			void registerColloidalParticleAdsorptionModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerFreundlichLDFModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);
 			void registerLangmuirLDFModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);
 			void registerLangmuirLDFCModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);
@@ -49,6 +50,9 @@ namespace cadet
 			void registerMultiComponentLDFFreundlichModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerHICUnifiedModel(std::unordered_map<std::string, std::function<model::IBindingModel*()>>& bindings);
 			void registerAffinityComplexTitrationModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);
+			void registerSplineModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);
+			void registerGaussianProcessRegressionModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);
+			void registerNeuralNetworkModel(std::unordered_map<std::string, std::function<model::IBindingModel* ()>>& bindings);
 		}
 	}
 
@@ -73,6 +77,7 @@ namespace cadet
 		model::binding::registerMultiComponentSpreadingModel(_bindingModels);
 		model::binding::registerGeneralizedIonExchangeModel(_bindingModels);
 		model::binding::registerColloidalModel(_bindingModels);
+		model::binding::registerColloidalParticleAdsorptionModel(_bindingModels);
 		model::binding::registerFreundlichLDFModel(_bindingModels);
 		model::binding::registerLangmuirLDFModel(_bindingModels);
 		model::binding::registerLangmuirLDFCModel(_bindingModels);
@@ -83,6 +88,9 @@ namespace cadet
 		model::binding::registerMultiComponentLDFFreundlichModel(_bindingModels);
 		model::binding::registerHICUnifiedModel(_bindingModels);
 		model::binding::registerAffinityComplexTitrationModel(_bindingModels);
+		model::binding::registerSplineModel(_bindingModels);
+		model::binding::registerGaussianProcessRegressionModel(_bindingModels);
+		model::binding::registerNeuralNetworkModel(_bindingModels);
 		registerModel<model::SimplifiedMultiStateStericMassActionBinding>();
 	}
 

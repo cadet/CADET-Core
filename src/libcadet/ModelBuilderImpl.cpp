@@ -18,6 +18,7 @@
 #include "cadet/ExternalFunction.hpp"
 
 #include "model/ModelSystemImpl.hpp"
+#include "AutoDiff.hpp"
 #include "CompileTimeConfig.hpp"
 
 #include "LoggingUtils.hpp"
@@ -32,17 +33,9 @@ namespace cadet
 	{
 		void registerInletModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 		void registerOutletModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
-
-		void registerGeneralRateModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
-		void registerLumpedRateModelWithPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
-		void registerLumpedRateModelWithoutPores(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
-		void registerCSTRModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
+		void registerColumnModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 #ifdef ENABLE_2D_MODELS
-		void registerGeneralRateModel2D(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 		void registerMultiChannelTransportModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
-	#ifdef ENABLE_DG
-		void registerLumpedRateModelWithPoresDG2D(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx, IParameterProvider&)>>& models);
-	#endif
 #endif
 
 		namespace inlet
@@ -62,17 +55,9 @@ namespace cadet
 		// Register all available models
 		model::registerInletModel(_modelCreators);
 		model::registerOutletModel(_modelCreators);
-		model::registerGeneralRateModel(_modelCreators);
-		model::registerLumpedRateModelWithPores(_modelCreators);
-		model::registerLumpedRateModelWithoutPores(_modelCreators);
-		model::registerCSTRModel(_modelCreators);
-
+		model::registerColumnModel(_modelCreators);
 #ifdef ENABLE_2D_MODELS
-		model::registerGeneralRateModel2D(_modelCreators);
 		model::registerMultiChannelTransportModel(_modelCreators);
-	#ifdef ENABLE_DG
-			model::registerLumpedRateModelWithPoresDG2D(_modelCreators);
-	#endif
 #endif
 
 		// Register all available inlet profiles
@@ -103,8 +88,11 @@ namespace cadet
 
 	IModelSystem* ModelBuilder::createSystem(IParameterProvider& paramProvider)
 	{
+		// See createUnitOperation() for why the direction count has to be raised before building a model
+		ad::setDirections(ad::getMaxDirections());
+
 		model::ModelSystem* sys = new model::ModelSystem();
-		
+
 		// Create and configure all unit operations
 		bool success = true;
 		unsigned int i = 0;
@@ -177,6 +165,14 @@ namespace cadet
 
 	IModel* ModelBuilder::createUnitOperation(IParameterProvider& paramProvider, UnitOpIdx uoId)
 	{
+		// An active zeroes its gradient only over the currently set number of AD directions, so it has to
+		// be constructed while that number is at least as large as the number of directions later read
+		// from it (see detail::globalGradSize in sfad-common.hpp). Simulator::integrate() lowers the count
+		// to what its model needs and leaves it there, so a model built afterwards would otherwise carry
+		// uninitialized gradients into the next simulation. Raising the count here is free: the Simulator
+		// lowers it again before time integration.
+		ad::setDirections(ad::getMaxDirections());
+
 		const std::string uoType = paramProvider.getString("UNIT_TYPE");
 		const auto it = _modelCreators.find(uoType);
 		if (it == _modelCreators.end())
@@ -257,6 +253,11 @@ namespace cadet
 		return nullptr;		
 	}
 
+	model::IParticleModel* ModelBuilder::createParticleModel(const std::string& name) const
+	{
+		return _particleModels.create(name);
+	}
+
 	model::IBindingModel* ModelBuilder::createBindingModel(const std::string& name) const
 	{
 		return _bindingModels.create(name);
@@ -265,6 +266,11 @@ namespace cadet
 	model::IExchangeModel* ModelBuilder::createExchangeModel(const std::string& name) const
 	{
 		return _exchangeModels.create(name);
+	}
+
+	bool ModelBuilder::isValidParticleModel(const std::string& name) const
+	{
+		return _particleModels.exists(name);
 	}
 
 	bool ModelBuilder::isValidBindingModel(const std::string& name) const

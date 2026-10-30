@@ -114,7 +114,7 @@ namespace model
 template <typename ConvDispOperator>
 LumpedRateModelWithoutPores<ConvDispOperator>::LumpedRateModelWithoutPores(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
 	_jacInlet(), _analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr), _initC(0),
-	_initQ(0), _initState(0), _initStateDot(0)
+	_initCs(0), _initState(0), _initStateDot(0)
 {
 	// Multiple particle types are not supported
 	_singleBinding = true;
@@ -125,6 +125,7 @@ template <typename ConvDispOperator>
 LumpedRateModelWithoutPores<ConvDispOperator>::~LumpedRateModelWithoutPores() CADET_NOEXCEPT
 {
 	delete[] _tempState;
+	_reaction.clearDynamicReactionModels();
 }
 
 template <typename ConvDispOperator>
@@ -159,28 +160,58 @@ template <typename ConvDispOperator>
 bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
 	// ==== Read discretization
-	_disc.nComp = paramProvider.getInt("NCOMP");
+	const int nComp = paramProvider.getInt("NCOMP");
+	if (nComp < 1)
+		throw InvalidParameterException("Field NCOMP has to be at least 1, but is " + std::to_string(nComp));
 
-	std::vector<int> nBound;
-	const bool newNBoundInterface = paramProvider.exists("NBOUND");
+	_disc.nComp = nComp;
+
+	const int nPartype = paramProvider.getInt("NPARTYPE");
+
+	if (nPartype != 0)
+	{
+		if (nPartype != 1)
+			throw InvalidParameterException("Number of particle types must be 1 for LUMPED_RATE_MODEL_WITHOUT_PORES, i.e. particles without film diffusion");
+
+		paramProvider.pushScope("particle_type_000");
+
+		if (paramProvider.getBool("HAS_FILM_DIFFUSION"))
+			throw InvalidParameterException("HAS_FILM_DIFFUSION must be false for LUMPED_RATE_MODEL_WITHOUT_PORES");
+		if (paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false)
+			throw InvalidParameterException("HAS_PORE_DIFFUSION must be false for LUMPED_RATE_MODEL_WITHOUT_PORES");
+		if (paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false)
+			throw InvalidParameterException("HAS_SURFACE_DIFFUSION must be false for LUMPED_RATE_MODEL_WITHOUT_PORES");
+
+		std::vector<int> nBound;
+		nBound = paramProvider.getIntArray("NBOUND");
+		if (nBound.size() < _disc.nComp)
+			throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
+
+		// _disc.nBound is unsigned, so a negative entry would turn into a huge number of bound states
+		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+		{
+			if (nBound[comp] < 0)
+				throw InvalidParameterException("Field NBOUND has to be non-negative, but entry " + std::to_string(comp) + " is " + std::to_string(nBound[comp]));
+		}
+
+		_disc.nBound = new unsigned int[_disc.nComp];
+		std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound);
+
+		paramProvider.popScope();
+	}
+	else
+	{
+		_disc.nBound = new unsigned int[_disc.nComp];
+		std::fill_n(_disc.nBound, _disc.nComp, 0);
+	}
 
 	paramProvider.pushScope("discretization");
 
-	if (!newNBoundInterface && paramProvider.exists("NBOUND")) // done here and in this order for backwards compatibility
-		nBound = paramProvider.getIntArray("NBOUND");
-	else
-	{
-		paramProvider.popScope();
-		nBound = paramProvider.getIntArray("NBOUND");
-		paramProvider.pushScope("discretization");
-	}
-	if (nBound.size() < _disc.nComp)
-		throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
+	const int nCol = paramProvider.getInt("NCOL");
+	if (nCol < 1)
+		throw InvalidParameterException("Field NCOL has to be at least 1, but is " + std::to_string(nCol));
 
-	_disc.nBound = new unsigned int[_disc.nComp];
-	std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound);
-
-	_disc.nCol = paramProvider.getInt("NCOL");
+	_disc.nCol = static_cast<unsigned int>(nCol);
 
 	// Precompute offsets and total number of bound states (DOFs in solid phase)
 	_disc.boundOffset = new unsigned int[_disc.nComp];
@@ -201,7 +232,7 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 
 	// Allocate space for initial conditions
 	_initC.resize(_disc.nComp);
-	_initQ.resize(_disc.strideBound);
+	_initCs.resize(_disc.strideBound);
 
 	// Create nonlinear solver for consistent initialization
 	configureNonlinearSolver(paramProvider);
@@ -232,43 +263,87 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 	// ==== Construct and configure binding model
 	clearBindingModels();
 	_binding.push_back(nullptr);
-
-	if (paramProvider.exists("ADSORPTION_MODEL"))
-		_binding[0] = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
-	else
-		_binding[0] = helper.createBindingModel("NONE");
-
-	if (!_binding[0])
-		throw InvalidParameterException("Unknown binding model " + paramProvider.getString("ADSORPTION_MODEL"));
-
 	bool bindingConfSuccess = true;
-	if (_binding[0]->usesParamProviderInDiscretizationConfig())
-		paramProvider.pushScope("adsorption");
 
-	bindingConfSuccess = _binding[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
+	if (paramProvider.exists("particle_type_000"))
+	{
+		paramProvider.pushScope("particle_type_000");
 
-	if (_binding[0]->usesParamProviderInDiscretizationConfig())
+		if (paramProvider.exists("ADSORPTION_MODEL"))
+			_binding[0] = helper.createBindingModel(paramProvider.getString("ADSORPTION_MODEL"));
+		else
+			_binding[0] = helper.createBindingModel("NONE");
+
+		if (!_binding[0])
+			throw InvalidParameterException("Unknown binding model " + paramProvider.getString("ADSORPTION_MODEL"));
+
+		if (_binding[0]->usesParamProviderInDiscretizationConfig())
+			paramProvider.pushScope("adsorption");
+
+		bindingConfSuccess = _binding[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
+
+		if (_binding[0]->usesParamProviderInDiscretizationConfig())
+			paramProvider.popScope();
+
 		paramProvider.popScope();
+	}
+	else
+	{
+		_binding[0] = helper.createBindingModel("NONE");
+	}
 
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
-	clearDynamicReactionModels();
-	_dynReaction.push_back(nullptr);
+	_reaction.clearDynamicReactionModels();
 
-	if (paramProvider.exists("REACTION_MODEL"))
+	bool hasReaction = false;
+
+	if (paramProvider.exists("NREAC_LIQUID"))
 	{
-		_dynReaction[0] = helper.createDynamicReactionModel(paramProvider.getString("REACTION_MODEL"));
-		if (!_dynReaction[0])
-			throw InvalidParameterException("Unknown dynamic reaction model " + paramProvider.getString("REACTION_MODEL"));
-
-		if (_dynReaction[0]->usesParamProviderInDiscretizationConfig())
-			paramProvider.pushScope("reaction");
-
-		reactionConfSuccess = _dynReaction[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound, _disc.boundOffset);
-
-		if (_dynReaction[0]->usesParamProviderInDiscretizationConfig())
-			paramProvider.popScope();
+		hasReaction = true;
+		int nReactions = paramProvider.getInt("NREAC_LIQUID");
+		reactionConfSuccess = _reaction.configureDiscretization("liquid",
+			nReactions,
+			_disc.nComp,
+			_disc.nBound,
+			_disc.boundOffset,
+			paramProvider,
+			helper) && reactionConfSuccess;
 	}
+
+	if (paramProvider.exists("particle_type_000")) //lrm only has one particle type
+	{
+		paramProvider.pushScope("particle_type_000"); // particle_type_000
+
+		if (paramProvider.exists("NREAC_CROSS_PHASE"))
+		{
+			hasReaction = true;
+			int nReactions = paramProvider.getInt("NREAC_CROSS_PHASE");
+			reactionConfSuccess = _reaction.configureDiscretization("cross_phase",
+				nReactions,
+				_disc.nComp,
+				_disc.nBound,
+				_disc.boundOffset,
+				paramProvider,
+				helper) && reactionConfSuccess;
+		}
+		if (paramProvider.exists("NREAC_SOLID"))
+		{
+			hasReaction = true;
+			int nReactions = paramProvider.getInt("NREAC_SOLID");
+			reactionConfSuccess = _reaction.configureDiscretization("solid",
+				nReactions,
+				_disc.nComp,
+				_disc.nBound,
+				_disc.boundOffset,
+				paramProvider,
+				helper) && reactionConfSuccess;
+		}
+
+			paramProvider.popScope(); // particle_type_000
+	}
+	if (!hasReaction)
+		_reaction.empty();
 
 	// Setup the memory for tempState based on state vector
 	_tempState = new double[numDofs()];
@@ -284,43 +359,62 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configure(IParameterProvider
 	const bool transportSuccess = _convDispOp.configure(_unitOpIdx, paramProvider, _parameters);
 
 	// Read geometry parameters
-	_totalPorosity = paramProvider.getDouble("TOTAL_POROSITY");
-
-	// Add parameters to map
-	_parameters[makeParamId(hashString("TOTAL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_totalPorosity;
+	if (paramProvider.getInt("NPARTYPE") > 0)
+	{
+		_totalPorosity = paramProvider.getDouble("TOTAL_POROSITY");
+		_parameters[makeParamId(hashString("TOTAL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_totalPorosity;
+		if (!(_totalPorosity > 0.0) || (_totalPorosity > 1.0))
+			throw InvalidParameterException("TOTAL_POROSITY has to be in (0.0, 1.0] but was specified as " + std::to_string(static_cast<double>(_totalPorosity)) + " in unit " + std::to_string(_unitOpIdx));
+	}
+	else
+	{
+		_totalPorosity = paramProvider.getDouble("COL_POROSITY");
+		_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_totalPorosity;
+		if (!(_totalPorosity > 0.0) || (_totalPorosity > 1.0))
+			throw InvalidParameterException("COL_POROSITY has to be in (0.0, 1.0] but was specified as " + std::to_string(static_cast<double>(_totalPorosity)) + " in unit " + std::to_string(_unitOpIdx));
+	}
 
 	// Register initial conditions parameters
 	for (unsigned int i = 0; i < _disc.nComp; ++i)
 		_parameters[makeParamId(hashString("INIT_C"), _unitOpIdx, i, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = _initC.data() + i;
 
-	if (_binding[0])
+	if (paramProvider.getInt("NPARTYPE") > 0 && _binding[0])
 	{
 		std::vector<ParameterId> initParams(_disc.strideBound);
 		_binding[0]->fillBoundPhaseInitialParameters(initParams.data(), _unitOpIdx, cadet::ParTypeIndep);
 
 		for (unsigned int i = 0; i < _disc.strideBound; ++i)
-			_parameters[initParams[i]] = _initQ.data() + i;
+			_parameters[initParams[i]] = _initCs.data() + i;
 	}
 
-	// Reconfigure binding model
+	// Reconfigure binding and reaction model
 	bool bindingConfSuccess = true;
-	if (_binding[0] && paramProvider.exists("adsorption") && _binding[0]->requiresConfiguration())
+	bool dynReactionConfSuccess = true;
+
+	if (paramProvider.exists("particle_type_000"))
 	{
-		paramProvider.pushScope("adsorption");
-		bindingConfSuccess = _binding[0]->configure(paramProvider, _unitOpIdx, cadet::ParTypeIndep);
-		paramProvider.popScope();
+		paramProvider.pushScope("particle_type_000"); // particle_type_000
+
+		if (_binding[0] && paramProvider.exists("adsorption") && _binding[0]->requiresConfiguration())
+		{
+			paramProvider.pushScope("adsorption");
+			bindingConfSuccess = _binding[0]->configure(paramProvider, _unitOpIdx, cadet::ParTypeIndep);
+			paramProvider.popScope();
+		}
+
+		if (paramProvider.exists("NREAC_CROSS_PHASE"))
+			dynReactionConfSuccess = _reaction.configure("cross_phase", 0, _unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
+		if (paramProvider.exists("NREAC_SOLID"))
+			dynReactionConfSuccess = _reaction.configure("solid", 0, _unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
+
+		paramProvider.popScope();// particle_type_000
 	}
 
-	// Reconfigure dynamic reaction model
-	bool reactionConfSuccess = true;
-	if (_dynReaction[0] && paramProvider.exists("reaction") && _dynReaction[0]->requiresConfiguration())
-	{
-		paramProvider.pushScope("reaction");
-		reactionConfSuccess = _dynReaction[0]->configure(paramProvider, _unitOpIdx, cadet::ParTypeIndep);
-		paramProvider.popScope();
-	}
+	if (paramProvider.exists("NREAC_LIQUID"))
+		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
 
-	return transportSuccess && bindingConfSuccess && reactionConfSuccess;
+
+	return transportSuccess && bindingConfSuccess && dynReactionConfSuccess;
 }
 
 template <typename ConvDispOperator>
@@ -332,12 +426,10 @@ unsigned int LumpedRateModelWithoutPores<ConvDispOperator>::threadLocalMemorySiz
 	if (_binding[0] && _binding[0]->requiresWorkspace())
 		lms.addBlock(_binding[0]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound));
 
-	if (_dynReaction[0])
-	{
-		lms.addBlock(_dynReaction[0]->workspaceSize(_disc.nComp, _disc.strideBound, _disc.nBound));
-		lms.add<active>(_disc.strideBound);
-		lms.add<double>(_disc.strideBound * (_disc.strideBound + _disc.nComp));
-	}
+	_reaction.setWorkspaceRequirements("cross_phase", _disc.nComp, _disc.strideBound, lms);
+	_reaction.setWorkspaceRequirements("solid", _disc.nComp, _disc.strideBound, lms);
+	_reaction.setWorkspaceRequirements("liquid", _disc.nComp, _disc.strideBound, lms);
+
 
 	lms.commit();
 	const std::size_t resKernelSize = lms.bufferSize();
@@ -381,25 +473,21 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::useAnalyticJacobian(const bo
 template <typename ConvDispOperator>
 void LumpedRateModelWithoutPores<ConvDispOperator>::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
-	Indexer idxr(_disc);
+	// ConvectionDispersionOperator updates the velocity and tells us whether flow direction has changed
+	const bool changedDirection = _convDispOp.notifyDiscontinuousSectionTransition(t, secIdx);
 
-	// ConvectionDispersionOperator tells us whether flow direction has changed
-	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx) && (secIdx != 0))
+	updateInletJacobian();
+
+	// Only a changed flow direction swaps the bandwidths of the bulk Jacobian and thereby
+	// invalidates the AD seed vectors
+	if (!changedDirection && (secIdx != 0))
 		return;
-
-	// Setup the matrix connecting inlet DOFs to first column cells
-	_jacInlet.clear();
-	const double v = _convDispOp.inletJacobianFactor();
 
 	const unsigned int lb = _convDispOp.jacobianLowerBandwidth();
 	const unsigned int ub = _convDispOp.jacobianUpperBandwidth();
 	if (_convDispOp.forwardFlow())
 	{
 		// Forwards flow
-
-		// Place entries for inlet DOF to first column cell conversion
-		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-			_jacInlet.addElement(comp * idxr.strideColComp(), comp, -v);
 
 		// Repartition Jacobians
 		_jac.repartition(lb, ub);
@@ -409,11 +497,6 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::notifyDiscontinuousSectionTr
 	{
 		// Backwards flow
 
-		// Place entries for inlet DOF to last column cell conversion
-		const unsigned int offset = (_disc.nCol - 1) * idxr.strideColCell();
-		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-			_jacInlet.addElement(offset + comp * idxr.strideColComp(), comp, v);
-
 		// Repartition Jacobians
 		_jac.repartition(ub, lb);
 		_jacDisc.repartition(ub, lb);
@@ -422,10 +505,50 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::notifyDiscontinuousSectionTr
 	prepareADvectors(adJac);
 }
 
+/**
+ * @brief Rebuilds the matrix connecting the inlet DOFs to the inlet adjacent column cells
+ * @details The entries of this block scale with the current interstitial velocity, so the block has
+ *          to be rebuilt whenever the velocity changes: at a section transition, and, for dynamic
+ *          flow rates, on every call of setFlowRates() within a section. A stale block does not only
+ *          degrade the Newton matrix, it enters multiplyWithJacobian() and thereby the forward
+ *          sensitivity residual directly, where the error does not cancel out.
+ */
+template <typename ConvDispOperator>
+void LumpedRateModelWithoutPores<ConvDispOperator>::updateInletJacobian() CADET_NOEXCEPT
+{
+	Indexer idxr(_disc);
+
+	// Setup the matrix connecting inlet DOFs to first column cells
+	_jacInlet.clear();
+	const double v = _convDispOp.inletJacobianFactor();
+
+	if (_convDispOp.forwardFlow())
+	{
+		// Forwards flow
+
+		// Place entries for inlet DOF to first column cell conversion
+		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+			_jacInlet.addElement(comp * idxr.strideColComp(), comp, -v);
+	}
+	else
+	{
+		// Backwards flow
+
+		// Place entries for inlet DOF to last column cell conversion
+		const unsigned int offset = (_disc.nCol - 1) * idxr.strideColCell();
+		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+			_jacInlet.addElement(offset + comp * idxr.strideColComp(), comp, v);
+	}
+}
+
 template <typename ConvDispOperator>
 void LumpedRateModelWithoutPores<ConvDispOperator>::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 {
 	_convDispOp.setFlowRates(in[0], out[0], _totalPorosity);
+
+	// Dynamic flow rates change the velocity within a time section, which the inlet Jacobian
+	// block scales with
+	updateInletJacobian();
 }
 
 template <typename ConvDispOperator>
@@ -668,7 +791,7 @@ int LumpedRateModelWithoutPores<ConvDispOperator>::residualImpl(double t, unsign
 				_totalPorosity,
 				nullptr,
 				_binding[0],
-				(_dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0)) ? _dynReaction[0] : nullptr
+				&_reaction
 			};
 
 		// Midpoint of current column cell (z coordinate) - needed in externally dependent adsorption kinetic
@@ -778,7 +901,7 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::multiplyWithJacobian(const S
 	// Handle identity matrix of inlet DOFs
 	for (unsigned int i = 0; i < _disc.nComp; ++i)
 	{
-		ret[i] = alpha * yS[i] + beta * ret[i];
+		ret[i] = (beta == 0.0) ? alpha * yS[i] : alpha * yS[i] + beta * ret[i];
 	}
 
 	// Main Jacobian
@@ -1025,9 +1148,9 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::applyInitialCondition(const 
 		for (unsigned comp = 0; comp < _disc.nComp; ++comp)
 			stateYbulk[localOffset + comp * idxr.strideColComp()] = static_cast<double>(_initC[comp]);
 
-		// Initialize q
+		// Initialize c^s
 		for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
-			stateYbulk[localOffset + idxr.strideColLiquid() + bnd] = static_cast<double>(_initQ[bnd]);
+			stateYbulk[localOffset + idxr.strideColLiquid() + bnd] = static_cast<double>(_initCs[bnd]);
 	}
 }
 
@@ -1050,20 +1173,27 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::readInitialCondition(IParame
 	}
 
 	const std::vector<double> initC = paramProvider.getDoubleArray("INIT_C");
-	std::vector<double> initQ;
 
-	if (paramProvider.exists("INIT_Q"))
-		initQ = paramProvider.getDoubleArray("INIT_Q");
-
+	std::vector<double> initCs;
+	if (paramProvider.exists("particle_type_000"))
+	{
+		paramProvider.pushScope("particle_type_000");
+		if (paramProvider.exists("INIT_CS"))
+			initCs = paramProvider.getDoubleArray("INIT_CS");
+		paramProvider.popScope();
+	}
 	if (initC.size() < _disc.nComp)
 		throw InvalidParameterException("INIT_C does not contain enough values for all components");
 
-	if ((_disc.strideBound > 0) && (initQ.size() < _disc.strideBound))
-		throw InvalidParameterException("INIT_Q does not contain enough values for all bound states");
+	if ((_disc.strideBound > 0) && (initCs.size() < _disc.strideBound))
+		throw InvalidParameterException("INIT_CS does not contain enough values for all bound states");
+
+	checkNonNegativeField(initC, "INIT_C");
+	checkNonNegativeField(initCs, "INIT_CS");
 
 	ad::copyToAd(initC.data(), _initC.data(), _disc.nComp);
-	if (!initQ.empty())
-		ad::copyToAd(initQ.data(), _initQ.data(), _disc.strideBound);
+	if (!initCs.empty())
+		ad::copyToAd(initCs.data(), _initCs.data(), _disc.strideBound);
 }
 
 /**
@@ -1179,7 +1309,7 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::consistentInitialState(const
 				_totalPorosity,
 				nullptr,
 				_binding[0],
-				(_dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0)) ? _dynReaction[0] : nullptr
+				nullptr
 			};
 
 		const int localOffsetToCell = idxr.offsetC() + col * idxr.strideColCell();
@@ -1252,7 +1382,7 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::consistentInitialState(const
 				// Replace upper part with conservation relations
 				mat.submatrixSetAll(0.0, 0, 0, numActiveComp, probSize);
 
-				unsigned int bndIdx = 0;
+				unsigned int bndIdx = _disc.nComp;
 				unsigned int rIdx = 0;
 				unsigned int bIdx = 0;
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
@@ -1300,7 +1430,7 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::consistentInitialState(const
 				// Replace upper part with conservation relations
 				mat.submatrixSetAll(0.0, 0, 0, numActiveComp, probSize);
 
-				unsigned int bndIdx = 0;
+				unsigned int bndIdx = _disc.nComp;
 				unsigned int rIdx = 0;
 				unsigned int bIdx = 0;
 				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
@@ -1596,9 +1726,9 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::initializeSensitivityStates(
 			for (unsigned comp = 0; comp < _disc.nComp; ++comp)
 				stateYbulk[localOffset + comp * idxr.strideColComp()] = _initC[comp].getADValue(param);
 
-			// Initialize q
+			// Initialize c^s
 			for (unsigned int bnd = 0; bnd < _disc.strideBound; ++bnd)
-				stateYbulk[localOffset + idxr.strideColLiquid() + bnd] = _initQ[bnd].getADValue(param);
+				stateYbulk[localOffset + idxr.strideColLiquid() + bnd] = _initCs[bnd].getADValue(param);
 		}
 	}
 }
@@ -1966,16 +2096,23 @@ int LumpedRateModelWithoutPores<ConvDispOperator>::Exporter::writeOutlet(double*
 
 IUnitOperation* createAxialFVLRM(UnitOpIdx uoId)
 {
-	typedef LumpedRateModelWithoutPores<parts::AxialConvectionDispersionOperatorBase> AxialLRM;
+	typedef LumpedRateModelWithoutPores<parts::AxialConvectionDispersionOperatorBaseFV> AxialLRM;
 
 	return new AxialLRM(uoId);
 }
 
 IUnitOperation* createRadialFVLRM(UnitOpIdx uoId)
 {
-	typedef LumpedRateModelWithoutPores<parts::RadialConvectionDispersionOperatorBase> RadialLRM;
+	typedef LumpedRateModelWithoutPores<parts::RadialConvectionDispersionOperatorBaseFV> RadialLRM;
 
 	return new RadialLRM(uoId);
+}
+
+IUnitOperation* createFrustumFVLRM(UnitOpIdx uoId)
+{
+	typedef LumpedRateModelWithoutPores<parts::FrustumConvectionDispersionOperatorBaseFV> FrustumLRM;
+
+	return new FrustumLRM(uoId);
 }
 
 }  // namespace model

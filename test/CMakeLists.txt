@@ -31,7 +31,7 @@ endif()
 add_executable(testLogging testLogging.cpp)
 target_link_libraries(testLogging PRIVATE CADET::CompileOptions)
 
-if (NOT WIN32)
+if (ENABLE_TEST_RADIAL)
 	add_executable(testRadialKernel testRadialKernel.cpp TimeIntegrator.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/Logging.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/AutoDiff.cpp ${CMAKE_SOURCE_DIR}/src/libcadet/model/paramdep/ParameterDependenceBase.cpp)
 	target_link_libraries(testRadialKernel PRIVATE CADET::CompileOptions CADET::AD SUNDIALS::sundials_idas ${SUNDIALS_NVEC_TARGET} ${EIGEN_TARGET} )
 	target_include_directories(testRadialKernel PRIVATE ${CMAKE_SOURCE_DIR}/test ${CMAKE_BINARY_DIR}/src/libcadet)
@@ -58,29 +58,33 @@ file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Paths_$<CONFIG>.cpp" INPUT "${
 
 set(TEST_ADDITIONAL_SOURCES "")
 if (ENABLE_2D_MODELS)
-	list(APPEND TEST_ADDITIONAL_SOURCES SparseFactorizableMatrix.cpp TwoDimConvectionDispersionOperator.cpp)
+	list(APPEND TEST_ADDITIONAL_SOURCES SparseFactorizableMatrix.cpp TwoDimConvectionDispersionOperatorFV.cpp)
 endif()
 
-if (ENABLE_DG)
-	list(APPEND TEST_ADDITIONAL_SOURCES GeneralRateModelDG.cpp LumpedRateModelWithPoresDG.cpp LumpedRateModelWithoutPoresDG.cpp)
-	if (ENABLE_2D_MODELS)
-		list(APPEND TEST_ADDITIONAL_SOURCES LumpedRateModelWithPoresDG2D.cpp)
-	endif()
+list(APPEND TEST_ADDITIONAL_SOURCES ColumnModel1D.cpp LumpedRateModelWithoutPoresDG.cpp)
+if (ENABLE_2D_MODELS)
+	list(APPEND TEST_ADDITIONAL_SOURCES ColumnModel2D.cpp)
 endif()
 
 add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp UnitOperationTests.cpp SimHelper.cpp ParticleHelper.cpp
 	GeneralRateModel.cpp GeneralRateModel2D.cpp LumpedRateModelWithPores.cpp LumpedRateModelWithoutPores.cpp
 	RadialGeneralRateModel.cpp RadialLumpedRateModelWithPores.cpp RadialLumpedRateModelWithoutPores.cpp
+	FrustumGeneralRateModel.cpp
 	MultiChannelTransportModel.cpp
 	Crystallization.cpp
-	CSTR-Residual.cpp CSTR-Simulation.cpp
-	ConvectionDispersionOperator.cpp
+	CSTR-Residual.cpp CSTR-Simulation.cpp CSTR-Particles.cpp
+	ConvectionDispersionOperatorFV.cpp
 	CellKernelTests.cpp
 	BindingModelTests.cpp BindingModels.cpp BindingModelAutoJacobian.cpp
 	ReactionModelTests.cpp ReactionModels.cpp
 	ParamDepTests.cpp ParameterDependencies.cpp
 	ModelSystem.cpp
 	BandMatrix.cpp DenseMatrix.cpp SparseMatrix.cpp StringHashing.cpp LogUtils.cpp AD.cpp Subset.cpp Graph.cpp
+	NonlinearSolvers.cpp
+	ReferenceSimulations.cpp
+	SensitivityFDSweep.cpp
+	Callbacks.cpp
+	H5FileOutput.cpp
 	"${CMAKE_CURRENT_BINARY_DIR}/Paths_$<CONFIG>.cpp" "${CMAKE_SOURCE_DIR}/src/io/JsonParameterProvider.cpp"
 	${TEST_ADDITIONAL_SOURCES}
 	$<TARGET_OBJECTS:libcadet_object>)
@@ -95,6 +99,15 @@ if (ENABLE_2D_MODELS)
 	if (UMFPACK_FOUND)
 		target_link_libraries(testRunner PRIVATE UMFPACK::UMFPACK)
 	endif()
+endif()
+
+# MSVC crashes while generating code for this target with whole program optimization
+# enabled: the back end reports C1001 and the linker turns that into LNK1000, so no
+# test runner can be built at all. The test runner is the only target that feeds every
+# libcadet object and every test source into one code generation pass, which is why the
+# library and the CLI are not affected; those keep their interprocedural optimization.
+if (IPO_AVAILABLE AND MSVC)
+	set_target_properties(testRunner PROPERTIES INTERPROCEDURAL_OPTIMIZATION OFF)
 endif()
 
 list(APPEND TEST_LIBCADET_TARGETS testRunner)

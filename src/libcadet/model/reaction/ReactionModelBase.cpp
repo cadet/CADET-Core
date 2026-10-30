@@ -19,6 +19,7 @@
 #include <iterator>
 #include <algorithm>
 #include <numeric>
+#include <string>
 
 namespace cadet
 {
@@ -49,7 +50,50 @@ bool DynamicReactionModelBase::configure(IParameterProvider& paramProvider, Unit
 {
 	// Clear all parameters and reconfigure
 	_parameters.clear();
-	return configureImpl(paramProvider, unitOpIdx, parTypeIdx);
+	if (!configureImpl(paramProvider, unitOpIdx, parTypeIdx))
+		return false;
+
+	// Read reaction dynamics (kinetic, rapid equilibrium). This has to happen after configureImpl()
+	// because only then does the model know how many reactions it has.
+	const bool successQSConfig = readQuasiStationarity(paramProvider);
+	return successQSConfig;
+}
+
+bool DynamicReactionModelBase::readQuasiStationarity(IParameterProvider& paramProvider)
+{
+	const unsigned int nReactions = numReactions();
+	_reactionQuasistationarity.assign(nReactions, false);
+
+	if (!paramProvider.exists("IS_KINETIC"))
+		return true;
+
+	if (nReactions == 0)
+		throw InvalidParameterException("IS_KINETIC is not supported by reaction model " + std::string(name()));
+
+	if (paramProvider.isArray("IS_KINETIC"))
+	{
+		const std::vector<int> vecKin = paramProvider.getIntArray("IS_KINETIC");
+		if (vecKin.size() == 1)
+		{
+			// Treat an array with a single element as scalar
+			std::fill(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), !static_cast<bool>(vecKin[0]));
+		}
+		else if (vecKin.size() < _reactionQuasistationarity.size())
+			throw InvalidParameterException("IS_KINETIC has to have at least " + std::to_string(_reactionQuasistationarity.size()) + " elements");
+		else
+		{
+			// Copy what we need (ignore excess values)
+			for (unsigned int r = 0; r < nReactions; ++r)
+				_reactionQuasistationarity[r] = !static_cast<bool>(vecKin[r]);
+		}
+	}
+	else
+	{
+		const bool kineticReaction = paramProvider.getInt("IS_KINETIC");
+		std::fill(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), !kineticReaction);
+	}
+
+	return true;
 }
 
 std::unordered_map<ParameterId, double> DynamicReactionModelBase::getAllParameterValues() const

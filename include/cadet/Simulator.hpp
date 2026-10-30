@@ -287,6 +287,20 @@ public:
 	//! \return Vector containing the timepoints at which a solution has been be computed
 	virtual const std::vector<double>& getSolutionTimes() const = 0;
 
+	//! \brief Sets the time points at which internal unit operation state (bulk, particle, solid, flux) is written
+	//!
+	//! Must be a subset of the solution times set via setSolutionTimes(). At time points not in
+	//! this list, only inlet/outlet data is recorded. If empty (default), internal state is written
+	//! at all solution times.
+	//!
+	//! \param [in] solutionTimesUnitState Time points for unit state output
+	virtual void setSolutionTimesUnitState(const std::vector<double>& solutionTimesUnitState) = 0;
+
+	//! \brief Returns the time points at which internal unit operation state is written
+	//!
+	//! \return Vector containing the time points for unit state output (empty means all solution times)
+	virtual const std::vector<double>& getSolutionTimesUnitState() const = 0;
+
 	//! \brief Sets the timepoints of (potential) discontinuities
 	//!
 	//! Sets the timepoints of (potential) discontinuities where an integrator
@@ -723,9 +737,43 @@ public:
 
 	/**
 	 * @brief Sets the receiver for notifications
+	 * @details The callback is not owned by the simulator.
 	 * @param[in] nc Object to receive notifications or @c nullptr to disable notifications
 	 */
 	virtual void setNotificationCallback(INotificationCallback* nc) CADET_NOEXCEPT = 0;
+
+	/**
+	 * @brief Checks whether the simulation was stopped by the notification callback
+	 */
+	virtual bool stoppedByNotificationCallback() CADET_NOEXCEPT = 0;
+
+	/**		
+	 * @brief Prepares the simulator for step-by-step integration
+	 * @details Performs initialization steps normally done in integrate(), including:
+	 *          parallelization setup, AD vector preparation, consistent initial conditions,
+	 *          and IDAS initialization. Stops before the actual time integration loop.
+	 */
+	virtual void  prepareIntegrator() = 0;
+
+	/**
+	 * @brief Performs one integration step to the specified target time
+	 * @details Only supports single-section integration. Uses IDAS solver to advance
+	 *          the simulation and extracts sensitivity information if available.
+	 * @param [in] tEnd Target time to integrate to
+	 * @param [out] tReached Actually reached time (may differ from tEnd)
+	 * @return 0 on success, negative error code on failure
+	 */
+    virtual int integrateStep(double tEnd, double& tReached) = 0;
+
+	/**
+	 * @brief Reinitializes the integrator at the specified time
+	 * @details Determines the current section, zeros yDot, notifies model of discontinuous
+	 *          section transition, applies lean consistent initialization, and reinitializes
+	 *          IDAS solver with the new state.
+	 * @param [in] currentTime Simulation time to reinitialize at
+	 * @return 0 on success, negative error code on failure (e.g., -1 if IDAS not initialized)
+	 */
+	virtual int reinitialize(double currentTime) = 0;
 };
 
 } // namespace cadet

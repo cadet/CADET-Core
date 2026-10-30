@@ -188,11 +188,10 @@ public:
 	 * @param [in] comp Index of the component the parameter belongs to (or @c -1 if independent of components)
 	 * @param [in] factor Factor @f$ \gamma @f$
 	 * @param [in] offset Diaognal offset in the row iterator
-	 * @param [in] row Row index
 	 * @param [in,out] jac Row iterator pointing to the row of component @p comp in the underlying matrix that stores the Jacobian
 	 */
-	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::BandMatrix::RowIterator jac) const = 0;
-	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::DenseBandedRowIterator jac) const = 0;
+	virtual void analyticJacobianAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::BandMatrix::RowIterator jac) const = 0;
+	virtual void analyticJacobianAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::DenseBandedRowIterator jac) const = 0;
 
 	/**
 	 * @brief Adds the analytical Jacobian of the parameter dependence for one liquid phase cell
@@ -216,7 +215,7 @@ public:
 	 * @param [in] row Row index
 	 * @param [in,out] jac Jacobian
 	 */
-	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const = 0;
+	virtual void analyticJacobianAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, int row, linalg::DoubleSparseMatrix& jac) const = 0;
 
 	/**
 	 * @brief Evaluates the parameter of component @p comp in the liquid phase of one combined phase cell
@@ -462,7 +461,7 @@ public:
 	 * @param [in] bnd Index of the bound state the parameter belongs to (or @c -1 if independent of bound states)
 	 * @return Actual parameter value
 	 */
-	virtual double getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const = 0;
+	virtual double getValue(const ColumnPosition& colPos, int comp, int parType, int bnd) const = 0;
 
 	/**
 	 * @brief Evaluates the parameter
@@ -475,21 +474,7 @@ public:
 	 * @param [in] bnd Index of the bound state the parameter belongs to (or @c -1 if independent of bound states)
 	 * @return Actual parameter value
 	 */
-	virtual active getValueActive(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const = 0;
-
-	/**
-	 * @brief Evaluates the parameter
-	 * @details This function is called simultaneously from multiple threads.
-	 * 
-	 * @param [in] model Model that owns this parameter dependence
-	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
-	 * @param [in] comp Index of the component the parameter belongs to (or @c -1 if independent of components)
-	 * @param [in] parType Index of the particle type the parameter belongs to (or @c -1 if independent of particle types)
-	 * @param [in] bnd Index of the bound state the parameter belongs to (or @c -1 if independent of bound states)
-	 * @param [in] val Additional parameter-dependent value
-	 * @return Actual parameter value
-	 */
-	virtual double getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, double val) const = 0;
+	virtual active getValueActive(const ColumnPosition& colPos, int comp, int parType, int bnd) const = 0;
 
 	/**
 	 * @brief Evaluates the parameter
@@ -503,7 +488,21 @@ public:
 	 * @param [in] val Additional parameter-dependent value
 	 * @return Actual parameter value
 	 */
-	virtual active getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, const active& val) const = 0;
+	virtual double getValue(const ColumnPosition& colPos, int comp, int parType, int bnd, double val) const = 0;
+
+	/**
+	 * @brief Evaluates the parameter
+	 * @details This function is called simultaneously from multiple threads.
+	 * 
+	 * @param [in] model Model that owns this parameter dependence
+	 * @param [in] colPos Position in normalized coordinates (column inlet = 0, column outlet = 1; outer shell = 1, inner center = 0)
+	 * @param [in] comp Index of the component the parameter belongs to (or @c -1 if independent of components)
+	 * @param [in] parType Index of the particle type the parameter belongs to (or @c -1 if independent of particle types)
+	 * @param [in] bnd Index of the bound state the parameter belongs to (or @c -1 if independent of bound states)
+	 * @param [in] val Additional parameter-dependent value
+	 * @return Actual parameter value
+	 */
+	virtual active getValue(const ColumnPosition& colPos, int comp, int parType, int bnd, const active& val) const = 0;
 
 protected:
 };

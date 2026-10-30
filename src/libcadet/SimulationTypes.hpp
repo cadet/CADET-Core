@@ -28,9 +28,9 @@ namespace cadet
  */
 struct ColumnPosition
 {
-	double axial; //!< Axial bulk coordinate z
-	double radial; //!< Radial bulk coordinate rho
-	double particle; //!< Radial particle coordinate r
+	double primary; //!< primary bulk coordinate
+	double secondary; //!< secondary bulk coordinate
+	double particle; //!< Radial particle coordinate
 };
 
 /**

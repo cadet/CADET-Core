@@ -37,13 +37,12 @@ public:
 	 * @param [in] row Index of the row
 	 */
 	BandedEigenSparseRowIterator(Eigen::SparseMatrix<double, 0x1>& mat, int row)
-		: _matrix(&mat), _values(valuesOfRow(mat, row)), _colIdx(columnIndicesOfRow(mat, row)), _row(row),
+		: _matrix(&mat), _values(nullptr), _colIdx(nullptr), _row(row), _numNonZero(0),
 		_dummy(0.0), _size(mat.rows())
 	{
-		if (row < _size)
-			_numNonZero = getInnerNumberOfNonZeros(mat, row);
-		else
-			_numNonZero = 0;
+		// A row outside the matrix is admissible, see operator+=(). updateOnRowChange() gives it an
+		// empty view instead of reading the outer index array out of bounds.
+		updateOnRowChange();
 	}
 
 	~BandedEigenSparseRowIterator() CADET_NOEXCEPT { }
@@ -92,13 +91,18 @@ public:
 	*/
 	inline void addArray(double const* row, int startDiag, int length, double factor)
 	{
-		// shift to column index to start with
-		int idx = startDiag - _row;
-
-		for (int i = 0; i < length; i++) {
-			_values[idx + i] = factor * row[i];
+		for (int i = 0; i < length; ++i)
+		{
+			int col = _row + startDiag + i;
+			for (int j = 0; j < _numNonZero; ++j)
+			{
+				if (_colIdx[j] == col)
+				{
+					_values[j] += factor * row[i];
+					break;
+				}
+			}
 		}
-
 	}
 
 	/**
@@ -122,9 +126,36 @@ public:
 	inline double& native(int col)
 	{
 		cadet_assert((col >= 0) && (col < _size));
+		cadet_assert((_row >= 0) && (_row < _size));
 
-		// Try to find the element
-		// TODO: Use binary search
+		// An iterator may be moved outside the matrix on purpose and moved back, see operator+=().
+		// Such a row holds no entries, so a write is discarded here rather than inserted at an
+		// invalid position, which coeffRef() below would do out of bounds.
+		if (cadet_unlikely((_row < 0) || (_row >= _size)))
+		{
+			_dummy = 0.0;
+			return _dummy;
+		}
+
+		// Binary search
+		int left = 0;
+		int right = _numNonZero - 1;
+		while (left <= right)
+		{
+			int mid = (left + right) / 2;
+			if (_colIdx[mid] == col)
+				return _values[mid];
+			if (_colIdx[mid] < col)
+				left = mid + 1;
+			else right = mid - 1;
+		}
+
+		// if element not found
+		_matrix->coeffRef(_row, col) = 0.0;
+
+		updateOnRowChange();
+
+		// Fallback
 		for (int i = 0; i < _numNonZero; ++i)
 		{
 			if (_colIdx[i] == col)
@@ -140,12 +171,16 @@ public:
 	{
 		cadet_assert((col >= 0) && (col < _matrix->rows()));
 
-		// Try to find the element
-		// TODO: Use binary search
-		for (int i = 0; i < _numNonZero; ++i)
+		// Binary search
+		int left = 0, right = _numNonZero - 1;
+		while (left <= right)
 		{
-			if (_colIdx[i] == col)
-				return _values[i];
+			int mid = (left + right) / 2;
+			if (_colIdx[mid] == col)
+				return _values[mid];
+			if (_colIdx[mid] < col)
+				left = mid + 1;
+			else right = mid - 1;
 		}
 
 		// We don't have it
@@ -160,41 +195,29 @@ public:
 
 	inline BandedEigenSparseRowIterator& operator++() CADET_NOEXCEPT
 	{
-		if (_row + 1 < _size)
-		{
-			++_row;
-			updateOnRowChange();
-		}
+		++_row;
+		updateOnRowChange();
 		return *this;
 	}
 
 	inline BandedEigenSparseRowIterator& operator--() CADET_NOEXCEPT
 	{
-		if (_row - 1 > 0)
-		{
-			--_row;
-			updateOnRowChange();
-		}
+		--_row;
+		updateOnRowChange();
 		return *this;
 	}
 
 	inline BandedEigenSparseRowIterator& operator+=(int idx) CADET_NOEXCEPT
 	{
-		if (_row + idx < _size)
-		{
-			_row += idx;
-			updateOnRowChange();
-		}
+		_row += idx;
+		updateOnRowChange();
 		return *this;
 	}
 
 	inline BandedEigenSparseRowIterator& operator-=(int idx) CADET_NOEXCEPT
 	{
-		if (_row - idx > 0)
-		{
-			_row -= idx;
-			updateOnRowChange();
-		}
+		_row -= idx;
+		updateOnRowChange();
 		return *this;
 	}
 
@@ -247,6 +270,16 @@ protected:
 
 	inline void updateOnRowChange()
 	{
+		// A row outside the matrix holds no entries. The iterator still tracks its index, so that it
+		// can be moved back into the matrix, see operator+=().
+		if ((_row < 0) || (_row >= _size))
+		{
+			_values = nullptr;
+			_colIdx = nullptr;
+			_numNonZero = 0;
+			return;
+		}
+
 		_values = valuesOfRow(*_matrix, _row);
 		_colIdx = columnIndicesOfRow(*_matrix, _row);
 		_numNonZero = getInnerNumberOfNonZeros(*_matrix, _row);

@@ -20,8 +20,10 @@
 #include "LocalVector.hpp"
 #include "SimulationTypes.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
+#include <limits>
 #include <unordered_map>
 #include <string>
 #include <vector>
@@ -116,11 +118,12 @@ public:
 	virtual bool hasSalt() const CADET_NOEXCEPT { return true; }
 	virtual bool supportsMultistate() const CADET_NOEXCEPT { return false; }
 	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
-	virtual bool hasQuasiStationaryReactions() const CADET_NOEXCEPT { return false; }
+	// Both binding modes are supported, so hasQuasiStationaryReactions() and hasDynamicReactions()
+	// are left to the base class, which derives them from the configured IS_KINETIC flags.
 
 	virtual bool preConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const
 	{
-		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
+		_paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 		return true;
 	}
 
@@ -158,7 +161,10 @@ protected:
 
 		// qSumOverqMax could be calculated as 1-freeBindingSites, but is calculated explicitly for clarity
 		StateParamType qSumOverqMax = 0.0;
-		
+
+		// Capacity scale of qSum, used to floor it below
+		ParamType qMaxSum = 0.0;
+
 		unsigned int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
 		{
@@ -171,6 +177,7 @@ protected:
 			qSum += y[bndIdx];
 			qSumOverqMax += qOverQmax;
 			freeBindingSites -= qOverQmax;
+			qMaxSum += static_cast<ParamType>(_p->qMax[i]);
 
 			// Next bound component
 			++bndIdx;
@@ -180,6 +187,21 @@ protected:
 		if (freeBindingSites < 0)
 			freeBindingSites = 0;
 
+		// Base of the desorption power, floored at one epsilon of the capacity scale.
+		//
+		// The desorption term carries qSum^(nu * beta), which goes to zero together with the
+		// coverage. Without the floor the quasi-stationary equation keeps no dependence on its own
+		// unknown wherever the protein has not arrived yet: the diagonal of its row is then only
+		// kA * c_p * nu / qMax, which is exactly zero for c_p = 0. The algebraic block is singular,
+		// and the consistent time derivatives come back as NaN, which is what made every quasi-
+		// stationary run fail. With the floor that diagonal never drops below kD * floor^(nu * beta).
+		// The floor is below the resolution of qSum at the capacity scale, so it leaves the equation
+		// untouched for any coverage that is numerically distinguishable from zero.
+		const ParamType qSumFloor = std::numeric_limits<double>::epsilon() * qMaxSum;
+		StateParamType qSumPowBase = qSum;
+		if (qSumPowBase < qSumFloor)
+			qSumPowBase = qSumFloor;
+
 		bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
 		{
@@ -187,19 +209,23 @@ protected:
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			const ParamType qMax = static_cast<ParamType>(_p->qMax[i]);
+//			const ParamType qMax = static_cast<ParamType>(_p->qMax[i]);
 			const ParamType kD = static_cast<ParamType>(_p->kD[i]);
 			const ParamType kA = static_cast<ParamType>(_p->kA[i]);
 			const ParamType nu = static_cast<ParamType>(_p->nu[i]);
 
+			const StateParamType qSumPow = pow(qSumPowBase, nu * beta);
+
 			if (qSum <= 0.0)
 			{
-				// Use Taylor series approximation
-				res[bndIdx] = kA * yCp[i] * nu * qSumOverqMax - kA * yCp[i];
+				// Use Taylor series approximation for the adsorption term, which keeps it bounded
+				// while the coverage is negative. The desorption term is kept, evaluated at the
+				// floored base; at qSum = 0 both branches give the same residual.
+				res[bndIdx] = kD * y[bndIdx] * qSumPow + kA * yCp[i] * nu * qSumOverqMax - kA * yCp[i];
 			}
 			else
 			{
-				res[bndIdx] = kD * y[bndIdx] * pow(qSum, nu * beta) - kA * pow(freeBindingSites, nu) * yCp[i];
+				res[bndIdx] = kD * y[bndIdx] * qSumPow - kA * pow(freeBindingSites, nu) * yCp[i];
 			}
 
 			// Next bound component
@@ -225,6 +251,9 @@ protected:
 		// qSumOverqMax could be calculated as 1-freeBindingSites, but is calculated explicitly for clarity
 		double qSumOverqMax = 0.0;
 
+		// Capacity scale of qSum, used to floor it below
+		double qMaxSum = 0.0;
+
 		unsigned int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
 		{
@@ -237,6 +266,7 @@ protected:
 			qSum += y[bndIdx];
 			qSumOverqMax += qOverQmax;
 			freeBindingSites -= qOverQmax;
+			qMaxSum += static_cast<double>(_p->qMax[i]);
 
 			// Next bound component
 			++bndIdx;
@@ -245,6 +275,10 @@ protected:
 		// Clip free binding sites to 0.0
 		if (freeBindingSites < 0)
 			freeBindingSites = 0;
+
+		// Same floor as in the flux, see the comment there
+		const double qSumFloor = std::numeric_limits<double>::epsilon() * qMaxSum;
+		const double qSumPowBase = std::max(qSum, qSumFloor);
 
 		bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
@@ -258,22 +292,25 @@ protected:
 			const double nu = static_cast<double>(_p->nu[i]);
 			const double qMax = static_cast<double>(_p->qMax[i]);
 
+			const double qSumPow = pow(qSumPowBase, nu * beta);
+
+			// d(qSumPow) / d(q_j), which is nu * beta * qSum^(nu * beta - 1) and vanishes wherever
+			// the base is clipped. It is written as qSumPow / qSum rather than with the negative
+			// exponent, which overflows to infinity once qSum becomes subnormal.
+			const double qSumPowDeriv = (qSum > qSumFloor) ? (nu * beta * qSumPow / qSum) : 0.0;
+
+			// dres_i / dc_{p,0}: the desorption term depends on the salt through beta in both branches
+			jac[-bndIdx - offsetCp] = kD * y[bndIdx] * beta * beta1 * nu * qSumPow * std::log(qSumPowBase);
+
 			if (qSum <= 0.0)
 			{
 				// Compute the Jacobian for the Taylor series defined above
-				
-				// dres_i / dc_{p,0}					
-				jac[-bndIdx - offsetCp] = 0;
 
 				// dres_i / dc_{p,i}
 				jac[i - bndIdx - offsetCp] = kA * nu * qSumOverqMax - kA;
 			}
 			else
 			{
-				// todo
-				// dres_i / dc_{p,0}					
-				jac[-bndIdx - offsetCp] = kD * y[bndIdx] * beta * beta1 * nu * pow(qSum, nu * beta) * std::log(qSum);
-
 				// dres_i / dc_{p,i}
 				jac[i - bndIdx - offsetCp] = -kA * static_cast<double>(pow(freeBindingSites, nu));
 			}
@@ -291,14 +328,15 @@ protected:
 
 				if (qSum <= 0)
 				{
-					jac[bndIdx2 - bndIdx] = yCp[i] * kA * nu / static_cast<double>(_p->qMax[j]);
+					jac[bndIdx2 - bndIdx] = yCp[i] * kA * nu / static_cast<double>(_p->qMax[j])
+						+ kD * y[bndIdx] * qSumPowDeriv;
 				}
 				else
 				{
 					// dres_i / dq_j
 					jac[bndIdx2 - bndIdx] =
 						-kA * yCp[i] * nu * pow(freeBindingSites, nu - 1) / (-static_cast<double>(_p->qMax[j]))
-						+ beta * kD * nu * y[bndIdx] * pow(qSum, nu * beta - 1);
+						+ kD * y[bndIdx] * qSumPowDeriv;
 				}
 
 				// Getting to q_j: -bndIdx takes us to q_0, another +bndIdx2 to q_j. This means jac[bndIdx2 - bndIdx] corresponds to q_j.
@@ -310,11 +348,11 @@ protected:
 			if (qSum <= 0)
 			{
 				// if qSum is below zero the jacobian is computed for the Taylor series defined above
-				jac[0] = kA * yCp[i] * nu / qMax;
+				jac[0] = kA * yCp[i] * nu / qMax + kD * qSumPow;
 			}
 			else
 			{
-				jac[0] += kD * pow(qSum, nu * beta);
+				jac[0] += kD * qSumPow;
 			}
 
 			// Advance to next flux and Jacobian row

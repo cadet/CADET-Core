@@ -26,6 +26,8 @@
 #include "cadet/cadet.hpp"
 
 #include "common/SolutionRecorderImpl.hpp"
+#include "common/MultiCallback.hpp"
+#include "common/TimeoutCallback.hpp"
 
 namespace cadet
 {
@@ -95,6 +97,11 @@ void readDataOutputConfig(ParamProvider_t& pp, StorageConfig_t& cfg, const std::
 		cfg.storeVolume = pp.getBool("WRITE_" + dataType + "_VOLUME");
 	else
 		cfg.storeVolume = false;
+
+	if (pp.exists("WRITE_" + dataType + "_SMOOTHNESS_INDICATOR"))
+		cfg.storeSmoothnessIndicator = pp.getBool("WRITE_" + dataType + "_SMOOTHNESS_INDICATOR");
+	else
+		cfg.storeSmoothnessIndicator = false;
 }
 
 template <class ParamProvider_t>
@@ -111,6 +118,12 @@ void configureSystemRecorder(cadet::InternalStorageSystemRecorder& recorder, Par
 	bool singleAsMultiPort = false;
 	if (pp.exists("SINGLE_AS_MULTI_PORT"))
 		singleAsMultiPort = pp.getBool("SINGLE_AS_MULTI_PORT");
+
+	bool writeIDASMeta = false;
+	if (pp.exists("WRITE_IDAS_META"))
+		writeIDASMeta = pp.getBool("WRITE_IDAS_META");
+
+	recorder.setStoreIDASMeta(writeIDASMeta);
 
 	recorder.deleteRecorders();
 
@@ -169,6 +182,30 @@ void readSensitivityInitialState(ParamProvider_t& pp, const char* prefix, std::v
 	}
 }
 
+/**
+ * @brief Checks one of the index fields of a sensitivity parameter group
+ * @details The index fields are fed into makeParamId() one entry at a time, where -1 denotes
+ *          "independent of this index" for every field but SENS_UNIT. Anything below the
+ *          smallest admissible value is not an index, and a field shorter than SENS_NAME would
+ *          be read beyond its end.
+ * @param [in] group Name of the sensitivity parameter group (used in the error message)
+ * @param [in] field Name of the field
+ * @param [in] values Values read from the field
+ * @param [in] numParams Number of entries required, i.e. the length of SENS_NAME
+ * @param [in] minValue Smallest admissible value
+ */
+inline void checkSensitivityIndexField(const std::string& group, const std::string& field, const std::vector<int>& values, std::size_t numParams, int minValue)
+{
+	if (values.size() < numParams)
+		throw InvalidParameterException("Field " + field + " in group " + group + " has to have at least " + std::to_string(numParams) + " entries (one per entry of SENS_NAME), but has " + std::to_string(values.size()));
+
+	for (std::size_t i = 0; i < numParams; ++i)
+	{
+		if (values[i] < minValue)
+			throw InvalidParameterException("Field " + field + " in group " + group + " has to be at least " + std::to_string(minValue) + ", but entry " + std::to_string(i) + " is " + std::to_string(values[i]));
+	}
+}
+
 } // namespace detail
 
 /**
@@ -182,6 +219,7 @@ public:
 	Driver() : _sim(nullptr), _builder(nullptr), _storage(nullptr), _writeLastState(false), _writeLastStateSens(false)
 	{
 		_builder = cadetCreateModelBuilder();
+		_callbacks.addCallback(&_timeout);
 	}
 
 	~Driver() CADET_NOEXCEPT
@@ -236,15 +274,26 @@ public:
 			cadetDestroySimulator(_sim);
 
 		_sim = cadetCreateSimulator();
+		_sim->setNotificationCallback(&_callbacks);
 
 		// Configure main solver parameters
 		pp.pushScope("solver");
 		_sim->configure(pp);
-		
+
 		// Configure section times
 		std::vector<double> secTimes;
 		std::vector<bool> secCont;
 		extractSectionTimes(pp, secTimes, secCont);
+
+		// Set timeout if provided, otherwise keep previously set timeout
+		if (pp.exists("TIMEOUT"))
+		{
+			const double timeoutSec = pp.getDouble("TIMEOUT");
+			if (timeoutSec > 0.0)
+				_timeout.setTimeout(timeoutSec);
+			else
+				_timeout.setTimeout(-1.0);
+		}
 
 		pp.popScope(); // solver scope
 
@@ -311,7 +360,11 @@ public:
 		{
 			pp.pushScope("sensitivity");
 
-			numSens = static_cast<unsigned int>(pp.getInt("NSENS"));
+			const int numSensRead = pp.getInt("NSENS");
+			if (numSensRead < 0)
+				throw InvalidParameterException("Field NSENS has to be non-negative, but is " + std::to_string(numSensRead));
+
+			numSens = static_cast<unsigned int>(numSensRead);
 			const std::string sensMethod = pp.getString("SENS_METHOD");
 
 			std::ostringstream oss;
@@ -330,15 +383,26 @@ public:
 				const std::vector<int> sensBoundState = pp.getIntArray("SENS_BOUNDPHASE");
 				const std::vector<int> sensParType = pp.getIntArray("SENS_PARTYPE");
 
+				detail::checkSensitivityIndexField(oss.str(), "SENS_UNIT", sensUnit, sensName.size(), 0);
+				detail::checkSensitivityIndexField(oss.str(), "SENS_COMP", sensComp, sensName.size(), -1);
+				detail::checkSensitivityIndexField(oss.str(), "SENS_REACTION", sensReaction, sensName.size(), -1);
+				detail::checkSensitivityIndexField(oss.str(), "SENS_SECTION", sensSection, sensName.size(), -1);
+				detail::checkSensitivityIndexField(oss.str(), "SENS_BOUNDPHASE", sensBoundState, sensName.size(), -1);
+				detail::checkSensitivityIndexField(oss.str(), "SENS_PARTYPE", sensParType, sensName.size(), -1);
+
 				// Convert to ParameterIds
 				std::vector<cadet::ParameterId> sensParams;
 				sensParams.reserve(sensName.size());
-				for (std::size_t i = 0; i < sensName.size(); ++i)
-					sensParams.push_back(cadet::makeParamId(sensName[i], sensUnit[i], sensComp[i], sensParType[i], sensBoundState[i], sensReaction[i], sensSection[i]));
+				for (std::size_t sensIdx = 0; sensIdx < sensName.size(); ++sensIdx)
+					sensParams.push_back(cadet::makeParamId(sensName[sensIdx], sensUnit[sensIdx], sensComp[sensIdx], sensParType[sensIdx], sensBoundState[sensIdx], sensReaction[sensIdx], sensSection[sensIdx]));
 
 				double sensTol = 1e-05;
 				if (pp.exists("SENS_ABSTOL"))
+				{
 					sensTol = pp.getDouble("SENS_ABSTOL");
+					if (sensTol < 0.0)
+						throw InvalidParameterException("Field SENS_ABSTOL in group " + oss.str() + " has to be non-negative, but is " + std::to_string(sensTol));
+				}
 
 				// Read factors, but default to 1.0 if none are given
 				std::vector<double> sensFactor;
@@ -593,7 +657,6 @@ public:
 			const std::vector<double const*> lastY = _sim->getLastSensitivities(len);
 			const std::vector<double const*> lastYdot = _sim->getLastSensitivityDerivatives(len);
 
-			std::ostringstream oss;
 			for (std::size_t i = 0; i < lastY.size(); ++i)
 			{
 				oss.str("");
@@ -624,14 +687,14 @@ public:
 
 			const int nSens = lastSens.size();
 
-			for (int i = 0; i < nSens; i++)
+			for (int sensIdx = 0; sensIdx < nSens; sensIdx++)
 			{
 				oss.str("");
-				oss << std::setfill('0') << std::setw(3) << std::setprecision(0) << i;
+				oss << std::setfill('0') << std::setw(3) << std::setprecision(0) << sensIdx;
 				writer.pushGroup("param_" + oss.str());
 				writer.pushGroup(unitID);
-				writer.template vector<double>("LAST_SENS_Y", sliceEnd - sliceStart, lastSens[i] + sliceStart);
-				writer.template vector<double>("LAST_SENS_YDOT", sliceEnd - sliceStart, lastSensdot[i] + sliceStart);
+				writer.template vector<double>("LAST_SENS_Y", sliceEnd - sliceStart, lastSens[sensIdx] + sliceStart);
+				writer.template vector<double>("LAST_SENS_YDOT", sliceEnd - sliceStart, lastSensdot[sensIdx] + sliceStart);
 				writer.popGroup();
 				writer.popGroup();
 			}
@@ -653,7 +716,7 @@ public:
 				writer.unlinkDataset("CADET_BRANCH");
 			if (writer.exists("TIME_SIM"))
 				writer.unlinkDataset("TIME_SIM");
-		}
+			}
 		else
 			writer.pushGroup("meta");
 
@@ -664,9 +727,42 @@ public:
 		writer.scalar("TIME_SIM", _sim->lastSimulationDuration());
 
 		if (!writer.exists("FILE_FORMAT"))
-			writer.scalar("FILE_FORMAT", 50000);
+			writer.scalar("FILE_FORMAT", std::string("1.1.0a3"));
 
-		writer.popGroup();
+		if (writer.exists("idas"))
+		{
+			writer.pushGroup("idas");
+
+			if (writer.exists("IDAS_NTIMESTEPS"))
+				writer.unlinkDataset("IDAS_NTIMESTEPS");
+			if (writer.exists("IDAS_NEXT_BDF_ORDER"))
+				writer.unlinkDataset("IDAS_NEXT_BDF_ORDER");
+			if (writer.exists("IDAS_NEXT_STEP_SIZE"))
+				writer.unlinkDataset("IDAS_NEXT_STEP_SIZE");
+			if (writer.exists("IDAS_NEXT_TIME_POINT"))
+				writer.unlinkDataset("IDAS_NEXT_TIME_POINT");
+			if (writer.exists("IDAS_KUMULATIVE_NTIMESTEPS"))
+				writer.unlinkDataset("IDAS_KUMULATIVE_NTIMESTEPS");
+			if (writer.exists("IDAS_N_RESIDUAL_CALLS"))
+				writer.unlinkDataset("IDAS_N_RESIDUAL_CALLS");
+			if (writer.exists("IDAS_N_LINSOLVER_SETUP_CALLS"))
+				writer.unlinkDataset("IDAS_N_LINSOLVER_SETUP_CALLS");
+			if (writer.exists("IDAS_N_LOCAL_ERROR_TEST_FAILURES"))
+				writer.unlinkDataset("IDAS_N_LOCAL_ERROR_TEST_FAILURES");
+			if (writer.exists("IDAS_BDF_ORDER"))
+				writer.unlinkDataset("IDAS_BDF_ORDER");
+			if (writer.exists("IDAS_FIRST_INTEGRATION_STEP_SIZE"))
+				writer.unlinkDataset("IDAS_FIRST_INTEGRATION_STEP_SIZE");
+			if (writer.exists("IDAS_INTEGRATION_STEP_SIZE"))
+				writer.unlinkDataset("IDAS_INTEGRATION_STEP_SIZE");
+		}
+		else
+			writer.pushGroup("idas");
+
+		_storage->writeIDASMeta(writer);
+
+		writer.popGroup(); // idas
+		writer.popGroup(); // meta
 	}
 
 	/**
@@ -735,10 +831,20 @@ public:
 	inline cadet::InternalStorageSystemRecorder* solution() CADET_NOEXCEPT { return _storage; }
 	inline cadet::InternalStorageSystemRecorder const* solution() const CADET_NOEXCEPT { return _storage; }
 
+	void clearCallbacks() CADET_NOEXCEPT {
+		_callbacks.clear();
+		_callbacks.addCallback(&_timeout);
+	}
+
+	void addCallback(cadet::INotificationCallback* cb) { _callbacks.addCallback(cb); }
+
+	void setTimeout(double seconds) { _timeout.setTimeout(seconds); }
 protected:
 	cadet::ISimulator* _sim; //!< Simulator owned by this driver
 	cadet::IModelBuilder* _builder; //!< Model builder owned by this driver
 	cadet::InternalStorageSystemRecorder* _storage; //!< Storage for results
+	cadet::MultiCallback _callbacks; //!< Callbacks considered during time integration
+	cadet::TimeoutCallback _timeout; //!< Timeout for simulations
 
 	bool _writeLastState;
 	std::vector<UnitOpIdx> _writeLastStateUnitId;
@@ -759,7 +865,19 @@ protected:
 		pp.pushScope("sections");
 
 		secTimes = pp.getDoubleArray("SECTION_TIMES");
-		if (pp.exists("SECTION_CONTINUITY")) 
+
+		// One section is bounded by two section times, so anything shorter does not describe a
+		// section at all and would underflow the size of the continuity vector below.
+		if (secTimes.size() < 2)
+			throw InvalidParameterException("Field SECTION_TIMES has to have at least 2 entries (NSEC + 1), but has " + std::to_string(secTimes.size()));
+
+		for (std::size_t i = 0; i < secTimes.size(); ++i)
+		{
+			if (secTimes[i] < 0.0)
+				throw InvalidParameterException("Field SECTION_TIMES has to be non-negative, but entry " + std::to_string(i) + " is " + std::to_string(secTimes[i]));
+		}
+
+		if (pp.exists("SECTION_CONTINUITY"))
 			secCont = pp.getBoolArray("SECTION_CONTINUITY");
 		else
 			secCont = std::vector<bool>(secTimes.size() - 2, false);

@@ -20,6 +20,7 @@
 #include "Logging.hpp"
 
 #include "common/Driver.hpp"
+#include "common/TimeoutCallback.hpp"
 
 
 #define CADET_XSTR(a) #a
@@ -410,6 +411,8 @@ namespace v1
 
 			realDrv->run();
 
+			if(realDrv->simulator()->stoppedByNotificationCallback())
+				return cdtStoppedByCallback;
 		}
 		catch(const std::exception& e)
 		{
@@ -568,11 +571,11 @@ namespace v1
 			} \
 		\
 			if (nAxialCells) \
-				*nAxialCells = unitRec->numAxialCells(); \
+				*nAxialCells = unitRec->numAxialPoints(); \
 			if (keepAxialSingletonDimension) \
 				*keepAxialSingletonDimension = unitRec->keepBulkSingletonDim(); \
 			if (nRadialCells) \
-				*nRadialCells = unitRec->numRadialCells(); \
+				*nRadialCells = unitRec->numRadialPoints(); \
 			if (nComp) \
 				*nComp = unitRec->numComponents(); \
 			if (data) \
@@ -602,15 +605,15 @@ namespace v1
 			} \
 		\
 			if (nAxialCells) \
-				*nAxialCells = unitRec->numAxialCells(); \
+				*nAxialCells = unitRec->numAxialPoints(); \
 			if (keepAxialSingletonDimension) \
 				*keepAxialSingletonDimension = unitRec->keepBulkSingletonDim(); \
 			if (nRadialCells) \
-				*nRadialCells = unitRec->numRadialCells(); \
+				*nRadialCells = unitRec->numRadialPoints(); \
 			if (nParShells) \
 				*nParShells = unitRec->numParticleShells(parType); \
 			if (keepParticleSingletonDimension) \
-				*keepParticleSingletonDimension = unitRec->keepParticleSingletonDim(); \
+				*keepParticleSingletonDimension = unitRec->keepParticleSingletonDim(static_cast<unsigned int>(parType)); \
 			if (nComp) \
 				*nComp = unitRec->numComponents(); \
 			if (data) \
@@ -640,15 +643,15 @@ namespace v1
 			} \
 		\
 			if (nAxialCells) \
-				*nAxialCells = unitRec->numAxialCells(); \
+				*nAxialCells = unitRec->numAxialPoints(); \
 			if (keepAxialSingletonDimension) \
 				*keepAxialSingletonDimension = unitRec->keepBulkSingletonDim(); \
 			if (nRadialCells) \
-				*nRadialCells = unitRec->numRadialCells(); \
+				*nRadialCells = unitRec->numRadialPoints(); \
 			if (nParShells) \
 				*nParShells = unitRec->numParticleShells(parType); \
 			if (keepParticleSingletonDim) \
-				*keepParticleSingletonDim = unitRec->keepParticleSingletonDim(); \
+				*keepParticleSingletonDim = unitRec->keepParticleSingletonDim(static_cast<unsigned int>(parType)); \
 			if (nBound) \
 				*nBound = unitRec->numBoundStates(); \
 			if (data) \
@@ -679,11 +682,11 @@ namespace v1
 			} \
 		\
 			if (nAxialCells) \
-				*nAxialCells = unitRec->numAxialCells(); \
+				*nAxialCells = unitRec->numAxialPoints(); \
 			if (keepAxialSingletonDimension) \
 				*keepAxialSingletonDimension = unitRec->keepBulkSingletonDim(); \
 			if (nRadialCells) \
-				*nRadialCells = unitRec->numRadialCells(); \
+				*nRadialCells = unitRec->numRadialPoints(); \
 			if (nParType) \
 				*nParType = unitRec->numParticleTypes(); \
 			if (nComp) \
@@ -734,6 +737,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		if (state)
@@ -752,6 +758,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		if (state)
@@ -770,6 +779,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		unsigned int sliceStart;
@@ -792,6 +804,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		unsigned int sliceStart;
@@ -815,6 +830,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		const std::vector<double const*> lastY = sim->getLastSensitivities(len);
@@ -837,6 +855,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		const std::vector<double const*> lastY = sim->getLastSensitivityDerivatives(len);
@@ -859,6 +880,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		unsigned int sliceStart;
@@ -885,6 +909,9 @@ namespace v1
 			return cdtErrorInvalidInputs;
 
 		cadet::ISimulator* const sim = realDrv->simulator();
+		if (!sim)
+			return cdtSimulatorNotInitialized;
+
 		unsigned int len = 0;
 
 		unsigned int sliceStart;
@@ -920,7 +947,7 @@ namespace v1
 		bool keepAxialSingletonDimension = unitRec->keepBulkSingletonDim();
 
 		if (nCoords)
-			*nCoords = unitRec->numAxialCells();
+			*nCoords = unitRec->numAxialPoints();
 
 		if (nCoords && *nCoords == 1 && !keepAxialSingletonDimension)
 		{
@@ -947,7 +974,7 @@ namespace v1
 		}
 
 		if (nCoords)
-			*nCoords = unitRec->numRadialCells();
+			*nCoords = unitRec->numRadialPoints();
 		if (data)
 			*data = unitRec->secondaryCoordinates();
 
@@ -967,7 +994,7 @@ namespace v1
 			return cdtDataNotStored;
 		}
 
-		bool keepParticleSingletonDimension = unitRec->keepParticleSingletonDim();
+		bool keepParticleSingletonDimension = unitRec->keepParticleSingletonDim(static_cast<unsigned int>(parType));
 
 		if (nCoords)
 			*nCoords = unitRec->numParticleShells(parType);
@@ -1014,23 +1041,128 @@ namespace v1
 		if (!realDrv)
 			return cdtErrorInvalidInputs;
 
-        if (timeSim)
-            *timeSim = realDrv->simulator()->lastSimulationDuration();
+		if (timeSim)
+			*timeSim = realDrv->simulator()->lastSimulationDuration();
 
 		return cdtOK;
 	}
 
-}  // namespace v1
+	cdtResult setTimeout(cdtDriver* drv, double timeout)
+	{
+		Driver* const realDrv = drv->driver;
+		if (!realDrv)
+			return cdtErrorInvalidInputs;
 
-}  // namespace api
+		realDrv->setTimeout(timeout);
+		return cdtOK;
+	}
 
-}  // namespace cadet
+	cdtResult initializeSimulation(cdtDriver* drv, cdtParameterProvider const* paramProvider)
+	{
+		Driver* const realDrv = drv->driver;
+		if (!realDrv)
+			return cdtErrorInvalidInputs;
+		if (!paramProvider)
+			return cdtErrorInvalidInputs;
+
+		try
+		{
+			LOG(Info) << "C-API: Configuring driver";
+			CallbackParameterProvider cpp(*paramProvider);
+			realDrv->configure(cpp);
+
+			LOG(Info) << "C-API: Getting simulator";
+			cadet::ISimulator* const sim = realDrv->simulator();
+			if(!sim)
+			{
+				LOG(Error) << "C-API: Failed to create simulator after configure";
+				return cdtError;
+			}
+
+			LOG(Info) << "C-API: Preparing integrator";
+			sim->prepareIntegrator();
+
+			LOG(Info) << "C-API: Simulation initialized successfully";
+		}
+		catch(const std::exception& e)
+		{
+			LOG(Error) << "C-API: Initialization failed: " << e.what();
+			return cdtError;
+		}
+
+		return cdtOK;
+	}
+
+	cdtResult performSimulationStep(cdtDriver* drv, double tEnd, double* tReached)
+	{
+		Driver* const realDrv = drv->driver;
+
+		if (!realDrv)
+		{
+			LOG(Error) << "C-API: Invalid driver pointer";
+			return cdtErrorInvalidInputs;
+		}
+
+		try
+		{
+			cadet::ISimulator* const sim = realDrv->simulator();
+
+			if (!sim)
+			{
+				LOG(Error) << "C-API: Simulator not initialized";
+				return cdtError;
+			}
+
+			double reached = 0.0;
+			const int result = sim->integrateStep(tEnd, reached);
+
+			if (tReached)
+				*tReached = reached;
+
+			if (result < 0)
+			{
+				LOG(Error) << "C-API: Integration step failed with code " << result;
+				return cdtError;
+			}
+
+			if (result > 0)
+				LOG(Info) << "C-API: Root found at t = " << reached;
+			else
+				LOG(Info) << "C-API: Integrated to t = " << reached;
+		}
+		catch(const std::exception& e)
+		{
+			LOG(Error) << "C-API: Exception in performSimulationStep: " << e.what();
+			return cdtError;
+		}
+
+		LOG(Info) << "C-API: performSimulationStep END";
+		return cdtOK;
+
+	}
+
+	cdtResult endSimulation(cdtDriver* drv)
+	{
+		Driver* const realDrv = drv->driver;
+		if(!realDrv)
+			return cdtErrorInvalidInputs;
+
+		try
+		{
+			realDrv->clear();
+		}
+		catch(const std::exception& e)
+		{
+			LOG(Error) << "C-API: Ending simulation failed " << e.what();
+			return cdtError;
+		}
+
+		return cdtOK;
+	}
 
 
-extern "C"
-{
-
-	CADET_API cdtResult cdtGetAPIv010000(cdtAPIv010000* ptr)
+	template <typename cdtAPIv1_x>
+	cdtResult cdtGetAPIv1_x(cdtAPIv1_x* ptr)
 	{
 		if (!ptr)
 			return cdtErrorInvalidInputs;
@@ -1095,6 +1227,45 @@ extern "C"
 		ptr->getTimeSim = &cadet::api::v1::getTimeSim;
 
 		return cdtOK;
+	}
+
+}  // namespace v1
+
+}  // namespace api
+
+}  // namespace cadet
+
+
+extern "C"
+{
+
+	CADET_API cdtResult cdtGetAPIv1_0_0(cdtAPIv1_0_0* ptr)
+	{
+		return cadet::api::v1::cdtGetAPIv1_x(ptr);
+	}
+
+	CADET_API cdtResult cdtGetAPIv1_1_0a1(cdtAPIv1_1_0a1* ptr)
+	{
+		if (!ptr)
+			return cdtErrorInvalidInputs;
+
+		ptr->setTimeout = &cadet::api::v1::setTimeout;
+
+		return cadet::api::v1::cdtGetAPIv1_x(ptr);
+	}
+
+	CADET_API cdtResult cdtGetAPIv1_1_0a2(cdtAPIv1_1_0a2* ptr)
+	{
+		if (!ptr)
+			return cdtErrorInvalidInputs;
+
+		ptr->setTimeout = &cadet::api::v1::setTimeout;
+
+		ptr->initializeSimulation = &cadet::api::v1::initializeSimulation;
+		ptr->performSimulationStep = &cadet::api::v1::performSimulationStep;
+		ptr->endSimulation = &cadet::api::v1::endSimulation;
+
+		return cadet::api::v1::cdtGetAPIv1_x(ptr);
 	}
 
 }

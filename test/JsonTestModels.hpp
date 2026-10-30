@@ -22,6 +22,7 @@
 
 cadet::JsonParameterProvider createColumnWithSMA(const std::string& uoType, const std::string& spatialScheme);
 cadet::JsonParameterProvider createColumnWithTwoCompLinearBinding(const std::string& uoType, const std::string& spatialScheme);
+cadet::JsonParameterProvider createColumnWithTwoCompBiLangmuirBinding(const std::string& uoType, const std::string& spatialScheme);
 cadet::JsonParameterProvider createColumnLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType, const std::string& spatialScheme);
 nlohmann::json createLWEJson(const std::string& uoType, const std::string& spatialMethod);
 cadet::JsonParameterProvider createLWE(const std::string& uoType, const std::string& spatialScheme);
@@ -29,5 +30,16 @@ cadet::JsonParameterProvider createPulseInjectionColumn(const std::string& uoTyp
 cadet::JsonParameterProvider createLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType, const std::string& spatialScheme);
 cadet::JsonParameterProvider createCSTR(unsigned int nComp);
 cadet::JsonParameterProvider createCSTRBenchmark(unsigned int nSec, double endTime, double interval);
+nlohmann::json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(const std::string& uoType, const std::string& spatialMethod);
+
+/**
+ * @brief Creates a finite bath with two components and one particle type
+ * @param [in] particleType Either @c HOMOGENEOUS_PARTICLE or @c GENERAL_RATE_PARTICLE
+ * @param [in] parMethod Spatial discretization of general rate particles, either @c FV or @c DG
+ * @param [in] binding Determines whether a linear binding model with one bound state per component is used
+ */
+nlohmann::json createFiniteBathJson(const std::string& particleType, const std::string& parMethod, bool binding = true);
+cadet::JsonParameterProvider createFiniteBath(const std::string& particleType, const std::string& parMethod, bool binding = true);
+cadet::JsonParameterProvider createFiniteBathBenchmark(const std::string& particleType, const std::string& parMethod, bool binding, unsigned int nSec, double endTime, double interval);
 
 #endif  // CADETTEST_JSONTESTMODELS_HPP_

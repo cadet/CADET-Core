@@ -109,8 +109,8 @@ protected:
 	int fluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, StateType const* y,
 		CpStateType const* yCp, ResidualType* res, LinearBufferAllocator workSpace) const
 	{
-		using CpStateParamType = typename DoubleActivePromoter<CpStateType, ParamType>::type;
-		using StateParamType = typename DoubleActivePromoter<StateType, ParamType>::type;
+//		using CpStateParamType = typename DoubleActivePromoter<CpStateType, ParamType>::type;
+//		using StateParamType = typename DoubleActivePromoter<StateType, ParamType>::type;
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		// Fluxes: k_{ldf,i} ( q_i - k_{f,i} c_{p,i} \left( tau + \sum_j a_{ij} c_{p,j} \right)^{n_i-1} )

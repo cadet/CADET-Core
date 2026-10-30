@@ -142,6 +142,8 @@ void MultiChannelTransportModel::readInitialCondition(IParameterProvider& paramP
 	if (((initC.size() < _disc.nComp) && _singleRadiusInitC) || ((initC.size() < _disc.nComp * _disc.nChannel) && !_singleRadiusInitC))
 		throw InvalidParameterException("INIT_C does not contain enough values for all components (and radial zones)");
 
+	checkNonNegativeField(initC, "INIT_C");
+
 	if (!_singleRadiusInitC)
 		ad::copyToAd(initC.data(), _initC.data(), _disc.nComp * _disc.nChannel);
 	else

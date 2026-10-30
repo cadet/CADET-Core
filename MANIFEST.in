@@ -1,0 +1,4 @@
+include LICENSE.txt
+include README.md
+include version.txt
+recursive-include python/cadet_core *.py py.typed

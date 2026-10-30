@@ -27,6 +27,7 @@
 #include "Memory.hpp"
 #include "model/ModelUtils.hpp"
 #include "model/ParameterMultiplexing.hpp"
+#include "reaction/ReactionSystem.hpp"
 
 #include <array>
 #include <vector>
@@ -181,6 +182,7 @@ protected:
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 	int residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem);
 
+	void updateInletJacobian() CADET_NOEXCEPT;
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
 
 	unsigned int numAdDirsForJacobian() const CADET_NOEXCEPT;
@@ -203,7 +205,7 @@ protected:
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
 	parts::MultiChannelConvectionDispersionOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
-	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
+	ReactionSystem _reaction;
 	std::vector<IExchangeModel*> _exchange; //!< Exchange transition model
 
 	linalg::DoubleSparseMatrix _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
@@ -211,10 +213,9 @@ protected:
 
 	bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used
 	unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation
+	unsigned int _curSecIdx; //!< Index of the time section that is currently integrated
 	bool _factorizeJacobian; //!< Determines whether the Jacobian needs to be factorized
 	double* _tempState; //!< Temporary storage with the size of the state vector or larger if binding models require it
-
-	IParameterParameterDependence* _dispersionDep;
 
 	std::vector<active> _initC; //!< Liquid bulk phase initial conditions
 	bool _singleRadiusInitC;
@@ -263,8 +264,9 @@ protected:
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return false; }
 		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return false; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
-		virtual bool isParticleLumped() const CADET_NOEXCEPT { return false; }
+		virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return false; }
 		virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return true; }
+		virtual bool discHasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
 		virtual unsigned int numPrimaryCoordinates() const CADET_NOEXCEPT { return _disc.nCol; }
@@ -274,6 +276,7 @@ protected:
 		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return 0; }
+		virtual unsigned int numBoundStates(unsigned int parType, unsigned int comp) const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numMobilePhaseDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol * _disc.nChannel; }
 		virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return 0; }
 		virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT { return 0; }
@@ -294,6 +297,7 @@ protected:
 		virtual int writeInlet(double* buffer) const;
 		virtual int writeOutlet(unsigned int port, double* buffer) const;
 		virtual int writeOutlet(double* buffer) const;
+		virtual int writeSmoothnessIndicator(double* buffer) const { return 0; }
 
 		virtual int writePrimaryCoordinates(double* coords) const
 		{

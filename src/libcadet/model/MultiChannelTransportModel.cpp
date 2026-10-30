@@ -11,6 +11,7 @@
 // =============================================================================
 
 #include "model/MultiChannelTransportModel.hpp"
+#include "ExchangeModelFactory.hpp"
 #include "ParamReaderHelper.hpp"
 #include "ParamReaderScopes.hpp"
 #include "cadet/Exceptions.hpp"
@@ -72,6 +73,8 @@ cadet::model::MultiplexMode readAndRegisterMultiplexParam(cadet::IParameterProvi
 			if (values.size() != nAxial * nChannel * nParType)
 				throw cadet::InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be " + std::to_string(nAxial * nChannel * nParType) + ")");
 		}
+		else
+			throw cadet::InvalidParameterException("Unsupported multiplex mode of field " + name + "_MULTIPLEX, must be in {0, 1, 2, 3} but is " + std::to_string(modeConfig));
 	}
 	else
 	{
@@ -316,8 +319,8 @@ namespace model
 {
 
 MultiChannelTransportModel::MultiChannelTransportModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-	_dynReactionBulk(nullptr), _jacInlet(),
-	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
+	_jacInlet(),
+	_analyticJac(true), _jacobianAdDirs(0), _curSecIdx(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _singleRadiusInitC(true), _initState(0), _initStateDot(0)
 {
 }
@@ -325,7 +328,7 @@ MultiChannelTransportModel::MultiChannelTransportModel(UnitOpIdx unitOpIdx) : Un
 MultiChannelTransportModel::~MultiChannelTransportModel() CADET_NOEXCEPT
 {
 	delete[] _tempState;
-	delete _dynReactionBulk;
+	_reaction.clearDynamicReactionModels();
 }
 
 unsigned int MultiChannelTransportModel::numDofs() const CADET_NOEXCEPT
@@ -356,14 +359,25 @@ bool MultiChannelTransportModel::usesAD() const CADET_NOEXCEPT
 bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
 	// ==== Read discretization
-	_disc.nComp = paramProvider.getInt("NCOMP");
-	_disc.nChannel = paramProvider.getInt("NCHANNEL");
+	const int nComp = paramProvider.getInt("NCOMP");
+	if (nComp < 1)
+		throw InvalidParameterException("Field NCOMP has to be at least 1, but is " + std::to_string(nComp));
+
+	// _disc.nChannel is unsigned, so a negative value has to be rejected before the assignment
+	const int nChannel = paramProvider.getInt("NCHANNEL");
+	if (nChannel < 1)
+		throw InvalidParameterException("NCHANNEL must be > 0, but is " + std::to_string(nChannel));
+
+	_disc.nComp = static_cast<unsigned int>(nComp);
+	_disc.nChannel = static_cast<unsigned int>(nChannel);
 
 	paramProvider.pushScope("discretization");
 
-	_disc.nCol = paramProvider.getInt("NCOL");
-	if(_disc.nChannel < 1)
-		throw InvalidParameterException("NCHANNEL must be > 0");
+	const int nCol = paramProvider.getInt("NCOL");
+	if (nCol < 1)
+		throw InvalidParameterException("Field NCOL has to be at least 1, but is " + std::to_string(nCol));
+
+	_disc.nCol = static_cast<unsigned int>(nCol);
 
 	// Determine whether analytic Jacobian should be used but don't set it right now.
 	// We need to setup Jacobian matrices first.
@@ -391,22 +405,22 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 
 	// ==== Construct and configure dynamic reaction model
 	bool reactionConfSuccess = true;
-
-	_dynReactionBulk = nullptr;
-	if (paramProvider.exists("REACTION_MODEL"))
+	
+	_reaction.clearDynamicReactionModels();
+	if (paramProvider.exists("NREAC_LIQUID"))
 	{
-		const std::string dynReactName = paramProvider.getString("REACTION_MODEL");
-		_dynReactionBulk = helper.createDynamicReactionModel(dynReactName);
-		if (!_dynReactionBulk)
-			throw InvalidParameterException("Unknown dynamic reaction model " + dynReactName);
-
-		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
-			paramProvider.pushScope("reaction_bulk");
-
-		reactionConfSuccess = _dynReactionBulk->configureModelDiscretization(paramProvider, _disc.nComp, nullptr, nullptr);
-
-		if (_dynReactionBulk->usesParamProviderInDiscretizationConfig())
-			paramProvider.popScope();
+		int nReactions = paramProvider.getInt("NREAC_LIQUID");
+		reactionConfSuccess = _reaction.configureDiscretization("liquid",
+			nReactions,
+			_disc.nComp,
+			nullptr,
+			nullptr,
+			paramProvider,
+			helper) && reactionConfSuccess;
+	}
+	else
+	{
+		_reaction.empty();
 	}
 
 	
@@ -423,7 +437,7 @@ bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider
 	bool exchangeConfSuccess = true;
 	exchangeConfSuccess = _exchange[0]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nChannel, _disc.nCol);
 
-	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nCol, _disc.nChannel, _dynReactionBulk);
+	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nCol, _disc.nChannel, reactionConfSuccess);
 
 	// Setup the memory for tempState based on state vector
 	_tempState = new double[numDofs()];
@@ -440,24 +454,20 @@ bool MultiChannelTransportModel::configure(IParameterProvider& paramProvider)
 	// Add parameters to map
 
 	// Register initial conditions parameters
-	registerParam1DArray(_parameters, _initC, [=](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
+	registerParam1DArray(_parameters, _initC, [=, this](bool multi, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep); });
 	if (_disc.nChannel > 1)
-		registerParam2DArray(_parameters, _initC, [=](bool multi, unsigned int rad, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, rad, SectionIndep); }, _disc.nComp);
+		registerParam2DArray(_parameters, _initC, [=, this](bool multi, unsigned int rad, unsigned int comp) { return makeParamId(hashString("INIT_C"), _unitOpIdx, comp, ParTypeIndep, BoundStateIndep, rad, SectionIndep); }, _disc.nComp);
 
 	// Reconfigure reaction model
 	bool dynReactionConfSuccess = true;
-	if (_dynReactionBulk && _dynReactionBulk->requiresConfiguration())
-	{
-		paramProvider.pushScope("reaction_bulk");
-		dynReactionConfSuccess = _dynReactionBulk->configure(paramProvider, _unitOpIdx, ParTypeIndep);
-		paramProvider.popScope();
-	}
 	
+	if (paramProvider.exists("NREAC_LIQUID"))
+		dynReactionConfSuccess = _reaction.configure("liquid", 0, _unitOpIdx, paramProvider, false) && dynReactionConfSuccess;
+
+
 	// Reconfigure exchange model
 	bool exchangeConfSuccess = true;
-	exchangeConfSuccess = _exchange[0]->configure(paramProvider, _unitOpIdx);
-	
-
+	exchangeConfSuccess = _exchange[0]->configure( paramProvider, _unitOpIdx, _parameters);
 
 	return transportSuccess && dynReactionConfSuccess && exchangeConfSuccess;
 }
@@ -468,8 +478,11 @@ unsigned int MultiChannelTransportModel::threadLocalMemorySize() const CADET_NOE
 	LinearMemorySizer lms;
 
 	// Memory for residualImpl()
-	if (_dynReactionBulk && _dynReactionBulk->requiresWorkspace())
-		lms.fitBlock(_dynReactionBulk->workspaceSize(_disc.nComp, 0, nullptr));
+	for (auto i = 0; i < _reaction.getDynReactionVector("liquid").size(); i++)
+	{
+		if (_reaction.getDynReactionVector("liquid")[i] && _reaction.getDynReactionVector("liquid")[i]->requiresWorkspace())
+			lms.fitBlock(_reaction.getDynReactionVector("liquid")[i]->workspaceSize(_disc.nComp, 0, nullptr));
+	}
 
 	return lms.bufferSize();
 }
@@ -496,18 +509,32 @@ void MultiChannelTransportModel::useAnalyticJacobian(const bool analyticJac)
 
 void MultiChannelTransportModel::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
-	Indexer idxr(_disc);
+	_curSecIdx = secIdx;
 
-	// ConvectionDispersionOperator tells us whether flow direction has changed
-	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx))
-		return;
+	// ConvectionDispersionOperator updates the velocities and the flow directions
+	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx);
+
+	updateInletJacobian();
+}
+
+/**
+ * @brief Rebuilds the matrix connecting the inlet DOFs to the inlet adjacent channel cells
+ * @details The entries of this block scale with the current interstitial velocity, so the block has
+ *          to be rebuilt whenever the velocity changes: at a section transition, and, for dynamic
+ *          flow rates, on every call of setFlowRates() within a section. A stale block does not only
+ *          degrade the Newton matrix, it enters multiplyWithJacobian() and thereby the forward
+ *          sensitivity residual directly, where the error does not cancel out.
+ */
+void MultiChannelTransportModel::updateInletJacobian() CADET_NOEXCEPT
+{
+	Indexer idxr(_disc);
 
 	// Setup the matrix connecting inlet DOFs to first column cells
 	_jacInlet.clear();
 
 	for (unsigned int rad = 0; rad < _disc.nChannel; ++rad)
 	{
-		const double f = _convDispOp.inletFactor(secIdx, rad);
+		const double f = _convDispOp.inletFactor(_curSecIdx, rad);
 		if (_convDispOp.currentVelocity(rad) >= 0.0)
 		{
 			// Forwards flow
@@ -531,6 +558,10 @@ void MultiChannelTransportModel::notifyDiscontinuousSectionTransition(double t, 
 void MultiChannelTransportModel::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 {
 	_convDispOp.setFlowRates(in, out);
+
+	// Dynamic flow rates change the velocities within a time section, which the inlet Jacobian
+	// block scales with
+	updateInletJacobian();
 }
 
 void MultiChannelTransportModel::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
@@ -738,7 +769,7 @@ int MultiChannelTransportModel::residualImpl(double t, unsigned int secIdx, Stat
 	}
 	
 
-	if (!_dynReactionBulk || (_dynReactionBulk->numReactionsLiquid() == 0))
+	if (!_reaction.getDynReactionVector("liquid")[0])
 		return 0;
 
 	// Get offsets
@@ -754,12 +785,19 @@ int MultiChannelTransportModel::residualImpl(double t, unsigned int secIdx, Stat
 		const double z = (0.5 + static_cast<double>(axialCell)) / static_cast<double>(_disc.nCol);
 
 		const ColumnPosition colPos{z, static_cast<double>(channelCell), 0.0};
-		_dynReactionBulk->residualLiquidAdd(t, secIdx, colPos, yC, resC, -1.0, tlmAlloc);
 
-		if (wantJac)
+		for (auto i = 0; i < _reaction.getDynReactionVector("liquid").size(); i++)
 		{
-			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(yC), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideChannelCell()), tlmAlloc);
+			if (_reaction.getDynReactionVector("liquid")[i] && (_reaction.getDynReactionVector("liquid")[i]->numReactions() > 0))
+			{
+				_reaction.getDynReactionVector("liquid")[i]->residualFluxAdd(t, secIdx, colPos, _disc.nComp, yC, resC, -1.0, tlmAlloc);
+
+				if (wantJac)
+				{
+					// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+					_reaction.getDynReactionVector("liquid")[i]->analyticJacobianAdd(t, secIdx, colPos, _disc.nComp, reinterpret_cast<double const*>(yC), -1.0, _convDispOp.jacobian().row(colCell * idxr.strideChannelCell()), tlmAlloc);
+				}
+			}
 		}
 	}
 
@@ -844,7 +882,7 @@ void MultiChannelTransportModel::multiplyWithJacobian(const SimulationTime& simT
 	// Handle identity matrix of inlet DOFs
 	for (unsigned int i = 0; i < _disc.nComp * _disc.nChannel; ++i)
 	{
-		ret[i] = alpha * yS[i] + beta * ret[i];
+		ret[i] = (beta == 0.0) ? alpha * yS[i] : alpha * yS[i] + beta * ret[i];
 	}
 
 	_convDispOp.jacobian().multiplyVector(yS + idxr.offsetC(), alpha, beta, ret + idxr.offsetC());

@@ -13,12 +13,7 @@
 #include "cadet/cadetCompilerInfo.hpp"
 #include "linalg/Gmres.hpp"
 
-#if CADET_SUNDIALS_IFACE == 2
-	#include <sundials/sundials_spgmr.h>
-#elif CADET_SUNDIALS_IFACE == 3
-	#include <sunlinsol/sunlinsol_spgmr.h>
-#endif
-
+#include <sunlinsol/sunlinsol_spgmr.h>
 #include "SundialsVector.hpp"
 
 #include <type_traits>
@@ -43,13 +38,13 @@ int gmresCallback(void* userData, N_Vector v, N_Vector z)
 }
 
 Gmres::Gmres() CADET_NOEXCEPT :
-#if CADET_SUNDIALS_IFACE == 2
-	_mem(nullptr),
-#elif CADET_SUNDIALS_IFACE == 3
+
+	_sunctx(nullptr),
 	_linearSolver(nullptr),
-#endif
+
 	_ortho(Orthogonalization::ModifiedGramSchmidt), _maxRestarts(0), _matrixSize(0), _matVecMul(nullptr), _userData(nullptr)
 {
+	SUNContext_Create(SUN_COMM_NULL, &_sunctx);
 #ifdef CADET_BENCHMARK_MODE
 	_numIter = 0;
 #endif
@@ -57,13 +52,11 @@ Gmres::Gmres() CADET_NOEXCEPT :
 
 Gmres::~Gmres() CADET_NOEXCEPT
 {
-#if CADET_SUNDIALS_IFACE == 2
-	if (_mem)
-		SpgmrFree(_mem);
-#elif CADET_SUNDIALS_IFACE == 3
 	if (_linearSolver)
 		SUNLinSolFree(_linearSolver);
-#endif
+
+	if (_sunctx)
+		SUNContext_Free(&_sunctx);
 }
 
 void Gmres::initialize(unsigned int matrixSize, unsigned int maxKrylov)
@@ -79,19 +72,14 @@ void Gmres::initialize(unsigned int matrixSize, unsigned int maxKrylov, Orthogon
 
 	_maxRestarts = maxRestarts;
 	_ortho = om;
-
 	// Create a template vector for the malloc routine of SPGMR
-	N_Vector NV_tmpl = NVec_New(matrixSize);
+	N_Vector NV_tmpl = NVec_New(matrixSize, _sunctx);
 	NVec_Const(0.0, NV_tmpl);
 
 	// Size of allocated memory is either _maxKrylov or _cc.neq_bnd()
-#if CADET_SUNDIALS_IFACE == 2
-	_mem = SpgmrMalloc(maxKrylov, NV_tmpl);
-#elif CADET_SUNDIALS_IFACE == 3
-	_linearSolver = SUNSPGMR(NV_tmpl, PREC_NONE, maxKrylov);
+	_linearSolver = SUNLinSol_SPGMR(NV_tmpl, SUN_PREC_NONE, maxKrylov, _sunctx);
 	SUNLinSolSetATimes(_linearSolver, this, &gmresCallback);
 	SUNLinSolInitialize_SPGMR(_linearSolver);
-#endif
 
 	NVec_Destroy(NV_tmpl);
 }
@@ -99,30 +87,22 @@ void Gmres::initialize(unsigned int matrixSize, unsigned int maxKrylov, Orthogon
 int Gmres::solve(double tolerance, double const* weight, double const* rhs, double* sol)
 {
 	// Create init-guess/solution vector by bending pointer
-	N_Vector NV_sol = NVec_NewEmpty(_matrixSize);
+	N_Vector NV_sol = NVec_NewEmpty(_matrixSize, _sunctx);
 	NVEC_DATA(NV_sol) = sol;
 
 	// Create weight vector by bending pointer
-	N_Vector NV_weight = NVec_NewEmpty(_matrixSize);
+	N_Vector NV_weight = NVec_NewEmpty(_matrixSize, _sunctx);
 	NVEC_DATA(NV_weight) = const_cast<double*>(weight);
 
 	// Create right hand side vector by pointer bending
-	N_Vector NV_rhs = NVec_NewEmpty(_matrixSize);
+	N_Vector NV_rhs = NVec_NewEmpty(_matrixSize, _sunctx);
 	NVEC_DATA(NV_rhs) = const_cast<double*>(rhs);
 
 	const int gsType = static_cast<typename std::underlying_type<Orthogonalization>::type>(_ortho);
 
-#if CADET_SUNDIALS_IFACE == 2
-	int nIter = 0;
-	int nPrecondSolve = 0;
-	double resNorm = -1.0;
-	const int flag = SpgmrSolve(_mem, this, NV_sol, NV_rhs,
-			PREC_NONE, gsType, tolerance, _maxRestarts, NULL,
-			NV_weight, NV_weight, &gmresCallback, NULL, 
-			&resNorm, &nIter, &nPrecondSolve);
-#elif CADET_SUNDIALS_IFACE == 3
-	SUNSPGMRSetGSType(_linearSolver, gsType);
-	SUNSPGMRSetMaxRestarts(_linearSolver, _maxRestarts);
+
+	SUNLinSol_SPGMRSetGSType(_linearSolver, gsType);
+	SUNLinSol_SPGMRSetMaxRestarts(_linearSolver, _maxRestarts);
 	SUNLinSolSetScalingVectors(_linearSolver, NV_weight, NV_weight);
 	SUNLinSolSetup(_linearSolver, nullptr);
 	const int flag = SUNLinSolSolve(_linearSolver, nullptr, NV_sol, NV_rhs, tolerance);
@@ -130,7 +110,6 @@ int Gmres::solve(double tolerance, double const* weight, double const* rhs, doub
 #if defined(CADET_DEBUG) || defined(CADET_BENCHMARK_MODE)
 	const int nIter = SUNLinSolNumIters(_linearSolver);
 	const double resNorm = SUNLinSolResNorm(_linearSolver);
-#endif
 #endif
 
 	// Free NVector memory space
@@ -141,31 +120,6 @@ int Gmres::solve(double tolerance, double const* weight, double const* rhs, doub
 	return flag;
 }
 
-#if CADET_SUNDIALS_IFACE == 2
-	const char* Gmres::getReturnFlagName(int flag) const CADET_NOEXCEPT
-	{
-		switch (flag)
-		{
-		case  0: return "SPGMR_SUCCESS";            // Converged
-		case  1: return "SPGMR_RES_REDUCED";        // Did not converge, but reduced
-													// norm of residual
-
-		case  2: return "SPGMR_CONV_FAIL";          // Failed to converge
-		case  3: return "SPGMR_QRFACT_FAIL";        // QRfact found singular matrix
-		case  4: return "SPGMR_PSOLVE_FAIL_REC";    // psolve failed recoverably
-		case  5: return "SPGMR_ATIMES_FAIL_REC";    // atimes failed recoverably
-		case  6: return "SPGMR_PSET_FAIL_REC";      // pset faild recoverably
-
-		case -1: return "SPGMR_MEM_NULL";           // mem argument is NULL
-		case -2: return "SPGMR_ATIMES_FAIL_UNREC";  // atimes returned failure flag
-		case -3: return "SPGMR_PSOLVE_FAIL_UNREC";  // psolve failed unrecoverably
-		case -4: return "SPGMR_GS_FAIL";            // Gram-Schmidt routine faiuled
-		case -5: return "SPGMR_QRSOL_FAIL";         // QRsol found singular R
-		case -6: return "SPGMR_PSET_FAIL_UNREC";    // pset failed unrecoverably
-		default: return "NO_VALID_FLAG";
-		}
-	}
-#elif CADET_SUNDIALS_IFACE == 3
 	const char* Gmres::getReturnFlagName(int flag) const CADET_NOEXCEPT
 	{
 		switch (flag)
@@ -194,7 +148,6 @@ int Gmres::solve(double tolerance, double const* weight, double const* rhs, doub
 		default: return "NO_VALID_FLAG";
 		}
 	}
-#endif
 
 }  // namespace linalg
 

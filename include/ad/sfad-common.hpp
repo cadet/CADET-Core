@@ -94,9 +94,31 @@ namespace sfad
 {
 	namespace detail
 	{
+		/**
+		 * @brief Number of AD directions that are currently in use
+		 * @details Every active type carries a fixed size gradient array of SFAD_DEFAULT_DIR entries, but
+		 *          only the first globalGradSize entries of it are ever touched. In particular, constructing
+		 *          or assigning an active from a plain value zeroes exactly the range [0, globalGradSize);
+		 *          the remaining entries keep whatever the allocator handed back.
+		 *
+		 *          This yields the construct-before-grow invariant: an active must be constructed (and
+		 *          assigned) while globalGradSize is at least as large as the number of directions that
+		 *          will later be read from it. Shrinking globalGradSize afterwards is safe, growing it is
+		 *          not: every active that already exists then exposes uninitialized memory in the newly
+		 *          added directions. Set the direction count to its final (or maximum) value before
+		 *          building anything that holds actives, e.g. before configuring a model whose parameters
+		 *          are actives.
+		 */
 		extern std::size_t globalGradSize;
 	}
 
+	/**
+	 * @brief Sets the number of AD directions that are in use
+	 * @details Growing the number of directions does not retroactively initialize actives that already
+	 *          exist. See detail::globalGradSize for the construct-before-grow invariant.
+	 *
+	 * @param [in] n Number of AD directions, at most SFAD_DEFAULT_DIR
+	 */
 	inline void setGradientSize(const std::size_t n) SFAD_NOEXCEPT
 	{
 		detail::globalGradSize = n;
