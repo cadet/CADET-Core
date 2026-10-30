@@ -1241,17 +1241,24 @@ void ColumnModel2D::consistentInitialSensitivity(const SimulationTime& simTime, 
 
 			for (unsigned int pblk = 0; pblk < _disc.axNPoints * _disc.radNPoints; ++pblk)
 			{
-				// Reuse memory of sparse matrix for dense matrix
-				linalg::DenseMatrixView jacobianMatrix(_globalJacDisc.valuePtr() + _globalJacDisc.outerIndexPtr()[idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ static_cast<unsigned int>(pblk) }) - idxr.offsetC()], nullptr, mask.len, mask.len);
-
 				// Get workspace memory
 				LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
 				BufferedArray<double> rhsBuffer = tlmAlloc.array<double>(probSize);
 				double* const rhs = static_cast<double*>(rhsBuffer);
 
-				BufferedArray<double> rhsUnmaskedBuffer = tlmAlloc.array<double>(idxr.strideParBound(parType));
+				// The product below is formed over the full particle block, so the buffer receiving it
+				// has to hold that many entries
+				BufferedArray<double> rhsUnmaskedBuffer = tlmAlloc.array<double>(idxr.strideParBlock(parType));
 				double* const rhsUnmasked = static_cast<double*>(rhsUnmaskedBuffer);
+
+				// factorize() stores the pivots of the LU decomposition, so the matrix needs an array for
+				// them. Its dimension is the number of active (quasi-stationary) states, which is what
+				// copyMatrixSubset() writes below, not the full length of the mask.
+				BufferedArray<lapackInt_t> pivotBuffer = tlmAlloc.array<lapackInt_t>(probSize);
+
+				// Reuse memory of sparse matrix for dense matrix
+				linalg::DenseMatrixView jacobianMatrix(_globalJacDisc.valuePtr() + _globalJacDisc.outerIndexPtr()[idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ static_cast<unsigned int>(pblk) }) - idxr.offsetC()], static_cast<lapackInt_t*>(pivotBuffer), probSize, probSize);
 
 				double* const maskedMultiplier = _tempState + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ static_cast<unsigned int>(pblk) });
 				double* const scaleFactors = _tempState + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ static_cast<unsigned int>(pblk) });
