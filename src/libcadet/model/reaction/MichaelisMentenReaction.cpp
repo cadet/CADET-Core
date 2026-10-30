@@ -25,6 +25,7 @@
 #include <cmath>
 #include <unordered_map>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 /*<codegen>
@@ -386,7 +387,10 @@ protected:
                 if (p->exponent.size() != 0)
                 {
                     const typename DoubleActiveDemoter<flux_t, ParamType>::type exponent = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->exponent[kmmIdx]);
-                    numerator = pow(y[j], exponent);
+                    if constexpr (std::is_same_v<ParamType, active>)
+                        numerator = (y[j] == 0.0) ? flux_t(0.0) : pow(y[j], exponent);
+                    else
+                        numerator = pow(y[j], exponent);
                     denominator = (pow(kMM_j, exponent) * (1.0 + compInhSum)) + numerator * (1.0 + uncompInhSum);
                 }
                 
