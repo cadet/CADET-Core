@@ -146,8 +146,8 @@ add_feature_info(ENABLE_CADETTEST_LOGGING ENABLE_CADETTEST_LOGGING "Enables logg
 option(ENABLE_IPO "Enable interprocedural optimization if compiler supports it" ${DEFAULT_IPO_ENABLED})
 add_feature_info(ENABLE_IPO ENABLE_IPO "Enable interprocedural optimization if compiler supports it")
 
-option(ENABLE_ASAN "Enable address sanitizer (clang and gcc)" OFF)
-add_feature_info(ENABLE_ASAN ENABLE_ASAN "Enable address sanitizer (clang and gcc)")
+option(ENABLE_ASAN "Enable address sanitizer (clang, gcc and MSVC; turn ENABLE_IPO off alongside it)" OFF)
+add_feature_info(ENABLE_ASAN ENABLE_ASAN "Enable address sanitizer (clang, gcc and MSVC; turn ENABLE_IPO off alongside it)")
 
 option(ENABLE_UBSAN "Enable undefined behavior sanitizer (clang and gcc)" OFF)
 add_feature_info(ENABLE_UBSAN ENABLE_UBSAN "Enable undefined behavior sanitizer (clang and gcc)")
@@ -566,6 +566,11 @@ endif()
 if (ENABLE_ASAN)
 	target_compile_options(CADET::CompileOptions INTERFACE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:-fsanitize=address>)
 	target_link_options(CADET::CompileOptions INTERFACE $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:-fsanitize=address>)
+
+	# MSVC ships its own AddressSanitizer, which rejects incremental linking. The default linker
+	# flags of the Debug and RelWithDebInfo configurations ask for it, so turn it off again here.
+	target_compile_options(CADET::CompileOptions INTERFACE $<$<CXX_COMPILER_ID:MSVC>:/fsanitize=address>)
+	target_link_options(CADET::CompileOptions INTERFACE $<$<CXX_COMPILER_ID:MSVC>:/INCREMENTAL:NO>)
 endif()
 
 if (ENABLE_UBSAN)
