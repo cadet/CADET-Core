@@ -6,7 +6,7 @@ Simulation
 This chapter gives an overview of the simulation process and the different steps involved.
 
 CADET uses a backward-differentiation-formula (BDF) time discretization as implemented by the IDAS solver from SUNDIALS :cite:`Hindmarsh2005`.
-Each time step requires the solution of a nonlinear algebraic system of equations is performed by a Newton method.
+Each time step requires the solution of a nonlinear algebraic system of equations, which is performed by a Newton method.
 Since chromatographic systems can exhibit strong nonlinearity and stiff systems, the Jacobian of the equation system is always updated (i.e., an “exact” Newton method is used).
 
 .. _SimFlowchart:
@@ -88,11 +88,11 @@ The general DAE can be decomposed into
    	    G_{\mathcal{I}_a}(t, y, p) &= 0,
     \end{aligned}
 
-where :math:`M` is the so called “mass matrix”, which essentially consist of the state time derivative Jacobian :math:`\partial F / \partial \dot{y}`.
+where :math:`M` is the so called “mass matrix”, which essentially consists of the state time derivative Jacobian :math:`\partial F / \partial \dot{y}`.
 Furthermore, it is assumed that the Jacobian of the algebraic equations with respect to the algebraic variables :math:`\partial G_{\mathcal{I}_a} / \partial y_{\mathcal{I}_a}` is invertible.
 Hence, the original DAE is of differential index 1.
 
-Given :math:`y_{\mathcal{I}_d}`, consistently initialization means finding :math:`y_{\mathcal{I}_a}`, :math:`y_{\mathcal{I}_d}`, and :math:`\dot{y}` such that the DAE holds at the initial time point :math:`t_0` and can be solved for some non-empty time span.
+Given :math:`y_{\mathcal{I}_d}`, consistent initialization means finding :math:`y_{\mathcal{I}_a}`, :math:`y_{\mathcal{I}_d}`, and :math:`\dot{y}` such that the DAE holds at the initial time point :math:`t_0` and can be solved for some non-empty time span.
 Thus, consistent initial conditions :math:`y_0` and :math:`\dot{y}_0` satisfy
 
 .. math::
@@ -169,7 +169,7 @@ The error test may be failed at most ``MAX_ERRTEST_FAIL`` times before time inte
 
 Error bounds for the local truncation error test are specified by an absolute tolerance (``ABSTOL``) and a relative tolerance (``RELTOL``).
 Note that the relative tolerance only works for non-zero values, whereas zero values are accounted for by the absolute tolerance.
-For example, a relative tolerance of :math:`10^{-4}` and absolute tolerance of :math:`10^{-8}` requests :math:`3` significant digits (correct digits after the comma in scientific notation) and considers all numbers with magnitude smaller than :math:`10^{-8}` as :math:`0`.
+For example, a relative tolerance of :math:`10^{-4}` and absolute tolerance of :math:`10^{-8}` requests :math:`3` significant digits (correct digits after the decimal point in scientific notation) and considers all numbers with magnitude smaller than :math:`10^{-8}` as :math:`0`.
 
 The size of the first time step in a time slice is given by ``INIT_STEP_SIZE`` from Table :ref:`FFSolverTime`.
 If a simulation fails on the first time step, it might help to reduce the initial step size.
@@ -206,7 +206,7 @@ These linear DAEs depend on the solution :math:`y`, :math:`\dot{y}` of the origi
 Consequently, the sensitivity systems are solved together with the original DAE system in a staggered approach :cite:`Feehery1997`.
 
 After the nonlinear Eq. :eq:`BDFNonlinSystem` has been successfully solved using Newton iteration (i.e., it has passed the convergence test), each sensitivity is solved using the same Newton iteration.
-If direct linear solvers were used, this iteration would convergence with a single iteration as there is no nonlinearity.
+If direct linear solvers were used, this iteration would converge within a single iteration as there is no nonlinearity.
 The Newton method for the sensitivities performs at most ``MAX_NEWTON_ITER_SENS`` (see Table :ref:`FFSolverTime`) iterations.
 Assuming the convergence test has passed for each sensitivity, the local truncation error test is performed for the full set of variables (i.e., original system and sensitivities).
 The sensitivities can be excluded from the local truncation error test by setting ``ERRORTEST_SENS`` appropriately.

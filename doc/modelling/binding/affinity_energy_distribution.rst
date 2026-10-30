@@ -1,7 +1,7 @@
 .. _affinity_energy_distribution:
 
-Affinity Energy Distribuition
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Affinity Energy Distribution
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Unlike the multi component Langmuir model and the multi component Bi-Langmuir model that presume a fixed number of discrete binding sites, the affinity energy distribution (AED) model considers a continuous distribution of binding site types on a heterogeneous surface on the energy space :math:`\ln(K_{eq}) \in \mathbb{R}^{>0}` (see e.g. :cite:`Guiochon2006`). 
 Assuming a single component system, the AED isotherm reads :cite:`Guiochon2006`: 
@@ -23,7 +23,7 @@ In general, the kernel can be chosen as any isotherm model that governs the adso
 
 meaning that each binding site is governed by a Langmuir isotherm model. 
 
-When solving the AED model in a unit operation, the integral is disretized on an equidistant logarithmic grid between :math:`\ln(K_{min})` and :math:`\ln(K_{max})` to give:
+When solving the AED model in a unit operation, the integral is discretized on an equidistant logarithmic grid between :math:`\ln(K_{min})` and :math:`\ln(K_{max})` to give:
  
  .. math::
 
@@ -31,7 +31,7 @@ When solving the AED model in a unit operation, the integral is disretized on an
         q(c) = \sum_{i=1}^{N_k} F(\ln(K_{eq, i})) \theta (K_{eq,i}, c) \Delta \ln(K_{eq}), 
     \end{aligned}
 
-where :math:`K_{min}` is the mimimum binding equilibrium constant, :math:`K_{max}` is the maximum binding equilibrium constant, :math:`N_k` is the total number of of nodes (sites) and :math:`\Delta \ln(K_{eq})` is the distance between two nodes. 
+where :math:`K_{min}` is the minimum binding equilibrium constant, :math:`K_{max}` is the maximum binding equilibrium constant, :math:`N_k` is the total number of nodes (sites) and :math:`\Delta \ln(K_{eq})` is the distance between two nodes. 
 Hence 
 
  .. math::
@@ -40,7 +40,7 @@ Hence
         F(\ln(K_{eq, i})) \Delta \ln(K_{eq}) = q_{\text{max}, i}, 
     \end{aligned}
 
-where :math:`q_{max, i}` is the binding capacity for the :math:`i^{\text{th}}` binding site. Inserting the Langmuir kernel, the above equation is equivilent to:
+where :math:`q_{max, i}` is the binding capacity for the :math:`i^{\text{th}}` binding site. Inserting the Langmuir kernel, the above equation is equivalent to:
 
  .. math::
 
@@ -56,7 +56,7 @@ indicating that the overall bound concentration :math:`q` is the summation of th
         \frac{\mathrm{d} q_i}{\mathrm{d} t} &=  k_{a,i}\: c \: q_{\text{max}, i} \left( 1 - \frac{q_i}{ q_{\text{max}, i} } \right) - k_{d, i} q_{i} & i = 0, \dots, N_k - 1.
     \end{aligned}
 
-The above discretized AED isotherm model is equivilent to the :ref:`multi_component_bi_langmuir_model` with a single component and :math:`N_k` binding sites. Therefore, the AED isotherm model is not registered in CADET as a standalone isotherm model and the :ref:`multi_component_bi_langmuir_model` is used instead. 
+The above discretized AED isotherm model is equivalent to the :ref:`multi_component_bi_langmuir_model` with a single component and :math:`N_k` binding sites. Therefore, the AED isotherm model is not registered in CADET as a standalone isotherm model and the :ref:`multi_component_bi_langmuir_model` is used instead. 
 Please refer to :ref:`multi_component_bi_langmuir_config` for information on the configuration of the CADET file format.
 
 We emphasize that while the Multi-component Bi-langmuir isotherm implementation in CADET allows multiple components, the AED isotherm is originally derived and used for a single-component system.

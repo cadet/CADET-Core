@@ -3,7 +3,7 @@
 Multi Component Colloidal
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_COLLOIDAL**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_COLLOIDAL**
 
 
 ``IS_KINETIC``
@@ -72,14 +72,14 @@ Multi Component Colloidal
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** NTOTALBND
 ===================  =========================  =========================================
 
-``COL_LOGKEQ_SALT_POWFAC``
+``COL_LOGKEQ_SALT_POWFACT``
    Protein-resin interaction :math:`K_{e,i}` equilibrium: Constant exponent :math:`k_{b,i}` for salt power
 
 ===================  =========================  =========================================
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** NTOTALBND
 ===================  =========================  =========================================
 
-``COL_LOGKEQ_SALT_EXPFAC``
+``COL_LOGKEQ_SALT_EXPFACT``
    Protein-resin interaction :math:`K_{e,i}` equilibrium: Constant pre-factor :math:`k_{c,i}` for e-function with salt power
 
 ===================  =========================  =========================================
@@ -108,7 +108,7 @@ Multi Component Colloidal
 **Type:** double     **Range:** :math:`\ge 0`   **Length:** NTOTALBND
 ===================  =========================  =========================================
 
-``COL_BPP_SALT_POWEX``
+``COL_BPP_SALT_POWEXP``
    Protein-protein interaction :math:`b_{pp,i}`: Constant power :math:`b_{b,i}` for salt
 
 ===================  =========================  =========================================

@@ -61,7 +61,8 @@ bool BindingModelBase::configureModelDiscretization(IParameterProvider& paramPro
 		else
 		{
 			// Copy what we need (ignore excess values)
-			std::copy_n(vecKin.begin(), _reactionQuasistationarity.size(), _reactionQuasistationarity.begin());
+			for (std::size_t i = 0; i < _reactionQuasistationarity.size(); ++i)
+				_reactionQuasistationarity[i] = !static_cast<bool>(vecKin[i]);
 		}
 	}
 	else
@@ -89,7 +90,7 @@ void BindingModelBase::fillBoundPhaseInitialParameters(ParameterId* params, Unit
 	for (int c = 0; c < _nComp; ++c)
 	{
 		for (unsigned int bp = 0; bp < _nBoundStates[c]; ++bp, ++ctr)
-			params[ctr] = makeParamId(hashString("INIT_Q"), unitOpIdx, c, parTypeIdx, bp, ReactionIndep, SectionIndep);
+			params[ctr] = makeParamId(hashString("INIT_CS"), unitOpIdx, c, parTypeIdx, bp, ReactionIndep, SectionIndep);
 	}
 }
 

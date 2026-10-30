@@ -38,9 +38,17 @@ Group /output/solution
    Time points at which the solution is written if :math:`\texttt{WRITE_SOLUTION_TIMES}` in :math:`\texttt{/input/return}` is enabled
 
    **Unit:** :math:`\mathrm{s}`
-   
+
    **Type:** double
-   
+
+``SOLUTION_TIMES_UNIT_STATE``
+
+   Time points at which the unit state solutions are written. Only present if :math:`\texttt{USER_SOLUTION_TIMES_UNIT_STATE}` in :math:`\texttt{/input/solver}` is given
+
+   **Unit:** :math:`\mathrm{s}`
+
+   **Type:** double
+
 
 Group /output/solution/unit_XXX
 -------------------------------
@@ -544,8 +552,8 @@ Group /output/sensitivity/param_XXX/unit_YYY
    **Type:** double 
    
 
-/output/coordinates/unit_XXX
-------------------------------
+Group /output/coordinates/unit_XXX
+----------------------------------
 
 ``AXIAL_COORDINATES``
 
@@ -553,9 +561,9 @@ Group /output/sensitivity/param_XXX/unit_YYY
 
    **Unit:** :math:`\mathrm{m}`
    
-   ================  =================================
-   **Type:** double  **Length:** :math:`\texttt{NCOL}`
-   ================  =================================
+   ================  ============================================================================================================
+   **Type:** double  **Length:** :math:`\texttt{NCOL}` (FV) / :math:`(\texttt{POLYDEG} + 1) \cdot \texttt{NELEM}` (DG)
+   ================  ============================================================================================================
    
 ``RADIAL_COORDINATES``
 
@@ -573,6 +581,6 @@ Group /output/sensitivity/param_XXX/unit_YYY
 
    **Unit:** :math:`\mathrm{m}`
    
-   ================  =================================
-   **Type:** double  **Length:** :math:`\texttt{NPAR}`
-   ================  =================================
+   ================  ====================================================================================================================
+   **Type:** double  **Length:** :math:`\texttt{NCELLS}` (FV) / :math:`(\texttt{PAR_POLYDEG} + 1) \cdot \texttt{PAR_NELEM}` (DG)
+   ================  ====================================================================================================================

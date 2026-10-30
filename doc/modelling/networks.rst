@@ -139,7 +139,7 @@ Before a unit is solved, its inlet is calculated from the outlets of the previou
 This means, the system is solved from system inlets to system outlets.
 
 The parallel method works regardless of the network topology (i.e., cycles in the graph), but requires to solve each unit operation at least twice.
-The sequential method solvs each unit exactly once, but is restricted to acyclic networks and works best for small graphs.
+The sequential method solves each unit exactly once, but is restricted to acyclic networks and works best for small graphs.
 By default, CADET uses a heuristic to select an appropriate solution method.
 This default can be overridden by a flag (see Table :ref:`FFModelSolver`).
 

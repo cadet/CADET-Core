@@ -32,11 +32,13 @@
 #include "UnitOperationTests.hpp"
 #include "LoggingUtils.hpp"
 #include "../include/io/hdf5/HDF5Reader.hpp"
+#include "../include/io/hdf5/HDF5Writer.hpp"
 #include "common/ParameterProviderImpl.hpp"
 
 #include <cmath>
 #include <functional>
 #include <cstdint>
+#include <cstdio>
 
 /**
  * @brief Returns the absolute path to the test/ folder of the project
@@ -95,7 +97,8 @@ namespace
 		virtual void clear() { }
 		virtual void prepare(unsigned int numDofs, unsigned int numSens, unsigned int numTimesteps) { }
 		virtual void notifyIntegrationStart(unsigned int numDofs, unsigned int numSens, unsigned int numTimesteps) { }
-		virtual void beginTimestep(double t) { }
+		virtual void beginTimestep(double t, bool writeUnitState = true) { }
+		virtual void integratorMetaData(const cadet::IDASMeta& idasMeta) {}
 		virtual void beginUnitOperation(cadet::UnitOpIdx idx, const cadet::IModel& model, const cadet::ISolutionExporter& exporter) { }
 		virtual void endUnitOperation() { }
 		virtual void endTimestep() { }
@@ -135,107 +138,6 @@ namespace test
 
 namespace column
 {
-
-	void FVparams::setDisc(JsonParameterProvider& jpp, const std::string unitID) const {
-
-		int level = 0;
-
-		if (jpp.exists("model"))
-		{
-			jpp.pushScope("model");
-			++level;
-		}
-		if (jpp.exists("unit_" + unitID))
-		{
-			jpp.pushScope("unit_" + unitID);
-			++level;
-		}
-
-		std::string unitType = jpp.getString("UNIT_TYPE");
-
-		jpp.pushScope("discretization");
-		jpp.set("SPATIAL_METHOD", "FV");
-
-		if (nAxCells)
-			jpp.set("NCOL", nAxCells);
-
-		if (nParCells)
-			jpp.set("NPAR", nParCells);
-
-		if (nRadCells)
-		{
-			if (unitType == "MULTI_CHANNEL_TRANSPORT")
-			{
-				jpp.popScope();
-				jpp.set("NCHANNEL", nRadCells);
-				jpp.pushScope("discretization");
-			}
-			else
-				jpp.set("NRAD", nRadCells);
-		}
-
-		if (jpp.exists("weno"))
-		{
-			jpp.pushScope("weno");
-			if (wenoOrder)
-				jpp.set("WENO_ORDER", wenoOrder);
-
-			jpp.popScope();
-		}
-		jpp.popScope();
-
-		for (int l = 0; l < level; ++l)
-			jpp.popScope();
-	}
-
-	void DGparams::setDisc(JsonParameterProvider& jpp, const std::string unitID) const {
-
-		int level = 0;
-
-		if (jpp.exists("model"))
-		{
-			jpp.pushScope("model");
-			++level;
-		}
-		if (jpp.exists("unit_" + unitID))
-		{
-			jpp.pushScope("unit_" + unitID);
-			++level;
-		}
-
-		jpp.pushScope("discretization");
-		jpp.set("SPATIAL_METHOD", "DG");
-
-		if (radPolyDeg)
-		{
-			jpp.set("RAD_POLYDEG", radPolyDeg);
-			if (radNelem)
-				jpp.set("RAD_NELEM", radNelem);
-			if (polyDeg)
-				jpp.set("AX_POLYDEG", polyDeg);
-			if (nElem)
-				jpp.set("AX_NELEM", nElem);
-		}
-		else
-		{
-			if (exactIntegration > -1)
-				jpp.set("EXACT_INTEGRATION", exactIntegration);
-			if (polyDeg)
-				jpp.set("POLYDEG", polyDeg);
-			if (nElem)
-				jpp.set("NELEM", nElem);
-		}
-		if (parNelem)
-			jpp.set("PAR_NELEM", parNelem);
-		if (parPolyDeg)
-			jpp.set("PAR_POLYDEG", parPolyDeg);
-
-		jpp.popScope();
-
-		for (int l = 0; l < level; ++l)
-			jpp.popScope();
-	}
-
 	/**
 	 * @brief Reads reference chromatograms from a test data file
 	 * @details The file format is as follows:
@@ -250,7 +152,7 @@ namespace column
 		ReferenceDataReader(const char* fileName) : _f(nullptr)
 		{
 			_f = std::fopen(fileName, "rb");
-			std::fread(&_numElements, 4, 1, _f);
+			(void) !std::fread(&_numElements, 4, 1, _f);
 		}
 
 		~ReferenceDataReader()
@@ -262,7 +164,7 @@ namespace column
 		{
 			std::vector<double> v(_numElements, 0.0);
 			std::fseek(_f, 4, SEEK_SET);
-			std::fread(v.data(), 8, _numElements, _f);
+			(void) !std::fread(v.data(), 8, _numElements, _f);
 			return v;
 		}
 
@@ -270,7 +172,7 @@ namespace column
 		{
 			std::vector<double> v(_numElements, 0.0);
 			std::fseek(_f, 4 + _numElements * 8, SEEK_SET);
-			std::fread(v.data(), 8, _numElements, _f);
+			(void) !std::fread(v.data(), 8, _numElements, _f);
 			return v;
 		}
 
@@ -278,7 +180,7 @@ namespace column
 		{
 			std::vector<double> v(_numElements, 0.0);
 			std::fseek(_f, 4 + 2 * _numElements * 8, SEEK_SET);
-			std::fread(v.data(), 8, _numElements, _f);
+			(void) !std::fread(v.data(), 8, _numElements, _f);
 			return v;
 		}
 
@@ -357,7 +259,7 @@ namespace column
 
 		jpp.pushScope("discretization");
 
-		jpp.set("NPAR", static_cast<int>(nPar));
+		jpp.set("NCELLS", static_cast<int>(nPar));
 
 		jpp.popScope();
 
@@ -424,7 +326,23 @@ namespace column
 			jpp.popScope();
 	}
 
-	// todo make copy optional for all variables
+	/**
+	 * @brief Translates particle discretization types read from a reference file to valid PAR_DISC_TYPE values
+	 * @details Older reference files store EQUIDISTANT_PAR, which CADET-Core never recognized and which was hence
+	 *          simulated with the default EQUIDISTANT discretization. Unknown values are rejected by now.
+	 * @param [in] parDiscTypes PAR_DISC_TYPE values of the reference file
+	 * @return Valid PAR_DISC_TYPE values
+	 */
+	std::vector<std::string> validParDiscTypes(std::vector<std::string> parDiscTypes)
+	{
+		for (std::string& pdt : parDiscTypes)
+		{
+			if (pdt == "EQUIDISTANT_PAR")
+				pdt = "EQUIDISTANT";
+		}
+		return parDiscTypes;
+	}
+
 	void setNumericalMethod(cadet::IParameterProvider& pp, nlohmann::json& setupJson, const std::string unitID, const bool copy = false)
 	{
 		// copy over numerical methods from reference file. Note that we leave out spatial and time step resolution parameters
@@ -440,43 +358,98 @@ namespace column
 
 		pp.pushScope("unit_" + unitID);
 
-		if (pp.getString("UNIT_TYPE") != "CSTR") // check for units that dont have a spatial discretization
+		if (pp.getString("UNIT_TYPE") != "OUTLET")
 		{
-			pp.pushScope("discretization");
-			nlohmann::json discretization = setupJson["model"]["unit_" + unitID]["discretization"];
-			discretization["USE_ANALYTIC_JACOBIAN"] = 1;
-
-			if (pp.exists("NBOUND"))
-				discretization["NBOUND"] = pp.getIntArray("NBOUND"); // note: in the future this might be included somewhere else in the setup as its part of the model
-			if (pp.exists("RECONSTRUCTION"))
-				discretization["RECONSTRUCTION"] = pp.getString("RECONSTRUCTION");
-			if (pp.exists("GS_TYPE"))
-				discretization["GS_TYPE"] = pp.getInt("GS_TYPE");
-			if (pp.exists("MAX_KRYLOV"))
-				discretization["MAX_KRYLOV"] = pp.getInt("MAX_KRYLOV");
-			if (pp.exists("MAX_RESTARTS"))
-				discretization["MAX_RESTARTS"] = pp.getInt("MAX_RESTARTS");
-			if (pp.exists("SCHUR_SAFETY"))
-				discretization["SCHUR_SAFETY"] = pp.getDouble("SCHUR_SAFETY");
-			if (pp.exists("PAR_DISC_TYPE"))
-				discretization["PAR_DISC_TYPE"] = pp.getStringArray("PAR_DISC_TYPE");
-			if (pp.exists("PAR_GEOM")) // note: in the future this might be included somewhere else in the setup as its part of the model
-				discretization["PAR_GEOM"] = pp.getStringArray("PAR_GEOM");
-			if (pp.exists("weno"))
+			// new interface for generalized 1D unit but reference file is with old unit
+			if (setupJson["model"]["unit_" + unitID]["UNIT_TYPE"] == "COLUMN_MODEL_1D" && pp.getString("UNIT_TYPE") != "COLUMN_MODEL_1D")
 			{
-				pp.pushScope("weno");
-				nlohmann::json weno;
-				weno["WENO_ORDER"] = pp.getInt("WENO_ORDER");
-				weno["WENO_EPS"] = pp.getDouble("WENO_EPS");
-				weno["BOUNDARY_MODEL"] = pp.getInt("BOUNDARY_MODEL");
-				discretization["weno"] = weno;
+				const int nParType = pp.exists("NPARTYPE") ? pp.getInt("NPARTYPE") : 1;
+
+				pp.pushScope("discretization");
+
+				for (int parType = 0; parType < nParType; parType++)
+				{
+					std::ostringstream parTypeIdxString;
+					parTypeIdxString << std::setfill('0') << std::setw(3) << std::setprecision(0) << parType;
+
+					nlohmann::json discPar = setupJson["model"]["unit_" + unitID]["particle_type_" + parTypeIdxString.str()]["discretization"];
+
+					if (pp.exists("PAR_DISC_TYPE"))
+						discPar["PAR_DISC_TYPE"] = validParDiscTypes(pp.getStringArray("PAR_DISC_TYPE"))[pp.getStringArray("PAR_DISC_TYPE").size() == 1 ? 0 : parType];
+
+					setupJson["model"]["unit_" + unitID]["particle_type_" + parTypeIdxString.str()]["discretization"] = discPar;
+				}
+
+				nlohmann::json discretization = setupJson["model"]["unit_" + unitID]["discretization"];
+				discretization["USE_ANALYTIC_JACOBIAN"] = 1;
+
+				if (pp.exists("RECONSTRUCTION"))
+					discretization["RECONSTRUCTION"] = pp.getString("RECONSTRUCTION");
+				if (pp.exists("GS_TYPE"))
+					discretization["GS_TYPE"] = pp.getInt("GS_TYPE");
+				if (pp.exists("MAX_KRYLOV"))
+					discretization["MAX_KRYLOV"] = pp.getInt("MAX_KRYLOV");
+				if (pp.exists("MAX_RESTARTS"))
+					discretization["MAX_RESTARTS"] = pp.getInt("MAX_RESTARTS");
+				if (pp.exists("SCHUR_SAFETY"))
+					discretization["SCHUR_SAFETY"] = pp.getDouble("SCHUR_SAFETY");
+				if (pp.exists("PAR_DISC_TYPE"))
+					discretization["PAR_DISC_TYPE"] = validParDiscTypes(pp.getStringArray("PAR_DISC_TYPE"));
+				if (pp.exists("weno"))
+				{
+					pp.pushScope("weno");
+					nlohmann::json weno;
+					weno["WENO_ORDER"] = pp.getInt("WENO_ORDER");
+					weno["WENO_EPS"] = pp.getDouble("WENO_EPS");
+					weno["BOUNDARY_MODEL"] = pp.getInt("BOUNDARY_MODEL");
+					discretization["weno"] = weno;
+					pp.popScope();
+				}
+				setupJson["model"]["unit_" + unitID]["discretization"] = discretization;
 				pp.popScope();
 			}
-			setupJson["model"]["unit_" + unitID]["discretization"] = discretization;
-			pp.popScope();
+			else
+			{
+				if (pp.getString("UNIT_TYPE") != "CSTR") // check for units that dont have a spatial discretization
+				{
+					pp.pushScope("discretization");
+					nlohmann::json discretization = setupJson["model"]["unit_" + unitID]["discretization"];
+					discretization["USE_ANALYTIC_JACOBIAN"] = 1;
+
+					if (pp.exists("NBOUND"))
+						discretization["NBOUND"] = pp.getIntArray("NBOUND"); // note: in the future this might be included somewhere else in the setup as its part of the model
+					if (pp.exists("RECONSTRUCTION"))
+						discretization["RECONSTRUCTION"] = pp.getString("RECONSTRUCTION");
+					if (pp.exists("GS_TYPE"))
+						discretization["GS_TYPE"] = pp.getInt("GS_TYPE");
+					if (pp.exists("MAX_KRYLOV"))
+						discretization["MAX_KRYLOV"] = pp.getInt("MAX_KRYLOV");
+					if (pp.exists("MAX_RESTARTS"))
+						discretization["MAX_RESTARTS"] = pp.getInt("MAX_RESTARTS");
+					if (pp.exists("SCHUR_SAFETY"))
+						discretization["SCHUR_SAFETY"] = pp.getDouble("SCHUR_SAFETY");
+					if (pp.exists("PAR_DISC_TYPE"))
+						discretization["PAR_DISC_TYPE"] = validParDiscTypes(pp.getStringArray("PAR_DISC_TYPE"));
+					if (pp.exists("PAR_GEOM")) // note: in the future this might be included somewhere else in the setup as its part of the model
+						discretization["PAR_GEOM"] = pp.getStringArray("PAR_GEOM");
+					if (pp.exists("weno"))
+					{
+						pp.pushScope("weno");
+						nlohmann::json weno;
+						weno["WENO_ORDER"] = pp.getInt("WENO_ORDER");
+						weno["WENO_EPS"] = pp.getDouble("WENO_EPS");
+						weno["BOUNDARY_MODEL"] = pp.getInt("BOUNDARY_MODEL");
+						discretization["weno"] = weno;
+						pp.popScope();
+					}
+					setupJson["model"]["unit_" + unitID]["discretization"] = discretization;
+					pp.popScope();
+				}
+			}
 		}
-		pp.popScope();
-		pp.popScope();
+
+		pp.popScope(); // unit scope
+		pp.popScope(); // model scope
 
 		pp.pushScope("solver");
 		if (pp.exists("CONSISTENT_INIT_MODE"))
@@ -491,16 +464,18 @@ namespace column
 		timeIntegrator["RELTOL"] = copy ? pp.getDouble("RELTOL") : 1e-6;
 		timeIntegrator["INIT_STEP_SIZE"] = copy ? pp.getDouble("INIT_STEP_SIZE") : 1e-10;
 		timeIntegrator["MAX_STEPS"] = copy ? pp.getInt("MAX_STEPS") : 1000000;
+		if(pp.exists("USE_MODIFIED_NEWTON") && copy)
+			timeIntegrator["USE_MODIFIED_NEWTON"] = pp.getBool("USE_MODIFIED_NEWTON");
 		pp.popScope();
 		setupJson["solver"]["time_integrator"] = timeIntegrator;
 		pp.popScope();
 	}
 
-	void copySensitivities(cadet::IParameterProvider& pp, nlohmann::json& setupJson, const std::string unitID)
+	int copySensitivities(cadet::IParameterProvider& pp, nlohmann::json& setupJson, const std::string unitID)
 	{
 		// copy over sensitivity settings
 		if (!pp.exists("sensitivity"))
-			return;
+			return 0;
 
 		pp.pushScope("sensitivity");
 		nlohmann::json sens;
@@ -516,6 +491,10 @@ namespace column
 			pp.pushScope(sensParam);
 			nlohmann::json sens_param;
 			sens_param["SENS_NAME"] = pp.getString("SENS_NAME");
+			if (sens_param["SENS_NAME"] == "PAR_DIFFUSION")
+				sens_param["SENS_NAME"] = "PORE_DIFFUSION";
+			else if (sens_param["SENS_NAME"] == "PAR_SURFDIFFUSION")
+				sens_param["SENS_NAME"] = "SURFACE_DIFFUSION";
 			sens_param["SENS_COMP"] = pp.getInt("SENS_COMP");
 			sens_param["SENS_BOUNDPHASE"] = pp.getInt("SENS_BOUNDPHASE");
 			sens_param["SENS_PARTYPE"] = pp.getInt("SENS_PARTYPE");
@@ -528,6 +507,8 @@ namespace column
 
 		pp.popScope();
 		setupJson["sensitivity"] = sens;
+
+		return sens["NSENS"];
 	}
 
 	void copyMultiplexData(cadet::IParameterProvider& pp, nlohmann::json& setupJson, const std::string unitID)
@@ -535,20 +516,20 @@ namespace column
 		pp.pushScope("model");
 		pp.pushScope("unit_"+unitID);
 
+		if (pp.exists("COL_DISPERSION_MULTIPLEX"))
+			setupJson["model"]["unit_" + unitID]["COL_DISPERSION_MULTIPLEX"] = pp.getInt("COL_DISPERSION_MULTIPLEX");
+
 		if (pp.exists("FILM_DIFFUSION_MULTIPLEX"))
 			setupJson["model"]["unit_" + unitID]["FILM_DIFFUSION_MULTIPLEX"] = pp.getInt("FILM_DIFFUSION_MULTIPLEX");
 
 		if (pp.exists("ADSORPTION_MODEL_MULTIPLEX"))
 			setupJson["model"]["unit_" + unitID]["ADSORPTION_MODEL_MULTIPLEX"] = pp.getInt("ADSORPTION_MODEL_MULTIPLEX");
 
-		if (pp.exists("COL_DISPERSION_MULTIPLEX"))
-			setupJson["model"]["unit_" + unitID]["COL_DISPERSION_MULTIPLEX"] = pp.getInt("COL_DISPERSION_MULTIPLEX");
+		if (pp.exists("PORE_DIFFUSION_MULTIPLEX"))
+			setupJson["model"]["unit_" + unitID]["PORE_DIFFUSION_MULTIPLEX"] = pp.getInt("PORE_DIFFUSION_MULTIPLEX");
 
-		if (pp.exists("PAR_DIFFUSION_MULTIPLEX"))
-			setupJson["model"]["unit_" + unitID]["PAR_DIFFUSION_MULTIPLEX"] = pp.getInt("PAR_DIFFUSION_MULTIPLEX");
-
-		if (pp.exists("PAR_SURFDIFFUSION_MULTIPLEX"))
-			setupJson["model"]["unit_" + unitID]["PAR_SURFDIFFUSION_MULTIPLEX"] = pp.getInt("PAR_SURFDIFFUSION_MULTIPLEX");
+		if (pp.exists("SURFACE_DIFFUSION_MULTIPLEX"))
+			setupJson["model"]["unit_" + unitID]["SURFACE_DIFFUSION_MULTIPLEX"] = pp.getInt("SURFACE_DIFFUSION_MULTIPLEX");
 
 		if (pp.exists("PORE_ACCESSIBILITY_MULTIPLEX"))
 			setupJson["model"]["unit_" + unitID]["PORE_ACCESSIBILITY_MULTIPLEX"] = pp.getInt("PORE_ACCESSIBILITY_MULTIPLEX");
@@ -635,7 +616,7 @@ namespace column
 			++level;
 		}
 
-		jpp.set("VELOCITY", -jpp.getDouble("VELOCITY"));
+		jpp.set("FORWARD_FLOW", static_cast<int>(!jpp.getBool("FORWARD_FLOW")));
 
 		for (int l = 0; l < level; ++l)
 			jpp.popScope();
@@ -666,15 +647,10 @@ namespace column
 		// Assume a volumetric flow rate of 1.0 m^3/s
 		jpp.set("CROSS_SECTION_AREA", 1.0 / (vel * por));
 
-		if (dir == 0)
-			jpp.remove("VELOCITY");
+		if (dir > 0)
+			jpp.set("FORWARD_FLOW", 1);
 		else
-		{
-			if (dir > 0)
-				jpp.set("VELOCITY", 1.0);
-			else
-				jpp.set("VELOCITY", -1.0);
-		}
+			jpp.set("FORWARD_FLOW", 0);
 
 		for (int l = 0; l < level; ++l)
 			jpp.popScope();
@@ -722,7 +698,38 @@ namespace column
 		}
 	}
 
-	void testForwardBackward(const char* uoType, FVparams disc, double absTol, double relTol)
+	void testEqualResults(cadet::JsonParameterProvider jpp1, cadet::JsonParameterProvider jpp2, double absTol, double relTol, int unitID)
+	{
+		cadet::Driver drv1;
+		drv1.configure(jpp1);
+		drv1.run();
+
+		cadet::Driver drv2;
+		drv2.configure(jpp2);
+		drv2.run();
+
+		cadet::InternalStorageUnitOpRecorder const* const test1Data = drv1.solution()->unitOperation(unitID);
+		cadet::InternalStorageUnitOpRecorder const* const test2Data = drv2.solution()->unitOperation(unitID);
+
+		double const* test1Inlet = test1Data->inlet();
+		double const* test1Outlet = test1Data->outlet();
+		double const* test2Inlet = test2Data->inlet();
+		double const* test2Outlet = test2Data->outlet();
+
+		const unsigned int nComp = test1Data->numComponents();
+		for (unsigned int i = 0; i < test1Data->numDataPoints() * test1Data->numInletPorts() * nComp; ++i, ++test1Inlet, ++test1Outlet, ++test2Inlet, ++test2Outlet)
+		{
+			// Forward flow inlet = backward flow outlet
+			CAPTURE(i);
+			CHECK((*test1Inlet) == makeApprox(*test2Inlet, relTol, absTol));
+
+			// Forward flow outlet = backward flow inlet
+			CAPTURE(i);
+			CHECK((*test1Outlet) == makeApprox(*test2Outlet, relTol, absTol));
+		}
+	}
+
+	void testForwardBackward(const char* uoType, FVParams disc, double absTol, double relTol)
 	{
 		SECTION("Forward vs backward flow (WENO=" + std::to_string(disc.getWenoOrder()) + ")")
 		{
@@ -734,13 +741,42 @@ namespace column
 		}
 	}
 
-	void testForwardBackward(const char* uoType, DGparams disc, double absTol, double relTol)
+	void testForwardBackward(const char* uoType, DGParams disc, double absTol, double relTol)
 	{
 		SECTION("Forward vs backward flow (DG integration mode " + std::to_string(disc.getIntegrationMode()) + ")")
 		{
 			// Use Load-Wash-Elution test case
 			cadet::JsonParameterProvider jpp = createLWE(uoType, "DG");
 			disc.setDisc(jpp);
+
+			if (static_cast<std::string>(uoType).substr(0, 7) == "FRUSTUM")
+			{
+				jpp.pushScope("model");
+				jpp.pushScope("unit_000");
+				jpp.set("CROSS_SECTION_AREA_SMALL_END", jpp.getDouble("CROSS_SECTION_AREA_LARGE_END"));
+				jpp.popScope();
+				jpp.popScope();
+			}
+			else if (static_cast<std::string>(uoType).substr(0, 6) == "RADIAL")
+			{
+				// Forward and backward flow only match when the cross-sectional area is (nearly)
+				// constant along the flow path. The default LWE geometry yields different results
+				// for fowd and bwd flow, so we override the geometry here.
+				jpp.pushScope("model");
+				jpp.pushScope("unit_000");
+				const double pi = 3.14159265358979323846;
+				const double bedLength = 0.01; // same radial extent as the default geometry
+				const double rInner = 1000.0; // large compared to bedLength -> area varies only slightly
+				const double rOuter = rInner + bedLength;
+				const double area = jpp.getDouble("CROSS_SECTION_AREA_OUTER"); // keep the same area/velocity scale as the default geometry
+				const double height = area / (2.0 * pi * rInner);
+				jpp.set("CYLINDER_HEIGHT", height);
+				jpp.set("BED_LENGTH", bedLength);
+				jpp.set("CROSS_SECTION_AREA_INNER", 2.0 * pi * rInner * height); // optional, only used as a double-check
+				jpp.set("CROSS_SECTION_AREA_OUTER", 2.0 * pi * rOuter * height);
+				jpp.popScope();
+				jpp.popScope();
+			}
 
 			testForwardBackward(jpp, absTol, relTol);
 		}
@@ -790,12 +826,12 @@ namespace column
 		}
 	}
 
-	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, FVparams& disc, double absTol, double relTol)
+	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, FVParams& disc, double absTol, double relTol)
 	{
 		testAnalyticBenchmark(uoType, refFileRelPath, forwardFlow, dynamicBinding, disc, "FV", absTol, relTol);
 	}
 
-	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, DGparams& disc, double absTol, double relTol)
+	void testAnalyticBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, bool dynamicBinding, DGParams& disc, double absTol, double relTol)
 	{
 		testAnalyticBenchmark(uoType, refFileRelPath, forwardFlow, dynamicBinding, disc, "DG", absTol, relTol);
 	}
@@ -836,18 +872,115 @@ namespace column
 		}
 	}
 
-	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, FVparams& disc, double absTol, double relTol)
+	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, FVParams& disc, double absTol, double relTol)
 	{
 		testAnalyticNonBindingBenchmark(uoType, refFileRelPath, forwardFlow, disc, "FV", absTol, relTol);
 	}
 
-	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, DGparams& disc, double absTol, double relTol)
+	void testAnalyticNonBindingBenchmark(const char* uoType, const char* refFileRelPath, bool forwardFlow, DGParams& disc, double absTol, double relTol)
 	{
 		testAnalyticNonBindingBenchmark(uoType, refFileRelPath, forwardFlow, disc, "DG", absTol, relTol);
 	}
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern, const double absTolAD, const active* flowRate)
+	/**
+	 * @brief Determines a flow rate that gives the configured column a representative velocity
+	 * @details The flow through area of the column test models spans several orders of magnitude:
+	 *          the load-wash-elution models use the area of a 1 cm column, whereas the linear
+	 *          benchmark models carry a large area so that a flow rate of one reproduces the
+	 *          velocity they were originally set up with. A single flow rate would therefore run
+	 *          one of them far below the dispersive transport, which is why the flow rate is
+	 *          derived from the geometry at hand instead.
+	 * @param [in] jpp Unit operation configuration
+	 * @return Volumetric flow rate, or a non-positive value if the geometry could not be read
+	 */
+	double representativeFlowRate(cadet::JsonParameterProvider& jpp)
+	{
+		const double velocity = 5.75e-4; //!< Interstitial velocity to aim for
+
+		int level = 0;
+		if (jpp.exists("model"))
+		{
+			jpp.pushScope("model");
+			++level;
+		}
+		if (jpp.exists("unit_000"))
+		{
+			jpp.pushScope("unit_000");
+			++level;
+		}
+
+		// The inlet of the radial flow cylinder shell is its outer shell, the inlet of the frustum
+		// is its large end
+		double area = -1.0;
+		for (const std::string field : { "CROSS_SECTION_AREA", "CROSS_SECTION_AREA_OUTER", "CROSS_SECTION_AREA_LARGE_END" })
+		{
+			if (jpp.exists(field) && !jpp.isArray(field))
+			{
+				area = jpp.getDouble(field);
+				break;
+			}
+		}
+
+		// The lumped rate model without pores runs its transport on the total porosity, every
+		// other column on the interstitial one. The two only differ by a factor here, which does
+		// not matter for putting the convection term on a scale that the transport actually sees.
+		double porosity = 1.0;
+		for (const std::string field : { "COL_POROSITY", "TOTAL_POROSITY" })
+		{
+			if (jpp.exists(field) && !jpp.isArray(field))
+			{
+				porosity = jpp.getDouble(field);
+				break;
+			}
+		}
+
+		for (int l = 0; l < level; ++l)
+			jpp.popScope();
+
+		return (area > 0.0) ? velocity * area * porosity : -1.0;
+	}
+
+	/**
+	 * @brief Imposes a flow rate on a column unit operation under test
+	 * @details The interstitial velocity of a column unit operation is only ever set through
+	 *          setFlowRates(); there is no VELOCITY field in the unit operation configuration any
+	 *          more. A unit operation test that imposes no flow rate therefore runs at zero
+	 *          velocity and never exercises the convection term, which is why one is imposed here
+	 *          whenever the caller does not prescribe it. Unit operations with more than one inlet
+	 *          port (the 2D models and the multi channel transport model) need one flow rate per
+	 *          port and are left to their caller.
+	 * @param [in,out] unit Unit operation to impose the flow rate on
+	 * @param [in] jpp Configuration of @p unit, used to derive a flow rate if none is given
+	 * @param [in] flowRate Flow rate prescribed by the caller, one entry per inlet port, or empty
+	 */
+	void imposeFlowRate(cadet::IUnitOperation* unit, cadet::JsonParameterProvider& jpp, const std::vector<double>& flowRate)
+	{
+		std::vector<double> rates = flowRate;
+		if (rates.empty())
+		{
+			const double derived = representativeFlowRate(jpp);
+			if ((unit->numInletPorts() != 1u) || (derived <= 0.0))
+				return;
+
+			rates.push_back(derived);
+		}
+
+		// setFlowRates() reads one entry per inlet port. A caller may hand over more than that:
+		// test2DColumnJacobian() reads the flow rates of the reference file once and then runs the
+		// same unit with fewer radial elements, and hence fewer ports, than the file prescribes.
+		REQUIRE(rates.size() >= unit->numInletPorts());
+
+		// The actives are created here and not by the caller so that they are fresh after the
+		// number of AD directions has been set, which keeps all of their gradient slots zero
+		std::vector<cadet::active> adRates(rates.size());
+		for (std::size_t i = 0; i < rates.size(); ++i)
+			adRates[i] = rates[i];
+
+		unit->setFlowRates(adRates.data(), adRates.data());
+	}
+
+	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern, const double absTolAD, const std::vector<double> flowRate)
 	{
 		cadet::ad::setDirections(cadet::ad::getMaxDirections()); // AD directions needed in createAndConfigureUnit but requiredADdirs not known before configureModelDiscretization (which is called in configureUnit)
 
@@ -860,10 +993,13 @@ namespace column
 
 		// Enable AD
 		REQUIRE(unitAD->requiredADdirs() <= cadet::ad::getMaxDirections());
-		cadet::ad::setDirections(unitAD->requiredADdirs());
 
+		// An active zeroes its gradient only over the currently set number of AD directions, and the count is
+		// raised to the maximum again below, so allocate these before lowering it.
 		cadet::active* adRes = new cadet::active[unitAD->numDofs()];
 		cadet::active* adY = new cadet::active[unitAD->numDofs()];
+
+		cadet::ad::setDirections(unitAD->requiredADdirs());
 
 		// Obtain memory for state, Jacobian multiply direction, Jacobian column
 		std::vector<double> y(unitAD->numDofs(), 0.0);
@@ -873,18 +1009,19 @@ namespace column
 
 		// Fill state vector with some values
 		util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unitAna->numDofs());
-//			util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
+		// util::populate(y.data(), [](unsigned int idx) { return 1.0; }, unitAna->numDofs());
 
 		// Setup matrices
-		const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
-		const AdJacobianParams adParams{adRes, adY, 0u};
+		const AdJacobianParams noAdParams{ nullptr, nullptr, 0u };
+		const AdJacobianParams adParams{ adRes, adY, 0u };
 		unitAD->prepareADvectors(adParams);
 
-		if (flowRate) //  for 2D units, velocity needs to be determined from flow rates
-		{
-			unitAna->setFlowRates(flowRate, flowRate);
-			unitAD->setFlowRates(flowRate, flowRate);
-		}
+		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
+		// Set velocity from flow rates after setDirections, see imposeFlowRate()
+		imposeFlowRate(unitAna, jpp, flowRate);
+		imposeFlowRate(unitAD, jpp, flowRate);
+
 		const ConstSimulationState simState{y.data(), nullptr};
 		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, simState, noAdParams);
 		unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, simState, adParams);
@@ -914,6 +1051,109 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
+	void testJacobianFD(cadet::JsonParameterProvider& jpp, const double h, const double absTol, const double relTol, const active* flowRate)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		cadet::IUnitOperation* const unit = unitoperation::createAndConfigureUnit(jpp, *mb);
+
+		// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		std::vector<double> y(unit->numDofs(), 0.0);
+		std::vector<double> jacDir(unit->numDofs(), 0.0);
+		std::vector<double> jacCol1(unit->numDofs(), 0.0);
+		std::vector<double> jacCol2(unit->numDofs(), 0.0);
+
+		// Fill state vector with some values
+		util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unit->numDofs());
+
+		// Setup matrices
+		const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
+
+		if (flowRate) //  for 2D units, velocity needs to be determined from flow rates
+			unit->setFlowRates(flowRate, flowRate);
+		else
+			imposeFlowRate(unit, jpp, {});
+
+		const ConstSimulationState simState{y.data(), nullptr};
+		unit->notifyDiscontinuousSectionTransition(0.0, 0u, simState, noAdParams);
+
+		// Compute state Jacobian
+		const SimulationTime simTime{0.0, 0u};
+		cadet::util::ThreadLocalStorage tls;
+		tls.resize(unit->threadLocalMemorySize());
+
+		unit->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams, tls);
+		std::fill(jacDir.begin(), jacDir.end(), 0.0);
+
+		cadet::test::compareJacobianFD(unit, unit, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls, h, absTol, relTol);
+
+		mb->destroyUnitOperation(unit);
+		destroyModelBuilder(mb);
+	}
+
+	void testJacobianDynamicFlowRate(cadet::JsonParameterProvider& jpp, const double flowRateFactor, const std::vector<double>& flowRate)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		// unitDyn enters the time section with the section flow rate and is set to the changed flow
+		// rate afterwards, unitRef enters the time section with the changed flow rate right away
+		cadet::IUnitOperation* const unitDyn = unitoperation::createAndConfigureUnit(jpp, *mb);
+		cadet::IUnitOperation* const unitRef = unitoperation::createAndConfigureUnit(jpp, *mb);
+
+		// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		std::vector<double> y(unitDyn->numDofs(), 0.0);
+		std::vector<double> jacDir(unitDyn->numDofs(), 0.0);
+		std::vector<double> jacCol1(unitDyn->numDofs(), 0.0);
+		std::vector<double> jacCol2(unitDyn->numDofs(), 0.0);
+
+		// Fill state vector with some values
+		util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unitDyn->numDofs());
+
+		const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
+		const ConstSimulationState simState{y.data(), nullptr};
+
+		// The flow rate of the section, either the one given or the one imposeFlowRate() derives
+		std::vector<double> sectionFlowRate = flowRate;
+		if (sectionFlowRate.empty())
+		{
+			REQUIRE(unitDyn->numInletPorts() == 1u);
+			sectionFlowRate.push_back(representativeFlowRate(jpp));
+			REQUIRE(sectionFlowRate[0] > 0.0);
+		}
+
+		std::vector<double> changedFlowRate(sectionFlowRate.size());
+		for (std::size_t i = 0; i < sectionFlowRate.size(); ++i)
+			changedFlowRate[i] = sectionFlowRate[i] * flowRateFactor;
+
+		// Enter the time section, in the order ModelSystem uses
+		imposeFlowRate(unitDyn, jpp, sectionFlowRate);
+		unitDyn->notifyDiscontinuousSectionTransition(0.0, 0u, simState, noAdParams);
+
+		// A dynamic flow rate changes the velocity within the time section: setFlowRates() is called
+		// again before the residual, without a section transition in between
+		imposeFlowRate(unitDyn, jpp, changedFlowRate);
+
+		imposeFlowRate(unitRef, jpp, changedFlowRate);
+		unitRef->notifyDiscontinuousSectionTransition(0.0, 0u, simState, noAdParams);
+
+		// Compute state Jacobians
+		const SimulationTime simTime{0.0, 0u};
+		cadet::util::ThreadLocalStorage tls;
+		tls.resize(unitDyn->threadLocalMemorySize());
+
+		unitDyn->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams, tls);
+		unitRef->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams, tls);
+		std::fill(jacDir.begin(), jacDir.end(), 0.0);
+
+		cadet::test::compareJacobian(unitDyn, unitRef, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
+
+		mb->destroyUnitOperation(unitDyn);
+		mb->destroyUnitOperation(unitRef);
+		destroyModelBuilder(mb);
+	}
+
 	void testJacobianForwardBackward(cadet::JsonParameterProvider& jpp, const double absTolFDpattern)
 	{
 		// Enable AD
@@ -923,11 +1163,16 @@ namespace column
 		REQUIRE(nullptr != mb);
 
 		// Use some test case parameters
-		const unsigned int nComp = jpp.getInt("NCOMP");
+//		const unsigned int nComp = jpp.getInt("NCOMP");
 
 		cadet::IUnitOperation* const unitAna = unitoperation::createAndConfigureUnit(jpp, *mb);
 		cadet::IUnitOperation* const unitAD = unitoperation::createAndConfigureUnit(jpp, *mb);
 		unitAD->useAnalyticJacobian(false);
+
+		// Seeding writes one AD direction per required direction. An active only has room for
+		// getMaxDirections() of them, so without this check the seeding below runs off the end of its
+		// gradient array. Simulations get the same check from the Simulator.
+		REQUIRE(unitAD->requiredADdirs() <= cadet::ad::getMaxDirections());
 
 		cadet::active* adRes = new cadet::active[unitAD->numDofs()];
 		cadet::active* adY = new cadet::active[unitAD->numDofs()];
@@ -946,6 +1191,9 @@ namespace column
 		const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
 		const AdJacobianParams adParams{adRes, adY, 0u};
 		unitAD->prepareADvectors(adParams);
+
+		imposeFlowRate(unitAna, jpp, {});
+		imposeFlowRate(unitAD, jpp, {});
 
 		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
 		unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, adParams);
@@ -968,24 +1216,9 @@ namespace column
 			cadet::test::compareJacobian(unitAna, unitAD, nullptr, nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 //				cadet::test::compareJacobianFD(unitAna, unitAD, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
 
-			if (jpp.getString("UNIT_TYPE").substr(0, 6) == "RADIAL")
-				{
-					// Reverse flow
-					const bool paramSet = unitAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY_COEFF"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY_COEFF"));
-					REQUIRE(paramSet);
-					// Reverse flow
-					const bool paramSet2 = unitAD->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY_COEFF"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY_COEFF"));
-					REQUIRE(paramSet2);
-				}
-			else
-			{
-				// Reverse flow
-				const bool paramSet = unitAna->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
-				REQUIRE(paramSet);
-				// Reverse flow
-				const bool paramSet2 = unitAD->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
-				REQUIRE(paramSet2);
-			}
+				reverseFlow(jpp);
+				REQUIRE(unitAna->configure(jpp));
+				REQUIRE(unitAD->configure(jpp));
 
 			// Setup
 			unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
@@ -1012,7 +1245,7 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testJacobianForwardBackward(const char* uoType, FVparams disc, const double absTolFDpattern)
+	void testJacobianForwardBackward(const char* uoType, FVParams disc, const double absTolFDpattern)
 	{
 		SECTION("Forward vs backward flow Jacobian (WENO=" + std::to_string(disc.getWenoOrder()) + ")")
 		{
@@ -1024,7 +1257,7 @@ namespace column
 		}
 	}
 
-	void testJacobianForwardBackward(const char* uoType, DGparams disc, const double absTolFDpattern)
+	void testJacobianForwardBackward(const char* uoType, DGParams disc, const double absTolFDpattern)
 	{
 		SECTION("Forward vs backward flow Jacobian (DG integration mode " + std::to_string(disc.getIntegrationMode()) + ")")
 		{
@@ -1045,10 +1278,10 @@ namespace column
 		{
 			// Use some test case parameters
 			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
-			const unsigned int nComp = jpp.getInt("NCOMP");
+//			const unsigned int nComp = jpp.getInt("NCOMP");
 
-			FVparams disc;
-			disc.setWenoOrder(wenoOrder);
+			FVParams disc;
+			disc.setBulkDiscParam("WENO_ORDER", static_cast<int>(wenoOrder));
 			cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp, disc);
 
 			// Obtain memory for state, Jacobian multiply direction, Jacobian column
@@ -1063,6 +1296,7 @@ namespace column
 
 			// Setup matrices
 			const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
+			imposeFlowRate(unit, jpp, {});
 			unit->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
 
 			SECTION("Forward then backward flow (nonzero state)")
@@ -1080,9 +1314,8 @@ namespace column
 				cadet::test::checkJacobianPatternFD(unit, unit, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls);
 				cadet::test::compareJacobianFD(unit, unit, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls, h, absTol, relTol);
 
-				// Reverse flow
-				const bool paramSet = unit->setParameter(cadet::makeParamId(cadet::hashString("VELOCITY"), 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), -jpp.getDouble("VELOCITY"));
-				REQUIRE(paramSet);
+				reverseFlow(jpp);
+				REQUIRE(unit->configure(jpp));
 
 				// Setup
 				unit->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
@@ -1168,10 +1401,11 @@ namespace column
 		{
 			auto ms = util::makeOptionalGroupScope(jpp, "model");
 			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
+			auto ps = util::makeOptionalGroupScope(jpp, "particle_type_000");
 
-			jpp.set("PAR_SURFDIFFUSION_DEP", "LIQUID_SALT_EXPONENTIAL");
-			jpp.set("PAR_SURFDIFFUSION_EXPFACTOR", std::vector<double>{ 0.8, 1.6 });
-			jpp.set("PAR_SURFDIFFUSION_EXPARGMULT", std::vector<double>{ 1.3, 2.1 });
+			jpp.set("SURFACE_DIFFUSION_DEP", "LIQUID_SALT_EXPONENTIAL");
+			jpp.set("SURFACE_DIFFUSION_EXPFACTOR", std::vector<double>{ 0.8, 1.6 });
+			jpp.set("SURFACE_DIFFUSION_EXPARGMULT", std::vector<double>{ 1.3, 2.1 });
 		}
 
 		testArrowHeadJacobianFD(jpp, h, absTol, relTol);
@@ -1184,13 +1418,122 @@ namespace column
 		{
 			auto ms = util::makeOptionalGroupScope(jpp, "model");
 			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
+			auto ps = util::makeOptionalGroupScope(jpp, "particle_type_000");
 
-			jpp.set("PAR_SURFDIFFUSION_DEP", "LIQUID_SALT_EXPONENTIAL");
-			jpp.set("PAR_SURFDIFFUSION_EXPFACTOR", std::vector<double>{ 0.8, 1.6 });
-			jpp.set("PAR_SURFDIFFUSION_EXPARGMULT", std::vector<double>{ 1.3, 2.1 });
+			jpp.set("SURFACE_DIFFUSION_DEP", "LIQUID_SALT_EXPONENTIAL");
+			jpp.set("SURFACE_DIFFUSION_EXPFACTOR", std::vector<double>{ 0.8, 1.6 });
+			jpp.set("SURFACE_DIFFUSION_EXPARGMULT", std::vector<double>{ 1.3, 2.1 });
 		}
 
-		testJacobianAD(jpp);
+		testJacobianAD(jpp, 1e-14);
+	}
+
+	void testJacobianADVariableFilmDiff(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding)
+	{
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
+		setBindingMode(jpp, dynamicBinding);
+		{
+			auto ms = util::makeOptionalGroupScope(jpp, "model");
+			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
+
+			// VELOCITY_COEFF is no longer a JSON input field (velocity is now derived from
+			// CROSS_SECTION_AREA*). Deliberately chosen well away from the model's actual
+			// interstitial velocity (unlike the historical 5.75e-4, which happened to coincide
+			// with it): this is what exposes a residual/Jacobian (or bulk/particle) inconsistency
+			// in the FILM_DIFFUSION_DEP evaluation, since a calibration point that coincides with
+			// the actual velocity makes the dependence numerically a no-op and would silently hide
+			// such a bug (as it previously did for the bulk<->particle mismatch fixed alongside
+			// this test change; see GeneralRateParticle/ParticleDiffusionOperator{FV,DG}).
+			const double velocityCoeff = 5.75e-4 * 4.0;
+
+			auto ps = util::makeOptionalGroupScope(jpp, "particle_type_000");
+
+			const double filmDiff = jpp.getDoubleArray("FILM_DIFFUSION")[0];
+			const double fdDepExp = 1.0 / 3.0;
+			const double fdDepBase = filmDiff / std::pow(velocityCoeff, fdDepExp);
+
+			jpp.set("FILM_DIFFUSION_DEP_BASE", fdDepBase);
+			jpp.set("FILM_DIFFUSION_DEP_EXPONENT", fdDepExp);
+			jpp.set("FILM_DIFFUSION_DEP_ABS", true);
+		}
+
+		testJacobianAD(jpp, 1e-14);
+	}
+
+	void testJacobianADVariableColDispersionVanDeemter(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding)
+	{
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
+		setBindingMode(jpp, dynamicBinding);
+		{
+			auto ms = util::makeOptionalGroupScope(jpp, "model");
+			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
+
+			// A, B, C chosen to give an O(1) dependence factor H(v)*v/2 at this test
+			// model's representative velocity scale (~5.75e-4, see testJacobianADVariableFilmDiff
+			// above), so the resulting effective dispersion stays well-conditioned; the exact
+			// values are otherwise arbitrary for a Jacobian-correctness check.
+			jpp.set("COL_DISPERSION_DEP", "VAN_DEEMTER");
+			jpp.set("COL_DISPERSION_DEP_A", 100.0);
+			jpp.set("COL_DISPERSION_DEP_B", 0.5);
+			jpp.set("COL_DISPERSION_DEP_C", 100000.0);
+
+			if (spatialMethod == "DG")
+			{
+				// Required quadrature degree for the variable-dispersion integral whenever
+				// COL_DISPERSION_DEP is set with DG bulk discretization; matches the POLYDEG
+				// set for the bulk discretization by createColumnWithTwoCompLinearJson() above.
+				jpp.set("DISPERSION_SPATIAL_DEPENDENCE_POLYDEG", 3);
+			}
+		}
+
+		testJacobianAD(jpp, 1e-14);
+	}
+
+	void testJacobianADVariableColDispersionPowerLaw(const std::string& uoType, const std::string& spatialMethod, bool dynamicBinding, bool useCollocationDG)
+	{
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
+		setBindingMode(jpp, dynamicBinding);
+		{
+			auto ms = util::makeOptionalGroupScope(jpp, "model");
+			auto us = util::makeOptionalGroupScope(jpp, "unit_000");
+
+			if (useCollocationDG)
+			{
+				auto ds = util::makeOptionalGroupScope(jpp, "discretization");
+				jpp.set("USE_COLLOCATION_DG", 1);
+			}
+
+			// D(x) = COL_DISPERSION * |v(x)|, i.e. COL_DISPERSION acts as a dispersivity. Note that
+			// this dependence vanishes identically at zero velocity, so a nonzero flow rate has to be
+			// imposed below for this test to exercise anything at all.
+			// Rescale COL_DISPERSION by the representative interstitial velocity of this test model
+			// (see createColumnWithTwoCompLinearJson(): all three geometries are dimensioned for
+			// v ~ 5.75e-4 at the flow rate imposed below), so that the resulting effective dispersion
+			// stays at the same magnitude as the constant-dispersion default and hence contributes to
+			// the Jacobian at the same magnitude instead of being swamped by the other blocks.
+			const double baseDispersion = jpp.getDouble("COL_DISPERSION");
+			jpp.set("COL_DISPERSION", baseDispersion / 5.75e-4);
+			jpp.set("COL_DISPERSION_DEP", "POWER_LAW");
+			jpp.set("COL_DISPERSION_DEP_BASE", 1.0);
+			jpp.set("COL_DISPERSION_DEP_EXPONENT", 1.0);
+
+			if (spatialMethod == "DG")
+			{
+				// Required quadrature degree for the variable-dispersion integral whenever
+				// COL_DISPERSION_DEP is set with DG bulk discretization; matches the POLYDEG
+				// set for the bulk discretization by createColumnWithTwoCompLinearJson() above.
+				jpp.set("DISPERSION_SPATIAL_DEPENDENCE_POLYDEG", 3);
+			}
+		}
+
+		// Impose the flow rate the test models' geometry was dimensioned for (see
+		// createColumnWithTwoCompLinearJson()), so that the interstitial velocity -- and hence the
+		// velocity dependent dispersion coefficient -- is nonzero and, for the radial and frustum
+		// geometries, actually varies over the column (by a factor of ~4 here).
+		const double pi = 3.14159265358979323846;
+		const double flowRate = 5.75e-4 * (pi * 0.01 * 0.01) * 0.37;
+
+		testJacobianAD(jpp, 1e-14, std::numeric_limits<float>::epsilon() * 100.0, { flowRate });
 	}
 
 	void testArrowHeadJacobianFD(cadet::JsonParameterProvider& jpp, double h, double absTol, double relTol)
@@ -1219,6 +1562,8 @@ namespace column
 
 		// Setup matrices
 		const AdJacobianParams noParams{nullptr, nullptr, 0u};
+		imposeFlowRate(unitAna, jpp, {});
+		imposeFlowRate(unitFD, jpp, {});
 		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noParams);
 		unitFD->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noParams);
 
@@ -1238,7 +1583,7 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
-	void testFwdSensJacobians(cadet::JsonParameterProvider jpp, double h, double absTol, double relTol, const bool hasBinding)
+	void testFwdSensJacobians(cadet::JsonParameterProvider jpp, double h, double absTol, double relTol, const bool hasBinding, const std::vector<std::string>& sensParamNames)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
@@ -1258,8 +1603,18 @@ namespace column
 				const AdJacobianParams adParams{adRes, nullptr, 0};
 				unit->prepareADvectors(adParams);
 
-				// Add dispersion parameter sensitivity
-				REQUIRE(unit->setSensitiveParameter(makeParamId(hashString("COL_DISPERSION"), 0, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep), 0, 1.0));
+				// Add a parameter sensitivity. Different unit operations expose different parameters
+				// (e.g. not every geometry supports COL_DISPERSION sensitivities, and MultiChannelTransportModel
+				// has no porosity at all), so sensParamNames lets each caller pick a parameter that
+				// actually exists on its unit operation; the first matching name is used.
+				bool dispSens = false;
+				for (const std::string& sensParamName : sensParamNames)
+				{
+					dispSens = unit->setSensitiveParameter(makeParamId(hashStringRuntime(sensParamName), 0, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep), 0, 1.0);
+					if (dispSens)
+						break;
+				}
+				REQUIRE(dispSens);
 
 				// Obtain memory for state, Jacobian multiply direction, Jacobian column
 				const unsigned int nDof = unit->numDofs();
@@ -1403,7 +1758,7 @@ namespace column
 					unsigned int numPassed = 0;
 					for (unsigned int i = 0; i < nDataPoints; ++i, ++outlet, ++outletL, ++outletR)
 					{
-						const double cmpVal = *outlet;
+//						const double cmpVal = *outlet;
 						const double fdVal = ((*outletR) - (*outletL)) / actStepSize;
 						const unsigned int comp = (i % (nComp * nPorts)) % nComp;
 						const unsigned int port = (i % (nComp * nPorts)) / nComp;
@@ -1539,6 +1894,50 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
+	void testConsistentInitializationNonBindingComponent(const std::string& uoType, const std::string& spatialMethod, double consTol, double absTol, const int useAD)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		for (int adMode = 0; adMode < 2; ++adMode)
+		{
+			if ((adMode == 0 && useAD == 1) || (adMode == 1 && useAD == 0))
+				continue;
+			const bool adEnabled = (adMode > 0);
+			SECTION(std::string("Non-binding component with AD ") + (adEnabled ? "enabled" : "disabled"))
+			{
+				cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
+				cadet::test::setBindingMode(jpp, false);
+				{
+					auto ms = util::makeOptionalGroupScope(jpp, "model");
+					auto us = util::makeOptionalGroupScope(jpp, "unit_000");
+					auto ps = util::makeOptionalGroupScope(jpp, "particle_type_000");
+
+					jpp.set("NBOUND", std::vector<int>{ 0, 1 });
+					jpp.set("INIT_CS", std::vector<double>{ 6.0 });
+					jpp.set("SURFACE_DIFFUSION", std::vector<double>{ 5e-11 });
+
+					jpp.pushScope("adsorption");
+					jpp.set("LIN_KA", std::vector<double>{ 0.0, 35.5 });
+					jpp.set("LIN_KD", std::vector<double>{ 1.0, 1.0 });
+					jpp.popScope();
+				}
+
+				if (adEnabled)
+					cadet::ad::setDirections(cadet::ad::getMaxDirections());
+				cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp);
+
+				std::vector<double> y(unit->numDofs(), 0.0);
+				util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unit->numDofs());
+
+				unitoperation::testConsistentInitialization(unit, adEnabled, y.data(), consTol, absTol);
+
+				mb->destroyUnitOperation(unit);
+			}
+		}
+		destroyModelBuilder(mb);
+	}
+
 	void testConsistentInitializationSMABinding(const std::string& uoType, const std::string& spatialMethod, double const* const initState, double consTol, double absTol, const int reqBnd, const int useAD)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
@@ -1580,7 +1979,7 @@ namespace column
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);
 
-		for (int bindingMode = 0; bindingMode < 1; ++bindingMode)
+		for (int bindingMode = 0; bindingMode < 2; ++bindingMode)
 		{
 			if ((bindingMode == 0 && reqBnd == 1) || (bindingMode == 1 && reqBnd == 0))
 				continue;
@@ -1605,7 +2004,7 @@ namespace column
 					else
 						unit->setSensitiveParameter(cadet::makeParamId("SMA_NU", 0, 1, cadet::ParTypeIndep, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
 
-					unit->setSensitiveParameter(cadet::makeParamId("COL_LENGTH", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
+					unit->setSensitiveParameter(cadet::makeParamId("BED_LENGTH", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
 
 					REQUIRE(unit->numSensParams() == 3);
 					unitoperation::testConsistentInitializationSensitivity(unit, adEnabled, y, yDot, absTol);
@@ -1648,7 +2047,7 @@ namespace column
 		return pp_setup;
 	}
 
-	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const DiscParams& disc, const bool compare_sens, const int simDataStride)
+	void testReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const DiscParams& disc, const bool compareSens, const int simDataStride, const int outletDataStride, const int outletDataOffset)
 	{
 		const int unitOpID = std::stoi(unitID);
 
@@ -1673,16 +2072,17 @@ namespace column
 		setupJson[0]["solver"]["USER_SOLUTION_TIMES"] = pp_ref.getDoubleArray("USER_SOLUTION_TIMES");
 		pp_ref.popScope();
 
-		// copy multiplex data
+		// copy multiplex data, only for old interface. needs to be set for new particle interface with sensitivities anyways and is not overwritten by this here
 		copyMultiplexData(pp_ref, *setupJson, unitID);
 
 		// copy return data
 		copyReturnData(pp_ref, *setupJson, unitID);
 
 		// copy sensitivity setup
-		if (pp_ref.exists("sensitivity") && compare_sens)
-			copySensitivities(pp_ref, *setupJson, unitID);
-		
+		int nSens = 0;
+		if (pp_ref.exists("sensitivity") && compareSens)
+			nSens = copySensitivities(pp_ref, *setupJson, unitID);
+
 		pp_ref.popScope();
 		rd.closeFile();
 
@@ -1714,11 +2114,14 @@ namespace column
 		pp_ref.popScope();
 
 		// compare the simulation results with the reference data
-		for (unsigned int i = 0; i < ref_outlet.size(); ++i)
-			CHECK((sim_outlet[i * simDataStride]) == cadet::test::makeApprox(ref_outlet[i], relTol[0], absTol[0]));
+		for (unsigned int i = 0; i < ref_outlet.size() / outletDataStride; ++i)
+			CHECK((sim_outlet[i * simDataStride * outletDataStride + outletDataOffset]) == cadet::test::makeApprox(ref_outlet[i * outletDataStride + outletDataOffset], relTol[0], absTol[0]));
 
-		if (pp_ref.exists("sensitivity") && compare_sens)
+		if (pp_ref.exists("sensitivity") && compareSens)
 		{
+			if (nSens != absTol.size() - 1 || nSens != relTol.size() - 1)
+				throw std::out_of_range("Faulty sensitivity reference test setup: Size of abstol or reltol is not equal to NSENS + 1");
+
 			pp_ref.pushScope("sensitivity");
 
 			unsigned int sensID = 0;
@@ -1747,7 +2150,6 @@ namespace column
 		rd.closeFile();
 	}
 
-	// todo ? include L1 errors or parameterize error choice ?
 	void testEOCReferenceBenchmark(const std::string& modelFileRelPath, const std::string& refFileRelPath, const std::string& convFileRelPath, const std::string& unitID, const std::vector<double> absTol, const std::vector<double> relTol, const unsigned int nDisc, const DiscParams& startDisc, const bool compare_sens)
 	{
 		const int unitOpID = std::stoi(unitID);
@@ -1941,7 +2343,7 @@ namespace column
 		JsonParameterProvider pp_setup(JsonParameterProvider::fromFile(setupFile));
 
 		// adjust numerical parameters
-		nlohmann::json* setupJson = pp_setup.data();
+//		nlohmann::json* setupJson = pp_setup.data();
 
 		// run simulation
 		Driver drv;
@@ -1971,6 +2373,256 @@ namespace column
 			CHECK((sim_outlet[i]) == cadet::test::makeApprox(ref_outlet[j], relTol, absTol));
 
 		rd.closeFile();
+	}
+
+	void testOutputSplitComponentsData(const std::string& uoType, const std::string& spatialMethod)
+	{
+		cadet::JsonParameterProvider pp = createLWE(uoType, spatialMethod);
+		nlohmann::json& setupJson = *pp.data();
+
+		setupJson["solver"]["USER_SOLUTION_TIMES"] = { 0.0, 10.0, 20.0 };
+
+		// A forward sensitivity is required so that the SENS and SENSDOT output fields are produced
+		cadet::test::addSensitivity(pp, "COL_POROSITY", cadet::makeParamId("COL_POROSITY", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 1e-6);
+
+		// Model structure
+		const std::size_t nComp = setupJson["model"]["unit_000"]["NCOMP"].get<std::size_t>();
+		const std::size_t nCol = setupJson["model"]["unit_000"]["discretization"]["NCOL"].get<std::size_t>();
+		const std::size_t nPar = setupJson["model"]["unit_000"]["particle_type_000"]["discretization"]["NCELLS"].get<std::size_t>();
+		const auto& nbArr = setupJson["model"]["unit_000"]["particle_type_000"]["NBOUND"];
+		std::vector<unsigned int> nBoundPerComp(nComp);
+		std::size_t totalBound = 0;
+		for (std::size_t c = 0; c < nComp; ++c)
+		{
+			nBoundPerComp[c] = nbArr[c].get<unsigned int>();
+			totalBound += nBoundPerComp[c];
+		}
+		const std::size_t nTime = 3;
+
+		// Enable every output field from the return data interface, except volume (does not exist
+		// for this model) and the last state (component splitting does not apply to it)
+		const char* const cats[] = { "SOLUTION", "SOLDOT", "SENS", "SENSDOT" };
+		const char* const flds[] = { "INLET", "OUTLET", "BULK", "PARTICLE", "SOLID", "FLUX" };
+		for (const char* const cat : cats)
+			for (const char* const fld : flds)
+				setupJson["return"]["unit_000"][std::string("WRITE_") + cat + "_" + fld] = true;
+		setupJson["return"]["unit_000"]["WRITE_COORDINATES"] = true;
+		setupJson["return"]["WRITE_SOLUTION_TIMES"] = true;
+
+		auto pad3 = [](unsigned int v)
+		{
+			std::ostringstream o;
+			o << std::setfill('0') << std::setw(3) << v;
+			return o.str();
+		};
+
+		auto checkField = [](cadet::io::HDF5Reader& rd, const std::string& name, const std::vector<std::size_t>& expected)
+		{
+			INFO("dataset: " << name);
+			if (!rd.exists(name))
+			{
+				CHECK(rd.exists(name));
+				return;
+			}
+			CHECK(rd.tensorDimensions(name) == expected);
+		};
+
+		// Checks the six output fields of one data category (e.g. SOLUTION) in component-split layout
+		auto checkSplit = [&](cadet::io::HDF5Reader& rd, const std::string& p)
+		{
+			for (unsigned int c = 0; c < nComp; ++c)
+			{
+				const std::string cs = pad3(c);
+				checkField(rd, p + "_INLET_COMP_" + cs, { nTime });
+				checkField(rd, p + "_OUTLET_COMP_" + cs, { nTime });
+				checkField(rd, p + "_BULK_COMP_" + cs, { nTime, nCol });
+				checkField(rd, p + "_PARTICLE_COMP_" + cs, { nTime, nCol, nPar });
+				checkField(rd, p + "_FLUX_COMP_" + cs, { nTime, std::size_t(1), nCol });
+				for (unsigned int b = 0; b < nBoundPerComp[c]; ++b)
+					checkField(rd, p + "_SOLID_COMP_" + cs + "_BND_" + pad3(b), { nTime, nCol, nPar });
+			}
+
+			CHECK_FALSE(rd.exists(p + "_INLET"));
+			CHECK_FALSE(rd.exists(p + "_OUTLET"));
+			CHECK_FALSE(rd.exists(p + "_BULK"));
+			CHECK_FALSE(rd.exists(p + "_PARTICLE"));
+			CHECK_FALSE(rd.exists(p + "_SOLID"));
+			CHECK_FALSE(rd.exists(p + "_FLUX"));
+		};
+
+		// Checks the six output fields of one data category in joint (non-split) layout
+		auto checkJoint = [&](cadet::io::HDF5Reader& rd, const std::string& p)
+		{
+			checkField(rd, p + "_INLET", { nTime, nComp });
+			checkField(rd, p + "_OUTLET", { nTime, nComp });
+			checkField(rd, p + "_BULK", { nTime, nCol, nComp });
+			checkField(rd, p + "_PARTICLE", { nTime, nCol, nPar, nComp });
+			checkField(rd, p + "_SOLID", { nTime, nCol, nPar, totalBound });
+			checkField(rd, p + "_FLUX", { nTime, std::size_t(1), nCol, nComp });
+
+			CHECK_FALSE(rd.exists(p + "_INLET_COMP_000"));
+			CHECK_FALSE(rd.exists(p + "_OUTLET_COMP_000"));
+			CHECK_FALSE(rd.exists(p + "_BULK_COMP_000"));
+			CHECK_FALSE(rd.exists(p + "_PARTICLE_COMP_000"));
+			CHECK_FALSE(rd.exists(p + "_SOLID_COMP_000_BND_000"));
+			CHECK_FALSE(rd.exists(p + "_FLUX_COMP_000"));
+		};
+
+		auto runOnce = [&](bool split)
+		{
+			INFO("SPLIT_COMPONENTS_DATA = " << (split ? "true" : "false"));
+
+			setupJson["return"]["SPLIT_COMPONENTS_DATA"] = split;
+
+			cadet::Driver drv;
+			drv.configure(pp);
+			drv.run();
+
+			const std::string outFile = std::string(getTestDirectory()) + "/data/tmp_split_comp_" + (split ? "true" : "false") + ".h5";
+			{
+				cadet::io::HDF5Writer writer;
+				writer.openFile(outFile, "co");
+				drv.write(writer);
+				writer.closeFile();
+			}
+
+			cadet::io::HDF5Reader rd;
+			rd.openFile(outFile, "r");
+			rd.pushGroup("output");
+
+			// Coordinates are geometry information and not affected by component splitting
+			rd.pushGroup("coordinates");
+			rd.pushGroup("unit_000");
+			checkField(rd, "AXIAL_COORDINATES", { nCol });
+			checkField(rd, "PARTICLE_COORDINATES_000", { nPar });
+			rd.popGroup();
+			rd.popGroup();
+
+			// Solution and its time derivative
+			rd.pushGroup("solution");
+			rd.pushGroup("unit_000");
+			if (split)
+			{
+				checkSplit(rd, "SOLUTION");
+				checkSplit(rd, "SOLDOT");
+			}
+			else
+			{
+				checkJoint(rd, "SOLUTION");
+				checkJoint(rd, "SOLDOT");
+			}
+			rd.popGroup();
+			rd.popGroup();
+
+			// Sensitivities and their time derivatives
+			rd.pushGroup("sensitivity");
+			rd.pushGroup("param_000");
+			rd.pushGroup("unit_000");
+			if (split)
+			{
+				checkSplit(rd, "SENS");
+				checkSplit(rd, "SENSDOT");
+			}
+			else
+			{
+				checkJoint(rd, "SENS");
+				checkJoint(rd, "SENSDOT");
+			}
+			rd.popGroup();
+			rd.popGroup();
+			rd.popGroup();
+
+			rd.closeFile();
+			std::remove(outFile.c_str());
+		};
+
+		runOnce(true);
+		runOnce(false);
+	}
+
+	void testOutputIDASMetaData(const std::string& uoType, const std::string& spatialMethod)
+	{
+		cadet::JsonParameterProvider pp = createLWE(uoType, spatialMethod);
+		nlohmann::json& setupJson = *pp.data();
+
+		setupJson["return"]["WRITE_IDAS_META"] = 1;
+
+		cadet::Driver drv;
+		drv.configure(pp);
+		drv.run();
+
+		const std::string outFile = std::string(getTestDirectory()) + "/data/tmp_idasMeta.h5";
+		{
+			cadet::io::HDF5Writer writer;
+			writer.openFile(outFile, "co");
+			drv.write(writer);
+			writer.closeFile();
+		}
+
+		cadet::io::HDF5Reader rd;
+		rd.openFile(outFile, "r");
+
+		rd.pushGroup("meta");
+		CHECK(rd.exists("idas"));
+
+		if (rd.exists("idas"))
+		{
+			rd.pushGroup("idas");
+			CHECK(rd.exists("IDAS_NTIMESTEPS"));
+			CHECK(rd.exists("IDAS_NEXT_BDF_ORDER"));
+			CHECK(rd.exists("IDAS_NEXT_STEP_SIZE"));
+			CHECK(rd.exists("IDAS_NEXT_TIME_POINT"));
+			CHECK(rd.exists("IDAS_KUMULATIVE_NTIMESTEPS"));
+			CHECK(rd.exists("IDAS_N_RESIDUAL_CALLS"));
+			CHECK(rd.exists("IDAS_N_LINSOLVER_SETUP_CALLS"));
+			CHECK(rd.exists("IDAS_N_LOCAL_ERROR_TEST_FAILURES"));
+			CHECK(rd.exists("IDAS_BDF_ORDER"));
+			CHECK(rd.exists("IDAS_FIRST_INTEGRATION_STEP_SIZE"));
+			CHECK(rd.exists("IDAS_INTEGRATION_STEP_SIZE"));
+
+			rd.popGroup();
+		}
+
+		rd.popGroup();
+
+		// The HDF5Reader destructor does not close the file, so the handle would be leaked
+		rd.closeFile();
+	}
+
+	void testOutputUnitStateTimes(const std::string& uoType, const std::string& spatialMethod)
+	{
+		cadet::JsonParameterProvider pp = createLWE(uoType, spatialMethod);
+		nlohmann::json& setupJson = *pp.data();
+
+		// Use 5 solution times, with only 2 of them as unit-state times
+		const std::vector<double> solTimes = { 0.0, 100.0, 200.0, 300.0, 400.0 };
+		const std::vector<double> unitStateTimes = { 0.0, 200.0 };
+		setupJson["solver"]["USER_SOLUTION_TIMES"] = solTimes;
+		setupJson["solver"]["USER_SOLUTION_TIMES_UNIT_STATE"] = unitStateTimes;
+
+		// Enable outlet and bulk writing
+		setupJson["return"]["unit_000"]["WRITE_SOLUTION_OUTLET"] = true;
+		setupJson["return"]["unit_000"]["WRITE_SOLUTION_BULK"] = true;
+		setupJson["return"]["WRITE_SOLUTION_TIMES"] = true;
+
+		cadet::Driver drv;
+		drv.configure(pp);
+		drv.run();
+
+		const cadet::InternalStorageUnitOpRecorder* const rec = drv.solution()->unitOperation(0);
+		REQUIRE(rec != nullptr);
+
+		// Total time points (outlet) should match all solution times
+		CHECK(rec->numDataPoints() == solTimes.size());
+		// Unit-state time points (bulk) should match the subset
+		CHECK(rec->numDataPointsUnitState() == unitStateTimes.size());
+
+		// Solution time vectors
+		CHECK(drv.solution()->numDataPoints() == solTimes.size());
+		CHECK(drv.solution()->numDataPointsUnitState() == unitStateTimes.size());
+
+		CHECK(rec->outlet() != nullptr);
+		CHECK(rec->bulk() != nullptr);
 	}
 
 } // namespace column

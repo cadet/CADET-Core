@@ -18,6 +18,7 @@
 #include "Logging.hpp"
 
 #include "model/parts/BindingCellKernel.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "BindingModelTests.hpp"
 #include "ReactionModelTests.hpp"
@@ -34,6 +35,36 @@
 
 namespace
 {
+	/**
+	 * @brief A ReactionSystem that borrows its reaction models instead of owning them
+	 * @details cadet::model::ReactionSystem takes ownership of every reaction model added to it and
+	 *          deletes them in its destructor. In these tests the models are owned by a
+	 *          ConfiguredDynamicReactionModel, which deletes them as well, so handing the same pointer
+	 *          to a plain ReactionSystem frees it twice and corrupts the heap. Release the borrowed
+	 *          pointers before the ReactionSystem is destroyed, so each model is deleted exactly once.
+	 */
+	class BorrowedReactionSystem
+	{
+	public:
+		BorrowedReactionSystem() { }
+		~BorrowedReactionSystem() { _reactions.empty(); }
+
+		BorrowedReactionSystem(const BorrowedReactionSystem&) = delete;
+		BorrowedReactionSystem& operator=(const BorrowedReactionSystem&) = delete;
+
+		inline void addReactionModel(const std::string& phaseType, cadet::model::IDynamicReactionModel* reactionModel)
+		{
+			_reactions.addReactionModel(phaseType, reactionModel);
+		}
+
+		inline bool hasReactions() { return _reactions.hasReactions(); }
+
+		inline const cadet::model::ReactionSystem* get() const { return &_reactions; }
+
+	private:
+		cadet::model::ReactionSystem _reactions;
+	};
+
 	inline void recoverTimeDerivativeMatrixFromColumns(const std::function<void(double*, double*)>& multiplier, cadet::linalg::DenseMatrix& mat, double* vec, double* rhs)
 	{
 		std::fill_n(vec, mat.columns(), 0.0);
@@ -139,7 +170,7 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD", "[CellKernel],[J
 	std::vector<cadet::active> poreAccessFactor(nComp, 1.0);
 	const cadet::active porosity = 0.25;
 
-	const int qsReaction[] = {0, 1, 1, 1, 0, 
+	const int isKinetic[] = {0, 1, 1, 1, 0, 
 	                          1, 0, 0, 0, 1, 
 	                          1, 0, 1, 0, 1, 
 	                          1, 1, 1, 1, 1, 
@@ -149,10 +180,10 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD", "[CellKernel],[J
 	{
 		SECTION("Mode " + std::to_string(mode))
 		{
-			int const* const localQSreaction = qsReaction + nTotalBound * mode;
+			int const* const localIsKinetic = isKinetic + nTotalBound * mode;
 
 			cadet::test::binding::ConfiguredBindingModel cbm = cadet::test::binding::ConfiguredBindingModel::create(
-				"MULTISTATE_STERIC_MASS_ACTION", nComp, nBound, localQSreaction,
+				"MULTISTATE_STERIC_MASS_ACTION", nComp, nBound, localIsKinetic,
 				R"json({"MSSMA_KA": [0.0, 3.55, 1.59, 4.0, 5.0],
 	                    "MSSMA_KD": [0.0, 10.0, 10.0, 10.0, 10.0],
 	                    "MSSMA_NU": [0.0, 1.5, 2.0, 1.9, 2.3],
@@ -181,7 +212,7 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD", "[CellKernel],[J
 					nBound,
 					cbm.boundOffset(),
 					nTotalBound,
-					localQSreaction,
+					cbm.model().reactionQuasiStationarity(),
 					porosity,
 					poreAccessFactor.data(),
 					&cbm.model(),
@@ -198,7 +229,7 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD", "[CellKernel],[J
 				[=, &cbm](double const* fx, double* fy)
 				{
 					cadet::model::parts::cell::multiplyWithDerivativeJacobianKernel<true>(fx, fy, nComp,
-						nBound, cbm.boundOffset(), nTotalBound, localQSreaction, 1.0, 3.0);
+						nBound, cbm.boundOffset(), nTotalBound, cbm.model().reactionQuasiStationarity(), 1.0, 3.0);
 				},
 				yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof, 1e-7, 1e-14, 1e-4);
 		}
@@ -207,6 +238,11 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD", "[CellKernel],[J
 
 TEST_CASE("CellKernel Jacobian analytic vs AD", "[CellKernel],[Jacobian],[AD]")
 {
+	// Enable AD before any active is created below (porosity, pore access factors, and the binding
+	// model's parameters): an active only zeroes its gradient over the currently set number of
+	// directions (see the construct-before-grow invariant in sfad-common.hpp).
+	cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
 	const double relTol = 1e-13;
 	const double absTol = 1e-10;
 	const unsigned int nComp = 5;
@@ -216,7 +252,7 @@ TEST_CASE("CellKernel Jacobian analytic vs AD", "[CellKernel],[Jacobian],[AD]")
 	std::vector<cadet::active> poreAccessFactor(nComp, 1.0);
 	const cadet::active porosity = 0.25;
 
-	const int qsReaction[] = {0, 1, 1, 1, 0, 
+	const int isKinetic[] = {0, 1, 1, 1, 0, 
 	                          1, 0, 0, 0, 1, 
 	                          1, 0, 1, 0, 1, 
 	                          1, 1, 1, 1, 1, 
@@ -226,10 +262,10 @@ TEST_CASE("CellKernel Jacobian analytic vs AD", "[CellKernel],[Jacobian],[AD]")
 	{
 		SECTION("Mode " + std::to_string(mode))
 		{
-			int const* const localQSreaction = qsReaction + nTotalBound * mode;
+			int const* const localIsKinetic = isKinetic + nTotalBound * mode;
 
 			cadet::test::binding::ConfiguredBindingModel cbm = cadet::test::binding::ConfiguredBindingModel::create(
-				"MULTISTATE_STERIC_MASS_ACTION", nComp, nBound, localQSreaction,
+				"MULTISTATE_STERIC_MASS_ACTION", nComp, nBound, localIsKinetic,
 				R"json({"MSSMA_KA": [0.0, 3.55, 1.59, 4.0, 5.0],
 	                    "MSSMA_KD": [0.0, 10.0, 10.0, 10.0, 10.0],
 	                    "MSSMA_NU": [0.0, 1.5, 2.0, 1.9, 2.3],
@@ -248,8 +284,7 @@ TEST_CASE("CellKernel Jacobian analytic vs AD", "[CellKernel],[Jacobian],[AD]")
 			cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 			y[nComp] = 90.0;
 
-			// Enable AD
-			cadet::ad::setDirections(cadet::ad::getMaxDirections());
+			// Enable AD (directions were already raised at the top of the test case)
 			cadet::active* adRes = new cadet::active[nDof];
 			cadet::active* adY = new cadet::active[nDof];
 
@@ -263,7 +298,7 @@ TEST_CASE("CellKernel Jacobian analytic vs AD", "[CellKernel],[Jacobian],[AD]")
 					nBound,
 					cbm.boundOffset(),
 					nTotalBound,
-					localQSreaction,
+					cbm.model().reactionQuasiStationarity(),
 					porosity,
 					poreAccessFactor.data(),
 					&cbm.model(),
@@ -305,7 +340,7 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD with dummy reactio
 	std::vector<cadet::active> poreAccessFactor(nComp, 1.0);
 	const cadet::active porosity = 0.25;
 
-	const int qsReaction[] = {0, 1, 1, 1, 0,
+	const int isKinetic[] = {0, 1, 1, 1, 0,
 	                          1, 0, 0, 0, 1,
 	                          1, 0, 1, 0, 1,
 	                          1, 1, 1, 1, 1,
@@ -315,10 +350,10 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD with dummy reactio
 	{
 		SECTION("Mode " + std::to_string(mode))
 		{
-			int const* const localQSreaction = qsReaction + nTotalBound * mode;
+			int const* const localIsKinetic = isKinetic + nTotalBound * mode;
 
 			cadet::test::binding::ConfiguredBindingModel cbm = cadet::test::binding::ConfiguredBindingModel::create(
-					"MULTISTATE_STERIC_MASS_ACTION", nComp, nBound, localQSreaction,
+					"MULTISTATE_STERIC_MASS_ACTION", nComp, nBound, localIsKinetic,
 					R"json({"MSSMA_KA": [0.0, 3.55, 1.59, 4.0, 5.0],
 	                    "MSSMA_KD": [0.0, 10.0, 10.0, 10.0, 10.0],
 	                    "MSSMA_NU": [0.0, 1.5, 2.0, 1.9, 2.3],
@@ -331,9 +366,15 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD with dummy reactio
 				"NONE", nComp, nBound, R"json({})json"
 			);
 
-			cbm.increaseBufferSize(nTotalBound * (nTotalBound + nComp + 1) * sizeof(cadet::active) + cdrm.requiredBufferSize());
+		cbm.increaseBufferSize(nTotalBound * (nTotalBound + nComp + 1) * sizeof(cadet::active) + cdrm.requiredBufferSize());
 
-			// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		using namespace cadet::model;
+		BorrowedReactionSystem reacModel;
+		reacModel.addReactionModel("cross_phase", &cdrm.model());
+		REQUIRE(reacModel.hasReactions());
+
+
+		// Obtain memory for state, Jacobian multiply direction, Jacobian column
 			const unsigned int nDof = nComp + nTotalBound;
 			std::vector<double> y(nDof, 0.0);
 			std::vector<double> yDot(nDof, 0.0);
@@ -353,11 +394,11 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD with dummy reactio
 							nBound,
 							cbm.boundOffset(),
 							nTotalBound,
-							localQSreaction,
+							cbm.model().reactionQuasiStationarity(),
 							porosity,
 							poreAccessFactor.data(),
 							&cbm.model(),
-							&cdrm.model()
+							reacModel.get()
 					};
 
 			// Compare Jacobians
@@ -370,7 +411,7 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD with dummy reactio
 					[=, &cbm](double const* fx, double* fy)
 					{
 						cadet::model::parts::cell::multiplyWithDerivativeJacobianKernel<true>(fx, fy, nComp,
-						                                                                      nBound, cbm.boundOffset(), nTotalBound, localQSreaction, 1.0, 3.0);
+						                                                                      nBound, cbm.boundOffset(), nTotalBound, cbm.model().reactionQuasiStationarity(), 1.0, 3.0);
 					},
 					yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof, 1e-7, 1e-14, 1e-4);
 		}
@@ -379,6 +420,11 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD with dummy reactio
 
 TEST_CASE("CellKernel Jacobian analytic vs AD with dummy reaction", "[CellKernel],[Jacobian],[AD]")
 {
+	// Enable AD before any active is created below (porosity, pore access factors, and the binding
+	// model's parameters): an active only zeroes its gradient over the currently set number of
+	// directions (see the construct-before-grow invariant in sfad-common.hpp).
+	cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
 	const double relTol = 1e-13;
 	const double absTol = 1e-10;
 	const unsigned int nComp = 5;
@@ -388,7 +434,7 @@ TEST_CASE("CellKernel Jacobian analytic vs AD with dummy reaction", "[CellKernel
 	std::vector<cadet::active> poreAccessFactor(nComp, 1.0);
 	const cadet::active porosity = 0.25;
 
-	const int qsReaction[] = {0, 1, 1, 1, 0,
+	const int isKinetic[] = {0, 1, 1, 1, 0,
 	                          1, 0, 0, 0, 1,
 	                          1, 0, 1, 0, 1,
 	                          1, 1, 1, 1, 1,
@@ -398,10 +444,10 @@ TEST_CASE("CellKernel Jacobian analytic vs AD with dummy reaction", "[CellKernel
 	{
 		SECTION("Mode " + std::to_string(mode))
 		{
-			int const* const localQSreaction = qsReaction + nTotalBound * mode;
+			int const* const localIsKinetic = isKinetic + nTotalBound * mode;
 
 			cadet::test::binding::ConfiguredBindingModel cbm = cadet::test::binding::ConfiguredBindingModel::create(
-					"MULTISTATE_STERIC_MASS_ACTION", nComp, nBound, localQSreaction,
+					"MULTISTATE_STERIC_MASS_ACTION", nComp, nBound, localIsKinetic,
 					R"json({"MSSMA_KA": [0.0, 3.55, 1.59, 4.0, 5.0],
 	                    "MSSMA_KD": [0.0, 10.0, 10.0, 10.0, 10.0],
 	                    "MSSMA_NU": [0.0, 1.5, 2.0, 1.9, 2.3],
@@ -414,9 +460,14 @@ TEST_CASE("CellKernel Jacobian analytic vs AD with dummy reaction", "[CellKernel
 				"NONE", nComp, nBound, R"json({})json"
 			);
 
-			cbm.increaseBufferSize(nTotalBound * (nTotalBound + nComp + 1) * sizeof(cadet::active) + cdrm.requiredBufferSize());
+		cbm.increaseBufferSize(nTotalBound * (nTotalBound + nComp + 1) * sizeof(cadet::active) + cdrm.requiredBufferSize());
 
-			// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		using namespace cadet::model;
+		BorrowedReactionSystem reacModel;
+		reacModel.addReactionModel("cross_phase", &cdrm.model());
+		REQUIRE(reacModel.hasReactions());
+
+		// Obtain memory for state, Jacobian multiply direction, Jacobian column
 			const unsigned int nDof = nComp + nTotalBound;
 			std::vector<double> y(nDof, 0.0);
 			std::vector<double> yDot(nDof, 0.0);
@@ -426,8 +477,7 @@ TEST_CASE("CellKernel Jacobian analytic vs AD with dummy reaction", "[CellKernel
 			cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 			y[nComp] = 90.0;
 
-			// Enable AD
-			cadet::ad::setDirections(cadet::ad::getMaxDirections());
+			// Enable AD (directions were already raised at the top of the test case)
 			cadet::active* adRes = new cadet::active[nDof];
 			cadet::active* adY = new cadet::active[nDof];
 
@@ -441,11 +491,11 @@ TEST_CASE("CellKernel Jacobian analytic vs AD with dummy reaction", "[CellKernel
 							nBound,
 							cbm.boundOffset(),
 							nTotalBound,
-							localQSreaction,
+							cbm.model().reactionQuasiStationarity(),
 							porosity,
 							poreAccessFactor.data(),
 							&cbm.model(),
-							&cdrm.model()
+							reacModel.get()
 					};
 
 			// Calculate Jacobian via AD

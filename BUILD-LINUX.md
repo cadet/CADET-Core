@@ -23,25 +23,56 @@ recent version.
 
 ## Install dependencies
 
+### Debian/Ubuntu/...
+
 ```
 sudo apt-get update
-sudo apt -y install build-essential cmake libhdf5-dev libsuperlu-dev libeigen3-dev
+sudo apt -y install build-essential cmake libhdf5-dev libsuperlu-dev
 ```
 
-### LAPACK
+#### EIGEN3
 
-You can either use a LAPACK implementation provided by your distribution or install the freely available Intel MKL
+The latest stable Eigen3 (v5.0) is not yet available via apt.
+Installing via `sudo apt-get install -y libeigen3-dev` will will provide an older version.
+To install Eigen3 v5.0 manually:
 
-for Intel run
+```
+git clone https://gitlab.com/libeigen/eigen.git
+cd eigen
+git fetch origin
+git checkout --detach origin/5.0
+cmake -S . -B build \
+-DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+-DEIGEN_BUILD_BLAS=OFF \
+-DEIGEN_BUILD_LAPACK=OFF \
+-DBUILD_TESTING=OFF
+cmake --install build
+```
 
+#### LAPACK
+
+You can either use a LAPACK implementation provided by your distribution or install the freely available Intel MKL.
+
+For Intel run:
 ```
 sudo apt -y install intel-mkl
 ```
 
-for distro defaults run
-
+For distro defaults run:
 ```
 sudo apt -y install liblapack3 liblapack-dev libblas3 libblas-dev
+```
+
+### Fedora
+
+Required packages:
+```
+sudo dnf install cmake gcc-c++ git eigen3-devel hdf5-devel lapack-devel
+```
+
+Recommended packages:
+```
+sudo dnf install SuperLU-devel suitesparse-devel
 ```
 
 ## Build CADET-Core

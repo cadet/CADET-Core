@@ -3,7 +3,7 @@
 Saska
 ~~~~~
 
-**Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = SASKA**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = SASKA**
 
 For information on model equations, refer to :ref:`saska_model`.
 

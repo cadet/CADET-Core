@@ -532,6 +532,18 @@ int ModelSystem::residual(const SimulationTime& simTime, const ConstSimulationSt
 		}
 
 		_errorIndicator[i] = m->residual(simTime, applyOffset(simState, offset), res + offset, _threadLocalStorage);
+
+		bool hasNonFinite = false;
+		for (int j = 0; j < _dofs[i]; j++)
+		{
+			hasNonFinite |= !std::isfinite(res[offset + j]);
+		}
+		if (hasNonFinite)
+		{
+			LOG(Warning) << "Residual has NAN or infinite value in unit " << i;
+			_errorIndicator[i] = 1; // recoverable error break;
+		}
+
 	} CADET_PARFOR_END;
 
 	// Handle connections
@@ -566,6 +578,17 @@ int ModelSystem::residualWithJacobian(const SimulationTime& simTime, const Const
 
 		_errorIndicator[i] = m->residualWithJacobian(simTime, applyOffset(simState, offset),
 			res + offset, applyOffset(adJac, offset), _threadLocalStorage);
+
+		bool hasNonFinite = false;
+		for (int j = 0; j < _dofs[i]; j++)
+		{
+			hasNonFinite |= !std::isfinite(res[offset + j]);
+		}
+		if (hasNonFinite)
+		{
+			LOG(Warning) << "Residual has NAN or infinite value in unit " << i;
+			_errorIndicator[i] = 1; // recoverable error break;
+		}
 
 	} CADET_PARFOR_END;
 
@@ -634,10 +657,12 @@ void ModelSystem::multiplyWithMacroJacobian(double const* yS, double alpha, doub
 
 	// Set ret_con = yS_con
 	// This applies the identity matrix in the bottom right corner of the Jaocbian (network coupling equation)
+	// As in BLAS, beta == 0 means that ret is not read: residualSensFwdWithJacobianAlgorithm() passes the
+	// sensitivity residual of IDAS here, whose coupling DOFs are uninitialized at that point.
 
 	for (unsigned int i = finalOffset; i < numDofs(); ++i)
 	{
-		ret[i] = alpha * yS[i] + beta * ret[i];
+		ret[i] = (beta == 0.0) ? alpha * yS[i] : alpha * yS[i] + beta * ret[i];
 	}
 
 	// N_{x,f} Inlets (Right) matrices

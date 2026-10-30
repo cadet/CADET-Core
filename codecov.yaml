@@ -1,0 +1,25 @@
+codecov:
+  require_ci_to_pass: true
+
+coverage:
+  range: 0..100
+  round: nearest
+  precision: 2
+  status:
+    project:
+      default:
+        target: auto
+    patch:
+      default:
+        target: auto
+
+ignore:
+    - "src/ThirdParty/*"
+    - "ThirdParty"
+    - "test"
+
+fixes:
+  - "build/src/::src/"
+
+github_checks:
+  annotations: false

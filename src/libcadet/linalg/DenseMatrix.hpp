@@ -49,7 +49,6 @@ namespace detail
 
 		/**
 		 * @brief Creates an empty DenseBandedRowIterator pointing to nothing
-		 * @param [in] mat Matrix this DenseBandedRowIterator accesses
 		 */
 		DenseBandedRowIterator() CADET_NOEXCEPT : _matrix(nullptr), _pos(nullptr), _rowIdx(0) { }
 

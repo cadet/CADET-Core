@@ -26,9 +26,7 @@
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
 
-#ifdef ENABLE_DG
-	#include "linalg/BandedEigenSparseRowIterator.hpp"
-#endif
+#include "linalg/BandedEigenSparseRowIterator.hpp"
 
 #include "AutoDiff.hpp"
 #include "SimulationTypes.hpp"
@@ -299,9 +297,8 @@ public:
 	 */
 	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const = 0;
 	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const = 0;
-#ifdef ENABLE_DG
 	virtual void analyticJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, int offsetCp, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const = 0;
-#endif
+	
 	/**
 	 * @brief Calculates the time derivative of the quasi-stationary bound state equations
 	 * @details Calculates @f$ \frac{\partial \text{flux}_{\text{qs}}}{\partial t} @f$ for the quasi-stationary equations

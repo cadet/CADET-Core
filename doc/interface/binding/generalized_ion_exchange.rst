@@ -3,7 +3,7 @@
 Generalized Ion Exchange
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = GENERALIZED_ION_EXCHANGE**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = GENERALIZED_ION_EXCHANGE**
 
 For information on model equations, refer to :ref:`generalized_ion_exchange_model`.
 
@@ -173,6 +173,28 @@ For information on model equations, refer to :ref:`generalized_ion_exchange_mode
 ``GIEX_REFQ``
    Reference solid phase concentration (optional, defaults to
    :math:`1.0`)
+
+**Unit:** :math:`mol~m_{SP}^{-3}`
+
+===================  =========================  =========================================
+**Type:** double     **Range:** :math:`\gt 0`   **Length:** 1
+===================  =========================  =========================================
+
+``GIEX_PHREFC0``
+   Reference liquid phase concentration used for the pH dependent part
+   of the characteristic charge (optional, only applied if
+   ``GIEX_PHREFQ`` is given as well, defaults to ``GIEX_REFC0``)
+
+**Unit:** :math:`mol~m_{MP}^{-3}`
+
+===================  =========================  =========================================
+**Type:** double     **Range:** :math:`\gt 0`   **Length:** 1
+===================  =========================  =========================================
+
+``GIEX_PHREFQ``
+   Reference solid phase concentration used for the pH dependent part
+   of the characteristic charge (optional, only applied if
+   ``GIEX_PHREFC0`` is given as well, defaults to ``GIEX_REFQ``)
 
 **Unit:** :math:`mol~m_{SP}^{-3}`
 

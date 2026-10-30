@@ -6,21 +6,13 @@ System of unit operations
 Group /input/model
 ------------------
 
-``NUNITS``
-
-   Number of unit operations in the system
-   
-   =============  =========================  =============
-   **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
-   =============  =========================  =============
-   
 ``INIT_STATE_Y``
 
    Initial full state vector (optional, unit operation specific initial data is ignored)
    
-   =============  =========================  =============
-   **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
-   =============  =========================  =============
+   ================  ==================================
+   **Type:** double  **Length:** :math:`\texttt{NDOF}`
+   ================  ==================================
    
 ``INIT_STATE_YDOT``
 
@@ -32,7 +24,7 @@ Group /input/model
    
 ``INIT_STATE_SENSY_XXX``
 
-   Initial full time derivative state vector of the :math:`\texttt{XXX}` th sensitivity system (optional, can currently not be specified on unit operation level)
+   Initial full state vector of the :math:`\texttt{XXX}` th sensitivity system (optional, can currently not be specified on unit operation level)
    
    ================  ==================================
    **Type:** double  **Length:** :math:`\texttt{NDOF}`
@@ -40,7 +32,7 @@ Group /input/model
    
 ``INIT_STATE_SENSYDOT_XXX``
 
-   Initial full state vector of the :math:`\texttt{XXX}` th sensitivity system (optional, can currently not be specified on unit operation level)
+   Initial full time derivative state vector of the :math:`\texttt{XXX}` th sensitivity system (optional, can currently not be specified on unit operation level)
    
    ================  ==================================
    **Type:** double  **Length:** :math:`\texttt{NDOF}`
@@ -107,7 +99,7 @@ Group /input/model/connections/switch_XXX
    The last three flow rate coefficients are left out if :math:`\texttt{CONNECTIONS_INCLUDE_DYNAMIC_FLOW}` is set to :math:`0`.
    Contrary to the constant coefficient, which has the parameter name :math:`\texttt{CONNECTION}`, the other coefficients are named :math:`\texttt{CONNECTION_LIN}`, :math:`\texttt{CONNECTION_QUAD}`, and :math:`\texttt{CONNECTION_CUB}`, respectively.
 
-   For addressing the flow rates as a parameter senstivity, the mapping is as follows:
+   For addressing the flow rates as a parameter sensitivity, the mapping is as follows:
 
   - :math:`\texttt{SENS_UNIT}` Unused, always set to :math:`-1` 
   - :math:`\texttt{SENS_BOUNDPHASE}` *UnitOpID from* 
@@ -129,13 +121,16 @@ Group /input/model/external/source_XXX - EXTFUN_TYPE = LINEAR_INTERP_DATA
 
    Velocity of the external profile in positive column axial direction.
    The velocity is normalized to a column with length 1, hence the unit :math:`\mathrm{s}^{-1}`.
+   A negative value lets the profile travel towards the column inlet instead.
+   The value must not be :math:`0`, since the profile is evaluated at the transformed time
+   :math:`(1 - z) / \texttt{VELOCITY} + t`.
 
    **Unit:** :math:`\mathrm{s}^{-1}`
-   
-   ================  =========================  =============
-   **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
-   ================  =========================  =============
-   
+
+   ================  =============================================  =============
+   **Type:** double  **Range:** :math:`\mathbb{R} \setminus \{0\}`  **Length:** 1
+   ================  =============================================  =============
+
 ``DATA``
 
    Function values :math:`T` at the data points
@@ -165,12 +160,15 @@ Group /input/model/external/source_XXX - EXTFUN_TYPE = PIECEWISE_CUBIC_POLY
 
    Velocity of the external profile in positive column axial direction.
    The velocity is normalized to a column with length 1, hence the unit :math:`\mathrm{s}^{-1}`.
+   A negative value lets the profile travel towards the column inlet instead.
+   The value must not be :math:`0`, since the profile is evaluated at the transformed time
+   :math:`(1 - z) / \texttt{VELOCITY} + t`.
 
    **Unit:** :math:`\mathrm{s}^{-1}`
-   
-   ================  =========================  =============
-   **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
-   ================  =========================  =============
+
+   ================  =============================================  =============
+   **Type:** double  **Range:** :math:`\mathbb{R} \setminus \{0\}`  **Length:** 1
+   ================  =============================================  =============
    
 ``CONST_COEFF``
 
@@ -229,7 +227,7 @@ Group /input/model/solver
 
 ``GS_TYPE``
 
-   Type of Gram-Schmidt orthogonalization, see IDAS guide Section~4.5.7.3, p.~41f. A value of :math:`0` enables classical Gram-Schmidt, a value of 1 uses modified Gram-Schmidt.
+   Type of Gram-Schmidt orthogonalization, see IDAS guide Section 4.5.7.3, p. 41f. A value of :math:`0` enables classical Gram-Schmidt, a value of 1 uses modified Gram-Schmidt.
    
    =============  ===========================  =============
    **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1
@@ -237,11 +235,15 @@ Group /input/model/solver
    
 ``MAX_KRYLOV``
 
-   Defines the size of the Krylov subspace in the iterative linear GMRES solver (0: :math:`\texttt{MAX_KRYLOV} = \texttt{NDOF}`)
-   
-   =============  ==============================================  =============
-   **Type:** int  **Range:** :math:`\{0, \dots, \texttt{NDOF}\}`  **Length:** 1
-   =============  ==============================================  =============
+   Defines the size of the Krylov subspace in the iterative linear GMRES solver that solves the
+   Schur complement of the network. That Schur complement is formed on the inlet degrees of freedom
+   of the network, of which there are
+   :math:`\texttt{NCOUPLINGDOF} = \sum_i \texttt{NPORT}_i \cdot \texttt{NCOMP}_i`, summed over all
+   unit operations that have an inlet (0: :math:`\texttt{MAX_KRYLOV} = \texttt{NCOUPLINGDOF}`).
+
+   =============  ======================================================  =============
+   **Type:** int  **Range:** :math:`\{0, \dots, \texttt{NCOUPLINGDOF}\}`  **Length:** 1
+   =============  ======================================================  =============
    
 ``MAX_RESTARTS``
 
@@ -253,7 +255,7 @@ Group /input/model/solver
    
 ``SCHUR_SAFETY``
 
-   Schur safety factor; Influences the tradeoff between linear iterations and nonlinear error control; see IDAS guide Section~2.1 and 5.
+   Schur safety factor; Influences the tradeoff between linear iterations and nonlinear error control; see IDAS guide Section 2.1 and 5.
    
    ================  =========================  =============
    **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1

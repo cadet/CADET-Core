@@ -1,0 +1,124 @@
+{
+    "meta": {
+        "NAME": "convergence_radLRM_dynLin_1comp_benchmark1"
+    },
+    "model": {
+        "NUNITS": 3,
+        "connections": {
+            "NSWITCHES": 1,
+            "switch_000": {
+                "CONNECTIONS": [
+                    0.0,
+                    1.0,
+                    -1.0,
+                    -1.0,
+                    6e-05,
+                    1.0,
+                    2.0,
+                    -1.0,
+                    -1.0,
+                    6e-05
+                ],
+                "SECTION": 0
+            }
+        },
+        "unit_000": {
+            "INLET_TYPE": "PIECEWISE_CUBIC_POLY",
+            "NCOMP": 1,
+            "UNIT_TYPE": "INLET",
+            "sec_000": {
+                "CONST_COEFF": [
+                    1.0
+                ],
+                "CUBE_COEFF": [
+                    0.0
+                ],
+                "LIN_COEFF": [
+                    0.0
+                ],
+                "QUAD_COEFF": [
+                    0.0
+                ]
+            },
+            "sec_001": {
+                "CONST_COEFF": [
+                    0.0
+                ],
+                "CUBE_COEFF": [
+                    0.0
+                ],
+                "LIN_COEFF": [
+                    0.0
+                ],
+                "QUAD_COEFF": [
+                    0.0
+                ]
+            }
+        },
+      "unit_001": {
+        "UNIT_TYPE": "LUMPED_RATE_MODEL_WITHOUT_PORES",
+        "GEOMETRY": "RADIAL_FLOW_CYLINDER_SHELL",
+        "FORWARD_FLOW": 1,
+        "COL_POROSITY": 0.8,
+        "CYLINDER_HEIGHT": 0.0985606666031605743375876743888619452671147335252471879743,
+        "CROSS_SECTION_AREA_OUTER": 0.1238549864533608566636563024125919236227583537608050574119,
+        "CROSS_SECTION_AREA_INNER": 0.0061927493226680428331828151206295961811379176880402528705,
+        "BED_LENGTH": 0.19,
+        "NCOMP": 1,
+        "TOTAL_POROSITY": 0.8425,
+        "COL_DISPERSION": 5.75e-08,
+        "NPARTYPE": 1,
+        "INIT_C": [
+          0.0
+        ],
+        "particle_type_000": {
+          "HAS_FILM_DIFFUSION": false,
+          "HAS_PORE_DIFFUSION": false,
+          "HAS_SURFACE_DIFFUSION": false,
+          "ADSORPTION_MODEL": "LINEAR",
+          "NBOUND": [
+            1
+          ],
+          "adsorption": {
+            "IS_KINETIC": 1,
+            "LIN_KA": [
+              12.3
+            ],
+            "LIN_KD": [
+              45.0
+            ]
+          },
+          "INIT_CP": [
+            0.0
+          ],
+          "INIT_CS": [
+            0.0
+          ]
+        },
+        "COL_POROSITY": 0.8425,
+        "discretization": {
+          "SPATIAL_METHOD": "DG",
+          "POLYDEG": 3,
+          "NELEM": 16,
+          "USE_ANALYTIC_JACOBIAN": true
+        }
+      },
+        "unit_002": {
+            "NCOMP": 1,
+            "UNIT_TYPE": "OUTLET"
+        }
+    },
+    "solver": {
+        "sections": {
+            "NSEC": 2,
+            "SECTION_CONTINUITY": [
+                0
+            ],
+            "SECTION_TIMES": [
+                0.0,
+                60.0,
+                130.0
+            ]
+        }
+    }
+}

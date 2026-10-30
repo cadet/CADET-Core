@@ -13,7 +13,7 @@ It automatically checks validity of the parameter values and sets reasonable def
 Install CADET-Process (recommended for users)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To install ``CADET-Process``, open an `conda shell` and execute:
+To install ``CADET-Process``, open a `conda shell` and execute:
 
 .. code-block:: bash
 
@@ -22,7 +22,7 @@ To install ``CADET-Process``, open an `conda shell` and execute:
 Install CADET-Python (recommended for CADET-Core developers)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To install ``CADET-Python``, open an `conda shell` and execute:
+To install ``CADET-Python``, open a `conda shell` and execute:
 
 .. code-block:: bash
 

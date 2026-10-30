@@ -16,9 +16,12 @@
 #include <vector>
 #include <limits>
 #include <algorithm>
+#include <memory>
 
+#include "linalg/BandedEigenSparseRowIterator.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"
 #include "linalg/DenseMatrix.hpp"
+#include "linalg/EigenSolverWrapper.hpp"
 
 namespace
 {
@@ -215,4 +218,233 @@ TEST_CASE("CompressedSparseMatrix matrix-vector multiplication with factor", "[S
 		CAPTURE(row);
 		CHECK(ys[row] == cadet::test::makeApprox(yd[row], std::numeric_limits<double>::epsilon() * 100.0, 0.0));
 	}
+}
+
+TEST_CASE("BandedEigenSparseRowIterator reaches the first row", "[SparseMatrix],[LinAlg],[CI]")
+{
+	// Walking an iterator down to the first row has to be possible: the particle Jacobian of a DG
+	// discretized particle is assembled by stepping backwards from the outer node, which reaches
+	// row 0 whenever the particle block starts at the top of the state vector.
+	const int n = 4;
+	Eigen::SparseMatrix<double, Eigen::RowMajor> mat(n, n);
+
+	std::vector<Eigen::Triplet<double>> triplets;
+	for (int row = 0; row < n; ++row)
+		triplets.push_back(Eigen::Triplet<double>(row, row, 0.0));
+
+	mat.setFromTriplets(triplets.begin(), triplets.end());
+
+	SECTION("Decrement by one")
+	{
+		cadet::linalg::BandedEigenSparseRowIterator it(mat, n - 1);
+		for (int row = n - 1; row >= 0; --row, --it)
+		{
+			CAPTURE(row);
+			CHECK(it.row() == row);
+			it[0] = row + 1.0;
+		}
+
+		for (int row = 0; row < n; ++row)
+		{
+			CAPTURE(row);
+			CHECK(mat.coeff(row, row) == row + 1.0);
+		}
+	}
+
+	SECTION("Decrement by several rows")
+	{
+		cadet::linalg::BandedEigenSparseRowIterator it(mat, n - 1);
+		it -= (n - 1);
+
+		CHECK(it.row() == 0);
+
+		it[0] = 1.0;
+		CHECK(mat.coeff(0, 0) == 1.0);
+	}
+}
+
+TEST_CASE("BandedEigenSparseRowIterator tracks rows outside the matrix", "[SparseMatrix],[LinAlg],[CI]")
+{
+	// A binding model with several binding sites walks the rows of its Jacobian by overshooting the
+	// end of its block and stepping back, see BiLangmuirBinding::jacobianImpl(). For the last block
+	// of the matrix the overshoot leaves the matrix, so the iterator has to keep counting rows there
+	// and has to arrive at the right row when it is moved back.
+	const int n = 4;
+	Eigen::SparseMatrix<double, Eigen::RowMajor> mat(n, n);
+
+	std::vector<Eigen::Triplet<double>> triplets;
+	for (int row = 0; row < n; ++row)
+		triplets.push_back(Eigen::Triplet<double>(row, row, 0.0));
+
+	mat.setFromTriplets(triplets.begin(), triplets.end());
+
+	SECTION("Overshoot the last row and step back")
+	{
+		cadet::linalg::BandedEigenSparseRowIterator it(mat, n - 1);
+
+		it += 3;
+		CHECK(it.row() == n + 2);
+
+		it -= 4;
+		CHECK(it.row() == n - 2);
+
+		it[0] = 1.0;
+		CHECK(mat.coeff(n - 2, n - 2) == 1.0);
+		CHECK(mat.isCompressed());
+	}
+
+	SECTION("Increment past the last row and step back")
+	{
+		cadet::linalg::BandedEigenSparseRowIterator it(mat, n - 1);
+
+		++it;
+		CHECK(it.row() == n);
+
+		--it;
+		CHECK(it.row() == n - 1);
+
+		it[0] = 2.0;
+		CHECK(mat.coeff(n - 1, n - 1) == 2.0);
+		CHECK(mat.isCompressed());
+	}
+
+	SECTION("Undershoot the first row and step back")
+	{
+		cadet::linalg::BandedEigenSparseRowIterator it(mat, 0);
+
+		it -= 2;
+		CHECK(it.row() == -2);
+
+		it += 3;
+		CHECK(it.row() == 1);
+
+		it[0] = 3.0;
+		CHECK(mat.coeff(1, 1) == 3.0);
+		CHECK(mat.isCompressed());
+	}
+
+	SECTION("A row outside the matrix is empty")
+	{
+		cadet::linalg::BandedEigenSparseRowIterator it(mat, n);
+
+		CHECK(it.row() == n);
+		CHECK(it.numNonZeros() == 0);
+		CHECK(it.data() == nullptr);
+	}
+}
+
+TEST_CASE("Eigen solver wrapper solves a diagonal block of a larger matrix", "[EigenSolver],[LinAlg],[CI]")
+{
+	// The models hand the solver a square diagonal block of their global Jacobian, so the
+	// entries outside the block must not take part in the solve.
+	const int n = 6;
+	const int offset = 2;
+	const int size = 4;
+
+	const double block[size][size] = {
+		{4.0, 1.0, 0.0, 0.0},
+		{1.0, 3.0, 1.0, 0.0},
+		{0.0, 1.0, 5.0, 2.0},
+		{0.0, 0.0, 2.0, 6.0}
+	};
+
+	std::vector<Eigen::Triplet<double>> triplets;
+	for (int i = 0; i < size; ++i)
+	{
+		for (int j = 0; j < size; ++j)
+		{
+			if (block[i][j] != 0.0)
+				triplets.emplace_back(offset + i, offset + j, block[i][j]);
+		}
+	}
+
+	// Entries outside the block, which the solver has to ignore
+	triplets.emplace_back(0, 0, 1e10);
+	triplets.emplace_back(1, 4, -7.0);
+	triplets.emplace_back(5, 0, 3.0);
+
+	cadet::linalg::SparseMatrixRM mat(n, n);
+	mat.setFromTriplets(triplets.begin(), triplets.end());
+	mat.makeCompressed();
+
+	std::unique_ptr<cadet::linalg::EigenSolverBase> solver(cadet::linalg::setLinearSolver("SparseLU"));
+
+	solver->analyzePattern(mat, offset, size);
+	solver->factorize(mat, offset, size);
+	REQUIRE(solver->info() == Eigen::Success);
+
+	const double sol[size] = {1.0, -2.0, 3.0, 0.5};
+	double rhs[size] = {0.0, 0.0, 0.0, 0.0};
+	for (int i = 0; i < size; ++i)
+	{
+		for (int j = 0; j < size; ++j)
+			rhs[i] += block[i][j] * sol[j];
+	}
+
+	solver->solve(rhs, size);
+	REQUIRE(solver->info() == Eigen::Success);
+
+	for (int i = 0; i < size; ++i)
+		CHECK(rhs[i] == Approx(sol[i]).margin(1e-12));
+}
+
+TEST_CASE("Eigen solver wrapper does not use a factorization that failed", "[EigenSolver],[LinAlg],[CI]")
+{
+	// A failed SparseLU is left half built: the row permutation keeps the -1 it is initialized
+	// with and the supernodal L store is never fixed up. Solving with it reads and writes
+	// outside the destination, which ends the process with a heap corruption instead of a
+	// solver error. Eigen only guards this with an assert that is compiled out, so the wrapper
+	// has to refuse the solve and keep reporting the failure to its caller.
+	const int n = 5;
+
+	std::vector<Eigen::Triplet<double>> triplets;
+	for (int i = 0; i < n; ++i)
+		triplets.emplace_back(i, i, 2.0);
+
+	cadet::linalg::SparseMatrixRM regular(n, n);
+	regular.setFromTriplets(triplets.begin(), triplets.end());
+	regular.makeCompressed();
+
+	// Column 2 is empty, so SparseLU gives up in pivotL and never completes the factorization
+	std::vector<Eigen::Triplet<double>> singularTriplets;
+	for (int i = 0; i < n; ++i)
+	{
+		if (i == 2)
+			continue;
+
+		singularTriplets.emplace_back(i, i, 2.0);
+	}
+
+	cadet::linalg::SparseMatrixRM singular(n, n);
+	singular.setFromTriplets(singularTriplets.begin(), singularTriplets.end());
+	singular.makeCompressed();
+
+	std::unique_ptr<cadet::linalg::EigenSolverBase> solver(cadet::linalg::setLinearSolver("SparseLU"));
+
+	// Factorize successfully first, as in a simulation that only later runs into trouble
+	solver->analyzePattern(regular, 0, n);
+	solver->factorize(regular, 0, n);
+	REQUIRE(solver->info() == Eigen::Success);
+
+	double good[n] = {2.0, 4.0, 6.0, 8.0, 10.0};
+	solver->solve(good, n);
+	REQUIRE(solver->info() == Eigen::Success);
+	for (int i = 0; i < n; ++i)
+		CHECK(good[i] == Approx(i + 1.0).margin(1e-12));
+
+	solver->analyzePattern(singular, 0, n);
+	solver->factorize(singular, 0, n);
+	REQUIRE(solver->info() != Eigen::Success);
+
+	const double before[n] = {1.0, 2.0, 3.0, 4.0, 5.0};
+	double rhs[n] = {1.0, 2.0, 3.0, 4.0, 5.0};
+
+	solver->solve(rhs, n);
+
+	// There is no solution to put there, so the right hand side has to come back untouched
+	for (int i = 0; i < n; ++i)
+		CHECK(rhs[i] == before[i]);
+
+	// and the failure has to still be visible to the caller
+	CHECK(solver->info() != Eigen::Success);
 }

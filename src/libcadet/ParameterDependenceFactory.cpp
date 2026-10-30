@@ -25,6 +25,7 @@ namespace cadet
 			void registerIdentityParamDependence(std::unordered_map<std::string, std::function<model::IParameterStateDependence*()>>& paramDeps);
 			void registerIdentityParamDependence(std::unordered_map<std::string, std::function<model::IParameterParameterDependence*()>>& paramDeps);
 			void registerPowerLawParamDependence(std::unordered_map<std::string, std::function<model::IParameterParameterDependence*()>>& paramDeps);
+			void registerVanDeemterParamDependence(std::unordered_map<std::string, std::function<model::IParameterParameterDependence*()>>& paramDeps);
 		}
 	}
 
@@ -39,6 +40,7 @@ namespace cadet
 		model::paramdep::registerDummyParamDependence(_paramParamDeps);
 		model::paramdep::registerIdentityParamDependence(_paramParamDeps);
 		model::paramdep::registerPowerLawParamDependence(_paramParamDeps);
+		model::paramdep::registerVanDeemterParamDependence(_paramParamDeps);
 	}
 
 	ParameterDependenceFactory::~ParameterDependenceFactory() { }
@@ -73,7 +75,7 @@ namespace cadet
 		if (it == _paramStateDeps.end())
 		{
 			// ParameterDependence was not found
-			return nullptr;
+			throw InvalidParameterException("Parameter state dependence " + name + " does not exist.");
 		}
 
 		// Call factory function (thanks to type erasure of std::function we can store 
@@ -87,7 +89,7 @@ namespace cadet
 		if (it == _paramParamDeps.end())
 		{
 			// ParameterDependence was not found
-			return nullptr;
+			throw InvalidParameterException("Parameter parameter dependence " + name + " does not exist.");
 		}
 
 		// Call factory function (thanks to type erasure of std::function we can store 

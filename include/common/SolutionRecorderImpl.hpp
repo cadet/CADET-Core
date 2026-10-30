@@ -51,15 +51,16 @@ public:
 		bool storeOutlet;
 		bool storeInlet;
 		bool storeVolume;
+		bool storeSmoothnessIndicator;
 	};
 
 	InternalStorageUnitOpRecorder() : InternalStorageUnitOpRecorder(UnitOpIndep) { }
 
-	InternalStorageUnitOpRecorder(UnitOpIdx idx) : _cfgSolution({false, false, false, true, false, false, false}),
-		_cfgSolutionDot({false, false, false, false, false, false, false}), _cfgSensitivity({false, false, false, true, false, false, false}),
-		_cfgSensitivityDot({false, false, false, true, false, false, false}), _storeTime(false), _storeCoordinates(false), _splitComponents(true), _splitPorts(true),
-		_singleAsMultiPortUnitOps(false), _keepBulkSingletonDim(true), _keepParticleSingletonDim(true), _curCfg(nullptr), _nComp(0), _nVolumeDof(0), _nAxialCells(0), _nRadialCells(0),
-		_nInletPorts(0), _nOutletPorts(0), _numTimesteps(0), _numSens(0), _unitOp(idx), _needsReAlloc(false), _axialCoords(0), _radialCoords(0), _particleCoords(0)
+	InternalStorageUnitOpRecorder(UnitOpIdx idx) : _cfgSolution({ false, false, false, true, false, false, false, false }),
+		_cfgSolutionDot({ false, false, false, false, false, false, false, false }), _cfgSensitivity({ false, false, false, true, false, false, false, false }),
+		_cfgSensitivityDot({ false, false, false, true, false, false, false, false }), _storeTime(false), _storeCoordinates(false),
+		_splitComponents(true), _splitPorts(true), _singleAsMultiPortUnitOps(false), _keepBulkSingletonDim(true), _curCfg(nullptr), _nComp(0), _nVolumeDof(0), _nAxialPoints(0), _nRadialPoints(0),
+		_nInletPorts(0), _nOutletPorts(0), _numTimesteps(0), _numTimestepsUnitState(0), _writeUnitState(true), _numSens(0), _unitOp(idx), _needsReAlloc(false), _axialCoords(0), _radialCoords(0), _particleCoords(0)
 	{
 	}
 
@@ -67,10 +68,13 @@ public:
 	{
 	}
 
+	virtual void integratorMetaData(const IDASMeta& idasMeta) {}
+
 	virtual void clear()
 	{
 		// Clear solution storage
 		_time.clear();
+		_timeUnitState.clear();
 		clear(_data);
 		clear(_dataDot);
 
@@ -85,6 +89,7 @@ public:
 	virtual void prepare(unsigned int numDofs, unsigned int numSens, unsigned int numTimesteps)
 	{
 		_numTimesteps = numTimesteps;
+		_numTimestepsUnitState = numTimesteps;
 		_numSens = numSens;
 
 		// Allocate sensitivity storage
@@ -102,7 +107,8 @@ public:
 		clear();
 
 		_numTimesteps = numTimesteps;
-		
+		_numTimestepsUnitState = numTimesteps;
+
 		if (numSens != _numSens)
 		{
 			// Allocate sensitivity storage
@@ -125,19 +131,32 @@ public:
 		_nOutletPorts = exporter.numOutletPorts();
 
 		_keepBulkSingletonDim = exporter.hasPrimaryExtent();
-		_keepParticleSingletonDim = !exporter.isParticleLumped();
 
-		_nAxialCells = exporter.numPrimaryCoordinates();
-		_nRadialCells = exporter.numSecondaryCoordinates();
+		_nAxialPoints = exporter.numPrimaryCoordinates();
+		_nRadialPoints = exporter.numSecondaryCoordinates();
 
 		// Query particle type specific structure
 		const unsigned int numParTypes = exporter.numParticleTypes();
+		_keepParticleSingletonDim.resize(numParTypes, 0u);
 		_nParShells.resize(numParTypes, 0u);
 		_nBoundStates.resize(numParTypes, 0u);
+		_nBoundPerComp.resize(numParTypes);
+		_boundOffset.resize(numParTypes);
 		for (unsigned int i = 0; i < numParTypes; ++i)
 		{
 			_nParShells[i] = exporter.numParticleShells(i);
 			_nBoundStates[i] = exporter.numBoundStates(i);
+			_keepParticleSingletonDim[i] = !exporter.isParticleLumped(i);
+
+			_nBoundPerComp[i].resize(_nComp);
+			_boundOffset[i].resize(_nComp);
+			unsigned int offset = 0;
+			for (unsigned int c = 0; c < _nComp; ++c)
+			{
+				_nBoundPerComp[i][c] = exporter.numBoundStates(i, c);
+				_boundOffset[i][c] = offset;
+				offset += _nBoundPerComp[i][c];
+			}
 		}
 
 		// Obtain coordinates
@@ -158,7 +177,7 @@ public:
 				offset += _nParShells[i];
 			}
 		}
-
+		 
 		// Validate config
 		validateConfig(exporter, _cfgSolution);
 		validateConfig(exporter, _cfgSolutionDot);
@@ -170,16 +189,17 @@ public:
 		{
 			// Reset for counting the number of received time steps
 			_numTimesteps = 0;
+			_numTimestepsUnitState = 0;
 			return;
 		}
 
 		// Allocate space for solution
 		beginSolution();
-		allocateMemory(exporter);		
+		allocateMemory(exporter);
 		endSolution();
 
 		beginSolutionDerivative();
-		allocateMemory(exporter);		
+		allocateMemory(exporter);
 		endSolution();
 
 		// Allocate space for sensitivities
@@ -204,13 +224,22 @@ public:
 
 		// Reset for counting the number of received time steps
 		_numTimesteps = 0;
+		_numTimestepsUnitState = 0;
 	}
 
-	virtual void beginTimestep(double t)
+	virtual void beginTimestep(double t, bool writeUnitState = true)
 	{
 		++_numTimesteps;
+		_writeUnitState = writeUnitState;
 		if (_storeTime)
 			_time.push_back(t);
+
+		if (writeUnitState)
+		{
+			++_numTimestepsUnitState;
+			if (_storeTime)
+				_timeUnitState.push_back(t);
+		}
 	}
 
 	virtual void beginUnitOperation(cadet::UnitOpIdx idx, const cadet::IModel& model, const cadet::ISolutionExporter& exporter)
@@ -237,6 +266,10 @@ public:
 			exporter.writeInlet(v.data() + v.size() - sliceSize);
 		}
 
+		// Internal unit state fields are only stored at unit-state time points
+		if (!_writeUnitState)
+			return;
+
 		if (_curCfg->storeBulk)
 		{
 			const int sliceSize = exporter.numMobilePhaseDofs();
@@ -244,6 +277,15 @@ public:
 
 			v.resize(v.size() + sliceSize);
 			exporter.writeMobilePhase(v.data() + v.size() - sliceSize);
+		}
+
+		if (_curCfg->storeSmoothnessIndicator)
+		{
+			const int sliceSize = exporter.numMobilePhaseDofs();
+			std::vector<double>& v = _curStorage->smoothnessIndicator;
+
+			v.resize(v.size() + sliceSize);
+			exporter.writeSmoothnessIndicator(v.data() + v.size() - sliceSize);
 		}
 
 		if (_curCfg->storeParticle)
@@ -339,7 +381,7 @@ public:
 		if (!_storeCoordinates)
 			return;
 
-		if (!_axialCoords.empty() && ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1)))
+		if (!_axialCoords.empty() && ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1)))
 			writer.template vector<double>("AXIAL_COORDINATES", _axialCoords);
 		if (!_radialCoords.empty())
 			writer.template vector<double>("RADIAL_COORDINATES", _radialCoords);
@@ -350,7 +392,7 @@ public:
 			unsigned int offset = 0;
 			for (std::size_t pt = 0; pt < _nParShells.size(); ++pt)
 			{
-				if (_nParShells[pt] == 0 || (!_keepParticleSingletonDim && (_nParShells[pt] == 1)))
+				if (_nParShells[pt] == 0 || (!_keepParticleSingletonDim[pt] && (_nParShells[pt] == 1)))
 					continue;
 
 				oss.str("");
@@ -369,7 +411,11 @@ public:
 		std::ostringstream oss;
 
 		if (_storeTime)
+		{
 			writer.template vector<double>("SOLUTION_TIMES", _time.size(), _time.data());
+			if (!_timeUnitState.empty())
+				writer.template vector<double>("SOLUTION_TIMES_UNIT_STATE", _timeUnitState.size(), _timeUnitState.data());
+		}
 
 		beginSolution();
 		writeData(writer, "SOLUTION", oss);
@@ -449,25 +495,28 @@ public:
 	inline void treatSingleAsMultiPortUnitOps(bool smp) CADET_NOEXCEPT { _singleAsMultiPortUnitOps = smp; }
 
 	inline bool keepBulkSingletonDim() const CADET_NOEXCEPT { return _keepBulkSingletonDim; }
-	inline void keepBulkSingletonDim(bool keepSingleton) CADET_NOEXCEPT { _keepBulkSingletonDim = keepSingleton; }
+	inline void setKeepBulkSingletonDim(bool keepSingleton) CADET_NOEXCEPT { _keepBulkSingletonDim = keepSingleton; }
 
-	inline bool keepParticleSingletonDim() const CADET_NOEXCEPT { return _keepParticleSingletonDim; }
-	inline void keepParticleSingletonDim(bool keepSingleton) CADET_NOEXCEPT { _keepParticleSingletonDim = keepSingleton; }
+	inline bool keepParticleSingletonDim(unsigned int parType) const CADET_NOEXCEPT { return _keepParticleSingletonDim[parType]; }
+	inline void setKeepParticleSingletonDim(bool keepSingleton) CADET_NOEXCEPT { std::fill(_keepParticleSingletonDim.begin(), _keepParticleSingletonDim.end(), keepSingleton); }
 
 	inline UnitOpIdx unitOperation() const CADET_NOEXCEPT { return _unitOp; }
 	inline void unitOperation(UnitOpIdx idx) CADET_NOEXCEPT { _unitOp = idx; }
 
 	inline unsigned int numDataPoints() const CADET_NOEXCEPT { return _numTimesteps; }
+	inline unsigned int numDataPointsUnitState() const CADET_NOEXCEPT { return _numTimestepsUnitState; }
 	inline unsigned int numComponents() const CADET_NOEXCEPT { return _nComp; }
 	inline unsigned int numInletPorts() const CADET_NOEXCEPT { return _nInletPorts; }
 	inline unsigned int numOutletPorts() const CADET_NOEXCEPT { return _nOutletPorts; }
-	inline unsigned int numAxialCells() const CADET_NOEXCEPT { return _nAxialCells; }
-	inline unsigned int numRadialCells() const CADET_NOEXCEPT { return _nRadialCells; }
+	inline unsigned int numAxialPoints() const CADET_NOEXCEPT { return _nAxialPoints; }
+	inline unsigned int numRadialPoints() const CADET_NOEXCEPT { return _nRadialPoints; }
 	inline unsigned int numParticleTypes() const CADET_NOEXCEPT { return _nParShells.size(); }
 	inline unsigned int numParticleShells(unsigned int parType = 0) const CADET_NOEXCEPT { return _nParShells[parType]; }
 	inline unsigned int numBoundStates(unsigned int parType = 0) const CADET_NOEXCEPT { return _nBoundStates[parType]; }
 
 	inline double const* time() const CADET_NOEXCEPT { return _time.data(); }
+	inline double const* timeUnitState() const CADET_NOEXCEPT { return _timeUnitState.data(); }
+	inline unsigned int numTimePointsUnitState() const CADET_NOEXCEPT { return _timeUnitState.size(); }
 	inline double const* inlet() const CADET_NOEXCEPT { return _data.inlet.data(); }
 	inline double const* outlet() const CADET_NOEXCEPT { return _data.outlet.data(); }
 	inline double const* bulk() const CADET_NOEXCEPT { return _data.bulk.data(); }
@@ -475,6 +524,7 @@ public:
 	inline double const* solid(unsigned int parType = 0) const CADET_NOEXCEPT { return _data.solid[parType].data(); }
 	inline double const* flux() const CADET_NOEXCEPT { return _data.flux.data(); }
 	inline double const* volume() const CADET_NOEXCEPT { return _data.volume.data(); }
+	inline double const* smoothnessIndicator() const CADET_NOEXCEPT { return _data.smoothnessIndicator.data(); }
 	inline double const* inletDot() const CADET_NOEXCEPT { return _dataDot.inlet.data(); }
 	inline double const* outletDot() const CADET_NOEXCEPT { return _dataDot.outlet.data(); }
 	inline double const* bulkDot() const CADET_NOEXCEPT { return _dataDot.bulk.data(); }
@@ -510,6 +560,7 @@ protected:
 		std::vector<std::vector<double>> solid;
 		std::vector<double> flux;
 		std::vector<double> volume;
+		std::vector<double> smoothnessIndicator;
 	};
 
 	inline void beginSensitivity(unsigned int sensIdx)
@@ -534,6 +585,7 @@ protected:
 		cfg.storeSolid = exporter.hasSolidPhase() && cfg.storeSolid;
 		cfg.storeFlux = exporter.hasParticleFlux() && cfg.storeFlux;
 		cfg.storeVolume = exporter.hasVolume() && cfg.storeVolume;
+		cfg.storeSmoothnessIndicator = exporter.discHasSmoothnessIndicator() && cfg.storeSmoothnessIndicator;
 	}
 
 	inline void allocateMemory(const ISolutionExporter& exporter)
@@ -568,11 +620,19 @@ protected:
 
 		if (_curCfg->storeVolume)
 			_curStorage->volume.reserve(nAllocTimesteps * exporter.numVolumeDofs());
+
+		if (_curCfg->storeSmoothnessIndicator)
+			_curStorage->smoothnessIndicator.reserve(nAllocTimesteps * exporter.numMobilePhaseDofs());
 	}
 
 	template <typename Writer_t>
 	void writeData(Writer_t& writer, const char* prefix, std::ostringstream& oss)
 	{
+		if (_numTimesteps < 1)
+			return;
+
+		const unsigned int numTsUnitState = _numTimestepsUnitState;
+
 		if (_curCfg->storeOutlet)
 		{
 			if (_splitPorts)
@@ -590,8 +650,8 @@ protected:
 							}
 							else
 							{
-								oss << prefix << "_OUTLET_PORT_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << port 
-									<<  "_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+								oss << prefix << "_OUTLET_PORT_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << port
+									<< "_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
 							}
 
 							writer.template vector<double>(oss.str(), _numTimesteps, _curStorage->outlet.data() + comp + port * _nComp, _nComp * _nOutletPorts);
@@ -632,13 +692,13 @@ protected:
 					oss << prefix << "_OUTLET";
 					if ((_nOutletPorts == 1) && !_singleAsMultiPortUnitOps)
 					{
-						const std::vector<std::size_t> layout = {_numTimesteps, _nComp};
+						const std::vector<std::size_t> layout = { _numTimesteps, _nComp };
 						debugCheckTensorLayout(layout, _curStorage->outlet.size());
 						writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->outlet.data());
 					}
 					else
 					{
-						const std::vector<std::size_t> layout = {_numTimesteps, _nOutletPorts, _nComp};
+						const std::vector<std::size_t> layout = { _numTimesteps, _nOutletPorts, _nComp };
 						debugCheckTensorLayout(layout, _curStorage->outlet.size());
 						writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->outlet.data());
 					}
@@ -663,8 +723,8 @@ protected:
 							}
 							else
 							{
-								oss << prefix << "_INLET_PORT_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << port 
-									<<  "_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+								oss << prefix << "_INLET_PORT_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << port
+									<< "_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
 							}
 
 							writer.template vector<double>(oss.str(), _numTimesteps, _curStorage->inlet.data() + comp + port * _nComp, _nComp * _nInletPorts);
@@ -705,13 +765,13 @@ protected:
 					oss << prefix << "_INLET";
 					if ((_nInletPorts == 1) && !_singleAsMultiPortUnitOps)
 					{
-						const std::vector<std::size_t> layout = {_numTimesteps, _nComp};
+						const std::vector<std::size_t> layout = { _numTimesteps, _nComp };
 						debugCheckTensorLayout(layout, _curStorage->inlet.size());
 						writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->inlet.data());
 					}
 					else
 					{
-						const std::vector<std::size_t> layout = {_numTimesteps, _nInletPorts, _nComp};
+						const std::vector<std::size_t> layout = { _numTimesteps, _nInletPorts, _nComp };
 						debugCheckTensorLayout(layout, _curStorage->inlet.size());
 						writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->inlet.data());
 					}
@@ -719,19 +779,38 @@ protected:
 			}
 		}
 
-		if (_curCfg->storeBulk)
+		if (_curCfg->storeBulk && _splitComponents)
+		{
+			std::vector<std::size_t> layout(0);
+			layout.reserve(3);
+			layout.push_back(numTsUnitState);
+
+			if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
+				layout.push_back(_nAxialPoints);
+			if (_nRadialPoints > 0)
+				layout.push_back(_nRadialPoints);
+
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
+			{
+				oss.str("");
+				oss << prefix << "_BULK_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+				writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->bulk.data() + comp, _nComp, 1);
+			}
+		}
+
+		if (_curCfg->storeBulk && !_splitComponents)
 		{
 			oss.str("");
 			oss << prefix << "_BULK";
 
 			std::vector<std::size_t> layout(0);
 			layout.reserve(4);
-			layout.push_back(_numTimesteps);
+			layout.push_back(numTsUnitState);
 
-			if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
-				layout.push_back(_nAxialCells);
-			if (_nRadialCells > 0)
-				layout.push_back(_nRadialCells);
+			if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
+				layout.push_back(_nAxialPoints);
+			if (_nRadialPoints > 0)
+				layout.push_back(_nRadialPoints);
 			layout.push_back(_nComp);
 
 			debugCheckTensorLayout(layout, _curStorage->bulk.size());
@@ -739,22 +818,83 @@ protected:
 			writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->bulk.data());
 		}
 
-		if (_curCfg->storeParticle)
+		if (_curCfg->storeParticle && _nParShells.size() > 0 && _splitComponents)
+		{
+			if (_nParShells.size() <= 1)
+			{
+				std::vector<std::size_t> layout(0);
+				layout.reserve(4);
+				layout.push_back(numTsUnitState);
+
+				if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
+					layout.push_back(_nAxialPoints);
+				if (_nRadialPoints > 0)
+					layout.push_back(_nRadialPoints);
+
+				if (_nParShells[0] >= 1)
+				{
+					if ((_nParShells[0] == 1) && _keepParticleSingletonDim[0])
+						layout.push_back(_nParShells[0]);
+					else if (_nParShells[0] > 1)
+						layout.push_back(_nParShells[0]);
+				}
+
+				for (unsigned int comp = 0; comp < _nComp; ++comp)
+				{
+					oss.str("");
+					oss << prefix << "_PARTICLE_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+					writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->particle[0].data() + comp, _nComp, 1);
+				}
+			}
+			else
+			{
+				for (std::size_t parType = 0; parType < _nParShells.size(); ++parType)
+				{
+					std::vector<std::size_t> layout(0);
+					layout.reserve(4);
+					layout.push_back(numTsUnitState);
+
+					if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
+						layout.push_back(_nAxialPoints);
+					if (_nRadialPoints > 0)
+						layout.push_back(_nRadialPoints);
+
+					if (_nParShells[parType] >= 1)
+					{
+						if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim[parType])
+						{
+						}
+						else
+							layout.push_back(_nParShells[parType]);
+					}
+
+					for (unsigned int comp = 0; comp < _nComp; ++comp)
+					{
+						oss.str("");
+						oss << prefix << "_PARTICLE_PARTYPE_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << parType
+							<< "_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+						writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->particle[parType].data() + comp, _nComp, 1);
+					}
+				}
+			}
+		}
+
+		if (_curCfg->storeParticle && _nParShells.size() > 0 && !_splitComponents)
 		{
 			std::vector<std::size_t> layout(0);
 			layout.reserve(5);
-			layout.push_back(_numTimesteps);
+			layout.push_back(numTsUnitState);
 
-			if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
-				layout.push_back(_nAxialCells);
-			if (_nRadialCells > 0)
-				layout.push_back(_nRadialCells);
+			if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
+				layout.push_back(_nAxialPoints);
+			if (_nRadialPoints > 0)
+				layout.push_back(_nRadialPoints);
 
 			if (_nParShells.size() <= 1)
 			{
 				if (_nParShells[0] >= 1)
 				{
-					if ((_nParShells[0] == 1) && _keepParticleSingletonDim)
+					if ((_nParShells[0] == 1) && _keepParticleSingletonDim[0])
 						layout.push_back(_nParShells[0]);
 					else if (_nParShells[0] > 1)
 						layout.push_back(_nParShells[0]);
@@ -779,12 +919,12 @@ protected:
 					std::size_t layoutSize = layout.size();
 					if (hasParticleShells)
 					{
-						if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim)
+						if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim[parType])
 						{
 							layout[layoutSize - 2] = _nComp;
 							--layoutSize;
 						}
-						else if ((_nParShells[parType] == 1) && _keepParticleSingletonDim)
+						else if ((_nParShells[parType] == 1) && _keepParticleSingletonDim[parType])
 							layout[layout.size() - 2] = _nParShells[parType];
 						else if (_nParShells[parType] > 1)
 							layout[layout.size() - 2] = _nParShells[parType];
@@ -799,22 +939,91 @@ protected:
 			}
 		}
 
-		if (_curCfg->storeSolid)
+		if (_curCfg->storeSolid && _nParShells.size() > 0 && _splitComponents)
+		{
+			if (_nParShells.size() <= 1)
+			{
+				std::vector<std::size_t> layout(0);
+				layout.reserve(4);
+				layout.push_back(numTsUnitState);
+
+				if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
+					layout.push_back(_nAxialPoints);
+				if (_nRadialPoints > 0)
+					layout.push_back(_nRadialPoints);
+
+				if (_nParShells[0] >= 1)
+				{
+					if ((_nParShells[0] == 1) && _keepParticleSingletonDim[0])
+						layout.push_back(_nParShells[0]);
+					else if (_nParShells[0] > 1)
+						layout.push_back(_nParShells[0]);
+				}
+
+				for (unsigned int comp = 0; comp < _nComp; ++comp)
+				{
+					for (unsigned int bnd = 0; bnd < _nBoundPerComp[0][comp]; ++bnd)
+					{
+						oss.str("");
+						oss << prefix << "_SOLID_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp
+							<< "_BND_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << bnd;
+						writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->solid[0].data() + _boundOffset[0][comp] + bnd, _nBoundStates[0], 1);
+					}
+				}
+			}
+			else
+			{
+				for (std::size_t parType = 0; parType < _nParShells.size(); ++parType)
+				{
+					std::vector<std::size_t> layout(0);
+					layout.reserve(4);
+					layout.push_back(numTsUnitState);
+
+					if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
+						layout.push_back(_nAxialPoints);
+					if (_nRadialPoints > 0)
+						layout.push_back(_nRadialPoints);
+
+					if (_nParShells[parType] >= 1)
+					{
+						if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim[parType])
+						{
+						}
+						else
+							layout.push_back(_nParShells[parType]);
+					}
+
+					for (unsigned int comp = 0; comp < _nComp; ++comp)
+					{
+						for (unsigned int bnd = 0; bnd < _nBoundPerComp[parType][comp]; ++bnd)
+						{
+							oss.str("");
+							oss << prefix << "_SOLID_PARTYPE_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << parType
+								<< "_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp
+								<< "_BND_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << bnd;
+							writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->solid[parType].data() + _boundOffset[parType][comp] + bnd, _nBoundStates[parType], 1);
+						}
+					}
+				}
+			}
+		}
+
+		if (_curCfg->storeSolid && _nParShells.size() > 0 && !_splitComponents)
 		{
 			std::vector<std::size_t> layout(0);
 			layout.reserve(5);
-			layout.push_back(_numTimesteps);
+			layout.push_back(numTsUnitState);
 
-			if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
-				layout.push_back(_nAxialCells);
-			if (_nRadialCells > 0)
-				layout.push_back(_nRadialCells);
+			if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
+				layout.push_back(_nAxialPoints);
+			if (_nRadialPoints > 0)
+				layout.push_back(_nRadialPoints);
 
 			if (_nParShells.size() <= 1)
 			{
 				if (_nParShells[0] >= 1)
 				{
-					if ((_nParShells[0] == 1) && _keepParticleSingletonDim)
+					if ((_nParShells[0] == 1) && _keepParticleSingletonDim[0])
 						layout.push_back(_nParShells[0]);
 					else if (_nParShells[0] > 1)
 						layout.push_back(_nParShells[0]);
@@ -839,9 +1048,9 @@ protected:
 					std::size_t layoutSize = layout.size();
 					if (hasParticleShells)
 					{
-						if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim)
+						if ((_nParShells[parType] == 1) && !_keepParticleSingletonDim[0])
 							--layoutSize;
-						else if ((_nParShells[parType] == 1) && _keepParticleSingletonDim)
+						else if ((_nParShells[parType] == 1) && _keepParticleSingletonDim[0])
 							layout[layout.size() - 2] = _nParShells[parType];
 						else if (_nParShells[parType] > 1)
 							layout[layout.size() - 2] = _nParShells[parType];
@@ -858,17 +1067,37 @@ protected:
 			}
 		}
 
-		if (_curCfg->storeFlux)
+		if (_curCfg->storeFlux && _splitComponents)
+		{
+			std::vector<std::size_t> layout(0);
+			layout.reserve(4);
+
+			layout.push_back(numTsUnitState);
+			layout.push_back(_nParShells.size());
+			if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
+				layout.push_back(_nAxialPoints);
+			if (_nRadialPoints > 0)
+				layout.push_back(_nRadialPoints);
+
+			for (unsigned int comp = 0; comp < _nComp; ++comp)
+			{
+				oss.str("");
+				oss << prefix << "_FLUX_COMP_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << comp;
+				writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->flux.data() + comp, _nComp, 1);
+			}
+		}
+
+		if (_curCfg->storeFlux && !_splitComponents)
 		{
 			std::vector<std::size_t> layout(0);
 			layout.reserve(5);
 
-			layout.push_back(_numTimesteps);
+			layout.push_back(numTsUnitState);
 			layout.push_back(_nParShells.size());
-			if ((_keepBulkSingletonDim && (_nAxialCells == 1)) || (_nAxialCells > 1))
-				layout.push_back(_nAxialCells);
-			if (_nRadialCells > 0)
-				layout.push_back(_nRadialCells);
+			if ((_keepBulkSingletonDim && (_nAxialPoints == 1)) || (_nAxialPoints > 1))
+				layout.push_back(_nAxialPoints);
+			if (_nRadialPoints > 0)
+				layout.push_back(_nRadialPoints);
 			layout.push_back(_nComp);
 
 			debugCheckTensorLayout(layout, _curStorage->flux.size());
@@ -884,7 +1113,25 @@ protected:
 			oss << prefix << "_VOLUME";
 			// Note: since the CSTR is currently the only unit operation that simulates volume, and _numVolumeDof is 1, we always write this as a vector.
 			// Once other unit operations are implemented with more than one volume, we should add the option here to write this as a matrix (singletonDimension filed etc, see other output).
-			writer.template vector<double>(oss.str(), _numTimesteps * _nVolumeDof, _curStorage->volume.data(), 1);
+			writer.template vector<double>(oss.str(), numTsUnitState * _nVolumeDof, _curStorage->volume.data(), 1);
+		}
+
+		if (_curCfg->storeSmoothnessIndicator)
+		{
+			oss.str("");
+			oss << prefix << "_SMOOTHNESS_INDICATOR";
+
+			std::vector<std::size_t> layout(0);
+			layout.reserve(4);
+			layout.push_back(numTsUnitState);
+
+			if (_nAxialPoints > 0)
+				layout.push_back(_nAxialPoints);
+			layout.push_back(_nComp);
+
+			debugCheckTensorLayout(layout, _curStorage->smoothnessIndicator.size());
+
+			writer.template tensor<double>(oss.str(), layout.size(), layout.data(), _curStorage->smoothnessIndicator.data());
 		}
 	}
 
@@ -902,6 +1149,7 @@ protected:
 
 		s.flux.clear();
 		s.volume.clear();
+		s.smoothnessIndicator.clear();
 	}
 
 	template <typename T>
@@ -934,12 +1182,13 @@ protected:
 	bool _splitPorts;
 	bool _singleAsMultiPortUnitOps;
 	bool _keepBulkSingletonDim;
-	bool _keepParticleSingletonDim;
+	std::vector<bool> _keepParticleSingletonDim;
 
 	StorageConfig const* _curCfg;
 	Storage* _curStorage;
 
 	std::vector<double> _time;
+	std::vector<double> _timeUnitState;
 	Storage _data;
 	Storage _dataDot;
 	std::vector<Storage> _sens;
@@ -947,13 +1196,17 @@ protected:
 
 	unsigned int _nComp;
 	unsigned int _nVolumeDof;
-	unsigned int _nAxialCells;
-	unsigned int _nRadialCells;
+	unsigned int _nAxialPoints;
+	unsigned int _nRadialPoints;
 	unsigned int _nInletPorts;
 	unsigned int _nOutletPorts;
 	std::vector<unsigned int> _nParShells;
 	std::vector<unsigned int> _nBoundStates;
+	std::vector<std::vector<unsigned int>> _nBoundPerComp;
+	std::vector<std::vector<unsigned int>> _boundOffset;
 	unsigned int _numTimesteps;
+	unsigned int _numTimestepsUnitState;
+	bool _writeUnitState;
 	unsigned int _numSens;
 	UnitOpIdx _unitOp;
 
@@ -975,7 +1228,7 @@ class InternalStorageSystemRecorder : public ISolutionRecorder
 {
 public:
 
-	InternalStorageSystemRecorder() : _numTimesteps(0), _numSens(0), _storeTime(true)
+	InternalStorageSystemRecorder() : _numTimesteps(0), _numTimestepsUnitState(0), _numSens(0), _storeTime(true), _storeIDASMeta(false), _nIDASTimeSteps(0)
 	{
 	}
 
@@ -987,6 +1240,7 @@ public:
 	virtual void clear()
 	{
 		_time.clear();
+		_timeUnitState.clear();
 
 		for (InternalStorageUnitOpRecorder* rec : _recorders)
 			rec->clear();
@@ -1008,6 +1262,7 @@ public:
 	{
 		_numSens = numSens;
 		_time.clear();
+		_timeUnitState.clear();
 
 		if (numTimesteps > 0)
 			_time.reserve(numTimesteps);
@@ -1025,16 +1280,43 @@ public:
 
 		// Reset for counting actual number of time steps
 		_numTimesteps = 0;
+		_numTimestepsUnitState = 0;
 	}
 
-	virtual void beginTimestep(double t)
+	virtual void beginTimestep(double t, bool writeUnitState = true)
 	{
 		++_numTimesteps;
 		if (_storeTime)
 			_time.push_back(t);
 
+		if (writeUnitState)
+		{
+			++_numTimestepsUnitState;
+			if (_storeTime)
+				_timeUnitState.push_back(t);
+		}
+
 		for (InternalStorageUnitOpRecorder* rec : _recorders)
-			rec->beginTimestep(t);
+			rec->beginTimestep(t, writeUnitState);
+	}
+
+	virtual void integratorMetaData(const IDASMeta& idasMeta)
+	{
+		if (_storeIDASMeta)
+		{
+			_nsteps.push_back(idasMeta.nsteps);
+			_nrevals.push_back(idasMeta.nrevals);
+			_nlinsetups.push_back(idasMeta.nlinsetups);
+			_netfails.push_back(idasMeta.netfails);
+			_klast.push_back(idasMeta.klast);
+			_hinused.push_back(idasMeta.hinused);
+			_hlast.push_back(idasMeta.hlast);
+			_kcur = idasMeta.kcur;
+			_hcur = idasMeta.hcur;
+			_tcur = idasMeta.tcur;
+		}
+
+		_nIDASTimeSteps = idasMeta.nsteps;
 	}
 
 	virtual void beginUnitOperation(cadet::UnitOpIdx idx, const cadet::IModel& model, const cadet::ISolutionExporter& exporter)
@@ -1121,14 +1403,19 @@ public:
 			}
 		}
 	}
-	
+
 	template <typename Writer_t>
 	void writeSolution(Writer_t& writer)
 	{
 		std::ostringstream oss;
 
 		if (_storeTime)
-			writer.template vector<double>("SOLUTION_TIMES", _time.size(), _time.data());
+		{
+			if (_time.size() > 0)
+				writer.template vector<double>("SOLUTION_TIMES", _time.size(), _time.data());
+			if (_timeUnitState.size() > 0)
+				writer.template vector<double>("SOLUTION_TIMES_UNIT_STATE", _timeUnitState.size(), _timeUnitState.data());
+		}
 
 		for (InternalStorageUnitOpRecorder* rec : _recorders)
 		{
@@ -1164,6 +1451,29 @@ public:
 
 			writer.popGroup();
 		}
+	}
+
+	template <typename Writer_t>
+	void writeIDASMeta(Writer_t& writer)
+	{
+		std::ostringstream oss;
+
+		writer.scalar("IDAS_NTIMESTEPS", static_cast<int>(_nIDASTimeSteps));
+
+		if (!_storeIDASMeta || _time.size() <= 0)
+			return;
+
+		writer.scalar("IDAS_NEXT_BDF_ORDER", _kcur);
+		writer.scalar("IDAS_NEXT_STEP_SIZE", _hcur);
+		writer.scalar("IDAS_NEXT_TIME_POINT", _tcur);
+
+		writer.template vector<int>("IDAS_KUMULATIVE_NTIMESTEPS", numDataPoints(), &_nsteps[0]);
+		writer.template vector<int>("IDAS_N_RESIDUAL_CALLS", numDataPoints(), &_nrevals[0]);
+		writer.template vector<int>("IDAS_N_LINSOLVER_SETUP_CALLS", numDataPoints(), &_nlinsetups[0]);
+		writer.template vector<int>("IDAS_N_LOCAL_ERROR_TEST_FAILURES", numDataPoints(), &_netfails[0]);
+		writer.template vector<int>("IDAS_BDF_ORDER", numDataPoints(), &_klast[0]);
+		writer.template vector<double>("IDAS_FIRST_INTEGRATION_STEP_SIZE", numDataPoints(), &_hinused[0]);
+		writer.template vector<double>("IDAS_INTEGRATION_STEP_SIZE", numDataPoints(), &_hlast[0]);
 	}
 
 	inline bool storeTime() const CADET_NOEXCEPT { return _storeTime; }
@@ -1223,15 +1533,36 @@ public:
 	}
 
 	inline double const* time() const CADET_NOEXCEPT { return _time.data(); }
+	inline double const* timeUnitState() const CADET_NOEXCEPT { return _timeUnitState.data(); }
+	inline unsigned int numTimePointsUnitState() const CADET_NOEXCEPT { return _timeUnitState.size(); }
+	inline unsigned int numDataPointsUnitState() const CADET_NOEXCEPT { return _numTimestepsUnitState; }
 	inline unsigned int numSensitivites() const CADET_NOEXCEPT { return _numSens; }
+
+	inline void setStoreIDASMeta(bool store) CADET_NOEXCEPT { _storeIDASMeta = store; }
 
 protected:
 
 	std::vector<InternalStorageUnitOpRecorder*> _recorders;
 	unsigned int _numTimesteps;
+	unsigned int _numTimestepsUnitState;
 	unsigned int _numSens;
 	std::vector<double> _time;
+	std::vector<double> _timeUnitState;
 	bool _storeTime;
+
+	// IDAS meta info
+	bool _storeIDASMeta;
+	unsigned int _nIDASTimeSteps; // number of steps taken by IDAS at the end of simulation
+	std::vector<int> _nsteps; // cumulative number of steps taken by IDAS
+	std::vector<int> _nrevals; // number of calls to the user’s residual evaluation function
+	std::vector<int> _nlinsetups; // cumulative number of calls made to the linear solver’s setup function
+	std::vector<int> _netfails; // cumulative number of local error test failures that have occurred
+	std::vector<int> _klast; // integration method order used during the last internal step
+	std::vector<double> _hinused; // value of the integration step size used on the first step
+	std::vector<double> _hlast; // integration step size taken on the last internal step
+	int _kcur; // integration method order to be used on the next internal step
+	double _hcur; // integration step size to be attempted on the next internal step
+	double _tcur; //current internal time reached by the solver
 };
 
 

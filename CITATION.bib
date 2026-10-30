@@ -3,6 +3,30 @@
 
 % General:
 
+@misc{Breuer2026,
+title = {A unified and composable framework for modeling packed-bed liquid chromatography},
+year = {2026},
+author = {Jan Michael Breuer and Samuel Leweke and Johannes Schmölder and Antonia Berger and Gregor J. Gassner and Eric {von Lieres}},
+doi = {10.48550/arXiv.2610.33269},
+eprint = {2610.33269},
+archivePrefix = {arXiv},
+primaryClass = {cs.CE},
+howpublished = {arXiv preprint arXiv:2610.33269},
+}
+
+@article{Leweke2025,
+doi = {10.21105/joss.07881},
+url = {https://doi.org/10.21105/joss.07881},
+year = {2025},
+publisher = {The Open Journal},
+volume = {10},
+number = {111},
+pages = {7881},
+author = {Samuel Leweke and Jan Breuer and Johannes Schmölder and Ronald Jäpel and Hannah Lanzrath and Jayghosh Rao and Jazib Hassan and Wendi Zhang and Antonia Berger and William Heymann and Eric von Lieres},
+title = {CADET-Core 5.0: High-Performance Solver for Advanced Biotechnology Process Modeling},
+journal = {Journal of Open Source Software}
+}
+
 @article{Leweke2018CADET,
 title = {Chromatography Analysis and Design Toolkit (CADET)},
 year = {2018},
@@ -15,6 +39,8 @@ issn = {0098-1354},
 keywords = {Column liquid chromatography, General rate model, Modeling and simulation platform, Model calibration, Process analysis and design, Statistical analysis, Experimental design},
 abstract = {CADET is an open source modeling and simulation framework for column liquid chromatography. The software is freely distributed to both academia and industry under the GPL license (http://github.com/modsim/cadet). CADET is based on a core simulator that is written in object oriented C++ and applies modern mathematical algorithms for efficiently solving a variety of customary chromatography models. This simulation engine is interfaced to a suite of MATLAB tools for setting up and executing the most common scientific workflows, e.g., model calibration, process design, robustness analysis, statistical analysis, and experimental design. The model library and numerical methods are continuously extended and improved. For instance, binding models with multiple bound states, pH and/or temperature dependence of binding parameters, surface diffusion, and arbitrary spacing of the radial discretization have been recently added. Moreover, numerical accuracy and computational speed of the code are comprehensively benchmarked using high precision reference solutions and realistic model problems. Versatility of the CADET modeling platform is demonstrated with several examples that are also published as open source code and can be freely adapted to specific use cases. In one of several case studies, sequential and simultaneous optimization of elution gradient shape and cut times are compared for a three component separation. This process is designed to achieve Pareto optimal purity and yield of the central fraction. Moreover, the robustness of these designs with respect to typical process variations is systematically studied. The last case study illustrates the optimal design of experiments for estimating model parameters with maximal accuracy.}
 }
+
+% Legacy FV discretization:
 
 @article{VonLieres2010a,
 title = {{A fast and accurate solver for the general rate model of column liquid chromatography}},

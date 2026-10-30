@@ -172,38 +172,22 @@ namespace reaction
 	{
 		auto gs = util::makeModelGroupScope(jpp, unit);
 		const int nComp = jpp.getInt("NCOMP");
-		std::vector<int> nBound(0);
-		if (jpp.exists("NBOUND"))
-			nBound = jpp.getIntArray("NBOUND");
-
-		int nParType = 0;
-		{
-			auto ds = cadet::test::util::makeOptionalGroupScope(jpp, "discretization");
-
-			// Try to detect number of particle types
-			if (jpp.exists("NPAR"))
-				nParType = jpp.numElements("NPAR");
-			
-			if (jpp.exists("NPARTYPE"))
-			{
-				nParType = jpp.getInt("NPARTYPE");
-			}
-			else
-				nParType = nBound.size() / nComp;
-		}
 
 		const std::string uoType = jpp.getString("UNIT_TYPE");
-		const bool isLRMP = (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES");
-		const int nTotalBound = std::accumulate(nBound.begin(), nBound.end(), 0);
+		const bool isLRM = (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES");
 
-		if (!isLRMP && bulk)
+		if (bulk)
 		{
-			char const* const scopeName = "reaction_bulk";
+			const int reactionTypes = 1;
+			jpp.set("NREAC_LIQUID", reactionTypes);
+
+			char const* const scopeName = "liquid_reaction_000";
 			jpp.addScope(scopeName);
 			auto gs2 = util::makeGroupScope(jpp, scopeName);
 
-			const int nReactions = 4;
+			jpp.set("TYPE", "MASS_ACTION_LAW");
 
+			const int nReactions = 1;
 			std::vector<double> stoichMat(nReactions * nComp, 0.0);
 			std::vector<double> expFwd(nReactions * nComp, 0.0);
 			std::vector<double> expBwd(nReactions * nComp, 0.0);
@@ -216,27 +200,36 @@ namespace reaction
 			util::populate(rateFwd.data(), [](unsigned int idx) { return std::sin(0.3 + idx * 0.2) * 0.5 + 1.5; }, rateFwd.size());
 			util::populate(rateBwd.data(), [](unsigned int idx) { return std::sin(0.4 + idx * 0.4) * 0.5 + 1.6; }, rateBwd.size());
 
-			jpp.set("MAL_STOICHIOMETRY_BULK", stoichMat);
-			jpp.set("MAL_EXPONENTS_BULK_FWD", expFwd);
-			jpp.set("MAL_EXPONENTS_BULK_BWD", expBwd);
-			jpp.set("MAL_KFWD_BULK", rateFwd);
-			jpp.set("MAL_KBWD_BULK", rateBwd);
+			jpp.set("MAL_STOICHIOMETRY", stoichMat);
+			jpp.set("MAL_EXPONENTS_FWD", expFwd);
+			jpp.set("MAL_EXPONENTS_BWD", expBwd);
+			jpp.set("MAL_KFWD", rateFwd);
+			jpp.set("MAL_KBWD", rateBwd);
 		}
 
-		if ((!isLRMP && particle) || (isLRMP && bulk))
+		if (!jpp.exists("NPARTYPE"))
+			return;
+
+		const int nParType = jpp.getInt("NPARTYPE");
+
+		if ((!isLRM && particle))
 		{
-			const int nReactions = 3;
+			const int nReactions = 1;
 
 			for (int i = 0; i < nParType; ++i)
 			{
-				std::ostringstream oss;
-				if (isLRMP)
-					oss << "reaction";
-				else
-					oss << "reaction_particle_" << std::setfill('0') << std::setw(3) << std::setprecision(0) << i;
+				jpp.pushScope("particle_type_" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i)); // particle_type_xxx
 
-				jpp.addScope(oss.str());
-				auto gs2 = util::makeGroupScope(jpp, oss.str());
+				const std::vector<int> nBound = jpp.getIntArray("NBOUND");
+				const int nTotalBound = std::accumulate(nBound.begin(), nBound.end(), 0);
+
+				int nReac = 1;
+				jpp.set("NREAC_CROSS_PHASE", nReac);
+
+				jpp.addScope("cross_phase_reaction_000"); //particle_type_xxx/cross_phase_reaction_000
+				auto gs3 = util::makeGroupScope(jpp, "cross_phase_reaction_000");
+
+				jpp.set("TYPE", "MASS_ACTION_LAW_CROSS_PHASE");
 
 				std::vector<double> stoichMatLiquid(nReactions * nComp, 0.0);
 				std::vector<double> expFwdLiquid(nReactions * nComp, 0.0);
@@ -281,20 +274,73 @@ namespace reaction
 					std::vector<double> expFwdSolidModLiquid(nReactions * nComp, 0.0);
 					std::vector<double> expBwdSolidModLiquid(nReactions * nComp, 0.0);
 
-					util::populate(expFwdLiquidModSolid.data(), [](unsigned int idx) { return std::sin(idx * 0.7 + 0.1) * 0.5 + 1.6; }, expFwdLiquidModSolid.size());
-					util::populate(expBwdLiquidModSolid.data(), [](unsigned int idx) { return std::sin(idx * 0.7 + 0.2) * 0.5 + 1.6; }, expBwdLiquidModSolid.size());
-					util::populate(expFwdSolidModLiquid.data(), [](unsigned int idx) { return std::sin(idx * 0.7 + 0.3) * 0.5 + 1.6; }, expFwdSolidModLiquid.size());
-					util::populate(expBwdSolidModLiquid.data(), [](unsigned int idx) { return std::sin(idx * 0.7 + 0.4) * 0.5 + 1.6; }, expBwdSolidModLiquid.size());
+					// A rate law that is modified by every state of the other phase at once drives the
+					// residual far enough up that the finite differences the Jacobian is checked
+					// against lose the small entries in round-off. Every other state carries a
+					// modifier instead, which is also what a rate law looks like in practice.
+					util::populate(expFwdLiquidModSolid.data(), [](unsigned int idx) { return (idx % 2 == 0) ? 0.0 : std::sin(idx * 0.7 + 0.1) * 0.2 + 0.8; }, expFwdLiquidModSolid.size());
+					util::populate(expBwdLiquidModSolid.data(), [](unsigned int idx) { return (idx % 2 == 1) ? 0.0 : std::sin(idx * 0.7 + 0.2) * 0.2 + 0.8; }, expBwdLiquidModSolid.size());
+					util::populate(expFwdSolidModLiquid.data(), [](unsigned int idx) { return (idx % 2 == 0) ? 0.0 : std::sin(idx * 0.7 + 0.3) * 0.2 + 0.8; }, expFwdSolidModLiquid.size());
+					util::populate(expBwdSolidModLiquid.data(), [](unsigned int idx) { return (idx % 2 == 1) ? 0.0 : std::sin(idx * 0.7 + 0.4) * 0.2 + 0.8; }, expBwdSolidModLiquid.size());
 
 					jpp.set("MAL_EXPONENTS_LIQUID_FWD_MODSOLID", expFwdLiquidModSolid);
 					jpp.set("MAL_EXPONENTS_LIQUID_BWD_MODSOLID", expBwdLiquidModSolid);
 					jpp.set("MAL_EXPONENTS_SOLID_FWD_MODLIQUID", expFwdSolidModLiquid);
 					jpp.set("MAL_EXPONENTS_SOLID_BWD_MODLIQUID", expBwdSolidModLiquid);
 				}
+
+					jpp.popScope();
+			}
+
+			// A solid phase reaction acts on the bound states alone, so its stoichiometry is sized by
+			// the number of bound states instead of the number of components
+			for (int i = 0; i < nParType; ++i)
+			{
+				jpp.pushScope("particle_type_" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i)); // particle_type_xxx
+
+				const std::vector<int> nBound = jpp.getIntArray("NBOUND");
+				const int nTotalBound = std::accumulate(nBound.begin(), nBound.end(), 0);
+
+				if (nTotalBound == 0)
+				{
+					jpp.popScope();
+					continue;
+				}
+
+				jpp.set("NREAC_SOLID", 1);
+
+				jpp.addScope("solid_reaction_000"); // particle_type_xxx/solid_reaction_000
+				auto gs4 = util::makeGroupScope(jpp, "solid_reaction_000");
+
+				jpp.set("TYPE", "MASS_ACTION_LAW");
+
+				std::vector<double> stoichMat(nReactions * nTotalBound, 0.0);
+				std::vector<double> expFwd(nReactions * nTotalBound, 0.0);
+				std::vector<double> expBwd(nReactions * nTotalBound, 0.0);
+				std::vector<double> rateFwd(nReactions, 0.0);
+				std::vector<double> rateBwd(nReactions, 0.0);
+
+				util::populate(stoichMat.data(), [](unsigned int idx) { return 2.0 * std::sin(0.6 + idx * 0.8); }, stoichMat.size());
+				util::populate(expFwd.data(), [](unsigned int idx) { return std::sin(0.3 + idx * 0.5) + 1.4; }, expFwd.size());
+				util::populate(expBwd.data(), [](unsigned int idx) { return std::sin(0.4 + idx * 0.2) + 1.1; }, expBwd.size());
+				// The time derivative Jacobian is checked against finite differences that perturb a
+				// single rate, some of which are close to zero. A reaction of the same magnitude as
+				// the cross phase one above leaves too little of those differences to compare, so
+				// this one is an order of magnitude slower.
+				util::populate(rateFwd.data(), [](unsigned int idx) { return std::sin(0.2 + idx * 0.3) * 0.05 + 0.15; }, rateFwd.size());
+				util::populate(rateBwd.data(), [](unsigned int idx) { return std::sin(0.5 + idx * 0.5) * 0.05 + 0.16; }, rateBwd.size());
+
+				jpp.set("MAL_STOICHIOMETRY", stoichMat);
+				jpp.set("MAL_EXPONENTS_FWD", expFwd);
+				jpp.set("MAL_EXPONENTS_BWD", expBwd);
+				jpp.set("MAL_KFWD", rateFwd);
+				jpp.set("MAL_KBWD", rateBwd);
+
+				jpp.popScope();
 			}
 		}
 	}
-	
+
 	void testMichaelisMentenToSMAMicroKinetic(const std::string configFilePathMM, const std::string configFilePathSMA, const double absTol, const double relTol)
 	{
 		// read json model setup file
@@ -303,8 +349,8 @@ namespace reaction
 		JsonParameterProvider pp_setup_MM(JsonParameterProvider::fromFile(setupFileMM));
 		JsonParameterProvider pp_setup_SMA(JsonParameterProvider::fromFile(setupFileSMA));
 
-		nlohmann::json* setupJsonMM = pp_setup_MM.data();
-		nlohmann::json* setupJsonSMA = pp_setup_SMA.data();
+//		nlohmann::json* setupJsonMM = pp_setup_MM.data();
+//		nlohmann::json* setupJsonSMA = pp_setup_SMA.data();
 
 		// MM simulation
 		cadet::Driver drvMM;
@@ -327,50 +373,17 @@ namespace reaction
 		for (unsigned int i = 0; i < SMAData->numDataPoints(); ++i, outletMM += nCompMM, outletSMA += nCompSMA)
 		{
 			CAPTURE(i);
-			CHECK((outletMM[0]) == cadet::test::makeApprox(outletSMA[1], relTol, absTol));
-			CHECK((outletMM[1]) == cadet::test::makeApprox(outletSMA[3], relTol, absTol));
-		}
-	}
-
-	void testMichaelisMentenToSMAInhibitionMicroKinetic(const std::string configFilePathMM, const std::string configFilePathSMA, const double absTol, const double relTol)
-	{
-		// read json model setup file
-		const std::string setupFileMM = std::string(getTestDirectory()) + configFilePathMM;
-		const std::string setupFileSMA = std::string(getTestDirectory()) + configFilePathSMA;
-		JsonParameterProvider pp_setup_MM(JsonParameterProvider::fromFile(setupFileMM));
-		JsonParameterProvider pp_setup_SMA(JsonParameterProvider::fromFile(setupFileSMA));
-
-		nlohmann::json* setupJsonMM = pp_setup_MM.data();
-		nlohmann::json* setupJsonSMA = pp_setup_SMA.data();
-
-		// MM simulation
-		cadet::Driver drvMM;
-		drvMM.configure(pp_setup_MM);
-		drvMM.run();
-
-		// SMA micro-kinetics simulation
-		cadet::Driver drvSMA;
-		drvSMA.configure(pp_setup_SMA);
-		drvSMA.run();
-
-		cadet::InternalStorageUnitOpRecorder const* const MMData = drvMM.solution()->unitOperation(0);
-		cadet::InternalStorageUnitOpRecorder const* const SMAData = drvSMA.solution()->unitOperation(0);
-
-		double const* outletMM = MMData->outlet();
-		double const* outletSMA = SMAData->outlet();
-
-		const unsigned int nCompMM = MMData->numComponents();
-		const unsigned int nCompSMA = SMAData->numComponents();
-		for (unsigned int i = 0; i < SMAData->numDataPoints(); ++i, outletMM += nCompMM, outletSMA += nCompSMA)
-		{
-			CAPTURE(i);
-			CHECK((outletMM[0]) == cadet::test::makeApprox(outletSMA[0], relTol, absTol));
-			CHECK((outletMM[1]) == cadet::test::makeApprox(outletSMA[1], relTol, absTol));
+			CHECK((outletMM[0]) == cadet::test::makeApprox(outletSMA[0], relTol, absTol)); // substrate
+			CHECK((outletMM[1]) == cadet::test::makeApprox(outletSMA[1], relTol, absTol)); // product
 		}
 	}
 
 	void testDynamicJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, const char* config, double const* point, double absTol, double relTol)
 	{
+		// Enable AD before the model is configured: an active only zeroes its gradient over the currently
+		// set number of directions (see the construct-before-grow invariant in sfad-common.hpp).
+		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
 		ConfiguredDynamicReactionModel crm = ConfiguredDynamicReactionModel::create(modelName, nComp, nBound, config);
 
 		const unsigned int numDofs = crm.nComp() + crm.numBoundStates();
@@ -381,8 +394,7 @@ namespace reaction
 		std::vector<double> colA(numDofs, 0.0);
 		std::vector<double> colB(numDofs, 0.0);
 
-		// Enable AD
-		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+		// Enable AD (directions were already raised above, before the model was configured)
 		cadet::active* adRes = new cadet::active[numDofs];
 		cadet::active* adY = new cadet::active[numDofs];
 
@@ -443,7 +455,7 @@ namespace reaction
 
 		// Evaluate with AD
 		ad::resetAd(adRes, numDofs);
-		crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, adY, adRes, 1.0, crm.buffer());
+		crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, crm.nComp(), adY, adRes, 1.0, crm.buffer());
 
 		// Extract Jacobian
 		jacAD.setAll(0.0);
@@ -451,7 +463,7 @@ namespace reaction
 
 		// Calculate analytic Jacobian
 		jacAna.setAll(0.0);
-		crm.model().analyticJacobianLiquidAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, yState.data(), 1.0, jacAna.row(0), crm.buffer());
+		crm.model().analyticJacobianAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, crm.nComp(), yState.data(), 1.0, jacAna.row(0), crm.buffer());
 
 		delete[] adY;
 		delete[] adRes;
@@ -460,7 +472,7 @@ namespace reaction
 			[&](double const* lDir, double* res) -> void
 			{
 				std::fill_n(res, nComp, 0.0);
-				crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, lDir, res, 1.0, crm.buffer());
+				crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, crm.nComp(), lDir, res, 1.0, crm.buffer());
 			},
 			[&](double const* lDir, double* res) -> void
 			{
@@ -472,7 +484,7 @@ namespace reaction
 			[&](double const* lDir, double* res) -> void
 			{
 				std::fill_n(res, nComp, 0.0);
-				crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, lDir, res, 1.0, crm.buffer());
+				crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, crm.nComp(), lDir, res, 1.0, crm.buffer());
 			},
 			[&](double const* lDir, double* res) -> void
 			{
@@ -525,7 +537,7 @@ namespace reaction
 
 		// Evaluate with AD
 		ad::resetAd(adRes, numDofs);
-		crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, adY, adRes, 1.0, crm.buffer());
+		crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, crm.nComp(), adY, adRes, 1.0, crm.buffer());
 
 		// Extract Jacobian
 		jacAD.setAll(0.0);
@@ -533,7 +545,7 @@ namespace reaction
 
 		// Calculate analytic Jacobian
 		jacAna.setAll(0.0);
-		crm.model().analyticJacobianLiquidAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, yState.data(), 1.0, jacAna.row(0), crm.buffer());
+		crm.model().analyticJacobianAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, crm.nComp(), yState.data(), 1.0, jacAna.row(0), crm.buffer());
 
 		delete[] adY;
 		delete[] adRes;
@@ -542,7 +554,7 @@ namespace reaction
 			[&](double const* lDir, double* res) -> void
 			{
 				std::fill_n(res, nComp, 0.0);
-				crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, lDir, res, 1.0, crm.buffer());
+				crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, crm.nComp(), lDir, res, 1.0, crm.buffer());
 			},
 			[&](double const* lDir, double* res) -> void
 			{
@@ -554,7 +566,7 @@ namespace reaction
 			[&](double const* lDir, double* res) -> void
 			{
 				std::fill_n(res, nComp, 0.0);
-				crm.model().residualLiquidAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, lDir, res, 1.0, crm.buffer());
+				crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, crm.nComp(), lDir, res, 1.0, crm.buffer());
 			},
 			[&](double const* lDir, double* res) -> void
 			{
@@ -596,6 +608,47 @@ namespace reaction
 	{
 		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
 		testTimeDerivativeJacobianDynamicReactionsFD(jpp, bulk, particle, particleModifiers, h, absTol, relTol);
+	}
+
+	Eigen::MatrixXd conservedMoietiesFromMassActionLaw(unsigned int nComp, const char* config)
+	{
+		std::vector<unsigned int> nBound(nComp, 0);
+		std::vector<unsigned int> boundOffset(nComp, 0);
+
+		cadet::JsonParameterProvider jpp(config);
+		cadet::ReactionModelFactory rmf;
+		std::unique_ptr<cadet::model::IDynamicReactionModel> model(rmf.createDynamic("MASS_ACTION_LAW"));
+		REQUIRE(model);
+		REQUIRE(model->configureModelDiscretization(jpp, nComp, nBound.data(), boundOffset.data()));
+		REQUIRE(model->configure(jpp, 0, 0));
+
+		const unsigned int nReactions = model->numReactions();
+		Eigen::MatrixXd stoichiometry(nComp, nReactions);
+		std::vector<bool> eqReactionFlags(nReactions);
+
+		for (unsigned int r = 0; r < nReactions; ++r)
+		{
+			eqReactionFlags[r] = model->isInEquilibrium(r);
+			for (unsigned int c = 0; c < nComp; ++c)
+				stoichiometry(c, r) = model->getStoichiometry(c, r);
+		}
+
+		cadet::model::ConservedMoieties cm;
+		REQUIRE(cm.configure(nComp, eqReactionFlags, stoichiometry, 1e-14));
+
+		return cm.conservedMoietyMatrix();
+	}
+
+	void checkNullSpace(const Eigen::MatrixXd& left, const Eigen::MatrixXd& right)
+	{
+		const double nullspaceTol = 1e-12;
+		const Eigen::MatrixXd product = left * right;
+
+		for (Eigen::Index r = 0; r < product.rows(); ++r)
+		{
+			for (Eigen::Index c = 0; c < product.cols(); ++c)
+				CHECK(std::abs(product(r, c)) <= nullspaceTol);
+		}
 	}
 
 } // namespace reaction

@@ -28,6 +28,20 @@ namespace cadet
 class ISolutionExporter;
 class IModel;
 
+struct IDASMeta
+{
+	int nsteps;
+	int nrevals;
+	int nlinsetups;
+	int netfails;
+	int klast;
+	int kcur;
+	double hinused;
+	double hlast;
+	double hcur;
+	double tcur;
+};
+
 /**
  * @brief Interface providing functionality for recording the solution in the user space
  * @details Library users implement this interface which is then used by the cadet::ISimulator
@@ -87,10 +101,18 @@ public:
 	 * @details After a timestep has been finished, the solution is exported to the user space.
 	 *          This function is called once before all unit operations report their solutions
 	 *          via beginUnitOperation().
-	 * 
+	 *
 	 * @param [in] t Current timepoint
+	 * @param [in] writeUnitState If @c true, internal unit state (bulk, particle, etc.) is recorded.
+	 *             If @c false, only inlet/outlet data is recorded at this time point.
 	 */
-	virtual void beginTimestep(double t) = 0;
+	virtual void beginTimestep(double t, bool writeUnitState = true) = 0;
+
+	/**
+	 * @brief Signals the beginning of new IDAS meta data to export
+	 * @param [in] idasMeta Container for IDAS meta data
+	 */
+	virtual void integratorMetaData(const IDASMeta& idasMeta) = 0;
 
 	/**
 	 * @brief Signals the export of the given unit operation

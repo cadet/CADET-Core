@@ -62,24 +62,23 @@ public:
 		return 0;
 	}
 
-	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
+	virtual int residualFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, active const* y,
 		active* res, const active& factor, LinearBufferAllocator workSpace) const { return 0; }
 
-	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,
+	virtual int residualFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, active const* y,
 		active* res, double factor, LinearBufferAllocator workSpace) const { return 0; }
 
-	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
+	virtual int residualFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,
 		active* res, double factor, LinearBufferAllocator workSpace) const { return 0; }
 
-	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,
+	virtual int residualFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,
 		double* res, double factor, LinearBufferAllocator workSpace) const { return 0; }
 
-	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const { }
-	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const { }
-	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const { }
-	#ifdef ENABLE_DG
-	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y, double factor, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const { }
-	#endif
+	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y, double factor, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const { }
+	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y, double factor, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const { }
+	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y, double factor, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const { }
+	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y, double factor, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const { }
+
 
 	virtual int residualCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* yLiquid, active const* ySolid,
 		active* resLiquid, active* resSolid, double factor, LinearBufferAllocator workSpace) const { return 0; }
@@ -93,10 +92,36 @@ public:
 	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, linalg::BandMatrix::RowIterator jacLiquid, linalg::BandMatrix::RowIterator jacSolid, LinearBufferAllocator workSpace) const { }
 	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, linalg::DenseBandedRowIterator jacLiquid, linalg::DenseBandedRowIterator jacSolid, LinearBufferAllocator workSpace) const { }
 	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, linalg::BandMatrix::RowIterator jacLiquid, linalg::DenseBandedRowIterator jacSolid, LinearBufferAllocator workSpace) const { }
-	#ifdef ENABLE_DG
 	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid, double factor, linalg::BandedEigenSparseRowIterator jacLiquid, linalg::DenseBandedRowIterator jacSolid, LinearBufferAllocator workSpace) const { }
-	#endif
 
+	virtual int residualEquilibriumFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, active const* y,
+		active* res, unsigned int& eqIdx, LinearBufferAllocator workSpace) const { return 0; }
+
+	virtual int residualEquilibriumFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,
+		active* res, unsigned int& eqIdx, LinearBufferAllocator workSpace) const { return 0; }
+
+	virtual int residualEquilibriumFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,
+		double* res, unsigned int& eqIdx, LinearBufferAllocator workSpace) const { return 0; }
+
+	virtual void analyticEquilibriumJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,
+		unsigned int& eqIdx, unsigned int eqRowOffset,  linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const { }
+
+	virtual void analyticEquilibriumJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,
+		unsigned int& eqIdx, unsigned int eqRowOffset,linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const { }
+
+	virtual void analyticEquilibriumJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,
+		unsigned int& eqIdx, unsigned int eqRowOffset,linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const { }
+
+	virtual void analyticEquilibriumJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,
+		unsigned int& eqIdx, unsigned int eqRowOffset,linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const { }
+
+	template <typename StateType, typename ResidualType, typename ParamType>
+	int residualEquilibriumImpl(double t, unsigned int secIdx, const ColumnPosition& colPos,
+		const unsigned int nStates, StateType const* y, ResidualType* res, unsigned int& eqIdx , LinearBufferAllocator workSpace) const {return 0;}
+	
+	template <typename RowIterator>
+	void jacobianEquilibriumImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nState, double const* y, unsigned int& eqIdx, unsigned int eqRowOffset, const RowIterator& jac, LinearBufferAllocator workSpace) const{ }
+	
 	virtual unsigned int numReactionsLiquid() const CADET_NOEXCEPT { return 0; }
 	virtual unsigned int numReactionsCombined() const CADET_NOEXCEPT { return 0; }
 

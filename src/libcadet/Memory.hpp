@@ -318,7 +318,7 @@ namespace cadet
 		friend class LinearBufferAllocator;
 		friend class ConstBufferedArray<T>;
 
-		BufferedArray() : _ptr(nullptr) { }
+		BufferedArray() : _ptr(nullptr), _numElements(0) { }
 		BufferedArray(const BufferedArray&) = delete;
 		BufferedArray(BufferedArray&& rhs) CADET_NOEXCEPT : _ptr(rhs._ptr), _numElements(rhs._numElements)
 		{
@@ -334,6 +334,9 @@ namespace cadet
 		BufferedArray& operator=(const BufferedArray&) = delete;
 		BufferedArray& operator=(BufferedArray&& rhs) CADET_NOEXCEPT
 		{
+			if (this == &rhs)
+				return *this;
+
 			_ptr = rhs._ptr;
 			_numElements = rhs._numElements;
 
@@ -372,7 +375,7 @@ namespace cadet
 	public:
 		friend class LinearBufferAllocator;
 
-		ConstBufferedArray() : _ptr(nullptr) { }
+		ConstBufferedArray() : _ptr(nullptr), _numElements(0) { }
 		ConstBufferedArray(const ConstBufferedArray&) = delete;
 		ConstBufferedArray(ConstBufferedArray&& rhs) CADET_NOEXCEPT : _ptr(rhs._ptr), _numElements(rhs._numElements)
 		{
@@ -388,6 +391,9 @@ namespace cadet
 		ConstBufferedArray& operator=(const ConstBufferedArray&) = delete;
 		ConstBufferedArray& operator=(ConstBufferedArray&& rhs) CADET_NOEXCEPT
 		{
+			if (this == &rhs)
+				return *this;
+
 			_ptr = rhs._ptr;
 			_numElements = rhs._numElements;
 
@@ -396,19 +402,22 @@ namespace cadet
 			return *this;
 		}
 
-		ConstBufferedArray(BufferedArray<T>&& rhs) CADET_NOEXCEPT : _ptr(rhs._ptr)
+		ConstBufferedArray(BufferedArray<T>&& rhs) CADET_NOEXCEPT : _ptr(rhs._ptr), _numElements(rhs._numElements)
 		{
 			rhs._ptr = nullptr;
 			rhs._numElements = 0;
 		}
 
-		ConstBufferedArray operator=(BufferedArray<T>&& rhs) CADET_NOEXCEPT
+		ConstBufferedArray& operator=(BufferedArray<T>&& rhs) CADET_NOEXCEPT
 		{
+			releaseRawArray(_ptr, _numElements);
+
 			_ptr = rhs._ptr;
 			_numElements = rhs._numElements;
 
 			rhs._ptr = nullptr;
 			rhs._numElements = 0;
+
 			return *this;
 		}
 
@@ -647,7 +656,7 @@ namespace cadet
 		 * @tparam T Type of the scalar
 		 */
 		template <typename T>
-		T* advanceScalar()
+		void advanceScalar()
 		{
 			// Align _mem as required
 			std::size_t space = sizeof(T) + alignof(T);

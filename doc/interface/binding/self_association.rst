@@ -3,7 +3,7 @@
 Self Association
 ~~~~~~~~~~~~~~~~
 
-**Group /input/model/unit_XXX/adsorption – ADSORPTION_MODEL = SELF_ASSOCIATION**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = SELF_ASSOCIATION**
 
 For information on model equations, refer to :ref:`self_association_model`.
 
