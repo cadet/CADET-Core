@@ -91,7 +91,7 @@ namespace reaction
 	{
 		::operator delete(_bufferMemory);
 
-		delete[] _extFuns;
+		delete _extFuns;
 		delete[] _boundOffset;
 		delete _reaction;
 	}
@@ -119,8 +119,8 @@ namespace reaction
 		}
 
 		// Assign external functions
-		cadet::IExternalFunction* extFuns = new LinearExternalFunction[50];
-		rm->setExternalFunctions(&extFuns, 50);
+		cadet::IExternalFunction* extFuns = new LinearExternalFunction;
+		rm->setExternalFunctions(&extFuns, 1);
 
 		// Allocate memory buffer
 		unsigned int requiredMem = 0;
@@ -440,6 +440,52 @@ namespace reaction
 			yState.data(), dir.data(), colA.data(), colB.data(), nComp, nComp);
 
 		// Check Jacobians against each other
+		for (unsigned int row = 0; row < nComp; ++row)
+		{
+			for (unsigned int col = 0; col < nComp; ++col)
+			{
+				CAPTURE(row);
+				CAPTURE(col);
+				CHECK(jacAna.native(row, col) == makeApprox(jacAD.native(row, col), absTol, relTol));
+			}
+		}
+	}
+
+	void testLiquidReactionJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, const char* config, double const* point, double absTol, double relTol)
+	{
+		ConfiguredDynamicReactionModel crm = ConfiguredDynamicReactionModel::create(modelName, nComp, nBound, config);
+		std::vector<double> yState(point, point + nComp);
+		std::vector<double> dir(nComp, 0.0);
+		std::vector<double> colA(nComp, 0.0);
+		std::vector<double> colB(nComp, 0.0);
+		std::vector<cadet::active> adY(nComp);
+		std::vector<cadet::active> adRes(nComp);
+
+		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+		ad::prepareAdVectorSeedsForDenseMatrix(adY.data(), 0, nComp);
+		ad::copyToAd(yState.data(), adY.data(), nComp);
+		ad::resetAd(adRes.data(), nComp);
+		crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, nComp, adY.data(), adRes.data(), 1.0, crm.buffer());
+
+		cadet::linalg::DenseMatrix jacAD;
+		jacAD.resize(nComp, nComp);
+		ad::extractDenseJacobianFromAd(adRes.data(), 0, jacAD);
+
+		cadet::linalg::DenseMatrix jacAna;
+		jacAna.resize(nComp, nComp);
+		jacAna.setAll(0.0);
+		crm.model().analyticJacobianAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, nComp, yState.data(), 1.0, jacAna.row(0), crm.buffer());
+
+		cadet::test::checkJacobianPatternFD(
+			[&](double const* lDir, double* res) -> void { std::fill_n(res, nComp, 0.0); crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, nComp, lDir, res, 1.0, crm.buffer()); },
+			[&](double const* lDir, double* res) -> void { jacAna.multiplyVector(lDir, res); },
+			yState.data(), dir.data(), colA.data(), colB.data(), nComp, nComp);
+
+		cadet::test::checkJacobianPatternFD(
+			[&](double const* lDir, double* res) -> void { std::fill_n(res, nComp, 0.0); crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, nComp, lDir, res, 1.0, crm.buffer()); },
+			[&](double const* lDir, double* res) -> void { jacAD.multiplyVector(lDir, res); },
+			yState.data(), dir.data(), colA.data(), colB.data(), nComp, nComp);
+
 		for (unsigned int row = 0; row < nComp; ++row)
 		{
 			for (unsigned int col = 0; col < nComp; ++col)
