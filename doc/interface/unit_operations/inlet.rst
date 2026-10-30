@@ -3,7 +3,7 @@
 Inlet
 =====
 
-Group /input/model/unit_XXX - UNIT-TYPE = INLET
+Group /input/model/unit_XXX - UNIT_TYPE = INLET
 -----------------------------------------------
 
 For information on model equations, refer to :ref:`inlet_model`.

@@ -21,7 +21,7 @@
 #include "cadet/ParameterId.hpp"
 #include "cadet/ParameterProvider.hpp"
 #include "cadet/Exceptions.hpp"
-
+#include "model/ParameterMultiplexing.hpp"
 #include "common/CompilerSpecific.hpp"
 
 #include <string>
@@ -123,8 +123,8 @@ namespace cadet
 	 * @param [in] dest Destination vector in which the data is saved
 	 * @param [in] paramProvider Parameter provider from which is read
 	 * @param [in] dataSet Name of the dataset
-	 * @param [nComp] Number of required components
-	 * @param [nStates] Number of required bound states
+	 * @param [in] nComp Number of required components
+	 * @param [in] nStates Number of required bound states
 	 * @tparam SliceContainer_t Type of the slice container, such as @c cadet::util::SlicedVector
 	 * @tparam ValType Type of the parameter, such as @c active or @c double
 	 */
@@ -162,8 +162,8 @@ namespace cadet
 	 * @param [in] dest Destination vector in which the data is saved
 	 * @param [in] paramProvider Parameter provider from which is read
 	 * @param [in] dataSet Name of the dataset
-	 * @param [nComp] Number of required components
-	 * @param [nStates] Array with number of bound states for each component
+	 * @param [in] nComp Number of required components
+	 * @param [in] nStates Array with number of bound states for each component
 	 * @tparam SliceContainer_t Type of the slice container, such as @c cadet::util::SlicedVector
 	 * @tparam ValType Type of the parameter, such as @c active or @c double
 	 */
@@ -199,8 +199,8 @@ namespace cadet
 	 * @param [in] dest Destination vector in which the data is saved
 	 * @param [in] paramProvider Parameter provider from which is read
 	 * @param [in] dataSet Name of the dataset
-	 * @param [nComp] Number of required components
-	 * @param [nStates] Array with number of bound states for each component
+	 * @param [in] nComp Number of required components
+	 * @param [in] nStates Array with number of bound states for each component
 	 * @tparam SliceContainer_t Type of the slice container, such as @c cadet::util::SlicedVector
 	 * @tparam ValType Type of the parameter, such as @c active or @c double
 	 */
@@ -224,7 +224,6 @@ namespace cadet
 				destCur[j] = vals[curIdx];
 		}
 	}
-
 
 	/**
 	 * @brief Selects an array of possible section dependent vectorial parameters from a list
@@ -254,6 +253,98 @@ namespace cadet
 			return data.data();
 	}
 
+	/**
+	 * @brief Selects an array of component dependent vectorial parameters from a list with potential further dependencies
+	 * @param [in] data Vector with all parameter values in parType-section-component major order
+	 * @param [in] mode multiplex mode of parameter
+	 * @param [in] nParType number of particle types
+	 * @param [in] nComp number of components
+	 * @param [in] parTypeIdx Index of the current particle type
+	 * @param [in] secIdx Index of the current section
+	 * @return Pointer to the first element of the correct vectorial parameter array
+	 */
+	template <typename T>
+	inline T const* getPartypeSecDependentCompSlice(const std::vector<T>& data, model::MultiplexMode mode, unsigned int nParType, unsigned int nComp, unsigned int parTypeIdx, unsigned int secIdx)
+	{
+		switch (mode)
+		{
+		case model::MultiplexMode::Component:
+			return data.data();
+			break;
+		case model::MultiplexMode::ComponentType:
+			return data.data() + parTypeIdx * nComp;
+			break;
+		case model::MultiplexMode::ComponentSection:
+			return data.data() + secIdx * nComp;
+			break;
+		case model::MultiplexMode::ComponentSectionType:
+		{
+			const unsigned int nSec = data.size() / nComp / nParType;
+			return data.data() + parTypeIdx * nSec * nComp + secIdx * nComp;
+		}
+			break;
+		case model::MultiplexMode::RadialSection:
+		case model::MultiplexMode::Independent:
+		case model::MultiplexMode::ComponentRadial:
+		case model::MultiplexMode::ComponentRadialSection:
+		case model::MultiplexMode::Axial:
+		case model::MultiplexMode::Section:
+		case model::MultiplexMode::Type:
+		case model::MultiplexMode::Radial:
+		case model::MultiplexMode::AxialRadial:
+			cadet_assert(false);
+			break;
+		}
+		cadet_assert(false);
+		return nullptr;
+	}
+
+	/**
+	 * @brief Selects an array of bound state dependent vectorial parameters from a list with potential further dependencies
+	 * @param [in] data Vector with all parameter values in parType-section-bnd major order
+	 * @param [in] mode multiplex mode of parameter
+	 * @param [in] nParType number of particle types
+	 * @param [in] nBnd number of components per particle type
+	 * @param [in] parTypeIdx Index of the current particle type
+	 * @param [in] secIdx Index of the current section
+	 * @return Pointer to the first element of the correct vectorial parameter array
+	 */
+	template <typename T>
+	inline T const* getPartypeSecDependentBndSlice(const std::vector<T>& data, model::MultiplexMode mode, unsigned int nParType, unsigned int* nBnd, unsigned int parTypeIdx, unsigned int secIdx)
+	{
+		switch (mode)
+		{
+		case model::MultiplexMode::Component:
+			return data.data();
+			break;
+		case model::MultiplexMode::ComponentType:
+			return data.data() + std::accumulate(nBnd, nBnd + parTypeIdx, 0);
+			break;
+		case model::MultiplexMode::ComponentSection:
+			return data.data() + secIdx * std::accumulate(nBnd, nBnd + nParType, 0);
+			break;
+		case model::MultiplexMode::ComponentSectionType:
+		{
+			const unsigned int nBoundBeforeType = std::accumulate(nBnd, nBnd + parTypeIdx, 0);
+			const unsigned int nSec = data.size() / std::accumulate(nBnd, nBnd + nParType, 0);
+			return data.data() + nBoundBeforeType * nSec + secIdx * nBnd[parTypeIdx];
+		}
+		break;
+		case model::MultiplexMode::RadialSection:
+		case model::MultiplexMode::Independent:
+		case model::MultiplexMode::ComponentRadial:
+		case model::MultiplexMode::ComponentRadialSection:
+		case model::MultiplexMode::Axial:
+		case model::MultiplexMode::Section:
+		case model::MultiplexMode::Type:
+		case model::MultiplexMode::Radial:
+		case model::MultiplexMode::AxialRadial:
+			cadet_assert(false);
+			break;
+		}
+		cadet_assert(false);
+		return nullptr;
+	}
 
 	/**
 	 * @brief Selects a possibly section dependent scalar parameter from a list of parameters
@@ -391,7 +482,7 @@ namespace cadet
 	 * @param [in,out] map Map to which the parameters are added
 	 * @param [in] params Linearized vector with parameters to be registered
 	 * @param [in] pic Callable that returns a ParameterId based on whether more than one outer index is present, outer index, inner slice index, item index within slice
-	 * @param [in] innerSices Array with sizes of the inner slices
+	 * @param [in] innerSizes Array with sizes of the inner slices
 	 * @param [in] numSizes Number of slices, number of elements in @p innerSlices
 	 */
 	template <class ParamIdCreator>
@@ -477,7 +568,7 @@ namespace cadet
 	 * @param [in,out] map Map to which the parameters are added
 	 * @param [in] params Linearized vector with parameters to be registered
 	 * @param [in] pic Callable that returns a ParameterId based on whether more than one outer index is present, outer index, mid index, inner slice index, item index within slice
-	 * @param [in] innerSices Array with sizes of the inner slices
+	 * @param [in] innerSizes Array with sizes of the inner slices
 	 * @param [in] numSizes Number of slices, number of elements in @p innerSlices
 	 * @param [in] midSize Size of the mid dimension
 	 */

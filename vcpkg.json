@@ -3,6 +3,9 @@
     "hdf5",
     "suitesparse",
     "superlu",
-    "eigen3"
+    {
+      "name": "eigen3",
+      "version>=": "5.0.1"
+    }
   ]
 }

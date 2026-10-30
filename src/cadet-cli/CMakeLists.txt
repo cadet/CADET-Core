@@ -13,6 +13,9 @@
 # Name of the current project
 project(CadetCLI CXX C)
 
+# Wheel build
+option(CADET_WHEEL "Option for building wheels" OFF)
+
 # Add the executable CADET-CLI
 add_executable(cadet-cli
 	${CMAKE_SOURCE_DIR}/ThirdParty/pugixml/pugixml.cpp
@@ -59,8 +62,29 @@ endif()
 # ---------------------------------------------------
 
 # Install the cadet-cli executable
-install(CODE "MESSAGE(\"\nInstall CADET-CLI\n\")")
-install(TARGETS cadet-cli RUNTIME)
+
+if (CADET_WHEEL)
+  install(CODE "MESSAGE(\"\nInstall CADET-CLI for wheels\n\")")
+
+  if (APPLE)
+    set_target_properties(cadet-cli PROPERTIES
+      BUILD_WITH_INSTALL_RPATH ON
+      INSTALL_RPATH "@loader_path/../lib;@loader_path/../.dylibs"
+    )
+  elseif (UNIX)  # UNIX AND NOT APPLE
+    set_target_properties(cadet-cli PROPERTIES
+      BUILD_WITH_INSTALL_RPATH ON
+      INSTALL_RPATH "$ORIGIN/../lib"
+    )
+  endif()
+
+  install(TARGETS cadet-cli RUNTIME DESTINATION cadet_core/bin)
+else()
+  install(CODE "MESSAGE(\"\nInstall CADET-CLI\n\")")
+  install(TARGETS cadet-cli RUNTIME)
+endif()
+
+
 
 # ---------------------------------------------------
 

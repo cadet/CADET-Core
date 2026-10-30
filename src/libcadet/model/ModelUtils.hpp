@@ -23,6 +23,7 @@
 #include "AutoDiff.hpp"
 #include "SensParamUtil.hpp"
 
+#include <cstddef>
 #include <unordered_set>
 #include <unordered_map>
 
@@ -31,6 +32,44 @@ namespace cadet
 
 namespace model
 {
+
+/**
+ * @brief Bulk side operator of the film transfer term
+ * @details The film transfer flux of the particle at discrete bulk point @c j enters the bulk residual
+ *          at the discrete points @c j + offset(j)[k] with the weights @c weight(j, comp)[k], for
+ *          @c k = 0 ... stencilSize - 1.
+ *
+ *          A stencil of one applies whenever the mass matrix of the bulk balance and the weight of the
+ *          film transfer source are proportional. That is the case for every discretization and geometry
+ *          except a DGSEM discretized column that represents its flow through area by the nodal
+ *          interpolant, i.e. one with a prescribed cross section or an axially varying porosity, and
+ *          whose porosity or film transfer coefficient varies within an element. The single weight is
+ *          then the familiar prefactor
+ *          \f$ \left(1 - \varepsilon^{\mathrm{b}}\right) / \varepsilon^{\mathrm{b}} \f$ and the single
+ *          offset is zero. The operator is assembled by the bulk transport operator, see
+ *          parts::IConvectionDispersionOperatorBase1D::assembleFilmTransferOperator().
+ */
+struct bulkFilmTransfer
+{
+	active const* weights = nullptr; //!< Weights, laid out as described by the strides below
+	int const* offsets = nullptr; //!< Signed offsets in discrete points, stencilSize per discrete point; nullptr for the node local operator, whose only offset is zero
+	int stencilSize = 1; //!< Number of discrete points that the flux of one discrete point is spread over
+	int strideWeightPoint = 1; //!< Stride between the weights of two discrete points
+	int strideWeightComp = 0; //!< Stride between the weights of two components, zero if the weights do not depend on the component
+	int strideBulkPoint = 0; //!< Stride between two discrete bulk points in the global state vector
+
+	//! @brief Returns whether the flux of a discrete point enters the bulk residual at that point only
+	inline bool nodeLocal() const { return stencilSize == 1; }
+
+	//! @brief Returns the stencilSize weights of the flux at discrete point @p point and component @p comp
+	inline active const* weight(int point, int comp) const
+	{
+		return weights + static_cast<std::size_t>(point) * strideWeightPoint + static_cast<std::size_t>(comp) * strideWeightComp;
+	}
+
+	//! @brief Returns the stencilSize offsets of the flux at discrete point @p point, which are all zero if offsets is nullptr
+	inline int const* offset(int point) const { return offsets + static_cast<std::size_t>(point) * stencilSize; }
+};
 
 /**
  * @brief Returns whether the associated model has multiple bound states

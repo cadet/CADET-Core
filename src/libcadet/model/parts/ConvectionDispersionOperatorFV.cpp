@@ -1,0 +1,2688 @@
+// =============================================================================
+//  CADET
+//
+//  Copyright © 2008-present: The CADET-Core Authors
+//            Please see the AUTHORS.md file.
+//
+//  All rights reserved. This program and the accompanying materials
+//  are made available under the terms of the GNU Public License v3.0 (or, at
+//  your option, any later version) which accompanies this distribution, and
+//  is available at http://www.gnu.org/licenses/gpl.html
+// =============================================================================
+
+#include "model/parts/ConvectionDispersionOperatorFV.hpp"
+#include "cadet/Exceptions.hpp"
+
+#include "Stencil.hpp"
+#include "Weno.hpp"
+#include "HighResKoren.hpp"
+#include "ParamReaderHelper.hpp"
+#include "AdUtils.hpp"
+#include "SimulationTypes.hpp"
+#include "model/parts/AxialConvectionDispersionKernelFV.hpp"
+#include "model/parts/RadialConvectionDispersionKernelFV.hpp"
+#include "model/parts/FrustumConvectionDispersionKernelFV.hpp"
+#include "model/ParameterDependence.hpp"
+#include "SensParamUtil.hpp"
+#include "ConfigurationHelper.hpp"
+
+#include "LoggingUtils.hpp"
+#include "Logging.hpp"
+
+#include <Eigen/Dense>
+#include <algorithm>
+#include <cmath>
+
+namespace cadet
+{
+
+namespace model
+{
+
+namespace parts
+{
+
+/**
+ * @brief Creates an AxialConvectionDispersionOperatorBaseFV
+ */
+AxialConvectionDispersionOperatorBaseFV::AxialConvectionDispersionOperatorBaseFV() : _reconstrDerivatives(nullptr), _weno(nullptr), _koren(nullptr), _dispersionDep(nullptr)
+{
+}
+
+AxialConvectionDispersionOperatorBaseFV::~AxialConvectionDispersionOperatorBaseFV() CADET_NOEXCEPT
+{
+	if (_dispersionDep)
+		delete _dispersionDep;
+	delete[] _reconstrDerivatives;
+	delete _weno;
+	delete _koren;
+}
+
+/**
+ * @brief Reads parameters and allocates memory
+ * @details Has to be called once before the operator is used.
+ * @param [in] paramProvider Parameter provider for reading parameters
+ * @param [in] nComp Number of components
+ * @param [in] nCol Number of axial cells
+ * @return @c true if configuration went fine, @c false otherwise
+ */
+bool AxialConvectionDispersionOperatorBaseFV::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol, unsigned int strideCell)
+{
+	_nComp = nComp;
+	_nCol = nCol;
+	_strideCell = strideCell;
+
+	_bedLength = paramProvider.getDouble("BED_LENGTH");
+
+	if (paramProvider.exists("COL_DISPERSION_DEP"))
+	{
+		const std::string paramDepName = paramProvider.getString("COL_DISPERSION_DEP");
+		_dispersionDep = helper.createParameterParameterDependence(paramDepName);
+		if (!_dispersionDep)
+			throw InvalidParameterException("Unknown parameter dependence " + paramDepName + " in COL_DISPERSION_DEP");
+
+		_dispersionDep->configureModelDiscretization(paramProvider);
+	}
+	else
+		_dispersionDep = helper.createParameterParameterDependence("CONSTANT_ONE");
+
+	paramProvider.pushScope("discretization");
+
+	const std::string recType = paramProvider.exists("RECONSTRUCTION") ? paramProvider.getString("RECONSTRUCTION") : "WENO";
+
+	if (paramProvider.exists("GRID_FACES"))
+	{
+		readScalarParameterOrArray(_cellFaces, paramProvider, "GRID_FACES", 1);
+		if (_cellFaces.size() < 5)
+			throw InvalidParameterException("Number of elements in field GRID_FACES must be at least 5");    // We need at least 5 faces to be able to apply the WENO35 reconstruction at the first and last cell
+
+		if (_cellFaces.size() != _nCol + 1)
+			throw InvalidParameterException("Number of elements in field GRID_FACES must be NCOL + 1");
+
+		const double lastFace = static_cast<double>(_cellFaces.back());
+		if (std::abs(lastFace - static_cast<double>(_bedLength)) > 1e-12)
+			throw InvalidParameterException("Last entry of GRID_FACES must match BED_LENGTH");
+		if (_cellFaces[0] > 1e-15)
+			throw InvalidParameterException("First entry of GRID_FACES must be zero");
+
+		// --- Grid diagnostics ---
+		double dxMin = std::numeric_limits<double>::max();
+		double dxMax = 0.0;
+		double rMax = 0.0;           // max stretching ratio
+//		double jumpMax = 0.0;        // max sudden jump indicator
+
+		// Check if grid is equidistant
+		const double firstWidth = static_cast<double>(_cellFaces[1] - _cellFaces[0]);
+		const double widthTol = 1e-10 * std::max(1.0, std::abs(firstWidth));
+		_gridEquidistant = true;
+
+		double prevWidth = firstWidth;
+		dxMin = std::min(dxMin, prevWidth);
+		dxMax = std::max(dxMax, prevWidth);
+
+		for (unsigned int i = 1; i < _nCol; ++i)
+		{
+			const double curWidth = static_cast<double>(_cellFaces[i + 1] - _cellFaces[i]);
+
+			dxMin = std::min(dxMin, curWidth);
+			dxMax = std::max(dxMax, curWidth);
+
+			// Check equidistance
+			if (std::abs(curWidth - firstWidth) > widthTol)
+				_gridEquidistant = false;
+
+			// --- Stretching ratio ---
+			const double r = std::max(curWidth / prevWidth, prevWidth / curWidth);
+			rMax = std::max(rMax, r);
+
+			prevWidth = curWidth;
+		}
+
+		// --- Warning 1: cell stretching ratio ---
+		if (rMax > 3.0)
+		{
+			LOG(Warning) << "GRID_FACES contains strongly stretched neighboring cells (max recommended ratio = "
+				<< rMax << "). WENO reconstruction on highly stretched grids may lose accuracy or stability.";
+		}
+
+		// --- Warning 3: extreme cell size variance might cause stiffness ---
+		const double sizeRatio = dxMax / dxMin;
+		if (sizeRatio > 1e6)
+		{
+			LOG(Warning) << "GRID_FACES contains cells spanning a very large size range (max/min ratio = "
+				<< sizeRatio << "). This may lead to stiff ODE systems and slow or unstable time integration.";
+		}
+	}
+	else
+	{
+		_gridEquidistant = true;
+		const double h = static_cast<double>(_bedLength) / static_cast<double>(_nCol);
+		_cellFaces.resize(_nCol + 1);
+
+		for (int i = 0; i <= _nCol; ++i)
+			_cellFaces[i] = i * h;
+	}
+
+	if (recType == "WENO")
+	{
+		// Read WENO settings and apply them
+		paramProvider.pushScope("weno");
+
+		_weno = new Weno();
+		_weno->order(paramProvider.getInt("WENO_ORDER"));
+		_weno->boundaryTreatment(paramProvider.getInt("BOUNDARY_MODEL"));
+		_weno->epsilon(paramProvider.getDouble("WENO_EPS"));
+
+		paramProvider.popScope();
+
+		_reconstrDerivatives = new double[Weno::maxStencilSize()];
+		_stencilMemory.resize(sizeof(active) * Weno::maxStencilSize());
+	}
+	else if (recType == "KOREN")
+	{
+		// Read Koren High Resolution scheme settings and apply them
+		paramProvider.pushScope("koren");
+
+		_koren = new HighResolutionKoren();
+		_koren->epsilon(paramProvider.getDouble("KOREN_EPS"));
+
+		paramProvider.popScope();
+
+		_reconstrDerivatives = new double[HighResolutionKoren::maxStencilSize()];
+		_stencilMemory.resize(sizeof(active) * HighResolutionKoren::maxStencilSize());
+	}
+	else
+	{
+		throw InvalidParameterException("Unknown reconstruction type in field RECONSTRUCTION");
+	}
+
+	paramProvider.popScope();
+
+	return true;
+}
+
+/**
+ * @brief Reads model parameters
+ * @details Only reads parameters that do not affect model structure (e.g., discretization).
+ * @param [in] unitOpIdx Unit operation id of the owning unit operation model
+ * @param [in] paramProvider Parameter provider for reading parameters
+ * @param [out] parameters Map in which local parameters are inserted
+ * @return @c true if configuration went fine, @c false otherwise
+ */
+bool AxialConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
+{
+	_crossSection = paramProvider.getDouble("CROSS_SECTION_AREA");
+
+	// Read section dependent parameters (transport)
+	_dir.clear();
+	const std::vector<double> fwdFlow = paramProvider.getDoubleArray("FORWARD_FLOW");
+	for (std::size_t i = 0; i < fwdFlow.size(); ++i)
+		_dir.push_back(fwdFlow[i] ? 1.0 : -1.0);
+
+	readScalarParameterOrArray(_colDispersion, paramProvider, "COL_DISPERSION", 1);
+	if (paramProvider.exists("COL_DISPERSION_MULTIPLEX"))
+	{
+		const int mode = paramProvider.getInt("COL_DISPERSION_MULTIPLEX");
+		if (mode == 0)
+			// Comp-indep, sec-indep
+			_dispersionCompIndep = true;
+		else if (mode == 1)
+			// Comp-dep, sec-indep
+			_dispersionCompIndep = false;
+		else if (mode == 2)
+			// Comp-indep, sec-dep
+			_dispersionCompIndep = true;
+		else if (mode == 3)
+			// Comp-dep, sec-dep
+			_dispersionCompIndep = false;
+
+		if (!_dispersionCompIndep && (_colDispersion.size() % _nComp != 0))
+			throw InvalidParameterException("Number of elements in field COL_DISPERSION is not a positive multiple of NCOMP (" + std::to_string(_nComp) + ")");
+		if ((mode == 0) && (_colDispersion.size() != 1))
+			throw InvalidParameterException("Number of elements in field COL_DISPERSION inconsistent with COL_DISPERSION_MULTIPLEX (should be 1)");
+		if ((mode == 1) && (_colDispersion.size() != _nComp))
+			throw InvalidParameterException("Number of elements in field COL_DISPERSION inconsistent with COL_DISPERSION_MULTIPLEX (should be " + std::to_string(_nComp) + ")");
+	}
+	else
+	{
+		// Infer component dependence of COL_DISPERSION:
+		//   size not divisible by NCOMP -> component independent
+		_dispersionCompIndep = ((_colDispersion.size() % _nComp) != 0);
+	}
+
+	// Expand _colDispersion to make it component dependent
+	if (_dispersionCompIndep)
+	{
+		std::vector<active> expanded(_colDispersion.size() * _nComp);
+		for (std::size_t i = 0; i < _colDispersion.size(); ++i)
+			std::fill(expanded.begin() + i * _nComp, expanded.begin() + (i + 1) * _nComp, _colDispersion[i]);
+
+		_colDispersion = std::move(expanded);
+	}
+
+	if (_dispersionDep)
+	{
+		if (!_dispersionDep->configure(paramProvider, unitOpIdx, ParTypeIndep, BoundStateIndep, "COL_DISPERSION_DEP"))
+			throw InvalidParameterException("Failed to configure dispersion parameter dependency (COL_DISPERSION_DEP)");
+	}
+
+	// Add parameters to map
+	if (_dispersionCompIndep)
+	{
+		if (_colDispersion.size() > _nComp)
+		{
+			// Register only the first item in each section
+			for (std::size_t i = 0; i < _colDispersion.size() / _nComp; ++i)
+				parameters[makeParamId(hashString("COL_DISPERSION"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, i)] = &_colDispersion[i * _nComp];
+		}
+		else
+		{
+			// We have only one parameter
+			parameters[makeParamId(hashString("COL_DISPERSION"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colDispersion[0];
+		}
+	}
+	else
+		registerParam2DArray(parameters, _colDispersion, [=](bool multi, unsigned int sec, unsigned int comp) { return makeParamId(hashString("COL_DISPERSION"), unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _nComp);
+
+	parameters[makeParamId(hashString("VELOCITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_curVelCoeff;
+	parameters[makeParamId(hashString("BED_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_bedLength;
+	parameters[makeParamId(hashString("CROSS_SECTION_AREA"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_crossSection;
+
+	return true;
+}
+
+/**
+ * @brief Notifies the operator that a discontinuous section transition is in progress
+ * @details In addition to changing flow direction internally, if necessary, the function returns whether
+ *          the flow direction has changed.
+ * @param [in] t Current time point
+ * @param [in] secIdx Index of the new section that is about to be integrated
+ * @return @c true if flow direction has changed, otherwise @c false
+ */
+bool AxialConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
+{
+	// setFlowRates() was called before, unconditionally setting _curVelCoeff to a non-negative value
+	const double curDir = getSectionDependentScalar(_dir, secIdx);
+	const bool changedDirection = secIdx > 0 ? (getSectionDependentScalar(_dir, secIdx - 1) * curDir < 0) : false;
+	if (curDir < 0)
+		_curVelCoeff *= -1.0;
+
+	return changedDirection;
+}
+
+/**
+ * @brief Sets the flow rates for the current time section
+ * @details The flow rates may change due to valve switches.
+ * @param [in] in Total volumetric inlet flow rate
+ * @param [in] out Total volumetric outlet flow rate
+ * @param [in] colPorosity Porosity used for computing interstitial velocity from volumetric flow rate
+ */
+void AxialConvectionDispersionOperatorBaseFV::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
+{
+	_curVelCoeff = in / (_crossSection * colPorosity);
+}
+
+/**
+ * @brief Returns the number of non-zero entries in the bulk transport Jacobian.
+ * @details The Jacobian is banded. Its bandwidth is determined by the reconstruction
+ *          stencil: for WENO/Koren order r, lb = r * strideCell, ub = max(r-1,1) * strideCell.
+ *          Exact NNZ = N*(lb+1+ub) - lb*(lb+1)/2 - ub*(ub+1)/2
+ *          where N = nCol * nComp (assuming N >= lb+ub+1, which holds for any reasonable grid).
+ *          When pureNNZ=false, adds nComp inlet-coupling entries.
+ */
+unsigned int AxialConvectionDispersionOperatorBaseFV::nJacEntries(bool pureNNZ) const CADET_NOEXCEPT
+{
+	const unsigned int lb = jacobianLowerBandwidth();
+	const unsigned int ub = jacobianUpperBandwidth();
+	const unsigned int N = _nCol * _nComp;
+
+	// Exact band NNZ, subtracting the triangular corners that lie outside the matrix
+	const unsigned int nnzBand = N * (lb + 1u + ub)
+		- lb * (lb + 1u) / 2u
+		- ub * (ub + 1u) / 2u;
+
+	return pureNNZ ? nnzBand : nnzBand + _nComp;
+}
+
+/**
+ * @brief Adds the sparsity pattern of the bulk transport Jacobian to the triplet list.
+ * @details Adds one zero-valued triplet per band entry and per inlet-coupling entry.
+ *          Called from ColumnModel1D::setJacobianPattern to define the sparse matrix structure.
+ */
+void AxialConvectionDispersionOperatorBaseFV::convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset) const
+{
+	const int lb = static_cast<int>(jacobianLowerBandwidth());
+	const int ub = static_cast<int>(jacobianUpperBandwidth());
+	const int N = static_cast<int>(_nCol * _nComp);
+
+	for (int row = 0; row < N; ++row)
+	{
+		const int colMin = std::max(0, row - lb);
+		const int colMax = std::min(N - 1, row + ub);
+		for (int col = colMin; col <= colMax; ++col)
+			tripletList.push_back(T(bulkOffset + row, bulkOffset + col, 0.0));
+	}
+
+	// Inlet coupling: the first cell (forward flow) or last cell (backward flow) has
+	// one entry per component that connects to the inlet DOFs [0 .. nComp-1].
+	const int inletCellRow = forwardFlow()
+		? 0
+		: (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
+	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+		tripletList.push_back(T(bulkOffset + inletCellRow + comp, comp, 0.0));
+}
+
+template <typename StateType>
+int AxialConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset, const StateType* const y)
+{
+	if constexpr (std::is_same_v<StateType, double>)
+	{
+		residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, true, false>(
+			model, t, secIdx, y, nullptr, nullptr,
+			linalg::BandedEigenSparseRowIterator(jacobian, bulkOffset));
+	}
+	else
+	{
+		const unsigned int numY = _nComp * (_nCol + 1u);
+		std::vector<double> yDouble(numY);
+		for (unsigned int i = 0; i < numY; ++i)
+			yDouble[i] = static_cast<double>(y[i]);
+
+		residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, true, false>(
+			model, t, secIdx, yDouble.data(), nullptr, nullptr,
+			linalg::BandedEigenSparseRowIterator(jacobian, bulkOffset));
+	}
+
+	const double v = inletJacobianFactor();
+	jacInlet(0, 0) = forwardFlow() ? -v : v;
+
+	// Inlet coupling: entries of the inlet-adjacent cell w.r.t. the inlet DOFs.
+	// These entries are reserved in convDispJacPattern(), so writing them keeps the matrix compressed.
+	const int inletCellRow = forwardFlow() ? 0 : (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
+	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+		jacobian.coeffRef(bulkOffset + inletCellRow + comp, comp) = jacInlet(0, 0);
+
+	return jacobian.isCompressed();
+}
+
+int AxialConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, double const* y)
+{
+	return calcTransportJacobian<double>(model, t, secIdx, jacobian, jacInlet, bulkOffset, y);
+}
+
+int AxialConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, active const* y)
+{
+	return calcTransportJacobian<active>(model, t, secIdx, jacobian, jacInlet, bulkOffset, y);
+}
+
+/**
+ * @brief Computes the residual of the transport equations
+ * @param [in] model Model that owns the operator
+ * @param [in] t Current time point
+ * @param [in] secIdx Index of the current section
+ * @param [in] y Pointer to unit operation's state vector
+ * @param [in] yDot Pointer to unit operation's time derivative state vector
+ * @param [out] res Pointer to unit operation's residual vector
+ * @param [in] jac Matrix that holds the Jacobian
+ * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
+ */
+int AxialConvectionDispersionOperatorBaseFV::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac)
+{
+	// Reset Jacobian
+	jac.setAll(0.0);
+
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, true>(model, t, secIdx, y, yDot, res, jac.row(0));
+}
+
+int AxialConvectionDispersionOperatorBaseFV::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity)
+{
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
+}
+
+int AxialConvectionDispersionOperatorBaseFV::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity)
+{
+	return residualImpl<active, active, double, linalg::BandMatrix::RowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
+}
+
+int AxialConvectionDispersionOperatorBaseFV::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac)
+{
+	// Reset Jacobian
+	jac.setAll(0.0);
+
+	return residualImpl<double, active, active, linalg::BandMatrix::RowIterator, true>(model, t, secIdx, y, yDot, res, jac.row(0));
+}
+
+int AxialConvectionDispersionOperatorBaseFV::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity)
+{
+	return residualImpl<double, active, active, linalg::BandMatrix::RowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
+}
+
+int AxialConvectionDispersionOperatorBaseFV::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity)
+{
+	return residualImpl<active, active, active, linalg::BandMatrix::RowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
+}
+
+int AxialConvectionDispersionOperatorBaseFV::jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac)
+{
+	// Reset Jacobian
+	jac.setAll(0.0);
+
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, true, false>(model, t, secIdx, y, nullptr, nullptr, jac.row(0));
+}
+
+int AxialConvectionDispersionOperatorBaseFV::jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac)
+{
+	// Reset Jacobian
+	jac.setAll(0.0);
+
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, true, false>(model, t, secIdx, y, nullptr, nullptr, jac.row(0));
+}
+
+template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes>
+int AxialConvectionDispersionOperatorBaseFV::residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin)
+{
+	const ParamType u = static_cast<ParamType>(_curVelCoeff);
+	active const* const d_c = getSectionDependentSlice(_colDispersion, _nComp, secIdx);
+	const ParamType h = static_cast<ParamType>(_bedLength) / static_cast<double>(_nCol);
+
+	const std::vector<active>* const cellFacesPtr = _cellFaces.empty() ? nullptr : &_cellFaces;
+
+	if (_weno)
+	{
+		convdisp::AxialFlowParameters<ParamType, Weno> fp{
+			u,
+			d_c,
+			h,
+			_reconstrDerivatives,
+			_weno,
+			&_stencilMemory,
+			strideColCell(),
+			_nComp,
+			_nCol,
+			0u,
+			_nComp,
+			_dispersionDep,
+			_gridEquidistant,
+			cellFacesPtr
+		};
+
+		return convdisp::residualKernelAxial<StateType, ResidualType, ParamType, Weno, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
+	}
+	else if (_koren)
+	{
+		convdisp::AxialFlowParameters<ParamType, HighResolutionKoren> fp{
+			u,
+			d_c,
+			h,
+			_reconstrDerivatives,
+			_koren,
+			&_stencilMemory,
+			strideColCell(),
+			_nComp,
+			_nCol,
+			0u,
+			_nComp,
+			_dispersionDep,
+			_gridEquidistant,
+			cellFacesPtr
+		};
+
+		return convdisp::residualKernelAxial<StateType, ResidualType, ParamType, HighResolutionKoren, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
+	}
+
+	return 0;
+}
+
+/**
+ * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$ with a given vector
+ * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed.
+ *          The matrix-vector multiplication is performed matrix-free (i.e., no matrix is explicitly formed).
+ *          
+ *          Note that this function only performs multiplication with the Jacobian of the (axial) transport equations.
+ *          The input vectors are assumed to point to the beginning (including inlet DOFs) of the respective unit operation's arrays.
+ * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
+ * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
+ * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
+ */
+void AxialConvectionDispersionOperatorBaseFV::multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const
+{
+	double* localRet = ret + offsetC();
+	double const* localSdot = sDot + offsetC();
+	const int gapCell = strideColCell() - static_cast<int>(_nComp) * strideColComp();
+
+	for (unsigned int i = 0; i < _nCol; ++i, localRet += gapCell, localSdot += gapCell)
+	{
+		for (unsigned int j = 0; j < _nComp; ++j, ++localRet, ++localSdot)
+		{
+			*localRet = (*localSdot);
+		}
+	}
+}
+
+/**
+ * @brief Adds the derivatives with respect to @f$ \dot{y} @f$ of @f$ F(t, y, \dot{y}) @f$ to the Jacobian
+ * @details This functions computes 
+ *          @f[ \begin{align*} \text{_jacCdisc} = \text{_jacCdisc} + \alpha \frac{\partial F}{\partial \dot{y}}. \end{align*} @f]
+ *          The factor @f$ \alpha @f$ is useful when constructing the linear system in the time integration process.
+ * @param [in] alpha Factor in front of @f$ \frac{\partial F}{\partial \dot{y}} @f$
+ */
+void AxialConvectionDispersionOperatorBaseFV::addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc)
+{
+	const int gapCell = strideColCell() - static_cast<int>(_nComp) * strideColComp();
+	linalg::FactorizableBandMatrix::RowIterator jac = jacDisc.row(0);
+	for (unsigned int i = 0; i < _nCol; ++i, jac += gapCell)
+	{
+		for (unsigned int j = 0; j < _nComp; ++j, ++jac)
+		{
+			// Add time derivative to main diagonal
+			jac[0] += alpha;
+		}
+	}
+}
+
+void AxialConvectionDispersionOperatorBaseFV::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset) const
+{
+	linalg::BandedEigenSparseRowIterator jac(jacDisc, blockOffset);
+	for (unsigned int i = 0; i < _nCol; ++i)
+		for (unsigned int j = 0; j < _nComp; ++j, ++jac)
+			jac[0] += alpha;
+}
+
+unsigned int AxialConvectionDispersionOperatorBaseFV::jacobianLowerBandwidth() const CADET_NOEXCEPT
+{
+	// Note that we have to increase the lower bandwidth by 1 because the WENO stencil is applied to the
+	// right cell face (lower + 1 + upper) and to the left cell face (shift the stencil by -1 because influx of cell i
+	// is outflux of cell i-1)
+	// We also have to make sure that there's at least one sub and super diagonal for the dispersion term
+	if (_weno)
+	{
+		return std::max(_weno->lowerBandwidth() + 1u, 1u) * strideColCell();
+	}
+	else if (_koren)
+	{
+		return std::max(_koren->lowerBandwidth() + 1u, 1u) * strideColCell();
+	}
+
+	// Only dispersion
+	return strideColCell();
+}
+
+unsigned int AxialConvectionDispersionOperatorBaseFV::jacobianUpperBandwidth() const CADET_NOEXCEPT
+{
+	// We have to make sure that there's at least one sub and super diagonal for the dispersion term
+	if (_weno)
+	{
+		return std::max(_weno->upperBandwidth(), 1u) * strideColCell();
+	}
+	else if (_koren)
+	{
+		return std::max(_koren->upperBandwidth(), 1u) * strideColCell();
+	}
+
+	// Only dispersion
+	return strideColCell();
+}
+
+unsigned int AxialConvectionDispersionOperatorBaseFV::jacobianDiscretizedBandwidth() const CADET_NOEXCEPT
+{
+	// When flow direction is changed, the bandwidths of the Jacobian swap.
+	// Hence, we have to reserve memory such that the swapped Jacobian can fit into the matrix.
+	return std::max(jacobianLowerBandwidth(), jacobianUpperBandwidth());
+}
+
+double AxialConvectionDispersionOperatorBaseFV::inletJacobianFactor() const CADET_NOEXCEPT
+{
+	const double h = static_cast<double>(_bedLength) / static_cast<double>(_nCol);
+	const double u = static_cast<double>(_curVelCoeff);
+	return u / h;
+}
+
+bool AxialConvectionDispersionOperatorBaseFV::setParameter(const ParameterId& pId, double value)
+{
+	// Check if parameter is in parameter dependence of column dispersion coefficient
+	if (_dispersionDep)
+	{
+		if (_dispersionDep->hasParameter(pId))
+		{
+			_dispersionDep->setParameter(pId, value);
+			return true;
+		}
+	}
+
+	// We only need to do something if COL_DISPERSION is component independent
+	if (!_dispersionCompIndep)
+		return false;
+
+	if ((pId.name != hashString("COL_DISPERSION")) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+		return false;
+
+	if (_colDispersion.size() > _nComp)
+	{
+		// Section dependent
+		if (pId.section == SectionIndep)
+			return false;
+
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[pId.section * _nComp + i].setValue(value);
+	}
+	else
+	{
+		// Section independent
+		if (pId.section != SectionIndep)
+			return false;
+
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[i].setValue(value);
+	}
+
+	return true;
+}
+
+bool AxialConvectionDispersionOperatorBaseFV::setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value)
+{
+	// Check if parameter is in parameter dependence of column dispersion coefficient
+	if (_dispersionDep)
+	{
+		active* const param = _dispersionDep->getParameter(pId);
+		if (param)
+		{
+			param->setValue(value);
+			return true;
+		}
+	}
+
+	// We only need to do something if COL_DISPERSION is component independent
+	if (!_dispersionCompIndep)
+		return false;
+
+	if ((pId.name != hashString("COL_DISPERSION")) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+		return false;
+
+	if (_colDispersion.size() > _nComp)
+	{
+		// Section dependent
+		if (pId.section == SectionIndep)
+			return false;
+
+		if (!contains(sensParams, &_colDispersion[pId.section * _nComp]))
+			return false;
+
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[pId.section * _nComp + i].setValue(value);
+	}
+	else
+	{
+		// Section independent
+		if (pId.section != SectionIndep)
+			return false;
+
+		if (!contains(sensParams, &_colDispersion[0]))
+			return false;
+
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[i].setValue(value);
+	}
+
+	return true;
+}
+
+bool AxialConvectionDispersionOperatorBaseFV::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
+{
+	// Check if parameter is in parameter dependence of column dispersion coefficient
+	if (_dispersionDep)
+	{
+		active* const param = _dispersionDep->getParameter(pId);
+		if (param)
+		{
+			param->setADValue(adDirection, adValue);
+			return true;
+		}
+	}
+
+	// We only need to do something if COL_DISPERSION is component independent
+	if (!_dispersionCompIndep)
+		return false;
+
+	if ((pId.name != hashString("COL_DISPERSION")) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+		return false;
+
+	if (_colDispersion.size() > _nComp)
+	{
+		// Section dependent
+		if (pId.section == SectionIndep)
+			return false;
+
+		sensParams.insert(&_colDispersion[pId.section * _nComp]);
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[pId.section * _nComp + i].setADValue(adDirection, adValue);
+	}
+	else
+	{
+		// Section independent
+		if (pId.section != SectionIndep)
+			return false;
+
+		sensParams.insert(&_colDispersion[0]);
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[i].setADValue(adDirection, adValue);
+	}
+
+	return true;
+}
+
+
+
+
+/**
+ * @brief Creates a RadialConvectionDispersionOperatorBaseFV
+ */
+RadialConvectionDispersionOperatorBaseFV::RadialConvectionDispersionOperatorBaseFV() : _stencilMemory(sizeof(active) * Weno::maxStencilSize()), _reconstrDerivatives(nullptr), _gridEquidistant(true), _weno(nullptr), _koren(nullptr), _dispersionDep(nullptr)
+{
+}
+
+RadialConvectionDispersionOperatorBaseFV::~RadialConvectionDispersionOperatorBaseFV() CADET_NOEXCEPT
+{
+	delete[] _reconstrDerivatives;
+	delete _weno;
+	delete _koren;
+	if (_dispersionDep)
+		delete _dispersionDep;
+}
+
+/**
+ * @brief Reads parameters and allocates memory
+ * @details Has to be called once before the operator is used.
+ * @param [in] paramProvider Parameter provider for reading parameters
+ * @param [in] nComp Number of components
+ * @param [in] nCol Number of axial cells
+ * @return @c true if configuration went fine, @c false otherwise
+ */
+bool RadialConvectionDispersionOperatorBaseFV::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol, unsigned int strideCell)
+{
+	_nComp = nComp;
+	_nCol = nCol;
+	_strideCell = strideCell;
+
+	if (paramProvider.getString("GEOMETRY") == "RADIAL_FLOW_CYLINDER_SHELL_WEDGE")
+		_circleFraction = paramProvider.getDouble("CIRCLE_FRACTION");
+	else
+		_circleFraction = 1.0;
+
+	const double areaOuter = paramProvider.getDouble("CROSS_SECTION_AREA_OUTER");
+	_colHeight = paramProvider.getDouble("CYLINDER_HEIGHT");
+	_bedLength = paramProvider.getDouble("BED_LENGTH");
+	// A = 2 pi r h => r = A / (2 pi h)
+	const double pi = 3.14159265358979323846;
+	_outerRadius = areaOuter / (2.0 * pi * _colHeight);
+	_innerRadius = _outerRadius - _bedLength;
+
+	if (paramProvider.exists("CROSS_SECTION_AREA_INNER")) // check this field for user convenience
+	{
+		const double areaInner = paramProvider.getDouble("CROSS_SECTION_AREA_INNER");
+		const double areaInnerDerived = 2.0 * pi * static_cast<double>(_innerRadius) * static_cast<double>(_colHeight);
+		if (std::abs(areaInner - areaInnerDerived) > 1e-12 * std::max(1.0, std::abs(areaInnerDerived)))
+			throw InvalidParameterException("For radial flow cylinder shell, CROSS_SECTION_AREA_INNER must equal the area derived from CROSS_SECTION_AREA_OUTER, CYLINDER_HEIGHT, and BED_LENGTH");
+	}
+
+	if (!(static_cast<double>(_innerRadius) > 0.0 && static_cast<double>(_outerRadius) >= static_cast<double>(_innerRadius) && static_cast<double>(_colHeight) > 0.0))
+		throw InvalidParameterException("Geometry parameters for RADIAL_FLOW_CYLINDER_SHELL must satisfy CROSS_SECTION_AREA_OUTER > 0.0, CYLINDER_HEIGHT > 0.0, 0 < BED_LENGTH <= outer radius");
+
+
+	if (paramProvider.exists("COL_DISPERSION_DEP"))
+	{
+		const std::string paramDepName = paramProvider.getString("COL_DISPERSION_DEP");
+		_dispersionDep = helper.createParameterParameterDependence(paramDepName);
+		if (!_dispersionDep)
+			throw InvalidParameterException("Unknown parameter dependence " + paramDepName + " in COL_DISPERSION_DEP");
+
+		_dispersionDep->configureModelDiscretization(paramProvider);
+	}
+	else
+		_dispersionDep = helper.createParameterParameterDependence("CONSTANT_ONE");
+
+	paramProvider.pushScope("discretization");
+
+	const std::string recType = paramProvider.exists("RECONSTRUCTION") ? paramProvider.getString("RECONSTRUCTION") : "WENO";
+
+	if (paramProvider.exists("GRID_FACES"))
+	{
+		readScalarParameterOrArray(_cellFaces, paramProvider, "GRID_FACES", 1);
+		if (_cellFaces.size() < 5)
+			throw InvalidParameterException("Number of elements in field GRID_FACES must be at least 5");    // We need at least 5 faces to be able to apply the WENO35 reconstruction at the first and last cell
+
+		if (_cellFaces.size() != _nCol + 1)
+			throw InvalidParameterException("Number of elements in field GRID_FACES must be NCOL + 1");
+
+		// Check if first and last coordinate of cell faces match the inner and outer radius, respectively
+		if (std::abs(static_cast<double>(_cellFaces.back()) - static_cast<double>(_outerRadius)) > 1e-14)
+			throw InvalidParameterException("Last entry of GRID_FACES must be the outer column radius");
+		if (std::abs(static_cast<double>(_cellFaces.front()) - static_cast<double>(_innerRadius)) > 1e-14)
+			throw InvalidParameterException("First entry of GRID_FACES must be the inner column radius");
+
+		// --- Grid diagnostics ---
+		double dxMin = std::numeric_limits<double>::max();
+		double dxMax = 0.0;
+		double rMax = 0.0;           // max stretching ratio
+//		double jumpMax = 0.0;        // max sudden jump indicator
+
+		// Check if grid is equidistant
+		const double firstWidth = static_cast<double>(_cellFaces[1] - _cellFaces[0]);
+		const double widthTol = 1e-10 * std::max(1.0, std::abs(firstWidth));
+		_gridEquidistant = true;
+
+		double prevWidth = firstWidth;
+		dxMin = std::min(dxMin, prevWidth);
+		dxMax = std::max(dxMax, prevWidth);
+
+		for (unsigned int i = 1; i < _nCol; ++i)
+		{
+			const double curWidth = static_cast<double>(_cellFaces[i + 1] - _cellFaces[i]);
+
+			dxMin = std::min(dxMin, curWidth);
+			dxMax = std::max(dxMax, curWidth);
+
+			// Check equidistance
+			if (std::abs(curWidth - firstWidth) > widthTol)
+				_gridEquidistant = false;
+
+			// --- Stretching ratio ---
+			const double r = std::max(curWidth / prevWidth, prevWidth / curWidth);
+			rMax = std::max(rMax, r);
+
+			prevWidth = curWidth;
+		}
+
+
+		// --- Warning 1: cell stretching ratio ---
+		if (rMax > 3.0)
+		{
+			LOG(Warning) << "GRID_FACES contains strongly stretched neighboring cells (max recommended ratio = "
+				<< rMax << "). WENO reconstruction on highly stretched grids may lose accuracy or stability.";
+		}
+
+		// --- Warning 3: extreme cell size variance might cause stiffness ---
+		const double sizeRatio = dxMax / dxMin;
+		if (sizeRatio > 1e6)
+		{
+			LOG(Warning) << "GRID_FACES contains cells spanning a very large size range (max/min ratio = "
+				<< sizeRatio << "). This may lead to stiff ODE systems and slow or unstable time integration.";
+		}
+		computeCellCentersAndSizes(_cellFaces);
+	}
+	else
+	{
+		_gridEquidistant = true;
+		_cellFaces.clear();
+		equidistantCells();
+		computeCellCentersAndSizes(_cellFaces);
+	}
+
+	if (recType == "WENO")
+	{
+		// Read WENO settings and apply them
+		paramProvider.pushScope("weno");
+		_weno = new Weno();
+		_weno->order(paramProvider.getInt("WENO_ORDER"));
+		_weno->boundaryTreatment(paramProvider.getInt("BOUNDARY_MODEL"));
+		_weno->epsilon(paramProvider.getDouble("WENO_EPS"));
+		paramProvider.popScope();
+
+		_reconstrDerivatives = new double[Weno::maxStencilSize()];
+
+		// Precompute geometry-exact WENO coefficients for non-equidistant grids from the
+		// rho-weighted moment systems (weight A(rho) ~ rho); equidistant grids have closed-form
+		// coefficients, which are precomputed from the zeta of every cell.
+		if (!_gridEquidistant)
+		{
+			std::vector<double> faces(_cellFaces.size());
+			for (std::size_t i = 0; i < _cellFaces.size(); ++i)
+				faces[i] = static_cast<double>(_cellFaces[i]);
+			_weno->prepareGeometryExactCoefficients(0.0, 1.0, 1, faces);
+		}
+		else
+		{
+			// zeta as the reconstruction kernel computes it, rho_{i+1/2} / drho
+			std::vector<double> zeta(_nCol);
+			for (unsigned int i = 0; i < _nCol; ++i)
+				zeta[i] = static_cast<double>(_cellFaces[i + 1]) / static_cast<double>(_cellSizes[i]);
+			_weno->prepareRadialCoefficients(zeta);
+		}
+	}
+	else if (recType == "KOREN")
+	{
+		// Read Koren settings and apply them
+		paramProvider.pushScope("koren");
+		_koren = new HighResolutionKoren();
+		_koren->epsilon(paramProvider.getDouble("KOREN_EPS"));
+		paramProvider.popScope();
+
+		_reconstrDerivatives = new double[HighResolutionKoren::maxStencilSize()];
+	}
+
+	paramProvider.popScope();
+
+	return true;
+}
+
+/**
+ * @brief Reads model parameters
+ * @details Only reads parameters that do not affect model structure (e.g., discretization).
+ * @param [in] unitOpIdx Unit operation id of the owning unit operation model
+ * @param [in] paramProvider Parameter provider for reading parameters
+ * @param [out] parameters Map in which local parameters are inserted
+ * @return @c true if configuration went fine, @c false otherwise
+ */
+bool RadialConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
+{
+	// Read section dependent parameters (transport)
+	_dir.clear();
+	const std::vector<double> fwdFlow = paramProvider.getDoubleArray("FORWARD_FLOW");
+	// In contrast to the axial and frustum operators, whose transport coordinate runs
+	// along the flow path, the transport coordinate of the radial operator is the radius
+	// itself and increases with the cell index. The default (forward) flow direction runs
+	// from the larger to the smaller radius, i.e. from the last cell towards the first
+	// one, which is represented internally by a negative velocity coefficient.
+	for (std::size_t i = 0; i < fwdFlow.size(); ++i)
+		_dir.push_back(fwdFlow[i] ? -1.0 : 1.0);
+
+	readScalarParameterOrArray(_colDispersion, paramProvider, "COL_DISPERSION", 1);
+	if (paramProvider.exists("COL_DISPERSION_MULTIPLEX"))
+	{
+		const int mode = paramProvider.getInt("COL_DISPERSION_MULTIPLEX");
+		if (mode == 0)
+			// Comp-indep, sec-indep
+			_dispersionCompIndep = true;
+		else if (mode == 1)
+			// Comp-dep, sec-indep
+			_dispersionCompIndep = false;
+		else if (mode == 2)
+			// Comp-indep, sec-dep
+			_dispersionCompIndep = true;
+		else if (mode == 3)
+			// Comp-dep, sec-dep
+			_dispersionCompIndep = false;
+
+		if (!_dispersionCompIndep && (_colDispersion.size() % _nComp != 0))
+			throw InvalidParameterException("Number of elements in field COL_DISPERSION is not a positive multiple of NCOMP (" + std::to_string(_nComp) + ")");
+		if ((mode == 0) && (_colDispersion.size() != 1))
+			throw InvalidParameterException("Number of elements in field COL_DISPERSION inconsistent with COL_DISPERSION_MULTIPLEX (should be 1)");
+		if ((mode == 1) && (_colDispersion.size() != _nComp))
+			throw InvalidParameterException("Number of elements in field COL_DISPERSION inconsistent with COL_DISPERSION_MULTIPLEX (should be " + std::to_string(_nComp) + ")");
+	}
+	else
+	{
+		// Infer component dependence of COL_DISPERSION:
+		//   size not divisible by NCOMP -> component independent
+		_dispersionCompIndep = ((_colDispersion.size() % _nComp) != 0);
+	}
+
+	// Expand _colDispersion to make it component dependent
+	if (_dispersionCompIndep)
+	{
+		std::vector<active> expanded(_colDispersion.size() * _nComp);
+		for (std::size_t i = 0; i < _colDispersion.size(); ++i)
+			std::fill(expanded.begin() + i * _nComp, expanded.begin() + (i + 1) * _nComp, _colDispersion[i]);
+
+		_colDispersion = std::move(expanded);
+	}
+
+	if (_dispersionDep)
+	{
+		if (!_dispersionDep->configure(paramProvider, unitOpIdx, ParTypeIndep, BoundStateIndep, "COL_DISPERSION_DEP"))
+			throw InvalidParameterException("Failed to configure dispersion parameter dependency (COL_DISPERSION_DEP)");
+	}
+
+	// Add parameters to map
+	if (_dispersionCompIndep)
+	{
+		if (_colDispersion.size() > _nComp)
+		{
+			// Register only the first item in each section
+			for (std::size_t i = 0; i < _colDispersion.size() / _nComp; ++i)
+				parameters[makeParamId(hashString("COL_DISPERSION"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, i)] = &_colDispersion[i * _nComp];
+		}
+		else
+		{
+			// We have only one parameter
+			parameters[makeParamId(hashString("COL_DISPERSION"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colDispersion[0];
+		}
+	}
+	else
+		registerParam2DArray(parameters, _colDispersion, [=](bool multi, unsigned int sec, unsigned int comp) { return makeParamId(hashString("COL_DISPERSION"), unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _nComp);
+
+	parameters[makeParamId(hashString("VELOCITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_curVelCoeff;
+	// Registered like in the axial and frustum operators, so that sensitivities and
+	// parameter changes with respect to the bed length work for the radial geometry too.
+	// CYLINDER_HEIGHT is not registered because _colHeight is not an AD type.
+	parameters[makeParamId(hashString("BED_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_bedLength;
+
+	return true;
+}
+
+/**
+ * @brief Notifies the operator that a discontinuous section transition is in progress
+ * @details In addition to changing flow direction internally, if necessary, the function returns whether
+ *          the flow direction has changed.
+ * @param [in] t Current time point
+ * @param [in] secIdx Index of the new section that is about to be integrated
+ * @return @c true if flow direction has changed, otherwise @c false
+ */
+bool RadialConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
+{
+	// setFlowRates() was called before, unconditionally setting _curVelCoeff to a non-negative value
+	const double curDir = getSectionDependentScalar(_dir, secIdx);
+	const bool changedDirection = secIdx > 0 ? (getSectionDependentScalar(_dir, secIdx - 1) * curDir < 0) : false;
+	if (curDir < 0)
+		_curVelCoeff *= -1.0;
+
+	return changedDirection;
+}
+
+/**
+ * @brief Sets the flow rates for the current time section
+ * @details The flow rates may change due to valve switches.
+ * @param [in] in Total volumetric inlet flow rate
+ * @param [in] out Total volumetric outlet flow rate
+ * @param [in] colPorosity Porosity used for computing interstitial velocity from volumetric flow rate
+ */
+void RadialConvectionDispersionOperatorBaseFV::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
+{
+	const double pi = 3.1415926535897932384626434;
+	_curVelCoeff = in / (2.0 * pi * _colHeight * colPorosity * _circleFraction); // this coefficient is later divided by r
+}
+
+active RadialConvectionDispersionOperatorBaseFV::currentVelocity(double pos) const CADET_NOEXCEPT
+{
+	const active radius = pos * (_outerRadius - _innerRadius) + _innerRadius;
+	return _curVelCoeff / radius;
+}
+
+unsigned int RadialConvectionDispersionOperatorBaseFV::nJacEntries(bool pureNNZ) const CADET_NOEXCEPT
+{
+	const unsigned int lb = jacobianLowerBandwidth();
+	const unsigned int ub = jacobianUpperBandwidth();
+	const unsigned int N = _nCol * _nComp;
+
+	const unsigned int nnzBand = N * (lb + 1u + ub)
+		- lb * (lb + 1u) / 2u
+		- ub * (ub + 1u) / 2u;
+
+	return pureNNZ ? nnzBand : nnzBand + _nComp;
+}
+
+void RadialConvectionDispersionOperatorBaseFV::convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset) const
+{
+	const int lb = static_cast<int>(jacobianLowerBandwidth());
+	const int ub = static_cast<int>(jacobianUpperBandwidth());
+	const int N = static_cast<int>(_nCol * _nComp);
+
+	for (int row = 0; row < N; ++row)
+	{
+		const int colMin = std::max(0, row - lb);
+		const int colMax = std::min(N - 1, row + ub);
+		for (int col = colMin; col <= colMax; ++col)
+			tripletList.push_back(T(bulkOffset + row, bulkOffset + col, 0.0));
+	}
+
+	const int inletCellRow = forwardFlow()
+		? 0
+		: (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
+	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+		tripletList.push_back(T(bulkOffset + inletCellRow + comp, comp, 0.0));
+}
+
+template <typename StateType>
+int RadialConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset, const StateType* const y)
+{
+	if constexpr (std::is_same_v<StateType, double>)
+	{
+		residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, true, false>(
+			model, t, secIdx, y, nullptr, nullptr,
+			linalg::BandedEigenSparseRowIterator(jacobian, bulkOffset));
+	}
+	else
+	{
+		const unsigned int numY = _nComp * (_nCol + 1u);
+		std::vector<double> yDouble(numY);
+		for (unsigned int i = 0; i < numY; ++i)
+			yDouble[i] = static_cast<double>(y[i]);
+
+		residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, true, false>(
+			model, t, secIdx, yDouble.data(), nullptr, nullptr,
+			linalg::BandedEigenSparseRowIterator(jacobian, bulkOffset));
+	}
+
+	const double v = inletJacobianFactor();
+	jacInlet(0, 0) = forwardFlow() ? -v : v;
+
+	// Inlet coupling: entries of the inlet-adjacent cell w.r.t. the inlet DOFs.
+	// These entries are reserved in convDispJacPattern(), so writing them keeps the matrix compressed.
+	const int inletCellRow = forwardFlow() ? 0 : (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
+	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+		jacobian.coeffRef(bulkOffset + inletCellRow + comp, comp) = jacInlet(0, 0);
+
+	return jacobian.isCompressed();
+}
+
+int RadialConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, double const* y)
+{
+	return calcTransportJacobian<double>(model, t, secIdx, jacobian, jacInlet, bulkOffset, y);
+}
+
+int RadialConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, active const* y)
+{
+	return calcTransportJacobian<active>(model, t, secIdx, jacobian, jacInlet, bulkOffset, y);
+}
+
+/**
+ * @brief Computes the residual of the transport equations
+ * @param [in] model Model that owns the operator
+ * @param [in] t Current time point
+ * @param [in] secIdx Index of the current section
+ * @param [in] y Pointer to unit operation's state vector
+ * @param [in] yDot Pointer to unit operation's time derivative state vector
+ * @param [out] res Pointer to unit operation's residual vector
+ * @param [in] jac Matrix that holds the Jacobian
+ * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
+ */
+int RadialConvectionDispersionOperatorBaseFV::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac)
+{
+	// Reset Jacobian
+	jac.setAll(0.0);
+
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, true>(model, t, secIdx, y, yDot, res, jac.row(0));
+}
+
+int RadialConvectionDispersionOperatorBaseFV::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity)
+{
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
+}
+
+int RadialConvectionDispersionOperatorBaseFV::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity)
+{
+	return residualImpl<active, active, double, linalg::BandMatrix::RowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
+}
+
+int RadialConvectionDispersionOperatorBaseFV::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac)
+{
+	// Reset Jacobian
+	jac.setAll(0.0);
+
+	return residualImpl<double, active, active, linalg::BandMatrix::RowIterator, true>(model, t, secIdx, y, yDot, res, jac.row(0));
+}
+
+int RadialConvectionDispersionOperatorBaseFV::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity)
+{
+	return residualImpl<double, active, active, linalg::BandMatrix::RowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
+}
+
+int RadialConvectionDispersionOperatorBaseFV::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity)
+{
+	return residualImpl<active, active, active, linalg::BandMatrix::RowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
+}
+
+int RadialConvectionDispersionOperatorBaseFV::jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac)
+{
+	// Reset Jacobian
+	jac.setAll(0.0);
+
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, true, false>(model, t, secIdx, y, nullptr, nullptr, jac.row(0));
+}
+int RadialConvectionDispersionOperatorBaseFV::jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac)
+{
+	// Reset Jacobian
+	jac.setAll(0.0);
+
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, true, false>(model, t, secIdx, y, nullptr, nullptr, jac.row(0));
+}
+
+template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes>
+int RadialConvectionDispersionOperatorBaseFV::residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin)
+{
+	const ParamType u = static_cast<ParamType>(_curVelCoeff);
+	active const* const d_rad = getSectionDependentSlice(_colDispersion, _nComp, secIdx);
+
+	const std::vector<active>* const cellFacesPtr = _cellFaces.empty() ? nullptr : &_cellFaces;
+
+	if (_weno)
+	{
+		convdisp::RadialFlowParameters<ParamType, Weno> fp{
+			u,
+			d_rad,
+			_cellCenters.data(),
+			_cellSizes.data(),
+			_cellFaces.data(),
+			_reconstrDerivatives,
+			_weno,
+			&_stencilMemory,
+			strideColCell(),
+			_nComp,
+			_nCol,
+			0u,
+			_nComp,
+			_dispersionDep,
+			_gridEquidistant,
+			cellFacesPtr
+		};
+		return convdisp::residualKernelRadial<StateType, ResidualType, ParamType, Weno, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
+	}
+	else if (_koren)
+	{
+		convdisp::RadialFlowParameters<ParamType, HighResolutionKoren> fp{
+			u,
+			d_rad,
+			_cellCenters.data(),
+			_cellSizes.data(),
+			_cellFaces.data(),
+			_reconstrDerivatives,
+			_koren,
+			&_stencilMemory,
+			strideColCell(),
+			_nComp,
+			_nCol,
+			0u,
+			_nComp,
+			_dispersionDep,
+			_gridEquidistant,
+			cellFacesPtr
+		};
+		return convdisp::residualKernelRadial<StateType, ResidualType, ParamType, HighResolutionKoren, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
+	}
+	return 0;
+}
+
+/**
+ * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$ with a given vector
+ * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed.
+ *          The matrix-vector multiplication is performed matrix-free (i.e., no matrix is explicitly formed).
+ *          
+ *          Note that this function only performs multiplication with the Jacobian of the (axial) transport equations.
+ *          The input vectors are assumed to point to the beginning (including inlet DOFs) of the respective unit operation's arrays.
+ * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
+ * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
+ * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
+ */
+void RadialConvectionDispersionOperatorBaseFV::multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const
+{
+	double* localRet = ret + offsetC();
+	double const* localSdot = sDot + offsetC();
+	const int gapCell = strideColCell() - static_cast<int>(_nComp) * strideColComp();
+
+	for (unsigned int i = 0; i < _nCol; ++i, localRet += gapCell, localSdot += gapCell)
+	{
+		for (unsigned int j = 0; j < _nComp; ++j, ++localRet, ++localSdot)
+		{
+			*localRet = (*localSdot);
+		}
+	}
+}
+
+/**
+ * @brief Adds the derivatives with respect to @f$ \dot{y} @f$ of @f$ F(t, y, \dot{y}) @f$ to the Jacobian
+ * @details This functions computes 
+ *          @f[ \begin{align*} \text{_jacCdisc} = \text{_jacCdisc} + \alpha \frac{\partial F}{\partial \dot{y}}. \end{align*} @f]
+ *          The factor @f$ \alpha @f$ is useful when constructing the linear system in the time integration process.
+ * @param [in] alpha Factor in front of @f$ \frac{\partial F}{\partial \dot{y}} @f$
+ */
+void RadialConvectionDispersionOperatorBaseFV::addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc)
+{
+	const int gapCell = strideColCell() - static_cast<int>(_nComp) * strideColComp();
+	linalg::FactorizableBandMatrix::RowIterator jac = jacDisc.row(0);
+	for (unsigned int i = 0; i < _nCol; ++i, jac += gapCell)
+	{
+		for (unsigned int j = 0; j < _nComp; ++j, ++jac)
+		{
+			// Add time derivative to main diagonal
+			jac[0] += alpha;
+		}
+	}
+}
+
+void RadialConvectionDispersionOperatorBaseFV::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset) const
+{
+	linalg::BandedEigenSparseRowIterator jac(jacDisc, blockOffset);
+	for (unsigned int i = 0; i < _nCol; ++i)
+		for (unsigned int j = 0; j < _nComp; ++j, ++jac)
+			jac[0] += alpha;
+}
+
+unsigned int RadialConvectionDispersionOperatorBaseFV::jacobianLowerBandwidth() const CADET_NOEXCEPT
+{
+	// Note that we have to increase the lower bandwidth by 1 because the WENO stencil is applied to the
+	// right cell face (lower + 1 + upper) and to the left cell face (shift the stencil by -1 because influx of cell i
+	// is outflux of cell i-1)
+	// We also have to make sure that there's at least one sub and super diagonal for the dispersion term
+	if (_weno)
+		return std::max(_weno->lowerBandwidth() + 1u, 1u) * strideColCell();
+	else if (_koren)
+		return std::max(_koren->lowerBandwidth() + 1u, 1u) * strideColCell();
+	return strideColCell();
+}
+
+unsigned int RadialConvectionDispersionOperatorBaseFV::jacobianUpperBandwidth() const CADET_NOEXCEPT
+{
+	// We have to make sure that there's at least one sub and super diagonal for the dispersion term
+	if (_weno)
+		return std::max(_weno->upperBandwidth(), 1u) * strideColCell();
+	else if (_koren)
+		return std::max(_koren->upperBandwidth(), 1u) * strideColCell();
+	return strideColCell();
+}
+
+unsigned int RadialConvectionDispersionOperatorBaseFV::jacobianDiscretizedBandwidth() const CADET_NOEXCEPT
+{
+	// When flow direction is changed, the bandwidths of the Jacobian swap.
+	// Hence, we have to reserve memory such that the swapped Jacobian can fit into the matrix.
+	return std::max(jacobianLowerBandwidth(), jacobianUpperBandwidth());
+}
+
+double RadialConvectionDispersionOperatorBaseFV::inletJacobianFactor() const CADET_NOEXCEPT
+{
+	// The inlet couples into the first cell for forward and into the last cell for backward
+	// flow (see residualForwardsRadialFlow / residualBackwardsRadialFlow); as the cells of
+	// this operator do not share the same geometric measure, the factor depends on which
+	// one of them the inlet feeds.
+	const unsigned int inletCell = forwardFlow() ? 0u : _nCol - 1u;
+	const double denom = static_cast<double>(_cellCenters[inletCell]) * static_cast<double>(_cellSizes[inletCell]);
+	const double u = static_cast<double>(_curVelCoeff);
+	return u / denom;
+}
+
+bool RadialConvectionDispersionOperatorBaseFV::setParameter(const ParameterId& pId, double value)
+{
+	// Check if parameter is in parameter dependence of column dispersion coefficient
+	if (_dispersionDep)
+	{
+		if (_dispersionDep->hasParameter(pId))
+		{
+			_dispersionDep->setParameter(pId, value);
+			return true;
+		}
+	}
+
+	// We only need to do something if COL_DISPERSION is component independent
+	if (!_dispersionCompIndep)
+		return false;
+
+	if ((pId.name != hashString("COL_DISPERSION")) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+		return false;
+
+	if (_colDispersion.size() > _nComp)
+	{
+		// Section dependent
+		if (pId.section == SectionIndep)
+			return false;
+
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[pId.section * _nComp + i].setValue(value);
+	}
+	else
+	{
+		// Section independent
+		if (pId.section != SectionIndep)
+			return false;
+
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[i].setValue(value);
+	}
+
+	return true;
+}
+
+bool RadialConvectionDispersionOperatorBaseFV::setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value)
+{
+	// Check if parameter is in parameter dependence of column dispersion coefficient
+	if (_dispersionDep)
+	{
+		active* const param = _dispersionDep->getParameter(pId);
+		if (param)
+		{
+			param->setValue(value);
+			return true;
+		}
+	}
+
+	// We only need to do something if COL_DISPERSION is component independent
+	if (!_dispersionCompIndep)
+		return false;
+
+	if ((pId.name != hashString("COL_DISPERSION")) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+		return false;
+
+	if (_colDispersion.size() > _nComp)
+	{
+		// Section dependent
+		if (pId.section == SectionIndep)
+			return false;
+
+		if (!contains(sensParams, &_colDispersion[pId.section * _nComp]))
+			return false;
+
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[pId.section * _nComp + i].setValue(value);
+	}
+	else
+	{
+		// Section independent
+		if (pId.section != SectionIndep)
+			return false;
+
+		if (!contains(sensParams, &_colDispersion[0]))
+			return false;
+
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[i].setValue(value);
+	}
+
+	return true;
+}
+
+bool RadialConvectionDispersionOperatorBaseFV::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
+{
+	// Check if parameter is in parameter dependence of column dispersion coefficient
+	if (_dispersionDep)
+	{
+		active* const param = _dispersionDep->getParameter(pId);
+		if (param)
+		{
+			param->setADValue(adDirection, adValue);
+			return true;
+		}
+	}
+
+	// We only need to do something if COL_DISPERSION is component independent
+	if (!_dispersionCompIndep)
+		return false;
+
+	if ((pId.name != hashString("COL_DISPERSION")) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+		return false;
+
+	if (_colDispersion.size() > _nComp)
+	{
+		// Section dependent
+		if (pId.section == SectionIndep)
+			return false;
+
+		sensParams.insert(&_colDispersion[pId.section * _nComp]);
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[pId.section * _nComp + i].setADValue(adDirection, adValue);
+	}
+	else
+	{
+		// Section independent
+		if (pId.section != SectionIndep)
+			return false;
+
+		sensParams.insert(&_colDispersion[0]);
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[i].setADValue(adDirection, adValue);
+	}
+
+	return true;
+}
+
+void RadialConvectionDispersionOperatorBaseFV::equidistantCells()
+{
+	const active dr = (_outerRadius - _innerRadius) / _nCol;
+	std::vector<active> faces(_nCol + 1, 0.0);
+
+	for (unsigned int i = 0; i < _nCol; ++i)
+	{
+		faces[i] = i * dr + _innerRadius;
+	}
+	faces[_nCol] = _outerRadius;
+
+	_cellFaces = std::move(faces);
+}
+
+void RadialConvectionDispersionOperatorBaseFV::computeCellCentersAndSizes(const std::vector<active>& cellFaces)
+{
+	_cellSizes.resize(cellFaces.size() - 1);
+	_cellCenters.resize(cellFaces.size() - 1);
+
+	for (unsigned int i = 0; i < cellFaces.size() - 1; ++i)
+	{
+		_cellSizes[i] = cellFaces[i + 1] - cellFaces[i];
+		_cellCenters[i] = (cellFaces[i] + cellFaces[i + 1]) * 0.5;
+	}
+}
+
+/**
+ * @brief Creates a FrustumConvectionDispersionOperatorBaseFV
+ */
+FrustumConvectionDispersionOperatorBaseFV::FrustumConvectionDispersionOperatorBaseFV() : _stencilMemory(sizeof(active) * Weno::maxStencilSize()), _reconstrDerivatives(nullptr), _gridEquidistant(true), _weno(nullptr), _koren(nullptr), _dispersionDep(nullptr)
+{
+}
+
+FrustumConvectionDispersionOperatorBaseFV::~FrustumConvectionDispersionOperatorBaseFV() CADET_NOEXCEPT
+{
+	delete[] _reconstrDerivatives;
+	delete _weno;
+	delete _koren;
+	if (_dispersionDep)
+		delete _dispersionDep;
+}
+
+/**
+ * @brief Reads parameters and allocates memory
+ * @details Has to be called once before the operator is used.
+ * @param [in] paramProvider Parameter provider for reading parameters
+ * @param [in] nComp Number of components
+ * @param [in] nCol Number of axial cells
+ * @return @c true if configuration went fine, @c false otherwise
+ */
+bool FrustumConvectionDispersionOperatorBaseFV::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol, unsigned int strideCell)
+{
+	_nComp = nComp;
+	_nCol = nCol;
+	_strideCell = strideCell;
+
+	const double areaLarge = paramProvider.getDouble("CROSS_SECTION_AREA_LARGE_END");
+	const double areaSmall = paramProvider.getDouble("CROSS_SECTION_AREA_SMALL_END");
+	const double pi = 3.14159265358979323846;
+	// A = pi r^2 => r = sqrt(A / pi). The large end is placed at x = 0, i.e. forward
+	// flow runs from the large to the small radius
+	_radiusXStart = sqrt(areaLarge / pi);
+	_radiusXEnd = sqrt(areaSmall / pi);
+	_bedLength = paramProvider.getDouble("BED_LENGTH");
+
+	if (!(_radiusXEnd > 0.0 && _radiusXStart > 0.0 && _bedLength > 0.0))
+		throw InvalidParameterException("Geometry parameters CROSS_SECTION_AREA_LARGE_END, CROSS_SECTION_AREA_SMALL_END, BED_LENGTH must be > 0.0");
+	if (_radiusXEnd > _radiusXStart)
+		throw InvalidParameterException("Geometry parameters are inconsistent, model requires CROSS_SECTION_AREA_SMALL_END <= CROSS_SECTION_AREA_LARGE_END for consistency reasons. Please check the documentation for control of the flow direction.");
+
+	if (paramProvider.exists("COL_DISPERSION_DEP"))
+	{
+		const std::string paramDepName = paramProvider.getString("COL_DISPERSION_DEP");
+		_dispersionDep = helper.createParameterParameterDependence(paramDepName);
+		if (!_dispersionDep)
+			throw InvalidParameterException("Unknown parameter dependence " + paramDepName + " in COL_DISPERSION_DEP");
+
+		_dispersionDep->configureModelDiscretization(paramProvider);
+	}
+	else
+		_dispersionDep = helper.createParameterParameterDependence("CONSTANT_ONE");
+
+	paramProvider.pushScope("discretization");
+
+	const std::string recType = paramProvider.exists("RECONSTRUCTION") ? paramProvider.getString("RECONSTRUCTION") : "WENO";
+
+	if (paramProvider.exists("GRID_FACES"))
+	{
+		readScalarParameterOrArray(_cellFaces, paramProvider, "GRID_FACES", 1);
+		if (_cellFaces.size() < 5)
+			throw InvalidParameterException("Number of elements in field GRID_FACES must be at least 5");
+		if (_cellFaces.size() != _nCol + 1)
+			throw InvalidParameterException("Number of elements in field GRID_FACES must be NCOL + 1");
+		if (std::abs(static_cast<double>(_cellFaces.front())) > 1e-14)
+			throw InvalidParameterException("First entry of GRID_FACES must be zero");
+		if (std::abs(static_cast<double>(_cellFaces.back()) - static_cast<double>(_bedLength)) > 1e-14)
+			throw InvalidParameterException("Last entry of GRID_FACES must match BED_LENGTH");
+
+		double dxMin = std::numeric_limits<double>::max();
+		double dxMax = 0.0;
+		double rMax = 0.0;
+		const double firstWidth = static_cast<double>(_cellFaces[1] - _cellFaces[0]);
+		const double widthTol = 1e-10 * std::max(1.0, std::abs(firstWidth));
+		_gridEquidistant = true;
+
+		double prevWidth = firstWidth;
+		dxMin = std::min(dxMin, prevWidth);
+		dxMax = std::max(dxMax, prevWidth);
+
+		for (unsigned int i = 1; i < _nCol; ++i)
+		{
+			const double curWidth = static_cast<double>(_cellFaces[i + 1] - _cellFaces[i]);
+			dxMin = std::min(dxMin, curWidth);
+			dxMax = std::max(dxMax, curWidth);
+			if (std::abs(curWidth - firstWidth) > widthTol)
+				_gridEquidistant = false;
+			const double r = std::max(curWidth / prevWidth, prevWidth / curWidth);
+			rMax = std::max(rMax, r);
+			prevWidth = curWidth;
+		}
+
+		if (rMax > 3.0)
+		{
+			LOG(Warning) << "GRID_FACES contains strongly stretched neighboring cells (max recommended ratio = "
+				<< rMax << "). WENO reconstruction on highly stretched grids may lose accuracy or stability.";
+		}
+
+		const double sizeRatio = dxMax / dxMin;
+		if (sizeRatio > 1e6)
+		{
+			LOG(Warning) << "GRID_FACES contains cells spanning a very large size range (max/min ratio = "
+				<< sizeRatio << "). This may lead to stiff ODE systems and slow or unstable time integration.";
+		}
+
+		computeCellCentersAndSizes(_cellFaces);
+	}
+	else
+	{
+		_gridEquidistant = true;
+		_cellFaces.clear();
+		equidistantCells();
+	}
+
+	if (recType == "WENO")
+	{
+		paramProvider.pushScope("weno");
+		_weno = new Weno();
+		_weno->order(paramProvider.getInt("WENO_ORDER"));
+		_weno->boundaryTreatment(paramProvider.getInt("BOUNDARY_MODEL"));
+		_weno->epsilon(paramProvider.getDouble("WENO_EPS"));
+		paramProvider.popScope();
+
+		_reconstrDerivatives = new double[Weno::maxStencilSize()];
+		_stencilMemory.resize(sizeof(active) * Weno::maxStencilSize());
+
+		// Precompute geometry-exact WENO coefficients from the r(z)^2-weighted moment systems
+		// (the FV DOFs are cross-section weighted cell averages with A(z) ~ r(z)^2 and
+		// r(z) = r_xStart + (r_xEnd - r_xStart) * z / L). Used on equidistant and
+		// non-equidistant grids.
+		{
+			std::vector<double> faces(_cellFaces.size());
+			for (std::size_t i = 0; i < _cellFaces.size(); ++i)
+				faces[i] = static_cast<double>(_cellFaces[i]);
+			const double slope = (static_cast<double>(_radiusXEnd) - static_cast<double>(_radiusXStart)) / static_cast<double>(_bedLength);
+			_weno->prepareGeometryExactCoefficients(static_cast<double>(_radiusXStart), slope, 2, faces);
+		}
+	}
+	else if (recType == "KOREN")
+	{
+		paramProvider.pushScope("koren");
+		_koren = new HighResolutionKoren();
+		_koren->epsilon(paramProvider.getDouble("KOREN_EPS"));
+		paramProvider.popScope();
+
+		_reconstrDerivatives = new double[HighResolutionKoren::maxStencilSize()];
+		_stencilMemory.resize(sizeof(active) * HighResolutionKoren::maxStencilSize());
+	}
+	else
+	{
+		throw InvalidParameterException("Unknown reconstruction type in field RECONSTRUCTION");
+	}
+
+	paramProvider.popScope();
+	return true;
+}
+
+/**
+ * @brief Reads model parameters
+ * @details Only reads parameters that do not affect model structure (e.g., discretization).
+ * @param [in] unitOpIdx Unit operation id of the owning unit operation model
+ * @param [in] paramProvider Parameter provider for reading parameters
+ * @param [out] parameters Map in which local parameters are inserted
+ * @return @c true if configuration went fine, @c false otherwise
+ */
+bool FrustumConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
+{
+
+	// Read section dependent parameters (transport)
+	_dir.clear();
+	const std::vector<double> fwdFlow = paramProvider.getDoubleArray("FORWARD_FLOW");
+	for (std::size_t i = 0; i < fwdFlow.size(); ++i)
+		_dir.push_back(fwdFlow[i] ? 1.0 : -1.0);
+
+	readScalarParameterOrArray(_colDispersion, paramProvider, "COL_DISPERSION", 1);
+	if (paramProvider.exists("COL_DISPERSION_MULTIPLEX"))
+	{
+		const int mode = paramProvider.getInt("COL_DISPERSION_MULTIPLEX");
+		if (mode == 0)
+			// Comp-indep, sec-indep
+			_dispersionCompIndep = true;
+		else if (mode == 1)
+			// Comp-dep, sec-indep
+			_dispersionCompIndep = false;
+		else if (mode == 2)
+			// Comp-indep, sec-dep
+			_dispersionCompIndep = true;
+		else if (mode == 3)
+			// Comp-dep, sec-dep
+			_dispersionCompIndep = false;
+
+		if (!_dispersionCompIndep && (_colDispersion.size() % _nComp != 0))
+			throw InvalidParameterException("Number of elements in field COL_DISPERSION is not a positive multiple of NCOMP (" + std::to_string(_nComp) + ")");
+		if ((mode == 0) && (_colDispersion.size() != 1))
+			throw InvalidParameterException("Number of elements in field COL_DISPERSION inconsistent with COL_DISPERSION_MULTIPLEX (should be 1)");
+		if ((mode == 1) && (_colDispersion.size() != _nComp))
+			throw InvalidParameterException("Number of elements in field COL_DISPERSION inconsistent with COL_DISPERSION_MULTIPLEX (should be " + std::to_string(_nComp) + ")");
+	}
+	else
+	{
+		// Infer component dependence of COL_DISPERSION:
+		//   size not divisible by NCOMP -> component independent
+		_dispersionCompIndep = ((_colDispersion.size() % _nComp) != 0);
+	}
+
+	// Expand _colDispersion to make it component dependent
+	if (_dispersionCompIndep)
+	{
+		std::vector<active> expanded(_colDispersion.size() * _nComp);
+		for (std::size_t i = 0; i < _colDispersion.size(); ++i)
+			std::fill(expanded.begin() + i * _nComp, expanded.begin() + (i + 1) * _nComp, _colDispersion[i]);
+
+		_colDispersion = std::move(expanded);
+	}
+
+	if (_dispersionDep)
+	{
+		if (!_dispersionDep->configure(paramProvider, unitOpIdx, ParTypeIndep, BoundStateIndep, "COL_DISPERSION_DEP"))
+			throw InvalidParameterException("Failed to configure dispersion parameter dependency (COL_DISPERSION_DEP)");
+	}
+
+	// Add parameters to map
+	if (_dispersionCompIndep)
+	{
+		if (_colDispersion.size() > _nComp)
+		{
+			// Register only the first item in each section
+			for (std::size_t i = 0; i < _colDispersion.size() / _nComp; ++i)
+				parameters[makeParamId(hashString("COL_DISPERSION"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, i)] = &_colDispersion[i * _nComp];
+		}
+		else
+		{
+			// We have only one parameter
+			parameters[makeParamId(hashString("COL_DISPERSION"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colDispersion[0];
+		}
+	}
+	else
+		registerParam2DArray(parameters, _colDispersion, [=](bool multi, unsigned int sec, unsigned int comp) { return makeParamId(hashString("COL_DISPERSION"), unitOpIdx, comp, ParTypeIndep, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); }, _nComp);
+
+	parameters[makeParamId(hashString("VELOCITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_curVelCoeff;
+	parameters[makeParamId(hashString("BED_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_bedLength;
+
+	return true;
+}
+
+/**
+ * @brief Notifies the operator that a discontinuous section transition is in progress
+ * @details In addition to changing flow direction internally, if necessary, the function returns whether
+ *          the flow direction has changed.
+ * @param [in] t Current time point
+ * @param [in] secIdx Index of the new section that is about to be integrated
+ * @return @c true if flow direction has changed, otherwise @c false
+ */
+bool FrustumConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
+{
+	// setFlowRates() was called before, unconditionally setting _curVelCoeff to a non-negative value
+	const double curDir = getSectionDependentScalar(_dir, secIdx);
+	const bool changedDirection = secIdx > 0 ? (getSectionDependentScalar(_dir, secIdx - 1) * curDir < 0) : false;
+	if (curDir < 0)
+		_curVelCoeff *= -1.0;
+
+	return changedDirection;
+}
+
+/**
+ * @brief Sets the flow rates for the current time section
+ * @details The flow rates may change due to valve switches.
+ * @param [in] in Total volumetric inlet flow rate
+ * @param [in] out Total volumetric outlet flow rate
+ * @param [in] colPorosity Porosity used for computing interstitial velocity from volumetric flow rate
+ */
+void FrustumConvectionDispersionOperatorBaseFV::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
+{
+	const double pi = 3.1415926535897932384626434;
+	_curVelCoeff = in / (pi * colPorosity); // this coefficient is later divided by r^2
+}
+
+/**
+ * @brief Returns the spatially dependent velocity
+ * @param [in] pos relative spatial position x \in [0, 1]
+ */
+active FrustumConvectionDispersionOperatorBaseFV::currentVelocity(double pos) const CADET_NOEXCEPT
+{
+	const active radius = pos * (_radiusXEnd - _radiusXStart) + _radiusXStart;
+	return _curVelCoeff / radius / radius;
+}
+
+unsigned int FrustumConvectionDispersionOperatorBaseFV::nJacEntries(bool pureNNZ) const CADET_NOEXCEPT
+{
+	const unsigned int lb = jacobianLowerBandwidth();
+	const unsigned int ub = jacobianUpperBandwidth();
+	const unsigned int N = _nCol * _nComp;
+
+	const unsigned int nnzBand = N * (lb + 1u + ub)
+		- lb * (lb + 1u) / 2u
+		- ub * (ub + 1u) / 2u;
+
+	return pureNNZ ? nnzBand : nnzBand + _nComp;
+}
+
+void FrustumConvectionDispersionOperatorBaseFV::convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset) const
+{
+	const int lb = static_cast<int>(jacobianLowerBandwidth());
+	const int ub = static_cast<int>(jacobianUpperBandwidth());
+	const int N = static_cast<int>(_nCol * _nComp);
+
+	for (int row = 0; row < N; ++row)
+	{
+		const int colMin = std::max(0, row - lb);
+		const int colMax = std::min(N - 1, row + ub);
+		for (int col = colMin; col <= colMax; ++col)
+			tripletList.push_back(T(bulkOffset + row, bulkOffset + col, 0.0));
+	}
+
+	const int inletCellRow = forwardFlow()
+		? 0
+		: (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
+	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+		tripletList.push_back(T(bulkOffset + inletCellRow + comp, comp, 0.0));
+}
+
+template <typename StateType>
+int FrustumConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset, const StateType* const y)
+{
+	if constexpr (std::is_same_v<StateType, double>)
+	{
+		residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, true, false>(
+			model, t, secIdx, y, nullptr, nullptr,
+			linalg::BandedEigenSparseRowIterator(jacobian, bulkOffset));
+	}
+	else
+	{
+		const unsigned int numY = _nComp * (_nCol + 1u);
+		std::vector<double> yDouble(numY);
+		for (unsigned int i = 0; i < numY; ++i)
+			yDouble[i] = static_cast<double>(y[i]);
+
+		residualImpl<double, double, double, linalg::BandedEigenSparseRowIterator, true, false>(
+			model, t, secIdx, yDouble.data(), nullptr, nullptr,
+			linalg::BandedEigenSparseRowIterator(jacobian, bulkOffset));
+	}
+
+	const double v = inletJacobianFactor();
+	jacInlet(0, 0) = forwardFlow() ? -v : v;
+
+	// Inlet coupling: entries of the inlet-adjacent cell w.r.t. the inlet DOFs.
+	// These entries are reserved in convDispJacPattern(), so writing them keeps the matrix compressed.
+	const int inletCellRow = forwardFlow() ? 0 : (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
+	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+		jacobian.coeffRef(bulkOffset + inletCellRow + comp, comp) = jacInlet(0, 0);
+
+	return jacobian.isCompressed();
+}
+
+int FrustumConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, double const* y)
+{
+	return calcTransportJacobian<double>(model, t, secIdx, jacobian, jacInlet, bulkOffset, y);
+}
+
+int FrustumConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, active const* y)
+{
+	return calcTransportJacobian<active>(model, t, secIdx, jacobian, jacInlet, bulkOffset, y);
+}
+
+/**
+ * @brief Computes the residual of the transport equations
+ * @param [in] model Model that owns the operator
+ * @param [in] t Current time point
+ * @param [in] secIdx Index of the current section
+ * @param [in] y Pointer to unit operation's state vector
+ * @param [in] yDot Pointer to unit operation's time derivative state vector
+ * @param [out] res Pointer to unit operation's residual vector
+ * @param [in] jac Matrix that holds the Jacobian
+ * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
+ */
+int FrustumConvectionDispersionOperatorBaseFV::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac)
+{
+	// Reset Jacobian
+	jac.setAll(0.0);
+
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, true>(model, t, secIdx, y, yDot, res, jac.row(0));
+}
+
+int FrustumConvectionDispersionOperatorBaseFV::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity)
+{
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
+}
+
+int FrustumConvectionDispersionOperatorBaseFV::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity)
+{
+	return residualImpl<active, active, double, linalg::BandMatrix::RowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
+}
+
+int FrustumConvectionDispersionOperatorBaseFV::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac)
+{
+	// Reset Jacobian
+	jac.setAll(0.0);
+
+	return residualImpl<double, active, active, linalg::BandMatrix::RowIterator, true>(model, t, secIdx, y, yDot, res, jac.row(0));
+}
+
+int FrustumConvectionDispersionOperatorBaseFV::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity)
+{
+	return residualImpl<double, active, active, linalg::BandMatrix::RowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
+}
+
+int FrustumConvectionDispersionOperatorBaseFV::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity)
+{
+	return residualImpl<active, active, active, linalg::BandMatrix::RowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
+}
+
+int FrustumConvectionDispersionOperatorBaseFV::jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac)
+{
+	// Reset Jacobian
+	jac.setAll(0.0);
+
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, true, false>(model, t, secIdx, y, nullptr, nullptr, jac.row(0));
+}
+int FrustumConvectionDispersionOperatorBaseFV::jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac)
+{
+	// Reset Jacobian
+	jac.setAll(0.0);
+
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, true, false>(model, t, secIdx, y, nullptr, nullptr, jac.row(0));
+}
+
+template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes>
+int FrustumConvectionDispersionOperatorBaseFV::residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin)
+{
+	const ParamType u = static_cast<ParamType>(_curVelCoeff);
+	const ParamType length = static_cast<ParamType>(_bedLength);
+	active const* const d_rad = getSectionDependentSlice(_colDispersion, _nComp, secIdx);
+
+	const std::vector<active>* const cellFacesPtr = _cellFaces.empty() ? nullptr : &_cellFaces;
+
+	if (_weno)
+	{
+		convdisp::FrustumFlowParameters<ParamType, Weno> fp{
+			u,
+			length,
+			d_rad,
+			_cellCenters.data(),
+			_cellFaces.data(),
+			_cellFaceRadiusSq.data(),
+			_cellVolume.data(),
+			_reconstrDerivatives,
+			_weno,
+			&_stencilMemory,
+			strideColCell(),
+			_nComp,
+			_nCol,
+			0u,
+			_nComp,
+			_dispersionDep,
+			_gridEquidistant,
+			cellFacesPtr
+		};
+
+		return convdisp::residualKernelFrustum<StateType, ResidualType, ParamType, Weno, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
+	}
+	else if (_koren)
+	{
+		convdisp::FrustumFlowParameters<ParamType, HighResolutionKoren> fp{
+			u,
+			length,
+			d_rad,
+			_cellCenters.data(),
+			_cellFaces.data(),
+			_cellFaceRadiusSq.data(),
+			_cellVolume.data(),
+			_reconstrDerivatives,
+			_koren,
+			&_stencilMemory,
+			strideColCell(),
+			_nComp,
+			_nCol,
+			0u,
+			_nComp,
+			_dispersionDep,
+			_gridEquidistant,
+			cellFacesPtr
+		};
+
+		return convdisp::residualKernelFrustum<StateType, ResidualType, ParamType, HighResolutionKoren, RowIteratorType, wantJac, wantRes>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
+	}
+
+	return 0;
+}
+
+/**
+ * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$ with a given vector
+ * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed.
+ *          The matrix-vector multiplication is performed matrix-free (i.e., no matrix is explicitly formed).
+ *
+ *          Note that this function only performs multiplication with the Jacobian of the (axial) transport equations.
+ *          The input vectors are assumed to point to the beginning (including inlet DOFs) of the respective unit operation's arrays.
+ * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
+ * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
+ * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
+ */
+void FrustumConvectionDispersionOperatorBaseFV::multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const
+{
+	double* localRet = ret + offsetC();
+	double const* localSdot = sDot + offsetC();
+	const int gapCell = strideColCell() - static_cast<int>(_nComp) * strideColComp();
+
+	for (unsigned int i = 0; i < _nCol; ++i, localRet += gapCell, localSdot += gapCell)
+	{
+		for (unsigned int j = 0; j < _nComp; ++j, ++localRet, ++localSdot)
+		{
+			*localRet = (*localSdot);
+		}
+	}
+}
+
+/**
+ * @brief Adds the derivatives with respect to @f$ \dot{y} @f$ of @f$ F(t, y, \dot{y}) @f$ to the Jacobian
+ * @details This functions computes
+ *          @f[ \begin{align*} \text{_jacCdisc} = \text{_jacCdisc} + \alpha \frac{\partial F}{\partial \dot{y}}. \end{align*} @f]
+ *          The factor @f$ \alpha @f$ is useful when constructing the linear system in the time integration process.
+ * @param [in] alpha Factor in front of @f$ \frac{\partial F}{\partial \dot{y}} @f$
+ */
+void FrustumConvectionDispersionOperatorBaseFV::addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc)
+{
+	const int gapCell = strideColCell() - static_cast<int>(_nComp) * strideColComp();
+	linalg::FactorizableBandMatrix::RowIterator jac = jacDisc.row(0);
+	for (unsigned int i = 0; i < _nCol; ++i, jac += gapCell)
+	{
+		for (unsigned int j = 0; j < _nComp; ++j, ++jac)
+		{
+			// Add time derivative to main diagonal
+			jac[0] += alpha;
+		}
+	}
+}
+
+void FrustumConvectionDispersionOperatorBaseFV::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset) const
+{
+	linalg::BandedEigenSparseRowIterator jac(jacDisc, blockOffset);
+	for (unsigned int i = 0; i < _nCol; ++i)
+		for (unsigned int j = 0; j < _nComp; ++j, ++jac)
+			jac[0] += alpha;
+}
+
+unsigned int FrustumConvectionDispersionOperatorBaseFV::jacobianLowerBandwidth() const CADET_NOEXCEPT
+{
+	// Note that we have to increase the lower bandwidth by 1 because the WENO stencil is applied to the
+	// right cell face (lower + 1 + upper) and to the left cell face (shift the stencil by -1 because influx of cell i
+	// is outflux of cell i-1)
+	// We also have to make sure that there's at least one sub and super diagonal for the dispersion term
+	if (_weno)
+		return std::max(_weno->lowerBandwidth() + 1u, 1u) * strideColCell();
+	else if (_koren)
+		return std::max(_koren->lowerBandwidth() + 1u, 1u) * strideColCell();
+	return strideColCell();
+}
+
+unsigned int FrustumConvectionDispersionOperatorBaseFV::jacobianUpperBandwidth() const CADET_NOEXCEPT
+{
+	// We have to make sure that there's at least one sub and super diagonal for the dispersion term
+	if (_weno)
+		return std::max(_weno->upperBandwidth(), 1u) * strideColCell();
+	else if (_koren)
+		return std::max(_koren->upperBandwidth(), 1u) * strideColCell();
+	return strideColCell();
+}
+
+unsigned int FrustumConvectionDispersionOperatorBaseFV::jacobianDiscretizedBandwidth() const CADET_NOEXCEPT
+{
+	// When flow direction is changed, the bandwidths of the Jacobian swap.
+	// Hence, we have to reserve memory such that the swapped Jacobian can fit into the matrix.
+	return std::max(jacobianLowerBandwidth(), jacobianUpperBandwidth());
+}
+
+double FrustumConvectionDispersionOperatorBaseFV::inletJacobianFactor() const CADET_NOEXCEPT
+{
+	// The inlet couples into the first cell for forward and into the last cell for backward
+	// flow (see residualForwardsFrustumFlow / residualBackwardsFrustumFlow); as the cells of
+	// this operator do not share the same volume, the factor depends on which one of them
+	// the inlet feeds.
+	const unsigned int inletCell = forwardFlow() ? 0u : _nCol - 1u;
+	return static_cast<double>(_curVelCoeff) * 3.1415926535897932384626434 / static_cast<double>(_cellVolume[inletCell]);
+}
+
+bool FrustumConvectionDispersionOperatorBaseFV::setParameter(const ParameterId& pId, double value)
+{
+	// Check if parameter is in parameter dependence of column dispersion coefficient
+	if (_dispersionDep)
+	{
+		if (_dispersionDep->hasParameter(pId))
+		{
+			_dispersionDep->setParameter(pId, value);
+			return true;
+		}
+	}
+
+	// We only need to do something if COL_DISPERSION is component independent
+	if (!_dispersionCompIndep)
+		return false;
+
+	if ((pId.name != hashString("COL_DISPERSION")) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+		return false;
+
+	if (_colDispersion.size() > _nComp)
+	{
+		// Section dependent
+		if (pId.section == SectionIndep)
+			return false;
+
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[pId.section * _nComp + i].setValue(value);
+	}
+	else
+	{
+		// Section independent
+		if (pId.section != SectionIndep)
+			return false;
+
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[i].setValue(value);
+	}
+
+	return true;
+}
+
+bool FrustumConvectionDispersionOperatorBaseFV::setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value)
+{
+	// Check if parameter is in parameter dependence of column dispersion coefficient
+	if (_dispersionDep)
+	{
+		active* const param = _dispersionDep->getParameter(pId);
+		if (param)
+		{
+			param->setValue(value);
+			return true;
+		}
+	}
+
+	// We only need to do something if COL_DISPERSION is component independent
+	if (!_dispersionCompIndep)
+		return false;
+
+	if ((pId.name != hashString("COL_DISPERSION")) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+		return false;
+
+	if (_colDispersion.size() > _nComp)
+	{
+		// Section dependent
+		if (pId.section == SectionIndep)
+			return false;
+
+		if (!contains(sensParams, &_colDispersion[pId.section * _nComp]))
+			return false;
+
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[pId.section * _nComp + i].setValue(value);
+	}
+	else
+	{
+		// Section independent
+		if (pId.section != SectionIndep)
+			return false;
+
+		if (!contains(sensParams, &_colDispersion[0]))
+			return false;
+
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[i].setValue(value);
+	}
+
+	return true;
+}
+
+bool FrustumConvectionDispersionOperatorBaseFV::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
+{
+	// Check if parameter is in parameter dependence of column dispersion coefficient
+	if (_dispersionDep)
+	{
+		active* const param = _dispersionDep->getParameter(pId);
+		if (param)
+		{
+			param->setADValue(adDirection, adValue);
+			return true;
+		}
+	}
+
+	// We only need to do something if COL_DISPERSION is component independent
+	if (!_dispersionCompIndep)
+		return false;
+
+	if ((pId.name != hashString("COL_DISPERSION")) || (pId.component != CompIndep) || (pId.boundState != BoundStateIndep) || (pId.reaction != ReactionIndep) || (pId.particleType != ParTypeIndep))
+		return false;
+
+	if (_colDispersion.size() > _nComp)
+	{
+		// Section dependent
+		if (pId.section == SectionIndep)
+			return false;
+
+		sensParams.insert(&_colDispersion[pId.section * _nComp]);
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[pId.section * _nComp + i].setADValue(adDirection, adValue);
+	}
+	else
+	{
+		// Section independent
+		if (pId.section != SectionIndep)
+			return false;
+
+		sensParams.insert(&_colDispersion[0]);
+		for (unsigned int i = 0; i < _nComp; ++i)
+			_colDispersion[i].setADValue(adDirection, adValue);
+	}
+
+	return true;
+}
+
+void FrustumConvectionDispersionOperatorBaseFV::equidistantCells()
+{
+	const active dx = _bedLength / _nCol;
+	std::vector<active> faces(_nCol + 1, 0.0);
+	for (unsigned int i = 0; i <= _nCol; ++i)
+		faces[i] = i * dx;
+	computeCellCentersAndSizes(faces);
+}
+
+void FrustumConvectionDispersionOperatorBaseFV::computeCellCentersAndSizes(const std::vector<active>& cellFaces)
+{
+	const active pi = 3.1415926535897932384626434;
+	std::vector<active> centers(_nCol, 0.0);
+	std::vector<active> sizes(_nCol, 0.0);
+	std::vector<active> centerRadiiSq(_nCol, 0.0);
+	std::vector<active> faceRadiiSq(_nCol + 1, 0.0);
+
+	for (unsigned int i = 0; i < _nCol; ++i)
+	{
+		centers[i] = static_cast<active>(0.5) * (cellFaces[i] + cellFaces[i + 1]);
+		sizes[i] = cellFaces[i + 1] - cellFaces[i];
+
+		active centerRadius = _radiusXStart + (centers[i] / _bedLength) * (_radiusXEnd - _radiusXStart);
+		centerRadiiSq[i] = centerRadius * centerRadius;
+
+		active faceRadius = _radiusXStart + (cellFaces[i] / _bedLength) * (_radiusXEnd - _radiusXStart);
+		faceRadiiSq[i] = faceRadius * faceRadius;
+	}
+	active lastFaceRadius = _radiusXStart + (cellFaces[_nCol] / _bedLength) * (_radiusXEnd - _radiusXStart);
+	faceRadiiSq[_nCol] = lastFaceRadius * lastFaceRadius;
+
+	_cellCenters = std::move(centers);
+	_cellSizes = std::move(sizes);
+	_cellCenterRadiusSq = std::move(centerRadiiSq);
+	_cellFaceRadiusSq = std::move(faceRadiiSq);
+	_cellFaces = cellFaces;
+
+	_cellVolume.resize(_nCol);
+
+	for (unsigned int cell = 0; cell < _nCol; ++cell)
+	{
+		_cellVolume[cell] = static_cast<active>(1.0 / 3.0) * pi * _cellSizes[cell] * (_cellFaceRadiusSq[cell] + _cellFaceRadiusSq[cell + 1] + sqrt(_cellFaceRadiusSq[cell]) * sqrt(_cellFaceRadiusSq[cell + 1]));
+	}
+}
+
+/**
+ * @brief Creates an ConvectionDispersionOperator
+ */
+template <typename Operator>
+ConvectionDispersionOperator<Operator>::ConvectionDispersionOperator()
+{
+}
+
+template <typename Operator>
+ConvectionDispersionOperator<Operator>::~ConvectionDispersionOperator() CADET_NOEXCEPT
+{
+}
+
+/**
+ * @brief Returns the number of AD directions required for computing the Jacobian
+ * @details Band compression is used to minimize the amount of AD directions.
+ * @return Number of required AD directions
+ */
+template <typename Operator>
+int ConvectionDispersionOperator<Operator>::requiredADdirs() const CADET_NOEXCEPT
+{
+	return _jacC.stride();
+}
+
+/**
+ * @brief Reads parameters and allocates memory
+ * @details Has to be called once before the operator is used.
+ * @param [in] unitOpIdx Unit operation id of the owning unit operation model
+ * @param [in] paramProvider Parameter provider for reading parameters
+ * @param [out] parameters Map in which local parameters are inserted
+ * @param [in] nComp Number of components
+ * @param [in] nCol Number of axial cells
+ * @return @c true if configuration went fine, @c false otherwise
+ */
+template <typename Operator>
+bool ConvectionDispersionOperator<Operator>::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol)
+{
+	const bool retVal = _baseOp.configureModelDiscretization(paramProvider, helper, nComp, nCol, nComp);
+
+	// Allocate memory
+	const unsigned int lb = _baseOp.jacobianLowerBandwidth();
+	const unsigned int ub = _baseOp.jacobianUpperBandwidth();
+	const unsigned int mb = _baseOp.jacobianDiscretizedBandwidth();
+
+	// Allocate matrices such that bandwidths can be switched (backwards flow support)
+	_jacC.resize(nCol * nComp, lb, ub);
+
+	_jacCdisc.resize(nCol * nComp, mb, mb);
+	_jacCdisc.repartition(lb, ub);
+	return retVal;
+}
+
+/**
+ * @brief Reads model parameters
+ * @details Only reads parameters that do not affect model structure (e.g., discretization).
+ * @param [in] unitOpIdx Unit operation id of the owning unit operation model
+ * @param [in] paramProvider Parameter provider for reading parameters
+ * @param [out] parameters Map in which local parameters are inserted
+ * @return @c true if configuration went fine, @c false otherwise
+ */
+template <typename Operator>
+bool ConvectionDispersionOperator<Operator>::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
+{
+	return _baseOp.configure(unitOpIdx, paramProvider, parameters);
+}
+
+/**
+ * @brief Notifies the operator that a discontinuous section transition is in progress
+ * @details In addition to changing flow direction internally, if necessary, the function returns whether
+ *          the flow direction has changed.
+ * @param [in] t Current time point
+ * @param [in] secIdx Index of the new section that is about to be integrated
+ * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
+ * @return @c true if flow direction has changed, otherwise @c false
+ */
+template <typename Operator>
+bool ConvectionDispersionOperator<Operator>::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac)
+{
+	const bool hasChanged = _baseOp.notifyDiscontinuousSectionTransition(t, secIdx);
+
+	// Check whether flow direction has changed and we need to update AD vectors
+	// Exit if we do not need to setup (secIdx == 0) or change (prevU and u differ in sign) matrices
+	if ((secIdx != 0) && !hasChanged)
+		return false;
+
+	const unsigned int lb = _baseOp.jacobianLowerBandwidth();
+	const unsigned int ub = _baseOp.jacobianUpperBandwidth();
+	if (_baseOp.forwardFlow())
+	{
+		// Forwards flow
+
+		// Repartition column bulk Jacobians
+		_jacC.repartition(lb, ub);
+		_jacCdisc.repartition(lb, ub);
+	}
+	else
+	{
+		// Backwards flow
+
+		// Repartition column bulk Jacobians
+		_jacC.repartition(ub, lb);
+		_jacCdisc.repartition(ub, lb);
+	}
+
+	// Update AD seed vectors since Jacobian structure has changed (bulk block bandwidths)
+	prepareADvectors(adJac);
+
+	return true;
+}
+
+/**
+ * @brief Sets the AD seed vectors for the bulk transport variables
+ * @param [in,out] adJac Jacobian information for AD (AD vectors for residual and state, direction offset)
+ */
+template <typename Operator>
+void ConvectionDispersionOperator<Operator>::prepareADvectors(const AdJacobianParams& adJac) const
+{
+	// Early out if AD is disabled
+	if (!adJac.adY)
+		return;
+
+	// Get bandwidths of blocks
+	const unsigned int lowerColBandwidth = _jacC.lowerBandwidth();
+	const unsigned int upperColBandwidth = _jacC.upperBandwidth();
+
+	// Column block
+	ad::prepareAdVectorSeedsForBandMatrix(adJac.adY + offsetC(), adJac.adDirOffset, _baseOp.nComp() * _baseOp.nCol(), lowerColBandwidth, upperColBandwidth, lowerColBandwidth);
+}
+
+/**
+ * @brief Sets the flow rates for the current time section
+ * @details The flow rates may change due to valve switches.
+ * @param [in] in Total volumetric inlet flow rate
+ * @param [in] out Total volumetric outlet flow rate
+ * @param [in] colPorosity Porosity used for computing interstitial velocity from volumetric flow rate
+ */
+template <typename Operator>
+void ConvectionDispersionOperator<Operator>::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
+{
+	_baseOp.setFlowRates(in, out, colPorosity);
+}
+
+/**
+ * @brief Computes the residual of the transport equations
+ * @param [in] model Model that owns the operator
+ * @param [in] t Current time point
+ * @param [in] secIdx Index of the current section
+ * @param [in] y Pointer to unit operation's state vector
+ * @param [in] yDot Pointer to unit operation's time derivative state vector
+ * @param [out] res Pointer to unit operation's residual vector
+ * @param [in] wantJac Determines whether analytic Jacobian is computed
+ * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
+ */
+template <typename Operator>
+int ConvectionDispersionOperator<Operator>::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, bool wantJac, WithoutParamSensitivity)
+{
+	if (wantJac)
+		return _baseOp.residual(model, t, secIdx, y, yDot, res, _jacC);
+	else
+		return _baseOp.residual(model, t, secIdx, y, yDot, res, WithoutParamSensitivity());
+}
+
+template <typename Operator>
+int ConvectionDispersionOperator<Operator>::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithoutParamSensitivity)
+{
+	return _baseOp.residual(model, t, secIdx, y, yDot, res, WithoutParamSensitivity());
+}
+
+template <typename Operator>
+int ConvectionDispersionOperator<Operator>::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity)
+{
+	return _baseOp.residual(model, t, secIdx, y, yDot, res, WithParamSensitivity());
+}
+
+template <typename Operator>
+int ConvectionDispersionOperator<Operator>::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity)
+{
+	if (wantJac)
+		return _baseOp.residual(model, t, secIdx, y, yDot, res, _jacC);
+	else
+		return _baseOp.residual(model, t, secIdx, y, yDot, res, WithParamSensitivity());
+}
+
+/**
+ * @brief Computes the Jacobian of the transport equations
+ * @param [in] model Model that owns the operator
+ * @param [in] t Current time point
+ * @param [in] secIdx Index of the current section
+ * @param [in] y Pointer to unit operation's state vector
+ * @return @c 0 on success, @c -1 on non-recoverable error, and @c +1 on recoverable error
+ */
+template <typename Operator>
+int ConvectionDispersionOperator<Operator>::jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res)
+{
+	return _baseOp.jacobian(model, t, secIdx, y, yDot, res, _jacC);
+}
+template <typename Operator>
+int ConvectionDispersionOperator<Operator>::jacobian(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res)
+{
+	// This should not be reached
+	cadet_assert(false);
+	return 1;
+}
+
+/**
+ * @brief Multiplies the time derivative Jacobian @f$ \frac{\partial F}{\partial \dot{y}}\left(t, y, \dot{y}\right) @f$ with a given vector
+ * @details The operation @f$ z = \frac{\partial F}{\partial \dot{y}} x @f$ is performed.
+ *          The matrix-vector multiplication is performed matrix-free (i.e., no matrix is explicitly formed).
+ *          
+ *          Note that this function only performs multiplication with the Jacobian of the (axial) transport equations.
+ *          The input vectors are assumed to point to the beginning (including inlet DOFs) of the respective unit operation's arrays.
+ * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
+ * @param [in] sDot Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$
+ * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
+ */
+template <typename Operator>
+void ConvectionDispersionOperator<Operator>::multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const
+{
+	_baseOp.multiplyWithDerivativeJacobian(simTime, sDot, ret);
+}
+
+/**
+ * @brief Extracts the system Jacobian from band compressed AD seed vectors
+ * @details The input vectors are assumed to point to the beginning (including inlet DOFs) of the respective unit operation's arrays.
+ * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
+ * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+ */
+template <typename Operator>
+void ConvectionDispersionOperator<Operator>::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
+{
+	ad::extractBandedJacobianFromAd(adRes + offsetC(), adDirOffset, _jacC.lowerBandwidth(), _jacC);
+}
+
+#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
+
+/**
+ * @brief Compares the analytical Jacobian with a Jacobian derived by AD
+ * @details The analytical Jacobian is assumed to be stored in the corresponding band matrices.
+ *          The input vectors are assumed to point to the beginning (including inlet DOFs) of the respective unit operation's arrays.
+ * @param [in] adRes Residual vector of AD datatypes with band compressed seed vectors
+ * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
+ * @return Maximum elementwise absolute difference between analytic and AD Jacobian
+ */
+template <typename Operator>
+double ConvectionDispersionOperator<Operator>::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
+{
+	// Column
+	const double maxDiffCol = ad::compareBandedJacobianWithAd(adRes + offsetC(), adDirOffset, _jacC.lowerBandwidth(), _jacC);
+	LOG(Debug) << "-> Col block diff: " << maxDiffCol;
+
+	return maxDiffCol;
+}
+
+#endif
+
+/**
+ * @brief Assembles the axial transport Jacobian @f$ J_0 @f$ of the time-discretized equations
+ * @details The system \f[ \left( \frac{\partial F}{\partial y} + \alpha \frac{\partial F}{\partial \dot{y}} \right) x = b \f]
+ *          has to be solved. The system Jacobian of the original equations,
+ *          \f[ \frac{\partial F}{\partial y}, \f]
+ *          is already computed (by AD or manually in residualImpl() with @c wantJac = true). This function is responsible
+ *          for adding
+ *          \f[ \alpha \frac{\partial F}{\partial \dot{y}} \f]
+ *          to the system Jacobian, which yields the Jacobian of the time-discretized equations
+ *          \f[ F\left(t, y_0, \sum_{k=0}^N \alpha_k y_k \right) = 0 \f]
+ *          when a BDF method is used. The time integrator needs to solve this equation for @f$ y_0 @f$, which requires
+ *          the solution of the linear system mentioned above (@f$ \alpha_0 = \alpha @f$ given in @p alpha).
+ *
+ * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
+ */
+template <typename Operator>
+void ConvectionDispersionOperator<Operator>::assembleDiscretizedJacobian(double alpha)
+{
+	// Copy normal matrix over to factorizable matrix
+	_jacCdisc.copyOver(_jacC);
+
+	// Add time derivatives
+	addTimeDerivativeToJacobian(alpha);
+}
+
+
+/**
+ * @brief Adds the derivatives with respect to @f$ \dot{y} @f$ of @f$ F(t, y, \dot{y}) @f$ to the Jacobian
+ * @details This functions computes 
+ *          @f[ \begin{align*} \text{_jacCdisc} = \text{_jacCdisc} + \alpha \frac{\partial F}{\partial \dot{y}}. \end{align*} @f]
+ *          The factor @f$ \alpha @f$ is useful when constructing the linear system in the time integration process.
+ * @param [in] alpha Factor in front of @f$ \frac{\partial F}{\partial \dot{y}} @f$
+ */
+template <typename Operator>
+void ConvectionDispersionOperator<Operator>::addTimeDerivativeToJacobian(double alpha)
+{
+	_baseOp.addTimeDerivativeToJacobian(alpha, _jacCdisc);
+}
+
+/**
+ * @brief Assembles and factorizes the time discretized Jacobian
+ * @details See assembleDiscretizedJacobian() for assembly of the time discretized Jacobian.
+ * @param [in] alpha Factor in front of @f$ \frac{\partial F}{\partial \dot{y}} @f$
+ * @return @c true if factorization went fine, otherwise @c false
+ */
+template <typename Operator>
+bool ConvectionDispersionOperator<Operator>::assembleAndFactorizeDiscretizedJacobian(double alpha)
+{
+	assembleDiscretizedJacobian(alpha);
+	return _jacCdisc.factorize();
+}
+
+/**
+ * @brief Solves a (previously factorized) equation system
+ * @details The (time discretized) Jacobian matrix has to be factorized before calling this function.
+ *          Note that the given right hand side vector @p rhs is not shifted by the inlet DOFs. That
+ *          is, it is assumed to point directly to the first axial DOF.
+ * 
+ * @param [in,out] rhs On entry, right hand side of the equation system. On exit, solution of the system.
+ * @return @c true if the system was solved correctly, otherwise @c false
+ */
+template <typename Operator>
+bool ConvectionDispersionOperator<Operator>::solveDiscretizedJacobian(double* rhs) const
+{
+	return _jacCdisc.solve(rhs);
+}
+
+/**
+ * @brief Solves a system with the time derivative Jacobian and given right hand side
+ * @details Note that the given right hand side vector @p rhs is not shifted by the inlet DOFs. That
+ *          is, it is assumed to point directly to the first axial DOF.
+ * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
+ * @param [in,out] rhs On entry, right hand side. On exit, solution of the system.
+ * @return @c true if the system was solved correctly, @c false otherwise
+ */
+template <typename Operator>
+bool ConvectionDispersionOperator<Operator>::solveTimeDerivativeSystem(const SimulationTime& simTime, double* const rhs)
+{
+	// Assemble
+	_jacCdisc.setAll(0.0);
+	addTimeDerivativeToJacobian(1.0);
+
+	// Factorize
+	const bool result = _jacCdisc.factorize();
+	if (!result)
+	{
+		LOG(Error) << "Factorize() failed for bulk block";
+		return false;
+	}
+
+	// Solve
+	const bool result2 = _jacCdisc.solve(rhs);
+	if (!result2)
+	{
+		LOG(Error) << "Solve() failed for bulk block";
+		return false;
+	}
+
+	return true;
+}
+
+// Explicit instantiations for calcTransportJacobian
+template int AxialConvectionDispersionOperatorBaseFV::calcTransportJacobian<double>(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>&, Eigen::MatrixXd&, const int, const double* const);
+template int AxialConvectionDispersionOperatorBaseFV::calcTransportJacobian<active>(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>&, Eigen::MatrixXd&, const int, const active* const);
+template int RadialConvectionDispersionOperatorBaseFV::calcTransportJacobian<double>(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>&, Eigen::MatrixXd&, const int, const double* const);
+template int RadialConvectionDispersionOperatorBaseFV::calcTransportJacobian<active>(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>&, Eigen::MatrixXd&, const int, const active* const);
+template int FrustumConvectionDispersionOperatorBaseFV::calcTransportJacobian<double>(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>&, Eigen::MatrixXd&, const int, const double* const);
+template int FrustumConvectionDispersionOperatorBaseFV::calcTransportJacobian<active>(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>&, Eigen::MatrixXd&, const int, const active* const);
+
+// Template instantiations
+template class ConvectionDispersionOperator<AxialConvectionDispersionOperatorBaseFV>;
+template class ConvectionDispersionOperator<RadialConvectionDispersionOperatorBaseFV>;
+template class ConvectionDispersionOperator<FrustumConvectionDispersionOperatorBaseFV>;
+
+}  // namespace parts
+
+}  // namespace model
+
+}  // namespace cadet

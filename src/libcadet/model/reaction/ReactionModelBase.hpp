@@ -21,7 +21,9 @@
 #include "model/ReactionModel.hpp"
 #include "ParamIdUtil.hpp"
 
+#include <algorithm>
 #include <unordered_map>
+#include <vector>
 
 namespace cadet
 {
@@ -58,11 +60,26 @@ public:
 
 	virtual void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) { }
 
+	virtual bool isInEquilibrium(unsigned int reaction) const CADET_NOEXCEPT
+	{
+		return (reaction < _reactionQuasistationarity.size()) ? _reactionQuasistationarity[reaction] : false;
+	}
+
+	/**
+	 * @brief Returns whether at least one reaction of this model is in rapid equilibrium
+	 */
+	bool hasQuasiStationaryReactions() const CADET_NOEXCEPT
+	{
+		return std::any_of(_reactionQuasistationarity.begin(), _reactionQuasistationarity.end(), [](bool qs) { return qs; });
+	}
+
 protected:
 	int _nComp; //!< Number of components
 	unsigned int const* _nBoundStates; //!< Array with number of bound states for each component
 	unsigned int const* _boundOffset; //!< Array with offsets to the first bound state of each component
 	int _nTotalBoundStates;
+
+	std::vector<bool> _reactionQuasistationarity; //!< Determines whether each reaction is in rapid equilibrium (@c true) or kinetic (@c false)
 
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
 
@@ -77,43 +94,54 @@ protected:
 	 * @return @c true if the configuration was successful, otherwise @c false
 	 */
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx) = 0;
+
+	/**
+	 * @brief Reads the reaction dynamics (kinetic or rapid equilibrium) of every reaction
+	 * @details Reads the optional field @c IS_KINETIC, which is either a scalar applying to all
+	 *          reactions or an array with one entry per reaction. Reactions default to kinetic.
+	 *          Called after configureImpl(), since only then is numReactions() known.
+	 * @param [in] paramProvider Parameter provider
+	 * @throws InvalidParameterException if @c IS_KINETIC is given for a model without reactions or
+	 *         has too few elements
+	 * @return @c true if the configuration was successful, otherwise @c false
+	 */
+	bool readQuasiStationarity(IParameterProvider& paramProvider);
 };
 
 
 /**
  * @brief Inserts implementations of all residual() and analyticJacobian() method variants
- * @details An IDynamicReactionModel implementation has to provide residualLiquidAdd(), residualCombinedAdd(),
- *          analyticJacobianLiquidAdd(), and analyticJacobianCombinedAdd() methods for different variants of state
+ * @details An IDynamicReactionModel implementation has to provide residualFluxAdd(), residualCombinedAdd(),
+ *          analyticJacobianAdd(), and analyticJacobianCombinedAdd() methods for different variants of state
  *          and parameter type. This macro saves some time by providing those implementations. It assumes that the 
- *          implementation provides templatized residualLiquidImpl(), residualCombinedImpl(), jacobianLiquidImpl(),
+ *          implementation provides templatized residualFluxImpl(), residualCombinedImpl(), jacobianFluxImpl(),
  *          and jacobianCombinedImpl() function that realize all required variants.
  *          
  *          The implementation is inserted inline in the class declaration.
  */
-#ifdef ENABLE_DG
 #define CADET_DYNAMICREACTIONMODEL_BOILERPLATE                                                                                                          \
-	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,                                         \
+	virtual int residualFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, active const* y,                                         \
 		active* res, const active& factor, LinearBufferAllocator workSpace) const                                                                       \
 	{                                                                                                                                                   \
-		return residualLiquidImpl<active, active, double, active>(t, secIdx, colPos, y, res, factor, workSpace);                                        \
+		return residualFluxImpl<active, active, double, active>(t, secIdx, colPos, nStates,y, res, factor, workSpace);                                        \
 	}                                                                                                                                                   \
 	                                                                                                                                                    \
-	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,                                         \
+	virtual int residualFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, active const* y,                                         \
 		active* res, double factor, LinearBufferAllocator workSpace) const                                                                              \
 	{                                                                                                                                                   \
-		return residualLiquidImpl<active, active, double, double>(t, secIdx, colPos, y, res, factor, workSpace);                                        \
+		return residualFluxImpl<active, active, double, double>(t, secIdx, colPos,nStates, y, res, factor, workSpace);                                        \
 	}                                                                                                                                                   \
 	                                                                                                                                                    \
-	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                                         \
+	virtual int residualFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,                                         \
 		active* res, double factor, LinearBufferAllocator workSpace) const                                                                              \
 	{                                                                                                                                                   \
-		return residualLiquidImpl<double, active, active, double>(t, secIdx, colPos, y, res, factor, workSpace);                                        \
+		return residualFluxImpl<double, active, active, double>(t, secIdx, colPos, nStates,y, res, factor, workSpace);                                        \
 	}                                                                                                                                                   \
 	                                                                                                                                                    \
-	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                                         \
+	virtual int residualFluxAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,                                         \
 		double* res, double factor, LinearBufferAllocator workSpace) const                                                                              \
 	{                                                                                                                                                   \
-		return residualLiquidImpl<double, double, double, double>(t, secIdx, colPos, y, res, factor, workSpace);                                        \
+		return residualFluxImpl<double, double, double, double>(t, secIdx, colPos, nStates, y, res, factor, workSpace);                                        \
 	}                                                                                                                                                   \
 	                                                                                                                                                    \
 	virtual int residualCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* yLiquid,                                 \
@@ -134,28 +162,28 @@ protected:
 		return residualCombinedImpl<double, double, double>(t, secIdx, colPos, yLiquid, ySolid, resLiquid, resSolid, factor, workSpace);                \
 	}                                                                                                                                                   \
 	                                                                                                                                                    \
-	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                                \
+	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,                                \
 		double factor, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const                                                      \
 	{                                                                                                                                                   \
-		jacobianLiquidImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
+		jacobianFluxImpl(t, secIdx, colPos, nStates, y, factor, jac, workSpace);                                                                               \
 	}                                                                                                                                                   \
 	                                                                                                                                                    \
-	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                                \
+	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,                                \
 		double factor, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const                                                       \
 	{                                                                                                                                                   \
-		jacobianLiquidImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
+		jacobianFluxImpl(t, secIdx, colPos, nStates, y, factor, jac, workSpace);                                                                               \
 	}                                                                                                                                                   \
 	                                                                                                                                                    \
-	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                                \
+	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos,const unsigned int nStates, double const* y,                                \
 		double factor, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const                                                      \
 	{                                                                                                                                                   \
-		jacobianLiquidImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
+		jacobianFluxImpl(t, secIdx, colPos, nStates, y, factor, jac, workSpace);                                                                               \
 	}                                                                                                                                                   \
 	                                                                                                                                                    \
-	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                                \
+	virtual void analyticJacobianAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,                                \
 		double factor, linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const                                                 \
 	{                                                                                                                                                   \
-		jacobianLiquidImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
+		jacobianFluxImpl(t, secIdx, colPos, nStates, y, factor, jac, workSpace);                                                                               \
 	}                                                                                                                                                   \
 		                                                                                                                                                \
 	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid,  \
@@ -180,89 +208,43 @@ protected:
 		double factor, linalg::BandMatrix::RowIterator jacLiquid, linalg::DenseBandedRowIterator jacSolid, LinearBufferAllocator workSpace) const       \
 	{                                                                                                                                                   \
 		jacobianCombinedImpl(t, secIdx, colPos, yLiquid, ySolid, factor, jacLiquid, jacSolid, workSpace);                                               \
+	}																																					\
+	virtual int residualEquilibriumFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, active const* y,		\
+		active* res, unsigned int& eqIdx, LinearBufferAllocator workSpace) const 																		\
+	{																																					\
+		return residualEquilibriumImpl<active, active, double>(t, secIdx, colPos, nStates, y, res, eqIdx , workSpace);									\
+	}																																					\
+	virtual int residualEquilibriumFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,		\
+		active* res, unsigned int& eqIdx, LinearBufferAllocator workSpace) const																		\
+	{																																					\
+		return residualEquilibriumImpl<double, active, active>(t, secIdx, colPos, nStates, y, res, eqIdx , workSpace);									\
+	}																																					\
+	virtual int residualEquilibriumFlux(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,		\
+		double* res, unsigned int& eqIdx, LinearBufferAllocator workSpace) const																		\
+	{																																					\
+		return residualEquilibriumImpl<double, double, double>(t, secIdx, colPos, nStates, y, res, eqIdx , workSpace);\
+	}\
+	\
+	virtual void analyticEquilibriumJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,\
+		unsigned int& eqIdx, unsigned int eqRowOffset,linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const\
+	{\
+		jacobianEquilibriumImpl(t,secIdx,colPos, nStates, y, eqIdx, eqRowOffset, jac,workSpace);\
+	}\
+	virtual void analyticEquilibriumJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,\
+		unsigned int& eqIdx,unsigned int eqRowOffset, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const\
+	{\
+		jacobianEquilibriumImpl(t,secIdx,colPos, nStates, y, eqIdx, eqRowOffset, jac,workSpace);\
+	}\
+	virtual void analyticEquilibriumJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,\
+		unsigned int& eqIdx,unsigned int eqRowOffset, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const\
+	{\
+		jacobianEquilibriumImpl(t,secIdx,colPos, nStates, y, eqIdx, eqRowOffset, jac,workSpace);\
+	}\
+	virtual void analyticEquilibriumJacobian(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates, double const* y,\
+		unsigned int& eqIdx, unsigned int eqRowOffset,linalg::BandedEigenSparseRowIterator jac, LinearBufferAllocator workSpace) const \
+	{\
+		jacobianEquilibriumImpl(t,secIdx,colPos, nStates, y, eqIdx,eqRowOffset, jac,workSpace);\
 	}
-#else
-#define CADET_DYNAMICREACTIONMODEL_BOILERPLATE                                                                                                          \
-	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,                                         \
-		active* res, const active& factor, LinearBufferAllocator workSpace) const                                                                       \
-	{                                                                                                                                                   \
-		return residualLiquidImpl<active, active, double, active>(t, secIdx, colPos, y, res, factor, workSpace);                                        \
-	}                                                                                                                                                   \
-	                                                                                                                                                    \
-	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* y,                                         \
-		active* res, double factor, LinearBufferAllocator workSpace) const                                                                              \
-	{                                                                                                                                                   \
-		return residualLiquidImpl<active, active, double, double>(t, secIdx, colPos, y, res, factor, workSpace);                                        \
-	}                                                                                                                                                   \
-	                                                                                                                                                    \
-	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                                         \
-		active* res, double factor, LinearBufferAllocator workSpace) const                                                                              \
-	{                                                                                                                                                   \
-		return residualLiquidImpl<double, active, active, double>(t, secIdx, colPos, y, res, factor, workSpace);                                        \
-	}                                                                                                                                                   \
-	                                                                                                                                                    \
-	virtual int residualLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                                         \
-		double* res, double factor, LinearBufferAllocator workSpace) const                                                                              \
-	{                                                                                                                                                   \
-		return residualLiquidImpl<double, double, double, double>(t, secIdx, colPos, y, res, factor, workSpace);                                        \
-	}                                                                                                                                                   \
-	                                                                                                                                                    \
-	virtual int residualCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, active const* yLiquid,                                 \
-		active const* ySolid, active* resLiquid, active* resSolid, double factor, LinearBufferAllocator workSpace) const                                \
-	{                                                                                                                                                   \
-		return residualCombinedImpl<active, active, double>(t, secIdx, colPos, yLiquid, ySolid, resLiquid, resSolid, factor, workSpace);                \
-	}                                                                                                                                                   \
-	                                                                                                                                                    \
-	virtual int residualCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid,                                 \
-		double const* ySolid, active* resLiquid, active* resSolid, double factor, LinearBufferAllocator workSpace) const                                \
-	{                                                                                                                                                   \
-		return residualCombinedImpl<double, active, active>(t, secIdx, colPos, yLiquid, ySolid, resLiquid, resSolid, factor, workSpace);                \
-	}                                                                                                                                                   \
-	                                                                                                                                                    \
-	virtual int residualCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid,                                 \
-		double const* ySolid, double* resLiquid, double* resSolid, double factor, LinearBufferAllocator workSpace) const                                \
-	{                                                                                                                                                   \
-		return residualCombinedImpl<double, double, double>(t, secIdx, colPos, yLiquid, ySolid, resLiquid, resSolid, factor, workSpace);                \
-	}                                                                                                                                                   \
-	                                                                                                                                                    \
-	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                                \
-		double factor, linalg::BandMatrix::RowIterator jac, LinearBufferAllocator workSpace) const                                                      \
-	{                                                                                                                                                   \
-		jacobianLiquidImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
-	}                                                                                                                                                   \
-	                                                                                                                                                    \
-	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                                \
-		double factor, linalg::DenseBandedRowIterator jac, LinearBufferAllocator workSpace) const                                                       \
-	{                                                                                                                                                   \
-		jacobianLiquidImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
-	}                                                                                                                                                   \
-	                                                                                                                                                    \
-	virtual void analyticJacobianLiquidAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* y,                                \
-		double factor, linalg::BandedSparseRowIterator jac, LinearBufferAllocator workSpace) const                                                      \
-	{                                                                                                                                                   \
-		jacobianLiquidImpl(t, secIdx, colPos, y, factor, jac, workSpace);                                                                               \
-	}                                                                                                                                                   \
-	                                                                                                                                                    \
-	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid,  \
-		double factor, linalg::BandMatrix::RowIterator jacLiquid, linalg::BandMatrix::RowIterator jacSolid, LinearBufferAllocator workSpace) const      \
-	{                                                                                                                                                   \
-		jacobianCombinedImpl(t, secIdx, colPos, yLiquid, ySolid, factor, jacLiquid, jacSolid, workSpace);                                               \
-	}                                                                                                                                                   \
-	                                                                                                                                                    \
-	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid,  \
-		double factor, linalg::DenseBandedRowIterator jacLiquid, linalg::DenseBandedRowIterator jacSolid, LinearBufferAllocator workSpace) const        \
-	{                                                                                                                                                   \
-		jacobianCombinedImpl(t, secIdx, colPos, yLiquid, ySolid, factor, jacLiquid, jacSolid, workSpace);                                               \
-	}                                                                                                                                                   \
-	                                                                                                                                                    \
-	virtual void analyticJacobianCombinedAdd(double t, unsigned int secIdx, const ColumnPosition& colPos, double const* yLiquid, double const* ySolid,  \
-		double factor, linalg::BandMatrix::RowIterator jacLiquid, linalg::DenseBandedRowIterator jacSolid, LinearBufferAllocator workSpace) const       \
-	{                                                                                                                                                   \
-		jacobianCombinedImpl(t, secIdx, colPos, yLiquid, ySolid, factor, jacLiquid, jacSolid, workSpace);                                               \
-	}
-#endif
-
-
 
 } // namespace model
 } // namespace cadet

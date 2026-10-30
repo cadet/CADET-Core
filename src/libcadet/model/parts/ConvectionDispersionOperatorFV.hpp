@@ -1,0 +1,605 @@
+// =============================================================================
+//  CADET
+//  
+//  Copyright © 2008-present: The CADET-Core Authors
+//            Please see the AUTHORS.md file.
+//  
+//  All rights reserved. This program and the accompanying materials
+//  are made available under the terms of the GNU Public License v3.0 (or, at
+//  your option, any later version) which accompanies this distribution, and
+//  is available at http://www.gnu.org/licenses/gpl.html
+// =============================================================================
+
+/**
+ * @file 
+ * Defines the convection dispersion transport operator.
+ */
+
+#ifndef LIBCADET_CONVECTIONDISPERSIONOPERATOR_HPP_
+#define LIBCADET_CONVECTIONDISPERSIONOPERATOR_HPP_
+
+#include "ParamIdUtil.hpp"
+#include "AutoDiff.hpp"
+#include "linalg/BandMatrix.hpp"
+#include "linalg/BandedEigenSparseRowIterator.hpp"
+#include <Eigen/Sparse>
+#include "Memory.hpp"
+#include "SimulationTypes.hpp"
+#include "model/parts/IConvectionDispersionOperatorBase1D.hpp"
+
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+namespace cadet
+{
+
+class IParameterProvider;
+class IConfigHelper;
+struct AdJacobianParams;
+struct SimulationTime;
+class IModel;
+
+class Weno;
+class HighResolutionKoren;
+
+namespace model
+{
+
+class IParameterParameterDependence;
+
+namespace parts
+{
+
+/**
+ * @brief Convection dispersion transport operator for axial flow devices
+ * @details Implements the equation
+ * 
+ * @f[\begin{align}
+	\frac{\partial c_i}{\partial t} &= - u \frac{\partial c_i}{\partial z} + D_{\text{ax},i} \frac{\partial^2 c_i}{\partial z^2} \\
+\end{align} @f]
+ * with Danckwerts boundary conditions (see @cite Danckwerts1953)
+@f[ \begin{align}
+u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partial z}(t,0) \\
+\frac{\partial c_i}{\partial z}(t,L) &= 0
+\end{align} @f]
+ * Methods are described in @cite VonLieres2010a (WENO, linear solver), and @cite Puttmann2013, @cite Puttmann2016 (forward sensitivities, AD, band compression)
+ * 
+ * This class does not store the Jacobian. It only fills existing matrices given to its residual() functions.
+ * It assumes that there is no offset to the inlet in the local state vector and that the firsts cell is placed
+ * directly after the inlet DOFs.
+ */
+class AxialConvectionDispersionOperatorBaseFV : public IConvectionDispersionOperatorBase1D
+{
+public:
+
+	AxialConvectionDispersionOperatorBaseFV();
+	~AxialConvectionDispersionOperatorBaseFV() CADET_NOEXCEPT;
+
+	void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
+
+	bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol, unsigned int strideCell);
+	bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol, unsigned int /*polyDeg*/, unsigned int strideCell)
+	{
+		return configureModelDiscretization(paramProvider, helper, nComp, nCol, strideCell);
+	}
+
+	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
+
+	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
+	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, Eigen::MatrixXd& jacInlet)
+	{
+		// Update velocity and flow direction before evaluating inletJacobianFactor()
+		const bool hasChanged = notifyDiscontinuousSectionTransition(t, secIdx);
+		jacInlet.resize(1, 1);
+		jacInlet(0, 0) = forwardFlow() ? -inletJacobianFactor() : inletJacobianFactor();
+		return hasChanged;
+	}
+
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
+
+	template <typename StateType>
+	int calcTransportJacobian(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset, const StateType* const y);
+	int calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, double const* y) override;
+	int calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, active const* y) override;
+	int jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
+	int jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac);
+
+	typedef Eigen::Triplet<double> T;
+	void convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset = 0) const override;
+	unsigned int nJacEntries(bool pureNNZ = false) const CADET_NOEXCEPT override;
+	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const override;
+	void addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc);
+	void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset) const override;
+
+	unsigned int requiredADdirs() const CADET_NOEXCEPT { return jacobianLowerBandwidth() + 1u + jacobianUpperBandwidth(); }
+
+	inline const active& columnLength() const CADET_NOEXCEPT { return _bedLength; }
+	inline const active& crossSectionArea() const CADET_NOEXCEPT { return _crossSection; }
+	inline const active& currentVelocity(double pos) const CADET_NOEXCEPT { return _curVelCoeff; }
+	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelCoeff >= 0.0; }
+
+	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT
+	{
+		if (_cellFaces.empty())
+			return static_cast<double>(_bedLength) / _nCol * (idx + 0.5);
+		return static_cast<double>(_cellFaces[idx] + _cellFaces[idx + 1]) * 0.5;
+	}
+
+	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT { return cellCenter(idx) / static_cast<double>(_bedLength); }
+	inline const active& currentVelocity() const CADET_NOEXCEPT { return _curVelCoeff; }
+
+	inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
+	inline unsigned int nCol() const CADET_NOEXCEPT { return _nCol; }
+	inline Weno const* weno() const CADET_NOEXCEPT { return _weno; }
+	inline HighResolutionKoren const* koren() const CADET_NOEXCEPT { return _koren; }
+	inline bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
+	inline int writeSmoothnessIndicator(double* buffer) const CADET_NOEXCEPT { return 0; }
+	inline int writeCoordinates(double* buffer) const CADET_NOEXCEPT
+	{
+		for (unsigned int i = 0; i < _nCol; i++) 
+		{
+				buffer[i] = cellCenter(i);
+		}
+		return _nCol;
+	}
+
+	unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
+	unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
+	unsigned int jacobianDiscretizedBandwidth() const CADET_NOEXCEPT;
+	double inletJacobianFactor() const CADET_NOEXCEPT;
+
+	bool setParameter(const ParameterId& pId, double value);
+	bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
+	bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& id, double value);
+
+protected:
+
+	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes = true>
+	int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
+
+	unsigned int _nComp; //!< Number of components
+	unsigned int _nCol; //!< Number of axial cells
+	unsigned int _strideCell; //!< Number of elements between the same item in two adjacent cells
+
+	active _bedLength; //!< Column length \f$ L \f$
+	active _crossSection; //!< Cross section area 
+
+	// Section dependent parameters
+	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{ax}} \f$
+	active _curVelCoeff; //!< Current interstitial velocity coefficient \f$ u \f$ in this time section
+	std::vector<double> _dir; //!< Flow direction for all time sections (1.0 for forward, -1.0 for backward)
+
+	ArrayPool _stencilMemory; //!< Provides memory for the stencil
+	double* _reconstrDerivatives; //!< Holds derivatives of the reconstruction scheme
+	std::vector<active> _cellFaces; //!< Positions of cell faces (length nCol+1)
+	bool _gridEquidistant; //!< Determines whether the grid is equidistant
+	Weno* _weno; //!< The WENO scheme implementation
+	HighResolutionKoren* _koren; //!< The High Resolution Koren scheme implementation
+
+	bool _dispersionCompIndep; //!< Determines whether dispersion is component independent
+
+	IParameterParameterDependence* _dispersionDep;
+
+	// Indexer functionality
+
+	// Strides
+	inline int strideColCell() const CADET_NOEXCEPT { return static_cast<int>(_strideCell); }
+	inline int strideColComp() const CADET_NOEXCEPT { return 1; }
+
+	// Offsets
+	inline int offsetC() const CADET_NOEXCEPT { return _nComp; }
+};
+
+
+/**
+ * @brief Convection dispersion transport operator for radial flow devices
+ * @details Implements the equation
+ * 
+ * @f[\begin{align}
+	\frac{\partial c_i}{\partial t} &= - \frac{u}{\rho} \frac{\partial c_i}{\partial \rho} + \frac{1}{\rho} \frac{\partial}{\partial \rho} \left( D_{\text{\rho},i} \rho \frac{\partial c_i}{\partial \rho} \right) \\
+\end{align} @f]
+ * with u := \frac{Q}{2 \pi L} and Danckwerts boundary conditions (see @cite Danckwerts1953)
+@f[ \begin{align}
+u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{\rho},i} \frac{\partial c_i}{\partial \rho}(t,0) \\
+\frac{\partial c_i}{\partial \rho}(t,P) &= 0
+\end{align} @f]
+ * 
+ * This class does not store the Jacobian. It only fills existing matrices given to its residual() functions.
+ * It assumes that there is no offset to the inlet in the local state vector and that the firsts cell is placed
+ * directly after the inlet DOFs.
+ */
+class RadialConvectionDispersionOperatorBaseFV : public IConvectionDispersionOperatorBase1D
+{
+public:
+
+	RadialConvectionDispersionOperatorBaseFV();
+	~RadialConvectionDispersionOperatorBaseFV() CADET_NOEXCEPT;
+
+	void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
+
+	bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol, unsigned int strideCell);
+	bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol, unsigned int /*polyDeg*/, unsigned int strideCell)
+	{
+		return configureModelDiscretization(paramProvider, helper, nComp, nCol, strideCell);
+	}
+	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
+	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
+	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, Eigen::MatrixXd& jacInlet)
+	{
+		// Update velocity and flow direction before evaluating inletJacobianFactor()
+		const bool hasChanged = notifyDiscontinuousSectionTransition(t, secIdx);
+		jacInlet.resize(1, 1);
+		jacInlet(0, 0) = forwardFlow() ? -inletJacobianFactor() : inletJacobianFactor();
+		return hasChanged;
+	}
+
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
+
+	template <typename StateType>
+	int calcTransportJacobian(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset, const StateType* const y);
+	int calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, double const* y) override;
+	int calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, active const* y) override;
+	int jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
+	int jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac);
+
+	typedef Eigen::Triplet<double> T;
+	void convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset = 0) const override;
+	unsigned int nJacEntries(bool pureNNZ = false) const CADET_NOEXCEPT override;
+	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const override;
+	void addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc);
+	void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset) const override;
+
+	unsigned int requiredADdirs() const CADET_NOEXCEPT { return jacobianLowerBandwidth() + 1u + jacobianUpperBandwidth(); }
+
+	inline const active& columnLength() const CADET_NOEXCEPT { return _bedLength; }
+	inline const active& innerRadius() const CADET_NOEXCEPT { return _innerRadius; }
+	inline const active& outerRadius() const CADET_NOEXCEPT { return _outerRadius; }
+	active currentVelocity(double pos) const CADET_NOEXCEPT;
+	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelCoeff >= 0.0; }
+
+	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return static_cast<double>(_cellCenters[idx]); }
+	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT
+	{
+		return (static_cast<double>(_cellCenters[idx]) - static_cast<double>(_innerRadius)) /
+		       (static_cast<double>(_outerRadius) - static_cast<double>(_innerRadius));
+	}
+
+	inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
+	inline unsigned int nCol() const CADET_NOEXCEPT { return _nCol; }
+	inline Weno const* weno() const CADET_NOEXCEPT { return _weno; }
+	inline HighResolutionKoren const* koren() const CADET_NOEXCEPT { return _koren; }
+	inline bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
+	inline int writeSmoothnessIndicator(double* buffer) const CADET_NOEXCEPT { return 0; }
+	inline int writeCoordinates(double* buffer) const CADET_NOEXCEPT
+	{
+		for (unsigned int i = 0; i < _nCol; i++)
+		{
+			buffer[i] = cellCenter(i);
+		}
+		return _nCol;
+	}
+
+	unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
+	unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
+	unsigned int jacobianDiscretizedBandwidth() const CADET_NOEXCEPT;
+	double inletJacobianFactor() const CADET_NOEXCEPT;
+
+	bool setParameter(const ParameterId& pId, double value);
+	bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
+	bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& id, double value);
+
+protected:
+
+	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes = true>
+	int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
+
+	void equidistantCells();
+	void computeCellCentersAndSizes(const std::vector<active>& cellFaces);
+
+	unsigned int _nComp; //!< Number of components
+	unsigned int _nCol; //!< Number of axial cells
+	unsigned int _strideCell; //!< Number of elements between the same item in two adjacent cells
+
+	active _bedLength; //!< Column length \f$ L \f$
+	active _innerRadius; //!< Inner radius
+	active _outerRadius; //!< Outer radius
+
+	// Section dependent parameters
+	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{rad}} \f$
+	active _curVelCoeff; //!< Current interstitial velocity coefficient \f$ u \f$ in this time section
+	std::vector<double> _dir; //!< Flow direction for all time sections (1.0 for forward, -1.0 for backward)
+	double _circleFraction; //!< Specifies whether the radial model is a full circle or wedge and in that case the fraction of a full circle
+	double _colHeight; //!< Specifies the height of the cylindrical column
+
+	ArrayPool _stencilMemory; //!< Provides memory for the stencil
+	double* _reconstrDerivatives; //!< Holds derivatives of the reconstruction scheme
+	bool _gridEquidistant; //!< Determines whether the grid is equidistant
+	Weno* _weno; //!< The WENO scheme implementation
+	HighResolutionKoren* _koren; //!< The High Resolution Koren scheme implementation
+
+	bool _dispersionCompIndep; //!< Determines whether dispersion is component independent
+
+	IParameterParameterDependence* _dispersionDep;
+
+	// Grid info
+	std::vector<active> _cellCenters; //!< Positions of cell centers (length nCol)
+	std::vector<active> _cellFaces; //!< Positions of cell faces (length nCol+1)
+	std::vector<active> _cellSizes; //!< Cell sizes (length nCol)
+
+	// Indexer functionality
+
+	// Strides
+	inline int strideColCell() const CADET_NOEXCEPT { return static_cast<int>(_strideCell); }
+	inline int strideColComp() const CADET_NOEXCEPT { return 1; }
+
+	// Offsets
+	inline int offsetC() const CADET_NOEXCEPT { return _nComp; }
+};
+
+
+/**
+ * @brief Convection dispersion transport operator for frustum flow devices
+ * @details Implements the equation
+ *
+ * @f[\begin{align}
+	\frac{\partial c_i}{\partial t} &= - \frac{u}{x^2} \frac{\partial c_i}{\partial x} + \frac{1}{x^2} \frac{\partial}{\partial x} \left( D_{\text{x},i} x^2 \frac{\partial c_i}{\partial x} \right) \\
+\end{align} @f]
+ * with u := \frac{Q}{\pi} and Danckwerts boundary conditions (see @cite Danckwerts1953)
+@f[ \begin{align}
+u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{x},i} \frac{\partial c_i}{\partial x}(t,0) \\
+\frac{\partial c_i}{\partial x}(t,H) &= 0
+\end{align} @f]
+ *
+ * This class does not store the Jacobian. It only fills existing matrices given to its residual() functions.
+ * It assumes that there is no offset to the inlet in the local state vector and that the firsts cell is placed
+ * directly after the inlet DOFs.
+ */
+class FrustumConvectionDispersionOperatorBaseFV : public IConvectionDispersionOperatorBase1D
+{
+public:
+
+	FrustumConvectionDispersionOperatorBaseFV();
+	~FrustumConvectionDispersionOperatorBaseFV() CADET_NOEXCEPT;
+
+	void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
+
+	bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol, unsigned int strideCell);
+	bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol, unsigned int /*polyDeg*/, unsigned int strideCell)
+	{
+		return configureModelDiscretization(paramProvider, helper, nComp, nCol, strideCell);
+	}
+	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
+	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
+	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, Eigen::MatrixXd& jacInlet)
+	{
+		// Update velocity and flow direction before evaluating inletJacobianFactor()
+		const bool hasChanged = notifyDiscontinuousSectionTransition(t, secIdx);
+		jacInlet.resize(1, 1);
+		jacInlet(0, 0) = forwardFlow() ? -inletJacobianFactor() : inletJacobianFactor();
+		return hasChanged;
+	}
+
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
+
+	template <typename StateType>
+	int calcTransportJacobian(const IModel&, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int bulkOffset, const StateType* const y);
+	int calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, double const* y) override;
+	int calcTransportJacobian(const IModel& model, double t, unsigned int secIdx, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, int bulkOffset, active const* y) override;
+	int jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
+	int jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac);
+
+	typedef Eigen::Triplet<double> T;
+	void convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset = 0) const override;
+	unsigned int nJacEntries(bool pureNNZ = false) const CADET_NOEXCEPT override;
+	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const override;
+	void addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc);
+	void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset) const override;
+
+	unsigned int requiredADdirs() const CADET_NOEXCEPT { return jacobianLowerBandwidth() + 1u + jacobianUpperBandwidth(); }
+
+	inline const active& columnLength() const CADET_NOEXCEPT { return _bedLength; }
+	inline const active& radiusXStart() const CADET_NOEXCEPT { return _radiusXStart; }
+	inline const active& radiusXEnd() const CADET_NOEXCEPT { return _radiusXEnd; }
+	active currentVelocity(double pos) const CADET_NOEXCEPT;
+	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelCoeff >= 0.0; }
+
+	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return static_cast<double>(_cellCenters[idx]); }
+	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT
+	{
+		return static_cast<double>(_cellCenters[idx]) / static_cast<double>(_bedLength);
+	}
+
+	inline unsigned int nComp() const CADET_NOEXCEPT { return _nComp; }
+	inline unsigned int nCol() const CADET_NOEXCEPT { return _nCol; }
+	inline Weno const* weno() const CADET_NOEXCEPT { return _weno; }
+	inline HighResolutionKoren const* koren() const CADET_NOEXCEPT { return _koren; }
+	inline bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
+	inline int writeSmoothnessIndicator(double* buffer) const CADET_NOEXCEPT { return 0; }
+	inline int writeCoordinates(double* buffer) const CADET_NOEXCEPT
+	{
+		for (unsigned int i = 0; i < _nCol; i++)
+		{
+			buffer[i] = cellCenter(i);
+		}
+		return _nCol;
+	}
+
+	unsigned int jacobianLowerBandwidth() const CADET_NOEXCEPT;
+	unsigned int jacobianUpperBandwidth() const CADET_NOEXCEPT;
+	unsigned int jacobianDiscretizedBandwidth() const CADET_NOEXCEPT;
+	double inletJacobianFactor() const CADET_NOEXCEPT;
+
+	bool setParameter(const ParameterId& pId, double value);
+	bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue);
+	bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& id, double value);
+
+protected:
+
+	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac, bool wantRes = true>
+	int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
+
+	void equidistantCells();
+	void computeCellCentersAndSizes(const std::vector<active>& cellFaces);
+
+	unsigned int _nComp; //!< Number of components
+	unsigned int _nCol; //!< Number of axial cells
+	unsigned int _strideCell; //!< Number of elements between the same item in two adjacent cells
+
+	active _bedLength; //!< Column length \f$ L \f$
+	active _radiusXStart; //!< Frustum radius at x = 0, i.e. at the large end
+	active _radiusXEnd; //!< Frustum radius at x = L, i.e. at the small end
+	std::vector<active> _cellVolume; //!< Volume of each cell
+
+	// Section dependent parameters
+	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{rad}} \f$
+	active _curVelCoeff; //!< Current interstitial velocity coefficient \f$ u \f$ in this time section
+	std::vector<double> _dir; //!< Flow direction for all time sections (1.0 for forward, -1.0 for backward)
+
+	ArrayPool _stencilMemory; //!< Provides memory for the stencil
+	double* _reconstrDerivatives; //!< Holds derivatives of the reconstruction scheme
+	bool _gridEquidistant; //!< Determines whether the grid is equidistant
+	Weno* _weno; //!< The WENO scheme implementation
+	HighResolutionKoren* _koren; //!< The High Resolution Koren scheme implementation
+
+	bool _dispersionCompIndep; //!< Determines whether dispersion is component independent
+
+	IParameterParameterDependence* _dispersionDep;
+
+	// Grid info
+	std::vector<active> _cellCenters; //!< Positions of cell centers (length nCol)
+	std::vector<active> _cellFaces; //!< Positions of cell faces (length nCol+1)
+	std::vector<active> _cellSizes; // Cell size or length in the considered coordinate
+	std::vector<active> _cellCenterRadiusSq; // Squared column radius at the cell centers
+	std::vector<active> _cellFaceRadiusSq; // Squared column radius at the cell boundaries
+
+	// Indexer functionality
+
+	// Strides
+	inline int strideColCell() const CADET_NOEXCEPT { return static_cast<int>(_strideCell); }
+	inline int strideColComp() const CADET_NOEXCEPT { return 1; }
+
+	// Offsets
+	inline int offsetC() const CADET_NOEXCEPT { return _nComp; }
+};
+
+
+/**
+ * @brief Convection dispersion transport operator
+ * @details This class wraps AxialConvectionDispersionOperatorBaseFV or RadialConvectionDispersionOperatorBaseFV
+ * and provides all the functionality it does. In addition, the Jacobian is stored and corresponding functions
+ * are provided (assembly, factorization, solution, retrieval).
+ * 
+ * This class assumes that the first cell is offset by the number of components (inlet DOFs) in the global state vector.
+ */
+template <typename BaseOperator>
+class ConvectionDispersionOperator
+{
+public:
+
+	ConvectionDispersionOperator();
+	~ConvectionDispersionOperator() CADET_NOEXCEPT;
+
+	int requiredADdirs() const CADET_NOEXCEPT;
+
+	void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
+
+	bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol);
+	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
+	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac);
+
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, bool wantJac, WithoutParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithoutParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity);
+
+	int jacobian(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res);
+	int jacobian(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res);
+
+	inline bool hasSmoothnessIndicator() const CADET_NOEXCEPT { return _baseOp.hasSmoothnessIndicator(); }
+	inline int writeSmoothnessIndicator(double* buffer) const CADET_NOEXCEPT { return _baseOp.writeSmoothnessIndicator(buffer); }
+
+	void prepareADvectors(const AdJacobianParams& adJac) const;
+	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
+
+	bool solveTimeDerivativeSystem(const SimulationTime& simTime, double* const rhs);
+	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
+
+	bool assembleAndFactorizeDiscretizedJacobian(double alpha);
+	bool solveDiscretizedJacobian(double* rhs) const;
+
+#ifdef CADET_CHECK_ANALYTIC_JACOBIAN
+	double checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
+#endif
+
+	inline const active& columnLength() const CADET_NOEXCEPT { return _baseOp.columnLength(); }
+	inline active currentVelocity(double pos) const CADET_NOEXCEPT { return _baseOp.currentVelocity(pos); }
+	inline bool forwardFlow() const CADET_NOEXCEPT { return _baseOp.forwardFlow(); }
+	inline double inletJacobianFactor() const CADET_NOEXCEPT { return _baseOp.inletJacobianFactor(); }
+
+	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return _baseOp.cellCenter(idx); }
+	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT { return _baseOp.relativeCoordinate(idx); }
+
+	inline linalg::BandMatrix& jacobian() CADET_NOEXCEPT { return _jacC; }
+	inline const linalg::BandMatrix& jacobian() const CADET_NOEXCEPT { return _jacC; }
+
+	inline linalg::FactorizableBandMatrix& jacobianDisc() CADET_NOEXCEPT { return _jacCdisc; }
+	inline const linalg::FactorizableBandMatrix& jacobianDisc() const CADET_NOEXCEPT { return _jacCdisc; }
+
+	inline bool setParameter(const ParameterId& pId, double value)
+	{
+		return _baseOp.setParameter(pId, value);
+	}
+	inline bool setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
+	{
+		return _baseOp.setSensitiveParameter(sensParams, pId, adDirection, adValue);
+	}
+	inline bool setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& id, double value)
+	{
+		return _baseOp.setSensitiveParameterValue(sensParams, id, value);
+	}
+
+protected:
+
+	void addTimeDerivativeToJacobian(double alpha);
+	void assembleDiscretizedJacobian(double alpha);
+
+	BaseOperator _baseOp;
+
+	linalg::BandMatrix _jacC; //!< Jacobian
+	linalg::FactorizableBandMatrix _jacCdisc; //!< Jacobian with time derivatives from BDF method
+
+	// Indexer functionality
+
+	// Offsets
+	inline int offsetC() const CADET_NOEXCEPT { return _baseOp.nComp(); }
+};
+
+extern template class ConvectionDispersionOperator<AxialConvectionDispersionOperatorBaseFV>;
+extern template class ConvectionDispersionOperator<RadialConvectionDispersionOperatorBaseFV>;
+extern template class ConvectionDispersionOperator<FrustumConvectionDispersionOperatorBaseFV>;
+
+typedef ConvectionDispersionOperator<AxialConvectionDispersionOperatorBaseFV> AxialConvectionDispersionOperatorFV;
+typedef ConvectionDispersionOperator<RadialConvectionDispersionOperatorBaseFV> RadialConvectionDispersionOperatorFV;
+typedef ConvectionDispersionOperator<FrustumConvectionDispersionOperatorBaseFV> FrustumConvectionDispersionOperatorFV;
+
+} // namespace parts
+} // namespace model
+} // namespace cadet
+
+#endif // LIBCADET_CONVECTIONDISPERSIONOPERATOR_HPP_

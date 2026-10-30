@@ -7,7 +7,7 @@ The general rate model is the most comprehensive model of mass transfer in colum
 
 The main assumptions are:
 
-- The cross sections of the column are homogenous in terms of interstitial volume, fluid flow, and distribution of components.
+- The cross sections of the column are homogeneous in terms of interstitial volume, fluid flow, and distribution of components.
   Thus, only one spatial coordinate in axial direction is needed and radial transport is neglected in the column bulk volume.
 
 - The bead radii :math:`r_{p}` are much smaller than the column radius :math:`\mathrm{P}` and the column length :math:`L`.
@@ -167,7 +167,31 @@ By default, the following initial conditions are applied for all :math:`z \in [0
     Binding with multiple bound states
 
 
-See Table :ref:`general_rate_model_config`.
+This model follows the unified and composable modeling framework presented in :cite:`Breuer2026`.
+
+See Table :ref:`axial_flow_column_1D_config` and :ref:`particle_model_config`.
+
+
+.. _MUOPGRMMultiParticleTypes:
+
+Multiple particle types
+^^^^^^^^^^^^^^^^^^^^^^^
+
+A particle type has its own set of mass transfer parameters :math:`\varepsilon_{p,j}`, :math:`D_{p,j}`, :math:`D_{s,j}`, etc. (see Eq. :eq:`ModelBead`) and its own binding model :math:`f_{\mathrm{ads}}` (including a possibly differing number of bound states).
+This allows, for example, modeling of particle size distributions or potential applications with differently functionalized beads (e.g., immobilized enzymes).
+
+The distribution of the particle types is governed by their volume fractions :math:`d_j` in Eq.
+ :eq:`ModelColumn`. The volume fractions have to sum to :math:`1`:
+
+.. math::
+
+    \begin{aligned}
+        \sum_{j=0}^{N_{\text{partype}} - 1} d_j = 1.
+    \end{aligned}
+
+The particle type volume fractions can be spatially constant throughout the column, or depend on the position inside the column bulk volume.
+In the latter case, the user can specify a set of volume fractions for each discretized finite volume cell.
+This allows, for example, the placement of smaller particles near the frits.  
 
 
 .. _MUOPGRMParticleGeometry:
@@ -206,27 +230,6 @@ For slabs, the factor :math:`3 / r_{p,j}` in (see Eq. (:eq:`ModelColumn`)) chang
     \end{aligned}
 
 
-.. _MUOPGRMMultiParticleTypes:
-
-Multiple particle types
-^^^^^^^^^^^^^^^^^^^^^^^
-
-A particle type has its own set of mass transfer parameters :math:`\varepsilon_{p,j}`, :math:`D_{p,j}`, :math:`D_{s,j}`, etc (see Eq. :eq:`ModelBead`) and its own binding model :math:`f_{\mathrm{ads}}` (including a possibly differing number of bound states).
-This allows, for example, modeling of particle size distributions or potential applications with differently functionalized beads (e.g., immobilized enzymes).
-
-The distribution of the particle types is governed by their volume fractions :math:`d_j` in Eq.
- :eq:`ModelColumn`. The volume fractions have to sum to :math:`1`:
-
-.. math::
-
-    \begin{aligned}
-        \sum_{j=0}^{N_{\text{partype}} - 1} d_j = 1.
-    \end{aligned}
-
-The particle type volume fractions can be spatially constant throughout the column, or depend on the position inside the column bulk volume.
-In the latter case, the user can specify a set of volume fractions for each discretized finite volume cell.
-This allows, for example, the placement of smaller particles near the frits.  
-
 .. _MUOPGRMSizeExclusion:
 
 Size exclusion chromatography
@@ -249,9 +252,12 @@ Note that :math:`F_{\text{acc},j,i} = 0` is not allowed in a simulation, which c
 
 By default, :math:`F_{\text{acc},j,i} = 1` for all components :math:`i` and all particle types :math:`j`, which disables size exclusion chromatography.
 
-It is important to note that in the presence of size exlusion effects, the saturation capacity (e.g., :math:`q_{\text{max}}` of Langmuir-type binding models) will differ for solutes with different accessible porosity values.
-However, this leads to inconsistencies in the equations which account for the full pore volume fraction :math:`\varepsilon_{p,j}`.
-For this reason, SEC should only be modelled without binding models!
+Note that the solid phase weighting :math:`\left(1 - \varepsilon_{p,j}\right) / \left(F_{\text{acc},j,i} \varepsilon_{p,j}\right)` in Eq. :eq:`ModelBead` retains the full solid volume fraction :math:`1 - \varepsilon_{p,j}`, that is, the accessible porosity replaces :math:`\varepsilon_{p,j}` in the pore liquid transport and reaction terms only.
+The pore accessibility factor can hence only be combined with a binding model, if the binding capacities remain well-defined.
+Physically, a solute that reaches only part of the pore space will also reach only part of the immobilized ligands, so its saturation capacity (e.g., :math:`q_{\text{max}}` of Langmuir-type binding models) is reduced accordingly.
+As long as the affected components do not compete for the same bound states, this reduction is simply expressed in the respective component's own capacity parameter.
+If, however, components with different accessible porosities compete for one shared population of binding sites (e.g., multi component Langmuir binding, whose saturation term is shared by all components), no single set of capacity parameters can represent their different accessible ligand fractions consistently.
+Binding models should therefore only be combined with the pore accessibility factor if this case is excluded.
 In order to simulate pure SEC, binding is disabled by setting :math:`N_{\text{bnd},i} = 0` for all components :math:`i` and applying no binding model.
 
 Note that multiple particle types can also be used to aid in modeling size exclusion effects, see Section :ref:`MUOPGRMMultiParticleTypes`.
@@ -261,7 +267,7 @@ Note that multiple particle types can also be used to aid in modeling size exclu
 Specification of flow rate / velocity and direction
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Since volumetric flow rates are specified for each network connection, the unit operation can infer its interstitial velocity via
+Since volumetric flow rates are specified for each network connection, the unit operation always infers its interstitial velocity via
 
 .. math::
 
@@ -272,26 +278,26 @@ Since volumetric flow rates are specified for each network connection, the unit 
 where :math:`F_{\text{in}}` denotes the volumetric flow rate and :math:`A` the cross section area.
 Note that without the bulk porosity :math:`\varepsilon_c`, the superficial velocity would be obtained.  
 
-The direction of flow inside the unit operation is governed by the sign of the interstitial velocity :math:`u`.
-A positive sign results in (standard) forward flow, whereas a negative sign reverses the flow direction.
+The direction of flow inside the unit operation is governed by the field ``FORWARD_FLOW``, where the value :math:`1` means flow from the larger towards the smaller radius for the radial flow and frustum geometries.
 Note that in case of reversed flow, the chromatogram is returned at the unit operation’s `INLET`, which may not be returned from simulation by default.
 
-The final behavior for axial flow models is controlled by the interplay of cross section area and interstitial velocity:
-
-- If cross section area :math:`A` is given and :math:`u` is not, :math:`u` is inferred from the volumetric flow rate.
-
-- If :math:`u` is given and :math:`A` is not, the volumetric flow rate is ignored and the provided interstitial velocity is used.
-
-- If both cross section area :math:`A` and interstitial velocity :math:`u` are given, the magnitude of the actual interstitial velocity :math:`u` is inferred from the volumetric flow rate and the flow direction is given by the sign of the provided :math:`u`.
-
-The final behavior for radial flow models is controlled by the interplay of column length/height and interstitial velocity coefficient:
-
-- If :math:`L` is given, the interstitial velocity field is inferred from the volumetric flow rate.
-
-- If :math:`u` is given and :math:`L` is not, the provided interstitial velocity coefficient is used to calculate the interstitial velocity field.
+For information on model parameters see :ref:`axial_flow_column_1D_config` and :ref:`particle_model_config`.  
 
 
-For information on model parameters see :ref:`general_rate_model_config`.
+.. _MUOPGRMColumnGeometry:
+
+Column Geometry
+~~~~~~~~~~~~~~~
+
+In the model above, a cylindrical axial flow column is considered, see figure :numref:`GeometryGRMAxialColumn`.
+Other geometries are being used, and CADET-Core additionally supports cylindrical radial flow columns, frustum columns, and columns whose cross section area varies smoothly along the flow path and is prescribed by the user.
+
+
+.. _GeometryGRMAxialColumn:
+.. figure:: geometry_axial_flow_column.png
+
+	Axial flow cylindrical column geometry
+
 
 .. _MUOPGRMradialFlow:
 
@@ -299,19 +305,27 @@ Radial flow GRM
 ^^^^^^^^^^^^^^^
 
 The radial flow GRM describes transport of solute molecules through the interstitial column volume by radial convective flow, band broadening caused by radial dispersion, mass transfer resistance through a stagnant film around the beads, pore (and surface) diffusion in the porous beads :cite:`Ma1996,Schneider1968a,Miyabe2007`, and adsorption to the inner bead surfaces.
+Figure :numref:`GeometryGRMRadialColumn` shows the geometry of the radial flow column.
+
+.. _GeometryGRMRadialColumn: 
+.. figure:: geometry_radial_flow_column.png
+
+	Radial flow cylindrical column geometry
 
 The main assumptions are:
 
-- The cylindrical shells of the column are homogenous in terms of interstitial volume, fluid flow, and distribution of components.
+- The cylindrical shells of the column are homogeneous in terms of interstitial volume, fluid flow, and distribution of components.
   Thus, only one spatial coordinate in radial direction :math:`\rho` is needed and axial transport is neglected in the column bulk volume.
 
-- The bead radii :math:`r_{p}` are much smaller than the column radius :math:`\mathrm{P}-\mathrm{P}_c`, with :math:`\mathrm{P}` and :math:`\mathrm{P}_c` being the inner and outer column radius respectively, and the column length :math:`L`.
+- The bead radii :math:`r_{p}` are much smaller than the column radius :math:`\mathrm{P}-\mathrm{P}_c`, with :math:`\mathrm{P}` and :math:`\mathrm{P}_c` being the outer and inner column radius, respectively, and the column length :math:`L`.
   Therefore, the beads can be seen as continuously distributed inside the column (i.e., at each point there is interstitial and bead volume).
 
-- The fluids are incompressible, i.e. the velocity field :math:`\mathrm{V} \colon \mathbb{R}^3 \to \mathbb{R}^3` submits to :math:`\operatorname{div}\left( \mathrm{V} \right) \equiv 0`.
+- The fluids are incompressible, i.e. the velocity field :math:`\mathrm{V} \colon \mathbb{R}^3 \to \mathbb{R}^3` satisfies :math:`\operatorname{div}\left( \mathrm{V} \right) \equiv 0`.
   That is, the volumetric flow rate at the inner and outer column radius are the same.
 
-Consider a hollow (double walled) column with inner column diameter :math:`\mathrm{P}_c>0` and outer diameter :math:`\mathrm{P}>\mathrm{P}_c`, filled with spherical beads of (possibly) multiple types with radius :math:`r_{p,j} \ll L` (see :numref:`ModelGRMColumn`), where :math:`j` is the particle type index. The mass balance in the interstitial column volume is described by
+Consider a hollow (double walled) column with inner column diameter :math:`\mathrm{P}_c>0` and outer diameter :math:`\mathrm{P}>\mathrm{P}_c`, filled with spherical beads of (possibly) multiple types with radius :math:`r_{p,j} \ll L` (see :numref:`ModelGRMColumn`), where :math:`j` is the particle type index.
+Alternatively, consider a wedge of this cylinder.
+The mass balance in the interstitial column volume is described by
 
 .. math::
     :label: ModelRadialColumnGRM
@@ -327,21 +341,189 @@ If reactions are considered, the term :math:`f_{\text{react},i}^\ell\left(c^\ell
 Danckwerts boundary conditions :cite:`Danckwerts1953` are applied to inlet and outlet of the column:
 
 .. math::
-    :label: BCOutletRadial
-
-    \begin{aligned}
-        u c_{\text{in},i}(t) &= u c^\ell_i(t,0) - D_{\text{rad},i} \frac{\partial c^\ell_i}{\partial \rho}(t, 0) & \forall t > 0,
-    \end{aligned}
-
-.. math::
     :label: BCInletRadial
 
     \begin{aligned}
-        \frac{\partial c^\ell_i}{\partial \rho}(t, \mathrm{P}) &= 0 & \forall t > 0. 
+        u c_{\text{in},i}(t) &= u c^\ell_i(t,\mathrm{P}) + D_{\text{rad},i}\, \mathrm{P} \frac{\partial c^\ell_i}{\partial \rho}(t, \mathrm{P}) & \forall t > 0,
     \end{aligned}
 
-Note that the outlet boundary condition Eq. :eq:`BCOutletRadial` is also known as “do nothing” or natural outflow condition.
+.. math::
+    :label: BCOutletRadial
+
+    \begin{aligned}
+        \frac{\partial c^\ell_i}{\partial \rho}(t, \mathrm{P}_c) &= 0 & \forall t > 0. 
+    \end{aligned}
+
+Under the default flow direction (``FORWARD_FLOW`` :math:`= 1`) the fluid enters at the outer radius :math:`\mathrm{P}` and leaves at the inner radius :math:`\mathrm{P}_c`, so the inlet condition Eq. :eq:`BCInletRadial` is imposed at :math:`\mathrm{P}` and the outlet condition Eq. :eq:`BCOutletRadial` at :math:`\mathrm{P}_c`; setting ``FORWARD_FLOW`` :math:`= 0` swaps the two boundaries.
+Note that the radial coordinate :math:`\rho`, and with it the ordering of the bulk solution, always runs from the inner to the outer radius, i.e. it is oriented against the default flow direction.
+Note further that the outlet boundary condition Eq. :eq:`BCOutletRadial` is also known as “do nothing” or natural outflow condition.
 
 The complementing mass transport and binding equations for the liquid and solid phases of the porous beads are described by the same equations as for the axial GRM.
 
-For information on model parameters see :ref:`radial_flow_models_config` in addition to :ref:`general_rate_model_config`.
+For information on model parameters see :ref:`radial_flow_column_1D_config` and :ref:`particle_model_config`.
+
+Frustum device GRM
+^^^^^^^^^^^^^^^^^^
+
+The frustum GRM describes transport of solute molecules through the interstitial column volume by convective flow from the larger to the smaller radius of the frustum device ("axial" direction), band broadening caused by dispersion, mass transfer resistance through a stagnant film around the beads, pore (and surface) diffusion in the porous beads :cite:`Ma1996,Schneider1968a,Miyabe2007`, and adsorption to the inner bead surfaces.
+Figure :numref:`GeometryGRMFrustumColumn` shows the geometry of the frustum column.
+
+.. _GeometryGRMFrustumColumn: 
+.. figure:: geometry_frustum_column.png
+
+	Frustum column geometry
+
+The main assumptions are:
+
+- The frustum shells of the column are homogeneous in terms of interstitial volume, fluid flow, and distribution of components.
+  Thus, only one spatial coordinate in axial direction :math:`x` is needed.
+
+- The bead radii :math:`r_{p}` are much smaller than the column length :math:`H` and radius :math:`r(x) \forall x\in(0,H)`.
+  Therefore, the beads can be seen as continuously distributed inside the column (i.e., at each point there is interstitial and bead volume).
+
+- The fluids are incompressible, i.e. the velocity field :math:`\mathrm{V} \colon \mathbb{R}^3 \to \mathbb{R}^3` satisfies :math:`\operatorname{div}\left( \mathrm{V} \right) \equiv 0`.
+  That is, the volumetric flow rate at the inner and outer column radius are the same.
+
+- A cross-sectional average :math:`\overline{u}(x) := \int_A \vec{u} dA` of the velocity is considered. This is a necessary assumption to derive the one-dimensionalized model.
+
+We consider axial flow through a conical frustum, where the axial coordinate from bottom to top is denoted by :math:`x \in (0, H)`.
+The frustum is filled with spherical beads of (possibly) multiple types with radius :math:`r_{p,j} \ll H` (see :numref:`ModelGRMColumn`), where :math:`j` is the particle type index.
+
+The flow-directional cross-section area is circular and varies with axial position :math:`A(x) = \pi r(x)^2`, with :math:`r(x) = r_0 + \frac{x}{H} (r_H - r_0)` being the frustum radius at axial position :math:`x`, and :math:`r_H, r_0` being the radii at the frustum top and bottom, respectively.
+
+The *averaged bulk velocity* at position :math:`x` is then given by :math:`\overline{u}(x) = \frac{Q}{A(x)} = \frac{Q}{\pi r(x)^2}`.
+
+We define the *velocity coefficient* :math:`u := \frac{Q}{\pi}`, which has units of :math:`\mathrm{m}^3/\mathrm{s}`, and expresses the scaled volumetric flow rate.
+
+The mass balance in the interstitial column volume is described by
+
+.. math::
+    :label: ModelFrustumColumnGRM
+
+    \begin{aligned}
+        \frac{\partial c}{\partial t}
+        = -\frac{u}{r(x)^2} \frac{\partial c}{\partial x}
+        + \frac{1}{r(x)^2} \frac{\partial}{\partial x} \left( D(x) r(x)^2 \frac{\partial c}{\partial x} \right)
+        &- \frac{1}{\beta_c} \sum_j d_j \frac{3}{r_{p,j}} k_{f,j,i} \left[ c^\ell_i - c^p_{j,i}(\cdot, \cdot, r_{p,j}) \right] \\
+        &+ f_{\text{react},i}^\ell\left(c^\ell\right).
+    \end{aligned}
+
+Here, :math:`c^\ell_i\colon \left[0, T_{\text{end}}\right] \times (0, H) \rightarrow \mathbb{R}^{\geq 0}` denotes the concentration in the interstitial column volume, :math:`c^p_{j,i}\colon \left[0, T_{\text{end}}\right] \times (0, H) \times (r_{c,j}, r_{p,j}) \rightarrow \mathbb{R}^{\geq 0}` the liquid phase concentration in the beads, :math:`k_{f,j,i}\geq 0` the film diffusion coefficient, :math:`D_{i}\geq 0` the dispersion coefficient, :math:`u>0` the interstitial velocity coefficient, :math:`d_j>0` the volume fraction of particle type :math:`j`, and :math:`\beta_c = \varepsilon_c / (1 - \varepsilon_c)` the column phase ratio, where :math:`\varepsilon_c\in(0,1)` is the column porosity (ratio of interstitial volume to total column volume).
+If reactions are considered, the term :math:`f_{\text{react},i}^\ell\left(c^\ell\right)` represents the net change of concentration :math:`c_i` due to reactions involving component :math:`i`.
+
+Danckwerts boundary conditions :cite:`Danckwerts1953` are applied to inlet and outlet of the column:
+
+.. math::
+    :label: BCInletFrustum
+
+    \begin{aligned}
+        u c_{\text{in},i}(t) &= u c^\ell_i(t,0) - D_{i}\, r(0)^2 \frac{\partial c^\ell_i}{\partial x}(t, 0) & \forall t > 0,
+    \end{aligned}
+
+.. math::
+    :label: BCOutletFrustum
+
+    \begin{aligned}
+        \frac{\partial c^\ell_i}{\partial x}(t, H) &= 0 & \forall t > 0. 
+    \end{aligned}
+
+Under the default flow direction (``FORWARD_FLOW`` :math:`= 1`) the fluid enters at the large end :math:`x = 0` and leaves at the small end :math:`x = H`; setting ``FORWARD_FLOW`` :math:`= 0` swaps the two boundaries.
+Note that the outlet boundary condition Eq. :eq:`BCOutletFrustum` is also known as “do nothing” or natural outflow condition.
+
+The complementing mass transport and binding equations for the liquid and solid phases of the porous beads are described by the same equations as for the axial GRM.
+
+For information on model parameters see :ref:`frustum_flow_column_1D_config` and :ref:`particle_model_config`.
+
+.. _MUOPGRMsmoothlyVarying:
+
+Smoothly varying cross section GRM
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The radial flow and frustum geometries both prescribe the cross section area :math:`A(x)` through a small number of geometric parameters, namely the end radii and, for the radial flow column, the cylinder height.
+The smoothly varying cross section GRM instead lets the user prescribe :math:`A(x)` directly, which covers columns and devices whose shape is neither a cylinder shell nor a frustum.
+
+We consider axial flow along the coordinate :math:`x \in (0, H)`, with a cross section area :math:`A \colon [0, H] \to \mathbb{R}^{>0}` that is smooth and strictly positive, and a constant volumetric flow rate :math:`Q`.
+The *averaged bulk velocity* at position :math:`x` is then :math:`\overline{u}(x) = \frac{Q}{A(x)}`, and the mass balance in the interstitial column volume reads
+
+.. math::
+    :label: ModelSmoothlyVaryingColumnGRM
+
+    \begin{aligned}
+        \frac{\partial c}{\partial t}
+        = -\frac{Q}{A(x)} \frac{\partial c}{\partial x}
+        + \frac{1}{A(x)} \frac{\partial}{\partial x} \left( D(x) A(x) \frac{\partial c}{\partial x} \right)
+        &- \frac{1}{\beta_c} \sum_j d_j \frac{3}{r_{p,j}} k_{f,j,i} \left[ c^\ell_i - c^p_{j,i}(\cdot, \cdot, r_{p,j}) \right] \\
+        &+ f_{\text{react},i}^\ell\left(c^\ell\right).
+    \end{aligned}
+
+Danckwerts boundary conditions are applied as before, with :math:`A(0)` in place of :math:`r(0)^2` in Eq. :eq:`BCInletFrustum`.
+Under the default flow direction (``FORWARD_FLOW`` :math:`= 1`) the fluid enters at :math:`x = 0` and leaves at :math:`x = H`.
+
+The area is supplied as the field ``CROSS_SECTIONAL_AREA_AT_NODES``, i.e. by its values at the nodes of the DG discretization, and is represented within the scheme by the nodal Lagrange interpolant of those values on each element.
+The area therefore lives in the same polynomial space as the solution, and the integrals weighted by :math:`A` (and by :math:`A D`) that the discretization requires are evaluated by Gauss quadrature that is exact for the resulting integrands.
+For a smooth area profile, the interpolation error is of the same order as the discretization error of the scheme itself, so this representation does not reduce the order of convergence.
+Since the representation is tied to the DG grid, this geometry is only available for the DG spatial discretization, and the field has to be recomputed whenever the discretization is refined.
+
+For information on model parameters see :ref:`smoothly_varying_column_1D_config` and :ref:`particle_model_config`.
+
+.. _MUOPGRMvaryingPorosity:
+
+Axially varying bulk porosity
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A packing whose density varies along the flow path, :math:`\varepsilon_c = \varepsilon_c(x)`, is independent of the column geometry: a cylinder, a cylinder shell, a frustum and a user prescribed cross section may each be packed non-uniformly.
+The structure of the mass balance is preserved in either case.
+Convection and dispersion both act on the pore space rather than on the geometric cross section, so both fluxes carry the weight :math:`\varepsilon_c A` in place of :math:`A`.
+Introducing the *flow through area*
+
+.. math::
+    :label: FlowThroughArea
+
+    w(x) = \varepsilon_c(x) A(x),
+
+the quantity that is constant along the column is the delivered volumetric flow rate :math:`\dot V = w(x) \overline{u}(x)`, and the mass balance in the interstitial column volume becomes
+
+.. math::
+    :label: ModelColumnGRMVariablePorosity
+
+    \begin{aligned}
+        \frac{\partial c}{\partial t}
+        = -\frac{\dot V}{w(x)} \frac{\partial c}{\partial x}
+        + \frac{1}{w(x)} \frac{\partial}{\partial x} \left( D(x) w(x) \frac{\partial c}{\partial x} \right)
+        &- \frac{1 - \varepsilon_c(x)}{\varepsilon_c(x)} \sum_j d_j \frac{3}{r_{p,j}} k_{f,j,i} \left[ c^\ell_i - c^p_{j,i}(\cdot, \cdot, r_{p,j}) \right] \\
+        &+ f_{\text{react},i}^\ell\left(c^\ell\right).
+    \end{aligned}
+
+This is Eq. :eq:`ModelSmoothlyVaryingColumnGRM` with :math:`A` replaced by :math:`w` and :math:`Q` by :math:`\dot V`, and it returns to it for a constant porosity.
+A spatially varying bulk porosity is therefore not a separate model, but the same model evaluated with the flow through area in place of the geometric cross section area.
+
+The bulk transport operator depends on the porosity only through the product :math:`w`.
+``COL_POROSITY`` is prescribed at the DG nodes, in the same ordering as ``CROSS_SECTIONAL_AREA_AT_NODES``, and CADET-Core multiplies it with the geometric cross section area of the chosen geometry, so that no other field has to be adjusted.
+Since :math:`w` is then no longer the closed-form polynomial that the analytic mass matrices of the cylinder, the cylinder shell and the frustum are derived from, the element integrals are evaluated by the same Gauss quadrature as for the smoothly varying cross section, for every geometry.
+Note that this represents :math:`w` by its nodal Lagrange interpolant, so a frustum needs :math:`\texttt{POLYDEG} \geq 2` to represent its own quadratic area without an additional interpolation error.
+The rule is sized to integrate a weight of degree ``FLOW_AREA_QUADRATURE_POLYDEG`` exactly, which defaults to ``POLYDEG`` and is therefore exact for that interpolant.
+
+What does not follow from the weight is the film transfer term.
+Weighting the bulk balance with :math:`w` gives that term the weight :math:`w (1 - \varepsilon_c) / \varepsilon_c = A (1 - \varepsilon_c)`, the solid cross section area, whereas the time derivative carries :math:`w`.
+The two are no longer proportional once the porosity, or through the velocity the film mass transfer coefficient, varies within an element, so that the prefactor cannot be taken out of the element integral.
+Inverting the mass matrix of the time derivative then leaves the element wise operator
+
+.. math::
+    :label: FilmTransferOperator
+
+    \begin{aligned}
+        T^{(e)} = \left( \mathcal{M}^{w} \right)^{-1} \tilde{\mathcal{M}}^{w (1 - \varepsilon_c) k_{f} / \varepsilon_c},
+    \end{aligned}
+
+which takes the place of the scalar prefactor, so that the film transfer flux at one discrete point contributes to the bulk residual at every point of its element.
+For a porosity and a film mass transfer coefficient that are constant on an element, :math:`T^{(e)}` is that scalar times the identity; CADET-Core detects this case and keeps evaluating the term node locally.
+The operator is assembled wherever :math:`w` is represented by its nodal interpolant, i.e. for a prescribed cross section and for an axially varying porosity on any geometry.
+With a constant porosity on one of the analytic geometries, :math:`w` is instead integrated in closed form and the term stays node local, even if the film mass transfer coefficient varies within an element through its velocity dependence.
+All nodal fields are represented by their Lagrange interpolant, so a smooth porosity profile does not reduce the order of convergence of the scheme, just as a smooth area profile does not.
+
+Three restrictions apply.
+The porosity has to be constant over each cross section, since a porosity that varies within the cross section contributes further correlation terms to the cross sectional averaging that the one dimensional model rests on.
+It is prescribed at the DG nodes, like the cross section area itself, and is therefore only available for the DG discretization and has to be recomputed whenever the discretization is refined.
+And it routes the unit to the variable coefficient operator, so ``USE_COLLOCATION_DG`` has to be :math:`0`, which is the default for every geometry other than the axial flow cylinder.
+
+For information on model parameters see :ref:`axial_flow_column_1D_config` and :ref:`particle_model_config`.

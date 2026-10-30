@@ -89,7 +89,7 @@ void BindingModelBase::fillBoundPhaseInitialParameters(ParameterId* params, Unit
 	for (int c = 0; c < _nComp; ++c)
 	{
 		for (unsigned int bp = 0; bp < _nBoundStates[c]; ++bp, ++ctr)
-			params[ctr] = makeParamId(hashString("INIT_Q"), unitOpIdx, c, parTypeIdx, bp, ReactionIndep, SectionIndep);
+			params[ctr] = makeParamId(hashString("INIT_CS"), unitOpIdx, c, parTypeIdx, bp, ReactionIndep, SectionIndep);
 	}
 }
 

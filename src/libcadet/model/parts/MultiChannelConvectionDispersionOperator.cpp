@@ -14,15 +14,17 @@
 #include "cadet/Exceptions.hpp"
 
 #include "Stencil.hpp"
+#include "Weno.hpp"
+#include "HighResKoren.hpp"
 #include "ParamReaderHelper.hpp"
 #include "AdUtils.hpp"
 #include "SensParamUtil.hpp"
 #include "SimulationTypes.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"
-#include "model/parts/AxialConvectionDispersionKernel.hpp"
+#include "model/parts/AxialConvectionDispersionKernelFV.hpp"
 #include "model/ParameterDependence.hpp"
 #include "model/exchange/LinearExchange.cpp"
-
+#include "model/exchange/LangumirExchange.cpp"
 
 #ifdef SUPERLU_FOUND
 	#include "linalg/SuperLUSparseMatrix.hpp"
@@ -469,7 +471,7 @@ public:
 
 	virtual ~LinearSolver() CADET_NOEXCEPT { }
 
-	virtual bool initialize(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int nChannel, const Weno& weno) = 0;
+	virtual bool initialize(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int nChannel, unsigned int lowerBw, unsigned int upperBw) = 0;
 	virtual void setSparsityPattern(const cadet::linalg::SparsityPattern& pattern) = 0;
 	virtual void assembleDiscretizedJacobian(double alpha) = 0;
 	virtual bool factorize() = 0;
@@ -485,7 +487,7 @@ public:
 	GmresSolver(linalg::CompressedSparseMatrix const* jacC) : _jacC(jacC) { }
 	virtual ~GmresSolver() CADET_NOEXCEPT { }
 
-	virtual bool initialize(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int nChannel, const Weno& weno)
+	virtual bool initialize(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int nChannel, unsigned int lowerBw, unsigned int upperBw)
 	{
 		_gmres.initialize(nCol * nComp * nChannel, 0, linalg::toOrthogonalization(1), 0);
 		_gmres.matrixVectorMultiplier(&matrixMultiplierMultiChannelCDO, this);
@@ -547,7 +549,7 @@ int matrixMultiplierMultiChannelCDO(void* userData, double const* x, double* z)
 		SparseDirectSolver(linalg::CompressedSparseMatrix const* jacC) : _jacC(jacC) { }
 		virtual ~SparseDirectSolver() CADET_NOEXCEPT { }
 
-		virtual bool initialize(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int nChannel, const Weno& weno)
+		virtual bool initialize(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int nChannel, unsigned int lowerBw, unsigned int upperBw)
 		{
 			return true;
 		}
@@ -591,16 +593,16 @@ public:
 	DenseDirectSolver(linalg::CompressedSparseMatrix const* jacC) : _jacC(jacC) { }
 	virtual ~DenseDirectSolver() CADET_NOEXCEPT { }
 
-	virtual bool initialize(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int nChannel, const Weno& weno)
+	virtual bool initialize(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int nChannel, unsigned int lowerBw, unsigned int upperBw)
 	{
-		// Note that we have to increase the lower bandwidth by 1 because the WENO stencil is applied to the
+		// Note that we have to increase the lower bandwidth by 1 because the reconstruction stencil is applied to the
 		// right cell face (lower + 1 + upper) and to the left cell face (shift the stencil by -1 because influx of cell i
 		// is outflux of cell i-1)
 		// We also have to make sure that there's at least one sub and super diagonal for the dispersion term
-		const unsigned int lb = std::max(weno.lowerBandwidth() + 1u, 1u) * nComp * nChannel;
+		const unsigned int lb = std::max(lowerBw + 1u, 1u) * nComp * nChannel;
 
 		// We have to make sure that there's at least one sub and super diagonal for the dispersion term
-		const unsigned int ub = std::max(weno.upperBandwidth(), 1u) * nComp * nChannel;
+		const unsigned int ub = std::max(upperBw, 1u) * nComp * nChannel;
 
 		// When flow direction is changed, the bandwidths of the Jacobian swap.
 		// Hence, we have to reserve memory such that the swapped Jacobian can fit into the matrix.
@@ -656,14 +658,16 @@ protected:
 /**
  * @brief Creates a MultiChannelConvectionDispersionOperator
  */
-MultiChannelConvectionDispersionOperator::MultiChannelConvectionDispersionOperator() : _dir(0), _stencilMemory(sizeof(active) * Weno::maxStencilSize()),
-	_wenoDerivatives(new double[Weno::maxStencilSize()]), _weno(), _linearSolver(nullptr)
+MultiChannelConvectionDispersionOperator::MultiChannelConvectionDispersionOperator() : _dir(0), _gridEquidistant(true),  _stencilMemory(0),
+	_reconstrDerivatives(nullptr), _weno(nullptr), _koren(nullptr), _linearSolver(nullptr)
 {
 }
 
 MultiChannelConvectionDispersionOperator::~MultiChannelConvectionDispersionOperator() CADET_NOEXCEPT
 {
-	delete[] _wenoDerivatives;
+	delete[] _reconstrDerivatives;
+	delete _weno;
+	delete _koren;
 	delete _linearSolver;
 }
 
@@ -682,16 +686,107 @@ bool MultiChannelConvectionDispersionOperator::configureModelDiscretization(IPar
 	_nCol = nCol;
 	_nChannel = nChannel;
 	_hasDynamicReactions = dynamicReactions;
+	_colLength = paramProvider.getDouble("BED_LENGTH");
+
 	paramProvider.pushScope("discretization");
 
 	_dispersionDep = helper.createParameterParameterDependence("CONSTANT_ONE");
 
-	// Read WENO settings and apply them
-	paramProvider.pushScope("weno");
-	_weno.order(paramProvider.getInt("WENO_ORDER"));
-	_weno.boundaryTreatment(paramProvider.getInt("BOUNDARY_MODEL"));
-	_weno.epsilon(paramProvider.getDouble("WENO_EPS"));
-	paramProvider.popScope();
+	const std::string recType = paramProvider.exists("RECONSTRUCTION") ? paramProvider.getString("RECONSTRUCTION") : "WENO";
+
+	if (paramProvider.exists("GRID_FACES"))
+	{
+		readScalarParameterOrArray(_cellFaces, paramProvider, "GRID_FACES", 1);
+		if (_cellFaces.size() < 5)
+			throw InvalidParameterException("Number of elements in field GRID_FACES must be at least 5");
+
+		if (_cellFaces.size() != _nCol + 1)
+			throw InvalidParameterException("Number of elements in field GRID_FACES must be NCOL + 1");
+
+		const double lastFace = static_cast<double>(_cellFaces.back());
+		if (std::abs(lastFace - static_cast<double>(_colLength)) > 1e-12)
+			throw InvalidParameterException("Last entry of GRID_FACES must match BED_LENGTH");
+		if (_cellFaces[0] > 1e-15)
+			throw InvalidParameterException("First entry of GRID_FACES must be zero");
+
+		// Check if grid is equidistant
+		const double firstWidth = static_cast<double>(_cellFaces[1] - _cellFaces[0]);
+		const double widthTol = 1e-10 * std::max(1.0, std::abs(firstWidth));
+		_gridEquidistant = true;
+
+		double prevWidth = firstWidth;
+		double dxMax = prevWidth;
+		double dxMin = prevWidth;
+		double rMax = 0.0;
+
+		for (unsigned int i = 1; i < _nCol; ++i)
+		{
+			const double curWidth = static_cast<double>(_cellFaces[i + 1] - _cellFaces[i]);
+
+			dxMin = std::min(dxMin, curWidth);
+			dxMax = std::max(dxMax, curWidth);
+
+			if (std::abs(curWidth - firstWidth) > widthTol)
+				_gridEquidistant = false;
+
+			const double r = std::max(curWidth / prevWidth, prevWidth / curWidth);
+			rMax = std::max(rMax, r);
+
+			prevWidth = curWidth;
+		}
+
+		if (rMax > 3.0)
+		{
+			LOG(Warning) << "GRID_FACES contains strongly stretched neighboring cells (max ratio = "
+				<< rMax << "). Reconstruction on highly stretched grids may lose accuracy or stability.";
+		}
+
+		const double sizeRatio = dxMax / dxMin;
+		if (sizeRatio > 1e6)
+		{
+			LOG(Warning) << "GRID_FACES contains cells spanning a very large size range (max/min ratio = "
+				<< sizeRatio << "). This may lead to stiff ODE systems and slow or unstable time integration.";
+		}
+	}
+	else
+	{
+		_gridEquidistant = true;
+		const double h = static_cast<double>(_colLength) / static_cast<double>(_nCol);
+		_cellFaces.resize(_nCol + 1);
+		for (int i = 0; i <= _nCol; ++i)
+			_cellFaces[i] = i * h;
+	}
+
+	if (recType == "WENO")
+	{
+		paramProvider.pushScope("weno");
+
+		_weno = new Weno();
+		_weno->order(paramProvider.getInt("WENO_ORDER"));
+		_weno->boundaryTreatment(paramProvider.getInt("BOUNDARY_MODEL"));
+		_weno->epsilon(paramProvider.getDouble("WENO_EPS"));
+
+		paramProvider.popScope();
+
+		_reconstrDerivatives = new double[Weno::maxStencilSize()];
+		_stencilMemory.resize(sizeof(active) * Weno::maxStencilSize());
+	}
+	else if (recType == "KOREN")
+	{
+		paramProvider.pushScope("koren");
+
+		_koren = new HighResolutionKoren();
+		_koren->epsilon(paramProvider.getDouble("KOREN_EPS"));
+
+		paramProvider.popScope();
+
+		_reconstrDerivatives = new double[HighResolutionKoren::maxStencilSize()];
+		_stencilMemory.resize(sizeof(active) * HighResolutionKoren::maxStencilSize());
+	}
+	else
+	{
+		throw InvalidParameterException("Unknown reconstruction type " + recType + " in field RECONSTRUCTION");
+	}
 
 	// Read solver settings
 	if (paramProvider.exists("LINEAR_SOLVER_BULK"))
@@ -731,7 +826,9 @@ bool MultiChannelConvectionDispersionOperator::configureModelDiscretization(IPar
 	_crossSections.resize(nChannel);
 	_curVelocity.resize(nChannel);
 
-	return _linearSolver->initialize(paramProvider, nComp, nCol, nChannel, _weno);
+	const unsigned int lowerBw = _weno ? _weno->lowerBandwidth() : _koren->lowerBandwidth();
+	const unsigned int upperBw = _weno ? _weno->upperBandwidth() : _koren->upperBandwidth();
+	return _linearSolver->initialize(paramProvider, nComp, nCol, nChannel, lowerBw, upperBw);
 }
 
 /**
@@ -745,7 +842,6 @@ bool MultiChannelConvectionDispersionOperator::configureModelDiscretization(IPar
 bool MultiChannelConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
 	// Read geometry parameters
-	_colLength = paramProvider.getDouble("COL_LENGTH");
 	const std::vector<double> initCrossSections = paramProvider.getDoubleArray("CHANNEL_CROSS_SECTION_AREAS");
 	ad::copyToAd(initCrossSections.data(), _crossSections.data(), _nChannel);
 	readParameterMatrix(_exchangeMatrix, paramProvider, "EXCHANGE_MATRIX", _nChannel * _nChannel * _nComp, 1); // include parameterPeaderHelp in exchange modul
@@ -826,8 +922,13 @@ bool MultiChannelConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IP
 	_axialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _axialDispersion, "COL_DISPERSION", _nComp, _nChannel, unitOpIdx);
 
 	// Add parameters to map
-	parameters[makeParamId(hashString("COL_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
-	registerParam3DArray(parameters, _exchangeMatrix, [=](bool multi, unsigned int channelSrc, unsigned int channelDest, unsigned comp) { return makeParamId(hashString("EXCHANGE_MATRIX"), unitOpIdx, multi ? comp : CompIndep, channelDest, channelSrc, ReactionIndep, SectionIndep); }, _nComp, _nChannel);
+	parameters[makeParamId(hashString("BED_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
+
+	registerParam1DArray(parameters, _crossSections, [=](bool multi, unsigned int channel)
+	{
+		return makeParamId(hashString("CHANNEL_CROSS_SECTION_AREAS"), unitOpIdx, CompIndep, channel, BoundStateIndep, ReactionIndep, SectionIndep);
+	});
+
 
 	setSparsityPattern();
 
@@ -981,35 +1082,62 @@ int MultiChannelConvectionDispersionOperator::residualImpl(const IModel& model, 
 		_jacC.setAll(0.0);
 	}
 
-	// Handle convection, axial dispersion (WENO)
+	// Handle convection, axial dispersion
 	const ParamType h = static_cast<ParamType>(_colLength) / static_cast<double>(_nCol);
 	for (unsigned int i = 0; i < _nChannel; ++i)
 	{
 		active const* const d_c = getSectionDependentSlice(_axialDispersion, _nChannel * _nComp, secIdx) + i * _nComp;
+		const std::vector<active>* const cellFacesPtr = _cellFaces.empty() ? nullptr : &_cellFaces;
 
-		convdisp::AxialFlowParameters<ParamType, cadet::Weno> fp{
-			static_cast<ParamType>(_curVelocity[i]),
-			d_c,
-			h,
-			_wenoDerivatives,
-			&_weno,
-			&_stencilMemory,
-			static_cast<int>(_nComp * _nChannel),  // Stride between two cells
-			_nComp,
-			_nCol,
-			_nComp * i,                        // Offset to the first component of the inlet DOFs in the local state vector
-			_nComp * (_nChannel + i),          // Offset to the first component of the first bulk cell in the local state vector
-			_dispersionDep,
-			model
-		};
+		if (_weno)
+		{
+			convdisp::AxialFlowParameters<ParamType, cadet::Weno> fp{
+				static_cast<ParamType>(_curVelocity[i]),
+				d_c,
+				h,
+				_reconstrDerivatives,
+				_weno,
+				&_stencilMemory,
+				static_cast<int>(_nComp * _nChannel),  // Stride between two cells
+				_nComp,
+				_nCol,
+				_nComp * i,                        // Offset to the first component of the inlet DOFs in the local state vector
+				_nComp * (_nChannel + i),          // Offset to the first component of the first bulk cell in the local state vector
+				_dispersionDep,
+				_gridEquidistant,
+				cellFacesPtr
+			};
 
-		if (wantJac)
-			convdisp::residualKernelAxial<StateType, ResidualType, ParamType, cadet::Weno, linalg::BandedSparseRowIterator, true>(SimulationTime{t, secIdx}, y, yDot, res, _jacC.row(i * _nComp), fp);
-		else
-			convdisp::residualKernelAxial<StateType, ResidualType, ParamType, cadet::Weno, linalg::BandedSparseRowIterator, false>(SimulationTime{t, secIdx}, y, yDot, res, _jacC.row(i * _nComp), fp);
+			if (wantJac)
+				convdisp::residualKernelAxial<StateType, ResidualType, ParamType, cadet::Weno, linalg::BandedSparseRowIterator, true>(SimulationTime{t, secIdx}, y, yDot, res, _jacC.row(i * _nComp), fp);
+			else
+				convdisp::residualKernelAxial<StateType, ResidualType, ParamType, cadet::Weno, linalg::BandedSparseRowIterator, false>(SimulationTime{t, secIdx}, y, yDot, res, _jacC.row(i * _nComp), fp);
+		}
+		else if (_koren)
+		{
+			convdisp::AxialFlowParameters<ParamType, cadet::HighResolutionKoren> fp{
+				static_cast<ParamType>(_curVelocity[i]),
+				d_c,
+				h,
+				_reconstrDerivatives,
+				_koren,
+				&_stencilMemory,
+				static_cast<int>(_nComp * _nChannel),  // Stride between two cells
+				_nComp,
+				_nCol,
+				_nComp * i,                        // Offset to the first component of the inlet DOFs in the local state vector
+				_nComp * (_nChannel + i),          // Offset to the first component of the first bulk cell in the local state vector
+				_dispersionDep,
+				_gridEquidistant,
+				cellFacesPtr
+			};
+
+			if (wantJac)
+				convdisp::residualKernelAxial<StateType, ResidualType, ParamType, cadet::HighResolutionKoren, linalg::BandedSparseRowIterator, true>(SimulationTime{t, secIdx}, y, yDot, res, _jacC.row(i * _nComp), fp);
+			else
+				convdisp::residualKernelAxial<StateType, ResidualType, ParamType, cadet::HighResolutionKoren, linalg::BandedSparseRowIterator, false>(SimulationTime{t, secIdx}, y, yDot, res, _jacC.row(i * _nComp), fp);
+		}
 	}
-
-	
 
 	if (cadet_unlikely(_nChannel <= 1)) {
 		return 0;
@@ -1024,14 +1152,21 @@ void MultiChannelConvectionDispersionOperator::setSparsityPattern()
 	// right cell face (lower + 1 + upper) and to the left cell face (shift the stencil by -1 because influx of cell i
 	// is outflux of cell i-1)
 	// We also have to make sure that there's at least one sub and super diagonal for the dispersion term
-	const unsigned int lowerNonZeros = std::max(_weno.lowerBandwidth() + 1u, 1u);
-	const unsigned int upperNonZeros = std::max(_weno.upperBandwidth(), 1u);
-	// Total number of non-zeros per row is WENO stencil (lowerNonZeros + 1u + upperNonZeros) + radial dispersion (2)
+	const unsigned int lowerBw = _weno ? _weno->lowerBandwidth() : _koren->lowerBandwidth();
+	const unsigned int upperBw = _weno ? _weno->upperBandwidth() : _koren->upperBandwidth();
+	const unsigned int lowerNonZeros = std::max(lowerBw + 1u, 1u);
+	const unsigned int upperNonZeros = std::max(upperBw, 1u);
+	// Total number of non-zeros per row is reconstruction stencil (lowerNonZeros + 1u + upperNonZeros) + radial dispersion (2)
 	cadet::linalg::SparsityPattern pattern(_nComp * _nCol * _nChannel, lowerNonZeros + 1u + upperNonZeros + 2u);
 
-	// Handle convection, axial dispersion (WENO)
+	// Handle convection, axial dispersion
 	for (unsigned int i = 0; i < _nChannel; ++i)
-		cadet::model::parts::convdisp::sparsityPatternAxial(pattern.row(i * _nComp), _nComp, _nCol, _nComp * _nChannel, static_cast<double>(_curVelocity[i]), _weno);
+	{
+		if (_weno)
+			cadet::model::parts::convdisp::sparsityPatternAxial(pattern.row(i * _nComp), _nComp, _nCol, _nComp * _nChannel, static_cast<double>(_curVelocity[i]), *_weno);
+		else
+			cadet::model::parts::convdisp::sparsityPatternAxial(pattern.row(i * _nComp), _nComp, _nCol, _nComp * _nChannel, static_cast<double>(_curVelocity[i]), *_koren);
+	}
 
 	if (_nChannel > 1)
 	{
@@ -1061,7 +1196,7 @@ void MultiChannelConvectionDispersionOperator::setSparsityPattern()
 
 						const unsigned int idxCur_orig = idxColRadBlock_orig + comp;
 						const unsigned int idxCur_dest = idxColRadBlock_dest + comp;
-						pattern.add(idxCur_orig, idxCur_dest);
+						pattern.add(idxCur_dest, idxCur_orig);
 					}
 				}
 			}
@@ -1215,6 +1350,13 @@ bool MultiChannelConvectionDispersionOperator::setParameter(const ParameterId& p
 		}
 	}
 
+	if ((pId.name == hashString("CHANNEL_CROSS_SECTION_AREAS")) && (pId.component == CompIndep) && (pId.boundState == BoundStateIndep) && (pId.reaction == ReactionIndep) && (pId.section == SectionIndep))
+	{
+		const unsigned int channel = static_cast<unsigned int>(pId.particleType);
+		if (channel < _nChannel)
+			_crossSections[channel].setValue(value);
+	}
+
 	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _nChannel, value, nullptr);
 	if (ad)
 		return true;
@@ -1245,6 +1387,13 @@ bool MultiChannelConvectionDispersionOperator::setSensitiveParameterValue(const 
 			for (unsigned int i = 0; i < _nChannel; ++i)
 				_velocity[i].setValue(value);
 		}
+	}
+
+	if ((pId.name == hashString("CHANNEL_CROSS_SECTION_AREAS")) && (pId.component == CompIndep) && (pId.boundState == BoundStateIndep) && (pId.reaction == ReactionIndep) && (pId.section == SectionIndep))
+	{
+		const unsigned int channel = static_cast<unsigned int>(pId.particleType);
+		if ((channel < _nChannel) && contains(sensParams, &_crossSections[channel]))
+			_crossSections[channel].setValue(value);
 	}
 
 	const bool ad = multiplexParameterValue(pId, hashString("COL_DISPERSION"), _axialDispersionMode, _axialDispersion, _nComp, _nChannel, value, &sensParams);
@@ -1278,6 +1427,16 @@ bool MultiChannelConvectionDispersionOperator::setSensitiveParameter(std::unorde
 			sensParams.insert(&_velocity[0]);
 			for (unsigned int i = 0; i < _nChannel; ++i)
 				_velocity[i].setADValue(adDirection, adValue);
+		}
+	}
+
+	if ((pId.name == hashString("CHANNEL_CROSS_SECTION_AREAS")) && (pId.component == CompIndep) && (pId.boundState == BoundStateIndep) && (pId.reaction == ReactionIndep) && (pId.section == SectionIndep))
+	{
+		const unsigned int channel = static_cast<unsigned int>(pId.particleType);
+		if (channel < _nChannel)
+		{
+			sensParams.insert(&_crossSections[channel]);
+			_crossSections[channel].setADValue(adDirection, adValue);
 		}
 	}
 

@@ -425,7 +425,6 @@
             }
         },
         "unit_001": {
-            "ADSORPTION_MODEL": "NONE",
             "CONST_SOLID_VOLUME": 0.0,
             "INIT_C": [
                 0.00033096831656748344,
@@ -527,10 +526,11 @@
             ],
             "INIT_VOLUME": 0.0005,
             "NCOMP": 96,
-            "REACTION_MODEL": "CRYSTALLIZATION",
+            "NREAC_LIQUID": 1,
             "UNIT_TYPE": "CSTR",
             "USE_ANALYTIC_JACOBIAN": 1,
-            "reaction_bulk": {
+            "liquid_reaction_000": {
+                "TYPE": "CRYSTALLIZATION",
                 "CRY_BINS": [
                     0.01,
                     0.011006941712522098,

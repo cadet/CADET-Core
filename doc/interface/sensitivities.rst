@@ -55,7 +55,7 @@ Group /input/sensitivity/param_XXX
    
 ``SENS_PARTYPE``
 
-   Particle type index (:math:`-1` if parameter is independent of particle types, see the multiplexing of the corresponding parameter, e.g. `PAR_DIFFUSION_MULTIPLEX`)
+   Particle type index (:math:`-1` if parameter is independent of particle types, see the multiplexing of the corresponding parameter, e.g. `PORE_DIFFUSION_MULTIPLEX`)
    
    =============  ==========================  ===========================
    **Type:** int  **Range:** :math:`\geq -1`  **Length:** :math:`\geq 1`
@@ -87,7 +87,7 @@ Group /input/sensitivity/param_XXX
    
 ``SENS_ABSTOL``
 
-   Absolute tolerance used in the computation of the sensitivities (optional). Rule of thumb: :math:`\texttt{ABSTOL} / \texttt{PARAM_VALUE}`
+   Absolute tolerance used in the computation of the sensitivities (optional, defaults to :math:`10^{-5}`). Rule of thumb: :math:`\texttt{ABSTOL} / \texttt{PARAM_VALUE}`
    
    ================  ===========================  ==========================
    **Type:** double  **Range:** :math:`\geq 0.0`  **Length:** :math:`\geq 1`

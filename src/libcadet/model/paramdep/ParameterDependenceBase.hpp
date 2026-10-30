@@ -65,9 +65,9 @@ protected:
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
 
 	/**
-	 * @brief Configures the reaction model
-	 * @details This function implements the (re-)configuration of a reaction model. It is called when
-	 *          the reaction model is configured or reconfigured. On call the _parameters map will always
+	 * @brief Configures the parameter dependence model
+	 * @details This function implements the (re-)configuration of a parameter dependence model. It is called when
+	 *          the parameter dependence model is configured or reconfigured. On call the _parameters map will always
 	 *          be empty.
 	 * @param [in] paramProvider Parameter provider
 	 * @param [in] unitOpIdx Unit operation index
@@ -82,11 +82,11 @@ protected:
 /**
  * @brief Inserts implementations of all parameter() and analyticJacobian() method variants
  * @details An IParameterStateDependence implementation has to provide liquidParameter(), combinedParameterLiquid(),
- *          combinedParameterSolid(), analyticJacobianLiquidAdd(), analyticJacobianCombinedAddLiquid(), and
+ *          combinedParameterSolid(), analyticJacobianAdd(), analyticJacobianCombinedAddLiquid(), and
  *          analyticJacobianCombinedAddSolid() methods for different variants of state and parameter type.
  *          This macro saves some time by providing those implementations. It assumes that the implementation
  *          provides templatized liquidParameterImpl(), combinedParameterLiquidImpl(),
- *          combinedParameterSolidImpl(), analyticJacobianLiquidAddImpl(), analyticJacobianCombinedAddLiquidImpl(),
+ *          combinedParameterSolidImpl(), analyticJacobianAddImpl(), analyticJacobianCombinedAddLiquidImpl(),
  *          and analyticJacobianCombinedAddSolidImpl() functions that realize all required variants.
  *          
  *          The implementation is inserted inline in the class declaration.
@@ -112,14 +112,14 @@ protected:
 		return liquidParameterImpl<double, double>(colPos, param, y, comp);                                                                                                                                                 \
 	}                                                                                                                                                                                                                       \
                                                                                                                                                                                                                             \
-	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::BandMatrix::RowIterator jac) const                                     \
+	virtual void analyticJacobianAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::BandMatrix::RowIterator jac) const                                     \
 	{                                                                                                                                                                                                                       \
-		analyticJacobianLiquidAddImpl(colPos, param, y, comp, factor, offset, jac);                                                                                                                                         \
+		analyticJacobianAddImpl(colPos, param, y, comp, factor, offset, jac);                                                                                                                                         \
 	}                                                                                                                                                                                                                       \
                                                                                                                                                                                                                             \
-	virtual void analyticJacobianLiquidAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::DenseBandedRowIterator jac) const                                      \
+	virtual void analyticJacobianAdd(const ColumnPosition& colPos, double param, double const* y, int comp, double factor, int offset, linalg::DenseBandedRowIterator jac) const                                      \
 	{                                                                                                                                                                                                                       \
-		analyticJacobianLiquidAddImpl(colPos, param, y, comp, factor, offset, jac);                                                                                                                                         \
+		analyticJacobianAddImpl(colPos, param, y, comp, factor, offset, jac);                                                                                                                                         \
 	}                                                                                                                                                                                                                       \
                                                                                                                                                                                                                             \
 	virtual active combinedParameterLiquid(const ColumnPosition& colPos, const active& param, active const* yLiquid, active const* ySolid, int comp) const                                                                  \
@@ -216,9 +216,9 @@ protected:
 	std::unordered_map<ParameterId, active*> _parameters; //!< Map used to translate ParameterIds to actual variables
 
 	/**
-	 * @brief Configures the reaction model
-	 * @details This function implements the (re-)configuration of a reaction model. It is called when
-	 *          the reaction model is configured or reconfigured. On call the _parameters map will always
+	 * @brief Configures the parameter dependence model
+	 * @details This function implements the (re-)configuration of a parameter dependence model. It is called when
+	 *          the parameter dependence model is configured or reconfigured. On call the _parameters map will always
 	 *          be empty.
 	 * @param [in] paramProvider Parameter provider
 	 * @param [in] unitOpIdx Unit operation index
@@ -242,24 +242,24 @@ protected:
  *          The implementation is inserted inline in the class declaration.
  */
 #define CADET_PARAMETERPARAMETERDEPENDENCE_BOILERPLATE                                                                                  \
-	virtual double getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, double val) const        \
+	virtual double getValue(const ColumnPosition& colPos, int comp, int parType, int bnd, double val) const                             \
 	{                                                                                                                                   \
-		return getValueImpl<double>(model, colPos, comp, parType, bnd, val);                                                            \
+		return getValueImpl<double>(colPos, comp, parType, bnd, val);                                                                   \
 	}                                                                                                                                   \
                                                                                                                                         \
-	virtual active getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd, const active& val) const \
+	virtual active getValue(const ColumnPosition& colPos, int comp, int parType, int bnd, const active& val) const                      \
 	{                                                                                                                                   \
-		return getValueImpl<active>(model, colPos, comp, parType, bnd, val);                                                            \
+		return getValueImpl<active>(colPos, comp, parType, bnd, val);                                                                   \
 	}                                                                                                                                   \
                                                                                                                                         \
-	virtual double getValue(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const                    \
+	virtual double getValue(const ColumnPosition& colPos, int comp, int parType, int bnd) const                                         \
 	{                                                                                                                                   \
-		return getValueImpl<double>(model, colPos, comp, parType, bnd);                                                                 \
+		return getValueImpl<double>(colPos, comp, parType, bnd);                                                                        \
 	}                                                                                                                                   \
                                                                                                                                         \
-	virtual active getValueActive(const IModel& model, const ColumnPosition& colPos, int comp, int parType, int bnd) const              \
+	virtual active getValueActive(const ColumnPosition& colPos, int comp, int parType, int bnd) const                                   \
 	{                                                                                                                                   \
-		return getValueImpl<active>(model, colPos, comp, parType, bnd);                                                                 \
+		return getValueImpl<active>(colPos, comp, parType, bnd);                                                                        \
 	}
 
 

@@ -8,15 +8,30 @@ Group /input/solver
 
 ``NTHREADS``
 
-   Number of used threads
-   
+   Number of used threads (optional, defaults to :math:`0`).
+   A value of :math:`0` lets the runtime choose the number of threads.
+   In a non-parallelized build, only the value :math:`1` is accepted.
+
    =============  =========================  =============
-   **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
    =============  =========================  =============
    
 ``USER_SOLUTION_TIMES``
 
-   Vector with timepoints at which the solution is evaluated
+   Vector with timepoints at which the solution is evaluated.
+   Optional: if not specified, the solution is written for every time integration step, which may be many, leading to large output files.
+
+   **Unit:** :math:`\mathrm{s}`
+   
+   ================  =========================  =====================
+   **Type:** double  **Range:** :math:`\geq 0`  **Length:** Arbitrary
+   ================  =========================  =====================
+   
+``USER_SOLUTION_TIMES_UNIT_STATE``
+
+   Vector with timepoints at which the solution is evaluated and, if the according fields (see e.g. ``WRITE_BULK_SOLUTION``) are enabled, the unit state solutions are written at these time points.
+   This way, the unit state solutions can be written at a different time resolution than e.g. the outlet solution.
+   Optional: if not specified, the solution is evaluated and written according to ``USER_SOLUTION_TIMES``.
 
    **Unit:** :math:`\mathrm{s}`
    
@@ -58,10 +73,19 @@ Group /input/solver
    **Type:** int  **Range:** :math:`\{ 0, \dots, 7\}`  **Length:** 1
    =============  ===================================  =============
    
+``TIMEOUT``
+
+   Timeout in seconds. Simulation is aborted if wall clock time exceeds the provided value.
+   Values less than or equal :math:`0` are ignored (i.e., no timeout is applied).
+   
+   ================  ======================  =============
+   **Type:** double  **Range:** :math:`> 0`  **Length:** 1
+   ================  ======================  =============
+   
 .. _FFSolverTime:
 
-Group /solver/time_integrator
------------------------------
+Group /input/solver/time_integrator
+-----------------------------------
 
 ``USE_MODIFIED_NEWTON``
 
@@ -105,7 +129,7 @@ Group /solver/time_integrator
    
 ``INIT_STEP_SIZE``
 
-   Initial time integrator step size for each section or one value for all sections (0.0: IDAS default value), see IDAS guide 4.5, p.\ 36f.
+   Initial time integrator step size for each section or one value for all sections (0.0: IDAS default value), see `IDAS <https://sundials.readthedocs.io/en/latest/idas/Usage/SIM.html#idas-usage-sim-user-callable-optional-input>`__ documentation.
 
    **Unit:** :math:`\mathrm{s}`
    
@@ -115,7 +139,7 @@ Group /solver/time_integrator
    
 ``MAX_STEPS``
 
-   Maximum number of timesteps taken by IDAS (0: IDAS default = 500), see IDAS guide Sec.~4.5
+   Maximum number of timesteps taken by IDAS (0: IDAS default = 500), see `IDAS <https://sundials.readthedocs.io/en/latest/idas/Usage/SIM.html#idas-usage-sim-user-callable-optional-input>`__ documentation.
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
@@ -123,7 +147,7 @@ Group /solver/time_integrator
    
 ``MAX_STEP_SIZE``
 
-   Maximum size of timesteps taken by IDAS (optional, defaults to unlimited 0.0), see IDAS guide Sec.~4.5
+   Maximum size of timesteps taken by IDAS (optional, defaults to unlimited 0.0), see `IDAS <https://sundials.readthedocs.io/en/latest/idas/Usage/SIM.html#idas-usage-sim-user-callable-optional-input>`__ documentation.
 
    **Unit:** :math:`\mathrm{s}`
    
@@ -173,8 +197,8 @@ Group /solver/time_integrator
    
 .. _FFSolverSections:
 
-Group /solver/sections
-----------------------
+Group /input/solver/sections
+----------------------------
 
 ``NSEC``
 
@@ -186,7 +210,7 @@ Group /solver/sections
    
 ``SECTION_TIMES``
 
-   Simulation times at which the model changes or behaves discontinously; including start and end times
+   Simulation times at which the model changes or behaves discontinuously; including start and end times
 
    **Unit:** :math:`\mathrm{s}`
    
@@ -196,7 +220,7 @@ Group /solver/sections
    
 ``SECTION_CONTINUITY``
 
-   Continuity indicator for each section transition: 0 (discontinuous) or 1 (continuous).
+   Continuity indicator for each section transition: 0 (discontinuous) or 1 (continuous). Optional, defaults to all 0.
    
    =============  ==========================  ===================================
    **Type:** int  **Range:** :math:`\{0,1\}`  **Length:** :math:`\texttt{NSEC}-1`

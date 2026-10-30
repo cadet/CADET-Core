@@ -34,13 +34,13 @@
  * @param config Interior of a JSON object block with parameters (prefix "PD")
  */
 #define CADET_PARAMDEPTEST_IMPL(modelName, tagName, postFix, nBound, state, config) \
-	TEST_CASE(modelName " param dep liquid cell analytic Jacobian vs AD" postFix, "[Jacobian],[AD],[ParameterDependence]," tagName) \
+	TEST_CASE(modelName " param dep liquid cell analytic Jacobian vs AD" postFix, "[Jacobian],[AD],[ParameterDependence],[CI]," tagName) \
 	{ \
 		const unsigned int nBound2[] = BRACED_INIT_LIST nBound; \
 		const double state2[] = BRACED_INIT_LIST state; \
 		cadet::test::paramdep::testLiquidJacobianAD(modelName, sizeof(nBound2) / sizeof(unsigned int), nBound2, "{" config "}", state2); \
 	} \
-	TEST_CASE(modelName " param dep combined cell analytic Jacobian vs AD" postFix, "[Jacobian],[AD],[ParameterDependence]," tagName) \
+	TEST_CASE(modelName " param dep combined cell analytic Jacobian vs AD" postFix, "[Jacobian],[AD],[ParameterDependence],[CI]," tagName) \
 	{ \
 		const unsigned int nBound2[] = BRACED_INIT_LIST nBound; \
 		const double state2[] = BRACED_INIT_LIST state; \

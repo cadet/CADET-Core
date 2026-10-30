@@ -73,6 +73,33 @@ ParamType mapPhysToRef(const std::vector<ParamType> deltaX, const unsigned int e
  */
 void lglNodesWeights(const unsigned int polyDeg, Eigen::VectorXd& nodes, Eigen::VectorXd& invWeights, bool invertWeights = true);
 /**
+ * @brief computes the Chebyshev-Gauss-Lobatto nodes and Clenshaw-Curtis quadrature weights
+ * @detail CGL nodes include endpoints +-1: x_j = -cos(pi*j/N), j=0,...,N
+ * @param [in] polyDeg polynomial degree
+ * @param [in, out] nodes Chebyshev Gauss Lobatto nodes
+ * @param [in, out] invWeights Clenshaw-Curtis quadrature weights
+ * @param [in] invertWeights specifies if weights should be inverted
+ */
+void cglNodesWeights(const unsigned int polyDeg, Eigen::VectorXd& nodes, Eigen::VectorXd& invWeights, bool invertWeights = true);
+/**
+ * @brief computes the Chebyshev-Gauss (interior) nodes and quadrature weights
+ * @detail CG nodes do not include endpoints: x_j = -cos((2j+1)/(2N+2) * pi), j=0,...,N
+ * @param [in] polyDeg polynomial degree (N where N+1 is number of points)
+ * @param [in, out] nodes Chebyshev Gauss nodes
+ * @param [in, out] weights Chebyshev Gauss quadrature weights
+ * @param [in] invertWeights specifies if weights should be inverted
+ */
+void cgNodesWeights(const unsigned int polyDeg, Eigen::VectorXd& nodes, Eigen::VectorXd& weights, bool invertWeights = true);
+/**
+ * @brief computes the Legendre-Gauss nodes and quadrature weights
+ * @detail Gauss quadrature exactly integrates polynomials up to degree 2N-1 with N points
+ * @param [in] polyDeg polynomial degree (N-1 where N is number of points)
+ * @param [in, out] nodes Legendre Gauss nodes
+ * @param [in, out] weights Legendre Gauss quadrature weights
+ * @param [in] invertWeights specifies if weights should be inverted
+ */
+void lgNodesWeights(const unsigned int polyDeg, Eigen::VectorXd& nodes, Eigen::VectorXd& weights, bool invertWeights = true);
+/**
  * @brief computes the Legendre polynomial and its derivative
  * @param [in] polyDeg polynomial degree
  * @param [in, out] leg Legendre polynomial
@@ -90,7 +117,7 @@ Eigen::MatrixXd gaussQuadratureMMatrix(const Eigen::VectorXd LGLnodes, const int
 /**
  * @brief calculates the barycentric weights for fast polynomial evaluation
  * @param [in] polyDeg polynomial degree
- * @param [in, out] baryWeights vector to store barycentric weights. Must already be initialized with ones!
+ * @param [in] nodes polynomial interpolation nodes vector
  */
 Eigen::VectorXd barycentricWeights(const unsigned int polyDeg, const Eigen::VectorXd nodes);
 /**
@@ -119,8 +146,8 @@ Eigen::MatrixXd mMatrix(const unsigned int polyDeg, const Eigen::VectorXd nodes,
  * @brief calculates a specific second order nodal stiffness matrix
  * @detail for integrals including terms of the form (1 - \xi)^\alpha (1 + \xi)^\beta. Computation via transformation to the respective Jacobi polynomial
  * @param [in] polyDeg polynomial degree
- * @param [in] a Jacobi polynomial parameter
- * @param [in] b Jacobi polynomial parameter
+ * @param [in] alpha Jacobi polynomial parameter
+ * @param [in] beta Jacobi polynomial parameter
  * @param [in] nodes polynomial interpolation nodes
  */
 Eigen::MatrixXd secondOrderStiffnessMatrix(const unsigned int polyDeg, const double alpha, const double beta, const Eigen::VectorXd nodes);
@@ -147,7 +174,7 @@ Eigen::MatrixXd polynomialInterpolationMatrix(const Eigen::VectorXd newNodes, co
 Eigen::MatrixXd liftingMatrixQuadratic(const unsigned int size);
 /**
  * @brief returns a (size x 2) lifting matrix
- * @param [in] rows number of matrix rows
+ * @param [in] size number of matrix rows
  */
 Eigen::MatrixXd liftingMatrix(const unsigned int size);
 /**
@@ -157,6 +184,54 @@ Eigen::MatrixXd liftingMatrix(const unsigned int size);
  * @param [in] evalNodes evaluation nodes in [-1, 1]
  */
 Eigen::VectorXd evalLagrangeBasis(const int j, const Eigen::VectorXd baseNodes, const Eigen::VectorXd evalNodes);
+/**
+ * @brief Computes subcell integration matrix A_{ij} = \int_{subcell i} ell_j(x) dx
+ * @detail Subcells are defined via LGL weights (partition of [-1,1])
+ * @param [in] LGLnodes LGL interpolation nodes
+ * @param [in] LGLweights corresponding quadrature weights
+ * @param [in] nQuad number of quadrature points per subcell (>= polyDeg+1 recommended)
+ */
+Eigen::MatrixXd subcellIntegrationMatrix(const Eigen::VectorXd& LGLnodes, const Eigen::VectorXd& LGLweights, const unsigned int nQuad);
+/**
+ * @brief evaluates the derivative of the jth Lagrange basis function at given nodes
+ * @param [in] j index of Lagrange basis function
+ * @param [in] baseNodes interpolation nodes of Lagrange basis
+ * @param [in] evalNodes evaluation nodes in [-1, 1]
+ */
+Eigen::VectorXd evalLagrangeBasisDerivative(const int j, const Eigen::VectorXd baseNodes, const Eigen::VectorXd evalNodes);
+/**
+ * @brief Computes a parameter-weighted quadrature mass matrix on Legendre polynomials.
+ *
+ * @details
+ * Computes
+ *
+ *     M_AD[i,j] = ∫ L_i(ξ) L_j(ξ) param(ξ) g(ξ) dξ
+ *
+ * where L_i are the Legendre polynomials and the parameter values param(ξ) are
+ * given at the quadrature points in paramAtQuad, and the geometric weight is
+ *
+ *     g(ξ) = sum_{p=1}^{n} alpha[p-1] * (1 - ξ)^p
+ *          + sum_{p=1}^{m} beta[p-1]  * (1 + ξ)^p
+ *          + c.
+ *
+ * @param [in] polyDeg			LegNodes interpolation nodes for Legendre basis.
+ * @param [in] paramAtQNodes	Parameter values evaluated at quadrature points.
+ * @param [in] alpha			Coefficients of powers of (1 - ξ).
+ * @param [in] beta				Coefficients of powers of (1 + ξ).
+ * @param [in] gamma			Constant coefficient of the geometric weight.
+ * @param [in] QNodes			Quadrature nodes.
+ * @param [in] QWeights			Quadrature weights.
+ *
+ * @return Parameter- and geometry-weighted Gauss quadrature mass matrix.
+ */
+Eigen::MatrixXd weightedQuadMassMatrix(
+	const Eigen::VectorXd& LegNodes,
+	const Eigen::VectorXd& paramAtQNodes,
+	const std::vector<double>& alpha,
+	const std::vector<double>& beta,
+	const double gamma,
+	const Eigen::VectorXd& QNodes,
+	const Eigen::VectorXd& QWeights);
 /**
  * @brief evaluates the jth Lagrange basis functions at given nodes
  * @param [in, out] coords DG coordinate array

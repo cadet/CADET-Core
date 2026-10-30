@@ -21,7 +21,7 @@
 #include "UnitOperationBase.hpp"
 #include "cadet/StrongTypes.hpp"
 #include "cadet/SolutionExporter.hpp"
-#include "model/parts/ConvectionDispersionOperator.hpp"
+#include "model/parts/ConvectionDispersionOperatorFV.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/SparseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
@@ -29,6 +29,7 @@
 #include "Memory.hpp"
 #include "model/ModelUtils.hpp"
 #include "ParameterMultiplexing.hpp"
+#include "model/reaction/ReactionSystem.hpp"
 
 #include <array>
 #include <vector>
@@ -41,15 +42,21 @@ namespace
 	struct LumpedRateModelWithPoresName { };
 
 	template <>
-	struct LumpedRateModelWithPoresName<cadet::model::parts::AxialConvectionDispersionOperator>
+	struct LumpedRateModelWithPoresName<cadet::model::parts::AxialConvectionDispersionOperatorFV>
 	{
-		static const char* identifier() CADET_NOEXCEPT { return "LUMPED_RATE_MODEL_WITH_PORES"; }
+		static const char* identifier() CADET_NOEXCEPT { return "LUMPED_RATE_MODEL_WITH_PORES_FV"; }
 	};
 
 	template <>
-	struct LumpedRateModelWithPoresName<cadet::model::parts::RadialConvectionDispersionOperator>
+	struct LumpedRateModelWithPoresName<cadet::model::parts::RadialConvectionDispersionOperatorFV>
 	{
-		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_LUMPED_RATE_MODEL_WITH_PORES"; }
+		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_LUMPED_RATE_MODEL_WITH_PORES_FV"; }
+	};
+
+	template <>
+	struct LumpedRateModelWithPoresName<cadet::model::parts::FrustumConvectionDispersionOperatorFV>
+	{
+		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_LUMPED_RATE_MODEL_WITH_PORES_FV"; }
 	};
 }
 
@@ -275,8 +282,9 @@ protected:
 //	IExternalFunction* _extFun; //!< External function (owned by library user)
 
 	ConvDispOperator _convDispOp; //!< Convection dispersion operator for interstitial volume transport
-	IDynamicReactionModel* _dynReactionBulk; //!< Dynamic reactions in the bulk volume
 	IParameterParameterDependence* _filmDiffDep; //!< Film diffusion dependency on local velocity
+
+	ReactionSystem _reaction; //!< Reaction system for bulk
 
 	std::vector<linalg::BandMatrix> _jacP; //!< Particle jacobian diagonal blocks (all of them for each particle type)
 	std::vector<linalg::FactorizableBandMatrix> _jacPdisc; //!< Particle jacobian diagonal blocks (all of them for each particle type) with time derivatives from BDF method
@@ -313,7 +321,7 @@ protected:
 
 	std::vector<active> _initC; //!< Liquid bulk phase initial conditions
 	std::vector<active> _initCp; //!< Liquid particle phase initial conditions
-	std::vector<active> _initQ; //!< Solid phase initial conditions
+	std::vector<active> _initCs; //!< Solid phase initial conditions
 	std::vector<double> _initState; //!< Initial conditions for state vector if given
 	std::vector<double> _initStateDot; //!< Initial conditions for time derivative
 
@@ -393,8 +401,9 @@ protected:
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return true; }
 		virtual bool hasSolidPhase() const CADET_NOEXCEPT { return _disc.strideBound[_disc.nParType] > 0; }
 		virtual bool hasVolume() const CADET_NOEXCEPT { return false; }
-		virtual bool isParticleLumped() const CADET_NOEXCEPT { return true; }
+		virtual bool isParticleLumped(unsigned int parType) const CADET_NOEXCEPT { return true; }
 		virtual bool hasPrimaryExtent() const CADET_NOEXCEPT { return true; }
+		virtual bool discHasSmoothnessIndicator() const CADET_NOEXCEPT { return false; }
 
 		virtual unsigned int numComponents() const CADET_NOEXCEPT { return _disc.nComp; }
 		virtual unsigned int numPrimaryCoordinates() const CADET_NOEXCEPT { return _disc.nCol; }
@@ -404,6 +413,7 @@ protected:
 		virtual unsigned int numParticleTypes() const CADET_NOEXCEPT { return _disc.nParType; }
 		virtual unsigned int numParticleShells(unsigned int parType) const CADET_NOEXCEPT { return 1; }
 		virtual unsigned int numBoundStates(unsigned int parType) const CADET_NOEXCEPT { return _disc.strideBound[parType]; }
+		virtual unsigned int numBoundStates(unsigned int parType, unsigned int comp) const CADET_NOEXCEPT { return _disc.nBound[parType * _disc.nComp + comp]; }
 		virtual unsigned int numMobilePhaseDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol; }
 		virtual unsigned int numParticleMobilePhaseDofs(unsigned int parType) const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol; }
 		virtual unsigned int numParticleMobilePhaseDofs() const CADET_NOEXCEPT { return _disc.nComp * _disc.nCol * _disc.nParType; }
@@ -430,6 +440,7 @@ protected:
 		virtual int writeInlet(double* buffer) const;
 		virtual int writeOutlet(unsigned int port, double* buffer) const;
 		virtual int writeOutlet(double* buffer) const;
+		virtual int writeSmoothnessIndicator(double* buffer) const { return _model._convDispOp.writeSmoothnessIndicator(buffer); }
 
 		virtual int writePrimaryCoordinates(double* coords) const
 		{
@@ -448,11 +459,13 @@ protected:
 	};
 };
 
-extern template class LumpedRateModelWithPores<parts::AxialConvectionDispersionOperator>;
-extern template class LumpedRateModelWithPores<parts::RadialConvectionDispersionOperator>;
+extern template class LumpedRateModelWithPores<parts::AxialConvectionDispersionOperatorFV>;
+extern template class LumpedRateModelWithPores<parts::RadialConvectionDispersionOperatorFV>;
+extern template class LumpedRateModelWithPores<parts::FrustumConvectionDispersionOperatorFV>;
 
 IUnitOperation* createAxialFVLRMP(UnitOpIdx uoId);
 IUnitOperation* createRadialFVLRMP(UnitOpIdx uoId);
+IUnitOperation* createFrustumFVLRMP(UnitOpIdx uoId);
 
 } // namespace model
 } // namespace cadet

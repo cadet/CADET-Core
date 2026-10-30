@@ -4,12 +4,35 @@ Reaction models
 ===============
 
 
-Reaction models describe the (net) fluxes :math:`f_{\mathrm{react}}` of a
+Reaction models describe the (net) fluxes :math:`f_{\mathrm{react}}(c)` of a
 reaction mechanism.
-CADET features one reaction type:
 
- - :ref:`mass_action_law_model` (most commonly used)
+In this kind of mechanism, the fluxes are typically defined as a function of the concentration of the components involved in the reaction and the reaction parameters.
+
+In CADET, reaction models are defined for each phase of a unit operation separately, i.e., for the liquid phase and solid phase.
+For more information on the interface specification, see :ref:`FFReaction`.
+
+CADET features the following reaction model types:
+
+ - :ref:`mass_action_law_model`
  - :ref:`michaelis_menten_kinetics_model`
+
+It is possible to combine reaction models within the same phase.
+
+Cross phase reaction models
+---------------------------
+
+If a reaction is defined between a liquid phase and a solid phase, the net fluxes of the reaction are defined
+as a function of the concentrations in the respective phases, and the reaction is called a cross phase reaction.
+
+CADET features the following cross phase reaction types:
+
+ - :ref:`mass_action_law_model_cross_phase`
+
+Further details on the interface specification are provided in :ref:`the corresponding section <FFReaction>`.
+
+Application examples
+--------------------
 
 Historically, a chromatography system is modeled as a reaction system without considering any transport phenomenon. We also introduce some reaction-based models that can be solved in CADET:
 
@@ -46,7 +69,7 @@ The 0-based indices of the external source for each parameter is given in the da
 By assigning only one index to ``EXTFUN``, all parameters use the same source.
 The ordering of the parameters in ``EXTFUN`` is given by the ordering in the file format specification.
 
-For the configuration of external function dependence and more information on model parameters required to define in CADET file format, see section :ref:`FFReaction`.
+For the configuration of external function dependence and more information on the model parameters to be defined in the CADET file format, see section :ref:`FFReaction`.
 
 .. toctree::
     :hidden:

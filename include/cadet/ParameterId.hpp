@@ -73,7 +73,7 @@ typedef uint64_t ParamIdHash;
 	 * @brief Computes the string hash at compiletime
 	 * @details Use the hashStringRuntime for runtime hashing.
 	 * 
-	 * @param [in] str String
+	 * @param [in] cs String
 	 * @return Hash of the string
 	 */
 	constexpr inline StringHash hashString(const util::hash::ConstString& cs)

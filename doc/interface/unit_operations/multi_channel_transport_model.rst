@@ -24,13 +24,14 @@ For information on model equations, refer to :ref:`multi_channel_transport_model
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
    =============  =========================  =============
 
-``REACTION_MODEL_BULK``
+``NREAC_LIQUID``
 
-   Specifies the type of reaction model of the bulk volume. The model is configured in the subgroup :math:`\texttt{reaction_bulk}`.
+   Number of liquid phase reaction models (optional, only if liquid reactions are present).
+   
+   =============  =========================  =============
+   **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
+   =============  =========================  =============
 
-   ================  ========================================  =============
-   **Type:** string  **Range:** See Section :ref:`FFReaction`  **Length:** 1
-   ================  ========================================  =============
 
 ``INIT_C``
 
@@ -44,7 +45,8 @@ For information on model equations, refer to :ref:`multi_channel_transport_model
 
 ``INIT_STATE``
 
-   Full state vector for initialization (optional, :math:`\texttt{INIT_C}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives)
+   Full state vector for initialization (optional, :math:`\texttt{INIT_C}` will be ignored; if length is :math:`2\texttt{NDOF}`, then the second half is used for time derivatives).
+   The ordering of the state vector is defined in :ref:`UnitOperationStateOrdering`, similar to 2D models but with channels instead of radial column direction.
 
    **Unit:** :math:`various`
 
@@ -72,14 +74,14 @@ For information on model equations, refer to :ref:`multi_channel_transport_model
   3. Component-dependent, channel-dependent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NCHANNEL}`; ordering is channel-major
   4. Component-independent, channel-independent, section-dependent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NSEC}`
   5. Component-independent, channel-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCHANNEL} \cdot \texttt{NSEC}`; ordering is section-major
-  6. Component-dependent, channel-independent, section-independent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NSEC}`; ordering is section-major
+  6. Component-dependent, channel-independent, section-dependent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NSEC}`; ordering is section-major
   7. Component-dependent, channel-dependent, section-dependent; length of :math:`\texttt{COL_DISPERSION}` is :math:`\texttt{NCOMP} \cdot \texttt{NCHANNEL} \cdot \texttt{NSEC}`; ordering is section-channel-major
 
    =============  ===================================  =============
    **Type:** int  **Range:** :math:`\{0, \dots, 7 \}`  **Length:** 1
    =============  ===================================  =============
 
-``COL_LENGTH``
+``BED_LENGTH``
 
    Column length
 
@@ -95,7 +97,7 @@ For information on model equations, refer to :ref:`multi_channel_transport_model
 
    **Unit:** :math:`\mathrm{m}\,\mathrm{s}^{-1}`
 
-   Indicates flow direction in each channel (forward if value is positive, backward if value is negative), see Section :ref:`MUOPGRMflow2D`).  In case of a spatially inhomogeneous setting, the :math:`\texttt{SENS_PARTYPE}` field is used for indexing the channel when specifying parameter sensitivities.
+   Optional; if left out, the velocity is inferred from the volumetric flow rates of the network connections. Indicates flow direction in each channel (forward if value is positive, backward if value is negative), see Section :ref:`MUOPGRMflow2D`.  In case of a spatially inhomogeneous setting, the :math:`\texttt{SENS_PARTYPE}` field is used for indexing the channel when specifying parameter sensitivities.
 
    ================  =============================  ===================================================
    **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** see :math:`\texttt{VELOCITY_MULTIPLEX}`
@@ -114,6 +116,19 @@ For information on model equations, refer to :ref:`multi_channel_transport_model
    **Type:** int  **Range:** :math:`\{0, \dots, 3 \}`  **Length:** 1
    =============  ===================================  =============
 
+``EXCHANGE_MODEL``
+
+   Type of exchange model to be used (optional, defaults to ``LINEAR``)
+
+   Specifies the exchange model to be applied for inter-channel transport. Possible values are:
+
+   - ``LINEAR``: Linear Exchange model (default)
+   - ``LANGMUIR_EX``: Langmuir Exchange model
+
+   ================  ============================================================  =============
+   **Type:** string  **Range:** :math:`\{\texttt{LINEAR}, \texttt{LANGMUIR_EX}\}`  **Length:** 1
+   ================  ============================================================  =============
+
 ``EXCHANGE_MATRIX``
 
    Exchange matrix
@@ -131,15 +146,32 @@ For information on model equations, refer to :ref:`multi_channel_transport_model
     e^k_{N1} & \dots & e^k_{N(N-1)} & 0
     \end{bmatrix}
 
-   For addressing the exchange rates as a parameter senstivity, the mapping is as follows:
+   For addressing the exchange rates as a parameter sensitivity, the mapping is as follows:
 
   - :math:`\texttt{SENS_BOUNDPHASE}` *Channel from*
   - :math:`\texttt{SENS_PARTYPE}` *Channel to*
 
-   ================  ========================  ===============================================
+   ================  ========================  =====================================================================
    **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`\texttt{NCHANNEL}*\texttt{NCHANNEL}*\texttt{NCOMP}`
-   ================  ========================  ===============================================
+   ================  ========================  =====================================================================
 
+
+``SATURATION_MATRIX``
+   Maximum exchange saturation matrix (optional)
+   Only when using the Langmuir Exchange model.
+
+   **Unit:** :math:`\mathrm{mol}\,\mathrm{m}_{\mathrm{channel}}^{-3}`
+
+   Matrix containing maximum saturation levels :math:`q_{max,i}^{k}` for each component :math:`i` in each channel :math:`k`.
+   This parameter determines the saturation limit for the Langmuir-type exchange kinetics.
+
+   - If :math:`q_{max,i}^{k} = 0` the corresponding exchange flux will reduce to the linear exchange model.
+   - If :math:`q_{max,i}^{k} < 0` the model will describe an Anti-Langmuir behavior.
+
+   ===================  =============================  ===============================================================
+   **Type:** double     **Range:** :math:`\mathbb{R}`   **Length:** :math:`\texttt{NCHANNEL}*\texttt{NCOMP}`
+   ===================  =============================  ===============================================================
+   
 ``NCHANNEL``
 
    Number of channels :math:`ij`
@@ -155,12 +187,16 @@ For information on model equations, refer to :ref:`multi_channel_transport_model
 
    **Unit:** :math:`\mathrm{m}^{2}`
 
-   Defines the cross section area of each channel
+   Defines the cross section area of each channel. The :math:`\texttt{SENS_PARTYPE}` field is used for indexing the channel when specifying parameter sensitivities.
 
-   ================  ====================== ======================================
+   ================  ======================  ======================================
    **Type:** double  **Range:** :math:`> 0`  **Length:** :math:`\texttt{NCHANNEL}`
-   ================  ====================== ======================================
+   ================  ======================  ======================================
 
+
+Group /input/model/unit_XXX/liquid_reaction_YYY
+-----------------------------------------------
+Each reaction is specified in another subgroup `liquid_reaction_YYY`, see :ref:`FFReaction`.
 
 Group /input/model/unit_XXX/discretization - UNIT_TYPE = MULTI_CHANNEL_TRANSPORT
 --------------------------------------------------------------------------------
@@ -197,8 +233,8 @@ Group /input/model/unit_XXX/discretization - UNIT_TYPE = MULTI_CHANNEL_TRANSPORT
 
    Type of reconstruction method for FV fluxes
 
-   ================  ================================  =============
-   **Type:** string  **Range:** :math:`\texttt{WENO}`  **Length:** 1
-   ================  ================================  =============
+   ================  =======================================  =============
+   **Type:** string  **Range:** :math:`\texttt{WENO, KOREN}`  **Length:** 1
+   ================  =======================================  =============
 
-For further discretization parameters, see also :ref:`flux_reconstruction_methods` (FV specific)), and :ref:`non_consistency_solver_parameters`.
+For further discretization parameters (including ``GRID_FACES`` for non-equidistant grids), see also :ref:`flux_reconstruction_methods`, and :ref:`non_consistency_solver_parameters`.

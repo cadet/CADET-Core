@@ -26,43 +26,39 @@ model.root.input.model.unit_001.cross_section_area = 0.01       # m
 model.root.input.model.unit_001.col_porosity = 0.37             # -
 model.root.input.model.unit_001.par_porosity = 0.33             # -
 model.root.input.model.unit_001.par_radius = 1e-6               # m
-                                                                
-## Transport
+                
+## Bulk transport
 model.root.input.model.unit_001.col_dispersion = 1e-8           # m^2 / s (interstitial volume)
-model.root.input.model.unit_001.film_diffusion = [1e-5]         # m / s
-model.root.input.model.unit_001.par_diffusion = [1e-10,]        # m^2 / s (mobile phase)  
-model.root.input.model.unit_001.par_surfdiffusion = [0.0,]      # m^2 / s (solid phase)
+
+## Particle transport
+model.root.input.model.unit_001.particle_type_000.film_diffusion = [1e-5]         # m / s
+model.root.input.model.unit_001.particle_type_000.pore_diffusion = [1e-10,]        # m^2 / s (mobile phase)  
+model.root.input.model.unit_001.particle_type_000.surface_diffusion = [0.0,]      # m^2 / s (solid phase)
 
 ## Adsorption
-model.root.input.model.unit_001.adsorption_model = 'MULTI_COMPONENT_LANGMUIR'
-model.root.input.model.unit_001.nbound = [1]
-model.root.input.model.unit_001.adsorption.is_kinetic = True    # Kinetic binding
-model.root.input.model.unit_001.adsorption.mcl_ka = [1.0,]      # m^3 / (mol * s)   (mobile phase)
-model.root.input.model.unit_001.adsorption.mcl_kd = [1.0,]      # 1 / s (desorption)
-model.root.input.model.unit_001.adsorption.mcl_qmax = [100.0,]  # mol / m^3   (solid phase)
+model.root.input.model.unit_001.particle_type_000.adsorption_model = 'MULTI_COMPONENT_LANGMUIR'
+model.root.input.model.unit_001.particle_type_000.nbound = [1]
+model.root.input.model.unit_001.particle_type_000.adsorption.is_kinetic = True    # Kinetic binding
+model.root.input.model.unit_001.particle_type_000.adsorption.mcl_ka = [1.0,]      # m^3 / (mol * s)   (mobile phase)
+model.root.input.model.unit_001.particle_type_000.adsorption.mcl_kd = [1.0,]      # 1 / s (desorption)
+model.root.input.model.unit_001.particle_type_000.adsorption.mcl_qmax = [100.0,]  # mol / m^3   (solid phase)
 
 ## Initial conditions
 model.root.input.model.unit_001.init_c = [0.0,]
-model.root.input.model.unit_001.init_q = [0.0,]
+model.root.input.model.unit_001.particle_type_000.init_cp = [0.0,]
+model.root.input.model.unit_001.particle_type_000.init_cs = [0.0,]
 
 ## Discretization
 ### Grid cells
-model.root.input.model.unit_001.discretization.spatial_method = "FV"
-model.root.input.model.unit_001.discretization.ncol = 20
-model.root.input.model.unit_001.discretization.npar = 5
-
+model.root.input.model.unit_001.discretization.spatial_method = "DG" # "FV" recommended for strong gradients, where DG might oscillate
+model.root.input.model.unit_001.discretization.polydeg = 3 # recommended to be increased up to 5 if higher resolution is desired for smooth solutions
+model.root.input.model.unit_001.discretization.nelem = 3 # recommended to be increased if higher resolution is desired
+model.root.input.model.unit_001.particle_type_000.discretization.spatial_method = "DG"
+model.root.input.model.unit_001.particle_type_000.discretization.par_polydeg = 3 # recommended to be increased if higher resolution is desired
+model.root.input.model.unit_001.particle_type_000.discretization.par_nelem = 1 #  recommended to stay fixed at 1 except for targeted resolution of particle (ie user defined par_disc_type)
 ### Other options
-model.root.input.model.unit_001.discretization.par_disc_type = 'EQUIDISTANT_PAR'    
+model.root.input.model.unit_001.discretization.particle_type_000.par_disc_type = 'EQUIDISTANT'    
 model.root.input.model.unit_001.discretization.use_analytic_jacobian = 1
-model.root.input.model.unit_001.discretization.reconstruction = 'WENO'
-model.root.input.model.unit_001.discretization.gs_type = 1
-model.root.input.model.unit_001.discretization.max_krylov = 0
-model.root.input.model.unit_001.discretization.max_restarts = 10
-model.root.input.model.unit_001.discretization.schur_safety = 1.0e-8
-
-model.root.input.model.unit_001.discretization.weno.boundary_model = 0
-model.root.input.model.unit_001.discretization.weno.weno_eps = 1e-10
-model.root.input.model.unit_001.discretization.weno.weno_order = 3
 
 ## Outlet
 model.root.input.model.unit_002.unit_type = 'OUTLET'

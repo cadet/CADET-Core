@@ -24,10 +24,10 @@
 
 
 // Uncomment the next line to enable logging output of CADET in unit tests
-//#define CADETTEST_ENABLE_LOG
+//#define ENABLE_CADETTEST_LOGGING
 
 
-#ifdef CADETTEST_ENABLE_LOG
+#ifdef ENABLE_CADETTEST_LOGGING
 	#include "cadet/Logging.hpp"
 	#include <iostream>
 
@@ -45,7 +45,7 @@
 
 int main(int argc, char* argv[])
 {
-#ifdef CADETTEST_ENABLE_LOG
+#ifdef ENABLE_CADETTEST_LOGGING
 	// Set LogLevel in CADET library
 	const cadet::LogLevel logLevel = cadet::LogLevel::Trace;
 	LogReceiver lr;

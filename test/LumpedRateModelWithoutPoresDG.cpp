@@ -16,22 +16,60 @@
 #include "ReactionModelTests.hpp"
 #include "Utils.hpp"
 #include "JsonTestModels.hpp"
+#include "model/parts/DGToolbox.hpp"
+
+#include <cmath>
+#include <functional>
+#include <vector>
+
+namespace
+{
+	/**
+	 * @brief Sets an axially varying total porosity on a column unit
+	 * @details Evaluates the given profile at the LGL nodes of all elements, in the ordering TOTAL_POROSITY
+	 *          expects, i.e. element-major with the element interface nodes listed twice. CADET-Core
+	 *          multiplies the profile with the geometric cross section area of the unit, so the geometry
+	 *          is left untouched.
+	 * @param [in,out] jpp parameter provider, scoped to the column unit
+	 * @param [in] porosity total porosity as a function of the normalized axial coordinate x / H in [0, 1]
+	 */
+	void setAxiallyVaryingTotalPorosity(cadet::JsonParameterProvider& jpp, const std::function<double(double)>& porosity)
+	{
+		jpp.pushScope("discretization");
+		const int polyDeg = jpp.getInt("POLYDEG");
+		const int nElem = jpp.getInt("NELEM");
+		jpp.popScope();
+
+		Eigen::VectorXd nodes(polyDeg + 1);
+		Eigen::VectorXd weights(polyDeg + 1);
+		cadet::model::parts::dgtoolbox::lglNodesWeights(polyDeg, nodes, weights, false);
+
+		std::vector<double> porosityAtNodes(nElem * (polyDeg + 1));
+		for (int elem = 0; elem < nElem; ++elem)
+		{
+			for (int node = 0; node <= polyDeg; ++node)
+				porosityAtNodes[elem * (polyDeg + 1) + node] = porosity((elem + 0.5 * (1.0 + nodes[node])) / nElem);
+		}
+
+		jpp.set("TOTAL_POROSITY", porosityAtNodes);
+	}
+}
 
 TEST_CASE("LRM_DG LWE forward vs backward flow", "[LRM],[DG],[DG1D],[Simulation],[CI]")
 {
-	cadet::test::column::DGparams disc;
+	cadet::test::column::DGParams disc;
 
 	// Test all integration modes
-	for (int i = 0; i <= 1; i++)
+	for (int i = 0; i <= 2; i++)
 	{
-		disc.setIntegrationMode(i);
+		disc.setBulkDiscParam("USE_COLLOCATION_DG", i);
 		cadet::test::column::testForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", disc, 6e-9, 6e-2);
 	}
 }
 
 TEST_CASE("LRM_DG linear pulse vs analytic solution", "[LRM],[DG],[DG1D],[Simulation],[Analytic],[CI]")
 {
-	cadet::test::column::DGparams disc;
+	cadet::test::column::DGParams disc;
 	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", true, true, disc, 2e-5, 1e-7);
 	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", true, false, disc, 2e-5, 1e-7);
 	cadet::test::column::testAnalyticBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-pulseBenchmark.data", false, true, disc, 2e-5, 1e-7);
@@ -40,19 +78,19 @@ TEST_CASE("LRM_DG linear pulse vs analytic solution", "[LRM],[DG],[DG1D],[Simula
 
 TEST_CASE("LRM_DG non-binding linear pulse vs analytic solution", "[LRM],[DG],[DG1D],[Simulation],[Analytic],[NonBinding],[CI]")
 {
-	cadet::test::column::DGparams disc;
+	cadet::test::column::DGParams disc;
 	cadet::test::column::testAnalyticNonBindingBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-nonBinding.data", true, disc, 2e-5, 1e-7);
 	cadet::test::column::testAnalyticNonBindingBenchmark("LUMPED_RATE_MODEL_WITHOUT_PORES", "/data/lrm-nonBinding.data", false, disc, 2e-5, 1e-7);
 }
 
 //TEST_CASE("LRM_DG Jacobian forward vs backward flow", "[LRM],[DG],[DG1D],[UnitOp],[Residual],[Jacobian],[AD],[fix]")
 //{
-//	cadet::test::column::DGparams disc;
+//	cadet::test::column::DGParams disc;
 //
 //	// Test all integration modes
 //	for (int i = 0; i < 2; i++)
 //	{
-//		disc.setIntegrationMode(i);
+//		disc.setBulkDiscParam("USE_COLLOCATION_DG", i);
 //		cadet::test::column::testJacobianForwardBackward("LUMPED_RATE_MODEL_WITHOUT_PORES", disc, std::numeric_limits<float>::epsilon() * 100.0);
 //	}
 //}
@@ -64,7 +102,7 @@ TEST_CASE("LRM_DG numerical Benchmark with parameter sensitivities for linear ca
 	const std::vector<double> absTol = { 1e-12, 1e-12, 1e-12, 1e-12 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 
-	cadet::test::column::DGparams disc(0, 3, 8);
+	cadet::test::column::DGParams disc(1, 3, 8);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
@@ -75,7 +113,7 @@ TEST_CASE("LRM_DG numerical Benchmark with parameter sensitivities for SMA LWE c
 	const std::vector<double> absTol = { 1e-8, 1e-6, 1e-6, 1e-12 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 
-	cadet::test::column::DGparams disc(0, 3, 8);
+	cadet::test::column::DGParams disc(1, 3, 8);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 
@@ -194,4 +232,70 @@ TEST_CASE("LRM_DG dynamic reactions time derivative Jacobian vs FD bulk", "[LRM]
 TEST_CASE("LRM_DG dynamic reactions time derivative Jacobian vs FD modified bulk", "[LRM],[DG],[DG1D],[Jacobian],[Residual],[ReactionModel],[CI]")
 {
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("LUMPED_RATE_MODEL_WITHOUT_PORES", "DG", true, false, true, 1e-6, 1e-14, 8e-4);
+}
+
+TEST_CASE("LRM_DG with a constant nodal TOTAL_POROSITY matches the scalar one", "[LRM],[DG],[DG1D],[Simulation],[CI]")
+{
+	// A nodal TOTAL_POROSITY whose entries all agree with the scalar one describes the very same
+	// column. It takes the other route through the code: the porosity is folded into the area
+	// weight of the transport operator instead of dividing the flow rate, the operators are
+	// assembled by nodal quadrature rather than analytically, and the solid prefactor is evaluated
+	// per discrete point. Were the porosity applied twice, or not at all, the interstitial
+	// velocities of the two settings would differ by the factor eps.
+	//
+	// Both settings are run on the variable coefficient operator, since a nodal porosity routes to
+	// it: comparing it against the collocation operator that an axial flow cylinder uses by default
+	// would measure the difference between two discretizations rather than the porosity.
+	const auto setting = [](const std::function<void(cadet::JsonParameterProvider&)>& modify)
+		{
+			cadet::JsonParameterProvider jpp = createLinearBenchmark(false, false, "LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
+
+			jpp.pushScope("model");
+			jpp.pushScope("unit_000");
+			jpp.pushScope("discretization");
+			jpp.set("USE_COLLOCATION_DG", false);
+			jpp.popScope();
+
+			modify(jpp);
+
+			jpp.popScope();
+			jpp.popScope();
+
+			// The two settings assemble the same operators by different arithmetic, so their
+			// round-off differs and the adaptive time integration amplifies it to its own
+			// tolerance. Tighten it so that the comparison measures the discretization.
+			jpp.pushScope("solver");
+			jpp.pushScope("time_integrator");
+			jpp.set("ABSTOL", 1e-12);
+			jpp.set("RELTOL", 1e-10);
+			jpp.popScope();
+			jpp.popScope();
+
+			return jpp;
+		};
+
+	double totalPorosity = 0.0;
+	cadet::JsonParameterProvider jpp1 = setting([&](cadet::JsonParameterProvider& jpp) { totalPorosity = jpp.getDouble("TOTAL_POROSITY"); });
+	cadet::JsonParameterProvider jpp2 = setting([&](cadet::JsonParameterProvider& jpp) { setAxiallyVaryingTotalPorosity(jpp, [=](double normalizedPos) { return totalPorosity; }); });
+
+	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
+}
+
+TEST_CASE("LRM_DG Jacobian analytic vs AD with axially varying TOTAL_POROSITY", "[LRM],[DG],[DG1D],[UnitOp],[Jacobian],[AD],[CI]")
+{
+	// The solid phase prefactor (1 - eps_t) / eps_t is the only part of the model that does not
+	// follow from the flow through area, and it is the only part of the Jacobian that an axially
+	// varying porosity changes. AD differentiates the residual independently of the analytic
+	// Jacobian assembly, so this pins the per node evaluation of the prefactor in both. The model
+	// therefore has to carry a bound state: without one the prefactor multiplies nothing and the
+	// test would only cover the transport operator.
+	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, false, "LUMPED_RATE_MODEL_WITHOUT_PORES", "DG");
+
+	const double pi = 3.14159265358979323846;
+	setAxiallyVaryingTotalPorosity(jpp, [=](double normalizedPos) { return 0.3 + 0.1 * std::sin(pi * normalizedPos); });
+
+	std::vector<double> flowRate;
+	flowRate.push_back(0.01);
+
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0, std::numeric_limits<float>::epsilon() * 100.0, flowRate);
 }

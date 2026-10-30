@@ -145,11 +145,11 @@ TEST_CASE("Automatic AD disabled for binding model with Jacobian", "[BindingMode
 	cadet::BindingWithJacobian bm;
 	const int nComp = 4;
 	const int totalBoundStates = 5;
-	const int numDofs = nComp + totalBoundStates;
+//	const int numDofs = nComp + totalBoundStates;
 	const unsigned int boundStates[] = {1, 0, 3, 1};
 	const unsigned int boundOffset[] = {0, 1, 1, 4};
 
-	const double yState[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, -8.0, -9.0};
+//	const double yState[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, -8.0, -9.0};
 
 	DummyParameterProvider pp;
 	bm.configureModelDiscretization(pp, nComp, boundStates, nullptr);
