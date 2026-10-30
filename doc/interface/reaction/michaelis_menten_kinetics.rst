@@ -84,13 +84,16 @@ Notes
     ================  =============================  ======================================================
 
 ``MM_EXP``
-    (Optional) Hill exponent for each substrate, supplied in reaction-major order. Substrate entries must be positive and finite. Use :math:`1` for a substrate with competitive or uncompetitive inhibition. Entries for non-substrates are ignored. If omitted, every substrate uses an exponent of :math:`1`.
+    (Optional) Hill exponent :math:`n_{i,j}` for substrate :math:`i` in reaction :math:`j`.
+    Only :math:` \neq 1` for substrate without competitive or uncompetitive inhibition.
+    Use :math:`1` for substrates with competitive or uncompetitive inhibition.
+    Input as reaction index major.
 
     **Unit:** None
 
-    ================  =============================  ======================================================
-    **Type:** double  **Range:** :math:`(0, \infty)` for substrates  **Length:** :math:`\texttt{NREACT} \cdot \texttt{NVAR}`
-    ================  =============================  ======================================================
+    ================  =======================  ======================================================
+    **Type:** double  **Range:** :math:` > 0`  **Length:** :math:`\texttt{NREACT} \cdot \texttt{NVAR}`
+    ================  =======================  ======================================================
 
 CADET Python Interface Example
 ------------------------------
