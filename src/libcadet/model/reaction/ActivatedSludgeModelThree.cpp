@@ -642,8 +642,8 @@ protected:
 		//parameters
 		const double kh20 = static_cast<double>(p->kh20);
 		const double T = static_cast<double>(p->T);
-		const double io2 = static_cast<double>(p->io2);
-		const double V = static_cast<double>(p->V);
+		//const double io2 = static_cast<double>(p->io2);
+		//const double V = static_cast<double>(p->V);
 		const double k_sto20 = static_cast<double>(p->k_sto20);
 		const double kx = static_cast<double>(p->kx);
 		const double kho2 = static_cast<double>(p->kho2);
