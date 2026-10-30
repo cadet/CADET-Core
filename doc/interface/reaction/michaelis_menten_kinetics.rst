@@ -83,6 +83,15 @@ Notes
     **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** :math:`\texttt{NREACT} \cdot \texttt{NVAR}`
     ================  =============================  ======================================================
 
+``MM_EXP``
+    (Optional) Hill exponent for each substrate, supplied in reaction-major order. Substrate entries must be positive and finite. Use :math:`1` for a substrate with competitive or uncompetitive inhibition. Entries for non-substrates are ignored. If omitted, every substrate uses an exponent of :math:`1`.
+
+    **Unit:** None
+
+    ================  =============================  ======================================================
+    **Type:** double  **Range:** :math:`(0, \infty)` for substrates  **Length:** :math:`\texttt{NREACT} \cdot \texttt{NVAR}`
+    ================  =============================  ======================================================
+
 CADET Python Interface Example
 ------------------------------
 This example shows the configuration of one Michaelis-Menten reaction system in bulk liquid phase.
