@@ -766,8 +766,7 @@ protected:
 			// d(XSTO*XH_lb/denomXSTO)/dXSTO = khsto*XH_lb*XH_lb / denomXSTO^2
 			// d(XSTO*XH_lb/denomXSTO)/dXH    = XSTO*XSTO / denomXSTO^2 * dXH_lb_dXH
 			const double stoFactor3 = muH * SO / (SO + kho2) * SNH / (SNH + khnh4) * SALK / (SALK + khalk);
-			d[3][_idxSO] = stoFactor3 * kho2 / ((SO + kho2) * (SO + kho2))
-				* XSTO * XH_lb34 / denomXSTO34;
+			d[3][_idxSO] = muH * kho2 / ((SO + kho2) * (SO + kho2)) * SNH / (SNH + khnh4) * SALK / (SALK + khalk) * XSTO * XH_lb34 / denomXSTO34;
 			d[3][_idxSNH] = muH * SO / (SO + kho2)
 				* khnh4 / ((SNH + khnh4) * (SNH + khnh4))
 				* SALK / (SALK + khalk)
@@ -798,9 +797,7 @@ protected:
 				* khalk / ((khalk + SALK) * (khalk + SALK))
 				* SNO / (khn03 + SNO)
 				* XSTO * XH_lb34 / denomXSTO34;
-			d[4][_idxSNO] = stoFactor4
-				* khn03 / ((khn03 + SNO) * (khn03 + SNO))
-				* XSTO * XH_lb34 / denomXSTO34;
+			d[4][_idxSNO] = muH * etahno3 * kho2 / (kho2 + SO) * SNH / (khnh4 + SNH) * SALK / (khalk + SALK) * khn03 / ((khn03 + SNO) * (khn03 + SNO)) * XSTO * XH_lb34 / denomXSTO34;
 			d[4][_idxXSTO] = stoFactor4 * khsto * XH_lb34 * XH_lb34 / (denomXSTO34 * denomXSTO34);
 			d[4][_idxXH] = stoFactor4 * XSTO * XSTO / (denomXSTO34 * denomXSTO34) * dXH_lb_dXH34;
 		}
