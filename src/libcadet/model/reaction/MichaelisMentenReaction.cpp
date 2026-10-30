@@ -345,7 +345,7 @@ protected:
                     unsigned int prekIdx = get2DParamIndex(r, static_cast<unsigned int>(rowIdx));
                     ParamType pre_k_j = static_cast<ParamType>(p->KPrefactor[prekIdx]);
                     bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
-                    if (isSubstrate)
+                    if (pre_k_j != 0 && isSubstrate)
                         throw InvalidParameterException("Michaelis Menten residual: Prefactor component should not be a substrate");
                     if (pre_k_j != 0 && !isSubstrate)
                         preProd *= pre_k_j * y[rowIdx];
@@ -490,7 +490,7 @@ protected:
                     unsigned int prekIdx = get2DParamIndex(r, static_cast<unsigned int>(rowIdx));
                     double pre_k_j = static_cast<double>(p->KPrefactor[prekIdx]);
                     bool isSubstrate = std::find(_idxSubstrate[r].begin(), _idxSubstrate[r].end(), rowIdx) != _idxSubstrate[r].end();
-                    if (isSubstrate)
+                    if (pre_k_j != 0 && isSubstrate)
                         throw InvalidParameterException("Michaelis Menten jacobian: Prefactor component should not be a substrate");
                     if (pre_k_j != 0 && !isSubstrate)
                         preProd *= pre_k_j * y[rowIdx];
@@ -499,6 +499,7 @@ protected:
             }
             // Multiplication with vMax
             const double vMax = static_cast<double>(p->vMax[r]);
+            const double substrateFlux = flux * vMax;
             flux *= preProd * vMax;
 
             // Calculate Jacobian derivatives for all components
@@ -617,15 +618,28 @@ protected:
                 }
 
 				// Check for pre-factor contribution
-                if (!isSubstrate)
+                if (!isSubstrate && (p->KPrefactor.size() != 0))
                 {
-                    if ((p->KPrefactor.size() != 0) && y[comp] != 0.0) {
-                        unsigned int prekIdx = get2DParamIndex(r, static_cast<unsigned int>(comp));
-                        double pre_k_j = static_cast<double>(p->KPrefactor[prekIdx]);
-                        if (pre_k_j != 0.0)
+                    const unsigned int prekIdx = get2DParamIndex(r, comp);
+                    const double pre_k_j = static_cast<double>(p->KPrefactor[prekIdx]);
+                    if (pre_k_j != 0.0)
+                    {
+                        if (y[comp] != 0.0)
                             dvdy += flux / y[comp];
+                        else
+                        {
+                            double preProdWithoutComp = 1.0;
+                            for (unsigned int rowIdx = 0; rowIdx < static_cast<unsigned int>(_stoichiometry.rows()); ++rowIdx)
+                            {
+                                if (rowIdx == comp)
+                                    continue;
+                                const double otherPreK = static_cast<double>(p->KPrefactor[get2DParamIndex(r, rowIdx)]);
+                                if (otherPreK != 0.0)
+                                    preProdWithoutComp *= otherPreK * y[rowIdx];
+                            }
+                            dvdy += substrateFlux * pre_k_j * preProdWithoutComp;
+                        }
                     }
-                
                 }
                 if (std::abs(dvdy) < 1e-12)
                     continue;
