@@ -208,6 +208,11 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD", "[CellKernel],[J
 
 TEST_CASE("CellKernel Jacobian analytic vs AD", "[CellKernel],[Jacobian],[AD]")
 {
+	// Enable AD before any active is created below (porosity, pore access factors, and the binding
+	// model's parameters): an active only zeroes its gradient over the currently set number of
+	// directions (see the construct-before-grow invariant in sfad-common.hpp).
+	cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
 	const double relTol = 1e-13;
 	const double absTol = 1e-10;
 	const unsigned int nComp = 5;
@@ -249,8 +254,7 @@ TEST_CASE("CellKernel Jacobian analytic vs AD", "[CellKernel],[Jacobian],[AD]")
 			cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 			y[nComp] = 90.0;
 
-			// Enable AD
-			cadet::ad::setDirections(cadet::ad::getMaxDirections());
+			// Enable AD (directions were already raised at the top of the test case)
 			cadet::active* adRes = new cadet::active[nDof];
 			cadet::active* adY = new cadet::active[nDof];
 
@@ -386,6 +390,11 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD with dummy reactio
 
 TEST_CASE("CellKernel Jacobian analytic vs AD with dummy reaction", "[CellKernel],[Jacobian],[AD]")
 {
+	// Enable AD before any active is created below (porosity, pore access factors, and the binding
+	// model's parameters): an active only zeroes its gradient over the currently set number of
+	// directions (see the construct-before-grow invariant in sfad-common.hpp).
+	cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
 	const double relTol = 1e-13;
 	const double absTol = 1e-10;
 	const unsigned int nComp = 5;
@@ -438,8 +447,7 @@ TEST_CASE("CellKernel Jacobian analytic vs AD with dummy reaction", "[CellKernel
 			cadet::test::util::populate(yDot.data(), [=](unsigned int idx) { return std::abs(std::sin((idx + nDof) * 0.13)) + 1e-4; }, nDof);
 			y[nComp] = 90.0;
 
-			// Enable AD
-			cadet::ad::setDirections(cadet::ad::getMaxDirections());
+			// Enable AD (directions were already raised at the top of the test case)
 			cadet::active* adRes = new cadet::active[nDof];
 			cadet::active* adY = new cadet::active[nDof];
 

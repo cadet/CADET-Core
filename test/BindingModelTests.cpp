@@ -189,6 +189,10 @@ int ConfiguredBindingModel::requiredBufferSize() CADET_NOEXCEPT
 
 void testJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, bool isKinetic, const char* config, double const* point, bool skipStructureTest, double FDsignAbsTol, double absTol, double relTol)
 {
+	// Enable AD before the model is configured: an active only zeroes its gradient over the currently
+	// set number of directions (see the construct-before-grow invariant in sfad-common.hpp).
+	cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
 	ConfiguredBindingModel cbm = ConfiguredBindingModel::create(modelName, nComp, nBound, isKinetic, config);
 
 	const unsigned int numDofs = cbm.nComp() + cbm.numBoundStates();
@@ -206,8 +210,7 @@ void testJacobianAD(const char* modelName, unsigned int nComp, unsigned int cons
 	jacAna.resize(numDofs, numDofs);
 	cbm.model().analyticJacobian(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yBound, cbm.nComp(), jacAna.row(cbm.nComp()), cbm.buffer());
 
-	// Enable AD
-	cadet::ad::setDirections(cadet::ad::getMaxDirections());
+	// Enable AD (directions were already raised above, before the model was configured)
 	cadet::active* adRes = new cadet::active[numEq];
 	cadet::active* adY = new cadet::active[numDofs];
 
@@ -330,6 +333,12 @@ void testNormalExternalConsistency(const char* modelName, const char* modelNameE
 
 void testNonBindingConsistency(const char* modelName, unsigned int nComp, unsigned int const* nBound, bool isKinetic, const char* config, bool useAD, double const* point)
 {
+	// Enable AD before the model is configured: an active only zeroes its gradient over the currently
+	// set number of directions (see the construct-before-grow invariant in sfad-common.hpp). This is
+	// done unconditionally because the ordering cannot be kept while making the call depend on useAD;
+	// raising the direction count is harmless on the analytic path.
+	cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
 	ConfiguredBindingModel cbm = ConfiguredBindingModel::create(modelName, nComp, nBound, isKinetic, config);
 
 	const unsigned int numDofs = cbm.nComp() + cbm.numBoundStates();
@@ -345,8 +354,7 @@ void testNonBindingConsistency(const char* modelName, unsigned int nComp, unsign
 	{
 		jac.resize(numEq, numDofs);
 
-		// Enable AD
-		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+		// Enable AD (directions were already raised above, before the model was configured)
 		cadet::active* adRes = new cadet::active[numEq];
 		cadet::active* adY = new cadet::active[numDofs];
 
@@ -393,6 +401,12 @@ void testNonBindingConsistency(const char* modelName, unsigned int nComp, unsign
 
 void testNonbindingBindingConsistency(const char* modelName, unsigned int nCompBnd, unsigned int nCompNonBnd, unsigned int const* nBound, unsigned int const* nBoundNonBnd, bool isKinetic, const char* configBnd, const char* configNonBnd, bool useAD, double const* pointBnd, double const* pointNonBnd)
 {
+	// Enable AD before the models are configured: an active only zeroes its gradient over the currently
+	// set number of directions (see the construct-before-grow invariant in sfad-common.hpp). This is
+	// done unconditionally because the ordering cannot be kept while making the call depend on useAD;
+	// raising the direction count is harmless on the analytic path.
+	cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
 	ConfiguredBindingModel cbmBnd = ConfiguredBindingModel::create(modelName, nCompBnd, nBound, isKinetic, configBnd);
 	ConfiguredBindingModel cbmNonBnd = ConfiguredBindingModel::create(modelName, nCompNonBnd, nBoundNonBnd, isKinetic, configNonBnd);
 
@@ -436,8 +450,7 @@ void testNonbindingBindingConsistency(const char* modelName, unsigned int nCompB
 		jacBnd.resize(numEqBnd, numDofsBnd);
 		jacNonBnd.resize(numEqBnd, numDofsNonBnd);
 
-		// Enable AD
-		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+		// Enable AD (directions were already raised above, before the models were configured)
 		cadet::active* adRes = new cadet::active[numEqBnd];
 		cadet::active* adY = new cadet::active[numDofsNonBnd];
 
