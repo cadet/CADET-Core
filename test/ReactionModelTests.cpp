@@ -524,9 +524,6 @@ namespace reaction
 		JsonParameterProvider pp_setup_1(JsonParameterProvider::fromFile(setupFile1));
 		JsonParameterProvider pp_setup_2(JsonParameterProvider::fromFile(setupFile2));
 
-		nlohmann::json* setupJson1 = pp_setup_1.data();
-		nlohmann::json* setupJson2 = pp_setup_2.data();
-
 		// 1. simulation
 		cadet::Driver drv1;
 		drv1.configure(pp_setup_1);
