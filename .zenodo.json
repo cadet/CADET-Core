@@ -1,5 +1,5 @@
 {
-  "title": "CADET-Core: Version 5.1.1",
+  "title": "CADET-Core: Version 5.1.2",
   "upload_type": "software",
   "creators": [
     {
@@ -69,7 +69,7 @@
     "general rate model",
     "C++"
   ],
-  "version": "5.1.1",
+  "version": "5.1.2",
   "access_right": "open",
   "communities": [
     { "identifier": "open-source" }
