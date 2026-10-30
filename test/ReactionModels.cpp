@@ -15,8 +15,10 @@
 #include "ReactionModelTests.hpp"
 #include "ColumnTests.hpp"
 #include "ReactionModelFactory.hpp"
+#include "SimulationTypes.hpp"
 #include "cadet/Exceptions.hpp"
 #include "common/JsonParameterProvider.hpp"
+#include "linalg/DenseMatrix.hpp"
 #include "model/reaction/ConservedMoieties.hpp"
 
 #include <cmath>
@@ -394,6 +396,34 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with inhibition", "[M
 		})json",
 		point, 1e-15, 1e-15
 	);
+}
+
+TEST_CASE("MichaelisMenten Hill exponent changes flux and analytic Jacobian", "[MichaelisMenten],[Hill],[ReactionModel],[Jacobian],[CI]")
+{
+	const unsigned int nBound[] = { 0, 0 };
+	const unsigned int boundOffset[] = { 0, 0 };
+	cadet::JsonParameterProvider config(R"json({"MM_KMM": [2.0, 0.0], "MM_VMAX": [3.0], "MM_STOICHIOMETRY": [-1.0, 1.0], "MM_EXP": [2.0, 0.0]})json");
+	cadet::ReactionModelFactory factory;
+	std::unique_ptr<cadet::model::IDynamicReactionModel> model(factory.createDynamic("MICHAELIS_MENTEN"));
+	REQUIRE(model != nullptr);
+	REQUIRE(model->configureModelDiscretization(config, 2, nBound, boundOffset));
+	REQUIRE(model->configure(config, 0, 0));
+
+	const unsigned int workspaceSize = model->workspaceSize(2, 0, nBound);
+	std::vector<char> workspaceMemory(workspaceSize);
+	cadet::LinearBufferAllocator workspace(workspaceMemory.data(), workspaceMemory.data() + workspaceSize);
+	const double y[] = { 1.0, 0.0 };
+	double residual[] = { 0.0, 0.0 };
+	model->residualFluxAdd(0.0, 0, cadet::ColumnPosition{ 0.0, 0.0, 0.0 }, 2, y, residual, 1.0, workspace);
+	CHECK(residual[0] == Approx(-0.6).margin(1e-12));
+	CHECK(residual[1] == Approx(0.6).margin(1e-12));
+
+	cadet::linalg::DenseMatrix jac;
+	jac.resize(2, 2);
+	jac.setAll(0.0);
+	model->analyticJacobianAdd(0.0, 0, cadet::ColumnPosition{ 0.0, 0.0, 0.0 }, 2, y, 1.0, jac.row(0), workspace);
+	CHECK(jac.native(0, 0) == Approx(-0.96).margin(1e-12));
+	CHECK(jac.native(1, 0) == Approx(0.96).margin(1e-12));
 }
 
 TEST_CASE("MassActionLaw old interface vs. two separate reactions", "[MassActionLaw],[ReactionModel],[Simulation],[CI]")

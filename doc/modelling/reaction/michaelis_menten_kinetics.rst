@@ -138,6 +138,16 @@ where:
 
 The Michaelis-Menten model with defined prefactor for biomass component in CADET can also be used to represent **Monod kinetics**, as the mathematical formulation is identical.
 
+Hill kinetics
+^^^^^^^^^^^^^
+
+For a substrate without competitive or uncompetitive inhibition, the optional Hill exponent :math:`n_{i,j}` changes its contribution to reaction :math:`j` to
+
+.. math::
+
+    \nu_{i,j} = \frac{c_{i,j}^{n_{i,j}}}{K_{\mathrm{M}_{i,j}}^{n_{i,j}} + c_{i,j}^{n_{i,j}}}.
+
+The exponent must be positive. An exponent of one gives the usual Michaelis-Menten term. Exponents greater than one describe positive cooperativity; exponents between zero and one describe negative cooperativity. Different substrates in the same reaction may have different exponents. A substrate with inhibition must use an exponent of one.
 
 Literature
 ^^^^^^^^^^
