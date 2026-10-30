@@ -35,6 +35,36 @@
 
 namespace
 {
+	/**
+	 * @brief A ReactionSystem that borrows its reaction models instead of owning them
+	 * @details cadet::model::ReactionSystem takes ownership of every reaction model added to it and
+	 *          deletes them in its destructor. In these tests the models are owned by a
+	 *          ConfiguredDynamicReactionModel, which deletes them as well, so handing the same pointer
+	 *          to a plain ReactionSystem frees it twice and corrupts the heap. Release the borrowed
+	 *          pointers before the ReactionSystem is destroyed, so each model is deleted exactly once.
+	 */
+	class BorrowedReactionSystem
+	{
+	public:
+		BorrowedReactionSystem() { }
+		~BorrowedReactionSystem() { _reactions.empty(); }
+
+		BorrowedReactionSystem(const BorrowedReactionSystem&) = delete;
+		BorrowedReactionSystem& operator=(const BorrowedReactionSystem&) = delete;
+
+		inline void addReactionModel(const std::string& phaseType, cadet::model::IDynamicReactionModel* reactionModel)
+		{
+			_reactions.addReactionModel(phaseType, reactionModel);
+		}
+
+		inline bool hasReactions() { return _reactions.hasReactions(); }
+
+		inline const cadet::model::ReactionSystem* get() const { return &_reactions; }
+
+	private:
+		cadet::model::ReactionSystem _reactions;
+	};
+
 	inline void recoverTimeDerivativeMatrixFromColumns(const std::function<void(double*, double*)>& multiplier, cadet::linalg::DenseMatrix& mat, double* vec, double* rhs)
 	{
 		std::fill_n(vec, mat.columns(), 0.0);
@@ -339,7 +369,7 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD with dummy reactio
 		cbm.increaseBufferSize(nTotalBound * (nTotalBound + nComp + 1) * sizeof(cadet::active) + cdrm.requiredBufferSize());
 
 		using namespace cadet::model;
-		ReactionSystem reacModel;
+		BorrowedReactionSystem reacModel;
 		reacModel.addReactionModel("cross_phase", &cdrm.model());
 		REQUIRE(reacModel.hasReactions());
 
@@ -368,7 +398,7 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD with dummy reactio
 							porosity,
 							poreAccessFactor.data(),
 							&cbm.model(),
-							&reacModel
+							reacModel.get()
 					};
 
 			// Compare Jacobians
@@ -433,7 +463,7 @@ TEST_CASE("CellKernel Jacobian analytic vs AD with dummy reaction", "[CellKernel
 		cbm.increaseBufferSize(nTotalBound * (nTotalBound + nComp + 1) * sizeof(cadet::active) + cdrm.requiredBufferSize());
 
 		using namespace cadet::model;
-		ReactionSystem reacModel;
+		BorrowedReactionSystem reacModel;
 		reacModel.addReactionModel("cross_phase", &cdrm.model());
 		REQUIRE(reacModel.hasReactions());
 
@@ -465,7 +495,7 @@ TEST_CASE("CellKernel Jacobian analytic vs AD with dummy reaction", "[CellKernel
 							porosity,
 							poreAccessFactor.data(),
 							&cbm.model(),
-							&reacModel
+							reacModel.get()
 					};
 
 			// Calculate Jacobian via AD
