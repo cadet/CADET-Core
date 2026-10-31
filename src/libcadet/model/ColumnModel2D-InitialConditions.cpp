@@ -1443,6 +1443,10 @@ void ColumnModel2D::leanConsistentInitialSensitivity(const SimulationTime& simTi
 		for (int i = 0; i < idxr.offsetCp(); ++i)
 			_tempState[i] = -adRes[i].getADValue(param);
 
+		// The particle equations are not initialized here, so they contribute nothing. Their entries are
+		// still read by multiplyWithJacobian() below, which would otherwise pick up uninitialized memory.
+		std::fill(_tempState + idxr.offsetCp(), _tempState + numDofs(), 0.0);
+
 		// Compute the correct time derivative of the state vector, i.e.
 		// assemble, factorize, and solve diagonal blocks of linear system
 
