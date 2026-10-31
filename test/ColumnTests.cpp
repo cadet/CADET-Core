@@ -2356,7 +2356,14 @@ namespace column
 			CHECK(rd.exists("IDAS_BDF_ORDER"));
 			CHECK(rd.exists("IDAS_FIRST_INTEGRATION_STEP_SIZE"));
 			CHECK(rd.exists("IDAS_INTEGRATION_STEP_SIZE"));
+
+			rd.popGroup();
 		}
+
+		rd.popGroup();
+
+		// The HDF5Reader destructor does not close the file, so the handle would be leaked
+		rd.closeFile();
 	}
 
 	void testOutputUnitStateTimes(const std::string& uoType, const std::string& spatialMethod)
