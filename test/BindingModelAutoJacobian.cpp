@@ -125,7 +125,9 @@ TEST_CASE("Automatic AD binding model Jacobian vs FD", "[BindingModel],[Jacobian
 
 	cadet::linalg::DenseMatrix jacAna;
 	jacAna.resize(numDofs, numDofs);
-	bm.analyticJacobian(1.0, 0u, cadet::ColumnPosition{0.0, 0.0, 0.0}, yState, nComp, jacAna.row(nComp), workSpace);
+	// analyticJacobian() expects a pointer to the first bound state, and recovers the mobile phase as
+	// y - offsetCp. Passing the start of yState made it read nComp doubles in front of the array.
+	bm.analyticJacobian(1.0, 0u, cadet::ColumnPosition{0.0, 0.0, 0.0}, yState + nComp, nComp, jacAna.row(nComp), workSpace);
 
 	std::vector<double> y(numDofs, 0.0);
 	std::vector<double> dir(numDofs, 0.0);
