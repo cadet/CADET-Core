@@ -509,6 +509,9 @@ protected:
 
 		ReconstructionParams(ParamType v_g = 0.0, ParamType k_g_times_s_g = 0.0, ParamType B_0 = 0.0) : v_g(v_g), k_g_times_s_g(k_g_times_s_g), B_0(B_0) {};
 
+		// Instances of the derived scheme parameters are owned and deleted through this base pointer
+		virtual ~ReconstructionParams() = default;
+
 		void updateParams(ParamType k_g_times_s_g_, ParamType B_0_)
 		{
 			k_g_times_s_g = k_g_times_s_g_;
@@ -756,6 +759,9 @@ protected:
 		double dvG_dc_factor;
 		double dvG_dceq_factor;
 		double dBs_dni_factor;
+
+		// Instances of the derived scheme parameters are owned and deleted through this base pointer
+		virtual ~JacobianParamsBase() = default;
 
 		void updateParams(double vG_factor_, double dBp_dc_, double dBp_dceq_, double dBs_dc_, double dBs_dceq_, double dvG_dc_factor_, double dvG_dceq_factor_, double dBs_dni_factor_)
 		{
