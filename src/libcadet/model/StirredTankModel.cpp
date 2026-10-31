@@ -470,7 +470,7 @@ unsigned int CSTRModel::threadLocalMemorySize() const CADET_NOEXCEPT
 		if (_binding[i] && _binding[i]->requiresWorkspace())
 			lms.fitBlock(_binding[i]->workspaceSize(_nComp, _strideBound[i], _nBound + i * _nComp));
 	}
-	lms.add<double>(_nComp + _totalBound + 1);
+	lms.add<double>(2 * (_nComp + _totalBound + 1));
 	lms.commit();
 
 	// Memory for consistentInitialState()
@@ -485,7 +485,7 @@ unsigned int CSTRModel::threadLocalMemorySize() const CADET_NOEXCEPT
 
 	// Memory for consistentInitialSensitivity
 	lms.add<int>(_totalBound);
-	lms.add<double>(_nComp + _totalBound + 1);
+	lms.add<double>(2 * (_nComp + _totalBound + 1));
 	lms.add<double>(_nComp + _totalBound);
 	lms.add<double>(_totalBound);
 	lms.commit();
@@ -1226,7 +1226,9 @@ void CSTRModel::consistentInitialTimeDerivative(const SimulationTime& simTime, d
 	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
 	// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
-	BufferedArray<double> dFluxDt = tlmAlloc.array<double>(_nComp + _totalBound + 1);
+	// The array doubles as the workspace of the QR factorization of _jacFact below, which needs 2n
+	// entries for an n x n matrix (see DenseMatrix::robustWorkspaceSize())
+	BufferedArray<double> dFluxDt = tlmAlloc.array<double>(2 * (_nComp + _totalBound + 1));
 	unsigned int idx = _nComp;
 	for (unsigned int type = 0; type < _nParType; ++type)
 	{
@@ -2010,7 +2012,10 @@ void CSTRModel::consistentInitialSensitivity(const SimulationTime& simTime, cons
 
 	const linalg::ConstMaskArray mask{static_cast<int*>(qsMask), static_cast<int>(_totalBound)};
 	const int probSize = linalg::numMaskActive(mask);
-	BufferedArray<double> buffer = tlmAlloc.array<double>(_nComp + _totalBound + 1);
+	// Besides the masked multiplier and the row scaling factors, the buffer is the workspace of the QR
+	// factorization of _jacFact below, which needs 2n entries for an n x n matrix (see
+	// DenseMatrix::robustWorkspaceSize())
+	BufferedArray<double> buffer = tlmAlloc.array<double>(2 * (_nComp + _totalBound + 1));
 	BufferedArray<double> rhs = tlmAlloc.array<double>(probSize);
 	BufferedArray<double> rhsUnmasked = tlmAlloc.array<double>(_totalBound);
 
