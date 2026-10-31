@@ -141,7 +141,12 @@ void BandMatrix::submatrixMultiplyVector(const double* const x, int startRow, in
 			if (cadet_likely((curDiag >= -lowerBand) && (curDiag <= upperBand)))
 				temp += centered(r + startRow, curDiag) * x[c];
 		}
-		y[r] = alpha * temp + beta * y[r];
+		// As in BLAS, beta == 0 means that y is not read. Multiplying it in anyway would turn an
+		// uninitialized destination into NaN whenever its bytes happen to form a NaN or infinity.
+		if (beta == 0.0)
+			y[r] = alpha * temp;
+		else
+			y[r] = alpha * temp + beta * y[r];
 	}
 
 	// @todo Figure out why LAPACK implementation below does not work
