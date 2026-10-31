@@ -1365,7 +1365,8 @@ void ColumnModel2D::consistentInitialSensitivity(const SimulationTime& simTime, 
 
 		} CADET_PARFOR_END;
 
-		Eigen::Map<Eigen::VectorXd> yDot(sensYdot, numPureDofs());
+		// The right hand side of the pure DOFs starts after the inlet DOFs, just as the Jacobian block below
+		Eigen::Map<Eigen::VectorXd> yDot(sensYdot + idxr.offsetC(), numPureDofs());
 
 		// Factorize
 		_linearSolver->factorize(_globalJacDisc, 0, static_cast<int>(_globalJacDisc.rows()));
