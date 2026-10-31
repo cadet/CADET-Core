@@ -750,10 +750,10 @@ unsigned int ColumnModel2D::threadLocalMemorySize() const CADET_NOEXCEPT
 	lms.commit();
 
 	// Memory for consistentInitialSensitivity
-	const unsigned int maxStrideParBlock = *std::max_element(_disc.nParPoints, _disc.nParPoints + _disc.nParType) * (_disc.nComp + maxStrideBound);
-	lms.add<double>(_disc.nComp + maxStrideBound);
-	lms.add<double>(maxStrideParBlock);
-	lms.add<lapackInt_t>(maxStrideBound);
+	lms.add<double>(_disc.nComp + maxStrideBound); // rhs
+	lms.add<double>(maxStrideBound); // rhsUnmasked
+	lms.add<double>(_disc.nComp + maxStrideBound); // maskedMultiplier
+	lms.add<double>(_disc.nComp + maxStrideBound); // scaleFactors
 	lms.commit();
 
 	return lms.bufferSize();
