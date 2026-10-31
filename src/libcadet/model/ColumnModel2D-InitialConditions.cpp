@@ -1239,6 +1239,9 @@ void ColumnModel2D::consistentInitialSensitivity(const SimulationTime& simTime, 
 			const linalg::ConstMaskArray mask{ qsMask, static_cast<int>(_disc.strideBound[parType]) };
 			const int probSize = linalg::numMaskActive(mask);
 
+			if (probSize == 0)
+				continue;
+
 			for (unsigned int pblk = 0; pblk < _disc.axNPoints * _disc.radNPoints; ++pblk)
 			{
 				// Get workspace memory
@@ -1247,53 +1250,55 @@ void ColumnModel2D::consistentInitialSensitivity(const SimulationTime& simTime, 
 				BufferedArray<double> rhsBuffer = tlmAlloc.array<double>(probSize);
 				double* const rhs = static_cast<double*>(rhsBuffer);
 
-				// The product below is formed over the full particle block, so the buffer receiving it
-				// has to hold that many entries
-				BufferedArray<double> rhsUnmaskedBuffer = tlmAlloc.array<double>(idxr.strideParBlock(parType));
+				BufferedArray<double> rhsUnmaskedBuffer = tlmAlloc.array<double>(idxr.strideParBound(parType));
 				double* const rhsUnmasked = static_cast<double*>(rhsUnmaskedBuffer);
 
-				// factorize() stores the pivots of the LU decomposition, so the matrix needs an array for
-				// them. Its dimension is the number of active (quasi-stationary) states, which is what
-				// copyMatrixSubset() writes below, not the full length of the mask.
-				BufferedArray<lapackInt_t> pivotBuffer = tlmAlloc.array<lapackInt_t>(probSize);
+				BufferedArray<double> maskedMultiplierBuffer = tlmAlloc.array<double>(idxr.strideParNode(parType));
+				double* const maskedMultiplier = static_cast<double*>(maskedMultiplierBuffer);
 
-				// Reuse memory of sparse matrix for dense matrix
-				linalg::DenseMatrixView jacobianMatrix(_globalJacDisc.valuePtr() + _globalJacDisc.outerIndexPtr()[idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ static_cast<unsigned int>(pblk) }) - idxr.offsetC()], static_cast<lapackInt_t*>(pivotBuffer), probSize, probSize);
+				BufferedArray<double> scaleFactorBuffer = tlmAlloc.array<double>(probSize);
+				double* const scaleFactors = static_cast<double*>(scaleFactorBuffer);
 
-				double* const maskedMultiplier = _tempState + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ static_cast<unsigned int>(pblk) });
-				double* const scaleFactors = _tempState + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ static_cast<unsigned int>(pblk) });
+				// The matrix is factorized, so it has to own its pivot array
+				linalg::DenseMatrix jacobianMatrix;
+				jacobianMatrix.resize(probSize, probSize);
 
-				const int jacRowOffset = idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ static_cast<unsigned int>(pblk) }) - idxr.offsetC();
-				const int jacColOffset = jacRowOffset;
-				const int localQOffset = idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ static_cast<unsigned int>(pblk) }) + idxr.strideParLiquid();
+				for (unsigned int shell = 0; shell < _disc.nParPoints[parType]; ++shell)
+				{
+					// The Jacobian does not contain the inlet DOFs, whereas the state vector does
+					const int shellOffset = idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ static_cast<unsigned int>(pblk) }) + static_cast<int>(shell) * idxr.strideParNode(parType);
+					const int qOffset = shellOffset + idxr.strideParLiquid();
+					const int jacShellOffset = shellOffset - idxr.offsetC();
+					const int jacQOffset = qOffset - idxr.offsetC();
 
-				// Extract subproblem Jacobian from full Jacobian
-				jacobianMatrix.setAll(0.0);
-				linalg::copyMatrixSubset(_globalJac, mask, mask, jacRowOffset, jacColOffset, jacobianMatrix);
+					// Extract subproblem Jacobian from full Jacobian
+					jacobianMatrix.setAll(0.0);
+					linalg::copyMatrixSubset(_globalJac, mask, mask, jacQOffset, jacQOffset, jacobianMatrix);
 
-				// Construct right hand side
-				linalg::selectVectorSubset(sensYdot + localQOffset, mask, rhs);
+					// Construct right hand side, which holds -dF / dp - dF / dy * s at this point
+					linalg::selectVectorSubset(sensYdot + qOffset, mask, rhs);
 
-				// Zero out masked elements
-				std::copy_n(sensY + localQOffset - idxr.strideParLiquid(), _disc.nComp + _disc.strideBound[parType], maskedMultiplier);
-				linalg::fillVectorSubset(maskedMultiplier + _disc.nComp, mask, 0.0);
+					// Zero out the unknown (masked) elements, the remainder of the shell is already known
+					std::copy_n(sensY + shellOffset, idxr.strideParNode(parType), maskedMultiplier);
+					linalg::fillVectorSubset(maskedMultiplier + _disc.nComp, mask, 0.0);
 
-				// Assemble right hand side
-				Eigen::Map<Eigen::VectorXd> maskedMultiplier_eigen(maskedMultiplier, idxr.strideParBlock(parType));
-				Eigen::Map<Eigen::VectorXd> rhsUnmasked_eigen(rhsUnmasked, idxr.strideParBlock(parType));
-				rhsUnmasked_eigen = _globalJac.block(jacRowOffset, jacColOffset, idxr.strideParBlock(parType), idxr.strideParBlock(parType)) * maskedMultiplier_eigen;
-				linalg::vectorSubsetAdd(rhsUnmasked, mask, -1.0, 1.0, rhs);
+					// Subtract the contribution of the known part of the shell from the right hand side
+					Eigen::Map<Eigen::VectorXd> maskedMultiplier_eigen(maskedMultiplier, idxr.strideParNode(parType));
+					Eigen::Map<Eigen::VectorXd> rhsUnmasked_eigen(rhsUnmasked, idxr.strideParBound(parType));
+					rhsUnmasked_eigen = _globalJac.block(jacQOffset, jacShellOffset, idxr.strideParBound(parType), idxr.strideParNode(parType)) * maskedMultiplier_eigen;
+					linalg::vectorSubsetAdd(rhsUnmasked, mask, -1.0, 1.0, rhs);
 
-				// Precondition
-				jacobianMatrix.rowScaleFactors(scaleFactors);
-				jacobianMatrix.scaleRows(scaleFactors);
+					// Precondition
+					jacobianMatrix.rowScaleFactors(scaleFactors);
+					jacobianMatrix.scaleRows(scaleFactors);
 
-				// Solve
-				jacobianMatrix.factorize();
-				jacobianMatrix.solve(scaleFactors, rhs);
+					// Solve
+					jacobianMatrix.factorize();
+					jacobianMatrix.solve(scaleFactors, rhs);
 
-				// Write back
-				linalg::applyVectorSubset(rhs, mask, sensY + localQOffset);
+					// Write back
+					linalg::applyVectorSubset(rhs, mask, sensY + qOffset);
+				}
 			}
 		}
 
