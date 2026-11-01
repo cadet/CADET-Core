@@ -196,6 +196,13 @@ public:
     }
 
     void solve(double* rhs, int size) override {
+        // Using a decomposition that failed is undefined. SparseLU, for one, leaves every row it
+        // never pivoted at -1 in its row permutation and then uses those entries as write indices,
+        // which writes outside the destination. Eigen only guards this with an assert that is
+        // compiled out. Leave rhs untouched instead; info() keeps reporting the failure.
+        if (solver.info() != Eigen::Success)
+            return;
+
         Eigen::Map<Eigen::VectorXd> b(rhs, size);
         _x = solver.solve(b);
         b = _x;
@@ -225,6 +232,13 @@ public:
     }
 
     void solve(double* rhs, int size) override {
+        // Using a decomposition that failed is undefined. SparseLU, for one, leaves every row it
+        // never pivoted at -1 in its row permutation and then uses those entries as write indices,
+        // which writes outside the destination. Eigen only guards this with an assert that is
+        // compiled out. Leave rhs untouched instead; info() keeps reporting the failure.
+        if (solver.info() != Eigen::Success)
+            return;
+
         Eigen::Map<Eigen::VectorXd> b(rhs, size);
         _x = solver.solve(b);
         b = _x;
@@ -260,6 +274,13 @@ public:
     }
 
     void solve(double* rhs, int size) override {
+        // Using a decomposition that failed is undefined. SparseLU, for one, leaves every row it
+        // never pivoted at -1 in its row permutation and then uses those entries as write indices,
+        // which writes outside the destination. Eigen only guards this with an assert that is
+        // compiled out. Leave rhs untouched instead; info() keeps reporting the failure.
+        if (solver.info() != Eigen::Success)
+            return;
+
         Eigen::Map<Eigen::VectorXd> b(rhs, size);
         _x = solver.solve(b);
         b = _x;
@@ -295,6 +316,13 @@ public:
     }
 
     void solve(double* rhs, int size) override {
+        // Using a decomposition that failed is undefined. SparseLU, for one, leaves every row it
+        // never pivoted at -1 in its row permutation and then uses those entries as write indices,
+        // which writes outside the destination. Eigen only guards this with an assert that is
+        // compiled out. Leave rhs untouched instead; info() keeps reporting the failure.
+        if (solver.info() != Eigen::Success)
+            return;
+
         Eigen::Map<Eigen::VectorXd> b(rhs, size);
         _x = solver.solve(b);
         b = _x;
