@@ -271,6 +271,12 @@ protected:
 
 	void addTimeDerivativeToJacobianParticleShell(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, unsigned int parType);
 
+	unsigned int axialAdPeriod() const CADET_NOEXCEPT;
+	unsigned int radialAdPeriod() const CADET_NOEXCEPT;
+	unsigned int inletJacobianAdDirs() const CADET_NOEXCEPT;
+	unsigned int bulkJacobianAdDirs() const CADET_NOEXCEPT;
+	unsigned int particleJacobianAdDirOffset(unsigned int parType) const CADET_NOEXCEPT;
+	unsigned int jacobianAdDirForColumn(int col) const CADET_NOEXCEPT;
 	unsigned int numAdDirsForJacobian() const CADET_NOEXCEPT;
 
 	int multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue);

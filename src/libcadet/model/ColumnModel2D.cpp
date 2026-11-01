@@ -759,10 +759,82 @@ unsigned int ColumnModel2D::threadLocalMemorySize() const CADET_NOEXCEPT
 	return lms.bufferSize();
 }
 
+unsigned int ColumnModel2D::axialAdPeriod() const CADET_NOEXCEPT
+{
+	// A bulk equation depends on at most the two axial elements on either side of its own, so the
+	// axial dependency window of a row spans at most five elements, independently of the mesh.
+	// Repeating the AD directions with that period keeps every column of a window in its own direction.
+	return std::min(_disc.axNPoints, 5u * static_cast<unsigned int>(_convDispOp.axNNodes()));
+}
+
+unsigned int ColumnModel2D::radialAdPeriod() const CADET_NOEXCEPT
+{
+	// Same reasoning as in axialAdPeriod(), applied to the radial direction
+	return std::min(_disc.radNPoints, 5u * _disc.radNNodes);
+}
+
+unsigned int ColumnModel2D::inletJacobianAdDirs() const CADET_NOEXCEPT
+{
+	// Inlet DOFs enter the equations of the first axial element only, and there only within their
+	// own radial element, so the radial period covers their dependency window as well
+	return radialAdPeriod() * _disc.nComp;
+}
+
+unsigned int ColumnModel2D::bulkJacobianAdDirs() const CADET_NOEXCEPT
+{
+	return axialAdPeriod() * radialAdPeriod() * _disc.nComp;
+}
+
+unsigned int ColumnModel2D::particleJacobianAdDirOffset(unsigned int parType) const CADET_NOEXCEPT
+{
+	Indexer idxr(_disc);
+
+	unsigned int offset = inletJacobianAdDirs() + bulkJacobianAdDirs();
+
+	for (unsigned int type = 0; type < parType; ++type)
+		offset += idxr.strideParBlock(type);
+
+	return offset;
+}
+
+/**
+ * @brief Returns the AD direction that the given column of the global Jacobian is seeded with
+ * @param [in] col Column index of the global Jacobian, i.e. pure DOF index
+ * @return AD direction, relative to the first Jacobian direction of this unit operation
+ */
+unsigned int ColumnModel2D::jacobianAdDirForColumn(int col) const CADET_NOEXCEPT
+{
+	Indexer idxr(_disc);
+
+	const int bulkDofs = idxr.offsetCp() - idxr.offsetC();
+
+	if (col < bulkDofs)
+	{
+		const int axPoint = col / idxr.strideColAxialNode();
+		const int radPoint = (col % idxr.strideColAxialNode()) / idxr.strideColRadialNode();
+		const int comp = col % idxr.strideColRadialNode();
+		const unsigned int radPeriod = radialAdPeriod();
+
+		return inletJacobianAdDirs() + ((axPoint % axialAdPeriod()) * radPeriod + radPoint % radPeriod) * _disc.nComp + comp;
+	}
+
+	// Particle column: determine its type and its position within the particle block of its bulk point
+	const unsigned int parDof = col - bulkDofs;
+	unsigned int type = 0;
+
+	while (type + 1u < _disc.nParType && parDof >= _disc.parTypeOffset[type + 1u])
+		++type;
+
+	return particleJacobianAdDirOffset(type) + (parDof - _disc.parTypeOffset[type]) % idxr.strideParBlock(type);
+}
+
 unsigned int ColumnModel2D::numAdDirsForJacobian() const CADET_NOEXCEPT
 {
-	// todo compressed/seeded AD
-	return numDofs();
+	// The global Jacobian is seeded in a compressed way: the inlet and bulk directions repeat
+	// outside the dependency window of a bulk equation, and each particle type gets one dense set
+	// of directions that is reused for the particle block of every bulk point, since a particle
+	// block couples to the bulk at its own bulk point only.
+	return particleJacobianAdDirOffset(_disc.nParType);
 }
 
 void ColumnModel2D::useAnalyticJacobian(const bool analyticJac)
@@ -831,16 +903,56 @@ void ColumnModel2D::prepareADvectors(const AdJacobianParams& adJac) const
 
 	Indexer idxr(_disc);
 
-	const int adDirOffset = adJac.adDirOffset;
-	active * adVec = adJac.adY;
+	const unsigned int adDirOffset = adJac.adDirOffset;
+	const unsigned int axPeriod = axialAdPeriod();
+	const unsigned int radPeriod = radialAdPeriod();
+	const unsigned int inletDirs = inletJacobianAdDirs();
+	active* const adVec = adJac.adY;
 
-	// Dense seeding implemented here, could be improved by figuring out the sparse seeding / colouring
-
-	// Start with diagonal Jacobian element
-	for (int eq = 0; eq < numDofs(); ++eq)
+	// Inlet DOFs. They are seen by the equations of the first axial element only, and there only
+	// within their own radial element, so one group of directions over the radial period suffices.
+	for (unsigned int rad = 0; rad < _disc.radNPoints; ++rad)
 	{
-		adVec[eq].fillADValue(adDirOffset, 0.0); // Clear previously set directions
-		adVec[eq].setADValue(adDirOffset + eq, 1.0);
+		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+		{
+			active& dof = adVec[rad * idxr.strideColRadialNode() + comp];
+			dof.fillADValue(adDirOffset, 0.0); // Clear previously set directions
+			dof.setADValue(adDirOffset + (rad % radPeriod) * _disc.nComp + comp, 1.0);
+		}
+	}
+
+	// Bulk DOFs. A bulk equation depends on a bounded number of axial and radial points around its
+	// own, so the directions repeat with the period of that window in both directions.
+	for (unsigned int ax = 0; ax < _disc.axNPoints; ++ax)
+	{
+		for (unsigned int rad = 0; rad < _disc.radNPoints; ++rad)
+		{
+			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+			{
+				active& dof = adVec[idxr.offsetC() + ax * idxr.strideColAxialNode() + rad * idxr.strideColRadialNode() + comp];
+				dof.fillADValue(adDirOffset, 0.0);
+				dof.setADValue(adDirOffset + inletDirs + ((ax % axPeriod) * radPeriod + rad % radPeriod) * _disc.nComp + comp, 1.0);
+			}
+		}
+	}
+
+	// Particle DOFs. A particle block couples to the bulk at its own bulk point only, so one dense
+	// set of directions per particle type is reused for the block of every bulk point.
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
+	{
+		const unsigned int parDirOffset = adDirOffset + particleJacobianAdDirOffset(type);
+		const int blockSize = idxr.strideParBlock(type);
+
+		for (unsigned int point = 0; point < _disc.nBulkPoints; ++point)
+		{
+			active* const blockVec = adVec + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ point });
+
+			for (int eq = 0; eq < blockSize; ++eq)
+			{
+				blockVec[eq].fillADValue(adDirOffset, 0.0);
+				blockVec[eq].setADValue(parDirOffset + eq, 1.0);
+			}
+		}
 	}
 }
 
@@ -853,26 +965,42 @@ void ColumnModel2D::extractJacobianFromAD(active const* const adRes, unsigned in
 {
 	Indexer idxr(_disc);
 
-	active const* const adResUnit = adRes + adDirOffset + idxr.offsetC();
+	active const* const adResUnit = adRes + idxr.offsetC();
 
-	for (int i = 0; i < _convDispOp.axNNodes() * _disc.radNPoints * _disc.nComp; i++)
+	const unsigned int radPeriod = radialAdPeriod();
+
+	// Inlet Jacobian block. Only the equations of the first axial element see the inlet DOFs, and
+	// there an equation depends on the inlet of its own radial element and component only (see
+	// TwoDimensionalConvectionDispersionOperatorDG::assembleConvDispJacobian()). Entries outside
+	// that pattern stay zero; reading them would mix in the inlet DOFs that share their direction.
+	_jacInlet.setZero();
+
+	for (int zNode = 0; zNode < _convDispOp.axNNodes(); ++zNode)
 	{
-		for (int j = 0; j < _disc.radNPoints * _disc.nComp; j++)
+		for (unsigned int radElem = 0; radElem < _disc.radNElem; ++radElem)
 		{
-			const double val = adResUnit[i].getADValue(j + adDirOffset);
-			if(std::abs(val) > 1e-15)
-				_jacInlet(i, j) = val;
+			for (unsigned int rNode = 0; rNode < _disc.radNNodes; ++rNode)
+			{
+				const int row = zNode * idxr.strideColAxialNode() + (radElem * _disc.radNNodes + rNode) * idxr.strideColRadialNode();
+
+				for (unsigned int depNode = 0; depNode < _disc.radNNodes; ++depNode)
+				{
+					const unsigned int radPoint = radElem * _disc.radNNodes + depNode;
+
+					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+						_jacInlet(row + comp, radPoint * _disc.nComp + comp) = adResUnit[row + comp].getADValue(adDirOffset + (radPoint % radPeriod) * _disc.nComp + comp);
+				}
+			}
 		}
 	}
 
-	for (int i = 0; i < _globalJac.rows(); i++)
+	// Global Jacobian. Every entry of the sparsity pattern is read from the direction that its
+	// column was seeded with. Since the directions only repeat outside the dependency window of an
+	// equation, no two entries of a row share a direction.
+	for (int row = 0; row < _globalJac.outerSize(); ++row)
 	{
-		for (int j = 0; j < _globalJac.cols(); j++)
-		{
-			const double val = adResUnit[i].getADValue(j + idxr.offsetC() + adDirOffset);
-			if (std::abs(val) > 1e-15)
-			_globalJac.coeffRef(i, j) = val;
-		}
+		for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(_globalJac, row); it; ++it)
+			it.valueRef() = adResUnit[row].getADValue(adDirOffset + jacobianAdDirForColumn(it.col()));
 	}
 
 	if (!_globalJac.isCompressed())
@@ -897,30 +1025,50 @@ void ColumnModel2D::checkAnalyticJacobianAgainstAd(active const* const adRes, un
 	int row = 0;
 	int col = 0;
 
-	active const* const adResUnit = adRes + adDirOffset + idxr.offsetC();
+	active const* const adResUnit = adRes + idxr.offsetC();
 
-	for (int i = 0; i < _convDispOp.axNNodes() * _disc.radNPoints * _disc.nComp; i++)
+	const unsigned int radPeriod = radialAdPeriod();
+
+	// The AD inlet Jacobian is only known on the pattern that extractJacobianFromAD() reads
+	for (int zNode = 0; zNode < _convDispOp.axNNodes(); ++zNode)
 	{
-		for (int j = 0; j < _disc.radNPoints * _disc.nComp; j++)
+		for (unsigned int radElem = 0; radElem < _disc.radNElem; ++radElem)
 		{
-			const double localError = std::abs(_jacInlet(i, j) - adResUnit[i].getADValue(j + adDirOffset));
-			if (localError > 1e-14)
+			for (unsigned int rNode = 0; rNode < _disc.radNNodes; ++rNode)
 			{
-				inletJacMaxError = std::max(inletJacMaxError, localError);
-				row = i;
-				col = j;
-				LOG(Debug) << "Error in Inlet Jacobian: " << localError << " at row, col: " << i << ", " << j;
+				const int i = zNode * idxr.strideColAxialNode() + (radElem * _disc.radNNodes + rNode) * idxr.strideColRadialNode();
+
+				for (unsigned int depNode = 0; depNode < _disc.radNNodes; ++depNode)
+				{
+					const unsigned int radPoint = radElem * _disc.radNNodes + depNode;
+
+					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+					{
+						const int j = radPoint * _disc.nComp + comp;
+						const double localError = std::abs(_jacInlet(i + comp, j) - adResUnit[i + comp].getADValue(adDirOffset + (radPoint % radPeriod) * _disc.nComp + comp));
+						if (localError > 1e-14)
+						{
+							inletJacMaxError = std::max(inletJacMaxError, localError);
+							row = i + comp;
+							col = j;
+							LOG(Debug) << "Error in Inlet Jacobian: " << localError << " at row, col: " << row << ", " << col;
+						}
+					}
+				}
 			}
 		}
 	}
 
 	double mainJacMaxError = 0.0;
 
-	for (int i = 0; i < _globalJac.rows(); i++)
+	// The AD Jacobian is only known on the sparsity pattern, since the seeding is compressed
+	for (int i = 0; i < _globalJac.outerSize(); i++)
 	{
-		for (int j = 0; j < _globalJac.cols(); j++)
+		for (Eigen::SparseMatrix<double, Eigen::RowMajor>::InnerIterator it(_globalJac, i); it; ++it)
 		{
-			const double localError = std::abs(_globalJac.coeff(i, j) - adResUnit[i].getADValue(j + idxr.offsetC() + adDirOffset));
+			const int j = it.col();
+			const double adValue = adResUnit[i].getADValue(adDirOffset + jacobianAdDirForColumn(j));
+			const double localError = std::abs(it.value() - adValue);
 			if (localError > 1e-14)
 			{
 				mainJacMaxError = std::max(mainJacMaxError, localError);
@@ -933,9 +1081,9 @@ void ColumnModel2D::checkAnalyticJacobianAgainstAd(active const* const adRes, un
 					LOG(Debug) << "Error in film diffusion Jacobian: " << localError << " at row, col: " << i << ", " << j;
 				else
 					LOG(Debug) << "Error in particle Jacobian: " << localError << " at row, col: " << i << ", " << j;
-			
-				LOG(Debug) << "AD Jacobian value: " << adResUnit[i].getADValue(j + idxr.offsetC() + adDirOffset);
-				LOG(Debug) << "Analytical Jacobian value: " << _globalJac.coeff(i, j);
+
+				LOG(Debug) << "AD Jacobian value: " << adValue;
+				LOG(Debug) << "Analytical Jacobian value: " << it.value();
 			}
 		}
 	}
