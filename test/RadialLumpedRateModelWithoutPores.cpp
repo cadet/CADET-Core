@@ -18,7 +18,7 @@
 #include "Utils.hpp"
 #include "JsonTestModels.hpp"
 
-TEST_CASE("Radial LRM numerical Benchmark with parameter sensitivities for linear case", "[RadLRM],[Simulation],[Reference],[Sensitivity],[CI_sens12]")
+TEST_CASE("Radial LRM numerical Benchmark with parameter sensitivities for linear case", "[RadLRM],[Simulation],[Reference],[Sensitivity],[CI_sens]")
 {
 	const std::string& modelFilePath = std::string("/data/model_radLRM_dynLin_1comp_sensbenchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_radLRM_dynLin_1comp_sensbenchmark1_FV_Z32.h5");
