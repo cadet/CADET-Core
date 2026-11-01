@@ -447,7 +447,7 @@ TEST_CASE("Column_1D as DPF numerical Benchmark1", "[AxialColumn1D],[DG],[DG1D],
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
-TEST_CASE("Column_1D as GRM numerical Benchmark1 with parameter sensitivities for linear case", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens17]")
+TEST_CASE("Column_1D as GRM numerical Benchmark1 with parameter sensitivities for linear case", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens]")
 {
 	std::string modelFilePath = std::string("/data/model_COL1D_GRM_dynLin_1comp_benchmark1.json");
 	std::string refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark1_cDG_P3Z8_GSM_parP3parZ1.h5");
@@ -469,7 +469,7 @@ TEST_CASE("Column_1D as GRM numerical Benchmark1 for linear case with surface di
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false);
 }
 
-TEST_CASE("Column_1D as LRMP numerical Benchmark with parameter sensitivities for linear case", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens22]")
+TEST_CASE("Column_1D as LRMP numerical Benchmark with parameter sensitivities for linear case", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens]")
 {
 	const std::string& modelFilePath = std::string("/data/model_COL1D_LRMP_dynLin_1comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRMP_dynLin_1comp_sensbenchmark1_DG_P3Z8.h5");
@@ -480,7 +480,7 @@ TEST_CASE("Column_1D as LRMP numerical Benchmark with parameter sensitivities fo
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
-TEST_CASE("Column_1D as pseudo-LRMP (GRM with single FV cell) numerical Benchmark with parameter sensitivities for linear case", "[AxialColumn1D],[DGFV],[Simulation],[Reference],[Sensitivity],[CI_sens25]")
+TEST_CASE("Column_1D as pseudo-LRMP (GRM with single FV cell) numerical Benchmark with parameter sensitivities for linear case", "[AxialColumn1D],[DGFV],[Simulation],[Reference],[Sensitivity],[CI_sens]")
 {
 	const std::string& modelFilePath = std::string("/data/model_COL1D_pseudoGRM_dynLin_1comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRMP_dynLin_1comp_sensbenchmark1_DG_P3Z8.h5");
@@ -493,7 +493,7 @@ TEST_CASE("Column_1D as pseudo-LRMP (GRM with single FV cell) numerical Benchmar
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, *discDGFV, true);
 }
 
-TEST_CASE("Column_1D as GRM numerical Benchmark2 with parameter sensitivities for linear case", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens18]")
+TEST_CASE("Column_1D as GRM numerical Benchmark2 with parameter sensitivities for linear case", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens]")
 {
 	std::string modelFilePath = std::string("/data/model_COL1D_GRM_dynLin_1comp_benchmark2.json");
 	std::string refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark2_cDG_P3Z8_GSM_parP3parZ1.h5");
@@ -504,7 +504,7 @@ TEST_CASE("Column_1D as GRM numerical Benchmark2 with parameter sensitivities fo
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
-TEST_CASE("Column_1D as GRM numerical Benchmark with parameter sensitivities and multiplexing for 2parType 2comp linear case", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens19]")
+TEST_CASE("Column_1D as GRM numerical Benchmark with parameter sensitivities and multiplexing for 2parType 2comp linear case", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens]")
 {
 	const std::string modelFilePath = std::string("/data/model_COL1DparType2_GRM_dynLin_2comp_sensbenchmark1.json");
 	const std::string refFilePath = std::string("/data/ref_GRMparType2_dynLin_2comp_sensbenchmark1_cDG_P3Z4_DGexInt_parP3parZ2.h5");
@@ -515,7 +515,7 @@ TEST_CASE("Column_1D as GRM numerical Benchmark with parameter sensitivities and
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
-TEST_CASE("Column_1D as GRM numerical Benchmark with parameter sensitivities for SMA LWE case", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens20]")
+TEST_CASE("Column_1D as GRM numerical Benchmark with parameter sensitivities for SMA LWE case", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens]")
 {
 	const std::string modelFilePath = std::string("/data/model_COL1D_GRM_reqSMA_4comp_benchmark1.json");
 	const std::string refFilePath = std::string("/data/ref_GRM_reqSMA_4comp_sensbenchmark1_exIntDG_P3Z8_GSM_parP3parZ1.h5");
@@ -526,7 +526,7 @@ TEST_CASE("Column_1D as GRM numerical Benchmark with parameter sensitivities for
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 
-TEST_CASE("Column_1D as LRMP numerical Benchmark with parameter sensitivities for SMA LWE case", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens23]")
+TEST_CASE("Column_1D as LRMP numerical Benchmark with parameter sensitivities for SMA LWE case", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens]")
 {
 	const std::string& modelFilePath = std::string("/data/model_COL1D_LRMP_reqSMA_4comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_LRMP_reqSMA_4comp_sensbenchmark1_DG_P3Z8.h5");
@@ -537,7 +537,7 @@ TEST_CASE("Column_1D as LRMP numerical Benchmark with parameter sensitivities fo
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "000", absTol, relTol, disc, true);
 }
 
-TEST_CASE("Column_1D with mixed general rate and homogeneous particle types and linear binding numerical Benchmark with parameter sensitivities", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens24]")
+TEST_CASE("Column_1D with mixed general rate and homogeneous particle types and linear binding numerical Benchmark with parameter sensitivities", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI_sens]")
 {
 	const std::string& modelFilePath = std::string("/data/model_COL1D_2parTypeMixed_2comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_COL1D_2parTypeMixed_2comp_benchmark1.h5");

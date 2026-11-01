@@ -136,38 +136,11 @@ jobs:
       - name: Run CI test set II - sensitivities
         if: always() && steps.build.conclusion == 'success'
         run: |
-          failed=0
-          failed_tests=()
-          for i in {1..24}; do
-            if ! ${BUILD_DIR}/test/testRunner "[CI_sens${i}]"; then
-              echo -e "::error::Test [CI_sens${i}] failed\n"
-
-              failed=1
-              failed_tests+=("[CI_sens${i}]")
-            fi
-          done
-          if [ $failed -ne 0 ]; then
-            echo "Failed tests: ${failed_tests[*]}"
-          fi
-          exit $failed
+          ${BUILD_DIR}/test/testRunner [CI_sens]
       - name: Run CI test set III - crystallization
         if: always() && steps.build.conclusion == 'success'
         run: |
-          failed=0
-          failed_tests=()
-          for i in {1..20}; do
-            if ! ${BUILD_DIR}/test/testRunner "[CI_cry${i}]"; then
-              echo -e "::error::Test [CI_cry${i}] failed\n"
-
-              failed=1
-              failed_tests+=("[CI_cry${i}]")
-            fi
-          done
-          if [ $failed -ne 0 ]; then
-            echo "Failed tests: ${failed_tests[*]}"
-          fi
-
-          exit $failed
+          ${BUILD_DIR}/test/testRunner [CI_cry]
       - name: Run CI test set IV - callbacks
         if: always() && steps.build.conclusion == 'success'
         run: |

@@ -21,7 +21,7 @@
 #include "Utils.hpp"
 
 
-TEST_CASE("Radial GRM numerical Benchmark with parameter sensitivities for linear case", "[RadGRM],[Simulation],[Reference],[Sensitivity],[CI_sens11]")
+TEST_CASE("Radial GRM numerical Benchmark with parameter sensitivities for linear case", "[RadGRM],[Simulation],[Reference],[Sensitivity],[CI_sens]")
 {
 	const std::string& modelFilePath = std::string("/data/model_radGRM_dynLin_1comp_sensbenchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_radGRM_dynLin_1comp_sensbenchmark1_FV_Z32parZ4.h5");

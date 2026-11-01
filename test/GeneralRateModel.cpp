@@ -59,7 +59,7 @@ TEST_CASE("GRM Jacobian forward vs backward flow", "[GRM],[FV],[UnitOp],[Residua
 	}
 }
 
-TEST_CASE("GRM numerical Benchmark1 with parameter sensitivities for linear case", "[GRM],[FV],[Simulation],[Reference],[Sensitivity],[CI_sens1]")
+TEST_CASE("GRM numerical Benchmark1 with parameter sensitivities for linear case", "[GRM],[FV],[Simulation],[Reference],[Sensitivity],[CI_sens]")
 {
 	std::string modelFilePath = std::string("/data/model_COL1D_GRM_dynLin_1comp_benchmark1.json");
 	std::string refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark1_FV_Z32parZ4.h5");
@@ -70,7 +70,7 @@ TEST_CASE("GRM numerical Benchmark1 with parameter sensitivities for linear case
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
-TEST_CASE("GRM numerical Benchmark2 with parameter sensitivities for linear case", "[GRM],[FV],[Simulation],[Reference],[Sensitivity],[CI_sens1]")
+TEST_CASE("GRM numerical Benchmark2 with parameter sensitivities for linear case", "[GRM],[FV],[Simulation],[Reference],[Sensitivity],[CI_sens]")
 {
 	std::string modelFilePath = std::string("/data/model_COL1D_GRM_dynLin_1comp_benchmark2.json");
 	std::string refFilePath = std::string("/data/ref_GRM_dynLin_1comp_sensbenchmark2_FV_Z32parZ4.h5");
@@ -81,7 +81,7 @@ TEST_CASE("GRM numerical Benchmark2 with parameter sensitivities for linear case
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
-TEST_CASE("GRM numerical Benchmark with parameter sensitivities and multiplexing for 2parType 2comp linear case", "[GRM],[FV],[Simulation],[Reference],[Sensitivity],[CI_sens15]")
+TEST_CASE("GRM numerical Benchmark with parameter sensitivities and multiplexing for 2parType 2comp linear case", "[GRM],[FV],[Simulation],[Reference],[Sensitivity],[CI_sens]")
 {
 	const std::string modelFilePath = std::string("/data/model_COL1DparType2_GRM_dynLin_2comp_sensbenchmark1.json");
 	const std::string refFilePath = std::string("/data/ref_GRMparType2_dynLin_2comp_sensbenchmark1_FV_Z16parZ8.h5");
@@ -92,7 +92,7 @@ TEST_CASE("GRM numerical Benchmark with parameter sensitivities and multiplexing
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
 }
 
-TEST_CASE("GRM numerical Benchmark with parameter sensitivities for SMA LWE case", "[GRM],[FV],[Simulation],[Reference],[Sensitivity],[CI_sens2]")
+TEST_CASE("GRM numerical Benchmark with parameter sensitivities for SMA LWE case", "[GRM],[FV],[Simulation],[Reference],[Sensitivity],[CI_sens]")
 {
 	const std::string& modelFilePath = std::string("/data/model_COL1D_GRM_reqSMA_4comp_benchmark1.json");
 	const std::string& refFilePath = std::string("/data/ref_GRM_reqSMA_4comp_sensbenchmark1_FV_Z16parZ2.h5");
