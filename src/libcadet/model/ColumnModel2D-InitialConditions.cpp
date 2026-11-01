@@ -640,6 +640,9 @@ void ColumnModel2D::consistentInitialState(const SimulationTime& simTime, double
 		const linalg::ConstMaskArray mask{ qsMask.data(), static_cast<int>(_disc.nComp + _disc.strideBound[parType]) };
 		const int probSize = linalg::numMaskActive(mask);
 
+		// AD directions of this particle type, see prepareADvectors()
+		const unsigned int parDirOffset = adJac.adDirOffset + particleJacobianAdDirOffset(parType);
+
 #ifdef CADET_PARALLELIZE
 		tbb::parallel_for(std::size_t(0), static_cast<std::size_t>(_disc.nBulkPoints), [&](std::size_t pblk)
 #else
@@ -647,9 +650,6 @@ void ColumnModel2D::consistentInitialState(const SimulationTime& simTime, double
 #endif
 		{
 			LinearBufferAllocator tlmAlloc = threadLocalMem.get();
-
-			// Reuse memory of sparse matrix for dense matrix
-			linalg::DenseMatrixView fullJacobianMatrix(_globalJacDisc.valuePtr() + _globalJacDisc.outerIndexPtr()[idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ static_cast<unsigned int>(pblk) }) - idxr.offsetC()], nullptr, mask.len, mask.len);
 
 			// z and r coordinates (column length/radius normed to 1) of current node - needed in externally dependent adsorption kinetic
 			const int axNodeIdx = std::floor(pblk / _disc.radNPoints);
@@ -670,8 +670,12 @@ void ColumnModel2D::consistentInitialState(const SimulationTime& simTime, double
 			BufferedArray<double> fullXBuffer = tlmAlloc.array<double>(mask.len);
 			double* const fullX = static_cast<double*>(fullXBuffer);
 
-			BufferedArray<double> jacobianMemBuffer = tlmAlloc.array<double>(probSize * probSize);
-			linalg::DenseMatrixView jacobianMatrix(static_cast<double*>(jacobianMemBuffer), _globalJacDisc.outerIndexPtr() + pblk * probSize, probSize, probSize);
+			BufferedArray<double> fullJacobianBuffer = tlmAlloc.array<double>(mask.len * mask.len);
+			linalg::DenseMatrixView fullJacobianMatrix(static_cast<double*>(fullJacobianBuffer), nullptr, mask.len, mask.len);
+
+			// The nonlinear solver factorizes this matrix, so it has to own its pivot array
+			linalg::DenseMatrix jacobianMatrix;
+			jacobianMatrix.resize(probSize, probSize);
 
 			BufferedArray<double> conservedQuantsBuffer = tlmAlloc.array<double>(numActiveComp);
 			double* const conservedQuants = static_cast<double*>(conservedQuantsBuffer);
@@ -697,8 +701,8 @@ void ColumnModel2D::consistentInitialState(const SimulationTime& simTime, double
 
 				// Get pointer to q variables in a shell of particle pblk
 				double* const qShell = vecStateY + localOffsetToParticle + localOffsetInParticle + idxr.strideParLiquid();
-				active* const localAdRes = adJac.adRes ? adJac.adRes + localOffsetToParticle : nullptr;
-				active* const localAdY = adJac.adY ? adJac.adY + localOffsetToParticle : nullptr;
+				active* const localAdRes = adJac.adRes ? adJac.adRes + localOffsetToParticle + localOffsetInParticle : nullptr;
+				active* const localAdY = adJac.adY ? adJac.adY + localOffsetToParticle + localOffsetInParticle : nullptr;
 
 				const ColumnPosition colPos{ z, r, static_cast<double>(_particles[parType]->relativeCoordinate(shell)) };
 
@@ -732,23 +736,12 @@ void ColumnModel2D::consistentInitialState(const SimulationTime& simTime, double
 								simTime.t, simTime.secIdx, colPos, localAdY, nullptr, localAdRes, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
 							);
 
-							// Extract Jacobian from AD
-							// Read particle Jacobian entries from dedicated AD directions
-							int offsetParticleTypeDirs = adJac.adDirOffset + requiredADdirs() + idxr.strideParBlock(parType);
-							const active* const adRes = adJac.adRes;
-
-								for (unsigned int par = 0; par < _disc.nBulkPoints; par++)
-								{
-									const int eqOffset_res = idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ par });
-									const int eqOffset_mat = idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ par }) - idxr.offsetC();
-									for (unsigned int phase = 0; phase < idxr.strideParBlock(parType); phase++)
-									{
-										for (unsigned int phaseTo = 0; phaseTo < idxr.strideParBlock(parType); phaseTo++)
-										{
-											_globalJac.coeffRef(eqOffset_mat + phase, eqOffset_mat + phaseTo) = adRes[eqOffset_res + phase].getADValue(offsetParticleTypeDirs + phaseTo);
-										}
-									}
-								}
+							// Extract the dense cell Jacobian from the dedicated AD directions of this particle type
+							for (int row = 0; row < mask.len; ++row)
+							{
+								for (int col = 0; col < mask.len; ++col)
+									fullJacobianMatrix.native(row, col) = localAdRes[row].getADValue(parDirOffset + localOffsetInParticle + col);
+							}
 
 							// Extract Jacobian from full Jacobian
 							mat.setAll(0.0);
@@ -794,6 +787,7 @@ void ColumnModel2D::consistentInitialState(const SimulationTime& simTime, double
 							linalg::applyVectorSubset(x, mask, fullX);
 
 							// Call residual function
+							fullJacobianMatrix.setAll(0.0);
 							parts::cell::residualKernel<double, double, double, parts::cell::CellParameters, linalg::DenseBandedRowIterator, true, true>(
 								simTime.t, simTime.secIdx, colPos, fullX, nullptr, fullResidual, fullJacobianMatrix.row(0), cellResParams, tlmAlloc
 							);
