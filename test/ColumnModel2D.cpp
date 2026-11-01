@@ -79,8 +79,7 @@ void test2DColumnJacobian(const std::string relModelFilePath, const int maxAxEle
 
 /* 2D LRMP test cases */
 
-// Needs 228 AD directions, see columnmodel2d_compressed_ad_issue.md
-TEST_CASE("Column_2D as LRMP inlet DOF Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[Inlet],[todo]")
+TEST_CASE("Column_2D as LRMP inlet DOF Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[Inlet],[CI]")
 {
 	cadet::test::column::testInletDofJacobian("COLUMN_MODEL_2D_LRMP", "DG");
 }
@@ -141,8 +140,7 @@ TEST_CASE("Column_2D as LRMP sensitivity Jacobians", "[Column_2D],[UnitOp],[Sens
 	cadet::test::column::testFwdSensJacobians(jpp, 1e-6, 5e-4, 1e-3);
 }
 
-// Needs 186 AD directions, see columnmodel2d_compressed_ad_issue.md
-TEST_CASE("Column_2D as LRMP consistent initialization with linear binding", "[Column_2D],[ConsistentInit],[todo]")
+TEST_CASE("Column_2D as LRMP consistent initialization with linear binding", "[Column_2D],[ConsistentInit],[CI]")
 {
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_2D_LRMP", "DG", 1e-12, 1e-12, 0, 0);
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_2D_LRMP", "DG", 1e-12, 1e-12, 1, 0);
@@ -339,8 +337,7 @@ TEST_CASE("Column_2D as GRM without radial variance equals Column_1D as GRM nume
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, false, simDataStride);
 }
 
-// Needs 660 AD directions, see columnmodel2d_compressed_ad_issue.md
-TEST_CASE("Column_2D as GRM inlet DOF Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[Inlet],[todo]")
+TEST_CASE("Column_2D as GRM inlet DOF Jacobian", "[Column_2D],[DG],[DG2D],[UnitOp],[Jacobian],[Inlet],[CI]")
 {
 	cadet::test::column::testInletDofJacobian("COLUMN_MODEL_2D_GRM", "DG");
 }
