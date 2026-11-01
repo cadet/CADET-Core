@@ -220,6 +220,9 @@ namespace test
 		{
 			pushParticleTypeScope(jpp, type);
 			jpp.set("NBOUND", std::vector<int>(nBound.begin() + type * nComp, nBound.begin() + (type + 1) * nComp));
+			// The bound states are the only particle state, i.e. the particle type is in rapid equilibrium
+			// with the bulk liquid
+			jpp.set("HAS_FILM_DIFFUSION", false);
 			jpp.popScope();
 		}
 	}

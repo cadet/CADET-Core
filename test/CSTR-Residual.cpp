@@ -39,13 +39,13 @@
  * @param [in] jpp Configuration of the CSTR
  * @return Runnable CSTR
  */
-cadet::model::CSTRModel* createAndConfigureCSTR(cadet::IModelBuilder& mb, cadet::JsonParameterProvider& jpp)
+cadet::model::StirredTankModel* createAndConfigureCSTR(cadet::IModelBuilder& mb, cadet::JsonParameterProvider& jpp)
 {
 	// Create a CSTR
 	cadet::IModel* const iCstr = mb.createUnitOperation(jpp, 0);
 	REQUIRE(nullptr != iCstr);
 
-	cadet::model::CSTRModel* const cstr = reinterpret_cast<cadet::model::CSTRModel*>(iCstr);
+	cadet::model::StirredTankModel* const cstr = reinterpret_cast<cadet::model::StirredTankModel*>(iCstr);
 
 	// Configure
 	cadet::ModelBuilder& temp = *reinterpret_cast<cadet::ModelBuilder*>(&mb);
@@ -95,8 +95,8 @@ inline void checkJacobianAD(double flowRateIn, double flowRateOut, double flowRa
 	cadet::JsonParameterProvider jpp = createCSTR(nComp);
 	modelRefiner(jpp, nComp);
 
-	cadet::model::CSTRModel* const cstrAna = createAndConfigureCSTR(*mb, jpp);
-	cadet::model::CSTRModel* const cstrAD = createAndConfigureCSTR(*mb, jpp);
+	cadet::model::StirredTankModel* const cstrAna = createAndConfigureCSTR(*mb, jpp);
+	cadet::model::StirredTankModel* const cstrAD = createAndConfigureCSTR(*mb, jpp);
 	if (flowRateFilter > 0.0)
 	{
 		cstrAna->flowRateFilter().push_back(flowRateFilter);
@@ -165,7 +165,7 @@ inline void checkJacobianFD(double flowRateIn, double flowRateOut, double flowRa
 	cadet::JsonParameterProvider jpp = createCSTR(nComp);
 	modelRefiner(jpp, nComp);
 
-	cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(*mb, jpp);
+	cadet::model::StirredTankModel* const cstr = createAndConfigureCSTR(*mb, jpp);
 	if (flowRateFilter > 0.0)
 		cstr->flowRateFilter().push_back(flowRateFilter);
 
@@ -210,7 +210,7 @@ inline void checkTimeDerivativeJacobianFD(double flowRateIn, double flowRateOut,
 	cadet::JsonParameterProvider jpp = createCSTR(nComp);
 	modelRefiner(jpp, nComp);
 
-	cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(*mb, jpp);
+	cadet::model::StirredTankModel* const cstr = createAndConfigureCSTR(*mb, jpp);
 	if (flowRateFilter > 0.0)
 		cstr->flowRateFilter().push_back(flowRateFilter);
 
@@ -240,7 +240,7 @@ inline void checkTimeDerivativeJacobianFD(double flowRateIn, double flowRateOut,
 	destroyModelBuilder(mb);
 }
 
-inline void checkConsistentInitialization(const std::function<cadet::model::CSTRModel*(cadet::IModelBuilder&, bool)>& modelCreator, double const* initState, double consTol, double absTol)
+inline void checkConsistentInitialization(const std::function<cadet::model::StirredTankModel*(cadet::IModelBuilder&, bool)>& modelCreator, double const* initState, double consTol, double absTol)
 {
 	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 	REQUIRE(nullptr != mb);
@@ -253,7 +253,7 @@ inline void checkConsistentInitialization(const std::function<cadet::model::CSTR
 			const bool adEnabled = (adMode > 0);
 			SECTION(std::string(isKinetic ? " Kinetic binding" : " Quasi-stationary binding") + " with AD " + (adEnabled ? "enabled" : "disabled"))
 			{
-				cadet::model::CSTRModel* const cstr = modelCreator(*mb, isKinetic);
+				cadet::model::StirredTankModel* const cstr = modelCreator(*mb, isKinetic);
 				std::vector<double> y(initState, initState + cstr->numDofs());
 				cadet::test::unitoperation::testConsistentInitialization(cstr, adEnabled, y.data(), consTol, absTol);
 				mb->destroyUnitOperation(cstr);
@@ -263,7 +263,7 @@ inline void checkConsistentInitialization(const std::function<cadet::model::CSTR
 	destroyModelBuilder(mb);
 }
 
-inline void checkSensitivityConsistentInitialization(const std::function<cadet::model::CSTRModel*(cadet::IModelBuilder&, bool)>& modelCreator, double const* y, double const* yDot, double absTol)
+inline void checkSensitivityConsistentInitialization(const std::function<cadet::model::StirredTankModel*(cadet::IModelBuilder&, bool)>& modelCreator, double const* y, double const* yDot, double absTol)
 {
 	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 	REQUIRE(nullptr != mb);
@@ -276,7 +276,7 @@ inline void checkSensitivityConsistentInitialization(const std::function<cadet::
 			const bool adEnabled = (adMode > 0);
 			SECTION(std::string(isKinetic ? " Kinetic binding" : " Quasi-stationary binding") + " with AD " + (adEnabled ? "enabled" : "disabled"))
 			{
-				cadet::model::CSTRModel* const cstr = modelCreator(*mb, isKinetic);
+				cadet::model::StirredTankModel* const cstr = modelCreator(*mb, isKinetic);
 				cadet::test::unitoperation::testConsistentInitializationSensitivity(cstr, adEnabled, y, yDot, absTol);
 				mb->destroyUnitOperation(cstr);
 			}
@@ -483,12 +483,12 @@ TEST_CASE("StirredTankModel consistent initialization with linear binding", "[CS
 	std::vector<double> y(2 + 2 * 2 + 1, 0.0);
 	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, y.size());
 
-	checkConsistentInitialization([](cadet::IModelBuilder& mb, bool dynamic) -> cadet::model::CSTRModel* {
+	checkConsistentInitialization([](cadet::IModelBuilder& mb, bool dynamic) -> cadet::model::StirredTankModel* {
 		cadet::JsonParameterProvider jpp = createCSTR(2);
 		cadet::test::addBoundStates(jpp, {1, 1}, 1.0);
 		cadet::test::addLinearBindingModel(jpp, dynamic, {5.0, 4.0}, {2.0, 3.0});
 
-		cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(mb, jpp);
+		cadet::model::StirredTankModel* const cstr = createAndConfigureCSTR(mb, jpp);
 		cstr->setFlowRates(1.0, 1.0);
 		return cstr;
 	}, y.data(), 1e-14, 1e-14);
@@ -506,14 +506,208 @@ TEST_CASE("StirredTankModel consistent initialization with SMA binding", "[CSTR]
 	std::copy(bindingCell, bindingCell + 8, y.data() + 4);
 	y[4 + 8] = 1.0;
 
-	checkConsistentInitialization([](cadet::IModelBuilder& mb, bool dynamic) -> cadet::model::CSTRModel* {
+	checkConsistentInitialization([](cadet::IModelBuilder& mb, bool dynamic) -> cadet::model::StirredTankModel* {
 		cadet::JsonParameterProvider jpp = createCSTR(4);
 		cadet::test::addBoundStates(jpp, {1, 1, 1, 1}, 1.0);
 		cadet::test::addSMABindingModel(jpp, dynamic, 1.2e3, {0.0, 35.5, 1.59, 7.7}, {0.0, 1000.0, 1000.0, 1000.0}, {0.0, 4.7, 5.29, 3.7}, {0.0, 11.83, 10.6, 10.0});
-		cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(mb, jpp);
+		cadet::model::StirredTankModel* const cstr = createAndConfigureCSTR(mb, jpp);
 		cstr->setFlowRates(1.0, 1.0);
 		return cstr;
 	}, y.data(), 1e-14, 1e-5);
+}
+
+/**
+ * @brief Creates an empty CSTR that is fed faster than it is drawn and filtered
+ * @details The liquid volume starts at zero, which turns the bulk balance algebraic. The flow
+ *          rates leave a denominator of @f$ \dot{V}^l + F_\text{out} = F_\text{in} - F_\text{filter} = 1.5 @f$.
+ * @param [in] mb ModelBuilder
+ * @param [in] jpp Configuration of the CSTR
+ * @return Runnable CSTR without liquid
+ */
+inline cadet::model::StirredTankModel* createAndConfigureEmptyCSTR(cadet::IModelBuilder& mb, cadet::JsonParameterProvider& jpp)
+{
+	// The filter flow rate of the section is read from the configuration, so it is set there rather
+	// than appended to the vector the model already holds
+	jpp.set("FLOWRATE_FILTER", std::vector<double>{0.5});
+
+	cadet::model::StirredTankModel* const cstr = createAndConfigureCSTR(mb, jpp);
+	cstr->setFlowRates(2.0, 0.5);
+
+	return cstr;
+}
+
+TEST_CASE("StirredTankModel consistent initialization with a vanishing liquid volume", "[CSTR],[ConsistentInit],[CI]")
+{
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	for (int adMode = 0; adMode < 2; ++adMode)
+	{
+		const bool adEnabled = (adMode > 0);
+		SECTION(std::string("AD ") + (adEnabled ? "enabled" : "disabled"))
+		{
+			cadet::JsonParameterProvider jpp = createCSTR(2);
+			cadet::model::StirredTankModel* const cstr = createAndConfigureEmptyCSTR(*mb, jpp);
+
+			std::vector<double> y(cstr->numDofs(), 0.0);
+			y[0] = 1.5;
+			y[1] = 0.5;
+
+			// Values that the algebraic bulk balance has to replace
+			y[2] = 7.0;
+			y[3] = 9.0;
+			y[4] = 0.0;
+
+			cadet::test::unitoperation::testConsistentInitialization(cstr, adEnabled, y.data(), 1e-14, 1e-14);
+
+			// c_i = c_{in,i} F_in / (\dot{V}^l + F_out)
+			CHECK(y[2] == cadet::test::makeApprox(1.5 * 2.0 / 1.5, 1e-14, 1e-14));
+			CHECK(y[3] == cadet::test::makeApprox(0.5 * 2.0 / 1.5, 1e-14, 1e-14));
+
+			mb->destroyUnitOperation(cstr);
+		}
+	}
+
+	destroyModelBuilder(mb);
+}
+
+TEST_CASE("StirredTankModel consistent initialization with a vanishing liquid volume and linear binding", "[CSTR],[ConsistentInit],[CI]")
+{
+	// The balance of an empty tank couples the liquid phase to the bound state rates,
+	//   (\dot{V}^l + F_out) c_i + V^s [sum_j d_j sum_m \dot{q}_{j,i,m}] = c_{in,i} F_in,
+	// and with a dynamic binding model \dot{q} = f_ads(c, q) depends on the unknown c, so the two
+	// are solved for together. A quasi-stationary bound state has no rate equation at all, which is
+	// why the binding model here is kinetic.
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	for (int adMode = 0; adMode < 2; ++adMode)
+	{
+		const bool adEnabled = (adMode > 0);
+		SECTION(std::string("AD ") + (adEnabled ? "enabled" : "disabled"))
+		{
+			cadet::JsonParameterProvider jpp = createCSTR(2);
+			cadet::test::addBoundStates(jpp, {1, 1}, 2.0);
+			cadet::test::addLinearBindingModel(jpp, true, {5.0, 4.0}, {2.0, 3.0});
+			cadet::model::StirredTankModel* const cstr = createAndConfigureEmptyCSTR(*mb, jpp);
+
+			std::vector<double> y(cstr->numDofs(), 0.0);
+			y[0] = 1.5;
+			y[1] = 0.5;
+
+			// Values that the algebraic bulk balance has to replace
+			y[2] = 7.0;
+			y[3] = 9.0;
+
+			// Bound states
+			y[4] = 0.3;
+			y[5] = 0.7;
+
+			y[6] = 0.0;
+
+			cadet::test::unitoperation::testConsistentInitialization(cstr, adEnabled, y.data(), 1e-14, 1e-12);
+
+			// Linear binding makes the balance linear in c, with
+			//   (\dot{V}^l + F_out) c_i + V^s (k_{a,i} c_i - k_{d,i} q_i) = c_{in,i} F_in
+			CHECK(y[2] == cadet::test::makeApprox((1.5 * 2.0 + 2.0 * 2.0 * 0.3) / (1.5 + 2.0 * 5.0), 1e-12, 1e-12));
+			CHECK(y[3] == cadet::test::makeApprox((0.5 * 2.0 + 2.0 * 3.0 * 0.7) / (1.5 + 2.0 * 4.0), 1e-12, 1e-12));
+
+			mb->destroyUnitOperation(cstr);
+		}
+	}
+
+	destroyModelBuilder(mb);
+}
+
+TEST_CASE("StirredTankModel leaves an empty tank alone when the feed is filtered off", "[CSTR],[ConsistentInit],[CI]")
+{
+	// F_in = F_filter and F_out = 0 leave no liquid to determine the bulk concentrations with, so
+	// the initial conditions have to survive consistent initialization unchanged
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	cadet::JsonParameterProvider jpp = createCSTR(2);
+	jpp.set("FLOWRATE_FILTER", std::vector<double>{2.0});
+
+	cadet::model::StirredTankModel* const cstr = createAndConfigureCSTR(*mb, jpp);
+	cstr->setFlowRates(2.0, 0.0);
+
+	std::vector<double> y(cstr->numDofs(), 0.0);
+	y[0] = 1.5;
+	y[1] = 0.5;
+	y[2] = 7.0;
+	y[3] = 9.0;
+	y[4] = 0.0;
+
+	cadet::util::ThreadLocalStorage tls;
+	tls.resize(cstr->threadLocalMemorySize());
+
+	std::vector<double> yDot(cstr->numDofs(), 0.0);
+	const cadet::AdJacobianParams noParams{nullptr, nullptr, 0u};
+	cstr->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), yDot.data()}, noParams);
+	cstr->consistentInitialState(cadet::SimulationTime{0.0, 0u}, y.data(), noParams, 1e-14, tls);
+
+	CHECK(y[2] == 7.0);
+	CHECK(y[3] == 9.0);
+
+	mb->destroyUnitOperation(cstr);
+	destroyModelBuilder(mb);
+}
+
+TEST_CASE("StirredTankModel lean consistent initialization matches the full one with a vanishing liquid volume", "[CSTR],[ConsistentInit],[CI]")
+{
+	// The three branches an empty tank takes have to agree with one another, which is what the
+	// original CSTR's did not: consistentInitialState(), consistentInitialTimeDerivative() and
+	// leanConsistentInitialTimeDerivative() differed by a factor on the diagonal and a stray 2.
+	//
+	// The relaxed initialization keeps the bound state rates it is given. Handed the ones the full
+	// initialization found, it has to arrive at the same liquid phase and volume rates.
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	cadet::JsonParameterProvider jpp = createCSTR(2);
+	cadet::test::addBoundStates(jpp, {1, 1}, 2.0);
+	cadet::test::addLinearBindingModel(jpp, true, {5.0, 4.0}, {2.0, 3.0});
+	cadet::model::StirredTankModel* const cstr = createAndConfigureEmptyCSTR(*mb, jpp);
+
+	cadet::util::ThreadLocalStorage tls;
+	tls.resize(cstr->threadLocalMemorySize());
+
+	const unsigned int nDof = cstr->numDofs();
+	std::vector<double> y(nDof, 0.0);
+	y[0] = 1.5;
+	y[1] = 0.5;
+	y[4] = 0.3;
+	y[5] = 0.7;
+	y[6] = 0.0;
+
+	std::vector<double> res(nDof, 0.0);
+	const cadet::AdJacobianParams noParams{nullptr, nullptr, 0u};
+	cstr->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), res.data()}, noParams);
+	cstr->useAnalyticJacobian(true);
+	cstr->consistentInitialState(cadet::SimulationTime{0.0, 0u}, y.data(), noParams, 1e-14, tls);
+
+	// The full initialization takes the residual at vanishing time derivatives and overwrites it
+	// with the rates it finds
+	std::vector<double> yDotFull(nDof, 0.0);
+	cstr->residualWithJacobian(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), nullptr}, yDotFull.data(), noParams, tls);
+	cstr->consistentInitialTimeDerivative(cadet::SimulationTime{0.0, 0u}, y.data(), yDotFull.data(), tls);
+
+	// The relaxed one reads the bound state rates from the state it is given and the rest from the
+	// residual, which it receives separately
+	std::vector<double> yDotLean(yDotFull);
+	std::fill(yDotLean.begin(), yDotLean.begin() + 4, 0.0);
+	cstr->residual(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), nullptr}, res.data(), tls);
+	cstr->leanConsistentInitialTimeDerivative(0.0, y.data(), yDotLean.data(), res.data(), tls);
+
+	for (unsigned int i = 2; i < nDof; ++i)
+	{
+		CAPTURE(i);
+		CHECK(yDotLean[i] == cadet::test::makeApprox(yDotFull[i], 1e-12, 1e-14));
+	}
+
+	mb->destroyUnitOperation(cstr);
+	destroyModelBuilder(mb);
 }
 
 TEST_CASE("CSTR liquid equilibrium MAL consistent initialization", "[CSTR],[MassActionLaw],[ReactionModel],[ConsistentInit],[CI]")
@@ -538,7 +732,7 @@ TEST_CASE("CSTR liquid equilibrium MAL consistent initialization", "[CSTR],[Mass
 			jpp.set("IS_KINETIC", std::vector<int>{false ? 1 : 0});
 			jpp.popScope();
 
-			cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(*mb, jpp);
+			cadet::model::StirredTankModel* const cstr = createAndConfigureCSTR(*mb, jpp);
 			cstr->setFlowRates(0.0, 0.0);
 			
 			std::vector<double> y(cstr->numDofs(), 0.0);
@@ -593,7 +787,7 @@ TEST_CASE("CSTR kinetic and equilibrium MAL share liquid equilibrium", "[CSTR],[
 	eqJpp.set("IS_KINETIC", std::vector<int>{false ? 1 : 0});
 	eqJpp.popScope();
 
-	cadet::model::CSTRModel* const eqCstr = createAndConfigureCSTR(*mb, eqJpp);
+	cadet::model::StirredTankModel* const eqCstr = createAndConfigureCSTR(*mb, eqJpp);
 	eqCstr->setFlowRates(0.0, 0.0);
 	
 	std::vector<double> yEq(eqCstr->numDofs(), 0.0);
@@ -614,7 +808,7 @@ TEST_CASE("CSTR kinetic and equilibrium MAL share liquid equilibrium", "[CSTR],[
 	kinjpp.set("IS_KINETIC", std::vector<int>{true ? 1 : 0});
 	kinjpp.popScope();
 
-	cadet::model::CSTRModel* const kinCstr = createAndConfigureCSTR(*mb, kinjpp);
+	cadet::model::StirredTankModel* const kinCstr = createAndConfigureCSTR(*mb, kinjpp);
 	kinCstr->setFlowRates(0.0, 0.0);
 
 	// Use the equilibrium model's consistently initialized state
@@ -652,12 +846,12 @@ TEST_CASE("StirredTankModel consistent sensitivity initialization with linear bi
 	// sensitivity state vector. Hence, this is more strict than usual as most initial sensitivity state
 	// vectors are all zero (only sensitivities wrt. initial conditions produce non-zero initial values).
 
-	checkSensitivityConsistentInitialization([](cadet::IModelBuilder& mb, bool dynamic) -> cadet::model::CSTRModel* {
+	checkSensitivityConsistentInitialization([](cadet::IModelBuilder& mb, bool dynamic) -> cadet::model::StirredTankModel* {
 		cadet::JsonParameterProvider jpp = createCSTR(2);
 		cadet::test::addBoundStates(jpp, {1, 1}, 1.0);
 		cadet::test::addLinearBindingModel(jpp, dynamic, {5.0, 4.0}, {2.0, 3.0});
 
-		cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(mb, jpp);
+		cadet::model::StirredTankModel* const cstr = createAndConfigureCSTR(mb, jpp);
 		cstr->setFlowRates(1.0, 1.0);
 		cstr->setSensitiveParameter(cadet::makeParamId("INIT_LIQUID_VOLUME", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0);
 		cstr->setSensitiveParameter(cadet::makeParamId("LIN_KA", 0, 0, cadet::ParTypeIndep, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
@@ -684,12 +878,12 @@ TEST_CASE("StirredTankModel consistent sensitivity initialization with SMA bindi
 	// sensitivity state vector. Hence, this is more strict than usual as most initial sensitivity state
 	// vectors are all zero (only sensitivities wrt. initial conditions produce non-zero initial values).
 
-	checkSensitivityConsistentInitialization([](cadet::IModelBuilder& mb, bool dynamic) -> cadet::model::CSTRModel* {
+	checkSensitivityConsistentInitialization([](cadet::IModelBuilder& mb, bool dynamic) -> cadet::model::StirredTankModel* {
 		cadet::JsonParameterProvider jpp = createCSTR(4);
 		cadet::test::addBoundStates(jpp, {1, 1, 1, 1}, 1.0);
 		cadet::test::addSMABindingModel(jpp, dynamic, 1.2e3, {0.0, 35.5, 1.59, 7.7}, {0.0, 1000.0, 1000.0, 1000.0}, {0.0, 4.7, 5.29, 3.7}, {0.0, 11.83, 10.6, 10.0});
 
-		cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(mb, jpp);
+		cadet::model::StirredTankModel* const cstr = createAndConfigureCSTR(mb, jpp);
 		cstr->setFlowRates(1.0, 1.0);
 		cstr->setSensitiveParameter(cadet::makeParamId("INIT_LIQUID_VOLUME", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 0, 1.0);
 		cstr->setSensitiveParameter(cadet::makeParamId("SMA_NU", 0, 1, cadet::ParTypeIndep, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
@@ -710,7 +904,7 @@ TEST_CASE("StirredTankModel inlet DOF Jacobian", "[CSTR],[UnitOp],[Jacobian],[In
 		SECTION(std::string("AD ") + (adEnabled ? "enabled" : "disabled"))
 		{
 			cadet::JsonParameterProvider jpp = createCSTR(4);
-			cadet::model::CSTRModel* const cstr = createAndConfigureCSTR(*mb, jpp);
+			cadet::model::StirredTankModel* const cstr = createAndConfigureCSTR(*mb, jpp);
 			cadet::test::unitoperation::testInletDofJacobian(cstr, adEnabled);
 			mb->destroyUnitOperation(cstr);
 		}

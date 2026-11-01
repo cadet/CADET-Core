@@ -291,9 +291,56 @@ namespace reaction
 
 					jpp.popScope();
 			}
+
+			// A solid phase reaction acts on the bound states alone, so its stoichiometry is sized by
+			// the number of bound states instead of the number of components
+			for (int i = 0; i < nParType; ++i)
+			{
+				jpp.pushScope("particle_type_" + std::string(3 - std::to_string(i).length(), '0') + std::to_string(i)); // particle_type_xxx
+
+				const std::vector<int> nBound = jpp.getIntArray("NBOUND");
+				const int nTotalBound = std::accumulate(nBound.begin(), nBound.end(), 0);
+
+				if (nTotalBound == 0)
+				{
+					jpp.popScope();
+					continue;
+				}
+
+				jpp.set("NREAC_SOLID", 1);
+
+				jpp.addScope("solid_reaction_000"); // particle_type_xxx/solid_reaction_000
+				auto gs4 = util::makeGroupScope(jpp, "solid_reaction_000");
+
+				jpp.set("TYPE", "MASS_ACTION_LAW");
+
+				std::vector<double> stoichMat(nReactions * nTotalBound, 0.0);
+				std::vector<double> expFwd(nReactions * nTotalBound, 0.0);
+				std::vector<double> expBwd(nReactions * nTotalBound, 0.0);
+				std::vector<double> rateFwd(nReactions, 0.0);
+				std::vector<double> rateBwd(nReactions, 0.0);
+
+				util::populate(stoichMat.data(), [](unsigned int idx) { return 2.0 * std::sin(0.6 + idx * 0.8); }, stoichMat.size());
+				util::populate(expFwd.data(), [](unsigned int idx) { return std::sin(0.3 + idx * 0.5) + 1.4; }, expFwd.size());
+				util::populate(expBwd.data(), [](unsigned int idx) { return std::sin(0.4 + idx * 0.2) + 1.1; }, expBwd.size());
+				// The time derivative Jacobian is checked against finite differences that perturb a
+				// single rate, some of which are close to zero. A reaction of the same magnitude as
+				// the cross phase one above leaves too little of those differences to compare, so
+				// this one is an order of magnitude slower.
+				util::populate(rateFwd.data(), [](unsigned int idx) { return std::sin(0.2 + idx * 0.3) * 0.05 + 0.15; }, rateFwd.size());
+				util::populate(rateBwd.data(), [](unsigned int idx) { return std::sin(0.5 + idx * 0.5) * 0.05 + 0.16; }, rateBwd.size());
+
+				jpp.set("MAL_STOICHIOMETRY", stoichMat);
+				jpp.set("MAL_EXPONENTS_FWD", expFwd);
+				jpp.set("MAL_EXPONENTS_BWD", expBwd);
+				jpp.set("MAL_KFWD", rateFwd);
+				jpp.set("MAL_KBWD", rateBwd);
+
+				jpp.popScope();
+			}
 		}
 	}
-	
+
 	void testMichaelisMentenToSMAMicroKinetic(const std::string configFilePathMM, const std::string configFilePathSMA, const double absTol, const double relTol)
 	{
 		// read json model setup file

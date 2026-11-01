@@ -524,7 +524,7 @@
                 0.0,
                 0.0
             ],
-            "INIT_VOLUME": 0.0005,
+            "INIT_LIQUID_VOLUME": 0.0005,
             "NCOMP": 96,
             "NREAC_LIQUID": 1,
             "UNIT_TYPE": "CSTR",

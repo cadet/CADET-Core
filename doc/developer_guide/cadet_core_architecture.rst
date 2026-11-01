@@ -130,7 +130,7 @@ The specific order implemented for chromatography column units is given in the f
 .. figure:: _images/state_vector_grm.png
 
 
-   State vector order of the general rate model, lumped rate model with pores :math:`(N^{\mathrm{r}}=1)`, and Finite Bath / Tank :math:`(N^{\mathrm{z}}=1, N^{\mathrm{r}}=1)` [1]_.
+   State vector order of the general rate model, lumped rate model with pores :math:`(N^{\mathrm{r}}=1)`, and the stirred tank :math:`(N^{\mathrm{z}}=1, N^{\mathrm{r}}=1)` [1]_.
 
 .. _StateVectorOrderLRM:
 .. figure:: _images/state_vector_lrm.png
@@ -140,4 +140,5 @@ The specific order implemented for chromatography column units is given in the f
 
 .. [2] Samuel Leweke's PhD thesis, available at: https://publications.rwth-aachen.de/record/840314
 
-Note that the finite bath / tank (CSTR) unit operation has an additional first entry that defines the tank volume.
+The stirred tank (CSTR, see :ref:`cstr_model`) uses the same ordering with a single bulk point, :math:`N^{\mathrm{z}} = 1`, and has an additional last entry that holds the liquid volume.
+A particle type in rapid equilibrium with the bulk liquid contributes bound states only, so its block holds no liquid phase.
