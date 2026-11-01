@@ -118,7 +118,7 @@ jobs:
             -DEIGEN3_DIR="${INSTALL_PREFIX}/eigen" \
             "${SRC_DIR}" \
             -DENABLE_TESTS=ON \
-            -DNUM_MAX_AD_DIRS=160 \
+            -DNUM_MAX_AD_DIRS=161 \
             -DCODE_COVERAGE=ON
           make install -j$(nproc)
       - name: Check executable
