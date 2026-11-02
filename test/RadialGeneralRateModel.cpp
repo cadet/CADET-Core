@@ -238,22 +238,22 @@ TEST_CASE("Radial GRM dynamic reactions time derivative Jacobian vs FD bulk", "[
 
 TEST_CASE("Radial GRM dynamic reactions time derivative Jacobian vs FD particle", "[RadGRM],[Jacobian],[Residual],[ReactionModel],[FD]")
 {
-	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", "FV", false, true, false, 1e-4, 1e-14, 9e-4);
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", "FV", false, true, false, 1e-6, 1e-14, 9e-4);
 }
 
 TEST_CASE("Radial GRM dynamic reactions time derivative Jacobian vs FD modified particle", "[RadGRM],[Jacobian],[Residual],[ReactionModel],[FD]")
 {
-	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", "FV", false, true, true, 1e-4, 1e-14, 9e-4);
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", "FV", false, true, true, 1e-6, 1e-14, 9e-4);
 }
 
 TEST_CASE("Radial GRM dynamic reactions time derivative Jacobian vs FD bulk and particle", "[RadGRM],[Jacobian],[Residual],[ReactionModel],[FD]")
 {
-	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", "FV", true, true, false, 1e-4, 1e-14, 9e-4);
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", "FV", true, true, false, 1e-6, 1e-14, 9e-4);
 }
 
 TEST_CASE("Radial GRM dynamic reactions time derivative Jacobian vs FD bulk and modified particle", "[RadGRM],[Jacobian],[Residual],[ReactionModel],[FD]")
 {
-	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", "FV", true, true, true, 1e-4, 1e-14, 9e-4);
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("RADIAL_GENERAL_RATE_MODEL", "FV", true, true, true, 1e-6, 1e-14, 9e-4);
 }
 
 inline cadet::JsonParameterProvider createColumnWithTwoCompLinearBindingThreeParticleTypesRadGRM()

@@ -299,12 +299,12 @@ TEST_CASE("GRM dynamic reactions time derivative Jacobian vs FD bulk", "[GRM],[F
 
 TEST_CASE("GRM dynamic reactions time derivative Jacobian vs FD particle", "[GRM],[FV],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
 {
-	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("GENERAL_RATE_MODEL", "FV", false, true, false, 1e-4, 1e-14, 9e-4);
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("GENERAL_RATE_MODEL", "FV", false, true, false, 1e-6, 1e-14, 9e-4);
 }
 
 TEST_CASE("GRM dynamic reactions time derivative Jacobian vs FD modified particle", "[GRM],[FV],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
 {
-	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("GENERAL_RATE_MODEL", "FV", false, true, true, 1e-4, 1e-14, 9e-4);
+	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD("GENERAL_RATE_MODEL", "FV", false, true, true, 1e-6, 1e-14, 9e-4);
 }
 
 TEST_CASE("GRM dynamic reactions time derivative Jacobian vs FD bulk and particle", "[GRM],[FV],[Jacobian],[Residual],[ReactionModel],[CI],[FD]")
