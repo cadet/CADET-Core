@@ -202,12 +202,13 @@ namespace cell
 
 					if (wantJac)
 					{
-						BufferedArray<double> fluxSolidJacobian = buffer.template array<double>(params.nTotalBound * (params.nTotalBound + params.nComp));
-						linalg::DenseMatrixView dmv(static_cast<double*>(fluxSolidJacobian), nullptr, params.nTotalBound, params.nTotalBound + params.nComp);
+						const int cellSize = static_cast<int>(params.nComp + params.nTotalBound);
+						BufferedArray<double> fluxSolidJacobian = buffer.template array<double>(static_cast<std::size_t>(cellSize) * cellSize);
+						linalg::DenseMatrixView dmv(static_cast<double*>(fluxSolidJacobian), nullptr, cellSize, cellSize);
 						dmv.setAll(0.0);
 
 						// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
-							params.reaction->getDynReactionVector("cross_phase")[ reac]->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), reinterpret_cast<double const*>(y + params.nComp), -1.0, jacBase, dmv.row(0, params.nComp), buffer);
+							params.reaction->getDynReactionVector("cross_phase")[ reac]->analyticJacobianCombinedAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), reinterpret_cast<double const*>(y + params.nComp), -1.0, jacBase, dmv.row(params.nComp), buffer);
 
 						unsigned int idx2 = 0;
 						for (unsigned int comp = 0; comp < params.nComp; ++comp)
@@ -215,12 +216,12 @@ namespace cell
 							for (unsigned int bnd = 0; bnd < params.nBound[comp]; ++bnd, ++idx2)
 							{
 									// Add Jacobian row to mobile  	inline void addArray(double const* row, int startDiag, int length, double factor)
-									(jacBase + comp).addArray(dmv.rowPtr(idx2), -static_cast<int>(comp), dmv.columns(), static_cast<double>(invBetaP[comp]));
+									(jacBase + comp).addArray(dmv.rowPtr(params.nComp + idx2), -static_cast<int>(comp), dmv.columns(), static_cast<double>(invBetaP[comp]));
 
 								if (!params.qsReaction[idx2])
 								{
 									// Add Jacobian row to solid phase
-									(jacBase + params.nComp + idx2).addArray(dmv.rowPtr(idx2), -static_cast<int>(params.nComp + idx2), dmv.columns(), 1.0);
+									(jacBase + params.nComp + idx2).addArray(dmv.rowPtr(params.nComp + idx2), -static_cast<int>(params.nComp + idx2), dmv.columns(), 1.0);
 								}
 							}
 						}
