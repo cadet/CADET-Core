@@ -49,6 +49,27 @@
 
 namespace
 {
+	/**
+	 * @brief Restores the number of AD directions when it goes out of scope
+	 * @details An active zeroes its gradient only over the currently set number of AD directions, so it has
+	 *          to be constructed while that number is at least as large as the number of directions later
+	 *          read from it (see detail::globalGradSize in sfad-common.hpp). Code that changes the number
+	 *          temporarily uses this guard to leave it as it found it, so that the lowered count of a
+	 *          running time integration is not observed by anything that creates actives.
+	 */
+	class AdDirectionsGuard
+	{
+	public:
+		explicit AdDirectionsGuard(std::size_t restoreTo) CADET_NOEXCEPT : _restoreTo(restoreTo) { }
+		~AdDirectionsGuard() CADET_NOEXCEPT { cadet::ad::setDirections(_restoreTo); }
+
+		AdDirectionsGuard(const AdDirectionsGuard&) = delete;
+		AdDirectionsGuard& operator=(const AdDirectionsGuard&) = delete;
+
+	private:
+		std::size_t _restoreTo;
+	};
+
 	template <class T>
 	const std::vector<T> convertNVectorToStdVectorPtrs(N_Vector* vec, unsigned int numVec)
 	{
@@ -669,7 +690,16 @@ namespace cadet
 
 			// Allocate memory for AD if not already done
 			if (!_vecADres)
+			{
+				// These actives have to be built at the maximum number of directions, see
+				// detail::globalGradSize in sfad-common.hpp. The count can be lowered here when
+				// sensitivities are added to a simulation that is driven step by step through
+				// prepareIntegrator(), so restore whatever it was.
+				AdDirectionsGuard adDirGuard(ad::getDirections());
+				ad::setDirections(ad::getMaxDirections());
+
 				_vecADres = new active[_model->numDofs()];
+			}
 		}
 	}
 
@@ -1094,10 +1124,19 @@ namespace cadet
 		}
 
 		// Copy section times into AD (active) data type
-		_sectionTimes.clear();
-		_sectionTimes.reserve(sectionTimes.size());
-		for (std::size_t i = 0; i < sectionTimes.size(); ++i)
-			_sectionTimes.push_back(sectionTimes[i]);
+		// These actives receive AD directions below and have to be built at the maximum number of
+		// directions, see detail::globalGradSize in sfad-common.hpp. The count can be lowered here when
+		// section times are set on a simulation that is driven step by step through prepareIntegrator(),
+		// so restore whatever it was.
+		{
+			AdDirectionsGuard adDirGuard(ad::getDirections());
+			ad::setDirections(ad::getMaxDirections());
+
+			_sectionTimes.clear();
+			_sectionTimes.reserve(sectionTimes.size());
+			for (std::size_t i = 0; i < sectionTimes.size(); ++i)
+				_sectionTimes.push_back(sectionTimes[i]);
+		}
 
 		_sectionContinuity = sectionContinuity;
 
@@ -1172,6 +1211,10 @@ namespace cadet
 			throw InvalidParameterException("Requested " + std::to_string(numSensitivityAdDirections() + _model->requiredADdirs()) + " AD directions, but only "
 				+ std::to_string(ad::getMaxDirections()) + " are supported");
 
+		// The lowered count is only valid while this integration runs: an active created afterwards would
+		// zero its gradient over too few directions and expose uninitialized memory to the next run. Put
+		// the count back to the maximum on every exit from this function, including an exception.
+		AdDirectionsGuard adDirGuard(ad::getMaxDirections());
 		ad::setDirections(numSensitivityAdDirections() + _model->requiredADdirs());
 #endif
 
@@ -1831,6 +1874,11 @@ namespace cadet
 		if (!_model)
 			return false;
 
+		// Reconfiguring creates new actives, which zero their gradient only over the currently set number
+		// of directions. Time integration leaves that number lowered, so raise it again (see
+		// ModelBuilder::createUnitOperation). It is lowered to what the model needs in integrate().
+		ad::setDirections(ad::getMaxDirections());
+
 		// Reconfigure the model
 		const bool success = _model->configure(paramProvider);
 
@@ -1844,6 +1892,9 @@ namespace cadet
 	{
 		if (!_model)
 			return false;
+
+		// See the overload above
+		ad::setDirections(ad::getMaxDirections());
 
 		// Reconfigure the model
 		const bool success = _model->configureModel(paramProvider, unitOpIdx);
@@ -1992,6 +2043,9 @@ namespace cadet
 			throw InvalidParameterException("Requested " + std::to_string(numSensitivityAdDirections() + _model->requiredADdirs()) + " AD directions, but only "
 				+ std::to_string(ad::getMaxDirections()) + " are supported");
 
+		// Unlike integrate(), this cannot restore the count on return: the integration continues in the
+		// following calls to performSimulationStep(). Anything that creates actives between those calls
+		// has to raise the count itself, see preFwdSensInit() and setSectionTimes().
 		ad::setDirections(numSensitivityAdDirections() + _model->requiredADdirs());
 #endif
 

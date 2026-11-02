@@ -11,6 +11,11 @@
 // =============================================================================
 
 #include <catch.hpp>
+#include "cadet/cadet.hpp"
+#include "cadet/Notification.hpp"
+
+#define CADET_LOGGING_DISABLE
+#include "Logging.hpp"
 
 #include <vector>
 #include <limits>
@@ -22,9 +27,15 @@
 #include "linalg/BandMatrix.hpp"
 #include "AdUtils.hpp"
 #include "AutoDiff.hpp"
+#include "ModelBuilderImpl.hpp"
+#include "model/UnitOperation.hpp"
+#include "common/Driver.hpp"
 
 #include "MatrixHelper.hpp"
 #include "JacobianHelper.hpp"
+#include "JsonTestModels.hpp"
+#include "SimHelper.hpp"
+#include "UnitOperationTests.hpp"
 
 /**
  * @brief Creates a residual that has a banded Jacobian matrix as created by createBandMatrix()
@@ -239,4 +250,156 @@ TEST_CASE("Banded AD Jacobian vs FD", "[AD],[BandMatrix]")
 		[&](double const* y, double* r) { bm.multiplyVector(y, r); },
 		y.data(), dir.data(), colA.data(), colB.data(), matSize, matSize, 1e-7, 0.0, 1e-15
 	);
+}
+
+TEST_CASE("Models are built with the maximum number of AD directions", "[AD],[UnitOp],[CI]")
+{
+	// An active zeroes its gradient only over the global direction count, so a model must not be built
+	// while that count is lowered: its parameters would carry uninitialized gradients into the next
+	// simulation, which then seeds and reads more directions than were ever initialized. Time
+	// integration restores the count when it returns, but the stepwise interface leaves it lowered
+	// between steps, so building a model raises it in its own right.
+	cadet::ad::setDirections(1);
+
+	cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+	REQUIRE(nullptr != mb);
+
+	cadet::JsonParameterProvider jpp = createCSTR(2);
+	cadet::IUnitOperation* const unit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
+
+	CHECK(cadet::ad::getDirections() == cadet::ad::getMaxDirections());
+
+	mb->destroyUnitOperation(unit);
+	destroyModelBuilder(mb);
+}
+
+namespace
+{
+	/**
+	 * @brief Records the number of AD directions that is in effect while a simulation runs
+	 * @details The direction count is lowered before the integration starts and restored when it returns,
+	 *          so it cannot be observed from the outside. This callback reads it from within the run.
+	 */
+	class AdDirectionRecorder : public cadet::INotificationCallback
+	{
+	public:
+		AdDirectionRecorder() : _directions(-1) { }
+
+		void timeIntegrationStart() override { _directions = static_cast<int>(cadet::ad::getDirections()); }
+		void timeIntegrationEnd() override { }
+		void timeIntegrationError(char const* message, unsigned int section, double time, double progress) override { }
+		bool timeIntegrationSection(unsigned int section, double time, double const* state, double const* stateDot, double progress) override { return true; }
+		bool timeIntegrationStep(unsigned int section, double time, double const* state, double const* stateDot, double progress) override { return true; }
+		bool timeIntegrationLinearSolve(unsigned int section, double time, double const* state, double const* stateDot) override { return true; }
+
+		/**
+		 * @brief Returns the direction count seen during the run, or @c -1 if the run never started
+		 */
+		int directions() const { return _directions; }
+
+	private:
+		int _directions;
+	};
+}
+
+TEST_CASE("Time integration lowers the global direction count to what its model needs and restores it", "[AD],[Simulation],[CI]")
+{
+	// A simulation lowers the global direction count to one direction per sensitivity plus the
+	// requirement of its model, so that the actives of its residual evaluations zero no more of their
+	// gradient than is read back. The lowered count is only valid while the integration runs: an active
+	// created afterwards would zero too few directions and hand uninitialized memory to the next run.
+	// So integrate() puts the count back to the maximum on return.
+
+	// Requirement of the model, determined without running a simulation
+	const auto modelRequirement = [](bool analyticJac)
+	{
+		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		cadet::JsonParameterProvider unitJpp = createCSTR(1);
+		unitJpp.set("USE_ANALYTIC_JACOBIAN", analyticJac);
+
+		cadet::IUnitOperation* const unit = cadet::test::unitoperation::createAndConfigureUnit(unitJpp, *mb);
+		const unsigned int dirs = unit->requiredADdirs();
+
+		mb->destroyUnitOperation(unit);
+		destroyModelBuilder(mb);
+
+		return dirs;
+	};
+
+	const auto useAdJacobian = [](cadet::JsonParameterProvider& p)
+	{
+		p.pushScope("model");
+		p.pushScope("unit_000");
+		p.set("USE_ANALYTIC_JACOBIAN", false);
+		p.popScope();
+		p.popScope();
+	};
+
+	// Unit 000 of this configuration is the model that modelRequirement() builds; the inlet and the
+	// outlet unit require no AD directions, so the system requires what unit 000 requires
+	cadet::JsonParameterProvider jpp = createCSTRBenchmark(1, 10.0, 1.0);
+	cadet::test::setSectionTimes(jpp, {0.0, 10.0});
+	cadet::test::setInitialConditions(jpp, {0.0}, {}, 10.0);
+	cadet::test::setInletProfile(jpp, 0, 0, 1.0, 0.0, 0.0, 0.0);
+	cadet::test::setFlowRates(jpp, 0, 1.0, 0.5, 0.5);
+
+	SECTION("Analytic Jacobian without sensitivities")
+	{
+		const unsigned int required = modelRequirement(true);
+
+		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
+		AdDirectionRecorder rec;
+		cadet::Driver drv;
+		drv.configure(jpp);
+		drv.simulator()->setNotificationCallback(&rec);
+		drv.run();
+
+		CHECK(rec.directions() == static_cast<int>(required));
+		CHECK(cadet::ad::getDirections() == cadet::ad::getMaxDirections());
+	}
+
+	SECTION("AD Jacobian without sensitivities")
+	{
+		const unsigned int required = modelRequirement(false);
+		REQUIRE(required > 0);
+
+		useAdJacobian(jpp);
+
+		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
+		AdDirectionRecorder rec;
+		cadet::Driver drv;
+		drv.configure(jpp);
+		drv.simulator()->setNotificationCallback(&rec);
+		drv.run();
+
+		CHECK(rec.directions() == static_cast<int>(required));
+		CHECK(cadet::ad::getDirections() == cadet::ad::getMaxDirections());
+	}
+
+	SECTION("AD Jacobian with a parameter sensitivity")
+	{
+		const unsigned int required = modelRequirement(false);
+
+		useAdJacobian(jpp);
+		cadet::test::addSensitivity(jpp, "FLOWRATE_FILTER", cadet::makeParamId("FLOWRATE_FILTER", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 1e-6);
+		cadet::test::returnSensitivities(jpp, 0);
+
+		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
+		AdDirectionRecorder rec;
+		cadet::Driver drv;
+		drv.configure(jpp);
+		drv.simulator()->setNotificationCallback(&rec);
+		drv.run();
+
+		REQUIRE(drv.simulator()->numSensParams() == 1);
+		CHECK(rec.directions() == static_cast<int>(1 + required));
+		CHECK(cadet::ad::getDirections() == cadet::ad::getMaxDirections());
+	}
 }
