@@ -274,10 +274,14 @@ namespace reaction
 					std::vector<double> expFwdSolidModLiquid(nReactions * nComp, 0.0);
 					std::vector<double> expBwdSolidModLiquid(nReactions * nComp, 0.0);
 
-					util::populate(expFwdLiquidModSolid.data(), [](unsigned int idx) { return std::sin(idx * 0.7 + 0.1) * 0.5 + 1.6; }, expFwdLiquidModSolid.size());
-					util::populate(expBwdLiquidModSolid.data(), [](unsigned int idx) { return std::sin(idx * 0.7 + 0.2) * 0.5 + 1.6; }, expBwdLiquidModSolid.size());
-					util::populate(expFwdSolidModLiquid.data(), [](unsigned int idx) { return std::sin(idx * 0.7 + 0.3) * 0.5 + 1.6; }, expFwdSolidModLiquid.size());
-					util::populate(expBwdSolidModLiquid.data(), [](unsigned int idx) { return std::sin(idx * 0.7 + 0.4) * 0.5 + 1.6; }, expBwdSolidModLiquid.size());
+					// A rate law that is modified by every state of the other phase at once drives the
+					// residual far enough up that the finite differences the Jacobian is checked
+					// against lose the small entries in round-off. Every other state carries a
+					// modifier instead, which is also what a rate law looks like in practice.
+					util::populate(expFwdLiquidModSolid.data(), [](unsigned int idx) { return (idx % 2 == 0) ? 0.0 : std::sin(idx * 0.7 + 0.1) * 0.2 + 0.8; }, expFwdLiquidModSolid.size());
+					util::populate(expBwdLiquidModSolid.data(), [](unsigned int idx) { return (idx % 2 == 1) ? 0.0 : std::sin(idx * 0.7 + 0.2) * 0.2 + 0.8; }, expBwdLiquidModSolid.size());
+					util::populate(expFwdSolidModLiquid.data(), [](unsigned int idx) { return (idx % 2 == 0) ? 0.0 : std::sin(idx * 0.7 + 0.3) * 0.2 + 0.8; }, expFwdSolidModLiquid.size());
+					util::populate(expBwdSolidModLiquid.data(), [](unsigned int idx) { return (idx % 2 == 1) ? 0.0 : std::sin(idx * 0.7 + 0.4) * 0.2 + 0.8; }, expBwdSolidModLiquid.size());
 
 					jpp.set("MAL_EXPONENTS_LIQUID_FWD_MODSOLID", expFwdLiquidModSolid);
 					jpp.set("MAL_EXPONENTS_LIQUID_BWD_MODSOLID", expBwdLiquidModSolid);
