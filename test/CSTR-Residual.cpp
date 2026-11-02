@@ -110,6 +110,11 @@ inline void checkJacobianAD(double flowRateIn, double flowRateOut, double flowRa
 	cadet::ad::setDirections(cadet::ad::getMaxDirections());
 	cstrAD->useAnalyticJacobian(false);
 
+	// Seeding writes one AD direction per required direction. An active only has room for
+	// getMaxDirections() of them, so without this check the seeding below runs off the end of its
+	// gradient array. Simulations get the same check from the Simulator.
+	REQUIRE(cstrAD->requiredADdirs() <= cadet::ad::getMaxDirections());
+
 	cadet::active* adRes = new cadet::active[cstrAD->numDofs()];
 	cadet::active* adY = new cadet::active[cstrAD->numDofs()];
 

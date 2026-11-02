@@ -446,6 +446,10 @@ void ModelSystem::allocateSuperStructMatrices()
 
 bool ModelSystem::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
+	// Configuring creates actives, which zero their gradient only over the currently set number of AD
+	// directions. They have to be built at the maximum, see detail::globalGradSize in sfad-common.hpp.
+	cadet_assert(ad::getDirections() == ad::getMaxDirections());
+
 	// Discretizations of unit operation models are already configured
 	rebuildInternalDataStructures();
 
@@ -581,6 +585,9 @@ bool ModelSystem::configureModelDiscretization(IParameterProvider& paramProvider
 
 bool ModelSystem::configure(IParameterProvider& paramProvider)
 {
+	// See configureModelDiscretization()
+	cadet_assert(ad::getDirections() == ad::getMaxDirections());
+
 	_parameters.clear();
 
 	// Reconfigure all external functions

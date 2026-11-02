@@ -160,6 +160,11 @@ namespace unitoperation
 			cadet::ad::setDirections(cadet::ad::getMaxDirections());
 			unit->useAnalyticJacobian(false);
 
+			// Seeding writes one AD direction per required direction. An active only has room for
+			// getMaxDirections() of them, so without this check the seeding below runs off the end of
+			// its gradient array. Simulations get the same check from the Simulator.
+			REQUIRE(unit->requiredADdirs() <= cadet::ad::getMaxDirections());
+
 			adRes = new cadet::active[unit->numDofs()];
 			adY = new cadet::active[unit->numDofs()];
 			unit->prepareADvectors(AdJacobianParams{adRes, adY, 0});
@@ -220,6 +225,11 @@ namespace unitoperation
 		{
 			cadet::ad::setDirections(cadet::ad::getMaxDirections());
 			unit->useAnalyticJacobian(false);
+
+			// The first nSens directions carry the parameter sensitivities, so the Jacobian seeding
+			// starts behind them. Both together have to fit into an active's gradient array, or the
+			// seeding below runs off its end. Simulations get the same check from the Simulator.
+			REQUIRE(nSens + unit->requiredADdirs() <= cadet::ad::getMaxDirections());
 
 			adY = new cadet::active[unit->numDofs()];
 			unit->prepareADvectors(AdJacobianParams{adRes, adY, nSens});
@@ -297,6 +307,11 @@ namespace unitoperation
 		{
 			cadet::ad::setDirections(cadet::ad::getMaxDirections());
 			unit->useAnalyticJacobian(false);
+
+			// Seeding writes one AD direction per required direction. An active only has room for
+			// getMaxDirections() of them, so without this check the seeding below runs off the end of
+			// its gradient array. Simulations get the same check from the Simulator.
+			REQUIRE(unit->requiredADdirs() <= cadet::ad::getMaxDirections());
 
 			adRes = new cadet::active[unit->numDofs()];
 			adY = new cadet::active[unit->numDofs()];
