@@ -202,11 +202,6 @@ namespace cell
 
 					if (wantJac)
 					{
-						// The solid phase fluxes are differentiated with respect to the liquid phase as
-						// well, so they are collected in a matrix that holds the whole cell. A row
-						// iterator discards what lies before the first column of its own row, so the
-						// solid equations have to sit at the rows they occupy in the cell, behind the
-						// liquid ones, rather than at the top of a matrix of their own.
 						const int cellSize = static_cast<int>(params.nComp + params.nTotalBound);
 						BufferedArray<double> fluxSolidJacobian = buffer.template array<double>(static_cast<std::size_t>(cellSize) * cellSize);
 						linalg::DenseMatrixView dmv(static_cast<double*>(fluxSolidJacobian), nullptr, cellSize, cellSize);
