@@ -879,10 +879,13 @@ namespace column
 
 		// Enable AD
 		REQUIRE(unitAD->requiredADdirs() <= cadet::ad::getMaxDirections());
-		cadet::ad::setDirections(unitAD->requiredADdirs());
 
+		// An active zeroes its gradient only over the currently set number of AD directions, and the count is
+		// raised to the maximum again below, so allocate these before lowering it.
 		cadet::active* adRes = new cadet::active[unitAD->numDofs()];
 		cadet::active* adY = new cadet::active[unitAD->numDofs()];
+
+		cadet::ad::setDirections(unitAD->requiredADdirs());
 
 		// Obtain memory for state, Jacobian multiply direction, Jacobian column
 		std::vector<double> y(unitAD->numDofs(), 0.0);
