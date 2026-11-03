@@ -219,18 +219,6 @@ TEST_CASE("MassActionLaw kinetic analytic Jacobian vs AD", "[MassActionLaw],[Rea
 	const double point[] = { 1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8 };
 	cadet::test::reaction::testDynamicJacobianAD("MASS_ACTION_LAW_CROSS_PHASE", 3, nBound,
 		R"json({
-			"MAL_KFWD_LIQUID": [1.0, 2.0, 0.4],
-			"MAL_KBWD_LIQUID": [0.0, 0.2, 1.5],
-			"MAL_STOICHIOMETRY_LIQUID": [ 1.0, -2.0,  3.0,
-			                           -1.0,  0.0, -2.0,
-			                            0.0,  1.0,  1.0],
-			"MAL_EXPONENTS_LIQUID_FWD": [ 1.2,  0.0,  0.0,
-			                            0.0,  1.3,  2.2,
-			                            0.0,  1.0,  1.1],
-			"MAL_EXPONENTS_LIQUID_BWD": [ 0.8,  2.1,  1.0,
-			                            1.3,  1.0,  0.0,
-			                            0.0,  0.0,  1.4],
-
 			"MAL_KFWD_LIQUID": [1.0, 2.0, 0.8, 1.2, 2.1],
 			"MAL_KBWD_LIQUID": [0.1, 0.2, 2.4, 1.9, 0.8],
 			"MAL_STOICHIOMETRY_LIQUID": [ 1.0, -2.0,  3.0,  1.0, -2.0,

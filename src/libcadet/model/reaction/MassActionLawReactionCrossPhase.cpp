@@ -349,7 +349,7 @@ namespace cadet
 				{
 					const std::size_t numElements = paramProvider.numElements("MAL_STOICHIOMETRY_LIQUID");
 					if (numElements % nComp != 0)
-						throw InvalidParameterException("Size of field STOICHIOMETRY_LIQUID must be a positive multiple of NCOMP (" + std::to_string(nComp) + ")");
+						throw InvalidParameterException("Size of field MAL_STOICHIOMETRY_LIQUID must be a positive multiple of NCOMP (" + std::to_string(nComp) + ")");
 
 					const unsigned int nReactions = numElements / nComp;
 
@@ -365,7 +365,7 @@ namespace cadet
 				{
 					const std::size_t numElements = paramProvider.numElements("MAL_STOICHIOMETRY_SOLID");
 					if (numElements % _nTotalBoundStates != 0)
-						throw InvalidParameterException("Size of field STOICHIOMETRY_SOLID must be a positive multiple of NTOTALBND (" + std::to_string(_nTotalBoundStates) + ")");
+						throw InvalidParameterException("Size of field MAL_STOICHIOMETRY_SOLID must be a positive multiple of NTOTALBND (" + std::to_string(_nTotalBoundStates) + ")");
 
 					const unsigned int nReactions = numElements / _nTotalBoundStates;
 
@@ -409,10 +409,10 @@ namespace cadet
 				_paramHandler.registerParameters(_parameters, unitOpIdx, parTypeIdx, _nComp, _nBoundStates);
 
 				if ((_stoichiometryLiquid.columns() > 0) && ((static_cast<int>(_paramHandler.kFwdLiquid().size()) < _stoichiometryLiquid.columns()) || (static_cast<int>(_paramHandler.kBwdLiquid().size()) < _stoichiometryLiquid.columns())))
-					throw InvalidParameterException("KFWD_LIQUID and KBWD_LIQUID have to have the same size (number of reactions)");
+					throw InvalidParameterException("MAL_KFWD_LIQUID and MAL_KBWD_LIQUID have to have the same size (number of reactions)");
 
 				if ((_stoichiometrySolid.columns() > 0) && ((static_cast<int>(_paramHandler.kFwdSolid().size()) < _stoichiometrySolid.columns()) || (static_cast<int>(_paramHandler.kBwdSolid().size()) < _stoichiometrySolid.columns())))
-					throw InvalidParameterException("KFWD_SOLID and KBWD_SOLID have to have the same size (number of reactions)");
+					throw InvalidParameterException("MAL_KFWD_SOLID and MAL_KBWD_SOLID have to have the same size (number of reactions)");
 
 
 				if (paramProvider.exists("MAL_STOICHIOMETRY_LIQUID"))
@@ -420,17 +420,17 @@ namespace cadet
 					const std::vector<double> s = paramProvider.getDoubleArray("MAL_STOICHIOMETRY_LIQUID");
 
 					if (static_cast<int>(s.size()) != _stoichiometryLiquid.elements())
-						throw InvalidParameterException("STOICHIOMETRY_LIQUID has changed size (number of reactions changed)");
+						throw InvalidParameterException("MAL_STOICHIOMETRY_LIQUID has changed size (number of reactions changed)");
 
 					std::copy(s.begin(), s.end(), _stoichiometryLiquid.data());
 				}
 				registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MAL_STOICHIOMETRY_LIQUID", _stoichiometryLiquid);
 
-				if (paramProvider.exists("EXPONENTS_LIQUID_FWD"))
+				if (paramProvider.exists("MAL_EXPONENTS_LIQUID_FWD"))
 				{
-					const std::vector<double> s = paramProvider.getDoubleArray("EXPONENTS_LIQUID_FWD");
+					const std::vector<double> s = paramProvider.getDoubleArray("MAL_EXPONENTS_LIQUID_FWD");
 					if (static_cast<int>(s.size()) != _stoichiometryLiquid.elements())
-						throw InvalidParameterException("Expected EXPONENTS_LIQUID_FWD and STOICHIOMETRY_LIQUID to be of the same size (" + std::to_string(_stoichiometryLiquid.elements()) + ")");
+						throw InvalidParameterException("Expected MAL_EXPONENTS_LIQUID_FWD and MAL_STOICHIOMETRY_LIQUID to be of the same size (" + std::to_string(_stoichiometryLiquid.elements()) + ")");
 
 					std::copy(s.begin(), s.end(), _expLiquidFwd.data());
 				}
@@ -439,13 +439,13 @@ namespace cadet
 					// Obtain default values from stoichiometry
 					std::transform(_stoichiometryLiquid.data(), _stoichiometryLiquid.data() + _stoichiometryLiquid.elements(), _expLiquidFwd.data(), [](const active& v) { return std::max(0.0, -static_cast<double>(v)); });
 				}
-				registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "EXPONENTS_LIQUID_FWD", _expLiquidFwd);
+				registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MAL_EXPONENTS_LIQUID_FWD", _expLiquidFwd);
 
-				if (paramProvider.exists("EXPONENTS_LIQUID_BWD"))
+				if (paramProvider.exists("MAL_EXPONENTS_LIQUID_BWD"))
 				{
-					const std::vector<double> s = paramProvider.getDoubleArray("EXPONENTS_LIQUID_BWD");
+					const std::vector<double> s = paramProvider.getDoubleArray("MAL_EXPONENTS_LIQUID_BWD");
 					if (static_cast<int>(s.size()) != _stoichiometryLiquid.elements())
-						throw InvalidParameterException("Expected EXPONENTS_LIQUID_BWD and STOICHIOMETRY_LIQUID to be of the same size (" + std::to_string(_stoichiometryLiquid.elements()) + ")");
+						throw InvalidParameterException("Expected MAL_EXPONENTS_LIQUID_BWD and MAL_STOICHIOMETRY_LIQUID to be of the same size (" + std::to_string(_stoichiometryLiquid.elements()) + ")");
 
 					std::copy(s.begin(), s.end(), _expLiquidBwd.data());
 				}
@@ -454,13 +454,13 @@ namespace cadet
 					// Obtain default values from stoichiometry
 					std::transform(_stoichiometryLiquid.data(), _stoichiometryLiquid.data() + _stoichiometryLiquid.elements(), _expLiquidBwd.data(), [](const active& v) { return std::max(0.0, static_cast<double>(v)); });
 				}
-				registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "EXPONENTS_LIQUID_BWD", _expLiquidBwd);
+				registerCompRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MAL_EXPONENTS_LIQUID_BWD", _expLiquidBwd);
 
 				if (!_nBoundStates || !_boundOffset)
 					return true;
 
-				readAndRegisterExponents(paramProvider, _parameters, unitOpIdx, parTypeIdx, "EXPONENTS_LIQUID_FWD_MODSOLID", _expLiquidFwdSolid, _nComp, _boundOffset);
-				readAndRegisterExponents(paramProvider, _parameters, unitOpIdx, parTypeIdx, "EXPONENTS_LIQUID_BWD_MODSOLID", _expLiquidBwdSolid, _nComp, _boundOffset);
+				readAndRegisterExponents(paramProvider, _parameters, unitOpIdx, parTypeIdx, "MAL_EXPONENTS_LIQUID_FWD_MODSOLID", _expLiquidFwdSolid, _nComp, _boundOffset);
+				readAndRegisterExponents(paramProvider, _parameters, unitOpIdx, parTypeIdx, "MAL_EXPONENTS_LIQUID_BWD_MODSOLID", _expLiquidBwdSolid, _nComp, _boundOffset);
 
 
 				if (paramProvider.exists("MAL_STOICHIOMETRY_SOLID"))
@@ -468,17 +468,17 @@ namespace cadet
 					const std::vector<double> s = paramProvider.getDoubleArray("MAL_STOICHIOMETRY_SOLID");
 
 					if (static_cast<int>(s.size()) != _stoichiometrySolid.elements())
-						throw InvalidParameterException("STOICHIOMETRY_SOLID has changed size (number of reactions changed)");
+						throw InvalidParameterException("MAL_STOICHIOMETRY_SOLID has changed size (number of reactions changed)");
 
 					std::copy(s.begin(), s.end(), _stoichiometrySolid.data());
 				}
-				registerBoundStateRowMatrix(_parameters, unitOpIdx, parTypeIdx, "STOICHIOMETRY_SOLID", _stoichiometrySolid, _nComp, _boundOffset);
+				registerBoundStateRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MAL_STOICHIOMETRY_SOLID", _stoichiometrySolid, _nComp, _boundOffset);
 
-				if (paramProvider.exists("EXPONENTS_SOLID_FWD"))
+				if (paramProvider.exists("MAL_EXPONENTS_SOLID_FWD"))
 				{
-					const std::vector<double> s = paramProvider.getDoubleArray("EXPONENTS_SOLID_FWD");
+					const std::vector<double> s = paramProvider.getDoubleArray("MAL_EXPONENTS_SOLID_FWD");
 					if (static_cast<int>(s.size()) != _stoichiometrySolid.elements())
-						throw InvalidParameterException("Expected EXPONENTS_SOLID_FWD and STOICHIOMETRY_SOLID to be of the same size (" + std::to_string(_stoichiometrySolid.elements()) + ")");
+						throw InvalidParameterException("Expected MAL_EXPONENTS_SOLID_FWD and MAL_STOICHIOMETRY_SOLID to be of the same size (" + std::to_string(_stoichiometrySolid.elements()) + ")");
 
 					std::copy(s.begin(), s.end(), _expSolidFwd.data());
 				}
@@ -487,13 +487,13 @@ namespace cadet
 					// Obtain default values from stoichiometry
 					std::transform(_stoichiometrySolid.data(), _stoichiometrySolid.data() + _stoichiometrySolid.elements(), _expSolidFwd.data(), [](const active& v) { return std::max(0.0, -static_cast<double>(v)); });
 				}
-				registerBoundStateRowMatrix(_parameters, unitOpIdx, parTypeIdx, "EXPONENTS_SOLID_FWD", _expSolidFwd, _nComp, _boundOffset);
+				registerBoundStateRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MAL_EXPONENTS_SOLID_FWD", _expSolidFwd, _nComp, _boundOffset);
 
-				if (paramProvider.exists("EXPONENTS_SOLID_BWD"))
+				if (paramProvider.exists("MAL_EXPONENTS_SOLID_BWD"))
 				{
-					const std::vector<double> s = paramProvider.getDoubleArray("EXPONENTS_SOLID_BWD");
+					const std::vector<double> s = paramProvider.getDoubleArray("MAL_EXPONENTS_SOLID_BWD");
 					if (static_cast<int>(s.size()) != _stoichiometrySolid.elements())
-						throw InvalidParameterException("Expected EXPONENTS_SOLID_BWD and STOICHIOMETRY_SOLID to be of the same size (" + std::to_string(_stoichiometrySolid.elements()) + ")");
+						throw InvalidParameterException("Expected MAL_EXPONENTS_SOLID_BWD and MAL_STOICHIOMETRY_SOLID to be of the same size (" + std::to_string(_stoichiometrySolid.elements()) + ")");
 
 					std::copy(s.begin(), s.end(), _expSolidBwd.data());
 				}
@@ -502,10 +502,10 @@ namespace cadet
 					// Obtain default values from stoichiometry
 					std::transform(_stoichiometrySolid.data(), _stoichiometrySolid.data() + _stoichiometrySolid.elements(), _expSolidBwd.data(), [](const active& v) { return std::max(0.0, static_cast<double>(v)); });
 				}
-				registerBoundStateRowMatrix(_parameters, unitOpIdx, parTypeIdx, "EXPONENTS_SOLID_BWD", _expSolidBwd, _nComp, _boundOffset);
+				registerBoundStateRowMatrix(_parameters, unitOpIdx, parTypeIdx, "MAL_EXPONENTS_SOLID_BWD", _expSolidBwd, _nComp, _boundOffset);
 
-				readAndRegisterExponents(paramProvider, _parameters, unitOpIdx, parTypeIdx, "EXPONENTS_SOLID_FWD_MODLIQUID", _expSolidFwdLiquid, _nComp, nullptr);
-				readAndRegisterExponents(paramProvider, _parameters, unitOpIdx, parTypeIdx, "EXPONENTS_SOLID_BWD_MODLIQUID", _expSolidBwdLiquid, _nComp, nullptr);
+				readAndRegisterExponents(paramProvider, _parameters, unitOpIdx, parTypeIdx, "MAL_EXPONENTS_SOLID_FWD_MODLIQUID", _expSolidFwdLiquid, _nComp, nullptr);
+				readAndRegisterExponents(paramProvider, _parameters, unitOpIdx, parTypeIdx, "MAL_EXPONENTS_SOLID_BWD_MODLIQUID", _expSolidBwdLiquid, _nComp, nullptr);
 
 				return true;
 			}
