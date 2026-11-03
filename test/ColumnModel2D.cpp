@@ -470,7 +470,9 @@ TEST_CASE("Column_2D as GRM consistent initialization with linear binding", "[Co
 TEST_CASE("Column_2D as GRM consistent sensitivity initialization with linear binding", "[Column_2D],[ConsistentInit],[Sensitivity],[CI]")
 {
 	// Fill state vector with given initial values
-	const unsigned int numDofs = 2 * 3 + 2 * 8 * 3 + 8 * 3 * 3 * (2 + 2) + 2 * 8 * 3;
+	// This has to cover all DOFs of the unit, which has more particle nodes than the LRMP variant above.
+	// A shorter vector makes the unit read past its end, so the test then depends on whatever is on the heap.
+	const unsigned int numDofs = 546;
 	std::vector<double> y(numDofs, 0.0);
 	std::vector<double> yDot(numDofs, 0.0);
 	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, numDofs);
