@@ -675,7 +675,7 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 		_parPorosity[parType] = paramProvider.getDouble("PAR_POROSITY");
 
 		if (paramProvider.exists("PAR_POROSITY_PARTYPE_DEPENDENT"))
-			_singleParPorosity = !paramProvider.getBool("PAR_RADIUS_PARTYPE_DEPENDENT");
+			_singleParPorosity = !paramProvider.getBool("PAR_POROSITY_PARTYPE_DEPENDENT");
 
 		if (_singleParPorosity && parType == 0)
 			_parameters[makeParamId(hashStringRuntime("PAR_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parPorosity[parType];

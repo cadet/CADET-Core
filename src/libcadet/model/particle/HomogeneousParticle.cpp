@@ -558,9 +558,11 @@ namespace model
 
 	bool HomogeneousParticle::setParameter(const ParameterId& pId, double value)
 	{
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _parRadiusParTypeDep, _parRadius, _parTypeIdx, value, nullptr))
+		// A particle type independent ID is accepted whether these parameters are particle type dependent or not, and the
+		// caller applies it to every particle type. Particle type specific IDs are found in the parameter map of the unit.
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), true, _parRadius, _parTypeIdx, value, nullptr))
 			return true;
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _parPorosityParTypeDep, _parPorosity, _parTypeIdx, value, nullptr))
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), true, _parPorosity, _parTypeIdx, value, nullptr))
 			return true;
 		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _nComp, _parTypeIdx, value, nullptr))
 			return true;
@@ -600,10 +602,11 @@ namespace model
 
 	bool HomogeneousParticle::setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value)
 	{
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _parRadiusParTypeDep, _parRadius, _parTypeIdx, value, &sensParams))
+		// Particle type independent ID in both modes, see setParameter()
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), true, _parRadius, _parTypeIdx, value, &sensParams))
 			return true;
 
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _parPorosityParTypeDep, _parPorosity, _parTypeIdx, value, &sensParams))
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), true, _parPorosity, _parTypeIdx, value, &sensParams))
 			return true;
 
 		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _nComp, _parTypeIdx, value, &sensParams))
@@ -623,13 +626,14 @@ namespace model
 
 	bool HomogeneousParticle::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
 	{
-		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_RADIUS"), _parRadiusParTypeDep, _parRadius, _parTypeIdx, adDirection, adValue, sensParams))
+		// Particle type independent ID in both modes, see setParameter()
+		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_RADIUS"), true, _parRadius, _parTypeIdx, adDirection, adValue, sensParams))
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;
 		}
 
-		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_POROSITY"), _parPorosityParTypeDep, _parPorosity, _parTypeIdx, adDirection, adValue, sensParams))
+		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_POROSITY"), true, _parPorosity, _parTypeIdx, adDirection, adValue, sensParams))
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;
