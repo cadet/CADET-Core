@@ -213,7 +213,11 @@ void CompressedSparseMatrix::multiplyVector(double const* const x, double alpha,
 {
 	for (int r = 0; r < rows(); ++r)
 	{
-		y[r] *= beta;
+		// As in BLAS, beta == 0 means that y is not read
+		if (beta == 0.0)
+			y[r] = 0.0;
+		else
+			y[r] *= beta;
 
 		const int nnzInRow = numNonZerosInRow(r);
 		sparse_int_t const* const localColIdx = _colIdx.data() + _rowStart[r];

@@ -657,10 +657,12 @@ void ModelSystem::multiplyWithMacroJacobian(double const* yS, double alpha, doub
 
 	// Set ret_con = yS_con
 	// This applies the identity matrix in the bottom right corner of the Jaocbian (network coupling equation)
+	// As in BLAS, beta == 0 means that ret is not read: residualSensFwdWithJacobianAlgorithm() passes the
+	// sensitivity residual of IDAS here, whose coupling DOFs are uninitialized at that point.
 
 	for (unsigned int i = finalOffset; i < numDofs(); ++i)
 	{
-		ret[i] = alpha * yS[i] + beta * ret[i];
+		ret[i] = (beta == 0.0) ? alpha * yS[i] : alpha * yS[i] + beta * ret[i];
 	}
 
 	// N_{x,f} Inlets (Right) matrices

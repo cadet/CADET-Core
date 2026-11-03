@@ -2005,7 +2005,7 @@ void GeneralRateModel2D::multiplyWithJacobian(const SimulationTime& simTime, con
 	// Handle identity matrix of inlet DOFs
 	for (unsigned int i = 0; i < _disc.nComp * _disc.nRad; ++i)
 	{
-		ret[i] = alpha * yS[i] + beta * ret[i];
+		ret[i] = (beta == 0.0) ? alpha * yS[i] : alpha * yS[i] + beta * ret[i];
 	}
 
 #ifdef CADET_PARALLELIZE
@@ -2036,7 +2036,7 @@ void GeneralRateModel2D::multiplyWithJacobian(const SimulationTime& simTime, con
 	// Set fluxes(ret) = fluxes(yS)
 	// This applies the identity matrix in the bottom right corner of the Jaocbian (flux equation)
 	for (unsigned int i = idxr.offsetJf(); i < numDofs(); ++i)
-		ret[i] = alpha * yS[i] + beta * ret[i];
+		ret[i] = (beta == 0.0) ? alpha * yS[i] : alpha * yS[i] + beta * ret[i];
 
 	double* const retJf = ret + idxr.offsetJf();
 	_jacFC.multiplyVector(yS + idxr.offsetC(), alpha, 1.0, retJf);

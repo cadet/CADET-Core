@@ -851,7 +851,7 @@ void MultiChannelTransportModel::multiplyWithJacobian(const SimulationTime& simT
 	// Handle identity matrix of inlet DOFs
 	for (unsigned int i = 0; i < _disc.nComp * _disc.nChannel; ++i)
 	{
-		ret[i] = alpha * yS[i] + beta * ret[i];
+		ret[i] = (beta == 0.0) ? alpha * yS[i] : alpha * yS[i] + beta * ret[i];
 	}
 
 	_convDispOp.jacobian().multiplyVector(yS + idxr.offsetC(), alpha, beta, ret + idxr.offsetC());

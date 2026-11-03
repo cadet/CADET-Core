@@ -412,7 +412,7 @@ void InletModel::multiplyWithJacobian(const SimulationTime& simTime, const Const
 {
 	for (unsigned int i = 0; i < numDofs(); ++i)
 	{
-		ret[i] = alpha * yS[i] + beta * ret[i];
+		ret[i] = (beta == 0.0) ? alpha * yS[i] : alpha * yS[i] + beta * ret[i];
 	}
 }
 

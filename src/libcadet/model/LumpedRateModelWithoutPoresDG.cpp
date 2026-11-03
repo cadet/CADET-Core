@@ -866,13 +866,16 @@ namespace cadet
 			// Handle identity matrix of inlet DOFs
 			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
 			{
-				ret[comp] = alpha * yS[comp] + beta * ret[comp];
+				ret[comp] = (beta == 0.0) ? alpha * yS[comp] : alpha * yS[comp] + beta * ret[comp];
 			}
 
 			// Main Jacobian
 			Eigen::Map<Eigen::VectorXd> ret_vec(ret + idxr.offsetC(), numPureDofs());
 			Eigen::Map<const Eigen::VectorXd> yS_vec(yS + idxr.offsetC(), numPureDofs());
-			ret_vec = alpha * _jac * yS_vec + beta * ret_vec;
+			if (beta == 0.0)
+				ret_vec = alpha * _jac * yS_vec;
+			else
+				ret_vec = alpha * _jac * yS_vec + beta * ret_vec;
 
 			// Map inlet DOFs to the column inlet (first bulk cells)
 			// Inlet at z = 0 for forward flow, at z = L for backward flow.
