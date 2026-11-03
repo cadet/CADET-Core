@@ -536,7 +536,7 @@ int ModelSystem::residual(const SimulationTime& simTime, const ConstSimulationSt
 		bool hasNonFinite = false;
 		for (int j = 0; j < _dofs[i]; j++)
 		{
-			hasNonFinite |= !std::isfinite(res[j]);
+			hasNonFinite |= !std::isfinite(res[offset + j]);
 		}
 		if (hasNonFinite)
 		{
@@ -582,7 +582,7 @@ int ModelSystem::residualWithJacobian(const SimulationTime& simTime, const Const
 		bool hasNonFinite = false;
 		for (int j = 0; j < _dofs[i]; j++)
 		{
-			hasNonFinite |= !std::isfinite(res[j]);
+			hasNonFinite |= !std::isfinite(res[offset + j]);
 		}
 		if (hasNonFinite)
 		{
