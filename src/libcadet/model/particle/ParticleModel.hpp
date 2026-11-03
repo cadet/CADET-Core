@@ -95,7 +95,7 @@ namespace cadet
 				validateConfiguration();
 
 				if (!hasFilmDiffusion())
-					return "EQUILIBRIUM_PARTICLE";
+					return "LIQUID_EQUILIBRIUM_PARTICLE";
 				else if (!hasPoreDiffusion() && !hasSurfaceDiffusion())
 					return "HOMOGENEOUS_PARTICLE";
 				else if (hasPoreDiffusion() || hasSurfaceDiffusion())
@@ -242,6 +242,14 @@ namespace cadet
 			virtual bool hasParameter(const ParameterId& pId) const = 0;
 			virtual double getParameterDouble(const ParameterId& pId) const = 0;
 			virtual std::unordered_map<ParameterId, double> getAllParameterValues(std::unordered_map<ParameterId, double>& data) const = 0;
+
+			/**
+			 * @brief Sets the distance from the bound states of this particle type back to the liquid phase they bind to
+			 * @details Only a particle in rapid equilibrium binds to a liquid phase that is not adjacent to its
+			 *          bound states in the state vector. Every other particle model has its own particle liquid
+			 *          phase directly in front of its bound states and ignores this.
+			 */
+			virtual void setBulkRowOffset(int offset) CADET_NOEXCEPT { }
 
 			virtual bool leanConsistentInitialStateValidity() const = 0;
 

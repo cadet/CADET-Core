@@ -72,7 +72,7 @@ add_executable(testRunner testRunner.cpp JsonTestModels.cpp ColumnTests.cpp Unit
 	FrustumGeneralRateModel.cpp
 	MultiChannelTransportModel.cpp
 	Crystallization.cpp
-	CSTR-Residual.cpp CSTR-Simulation.cpp
+	CSTR-Residual.cpp CSTR-Simulation.cpp CSTR-Particles.cpp
 	ConvectionDispersionOperatorFV.cpp
 	CellKernelTests.cpp
 	BindingModelTests.cpp BindingModels.cpp BindingModelAutoJacobian.cpp

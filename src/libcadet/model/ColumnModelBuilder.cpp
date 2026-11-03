@@ -12,6 +12,7 @@
  
  #include "model/particle/ParticleModel.hpp"
 #include "model/ColumnModel1D.hpp"
+#include "model/StirredTankModel.hpp"
 #ifdef ENABLE_2D_MODELS
 	#include "model/ColumnModel2D.hpp"
 	#include "model/GeneralRateModel2D.hpp"
@@ -86,6 +87,58 @@ namespace model
 		}
 
 		return false;
+	}
+
+	/*
+	 * @brief Selects the stirred tank unit operation and rejects particle type combinations it cannot hold
+	 * @detail One unit operation covers the well mixed vessel with and without particles. Particles in rapid
+	 *		   equilibrium with the bulk liquid have no liquid phase of their own, which gives the tank a
+	 *		   different state layout, so they must not be mixed with particle types that have pores.
+	 */
+	IUnitOperation* selectStirredTankUnitOperation(UnitOpIdx uoId, IParameterProvider& paramProvider)
+	{
+		const int nParType = paramProvider.exists("NPARTYPE") ? paramProvider.getInt("NPARTYPE") : 0;
+
+		if (nParType < 0)
+			throw InvalidParameterException("Number of particle types must be >= 0 for unit " + std::to_string(uoId));
+
+		if (nParType == 0)
+			return new StirredTankModel(uoId);
+
+		// Determine the particle transport type of every particle type
+		bool anyEquilibrium = false;
+		bool allEquilibrium = true;
+
+		for (int parType = 0; parType < nParType; ++parType)
+		{
+			const std::string parGroup = "particle_type_" + std::string(3 - std::to_string(parType).length(), '0') + std::to_string(parType);
+
+			if (!paramProvider.exists(parGroup))
+				throw InvalidParameterException("Group " + parGroup + " is missing for unit " + std::to_string(uoId));
+
+			paramProvider.pushScope(parGroup);
+
+			// The field that decides between rapid equilibrium and a particle liquid phase changes the
+			// state layout of the whole unit operation, so it is stated rather than defaulted
+			if (!paramProvider.exists("HAS_FILM_DIFFUSION"))
+				throw InvalidParameterException("The required parameter \"HAS_FILM_DIFFUSION\" was not found in particle type " + std::to_string(parType) + " of unit " + std::to_string(uoId));
+
+			const bool filmDiffusion = paramProvider.getBool("HAS_FILM_DIFFUSION");
+			const bool poreDiffusion = paramProvider.exists("HAS_PORE_DIFFUSION") ? paramProvider.getBool("HAS_PORE_DIFFUSION") : false;
+			const bool surfaceDiffusion = paramProvider.exists("HAS_SURFACE_DIFFUSION") ? paramProvider.getBool("HAS_SURFACE_DIFFUSION") : false;
+
+			paramProvider.popScope(); // particle_type_xxx
+
+			const bool isEquilibrium = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType() == "LIQUID_EQUILIBRIUM_PARTICLE";
+
+			anyEquilibrium = anyEquilibrium || isEquilibrium;
+			allEquilibrium = allEquilibrium && isEquilibrium;
+		}
+
+		if (anyEquilibrium && !allEquilibrium)
+			throw InvalidParameterException("Particle types in rapid equilibrium with the bulk liquid must not be mixed with other particle types in unit " + std::to_string(uoId));
+
+		return new StirredTankModel(uoId);
 	}
 
 	/*
@@ -221,7 +274,7 @@ namespace model
 
 				const std::string particleType = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType();
 
-				if (particleType == "EQUILIBRIUM_PARTICLE")
+				if (particleType == "LIQUID_EQUILIBRIUM_PARTICLE")
 				{
 					if (discName == "DG")
 						model = axialCollocationDG ? createAxialLRMDG(uoId) : createVariableCrossSectionLRMDG(uoId);
@@ -357,6 +410,8 @@ namespace model
 	{
 		models[ColumnModel2D::identifier()] = selectColumnUnitOperation;
 		models[GeneralRateModel2D::identifier()] = selectColumnUnitOperation;
+
+		models[StirredTankModel::identifier()] = selectStirredTankUnitOperation;
 
 		models["COLUMN_MODEL_1D"] = selectColumnUnitOperation;
 		models["GENERAL_RATE_MODEL"] = selectColumnUnitOperation;

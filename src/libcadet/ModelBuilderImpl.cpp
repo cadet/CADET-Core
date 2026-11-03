@@ -34,7 +34,6 @@ namespace cadet
 		void registerInletModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 		void registerOutletModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 		void registerColumnModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
-		void registerCSTRModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 #ifdef ENABLE_2D_MODELS
 		void registerMultiChannelTransportModel(std::unordered_map<std::string, std::function<IUnitOperation*(UnitOpIdx, IParameterProvider&)>>& models);
 #endif
@@ -56,7 +55,6 @@ namespace cadet
 		// Register all available models
 		model::registerInletModel(_modelCreators);
 		model::registerOutletModel(_modelCreators);
-		model::registerCSTRModel(_modelCreators);
 		model::registerColumnModel(_modelCreators);
 #ifdef ENABLE_2D_MODELS
 		model::registerMultiChannelTransportModel(_modelCreators);

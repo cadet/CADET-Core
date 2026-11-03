@@ -19,6 +19,7 @@ namespace cadet
 	{
 			void registerGeneralRateParticleModel(std::unordered_map<std::string, std::function<model::IParticleModel*()>>& particles);
 			void registerHomogeneousParticleModel(std::unordered_map<std::string, std::function<model::IParticleModel*()>>& particles);
+			void registerLiquidEquilibriumParticleModel(std::unordered_map<std::string, std::function<model::IParticleModel*()>>& particles);
 	}
 
 	ParticleModelFactory::ParticleModelFactory()
@@ -26,6 +27,7 @@ namespace cadet
 		// Register all ParticleModels here
 		model::registerGeneralRateParticleModel(_particleModels);
 		model::registerHomogeneousParticleModel(_particleModels);
+		model::registerLiquidEquilibriumParticleModel(_particleModels);
 	}
 
 	ParticleModelFactory::~ParticleModelFactory() { }
