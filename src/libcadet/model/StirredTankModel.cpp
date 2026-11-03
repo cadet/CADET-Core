@@ -2125,7 +2125,7 @@ void CSTRModel::multiplyWithJacobian(const SimulationTime& simTime, const ConstS
 	// Inlet DOFs
 	for (unsigned int i = 0; i < _nComp; ++i)
 	{
-		ret[i] = alpha * yS[i] + beta * ret[i];
+		ret[i] = (beta == 0.0) ? alpha * yS[i] : alpha * yS[i] + beta * ret[i];
 	}
 
 	// Multiply with main body Jacobian: dRes / dy

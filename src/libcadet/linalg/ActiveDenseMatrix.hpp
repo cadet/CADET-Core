@@ -286,7 +286,11 @@ public:
 	{
 		for (int r = 0; r < _rows; ++r)
 		{
-			y[r] *= beta;
+			// As in BLAS, beta == 0 means that y is not read
+			if (beta == 0.0)
+				y[r] = 0.0;
+			else
+				y[r] *= beta;
 			active const* const row = _data + r * stride();
 			for (int c = 0; c < _cols; ++c)
 				y[r] += alpha * static_cast<typename DoubleDemoter<result_t>::type>(row[c]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
@@ -342,7 +346,11 @@ public:
 	{
 		for (int r = 0; r < _rows; ++r)
 		{
-			y[r] *= beta;
+			// As in BLAS, beta == 0 means that y is not read
+			if (beta == 0.0)
+				y[r] = 0.0;
+			else
+				y[r] *= beta;
 			active const* const col = _data + r;
 			for (int c = 0; c < _cols; ++c)
 				y[r] += alpha * static_cast<typename DoubleDemoter<result_t>::type>(col[c * stride()]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
@@ -387,7 +395,11 @@ public:
 	{
 		for (int r = 0; r < idxSplit; ++r)
 		{
-			y[r] *= beta;
+			// As in BLAS, beta == 0 means that y is not read
+			if (beta == 0.0)
+				y[r] = 0.0;
+			else
+				y[r] *= beta;
 			active const* const row = _data + r * stride();
 			for (int c = 0; c < _cols; ++c)
 				y[r] += alpha1 * static_cast<typename DoubleDemoter<result_t>::type>(row[c]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);
@@ -395,7 +407,11 @@ public:
 
 		for (int r = idxSplit; r < _rows; ++r)
 		{
-			y[r] *= beta;
+			// As in BLAS, beta == 0 means that y is not read
+			if (beta == 0.0)
+				y[r] = 0.0;
+			else
+				y[r] *= beta;
 			active const* const row = _data + r * stride();
 			for (int c = 0; c < _cols; ++c)
 				y[r] += alpha2 * static_cast<typename DoubleDemoter<result_t>::type>(row[c]) * static_cast<typename DoubleActiveDemoter<result_t, operand_t>::type>(x[c]);

@@ -562,6 +562,9 @@ public:
 	/**
 	 * @brief Multiplies the given vector with the system Jacobian (i.e., @f$ \frac{\partial F}{\partial y}\left(t, y, \dot{y}\right) @f$)
 	 * @details Actually, the operation @f$ z = \alpha \frac{\partial F}{\partial y} x + \beta z @f$ is performed.
+	 *          As in BLAS, @f$ z @f$ is not read if @f$ \beta = 0 @f$, so it may be uninitialized then.
+	 *          Implementations must honor this: computing @f$ 0 \cdot z @f$ turns an uninitialized
+	 *          @f$ z @f$ into NaN whenever its bytes happen to form a NaN or infinity.
 	 * @param [in] simTime Simulation time information (time point, section index, pre-factor of time derivatives)
 	 * @param [in] simState State of the simulation (state vector and its time derivative)
 	 * @param [in] yS Vector @f$ x @f$ that is transformed by the Jacobian @f$ \frac{\partial F}{\partial y} @f$

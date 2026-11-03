@@ -256,6 +256,9 @@ public:
 	/**
 	 * @brief Multiplies this sparse matrix with a vector and adds another vector to it
 	 * @details Computes the matrix vector operation \f$y = \alpha Ax + \beta y. \f$
+	 *          The factor @f$ \beta @f$ is applied per stored entry, and rows of @f$ y @f$ without a
+	 *          stored entry are not written at all. Hence, @f$ \beta \neq 1 @f$ only works if every row
+	 *          holds at most one entry, and @f$ \beta = 0 @f$ does not initialize @f$ y @f$.
 	 * @param [in] x Vector @f$ x @f$ to multiply with
 	 * @param [in] alpha Factor @f$ \alpha @f$ in front of @f$ Ax @f$
 	 * @param [in] beta Factor @f$ \beta @f$ in front of @f$ y @f$

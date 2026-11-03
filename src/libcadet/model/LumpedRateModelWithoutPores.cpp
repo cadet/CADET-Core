@@ -851,7 +851,7 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::multiplyWithJacobian(const S
 	// Handle identity matrix of inlet DOFs
 	for (unsigned int i = 0; i < _disc.nComp; ++i)
 	{
-		ret[i] = alpha * yS[i] + beta * ret[i];
+		ret[i] = (beta == 0.0) ? alpha * yS[i] : alpha * yS[i] + beta * ret[i];
 	}
 
 	// Main Jacobian

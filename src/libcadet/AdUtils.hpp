@@ -210,6 +210,11 @@ double compareDenseJacobianWithBandedAd(active const* const adVec, int row, int 
  *          using the actual values stored in @p mat and several derivative matrices given by the
  *          AD vectors of the active type. This function selects one of those derivative matrices
  *          and performs the matrix-vector operation.
+ *
+ *          The factor @f$ \beta @f$ is applied per stored entry, and rows of @f$ y @f$ without a
+ *          stored entry are not written at all. Hence, @f$ \beta \neq 1 @f$ only works if every row
+ *          holds at most one entry, and @f$ \beta = 0 @f$ does not initialize @f$ y @f$. Zero @f$ y @f$
+ *          and use @f$ \beta = 1 @f$ instead.
  * @param [in] mat Matrix of AD datatype
  * @param [in] x Vector to multiply the matrix with
  * @param [in,out] y Destination vector which is updated with the result

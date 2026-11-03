@@ -1425,13 +1425,16 @@ void ColumnModel2D::multiplyWithJacobian(const SimulationTime& simTime, const Co
 	// Handle identity matrix of inlet DOFs
 	for (unsigned int i = 0; i < _disc.nComp * _disc.radNPoints; ++i)
 	{
-		ret[i] = alpha * yS[i] + beta * ret[i];
+		ret[i] = (beta == 0.0) ? alpha * yS[i] : alpha * yS[i] + beta * ret[i];
 	}
 
 	// Main Jacobian
 	Eigen::Map<Eigen::VectorXd> ret_vec(ret + idxr.offsetC(), numPureDofs());
 	Eigen::Map<const Eigen::VectorXd> yS_vec(yS + idxr.offsetC(), numPureDofs());
-	ret_vec = alpha * _globalJac * yS_vec + beta * ret_vec;
+	if (beta == 0.0)
+		ret_vec = alpha * _globalJac * yS_vec;
+	else
+		ret_vec = alpha * _globalJac * yS_vec + beta * ret_vec;
 
 	// Map inlet DOFs to the column inlet (first bulk nodes)
 	Eigen::Map<const Eigen::VectorXd> yInlet(yS + idxr.offsetC(), _disc.radNPoints * _disc.nComp);

@@ -309,7 +309,7 @@ namespace linalg
 	inline void vectorSubsetAdd(double const* const x, const ConstIndexArray& idx, double alpha, double beta, double* const y)
 	{
 		for (int i = 0; i < idx.len; ++i)
-			y[i] = beta * y[i] + alpha * x[idx.indices[i]];
+			y[i] = (beta == 0.0) ? alpha * x[idx.indices[i]] : beta * y[i] + alpha * x[idx.indices[i]];
 	}
 
 	/**
@@ -327,7 +327,7 @@ namespace linalg
 		{
 			if (mask.mask[i])
 			{
-				y[k] = beta * y[k] + alpha * x[i];
+				y[k] = (beta == 0.0) ? alpha * x[i] : beta * y[k] + alpha * x[i];
 				++k;
 			}
 		}
