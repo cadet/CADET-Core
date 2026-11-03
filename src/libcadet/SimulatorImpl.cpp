@@ -446,7 +446,7 @@ namespace cadet
 
 
 	Simulator::Simulator(unsigned int solver) : _model(nullptr), _solRecorder(nullptr), _idaMemBlock(nullptr), _vecStateY(nullptr),
-		_vecStateYdot(nullptr), _vecFwdYs(nullptr), _vecFwdYsDot(nullptr),
+		_vecStateYdot(nullptr), _vecFwdYs(nullptr), _vecFwdYsDot(nullptr), _numFwdSensVecs(0),
 		_relTolS(1.0e-9), _absTol(1, 1.0e-12), _relTol(1.0e-9), _initStepSize(1, 1.0e-6), _maxSteps(10000), _maxStepSize(0.0),
 		_nThreads(0), _modifiedNewton(false), _sensErrorTestEnabled(true), _maxNewtonIter(4), _maxErrorTestFail(10), _maxConvTestFail(10),
 		_maxNewtonIterSens(4), _curSec(0), _skipConsistencyStateY(false), _skipConsistencySensitivity(false),
@@ -467,30 +467,50 @@ namespace cadet
 
 	void Simulator::clearModel() CADET_NOEXCEPT
 	{
+		// Reset every pointer after releasing it: clearModel() runs again on the next initializeModel() and in
+		// the destructor, and preFwdSensInit() decides by these pointers whether memory has to be (re)allocated.
 		delete[] _vecADy;
+		_vecADy = nullptr;
 		delete[] _vecADres;
+		_vecADres = nullptr;
 
-		if ((_sensitiveParams.slices() > 0) && _vecFwdYs)
-		{
-			NVec_DestroyArray(_vecFwdYs, _sensitiveParams.slices());
-			NVec_DestroyArray(_vecFwdYsDot, _sensitiveParams.slices());
-		}
+		destroyFwdSensVectors();
 		_sensitiveParams.clear();
 
 		if (_vecStateYdot)
 			NVec_Destroy(_vecStateYdot);
+		_vecStateYdot = nullptr;
 		if (_vecStateY)
 			NVec_Destroy(_vecStateY);
-		
+		_vecStateY = nullptr;
+
+		// Not owned: points to the weight vector IDAS passes in linearSolverSetScalingVectors()
+		_linearSolverWeight = nullptr;
+
 		if (_linearSolver)
 			SUNLinSolFreeEmpty(_linearSolver);
-		
+		_linearSolver = nullptr;
+
 		if (_idaMemBlock)
 			IDAFree(&_idaMemBlock);
 
 		if (_sunctx) {
 			SUNContext_Free(&_sunctx);
 		}
+	}
+
+	void Simulator::destroyFwdSensVectors() CADET_NOEXCEPT
+	{
+		// The arrays have to be released with the count they were allocated with, which is not the current number
+		// of sensitive parameters if parameters were added or cleared since the last initializeFwdSensitivities()
+		if (_vecFwdYs)
+			NVec_DestroyArray(_vecFwdYs, _numFwdSensVecs);
+		if (_vecFwdYsDot)
+			NVec_DestroyArray(_vecFwdYsDot, _numFwdSensVecs);
+
+		_vecFwdYs = nullptr;
+		_vecFwdYsDot = nullptr;
+		_numFwdSensVecs = 0;
 	}
 
 	void Simulator::initializeModel(IModelSystem& model)
@@ -506,7 +526,6 @@ namespace cadet
 		const unsigned int nDOFs = _model->numDofs();
 		_vecStateY = NVec_New(nDOFs, _sunctx);
 		_vecStateYdot = NVec_New(nDOFs, _sunctx);
-		_linearSolverWeight = NVec_New(nDOFs, _sunctx);
 
 		// Propagate section times if available
 		if (_sectionTimes.size() > 0)
@@ -674,19 +693,14 @@ namespace cadet
 		// sensitivities is started.
 		IDASensToggleOff(_idaMemBlock);
 
-		if (_vecFwdYs)
-		{
-			NVec_DestroyArray(_vecFwdYs, nSens);
-			NVec_DestroyArray(_vecFwdYsDot, nSens);
-			_vecFwdYs = nullptr;
-			_vecFwdYsDot = nullptr;
-		}
+		destroyFwdSensVectors();
 
 		// Allocate sensitivity state vectors
 		if (nSens > 0)
 		{
 			_vecFwdYs     = NVec_CloneArray(nSens, _vecStateY);
 			_vecFwdYsDot  = NVec_CloneArray(nSens, _vecStateYdot);
+			_numFwdSensVecs = nSens;
 
 			// Allocate memory for AD if not already done
 			if (!_vecADres)

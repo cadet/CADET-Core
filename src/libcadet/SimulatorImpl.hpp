@@ -183,6 +183,11 @@ protected:
 	void preFwdSensInit(unsigned int nSens);
 
 	/**
+	 * @brief Releases the sensitivity state vectors with the count they were allocated with
+	 */
+	void destroyFwdSensVectors() CADET_NOEXCEPT;
+
+	/**
 	 * @brief Sets up IDAS for computing sensitivities
 	 * @details Main objective is handing the initial values of the sensitivity subsystems over to IDAS
 	 * 
@@ -276,6 +281,7 @@ protected:
 	N_Vector _vecStateYdot; //!< IDAS state vector time derivative
 	N_Vector* _vecFwdYs; //!< IDAS sensitivities vector	
 	N_Vector* _vecFwdYsDot; //!< IDAS sensitivities vector time derivative
+	unsigned int _numFwdSensVecs; //!< Number of vectors in _vecFwdYs and _vecFwdYsDot, which can differ from the current number of sensitive parameters
 	util::SlicedVector<ParameterId> _sensitiveParams; //!< Stores (fused) sensitive parameters
 	std::vector<double> _sensitiveParamsFactor; //!< Stores the factors of the linear sensitive parameter combinations
 	std::vector<active> _sectionTimes; //!< Stores the AD variables used for SECTION_TIMES parameter derivatives
