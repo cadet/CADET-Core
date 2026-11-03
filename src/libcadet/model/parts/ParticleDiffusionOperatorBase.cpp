@@ -154,11 +154,11 @@ namespace parts
 
 		_parPorosityParTypeDep = true;
 		if (paramProvider.exists("PAR_POROSITY_PARTYPE_DEPENDENT"))
-			_parRadiusParTypeDep = paramProvider.getBool("PAR_POROSITY_PARTYPE_DEPENDENT");
+			_parPorosityParTypeDep = paramProvider.getBool("PAR_POROSITY_PARTYPE_DEPENDENT");
 
-		if (!_parRadiusParTypeDep && _parTypeIdx == 0)
+		if (!_parPorosityParTypeDep && _parTypeIdx == 0)
 			parameters[makeParamId(hashStringRuntime("PAR_POROSITY"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
-		else if (_parRadiusParTypeDep)
+		else if (_parPorosityParTypeDep)
 			parameters[makeParamId(hashStringRuntime("PAR_POROSITY"), unitOpIdx, CompIndep, _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parPorosity;
 
 		if (_parPorosity <= 0.0 || _parPorosity > 1.0)
@@ -172,7 +172,7 @@ namespace parts
 			if (paramProvider.exists("PAR_CORERADIUS_PARTYPE_DEPENDENT"))
 				_parCoreRadiusParTypeDep = paramProvider.getBool("PAR_CORERADIUS_PARTYPE_DEPENDENT");
 
-			if (!_parRadiusParTypeDep && _parTypeIdx == 0)
+			if (!_parCoreRadiusParTypeDep && _parTypeIdx == 0)
 				parameters[makeParamId(hashStringRuntime("PAR_CORERADIUS"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parCoreRadius;
 			else if (_parCoreRadiusParTypeDep)
 				parameters[makeParamId(hashStringRuntime("PAR_CORERADIUS"), unitOpIdx, CompIndep, _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parCoreRadius;
@@ -256,11 +256,13 @@ namespace parts
 		if (singleTypeMultiplexBndCompTypeSecParameterValue(pId, hashString("SURFACE_DIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nComp, _strideBound, _boundOffset, _parTypeIdx, value, nullptr))
 			return true;
 
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _parRadiusParTypeDep, _parRadius, _parTypeIdx, value, nullptr))
+		// A particle type independent ID is accepted whether these parameters are particle type dependent or not, and the
+		// caller applies it to every particle type. Particle type specific IDs are found in the parameter map of the unit.
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), true, _parRadius, _parTypeIdx, value, nullptr))
 			return true;
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), _parCoreRadiusParTypeDep, _parCoreRadius, _parTypeIdx, value, nullptr))
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), true, _parCoreRadius, _parTypeIdx, value, nullptr))
 			return true;
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _parPorosityParTypeDep, _parPorosity, _parTypeIdx, value, nullptr))
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), true, _parPorosity, _parTypeIdx, value, nullptr))
 			return true;
 		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _nComp, _parTypeIdx, value, nullptr))
 			return true;
@@ -317,11 +319,12 @@ namespace parts
 		if (singleTypeMultiplexBndCompTypeSecParameterValue(pId, hashString("SURFACE_DIFFUSION"), _parSurfDiffusionMode, _parSurfDiffusion, _nComp, _strideBound, _boundOffset, _parTypeIdx, value, &sensParams))
 			return true;
 
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), _parRadiusParTypeDep, _parRadius, _parTypeIdx, value, &sensParams))
+		// Particle type independent ID in both modes, see setParameter()
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_RADIUS"), true, _parRadius, _parTypeIdx, value, &sensParams))
 			return true;
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), _parCoreRadiusParTypeDep, _parCoreRadius, _parTypeIdx, value, &sensParams))
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_CORERADIUS"), true, _parCoreRadius, _parTypeIdx, value, &sensParams))
 			return true;
-		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), _parPorosityParTypeDep, _parPorosity, _parTypeIdx, value, &sensParams))
+		if (singleTypeMultiplexTypeParameterValue(pId, hashString("PAR_POROSITY"), true, _parPorosity, _parTypeIdx, value, &sensParams))
 			return true;
 
 		if (singleTypeMultiplexCompTypeSecParameterValue(pId, hashString("PORE_ACCESSIBILITY"), _poreAccessFactorMode, _poreAccessFactor, _nComp, _parTypeIdx, value, &sensParams))
@@ -372,19 +375,20 @@ namespace parts
 			}
 		}
 
-		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_RADIUS"), _parRadiusParTypeDep, _parRadius, _parTypeIdx, adDirection, adValue, sensParams))
+		// Particle type independent ID in both modes, see setParameter()
+		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_RADIUS"), true, _parRadius, _parTypeIdx, adDirection, adValue, sensParams))
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;
 		}
 
-		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_CORERADIUS"), _parCoreRadiusParTypeDep, _parCoreRadius, _parTypeIdx, adDirection, adValue, sensParams))
+		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_CORERADIUS"), true, _parCoreRadius, _parTypeIdx, adDirection, adValue, sensParams))
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;
 		}
 
-		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_POROSITY"), _parPorosityParTypeDep, _parPorosity, _parTypeIdx, adDirection, adValue, sensParams))
+		if (singleTypeMultiplexTypeParameterAD(pId, hashString("PAR_POROSITY"), true, _parPorosity, _parTypeIdx, adDirection, adValue, sensParams))
 		{
 			LOG(Debug) << "Found parameter " << pId << ": Dir " << adDirection << " is set to " << adValue;
 			return true;
