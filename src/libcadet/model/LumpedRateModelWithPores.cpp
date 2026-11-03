@@ -381,6 +381,8 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configure(IParameterProvider& p
 
 	// Read geometry parameters
 	_colPorosity = paramProvider.getDouble("COL_POROSITY");
+	_singleParRadius = true;
+	_singleParPorosity = true;
 	_parRadius.resize(_disc.nParType);
 	_parPorosity.resize(_disc.nParType);
 
