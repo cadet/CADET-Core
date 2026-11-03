@@ -622,18 +622,13 @@ void ModelSystem::consistentInitialSensitivityAlgorithm(const SimulationTime& si
 		double* const vsyd = vecSensYdot[i];
 
 		// Calculate -(d^2 res_con / (dy dp)) * \dot{y}
-		if (cadet_unlikely(_models.empty()))
+		// adMatrixVectorMultiply() only writes the rows that hold a nonzero, so passing beta = 0 for the first
+		// unit would leave every coupling DOF that the first unit does not feed with its previous value.
+		std::fill(vsyd + finalOffset, vsyd + numDofs(), 0.0);
+		for (unsigned int j = 0; j < _models.size(); ++j)
 		{
-			std::fill(vsyd + finalOffset, vsyd + numDofs(), 0.0);
-		}
-		else
-		{
-			ad::adMatrixVectorMultiply(_jacActiveFN[0], simState.vecStateYdot + _dofOffset[0], vsyd + finalOffset, -1.0, 0.0, i);
-			for (unsigned int j = 1; j < _models.size(); ++j)
-			{
-				const unsigned int offset = _dofOffset[j];
-				ad::adMatrixVectorMultiply(_jacActiveFN[j], simState.vecStateYdot + offset, vsyd + finalOffset, -1.0, 1.0, i);
-			}
+			const unsigned int offset = _dofOffset[j];
+			ad::adMatrixVectorMultiply(_jacActiveFN[j], simState.vecStateYdot + offset, vsyd + finalOffset, -1.0, 1.0, i);
 		}
 
 		if (_hasDynamicFlowRates)
