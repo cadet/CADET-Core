@@ -260,3 +260,73 @@ TEST_CASE("BandedEigenSparseRowIterator reaches the first row", "[SparseMatrix],
 		CHECK(mat.coeff(0, 0) == 1.0);
 	}
 }
+
+TEST_CASE("BandedEigenSparseRowIterator tracks rows outside the matrix", "[SparseMatrix],[LinAlg],[CI]")
+{
+	// A binding model with several binding sites walks the rows of its Jacobian by overshooting the
+	// end of its block and stepping back, see BiLangmuirBinding::jacobianImpl(). For the last block
+	// of the matrix the overshoot leaves the matrix, so the iterator has to keep counting rows there
+	// and has to arrive at the right row when it is moved back.
+	const int n = 4;
+	Eigen::SparseMatrix<double, Eigen::RowMajor> mat(n, n);
+
+	std::vector<Eigen::Triplet<double>> triplets;
+	for (int row = 0; row < n; ++row)
+		triplets.push_back(Eigen::Triplet<double>(row, row, 0.0));
+
+	mat.setFromTriplets(triplets.begin(), triplets.end());
+
+	SECTION("Overshoot the last row and step back")
+	{
+		cadet::linalg::BandedEigenSparseRowIterator it(mat, n - 1);
+
+		it += 3;
+		CHECK(it.row() == n + 2);
+
+		it -= 4;
+		CHECK(it.row() == n - 2);
+
+		it[0] = 1.0;
+		CHECK(mat.coeff(n - 2, n - 2) == 1.0);
+		CHECK(mat.isCompressed());
+	}
+
+	SECTION("Increment past the last row and step back")
+	{
+		cadet::linalg::BandedEigenSparseRowIterator it(mat, n - 1);
+
+		++it;
+		CHECK(it.row() == n);
+
+		--it;
+		CHECK(it.row() == n - 1);
+
+		it[0] = 2.0;
+		CHECK(mat.coeff(n - 1, n - 1) == 2.0);
+		CHECK(mat.isCompressed());
+	}
+
+	SECTION("Undershoot the first row and step back")
+	{
+		cadet::linalg::BandedEigenSparseRowIterator it(mat, 0);
+
+		it -= 2;
+		CHECK(it.row() == -2);
+
+		it += 3;
+		CHECK(it.row() == 1);
+
+		it[0] = 3.0;
+		CHECK(mat.coeff(1, 1) == 3.0);
+		CHECK(mat.isCompressed());
+	}
+
+	SECTION("A row outside the matrix is empty")
+	{
+		cadet::linalg::BandedEigenSparseRowIterator it(mat, n);
+
+		CHECK(it.row() == n);
+		CHECK(it.numNonZeros() == 0);
+		CHECK(it.data() == nullptr);
+	}
+}
