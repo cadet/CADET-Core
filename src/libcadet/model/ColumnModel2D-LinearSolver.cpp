@@ -114,8 +114,10 @@ int ColumnModel2D::linearSolve(double t, double alpha, double outerTol, double* 
 
 		_linearSolver->factorize(_globalJacDisc, 0, static_cast<int>(_globalJacDisc.rows()));
 
-		if (cadet_unlikely(_linearSolver->info() != Eigen::Success)) {
+		if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
+		{
 			LOG(Error) << "Factorize() failed";
+			return 1;
 		}
 
 		// Do not factorize again at next call without changed Jacobians
@@ -142,6 +144,7 @@ int ColumnModel2D::linearSolve(double t, double alpha, double outerTol, double* 
 	if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 	{
 		LOG(Error) << "Solve() failed";
+		return 1;
 	}
 
 	// The full solution is now stored in rhs
