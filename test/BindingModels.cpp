@@ -788,3 +788,62 @@ TEST_CASE("COLLOIDAL_PARTICLE_ADSORPTION rapid-equilibrium Jacobian with two pro
 	const double clampedActivityState[] = {1e-12, 100.0, 0.05, 0.035, 0.6, 0.35};
 	cadet::test::binding::testJacobianAD("COLLOIDAL_PARTICLE_ADSORPTION", sizeof(nBound) / sizeof(unsigned int), nBound, false, config, clampedActivityState, true, 0.0, 1e-9, 1e-10);
 }
+
+TEST_CASE("BI_STERIC_MASS_ACTION consistent initialization of salt with unequal binding site types", "[BindingModel],[BiSMA],[ConsistentInit],[CI]")
+{
+	// Salt and one protein on two binding site types that differ in capacity, charge and steric factor.
+	// The bound states are ordered q_{comp,site} with the site index running fastest, so the state is
+	// (c_0, c_1, q_{0,A}, q_{0,B}, q_{1,A}, q_{1,B}).
+	const unsigned int nBound[] = {2, 2};
+	char const* const config = R"json({
+		"BISMA_KA": [0.0, 1.0, 0.0, 1.0],
+		"BISMA_KD": [0.0, 1.0, 0.0, 1.0],
+		"BISMA_NU": [0.0, 10.0, 0.0, 8.0],
+		"BISMA_SIGMA": [0.0, 150.0, 0.0, 120.0],
+		"BISMA_LAMBDA": [600.0, 400.0],
+		"BISMA_REFC0": [1000.0, 1000.0],
+		"BISMA_REFQ": [600.0, 400.0]
+	})json";
+
+	cadet::test::binding::ConfiguredBindingModel cbm = cadet::test::binding::ConfiguredBindingModel::create("BI_STERIC_MASS_ACTION", sizeof(nBound) / sizeof(unsigned int), nBound, true, config);
+
+	double state[] = {50.0, 0.1, 0.0, 0.0, 12.0, 5.0};
+	double* const q = state + cbm.nComp();
+
+	REQUIRE(cbm.model().preConsistentInitialState(0.0, 0u, cadet::ColumnPosition{0.0, 0.0, 0.0}, q, state, cbm.buffer()));
+
+	// Each site type has to use its own protein bound state: q_{0,A} = Lambda^A - nu_1^A q_{1,A} and
+	// q_{0,B} = Lambda^B - nu_1^B q_{1,B}, with nu_0 defaulted to 1 for both sites
+	CHECK(q[0] == Approx(600.0 - 10.0 * 12.0).margin(1e-12));
+	CHECK(q[1] == Approx(400.0 - 8.0 * 5.0).margin(1e-12));
+
+	// The salt fluxes are the algebraic equations the time integrator restarts a section from, so they
+	// have to vanish at the state the consistent initialization hands back
+	double residual[] = {1.0, 1.0, 1.0, 1.0};
+	REQUIRE(cbm.model().flux(0.0, 0u, cadet::ColumnPosition{0.0, 0.0, 0.0}, q, state, residual, cbm.buffer()) == 0);
+	CHECK(residual[0] == Approx(0.0).margin(1e-12));
+	CHECK(residual[1] == Approx(0.0).margin(1e-12));
+
+	// postConsistentInitialState writes the final value, so it has to agree
+	double stateAfter[] = {50.0, 0.1, 1.0e3, -7.0, 12.0, 5.0};
+	cbm.model().postConsistentInitialState(0.0, 0u, cadet::ColumnPosition{0.0, 0.0, 0.0}, stateAfter + cbm.nComp(), stateAfter, cbm.buffer());
+	CHECK(stateAfter[2] == Approx(q[0]).margin(1e-12));
+	CHECK(stateAfter[3] == Approx(q[1]).margin(1e-12));
+}
+
+TEST_CASE("BI_STERIC_MASS_ACTION analytic Jacobian vs AD with unequal binding site types", "[Jacobian],[AD],[BindingModel],[BiSMA],[CI]")
+{
+	const unsigned int nBound[] = {2, 2};
+	const double state[] = {50.0, 0.1, 480.0, 360.0, 12.0, 5.0};
+	char const* const config = R"json({
+		"BISMA_KA": [0.0, 1.0, 0.0, 1.0],
+		"BISMA_KD": [0.0, 1.0, 0.0, 1.0],
+		"BISMA_NU": [0.0, 10.0, 0.0, 8.0],
+		"BISMA_SIGMA": [0.0, 150.0, 0.0, 120.0],
+		"BISMA_LAMBDA": [600.0, 400.0],
+		"BISMA_REFC0": [1000.0, 1000.0],
+		"BISMA_REFQ": [600.0, 400.0]
+	})json";
+
+	cadet::test::binding::testJacobianAD("BI_STERIC_MASS_ACTION", sizeof(nBound) / sizeof(unsigned int), nBound, true, config, state, true);
+}
