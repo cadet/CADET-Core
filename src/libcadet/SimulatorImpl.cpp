@@ -431,6 +431,18 @@ namespace cadet
 
 		const int ret = sim->_model->linearSolve(t, alpha, tol, NVEC_DATA(rhs), NVEC_DATA(sim->_linearSolverWeight), cadet::ConstSimulationState{ NVEC_DATA(y), NVEC_DATA(yDot) });
 		N_VScale(1.0, rhs, x);
+
+		// As noted above, IDAS silently treats a code outside its own list as a successful solve. The Schur
+		// complement solver hands back the SUNLS_* code of its GMRES solve, which IDAS does know, so pass
+		// that on unchanged. The codes the unit operations document for themselves, 0 for success, +1 for a
+		// recoverable and -1 for a non-recoverable error, are not in that list and have to be translated.
+		if (ret == 0)
+			return SUN_SUCCESS;
+		if (ret == 1)
+			return SUNLS_LUFACT_FAIL; // recoverable: IDAS retries with a smaller step and a new Jacobian
+		if (ret == -1)
+			return SUN_ERR_EXT_FAIL;
+
 		return ret;
 	}
 
