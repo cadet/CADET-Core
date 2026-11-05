@@ -298,6 +298,8 @@ namespace cadet
 			// This has to happen before the transport operator is configured, since configure() assembles
 			// the geometry dependent operators, which a profile is baked into.
 			readScalarParameterOrArray(_totalPorosity, paramProvider, "TOTAL_POROSITY", 1);
+			if (std::any_of(_totalPorosity.begin(), _totalPorosity.end(), [](double x) { return x <= 0.0 || (x > 1.0); }))
+				throw InvalidParameterException("TOTAL_POROSITY has to be in (0.0, 1.0] but was specified as " + std::to_string(_totalPorosity) + "in unit " std::to_string(_unitOpIdx));
 
 			_axiallyConstantTotalPorosity = (_totalPorosity.size() == 1);
 			_unitPorosity = 1.0;

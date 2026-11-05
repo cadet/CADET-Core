@@ -348,11 +348,15 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configure(IParameterProvider
 	{
 		_totalPorosity = paramProvider.getDouble("TOTAL_POROSITY");
 		_parameters[makeParamId(hashString("TOTAL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_totalPorosity;
+		if (_totalPorosity <= 0.0 || (_totalPorosity > 1.0))
+			throw InvalidParameterException("TOTAL_POROSITY has to be in (0.0, 1.0] but was specified as " + std::to_string(_totalPorosity) + "in unit " std::to_string(_unitOpIdx));
 	}
 	else
 	{
 		_totalPorosity = paramProvider.getDouble("COL_POROSITY");
 		_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_totalPorosity;
+		if (_totalPorosity <= 0.0 || (_totalPorosity > 1.0))
+			throw InvalidParameterException("COL_POROSITY has to be in (0.0, 1.0] but was specified as " + std::to_string(_totalPorosity) + "in unit " std::to_string(_unitOpIdx));
 	}
 
 	// Register initial conditions parameters
