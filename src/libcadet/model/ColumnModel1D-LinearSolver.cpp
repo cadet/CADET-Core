@@ -132,6 +132,7 @@ int ColumnModel1D<ConvDispOperator>::linearSolve(double t, double alpha, double 
 		if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 		{
 			LOG(Error) << "Factorize() failed";
+			return 1;
 		}
 
 		// Do not factorize again at next call without changed Jacobians
@@ -180,6 +181,7 @@ int ColumnModel1D<ConvDispOperator>::linearSolve(double t, double alpha, double 
 	if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
 	{
 		LOG(Error) << "Solve() failed";
+		return 1;
 	}
 
 	// The full solution is now stored in rhs
