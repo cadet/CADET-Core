@@ -118,11 +118,13 @@ inline bool ExtBiSMAParamHandler::validateConfig(unsigned int nComp, unsigned in
  *          While components without bound state (i.e., non-binding components) are supported, all other components must have
  *          the same number of bound states (i.e., binding sites). Component @c 0 is assumed to be salt.
  *          
- *          Since all algebraic variables have to be in one contiguous block, the order of the bound state variables is as follows: \f[ \begin{align} 
- *              q_0^A, q_0^B, q_0^C, \dots, q_1^A, q_2^A, q_3^A, \dots, q_1^B, q_2^B, q_3^B, \dots
+ *          The bound state variables are ordered by component, with the binding site index running fastest: \f[ \begin{align}
+ *              q_0^A, q_0^B, q_0^C, \dots, q_1^A, q_1^B, q_1^C, \dots, q_2^A, q_2^B, q_2^C, \dots
  *          \end{align} \f]
- *          First, all the salt components are collected in one block as they are always algebraic.
- *          Then the other components for each bound state follow.
+ *          The salt states, which are always algebraic, therefore form the first contiguous block.
+ *          With @f$ M @f$ binding site types, going from one binding component to the next is a step of
+ *          @f$ M @f$, so @f$ q_i^j @f$ sits at index @f$ i \cdot M + j @f$, where @f$ i @f$ counts the
+ *          binding components only and non-binding components are skipped.
  * @tparam ParamHandler_t Type that can add support for external function dependence
  */
 template <class ParamHandler_t>
@@ -196,7 +198,7 @@ public:
 				if (_nBoundStates[j] == 0)
 					continue;
 
-				y[bndSite] -= static_cast<double>(curNu[j]) * y[bndIdx * numStates];
+				y[bndSite] -= static_cast<double>(curNu[j]) * y[bndIdx * numStates + bndSite];
 
 				// Next bound component
 				++bndIdx;
