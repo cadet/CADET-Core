@@ -148,6 +148,11 @@ TEST_CASE("Column_2D as LRMP consistent initialization with linear binding", "[C
 	//cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_2D_LRMP", "DG", 1e-12, 1e-12, 1, 1); // @todo AD with req binding does not work
 }
 
+TEST_CASE("Column_2D as LRMP consistent initialization with a non-binding component", "[Column_2D],[ConsistentInit],[CI]")
+{
+	cadet::test::column::testConsistentInitializationNonBindingComponent("COLUMN_MODEL_2D_LRMP", "DG", 1e-12, 1e-12, 0);
+}
+
 //TEST_CASE("Column_2D as LRMP consistent initialization with SMA binding", "[Column_2D],[ConsistentInit],[todo]")  // todo fix (also doesnt work for other models)
 //{
 //	std::vector<double> y(4 * 3 + 4 * 8 * 3 + 8 * 3 * 3 * (4 + 4) + 4 * 8 * 3, 0.0);

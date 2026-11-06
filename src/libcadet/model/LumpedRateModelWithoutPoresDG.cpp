@@ -1332,7 +1332,7 @@ namespace cadet
 					// Replace upper part with conservation relations
 					mat.submatrixSetAll(0.0, 0, 0, numActiveComp, probSize);
 
-					unsigned int bndIdx = 0;
+					unsigned int bndIdx = _disc.nComp;
 					unsigned int rIdx = 0;
 					unsigned int bIdx = 0;
 					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
