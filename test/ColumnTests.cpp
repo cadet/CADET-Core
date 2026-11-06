@@ -1718,6 +1718,50 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
+	void testConsistentInitializationNonBindingComponent(const std::string& uoType, const std::string& spatialMethod, double consTol, double absTol, const int useAD)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		for (int adMode = 0; adMode < 2; ++adMode)
+		{
+			if ((adMode == 0 && useAD == 1) || (adMode == 1 && useAD == 0))
+				continue;
+			const bool adEnabled = (adMode > 0);
+			SECTION(std::string("Non-binding component with AD ") + (adEnabled ? "enabled" : "disabled"))
+			{
+				cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
+				cadet::test::setBindingMode(jpp, false);
+				{
+					auto ms = util::makeOptionalGroupScope(jpp, "model");
+					auto us = util::makeOptionalGroupScope(jpp, "unit_000");
+					auto ps = util::makeOptionalGroupScope(jpp, "particle_type_000");
+
+					jpp.set("NBOUND", std::vector<int>{ 0, 1 });
+					jpp.set("INIT_CS", std::vector<double>{ 6.0 });
+					jpp.set("SURFACE_DIFFUSION", std::vector<double>{ 5e-11 });
+
+					jpp.pushScope("adsorption");
+					jpp.set("LIN_KA", std::vector<double>{ 0.0, 35.5 });
+					jpp.set("LIN_KD", std::vector<double>{ 1.0, 1.0 });
+					jpp.popScope();
+				}
+
+				if (adEnabled)
+					cadet::ad::setDirections(cadet::ad::getMaxDirections());
+				cadet::IUnitOperation* const unit = createAndConfigureUnit(*mb, jpp);
+
+				std::vector<double> y(unit->numDofs(), 0.0);
+				util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unit->numDofs());
+
+				unitoperation::testConsistentInitialization(unit, adEnabled, y.data(), consTol, absTol);
+
+				mb->destroyUnitOperation(unit);
+			}
+		}
+		destroyModelBuilder(mb);
+	}
+
 	void testConsistentInitializationSMABinding(const std::string& uoType, const std::string& spatialMethod, double const* const initState, double consTol, double absTol, const int reqBnd, const int useAD)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();

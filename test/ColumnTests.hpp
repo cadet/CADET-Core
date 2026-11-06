@@ -774,6 +774,19 @@ namespace column
 	void testConsistentInitializationLinearBinding(const std::string& uoType, const std::string& spatialMethod, double consTol, double absTol, const int reqBnd = -1, const int useAD = -1);
 
 	/**
+	 * @brief Checks consistent initialization of quasi-stationary binding with a non-binding component
+	 * @details Uses the linear binding model with NBOUND = [0, 1]: the first component has no bound
+	 *          state, so bound-state indices differ from component indices. Binding is strong enough
+	 *          that an inconsistent Jacobian of the conservation relations prevents convergence.
+	 *          Both AD and analytic Jacobians are checked.
+	 * @param [in] uoType Unit operation type
+	 * @param [in] consTol Error tolerance for consistent initialization solver
+	 * @param [in] absTol Error tolerance for checking whether algebraic residual is 0
+	 * @param [in] useAD specifies Jacobian mode, defaults to using both analytical and AD
+	 */
+	void testConsistentInitializationNonBindingComponent(const std::string& uoType, const std::string& spatialMethod, double consTol, double absTol, const int useAD = -1);
+
+	/**
 	 * @brief Checks consistent initialization using a model with SMA binding
 	 * @details Assumes column-like unit models and checks the residual of the model equations after
 	 *          consistent initialization. Both binding modes and both AD and analytic Jacobians are checked.

@@ -116,6 +116,11 @@ TEST_CASE("GRM2D consistent initialization with linear binding", "[GRM2D],[FV],[
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_2D_GRM", "FV", 1e-12, 1e-12);
 }
 
+TEST_CASE("GRM2D consistent initialization with a non-binding component", "[GRM2D],[FV],[ConsistentInit],[CI]")
+{
+	cadet::test::column::testConsistentInitializationNonBindingComponent("COLUMN_MODEL_2D_GRM", "FV", 1e-12, 1e-12, 0);
+}
+
 // todo fix the time derivative of the quasi-stationary bound states, the residual is of order 1e8 and
 // not a matter of tolerances. This went unnoticed while the state vector was shorter than the unit
 TEST_CASE("GRM2D consistent initialization with SMA binding", "[GRM2D],[FV],[ConsistentInit],[fixGRM2D]")

@@ -117,6 +117,11 @@ TEST_CASE("LRM consistent initialization with linear binding", "[LRM],[FV],[Cons
 	cadet::test::column::testConsistentInitializationLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", 1e-12, 1e-12);
 }
 
+TEST_CASE("LRM consistent initialization with a non-binding component", "[LRM],[FV],[ConsistentInit],[CI]")
+{
+	cadet::test::column::testConsistentInitializationNonBindingComponent("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", 1e-12, 1e-12);
+}
+
 //TEST_CASE("LRM consistent initialization with SMA binding", "[LRM],[FV],[ConsistentInit],[fixLRM]") // todo fix
 //{
 //	std::vector<double> y(4 + 16 * (4 + 4), 0.0);
