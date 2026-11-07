@@ -94,13 +94,15 @@ Group /input/model/unit_XXX/particle_type_XXX
 
 ``PORE_DIFFUSION``
 
-   Effective particle diffusion coefficients of each component in each particle type, required if :math:`\texttt{HAS_PORE_DIFFUSION} == 1`, otherwise ignored.
+   Effective particle diffusion coefficients of each component in each particle type.
+   The field is still read when :math:`\texttt{HAS_PORE_DIFFUSION} == 0`, where its value has no
+   effect on the model and is conventionally given as :math:`0`.
 
    **Unit:** :math:`\mathrm{m}_{\mathrm{MP}}^{2}\,\mathrm{s}^{-1}`
-   
-   ================  ======================  ========================================================
-   **Type:** double  **Range:** :math:`> 0`  **Length:** see :math:`\texttt{PORE_DIFFUSION_MULTIPLEX}`
-   ================  ======================  ========================================================
+
+   ================  =========================  ========================================================
+   **Type:** double  **Range:** :math:`\geq 0`  **Length:** see :math:`\texttt{PORE_DIFFUSION_MULTIPLEX}`
+   ================  =========================  ========================================================
 
 ``PORE_DIFFUSION_MULTIPLEX``
 

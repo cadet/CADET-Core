@@ -857,7 +857,7 @@ bool RadialConvectionDispersionOperatorBaseFV::configureModelDiscretization(IPar
 	}
 
 	if (!(static_cast<double>(_innerRadius) > 0.0 && static_cast<double>(_outerRadius) >= static_cast<double>(_innerRadius) && static_cast<double>(_colHeight) > 0.0))
-		throw InvalidParameterException("Geometry parameters for RADIAL_FLOW_CYLINDER_SHELL must satisfy CROSS_SECTION_AREA_OUTER > 0.0, CYLINDER_HEIGHT > 0.0, 0 < BED_LENGTH <= outer radius");
+		throw InvalidParameterException("Geometry parameters for RADIAL_FLOW_CYLINDER_SHELL must satisfy CROSS_SECTION_AREA_OUTER > 0.0, CYLINDER_HEIGHT > 0.0, 0 < BED_LENGTH < outer radius, i.e. a positive inner radius");
 
 
 	if (paramProvider.exists("COL_DISPERSION_DEP"))

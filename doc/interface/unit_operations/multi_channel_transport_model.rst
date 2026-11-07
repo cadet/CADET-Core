@@ -151,9 +151,9 @@ For information on model equations, refer to :ref:`multi_channel_transport_model
   - :math:`\texttt{SENS_BOUNDPHASE}` *Channel from*
   - :math:`\texttt{SENS_PARTYPE}` *Channel to*
 
-   ================  ========================  =====================================================================
-   **Type:** double  **Range:** :math:`[0,1]`  **Length:** :math:`\texttt{NCHANNEL}*\texttt{NCHANNEL}*\texttt{NCOMP}`
-   ================  ========================  =====================================================================
+   ================  =========================  =====================================================================
+   **Type:** double  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NCHANNEL}*\texttt{NCHANNEL}*\texttt{NCOMP}`
+   ================  =========================  =====================================================================
 
 
 ``SATURATION_MATRIX``

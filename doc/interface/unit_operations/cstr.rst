@@ -82,9 +82,9 @@ Without particles, :math:`\texttt{NPARTYPE} = 0`, the field is :math:`\texttt{CO
 
    **Unit:** :math:`\mathrm{m}^{3}`
 
-   ================  =========================  =============
-   **Type:** double  **Range:** :math:`\geq 0`  **Length:** 1
-   ================  =========================  =============
+   ================  ======================  =============
+   **Type:** double  **Range:** :math:`> 0`  **Length:** 1
+   ================  ======================  =============
 
 ``COL_POROSITY`` / ``TOTAL_POROSITY``
 
