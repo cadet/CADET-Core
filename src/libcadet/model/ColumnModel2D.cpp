@@ -73,6 +73,8 @@ cadet::model::MultiplexMode readAndRegisterMultiplexParam(cadet::IParameterProvi
 			if (values.size() != nAxial * nRad * nParType)
 				throw cadet::InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be " + std::to_string(nAxial * nRad * nParType) + ")");
 		}
+		else
+			throw cadet::InvalidParameterException("Unsupported multiplex mode of field " + name + "_MULTIPLEX, must be in {0, 1, 2, 3} but is " + std::to_string(modeConfig));
 	}
 	else
 	{
@@ -376,7 +378,11 @@ bool ColumnModel2D::configureModelDiscretization(IParameterProvider& paramProvid
 {
 	const bool firstConfigCall = _tempState == nullptr; // used to avoid multiply allocation
 
-	_disc.nComp = paramProvider.getInt("NCOMP");
+	const int nComp = paramProvider.getInt("NCOMP");
+	if (nComp < 1)
+		throw InvalidParameterException("Field NCOMP has to be at least 1, but is " + std::to_string(nComp));
+
+	_disc.nComp = nComp;
 
 	if (paramProvider.getInt("NPARTYPE") < 0)
 		throw InvalidParameterException("Number of particle types must be >= 0!");
@@ -586,6 +592,15 @@ bool ColumnModel2D::configure(IParameterProvider& paramProvider)
 
 	if (_disc.nParType * _disc.axNPoints * _disc.radNPoints != _parTypeVolFrac.size())
 		throw InvalidParameterException("Number of elements in field PAR_TYPE_VOLFRAC does not match number of particle types times (RAD_POLYDEG+1)*RAD_NELEM * (AX_POLYDEG+1)*AX_NELEM");
+
+	// A single volume fraction is a fraction of the solid phase, so it is in [0, 1] on its own.
+	// The sum below does not imply this, since it is also met by entries that cancel each other.
+	for (std::size_t i = 0; i < _parTypeVolFrac.size(); ++i)
+	{
+		const double volFrac = static_cast<double>(_parTypeVolFrac[i]);
+		if ((volFrac < 0.0) || (volFrac > 1.0))
+			throw InvalidParameterException("Field PAR_TYPE_VOLFRAC has to be in [0.0, 1.0], but entry " + std::to_string(i) + " is " + std::to_string(volFrac));
+	}
 
 	// Check that particle volume fractions sum up to 1.0
 	if (_disc.nParType > 0)

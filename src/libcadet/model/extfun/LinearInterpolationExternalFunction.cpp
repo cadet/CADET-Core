@@ -62,6 +62,18 @@ public:
 		// Velocity is applied to the profile in flow direction
 		_velocity = paramProvider->getDouble("VELOCITY");
 
+		// externalProfile() locates a time in TIME and reads DATA at that index, so the two have
+		// to be equally long, and a profile needs at least one data point
+		if (_time.empty() || (_time.size() != _dataY.size()))
+			return false;
+
+		// TIME holds points in time, which are non-negative
+		for (std::size_t i = 0; i < _time.size(); ++i)
+		{
+			if (_time[i] < 0.0)
+				return false;
+		}
+
 		return true;
 	}
 

@@ -567,47 +567,76 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configureModelDiscretization(
 
 	paramProvider.pushScope("discretization");
 
+	// The counts below are unsigned, so a negative value read from the input has to be rejected
+	// before the assignment, where it would turn into a huge number of nodes or elements
 	if (paramProvider.exists("AX_POLYDEG"))
-		_axPolyDeg = paramProvider.getInt("AX_POLYDEG");
+	{
+		const int axPolyDeg = paramProvider.getInt("AX_POLYDEG");
+		if (axPolyDeg < 1)
+			throw InvalidParameterException("Axial polynomial degree (AX_POLYDEG) must be at least 1, but is " + std::to_string(axPolyDeg));
+
+		_axPolyDeg = static_cast<unsigned int>(axPolyDeg);
+	}
 	else
 		_axPolyDeg = 4u; // default value
-	if (paramProvider.getInt("AX_POLYDEG") < 1)
-		throw InvalidParameterException("Axial polynomial degree must be at least 1!");
-	else if (_axPolyDeg < 3u)
+
+	if (_axPolyDeg < 3u)
 		LOG(Warning) << "Polynomial degree > 2 in axial bulk discretization (cf. AX_POLYDEG) is always recommended for performance reasons.";
 
 	_axNNodes = _axPolyDeg + 1u;
 
 	if (paramProvider.exists("AX_NELEM"))
-		_axNElem = paramProvider.getInt("AX_NELEM");
+	{
+		const int axNElem = paramProvider.getInt("AX_NELEM");
+		if (axNElem < 1)
+			throw InvalidParameterException("Field AX_NELEM has to be at least 1, but is " + std::to_string(axNElem));
+
+		_axNElem = static_cast<unsigned int>(axNElem);
+	}
 	else if (paramProvider.exists("NCOL"))
-		_axNElem = std::max(1u, paramProvider.getInt("NCOL") / _axNNodes); // number of elements is rounded down
+	{
+		const int nCol = paramProvider.getInt("NCOL");
+		if (nCol < 1)
+			throw InvalidParameterException("Field NCOL has to be at least 1, but is " + std::to_string(nCol));
+
+		_axNElem = std::max(1u, static_cast<unsigned int>(nCol) / _axNNodes); // number of elements is rounded down
+	}
 	else
 		throw InvalidParameterException("Specify field AX_NELEM (or NCOL)");
-
-	if (_axNElem < 1)
-		throw InvalidParameterException("Number of column elements must be at least 1!");
 
 	_axNPoints = _axNNodes * _axNElem;
 
 	if (paramProvider.exists("RAD_POLYDEG"))
-		_radPolyDeg = paramProvider.getInt("RAD_POLYDEG");
+	{
+		const int radPolyDeg = paramProvider.getInt("RAD_POLYDEG");
+		if (radPolyDeg < 1)
+			throw InvalidParameterException("Radial polynomial degree (RAD_POLYDEG) must be at least 1, but is " + std::to_string(radPolyDeg));
+
+		_radPolyDeg = static_cast<unsigned int>(radPolyDeg);
+	}
 	else
 		_radPolyDeg = 4u; // default value
-	if (paramProvider.getInt("RAD_POLYDEG") < 1)
-		throw InvalidParameterException("Radial polynomial degree must be at least 1!");
 
 	_radNNodes = _radPolyDeg + 1;
 
 	if (paramProvider.exists("RAD_NELEM"))
-		_radNElem = paramProvider.getInt("RAD_NELEM");
+	{
+		const int radNElem = paramProvider.getInt("RAD_NELEM");
+		if (radNElem < 1)
+			throw InvalidParameterException("Field RAD_NELEM has to be at least 1, but is " + std::to_string(radNElem));
+
+		_radNElem = static_cast<unsigned int>(radNElem);
+	}
 	else if (paramProvider.exists("NRAD"))
-		_radNElem = std::max(1u, paramProvider.getInt("NRAD") / _radNNodes); // number of elements is rounded down
+	{
+		const int nRad = paramProvider.getInt("NRAD");
+		if (nRad < 1)
+			throw InvalidParameterException("Field NRAD has to be at least 1, but is " + std::to_string(nRad));
+
+		_radNElem = std::max(1u, static_cast<unsigned int>(nRad) / _radNNodes); // number of elements is rounded down
+	}
 	else
 		throw InvalidParameterException("Specify field RAD_NELEM (or NRAD)");
-
-	if (_radNElem < 1)
-		throw InvalidParameterException("Number of column elements must be at least 1!");
 
 	_radNPoints = _radNNodes * _radNElem;
 	_elemNPoints = _axNNodes * _radNNodes;
@@ -641,12 +670,25 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configure(UnitOpIdx unitOpIdx
 {
 	// Read geometry parameters
 	_bedLength = paramProvider.getDouble("BED_LENGTH");
+	if (!(_bedLength > 0.0))
+		throw InvalidParameterException("Field BED_LENGTH has to be positive, but is " + std::to_string(static_cast<double>(_bedLength)));
+
 	_colRadius = paramProvider.getDouble("COL_RADIUS");
+	if (!(_colRadius > 0.0))
+		throw InvalidParameterException("Field COL_RADIUS has to be positive, but is " + std::to_string(static_cast<double>(_colRadius)));
+
 	readScalarParameterOrArray(_colPorosities, paramProvider, "COL_POROSITY", 1);
 	_axDelta = _bedLength / _axNElem; // deltaR is treated in updateRadialDisc
 
 	if ((_colPorosities.size() != 1) && (_colPorosities.size() != _radNElem))
 		throw InvalidParameterException("Number of elements in field COL_POROSITY is neither 1 nor radNElem (" + std::to_string(_radNElem) + ")");
+
+	for (std::size_t i = 0; i < _colPorosities.size(); ++i)
+	{
+		const double eps = static_cast<double>(_colPorosities[i]);
+		if (!(eps > 0.0) || (eps > 1.0))
+			throw InvalidParameterException("Field COL_POROSITY must be in (0.0, 1.0], but entry " + std::to_string(i) + " is " + std::to_string(eps));
+	}
 
 	_singlePorosity = (_colPorosities.size() == 1);
 	if (_singlePorosity)
@@ -665,6 +707,13 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configure(UnitOpIdx unitOpIdx
 		if (_radialElemInterfaces.size() < _radNElem + 1)
 			throw InvalidParameterException("Number of elements in field RADIAL_DISC_VECTOR is less than radNElem + 1 (" + std::to_string(_radNElem + 1) + ")");
 
+		for (unsigned int i = 0; i < _radNElem + 1; ++i)
+		{
+			const double edge = static_cast<double>(_radialElemInterfaces[i]);
+			if ((edge < 0.0) || (edge > static_cast<double>(_colRadius)))
+				throw InvalidParameterException("Field RADIAL_DISC_VECTOR has to be in [0, COL_RADIUS], but entry " + std::to_string(i) + " is " + std::to_string(edge));
+		}
+
 		registerParam1DArray(parameters, _radialElemInterfaces, [=](bool multi, unsigned int i) { return makeParamId(hashString("RADIAL_DISC_VECTOR"), unitOpIdx, CompIndep, i, BoundStateIndep, ReactionIndep, SectionIndep); });
 	}
 	else
@@ -682,6 +731,9 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configure(UnitOpIdx unitOpIdx
 		if (paramProvider.exists("VELOCITY_MULTIPLEX"))
 		{
 			const int mode = paramProvider.getInt("VELOCITY_MULTIPLEX");
+			if ((mode < 0) || (mode > 3))
+				throw InvalidParameterException("Field VELOCITY_MULTIPLEX has to be in {0, 1, 2, 3}, but is " + std::to_string(mode));
+
 			if (mode == 0)
 				// Rad-indep, sec-indep
 				_singleVelocity = true;
@@ -747,6 +799,19 @@ bool TwoDimensionalConvectionDispersionOperatorDG::configure(UnitOpIdx unitOpIdx
 
 	_axialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _axialDispersion, "COL_DISPERSION_AXIAL", _nComp, _radNElem, unitOpIdx);
 	_radialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _radialDispersion, "COL_DISPERSION_RADIAL", _nComp, _radNElem, unitOpIdx);
+
+	// A negative dispersion coefficient turns the diffusion term into a backward heat equation,
+	// which is ill-posed, so it is rejected rather than integrated
+	for (std::size_t i = 0; i < _axialDispersion.size(); ++i)
+	{
+		if (static_cast<double>(_axialDispersion[i]) < 0.0)
+			throw InvalidParameterException("Field COL_DISPERSION_AXIAL has to be non-negative, but entry " + std::to_string(i) + " is " + std::to_string(static_cast<double>(_axialDispersion[i])));
+	}
+	for (std::size_t i = 0; i < _radialDispersion.size(); ++i)
+	{
+		if (static_cast<double>(_radialDispersion[i]) < 0.0)
+			throw InvalidParameterException("Field COL_DISPERSION_RADIAL has to be non-negative, but entry " + std::to_string(i) + " is " + std::to_string(static_cast<double>(_radialDispersion[i])));
+	}
 
 	// Add parameters to map
 	parameters[makeParamId(hashString("BED_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_bedLength;

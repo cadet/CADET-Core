@@ -39,6 +39,25 @@ namespace model
 namespace parts
 {
 
+namespace
+{
+	/**
+	 * @brief Checks the entries of COL_DISPERSION against its documented range
+	 * @details A negative dispersion coefficient turns the diffusion term into a backward heat
+	 *          equation, which is ill-posed, so it is rejected rather than integrated.
+	 * @param [in] colDispersion Values read from the field
+	 */
+	inline void checkColDispersion(const std::vector<active>& colDispersion)
+	{
+		for (std::size_t i = 0; i < colDispersion.size(); ++i)
+		{
+			const double val = static_cast<double>(colDispersion[i]);
+			if (val < 0.0)
+				throw InvalidParameterException("Field COL_DISPERSION has to be non-negative, but entry " + std::to_string(i) + " is " + std::to_string(val));
+		}
+	}
+}
+
 /**
  * @brief Creates an AxialConvectionDispersionOperatorBaseCollocationDG
  */
@@ -134,6 +153,9 @@ bool AxialConvectionDispersionOperatorBaseCollocationDG::configure(UnitOpIdx uni
 
 	// Read geometry parameters
 	_bedLength = paramProvider.getDouble("BED_LENGTH");
+	if (!(_bedLength > 0.0))
+		throw InvalidParameterException("Field BED_LENGTH has to be positive, but is " + std::to_string(static_cast<double>(_bedLength)));
+
 	_deltaZ = _bedLength / _nElem;
 
 	/* compute dispersion jacobian blocks(without parameters except element spacing, i.e. static entries) */
@@ -148,6 +170,8 @@ bool AxialConvectionDispersionOperatorBaseCollocationDG::configure(UnitOpIdx uni
 		_DGjacAxDispBlocks[2] = DGjacobianDispBlock(_nElem);
 
 	_crossSection = paramProvider.getDouble("CROSS_SECTION_AREA");
+	if (!(_crossSection > 0.0))
+		throw InvalidParameterException("Field CROSS_SECTION_AREA has to be positive, but is " + std::to_string(static_cast<double>(_crossSection)));
 
 	// Read section dependent parameters (transport)
 	_dir.clear();
@@ -156,9 +180,13 @@ bool AxialConvectionDispersionOperatorBaseCollocationDG::configure(UnitOpIdx uni
 		_dir.push_back(fwdFlow[i] ? 1.0 : -1.0);
 
 	readScalarParameterOrArray(_colDispersion, paramProvider, "COL_DISPERSION", 1);
+	checkColDispersion(_colDispersion);
 	if (paramProvider.exists("COL_DISPERSION_MULTIPLEX"))
 	{
 		const int mode = paramProvider.getInt("COL_DISPERSION_MULTIPLEX");
+		if ((mode < 0) || (mode > 3))
+			throw InvalidParameterException("Field COL_DISPERSION_MULTIPLEX has to be in {0, 1, 2, 3}, but is " + std::to_string(mode));
+
 		if (mode == 0)
 			// Comp-indep, sec-indep
 			_dispersionCompIndep = true;
@@ -687,7 +715,11 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::configureModelDiscr
 	case GeometryType::RadialFlowCylinderShell:
 	{
 		if (paramProvider.getString("GEOMETRY") == "RADIAL_FLOW_CYLINDER_SHELL_WEDGE")
+		{
 			_flowFraction = paramProvider.getDouble("CIRCLE_FRACTION");
+			if (!(_flowFraction > 0.0) || (_flowFraction > 1.0))
+				throw InvalidParameterException("Field CIRCLE_FRACTION has to be in (0.0, 1.0], but is " + std::to_string(_flowFraction));
+		}
 
 		const double areaOuter = paramProvider.getDouble("CROSS_SECTION_AREA_OUTER");
 		_colHeight = paramProvider.getDouble("CYLINDER_HEIGHT");
@@ -862,6 +894,7 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::configureModelDiscr
 bool VariableCrossSectionConvectionDispersionOperatorBaseDG::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
 	readScalarParameterOrArray(_colDispersion, paramProvider, "COL_DISPERSION", 1);
+	checkColDispersion(_colDispersion);
 
 	readScalarParameterOrArray(_forwardFlow, paramProvider, "FORWARD_FLOW", 1);
 	_curFwdFlow = internalForwardFlow(_forwardFlow[0]);
@@ -869,6 +902,9 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::configure(UnitOpIdx
 	if (paramProvider.exists("COL_DISPERSION_MULTIPLEX"))
 	{
 		const int mode = paramProvider.getInt("COL_DISPERSION_MULTIPLEX");
+		if ((mode < 0) || (mode > 3))
+			throw InvalidParameterException("Field COL_DISPERSION_MULTIPLEX has to be in {0, 1, 2, 3}, but is " + std::to_string(mode));
+
 		if (mode == 0 || mode == 2)
 			_dispersionCompIndep = true;
 		else

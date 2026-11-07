@@ -214,6 +214,8 @@ void GeneralRateModel<ConvDispOperator>::readInitialCondition(IParameterProvider
 	if (initC.size() < _disc.nComp)
 		throw InvalidParameterException("INIT_C does not contain enough values for all components");
 
+	checkNonNegativeField(initC, "INIT_C");
+
 	ad::copyToAd(initC.data(), _initC.data(), _disc.nComp);
 
 	// Check if INIT_CP is present, otherwise copy from INIT_C
@@ -227,6 +229,8 @@ void GeneralRateModel<ConvDispOperator>::readInitialCondition(IParameterProvider
 
 			if (initCp.size() < _disc.nComp)
 				throw InvalidParameterException("INIT_CP does not contain enough values for all components");
+
+			checkNonNegativeField(initCp, "INIT_CP");
 
 			ad::copyToAd(initCp.data(), _initCp.data() + parType * _disc.nComp, _disc.nComp);
 
@@ -256,6 +260,8 @@ void GeneralRateModel<ConvDispOperator>::readInitialCondition(IParameterProvider
 
 		if ((_disc.strideBound[parType] > 0) && (initCs.size() < _disc.strideBound[parType]))
 			throw InvalidParameterException("INIT_CS does not contain enough values for all bound states");
+
+		checkNonNegativeField(initCs, "INIT_CS");
 
 		ad::copyToAd(initCs.data(), _initCs.data() + _disc.nBoundBeforeType[parType], _disc.strideBound[parType]);
 

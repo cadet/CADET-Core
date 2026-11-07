@@ -25,6 +25,30 @@ namespace model
 
 namespace parts
 {
+
+namespace
+{
+	/**
+	 * @brief Checks every entry of a particle transport coefficient field against its documented range
+	 * @details The multiplex readers hand back the expanded field, so one pass over it covers every
+	 *          component, bound state and section the user has given a value for.
+	 * @param [in] values Values read from the field
+	 * @param [in] field Name of the field
+	 * @param [in] parTypeIdx Index of the particle type the field belongs to
+	 * @param [in] strictlyPositive Whether zero is excluded from the admissible range
+	 */
+	inline void checkTransportCoefficients(const std::vector<active>& values, const char* field, int parTypeIdx, bool strictlyPositive)
+	{
+		for (std::size_t i = 0; i < values.size(); ++i)
+		{
+			const double val = static_cast<double>(values[i]);
+			if ((val < 0.0) || (strictlyPositive && !(val > 0.0)))
+				throw InvalidParameterException(std::string("Field ") + field + " has to be " + (strictlyPositive ? "positive" : "non-negative")
+					+ ", but entry " + std::to_string(i) + " is " + std::to_string(val) + " for particle type " + std::to_string(parTypeIdx));
+		}
+	}
+}
+
 	ParticleDiffusionOperatorBase::ParticleDiffusionOperatorBase() : _filmDiffusionDep(nullptr), _parDepSurfDiffusion(nullptr), _reqBinding(nullptr), _boundOffset(nullptr)
 	{
 	}
@@ -177,8 +201,8 @@ namespace parts
 			else if (_parCoreRadiusParTypeDep)
 				parameters[makeParamId(hashStringRuntime("PAR_CORERADIUS"), unitOpIdx, CompIndep, _parTypeIdx, BoundStateIndep, ReactionIndep, SectionIndep)] = &_parCoreRadius;
 
-			if (_parRadius <= 0.0)
-				throw InvalidParameterException("Particle radius is not bigger than zero for particle type " + std::to_string(_parTypeIdx));
+			if (_parCoreRadius < 0.0 || _parCoreRadius >= _parRadius)
+				throw InvalidParameterException("Particle core radius is not within [0, PAR_RADIUS) for particle type " + std::to_string(_parTypeIdx));
 
 		}
 		else
@@ -189,6 +213,7 @@ namespace parts
 
 		bool filmDiffParTypeDep = paramProvider.exists("FILM_DIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getBool("FILM_DIFFUSION_PARTYPE_DEPENDENT") : true;
 		_filmDiffusionMode = readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", _nComp, _parTypeIdx, filmDiffParTypeDep, unitOpIdx);
+		checkTransportCoefficients(_filmDiffusion, "FILM_DIFFUSION", _parTypeIdx, false);
 
 		bool filmDiffDepConfSuccess = true;
 		if (_filmDiffusionDep)
@@ -203,6 +228,14 @@ namespace parts
 		{
 			bool poreAccessParTypeDep = paramProvider.exists("PORE_ACCESSIBILITY_PARTYPE_DEPENDENT") ? paramProvider.getBool("PORE_ACCESSIBILITY_PARTYPE_DEPENDENT") : true;
 			_poreAccessFactorMode = readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _nComp, _parTypeIdx, poreAccessParTypeDep, unitOpIdx);
+
+			// A pore accessibility factor of zero would divide by zero in _invBetaP below
+			for (std::size_t i = 0; i < _poreAccessFactor.size(); ++i)
+			{
+				const double val = static_cast<double>(_poreAccessFactor[i]);
+				if (!(val > 0.0) || (val > 1.0))
+					throw InvalidParameterException("Field PORE_ACCESSIBILITY has to be in (0.0, 1.0], but entry " + std::to_string(i) + " is " + std::to_string(val) + " for particle type " + std::to_string(_parTypeIdx));
+			}
 		}
 		else
 		{
@@ -216,11 +249,16 @@ namespace parts
 
 		bool parDiffParTypeDep = paramProvider.exists("PORE_DIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getBool("PORE_DIFFUSION_PARTYPE_DEPENDENT") : true;
 		_parDiffusionMode = readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _parDiffusion, "PORE_DIFFUSION", _nComp, _parTypeIdx, parDiffParTypeDep, unitOpIdx);
+		// The documentation gives PORE_DIFFUSION as > 0, but the field is read even when
+		// HAS_PORE_DIFFUSION is 0, where a zero is the natural placeholder and is used by the
+		// shipped reference configurations. Only a negative coefficient is rejected here.
+		checkTransportCoefficients(_parDiffusion, "PORE_DIFFUSION", _parTypeIdx, false);
 
 		if (paramProvider.exists("SURFACE_DIFFUSION") && _hasSurfaceDiffusion)
 		{
 			bool parSurfDiffParTypeDep = paramProvider.exists("SURFACE_DIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getBool("SURFACE_DIFFUSION_PARTYPE_DEPENDENT") : true;
 			_parSurfDiffusionMode = readAndRegisterMultiplexBndCompSecParam(paramProvider, parameters, _parSurfDiffusion, "SURFACE_DIFFUSION", _nComp, _strideBound, _nBound.get(), _parTypeIdx, parSurfDiffParTypeDep, unitOpIdx);
+			checkTransportCoefficients(_parSurfDiffusion, "SURFACE_DIFFUSION", _parTypeIdx, false);
 		}
 		else
 		{

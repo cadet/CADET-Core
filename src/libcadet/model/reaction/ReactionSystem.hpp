@@ -29,6 +29,7 @@
 #include <vector>
 #include <string>
 #include <cstdio>
+#include <cctype>
 #include <limits>
 #include <cmath>
 #include <unordered_set>
@@ -186,7 +187,7 @@ struct ReactionSystem
         /**
          * @brief Configures discretization for reaction models in a specific phase
          * @param phaseType The phase type to configure
-         * @param nReactions Number of reactions to configure
+         * @param nReactions Number of reactions to configure, as read from NREAC_<PHASE>
          * @param nComp Number of components
          * @param nBound Array of bound states per component
          * @param boundOffset Array of bound state offsets per component
@@ -194,8 +195,17 @@ struct ReactionSystem
          * @param helper Configuration helper for creating reaction models
          * @return True if configuration succeeded, false otherwise
          */
-        bool configureDiscretization(std::string phaseType, unsigned int nReactions, unsigned int nComp, unsigned int* nBound, unsigned int* boundOffset,  IParameterProvider& paramProvider, const IConfigHelper& helper)
+        bool configureDiscretization(std::string phaseType, int nReactions, unsigned int nComp, unsigned int* nBound, unsigned int* boundOffset,  IParameterProvider& paramProvider, const IConfigHelper& helper)
 	    {
+            // The count is taken as unsigned below, where a negative value read from the input
+            // would turn into a huge number of reaction groups to look for
+            if (nReactions < 0)
+            {
+                std::string field = "NREAC_" + phaseType;
+                std::transform(field.begin(), field.end(), field.begin(), [](unsigned char c) { return std::toupper(c); });
+                throw InvalidParameterException("Field " + field + " has to be non-negative, but is " + std::to_string(nReactions));
+            }
+
             auto& dynReaction = getDynReactionVector(phaseType);
             configureDimensions(phaseType, nReactions);
 

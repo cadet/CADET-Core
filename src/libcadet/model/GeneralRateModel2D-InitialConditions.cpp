@@ -425,6 +425,8 @@ void GeneralRateModel2D::readInitialCondition(IParameterProvider& paramProvider)
 	if (((initC.size() < _disc.nComp) && _singleRadiusInitC) || ((initC.size() < _disc.nComp * _disc.nRad) && !_singleRadiusInitC))
 		throw InvalidParameterException("INIT_C does not contain enough values for all components (and radial zones)");
 
+	checkNonNegativeField(initC, "INIT_C");
+
 	if (!_singleRadiusInitC)
 		ad::copyToAd(initC.data(), _initC.data(), _disc.nComp * _disc.nRad);
 	else
@@ -449,6 +451,8 @@ void GeneralRateModel2D::readInitialCondition(IParameterProvider& paramProvider)
 				|| ((initCp.size() < _disc.nComp * _disc.nRad) && !_singleRadiusInitCp)
 				)
 				throw InvalidParameterException("INIT_CP does not contain enough values for all components");
+
+			checkNonNegativeField(initCp, "INIT_CP");
 
 			if (!_singleRadiusInitCp)
 			{
@@ -531,6 +535,8 @@ void GeneralRateModel2D::readInitialCondition(IParameterProvider& paramProvider)
 			|| (!_singleRadiusInitCs && initCs.size() < _disc.strideBound[parType] * _disc.nRad)
 				)
 			throw InvalidParameterException("INIT_CS does not contain enough values for all bound states");
+
+		checkNonNegativeField(initCs, "INIT_CS");
 
 		if (!_singleRadiusInitCs)
 		{
