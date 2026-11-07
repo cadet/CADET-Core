@@ -99,7 +99,11 @@ namespace cadet
 			const bool firstConfigCall = _tempState == nullptr; // used to not multiply allocate memory
 
 			// Read discretization
-			_disc.nComp = paramProvider.getInt("NCOMP");
+			const int nComp = paramProvider.getInt("NCOMP");
+			if (nComp < 1)
+				throw InvalidParameterException("Field NCOMP has to be at least 1, but is " + std::to_string(nComp));
+
+			_disc.nComp = nComp;
 
 			const int nPartype = paramProvider.getInt("NPARTYPE");
 			if (nPartype != 1)
@@ -119,6 +123,13 @@ namespace cadet
 			if (nBound.size() < _disc.nComp)
 				throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
 
+			// _disc.nBound is unsigned, so a negative entry would turn into a huge number of bound states
+			for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+			{
+				if (nBound[comp] < 0)
+					throw InvalidParameterException("Field NBOUND has to be non-negative, but entry " + std::to_string(comp) + " is " + std::to_string(nBound[comp]));
+			}
+
 			if (firstConfigCall)
 				_disc.nBound = new unsigned int[_disc.nComp];
 			std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound);
@@ -130,21 +141,42 @@ namespace cadet
 			if (firstConfigCall)
 				_linearSolver = cadet::linalg::setLinearSolver(paramProvider.exists("LINEAR_SOLVER") ? paramProvider.getString("LINEAR_SOLVER") : "SparseLU");
 
+			// The counts below are unsigned, so a negative value read from the input has to be
+			// rejected before the assignment, where it would turn into a huge number of nodes
+			// or elements. POLYDEG was also read outside of the branch that needs it, which
+			// fails whenever the field is absent and the default is meant to apply.
 			if (paramProvider.exists("POLYDEG"))
-				_disc.polyDeg = paramProvider.getInt("POLYDEG");
+			{
+				const int polyDeg = paramProvider.getInt("POLYDEG");
+				if (polyDeg < 1)
+					throw InvalidParameterException("Polynomial degree (POLYDEG) must be at least 1, but is " + std::to_string(polyDeg));
+
+				_disc.polyDeg = static_cast<unsigned int>(polyDeg);
+			}
 			else
 				_disc.polyDeg = 4u; // default value
-			if (paramProvider.getInt("POLYDEG") < 1)
-				throw InvalidParameterException("Polynomial degree must be at least 1!");
-			else if (_disc.polyDeg < 3)
+
+			if (_disc.polyDeg < 3)
 				LOG(Warning) << "Polynomial degree > 2 in bulk discretization (cf. POLYDEG) is always recommended for performance reasons.";
 
 			_disc.nNodes = _disc.polyDeg + 1;
 
 			if (paramProvider.exists("NELEM"))
-				_disc.nElem = paramProvider.getInt("NELEM");
+			{
+				const int nElem = paramProvider.getInt("NELEM");
+				if (nElem < 1)
+					throw InvalidParameterException("Field NELEM has to be at least 1, but is " + std::to_string(nElem));
+
+				_disc.nElem = static_cast<unsigned int>(nElem);
+			}
 			else if (paramProvider.exists("NCOL"))
-				_disc.nElem = std::max(1u, paramProvider.getInt("NCOL") / _disc.nNodes); // number of elements is rounded down
+			{
+				const int nCol = paramProvider.getInt("NCOL");
+				if (nCol < 1)
+					throw InvalidParameterException("Field NCOL has to be at least 1, but is " + std::to_string(nCol));
+
+				_disc.nElem = std::max(1u, static_cast<unsigned int>(nCol) / _disc.nNodes); // number of elements is rounded down
+			}
 			else
 				throw InvalidParameterException("Specify field NELEM (or NCOL)");
 
@@ -298,6 +330,12 @@ namespace cadet
 			// This has to happen before the transport operator is configured, since configure() assembles
 			// the geometry dependent operators, which a profile is baked into.
 			readScalarParameterOrArray(_totalPorosity, paramProvider, "TOTAL_POROSITY", 1);
+			for (std::size_t i = 0; i < _totalPorosity.size(); ++i)
+			{
+				const double eps = static_cast<double>(_totalPorosity[i]);
+				if (!(eps > 0.0) || (eps > 1.0))
+					throw InvalidParameterException("TOTAL_POROSITY has to be in (0.0, 1.0] but entry " + std::to_string(i) + " was specified as " + std::to_string(eps) + " in unit " + std::to_string(_unitOpIdx));
+			}
 
 			_axiallyConstantTotalPorosity = (_totalPorosity.size() == 1);
 			_unitPorosity = 1.0;
@@ -1169,6 +1207,9 @@ namespace cadet
 
 			if ((_disc.strideBound > 0) && (initCs.size() < _disc.strideBound))
 				throw InvalidParameterException("INIT_CS does not contain enough values for all bound states");
+
+			checkNonNegativeField(initC, "INIT_C");
+			checkNonNegativeField(initCs, "INIT_CS");
 
 			ad::copyToAd(initC.data(), _initC.data(), _disc.nComp);
 			if (!initCs.empty())

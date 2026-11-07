@@ -529,9 +529,18 @@ bool ModelSystem::configureModelDiscretization(IParameterProvider& paramProvider
 	// Read solver settings
 	paramProvider.pushScope("solver");
 	const int maxKrylov = paramProvider.getInt("MAX_KRYLOV");
+	if (maxKrylov < 0)
+		throw InvalidParameterException("Field MAX_KRYLOV has to be non-negative, but is " + std::to_string(maxKrylov));
+
 	const int gsType = paramProvider.getInt("GS_TYPE");
 	const int maxRestarts = paramProvider.getInt("MAX_RESTARTS");
+	if (maxRestarts < 0)
+		throw InvalidParameterException("Field MAX_RESTARTS has to be non-negative, but is " + std::to_string(maxRestarts));
+
 	_schurSafety = paramProvider.getDouble("SCHUR_SAFETY");
+	if (_schurSafety < 0.0)
+		throw InvalidParameterException("Field SCHUR_SAFETY has to be non-negative, but is " + std::to_string(_schurSafety));
+
 	paramProvider.popScope();
 
 	// Initialize and configure GMRES for solving the Schur-complement
@@ -628,7 +637,13 @@ bool ModelSystem::configure(IParameterProvider& paramProvider)
 
 	const int gsType = paramProvider.getInt("GS_TYPE");
 	const int maxRestarts = paramProvider.getInt("MAX_RESTARTS");
+	if (maxRestarts < 0)
+		throw InvalidParameterException("Field MAX_RESTARTS has to be non-negative, but is " + std::to_string(maxRestarts));
+
 	_schurSafety = paramProvider.getDouble("SCHUR_SAFETY");
+	if (_schurSafety < 0.0)
+		throw InvalidParameterException("Field SCHUR_SAFETY has to be non-negative, but is " + std::to_string(_schurSafety));
+
 	readLinearSolutionMode(paramProvider);
 
 	paramProvider.popScope();
@@ -651,8 +666,12 @@ void ModelSystem::configureSwitches(IParameterProvider& paramProvider)
 	// Read connections of unit operations
 	paramProvider.pushScope("connections");
 
-	const unsigned int numSwitches = paramProvider.getInt("NSWITCHES");
-	
+	const int numSwitchesRead = paramProvider.getInt("NSWITCHES");
+	if (numSwitchesRead < 1)
+		throw InvalidParameterException("Field NSWITCHES has to be at least 1, but is " + std::to_string(numSwitchesRead));
+
+	const unsigned int numSwitches = static_cast<unsigned int>(numSwitchesRead);
+
 	// TODO Improve those very conservative size estimates
 	_switchSectionIndex.clear();
 	_switchSectionIndex.reserve(numSwitches);
@@ -931,7 +950,11 @@ void ModelSystem::readLinearSolutionMode(IParameterProvider& paramProvider)
 
 	// Override default by user option
 	if (paramProvider.exists("LINEAR_SOLUTION_MODE"))
+	{
 		_linearSolutionMode = paramProvider.getInt("LINEAR_SOLUTION_MODE");
+		if ((_linearSolutionMode < 0) || (_linearSolutionMode > 2))
+			throw InvalidParameterException("Field LINEAR_SOLUTION_MODE has to be in {0, 1, 2}, but is " + std::to_string(_linearSolutionMode));
+	}
 }
 
 /**
@@ -984,6 +1007,13 @@ void ModelSystem::checkConnectionList(const std::vector<double>& conn, std::vect
 			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Source unit operation id has to be at least 0 in connection");
 		if (uoDest < 0)
 			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Destination unit operation id has to be at least 0 in connection");
+
+		// Port and component indices are either an index or -1 for "all of them"; anything below
+		// that would silently be taken for "all of them" by the checks further down
+		if ((portSource < -1) || (portDest < -1))
+			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Port indices have to be at least -1 in connection");
+		if ((compSource < -1) || (compDest < -1))
+			throw InvalidParameterException("In CONNECTIONS matrix (switch " + std::to_string(idxSwitch) + " row " + std::to_string(i) + "): Component indices have to be at least -1 in connection");
 
 		// Convert to index
 		uoSource = indexOfUnitOp(_models, uoSource);

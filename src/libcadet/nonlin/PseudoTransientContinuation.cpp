@@ -12,7 +12,10 @@
 
 #include "nonlin/PseudoTransientContinuation.hpp"
 #include "cadet/ParameterProvider.hpp"
+#include "cadet/Exceptions.hpp"
 #include "linalg/DenseMatrix.hpp"
+
+#include <string>
 
 namespace cadet
 {
@@ -26,11 +29,23 @@ PseudoTransientContinuationSolver::~PseudoTransientContinuationSolver() { }
 bool PseudoTransientContinuationSolver::configure(IParameterProvider& paramProvider)
 {
 	if (paramProvider.exists("INIT_PSEUDOTIMESTEP"))
+	{
 		_tau = paramProvider.getDouble("INIT_PSEUDOTIMESTEP");
+		if (!(_tau > 0.0))
+			throw InvalidParameterException("Field INIT_PSEUDOTIMESTEP has to be positive, but is " + std::to_string(_tau));
+	}
 	if (paramProvider.exists("MAX_NONMONOTONE_ITERATIONS"))
+	{
 		_numNonMonotone = paramProvider.getInt("MAX_NONMONOTONE_ITERATIONS");
+		if (_numNonMonotone < 0)
+			throw InvalidParameterException("Field MAX_NONMONOTONE_ITERATIONS has to be non-negative, but is " + std::to_string(_numNonMonotone));
+	}
 	if (paramProvider.exists("MAX_ITERATIONS"))
+	{
 		_maxIter = paramProvider.getInt("MAX_ITERATIONS");
+		if (_maxIter < 1)
+			throw InvalidParameterException("Field MAX_ITERATIONS has to be at least 1, but is " + std::to_string(_maxIter));
+	}
 	if (paramProvider.exists("NUMERIC_VARIANT"))
 		_variant = paramProvider.getBool("NUMERIC_VARIANT");
 	return true;

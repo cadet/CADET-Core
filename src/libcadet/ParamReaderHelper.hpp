@@ -32,6 +32,20 @@
 namespace cadet
 {
 	/**
+	 * @brief Checks every entry of a field that is documented as non-negative
+	 * @param [in] values Values read from the field
+	 * @param [in] dataSet Name of the field, used in the error message
+	 */
+	inline void checkNonNegativeField(const std::vector<double>& values, const std::string& dataSet)
+	{
+		for (std::size_t i = 0; i < values.size(); ++i)
+		{
+			if (values[i] < 0.0)
+				throw InvalidParameterException("Field " + dataSet + " has to be non-negative, but entry " + std::to_string(i) + " is " + std::to_string(values[i]));
+		}
+	}
+
+	/**
 	 * @brief Reads a scalar, possibly vectorial, parameter into a vector
 	 * @details This function automatically detects if the parameter is vectorial.
 	 *          If the user always wants a vectorial result, the single scalar value is

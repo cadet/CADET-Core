@@ -121,7 +121,11 @@ bool ColumnModel1D<ConvDispOperator>::configureModelDiscretization(IParameterPro
 	std::string unitName = paramProvider.getString("UNIT_TYPE");
 
 	// ==== Read discretization
-	_disc.nComp = paramProvider.getInt("NCOMP");
+	const int nComp = paramProvider.getInt("NCOMP");
+	if (nComp < 1)
+		throw InvalidParameterException("Field NCOMP has to be at least 1, but is " + std::to_string(nComp));
+
+	_disc.nComp = nComp;
 
 	if (paramProvider.getInt("NPARTYPE") < 0)
 		throw InvalidParameterException("Number of particle types must be >= 0!");
@@ -141,21 +145,40 @@ bool ColumnModel1D<ConvDispOperator>::configureModelDiscretization(IParameterPro
 
 	if (spatialMethod == "DG")
 	{
+	// The counts below are unsigned, so a negative value read from the input has to be rejected
+	// before the assignment, where it would turn into a huge number of nodes or elements
 	if (paramProvider.exists("POLYDEG"))
-		_disc.polyDeg = paramProvider.getInt("POLYDEG");
+	{
+		const int polyDeg = paramProvider.getInt("POLYDEG");
+		if (polyDeg < 1)
+			throw InvalidParameterException("Polynomial degree (POLYDEG) must be at least 1, but is " + std::to_string(polyDeg));
+
+		_disc.polyDeg = static_cast<unsigned int>(polyDeg);
+	}
 	else
 		_disc.polyDeg = 4u; // default value
-	if (_disc.polyDeg < 1)
-		throw InvalidParameterException("Polynomial degree must be at least 1!");
-	else if (_disc.polyDeg < 3)
+
+	if (_disc.polyDeg < 3)
 		LOG(Warning) << "Polynomial degree > 2 in bulk discretization (cf. POLYDEG) is always recommended for performance reasons.";
 
 	_disc.nNodes = _disc.polyDeg + 1;
 
 	if (paramProvider.exists("NELEM"))
-		_disc.nElem = paramProvider.getInt("NELEM");
+	{
+		const int nElem = paramProvider.getInt("NELEM");
+		if (nElem < 1)
+			throw InvalidParameterException("Field NELEM has to be at least 1, but is " + std::to_string(nElem));
+
+		_disc.nElem = static_cast<unsigned int>(nElem);
+	}
 	else if (paramProvider.exists("NCOL"))
-		_disc.nElem = std::max(1u, paramProvider.getInt("NCOL") / _disc.nNodes); // number of elements is rounded down
+	{
+		const int nCol = paramProvider.getInt("NCOL");
+		if (nCol < 1)
+			throw InvalidParameterException("Field NCOL has to be at least 1, but is " + std::to_string(nCol));
+
+		_disc.nElem = std::max(1u, static_cast<unsigned int>(nCol) / _disc.nNodes); // number of elements is rounded down
+	}
 	else
 		throw InvalidParameterException("Specify field NELEM (or NCOL)");
 	}
@@ -163,7 +186,12 @@ bool ColumnModel1D<ConvDispOperator>::configureModelDiscretization(IParameterPro
 	{
 		_disc.polyDeg = 0u;
 		_disc.nNodes = 1u;
-		_disc.nElem = paramProvider.getInt("NCOL");
+
+		const int nCol = paramProvider.getInt("NCOL");
+		if (nCol < 1)
+			throw InvalidParameterException("Field NCOL has to be at least 1, but is " + std::to_string(nCol));
+
+		_disc.nElem = static_cast<unsigned int>(nCol);
 	}
 	else
 		throw InvalidParameterException("Unknown spatial discretization method " + spatialMethod);
@@ -461,6 +489,15 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 
 		if (_disc.nParType * _disc.nPoints != _parTypeVolFrac.size())
 			throw InvalidParameterException("Number of elements in field PAR_TYPE_VOLFRAC does not match number of particle types times number of axial cells");
+
+		// A single volume fraction is a fraction of the solid phase, so it is in [0, 1] on its own.
+		// The sum below does not imply this, since it is also met by entries that cancel each other.
+		for (std::size_t i = 0; i < _parTypeVolFrac.size(); ++i)
+		{
+			const double volFrac = static_cast<double>(_parTypeVolFrac[i]);
+			if ((volFrac < 0.0) || (volFrac > 1.0))
+				throw InvalidParameterException("Field PAR_TYPE_VOLFRAC has to be in [0.0, 1.0], but entry " + std::to_string(i) + " is " + std::to_string(volFrac));
+		}
 
 		// Check that particle volume fractions sum to 1.0
 		for (unsigned int i = 0; i < _disc.nPoints; ++i)

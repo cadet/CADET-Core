@@ -22,6 +22,7 @@
 
 cadet::JsonParameterProvider createColumnWithSMA(const std::string& uoType, const std::string& spatialScheme);
 cadet::JsonParameterProvider createColumnWithTwoCompLinearBinding(const std::string& uoType, const std::string& spatialScheme);
+cadet::JsonParameterProvider createColumnWithTwoCompBiLangmuirBinding(const std::string& uoType, const std::string& spatialScheme);
 cadet::JsonParameterProvider createColumnLinearBenchmark(bool dynamicBinding, bool nonBinding, const std::string& uoType, const std::string& spatialScheme);
 nlohmann::json createLWEJson(const std::string& uoType, const std::string& spatialMethod);
 cadet::JsonParameterProvider createLWE(const std::string& uoType, const std::string& spatialScheme);

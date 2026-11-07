@@ -12,7 +12,10 @@
 
 #include "nonlin/LevenbergMarquardt.hpp"
 #include "cadet/ParameterProvider.hpp"
+#include "cadet/Exceptions.hpp"
 #include "linalg/DenseMatrix.hpp"
+
+#include <string>
 
 namespace cadet
 {
@@ -26,9 +29,19 @@ LevenbergMarquardtSolver::~LevenbergMarquardtSolver() { }
 bool LevenbergMarquardtSolver::configure(IParameterProvider& paramProvider)
 {
 	if (paramProvider.exists("INIT_DAMPING"))
+	{
 		_initDamping = paramProvider.getDouble("INIT_DAMPING");
+		if (_initDamping < 0.0)
+			throw InvalidParameterException("Field INIT_DAMPING has to be non-negative, but is " + std::to_string(_initDamping));
+	}
 	if (paramProvider.exists("MAX_ITERATIONS"))
-		_maxIter = paramProvider.getInt("MAX_ITERATIONS");
+	{
+		const int maxIter = paramProvider.getInt("MAX_ITERATIONS");
+		if (maxIter < 1)
+			throw InvalidParameterException("Field MAX_ITERATIONS has to be at least 1, but is " + std::to_string(maxIter));
+
+		_maxIter = static_cast<unsigned int>(maxIter);
+	}
 	return true;
 }
 

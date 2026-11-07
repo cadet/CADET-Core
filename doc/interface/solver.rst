@@ -113,7 +113,7 @@ Group /input/solver/time_integrator
    
 ``ALGTOL``
 
-   Tolerance in the solution of the nonlinear consistency equations
+   Tolerance in the solution of the nonlinear equations for consistent initialization
    
    ================  ======================  =============
    **Type:** double  **Range:** :math:`> 0`  **Length:** 1

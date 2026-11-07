@@ -70,6 +70,13 @@ public:
 		_cub = paramProvider->getDoubleArray("CUBE_COEFF");
 		_velocity = paramProvider->getDouble("VELOCITY");
 
+		// SECTION_TIMES holds points in time, which are non-negative
+		for (std::size_t i = 0; i < _sectionTimes.size(); ++i)
+		{
+			if (_sectionTimes[i] < 0.0)
+				return false;
+		}
+
 		// Check sizes
 		return (_sectionTimes.size() >= 2) && (_const.size() == _sectionTimes.size()-1) && (_const.size() == _lin.size())
 			&& (_const.size() == _quad.size()) && (_const.size() == _cub.size());

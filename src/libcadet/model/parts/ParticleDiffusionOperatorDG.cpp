@@ -99,6 +99,12 @@ namespace parts
 			_parDiscVector = paramProvider.getDoubleArray("PAR_DISC_VECTOR");
 			if (_parDiscVector.size() < _nParPoints)
 				throw InvalidParameterException("Field PAR_DISC_VECTOR contains too few elements (" + std::to_string(_nParPoints) + " required)");
+
+			for (std::size_t i = 0; i < _parDiscVector.size(); ++i)
+			{
+				if ((_parDiscVector[i] < 0.0) || (_parDiscVector[i] > 1.0))
+					throw InvalidParameterException("Field PAR_DISC_VECTOR has to be in [0.0, 1.0], but entry " + std::to_string(i) + " is " + std::to_string(_parDiscVector[i]) + " for particle type " + std::to_string(_parTypeIdx));
+			}
 		}
 
 		paramProvider.popScope(); // discretization
