@@ -609,6 +609,37 @@ cadet::JsonParameterProvider createColumnWithTwoCompLinearBinding(const std::str
 	return cadet::JsonParameterProvider(createColumnWithTwoCompLinearJson(uoType, spatialMethod));
 }
 
+json createColumnWithTwoCompBiLangmuirJson(const std::string& uoType, const std::string& spatialMethod)
+{
+	// The same column as createColumnWithTwoCompLinearJson(), with a binding model that gives every
+	// component two bound states. A multi site binding model walks the rows of its Jacobian by
+	// overshooting its block and stepping back, see BiLangmuirBinding::jacobianImpl(), which the
+	// single bound state models used elsewhere in these tests never do.
+	json config = createColumnWithTwoCompLinearJson(uoType, spatialMethod);
+
+	json& particle = config["particle_type_000"];
+	particle["ADSORPTION_MODEL"] = std::string("MULTI_COMPONENT_BILANGMUIR");
+	particle["NBOUND"] = { 2, 2 };
+	particle["INIT_CS"] = { 5.0, 6.0, 7.0, 8.0 };
+	// Surface diffusion is given per bound state, of which there are now four
+	particle["SURFACE_DIFFUSION"] = { 1e-10, 5e-11, 8e-11, 4e-11 };
+
+	// State major ordering, that is, all components of the first binding site come first
+	json ads;
+	ads["IS_KINETIC"] = 1;
+	ads["MCBL_KA"] = { 12.3, 35.5, 11.1, 31.5 };
+	ads["MCBL_KD"] = { 45.0, 20.0, 40.0, 25.0 };
+	ads["MCBL_QMAX"] = { 10.0, 12.0, 9.0, 11.0 };
+	particle["adsorption"] = ads;
+
+	return config;
+}
+
+cadet::JsonParameterProvider createColumnWithTwoCompBiLangmuirBinding(const std::string& uoType, const std::string& spatialMethod)
+{
+	return cadet::JsonParameterProvider(createColumnWithTwoCompBiLangmuirJson(uoType, spatialMethod));
+}
+
 json createLWEJson(const std::string& uoType, const std::string& spatialMethod)
 {
 	json config;
