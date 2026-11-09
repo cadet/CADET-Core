@@ -646,12 +646,22 @@ TEST_CASE("Column_1D as GRM consistent initialization with linear binding", "[Ax
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-12, 1, 1);
 }
 
+TEST_CASE("Column_1D as GRM consistent initialization with a non-binding component", "[AxialColumn1D],[DG],[DG1D],[ConsistentInit],[CI]")
+{
+	cadet::test::column::testConsistentInitializationNonBindingComponent("COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-12);
+}
+
 TEST_CASE("Column_1D as LRMP consistent initialization with linear binding", "[AxialColumn1D],[DG],[DG1D],[ConsistentInit],[CI]")
 {
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12, 0, 0);
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12, 1, 0);
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12, 0, 1);
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12, 1, 1);
+}
+
+TEST_CASE("Column_1D as LRMP consistent initialization with a non-binding component", "[AxialColumn1D],[DG],[DG1D],[ConsistentInit],[CI]")
+{
+	cadet::test::column::testConsistentInitializationNonBindingComponent("COLUMN_MODEL_1D_LRMP", "DG", 1e-12, 1e-12);
 }
 
 TEST_CASE("1D column liquid equilibrium MAL consistent initialization", "[Column_1D],[MassActionLaw],[ReactionModel],[ConsistentInit],[CI]")

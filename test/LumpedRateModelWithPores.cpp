@@ -125,6 +125,11 @@ TEST_CASE("LRMP consistent initialization with linear binding", "[LRMP],[FV],[Co
 	cadet::test::column::testConsistentInitializationLinearBinding("LUMPED_RATE_MODEL_WITH_PORES", "FV", 1e-12, 1e-12);
 }
 
+TEST_CASE("LRMP consistent initialization with a non-binding component", "[LRMP],[FV],[ConsistentInit],[CI]")
+{
+	cadet::test::column::testConsistentInitializationNonBindingComponent("LUMPED_RATE_MODEL_WITH_PORES", "FV", 1e-12, 1e-12);
+}
+
 //TEST_CASE("LRMP consistent initialization with SMA binding", "[LRMP],[FV],[ConsistentInit],[fixLRMP]")
 //{
 //	std::vector<double> y(4 + 4 * 16 + 16 * (4 + 4) + 4 * 16, 0.0);

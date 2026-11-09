@@ -166,6 +166,11 @@ TEST_CASE("GRM consistent initialization with linear binding", "[GRM],[FV],[Cons
 	cadet::test::column::testConsistentInitializationLinearBinding("GENERAL_RATE_MODEL", "FV", 1e-12, 1e-12);
 }
 
+TEST_CASE("GRM consistent initialization with a non-binding component", "[GRM],[FV],[ConsistentInit],[CI]")
+{
+	cadet::test::column::testConsistentInitializationNonBindingComponent("GENERAL_RATE_MODEL", "FV", 1e-12, 1e-12);
+}
+
 //TEST_CASE("GRM consistent initialization with SMA binding", "[GRM],[FV],[ConsistentInit],[fixGRM]") // todo fix
 //{
 //	std::vector<double> y(4 + 4 * 16 + 16 * 4 * (4 + 4) + 4 * 16, 0.0);

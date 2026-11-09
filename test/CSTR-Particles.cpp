@@ -304,6 +304,52 @@ TEST_CASE("CSTR consistent initialization with linear binding", "[CSTR],[Consist
 	}
 }
 
+TEST_CASE("CSTR consistent initialization with a non-binding component", "[CSTR],[ConsistentInit],[CI]")
+{
+	for (int adMode = 0; adMode < 2; ++adMode)
+	{
+		const bool adEnabled = (adMode > 0);
+
+		SECTION(std::string("Non-binding component with AD ") + (adEnabled ? "enabled" : "disabled"))
+		{
+			cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+			REQUIRE(nullptr != mb);
+
+			cadet::JsonParameterProvider jpp = createFiniteBath("GENERAL_RATE_PARTICLE", "FV");
+			cadet::test::setBindingMode(jpp, false);
+			{
+				auto ms = cadet::test::util::makeOptionalGroupScope(jpp, "model");
+				auto us = cadet::test::util::makeOptionalGroupScope(jpp, "unit_000");
+				auto ps = cadet::test::util::makeOptionalGroupScope(jpp, "particle_type_000");
+
+				// Bound-state indices differ from component indices, and binding is strong enough
+				// that an inconsistent Jacobian of the conservation relations prevents convergence
+				jpp.set("NBOUND", std::vector<int>{ 0, 1 });
+				jpp.set("INIT_CS", std::vector<double>{ 6.0 });
+				jpp.set("SURFACE_DIFFUSION", std::vector<double>{ 5e-11 });
+
+				jpp.pushScope("adsorption");
+				jpp.set("LIN_KA", std::vector<double>{ 0.0, 35.5 });
+				jpp.set("LIN_KD", std::vector<double>{ 1.0, 1.0 });
+				jpp.popScope();
+			}
+
+			if (adEnabled)
+				cadet::ad::setDirections(cadet::ad::getMaxDirections());
+
+			cadet::IUnitOperation* const unit = createAndConfigureStirredTank(*mb, jpp, 1e-6);
+
+			std::vector<double> y(unit->numDofs(), 0.0);
+			cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unit->numDofs());
+
+			cadet::test::unitoperation::testConsistentInitialization(unit, adEnabled, y.data(), 1e-14, 1e-10);
+
+			mb->destroyUnitOperation(unit);
+			destroyModelBuilder(mb);
+		}
+	}
+}
+
 TEST_CASE("CSTR consistent sensitivity initialization with linear binding", "[CSTR],[ConsistentInit],[Sensitivity],[CI]")
 {
 	for (int bindingMode = 0; bindingMode < 2; ++bindingMode)
