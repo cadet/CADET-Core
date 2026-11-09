@@ -129,14 +129,30 @@ protected:
 	unsigned int                                    _nTrain;             // number of training points
 	mutable std::vector<double>                     _cpVecCache;         // reusable buffer for c_p vector (length _nComp)
 
-	// Helper function to create bound-state-specific parameter name with BNDXXX suffix
+	// Helper function to create bound-state-specific parameter name with _BND_XXX suffix
 	std::string makeBoundStateParamName(const std::string& baseName, unsigned int bndIdx) const
 	{
-		if (bndIdx == static_cast<unsigned int>(-1))
-			return baseName;
 		std::ostringstream oss;
 		oss << baseName << "_BND_" << std::setw(3) << std::setfill('0') << bndIdx;
 		return oss.str();
+	}
+
+	// Reads a kernel hyperparameter for one bound state. The bound-state-specific name
+	// BASE_BND_XXX takes precedence; if it is absent, the unsuffixed name BASE is accepted
+	// as a convenience for systems in which all bound states share the same value.
+	double readKernelParam(IParameterProvider& paramProvider, const std::string& baseName, unsigned int bndIdx) const
+	{
+		const std::string suffixed = makeBoundStateParamName(baseName, bndIdx);
+
+		if (paramProvider.exists(suffixed))
+			return paramProvider.getDouble(suffixed);
+
+		if (paramProvider.exists(baseName))
+			return paramProvider.getDouble(baseName);
+
+		throw InvalidParameterException(
+			"GPR binding: bound state " + std::to_string(bndIdx)
+			+ " requires either " + suffixed + " or " + baseName);
 	}
 
 	// Helper function to read bound-state-specific GPR kernel parameters
@@ -159,55 +175,31 @@ protected:
 		// Read kernel-specific parameters
 		if (params.kernel == "MLP")
 		{
-			if (_nBoundStates[_nComp - 1] == 1 && paramProvider.exists("MLP_WEIGHT_VARIANCE"))
-				bndIdx = -1; // no suffix
-			params.mlp_weight_variance = paramProvider.getDouble(
-				makeBoundStateParamName("MLP_WEIGHT_VARIANCE", bndIdx));
-			params.mlp_bias_variance = paramProvider.getDouble(
-				makeBoundStateParamName("MLP_BIAS_VARIANCE", bndIdx));
-			params.mlp_variance = paramProvider.getDouble(
-				makeBoundStateParamName("MLP_VARIANCE", bndIdx));
-			params.gaussian_noise_variance = paramProvider.getDouble(
-				makeBoundStateParamName("GAUSSIAN_NOISE_VARIANCE", bndIdx));
+			params.mlp_weight_variance = readKernelParam(paramProvider, "MLP_WEIGHT_VARIANCE", bndIdx);
+			params.mlp_bias_variance = readKernelParam(paramProvider, "MLP_BIAS_VARIANCE", bndIdx);
+			params.mlp_variance = readKernelParam(paramProvider, "MLP_VARIANCE", bndIdx);
+			params.gaussian_noise_variance = readKernelParam(paramProvider, "GAUSSIAN_NOISE_VARIANCE", bndIdx);
 		}
 		else if (params.kernel == "MLP_Linear")
 		{
-			if (_nBoundStates[_nComp - 1] == 1 && paramProvider.exists("MLP_WEIGHT_VARIANCE"))
-				bndIdx = -1; // no suffix
-			params.mlp_weight_variance = paramProvider.getDouble(
-				makeBoundStateParamName("MLP_WEIGHT_VARIANCE", bndIdx));
-			params.mlp_bias_variance = paramProvider.getDouble(
-				makeBoundStateParamName("MLP_BIAS_VARIANCE", bndIdx));
-			params.mlp_variance = paramProvider.getDouble(
-				makeBoundStateParamName("MLP_VARIANCE", bndIdx));
-			params.linear_variance = paramProvider.getDouble(
-				makeBoundStateParamName("LINEAR_VARIANCE", bndIdx));
-			params.gaussian_noise_variance = paramProvider.getDouble(
-				makeBoundStateParamName("GAUSSIAN_NOISE_VARIANCE", bndIdx));
+			params.mlp_weight_variance = readKernelParam(paramProvider, "MLP_WEIGHT_VARIANCE", bndIdx);
+			params.mlp_bias_variance = readKernelParam(paramProvider, "MLP_BIAS_VARIANCE", bndIdx);
+			params.mlp_variance = readKernelParam(paramProvider, "MLP_VARIANCE", bndIdx);
+			params.linear_variance = readKernelParam(paramProvider, "LINEAR_VARIANCE", bndIdx);
+			params.gaussian_noise_variance = readKernelParam(paramProvider, "GAUSSIAN_NOISE_VARIANCE", bndIdx);
 		}
 		else if (params.kernel == "RBF")
 		{
-			if (_nBoundStates[_nComp - 1] == 1 && paramProvider.exists("RBF_VARIANCE"))
-				bndIdx = -1; // no suffix
-			params.rbf_variance = paramProvider.getDouble(
-				makeBoundStateParamName("RBF_VARIANCE", bndIdx));
-			params.rbf_lengthscale = paramProvider.getDouble(
-				makeBoundStateParamName("RBF_LENGTHSCALE", bndIdx));
-			params.gaussian_noise_variance = paramProvider.getDouble(
-				makeBoundStateParamName("GAUSSIAN_NOISE_VARIANCE", bndIdx));
+			params.rbf_variance = readKernelParam(paramProvider, "RBF_VARIANCE", bndIdx);
+			params.rbf_lengthscale = readKernelParam(paramProvider, "RBF_LENGTHSCALE", bndIdx);
+			params.gaussian_noise_variance = readKernelParam(paramProvider, "GAUSSIAN_NOISE_VARIANCE", bndIdx);
 		}
 		else if (params.kernel == "RBF_Linear")
 		{
-			if (_nBoundStates[_nComp - 1] == 1 && paramProvider.exists("RBF_VARIANCE"))
-				bndIdx = -1; // no suffix
-			params.linear_variance = paramProvider.getDouble(
-				makeBoundStateParamName("LINEAR_VARIANCE", bndIdx));
-			params.rbf_variance = paramProvider.getDouble(
-				makeBoundStateParamName("RBF_VARIANCE", bndIdx));
-			params.rbf_lengthscale = paramProvider.getDouble(
-				makeBoundStateParamName("RBF_LENGTHSCALE", bndIdx));
-			params.gaussian_noise_variance = paramProvider.getDouble(
-				makeBoundStateParamName("GAUSSIAN_NOISE_VARIANCE", bndIdx));
+			params.linear_variance = readKernelParam(paramProvider, "LINEAR_VARIANCE", bndIdx);
+			params.rbf_variance = readKernelParam(paramProvider, "RBF_VARIANCE", bndIdx);
+			params.rbf_lengthscale = readKernelParam(paramProvider, "RBF_LENGTHSCALE", bndIdx);
+			params.gaussian_noise_variance = readKernelParam(paramProvider, "GAUSSIAN_NOISE_VARIANCE", bndIdx);
 		}
 		else
 		{
