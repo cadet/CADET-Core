@@ -887,11 +887,17 @@ void ColumnModel2D::reportSolutionStructure(ISolutionRecorder& recorder) const
 
 unsigned int ColumnModel2D::requiredADdirs() const CADET_NOEXCEPT
 {
+	// Binding models that do not implement an analytic Jacobian compute it by AD internally
+	// (see BindingModelBase::jacobianImpl()). Those directions have to be reserved here even
+	// when the unit operation itself uses an analytic Jacobian (_jacobianAdDirs == 0), since
+	// the number of AD directions is a global setting. Omitting them makes the binding model
+	// silently return a zero Jacobian block.
+	const unsigned int numDirsBinding = maxBindingAdDirs();
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
-	return _jacobianAdDirs;
+	return numDirsBinding + _jacobianAdDirs;
 #else
 	// If CADET_CHECK_ANALYTIC_JACOBIAN is active, we always need the AD directions for the Jacobian
-	return numAdDirsForJacobian();
+	return numDirsBinding + numAdDirsForJacobian();
 #endif
 }
 

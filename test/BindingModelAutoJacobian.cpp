@@ -194,3 +194,49 @@ TEST_CASE("Full analytic Jacobian vs AD only enabled for binding model for a LRM
 		CHECK((*FullAnaJacOutlet) == cadet::test::makeApprox(*BndADJacOutlet, 1e-3, 5e-9)); // 1e-10, 1e-15 for DG
 	}
 }
+
+/**
+ * @brief Returns the absolute path to the test/ folder of the project
+ * @details Forward declaration, cf. ColumnTests.cpp
+ */
+const char* getTestDirectory();
+
+TEST_CASE("Full analytic Jacobian vs AD only enabled for binding model for a 2D column with SMA", "[BindingModel],[Jacobian],[Simulation],[CI]")
+{
+	// Regression test: ColumnModel2D::requiredADdirs() used to omit maxBindingAdDirs(), unlike
+	// every other unit operation. With USE_ANALYTIC_JACOBIAN = 1 the unit reserves no AD
+	// directions of its own, so a binding model that computes its Jacobian by AD internally
+	// (see BindingModelBase::jacobianImpl) silently received zero directions and returned a
+	// zero Jacobian block. The number of AD directions is a global setting, hence the unit
+	// operation has to account for its binding models even when it does not use AD itself.
+	const std::string setupFile = std::string(getTestDirectory()) + std::string("/data/model_COL2D_GRM2Zone_noRadVar_SMA_LWE.json");
+
+	// Binding AD Jacobian by calling an SMA implementation that provides no analytic Jacobian
+	cadet::JsonParameterProvider jppBndADJac(cadet::JsonParameterProvider::fromFile(setupFile));
+	(*jppBndADJac.data())["model"]["unit_000"]["particle_type_000"]["ADSORPTION_MODEL"] = "NO_JACOBIAN_STERIC_MASS_ACTION";
+	cadet::Driver drvBndADJac;
+	drvBndADJac.configure(jppBndADJac);
+	drvBndADJac.run();
+
+	// Full analytic Jacobian by calling the full SMA implementation
+	cadet::JsonParameterProvider jppFullAnaJac(cadet::JsonParameterProvider::fromFile(setupFile));
+	cadet::Driver drvFullAnaJac;
+	drvFullAnaJac.configure(jppFullAnaJac);
+	drvFullAnaJac.run();
+
+	cadet::InternalStorageUnitOpRecorder const* const FullAnaJacData = drvFullAnaJac.solution()->unitOperation(0);
+	cadet::InternalStorageUnitOpRecorder const* const BndADJacData = drvBndADJac.solution()->unitOperation(0);
+
+	double const* FullAnaJacOutlet = FullAnaJacData->outlet();
+	double const* BndADJacOutlet = BndADJacData->outlet();
+
+	const unsigned int nComp = FullAnaJacData->numComponents();
+	const unsigned int nValues = FullAnaJacData->numDataPoints() * FullAnaJacData->numInletPorts() * nComp;
+	REQUIRE(nValues > 0u);
+
+	for (unsigned int i = 0; i < nValues; ++i, ++FullAnaJacOutlet, ++BndADJacOutlet)
+	{
+		CAPTURE(i);
+		CHECK((*FullAnaJacOutlet) == cadet::test::makeApprox(*BndADJacOutlet, 1e-3, 5e-9));
+	}
+}
