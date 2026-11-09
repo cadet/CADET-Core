@@ -33,7 +33,7 @@
 	"externalName": "ExtSplineParamHandler",
 	"parameters":
 		[
-			{ "type": "ScalarComponentDependentParameter", "varName": "kKin", "confName": "SPLINE_KKIN"}
+			{ "type": "ComponentMajorBoundStateDependentParameter", "varName": "kKin", "confName": "SPLINE_KKIN"}
 		]
 }
 </codegen>*/
@@ -48,11 +48,7 @@ namespace cadet
 
 		inline bool SplineParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
-			int nTotBnd = 0;
-			for (int comp = 0; comp < nComp; comp++)
-				nTotBnd += nBoundStates[comp];
-
-			if (_kKin.size() != nTotBnd)
+			if (_kKin.size() != numBoundStates(nBoundStates, nComp))
 				throw InvalidParameterException("SPLINE_KKIN has to have NTOTALBND entries");
 
 			return true;
@@ -62,12 +58,8 @@ namespace cadet
 
 		inline bool ExtSplineParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 		{
-			int nTotBnd = 0;
-			for (int comp = 0; comp < nComp; comp++)
-				nTotBnd += nBoundStates[comp];
-
-			if (_kKin.size() != nTotBnd)
-				throw InvalidParameterException("SPLINE_KKIN has to have NTOTALBND entries");
+			if (_kKin.size() != numBoundStates(nBoundStates, nComp))
+				throw InvalidParameterException("EXT_SPLINE_KKIN has to have NTOTALBND entries");
 
 			return true;
 		}
@@ -78,7 +70,7 @@ namespace cadet
 		{
 		public:
 
-			SplineBindingBase() : _competitiveMode(false), _porePhaseConc(), _splineParams() {}
+			SplineBindingBase() : _competitiveMode(false), _porePhaseConc(), _splineParams(), _porosFactors() {}
 
 			virtual ~SplineBindingBase() CADET_NOEXCEPT { }
 
@@ -117,6 +109,7 @@ namespace cadet
 			std::vector<int> _bindingComponents; // [_nComp] indices of components with nonzero bound states
 			tk::regular_grid_interpolator _competitiveSplineGrid;
 			std::vector< std::vector<double> > _competitiveSplineValues; // [_totBoundStates][gridPoint]
+			std::vector<double> _porosFactors; // output scaling — one per bound state
 
 			/***************************************************************************************************/
 			size_t find_interval(double x, const std::vector<double>& m_x) const
@@ -310,6 +303,26 @@ namespace cadet
 				_porePhaseConc.resize(_nComp);
 				_competitiveSplineValues.clear();
 
+				// POROSITY_FACTOR is optional and scales the interpolated loading, e.g. to convert
+				// between the reference volume of the tabulated data and that of the simulation.
+				// It may be given as a single value (shared by all bound states) or as one value
+				// per bound state in component-major ordering. Defaults to 1.0 (no scaling).
+				_porosFactors.assign(_totBoundStates, 1.0);
+				if (paramProvider.exists("POROSITY_FACTOR"))
+				{
+					const std::vector<double> pf = paramProvider.getDoubleArray("POROSITY_FACTOR");
+
+					if (pf.size() == 1u)
+						_porosFactors.assign(_totBoundStates, pf[0]);
+					else if (static_cast<int>(pf.size()) == _totBoundStates)
+						_porosFactors = pf;
+					else
+						throw InvalidParameterException(
+							"SPLINE_INTERPOLATION binding: POROSITY_FACTOR must have either 1 or NTOTALBND = "
+							+ std::to_string(_totBoundStates) + " entries, got "
+							+ std::to_string(pf.size()));
+				}
+
 				const std::string mode = paramProvider.getString("INTERPOLATION_MODE");
 
 				if (mode == "COMPETITIVE_REGULAR_GRID")
@@ -347,9 +360,12 @@ namespace cadet
 
 				for (int comp = 0; comp < _nComp; ++comp)
 				{
+					active const* const kKinComp = p->kKin[comp];
+
 					for (int bnd = 0; bnd < _nBoundStates[comp]; ++bnd, ++bndIdx)
 					{
-						res[bndIdx] = static_cast<ParamType>(p->kKin[bndIdx]) * (y[bndIdx] - qSpline[bndIdx]);
+						res[bndIdx] = static_cast<ParamType>(kKinComp[bnd])
+							* (y[bndIdx] - _porosFactors[bndIdx] * qSpline[bndIdx]);
 					}
 				}
 
@@ -466,10 +482,15 @@ namespace cadet
 
 				for (int comp = 0; comp < _nComp; ++comp)
 				{
+					active const* const kKinComp = p->kKin[comp];
+
 					for (int bnd = 0; bnd < _nBoundStates[comp]; ++bnd, ++bndIdx)
 					{
+						const double kkin = static_cast<double>(kKinComp[bnd]);
+						const double poros = _porosFactors[bndIdx];
+
 						// d(res_bndIdx)/d(q_bndIdx) = kKin
-						jac[0] = static_cast<double>(p->kKin[bndIdx]);
+						jac[0] = kkin;
 
 						if (_competitiveMode)
 						{
@@ -486,7 +507,7 @@ namespace cadet
 							for (int bindingIdx = 0; bindingIdx < nBindingComp; ++bindingIdx)
 							{
 								const int cpComp = _bindingComponents[bindingIdx];
-								jac[cpComp - bndIdx - offsetCp] = -static_cast<double>(p->kKin[bndIdx]) * dqDcpAll[bindingIdx];
+								jac[cpComp - bndIdx - offsetCp] = -kkin * poros * dqDcpAll[bindingIdx];
 							}
 						}
 						else
@@ -513,7 +534,7 @@ namespace cadet
 								dq_dcp = (3.0 * coeffs[4 * idx] * h + 2.0 * coeffs[4 * idx + 1]) * h + coeffs[4 * idx + 2];
 							}
 
-							jac[comp - bndIdx - offsetCp] = -static_cast<double>(p->kKin[bndIdx]) * dq_dcp;
+							jac[comp - bndIdx - offsetCp] = -kkin * poros * dq_dcp;
 						}
 
 						++jac;

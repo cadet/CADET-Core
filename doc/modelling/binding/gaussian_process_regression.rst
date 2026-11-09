@@ -104,9 +104,16 @@ An offset is computed once during configuration for each bound state as the GPR 
 
 .. math::
 
-    c^{s,\ast}_{\text{j}}(c^p) = f_{\text{j}}(c^p) - f_{\text{j}}(0).
+    c^{s,\ast}_{\text{j}}(c^p) = \beta_{\text{poros},\text{j}} \left( f_{\text{j}}(c^p) - f_{\text{j}}(0) \right).
 
 This shifts the model response such that the predicted loading is zero at the origin. This correction is applied independently for each bound state.
+
+Porosity factor
+***************
+
+The optional porosity scaling factor :math:`\beta_{\text{poros},\text{j}}` (``POROSITY_FACTOR``) scales the prediction to the solid-phase loading used by the binding model.
+Since equilibrium loadings are often reported on different reference volumes or masses, it can be used as a simple correction factor to account for differences in porosity or unit conversions between the training data and the simulation conditions.
+It may be given as a single value, which is shared by all bound states, or as one value per bound state in component-major ordering, and defaults to :math:`1`.
 
 Kinetic Form
 ************

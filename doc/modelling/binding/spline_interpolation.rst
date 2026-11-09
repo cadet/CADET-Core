@@ -97,6 +97,27 @@ If any pore-phase concentration lies outside the tabulated range, the multilinea
 polynomial of the clamped boundary cell is extended linearly in each out-of-bounds
 dimension. No constant fill value is applied.
 
+Porosity factor
+***************
+
+In both modes, the interpolated value is scaled by an optional porosity factor
+:math:`\beta_{\text{poros},i,m}` (``POROSITY_FACTOR``),
+
+.. math::
+
+    c^{s,\ast}_{i,m} = \beta_{\text{poros},i,m} f_{i,m}(\boldsymbol{c}_p).
+
+Since equilibrium loadings are often reported on different reference volumes or masses,
+this factor can be used as a simple correction for differences in porosity or unit
+conversions between the tabulated data and the simulation conditions.
+It may be given as a single value, which is shared by all bound states, or as one value
+per bound state in component-major ordering, and defaults to :math:`1`.
+
+Note that, unlike the :ref:`neural_network` and :ref:`gaussian_process_regression`
+binding models, no zero-concentration offset is subtracted here: the interpolant
+reproduces the tabulated data exactly, so :math:`c^{s,\ast}_{i,m}(0) = 0` is obtained
+simply by including the origin among the support points.
+
 Kinetic form
 *************
 

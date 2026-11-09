@@ -25,7 +25,7 @@ For information on model equations, refer to :ref:`neural_network`.
 **Unit:** :math:`s^{-1}`
 
 ===================  =========================  =======================
-**Type:** double     **Range:** :math:`\geq 0`  **Length:** NCOMP
+**Type:** double     **Range:** :math:`\geq 0`  **Length:** NTOTALBND
 ===================  =========================  =======================
 
 ``NLAYERS``
@@ -43,20 +43,28 @@ For information on model equations, refer to :ref:`neural_network`.
 **Type:** int        **Range:** :math:`\geq 1`  **Length:** 1
 ===================  =========================  =======================
 
-**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_XXX/layer_0**
+**Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_XXX**
 
 ``NORM_FACTOR``
-   Normalization factors applied to the pore-phase
-   concentration before feeding into the neural network.
+   Normalization factors applied element-wise to the pore-phase concentration
+   vector before it is fed into the neural network, i.e. the network is
+   evaluated on :math:`x = c^p \odot \alpha_{\mathrm{norm}}`. Each factor is
+   therefore the reciprocal of a characteristic concentration scale, for example
+   :math:`1 / \max\left(c^p\right)`, chosen such that the network inputs are of
+   order one. The network must have been trained on exactly this scaling.
+
+   A single value is applied to all input dimensions; otherwise one value per
+   component has to be given. Each bound state has its own factors because each
+   network is trained independently.
 
 ===================  =========================  =======================
-**Type:** double     **Range:** :math:`> 0`     **Length:** 1
+**Type:** double     **Range:** :math:`\neq 0`  **Length:** 1/NCOMP
 ===================  =========================  =======================
 
 ``POROSITY_FACTOR``
-   Scaling factor applied to the neural network prediction. This can be
-   used to account for porosity differences or unit conversions between
-   training data and simulation conditions.
+   Optional scaling factor applied to the neural network prediction. This can
+   be used to account for porosity differences or unit conversions between
+   training data and simulation conditions. Defaults to 1.0 if not given.
 
 ===================  =========================  =======================
 **Type:** double     **Range:** :math:`> 0`     **Length:** 1

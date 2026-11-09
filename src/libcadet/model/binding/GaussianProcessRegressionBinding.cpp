@@ -35,7 +35,7 @@
 	"externalName": "ExtGPRParamHandler",
 	"parameters":
 		[
-			{ "type": "ScalarComponentDependentParameter", "varName": "kKin", "confName": "GPR_KKIN"}
+			{ "type": "ComponentMajorBoundStateDependentParameter", "varName": "kKin", "confName": "GPR_KKIN"}
 		]
 }
 </codegen>*/
@@ -50,8 +50,8 @@ inline const char* GPRParamHandler::identifier() CADET_NOEXCEPT { return "GAUSSI
 
 inline bool GPRParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
-	if (_kKin.size() < nComp)
-		throw InvalidParameterException("GPR_KKIN has to have NTOTALBOUND entries");
+	if (_kKin.size() != numBoundStates(nBoundStates, nComp))
+		throw InvalidParameterException("GPR_KKIN has to have NTOTALBND entries");
 
 	return true;
 }
@@ -60,8 +60,8 @@ inline const char* ExtGPRParamHandler::identifier() CADET_NOEXCEPT { return "EXT
 
 inline bool ExtGPRParamHandler::validateConfig(unsigned int nComp, unsigned int const* nBoundStates)
 {
-	if (_kKin.size() < nComp)
-		throw InvalidParameterException("GPR_KKIN has to have NTOTALBOUND entries");
+	if (_kKin.size() != numBoundStates(nBoundStates, nComp))
+		throw InvalidParameterException("EXT_GPR_KKIN has to have NTOTALBND entries");
 
 	return true;
 }
@@ -92,8 +92,10 @@ public:
 		, _kernelMats()
 		, _alphas()
 		, _offsets()
+		, _porosFactors()
 		, _nTrain(0u)
 		, _cpVecCache()
+		, _gradCache()
 	{
 	}
 
@@ -126,8 +128,10 @@ protected:
 	std::vector<std::vector<double>>                _kernelMats;         // one kernel matrix per bound state: each (nTrain x nTrain)
 	std::vector<std::vector<double>>                _alphas;             // one alpha vector per bound state: each (nTrain,)
 	std::vector<double>                             _offsets;            // one offset per bound state (prediction at c_p = 0)
+	std::vector<double>                             _porosFactors;       // output scaling — one per bound state
 	unsigned int                                    _nTrain;             // number of training points
 	mutable std::vector<double>                     _cpVecCache;         // reusable buffer for c_p vector (length _nComp)
+	mutable std::vector<double>                     _gradCache;          // reusable buffer for dq/dc_p (length _nComp)
 
 	// Helper function to create bound-state-specific parameter name with _BND_XXX suffix
 	std::string makeBoundStateParamName(const std::string& baseName, unsigned int bndIdx) const
@@ -292,6 +296,26 @@ protected:
 		_alphas.reserve(totalNumBoundStates);
 		_offsets.reserve(totalNumBoundStates);
 
+		// POROSITY_FACTOR is optional and scales the predicted loading, e.g. to convert
+		// between the reference volume of the training data and that of the simulation.
+		// It may be given as a single value (shared by all bound states) or as one value
+		// per bound state in component-major ordering. Defaults to 1.0 (no scaling).
+		_porosFactors.assign(totalNumBoundStates, 1.0);
+		if (paramProvider.exists("POROSITY_FACTOR"))
+		{
+			const std::vector<double> pf = paramProvider.getDoubleArray("POROSITY_FACTOR");
+
+			if (pf.size() == 1u)
+				_porosFactors.assign(totalNumBoundStates, pf[0]);
+			else if (pf.size() == totalNumBoundStates)
+				_porosFactors = pf;
+			else
+				throw InvalidParameterException(
+					"GPR binding: POROSITY_FACTOR must have either 1 or NTOTALBND = "
+					+ std::to_string(totalNumBoundStates) + " entries, got "
+					+ std::to_string(pf.size()));
+		}
+
 		// Loop through all bound states across all components
 		unsigned int bndIdx = 0;
 		for (unsigned int comp = 0; comp < _nComp; ++comp)
@@ -343,8 +367,9 @@ protected:
 			}
 		}
 
-		// Allocate cache for c_p vector
+		// Allocate caches for the hot path (avoids heap allocation in flux/Jacobian)
 		_cpVecCache.assign(_nComp, 0.0);
+		_gradCache.assign(_nComp, 0.0);
 
 		return result;
 	}
@@ -375,14 +400,16 @@ protected:
 		unsigned int bndIdx = 0;
 		for (unsigned int comp = 0; comp < _nComp; ++comp)
 		{
+			active const* const kKinComp = p->kKin[comp];
+
 			for (unsigned int bnd = 0; bnd < _nBoundStates[comp]; ++bnd)
 			{
 				// Evaluate GPR model for this specific bound state (with its own hyperparameters)
-				const double qML = _gpModels[bndIdx]->prediction(
+				const double qML = (_gpModels[bndIdx]->prediction(
 					_poreConc.data(), _cpVecCache.data(), _alphas[bndIdx].data())
-					- _offsets[bndIdx];
+					- _offsets[bndIdx]) * _porosFactors[bndIdx];
 
-				res[bndIdx] = static_cast<ParamType>(p->kKin[comp])
+				res[bndIdx] = static_cast<ParamType>(kKinComp[bnd])
 					* (static_cast<ResidualType>(y[bndIdx]) - static_cast<ResidualType>(qML));
 
 				++bndIdx;
@@ -415,26 +442,28 @@ protected:
 		typename ParamHandler_t::ParamsHandle const p =
 			_paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-		// Build c_p vector
-		std::vector<double> cpVec(_nComp);
+		// Build c_p vector (reuses the preallocated cache — no heap allocation here)
 		for (unsigned int d = 0; d < _nComp; ++d)
-			cpVec[d] = yCp[d];
+			_cpVecCache[d] = yCp[d];
 
 		unsigned int bndIdx = 0;
 		for (unsigned int comp = 0; comp < _nComp; ++comp)
 		{
+			active const* const kKinComp = p->kKin[comp];
+
 			for (unsigned int bnd = 0; bnd < _nBoundStates[comp]; ++bnd)
 			{
 				// Compute full gradient dq_GPR_bndIdx/dc_p for this bound state's model
 				// (using its own hyperparameters)
-				const std::vector<double> dqdc = _gpModels[bndIdx]->GPR_derivative(
-					_poreConc.data(), cpVec.data(), _alphas[bndIdx].data());
+				_gpModels[bndIdx]->GPR_derivative(
+					_poreConc.data(), _cpVecCache.data(), _alphas[bndIdx].data(), _gradCache.data());
 
-				const double kkin = static_cast<double>(p->kKin[comp]);
+				const double kkin = static_cast<double>(kKinComp[bnd]);
+				const double poros = _porosFactors[bndIdx];
 
 				// dres[bndIdx] / dc_p[d] for each input dimension d
 				for (int d = 0; d < static_cast<int>(_nComp); ++d)
-					jac[d - static_cast<int>(bndIdx) - offsetCp] = -kkin * dqdc[d];
+					jac[d - static_cast<int>(bndIdx) - offsetCp] = -kkin * _gradCache[d] * poros;
 
 				// dres[bndIdx] / dq[bndIdx]
 				jac[0] = kkin;

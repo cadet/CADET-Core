@@ -62,7 +62,7 @@ For information on model equations, refer to :ref:`gaussian_process_regression`.
 **Unit:** :math:`s^{-1}`
 
 ===================  =========================  =======================
-**Type:** double     **Range:** :math:`\geq 0`  **Length:** NCOMP
+**Type:** double     **Range:** :math:`\geq 0`  **Length:** NTOTALBND
 ===================  =========================  =======================
 
 ``KERNEL``
@@ -166,3 +166,14 @@ The following table summarizes which parameters are required for each kernel:
 ===================  =========================  ====================
 **Type:** double     **Range:** :math:`> 0`     **Length:** 1
 ===================  =========================  ====================
+
+``POROSITY_FACTOR``
+   Optional scaling factor applied to the predicted equilibrium loading. This can be
+   used to account for porosity differences or unit conversions between the training
+   data and the simulation conditions. A single value is shared by all bound states;
+   otherwise one value per bound state in component-major ordering has to be given.
+   Defaults to 1.0 if not present.
+
+===================  =========================  =======================
+**Type:** double     **Range:** :math:`> 0`     **Length:** 1/NTOTALBND
+===================  =========================  =======================
