@@ -84,6 +84,13 @@ namespace model
 			if (nBound.size() != _nComp)
 				throw InvalidParameterException("Field NBOUND does not contain NCOMP = " + std::to_string(_nComp) + " entries for particle type " + std::to_string(_parTypeIdx));
 
+			// _nBound is unsigned, so a negative entry would turn into a huge number of bound states
+			for (int comp = 0; comp < _nComp; ++comp)
+			{
+				if (nBound[comp] < 0)
+					throw InvalidParameterException("Field NBOUND has to be non-negative, but entry " + std::to_string(comp) + " is " + std::to_string(nBound[comp]) + " for particle type " + std::to_string(_parTypeIdx));
+			}
+
 			if (!_nBound)
 				_nBound = std::make_shared<unsigned int[]>(_nComp);
 			std::copy_n(nBound.begin(), _nComp, _nBound.get());

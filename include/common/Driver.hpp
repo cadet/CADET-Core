@@ -182,6 +182,30 @@ void readSensitivityInitialState(ParamProvider_t& pp, const char* prefix, std::v
 	}
 }
 
+/**
+ * @brief Checks one of the index fields of a sensitivity parameter group
+ * @details The index fields are fed into makeParamId() one entry at a time, where -1 denotes
+ *          "independent of this index" for every field but SENS_UNIT. Anything below the
+ *          smallest admissible value is not an index, and a field shorter than SENS_NAME would
+ *          be read beyond its end.
+ * @param [in] group Name of the sensitivity parameter group (used in the error message)
+ * @param [in] field Name of the field
+ * @param [in] values Values read from the field
+ * @param [in] numParams Number of entries required, i.e. the length of SENS_NAME
+ * @param [in] minValue Smallest admissible value
+ */
+inline void checkSensitivityIndexField(const std::string& group, const std::string& field, const std::vector<int>& values, std::size_t numParams, int minValue)
+{
+	if (values.size() < numParams)
+		throw InvalidParameterException("Field " + field + " in group " + group + " has to have at least " + std::to_string(numParams) + " entries (one per entry of SENS_NAME), but has " + std::to_string(values.size()));
+
+	for (std::size_t i = 0; i < numParams; ++i)
+	{
+		if (values[i] < minValue)
+			throw InvalidParameterException("Field " + field + " in group " + group + " has to be at least " + std::to_string(minValue) + ", but entry " + std::to_string(i) + " is " + std::to_string(values[i]));
+	}
+}
+
 } // namespace detail
 
 /**
@@ -336,7 +360,11 @@ public:
 		{
 			pp.pushScope("sensitivity");
 
-			numSens = static_cast<unsigned int>(pp.getInt("NSENS"));
+			const int numSensRead = pp.getInt("NSENS");
+			if (numSensRead < 0)
+				throw InvalidParameterException("Field NSENS has to be non-negative, but is " + std::to_string(numSensRead));
+
+			numSens = static_cast<unsigned int>(numSensRead);
 			const std::string sensMethod = pp.getString("SENS_METHOD");
 
 			std::ostringstream oss;
@@ -355,6 +383,13 @@ public:
 				const std::vector<int> sensBoundState = pp.getIntArray("SENS_BOUNDPHASE");
 				const std::vector<int> sensParType = pp.getIntArray("SENS_PARTYPE");
 
+				detail::checkSensitivityIndexField(oss.str(), "SENS_UNIT", sensUnit, sensName.size(), 0);
+				detail::checkSensitivityIndexField(oss.str(), "SENS_COMP", sensComp, sensName.size(), -1);
+				detail::checkSensitivityIndexField(oss.str(), "SENS_REACTION", sensReaction, sensName.size(), -1);
+				detail::checkSensitivityIndexField(oss.str(), "SENS_SECTION", sensSection, sensName.size(), -1);
+				detail::checkSensitivityIndexField(oss.str(), "SENS_BOUNDPHASE", sensBoundState, sensName.size(), -1);
+				detail::checkSensitivityIndexField(oss.str(), "SENS_PARTYPE", sensParType, sensName.size(), -1);
+
 				// Convert to ParameterIds
 				std::vector<cadet::ParameterId> sensParams;
 				sensParams.reserve(sensName.size());
@@ -363,7 +398,11 @@ public:
 
 				double sensTol = 1e-05;
 				if (pp.exists("SENS_ABSTOL"))
+				{
 					sensTol = pp.getDouble("SENS_ABSTOL");
+					if (sensTol < 0.0)
+						throw InvalidParameterException("Field SENS_ABSTOL in group " + oss.str() + " has to be non-negative, but is " + std::to_string(sensTol));
+				}
 
 				// Read factors, but default to 1.0 if none are given
 				std::vector<double> sensFactor;
@@ -826,7 +865,19 @@ protected:
 		pp.pushScope("sections");
 
 		secTimes = pp.getDoubleArray("SECTION_TIMES");
-		if (pp.exists("SECTION_CONTINUITY")) 
+
+		// One section is bounded by two section times, so anything shorter does not describe a
+		// section at all and would underflow the size of the continuity vector below.
+		if (secTimes.size() < 2)
+			throw InvalidParameterException("Field SECTION_TIMES has to have at least 2 entries (NSEC + 1), but has " + std::to_string(secTimes.size()));
+
+		for (std::size_t i = 0; i < secTimes.size(); ++i)
+		{
+			if (secTimes[i] < 0.0)
+				throw InvalidParameterException("Field SECTION_TIMES has to be non-negative, but entry " + std::to_string(i) + " is " + std::to_string(secTimes[i]));
+		}
+
+		if (pp.exists("SECTION_CONTINUITY"))
 			secCont = pp.getBoolArray("SECTION_CONTINUITY");
 		else
 			secCont = std::vector<bool>(secTimes.size() - 2, false);

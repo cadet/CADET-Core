@@ -160,7 +160,11 @@ template <typename ConvDispOperator>
 bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
 	// ==== Read discretization
-	_disc.nComp = paramProvider.getInt("NCOMP");
+	const int nComp = paramProvider.getInt("NCOMP");
+	if (nComp < 1)
+		throw InvalidParameterException("Field NCOMP has to be at least 1, but is " + std::to_string(nComp));
+
+	_disc.nComp = nComp;
 
 	const int nPartype = paramProvider.getInt("NPARTYPE");
 
@@ -183,6 +187,13 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 		if (nBound.size() < _disc.nComp)
 			throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
 
+		// _disc.nBound is unsigned, so a negative entry would turn into a huge number of bound states
+		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+		{
+			if (nBound[comp] < 0)
+				throw InvalidParameterException("Field NBOUND has to be non-negative, but entry " + std::to_string(comp) + " is " + std::to_string(nBound[comp]));
+		}
+
 		_disc.nBound = new unsigned int[_disc.nComp];
 		std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound);
 
@@ -196,7 +207,11 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configureModelDiscretization
 
 	paramProvider.pushScope("discretization");
 
-	_disc.nCol = paramProvider.getInt("NCOL");
+	const int nCol = paramProvider.getInt("NCOL");
+	if (nCol < 1)
+		throw InvalidParameterException("Field NCOL has to be at least 1, but is " + std::to_string(nCol));
+
+	_disc.nCol = static_cast<unsigned int>(nCol);
 
 	// Precompute offsets and total number of bound states (DOFs in solid phase)
 	_disc.boundOffset = new unsigned int[_disc.nComp];
@@ -348,15 +363,15 @@ bool LumpedRateModelWithoutPores<ConvDispOperator>::configure(IParameterProvider
 	{
 		_totalPorosity = paramProvider.getDouble("TOTAL_POROSITY");
 		_parameters[makeParamId(hashString("TOTAL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_totalPorosity;
-		if (_totalPorosity <= 0.0 || (_totalPorosity > 1.0))
-			throw InvalidParameterException("TOTAL_POROSITY has to be in (0.0, 1.0] but was specified as " + std::to_string(_totalPorosity) + "in unit " std::to_string(_unitOpIdx));
+		if (!(_totalPorosity > 0.0) || (_totalPorosity > 1.0))
+			throw InvalidParameterException("TOTAL_POROSITY has to be in (0.0, 1.0] but was specified as " + std::to_string(static_cast<double>(_totalPorosity)) + " in unit " + std::to_string(_unitOpIdx));
 	}
 	else
 	{
 		_totalPorosity = paramProvider.getDouble("COL_POROSITY");
 		_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_totalPorosity;
-		if (_totalPorosity <= 0.0 || (_totalPorosity > 1.0))
-			throw InvalidParameterException("COL_POROSITY has to be in (0.0, 1.0] but was specified as " + std::to_string(_totalPorosity) + "in unit " std::to_string(_unitOpIdx));
+		if (!(_totalPorosity > 0.0) || (_totalPorosity > 1.0))
+			throw InvalidParameterException("COL_POROSITY has to be in (0.0, 1.0] but was specified as " + std::to_string(static_cast<double>(_totalPorosity)) + " in unit " + std::to_string(_unitOpIdx));
 	}
 
 	// Register initial conditions parameters
@@ -1141,6 +1156,9 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::readInitialCondition(IParame
 
 	if ((_disc.strideBound > 0) && (initCs.size() < _disc.strideBound))
 		throw InvalidParameterException("INIT_CS does not contain enough values for all bound states");
+
+	checkNonNegativeField(initC, "INIT_C");
+	checkNonNegativeField(initCs, "INIT_CS");
 
 	ad::copyToAd(initC.data(), _initC.data(), _disc.nComp);
 	if (!initCs.empty())

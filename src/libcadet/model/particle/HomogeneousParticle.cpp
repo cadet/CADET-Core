@@ -87,6 +87,13 @@ namespace model
 		if (nBound.size() != _nComp)
 			throw InvalidParameterException("Field NBOUND does not contain NCOMP = " + std::to_string(_nComp) + " entries for particle type " + std::to_string(_parTypeIdx));
 
+		// _nBound is unsigned, so a negative entry would turn into a huge number of bound states
+		for (int comp = 0; comp < _nComp; ++comp)
+		{
+			if (nBound[comp] < 0)
+				throw InvalidParameterException("Field NBOUND has to be non-negative, but entry " + std::to_string(comp) + " is " + std::to_string(nBound[comp]) + " for particle type " + std::to_string(_parTypeIdx));
+		}
+
 		if (!_nBound)
 			_nBound = std::make_shared<unsigned int[]>(_nComp);
 		std::copy_n(nBound.begin(), _nComp, _nBound.get());
@@ -243,6 +250,12 @@ namespace model
 		bool filmDiffParTypeDep = paramProvider.exists("FILM_DIFFUSION_PARTYPE_DEPENDENT") ? paramProvider.getBool("FILM_DIFFUSION_PARTYPE_DEPENDENT") : true;
 		_filmDiffusionMode = readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _filmDiffusion, "FILM_DIFFUSION", _nComp, _parTypeIdx, filmDiffParTypeDep, unitOpIdx);
 
+		for (std::size_t i = 0; i < _filmDiffusion.size(); ++i)
+		{
+			if (static_cast<double>(_filmDiffusion[i]) < 0.0)
+				throw InvalidParameterException("Field FILM_DIFFUSION has to be non-negative, but entry " + std::to_string(i) + " is " + std::to_string(static_cast<double>(_filmDiffusion[i])) + " for particle type " + std::to_string(_parTypeIdx));
+		}
+
 		bool filmDiffDepConfSuccess = true;
 		if (_filmDiffusionDep)
 		{
@@ -256,6 +269,13 @@ namespace model
 		{
 			bool poreAccessParTypeDep = paramProvider.exists("PORE_ACCESSIBILITY_PARTYPE_DEPENDENT") ? paramProvider.getBool("PORE_ACCESSIBILITY_PARTYPE_DEPENDENT") : true;
 			_poreAccessFactorMode = readAndRegisterMultiplexCompSecParam(paramProvider, parameters, _poreAccessFactor, "PORE_ACCESSIBILITY", _nComp, _parTypeIdx, poreAccessParTypeDep, unitOpIdx);
+
+			for (std::size_t i = 0; i < _poreAccessFactor.size(); ++i)
+			{
+				const double val = static_cast<double>(_poreAccessFactor[i]);
+				if (!(val > 0.0) || (val > 1.0))
+					throw InvalidParameterException("Field PORE_ACCESSIBILITY has to be in (0.0, 1.0], but entry " + std::to_string(i) + " is " + std::to_string(val) + " for particle type " + std::to_string(_parTypeIdx));
+			}
 		}
 		else
 		{

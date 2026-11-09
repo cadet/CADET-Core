@@ -426,6 +426,8 @@ void ColumnModel2D::readInitialCondition(IParameterProvider& paramProvider)
 	if (((initC.size() < _disc.nComp) && _singleRadiusInitC) || ((initC.size() < _disc.nComp * _disc.radNElem) && !_singleRadiusInitC))
 		throw InvalidParameterException("INIT_C does not contain enough values for all components (and radial zones)");
 
+	checkNonNegativeField(initC, "INIT_C");
+
 	if (!_singleRadiusInitC)
 		ad::copyToAd(initC.data(), _initC.data(), _disc.nComp * _disc.radNElem);
 	else
@@ -450,6 +452,8 @@ void ColumnModel2D::readInitialCondition(IParameterProvider& paramProvider)
 				|| ((initCp.size() < _disc.nComp * _disc.radNElem) && !_singleRadiusInitCp)
 				)
 				throw InvalidParameterException("INIT_CP does not contain enough values for all components");
+
+			checkNonNegativeField(initCp, "INIT_CP");
 
 			if (!_singleRadiusInitCp)
 			{
@@ -532,6 +536,8 @@ void ColumnModel2D::readInitialCondition(IParameterProvider& paramProvider)
 			|| (!_singleRadiusInitCs && initCs.size() < _disc.strideBound[parType] * _disc.radNElem)
 			)
 			throw InvalidParameterException("INIT_CS does not contain enough values for all bound states");
+
+		checkNonNegativeField(initCs, "INIT_CS");
 
 		if (!_singleRadiusInitCs)
 		{
