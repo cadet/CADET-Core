@@ -77,10 +77,10 @@ Group /input/solver
 
    Timeout in seconds. Simulation is aborted if wall clock time exceeds the provided value.
    Values less than or equal :math:`0` are ignored (i.e., no timeout is applied).
-   
-   ================  ======================  =============
-   **Type:** double  **Range:** :math:`> 0`  **Length:** 1
-   ================  ======================  =============
+
+   ================  =============================  =============
+   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
+   ================  =============================  =============
    
 .. _FFSolverTime:
 
@@ -113,7 +113,7 @@ Group /input/solver/time_integrator
    
 ``ALGTOL``
 
-   Tolerance in the solution of the nonlinear consistency equations
+   Tolerance in the solution of the nonlinear equations for consistent initialization
    
    ================  ======================  =============
    **Type:** double  **Range:** :math:`> 0`  **Length:** 1
@@ -200,14 +200,6 @@ Group /input/solver/time_integrator
 Group /input/solver/sections
 ----------------------------
 
-``NSEC``
-
-   Number of sections
-   
-   =============  =========================  =============
-   **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
-   =============  =========================  =============
-   
 ``SECTION_TIMES``
 
    Simulation times at which the model changes or behaves discontinuously; including start and end times

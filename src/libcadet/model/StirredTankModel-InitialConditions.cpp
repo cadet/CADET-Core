@@ -212,6 +212,8 @@ void StirredTankModel::readInitialCondition(IParameterProvider& paramProvider)
 	if (initC.size() < _disc.nComp)
 		throw InvalidParameterException("INIT_C does not contain enough values for all components");
 
+	checkNonNegativeField(initC, "INIT_C");
+
 	ad::copyToAd(initC.data(), _initC.data(), _disc.nComp);
 
 	for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
@@ -239,6 +241,8 @@ void StirredTankModel::readInitialCondition(IParameterProvider& paramProvider)
 			if (initCp.size() < _disc.nComp)
 				throw InvalidParameterException("INIT_CP does not contain enough values for all components");
 
+			checkNonNegativeField(initCp, "INIT_CP");
+
 			ad::copyToAd(initCp.data(), _initCp.data() + parType * _disc.nComp, _disc.nComp);
 
 			if (_singleBinding && (parType > 0))
@@ -265,6 +269,8 @@ void StirredTankModel::readInitialCondition(IParameterProvider& paramProvider)
 
 		if (initCs.size() < _disc.strideBound[parType])
 			throw InvalidParameterException("INIT_CS does not contain enough values for all bound states");
+
+		checkNonNegativeField(initCs, "INIT_CS");
 
 		ad::copyToAd(initCs.data(), _initCs.data() + _disc.nBoundBeforeType[parType], _disc.strideBound[parType]);
 

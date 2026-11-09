@@ -73,6 +73,8 @@ cadet::model::MultiplexMode readAndRegisterMultiplexParam(cadet::IParameterProvi
 			if (values.size() != nAxial * nChannel * nParType)
 				throw cadet::InvalidParameterException("Number of elements in field " + name + " inconsistent with " + name + "_MULTIPLEX (should be " + std::to_string(nAxial * nChannel * nParType) + ")");
 		}
+		else
+			throw cadet::InvalidParameterException("Unsupported multiplex mode of field " + name + "_MULTIPLEX, must be in {0, 1, 2, 3} but is " + std::to_string(modeConfig));
 	}
 	else
 	{
@@ -357,14 +359,25 @@ bool MultiChannelTransportModel::usesAD() const CADET_NOEXCEPT
 bool MultiChannelTransportModel::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
 	// ==== Read discretization
-	_disc.nComp = paramProvider.getInt("NCOMP");
-	_disc.nChannel = paramProvider.getInt("NCHANNEL");
+	const int nComp = paramProvider.getInt("NCOMP");
+	if (nComp < 1)
+		throw InvalidParameterException("Field NCOMP has to be at least 1, but is " + std::to_string(nComp));
+
+	// _disc.nChannel is unsigned, so a negative value has to be rejected before the assignment
+	const int nChannel = paramProvider.getInt("NCHANNEL");
+	if (nChannel < 1)
+		throw InvalidParameterException("NCHANNEL must be > 0, but is " + std::to_string(nChannel));
+
+	_disc.nComp = static_cast<unsigned int>(nComp);
+	_disc.nChannel = static_cast<unsigned int>(nChannel);
 
 	paramProvider.pushScope("discretization");
 
-	_disc.nCol = paramProvider.getInt("NCOL");
-	if(_disc.nChannel < 1)
-		throw InvalidParameterException("NCHANNEL must be > 0");
+	const int nCol = paramProvider.getInt("NCOL");
+	if (nCol < 1)
+		throw InvalidParameterException("Field NCOL has to be at least 1, but is " + std::to_string(nCol));
+
+	_disc.nCol = static_cast<unsigned int>(nCol);
 
 	// Determine whether analytic Jacobian should be used but don't set it right now.
 	// We need to setup Jacobian matrices first.

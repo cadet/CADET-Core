@@ -326,14 +326,6 @@ Finite Volumes
    **Type:** int  **Range:** :math:`\geq 1`  **Length:** 1
    =============  =========================  =============
 
-``NPAR``
-
-   Number of particle (radial) discretization cells for each particle type
-
-   =============  =========================  =========================================
-   **Type:** int  **Range:** :math:`\geq 0`  **Length:** :math:`1 / \texttt{NPARTYPE}`
-   =============  =========================  =========================================
-
 ``LINEAR_SOLVER_BULK``
 
    Linear solver used for the sparse column bulk block. This field is optional, the best available method is selected (i.e., sparse direct solver if possible).  Valid values are:
@@ -355,6 +347,10 @@ Finite Volumes
    ================  =======================================  =============
 
    For further information on discretization parameters for reconstruction methods (including ``AXIAL_GRID_FACES`` for non-equidistant axial grid spacing), see also :ref:`flux_reconstruction_methods` (FV specific).
+
+The following FV discretization parameters configure the GMRES solver of the unit operation's own
+arrow-head Schur complement and are required for the FV discretization. They are independent of the
+identically named fields in :ref:`FFModelSolver`, which size the GMRES of the network.
 
 ``GS_TYPE``
 

@@ -113,13 +113,24 @@ template <typename ConvDispOperator>
 bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
 	// ==== Read discretization
-	_disc.nComp = paramProvider.getInt("NCOMP");
-	_disc.nParType = paramProvider.getInt("NPARTYPE");
-	if (_disc.nParType < 1)
-		throw InvalidParameterException("Number of particle types must be >= 1 for the GENERAL_RATE_MODEL with arrow-head Finite Volume discretization");
+	const int nComp = paramProvider.getInt("NCOMP");
+	if (nComp < 1)
+		throw InvalidParameterException("Field NCOMP has to be at least 1, but is " + std::to_string(nComp));
+
+	_disc.nComp = nComp;
+	// _disc.nParType is unsigned, so a negative value has to be rejected before the assignment
+	const int nParType = paramProvider.getInt("NPARTYPE");
+	if (nParType < 1)
+		throw InvalidParameterException("Number of particle types must be >= 1 for the GENERAL_RATE_MODEL with arrow-head Finite Volume discretization, but NPARTYPE is " + std::to_string(nParType));
+
+	_disc.nParType = static_cast<unsigned int>(nParType);
 
 	paramProvider.pushScope("discretization");
-	_disc.nCol = paramProvider.getInt("NCOL");
+	const int nCol = paramProvider.getInt("NCOL");
+	if (nCol < 1)
+		throw InvalidParameterException("Field NCOL has to be at least 1, but is " + std::to_string(nCol));
+
+	_disc.nCol = static_cast<unsigned int>(nCol);
 	paramProvider.popScope();
 
 	// Precompute offsets and total number of bound states (DOFs in solid phase)
@@ -132,6 +143,14 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 		std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
 		if (nBound.size() != _disc.nComp)
 			throw InvalidParameterException("Field NBOUND contains too few elements (NCOMP = " + std::to_string(_disc.nComp) + " required)");
+
+		// _disc.nBound is unsigned, so a negative entry would turn into a huge number of bound states
+		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+		{
+			if (nBound[comp] < 0)
+				throw InvalidParameterException("Field NBOUND has to be non-negative, but entry " + std::to_string(comp) + " is " + std::to_string(nBound[comp]) + " for particle type " + std::to_string(parType));
+		}
+
 		std::copy_n(nBound.begin(), _disc.nComp, _disc.nBound + parType * _disc.nComp);
 
 		paramProvider.popScope();
@@ -487,6 +506,40 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configure(IParameterProvider& p
 		throw InvalidParameterException("Number of elements in field FILM_DIFFUSION is not a positive multiple of NCOMP * NPARTYPE (" + std::to_string(_disc.nComp * _disc.nParType) + ")");
 	if (_disc.nComp * _disc.nParType != _poreAccessFactor.size())
 		throw InvalidParameterException("Number of elements in field PORE_ACCESSIBILITY differs from NCOMP * NPARTYPE (" + std::to_string(_disc.nComp * _disc.nParType) + ")");
+
+	for (unsigned int i = 0; i < _disc.nParType; ++i)
+	{
+		const double parRadius = static_cast<double>(_parRadius[i]);
+		if (!(parRadius > 0.0))
+			throw InvalidParameterException("Field PAR_RADIUS has to be positive, but is " + std::to_string(parRadius) + " for particle type " + std::to_string(i));
+
+		const double parPorosity = static_cast<double>(_parPorosity[i]);
+		if (!(parPorosity > 0.0) || (parPorosity > 1.0))
+			throw InvalidParameterException("Field PAR_POROSITY has to be in (0.0, 1.0], but is " + std::to_string(parPorosity) + " for particle type " + std::to_string(i));
+	}
+
+	// A single volume fraction is a fraction of the solid phase, so it is in [0, 1] on its own.
+	// The sum check above does not imply this, since it is also met by entries that cancel each other.
+	for (std::size_t i = 0; i < _parTypeVolFrac.size(); ++i)
+	{
+		const double volFrac = static_cast<double>(_parTypeVolFrac[i]);
+		if ((volFrac < 0.0) || (volFrac > 1.0))
+			throw InvalidParameterException("Field PAR_TYPE_VOLFRAC has to be in [0.0, 1.0], but entry " + std::to_string(i) + " is " + std::to_string(volFrac));
+	}
+
+	// The multiplex readers have expanded the fields over all particle types, components and
+	// sections by now, so one pass over each covers every value the user has given
+	for (std::size_t i = 0; i < _filmDiffusion.size(); ++i)
+	{
+		if (static_cast<double>(_filmDiffusion[i]) < 0.0)
+			throw InvalidParameterException("Field FILM_DIFFUSION has to be non-negative, but entry " + std::to_string(i) + " is " + std::to_string(static_cast<double>(_filmDiffusion[i])));
+	}
+	for (std::size_t i = 0; i < _poreAccessFactor.size(); ++i)
+	{
+		const double val = static_cast<double>(_poreAccessFactor[i]);
+		if (!(val > 0.0) || (val > 1.0))
+			throw InvalidParameterException("Field PORE_ACCESSIBILITY has to be in (0.0, 1.0], but entry " + std::to_string(i) + " is " + std::to_string(val));
+	}
 
 	// Add parameters to map
 	_parameters[makeParamId(hashString("COL_POROSITY"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colPorosity;

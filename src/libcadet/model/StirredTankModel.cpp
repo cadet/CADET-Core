@@ -107,7 +107,11 @@ bool StirredTankModel::usesAD() const CADET_NOEXCEPT
 
 bool StirredTankModel::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
-	_disc.nComp = paramProvider.getInt("NCOMP");
+	const int nComp = paramProvider.getInt("NCOMP");
+	if (nComp < 1)
+		throw InvalidParameterException("Field NCOMP has to be at least 1, but is " + std::to_string(nComp));
+
+	_disc.nComp = nComp;
 
 	if (paramProvider.exists("NPARTYPE"))
 	{
@@ -317,6 +321,13 @@ bool StirredTankModel::configure(IParameterProvider& paramProvider)
 	if (paramProvider.exists("FLOWRATE_FILTER"))
 	{
 		readScalarParameterOrArray(_flowRateFilter, paramProvider, "FLOWRATE_FILTER", 1);
+
+		for (std::size_t i = 0; i < _flowRateFilter.size(); ++i)
+		{
+			if (static_cast<double>(_flowRateFilter[i]) < 0.0)
+				throw InvalidParameterException("Field FLOWRATE_FILTER has to be non-negative, but entry " + std::to_string(i) + " is " + std::to_string(static_cast<double>(_flowRateFilter[i])));
+		}
+
 		registerParam1DArray(_parameters, _flowRateFilter, [=, this](bool multi, unsigned int sec) { return makeParamId(hashString("FLOWRATE_FILTER"), _unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, multi ? sec : SectionIndep); });
 	}
 
@@ -408,6 +419,15 @@ bool StirredTankModel::configure(IParameterProvider& paramProvider)
 
 		if (_parTypeVolFrac.size() != _disc.nParType)
 			throw InvalidParameterException("Number of elements in field PAR_TYPE_VOLFRAC does not match number of particle types");
+
+		// A single volume fraction is a fraction of the solid phase, so it is in [0, 1] on its own.
+		// The sum below does not imply this, since it is also met by entries that cancel each other.
+		for (std::size_t i = 0; i < _parTypeVolFrac.size(); ++i)
+		{
+			const double volFrac = static_cast<double>(_parTypeVolFrac[i]);
+			if ((volFrac < 0.0) || (volFrac > 1.0))
+				throw InvalidParameterException("Field PAR_TYPE_VOLFRAC has to be in [0.0, 1.0], but entry " + std::to_string(i) + " is " + std::to_string(volFrac));
+		}
 
 		const double volFracSum = std::accumulate(_parTypeVolFrac.begin(), _parTypeVolFrac.end(), 0.0,
 			[](double a, const active& b) -> double { return a + static_cast<double>(b); });

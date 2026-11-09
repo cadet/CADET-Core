@@ -66,7 +66,11 @@ bool OutletModel::usesAD() const CADET_NOEXCEPT
 
 bool OutletModel::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
-	_nComp = paramProvider.getInt("NCOMP");
+	const int nComp = paramProvider.getInt("NCOMP");
+	if (nComp < 1)
+		throw InvalidParameterException("Field NCOMP has to be at least 1, but is " + std::to_string(nComp));
+
+	_nComp = nComp;
 	return true;
 }
 

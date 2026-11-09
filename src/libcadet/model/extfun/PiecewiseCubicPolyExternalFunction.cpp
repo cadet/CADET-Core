@@ -68,7 +68,18 @@ public:
 		_lin = paramProvider->getDoubleArray("LIN_COEFF");
 		_quad = paramProvider->getDoubleArray("QUAD_COEFF");
 		_cub = paramProvider->getDoubleArray("CUBE_COEFF");
+		// A negative velocity lets the profile travel towards the column inlet, which the
+		// transformed time in externalProfile() handles, but a velocity of zero divides by zero there.
 		_velocity = paramProvider->getDouble("VELOCITY");
+		if (_velocity == 0.0)
+			return false;
+
+		// SECTION_TIMES holds points in time, which are non-negative
+		for (std::size_t i = 0; i < _sectionTimes.size(); ++i)
+		{
+			if (_sectionTimes[i] < 0.0)
+				return false;
+		}
 
 		// Check sizes
 		return (_sectionTimes.size() >= 2) && (_const.size() == _sectionTimes.size()-1) && (_const.size() == _lin.size())

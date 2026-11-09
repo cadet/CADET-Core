@@ -59,8 +59,24 @@ public:
 		_dataY = paramProvider->getDoubleArray("DATA");
 		_time = paramProvider->getDoubleArray("TIME");
 
-		// Velocity is applied to the profile in flow direction
+		// Velocity is applied to the profile in flow direction. A negative velocity lets the
+		// profile travel the other way, which the transformed time below handles, but a velocity
+		// of zero divides by zero there.
 		_velocity = paramProvider->getDouble("VELOCITY");
+		if (_velocity == 0.0)
+			return false;
+
+		// externalProfile() locates a time in TIME and reads DATA at that index, so the two have
+		// to be equally long, and a profile needs at least one data point
+		if (_time.empty() || (_time.size() != _dataY.size()))
+			return false;
+
+		// TIME holds points in time, which are non-negative
+		for (std::size_t i = 0; i < _time.size(); ++i)
+		{
+			if (_time[i] < 0.0)
+				return false;
+		}
 
 		return true;
 	}

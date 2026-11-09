@@ -842,9 +842,30 @@ bool MultiChannelConvectionDispersionOperator::configureModelDiscretization(IPar
 bool MultiChannelConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters)
 {
 	// Read geometry parameters
+	if (!(_colLength > 0.0))
+		throw InvalidParameterException("Field BED_LENGTH has to be positive, but is " + std::to_string(static_cast<double>(_colLength)));
+
 	const std::vector<double> initCrossSections = paramProvider.getDoubleArray("CHANNEL_CROSS_SECTION_AREAS");
+	if (initCrossSections.size() < _nChannel)
+		throw InvalidParameterException("Field CHANNEL_CROSS_SECTION_AREAS has to have " + std::to_string(_nChannel) + " entries (one per channel), but has " + std::to_string(initCrossSections.size()));
+
+	for (unsigned int i = 0; i < _nChannel; ++i)
+	{
+		if (!(initCrossSections[i] > 0.0))
+			throw InvalidParameterException("Field CHANNEL_CROSS_SECTION_AREAS has to be positive, but entry " + std::to_string(i) + " is " + std::to_string(initCrossSections[i]));
+	}
+
 	ad::copyToAd(initCrossSections.data(), _crossSections.data(), _nChannel);
 	readParameterMatrix(_exchangeMatrix, paramProvider, "EXCHANGE_MATRIX", _nChannel * _nChannel * _nComp, 1); // include parameterPeaderHelp in exchange modul
+
+	// The entries are exchange rates in 1/s, so they are non-negative but not bounded from above
+	// (the documented range [0, 1] does not match the unit the same section gives)
+	for (std::size_t i = 0; i < _exchangeMatrix.size(); ++i)
+	{
+		const double val = static_cast<double>(_exchangeMatrix[i]);
+		if (val < 0.0)
+			throw InvalidParameterException("Field EXCHANGE_MATRIX has to be non-negative, but entry " + std::to_string(i) + " is " + std::to_string(val));
+	}
 	// Read section dependent parameters (transport)
 
 	// Read VELOCITY
@@ -856,6 +877,9 @@ bool MultiChannelConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IP
 		if (paramProvider.exists("VELOCITY_MULTIPLEX"))
 		{
 			const int mode = paramProvider.getInt("VELOCITY_MULTIPLEX");
+			if ((mode < 0) || (mode > 3))
+				throw InvalidParameterException("Field VELOCITY_MULTIPLEX has to be in {0, 1, 2, 3}, but is " + std::to_string(mode));
+
 			if (mode == 0)
 				// Rad-indep, sec-indep
 				_singleVelocity = true;
@@ -920,6 +944,13 @@ bool MultiChannelConvectionDispersionOperator::configure(UnitOpIdx unitOpIdx, IP
 	_dir = std::vector<int>(_nChannel, 1);
 
 	_axialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _axialDispersion, "COL_DISPERSION", _nComp, _nChannel, unitOpIdx);
+
+	for (std::size_t i = 0; i < _axialDispersion.size(); ++i)
+	{
+		const double val = static_cast<double>(_axialDispersion[i]);
+		if (val < 0.0)
+			throw InvalidParameterException("Field COL_DISPERSION has to be non-negative, but entry " + std::to_string(i) + " is " + std::to_string(val));
+	}
 
 	// Add parameters to map
 	parameters[makeParamId(hashString("BED_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;

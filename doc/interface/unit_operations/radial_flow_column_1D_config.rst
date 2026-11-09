@@ -33,6 +33,8 @@ Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
 ``CROSS_SECTION_AREA_INNER``
 
 	Cross section area of the inner column radius (optional, only triggers a geometry check against ``CROSS_SECTION_AREA_OUTER``, ``CYLINDER_HEIGHT``, and ``BED_LENGTH``).
+	The inner radius has to be positive, i.e. ``BED_LENGTH`` strictly smaller than the outer radius:
+	the interstitial velocity of a radial flow column scales with :math:`1/r` and is singular on the axis.
 
 	**Unit:** :math:`\mathrm{m}^2`
 
@@ -268,7 +270,12 @@ Finite Volumes
 
    For further information on discretization parameters for reconstruction methods, see also :ref:`flux_reconstruction_methods` (FV specific).
 
-The following FV discretization parameters are only required if particles are present:
+The following FV discretization parameters configure the GMRES solver of the unit operation's own
+arrow-head Schur complement. They are required if particles are present **and**
+``FV_ARROW_HEAD_OPTIMIZATION`` :math:`= 1`, which is the default for an FV bulk with FV particles.
+With ``FV_ARROW_HEAD_OPTIMIZATION`` :math:`= 0` the unit is solved by a global sparse solver that
+does not read them. They are independent of the identically named fields in
+:ref:`FFModelSolver`, which size the GMRES of the network.
 
 ``GS_TYPE``
 

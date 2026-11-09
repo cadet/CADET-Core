@@ -12,7 +12,10 @@
 
 #include "nonlin/AdaptiveTrustRegionNewton.hpp"
 #include "cadet/ParameterProvider.hpp"
+#include "cadet/Exceptions.hpp"
 #include "linalg/DenseMatrix.hpp"
+
+#include <string>
 
 namespace cadet
 {
@@ -26,11 +29,25 @@ AdaptiveTrustRegionNewtonSolver::~AdaptiveTrustRegionNewtonSolver() { }
 bool AdaptiveTrustRegionNewtonSolver::configure(IParameterProvider& paramProvider)
 {
 	if (paramProvider.exists("INIT_DAMPING"))
+	{
 		_initDamping = paramProvider.getDouble("INIT_DAMPING");
+		if (_initDamping < 0.0)
+			throw InvalidParameterException("Field INIT_DAMPING has to be non-negative, but is " + std::to_string(_initDamping));
+	}
 	if (paramProvider.exists("MIN_DAMPING"))
+	{
 		_minDamping = paramProvider.getDouble("MIN_DAMPING");
+		if (_minDamping < 0.0)
+			throw InvalidParameterException("Field MIN_DAMPING has to be non-negative, but is " + std::to_string(_minDamping));
+	}
 	if (paramProvider.exists("MAX_ITERATIONS"))
-		_maxIter = paramProvider.getInt("MAX_ITERATIONS");
+	{
+		const int maxIter = paramProvider.getInt("MAX_ITERATIONS");
+		if (maxIter < 1)
+			throw InvalidParameterException("Field MAX_ITERATIONS has to be at least 1, but is " + std::to_string(maxIter));
+
+		_maxIter = static_cast<unsigned int>(maxIter);
+	}
 	return true;
 }
 
@@ -57,11 +74,25 @@ RobustAdaptiveTrustRegionNewtonSolver::~RobustAdaptiveTrustRegionNewtonSolver() 
 bool RobustAdaptiveTrustRegionNewtonSolver::configure(IParameterProvider& paramProvider)
 {
 	if (paramProvider.exists("INIT_DAMPING"))
+	{
 		_initDamping = paramProvider.getDouble("INIT_DAMPING");
+		if (_initDamping < 0.0)
+			throw InvalidParameterException("Field INIT_DAMPING has to be non-negative, but is " + std::to_string(_initDamping));
+	}
 	if (paramProvider.exists("MIN_DAMPING"))
+	{
 		_minDamping = paramProvider.getDouble("MIN_DAMPING");
+		if (_minDamping < 0.0)
+			throw InvalidParameterException("Field MIN_DAMPING has to be non-negative, but is " + std::to_string(_minDamping));
+	}
 	if (paramProvider.exists("MAX_ITERATIONS"))
-		_maxIter = paramProvider.getInt("MAX_ITERATIONS");
+	{
+		const int maxIter = paramProvider.getInt("MAX_ITERATIONS");
+		if (maxIter < 1)
+			throw InvalidParameterException("Field MAX_ITERATIONS has to be at least 1, but is " + std::to_string(maxIter));
+
+		_maxIter = static_cast<unsigned int>(maxIter);
+	}
 	return true;
 }
 

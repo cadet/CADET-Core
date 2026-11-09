@@ -190,6 +190,23 @@ namespace
 
 		return flagName;
 	}
+
+	/**
+	 * @brief Reads an integer field that is documented as non-negative and checks it
+	 * @details The simulator stores these counters as unsigned int, where a negative value read from
+	 *          the input would silently turn into a huge iteration limit.
+	 * @param [in] paramProvider Parameter provider positioned in the scope that holds the field
+	 * @param [in] field Name of the field
+	 * @return The value of the field
+	 */
+	inline unsigned int readNonNegativeInt(cadet::IParameterProvider& paramProvider, const std::string& field)
+	{
+		const int val = paramProvider.getInt(field);
+		if (val < 0)
+			throw cadet::InvalidParameterException("Field " + field + " has to be non-negative, but is " + std::to_string(val));
+
+		return static_cast<unsigned int>(val);
+	}
 }
 
 namespace cadet
@@ -1703,12 +1720,28 @@ namespace cadet
 		else
 			_absTol.push_back(paramProvider.getDouble("ABSTOL"));
 
+		for (std::size_t i = 0; i < _absTol.size(); ++i)
+		{
+			if (!(_absTol[i] > 0.0))
+				throw InvalidParameterException("Field ABSTOL has to be positive, but entry " + std::to_string(i) + " is " + std::to_string(_absTol[i]));
+		}
+
 		_relTol = paramProvider.getDouble("RELTOL");
+		if (_relTol < 0.0)
+			throw InvalidParameterException("Field RELTOL has to be non-negative, but is " + std::to_string(_relTol));
+
 		_algTol = paramProvider.getDouble("ALGTOL");
-		_maxSteps = paramProvider.getInt("MAX_STEPS");
+		if (!(_algTol > 0.0))
+			throw InvalidParameterException("Field ALGTOL has to be positive, but is " + std::to_string(_algTol));
+
+		_maxSteps = readNonNegativeInt(paramProvider, "MAX_STEPS");
 
 		if (paramProvider.exists("MAX_STEP_SIZE"))
+		{
 			_maxStepSize = paramProvider.getDouble("MAX_STEP_SIZE");
+			if (_maxStepSize < 0.0)
+				throw InvalidParameterException("Field MAX_STEP_SIZE has to be non-negative, but is " + std::to_string(_maxStepSize));
+		}
 
 		_initStepSize.clear();
 		if (paramProvider.isArray("INIT_STEP_SIZE"))
@@ -1716,8 +1749,18 @@ namespace cadet
 		else
 			_initStepSize.push_back(paramProvider.getDouble("INIT_STEP_SIZE"));
 
+		for (std::size_t i = 0; i < _initStepSize.size(); ++i)
+		{
+			if (_initStepSize[i] < 0.0)
+				throw InvalidParameterException("Field INIT_STEP_SIZE has to be non-negative, but entry " + std::to_string(i) + " is " + std::to_string(_initStepSize[i]));
+		}
+
 		if (paramProvider.exists("RELTOL_SENS"))
+		{
 			_relTolS = paramProvider.getDouble("RELTOL_SENS");
+			if (_relTolS < 0.0)
+				throw InvalidParameterException("Field RELTOL_SENS has to be non-negative, but is " + std::to_string(_relTolS));
+		}
 		else
 			_relTolS = _relTol;
 
@@ -1725,16 +1768,16 @@ namespace cadet
 			_sensErrorTestEnabled = paramProvider.getBool("ERRORTEST_SENS");
 
 		if (paramProvider.exists("MAX_NEWTON_ITER"))
-			_maxNewtonIter = paramProvider.getInt("MAX_NEWTON_ITER");
+			_maxNewtonIter = readNonNegativeInt(paramProvider, "MAX_NEWTON_ITER");
 
 		if (paramProvider.exists("MAX_ERRTEST_FAIL"))
-			_maxErrorTestFail = paramProvider.getInt("MAX_ERRTEST_FAIL");
+			_maxErrorTestFail = readNonNegativeInt(paramProvider, "MAX_ERRTEST_FAIL");
 
 		if (paramProvider.exists("MAX_CONVTEST_FAIL"))
-			_maxConvTestFail = paramProvider.getInt("MAX_CONVTEST_FAIL");
+			_maxConvTestFail = readNonNegativeInt(paramProvider, "MAX_CONVTEST_FAIL");
 
 		if (paramProvider.exists("MAX_NEWTON_ITER_SENS"))
-			_maxNewtonIterSens = paramProvider.getInt("MAX_NEWTON_ITER_SENS");
+			_maxNewtonIterSens = readNonNegativeInt(paramProvider, "MAX_NEWTON_ITER_SENS");
 
 		paramProvider.popScope();
 
@@ -1753,12 +1796,26 @@ namespace cadet
 
 		_solutionTimes.clear();
 		if (paramProvider.exists("USER_SOLUTION_TIMES"))
+		{
 			_solutionTimes = paramProvider.getDoubleArray("USER_SOLUTION_TIMES");
+
+			for (std::size_t i = 0; i < _solutionTimes.size(); ++i)
+			{
+				if (_solutionTimes[i] < 0.0)
+					throw InvalidParameterException("Field USER_SOLUTION_TIMES has to be non-negative, but entry " + std::to_string(i) + " is " + std::to_string(_solutionTimes[i]));
+			}
+		}
 
 		_solutionTimesUnitState.clear();
 		if (paramProvider.exists("USER_SOLUTION_TIMES_UNIT_STATE"))
 		{
 			_solutionTimesUnitState = paramProvider.getDoubleArray("USER_SOLUTION_TIMES_UNIT_STATE");
+
+			for (std::size_t i = 0; i < _solutionTimesUnitState.size(); ++i)
+			{
+				if (_solutionTimesUnitState[i] < 0.0)
+					throw InvalidParameterException("Field USER_SOLUTION_TIMES_UNIT_STATE has to be non-negative, but entry " + std::to_string(i) + " is " + std::to_string(_solutionTimesUnitState[i]));
+			}
 
 			if (!_solutionTimes.empty() && !_solutionTimesUnitState.empty())
 			{
@@ -1776,10 +1833,22 @@ namespace cadet
 		}
 
 		if (paramProvider.exists("CONSISTENT_INIT_MODE"))
-			_consistentInitMode = toConsistentInitialization(paramProvider.getInt("CONSISTENT_INIT_MODE"));
+		{
+			const int mode = paramProvider.getInt("CONSISTENT_INIT_MODE");
+			if (!isValidConsistentInitialization(mode))
+				throw InvalidParameterException("Field CONSISTENT_INIT_MODE has to be in {0, ..., 7}, but is " + std::to_string(mode));
+
+			_consistentInitMode = toConsistentInitialization(mode);
+		}
 
 		if (paramProvider.exists("CONSISTENT_INIT_MODE_SENS"))
-			_consistentInitModeSens = toConsistentInitialization(paramProvider.getInt("CONSISTENT_INIT_MODE_SENS"));
+		{
+			const int mode = paramProvider.getInt("CONSISTENT_INIT_MODE_SENS");
+			if (!isValidConsistentInitialization(mode))
+				throw InvalidParameterException("Field CONSISTENT_INIT_MODE_SENS has to be in {0, ..., 7}, but is " + std::to_string(mode));
+
+			_consistentInitModeSens = toConsistentInitialization(mode);
+		}
 
 		// @todo: Read more configuration values
 	}

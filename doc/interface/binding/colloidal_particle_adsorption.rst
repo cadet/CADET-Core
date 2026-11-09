@@ -172,7 +172,7 @@ For information on model equations, refer to :ref:`colloidal_particle_adsorption
    :math:`z = 0` to the proton component yields :math:`\gamma_{\mathrm{H}^+} = 1`.
 
 ===================  ===============================  =========================================
-**Type:** int        **Range:** :math:`\mathbb{Z}^+` **Length:** NCOMP
+**Type:** int        **Range:** :math:`\mathbb{Z}^+`  **Length:** NCOMP
 ===================  ===============================  =========================================
 
 ``CPA_MAXITER``

@@ -862,10 +862,20 @@ bool TwoDimensionalConvectionDispersionOperatorFV::configure(UnitOpIdx unitOpIdx
 	else
 		throw InvalidParameterException("Either COL_RADIUS or CROSS_SECTION_AREA must be provided");
 
+	if (!(_colRadius > 0.0))
+		throw InvalidParameterException("Field COL_RADIUS has to be positive, but is " + std::to_string(static_cast<double>(_colRadius)));
+
 	readScalarParameterOrArray(_colPorosities, paramProvider, "COL_POROSITY", 1);
 
 	if ((_colPorosities.size() != 1) && (_colPorosities.size() != _nRad))
 		throw InvalidParameterException("Number of elements in field COL_POROSITY is neither 1 nor NRAD (" + std::to_string(_nRad) + ")");
+
+	for (std::size_t i = 0; i < _colPorosities.size(); ++i)
+	{
+		const double eps = static_cast<double>(_colPorosities[i]);
+		if (!(eps > 0.0) || (eps > 1.0))
+			throw InvalidParameterException("Field COL_POROSITY must be in (0.0, 1.0], but entry " + std::to_string(i) + " is " + std::to_string(eps));
+	}
 
 	_singlePorosity = (_colPorosities.size() == 1);
 	if (_singlePorosity)
@@ -883,6 +893,13 @@ bool TwoDimensionalConvectionDispersionOperatorFV::configure(UnitOpIdx unitOpIdx
 
 		if (_radialEdges.size() < _nRad + 1)
 			throw InvalidParameterException("Number of elements in field RADIAL_DISC_VECTOR is less than NRAD + 1 (" + std::to_string(_nRad + 1) + ")");
+
+		for (unsigned int i = 0; i < _nRad + 1; ++i)
+		{
+			const double edge = static_cast<double>(_radialEdges[i]);
+			if ((edge < 0.0) || (edge > static_cast<double>(_colRadius)))
+				throw InvalidParameterException("Field RADIAL_DISC_VECTOR has to be in [0, COL_RADIUS], but entry " + std::to_string(i) + " is " + std::to_string(edge));
+		}
 
 		registerParam1DArray(parameters, _radialEdges, [=](bool multi, unsigned int i) { return makeParamId(hashString("RADIAL_DISC_VECTOR"), unitOpIdx, CompIndep, i, BoundStateIndep, ReactionIndep, SectionIndep); });
 	}
@@ -903,6 +920,9 @@ bool TwoDimensionalConvectionDispersionOperatorFV::configure(UnitOpIdx unitOpIdx
 		if (paramProvider.exists("VELOCITY_MULTIPLEX"))
 		{
 			const int mode = paramProvider.getInt("VELOCITY_MULTIPLEX");
+			if ((mode < 0) || (mode > 3))
+				throw InvalidParameterException("Field VELOCITY_MULTIPLEX has to be in {0, 1, 2, 3}, but is " + std::to_string(mode));
+
 			if (mode == 0)
 				// Rad-indep, sec-indep
 				_singleVelocity = true;
@@ -968,6 +988,19 @@ bool TwoDimensionalConvectionDispersionOperatorFV::configure(UnitOpIdx unitOpIdx
 
 	_axialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _axialDispersion, "COL_DISPERSION_AXIAL", _nComp, _nRad, unitOpIdx);
 	_radialDispersionMode = readAndRegisterMultiplexParam(paramProvider, parameters, _radialDispersion, "COL_DISPERSION_RADIAL", _nComp, _nRad, unitOpIdx);
+
+	// A negative dispersion coefficient turns the diffusion term into a backward heat equation,
+	// which is ill-posed, so it is rejected rather than integrated
+	for (std::size_t i = 0; i < _axialDispersion.size(); ++i)
+	{
+		if (static_cast<double>(_axialDispersion[i]) < 0.0)
+			throw InvalidParameterException("Field COL_DISPERSION_AXIAL has to be non-negative, but entry " + std::to_string(i) + " is " + std::to_string(static_cast<double>(_axialDispersion[i])));
+	}
+	for (std::size_t i = 0; i < _radialDispersion.size(); ++i)
+	{
+		if (static_cast<double>(_radialDispersion[i]) < 0.0)
+			throw InvalidParameterException("Field COL_DISPERSION_RADIAL has to be non-negative, but entry " + std::to_string(i) + " is " + std::to_string(static_cast<double>(_radialDispersion[i])));
+	}
 
 	// Add parameters to map
 	parameters[makeParamId(hashString("BED_LENGTH"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_colLength;
