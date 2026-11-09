@@ -68,14 +68,27 @@ Normalization factors should be chosen such that the normalized ANN inputs are t
 This generally improves training stability, prediction accuracy, and robustness of the nonlinear solver.
 Values that are excessively large or small should be avoided.
 
-**With** mechanistic knowledge, it may be practical to choose normalization factors that reflect characteristic concentration scales of the respective bound state (e.g., equilibrium constants, affinity parameters, or other physically meaningful scaling factors).
-**Without** mechanistic knowledge, it may be practical to choose normalization factors purely for numerical conditioning. A common choice is to scale each input component to values of order unity, for example :math:`\alpha_{\text{norm}} = max(c^p)`
+Since the inputs are **multiplied** by :math:`\alpha_{\text{norm}}`, each factor is the
+*reciprocal* of a characteristic concentration scale.
+It is essential that the ANN was trained on exactly the scaling that CADET applies:
+training on :math:`c^p \oslash \alpha_{\text{norm}}` while evaluating on
+:math:`c^p \odot \alpha_{\text{norm}}` (or vice versa) silently yields a different model.
+
+**With** mechanistic knowledge, it may be practical to choose normalization factors that reflect characteristic concentration scales of the respective bound state (e.g., inverse equilibrium constants, affinity parameters, or other physically meaningful scaling factors).
+**Without** mechanistic knowledge, it may be practical to choose normalization factors purely for numerical conditioning. A common choice is to scale each input component to values of order unity, for example :math:`\alpha_{\text{norm}} = 1 / \max\left(c^p\right)`.
+
+``NORM_FACTOR`` may be given as a single value, which is applied to all input dimensions,
+or as one value per component.
+Each bound state carries its own normalization factors, since each ANN is trained
+independently.
 
 Porosity factor
 ***************
 
 The porosity scaling factor :math:`\beta_{\text{poros}}` scales this prediction to the physical solid-phase loading used by the binding model.
 Since equilibrium loadings are often reported on different reference volumes or masses, :math:`\beta_{\text{poros}}` is intended to be used as a simple correction factor to account for differences in porosity or unit conversions between the training data and the simulation conditions.
+``POROSITY_FACTOR`` is optional and defaults to :math:`1`.
+The same optional factor is available for the :ref:`gaussian_process_regression` and :ref:`spline_interpolation` binding models.
 
 Kinetic Form
 ************

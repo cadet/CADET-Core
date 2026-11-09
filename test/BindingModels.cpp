@@ -390,6 +390,7 @@ CADET_BINDINGTEST_MULTI("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITR
             "CS_VALS_COMP_003_BND_000": [ 0.1, 0.3, 0.35, 0.4, 0.5, 0.5 ],
             "CS_VALS_COMP_004_BND_000": [ 0.2, 0.3, 0.35, 0.4, 0.41, 0.5 ],
             "CS_VALS_COMP_005_BND_000": [ 0.3, 0.31, 0.35, 0.4, 0.45, 0.5 ],
+			"POROSITY_FACTOR": 1.25,
 			"SPLINE_KKIN": [2.0, 1.0, 1.2, 1.1, 3.2, 4.0]
 	)json", \
 	R"json( "INTERPOLATION_MODE" : "INDEPENDENT",
@@ -425,6 +426,7 @@ CADET_BINDINGTEST_MULTI("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITR
             "CS_VALS_COMP_004_BND_000": [ 0.1, 0.3, 0.35, 0.4, 0.5, 0.5 ],
             "CS_VALS_COMP_005_BND_000": [ 0.2, 0.3, 0.35, 0.4, 0.41, 0.5 ],
             "CS_VALS_COMP_006_BND_000": [ 0.3, 0.31, 0.35, 0.4, 0.45, 0.5 ],
+			"POROSITY_FACTOR": 1.25,
 			"SPLINE_KKIN": [2.0, 1.0, 1.2, 1.1, 3.2, 4.0]
 	)json", \
 	R"json( "INTERPOLATION_MODE" : "INDEPENDENT",
@@ -523,7 +525,7 @@ CADET_BINDINGTEST_ALLBINDING_SINGLE_IMPL_FD("GAUSSIAN_PROCESS_REGRESSION", "RBF 
 
 CADET_BINDINGTEST_ALLBINDING_SINGLE_IMPL_FD("GAUSSIAN_PROCESS_REGRESSION", "MLP 2Comp", "[GAUSSIAN_PROCESS_REGRESSION1]",
 	(1, 1), (1.0, 10.0, 0.0, 0.0),
-	R"json( "GPR_KKIN": [1000.0, 1000.0],
+	R"json( "GPR_KKIN": [1000.0, 1000.0], "POROSITY_FACTOR": [1.4, 0.8],
 			"KERNEL": "MLP",
 			"CP_NDIM": 2,
 			"CP_VALS": [
@@ -637,6 +639,40 @@ CADET_BINDINGTEST_ALLBINDING_SINGLE_IMPL_FD("NEURAL_NETWORK", "1Comp", "[NEURAL_
                         1.153419017791748
                     ]
                 }
+			}
+	)json",
+	1e-9, 1e-6, 1e-6)
+
+// Two components with bound-state-specific and input-dimension-specific normalisation.
+// bound_state_000 uses a per-component NORM_FACTOR vector together with an explicit
+// POROSITY_FACTOR; bound_state_001 uses a scalar NORM_FACTOR (broadcast to all inputs)
+// and omits POROSITY_FACTOR, which has to default to 1.0. The weights are chosen such
+// that the ELU activations are driven into both their linear and exponential branch.
+CADET_BINDINGTEST_ALLBINDING_SINGLE_IMPL_FD("NEURAL_NETWORK", "2Comp normalisation", "[NEURAL_NETWORK2]",
+	(1, 1), (1.0, 2.0, 0.5, 0.3),
+	R"json( "NLAYERS": 1, "NNODES": 3, "NN_KKIN": [1.0, 2.5],
+			"bound_state_000": {
+				"NORM_FACTOR": [0.5, 2.0],
+				"POROSITY_FACTOR": 1.3,
+				"layer_0": {
+					"KERNEL": [0.8, -1.2, 0.3, -0.5, 0.7, 0.9],
+					"BIAS": [0.1, -0.4, 0.2]
+				},
+				"layer_1": {
+					"KERNEL": [1.1, -0.6, 0.9],
+					"BIAS": [0.05]
+				}
+			},
+			"bound_state_001": {
+				"NORM_FACTOR": 0.25,
+				"layer_0": {
+					"KERNEL": [-0.7, 0.4, 1.0, 0.6, -0.9, 0.2],
+					"BIAS": [-0.2, 0.3, -0.1]
+				},
+				"layer_1": {
+					"KERNEL": [0.7, 1.3, -0.4],
+					"BIAS": [-0.15]
+				}
 			}
 	)json",
 	1e-9, 1e-6, 1e-6)

@@ -36,7 +36,7 @@
     "externalName": "ExtNeuralNetworkParamHandler",
     "parameters":
         [
-            { "type": "ScalarComponentDependentParameter", "varName": "kKin", "confName": "NN_KKIN"}
+            { "type": "ComponentMajorBoundStateDependentParameter", "varName": "kKin", "confName": "NN_KKIN"}
         ]
 }
 </codegen>*/
@@ -54,8 +54,8 @@ namespace cadet
         inline bool NeuralNetworkParamHandler::validateConfig(
             unsigned int nComp, unsigned int const* nBoundStates)
         {
-            if (_kKin.size() < nComp)
-                throw InvalidParameterException("NN_KKIN must have NCOMP entries");
+            if (_kKin.size() != numBoundStates(nBoundStates, nComp))
+                throw InvalidParameterException("NN_KKIN must have NTOTALBND entries");
             return true;
         }
 
@@ -67,8 +67,8 @@ namespace cadet
         inline bool ExtNeuralNetworkParamHandler::validateConfig(
             unsigned int nComp, unsigned int const* nBoundStates)
         {
-            if (_kKin.size() < nComp)
-                throw InvalidParameterException("NN_KKIN must have NCOMP entries");
+            if (_kKin.size() != numBoundStates(nBoundStates, nComp))
+                throw InvalidParameterException("EXT_NN_KKIN must have NTOTALBND entries");
             return true;
         }
 
@@ -129,7 +129,10 @@ namespace cadet
             std::vector<std::vector<const double*>> _kernelPtrs; // [bndIdx][layerIdx]
             std::vector<std::vector<const double*>> _biasPtrs;   // [bndIdx][layerIdx]
 
-            std::vector<double> _normFactor;   // normalisation factor per input dimension (length _nInput)
+            // Normalisation factors, indexed [bndIdx][inputDim]. Each bound state's ANN has its
+            // own factors because each was trained independently; the inner vector always has
+            // _nInput entries (a scalar NORM_FACTOR is broadcast to all input dimensions).
+            std::vector<std::vector<double>> _normFactor; // [bndIdx][inputDim]
             std::vector<double> _porosFactors; // porosity scaling — one per bound state
             std::vector<double> _offsets;      // ANN(x=0) — one per bound state, subtracted for zero intercept
 
@@ -199,8 +202,35 @@ namespace cadet
                     const std::string scopeName = std::format("bound_state_{:03}", bndIdx);
                     paramProvider.pushScope(scopeName);
 
-                    _porosFactors.push_back(paramProvider.getDouble("POROSITY_FACTOR"));
-                    _normFactor.push_back(paramProvider.getDouble("NORM_FACTOR"));
+                    // POROSITY_FACTOR is optional and defaults to 1.0 (no output scaling),
+                    // consistent with the GPR and spline binding models.
+                    _porosFactors.push_back(
+                        paramProvider.exists("POROSITY_FACTOR") ? paramProvider.getDouble("POROSITY_FACTOR") : 1.0);
+
+                    // NORM_FACTOR may be given as a single value (applied to every input
+                    // dimension) or as one value per input dimension (i.e. per component).
+                    {
+                        std::vector<double> nf = paramProvider.getDoubleArray("NORM_FACTOR");
+
+                        if (nf.size() == 1u)
+                            nf.assign(_nInput, nf[0]);
+                        else if (nf.size() != _nInput)
+                            throw InvalidParameterException(
+                                "NEURAL_NETWORK binding: " + scopeName
+                                + "/NORM_FACTOR must have either 1 or NCOMP = "
+                                + std::to_string(_nInput) + " entries, got "
+                                + std::to_string(nf.size()));
+
+                        for (unsigned int d = 0u; d < _nInput; ++d)
+                        {
+                            if (nf[d] == 0.0)
+                                throw InvalidParameterException(
+                                    "NEURAL_NETWORK binding: " + scopeName
+                                    + "/NORM_FACTOR entries must be non-zero");
+                        }
+
+                        _normFactor.push_back(std::move(nf));
+                    }
 
                     _layerKernels.emplace_back();
                     _layerBiases.emplace_back();
@@ -297,15 +327,18 @@ namespace cadet
                 typename ParamHandler_t::ParamsHandle const p =
                     _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-                // Normalise the full c_p vector — shared across all bound-state ANNs
-                for (unsigned int d = 0u; d < _nInput; ++d)
-                    _cpCache[d] = static_cast<double>(yCp[d]) * _normFactor[d];
-
                 unsigned int bndIdx = 0u;
                 for (unsigned int i = 0u; i < _nComp; ++i)
                 {
                     if (_nBoundStates[i] == 0u)
                         continue;
+
+                    active const* const kKinComp = p->kKin[i];
+
+                    // Normalise the full c_p vector with this bound state's own factors
+                    const std::vector<double>& normFac = _normFactor[bndIdx];
+                    for (unsigned int d = 0u; d < _nInput; ++d)
+                        _cpCache[d] = static_cast<double>(yCp[d]) * normFac[d];
 
                     // Forward pass for this bound state's ANN
                     _annForward(bndIdx, _cpCache.data(), _predCache.data());
@@ -314,7 +347,7 @@ namespace cadet
                     const double qML = (_predCache[0] - _offsets[bndIdx]) * _porosFactors[bndIdx];
 
                     // res = kKin * (q - q_iso)
-                    res[bndIdx] = static_cast<ParamType>(p->kKin[i])
+                    res[bndIdx] = static_cast<ParamType>(kKinComp[0])
                         * (static_cast<ResidualType>(y[bndIdx])
                             - static_cast<ResidualType>(qML));
 
@@ -341,17 +374,18 @@ namespace cadet
                 typename ParamHandler_t::ParamsHandle const p =
                     _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
-                // Normalise c_p
-                for (unsigned int d = 0u; d < _nInput; ++d)
-                    _cpCache[d] = yCp[d] * _normFactor[d];
-
                 unsigned int bndIdx = 0u;
                 for (int i = 0; i < static_cast<int>(_nComp); ++i)
                 {
                     if (_nBoundStates[i] == 0u)
                         continue;
 
-                    const double kkin = static_cast<double>(p->kKin[i]);
+                    const double kkin = static_cast<double>(p->kKin[i][0]);
+
+                    // Normalise c_p with this bound state's own factors
+                    const std::vector<double>& normFac = _normFactor[bndIdx];
+                    for (unsigned int d = 0u; d < _nInput; ++d)
+                        _cpCache[d] = yCp[d] * normFac[d];
 
                     // Compute gradient d(q_ANN_bndIdx)/d(c_p_normalised) for this bound state
                     _annJacobian(bndIdx, _cpCache.data(), _gradCache.data());
@@ -359,7 +393,7 @@ namespace cadet
                     // dres[bndIdx]/dc_p[d] for each input dimension d
                     for (int d = 0; d < static_cast<int>(_nInput); ++d)
                         jac[d - static_cast<int>(bndIdx) - offsetCp] =
-                        -kkin * _gradCache[d] * _normFactor[d] * _porosFactors[bndIdx];
+                        -kkin * _gradCache[d] * normFac[d] * _porosFactors[bndIdx];
 
                     // dres[bndIdx]/dq[bndIdx] = kKin
                     jac[0] = kkin;

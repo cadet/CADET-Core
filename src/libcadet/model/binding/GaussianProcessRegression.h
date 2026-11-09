@@ -50,6 +50,7 @@ namespace GP
 			, workspace_k_star(m)
 			, workspace_norms_x(m)
 			, workspace_norms_y(m)
+			, workspace_dh(k)
 		{
 			if (kernel_name == "MLP")
 				kernelType = KernelType::MLP;
@@ -147,27 +148,37 @@ namespace GP
 
 		// -----------------------------------------------------------------------
 		// Gradient of GPR mean prediction w.r.t. x* (ND generalisation).
-		// Returns a vector of length K: grad[d] = d(mu)/d(x*_d)
+		// Writes K entries into the caller-provided buffer: grad[d] = d(mu)/d(x*_d)
 		//
 		// dmu/dx*_d = sum_i alpha_i * dk(x_i, x*)/dx*_d
 		//
-		// X_train: (M x K), X_test: (1 x K), chol_solution: (M,)
+		// X_train: (M x K), X_test: (1 x K), chol_solution: (M,), grad: (K,)
+		// The caller owns grad; this method performs no heap allocation and is
+		// therefore safe to call in the Jacobian hot path.
 		// -----------------------------------------------------------------------
-		std::vector<double> GPR_derivative(const double* X_train, const double* X_test,
-			const double* chol_solution) const
+		void GPR_derivative(const double* X_train, const double* X_test,
+			const double* chol_solution, double* grad) const
 		{
+			std::fill(grad, grad + K, 0.0);
+
 			switch (kernelType)
 			{
 				case KernelType::MLP:
-					return MLP_derivative(X_train, X_test, chol_solution);
+					MLP_derivative(X_train, X_test, chol_solution, grad);
+					break;
 				case KernelType::RBF:
-					return RBF_derivative(X_train, X_test, chol_solution);
+					RBF_derivative(X_train, X_test, chol_solution, grad);
+					break;
 				case KernelType::RBF_Linear:
-					return RBF_Linear_derivative(X_train, X_test, chol_solution);
+					RBF_derivative(X_train, X_test, chol_solution, grad);
+					Linear_derivative(X_train, chol_solution, grad);
+					break;
 				case KernelType::MLP_Linear:
-					return MLP_Linear_derivative(X_train, X_test, chol_solution);
+					MLP_derivative(X_train, X_test, chol_solution, grad);
+					Linear_derivative(X_train, chol_solution, grad);
+					break;
 				default:
-					return std::vector<double>(K, 0.0);
+					break;
 			}
 		}
 
@@ -317,16 +328,15 @@ namespace GP
 		//
 		// dk(x_i, x*)/dx*_d = -(x*_d - x_i_d) / rbf_lengthscale * k(x_i, x*)
 		//
-		// Returns grad of length K.
+		// Accumulates into grad (length K), which the caller has zeroed.
 		// -----------------------------------------------------------------------
-		std::vector<double> RBF_derivative(const double* X_train, const double* X_test,
-			const double* chol_solution) const
+		void RBF_derivative(const double* X_train, const double* X_test,
+			const double* chol_solution, double* grad) const
 		{
 			double* k_star = const_cast<double*>(workspace_k_star.data());
 			RBF_kernel(X_train, X_test, k_star, 1u);
 
 			const double inv_ls = 1.0 / rbf_lengthscale;
-			std::vector<double> grad(K, 0.0);
 
 			for (unsigned int i = 0; i < M; ++i)
 			{
@@ -337,7 +347,6 @@ namespace GP
 					grad[d] += -(diff * inv_ls) * a;
 				}
 			}
-			return grad;
 		}
 
 		// -----------------------------------------------------------------------
@@ -345,19 +354,17 @@ namespace GP
 		//
 		// dk(x_i, x*)/dx*_d = linear_variance * x_i_d
 		//
-		// Returns grad of length K.
+		// Accumulates into grad (length K), which the caller has zeroed.
 		// -----------------------------------------------------------------------
-		std::vector<double> Linear_derivative(const double* X_train,
-			const double* chol_solution) const
+		void Linear_derivative(const double* X_train,
+			const double* chol_solution, double* grad) const
 		{
-			std::vector<double> grad(K, 0.0);
 			for (unsigned int i = 0; i < M; ++i)
 			{
 				const double a = linear_variance * chol_solution[i];
 				for (unsigned int d = 0; d < K; ++d)
 					grad[d] += a * X_train[i * K + d];
 			}
-			return grad;
 		}
 
 		// -----------------------------------------------------------------------
@@ -372,10 +379,10 @@ namespace GP
 		// d(u)/dx*_d   = d(num)/dx*_d / (g*h) - num * d(h)/dx*_d / (g * h^2)
 		// dk/dx*_d     = mlp_coeff * d(u)/dx*_d / sqrt(1 - u^2)
 		//
-		// Returns grad of length K.
+		// Accumulates into grad (length K), which the caller has zeroed.
 		// -----------------------------------------------------------------------
-		std::vector<double> MLP_derivative(const double* X_train, const double* X_test,
-			const double* chol_solution) const
+		void MLP_derivative(const double* X_train, const double* X_test,
+			const double* chol_solution, double* grad) const
 		{
 			// Precompute h and dh/dx*_d (both depend only on x*)
 			double tnorm = 0.0;
@@ -383,13 +390,12 @@ namespace GP
 				tnorm += X_test[d] * X_test[d];
 			const double h = std::sqrt(mlp_weight_variance * tnorm + mlp_denom_const);
 
-			// dh/dx*_d = w * x*_d / h  — stored as a vector
-			std::vector<double> dh(K, 0.0);
+			// dh/dx*_d = w * x*_d / h  — stored in a preallocated workspace
+			double* const dh = const_cast<double*>(workspace_dh.data());
+			std::fill(dh, dh + K, 0.0);
 			if (h > 0.0)
 				for (unsigned int d = 0; d < K; ++d)
 					dh[d] = mlp_weight_variance * X_test[d] / h;
-
-			std::vector<double> grad(K, 0.0);
 
 			for (unsigned int i = 0; i < M; ++i)
 			{
@@ -421,32 +427,10 @@ namespace GP
 					grad[d] += scale * du_d;
 				}
 			}
-
-			return grad;
 		}
 
-		// -----------------------------------------------------------------------
-		// Composite derivatives
-		// -----------------------------------------------------------------------
-		std::vector<double> RBF_Linear_derivative(const double* X_train, const double* X_test,
-			const double* chol_solution) const
-		{
-			std::vector<double> grad = RBF_derivative(X_train, X_test, chol_solution);
-			const std::vector<double> lin = Linear_derivative(X_train, chol_solution);
-			for (unsigned int d = 0; d < K; ++d)
-				grad[d] += lin[d];
-			return grad;
-		}
-
-		std::vector<double> MLP_Linear_derivative(const double* X_train, const double* X_test,
-			const double* chol_solution) const
-		{
-			std::vector<double> grad = MLP_derivative(X_train, X_test, chol_solution);
-			const std::vector<double> lin = Linear_derivative(X_train, chol_solution);
-			for (unsigned int d = 0; d < K; ++d)
-				grad[d] += lin[d];
-			return grad;
-		}
+		// Composite kernel derivatives are formed in GPR_derivative() by accumulating
+		// the contributions of the individual kernels into the same buffer.
 
 		// Kernel type
 		KernelType kernelType;
@@ -477,6 +461,7 @@ namespace GP
 		mutable std::vector<double> workspace_k_star;   // M
 		mutable std::vector<double> workspace_norms_x;  // M
 		mutable std::vector<double> workspace_norms_y;  // M
+		mutable std::vector<double> workspace_dh;       // K (MLP derivative scratch)
 	};
 
 }  // namespace GP
