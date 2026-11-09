@@ -23,20 +23,20 @@ For information on model equations, refer to :ref:`spline_interpolation`.
 
    - ``INDEPENDENT``: each component's equilibrium loading is an independent
      1D cubic spline of its own pore-phase concentration.
-   - ``COMPETITIVE``: all equilibrium loadings depend on the full pore-phase
+   - ``COMPETITIVE_REGULAR_GRID``: all equilibrium loadings depend on the full pore-phase
      concentration vector via multilinear interpolation on a regular
      Cartesian-product grid (see :ref:`spline_interpolation`).
 
-===================  ===================================
-**Type:** string     **Value:** INDEPENDENT, COMPETITIVE
-===================  ===================================
+===================  ==================================================
+**Type:** string     **Value:** INDEPENDENT, COMPETITIVE_REGULAR_GRID
+===================  ==================================================
 
 ``CP_VALS_COMP_XXX``
    Pore-phase concentration support points for component ``XXX``.
 
    *INDEPENDENT mode*: the 1D spline knots in strictly ascending order.
 
-   *COMPETITIVE mode*: sample values whose distinct entries define the axis
+   *COMPETITIVE_REGULAR_GRID mode*: sample values whose distinct entries define the axis
    for component ``XXX`` of the Cartesian-product grid. All components must
    supply the same number of samples, together covering the full grid (i.e.
    every combination of distinct per-component values must appear exactly once).
