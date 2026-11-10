@@ -50,7 +50,7 @@ void qAndL(const unsigned int polyDeg, const double x, double& L, double& q, dou
 		Lder_1 = Lder;
 	}
 	q = ((2.0 * polyDeg + 1) * x * L - polyDeg * L_2) / (polyDeg + 1.0) - L_2;
-	qder = Lder_1 + (2.0 * polyDeg + 1) * L_1 - Lder_2;
+	qder = (2.0 * polyDeg + 1) * L_1;
 }
 /**
  * @brief computes the Legendre-Gauss-Lobatto nodes and (inverse) quadrature weights
@@ -93,7 +93,7 @@ void lglNodesWeights(const unsigned int polyDeg, VectorXd& nodes, VectorXd& invW
 			for (unsigned int k = 0; k <= nIterations; k++) {
 				qAndL(polyDeg, nodes[j], L, q, qder);
 				nodes[j] = nodes[j] - q / qder;
-				if (abs(q / qder) <= tolerance * abs(nodes[j])) {
+				if (std::abs(q / qder) <= tolerance * std::abs(nodes[j])) {
 					break;
 				}
 			}
