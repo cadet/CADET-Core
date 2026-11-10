@@ -1033,6 +1033,8 @@ namespace cadet
 					LOG(Error) << "factorization failed";
 					success = false;
 				}
+
+				_factorizeJacobian = false;
 			}
 
 			// Use the factors to solve the linear system 
