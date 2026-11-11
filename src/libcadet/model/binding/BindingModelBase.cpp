@@ -61,7 +61,8 @@ bool BindingModelBase::configureModelDiscretization(IParameterProvider& paramPro
 		else
 		{
 			// Copy what we need (ignore excess values)
-			std::copy_n(vecKin.begin(), _reactionQuasistationarity.size(), _reactionQuasistationarity.begin());
+			for (std::size_t i = 0; i < _reactionQuasistationarity.size(); ++i)
+				_reactionQuasistationarity[i] = !static_cast<bool>(vecKin[i]);
 		}
 	}
 	else
