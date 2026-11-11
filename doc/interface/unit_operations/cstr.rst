@@ -154,7 +154,7 @@ Since the bulk liquid of a well mixed vessel is not flowing, a velocity dependen
 
 ``NBOUND``
 
-   Number of bound states for each component of this particle type. Unlike in a column, the bound states are kept if :math:`\texttt{ADSORPTION_MODEL}` is :math:`\texttt{NONE}`, which leaves states that solid phase and cross-phase reactions can act on.
+   Number of bound states for each component of this particle type. The bound states are kept if :math:`\texttt{ADSORPTION_MODEL}` is :math:`\texttt{NONE}`, which leaves states that solid phase and cross-phase reactions can act on.
 
    =============  =========================  ==================================
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NCOMP}`

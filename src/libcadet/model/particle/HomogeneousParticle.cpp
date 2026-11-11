@@ -136,18 +136,6 @@ namespace model
 		if (!_binding)
 			throw InvalidParameterException("Unknown binding model " + bindModelName);
 
-		if (bindModelName == "NONE")
-			_nBound = std::make_shared<unsigned int[]>(_nComp, 0);
-		else
-		{
-			if (nBound.size() != _nComp)
-				throw InvalidParameterException("Field NBOUND does not contain NCOMP = " + std::to_string(_nComp) + " entries for particle type " + std::to_string(_parTypeIdx));
-
-			if (!_nBound)
-				_nBound = std::make_shared<unsigned int[]>(_nComp);
-			std::copy_n(nBound.begin(), _nComp, _nBound.get());
-		}
-
 		{
 			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _binding->usesParamProviderInDiscretizationConfig());
 			bindingConfSuccess = _binding->configureModelDiscretization(paramProvider, _nComp, _nBound.get(), _boundOffset);

@@ -76,25 +76,21 @@ namespace model
 		if (!_binding)
 			throw InvalidParameterException("Unknown binding model " + bindModelName);
 
-		if (bindModelName == "NONE")
-			_nBound = std::make_shared<unsigned int[]>(_nComp, 0);
-		else
+		// Bound states are kept without a binding model, so that solid phase and cross-phase reactions can act on them
+		std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
+		if (nBound.size() != _nComp)
+			throw InvalidParameterException("Field NBOUND does not contain NCOMP = " + std::to_string(_nComp) + " entries for particle type " + std::to_string(_parTypeIdx));
+
+		// _nBound is unsigned, so a negative entry would turn into a huge number of bound states
+		for (int comp = 0; comp < _nComp; ++comp)
 		{
-			std::vector<int> nBound = paramProvider.getIntArray("NBOUND");
-			if (nBound.size() != _nComp)
-				throw InvalidParameterException("Field NBOUND does not contain NCOMP = " + std::to_string(_nComp) + " entries for particle type " + std::to_string(_parTypeIdx));
-
-			// _nBound is unsigned, so a negative entry would turn into a huge number of bound states
-			for (int comp = 0; comp < _nComp; ++comp)
-			{
-				if (nBound[comp] < 0)
-					throw InvalidParameterException("Field NBOUND has to be non-negative, but entry " + std::to_string(comp) + " is " + std::to_string(nBound[comp]) + " for particle type " + std::to_string(_parTypeIdx));
-			}
-
-			if (!_nBound)
-				_nBound = std::make_shared<unsigned int[]>(_nComp);
-			std::copy_n(nBound.begin(), _nComp, _nBound.get());
+			if (nBound[comp] < 0)
+				throw InvalidParameterException("Field NBOUND has to be non-negative, but entry " + std::to_string(comp) + " is " + std::to_string(nBound[comp]) + " for particle type " + std::to_string(_parTypeIdx));
 		}
+
+		if (!_nBound)
+			_nBound = std::make_shared<unsigned int[]>(_nComp);
+		std::copy_n(nBound.begin(), _nComp, _nBound.get());
 
 		// ==== Construct and configure particle transport and discretization
 

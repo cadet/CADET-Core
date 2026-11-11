@@ -26,6 +26,7 @@
 #include "SimHelper.hpp"
 #include "SimulationTypes.hpp"
 #include "UnitOperationTests.hpp"
+#include "JacobianHelper.hpp"
 #include "Utils.hpp"
 #include "common/Driver.hpp"
 #include "model/parts/DGToolbox.hpp"
@@ -2570,4 +2571,69 @@ TEST_CASE("Column_1D without particles equivalence of a frustum and an axially v
 		});
 
 	cadet::test::column::testEqualResults(jppFrustum, jppPorosity, 1e-10, 1e-8, 0);
+}
+
+TEST_CASE("Column_1D LRMP and GRM keep bound states without adsorption model", "[AxialColumn1D],[LRMP],[GRM],[FV],[DG],[UnitOp],[CI]")
+{
+	// Issue #842: NBOUND > 0 with ADSORPTION_MODEL = NONE must keep the bound states, as in the LRM and the CSTR
+	const std::string uoType = GENERATE(std::string("COLUMN_MODEL_1D_LRMP"), std::string("COLUMN_MODEL_1D_GRM"));
+	const std::string spatialMethod = GENERATE(std::string("FV"), std::string("DG"));
+	SECTION(uoType + " " + spatialMethod)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		// FV defaults to the dedicated arrow-head units, which already keep the bound states; test the unified unit
+		const auto useUnifiedUnit = [&](cadet::JsonParameterProvider& p)
+		{
+			if (spatialMethod != "FV")
+				return;
+			p.pushScope("discretization");
+			p.set("FV_ARROW_HEAD_OPTIMIZATION", false);
+			p.popScope();
+		};
+
+		// Reference: the same configuration with a binding model and NBOUND = [1, 1]
+		cadet::JsonParameterProvider jppRef = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
+		useUnifiedUnit(jppRef);
+		cadet::IUnitOperation* const unitRef = cadet::test::unitoperation::createAndConfigureUnit(jppRef, *mb);
+		const unsigned int numDofsRef = unitRef->numDofs();
+		mb->destroyUnitOperation(unitRef);
+
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(uoType, spatialMethod);
+		useUnifiedUnit(jpp);
+		jpp.pushScope("particle_type_000");
+		jpp.set("ADSORPTION_MODEL", std::string("NONE"));
+		jpp.popScope();
+
+		cadet::IUnitOperation* const unit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
+		CHECK(unit->numDofs() == numDofsRef);
+
+		// Residual and consistent initialization run on the kept layout
+		std::vector<double> y(unit->numDofs(), 0.0);
+		std::vector<double> yDot(unit->numDofs(), 0.0);
+		unit->readInitialCondition(jpp);
+		unit->applyInitialCondition({y.data(), yDot.data()});
+		cadet::test::unitoperation::testConsistentInitialization(unit, false, y.data(), 1e-12, 1e-12);
+
+		// The analytic Jacobian matches finite differences of the residual
+		{
+			std::vector<double> dir(unit->numDofs(), 0.0);
+			std::vector<double> colA(unit->numDofs(), 0.0);
+			std::vector<double> colB(unit->numDofs(), 0.0);
+			for (unsigned int i = 0; i < unit->numDofs(); ++i)
+				y[i] = std::abs(std::sin(i * 0.13)) + 1e-4;
+			cadet::util::ThreadLocalStorage tls;
+			tls.resize(unit->threadLocalMemorySize());
+			const cadet::AdJacobianParams noParams{nullptr, nullptr, 0u};
+			unit->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noParams);
+			unit->residualWithJacobian(cadet::SimulationTime{0.0, 0u}, cadet::ConstSimulationState{y.data(), nullptr}, dir.data(), noParams, tls);
+			cadet::test::compareJacobianFD(unit, unit, y.data(), nullptr, dir.data(), colA.data(), colB.data(), tls, 1e-6, 1e-8, 1e-4);
+		}
+
+		mb->destroyUnitOperation(unit);
+		cadet::destroyModelBuilder(mb);
+
+		cadet::test::unitoperation::testJacobianAD(jpp);
+	}
 }

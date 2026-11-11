@@ -166,7 +166,7 @@ Group /input/model/unit_XXX/particle_type_XXX
 
 ``NBOUND``
 
-   Number of bound states for each component of this particle type
+   Number of bound states for each component of this particle type. The bound states are kept if :math:`\texttt{ADSORPTION_MODEL}` is :math:`\texttt{NONE}`, which leaves states that solid phase and cross-phase reactions can act on.
    
    =============  =========================  ==========================================
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** :math:`\texttt{NCOMP}`
