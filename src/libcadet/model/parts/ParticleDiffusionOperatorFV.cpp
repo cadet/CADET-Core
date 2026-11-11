@@ -808,6 +808,8 @@ namespace parts
 			}
 
 			// Solid phase
+			// The diagonal entries dres / dq_i^(p,j) are added by addSolidDiagonalFVentries() after the binding model has
+			// written its rows, so that they are counted once whether or not the binding model overwrites them
 			if (cadet_unlikely(_hasSurfaceDiffusion && _hasDynamicReactions))
 			{
 				for (int bnd = 0; bnd < _strideBound; ++bnd, ++jacIt)
@@ -825,7 +827,6 @@ namespace parts
 						const double ouApV = static_cast<double>(outerAreaPerVolume);
 						const double ldr = static_cast<double>(dr);
 
-						jacIt[0] += ouApV * static_cast<double>(parSurfDiff[bnd]) / ldr; // dres / dq_i^(p,j)
 						jacIt[strideParPoint()] += -ouApV * static_cast<double>(parSurfDiff[bnd]) / ldr; // dres / dq_i^(p,j-1)
 					}
 
@@ -838,7 +839,6 @@ namespace parts
 						const double inApV = static_cast<double>(innerAreaPerVolume);
 						const double ldr = static_cast<double>(dr);
 
-						jacIt[0] += inApV * static_cast<double>(parSurfDiff[bnd]) / ldr; // dres / dq_i^(p,j)
 						jacIt[-strideParPoint()] += -inApV * static_cast<double>(parSurfDiff[bnd]) / ldr; // dres / dq_i^(p,j-1)
 					}
 				}

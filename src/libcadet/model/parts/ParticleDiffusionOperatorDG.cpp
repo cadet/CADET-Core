@@ -1494,7 +1494,12 @@ namespace parts
 							&& !nonKinetic[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
 							for (unsigned int j = 0; j < block.cols(); j++) {
 								// row: at current node and bound state; col: jump to node j
-								jac[(j - i) * strideParNode() + offRowToCol + bnd]
+								const int colOffset = (j - i) * strideParNode() + offRowToCol + bnd;
+								// The diagonal entry is added by addSolidDiagonalDGentries() after the binding model has
+								// written its rows, so that it is counted once whether or not the binding model overwrites it
+								if (colOffset == 0)
+									continue;
+								jac[colOffset]
 									= block(i, j)
 									* static_cast<double>(surfDiff[offsetBoundComp(ComponentIndex{ comp }) + bnd]);
 							}
