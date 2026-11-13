@@ -1286,7 +1286,13 @@ int ColumnModel2D::residualImpl(double t, unsigned int secIdx, StateType const* 
 			LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 			Indexer idxr(_disc);
 
-			linalg::BandedEigenSparseRowIterator jacIt(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colPoint }) - idxr.offsetC());
+			// The particle writes its Jacobian whenever the iterator points to a matrix, so only hand
+			// it one if a Jacobian is requested. Otherwise, a residual evaluation would overwrite the
+			// current (e.g., AD) Jacobian with the analytic one.
+			linalg::BandedEigenSparseRowIterator jacIt;
+
+			if (wantJac)
+				jacIt = linalg::BandedEigenSparseRowIterator(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colPoint }) - idxr.offsetC());
 
 			// The 2D model resolves the radial direction, so the porosity is constant over this radial
 			// element and the bulk side of the film transfer term is node local with the prefactor
