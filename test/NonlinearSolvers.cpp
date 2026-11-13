@@ -242,13 +242,16 @@ namespace
 
 			// Protein equations: dq_i / dt - ( k_{a,i} * c_{p,i} * \bar{q}_0^{nu_i} - k_{d,i} * q_i * c_{p,0}^{nu_i} ) == 0
 			//               <=>  dq_i / dt == k_{a,i} * c_{p,i} * \bar{q}_0^{nu_i} - k_{d,i} * q_i * c_{p,0}^{nu_i}
+			// Both terms are of order 1e10 to 1e13 here, so the unscaled residual cannot get below about 1e-2
+			// in double precision. Dividing by k_{d,i} * c_{p,0}^{nu_i} does not change the root, and brings
+			// the terms to the order of q_i, so that the residual tolerance is attainable.
 			for (int i = 1; i < 4; ++i)
 			{
 				const T c0_pow_nu = pow(yCp[0], _nu[i]);
 				const T q0_bar_pow_nu = pow(q0_bar, _nu[i]);
 
 				// Residual
-				res[i] = _kD[i] * x[i] * c0_pow_nu - _kA[i] * yCp[i] * q0_bar_pow_nu;
+				res[i] = x[i] - _kA[i] * yCp[i] * q0_bar_pow_nu / (_kD[i] * c0_pow_nu);
 			}
 			return true;
 		}
