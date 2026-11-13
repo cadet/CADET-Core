@@ -190,14 +190,21 @@ TEST_CASE("Column_2D as LRMP consistent sensitivity initialization with linear b
 TEST_CASE("Column_2D as LRMP consistent sensitivity initialization with SMA binding", "[Column_2D],[ConsistentInit],[Sensitivity],[CI]")
 {
 	// Fill state vector with given initial values
-	const unsigned int numDofs = 4 * 3 + 4 * 8 * 3 + 8 * 3 * 3 * (4 + 4) + 4 * 8 * 3;
+	// Layout of the DG unit in createColumnWithSMA(): inlet (nComp * nRad), bulk (nComp * nBulk), and one
+	// particle node per bulk point holding 4 liquid and 4 bound states. Every particle node has to get the
+	// binding cell, since other values give a negative q_0 bar in SMA and NaN sensitivities.
+	const unsigned int nComp = 4;
+	const unsigned int nRad = 3;
+	const unsigned int nBulk = 6 * nRad;
+	const unsigned int nParNode = 1;
+	const unsigned int offsetPar = nComp * nRad + nComp * nBulk;
+	const unsigned int numDofs = offsetPar + nBulk * nParNode * (4 + 4);
 	std::vector<double> y(numDofs, 0.0);
 	std::vector<double> yDot(numDofs, 0.0);
 
 	const double bindingCell[] = { 1.0, 1.8, 1.5, 1.6, 840.0, 63.0, 6.0, 3.0 };
-	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4 * 3 + 4 * 8 * 3);
-	cadet::test::util::repeat(y.data() + 4 * 3 + 4 * 8 * 3, bindingCell, 8, 3 * 8 * 3);
-	cadet::test::util::populate(y.data() + 4 * 3 + 4 * 8 * 3 + 8 * 3 * 3 * (4 + 4), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4 * 8 * 3);
+	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, offsetPar);
+	cadet::test::util::repeat(y.data() + offsetPar, bindingCell, 8, nBulk * nParNode);
 
 	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
 
@@ -493,14 +500,21 @@ TEST_CASE("Column_2D as GRM consistent sensitivity initialization with linear bi
 TEST_CASE("Column_2D as GRM consistent sensitivity initialization with SMA binding", "[Column_2D],[ConsistentInit],[Sensitivity],[CI]")
 {
 	// Fill state vector with given initial values
-	const unsigned int numDofs = 4 * 3 + 4 * 8 * 3 + 8 * 3 * 3 * (4 + 4) + 4 * 8 * 3;
+	// Layout of the DG unit in createColumnWithSMA(): inlet (nComp * nRad), bulk (nComp * nBulk), and four
+	// particle nodes per bulk point, each holding 4 liquid and 4 bound states. Every particle node has to get
+	// the binding cell, since other values give a negative q_0 bar in SMA and NaN sensitivities.
+	const unsigned int nComp = 4;
+	const unsigned int nRad = 3;
+	const unsigned int nBulk = 6 * nRad;
+	const unsigned int nParNode = 4;
+	const unsigned int offsetPar = nComp * nRad + nComp * nBulk;
+	const unsigned int numDofs = offsetPar + nBulk * nParNode * (4 + 4);
 	std::vector<double> y(numDofs, 0.0);
 	std::vector<double> yDot(numDofs, 0.0);
 
 	const double bindingCell[] = { 1.0, 1.8, 1.5, 1.6, 840.0, 63.0, 6.0, 3.0 };
-	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4 * 3 + 4 * 8 * 3);
-	cadet::test::util::repeat(y.data() + 4 * 3 + 4 * 8 * 3, bindingCell, 8, 3 * 8 * 3);
-	cadet::test::util::populate(y.data() + 4 * 3 + 4 * 8 * 3 + 8 * 3 * 3 * (4 + 4), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, 4 * 8 * 3);
+	cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, offsetPar);
+	cadet::test::util::repeat(y.data() + offsetPar, bindingCell, 8, nBulk * nParNode);
 
 	cadet::test::util::populate(yDot.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.9)) + 1e-4; }, numDofs);
 
