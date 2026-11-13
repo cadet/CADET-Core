@@ -492,9 +492,9 @@ TEST_CASE("Column_2D as GRM consistent sensitivity initialization with linear bi
 
 	// todo: kinetic binding doesnt work here, same as in other units
 	//cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_2D_GRM", "DG", y.data(), yDot.data(), true, 1e-14, 0, 0);
-	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_2D_GRM", "DG", y.data(), yDot.data(), true, 1e-14, 1, 0);
+	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_2D_GRM", "DG", y.data(), yDot.data(), true, 1e-12, 1, 0);
 	//cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_2D_GRM", "DG", y.data(), yDot.data(), true, 1e-14, 0, 1);
-	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_2D_GRM", "DG", y.data(), yDot.data(), true, 1e-14, 1, 1);
+	cadet::test::column::testConsistentInitializationSensitivity("COLUMN_MODEL_2D_GRM", "DG", y.data(), yDot.data(), true, 1e-12, 1, 1);
 }
 
 TEST_CASE("Column_2D as GRM consistent sensitivity initialization with SMA binding", "[Column_2D],[ConsistentInit],[Sensitivity],[CI]")

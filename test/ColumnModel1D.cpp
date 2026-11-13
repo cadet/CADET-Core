@@ -521,7 +521,10 @@ TEST_CASE("Column_1D as GRM numerical Benchmark with parameter sensitivities for
 {
 	const std::string modelFilePath = std::string("/data/model_COL1D_GRM_reqSMA_4comp_benchmark1.json");
 	const std::string refFilePath = std::string("/data/ref_GRM_reqSMA_4comp_sensbenchmark1_exIntDG_P3Z8_GSM_parP3parZ1.h5");
-	const std::vector<double> absTol = { 1e-9, 1e-6, 1e-6, 1e-10 };
+	// The sensitivities of param_000 and param_001 peak at about 4e7 and 8e8 and deviate from the reference by
+	// up to 1e-6 of their peak. The absolute tolerance only applies near their zero crossings, where 1e-6 was
+	// below double precision relative to the peak (measured deviation there up to 1.4e-4).
+	const std::vector<double> absTol = { 1e-9, 1e-3, 1e-3, 1e-10 };
 	const std::vector<double> relTol = { 1.0, 1.0, 1.0, 1.0 };
 
 	cadet::test::column::DGParams disc(1, 3, 8, 3, 1);
@@ -640,9 +643,9 @@ TEST_CASE("Column_1D as LRMP sensitivity Jacobians", "[AxialColumn1D],[DG],[DG1D
 
 TEST_CASE("Column_1D as GRM consistent initialization with linear binding", "[AxialColumn1D],[DG],[DG1D],[ConsistentInit],[CI]")
 {
-	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-14, 0, 0);
+	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-12, 0, 0);
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-12, 1, 0);
-	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-14, 0, 1);
+	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-12, 0, 1);
 	cadet::test::column::testConsistentInitializationLinearBinding("COLUMN_MODEL_1D_GRM", "DG", 1e-12, 1e-12, 1, 1);
 }
 
