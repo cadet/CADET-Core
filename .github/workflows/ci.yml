@@ -163,7 +163,9 @@ jobs:
 
   Ubuntu-latest:
     if: github.event.pull_request == null || github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    # Pinned to 24.04: on ubuntu-26.04 (GCC 14.3) several [CI] and [CI_sens] tests fail, on master as well.
+    # Revert to ubuntu-latest once that is fixed.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: true
     defaults:
