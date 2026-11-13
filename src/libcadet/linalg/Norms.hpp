@@ -71,17 +71,17 @@ namespace linalg
 	 * @details The (discrete) @f$\ell^\infty@f$-norm is given by @f$ \lVert v \rVert_{\ell^\infty} = \max \{ \abs{v_i} : i = 1, \dots, N \} @f$.
 	 * @param [in] x Pointer to vector whose norm is to be evaluated
 	 * @param [in] size Number of elements in the vector
-	 * @return The @f$\ell^\infty@f$-norm of the vector
+	 * @return The @f$\ell^\infty@f$-norm of the vector, or NaN if the vector contains NaN
 	 */
 	inline double linfNorm(double const* const x, int size)
 	{
 		double res = 0.0;
 		for (int i = 0; i < size; ++i)
 		{
-#ifdef CADET_DEBUG			
+			// std::max() drops a NaN as soon as a later element is compared with it
 			if (cadet_unlikely(std::isnan(x[i])))
 				return std::numeric_limits<double>::quiet_NaN();
-#endif
+
 			res = std::max(std::abs(x[i]), res);
 		}
 		return res;
@@ -156,7 +156,7 @@ namespace linalg
 	 * @param [in] x Pointer to vector @f$ x @f$
 	 * @param [in] y Pointer to vector @f$ y @f$
 	 * @param [in] size Number of elements in the vector
-	 * @return The @f$\ell^\infty@f$-norm of the difference
+	 * @return The @f$\ell^\infty@f$-norm of the difference, or NaN if the difference contains NaN
 	 */
 	inline double linfNormDiff(double const* const x, double const* const y, int size)
 	{
@@ -164,10 +164,11 @@ namespace linalg
 		for (int i = 0; i < size; ++i)
 		{
 			const double diff = x[i] - y[i];
-#ifdef CADET_DEBUG
+
+			// std::max() drops a NaN as soon as a later element is compared with it
 			if (cadet_unlikely(std::isnan(diff)))
 				return std::numeric_limits<double>::quiet_NaN();
-#endif
+
 			res = std::max(std::abs(diff), res);
 		}
 		return res;
