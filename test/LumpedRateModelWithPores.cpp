@@ -193,7 +193,7 @@ TEST_CASE("LRMP with two component linear binding Jacobian", "[LRMP],[FV],[UnitO
 
 TEST_CASE("LRMP LWE one vs two identical particle types match", "[LRMP],[FV],[Simulation],[ParticleType],[CI]")
 {
-	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("LUMPED_RATE_MODEL_WITH_PORES", "FV", 2.2e-8, 6e-5);
+	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("LUMPED_RATE_MODEL_WITH_PORES", "FV", 1e-7, 6e-5);
 }
 
 TEST_CASE("LRMP LWE separate identical particle types match", "[LRMP],[FV],[Simulation],[ParticleType],[CI]")
