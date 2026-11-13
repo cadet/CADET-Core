@@ -883,3 +883,43 @@ TEST_CASE("BI_STERIC_MASS_ACTION analytic Jacobian vs AD with unequal binding si
 
 	cadet::test::binding::testJacobianAD("BI_STERIC_MASS_ACTION", sizeof(nBound) / sizeof(unsigned int), nBound, true, config, state, true);
 }
+
+TEST_CASE("IS_KINETIC has the same meaning as a scalar and as a per-state array", "[BindingModel],[CI]")
+{
+	// 1 selects kinetic and 0 quasi-stationary binding, whether given once or per bound state
+	const unsigned int nBound[] = {1, 1};
+	const unsigned int nComp = sizeof(nBound) / sizeof(unsigned int);
+	char const* const config = R"json({
+		"MCL_KA": [1.0, 2.0],
+		"MCL_KD": [1.0, 1.0],
+		"MCL_QMAX": [10.0, 10.0]
+	})json";
+
+	const auto quasiStationarity = [&](const cadet::test::binding::ConfiguredBindingModel& cbm)
+	{
+		int const* const flags = cbm.model().reactionQuasiStationarity();
+		return std::vector<int>(flags, flags + nComp);
+	};
+
+	SECTION("Scalar")
+	{
+		const cadet::test::binding::ConfiguredBindingModel kinetic = cadet::test::binding::ConfiguredBindingModel::create("MULTI_COMPONENT_LANGMUIR", nComp, nBound, true, config);
+		CHECK(quasiStationarity(kinetic) == std::vector<int>{0, 0});
+
+		const cadet::test::binding::ConfiguredBindingModel equilibrium = cadet::test::binding::ConfiguredBindingModel::create("MULTI_COMPONENT_LANGMUIR", nComp, nBound, false, config);
+		CHECK(quasiStationarity(equilibrium) == std::vector<int>{1, 1});
+	}
+
+	SECTION("Per bound state")
+	{
+		const int allKinetic[] = {1, 1};
+		const cadet::test::binding::ConfiguredBindingModel kinetic = cadet::test::binding::ConfiguredBindingModel::create("MULTI_COMPONENT_LANGMUIR", nComp, nBound, allKinetic, config);
+		CHECK(quasiStationarity(kinetic) == std::vector<int>{0, 0});
+		CHECK(kinetic.model().hasDynamicReactions());
+		CHECK_FALSE(kinetic.model().hasQuasiStationaryReactions());
+
+		const int mixed[] = {1, 0};
+		const cadet::test::binding::ConfiguredBindingModel mixedModel = cadet::test::binding::ConfiguredBindingModel::create("MULTI_COMPONENT_LANGMUIR", nComp, nBound, mixed, config);
+		CHECK(quasiStationarity(mixedModel) == std::vector<int>{0, 1});
+	}
+}

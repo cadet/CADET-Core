@@ -170,7 +170,7 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD", "[CellKernel],[J
 	std::vector<cadet::active> poreAccessFactor(nComp, 1.0);
 	const cadet::active porosity = 0.25;
 
-	const int qsReaction[] = {0, 1, 1, 1, 0, 
+	const int isKinetic[] = {0, 1, 1, 1, 0, 
 	                          1, 0, 0, 0, 1, 
 	                          1, 0, 1, 0, 1, 
 	                          1, 1, 1, 1, 1, 
@@ -180,10 +180,10 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD", "[CellKernel],[J
 	{
 		SECTION("Mode " + std::to_string(mode))
 		{
-			int const* const localQSreaction = qsReaction + nTotalBound * mode;
+			int const* const localIsKinetic = isKinetic + nTotalBound * mode;
 
 			cadet::test::binding::ConfiguredBindingModel cbm = cadet::test::binding::ConfiguredBindingModel::create(
-				"MULTISTATE_STERIC_MASS_ACTION", nComp, nBound, localQSreaction,
+				"MULTISTATE_STERIC_MASS_ACTION", nComp, nBound, localIsKinetic,
 				R"json({"MSSMA_KA": [0.0, 3.55, 1.59, 4.0, 5.0],
 	                    "MSSMA_KD": [0.0, 10.0, 10.0, 10.0, 10.0],
 	                    "MSSMA_NU": [0.0, 1.5, 2.0, 1.9, 2.3],
@@ -212,7 +212,7 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD", "[CellKernel],[J
 					nBound,
 					cbm.boundOffset(),
 					nTotalBound,
-					localQSreaction,
+					cbm.model().reactionQuasiStationarity(),
 					porosity,
 					poreAccessFactor.data(),
 					&cbm.model(),
@@ -229,7 +229,7 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD", "[CellKernel],[J
 				[=, &cbm](double const* fx, double* fy)
 				{
 					cadet::model::parts::cell::multiplyWithDerivativeJacobianKernel<true>(fx, fy, nComp,
-						nBound, cbm.boundOffset(), nTotalBound, localQSreaction, 1.0, 3.0);
+						nBound, cbm.boundOffset(), nTotalBound, cbm.model().reactionQuasiStationarity(), 1.0, 3.0);
 				},
 				yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof, 1e-7, 1e-14, 1e-4);
 		}
@@ -252,7 +252,7 @@ TEST_CASE("CellKernel Jacobian analytic vs AD", "[CellKernel],[Jacobian],[AD]")
 	std::vector<cadet::active> poreAccessFactor(nComp, 1.0);
 	const cadet::active porosity = 0.25;
 
-	const int qsReaction[] = {0, 1, 1, 1, 0, 
+	const int isKinetic[] = {0, 1, 1, 1, 0, 
 	                          1, 0, 0, 0, 1, 
 	                          1, 0, 1, 0, 1, 
 	                          1, 1, 1, 1, 1, 
@@ -262,10 +262,10 @@ TEST_CASE("CellKernel Jacobian analytic vs AD", "[CellKernel],[Jacobian],[AD]")
 	{
 		SECTION("Mode " + std::to_string(mode))
 		{
-			int const* const localQSreaction = qsReaction + nTotalBound * mode;
+			int const* const localIsKinetic = isKinetic + nTotalBound * mode;
 
 			cadet::test::binding::ConfiguredBindingModel cbm = cadet::test::binding::ConfiguredBindingModel::create(
-				"MULTISTATE_STERIC_MASS_ACTION", nComp, nBound, localQSreaction,
+				"MULTISTATE_STERIC_MASS_ACTION", nComp, nBound, localIsKinetic,
 				R"json({"MSSMA_KA": [0.0, 3.55, 1.59, 4.0, 5.0],
 	                    "MSSMA_KD": [0.0, 10.0, 10.0, 10.0, 10.0],
 	                    "MSSMA_NU": [0.0, 1.5, 2.0, 1.9, 2.3],
@@ -298,7 +298,7 @@ TEST_CASE("CellKernel Jacobian analytic vs AD", "[CellKernel],[Jacobian],[AD]")
 					nBound,
 					cbm.boundOffset(),
 					nTotalBound,
-					localQSreaction,
+					cbm.model().reactionQuasiStationarity(),
 					porosity,
 					poreAccessFactor.data(),
 					&cbm.model(),
@@ -340,7 +340,7 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD with dummy reactio
 	std::vector<cadet::active> poreAccessFactor(nComp, 1.0);
 	const cadet::active porosity = 0.25;
 
-	const int qsReaction[] = {0, 1, 1, 1, 0,
+	const int isKinetic[] = {0, 1, 1, 1, 0,
 	                          1, 0, 0, 0, 1,
 	                          1, 0, 1, 0, 1,
 	                          1, 1, 1, 1, 1,
@@ -350,10 +350,10 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD with dummy reactio
 	{
 		SECTION("Mode " + std::to_string(mode))
 		{
-			int const* const localQSreaction = qsReaction + nTotalBound * mode;
+			int const* const localIsKinetic = isKinetic + nTotalBound * mode;
 
 			cadet::test::binding::ConfiguredBindingModel cbm = cadet::test::binding::ConfiguredBindingModel::create(
-					"MULTISTATE_STERIC_MASS_ACTION", nComp, nBound, localQSreaction,
+					"MULTISTATE_STERIC_MASS_ACTION", nComp, nBound, localIsKinetic,
 					R"json({"MSSMA_KA": [0.0, 3.55, 1.59, 4.0, 5.0],
 	                    "MSSMA_KD": [0.0, 10.0, 10.0, 10.0, 10.0],
 	                    "MSSMA_NU": [0.0, 1.5, 2.0, 1.9, 2.3],
@@ -394,7 +394,7 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD with dummy reactio
 							nBound,
 							cbm.boundOffset(),
 							nTotalBound,
-							localQSreaction,
+							cbm.model().reactionQuasiStationarity(),
 							porosity,
 							poreAccessFactor.data(),
 							&cbm.model(),
@@ -411,7 +411,7 @@ TEST_CASE("CellKernel time derivative Jacobian analytic vs FD with dummy reactio
 					[=, &cbm](double const* fx, double* fy)
 					{
 						cadet::model::parts::cell::multiplyWithDerivativeJacobianKernel<true>(fx, fy, nComp,
-						                                                                      nBound, cbm.boundOffset(), nTotalBound, localQSreaction, 1.0, 3.0);
+						                                                                      nBound, cbm.boundOffset(), nTotalBound, cbm.model().reactionQuasiStationarity(), 1.0, 3.0);
 					},
 					yDot.data(), jacDir.data(), jacCol1.data(), jacCol2.data(), nDof, 1e-7, 1e-14, 1e-4);
 		}
@@ -434,7 +434,7 @@ TEST_CASE("CellKernel Jacobian analytic vs AD with dummy reaction", "[CellKernel
 	std::vector<cadet::active> poreAccessFactor(nComp, 1.0);
 	const cadet::active porosity = 0.25;
 
-	const int qsReaction[] = {0, 1, 1, 1, 0,
+	const int isKinetic[] = {0, 1, 1, 1, 0,
 	                          1, 0, 0, 0, 1,
 	                          1, 0, 1, 0, 1,
 	                          1, 1, 1, 1, 1,
@@ -444,10 +444,10 @@ TEST_CASE("CellKernel Jacobian analytic vs AD with dummy reaction", "[CellKernel
 	{
 		SECTION("Mode " + std::to_string(mode))
 		{
-			int const* const localQSreaction = qsReaction + nTotalBound * mode;
+			int const* const localIsKinetic = isKinetic + nTotalBound * mode;
 
 			cadet::test::binding::ConfiguredBindingModel cbm = cadet::test::binding::ConfiguredBindingModel::create(
-					"MULTISTATE_STERIC_MASS_ACTION", nComp, nBound, localQSreaction,
+					"MULTISTATE_STERIC_MASS_ACTION", nComp, nBound, localIsKinetic,
 					R"json({"MSSMA_KA": [0.0, 3.55, 1.59, 4.0, 5.0],
 	                    "MSSMA_KD": [0.0, 10.0, 10.0, 10.0, 10.0],
 	                    "MSSMA_NU": [0.0, 1.5, 2.0, 1.9, 2.3],
@@ -491,7 +491,7 @@ TEST_CASE("CellKernel Jacobian analytic vs AD with dummy reaction", "[CellKernel
 							nBound,
 							cbm.boundOffset(),
 							nTotalBound,
-							localQSreaction,
+							cbm.model().reactionQuasiStationarity(),
 							porosity,
 							poreAccessFactor.data(),
 							&cbm.model(),
