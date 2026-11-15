@@ -62,7 +62,7 @@ namespace
  * @brief Creates an AxialConvectionDispersionOperatorBaseCollocationDG
  */
 AxialConvectionDispersionOperatorBaseCollocationDG::AxialConvectionDispersionOperatorBaseCollocationDG() :
-	_DGjacAxDispBlocks(nullptr), _auxState(nullptr), _subsState(nullptr), _dispersionDep(nullptr)
+	_DGjacAxDispBlocks(nullptr), _auxState(nullptr), _subsState(nullptr), _curDir(1.0), _dispersionDep(nullptr)
 {
 }
 
@@ -277,10 +277,15 @@ bool AxialConvectionDispersionOperatorBaseCollocationDG::notifyDiscontinuousSect
 	_curSection = secIdx;
 	_newStaticJac = true;
 
+	// setFlowRates() was called before, applying the flow direction _curDir of the previous section.
+	// Correct the sign if the new section flows the other way, and remember the new direction so that
+	// the setFlowRates() calls of this section (dynamic flow rates) sign the velocity correctly.
 	const double curDir = getSectionDependentScalar(_dir, secIdx);
 	const bool changedDirection = secIdx > 0 ? (getSectionDependentScalar(_dir, secIdx - 1) * curDir < 0) : false;
-	if (curDir < 0)
+	if (_curDir * curDir < 0.0)
 		_curVelocity *= -1.0;
+
+	_curDir = curDir;
 
 	 // recompute convection jacobian block, which depends on flow direction
 	_DGjacAxConvBlock = DGjacobianConvBlock();
@@ -305,7 +310,9 @@ bool AxialConvectionDispersionOperatorBaseCollocationDG::notifyDiscontinuousSect
  */
 void AxialConvectionDispersionOperatorBaseCollocationDG::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
 {
-	_curVelocity = in / (_crossSection * colPorosity);
+	// Dynamic flow rates call this within a time section, so the flow direction of the current
+	// section has to be applied here. It is set by notifyDiscontinuousSectionTransition().
+	_curVelocity = _curDir * in / (_crossSection * colPorosity);
 }
 
 /**
@@ -668,7 +675,9 @@ bool AxialConvectionDispersionOperatorBaseCollocationDG::setSensitiveParameter(s
 }
 
 VariableCrossSectionConvectionDispersionOperatorBaseDG::VariableCrossSectionConvectionDispersionOperatorBaseDG()
-	: _colPorosityProfile(nullptr), _axiallyConstantPorosity(true), _auxState(nullptr), _subsState(nullptr), _dispersionDep(nullptr)
+	: _colPorosityProfile(nullptr), _axiallyConstantPorosity(true), _auxState(nullptr), _subsState(nullptr),
+	// configure() builds the operators before a flow rate is set, i.e. with a flow rate of zero
+	_operatorQOverEps(0.0), _curFwdFlow(true), _curSection(0), _dispersionDep(nullptr)
 {
 }
 
@@ -977,9 +986,15 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::notifyDiscontinuous
 	_curSection = secIdx;
 	_newStaticJac = true;
 
-	// note: flow direction is set by setFlowRates() before notifyDiscontinuousSectionTransition() is called
+	const bool prevFwdFlow = _curFwdFlow;
 	_curFwdFlow = internalForwardFlow(getSectionDependentScalar(_forwardFlow, secIdx));
 	const bool changedDirection = secIdx > 0 ? (internalForwardFlow(getSectionDependentScalar(_forwardFlow, secIdx - 1)) != _curFwdFlow) : false;
+
+	// setFlowRates() is called before this and signed _QOverEps with the flow direction of the
+	// previous section, so the sign has to be corrected if the new section flows the other way.
+	// The setFlowRates() calls of this section (dynamic flow rates) then sign it correctly.
+	if (_curFwdFlow != prevFwdFlow)
+		_QOverEps = -_QOverEps;
 
 	// Some model parameters are baked into the DG operators but may be updated at section transitions
 	computeOperators(secIdx);
@@ -992,12 +1007,47 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::notifyDiscontinuous
 			_DGjacDispBlocks[comp][elem] = DGjacobianDispBlock(elem, comp);
 	}
 
+	_operatorQOverEps = static_cast<double>(_QOverEps);
+
 	if (_curFwdFlow)
 		jacInlet = _DGjacConvBlocks[0].col(0);
 	else
 		jacInlet = _DGjacConvBlocks[_nElem - 1].col(_DGjacConvBlocks[_nElem - 1].cols() - 1);
 
 	return changedDirection;
+}
+
+/**
+ * @brief Rebuilds everything the current flow rate is baked into, if it has changed
+ * @details The convection Jacobian blocks scale with the flow rate, and a dispersion that depends
+ *          on the local velocity (COL_DISPERSION_DEP) additionally reaches the operators that the
+ *          residual is built from. A dynamic flow rate changes the flow rate within a time section,
+ *          so neither may be rebuilt at section transitions alone. Comparing against the flow rate
+ *          the cached quantities were built with keeps this free for a flow rate that is constant
+ *          over the section, which is the usual case: nothing is recomputed unless it changed.
+ */
+void VariableCrossSectionConvectionDispersionOperatorBaseDG::updateVelocityDependentOperators()
+{
+	if (static_cast<double>(_QOverEps) == _operatorQOverEps)
+		return;
+
+	_operatorQOverEps = static_cast<double>(_QOverEps);
+
+	// A constant dispersion does not see the velocity, so the operators and the dispersion blocks
+	// built from them stay valid
+	if (_variableDispersion)
+	{
+		computeOperators(_curSection);
+
+		for (unsigned int elem = 0; elem < _nElem; elem++)
+		{
+			for (unsigned int comp = 0; comp < _nComp; comp++)
+				_DGjacDispBlocks[comp][elem] = DGjacobianDispBlock(elem, comp);
+		}
+	}
+
+	for (unsigned int elem = 0; elem < _nElem; elem++)
+		_DGjacConvBlocks[elem] = DGjacobianConvBlock(elem);
 }
 
 void VariableCrossSectionConvectionDispersionOperatorBaseDG::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
@@ -1953,6 +2003,10 @@ Eigen::MatrixXd VariableCrossSectionConvectionDispersionOperatorBaseDG::DGjacobi
 
 void VariableCrossSectionConvectionDispersionOperatorBaseDG::calcConvDispDGSEMJacobian(Eigen::SparseMatrix<double, Eigen::RowMajor>& jacobian, Eigen::MatrixXd& jacInlet, const int offC)
 {
+	// The blocks assembled below are baked with the flow rate, which a dynamic flow rate changes
+	// within a time section
+	updateVelocityDependentOperators();
+
 	const int strideNode = strideColNode();
 	const int strideElem = strideColElement();
 	const int strideColBound = strideNode - static_cast<int>(_nComp);
@@ -2121,6 +2175,9 @@ int VariableCrossSectionConvectionDispersionOperatorBaseDG::residual(const IMode
 template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
 int VariableCrossSectionConvectionDispersionOperatorBaseDG::residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType /*jacBegin*/)
 {
+	// A velocity dependent dispersion is baked into the operators used below, so they have to
+	// follow a flow rate that changes within a time section
+	updateVelocityDependentOperators();
 
 	for (unsigned int comp = 0; comp < _nComp; comp++)
 	{

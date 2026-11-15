@@ -201,6 +201,7 @@ namespace parts
 		std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{ax}} \f$
 		active _curVelocity; //!< Current interstitial velocity \f$ u \f$ in this time section
 		std::vector<double> _dir; //!< Current flow direction in this time section
+		double _curDir; //!< Flow direction of the current time section, applied by setFlowRates()
 
 		// needed?
 		int _curSection; //!< current section index
@@ -1042,6 +1043,7 @@ namespace parts
 		std::vector<active> _colDispersion;	//!< column dispersion D^x
 		active _flowRate;
 		active _QOverEps;	//!< flow rate divided by porosity (Q/eps)
+		double _operatorQOverEps;	//!< value of _QOverEps the operators and Jacobian blocks were last built with, see updateVelocityDependentOperators()
 		std::vector<int> _forwardFlow; // 1 for forward flow, 0 and other for backward flow, per time section
 		bool _curFwdFlow; // whether the flow runs towards increasing x, see internalForwardFlow()
 
@@ -1076,6 +1078,7 @@ namespace parts
 
 		void computeGeometry();
 		void computeOperators(const unsigned int secIdx);
+		void updateVelocityDependentOperators();
 		void computeGeometryAxial();
 		void computeGeometryRadial();
 		void computeGeometryFrustum();

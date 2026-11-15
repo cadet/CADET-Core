@@ -64,7 +64,7 @@ namespace
 /**
  * @brief Creates an AxialConvectionDispersionOperatorBaseFV
  */
-AxialConvectionDispersionOperatorBaseFV::AxialConvectionDispersionOperatorBaseFV() : _reconstrDerivatives(nullptr), _weno(nullptr), _koren(nullptr), _dispersionDep(nullptr)
+AxialConvectionDispersionOperatorBaseFV::AxialConvectionDispersionOperatorBaseFV() : _curDir(1.0), _reconstrDerivatives(nullptr), _weno(nullptr), _koren(nullptr), _dispersionDep(nullptr)
 {
 }
 
@@ -329,11 +329,15 @@ bool AxialConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, IPa
  */
 bool AxialConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 {
-	// setFlowRates() was called before, unconditionally setting _curVelCoeff to a non-negative value
+	// setFlowRates() was called before, applying the flow direction _curDir of the previous section.
+	// Correct the sign if the new section flows the other way, and remember the new direction so that
+	// the setFlowRates() calls of this section (dynamic flow rates) sign the velocity correctly.
 	const double curDir = getSectionDependentScalar(_dir, secIdx);
 	const bool changedDirection = secIdx > 0 ? (getSectionDependentScalar(_dir, secIdx - 1) * curDir < 0) : false;
-	if (curDir < 0)
+	if (_curDir * curDir < 0.0)
 		_curVelCoeff *= -1.0;
+
+	_curDir = curDir;
 
 	return changedDirection;
 }
@@ -347,7 +351,9 @@ bool AxialConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransiti
  */
 void AxialConvectionDispersionOperatorBaseFV::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
 {
-	_curVelCoeff = in / (_crossSection * colPorosity);
+	// Dynamic flow rates call this within a time section, so the flow direction of the current
+	// section has to be applied here. It is set by notifyDiscontinuousSectionTransition().
+	_curVelCoeff = _curDir * in / (_crossSection * colPorosity);
 }
 
 /**
@@ -804,7 +810,7 @@ bool AxialConvectionDispersionOperatorBaseFV::setSensitiveParameter(std::unorder
 /**
  * @brief Creates a RadialConvectionDispersionOperatorBaseFV
  */
-RadialConvectionDispersionOperatorBaseFV::RadialConvectionDispersionOperatorBaseFV() : _stencilMemory(sizeof(active) * Weno::maxStencilSize()), _reconstrDerivatives(nullptr), _gridEquidistant(true), _weno(nullptr), _koren(nullptr), _dispersionDep(nullptr)
+RadialConvectionDispersionOperatorBaseFV::RadialConvectionDispersionOperatorBaseFV() : _curDir(1.0), _stencilMemory(sizeof(active) * Weno::maxStencilSize()), _reconstrDerivatives(nullptr), _gridEquidistant(true), _weno(nullptr), _koren(nullptr), _dispersionDep(nullptr)
 {
 }
 
@@ -1105,11 +1111,15 @@ bool RadialConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, IP
  */
 bool RadialConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 {
-	// setFlowRates() was called before, unconditionally setting _curVelCoeff to a non-negative value
+	// setFlowRates() was called before, applying the flow direction _curDir of the previous section.
+	// Correct the sign if the new section flows the other way, and remember the new direction so that
+	// the setFlowRates() calls of this section (dynamic flow rates) sign the velocity correctly.
 	const double curDir = getSectionDependentScalar(_dir, secIdx);
 	const bool changedDirection = secIdx > 0 ? (getSectionDependentScalar(_dir, secIdx - 1) * curDir < 0) : false;
-	if (curDir < 0)
+	if (_curDir * curDir < 0.0)
 		_curVelCoeff *= -1.0;
+
+	_curDir = curDir;
 
 	return changedDirection;
 }
@@ -1123,8 +1133,10 @@ bool RadialConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransit
  */
 void RadialConvectionDispersionOperatorBaseFV::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
 {
+	// Dynamic flow rates call this within a time section, so the flow direction of the current
+	// section has to be applied here. It is set by notifyDiscontinuousSectionTransition().
 	const double pi = 3.1415926535897932384626434;
-	_curVelCoeff = in / (2.0 * pi * _colHeight * colPorosity * _circleFraction); // this coefficient is later divided by r
+	_curVelCoeff = _curDir * in / (2.0 * pi * _colHeight * colPorosity * _circleFraction); // this coefficient is later divided by r
 }
 
 active RadialConvectionDispersionOperatorBaseFV::currentVelocity(double pos) const CADET_NOEXCEPT
@@ -1586,7 +1598,7 @@ void RadialConvectionDispersionOperatorBaseFV::computeCellCentersAndSizes(const 
 /**
  * @brief Creates a FrustumConvectionDispersionOperatorBaseFV
  */
-FrustumConvectionDispersionOperatorBaseFV::FrustumConvectionDispersionOperatorBaseFV() : _stencilMemory(sizeof(active) * Weno::maxStencilSize()), _reconstrDerivatives(nullptr), _gridEquidistant(true), _weno(nullptr), _koren(nullptr), _dispersionDep(nullptr)
+FrustumConvectionDispersionOperatorBaseFV::FrustumConvectionDispersionOperatorBaseFV() : _curDir(1.0), _stencilMemory(sizeof(active) * Weno::maxStencilSize()), _reconstrDerivatives(nullptr), _gridEquidistant(true), _weno(nullptr), _koren(nullptr), _dispersionDep(nullptr)
 {
 }
 
@@ -1845,11 +1857,15 @@ bool FrustumConvectionDispersionOperatorBaseFV::configure(UnitOpIdx unitOpIdx, I
  */
 bool FrustumConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx)
 {
-	// setFlowRates() was called before, unconditionally setting _curVelCoeff to a non-negative value
+	// setFlowRates() was called before, applying the flow direction _curDir of the previous section.
+	// Correct the sign if the new section flows the other way, and remember the new direction so that
+	// the setFlowRates() calls of this section (dynamic flow rates) sign the velocity correctly.
 	const double curDir = getSectionDependentScalar(_dir, secIdx);
 	const bool changedDirection = secIdx > 0 ? (getSectionDependentScalar(_dir, secIdx - 1) * curDir < 0) : false;
-	if (curDir < 0)
+	if (_curDir * curDir < 0.0)
 		_curVelCoeff *= -1.0;
+
+	_curDir = curDir;
 
 	return changedDirection;
 }
@@ -1863,8 +1879,10 @@ bool FrustumConvectionDispersionOperatorBaseFV::notifyDiscontinuousSectionTransi
  */
 void FrustumConvectionDispersionOperatorBaseFV::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
 {
+	// Dynamic flow rates call this within a time section, so the flow direction of the current
+	// section has to be applied here. It is set by notifyDiscontinuousSectionTransition().
 	const double pi = 3.1415926535897932384626434;
-	_curVelCoeff = in / (pi * colPorosity); // this coefficient is later divided by r^2
+	_curVelCoeff = _curDir * in / (pi * colPorosity); // this coefficient is later divided by r^2
 }
 
 /**

@@ -1061,8 +1061,11 @@ void TwoDimensionalConvectionDispersionOperatorFV::setFlowRates(int compartment,
 
 void TwoDimensionalConvectionDispersionOperatorFV::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 {
+	// As in the single compartment overload above, the flow direction of the current time section
+	// has to be applied here: dynamic flow rates call this within a time section, after
+	// notifyDiscontinuousSectionTransition() has set _dir.
 	for (unsigned int compartment = 0; compartment < _nRad; ++compartment)
-		_curVelocity[compartment] = in[compartment] / (_crossSections[compartment] * _colPorosities[compartment]);
+		_curVelocity[compartment] = _dir[compartment] * in[compartment] / (_crossSections[compartment] * _colPorosities[compartment]);
 }
 
 double TwoDimensionalConvectionDispersionOperatorFV::inletFactor(unsigned int idxSec, int idxRad) const CADET_NOEXCEPT

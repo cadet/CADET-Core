@@ -174,6 +174,7 @@ protected:
 	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{ax}} \f$
 	active _curVelCoeff; //!< Current interstitial velocity coefficient \f$ u \f$ in this time section
 	std::vector<double> _dir; //!< Flow direction for all time sections (1.0 for forward, -1.0 for backward)
+	double _curDir; //!< Flow direction of the current time section, applied by setFlowRates()
 
 	ArrayPool _stencilMemory; //!< Provides memory for the stencil
 	double* _reconstrDerivatives; //!< Holds derivatives of the reconstruction scheme
@@ -319,6 +320,7 @@ protected:
 	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{rad}} \f$
 	active _curVelCoeff; //!< Current interstitial velocity coefficient \f$ u \f$ in this time section
 	std::vector<double> _dir; //!< Flow direction for all time sections (1.0 for forward, -1.0 for backward)
+	double _curDir; //!< Flow direction of the current time section, applied by setFlowRates()
 	double _circleFraction; //!< Specifies whether the radial model is a full circle or wedge and in that case the fraction of a full circle
 	double _colHeight; //!< Specifies the height of the cylindrical column
 
@@ -470,6 +472,7 @@ protected:
 	std::vector<active> _colDispersion; //!< Column dispersion (may be section dependent) \f$ D_{\text{rad}} \f$
 	active _curVelCoeff; //!< Current interstitial velocity coefficient \f$ u \f$ in this time section
 	std::vector<double> _dir; //!< Flow direction for all time sections (1.0 for forward, -1.0 for backward)
+	double _curDir; //!< Flow direction of the current time section, applied by setFlowRates()
 
 	ArrayPool _stencilMemory; //!< Provides memory for the stencil
 	double* _reconstrDerivatives; //!< Holds derivatives of the reconstruction scheme
