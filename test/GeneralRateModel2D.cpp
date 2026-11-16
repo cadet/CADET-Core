@@ -25,6 +25,16 @@
 #include "cadet/FactoryFuncs.hpp"
 #include "ParallelSupport.hpp"
 #include "Approx.hpp"
+#include "UnitOperationTests.hpp"
+#include "cadet/cadet.hpp"
+#include "model/UnitOperation.hpp"
+#include "SimulationTypes.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <string>
+#include <vector>
 
 TEST_CASE("GRM2D LWE forward vs backward flow", "[GRM2D],[FV],[Simulation],[fixGRM2D]") // todo fix. off by a lot
 {
@@ -391,4 +401,167 @@ TEST_CASE("GRM2D with 1 radial zone matches GRM", "[GRM],[GRM2D],[FV],[UnitOp],[
 	mb->destroyUnitOperation(iUnitGrm2d);
 	mb->destroyUnitOperation(iUnitGrm);
 	cadet::destroyModelBuilder(mb);
+}
+
+namespace
+{
+	/**
+	 * @brief Sets geometry, core radius and radial discretization of the first particle type of a unit operation
+	 */
+	void setParticleGeometry2D(cadet::JsonParameterProvider& jpp, const std::string& geom, double relCoreRadius, const std::string& discType, const std::vector<double>& relInterfaces)
+	{
+		jpp.pushScope("particle_type_000");
+		jpp.set("PAR_GEOM", geom);
+		jpp.set("PAR_CORERADIUS", relCoreRadius * jpp.getDouble("PAR_RADIUS"));
+		jpp.pushScope("discretization");
+		jpp.set("PAR_DISC_TYPE", discType);
+		if (discType == "USER_DEFINED")
+			jpp.set("PAR_DISC_VECTOR", relInterfaces);
+		jpp.popScope();
+		jpp.popScope();
+	}
+
+	/**
+	 * @brief Evaluates the residual of a unit operation at a fixed sample state whose entries from @p zeroFrom on are zero
+	 */
+	std::vector<double> residualAtSampleState2D(cadet::JsonParameterProvider& jpp, unsigned int& nDof, unsigned int zeroFrom)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		cadet::IUnitOperation* const unit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
+		nDof = unit->numDofs();
+		std::vector<double> y(nDof, 0.0);
+		std::vector<double> res(nDof, 0.0);
+		cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
+		std::fill(y.begin() + std::min(zeroFrom, nDof), y.end(), 0.0);
+
+		cadet::util::ThreadLocalStorage tls;
+		tls.resize(unit->threadLocalMemorySize());
+		const cadet::AdJacobianParams noParams{ nullptr, nullptr, 0u };
+		unit->notifyDiscontinuousSectionTransition(0.0, 0u, { y.data(), nullptr }, noParams);
+		unit->residual(cadet::SimulationTime{ 0.0, 0u }, cadet::ConstSimulationState{ y.data(), nullptr }, res.data(), tls);
+
+		mb->destroyUnitOperation(unit);
+		cadet::destroyModelBuilder(mb);
+		return res;
+	}
+}
+
+TEST_CASE("2D column units apply the particle geometry", "[GRM2D],[FV],[DG2D],[UnitOp],[Residual],[CI]")
+{
+	const std::vector<std::string> geometries = { "SPHERE", "CYLINDER", "SLAB" };
+
+	// The residual has to depend on PAR_GEOM
+	for (const std::string spatialMethod : { "FV", "DG" })
+	{
+		std::vector<std::vector<double>> res;
+		for (const std::string& geom : geometries)
+		{
+			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_2D_GRM", spatialMethod);
+			setParticleGeometry2D(jpp, geom, 0.0, "EQUIDISTANT", {});
+			unsigned int nDof = 0;
+			res.push_back(residualAtSampleState2D(jpp, nDof, std::numeric_limits<unsigned int>::max()));
+		}
+
+		for (std::size_t a = 0; a < res.size(); ++a)
+		{
+			for (std::size_t b = a + 1; b < res.size(); ++b)
+			{
+				double maxDiff = 0.0;
+				double maxAbs = 0.0;
+				for (std::size_t i = 0; i < res[a].size(); ++i)
+				{
+					maxDiff = std::max(maxDiff, std::abs(res[a][i] - res[b][i]));
+					maxAbs = std::max(maxAbs, std::abs(res[a][i]));
+				}
+
+				INFO("Spatial method " << spatialMethod << ", " << geometries[a] << " vs " << geometries[b]);
+				CHECK(maxDiff > 1e-3 * maxAbs);
+			}
+		}
+	}
+
+	// Without film diffusion, surface diffusion and binding, every particle of the FV discretized 2D GRM is closed and
+	// the residuals of its liquid phase weighted with the true cell volumes of the configured geometry sum to zero
+	const double parPorosity = 0.75;
+	const unsigned int nComp = 2;
+	const unsigned int strideParShell = nComp + 2; // two bound states
+	for (std::size_t g = 0; g < geometries.size(); ++g)
+	{
+		const double geomExponent = 3.0 - static_cast<double>(g);
+		for (const double relCoreRadius : { 0.0, 0.3 })
+		{
+			for (const std::string discType : { "EQUIDISTANT", "EQUIVOLUME", "USER_DEFINED" })
+			{
+				INFO("Geometry " << geometries[g] << ", PAR_CORERADIUS / PAR_RADIUS " << relCoreRadius << ", PAR_DISC_TYPE " << discType);
+
+				cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_2D_GRM", "FV");
+				jpp.pushScope("discretization");
+				const unsigned int nCol = jpp.getInt("NCOL");
+				const unsigned int nRad = jpp.getInt("NRAD");
+				jpp.popScope();
+				jpp.pushScope("particle_type_000");
+				const double parRadius = jpp.getDouble("PAR_RADIUS");
+				jpp.set("FILM_DIFFUSION", std::vector<double>(nComp, 0.0));
+				jpp.set("HAS_SURFACE_DIFFUSION", false);
+				jpp.set("SURFACE_DIFFUSION", std::vector<double>(nComp, 0.0));
+				jpp.pushScope("discretization");
+				const unsigned int nCells = jpp.getInt("NCELLS");
+				jpp.popScope();
+				jpp.pushScope("adsorption");
+				jpp.set("LIN_KA", std::vector<double>(nComp, 0.0));
+				jpp.set("LIN_KD", std::vector<double>(nComp, 0.0));
+				jpp.popScope();
+				jpp.popScope();
+
+				// Relative interfaces from the core to the particle surface
+				std::vector<double> relInterfaces(nCells + 1);
+				for (unsigned int k = 0; k <= nCells; ++k)
+					relInterfaces[k] = std::sqrt(static_cast<double>(k) / nCells);
+				setParticleGeometry2D(jpp, geometries[g], relCoreRadius, discType, relInterfaces);
+
+				// Absolute interfaces from the core to the particle surface
+				const double coreRadius = relCoreRadius * parRadius;
+				std::vector<double> interfaces(nCells + 1);
+				for (unsigned int k = 0; k <= nCells; ++k)
+				{
+					if (discType == "EQUIVOLUME")
+						interfaces[k] = std::pow(std::pow(coreRadius, geomExponent) + static_cast<double>(k) / nCells * (std::pow(parRadius, geomExponent) - std::pow(coreRadius, geomExponent)), 1.0 / geomExponent);
+					else if (discType == "USER_DEFINED")
+						interfaces[k] = coreRadius + relInterfaces[k] * (parRadius - coreRadius);
+					else
+						interfaces[k] = coreRadius + static_cast<double>(k) / nCells * (parRadius - coreRadius);
+				}
+
+				// State layout: inlet, bulk, particles (cells ordered from the surface to the core), fluxes (set to zero)
+				const unsigned int offsetCp = nComp * nRad + nComp * nCol * nRad;
+				const unsigned int offsetJf = offsetCp + nCol * nRad * nCells * strideParShell;
+				unsigned int nDof = 0;
+				const std::vector<double> res = residualAtSampleState2D(jpp, nDof, offsetJf);
+				REQUIRE(nDof == offsetJf + nComp * nCol * nRad);
+
+				double maxRelError = 0.0;
+				for (unsigned int particle = 0; particle < nCol * nRad; ++particle)
+				{
+					for (unsigned int comp = 0; comp < nComp; ++comp)
+					{
+						double massRate = 0.0;
+						double scale = 0.0;
+						for (unsigned int cell = 0; cell < nCells; ++cell)
+						{
+							const double cellVolume = (std::pow(interfaces[nCells - cell], geomExponent) - std::pow(interfaces[nCells - cell - 1], geomExponent)) / geomExponent;
+							const double r = res[offsetCp + (particle * nCells + cell) * strideParShell + comp];
+							massRate -= parPorosity * cellVolume * r;
+							scale += parPorosity * std::abs(cellVolume * r);
+						}
+						maxRelError = std::max(maxRelError, std::abs(massRate) / scale);
+					}
+				}
+
+				CAPTURE(maxRelError);
+				CHECK(maxRelError <= 1e-12);
+			}
+		}
+	}
 }
