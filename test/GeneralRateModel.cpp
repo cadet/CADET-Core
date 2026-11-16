@@ -18,6 +18,17 @@
 #include "JsonTestModels.hpp"
 #include "Weno.hpp"
 #include "Utils.hpp"
+#include "UnitOperationTests.hpp"
+#include "cadet/cadet.hpp"
+#include "model/UnitOperation.hpp"
+#include "ParallelSupport.hpp"
+#include "SimulationTypes.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <string>
+#include <utility>
+#include <vector>
 
 TEST_CASE("GRM LWE forward vs backward flow", "[GRM],[FV],[Simulation],[CI]")
 {
@@ -409,4 +420,152 @@ TEST_CASE("GRM multi particle types dynamic reactions time derivative Jacobian v
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBindingThreeParticleTypesGRM();
 	cadet::test::reaction::testTimeDerivativeJacobianDynamicReactionsFD(jpp, true, true, true, 1e-4, 1e-14, 9e-4);
+}
+
+namespace
+{
+	/**
+	 * @brief Sets geometry, core radius and radial discretization of the first particle type of a unit operation
+	 * @param [in,out] jpp Parameter provider scoped to the unit operation
+	 * @param [in] geom Value of PAR_GEOM
+	 * @param [in] relCoreRadius Ratio of PAR_CORERADIUS and PAR_RADIUS
+	 * @param [in] discType Value of PAR_DISC_TYPE
+	 * @param [in] relInterfaces Relative cell interfaces (only used for USER_DEFINED)
+	 */
+	void setParticleGrid(cadet::JsonParameterProvider& jpp, const std::string& geom, double relCoreRadius, const std::string& discType, const std::vector<double>& relInterfaces)
+	{
+		jpp.pushScope("particle_type_000");
+		jpp.set("PAR_GEOM", geom);
+		jpp.set("PAR_CORERADIUS", relCoreRadius * jpp.getDouble("PAR_RADIUS"));
+		jpp.pushScope("discretization");
+		jpp.set("PAR_DISC_TYPE", discType);
+		if (discType == "USER_DEFINED")
+			jpp.set("PAR_DISC_VECTOR", relInterfaces);
+		jpp.popScope();
+		jpp.popScope();
+	}
+
+	/**
+	 * @brief Returns the relative interfaces in [0, 1] of cells with equal volume
+	 * @param [in] geomExponent Exponent d of the particle geometry, i.e. 3 for spheres, 2 for cylinders and 1 for slabs
+	 * @param [in] relCoreRadius Ratio of core radius and particle radius
+	 * @param [in] nCells Number of cells
+	 */
+	std::vector<double> relativeEquivolumeInterfaces(double geomExponent, double relCoreRadius, unsigned int nCells)
+	{
+		std::vector<double> relInterfaces(nCells + 1);
+		const double coreVol = std::pow(relCoreRadius, geomExponent);
+		for (unsigned int k = 0; k <= nCells; ++k)
+		{
+			const double r = std::pow(coreVol + static_cast<double>(k) / nCells * (1.0 - coreVol), 1.0 / geomExponent);
+			relInterfaces[k] = (r - relCoreRadius) / (1.0 - relCoreRadius);
+		}
+		relInterfaces.front() = 0.0;
+		relInterfaces.back() = 1.0;
+		return relInterfaces;
+	}
+
+	/**
+	 * @brief Evaluates the residual of a unit operation at a fixed sample state
+	 * @param [in,out] jpp Parameter provider scoped to the unit operation
+	 */
+	std::vector<double> residualAtSampleState(cadet::JsonParameterProvider& jpp)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		cadet::IUnitOperation* const unit = cadet::test::unitoperation::createAndConfigureUnit(jpp, *mb);
+		const unsigned int nDof = unit->numDofs();
+		std::vector<double> y(nDof, 0.0);
+		std::vector<double> res(nDof, 0.0);
+		cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
+
+		cadet::util::ThreadLocalStorage tls;
+		tls.resize(unit->threadLocalMemorySize());
+		const cadet::AdJacobianParams noParams{ nullptr, nullptr, 0u };
+		unit->notifyDiscontinuousSectionTransition(0.0, 0u, { y.data(), nullptr }, noParams);
+		unit->residual(cadet::SimulationTime{ 0.0, 0u }, cadet::ConstSimulationState{ y.data(), nullptr }, res.data(), tls);
+
+		mb->destroyUnitOperation(unit);
+		cadet::destroyModelBuilder(mb);
+		return res;
+	}
+
+	/**
+	 * @brief Returns the maximum deviation of two residuals relative to the largest absolute entry of the first one
+	 */
+	double relativeResidualDeviation(const std::vector<double>& a, const std::vector<double>& b)
+	{
+		REQUIRE(a.size() == b.size());
+		double maxDiff = 0.0;
+		double maxAbs = 0.0;
+		for (std::size_t i = 0; i < a.size(); ++i)
+		{
+			maxDiff = std::max(maxDiff, std::abs(a[i] - b[i]));
+			maxAbs = std::max(maxAbs, std::abs(a[i]));
+		}
+		return maxDiff / maxAbs;
+	}
+}
+
+TEST_CASE("Column units with FV particles map USER_DEFINED particle cells to the particle radius", "[GRM],[FV],[DGFV],[GRM2D],[UnitOp],[Residual],[Jacobian],[AD],[CI]")
+{
+	// A user defined grid with the interfaces of the equidistant (equivolume) grid has to reproduce the
+	// EQUIDISTANT (EQUIVOLUME) discretization, which requires the relative interfaces in PAR_DISC_VECTOR to be
+	// mapped onto [PAR_CORERADIUS, PAR_RADIUS]. This is checked for the arrow head FV GRM, the 1D column model
+	// with FV particles and the 2D FV GRM. Additionally, the analytic Jacobian of a non-uniform user defined grid
+	// has to match AD (not available for the 2D FV GRM). The 2D FV GRM is only checked with spherical particles,
+	// as its residual does not depend on PAR_GEOM.
+	const std::vector<std::pair<std::string, std::string>> units = { { "GENERAL_RATE_MODEL", "FV" }, { "COLUMN_MODEL_1D_GRM", "DGFV" }, { "COLUMN_MODEL_2D_GRM", "FV" } };
+	for (const auto& unit : units)
+	{
+		for (const std::string geom : { "SPHERE", "CYLINDER", "SLAB" })
+		{
+			if ((unit.first == "COLUMN_MODEL_2D_GRM") && (geom != "SPHERE"))
+				continue;
+
+			const double geomExponent = (geom == "SPHERE") ? 3.0 : ((geom == "CYLINDER") ? 2.0 : 1.0);
+			for (const double relCoreRadius : { 0.0, 0.3 })
+			{
+				INFO("Unit " << unit.first << " (" << unit.second << "), geometry " << geom << ", PAR_CORERADIUS / PAR_RADIUS " << relCoreRadius);
+
+				cadet::JsonParameterProvider jppRef = createColumnWithTwoCompLinearBinding(unit.first, unit.second);
+				jppRef.pushScope("particle_type_000");
+				jppRef.pushScope("discretization");
+				const unsigned int nCells = jppRef.getInt("NCELLS");
+				jppRef.popScope();
+				jppRef.popScope();
+
+				std::vector<double> relEquidistant(nCells + 1);
+				std::vector<double> relNonUniform(nCells + 1);
+				for (unsigned int k = 0; k <= nCells; ++k)
+				{
+					relEquidistant[k] = static_cast<double>(k) / nCells;
+					relNonUniform[k] = std::sqrt(static_cast<double>(k) / nCells);
+				}
+
+				for (const std::string discType : { "EQUIDISTANT", "EQUIVOLUME" })
+				{
+					cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(unit.first, unit.second);
+					setParticleGrid(jpp, geom, relCoreRadius, discType, {});
+					const std::vector<double> resRef = residualAtSampleState(jpp);
+
+					cadet::JsonParameterProvider jppUser = createColumnWithTwoCompLinearBinding(unit.first, unit.second);
+					setParticleGrid(jppUser, geom, relCoreRadius, "USER_DEFINED", (discType == "EQUIDISTANT") ? relEquidistant : relativeEquivolumeInterfaces(geomExponent, relCoreRadius, nCells));
+					const std::vector<double> resUser = residualAtSampleState(jppUser);
+
+					const double deviation = relativeResidualDeviation(resRef, resUser);
+					CAPTURE(discType, deviation);
+					CHECK(deviation <= 1e-10);
+				}
+
+				if (unit.first != "COLUMN_MODEL_2D_GRM")
+				{
+					cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(unit.first, unit.second);
+					setParticleGrid(jpp, geom, relCoreRadius, "USER_DEFINED", relNonUniform);
+					cadet::test::column::testJacobianAD(jpp);
+				}
+			}
+		}
+	}
 }

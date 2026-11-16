@@ -977,3 +977,140 @@ TEST_CASE("CSTR with DG general rate particles conserves mass and matches AD Jac
 		}
 	}
 }
+
+TEST_CASE("CSTR with FV general rate particles conserves mass and matches AD Jacobian on user defined particle cells", "[CSTR],[FV],[UnitOp],[Residual],[Jacobian],[AD],[CI]")
+{
+	// Without film diffusion and binding, the particle is closed and the residual of the particle liquid phase at
+	// each cell is -eps_p^-1 times the rate of change of the total (liquid and bound) mass in that cell. Its sum
+	// weighted with the true cell volumes has to vanish. A user defined grid with the interfaces of the
+	// equidistant (equivolume) grid has to reproduce the EQUIDISTANT (EQUIVOLUME) discretization, and the analytic
+	// Jacobian has to match AD.
+	const double parRadius = 4.5e-5;
+	const double parPorosity = 0.75;
+	const unsigned int nComp = 2;
+	const unsigned int strideParNode = nComp + 2; // two bound states
+
+	const auto residualAtSampleState = [](cadet::JsonParameterProvider& jpp) -> std::vector<double>
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		cadet::IUnitOperation* const unit = createAndConfigureStirredTank(*mb, jpp, 0.0);
+		const unsigned int nDof = unit->numDofs();
+		std::vector<double> y(nDof, 0.0);
+		std::vector<double> yDot(nDof, 0.0);
+		std::vector<double> res(nDof, 0.0);
+		cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
+
+		cadet::util::ThreadLocalStorage tls;
+		tls.resize(unit->threadLocalMemorySize());
+		const cadet::AdJacobianParams noParams{ nullptr, nullptr, 0u };
+		unit->notifyDiscontinuousSectionTransition(0.0, 0u, { y.data(), yDot.data() }, noParams);
+		unit->residual(cadet::SimulationTime{ 0.0, 0u }, cadet::ConstSimulationState{ y.data(), yDot.data() }, res.data(), tls);
+
+		mb->destroyUnitOperation(unit);
+		cadet::destroyModelBuilder(mb);
+		return res;
+	};
+
+	const auto configure = [&](const std::string& geom, double relCoreRadius, const std::string& discType, const std::vector<double>& relInterfaces) -> cadet::JsonParameterProvider
+	{
+		cadet::JsonParameterProvider jpp = createFiniteBath("GENERAL_RATE_PARTICLE", "FV");
+		jpp.pushScope("particle_type_000");
+		jpp.set("PAR_GEOM", geom);
+		jpp.set("PAR_CORERADIUS", relCoreRadius * parRadius);
+		jpp.pushScope("discretization");
+		jpp.set("NCELLS", static_cast<int>(relInterfaces.size()) - 1);
+		jpp.set("PAR_DISC_TYPE", discType);
+		if (discType == "USER_DEFINED")
+			jpp.set("PAR_DISC_VECTOR", relInterfaces);
+		jpp.popScope();
+		jpp.popScope();
+		return jpp;
+	};
+
+	const unsigned int nCells = 5;
+	std::vector<double> relEquidistant(nCells + 1);
+	std::vector<double> relNonUniform(nCells + 1);
+	for (unsigned int k = 0; k <= nCells; ++k)
+	{
+		relEquidistant[k] = static_cast<double>(k) / nCells;
+		relNonUniform[k] = std::sqrt(static_cast<double>(k) / nCells);
+	}
+
+	for (const std::string geom : { "SPHERE", "CYLINDER", "SLAB" })
+	{
+		const double geomExponent = (geom == "SPHERE") ? 3.0 : ((geom == "CYLINDER") ? 2.0 : 1.0);
+		for (const double relCoreRadius : { 0.0, 0.3 })
+		{
+			for (const std::string discType : { "EQUIDISTANT", "EQUIVOLUME", "USER_DEFINED" })
+			{
+				INFO("Geometry " << geom << ", PAR_CORERADIUS / PAR_RADIUS " << relCoreRadius << ", PAR_DISC_TYPE " << discType);
+
+				cadet::JsonParameterProvider jpp = configure(geom, relCoreRadius, discType, relNonUniform);
+
+				// Analytic Jacobian vs AD
+				checkJacobianAD(jpp, 0.0);
+
+				// Closed particle: rate of change of the total particle mass
+				jpp.pushScope("particle_type_000");
+				jpp.set("FILM_DIFFUSION", std::vector<double>{ 0.0, 0.0 });
+				jpp.pushScope("adsorption");
+				jpp.set("LIN_KA", std::vector<double>{ 0.0, 0.0 });
+				jpp.set("LIN_KD", std::vector<double>{ 0.0, 0.0 });
+				jpp.popScope();
+				jpp.popScope();
+
+				const std::vector<double> res = residualAtSampleState(jpp);
+				const std::vector<double> interfaces = particleElementInterfaces(discType, geomExponent, parRadius, relCoreRadius * parRadius, relNonUniform);
+				const unsigned int offsetCp = 2 * nComp;
+				for (unsigned int comp = 0; comp < nComp; ++comp)
+				{
+					double massRate = 0.0;
+					double scale = 0.0;
+					for (unsigned int cell = 0; cell < nCells; ++cell)
+					{
+						const double cellVolume = (std::pow(interfaces[cell + 1], geomExponent) - std::pow(interfaces[cell], geomExponent)) / geomExponent;
+						massRate -= parPorosity * cellVolume * res[offsetCp + cell * strideParNode + comp];
+						scale += parPorosity * std::abs(cellVolume * res[offsetCp + cell * strideParNode + comp]);
+					}
+
+					const double relError = std::abs(massRate) / scale;
+					CAPTURE(comp, massRate, relError);
+					CHECK(relError <= 1e-12);
+				}
+			}
+
+			// User defined interfaces reproduce the equidistant and equivolume grids
+			for (const std::string discType : { "EQUIDISTANT", "EQUIVOLUME" })
+			{
+				INFO("Geometry " << geom << ", PAR_CORERADIUS / PAR_RADIUS " << relCoreRadius << ", USER_DEFINED as " << discType);
+
+				std::vector<double> relInterfaces = relEquidistant;
+				if (discType == "EQUIVOLUME")
+				{
+					const std::vector<double> interfaces = particleElementInterfaces(discType, geomExponent, parRadius, relCoreRadius * parRadius, relEquidistant);
+					for (unsigned int k = 1; k < nCells; ++k)
+						relInterfaces[k] = (interfaces[k] - relCoreRadius * parRadius) / ((1.0 - relCoreRadius) * parRadius);
+				}
+
+				cadet::JsonParameterProvider jppRef = configure(geom, relCoreRadius, discType, relEquidistant);
+				cadet::JsonParameterProvider jppUser = configure(geom, relCoreRadius, "USER_DEFINED", relInterfaces);
+				const std::vector<double> resRef = residualAtSampleState(jppRef);
+				const std::vector<double> resUser = residualAtSampleState(jppUser);
+
+				double maxDiff = 0.0;
+				double maxAbs = 0.0;
+				for (std::size_t i = 0; i < resRef.size(); ++i)
+				{
+					maxDiff = std::max(maxDiff, std::abs(resRef[i] - resUser[i]));
+					maxAbs = std::max(maxAbs, std::abs(resRef[i]));
+				}
+
+				const double deviation = maxDiff / maxAbs;
+				CAPTURE(deviation);
+				CHECK(deviation <= 1e-10);
+			}
+		}
+	}
+}
