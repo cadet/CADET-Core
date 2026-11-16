@@ -142,8 +142,10 @@ int ColumnModel1D<ConvDispOperator>::linearSolve(double t, double alpha, double 
 	// ==== Step 1.5: Solve J c_uo = b_uo - A * c_in = b_uo - A*b_in
 
 	// Handle inlet DOFs:
-	// Inlet at z = 0 for forward flow, at z = L for backward flow.
-	unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
+	// Inlet at z = 0 for forward flow, at z = L for backward flow. The inlet block ends at the last
+	// discrete point under backward flow; how many points it covers depends on the transport
+	// operator, see ColumnModel1D::multiplyWithJacobian().
+	const unsigned int offInlet = _convDispOp.forwardFlow() ? 0u : (_disc.nPoints - static_cast<unsigned int>(_jacInlet.rows())) * idxr.strideColNode();
 
 	const auto& cm = _reaction.conservedMoieties("liquid");
 	if (cm.hasRapidEquilibrium())
