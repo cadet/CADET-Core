@@ -124,7 +124,25 @@ namespace parts
 			const unsigned int element = floor(nodeIdx / _nParNode);
 			const unsigned int node = nodeIdx % _nParNode;
 			// divide by particle radius to get relative position
-			return static_cast<double>((_deltaR[element] * element + 0.5 * _deltaR[element] * (1 + _parNodes[node])) / (_parRadius - _parCoreRadius));
+			return static_cast<double>((elementOffset(element) + 0.5 * _deltaR[element] * (1 + _parNodes[node])) / (_parRadius - _parCoreRadius));
+		}
+
+		/**
+		 * @brief Returns the distance of the inner boundary of an element from the particle core radius
+		 * @details Elements are ordered from the particle core (element 0) to the outer particle surface.
+		 *          For equidistant elements, the product is kept so that results remain unchanged.
+		 * @param [in] element Element index
+		 */
+		active elementOffset(const unsigned int element) const CADET_NOEXCEPT
+		{
+			if (_parDiscMode == ParticleDiscretizationMode::Equidistant)
+				return _deltaR[element] * element;
+
+			active offset = 0.0;
+			for (unsigned int elem = 0; elem < element; ++elem)
+				offset += _deltaR[elem];
+
+			return offset;
 		}
 
 		int calcFilmDiffJacobian(unsigned int secIdx, const int offsetCp, const int offsetC, const int nBulkPoints, const int nParType, const bulkFilmTransfer& bulkFilm, const active* const parTypeVolFrac, const active* const pointVelocity, Eigen::SparseMatrix<double, RowMajor>& globalJac, bool outliersOnly = false);
