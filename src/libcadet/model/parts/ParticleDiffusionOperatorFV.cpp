@@ -66,7 +66,7 @@ namespace parts
 		_parOuterSurfAreaPerVolume.resize(_nParPoints);
 		_parInnerSurfAreaPerVolume.resize(_nParPoints);
 
-		// Read particle discretization mode and default to "EQUIDISTANT_PAR"
+		// Read particle discretization mode and default to "EQUIDISTANT"
 		_parDiscMode = ParticleDiscretizationMode::Equidistant;
 		std::string pdt = paramProvider.exists("PAR_DISC_TYPE") ? paramProvider.getString("PAR_DISC_TYPE") : "EQUIDISTANT";
 
@@ -85,6 +85,8 @@ namespace parts
 					throw InvalidParameterException("Field PAR_DISC_VECTOR has to be in [0.0, 1.0], but entry " + std::to_string(i) + " is " + std::to_string(_parDiscVector[i]) + " for particle type " + std::to_string(_parTypeIdx));
 			}
 		}
+		else if (pdt != "EQUIDISTANT")
+			throw InvalidParameterException("Unknown PAR_DISC_TYPE \"" + pdt + "\" for particle type " + std::to_string(_parTypeIdx) + ", allowed values are EQUIDISTANT, EQUIVOLUME and USER_DEFINED");
 
 		paramProvider.popScope(); // discretization
 

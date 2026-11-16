@@ -121,7 +121,7 @@
           "discretization": {
             "FV_BOUNDARY_ORDER": 2,
             "NCELLS": 4,
-            "PAR_DISC_TYPE": "EQUIDISTANT_PAR",
+            "PAR_DISC_TYPE": "EQUIDISTANT",
             "SPATIAL_METHOD": 0
           }
         }

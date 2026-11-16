@@ -20,6 +20,7 @@
 #include "Utils.hpp"
 #include "UnitOperationTests.hpp"
 #include "cadet/cadet.hpp"
+#include "ModelBuilderImpl.hpp"
 #include "model/UnitOperation.hpp"
 #include "ParallelSupport.hpp"
 #include "SimulationTypes.hpp"
@@ -566,6 +567,46 @@ TEST_CASE("Column units with FV particles map USER_DEFINED particle cells to the
 					cadet::test::column::testJacobianAD(jpp);
 				}
 			}
+		}
+	}
+}
+
+TEST_CASE("Unknown PAR_DISC_TYPE is rejected", "[GRM],[FV],[DG],[DGFV],[GRM2D],[UnitOp],[CI]")
+{
+	// Unknown values used to fall back to EQUIDISTANT silently, e.g. the legacy EQUIVOLUME_PAR
+	const std::vector<std::pair<std::string, std::string>> units = { { "GENERAL_RATE_MODEL", "FV" }, { "COLUMN_MODEL_1D_GRM", "DGFV" }, { "COLUMN_MODEL_1D_GRM", "DG" }, { "COLUMN_MODEL_2D_GRM", "FV" }, { "COLUMN_MODEL_2D_GRM", "DG" } };
+	for (const auto& unitType : units)
+	{
+		for (const std::string discType : { "EQUIDISTANT_PAR", "EQUIVOLUME_PAR", "USER_DEFINED_PAR", "equivolume" })
+		{
+			INFO("Unit " << unitType.first << " (" << unitType.second << "), PAR_DISC_TYPE " << discType);
+
+			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding(unitType.first, unitType.second);
+			jpp.pushScope("particle_type_000");
+			jpp.pushScope("discretization");
+			jpp.set("PAR_DISC_TYPE", discType);
+			jpp.popScope();
+			jpp.popScope();
+
+			cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+			REQUIRE(nullptr != mb);
+			cadet::ModelBuilder& builder = *reinterpret_cast<cadet::ModelBuilder*>(mb);
+
+			// Depending on the unit operation, the particle discretization is already read when the unit is created
+			cadet::IUnitOperation* unit = nullptr;
+			CHECK_THROWS_WITH([&]() {
+					unit = reinterpret_cast<cadet::IUnitOperation*>(mb->createUnitOperation(jpp, 0));
+					if (unit)
+					{
+						unit->configureModelDiscretization(jpp, builder);
+						unit->configure(jpp);
+					}
+				}(),
+				Catch::Matchers::Contains("Unknown PAR_DISC_TYPE \"" + discType + "\"") && Catch::Matchers::Contains("allowed values are EQUIDISTANT, EQUIVOLUME and USER_DEFINED"));
+
+			if (unit)
+				mb->destroyUnitOperation(unit);
+			cadet::destroyModelBuilder(mb);
 		}
 	}
 }

@@ -163,7 +163,7 @@
           },
           "discretization": {
             "NCELLS": 8,
-            "PAR_DISC_TYPE": "EQUIDISTANT_PAR",
+            "PAR_DISC_TYPE": "EQUIDISTANT",
             "SPATIAL_METHOD": "FV"
           }
         }
