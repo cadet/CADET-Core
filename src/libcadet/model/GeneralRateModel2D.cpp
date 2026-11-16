@@ -334,7 +334,7 @@ int schurComplementMultiplierGRM2D(void* userData, double const* x, double* z)
 
 GeneralRateModel2D::GeneralRateModel2D(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
 	 _jacP(nullptr), _jacPdisc(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacInlet(),
-	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
+	_analyticJac(true), _jacobianAdDirs(0), _curSecIdx(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _singleRadiusInitC(true), _initCp(0), _singleRadiusInitCp(true), _initCs(0), _singleRadiusInitCs(true), _initState(0), _initStateDot(0)
 {
 }
@@ -1174,18 +1174,32 @@ void GeneralRateModel2D::notifyDiscontinuousSectionTransition(double t, unsigned
 	if ((secIdx == 0) || isSectionDependent(_filmDiffusionMode) || isSectionDependent(_parDiffusionMode))
 		assembleOffdiagJac(t, secIdx);
 
-	Indexer idxr(_disc);
+	_curSecIdx = secIdx;
 
-	// ConvectionDispersionOperator tells us whether flow direction has changed
-	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx))
-		return;
+	// ConvectionDispersionOperator updates the velocities and the flow directions
+	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx);
+
+	updateInletJacobian();
+}
+
+/**
+ * @brief Rebuilds the matrix connecting the inlet DOFs to the inlet adjacent column cells
+ * @details The entries of this block scale with the current interstitial velocity, so the block has
+ *          to be rebuilt whenever the velocity changes: at a section transition, and, for dynamic
+ *          flow rates, on every call of setFlowRates() within a section. A stale block does not only
+ *          degrade the Newton matrix, it enters multiplyWithJacobian() and thereby the forward
+ *          sensitivity residual directly, where the error does not cancel out.
+ */
+void GeneralRateModel2D::updateInletJacobian() CADET_NOEXCEPT
+{
+	Indexer idxr(_disc);
 
 	// Setup the matrix connecting inlet DOFs to first column cells
 	_jacInlet.clear();
 
 	for (unsigned int rad = 0; rad < _disc.nRad; ++rad)
 	{
-		const double f = _convDispOp.inletFactor(secIdx, rad);
+		const double f = _convDispOp.inletFactor(_curSecIdx, rad);
 		if (_convDispOp.currentVelocity(rad) >= 0.0)
 		{
 			// Forwards flow
@@ -1209,6 +1223,10 @@ void GeneralRateModel2D::notifyDiscontinuousSectionTransition(double t, unsigned
 void GeneralRateModel2D::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 {
 	_convDispOp.setFlowRates(in, out);
+
+	// Dynamic flow rates change the velocities within a time section, which the inlet Jacobian
+	// block scales with
+	updateInletJacobian();
 }
 
 void GeneralRateModel2D::reportSolution(ISolutionRecorder& recorder, double const* const solution) const

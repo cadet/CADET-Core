@@ -219,6 +219,7 @@ protected:
 	int residualFlux(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res);
 
 	void assembleOffdiagJac(double t, unsigned int secIdx);
+	void updateInletJacobian() CADET_NOEXCEPT;
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
 
 	int schurComplementMatrixVector(double const* x, double* z) const;
@@ -314,6 +315,7 @@ protected:
 
 	bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used
 	unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation
+	unsigned int _curSecIdx; //!< Index of the time section that is currently integrated
 
 	std::vector<active> _parCellSize; //!< Particle cell / shell size
 	std::vector<active> _parCenterRadius; //!< Particle cell-centered position for each particle cell

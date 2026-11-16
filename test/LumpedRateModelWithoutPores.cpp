@@ -181,6 +181,21 @@ TEST_CASE("LRM with two component linear binding Jacobian", "[LRM],[FV],[UnitOp]
 	cadet::test::column::testJacobianAD(jpp);
 }
 
+TEST_CASE("LRM Jacobian follows a dynamic flow rate", "[LRM],[FV],[UnitOp],[Jacobian],[Inlet],[CI]")
+{
+	for (int dir = 0; dir < 2; ++dir)
+	{
+		SECTION(dir == 0 ? "Forward flow" : "Backward flow")
+		{
+			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV");
+			if (dir != 0)
+				cadet::test::column::reverseFlow(jpp);
+
+			cadet::test::column::testJacobianDynamicFlowRate(jpp, 3.0);
+		}
+	}
+}
+
 TEST_CASE("LRM dynamic reactions Jacobian vs AD bulk", "[LRM],[FV],[Jacobian],[AD],[ReactionModel],[CI]")
 {
 	cadet::test::reaction::testUnitJacobianDynamicReactionsAD("LUMPED_RATE_MODEL_WITHOUT_PORES", "FV", true, false, false);

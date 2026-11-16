@@ -473,25 +473,21 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::useAnalyticJacobian(const bo
 template <typename ConvDispOperator>
 void LumpedRateModelWithoutPores<ConvDispOperator>::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
-	Indexer idxr(_disc);
+	// ConvectionDispersionOperator updates the velocity and tells us whether flow direction has changed
+	const bool changedDirection = _convDispOp.notifyDiscontinuousSectionTransition(t, secIdx);
 
-	// ConvectionDispersionOperator tells us whether flow direction has changed
-	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx) && (secIdx != 0))
+	updateInletJacobian();
+
+	// Only a changed flow direction swaps the bandwidths of the bulk Jacobian and thereby
+	// invalidates the AD seed vectors
+	if (!changedDirection && (secIdx != 0))
 		return;
-
-	// Setup the matrix connecting inlet DOFs to first column cells
-	_jacInlet.clear();
-	const double v = _convDispOp.inletJacobianFactor();
 
 	const unsigned int lb = _convDispOp.jacobianLowerBandwidth();
 	const unsigned int ub = _convDispOp.jacobianUpperBandwidth();
 	if (_convDispOp.forwardFlow())
 	{
 		// Forwards flow
-
-		// Place entries for inlet DOF to first column cell conversion
-		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-			_jacInlet.addElement(comp * idxr.strideColComp(), comp, -v);
 
 		// Repartition Jacobians
 		_jac.repartition(lb, ub);
@@ -501,11 +497,6 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::notifyDiscontinuousSectionTr
 	{
 		// Backwards flow
 
-		// Place entries for inlet DOF to last column cell conversion
-		const unsigned int offset = (_disc.nCol - 1) * idxr.strideColCell();
-		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-			_jacInlet.addElement(offset + comp * idxr.strideColComp(), comp, v);
-
 		// Repartition Jacobians
 		_jac.repartition(ub, lb);
 		_jacDisc.repartition(ub, lb);
@@ -514,10 +505,50 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::notifyDiscontinuousSectionTr
 	prepareADvectors(adJac);
 }
 
+/**
+ * @brief Rebuilds the matrix connecting the inlet DOFs to the inlet adjacent column cells
+ * @details The entries of this block scale with the current interstitial velocity, so the block has
+ *          to be rebuilt whenever the velocity changes: at a section transition, and, for dynamic
+ *          flow rates, on every call of setFlowRates() within a section. A stale block does not only
+ *          degrade the Newton matrix, it enters multiplyWithJacobian() and thereby the forward
+ *          sensitivity residual directly, where the error does not cancel out.
+ */
+template <typename ConvDispOperator>
+void LumpedRateModelWithoutPores<ConvDispOperator>::updateInletJacobian() CADET_NOEXCEPT
+{
+	Indexer idxr(_disc);
+
+	// Setup the matrix connecting inlet DOFs to first column cells
+	_jacInlet.clear();
+	const double v = _convDispOp.inletJacobianFactor();
+
+	if (_convDispOp.forwardFlow())
+	{
+		// Forwards flow
+
+		// Place entries for inlet DOF to first column cell conversion
+		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+			_jacInlet.addElement(comp * idxr.strideColComp(), comp, -v);
+	}
+	else
+	{
+		// Backwards flow
+
+		// Place entries for inlet DOF to last column cell conversion
+		const unsigned int offset = (_disc.nCol - 1) * idxr.strideColCell();
+		for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+			_jacInlet.addElement(offset + comp * idxr.strideColComp(), comp, v);
+	}
+}
+
 template <typename ConvDispOperator>
 void LumpedRateModelWithoutPores<ConvDispOperator>::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 {
 	_convDispOp.setFlowRates(in[0], out[0], _totalPorosity);
+
+	// Dynamic flow rates change the velocity within a time section, which the inlet Jacobian
+	// block scales with
+	updateInletJacobian();
 }
 
 template <typename ConvDispOperator>

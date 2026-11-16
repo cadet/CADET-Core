@@ -259,6 +259,7 @@ protected:
 
 	void assembleOffdiagJac(double t, unsigned int secIdx, double const* vecStateY);
 	void assembleOffdiagJacFluxParticle(double t, unsigned int secIdx, double const* vecStateY);
+	void updateInletJacobian() CADET_NOEXCEPT;
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
 
 	int schurComplementMatrixVector(double const* x, double* z) const;

@@ -211,6 +211,7 @@ protected:
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes = true>
 	int residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem);
 
+	void updateInletJacobian() CADET_NOEXCEPT;
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
 
 	void assembleDiscretizedJacobian(double alpha, const Indexer& idxr);

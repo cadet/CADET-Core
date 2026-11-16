@@ -866,6 +866,103 @@ namespace column
 	}
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	/**
+	 * @brief Determines a flow rate that gives the configured column a representative velocity
+	 * @details The flow through area of the column test models spans several orders of magnitude:
+	 *          the load-wash-elution models use the area of a 1 cm column, whereas the linear
+	 *          benchmark models carry a large area so that a flow rate of one reproduces the
+	 *          velocity they were originally set up with. A single flow rate would therefore run
+	 *          one of them far below the dispersive transport, which is why the flow rate is
+	 *          derived from the geometry at hand instead.
+	 * @param [in] jpp Unit operation configuration
+	 * @return Volumetric flow rate, or a non-positive value if the geometry could not be read
+	 */
+	double representativeFlowRate(cadet::JsonParameterProvider& jpp)
+	{
+		const double velocity = 5.75e-4; //!< Interstitial velocity to aim for
+
+		int level = 0;
+		if (jpp.exists("model"))
+		{
+			jpp.pushScope("model");
+			++level;
+		}
+		if (jpp.exists("unit_000"))
+		{
+			jpp.pushScope("unit_000");
+			++level;
+		}
+
+		// The inlet of the radial flow cylinder shell is its outer shell, the inlet of the frustum
+		// is its large end
+		double area = -1.0;
+		for (const std::string field : { "CROSS_SECTION_AREA", "CROSS_SECTION_AREA_OUTER", "CROSS_SECTION_AREA_LARGE_END" })
+		{
+			if (jpp.exists(field) && !jpp.isArray(field))
+			{
+				area = jpp.getDouble(field);
+				break;
+			}
+		}
+
+		// The lumped rate model without pores runs its transport on the total porosity, every
+		// other column on the interstitial one. The two only differ by a factor here, which does
+		// not matter for putting the convection term on a scale that the transport actually sees.
+		double porosity = 1.0;
+		for (const std::string field : { "COL_POROSITY", "TOTAL_POROSITY" })
+		{
+			if (jpp.exists(field) && !jpp.isArray(field))
+			{
+				porosity = jpp.getDouble(field);
+				break;
+			}
+		}
+
+		for (int l = 0; l < level; ++l)
+			jpp.popScope();
+
+		return (area > 0.0) ? velocity * area * porosity : -1.0;
+	}
+
+	/**
+	 * @brief Imposes a flow rate on a column unit operation under test
+	 * @details The interstitial velocity of a column unit operation is only ever set through
+	 *          setFlowRates(); there is no VELOCITY field in the unit operation configuration any
+	 *          more. A unit operation test that imposes no flow rate therefore runs at zero
+	 *          velocity and never exercises the convection term, which is why one is imposed here
+	 *          whenever the caller does not prescribe it. Unit operations with more than one inlet
+	 *          port (the 2D models and the multi channel transport model) need one flow rate per
+	 *          port and are left to their caller.
+	 * @param [in,out] unit Unit operation to impose the flow rate on
+	 * @param [in] jpp Configuration of @p unit, used to derive a flow rate if none is given
+	 * @param [in] flowRate Flow rate prescribed by the caller, one entry per inlet port, or empty
+	 */
+	void imposeFlowRate(cadet::IUnitOperation* unit, cadet::JsonParameterProvider& jpp, const std::vector<double>& flowRate)
+	{
+		std::vector<double> rates = flowRate;
+		if (rates.empty())
+		{
+			const double derived = representativeFlowRate(jpp);
+			if ((unit->numInletPorts() != 1u) || (derived <= 0.0))
+				return;
+
+			rates.push_back(derived);
+		}
+
+		// setFlowRates() reads one entry per inlet port. A caller may hand over more than that:
+		// test2DColumnJacobian() reads the flow rates of the reference file once and then runs the
+		// same unit with fewer radial elements, and hence fewer ports, than the file prescribes.
+		REQUIRE(rates.size() >= unit->numInletPorts());
+
+		// The actives are created here and not by the caller so that they are fresh after the
+		// number of AD directions has been set, which keeps all of their gradient slots zero
+		std::vector<cadet::active> adRates(rates.size());
+		for (std::size_t i = 0; i < rates.size(); ++i)
+			adRates[i] = rates[i];
+
+		unit->setFlowRates(adRates.data(), adRates.data());
+	}
+
 	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern, const double absTolAD, const std::vector<double> flowRate)
 	{
 		cadet::ad::setDirections(cadet::ad::getMaxDirections()); // AD directions needed in createAndConfigureUnit but requiredADdirs not known before configureModelDiscretization (which is called in configureUnit)
@@ -981,6 +1078,68 @@ namespace column
 		cadet::test::compareJacobianFD(unit, unit, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data(), tls, h, absTol, relTol);
 
 		mb->destroyUnitOperation(unit);
+		destroyModelBuilder(mb);
+	}
+
+	void testJacobianDynamicFlowRate(cadet::JsonParameterProvider& jpp, const double flowRateFactor, const std::vector<double>& flowRate)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		// unitDyn enters the time section with the section flow rate and is set to the changed flow
+		// rate afterwards, unitRef enters the time section with the changed flow rate right away
+		cadet::IUnitOperation* const unitDyn = unitoperation::createAndConfigureUnit(jpp, *mb);
+		cadet::IUnitOperation* const unitRef = unitoperation::createAndConfigureUnit(jpp, *mb);
+
+		// Obtain memory for state, Jacobian multiply direction, Jacobian column
+		std::vector<double> y(unitDyn->numDofs(), 0.0);
+		std::vector<double> jacDir(unitDyn->numDofs(), 0.0);
+		std::vector<double> jacCol1(unitDyn->numDofs(), 0.0);
+		std::vector<double> jacCol2(unitDyn->numDofs(), 0.0);
+
+		// Fill state vector with some values
+		util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, unitDyn->numDofs());
+
+		const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
+		const ConstSimulationState simState{y.data(), nullptr};
+
+		// The flow rate of the section, either the one given or the one imposeFlowRate() derives
+		std::vector<double> sectionFlowRate = flowRate;
+		if (sectionFlowRate.empty())
+		{
+			REQUIRE(unitDyn->numInletPorts() == 1u);
+			sectionFlowRate.push_back(representativeFlowRate(jpp));
+			REQUIRE(sectionFlowRate[0] > 0.0);
+		}
+
+		std::vector<double> changedFlowRate(sectionFlowRate.size());
+		for (std::size_t i = 0; i < sectionFlowRate.size(); ++i)
+			changedFlowRate[i] = sectionFlowRate[i] * flowRateFactor;
+
+		// Enter the time section, in the order ModelSystem uses
+		imposeFlowRate(unitDyn, jpp, sectionFlowRate);
+		unitDyn->notifyDiscontinuousSectionTransition(0.0, 0u, simState, noAdParams);
+
+		// A dynamic flow rate changes the velocity within the time section: setFlowRates() is called
+		// again before the residual, without a section transition in between
+		imposeFlowRate(unitDyn, jpp, changedFlowRate);
+
+		imposeFlowRate(unitRef, jpp, changedFlowRate);
+		unitRef->notifyDiscontinuousSectionTransition(0.0, 0u, simState, noAdParams);
+
+		// Compute state Jacobians
+		const SimulationTime simTime{0.0, 0u};
+		cadet::util::ThreadLocalStorage tls;
+		tls.resize(unitDyn->threadLocalMemorySize());
+
+		unitDyn->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams, tls);
+		unitRef->residualWithJacobian(simTime, simState, jacDir.data(), noAdParams, tls);
+		std::fill(jacDir.begin(), jacDir.end(), 0.0);
+
+		cadet::test::compareJacobian(unitDyn, unitRef, y.data(), nullptr, jacDir.data(), jacCol1.data(), jacCol2.data());
+
+		mb->destroyUnitOperation(unitDyn);
+		mb->destroyUnitOperation(unitRef);
 		destroyModelBuilder(mb);
 	}
 

@@ -191,6 +191,21 @@ TEST_CASE("LRMP with two component linear binding Jacobian", "[LRMP],[FV],[UnitO
 	cadet::test::column::testJacobianAD(jpp);
 }
 
+TEST_CASE("LRMP Jacobian follows a dynamic flow rate", "[LRMP],[FV],[UnitOp],[Jacobian],[Inlet],[CI]")
+{
+	for (int dir = 0; dir < 2; ++dir)
+	{
+		SECTION(dir == 0 ? "Forward flow" : "Backward flow")
+		{
+			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("LUMPED_RATE_MODEL_WITH_PORES", "FV");
+			if (dir != 0)
+				cadet::test::column::reverseFlow(jpp);
+
+			cadet::test::column::testJacobianDynamicFlowRate(jpp, 3.0);
+		}
+	}
+}
+
 TEST_CASE("LRMP LWE one vs two identical particle types match", "[LRMP],[FV],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("LUMPED_RATE_MODEL_WITH_PORES", "FV", 1e-7, 6e-5);

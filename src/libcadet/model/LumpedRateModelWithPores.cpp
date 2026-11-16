@@ -732,11 +732,24 @@ void LumpedRateModelWithPores<ConvDispOperator>::notifyDiscontinuousSectionTrans
 	if ((secIdx == 0) || isSectionDependent(_filmDiffusionMode))
 		assembleOffdiagJac(t, secIdx);
 
-	Indexer idxr(_disc);
+	// AxialConvectionDispersionOperator updates the velocity and the flow direction
+	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, adJac);
 
-	// AxialConvectionDispersionOperator tells us whether flow direction has changed
-	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, adJac))
-		return;
+	updateInletJacobian();
+}
+
+/**
+ * @brief Rebuilds the matrix connecting the inlet DOFs to the inlet adjacent column cells
+ * @details The entries of this block scale with the current interstitial velocity, so the block has
+ *          to be rebuilt whenever the velocity changes: at a section transition, and, for dynamic
+ *          flow rates, on every call of setFlowRates() within a section. A stale block does not only
+ *          degrade the Newton matrix, it enters multiplyWithJacobian() and thereby the forward
+ *          sensitivity residual directly, where the error does not cancel out.
+ */
+template <typename ConvDispOperator>
+void LumpedRateModelWithPores<ConvDispOperator>::updateInletJacobian() CADET_NOEXCEPT
+{
+	Indexer idxr(_disc);
 
 	// Setup the matrix connecting inlet DOFs to first column cells
 	_jacInlet.clear();
@@ -765,6 +778,10 @@ template <typename ConvDispOperator>
 void LumpedRateModelWithPores<ConvDispOperator>::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 {
 	_convDispOp.setFlowRates(in[0], out[0], _colPorosity);
+
+	// Dynamic flow rates change the velocity within a time section, which the inlet Jacobian
+	// block scales with
+	updateInletJacobian();
 }
 
 template <typename ConvDispOperator>
