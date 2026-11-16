@@ -2960,7 +2960,7 @@ void GeneralRateModel<ConvDispOperator>::setUserdefinedRadialDisc(unsigned int p
 	orderedInterfaces.back() = 0.0;
 
 	// Map [0, 1] -> [core radius, particle radius] via linear interpolation
-	for (unsigned int cell = 0; cell < _disc.nParCell[parType]; ++cell)
+	for (unsigned int cell = 0; cell <= _disc.nParCell[parType]; ++cell)
 		orderedInterfaces[cell] = static_cast<double>(orderedInterfaces[cell]) * (_parRadius[parType] - _parCoreRadius[parType]) + _parCoreRadius[parType];
 
 	if (_parGeomSurfToVol[parType] == SurfVolRatioSphere)

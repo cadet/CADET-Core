@@ -76,8 +76,8 @@ namespace parts
 		{
 			_parDiscMode = ParticleDiscretizationMode::UserDefined;
 			_parDiscVector = paramProvider.getDoubleArray("PAR_DISC_VECTOR");
-			if (_parDiscVector.size() < _nParPoints)
-				throw InvalidParameterException("Field PAR_DISC_VECTOR contains too few elements (" + std::to_string(_nParPoints) + " required)");
+			if (_parDiscVector.size() < _nParPoints + 1)
+				throw InvalidParameterException("Field PAR_DISC_VECTOR contains too few elements (" + std::to_string(_nParPoints + 1) + " required)");
 
 			for (std::size_t i = 0; i < _parDiscVector.size(); ++i)
 			{
@@ -268,7 +268,7 @@ namespace parts
 		orderedInterfaces.back() = 1.0;
 
 		// Map [0, 1] -> [core radius, particle radius] via linear interpolation
-		for (int cell = 0; cell < _nParPoints; ++cell)
+		for (int cell = 0; cell <= _nParPoints; ++cell)
 			orderedInterfaces[cell] = static_cast<double>(orderedInterfaces[cell]) * (_parRadius - _parCoreRadius) + _parCoreRadius;
 
 		if (_parGeomSurfToVol == _SurfVolRatioSphere)
