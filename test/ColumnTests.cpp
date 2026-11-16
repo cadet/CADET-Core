@@ -1001,17 +1001,9 @@ namespace column
 
 		cadet::ad::setDirections(cadet::ad::getMaxDirections());
 
-		// set velocity from flow rates if provided as fresh active after setDirections to ensure all AD slots are zero-initialized
-		if (!flowRate.empty())
-		{
-			cadet::active* safeFlowRate = new cadet::active[flowRate.size()];
-
-			for (int i = 0; i < flowRate.size(); ++i)
-				safeFlowRate[i] = flowRate[i];
-
-			unitAna->setFlowRates(&safeFlowRate[0], &safeFlowRate[0]);
-			unitAD->setFlowRates(&safeFlowRate[0], &safeFlowRate[0]);
-		}
+		// Set velocity from flow rates after setDirections, see imposeFlowRate()
+		imposeFlowRate(unitAna, jpp, flowRate);
+		imposeFlowRate(unitAD, jpp, flowRate);
 
 		const ConstSimulationState simState{y.data(), nullptr};
 		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, simState, noAdParams);
@@ -1063,6 +1055,8 @@ namespace column
 
 		if (flowRate) //  for 2D units, velocity needs to be determined from flow rates
 			unit->setFlowRates(flowRate, flowRate);
+		else
+			imposeFlowRate(unit, jpp, {});
 
 		const ConstSimulationState simState{y.data(), nullptr};
 		unit->notifyDiscontinuousSectionTransition(0.0, 0u, simState, noAdParams);
@@ -1181,6 +1175,9 @@ namespace column
 		const AdJacobianParams adParams{adRes, adY, 0u};
 		unitAD->prepareADvectors(adParams);
 
+		imposeFlowRate(unitAna, jpp, {});
+		imposeFlowRate(unitAD, jpp, {});
+
 		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
 		unitAD->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, adParams);
 
@@ -1282,6 +1279,7 @@ namespace column
 
 			// Setup matrices
 			const AdJacobianParams noAdParams{nullptr, nullptr, 0u};
+			imposeFlowRate(unit, jpp, {});
 			unit->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noAdParams);
 
 			SECTION("Forward then backward flow (nonzero state)")
@@ -1547,6 +1545,8 @@ namespace column
 
 		// Setup matrices
 		const AdJacobianParams noParams{nullptr, nullptr, 0u};
+		imposeFlowRate(unitAna, jpp, {});
+		imposeFlowRate(unitFD, jpp, {});
 		unitAna->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noParams);
 		unitFD->notifyDiscontinuousSectionTransition(0.0, 0u, {y.data(), nullptr}, noParams);
 
