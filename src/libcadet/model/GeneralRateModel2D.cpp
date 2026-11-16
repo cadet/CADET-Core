@@ -519,8 +519,10 @@ bool GeneralRateModel2D::configureModelDiscretization(IParameterProvider& paramP
 		if (!_binding[parType])
 			throw InvalidParameterException("Unknown binding model " + bindModelName);
 
-		MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _binding[parType]->usesParamProviderInDiscretizationConfig());
-		bindingConfSuccess = _binding[parType]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + parType * _disc.nComp, _disc.boundOffset + parType * _disc.nComp) && bindingConfSuccess;
+		{
+			MultiplexedScopeSelector scopeGuard(paramProvider, "adsorption", _binding[parType]->usesParamProviderInDiscretizationConfig());
+			bindingConfSuccess = _binding[parType]->configureModelDiscretization(paramProvider, _disc.nComp, _disc.nBound + parType * _disc.nComp, _disc.boundOffset + parType * _disc.nComp) && bindingConfSuccess;
+		}
 
 		// ==== Construct and configure dynamic particle reaction model
 

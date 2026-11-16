@@ -515,16 +515,12 @@ TEST_CASE("Column units with FV particles map USER_DEFINED particle cells to the
 	// EQUIDISTANT (EQUIVOLUME) discretization, which requires the relative interfaces in PAR_DISC_VECTOR to be
 	// mapped onto [PAR_CORERADIUS, PAR_RADIUS]. This is checked for the arrow head FV GRM, the 1D column model
 	// with FV particles and the 2D FV GRM. Additionally, the analytic Jacobian of a non-uniform user defined grid
-	// has to match AD (not available for the 2D FV GRM). The 2D FV GRM is only checked with spherical particles,
-	// as its residual does not depend on PAR_GEOM.
+	// has to match AD (not available for the 2D FV GRM).
 	const std::vector<std::pair<std::string, std::string>> units = { { "GENERAL_RATE_MODEL", "FV" }, { "COLUMN_MODEL_1D_GRM", "DGFV" }, { "COLUMN_MODEL_2D_GRM", "FV" } };
 	for (const auto& unit : units)
 	{
 		for (const std::string geom : { "SPHERE", "CYLINDER", "SLAB" })
 		{
-			if ((unit.first == "COLUMN_MODEL_2D_GRM") && (geom != "SPHERE"))
-				continue;
-
 			const double geomExponent = (geom == "SPHERE") ? 3.0 : ((geom == "CYLINDER") ? 2.0 : 1.0);
 			for (const double relCoreRadius : { 0.0, 0.3 })
 			{
