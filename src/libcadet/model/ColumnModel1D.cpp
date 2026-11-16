@@ -1536,7 +1536,11 @@ void ColumnModel1D<ConvDispOperator>::multiplyWithJacobian(const SimulationTime&
 	else
 		ret_vec = alpha * _globalJac.block(idxr.offsetC(), idxr.offsetC(), numPureDofs(), numPureDofs()) * yS_vec + beta * ret_vec;
 
-	unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
+	// The inlet block holds the dependence of the inlet adjacent discrete points on the inlet DOFs,
+	// so under backward flow it ends at the last point rather than starting at the first. How many
+	// points it covers depends on the transport operator: the collocation DG operator upwinds into
+	// a single node, the variable cross section operator into a whole element.
+	const unsigned int offInlet = _convDispOp.forwardFlow() ? 0u : (_disc.nPoints - static_cast<unsigned int>(_jacInlet.rows())) * idxr.strideColNode();
 
 	const auto& cm = _reaction.conservedMoieties("liquid");
 	if (cm.hasRapidEquilibrium())

@@ -910,8 +910,12 @@ namespace cadet
 				ret_vec = alpha * _jac * yS_vec + beta * ret_vec;
 
 			// Map inlet DOFs to the column inlet (first bulk cells)
-			// Inlet at z = 0 for forward flow, at z = L for backward flow.
-			unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
+			// Inlet at z = 0 for forward flow, at z = L for backward flow. The inlet block holds the
+			// dependence of the inlet adjacent discrete points on the inlet DOFs, so under backward
+			// flow it ends at the last point rather than starting at the first. How many points it
+			// covers depends on the transport operator: the collocation DG operator upwinds into a
+			// single node, the variable cross section operator into a whole element.
+			const unsigned int offInlet = _convDispOp.forwardFlow() ? 0u : (_disc.nPoints - static_cast<unsigned int>(_jacInlet.rows())) * idxr.strideColNode();
 
 			for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
 				for (unsigned int node = 0; node < _jacInlet.rows(); node++) {
@@ -1046,8 +1050,9 @@ namespace cadet
 			}
 
 			// Handle inlet DOFs:
-			// Inlet at z = 0 for forward flow, at z = L for backward flow.
-			unsigned int offInlet = _convDispOp.forwardFlow() ? 0 : (_disc.nElem - 1u) * idxr.strideColCell();
+			// Inlet at z = 0 for forward flow, at z = L for backward flow. The inlet block ends at
+			// the last discrete point under backward flow, see multiplyWithJacobian().
+			const unsigned int offInlet = _convDispOp.forwardFlow() ? 0u : (_disc.nPoints - static_cast<unsigned int>(_jacInlet.rows())) * idxr.strideColNode();
 
 			for (unsigned int comp = 0; comp < _disc.nComp; comp++) {
 				for (unsigned int node = 0; node < _jacInlet.rows(); node++) {
