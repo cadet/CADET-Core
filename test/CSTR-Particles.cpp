@@ -911,9 +911,6 @@ TEST_CASE("CSTR with DG general rate particles conserves mass and matches AD Jac
 					jpp.set("PAR_DISC_TYPE", discType);
 					if (discType == "USER_DEFINED")
 						jpp.set("PAR_DISC_VECTOR", relInterfaces);
-					// The single element GSM discretization of slabs is not considered here, see DGSEM instead
-					if ((geom == "SLAB") && (nElem == 1))
-						jpp.set("PAR_GSM", false);
 					jpp.popScope();
 					jpp.popScope();
 

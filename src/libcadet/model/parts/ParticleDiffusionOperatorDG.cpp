@@ -872,14 +872,15 @@ namespace parts
 						- _parInvMM_Leg(Node, _parPolyDeg) * (state[elem * strideelem + _parPolyDeg * strideNode] - _surfFluxPar[elem + 1u]);
 				}
 				else {
-					if (_parGeomSurfToVol == _SurfVolRatioSlab) { // strong surface integral -> M^-1 B [state - state*] and B has two non-zero entries, -1 and 1
+					// The GSM discretization uses the weak form, also for slabs (where the metric terms in _Ir are one)
+					if (_parGeomSurfToVol == _SurfVolRatioSlab && !_parGSM) { // strong surface integral -> M^-1 B [state - state*] and B has two non-zero entries, -1 and 1
 						stateDer[elem * strideelem + Node * strideNode]
 							-= static_cast<ResidualType>(
 								_parInvMM[elem](Node, 0) * (state[elem * strideelem] - innerStar)
 								- _parInvMM[elem](Node, _parPolyDeg) * (state[elem * strideelem + _parPolyDeg * strideNode] - outerStar)
 								);
 					}
-					else if (_parGeomSurfToVol == _SurfVolRatioCylinder) { // weak surface integral -> M^-1 B [- state*] and B has two non-zero entries, which depend on metrics
+					else if (_parGeomSurfToVol == _SurfVolRatioCylinder || _parGeomSurfToVol == _SurfVolRatioSlab) { // weak surface integral -> M^-1 B [- state*] and B has two non-zero entries, which depend on metrics
 						stateDer[elem * strideelem + Node * strideNode]
 							-= static_cast<ResidualType>(
 								_Ir[elem][0] * _parInvMM[elem](Node, 0) * (-innerStar)

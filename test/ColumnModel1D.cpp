@@ -611,6 +611,65 @@ TEST_CASE("Column_1D as GRM LWE DGSEM and GSM particle discretization yields sim
 	}
 }
 
+TEST_CASE("Column_1D as GRM LWE with slab particles: single element GSM agrees with DGSEM and a refined particle discretization", "[AxialColumn1D],[DG],[DG1D],[Simulation],[CI]")
+{
+	// Runs the LWE with slab shaped particles and returns the outlet
+	const auto runOutlet = [](int parPolyDeg, int parNelem, bool gsm) -> std::vector<double>
+	{
+		cadet::JsonParameterProvider jpp = createLWE("COLUMN_MODEL_1D_GRM", "DG");
+		cadet::test::column::DGParams disc(1, 4, 2, parPolyDeg, parNelem);
+		disc.setDisc(jpp);
+
+		jpp.pushScope("model");
+		jpp.pushScope("unit_000");
+		jpp.pushScope("particle_type_000");
+		jpp.set("PAR_GEOM", std::string("SLAB"));
+		jpp.pushScope("discretization");
+		jpp.set("PAR_GSM", gsm);
+		jpp.popScope();
+		jpp.popScope();
+		jpp.popScope();
+		jpp.popScope();
+
+		cadet::Driver drv;
+		drv.configure(jpp);
+		drv.run();
+
+		cadet::InternalStorageUnitOpRecorder const* const data = drv.solution()->unitOperation(0);
+		const unsigned int nValues = data->numDataPoints() * data->numOutletPorts() * data->numComponents();
+		return std::vector<double>(data->outlet(), data->outlet() + nValues);
+	};
+
+	const std::vector<double> gsmOutlet = runOutlet(4, 1, true);
+	const std::vector<double> dgsemOutlet = runOutlet(4, 1, false);
+	const std::vector<double> refOutlet = runOutlet(4, 4, false);
+
+	REQUIRE(gsmOutlet.size() == refOutlet.size());
+	REQUIRE(dgsemOutlet.size() == refOutlet.size());
+
+	// The single element GSM and DGSEM discretizations of slabs agree
+	for (std::size_t i = 0; i < refOutlet.size(); ++i)
+	{
+		CAPTURE(i);
+		CHECK(gsmOutlet[i] == cadet::test::makeApprox(dgsemOutlet[i], 2e-4, 1e-9));
+	}
+
+	// and are of comparable accuracy w.r.t. the refined particle discretization
+	double gsmError = 0.0;
+	double dgsemError = 0.0;
+	double refMax = 0.0;
+	for (std::size_t i = 0; i < refOutlet.size(); ++i)
+	{
+		gsmError = std::max(gsmError, std::abs(gsmOutlet[i] - refOutlet[i]));
+		dgsemError = std::max(dgsemError, std::abs(dgsemOutlet[i] - refOutlet[i]));
+		refMax = std::max(refMax, std::abs(refOutlet[i]));
+	}
+
+	CAPTURE(gsmError, dgsemError, refMax);
+	CHECK(gsmError <= 1.5 * dgsemError);
+	CHECK(gsmError <= 1e-2 * refMax);
+}
+
 TEST_CASE("Column_1D as GRM time derivative Jacobian vs FD", "[AxialColumn1D],[DG],[DG1D],[UnitOp],[Residual],[Jacobian],[CI],[FD]")
 {
 	cadet::test::column::testTimeDerivativeJacobianFD("COLUMN_MODEL_1D_GRM", "DG", 1e-6, 0.0, 9e-4);
