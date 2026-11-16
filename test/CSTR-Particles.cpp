@@ -30,7 +30,9 @@
 #include "AdUtils.hpp"
 #include "SimulationTypes.hpp"
 #include "ParallelSupport.hpp"
+#include "model/parts/DGToolbox.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <iomanip>
@@ -791,4 +793,187 @@ TEST_CASE("CSTR rejects unbalanced flow rates", "[CSTR],[CI]")
 
 	mb->destroyUnitOperation(unit);
 	destroyModelBuilder(mb);
+}
+
+namespace
+{
+	/**
+	 * @brief Returns the element interfaces of a DG particle discretization ordered from the particle core to the outer surface
+	 * @param [in] discType Value of PAR_DISC_TYPE
+	 * @param [in] geomExponent Exponent d of the particle geometry, i.e. 3 for spheres, 2 for cylinders and 1 for slabs
+	 * @param [in] parRadius Particle radius
+	 * @param [in] coreRadius Particle core radius
+	 * @param [in] relInterfaces Relative element interfaces in [0, 1] in ascending order (only used for USER_DEFINED)
+	 * @return Absolute element interfaces
+	 */
+	std::vector<double> particleElementInterfaces(const std::string& discType, double geomExponent, double parRadius, double coreRadius, const std::vector<double>& relInterfaces)
+	{
+		const unsigned int nElem = static_cast<unsigned int>(relInterfaces.size()) - 1;
+		std::vector<double> interfaces(nElem + 1);
+		for (unsigned int k = 0; k <= nElem; ++k)
+		{
+			if (discType == "EQUIVOLUME")
+			{
+				const double vol = std::pow(coreRadius, geomExponent) + static_cast<double>(k) / nElem * (std::pow(parRadius, geomExponent) - std::pow(coreRadius, geomExponent));
+				interfaces[k] = std::pow(vol, 1.0 / geomExponent);
+			}
+			else if (discType == "USER_DEFINED")
+				interfaces[k] = coreRadius + relInterfaces[k] * (parRadius - coreRadius);
+			else
+				interfaces[k] = coreRadius + static_cast<double>(k) / nElem * (parRadius - coreRadius);
+		}
+		return interfaces;
+	}
+
+	/**
+	 * @brief Integrates every nodal basis function of a DG particle discretization with the geometric weight r^(d-1)
+	 * @details The weights are computed on the given element interfaces, independently of the discretization in CADET-Core.
+	 * @param [in] interfaces Absolute element interfaces ordered from the particle core to the outer surface
+	 * @param [in] polyDeg Polynomial degree of the particle discretization
+	 * @param [in] geomExponent Exponent d of the particle geometry
+	 * @return Nodal weights W_i = int l_i(r) r^(d-1) dr in the node ordering of CADET-Core
+	 */
+	std::vector<double> particleNodalVolumes(const std::vector<double>& interfaces, unsigned int polyDeg, double geomExponent)
+	{
+		Eigen::VectorXd nodes(polyDeg + 1);
+		Eigen::VectorXd invWeights(polyDeg + 1);
+		cadet::model::parts::dgtoolbox::lglNodesWeights(polyDeg, nodes, invWeights, true);
+
+		// LGL quadrature with polyDeg + 4 nodes is exact for polynomials of degree 2 * polyDeg + 5 >= polyDeg + 2
+		const unsigned int quadDeg = polyDeg + 3;
+		Eigen::VectorXd quadNodes(quadDeg + 1);
+		Eigen::VectorXd invQuadWeights(quadDeg + 1);
+		cadet::model::parts::dgtoolbox::lglNodesWeights(quadDeg, quadNodes, invQuadWeights, true);
+
+		const unsigned int nElem = static_cast<unsigned int>(interfaces.size()) - 1;
+		std::vector<double> nodalVolumes(nElem * (polyDeg + 1), 0.0);
+		for (unsigned int elem = 0; elem < nElem; ++elem)
+		{
+			const double halfWidth = 0.5 * (interfaces[elem + 1] - interfaces[elem]);
+			for (unsigned int node = 0; node <= polyDeg; ++node)
+			{
+				double integral = 0.0;
+				for (unsigned int q = 0; q <= quadDeg; ++q)
+				{
+					double basis = 1.0;
+					for (unsigned int m = 0; m <= polyDeg; ++m)
+					{
+						if (m != node)
+							basis *= (quadNodes[q] - nodes[m]) / (nodes[node] - nodes[m]);
+					}
+					const double r = interfaces[elem] + halfWidth * (1.0 + quadNodes[q]);
+					integral += basis / invQuadWeights[q] * std::pow(r, geomExponent - 1.0);
+				}
+				nodalVolumes[elem * (polyDeg + 1) + node] = halfWidth * integral;
+			}
+		}
+		return nodalVolumes;
+	}
+}
+
+TEST_CASE("CSTR with DG general rate particles conserves mass and matches AD Jacobian on non-equidistant particle elements", "[CSTR],[DG],[UnitOp],[Residual],[Jacobian],[AD],[CI]")
+{
+	// The finite bath decouples the particle from any bulk transport discretization. Pore and surface diffusion
+	// are active. With y' = 0 and vanishing binding rates, the residual of the particle liquid phase at each node
+	// is -eps_p^-1 times the rate of change of the total (liquid and bound) particle mass. Summing over the nodes
+	// with the true volumes W_i of the nodal basis functions has to recover the film diffusion flux through the
+	// particle surface, eps_p * sum_i W_i (-res_i) = R^(d-1) k_f (c - c_p(R)), for every element grid.
+	// Further, the analytic Jacobian (with kinetic binding) has to match the one obtained by AD.
+	const double parRadius = 4.5e-5;
+	const double parPorosity = 0.75;
+	const double filmDiffusion[] = { 6.9e-6, 6.9e-6 };
+	const unsigned int polyDeg = 3;
+	const unsigned int nComp = 2;
+	const unsigned int strideParNode = nComp + 2; // two bound states
+
+	for (const std::string geom : { "SPHERE", "CYLINDER", "SLAB" })
+	{
+		const double geomExponent = (geom == "SPHERE") ? 3.0 : ((geom == "CYLINDER") ? 2.0 : 1.0);
+		for (const std::string discType : { "EQUIDISTANT", "EQUIVOLUME", "USER_DEFINED" })
+		{
+			for (const double relCoreRadius : { 0.0, 0.3 })
+			{
+				for (const unsigned int nElem : { 1u, 2u, 3u, 5u })
+				{
+					INFO("Geometry " << geom << ", PAR_DISC_TYPE " << discType << ", PAR_CORERADIUS / PAR_RADIUS " << relCoreRadius << ", PAR_NELEM " << nElem);
+
+					// Strongly non-uniform user defined grid, refined towards the particle surface
+					std::vector<double> relInterfaces(nElem + 1);
+					for (unsigned int k = 0; k <= nElem; ++k)
+						relInterfaces[k] = std::sqrt(static_cast<double>(k) / nElem);
+
+					cadet::JsonParameterProvider jpp = createFiniteBath("GENERAL_RATE_PARTICLE", "DG");
+					jpp.pushScope("particle_type_000");
+					jpp.set("PAR_GEOM", geom);
+					jpp.set("PAR_CORERADIUS", relCoreRadius * parRadius);
+					jpp.pushScope("discretization");
+					jpp.set("PAR_NELEM", static_cast<int>(nElem));
+					jpp.set("PAR_DISC_TYPE", discType);
+					if (discType == "USER_DEFINED")
+						jpp.set("PAR_DISC_VECTOR", relInterfaces);
+					// The single element GSM discretization of slabs is not considered here, see DGSEM instead
+					if ((geom == "SLAB") && (nElem == 1))
+						jpp.set("PAR_GSM", false);
+					jpp.popScope();
+					jpp.popScope();
+
+					// Analytic Jacobian vs AD
+					checkJacobianAD(jpp, 0.0);
+
+					// Rate of change of the total particle mass
+					jpp.pushScope("particle_type_000");
+					jpp.pushScope("adsorption");
+					jpp.set("LIN_KA", std::vector<double>{ 0.0, 0.0 });
+					jpp.set("LIN_KD", std::vector<double>{ 0.0, 0.0 });
+					jpp.popScope();
+					jpp.popScope();
+					{
+						cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+						REQUIRE(nullptr != mb);
+
+						cadet::IUnitOperation* const unit = createAndConfigureStirredTank(*mb, jpp, 0.0);
+						const unsigned int nDof = unit->numDofs();
+						const unsigned int nParPoints = nElem * (polyDeg + 1);
+						REQUIRE(nDof == 2 * nComp + nParPoints * strideParNode + 1);
+
+						std::vector<double> y(nDof, 0.0);
+						std::vector<double> yDot(nDof, 0.0);
+						std::vector<double> res(nDof, 0.0);
+						cadet::test::util::populate(y.data(), [](unsigned int idx) { return std::abs(std::sin(idx * 0.13)) + 1e-4; }, nDof);
+
+						cadet::util::ThreadLocalStorage tls;
+						tls.resize(unit->threadLocalMemorySize());
+						const cadet::AdJacobianParams noParams{ nullptr, nullptr, 0u };
+						unit->notifyDiscontinuousSectionTransition(0.0, 0u, { y.data(), yDot.data() }, noParams);
+						unit->residual(cadet::SimulationTime{ 0.0, 0u }, cadet::ConstSimulationState{ y.data(), yDot.data() }, res.data(), tls);
+
+						const std::vector<double> nodalVolumes = particleNodalVolumes(particleElementInterfaces(discType, geomExponent, parRadius, relCoreRadius * parRadius, relInterfaces), polyDeg, geomExponent);
+						const unsigned int offsetCp = 2 * nComp;
+						for (unsigned int comp = 0; comp < nComp; ++comp)
+						{
+							double massRate = 0.0;
+							double scale = 0.0;
+							for (unsigned int node = 0; node < nParPoints; ++node)
+							{
+								massRate -= parPorosity * nodalVolumes[node] * res[offsetCp + node * strideParNode + comp];
+								scale += parPorosity * std::abs(nodalVolumes[node] * res[offsetCp + node * strideParNode + comp]);
+							}
+
+							const double cBulk = y[nComp + comp];
+							const double cpSurface = y[offsetCp + (nParPoints - 1) * strideParNode + comp];
+							const double filmFlux = std::pow(parRadius, geomExponent - 1.0) * filmDiffusion[comp] * (cBulk - cpSurface);
+
+							const double relError = std::abs(massRate - filmFlux) / std::max(scale, std::abs(filmFlux));
+							CAPTURE(comp, massRate, filmFlux, relError);
+							CHECK(relError <= 1e-10);
+						}
+
+						mb->destroyUnitOperation(unit);
+						cadet::destroyModelBuilder(mb);
+					}
+
+				}
+			}
+		}
+	}
 }

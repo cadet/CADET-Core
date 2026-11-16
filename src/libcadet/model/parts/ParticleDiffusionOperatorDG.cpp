@@ -97,8 +97,8 @@ namespace parts
 		{
 			_parDiscMode = ParticleDiscretizationMode::UserDefined;
 			_parDiscVector = paramProvider.getDoubleArray("PAR_DISC_VECTOR");
-			if (_parDiscVector.size() < _nParPoints)
-				throw InvalidParameterException("Field PAR_DISC_VECTOR contains too few elements (" + std::to_string(_nParPoints) + " required)");
+			if (_parDiscVector.size() < _nParElem + 1)
+				throw InvalidParameterException("Field PAR_DISC_VECTOR contains too few elements (" + std::to_string(_nParElem + 1) + " required)");
 
 			for (std::size_t i = 0; i < _parDiscVector.size(); ++i)
 			{
@@ -292,7 +292,7 @@ namespace parts
 		orderedInterfaces.back() = 0.0;
 
 		// Map [0, 1] -> [core radius, particle radius] via linear interpolation
-		for (unsigned int elem = 0; elem < _nParElem; ++elem)
+		for (unsigned int elem = 0; elem <= _nParElem; ++elem)
 			orderedInterfaces[elem] = static_cast<double>(orderedInterfaces[elem]) * (_parRadius - _parCoreRadius) + _parCoreRadius;
 
 		if (_parGeomSurfToVol == _SurfVolRatioSphere)
@@ -308,7 +308,7 @@ namespace parts
 				ptrOuterSurfAreaPerVolume[elem] = 3.0 * sqr(orderedInterfaces[elem]) / vol;
 				ptrInnerSurfAreaPerVolume[elem] = 3.0 * sqr(orderedInterfaces[elem + 1]) / vol;
 				// Note that the DG particle elements are oppositely ordered compared to the FV particle elements
-				_deltaR[_nParElem - (elem + 1)] = ptrOuterSurfAreaPerVolume[elem] - ptrInnerSurfAreaPerVolume[elem];
+				_deltaR[_nParElem - (elem + 1)] = ptrElemSize[elem];
 			}
 		}
 		else if (_parGeomSurfToVol == _SurfVolRatioCylinder)
@@ -324,7 +324,7 @@ namespace parts
 				ptrOuterSurfAreaPerVolume[elem] = 2.0 * orderedInterfaces[elem] / vol;
 				ptrInnerSurfAreaPerVolume[elem] = 2.0 * orderedInterfaces[elem + 1] / vol;
 				// Note that the DG particle elements are oppositely ordered compared to the FV particle elements
-				_deltaR[_nParElem - (elem + 1)] = ptrOuterSurfAreaPerVolume[elem] - ptrInnerSurfAreaPerVolume[elem];
+				_deltaR[_nParElem - (elem + 1)] = ptrElemSize[elem];
 			}
 		}
 		else if (_parGeomSurfToVol == _SurfVolRatioSlab)
@@ -340,7 +340,7 @@ namespace parts
 				ptrOuterSurfAreaPerVolume[elem] = 1.0 / vol;
 				ptrInnerSurfAreaPerVolume[elem] = 1.0 / vol;
 				// Note that the DG particle elements are oppositely ordered compared to the FV particle elements
-				_deltaR[_nParElem - (elem + 1)] = ptrOuterSurfAreaPerVolume[elem] - ptrInnerSurfAreaPerVolume[elem];
+				_deltaR[_nParElem - (elem + 1)] = ptrElemSize[elem];
 			}
 		}
 	}
@@ -372,7 +372,7 @@ namespace parts
 			for (int node = 0; node < _nParNode; node++)
 				_Ir[elem][node] = _deltaR[elem] / 2.0 * (_parNodes[node] + 1.0);
 
-			active r_L = _parCoreRadius + elem * _deltaR[elem]; // left boundary of current elem
+			active r_L = _parCoreRadius + elementOffset(elem); // left boundary of current elem
 
 			_Ir[elem] = _Ir[elem] + VectorXd::Ones(_nParNode) * r_L;
 
@@ -821,7 +821,7 @@ namespace parts
 			// film diffusion BC
 			_surfFluxPar[_nParElem] = static_cast<StateType>(_localFlux[comp])
 				/ (static_cast<double>(_parPorosity) * static_cast<double>(_poreAccessFactor[comp]))
-				* (2.0 / static_cast<double>(_deltaR[0])); // inverse squared mapping was also applied, so we apply Map * invMap^2 = invMap
+				* (2.0 / static_cast<double>(_deltaR[_nParElem - 1])); // inverse squared mapping of the outer element was also applied, so we apply Map * invMap^2 = invMap
 
 			// inner particle BC
 			_surfFluxPar[0] = 0.0;
@@ -850,6 +850,21 @@ namespace parts
 		// strong surface integral -> M^-1 B [state - state*]
 		for (unsigned int elem = 0; elem < _nParElem; elem++) {
 
+			// Numerical fluxes at the inner and outer interface of the current element (only required for the main equation).
+			// The state of every element was scaled with the squared inverse mapping (2 / deltaR)^2 of that element, whereas the
+			// surface integral of the current element requires the mean of the physical fluxes, i.e. the states scaled with their
+			// own inverse mapping 2 / deltaR, times the inverse mapping of the current element. Hence, the contribution of the
+			// neighbouring element is rescaled by deltaR_neighbour / deltaR_elem, which is exactly one for equidistant elements.
+			StateType innerStar = _surfFluxPar[elem];
+			StateType outerStar = _surfFluxPar[elem + 1u];
+			if (!aux)
+			{
+				if (elem > 0)
+					innerStar = 0.5 * (state[elem * strideelem - strideNode] * (static_cast<double>(_deltaR[elem - 1]) / static_cast<double>(_deltaR[elem])) + state[elem * strideelem]);
+				if (elem < _nParElem - 1)
+					outerStar = 0.5 * (state[(elem + 1) * strideelem - strideNode] + state[(elem + 1) * strideelem] * (static_cast<double>(_deltaR[elem + 1]) / static_cast<double>(_deltaR[elem])));
+			}
+
 			for (unsigned int Node = 0; Node < _nParNode; Node++) {
 				if (aux) { // strong surface integral -> M^-1 B [state - state*] and B has two non-zero entries, -1 and 1
 					stateDer[elem * strideelem + Node * strideNode]
@@ -860,22 +875,22 @@ namespace parts
 					if (_parGeomSurfToVol == _SurfVolRatioSlab) { // strong surface integral -> M^-1 B [state - state*] and B has two non-zero entries, -1 and 1
 						stateDer[elem * strideelem + Node * strideNode]
 							-= static_cast<ResidualType>(
-								_parInvMM[elem](Node, 0) * (state[elem * strideelem] - _surfFluxPar[elem])
-								- _parInvMM[elem](Node, _parPolyDeg) * (state[elem * strideelem + _parPolyDeg * strideNode] - _surfFluxPar[elem + 1u])
+								_parInvMM[elem](Node, 0) * (state[elem * strideelem] - innerStar)
+								- _parInvMM[elem](Node, _parPolyDeg) * (state[elem * strideelem + _parPolyDeg * strideNode] - outerStar)
 								);
 					}
 					else if (_parGeomSurfToVol == _SurfVolRatioCylinder) { // weak surface integral -> M^-1 B [- state*] and B has two non-zero entries, which depend on metrics
 						stateDer[elem * strideelem + Node * strideNode]
 							-= static_cast<ResidualType>(
-								_Ir[elem][0] * _parInvMM[elem](Node, 0) * (-_surfFluxPar[elem])
-								+ _Ir[elem][_nParNode - 1] * _parInvMM[elem](Node, _parPolyDeg) * _surfFluxPar[elem + 1u]
+								_Ir[elem][0] * _parInvMM[elem](Node, 0) * (-innerStar)
+								+ _Ir[elem][_nParNode - 1] * _parInvMM[elem](Node, _parPolyDeg) * outerStar
 								);
 					}
 					else if (_parGeomSurfToVol == _SurfVolRatioSphere) { // weak surface integral -> M^-1 B [- state*] and B has two non-zero entries, which depend on metrics
 						stateDer[elem * strideelem + Node * strideNode]
 							-= static_cast<ResidualType>(
-								_Ir[elem][0] * _parInvMM[elem](Node, 0) * (-_surfFluxPar[elem])
-								+ _Ir[elem][_nParNode - 1] * _parInvMM[elem](Node, _parPolyDeg) * _surfFluxPar[elem + 1u]
+								_Ir[elem][0] * _parInvMM[elem](Node, 0) * (-innerStar)
+								+ _Ir[elem][_nParNode - 1] * _parInvMM[elem](Node, _parPolyDeg) * outerStar
 								);
 					}
 				}
@@ -1651,11 +1666,11 @@ namespace parts
 					// col: original entry at outer node.
 					if (!outliersOnly) // Cp on Cp
 						jacCp[entry - jacCp.row()]
-						+= static_cast<double>(filmDiff_comp) * 2.0 / static_cast<double>(_deltaR[0]) * _parInvMM[_nParElem - 1](node, _nParNode - 1) * exIntLiftContribution / static_cast<double>(_parPorosity) / static_cast<double>(_poreAccessFactor[comp]);
+						+= static_cast<double>(filmDiff_comp) * 2.0 / static_cast<double>(_deltaR[_nParElem - 1]) * _parInvMM[_nParElem - 1](node, _nParNode - 1) * exIntLiftContribution / static_cast<double>(_parPorosity) / static_cast<double>(_poreAccessFactor[comp]);
 					// row: already at particle. Already at current node and liquid state.
 					// col: go to current bulk phase.
 					jacCp[jacCl.row() - jacCp.row()]
-						= -static_cast<double>(filmDiff_comp) * 2.0 / static_cast<double>(_deltaR[0]) * _parInvMM[_nParElem - 1](node, _nParNode - 1) * exIntLiftContribution / static_cast<double>(_parPorosity) / static_cast<double>(_poreAccessFactor[comp]);
+						= -static_cast<double>(filmDiff_comp) * 2.0 / static_cast<double>(_deltaR[_nParElem - 1]) * _parInvMM[_nParElem - 1](node, _nParNode - 1) * exIntLiftContribution / static_cast<double>(_parPorosity) / static_cast<double>(_poreAccessFactor[comp]);
 				}
 				// set back iterator to first node as required by component loop
 				jacCp += _nParNode * strideParNode();
