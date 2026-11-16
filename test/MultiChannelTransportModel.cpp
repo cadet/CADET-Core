@@ -542,6 +542,14 @@ TEST_CASE("MCT compare AD with analytical Jacobian for 2 channels with opposing 
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon());
 }
 
+TEST_CASE("MCT Jacobian follows a dynamic flow rate", "[MCT],[UnitOp],[Jacobian],[Inlet],[CI]")
+{
+	// Two channels of unit cross section with opposing flow directions
+	cadet::JsonParameterProvider jpp = createMCTModelJson({ 1.0, 1.0 }, { 1.0, -1.0 }, { 0.0, 0.01, 0.0, 0.0 });
+
+	cadet::test::column::testJacobianDynamicFlowRate(jpp, 3.0, { 1.0, 1.0 });
+}
+
 TEST_CASE("MCT time derivative Jacobian vs FD", "[MCT],[UnitOp],[Residual],[Jacobian],[CI],[FD]")
 {
 	// Use some test case parameters

@@ -872,6 +872,23 @@ namespace column
 	void testJacobianFD(cadet::JsonParameterProvider& jpp, const double h, const double absTol, const double relTol, const active* flowRate = nullptr);
 
 	/**
+	 * @brief Tests that the Jacobian follows a flow rate change within a time section
+	 * @details A dynamic flow rate (CONNECTIONS_INCLUDE_DYNAMIC_FLOW) changes the interstitial velocity within a
+	 *          time section: ModelSystem calls setFlowRates() before every residual evaluation, without a section
+	 *          transition in between. Everything the Jacobian caches per section, in particular the inlet DOF
+	 *          block, has to follow that change. The Jacobian of a unit that enters the section with @p flowRate
+	 *          and is then set to the changed flow rate is compared against the Jacobian of a unit that enters
+	 *          the section with the changed flow rate right away. Both see the same velocity, so the two
+	 *          Jacobians have to agree exactly.
+	 * @param [in] jpp Configuration
+	 * @param [in] flowRateFactor Factor the flow rate is scaled by within the time section
+	 * @param [in] flowRate Volumetric flow rate the time section starts with, one entry per inlet
+	 *             port. Required for unit operations with more than one inlet port; derived from
+	 *             the configured geometry if left empty.
+	 */
+	void testJacobianDynamicFlowRate(cadet::JsonParameterProvider& jpp, const double flowRateFactor, const std::vector<double>& flowRate = {});
+
+	/**
 	 * @brief Tests the existence and dimensionality of the output solution fields with and without splits_component_data
 	 * @param [in] uotype Unit operation type
 	 * @param [in] spatialMethod Spatial discretization method

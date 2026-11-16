@@ -240,6 +240,7 @@ protected:
 	int residualFlux(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res);
 
 	void assembleOffdiagJac(double t, unsigned int secIdx);
+	void updateInletJacobian() CADET_NOEXCEPT;
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
 
 	int schurComplementMatrixVector(double const* x, double* z) const;

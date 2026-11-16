@@ -437,6 +437,21 @@ TEST_CASE("Column_1D as GRM Jacobian forward vs backward flow", "[AxialColumn1D]
 	cadet::test::column::testJacobianForwardBackward("COLUMN_MODEL_1D_GRM", disc, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
+TEST_CASE("Column_1D as GRM Jacobian follows a dynamic flow rate", "[AxialColumn1D],[DG],[DG1D],[UnitOp],[Jacobian],[Inlet],[CI]")
+{
+	for (int dir = 0; dir < 2; ++dir)
+	{
+		SECTION(dir == 0 ? "Forward flow" : "Backward flow")
+		{
+			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_GRM", "DG");
+			if (dir != 0)
+				cadet::test::column::reverseFlow(jpp);
+
+			cadet::test::column::testJacobianDynamicFlowRate(jpp, 3.0);
+		}
+	}
+}
+
 TEST_CASE("Column_1D as DPF numerical Benchmark1", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Reference],[Sensitivity],[CI]")
 {
 	std::string modelFilePath = std::string("/data/model_COL1D_DPFR_1comp_benchmark1.json");

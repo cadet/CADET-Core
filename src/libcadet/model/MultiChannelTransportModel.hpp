@@ -182,6 +182,7 @@ protected:
 	template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 	int residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem);
 
+	void updateInletJacobian() CADET_NOEXCEPT;
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
 
 	unsigned int numAdDirsForJacobian() const CADET_NOEXCEPT;
@@ -212,6 +213,7 @@ protected:
 
 	bool _analyticJac; //!< Determines whether AD or analytic Jacobians are used
 	unsigned int _jacobianAdDirs; //!< Number of AD seed vectors required for Jacobian computation
+	unsigned int _curSecIdx; //!< Index of the time section that is currently integrated
 	bool _factorizeJacobian; //!< Determines whether the Jacobian needs to be factorized
 	double* _tempState; //!< Temporary storage with the size of the state vector or larger if binding models require it
 

@@ -235,6 +235,21 @@ TEST_CASE("GRM with two component linear binding Jacobian", "[GRM],[FV],[UnitOp]
 	cadet::test::column::testJacobianAD(jpp);
 }
 
+TEST_CASE("GRM Jacobian follows a dynamic flow rate", "[GRM],[FV],[UnitOp],[Jacobian],[Inlet],[CI]")
+{
+	for (int dir = 0; dir < 2; ++dir)
+	{
+		SECTION(dir == 0 ? "Forward flow" : "Backward flow")
+		{
+			cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("GENERAL_RATE_MODEL", "FV");
+			if (dir != 0)
+				cadet::test::column::reverseFlow(jpp);
+
+			cadet::test::column::testJacobianDynamicFlowRate(jpp, 3.0);
+		}
+	}
+}
+
 TEST_CASE("GRM LWE one vs two identical particle types match", "[GRM],[FV],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("GENERAL_RATE_MODEL", "FV", 2e-8, 5e-5);

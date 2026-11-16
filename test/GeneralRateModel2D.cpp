@@ -84,6 +84,18 @@ TEST_CASE("GRM2D dynamic binding flux Jacobian vs FD", "[GRM2D],[FV],[UnitOp],[R
 	cadet::test::column::testArrowHeadJacobianFD("COLUMN_MODEL_2D_GRM", true, 1e-6, 2e-9);
 }
 
+TEST_CASE("GRM2D Jacobian follows a dynamic flow rate", "[GRM2D],[FV],[UnitOp],[Jacobian],[Inlet],[CI]")
+{
+	// The flow rate the geometry of the test model is dimensioned for, spread over its three radial
+	// zones, see createColumnWithTwoCompLinearJson()
+	const double pi = 3.14159265358979323846;
+	const double flowRate = 5.75e-4 * (pi * 0.01 * 0.01) * 0.37 / 3.0;
+
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_2D_GRM", "FV");
+
+	cadet::test::column::testJacobianDynamicFlowRate(jpp, 3.0, { flowRate, flowRate, flowRate });
+}
+
 TEST_CASE("GRM2D sensitivity Jacobians", "[GRM2D],[FV],[UnitOp],[Sensitivity],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_2D_GRM", "FV");

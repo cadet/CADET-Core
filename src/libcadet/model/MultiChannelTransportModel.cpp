@@ -320,7 +320,7 @@ namespace model
 
 MultiChannelTransportModel::MultiChannelTransportModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
 	_jacInlet(),
-	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
+	_analyticJac(true), _jacobianAdDirs(0), _curSecIdx(0), _factorizeJacobian(false), _tempState(nullptr),
 	_initC(0), _singleRadiusInitC(true), _initState(0), _initStateDot(0)
 {
 }
@@ -509,18 +509,32 @@ void MultiChannelTransportModel::useAnalyticJacobian(const bool analyticJac)
 
 void MultiChannelTransportModel::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
-	Indexer idxr(_disc);
+	_curSecIdx = secIdx;
 
-	// ConvectionDispersionOperator tells us whether flow direction has changed
-	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx))
-		return;
+	// ConvectionDispersionOperator updates the velocities and the flow directions
+	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx);
+
+	updateInletJacobian();
+}
+
+/**
+ * @brief Rebuilds the matrix connecting the inlet DOFs to the inlet adjacent channel cells
+ * @details The entries of this block scale with the current interstitial velocity, so the block has
+ *          to be rebuilt whenever the velocity changes: at a section transition, and, for dynamic
+ *          flow rates, on every call of setFlowRates() within a section. A stale block does not only
+ *          degrade the Newton matrix, it enters multiplyWithJacobian() and thereby the forward
+ *          sensitivity residual directly, where the error does not cancel out.
+ */
+void MultiChannelTransportModel::updateInletJacobian() CADET_NOEXCEPT
+{
+	Indexer idxr(_disc);
 
 	// Setup the matrix connecting inlet DOFs to first column cells
 	_jacInlet.clear();
 
 	for (unsigned int rad = 0; rad < _disc.nChannel; ++rad)
 	{
-		const double f = _convDispOp.inletFactor(secIdx, rad);
+		const double f = _convDispOp.inletFactor(_curSecIdx, rad);
 		if (_convDispOp.currentVelocity(rad) >= 0.0)
 		{
 			// Forwards flow
@@ -544,6 +558,10 @@ void MultiChannelTransportModel::notifyDiscontinuousSectionTransition(double t, 
 void MultiChannelTransportModel::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 {
 	_convDispOp.setFlowRates(in, out);
+
+	// Dynamic flow rates change the velocities within a time section, which the inlet Jacobian
+	// block scales with
+	updateInletJacobian();
 }
 
 void MultiChannelTransportModel::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
