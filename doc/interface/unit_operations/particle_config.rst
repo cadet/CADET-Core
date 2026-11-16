@@ -243,6 +243,7 @@ Group /input/model/unit_XXX/particle_type_XXX/discretization
 ``PAR_DISC_TYPE``
 
    Specifies the discretization scheme inside the particles for all or each particle type. Optional, defaults to :math:`\texttt{EQUIDISTANT}`.
+   Any other value is rejected with an error.
 
    ================  ====================================================================================================  =============
    **Type:** string  **Range:** :math:`\{\texttt{EQUIDISTANT}, \texttt{EQUIVOLUME}, \texttt{USER_DEFINED} \}`              **Length:** 1

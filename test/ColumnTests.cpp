@@ -326,6 +326,23 @@ namespace column
 			jpp.popScope();
 	}
 
+	/**
+	 * @brief Translates particle discretization types read from a reference file to valid PAR_DISC_TYPE values
+	 * @details Older reference files store EQUIDISTANT_PAR, which CADET-Core never recognized and which was hence
+	 *          simulated with the default EQUIDISTANT discretization. Unknown values are rejected by now.
+	 * @param [in] parDiscTypes PAR_DISC_TYPE values of the reference file
+	 * @return Valid PAR_DISC_TYPE values
+	 */
+	std::vector<std::string> validParDiscTypes(std::vector<std::string> parDiscTypes)
+	{
+		for (std::string& pdt : parDiscTypes)
+		{
+			if (pdt == "EQUIDISTANT_PAR")
+				pdt = "EQUIDISTANT";
+		}
+		return parDiscTypes;
+	}
+
 	void setNumericalMethod(cadet::IParameterProvider& pp, nlohmann::json& setupJson, const std::string unitID, const bool copy = false)
 	{
 		// copy over numerical methods from reference file. Note that we leave out spatial and time step resolution parameters
@@ -358,7 +375,7 @@ namespace column
 					nlohmann::json discPar = setupJson["model"]["unit_" + unitID]["particle_type_" + parTypeIdxString.str()]["discretization"];
 
 					if (pp.exists("PAR_DISC_TYPE"))
-						discPar["PAR_DISC_TYPE"] = pp.getStringArray("PAR_DISC_TYPE")[pp.getStringArray("PAR_DISC_TYPE").size() == 1 ? 0 : parType];
+						discPar["PAR_DISC_TYPE"] = validParDiscTypes(pp.getStringArray("PAR_DISC_TYPE"))[pp.getStringArray("PAR_DISC_TYPE").size() == 1 ? 0 : parType];
 
 					setupJson["model"]["unit_" + unitID]["particle_type_" + parTypeIdxString.str()]["discretization"] = discPar;
 				}
@@ -377,7 +394,7 @@ namespace column
 				if (pp.exists("SCHUR_SAFETY"))
 					discretization["SCHUR_SAFETY"] = pp.getDouble("SCHUR_SAFETY");
 				if (pp.exists("PAR_DISC_TYPE"))
-					discretization["PAR_DISC_TYPE"] = pp.getStringArray("PAR_DISC_TYPE");
+					discretization["PAR_DISC_TYPE"] = validParDiscTypes(pp.getStringArray("PAR_DISC_TYPE"));
 				if (pp.exists("weno"))
 				{
 					pp.pushScope("weno");
@@ -412,7 +429,7 @@ namespace column
 					if (pp.exists("SCHUR_SAFETY"))
 						discretization["SCHUR_SAFETY"] = pp.getDouble("SCHUR_SAFETY");
 					if (pp.exists("PAR_DISC_TYPE"))
-						discretization["PAR_DISC_TYPE"] = pp.getStringArray("PAR_DISC_TYPE");
+						discretization["PAR_DISC_TYPE"] = validParDiscTypes(pp.getStringArray("PAR_DISC_TYPE"));
 					if (pp.exists("PAR_GEOM")) // note: in the future this might be included somewhere else in the setup as its part of the model
 						discretization["PAR_GEOM"] = pp.getStringArray("PAR_GEOM");
 					if (pp.exists("weno"))

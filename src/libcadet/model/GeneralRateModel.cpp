@@ -256,6 +256,8 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 
 				std::copy_n(parDiscVec.begin(), _disc.nParCell[parType] + 1, _parDiscVector.begin() + oldVecSize);
 			}
+			else if (pdt != "EQUIDISTANT")
+				throw InvalidParameterException("Unknown PAR_DISC_TYPE \"" + pdt + "\" for particle type " + std::to_string(parType) + ", allowed values are EQUIDISTANT, EQUIVOLUME and USER_DEFINED");
 			// EQUIDISTANT is default
 		}
 
