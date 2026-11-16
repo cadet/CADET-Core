@@ -412,10 +412,10 @@ namespace parts
 			}
 			else if (_parGeomSurfToVol == _SurfVolRatioSlab) // r = 1
 			{
-				_minus_InvMM_ST[elem] = -_parInvMM[elem] * _parPolyDerM.transpose() * _parInvMM[elem].inverse();
-
 				_secondOrderStiffnessM = parts::dgtoolbox::secondOrderStiffnessMatrix(_parPolyDeg, 0.0, 0.0, _parNodes);
 				_parInvMM[elem] = parts::dgtoolbox::invMMatrix(_parPolyDeg, _parNodes, 0.0, 0.0);
+
+				_minus_InvMM_ST[elem] = -_parInvMM[elem] * _parPolyDerM.transpose() * _parInvMM[elem].inverse();
 			}
 		}
 
