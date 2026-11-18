@@ -4,7 +4,7 @@ HIC Unified
 ~~~~~~~~~~~
 This model implements a unified hydrophobic interaction chromatography (HIC) isotherm as described by Jäpel et al. :cite:`Jaepel2025`.
 It combines the isotherms proposed by Mollerup :cite:`Mollerup2006`, Deitcher :cite:`Deitcher2010` and the SWA isotherm by Jäpel et al. into one isotherm.
-In addition to the first component :math:`c_{p,0}`, which represents salt, the second component :math:`c_{p,1}` represents another non-binding modifier (e.g., pH).
+In addition to the first component :math:`c_{p,0}`, which represents salt, the second component :math:`c_{p,1}` represents another modifier (e.g., pH) which, in contrast, is non-binding.
 
 .. math::
     \begin{align}

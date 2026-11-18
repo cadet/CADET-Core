@@ -4,7 +4,7 @@ Generalized Ion Exchange
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 The generalized ion exchange model is based on the steric mass action model :cite:`Huuk2017,Mollerup2008`.
-In addition to the first component :math:`c_{p,0}`, which represents salt, the second component :math:`c_{p,1}` represents another non-binding modifier (e.g., pH).
+In addition to the first component :math:`c_{p,0}`, which represents salt, the second component :math:`c_{p,1}` represents another modifier (e.g., pH) which, in contrast, is non-binding.
 In comparison to the SMA model, the characteristic charge :math:`\nu` and the adsorption and desorption rate constants are modified:
 
 .. math::
