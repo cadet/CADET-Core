@@ -118,7 +118,10 @@ namespace reaction
 			REQUIRE(rm->configure(jpp, 0, 0));
 		}
 
-		// Assign external functions
+		// Assign external functions. EXTFUN is forced to {0} above, so every externally
+		// dependent parameter is wired to source 0 and a single function is all that can be
+		// addressed. Testing a model against several external sources needs an array of
+		// IExternalFunction pointers here, as in BindingModelTests.cpp.
 		cadet::IExternalFunction* extFuns = new LinearExternalFunction;
 		rm->setExternalFunctions(&extFuns, 1);
 
