@@ -341,12 +341,23 @@ protected:
 		const double iVSS_BM = paramProvider.getDouble("ASM3_IVSS_BM");
 		const double iTSS_VSS_BM = paramProvider.getDouble("ASM3_ITSS_VSS_BM");
 
+		// The adsorbable fractions split the hydrolysis products between SS and SS_ad and between
+		// SI and SI_ad. Without the adsorbed components there is nothing to receive the adsorbable
+		// part, so a non-zero fraction would remove it from the system instead. They stay at zero
+		// in that case, which is the documented behaviour.
 		double fSI_ad = 0.0;
 		double fSS_ad = 0.0;
-		if (paramProvider.exists("ASM3_FSI_AD"))
-			fSI_ad = paramProvider.getDouble("ASM3_FSI_AD");
-		if (paramProvider.exists("ASM3_FSS_AD"))
-			fSS_ad = paramProvider.getDouble("ASM3_FSS_AD");
+		if (_givenAd)
+		{
+			if (paramProvider.exists("ASM3_FSI_AD"))
+				fSI_ad = paramProvider.getDouble("ASM3_FSI_AD");
+			if (paramProvider.exists("ASM3_FSS_AD"))
+				fSS_ad = paramProvider.getDouble("ASM3_FSS_AD");
+		}
+		else if (paramProvider.exists("ASM3_FSI_AD") || paramProvider.exists("ASM3_FSS_AD"))
+		{
+			LOG(Warning) << "ASM3 configuration: ASM3_FSI_AD and ASM3_FSS_AD require the adsorbed components SI_ad and SS_ad, they are ignored with less than 15 components";
+		}
 
 		// internal variables
 		const double fXMI_BM = fiSS_BM_prod * fXI * iVSS_BM * (iTSS_VSS_BM - 1);
