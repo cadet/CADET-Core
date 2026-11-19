@@ -487,6 +487,24 @@ TEST_CASE("ASM3 analytic Jacobian vs AD without adsorbed components", "[ASM3],[R
 	);
 }
 
+TEST_CASE("ASM3 adsorbable substrate fraction reproduces the plain setup", "[ASM3],[ReactionModel],[Simulation],[CI]")
+{
+	// The 15 component setup routes the complete substrate into the adsorbable fraction
+	// (ASM3_FSS_AD = 1, SS starts at 0, SS_ad starts at 2), so it has to reproduce the
+	// 13 component setup. SS_ad (index 14) of the first setup corresponds to SS (index 1)
+	// of the second one, all remaining components correspond to themselves.
+	const std::vector<int> compIdx1 = { 0, 14, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+	const std::vector<int> compIdx2 = { 0,  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+
+	// The tolerance is set by the two independent time integrations, which both run at
+	// ABSTOL = RELTOL = 1e-6, not by the reaction model. A wrong stoichiometric coefficient
+	// shows up several orders of magnitude above this.
+	cadet::test::reaction::testCompareTwoSimulationReaction(
+		"/data/configuration_CSTR_ASM3_with_ad.json",
+		"/data/configuration_CSTR_ASM3_without_ad.json",
+		1e-3, 1e-4, compIdx1, compIdx2);
+}
+
 TEST_CASE("MichaelisMenten Hill exponent changes flux and analytic Jacobian", "[MichaelisMenten],[Hill],[ReactionModel],[Jacobian],[CI]")
 {
 	const unsigned int nBound[] = { 0, 0 };

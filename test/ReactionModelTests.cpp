@@ -620,8 +620,10 @@ namespace reaction
 		}
 	}
 
-	void testCompareTwoSimulationReaction(const std::string configFilePath1, const std::string configFilePath2, const double absTol, const double relTol, const int compIdx1, const int compIdx2)
+	void testCompareTwoSimulationReaction(const std::string configFilePath1, const std::string configFilePath2, const double absTol, const double relTol, const std::vector<int>& compIdx1, const std::vector<int>& compIdx2)
 	{
+		REQUIRE(compIdx1.size() == compIdx2.size());
+
 		// read json model setup file
 		const std::string setupFile1 = std::string(getTestDirectory()) + configFilePath1;
 		const std::string setupFile2 = std::string(getTestDirectory()) + configFilePath2;
@@ -646,10 +648,18 @@ namespace reaction
 
 		const unsigned int nComp1 = Data1->numComponents();
 		const unsigned int nComp2 = Data2->numComponents();
+
+		REQUIRE(Data1->numDataPoints() == Data2->numDataPoints());
+
 		for (unsigned int i = 0; i < Data2->numDataPoints(); ++i, outlet1 += nComp1, outlet2 += nComp2)
 		{
-			CAPTURE(i);
-			CHECK((outlet1[compIdx1]) == cadet::test::makeApprox(outlet2[compIdx2], relTol, absTol));
+			for (std::size_t j = 0; j < compIdx1.size(); ++j)
+			{
+				CAPTURE(i);
+				CAPTURE(compIdx1[j]);
+				CAPTURE(compIdx2[j]);
+				CHECK((outlet1[compIdx1[j]]) == cadet::test::makeApprox(outlet2[compIdx2[j]], relTol, absTol));
+			}
 		}
 	}
 
