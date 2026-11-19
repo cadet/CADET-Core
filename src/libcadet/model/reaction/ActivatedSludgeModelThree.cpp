@@ -281,10 +281,18 @@ protected:
 			LOG(Debug) << "Active aeration set to " << _activeAeration;
 		}
 		else
-		{	
+		{
 			LOG(Debug) << "Active aeration not set, using default (false)";
 		}
-		
+
+		// Range checks on the configured values. For the externally dependent variant this only
+		// covers the constant term, and neither variant covers values set later via setParameter().
+		if (!(paramProvider.getDouble("ASM3_T") >= 0.0))
+			throw InvalidParameterException("ASM3 configuration: Temperature T must be non-negative");
+
+		if (_activeAeration && !(paramProvider.getDouble("ASM3_V") >= 0.0))
+			throw InvalidParameterException("ASM3 configuration: Aeration volume V must be non-negative");
+
 		if (_givenAd)
 			_stoichiometry.resize(_nComp, 15);
 		else
@@ -526,18 +534,13 @@ protected:
 		BufferedArray<flux_t> fluxes = workSpace.array<flux_t>(_stoichiometry.columns());
 		
 		const flux_t T	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->T);
-		if (T < 0)
-			throw InvalidParameterException("ASM3 configuration: Temperature T must be non-negative");
-		
+
 		flux_t io2;
 		flux_t V;
 		if (_activeAeration)
 		{
 			io2	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->io2);
 			V = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->V);
-			
-			if(V < 0)
-				throw InvalidParameterException("ASM3 configuration: Aeration volume V must be non-negative");
 		}
 
 		const flux_t kh20 = static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kh20);
