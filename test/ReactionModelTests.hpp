@@ -20,6 +20,8 @@
 
 #include "cadet/ParameterId.hpp"
 #include <limits>
+#include <string>
+#include <vector>
 #include "Memory.hpp"
 #include "model/reaction/ReactionSystem.hpp"
 
@@ -147,6 +149,19 @@ namespace reaction
 	 * @param [in] relTol Relative error tolerance
 	 */
 	void testLiquidReactionJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, const char* config, double const* point, double absTol = 0.0, double relTol = std::numeric_limits<float>::epsilon() * 100.0);
+
+	/**
+	 * @brief Runs two simulations and compares the outlet of selected components against each other
+	 * @details Both simulations are run once and the outlet of unit operation 0 is compared pairwise,
+	 *          which allows comparing setups that differ in the number or the order of their components.
+	 * @param [in] configFilePath1 Path of the first model setup file, relative to the test data directory
+	 * @param [in] configFilePath2 Path of the second model setup file, relative to the test data directory
+	 * @param [in] absTol Absolute error tolerance
+	 * @param [in] relTol Relative error tolerance
+	 * @param [in] compIdx1 Component indices of the first simulation
+	 * @param [in] compIdx2 Component indices of the second simulation, matching @p compIdx1 elementwise
+	 */
+	void testCompareTwoSimulationReaction(const std::string configFilePath1, const std::string configFilePath2, const double absTol, const double relTol, const std::vector<int>& compIdx1, const std::vector<int>& compIdx2);
 
 	/**
 	 * @brief Extends a model with dynamic reactions in each phase and particle type
