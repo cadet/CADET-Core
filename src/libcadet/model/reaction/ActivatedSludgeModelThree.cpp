@@ -152,7 +152,15 @@ public:
 	virtual bool requiresWorkspace() const CADET_NOEXCEPT { return true; }
 	virtual unsigned int workspaceSize(unsigned int nComp, unsigned int totalNumBoundStates, unsigned int const* nBoundStates) const CADET_NOEXCEPT
 	{
-		return _paramHandler.cacheSize(_stoichiometry.columns(), nComp, totalNumBoundStates) + std::max(_stoichiometry.columns() * sizeof(active), 2 * (_nComp + totalNumBoundStates) * sizeof(double));
+		const std::size_t nReac = _stoichiometry.columns();
+
+		// residualFluxImpl() holds one flux per reaction
+		const std::size_t residualMem = nReac * sizeof(active) + alignof(active);
+
+		// jacobianFluxImpl() holds one flux derivative per reaction and component, plus one row pointer per reaction
+		const std::size_t jacobianMem = nReac * nComp * sizeof(double) + alignof(double) + nReac * sizeof(double*) + alignof(double*);
+
+		return _paramHandler.cacheSize(nReac, nComp, totalNumBoundStates) + std::max(residualMem, jacobianMem);
 	}
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int const* nBound, unsigned int const* boundOffset)
@@ -717,8 +725,18 @@ protected:
 			//SI_ad = y[_idxSI_ad];
 		}
 
-		// initialize jacobian
-		std::vector<std::vector<double>> d(_stoichiometry.columns(), std::vector<double>(_nComp, 0.0));
+		// Flux derivatives with respect to the liquid phase components, one row per reaction.
+		// Taken from the workspace, see workspaceSize(), so that the Jacobian does not allocate.
+		const int nReac = _stoichiometry.columns();
+		BufferedArray<double> dMem = workSpace.array<double>(nReac * _nComp);
+		double* const dFlat = static_cast<double*>(dMem);
+		std::fill_n(dFlat, nReac * _nComp, 0.0);
+
+		// Row views, so that the derivatives below can be written as d[reaction][component]
+		BufferedArray<double*> dRows = workSpace.array<double*>(nReac);
+		double** const d = static_cast<double**>(dRows);
+		for (int r = 0; r < nReac; ++r)
+			d[r] = dFlat + r * _nComp;
 
 		// p1: Hydrolysis: flux = kh20 * ft_hydrolysis * XS * XH_lb / (XS + kx*XH_lb)
 		// smooth lower bound: XH_lb = XH_MIN + 0.5*(XH - XH_MIN + sqrt((XH-XH_MIN)^2 + eps^2))
