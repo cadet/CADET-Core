@@ -86,30 +86,6 @@ inline bool ExtActivatedSludgeModelThreeParamHandler::validateConfig(unsigned in
 	return true;
 }
 
-namespace
-{
-	/**
-	 * @brief Registers a matrix-valued parameter (row-major storage) with components as rows
-	 * @details The matrix-valued parameter has as many rows as there are components in the system.
-	 * @param [in,out] parameters Parameter map
-	 * @param [in] unitOpIdx Unit operation id
-	 * @param [in] parTypeIdx Particle type index
-	 * @param [in] paramName Name of the parameter
-	 * @param [in] mat Matrix to register
-	 */
-	inline void registerCompRowMatrix(std::unordered_map<ParameterId, active*>& parameters, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx, const std::string& paramName, cadet::linalg::ActiveDenseMatrix& mat)
-	{
-		const cadet::StringHash hashName = cadet::hashStringRuntime(paramName);
-		cadet::registerParam2DArray(parameters, mat.data(), mat.elements(), [=](bool multi, unsigned int row, unsigned int col)
-			{
-				return cadet::makeParamId(hashName, unitOpIdx, row, parTypeIdx, cadet::BoundStateIndep, col, cadet::SectionIndep);
-			},
-			mat.columns()
-		);
-	}
-}
-
-
 /**
  * @brief Activated Sludge Model No. 3 (ASM3) Reaction Kinetics
  * @details Implements the ASM3 model for biological wastewater treatment with 13 liquid phase components:
@@ -207,12 +183,6 @@ protected:
 	static constexpr double THETA_HYDROLYSIS = 0.04;    //!< Temperature coefficient for hydrolysis
 	static constexpr double THETA_KINETIC = 0.06952;    //!< Temperature coefficient for kinetic rates
 	static constexpr double THETA_AUTOTROPH = 0.105;    //!< Temperature coefficient for autotrophic rates
-
-	virtual bool configureStoich(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
-	{
-		return true;
-	}
-
 
 	virtual bool configureImpl(IParameterProvider& paramProvider, UnitOpIdx unitOpIdx, ParticleTypeIdx parTypeIdx)
 	{
