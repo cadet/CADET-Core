@@ -98,6 +98,10 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 
 **Stoichiometric parameters**
 
+The stoichiometric parameters below are read once at configuration time and built into the stoichiometric matrix.
+They are not registered as model parameters, so they cannot be changed after configuration and no parameter
+sensitivities can be computed for them. The kinetic parameters do not have this restriction.
+
 ``ASM3_INSI``
 
    Nitrogen content of soluble inert organics :math:`i_{N,SI}`.
