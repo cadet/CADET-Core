@@ -515,11 +515,15 @@ namespace reaction
 		std::vector<cadet::active> adY(nComp);
 		std::vector<cadet::active> adRes(nComp);
 
+		// Hosting unit operations scale the reaction term, e.g. the CSTR passes -V. Use a factor
+		// different from 1 here so that a Jacobian which ignores it does not go unnoticed.
+		const double factor = -2.5;
+
 		cadet::ad::setDirections(cadet::ad::getMaxDirections());
 		ad::prepareAdVectorSeedsForDenseMatrix(adY.data(), 0, nComp);
 		ad::copyToAd(yState.data(), adY.data(), nComp);
 		ad::resetAd(adRes.data(), nComp);
-		crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, nComp, adY.data(), adRes.data(), 1.0, crm.buffer());
+		crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, nComp, adY.data(), adRes.data(), factor, crm.buffer());
 
 		cadet::linalg::DenseMatrix jacAD;
 		jacAD.resize(nComp, nComp);
@@ -528,15 +532,15 @@ namespace reaction
 		cadet::linalg::DenseMatrix jacAna;
 		jacAna.resize(nComp, nComp);
 		jacAna.setAll(0.0);
-		crm.model().analyticJacobianAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, nComp, yState.data(), 1.0, jacAna.row(0), crm.buffer());
+		crm.model().analyticJacobianAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, nComp, yState.data(), factor, jacAna.row(0), crm.buffer());
 
 		cadet::test::checkJacobianPatternFD(
-			[&](double const* lDir, double* res) -> void { std::fill_n(res, nComp, 0.0); crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, nComp, lDir, res, 1.0, crm.buffer()); },
+			[&](double const* lDir, double* res) -> void { std::fill_n(res, nComp, 0.0); crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, nComp, lDir, res, factor, crm.buffer()); },
 			[&](double const* lDir, double* res) -> void { jacAna.multiplyVector(lDir, res); },
 			yState.data(), dir.data(), colA.data(), colB.data(), nComp, nComp);
 
 		cadet::test::checkJacobianPatternFD(
-			[&](double const* lDir, double* res) -> void { std::fill_n(res, nComp, 0.0); crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, nComp, lDir, res, 1.0, crm.buffer()); },
+			[&](double const* lDir, double* res) -> void { std::fill_n(res, nComp, 0.0); crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, nComp, lDir, res, factor, crm.buffer()); },
 			[&](double const* lDir, double* res) -> void { jacAD.multiplyVector(lDir, res); },
 			yState.data(), dir.data(), colA.data(), colB.data(), nComp, nComp);
 
