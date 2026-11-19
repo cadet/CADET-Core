@@ -553,7 +553,7 @@ namespace reaction
 			{
 				CAPTURE(row);
 				CAPTURE(col);
-				CHECK(jacAna.native(row, col) == makeApprox(jacAD.native(row, col), absTol, relTol));
+				CHECK(jacAna.native(row, col) == makeApprox(jacAD.native(row, col), relTol, absTol));
 			}
 		}
 	}
