@@ -1,11 +1,18 @@
 .. _activated_sludge_model_config:
 
 Activated Sludge Model (ASM3h)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Group /input/model/unit_XXX/reaction - REACTION_MODEL = ACTIVATED_SLUDGE_MODEL3**
+**Group /input/model/unit_XXX(/particle_type_YYY)/phase_reaction_ZZZ/ - TYPE = ACTIVATED_SLUDGE_MODEL3**
 
 For information on model equations, refer to :ref:`activated_sludge_model`.
+
+Notes
+-----
+
+- ``phase_reaction_ZZZ`` refers to one of the phase-specific reaction groups listed in :ref:`FFReaction`.
+  This model acts on the liquid phase components, so only ``liquid_reaction_ZZZ`` is supported;
+  configuring it in a solid phase is rejected.
 
 **Component configuration**
 
@@ -14,30 +21,32 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
    Optional component indexes. Set this in case the relevant components start at a certain offset or are provided
    in a different order than listed below:
 
-   =============  =========
-   **Component**  **Index**
-   =============  =========
-   SO             0
-   SS             1
-   SNH            2
-   SNO            3
-   SN2            4
-   SALK           5
-   SI             6
-   XI             7
-   XS             8
-   XH             9
-   XSTO           10
-   XA             11
-   XMI            12
-   SI_ad  (optinal)        13
-   SS_ad  (optionl)        14
-   =============  =========
+   ================  =========
+   **Component**     **Index**
+   ================  =========
+   SO                0
+   SS                1
+   SNH               2
+   SNO               3
+   SN2               4
+   SALK              5
+   SI                6
+   XI                7
+   XS                8
+   XH                9
+   XSTO              10
+   XA                11
+   XMI               12
+   SI_ad (optional)  13
+   SS_ad (optional)  14
+   ================  =========
 
+   The two adsorbed components are only part of the list when 15 or more components are defined,
+   in which case all 15 indices have to be given. Otherwise the field holds exactly 13 indices.
 
-   ================  =============================  ========================================================
-   **Type:** double  **Range:** :math:`\mathbb{N}`  **Length:** 13
-   ================  =============================  ========================================================
+   ================  ===============================  ========================================================
+   **Type:** int     **Range:** :math:`\mathbb{N}_0`   **Length:** 13 / 15
+   ================  ===============================  ========================================================
 
 **Numerical parameters**
 
@@ -48,7 +57,7 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
    **Unit:** Same concentration unit as :math:`X_H`.
 
    ================  =======================  ===============
-   **Type:** double  **Range:** finite, > 0  **Length:** 1
+   **Type:** double  **Range:** finite, > 0   **Length:** 1
    ================  =======================  ===============
 
 ``XH_SMOOTH_EPS``
@@ -58,7 +67,7 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
    **Unit:** Same concentration unit as :math:`X_H`.
 
    ================  =======================  ===============
-   **Type:** double  **Range:** finite, > 0  **Length:** 1
+   **Type:** double  **Range:** finite, > 0   **Length:** 1
    ================  =======================  ===============
 
    See :ref:`activated_sludge_model` for the lower-bound equation.
@@ -68,17 +77,19 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
 ``ASM3_T``
 
    Temperature :math:`T`.
-   
+
    **Unit:** :math:`°C`
-   
+
    ================  =============================  ========================================================
-   **Type:** double  **Range:** :math:`\mathbb{R}`  **Length:** 1
+   **Type:** double  **Range:** :math:`\ge 0`       **Length:** 1
    ================  =============================  ========================================================
 
 ``ASM3_V``
 
-   (Optional) Reactor volume :math:`V`. If not set, the volume of the unit operation is used. It is left to the user to
-   ensure consistency between the volume set here and the unit operation volume.
+   (Optional) Reactor volume :math:`V`, used by the aeration reaction. Aeration is only active when both
+   ``ASM3_V`` and ``ASM3_IO2`` are set; if either is missing, aeration is not considered in the model. The
+   volume is not taken from the unit operation, so it is left to the user to ensure consistency between the
+   volume set here and the unit operation volume.
 
    **Unit:** :math:`m^3`
    
@@ -150,36 +161,6 @@ sensitivities can be computed for them. The kinetic parameters do not have this 
    
    ================  =============================  ========================================================
    **Type:** double  **Range:** :math:`\ge 0`       **Length:** 1
-   ================  =============================  ========================================================
-
-``ASM3_IVSS_XI``
-
-   VSS to COD ratio for inert particulates :math:`i_{VSS,XI}`.
-   
-   **Unit:** :math:`g~VSS~(g~COD)^{-1}`
-   
-   ================  =============================  ========================================================
-   **Type:** double  **Range:** :math:`\gt 0`       **Length:** 1
-   ================  =============================  ========================================================
-
-``ASM3_IVSS_XS``
-
-   VSS to COD ratio for slowly biodegradable substrate :math:`i_{VSS,XS}`.
-   
-   **Unit:** :math:`g~VSS~(g~COD)^{-1}`
-   
-   ================  =============================  ========================================================
-   **Type:** double  **Range:** :math:`\gt 0`       **Length:** 1
-   ================  =============================  ========================================================
-
-``ASM3_IVSS_STO``
-
-   VSS to COD ratio for storage products :math:`i_{VSS,STO}`.
-   
-   **Unit:** :math:`g~VSS~(g~COD)^{-1}`
-   
-   ================  =============================  ========================================================
-   **Type:** double  **Range:** :math:`\gt 0`       **Length:** 1
    ================  =============================  ========================================================
 
 ``ASM3_IVSS_BM``
@@ -504,54 +485,57 @@ sensitivities can be computed for them. The kinetic parameters do not have this 
 
 **Example**
 
-.. python::
+.. code-block:: python3
 
-	# Example of setting up an ASM3 reaction model in a unit operation with bulk reaction
+	# Setting up an ASM3 reaction in the liquid phase of unit 000, with example values
 
-	# Setup ASM3 reaction for unit 000 with example values
-	model.root.input.model.unit_000.reaction_model = 'ACTIVATED_SLUDGE_MODEL3'
-	model.root.input.model.unit_000.reaction_bulk.asm3_insi = 0.01
-	model.root.input.model.unit_000.reaction_bulk.asm3_inss = 0.03
-	model.root.input.model.unit_000.reaction_bulk.asm3_inxi = 0.04
-	model.root.input.model.unit_000.reaction_bulk.asm3_inxs = 0.03
-	model.root.input.model.unit_000.reaction_bulk.asm3_inbm = 0.07
-	model.root.input.model.unit_000.reaction_bulk.asm3_ivss_xi = 0.751879699
-	model.root.input.model.unit_000.reaction_bulk.asm3_ivss_xs = 0.555555556
-	model.root.input.model.unit_000.reaction_bulk.asm3_ivss_sto = 0.6
-	model.root.input.model.unit_000.reaction_bulk.asm3_ivss_bm = 0.704225352 
-	model.root.input.model.unit_000.reaction_bulk.asm3_itss_vss_bm = 1.086956522
+	model.root.input.model.unit_000.nreac_liquid = 1
+	rxn = model.root.input.model.unit_000.liquid_reaction_000
+	rxn.type = 'ACTIVATED_SLUDGE_MODEL3'
 
+	# Stoichiometric parameters
+	rxn.asm3_insi = 0.01
+	rxn.asm3_inss = 0.03
+	rxn.asm3_inxi = 0.04
+	rxn.asm3_inxs = 0.03
+	rxn.asm3_inbm = 0.07
+	rxn.asm3_ivss_bm = 0.704225352
+	rxn.asm3_itss_vss_bm = 1.086956522
+	rxn.asm3_fiss_bm_prod = 1
+	rxn.asm3_fsi = 0
+	rxn.asm3_fxi = 0.2
+	rxn.asm3_yh_aer = 0.8
+	rxn.asm3_yh_anox = 0.65
+	rxn.asm3_ysto_aer = 0.8375
+	rxn.asm3_ysto_anox = 0.7
+	rxn.asm3_ya = 0.24
 
-	model.root.input.model.unit_000.reaction_bulk.asm3_fiss_bm_prod = 1
-	model.root.input.model.unit_000.reaction_bulk.asm3_fsi = 0
-	model.root.input.model.unit_000.reaction_bulk.asm3_yh_aer = 0.8
-	model.root.input.model.unit_000.reaction_bulk.asm3_yh_anox = 0.65
+	# Kinetic parameters
+	rxn.asm3_kh20 = 9
+	rxn.asm3_kx = 1
+	rxn.asm3_ksto20 = 12
+	rxn.asm3_mu_h20 = 3
+	rxn.asm3_bh20 = 0.33
+	rxn.asm3_mu_aut20 = 1.12
+	rxn.asm3_baut20 = 0.18
 
-	model.root.input.model.unit_000.reaction_bulk.asm3_ysto_aer = 0.8375
-	model.root.input.model.unit_000.reaction_bulk.asm3_ysto_anox = 0.7
-	model.root.input.model.unit_000.reaction_bulk.asm3_fxi = 0.2
-	model.root.input.model.unit_000.reaction_bulk.asm3_ya = 0.24
-	model.root.input.model.unit_000.reaction_bulk.asm3_kh20 = 9
-	model.root.input.model.unit_000.reaction_bulk.asm3_kx = 1
-	model.root.input.model.unit_000.reaction_bulk.asm3_ksto20 = 12
-	model.root.input.model.unit_000.reaction_bulk.asm3_mu_h20 = 3
-	model.root.input.model.unit_000.reaction_bulk.asm3_bh20 = 0.33
-	model.root.input.model.unit_000.reaction_bulk.asm3_eta_hno3 = 0.5
-	model.root.input.model.unit_000.reaction_bulk.asm3_khO2 = 0.2
-	model.root.input.model.unit_000.reaction_bulk.asm3_khss = 10
-	model.root.input.model.unit_000.reaction_bulk.asm3_khno3 = 0.5
-	model.root.input.model.unit_000.reaction_bulk.asm3_khnh4 = 0.01
-	model.root.input.model.unit_000.reaction_bulk.asm3_khalk = 0.1
-	model.root.input.model.unit_000.reaction_bulk.asm3_khsto = 0.1
-	model.root.input.model.unit_000.reaction_bulk.asm3_mu_aut20 = 1.12
-	model.root.input.model.unit_000.reaction_bulk.asm3_baut20 = 0.18
-	model.root.input.model.unit_000.reaction_bulk.asm3_etah_end = 0.5
-	model.root.input.model.unit_000.reaction_bulk.asm3_etan_end = 0.5
-	model.root.input.model.unit_000.reaction_bulk.asm3_kno2 = 0.5
-	model.root.input.model.unit_000.reaction_bulk.asm3_knnh4 = 0.7
-	model.root.input.model.unit_000.reaction_bulk.asm3_knalk = 0.5
-	model.root.input.model.unit_000.reaction_bulk.asm3_t = 12
+	# Anoxic reduction factors
+	rxn.asm3_eta_hno3 = 0.5
+	rxn.asm3_etah_end = 0.5
+	rxn.asm3_etan_end = 0.5
 
+	# Saturation coefficients
+	rxn.asm3_kho2 = 0.2
+	rxn.asm3_khss = 10
+	rxn.asm3_khno3 = 0.5
+	rxn.asm3_khnh4 = 0.01
+	rxn.asm3_khalk = 0.1
+	rxn.asm3_khsto = 0.1
+	rxn.asm3_kno2 = 0.5
+	rxn.asm3_knnh4 = 0.7
+	rxn.asm3_knalk = 0.5
 
-	model.root.input.model.unit_000.reaction_bulk.asm3_v = 1000.0
-	model.root.input.model.unit_000.reaction_bulk.asm3_io2 = 0.0
+	# Temperature, and the optional aeration
+	rxn.asm3_t = 12
+	rxn.asm3_v = 1000.0
+	rxn.asm3_io2 = 0.0

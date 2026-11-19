@@ -58,9 +58,11 @@ Their phase-specific totals are
 
 Without fractionation, :math:`c_{S_S,\mathrm{tot}}^\kappa = c_{S_S}^\kappa` and :math:`c_{S_I,\mathrm{tot}}^\kappa = c_{S_I}^\kappa`.
 
-The net flux for each component is computed using the stoichiometric matrix :math:`S \in \mathbb{R}^{13 \times 13}` 
-and a reaction rate vector :math:`\varphi_j(c)`, where subscript :math:`j` denotes the reaction index. 
-The ASM3h model comprises 13 biochemical reactions detailed below.
+The net flux for each component is computed using the stoichiometric matrix :math:`S` and a reaction rate
+vector :math:`\varphi_j(c)`, where subscript :math:`j` denotes the reaction index.
+The ASM3h model comprises twelve biochemical reactions and an aeration term, so :math:`S \in \mathbb{R}^{13 \times 13}`.
+With fractionation, two further storage reactions act on the adsorbable substrate and two further components are
+tracked, giving :math:`S \in \mathbb{R}^{15 \times 15}`. All reactions are detailed below.
 
 Biochemical Reaction Equations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -95,30 +97,33 @@ Biochemical Reaction Equations
       - :math:`b_H \cdot \eta_{h,end} \cdot \frac{K_{h,O2}}{c_{S_O}^\kappa + K_{h,O2}} \cdot \frac{c_{S_{NO}}^\kappa}{c_{S_{NO}}^\kappa + K_{h,NO3}} \cdot c_{X_H}^\kappa`
     * - :math:`r_8`
       - Aerobic respiration of internal cell storage products
-      - :math:`b_H \cdot \frac{c_{S_O}^\kappa}{c_{S_O}^\kappa + K_{h,O2}} \cdot \frac{c_{X_{STO}}^\kappa}{c_{X_{STO}}^\kappa + K_{h,STO}} \cdot c_{X_H}^\kappa`
+      - :math:`b_H \cdot \frac{c_{S_O}^\kappa}{c_{S_O}^\kappa + K_{h,O2}} \cdot c_{X_{STO}}^\kappa`
     * - :math:`r_9`
       - Anoxic respiration of internal cell storage products
-      - :math:`b_H \cdot \eta_{h,end} \cdot \frac{K_{h,O2}}{c_{S_O}^\kappa + K_{h,O2}} \cdot \frac{c_{S_{NO}}^\kappa}{c_{S_{NO}}^\kappa + K_{h,NO3}} \cdot \frac{c_{X_{STO}}^\kappa}{c_{X_{STO}}^\kappa + K_{h,STO}} \cdot c_{X_H}^\kappa`
+      - :math:`b_H \cdot \eta_{h,end} \cdot \frac{K_{h,O2}}{c_{S_O}^\kappa + K_{h,O2}} \cdot \frac{c_{S_{NO}}^\kappa}{c_{S_{NO}}^\kappa + K_{h,NO3}} \cdot c_{X_{STO}}^\kappa`
     * - :math:`r_{10}`
       - Aerobic growth of :math:`X_A`
       - :math:`\mu_{AUT} \cdot \frac{c_{S_O}^\kappa}{c_{S_O}^\kappa + K_{N,O2}} \cdot \frac{c_{S_{NH}}^\kappa}{c_{S_{NH}}^\kappa + K_{N,NH4}} \cdot \frac{c_{S_{ALK}}^\kappa}{c_{S_{ALK}}^\kappa + K_{N,ALK}} \cdot c_{X_A}^\kappa`
     * - :math:`r_{11}`
       - Aerobic endogenous respiration of :math:`X_A`
-      - :math:`b_{AUT} \cdot \frac{c_{S_O}^\kappa}{c_{S_O}^\kappa + K_{N,O2}} \cdot c_{X_A}^\kappa`
+      - :math:`b_{AUT} \cdot \frac{c_{S_O}^\kappa}{c_{S_O}^\kappa + K_{h,O2}} \cdot c_{X_A}^\kappa`
     * - :math:`r_{12}`
       - Anoxic endogenous respiration of :math:`X_A`
-      - :math:`b_{AUT} \cdot \eta_{N,end} \cdot \frac{K_{N,O2}}{c_{S_O}^\kappa + K_{N,O2}} \cdot \frac{c_{S_{NO}}^\kappa}{c_{S_{NO}}^\kappa + K_{h,NO3}} \cdot c_{X_A}^\kappa`
+      - :math:`b_{AUT} \cdot \eta_{N,end} \cdot \frac{K_{h,O2}}{c_{S_O}^\kappa + K_{h,O2}} \cdot \frac{c_{S_{NO}}^\kappa}{c_{S_{NO}}^\kappa + K_{h,NO3}} \cdot c_{X_A}^\kappa`
     * - :math:`r_{13}`
       - Aeration
-      - :math:`\frac{iO_2}{1000}`
+      - :math:`\frac{iO_2}{V}`
     * - :math:`r_{14}`
-      - Anoxic storage of :math:`S_{S,\mathrm{ad}}` (optional)
-      - :math:`k_{STO} \cdot \eta_{h,NO3} \cdot \frac{K_{h,O2}}{c_{S_O}^\kappa + K_{h,O2}} \cdot \frac{c_{S_S,\mathrm{ad}}^\kappa}{c_{S_S,\mathrm{tot}}^\kappa + K_{h,SS}} \cdot \frac{c_{S_{NO}}^\kappa}{c_{S_{NO}}^\kappa + K_{h,NO3}} \cdot c_{X_H}^\kappa`
-    * - :math:`r_{15}`
       - Aerobic storage of :math:`S_{S,\mathrm{ad}}` (optional)
       - :math:`k_{STO} \cdot \frac{c_{S_O}^\kappa}{c_{S_O}^\kappa + K_{h,O2}} \cdot \frac{c_{S_S,\mathrm{ad}}^\kappa}{c_{S_S,\mathrm{tot}}^\kappa + K_{h,SS}} \cdot c_{X_H}^\kappa`
+    * - :math:`r_{15}`
+      - Anoxic storage of :math:`S_{S,\mathrm{ad}}` (optional)
+      - :math:`k_{STO} \cdot \eta_{h,NO3} \cdot \frac{K_{h,O2}}{c_{S_O}^\kappa + K_{h,O2}} \cdot \frac{c_{S_S,\mathrm{ad}}^\kappa}{c_{S_S,\mathrm{tot}}^\kappa + K_{h,SS}} \cdot \frac{c_{S_{NO}}^\kappa}{c_{S_{NO}}^\kappa + K_{h,NO3}} \cdot c_{X_H}^\kappa`
 
 Reactions :math:`r_{14}` and :math:`r_{15}` are only active when 15 components are defined (including :math:`S_{S,\mathrm{ad}}` and :math:`S_{I,\mathrm{ad}}`).
+
+Note that the endogenous respiration of the autotrophs, :math:`r_{11}` and :math:`r_{12}`, uses the oxygen
+saturation coefficient of the heterotrophs, :math:`K_{h,O2}`, and not :math:`K_{N,O2}`.
 
 
 Stoichiometric Matrix
@@ -150,18 +155,18 @@ When fractionation is enabled, the :math:`S_S` and :math:`S_I` rows denote :math
     * - :math:`S_O`
       - 0
       - :math:`Y_{STO,aer} - 1`
-      - :math:`Y_{STO,anox} - 1`
+      - 0
       - :math:`1 - 1/Y_{H,aer}`
-      - :math:`1 - 1/Y_{H,anox}`
-      - :math:` f_{XI} - 1`
+      - 0
       - :math:`f_{XI} - 1`
+      - 0
       - -1
-      - -1
+      - 0
       - :math:`-(64/14) \cdot 1/Y_A + 1`
       - :math:`f_{XI} - 1`
-      - :math:`f_{XI} - 1`
-      - 1
       - 0
+      - 1
+      - :math:`Y_{STO,aer} - 1`
       - 0
     * - :math:`S_S`
       - :math:`(1 - f_{SI})(1 - f_{SS,ad})`
@@ -202,15 +207,15 @@ When fractionation is enabled, the :math:`S_S` and :math:`S_I` rows denote :math
       - :math:`-i_{N,BM}`
       - :math:`-i_{N,BM}`
       - :math:`i_{N,BM} - f_{XI} \cdot i_{N,XI}`
-      - :math:`i_{N,BM} -f_{XI} \cdot i_{N,XI}`
+      - :math:`i_{N,BM} - f_{XI} \cdot i_{N,XI}`
       - 0
       - 0
       - :math:`-1/Y_A - i_{N,BM}`
-      - :math:`f_{XI} \cdot i_{N,XI} + i_{N,BM}`
-      - :math:`f_{XI} \cdot i_{N,XI} + i_{N,BM}`
+      - :math:`i_{N,BM} - f_{XI} \cdot i_{N,XI}`
+      - :math:`i_{N,BM} - f_{XI} \cdot i_{N,XI}`
       - 0
-      - 0
-      - 0
+      - :math:`i_{N,SS}`
+      - :math:`i_{N,SS}`
     * - :math:`S_{NO}`
       - 0
       - 0
@@ -226,7 +231,7 @@ When fractionation is enabled, the :math:`S_S` and :math:`S_I` rows denote :math
       - :math:`(f_{XI} - 1) / (40/14)`
       - 0
       - 0
-      - 0
+      - :math:`(Y_{STO,anox} - 1) / (40/14)`
     * - :math:`S_{N2}`
       - 0
       - 0
@@ -234,31 +239,31 @@ When fractionation is enabled, the :math:`S_S` and :math:`S_I` rows denote :math
       - 0
       - :math:`(1/Y_{H,anox} - 1) / (40/14)`
       - 0
-      - :math:`(-f_{XI} - 1) / (40/14)`
+      - :math:`(1 - f_{XI}) / (40/14)`
       - 0
-      - :math:`--14/40`
-      - 0
-      - 0
-      - :math:`(1 + f_{XI} ) / (40/14)`
+      - :math:`14/40`
       - 0
       - 0
+      - :math:`(1 - f_{XI}) / (40/14)`
       - 0
+      - 0
+      - :math:`(1 - Y_{STO,anox}) / (40/14)`
     * - :math:`S_{ALK}`
       - :math:`(i_{N,XS} - i_{N,SI} \cdot f_{SI} - (1 - f_{SI}) \cdot i_{N,SS})/14`
       - :math:`i_{N,SS} / 14`
       - :math:`i_{N,SS} / 14 - (Y_{STO,anox} - 1) / 40`
       - :math:`-i_{N,BM} / 14`
       - :math:`-i_{N,BM} / 14 - (1 - 1/Y_{H,anox}) / 40`
-      - :math:`(-f_{XI} \cdot i_{N,XI} + i_{N,BM}) / 14`
-      - :math:`(-f_{XI} \cdot i_{N,XI} + i_{N,BM}) / 14  (-f_{XI} + 1) / 40`
+      - :math:`(i_{N,BM} - f_{XI} \cdot i_{N,XI}) / 14`
+      - :math:`(i_{N,BM} - f_{XI} \cdot i_{N,XI}) / 14 - (f_{XI} - 1) / 40`
       - 0
       - :math:`1/40`
-      - :math:`-(1/Y_A) 1/7- i_{N,BM}/14`
-      - :math:`f_{XI} \cdot i_{N,XI} + i_{N,BM} / 14`
-      - :math:`(-f_{XI} \cdot i_{N,XI} + i_{N,BM})/14 - (f_{XI} - 1) / 40`
+      - :math:`-(1/Y_A) \cdot 1/7 - i_{N,BM}/14`
+      - :math:`(i_{N,BM} - f_{XI} \cdot i_{N,XI}) / 14`
+      - :math:`(i_{N,BM} - f_{XI} \cdot i_{N,XI})/14 - (f_{XI} - 1) / 40`
       - 0
-      - 0
-      - 0
+      - :math:`i_{N,SS} / 14`
+      - :math:`i_{N,SS} / 14 - (Y_{STO,anox} - 1) / 40`
     * - :math:`S_I`
       - :math:`f_{SI}(1 - f_{SI,ad})`
       - 0
@@ -353,8 +358,8 @@ When fractionation is enabled, the :math:`S_S` and :math:`S_I` rows denote :math
       - 0
       - 0
       - 0
-      - :math:`Y_{STO,anox}`
       - :math:`Y_{STO,aer}`
+      - :math:`Y_{STO,anox}`
     * - :math:`X_A`
       - 0
       - 0
@@ -377,13 +382,13 @@ When fractionation is enabled, the :math:`S_S` and :math:`S_I` rows denote :math
       - 0
       - 0
       - 0
-      - :math:`f_{XMI,BI}`
-      - :math:`f_{XMI,BI}`
+      - :math:`f_{XMI,BM}`
+      - :math:`f_{XMI,BM}`
       - 0
       - 0
       - 0
-      - :math:`f_{XMI,BI}`
-      - :math:`f_{XMI,BI}`
+      - :math:`f_{XMI,BM}`
+      - :math:`f_{XMI,BM}`
       - 0
       - 0
       - 0
@@ -425,15 +430,6 @@ Stoichiometric Parameters
    * - :math:`i_{N,BM}`
      - Nitrogen content of biomass
      - :math:`g~N~(g~COD)^{-1}`
-   * - :math:`i_{VSS,XI}`
-     - VSS to COD ratio for inert particulates
-     - :math:`g~VSS~(g~COD)^{-1}`
-   * - :math:`i_{VSS,XS}`
-     - VSS to COD ratio for slowly biodegradable substrate
-     - :math:`g~VSS~(g~COD)^{-1}`
-   * - :math:`i_{VSS,STO}`
-     - VSS to COD ratio for storage products
-     - :math:`g~VSS~(g~COD)^{-1}`
    * - :math:`i_{VSS,BM}`
      - VSS to COD ratio for biomass
      - :math:`g~VSS~(g~COD)^{-1}`
@@ -464,6 +460,12 @@ Stoichiometric Parameters
    * - :math:`Y_A`
      - Yield of autotrophs
      - :math:`g~COD~(g~N)^{-1}`
+
+The mineral matter released per unit of biomass respired is derived from these:
+
+.. math::
+
+   f_{XMI,BM} = f_{ISS,BM,prod} \cdot f_{XI} \cdot i_{VSS,BM} \cdot \left(i_{TSS/VSS,BM} - 1\right)
 
 Kinetic Parameters
 ------------------
@@ -602,8 +604,8 @@ Aeration Strategy
 -----------------
 
 The ASM3h model includes an aeration reaction (:math:`r_{13}`) that is activated when both ``ASM3_IO2`` and ``ASM3_V`` are set.
-The aeration rate is computed as :math:`iO_2 / 1000`. To disable aeration, omit these parameters.
-For more flexible aeration handling, model oxygen input explicitly via the Inlet unit operation (see :ref:`inlet_operation`).
+The aeration rate is computed as :math:`iO_2 / V`. To disable aeration, omit either parameter.
+For more flexible aeration handling, model oxygen input explicitly via the Inlet unit operation (see :ref:`inlet_model`).
 
 Substrate Fractionation
 -----------------------
@@ -628,4 +630,11 @@ Implementation Notes
 References
 ~~~~~~~~~~
 
-TODO
+- Gujer, W., Henze, M., Mino, T., van Loosdrecht, M. (1999): Activated Sludge Model No. 3.
+  *Water Science and Technology* 39(1), 183-193. The model this variant is based on.
+- Henze, M., Gujer, W., Mino, T., van Loosdrecht, M. (2000): Activated Sludge Models ASM1, ASM2,
+  ASM2d and ASM3. IWA Scientific and Technical Report No. 9, IWA Publishing, London.
+  The collected report of the IWA task group, including the component and parameter conventions
+  used here.
+- The ASM3h variant implemented here follows `SIMBA# <https://www.ifak.eu/en/produkte/simba>`_,
+  which extends ASM3 with the mineral fraction :math:`X_{MI}` and the temperature correction above.
