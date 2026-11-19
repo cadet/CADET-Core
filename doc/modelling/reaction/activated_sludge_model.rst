@@ -19,32 +19,44 @@ The ASM3h model tracks 13 biochemical components representing species and compou
 
    * - Abbreviation
      - Component
-   * - :math:`SO`
+   * - :math:`S_O`
      - Dissolved oxygen
-   * - :math:`SS`
+   * - :math:`S_S`
      - Readily biodegradable substrate
-   * - :math:`SNH`
+   * - :math:`S_{NH}`
      - Ammonium
-   * - :math:`SNO`
+   * - :math:`S_{NO}`
      - Nitrite and nitrate
-   * - :math:`SN2`
+   * - :math:`S_{N2}`
      - Dinitrogen, released by denitrification
-   * - :math:`SALK`
+   * - :math:`S_{ALK}`
      - Alkalinity, bicarbonate
-   * - :math:`SI`
+   * - :math:`S_I`
      - Soluble inert organic
-   * - :math:`XI`
+   * - :math:`X_I`
      - Inert Particulate organic
-   * - :math:`XS`
+   * - :math:`X_S`
      - Slowly biodegradable substrate
-   * - :math:`XH`
+   * - :math:`X_H`
      - Heterotrophic biomass
-   * - :math:`XSTO`
+   * - :math:`X_{STO}`
      - Organics stored by heterotrophs
-   * - :math:`XA`
+   * - :math:`X_A`
      - Autotrophic, nitrifying biomass
-   * - :math:`XMI`
+   * - :math:`X_{MI}`
      - Mineral particulate matter from biomass
+
+For the reaction equations, :math:`c_i^\kappa` denotes the concentration of component :math:`i` in the bulk (:math:`\kappa=b`) or particle liquid (:math:`\kappa=p`) phase.
+With fractionation, :math:`S_S` and :math:`S_I` are each split into adsorbable and non-adsorbable components, denoted by :math:`S_{S,\mathrm{ad}}`, :math:`S_{S,\mathrm{non-ad}}`, :math:`S_{I,\mathrm{ad}}`, and :math:`S_{I,\mathrm{non-ad}}`.
+The configuration names ``SS`` and ``SI`` refer to the non-adsorbable components when fractionation is enabled; in the rate equations, :math:`c_{S_S}^\kappa = c_{S_S,\mathrm{non-ad}}^\kappa` and :math:`c_{S_I}^\kappa = c_{S_I,\mathrm{non-ad}}^\kappa` in this case.
+Their phase-specific totals are
+
+.. math::
+
+   c_{S_S,\mathrm{tot}}^\kappa = c_{S_S,\mathrm{non-ad}}^\kappa + c_{S_S,\mathrm{ad}}^\kappa, \qquad
+   c_{S_I,\mathrm{tot}}^\kappa = c_{S_I,\mathrm{non-ad}}^\kappa + c_{S_I,\mathrm{ad}}^\kappa.
+
+Without fractionation, :math:`c_{S_S,\mathrm{tot}}^\kappa = c_{S_S}^\kappa` and :math:`c_{S_I,\mathrm{tot}}^\kappa = c_{S_I}^\kappa`.
 
 The net flux for each component is computed using the stoichiometric matrix :math:`S \in \mathbb{R}^{13 \times 13}` 
 and a reaction rate vector :math:`\varphi_j(c)`, where subscript :math:`j` denotes the reaction index. 
@@ -62,57 +74,58 @@ Biochemical Reaction Equations
       - Rate Equation
     * - :math:`r_1`
       - Hydrolysis of organic structures
-      - :math:`k_{h,20} \cdot f_T^{0.04} \cdot \frac{XS/XH}{XS/XH + K_X} \cdot XH`
+      - :math:`k_{h,20} \cdot f_T^{0.04} \cdot \frac{c_{X_S}^\kappa/c_{X_H}^\kappa}{c_{X_S}^\kappa/c_{X_H}^\kappa + K_X} \cdot c_{X_H}^\kappa`
     * - :math:`r_2`
-      - Aerobic storage of SS
-      - :math:`k_{STO} \cdot \frac{SO}{SO + K_{h,O2}} \cdot \frac{SS}{SS + K_{h,SS}} \cdot XH`
+      - Aerobic storage of :math:`S_S`
+      - :math:`k_{STO} \cdot \frac{c_{S_O}^\kappa}{c_{S_O}^\kappa + K_{h,O2}} \cdot \frac{c_{S_S}^\kappa}{c_{S_S,\mathrm{tot}}^\kappa + K_{h,SS}} \cdot c_{X_H}^\kappa`
     * - :math:`r_3`
-      - Anoxic storage of SS
-      - :math:`k_{STO} \cdot \eta_{h,NO3} \cdot \frac{K_{h,O2}}{SO + K_{h,O2}} \cdot \frac{SNO}{SNO + K_{h,NO3}} \cdot \frac{SS}{SS + K_{h,SS}} \cdot XH`
+      - Anoxic storage of :math:`S_S`
+      - :math:`k_{STO} \cdot \eta_{h,NO3} \cdot \frac{K_{h,O2}}{c_{S_O}^\kappa + K_{h,O2}} \cdot \frac{c_{S_{NO}}^\kappa}{c_{S_{NO}}^\kappa + K_{h,NO3}} \cdot \frac{c_{S_S}^\kappa}{c_{S_S,\mathrm{tot}}^\kappa + K_{h,SS}} \cdot c_{X_H}^\kappa`
     * - :math:`r_4`
-      - Aerobic growth of XH
-      - :math:`\mu_H \cdot \frac{SO}{SO + K_{h,O2}} \cdot \frac{XSTO/XH}{XSTO/XH + K_{h,STO}} \cdot \frac{SNH}{SNH + K_{h,NH4}} \cdot \frac{SALK}{SALK + K_{h,ALK}} \cdot XH`
+      - Aerobic growth of :math:`X_H`
+      - :math:`\mu_H \cdot \frac{c_{S_O}^\kappa}{c_{S_O}^\kappa + K_{h,O2}} \cdot \frac{c_{X_{STO}}^\kappa/c_{X_H}^\kappa}{c_{X_{STO}}^\kappa/c_{X_H}^\kappa + K_{h,STO}} \cdot \frac{c_{S_{NH}}^\kappa}{c_{S_{NH}}^\kappa + K_{h,NH4}} \cdot \frac{c_{S_{ALK}}^\kappa}{c_{S_{ALK}}^\kappa + K_{h,ALK}} \cdot c_{X_H}^\kappa`
     * - :math:`r_5`
-      - Anoxic growth of XH (denitrification)
-      - :math:`\mu_H \cdot \eta_{h,NO3} \cdot \frac{K_{h,O2}}{SO + K_{h,O2}} \cdot \frac{SNO}{SNO + K_{h,NO3}} \cdot \frac{XSTO/XH}{XSTO/XH + K_{h,STO}} \cdot \frac{SNH}{SNH + K_{h,NH4}} \cdot \frac{SALK}{SALK + K_{h,ALK}} \cdot XH`
+      - Anoxic growth of :math:`X_H` (denitrification)
+      - :math:`\mu_H \cdot \eta_{h,NO3} \cdot \frac{K_{h,O2}}{c_{S_O}^\kappa + K_{h,O2}} \cdot \frac{c_{S_{NO}}^\kappa}{c_{S_{NO}}^\kappa + K_{h,NO3}} \cdot \frac{c_{X_{STO}}^\kappa/c_{X_H}^\kappa}{c_{X_{STO}}^\kappa/c_{X_H}^\kappa + K_{h,STO}} \cdot \frac{c_{S_{NH}}^\kappa}{c_{S_{NH}}^\kappa + K_{h,NH4}} \cdot \frac{c_{S_{ALK}}^\kappa}{c_{S_{ALK}}^\kappa + K_{h,ALK}} \cdot c_{X_H}^\kappa`
     * - :math:`r_6`
-      - Aerobic endogenous respiration of XH
-      - :math:`b_H \cdot \frac{SO}{SO + K_{h,O2}} \cdot XH`
+      - Aerobic endogenous respiration of :math:`X_H`
+      - :math:`b_H \cdot \frac{c_{S_O}^\kappa}{c_{S_O}^\kappa + K_{h,O2}} \cdot c_{X_H}^\kappa`
     * - :math:`r_7`
-      - Anoxic endogenous respiration of XH
-      - :math:`b_H \cdot \eta_{h,end} \cdot \frac{K_{h,O2}}{SO + K_{h,O2}} \cdot \frac{SNO}{SNO + K_{h,NO3}} \cdot XH`
+      - Anoxic endogenous respiration of :math:`X_H`
+      - :math:`b_H \cdot \eta_{h,end} \cdot \frac{K_{h,O2}}{c_{S_O}^\kappa + K_{h,O2}} \cdot \frac{c_{S_{NO}}^\kappa}{c_{S_{NO}}^\kappa + K_{h,NO3}} \cdot c_{X_H}^\kappa`
     * - :math:`r_8`
       - Aerobic respiration of internal cell storage products
-      - :math:`b_H \cdot \frac{SO}{SO + K_{h,O2}} \cdot \frac{XSTO}{XSTO + K_{h,STO}} \cdot XH`
+      - :math:`b_H \cdot \frac{c_{S_O}^\kappa}{c_{S_O}^\kappa + K_{h,O2}} \cdot \frac{c_{X_{STO}}^\kappa}{c_{X_{STO}}^\kappa + K_{h,STO}} \cdot c_{X_H}^\kappa`
     * - :math:`r_9`
       - Anoxic respiration of internal cell storage products
-      - :math:`b_H \cdot \eta_{h,end} \cdot \frac{K_{h,O2}}{SO + K_{h,O2}} \cdot \frac{SNO}{SNO + K_{h,NO3}} \cdot \frac{XSTO}{XSTO + K_{h,STO}} \cdot XH`
+      - :math:`b_H \cdot \eta_{h,end} \cdot \frac{K_{h,O2}}{c_{S_O}^\kappa + K_{h,O2}} \cdot \frac{c_{S_{NO}}^\kappa}{c_{S_{NO}}^\kappa + K_{h,NO3}} \cdot \frac{c_{X_{STO}}^\kappa}{c_{X_{STO}}^\kappa + K_{h,STO}} \cdot c_{X_H}^\kappa`
     * - :math:`r_{10}`
-      - Aerobic growth of XA
-      - :math:`\mu_{AUT} \cdot \frac{SO}{SO + K_{N,O2}} \cdot \frac{SNH}{SNH + K_{N,NH4}} \cdot \frac{SALK}{SALK + K_{N,ALK}} \cdot XA`
+      - Aerobic growth of :math:`X_A`
+      - :math:`\mu_{AUT} \cdot \frac{c_{S_O}^\kappa}{c_{S_O}^\kappa + K_{N,O2}} \cdot \frac{c_{S_{NH}}^\kappa}{c_{S_{NH}}^\kappa + K_{N,NH4}} \cdot \frac{c_{S_{ALK}}^\kappa}{c_{S_{ALK}}^\kappa + K_{N,ALK}} \cdot c_{X_A}^\kappa`
     * - :math:`r_{11}`
-      - Aerobic endogenous respiration of XA
-      - :math:`b_{AUT} \cdot \frac{SO}{SO + K_{N,O2}} \cdot XA`
+      - Aerobic endogenous respiration of :math:`X_A`
+      - :math:`b_{AUT} \cdot \frac{c_{S_O}^\kappa}{c_{S_O}^\kappa + K_{N,O2}} \cdot c_{X_A}^\kappa`
     * - :math:`r_{12}`
-      - Anoxic endogenous respiration of XA
-      - :math:`b_{AUT} \cdot \eta_{N,end} \cdot \frac{K_{N,O2}}{SO + K_{N,O2}} \cdot \frac{SNO}{SNO + K_{h,NO3}} \cdot XA`
+      - Anoxic endogenous respiration of :math:`X_A`
+      - :math:`b_{AUT} \cdot \eta_{N,end} \cdot \frac{K_{N,O2}}{c_{S_O}^\kappa + K_{N,O2}} \cdot \frac{c_{S_{NO}}^\kappa}{c_{S_{NO}}^\kappa + K_{h,NO3}} \cdot c_{X_A}^\kappa`
     * - :math:`r_{13}`
       - Aeration
       - :math:`\frac{iO_2}{1000}`
     * - :math:`r_{14}`
-      - Anoxic storage of SS\ :sub:`ad` (optional)
-      - :math:`k_{STO} \cdot \eta_{h,NO3} \cdot \frac{K_{h,O2}}{SO + K_{h,O2}} \cdot \frac{SS_{ad}}{SS + SS_{ad} + K_{h,SS}} \cdot \frac{SNO}{SNO + K_{h,NO3}} \cdot XH`
+      - Anoxic storage of :math:`S_{S,\mathrm{ad}}` (optional)
+      - :math:`k_{STO} \cdot \eta_{h,NO3} \cdot \frac{K_{h,O2}}{c_{S_O}^\kappa + K_{h,O2}} \cdot \frac{c_{S_S,\mathrm{ad}}^\kappa}{c_{S_S,\mathrm{tot}}^\kappa + K_{h,SS}} \cdot \frac{c_{S_{NO}}^\kappa}{c_{S_{NO}}^\kappa + K_{h,NO3}} \cdot c_{X_H}^\kappa`
     * - :math:`r_{15}`
-      - Aerobic storage of SS\ :sub:`ad` (optional)
-      - :math:`k_{STO} \cdot \frac{SO}{SO + K_{h,O2}} \cdot \frac{SS_{ad}}{SS + SS_{ad} + K_{h,SS}} \cdot XH`
+      - Aerobic storage of :math:`S_{S,\mathrm{ad}}` (optional)
+      - :math:`k_{STO} \cdot \frac{c_{S_O}^\kappa}{c_{S_O}^\kappa + K_{h,O2}} \cdot \frac{c_{S_S,\mathrm{ad}}^\kappa}{c_{S_S,\mathrm{tot}}^\kappa + K_{h,SS}} \cdot c_{X_H}^\kappa`
 
-Reactions :math:`r_{14}` and :math:`r_{15}` are only active when 15 components are defined (including SS\ :sub:`ad` and SI\ :sub:`ad`).
+Reactions :math:`r_{14}` and :math:`r_{15}` are only active when 15 components are defined (including :math:`S_{S,\mathrm{ad}}` and :math:`S_{I,\mathrm{ad}}`).
 
 
 Stoichiometric Matrix
 ~~~~~~~~~~~~~~~~~~~~~
 
 The stoichiometric matrix :math:`S` encodes the mass balance coefficients for each biochemical reaction:
+When fractionation is enabled, the :math:`S_S` and :math:`S_I` rows denote :math:`S_{S,\mathrm{non-ad}}` and :math:`S_{I,\mathrm{non-ad}}`, respectively.
 
 .. list-table::
     :header-rows: 1
@@ -134,7 +147,7 @@ The stoichiometric matrix :math:`S` encodes the mass balance coefficients for ea
       - :math:`r_{13}`
       - :math:`r_{14}^*`
       - :math:`r_{15}^*`
-    * - :math:`SO`
+    * - :math:`S_O`
       - 0
       - :math:`Y_{STO,aer} - 1`
       - :math:`Y_{STO,anox} - 1`
@@ -150,7 +163,7 @@ The stoichiometric matrix :math:`S` encodes the mass balance coefficients for ea
       - 1
       - 0
       - 0
-    * - :math:`SS`
+    * - :math:`S_S`
       - :math:`(1 - f_{SI})(1 - f_{SS,ad})`
       - -1
       - -1
@@ -166,7 +179,7 @@ The stoichiometric matrix :math:`S` encodes the mass balance coefficients for ea
       - 0
       - 0
       - 0
-    * - :math:`SS_{ad}^*`
+    * - :math:`S_{S,\mathrm{ad}}^*`
       - :math:`(1 - f_{SI}) \cdot f_{SS,ad}`
       - 0
       - 0
@@ -182,7 +195,7 @@ The stoichiometric matrix :math:`S` encodes the mass balance coefficients for ea
       - 0
       - -1
       - -1
-    * - :math:`SNH`
+    * - :math:`S_{NH}`
       - :math:`i_{N,XS} - i_{N,SI} \cdot f_{SI} - (1 - f_{SI}) \cdot i_{N,SS}`
       - :math:`i_{N,SS}`
       - :math:`i_{N,SS}`
@@ -198,7 +211,7 @@ The stoichiometric matrix :math:`S` encodes the mass balance coefficients for ea
       - 0
       - 0
       - 0
-    * - :math:`SNO`
+    * - :math:`S_{NO}`
       - 0
       - 0
       - :math:`(Y_{STO,anox} - 1) / (40/14)`
@@ -214,7 +227,7 @@ The stoichiometric matrix :math:`S` encodes the mass balance coefficients for ea
       - 0
       - 0
       - 0
-    * - :math:`SN2`
+    * - :math:`S_{N2}`
       - 0
       - 0
       - :math:`(1 - Y_{STO,anox}) / (40/14)`
@@ -230,7 +243,7 @@ The stoichiometric matrix :math:`S` encodes the mass balance coefficients for ea
       - 0
       - 0
       - 0
-    * - :math:`SALK`
+    * - :math:`S_{ALK}`
       - :math:`(i_{N,XS} - i_{N,SI} \cdot f_{SI} - (1 - f_{SI}) \cdot i_{N,SS})/14`
       - :math:`i_{N,SS} / 14`
       - :math:`i_{N,SS} / 14 - (Y_{STO,anox} - 1) / 40`
@@ -246,7 +259,7 @@ The stoichiometric matrix :math:`S` encodes the mass balance coefficients for ea
       - 0
       - 0
       - 0
-    * - :math:`SI`
+    * - :math:`S_I`
       - :math:`f_{SI}(1 - f_{SI,ad})`
       - 0
       - 0
@@ -262,7 +275,7 @@ The stoichiometric matrix :math:`S` encodes the mass balance coefficients for ea
       - 0
       - 0
       - 0
-    * - :math:`SI_{ad}^*`
+    * - :math:`S_{I,\mathrm{ad}}^*`
       - :math:`f_{SI} \cdot f_{SI,ad}`
       - 0
       - 0
@@ -278,7 +291,7 @@ The stoichiometric matrix :math:`S` encodes the mass balance coefficients for ea
       - 0
       - 0
       - 0
-    * - :math:`XI`
+    * - :math:`X_I`
       - 0
       - 0
       - 0
@@ -294,7 +307,7 @@ The stoichiometric matrix :math:`S` encodes the mass balance coefficients for ea
       - 0
       - 0
       - 0
-    * - :math:`XS`
+    * - :math:`X_S`
       - -1
       - 0
       - 0
@@ -310,7 +323,7 @@ The stoichiometric matrix :math:`S` encodes the mass balance coefficients for ea
       - 0
       - 0
       - 0
-    * - :math:`XH`
+    * - :math:`X_H`
       - 0
       - 0
       - 0
@@ -326,7 +339,7 @@ The stoichiometric matrix :math:`S` encodes the mass balance coefficients for ea
       - 0
       - 0
       - 0
-    * - :math:`XSTO`
+    * - :math:`X_{STO}`
       - 0
       - :math:`Y_{STO,aer}`
       - :math:`Y_{STO,anox}`
@@ -342,7 +355,7 @@ The stoichiometric matrix :math:`S` encodes the mass balance coefficients for ea
       - 0
       - :math:`Y_{STO,anox}`
       - :math:`Y_{STO,aer}`
-    * - :math:`XA`
+    * - :math:`X_A`
       - 0
       - 0
       - 0
@@ -358,7 +371,7 @@ The stoichiometric matrix :math:`S` encodes the mass balance coefficients for ea
       - 0
       - 0
       - 0
-    * - :math:`XMI`
+    * - :math:`X_{MI}`
       - 0
       - 0
       - 0
@@ -375,7 +388,7 @@ The stoichiometric matrix :math:`S` encodes the mass balance coefficients for ea
       - 0
       - 0
 
-:sup:`*` Optional: only active when 15 components are defined (SS\ :sub:`ad` and SI\ :sub:`ad`).
+:sup:`*` Optional: only active when 15 components are defined (:math:`S_{S,\mathrm{ad}}` and :math:`S_{I,\mathrm{ad}}`).
 
 
 .. figure:: images/ASM3h+.png
@@ -428,10 +441,10 @@ Stoichiometric Parameters
      - TSS to VSS ratio for biomass
      - :math:`g~TSS~(g~VSS)^{-1}`
    * - :math:`f_{SI}`
-     - Fraction of SI from hydrolysis
+     - Fraction of :math:`S_I` from hydrolysis
      - dimensionless
    * - :math:`f_{XI}`
-     - Fraction of XI from endogenous respiration
+     - Fraction of :math:`X_I` from endogenous respiration
      - dimensionless
    * - :math:`f_{ISS,BM,prod}`
      - Fraction of ISS from biomass production
@@ -495,10 +508,10 @@ Anoxic Reduction Factors
      - Anoxic reduction factor for heterotrophic growth
      - dimensionless
    * - :math:`\eta_{H,end}`
-     - Anoxic reduction factor for endogenous respiration of XH
+     - Anoxic reduction factor for endogenous respiration of :math:`X_H`
      - dimensionless
    * - :math:`\eta_{N,end}`
-     - Anoxic reduction factor for endogenous respiration of XA
+     - Anoxic reduction factor for endogenous respiration of :math:`X_A`
      - dimensionless
 
 Saturation/Inhibition Coefficients
@@ -568,10 +581,10 @@ Optional Parameters
      - Description
      - Unit
    * - :math:`f_{SI,ad}`
-     - Fraction of adsorbable SI
+     - Fraction of adsorbable :math:`S_I`
      - dimensionless
    * - :math:`f_{SS,ad}`
-     - Fraction of adsorbable SS
+     - Fraction of adsorbable :math:`S_S`
      - dimensionless
    * - :math:`iO_2`
      - Aeration oxygen input rate
@@ -596,17 +609,20 @@ Substrate Fractionation
 -----------------------
 
 The organic substrates can be fractionated into adsorbable and non-adsorbable components via ``ASM3_FSI_AD`` and ``ASM3_FSS_AD``.
-This requires at least 15 components (including ``SI_ad`` and ``SS_ad``) and enables coupling with binding models for 
-adsorptive interactions during biological treatment. If fewer than 15 components are defined, adsorbed components are disabled.
+This requires at least 15 components (including ``SI_ad`` and ``SS_ad``, corresponding to :math:`S_{I,\mathrm{ad}}` and :math:`S_{S,\mathrm{ad}}`) and enables coupling with binding models for adsorptive interactions during biological treatment. If fewer than 15 components are defined, adsorbed components are disabled.
 
-When fractionation is enabled, reactions :math:`r_{14}` and :math:`r_{15}` become active for aerobic and anoxic storage of adsorbed substrate SS\ :sub:`ad`.
+When fractionation is enabled, reactions :math:`r_{14}` and :math:`r_{15}` become active for storage of adsorbable substrate :math:`S_{S,\mathrm{ad}}`.
 
 
 Implementation Notes
 --------------------
 
 - Component indices can be customized via ``ASM3_COMP_IDX`` if components are ordered differently or offset.
-- A minimum threshold of :math:`X_H = 0.1` is applied to prevent division by zero in reactions involving :math:`X_S/X_H` and :math:`X_{STO}/X_H` ratios.
+- Some kinetic terms contain ratios of particulate substrate to biomass. A smooth lower bound on the biomass concentration is used to regularize these ratios:
+
+.. math::
+
+    c_{X_H,\mathrm{lb}} = c_{X_H,\mathrm{min}} + \frac{1}{2}\left(c_{X_H} - c_{X_H,\mathrm{min}} + \sqrt{\left(c_{X_H} - c_{X_H,\mathrm{min}}\right)^2 + \varepsilon_X^2}\right)
 
 
 References
