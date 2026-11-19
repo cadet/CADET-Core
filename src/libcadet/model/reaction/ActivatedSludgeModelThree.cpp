@@ -41,12 +41,12 @@
 			{ "type": "ScalarParameter", "varName": "kx", "confName": "ASM3_KX"},
 			{ "type": "ScalarParameter", "varName": "kho2", "confName": "ASM3_KHO2"},
 			{ "type": "ScalarParameter", "varName": "khss", "confName": "ASM3_KHSS"},
-			{ "type": "ScalarParameter", "varName": "khn03", "confName": "ASM3_KHNO3"},
+			{ "type": "ScalarParameter", "varName": "khno3", "confName": "ASM3_KHNO3"},
 			{ "type": "ScalarParameter", "varName": "etahno3", "confName": "ASM3_ETA_HNO3"},
 			{ "type": "ScalarParameter", "varName": "khnh4", "confName": "ASM3_KHNH4"},
 			{ "type": "ScalarParameter", "varName": "khalk", "confName": "ASM3_KHALK"},
 			{ "type": "ScalarParameter", "varName": "khsto", "confName": "ASM3_KHSTO"},
-			{ "type": "ScalarParameter", "varName": "muh2o", "confName": "ASM3_MU_H20"},
+			{ "type": "ScalarParameter", "varName": "muh20", "confName": "ASM3_MU_H20"},
 			{ "type": "ScalarParameter", "varName": "etahend", "confName": "ASM3_ETAH_END"},
 			{ "type": "ScalarParameter", "varName": "bh20", "confName": "ASM3_BH20"},
 			{ "type": "ScalarParameter", "varName": "muAUT20", "confName": "ASM3_MU_AUT20"},
@@ -157,7 +157,7 @@ protected:
 	linalg::ActiveDenseMatrix _stoichiometry;
 
 	unsigned int _idxSO = 0; //!< SO component index, default 0
-	unsigned int _idxSS = 1; //!< SS / SS_ad component index, default 1
+	unsigned int _idxSS = 1; //!< SS component index, default 1
 	unsigned int _idxSNH = 2; //!< SNH component index, default 2
 	unsigned int _idxSNO = 3; //!< SNO component index, default 3
 	unsigned int _idxSN2 = 4; //!< SN2 component index, default 4
@@ -518,12 +518,12 @@ protected:
 		const flux_t kx		= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kx);
 		const flux_t kho2		= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->kho2);
 		const flux_t khss		= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->khss);
-		const flux_t khn03	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->khn03);
+		const flux_t khno3	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->khno3);
 		const flux_t etahno3	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->etahno3);
 		const flux_t khnh4	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->khnh4);
 		const flux_t khalk	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->khalk);
 		const flux_t khsto	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->khsto);
-		const flux_t muh2o	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->muh2o);
+		const flux_t muh20	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->muh20);
 		const flux_t etahend	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->etahend);
 		const flux_t bh20		= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->bh20);
 		const flux_t muAUT20	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->muAUT20);
@@ -540,7 +540,7 @@ protected:
 		const flux_t ft_kinetic = exp(-THETA_KINETIC * (T_REF - T));
 		const flux_t ft_autotroph = exp(-THETA_AUTOTROPH * (T_REF - T));
 		const flux_t k_sto = k_sto20 * ft_kinetic;
-		const flux_t muH = muh2o * ft_kinetic;
+		const flux_t muH = muh20 * ft_kinetic;
 		const flux_t bH = bh20 * ft_kinetic;
 		const flux_t muAUT = muAUT20 * ft_autotroph;
 		const flux_t bAUT = baut20 * ft_autotroph;
@@ -574,7 +574,7 @@ protected:
 		fluxes[1] = k_sto * SO / (SO + kho2) * (SS) / ( ( SS + SS_ad ) + khss )  * XH;
 
 		// p3: Anoxic storage of SS
-		fluxes[2] = k_sto * etahno3 * kho2 / (SO + kho2) * (SS) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khn03) * XH;
+		fluxes[2] = k_sto * etahno3 * kho2 / (SO + kho2) * (SS) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khno3) * XH;
 
 		// p4: Aerobic growth of heterotrophic biomass (XH)
 		// p5: Anoxic growth of heterotrophic biomass (XH, denitrification)
@@ -583,7 +583,7 @@ protected:
 			const auto dXH = XH - static_cast<StateType>(_XH_min_threshold);
 			const auto XH_lb = static_cast<StateType>(_XH_min_threshold) + static_cast<StateType>(0.5) * (dXH + sqrt(dXH * dXH + static_cast<StateType>(_XH_smooth_eps * _XH_smooth_eps)));
 			fluxes[3] = muH * SO / (SO + kho2) * SNH / (SNH + khnh4) * SALK / (SALK + khalk) * (XSTO / XH_lb) / ((XSTO / XH_lb) + khsto) * XH_lb;
-			fluxes[4] = muH * etahno3 * kho2 / (kho2 + SO) * SNH / (khnh4 + SNH) * SALK / (khalk + SALK) * (XSTO / XH_lb) / (khsto + (XSTO / XH_lb)) * SNO / (khn03 + SNO) * XH_lb;
+			fluxes[4] = muH * etahno3 * kho2 / (kho2 + SO) * SNH / (khnh4 + SNH) * SALK / (khalk + SALK) * (XSTO / XH_lb) / (khsto + (XSTO / XH_lb)) * SNO / (khno3 + SNO) * XH_lb;
 		}
 
 
@@ -591,13 +591,13 @@ protected:
 		fluxes[5] = bH * SO / (SO + kho2) * XH;
 
 		// r7: Anoxic endogenous respiration of heterotroph microorganisms (XH)
-		fluxes[6] = bH * etahend * kho2 / (SO + kho2) * SNO / (SNO + khn03) * XH;
+		fluxes[6] = bH * etahend * kho2 / (SO + kho2) * SNO / (SNO + khno3) * XH;
 
 		// r8: Aerobic respiration of internal cell storage products
 		fluxes[7] = bH * SO / (SO + kho2) * XSTO;
 
 		// r9: Anoxic respiration of internal cell storage products 
-		fluxes[8] = bH * etahend * kho2 / (SO + kho2) * SNO / (SNO + khn03) * XSTO;
+		fluxes[8] = bH * etahend * kho2 / (SO + kho2) * SNO / (SNO + khno3) * XSTO;
 
 		// r10: Aerobic growth of autotrophic biomass (XAUT, nitrification)
 		fluxes[9] = muAUT * SO / (SO + kno2) * SNH / (SNH + knnh4) * SALK / (SALK + knalk) * XA;
@@ -606,7 +606,7 @@ protected:
 		fluxes[10] = bAUT * SO / (SO + kho2) * XA;
 
 		// r12: Anoxic endogenous respiration of autotrophic biomass (XAUT)
-		fluxes[11] = bAUT * etanend * SNO / (SNO + khn03) * kho2 / (SO + kho2) * XA;
+		fluxes[11] = bAUT * etanend * SNO / (SNO + khno3) * kho2 / (SO + kho2) * XA;
 
 		// r13: Aeration
 		if (_activeAeration)
@@ -621,7 +621,7 @@ protected:
 
 		// p15: Anoxic storage of SS_ad
 		if(_givenAd)
-			fluxes[14] = k_sto * etahno3 * kho2 / (SO + kho2) * (SS_ad) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khn03) * XH;
+			fluxes[14] = k_sto * etahno3 * kho2 / (SO + kho2) * (SS_ad) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khno3) * XH;
 		
 		// Add reaction terms to residual
 		_stoichiometry.multiplyVector(static_cast<flux_t*>(fluxes), factor, res);
@@ -656,12 +656,12 @@ protected:
 		const double kx = static_cast<double>(p->kx);
 		const double kho2 = static_cast<double>(p->kho2);
 		const double khss = static_cast<double>(p->khss);
-		const double khn03 = static_cast<double>(p->khn03);
+		const double khno3 = static_cast<double>(p->khno3);
 		const double etahno3 = static_cast<double>(p->etahno3);
 		const double khnh4 = static_cast<double>(p->khnh4);
 		const double khalk = static_cast<double>(p->khalk);
 		const double khsto = static_cast<double>(p->khsto);
-		const double muh2o = static_cast<double>(p->muh2o);
+		const double muh20 = static_cast<double>(p->muh20);
 		const double etahend = static_cast<double>(p->etahend);
 		const double bh20 = static_cast<double>(p->bh20);
 		const double muAUT20 = static_cast<double>(p->muAUT20);
@@ -676,7 +676,7 @@ protected:
 		const double ft_kinetic = exp(-THETA_KINETIC * (T_REF - static_cast<double>(T)));
 		const double ft_autotroph = exp(-THETA_AUTOTROPH * (T_REF - static_cast<double>(T)));
 		const double k_sto = static_cast<double>(k_sto20) * ft_kinetic;
-		const double muH = static_cast<double>(muh2o) * ft_kinetic;
+		const double muH = static_cast<double>(muh20) * ft_kinetic;
 		const double bH = static_cast<double>(bh20) * ft_kinetic;
 		const double muAUT = static_cast<double>(muAUT20) * ft_autotroph;
 		const double bAUT = static_cast<double>(baut20) * ft_autotroph;
@@ -744,35 +744,35 @@ protected:
 			* SO / (SO + kho2)
 			* (SS) / ((SS_ad + SS) + khss);
 
-		// p3: Anoxic storage of SS: k_sto * etahno3 * kho2 / (SO + kho2) * ( SS ) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khn03) * XH;
+		// p3: Anoxic storage of SS: k_sto * etahno3 * kho2 / (SO + kho2) * ( SS ) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khno3) * XH;
 		d[2][_idxSO] = k_sto * etahno3
 			* -kho2 / ((SO + kho2) * (SO + kho2))
 			* (SS) / (SS_ad + SS + khss)
-			* SNO / (SNO + khn03) * XH;
+			* SNO / (SNO + khno3) * XH;
 		if(_givenAd)
 		{
 			d[2][_idxSS_ad] = k_sto * etahno3
 							* kho2 / (SO + kho2)
 							* -SS / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
-							* SNO / (SNO + khn03) * XH;
+							* SNO / (SNO + khno3) * XH;
 		}
 		
 		d[2][_idxSS] = k_sto * etahno3
 			* kho2 / (SO + kho2)
 			* (khss + SS_ad)  / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
-			* SNO / (SNO + khn03) * XH;
+			* SNO / (SNO + khno3) * XH;
 		d[2][_idxSNO] = k_sto * etahno3
 			* kho2 / (SO + kho2)
 			* (SS) / ((SS_ad + SS) + khss)
-			* khn03 / ((SNO + khn03) * (SNO + khn03)) * XH;
+			* khno3 / ((SNO + khno3) * (SNO + khno3)) * XH;
 		d[2][_idxXH] = k_sto * etahno3
 			* kho2 / (SO + kho2)
 			* (SS) / ((SS_ad + SS) + khss)
-			* SNO / (SNO + khn03);
+			* SNO / (SNO + khno3);
 
 		// p4 & p5: Aerobic/Anoxic growth with smooth lower bound XH_lb
 		// flux4 = muH * SO/(SO+kho2) * SNH/(SNH+khnh4) * SALK/(SALK+khalk) * (XSTO/XH_lb)/(XSTO/XH_lb+khsto) * XH_lb
-		// flux5 = muH * etahno3 * kho2/(kho2+SO) * SNH/(khnh4+SNH) * SALK/(khalk+SALK) * (XSTO/XH_lb)/(khsto+XSTO/XH_lb) * SNO/(khn03+SNO) * XH_lb
+		// flux5 = muH * etahno3 * kho2/(kho2+SO) * SNH/(khnh4+SNH) * SALK/(khalk+SALK) * (XSTO/XH_lb)/(khsto+XSTO/XH_lb) * SNO/(khno3+SNO) * XH_lb
 		// = muH * ... * XSTO*XH_lb / (XSTO + khsto*XH_lb) ... so let denomXH = XSTO + khsto*XH_lb
 		{
 			const double dXH34 = XH - _XH_min_threshold;
@@ -796,26 +796,26 @@ protected:
 			d[3][_idxXSTO] = stoFactor3 * khsto * XH_lb34 * XH_lb34 / (denomXSTO34 * denomXSTO34);
 			d[3][_idxXH] = stoFactor3 * XSTO * XSTO / (denomXSTO34 * denomXSTO34) * dXH_lb_dXH34;
 
-			const double stoFactor4 = muH * etahno3 * kho2 / (kho2 + SO) * SNH / (khnh4 + SNH) * SALK / (khalk + SALK) * SNO / (khn03 + SNO);
+			const double stoFactor4 = muH * etahno3 * kho2 / (kho2 + SO) * SNH / (khnh4 + SNH) * SALK / (khalk + SALK) * SNO / (khno3 + SNO);
 			d[4][_idxSO] = muH * etahno3
 				* -kho2 / ((kho2 + SO) * (kho2 + SO))
 				* SNH / (khnh4 + SNH)
 				* SALK / (khalk + SALK)
-				* SNO / (khn03 + SNO)
+				* SNO / (khno3 + SNO)
 				* XSTO * XH_lb34 / denomXSTO34;
 			d[4][_idxSNH] = muH * etahno3
 				* kho2 / (kho2 + SO)
 				* khnh4 / ((khnh4 + SNH) * (khnh4 + SNH))
 				* SALK / (khalk + SALK)
-				* SNO / (khn03 + SNO)
+				* SNO / (khno3 + SNO)
 				* XSTO * XH_lb34 / denomXSTO34;
 			d[4][_idxSALK] = muH * etahno3
 				* kho2 / (kho2 + SO)
 				* SNH / (khnh4 + SNH)
 				* khalk / ((khalk + SALK) * (khalk + SALK))
-				* SNO / (khn03 + SNO)
+				* SNO / (khno3 + SNO)
 				* XSTO * XH_lb34 / denomXSTO34;
-			d[4][_idxSNO] = muH * etahno3 * kho2 / (kho2 + SO) * SNH / (khnh4 + SNH) * SALK / (khalk + SALK) * khn03 / ((khn03 + SNO) * (khn03 + SNO)) * XSTO * XH_lb34 / denomXSTO34;
+			d[4][_idxSNO] = muH * etahno3 * kho2 / (kho2 + SO) * SNH / (khnh4 + SNH) * SALK / (khalk + SALK) * khno3 / ((khno3 + SNO) * (khno3 + SNO)) * XSTO * XH_lb34 / denomXSTO34;
 			d[4][_idxXSTO] = stoFactor4 * khsto * XH_lb34 * XH_lb34 / (denomXSTO34 * denomXSTO34);
 			d[4][_idxXH] = stoFactor4 * XSTO * XSTO / (denomXSTO34 * denomXSTO34) * dXH_lb_dXH34;
 		}
@@ -825,32 +825,32 @@ protected:
 			* kho2 / ((SO + kho2) * (SO + kho2)) * XH;
 		d[5][_idxXH] = bH * SO / (SO + kho2);
 
-		//reaction7: bH * etahend * kho2 / (SO + kho2) * SNO / (SNO + khn03) * XH;
+		//reaction7: bH * etahend * kho2 / (SO + kho2) * SNO / (SNO + khno3) * XH;
 		d[6][_idxSO] = bH * etahend
 			* -kho2 / ((SO + kho2) * (SO + kho2))
-			* SNO / (SNO + khn03) * XH;
+			* SNO / (SNO + khno3) * XH;
 		d[6][_idxSNO] = bH * etahend
 			* kho2 / (SO + kho2)
-			* khn03 / ((SNO + khn03) * (SNO + khn03)) * XH;
+			* khno3 / ((SNO + khno3) * (SNO + khno3)) * XH;
 		d[6][_idxXH] = bH * etahend
 			* kho2 / (SO + kho2)
-			* SNO / (SNO + khn03);
+			* SNO / (SNO + khno3);
 
 		//reaction8: bH * SO / (SO + kho2) * XSTO;
 		d[7][_idxSO] = bH
 			* kho2 / ((SO + kho2) * (SO + kho2)) * XSTO;
 		d[7][_idxXSTO] = bH * SO / (SO + kho2);
 
-		//reaction9: bH * etahend * kho2 / (SO + kho2) * SNO / (SNO + khn03) * XSTO;
+		//reaction9: bH * etahend * kho2 / (SO + kho2) * SNO / (SNO + khno3) * XSTO;
 		d[8][_idxSO] = bH * etahend
 			* -kho2 / ((SO + kho2) * (SO + kho2))
-			* SNO / (SNO + khn03) * XSTO;
+			* SNO / (SNO + khno3) * XSTO;
 		d[8][_idxSNO] = bH * etahend
 			* kho2 / (SO + kho2)
-			* khn03 / ((SNO + khn03) * (SNO + khn03)) * XSTO;
+			* khno3 / ((SNO + khno3) * (SNO + khno3)) * XSTO;
 		d[8][_idxXSTO] = bH * etahend
 			* kho2 / (SO + kho2)
-			* SNO / (SNO + khn03);
+			* SNO / (SNO + khno3);
 
 		//reaction10: muAUT * SO / (SO + kno2) * SNH / (SNH + knnh4) * SALK / (SALK + knalk) * XA;
 		d[9][_idxSO] = muAUT
@@ -876,15 +876,15 @@ protected:
 		d[10][_idxXA] = bAUT
 			* SO / (SO + kho2);
 
-		//reaction12: bAUT * etanend * SNO / (SNO + khn03) * kho2 / (SO + kho2) * XA;
+		//reaction12: bAUT * etanend * SNO / (SNO + khno3) * kho2 / (SO + kho2) * XA;
 		d[11][_idxSO] = bAUT * etanend
-			* SNO / (SNO + khn03)
+			* SNO / (SNO + khno3)
 			* -kho2 / ((SO + kho2) * (SO + kho2)) * XA;
 		d[11][_idxSNO] = bAUT * etanend
 			* kho2 / (SO + kho2)
-			* khn03 / ((SNO + khn03) * (SNO + khn03)) * XA;
+			* khno3 / ((SNO + khno3) * (SNO + khno3)) * XA;
 		d[11][_idxXA] = bAUT * etanend
-			* SNO / (SNO + khn03)
+			* SNO / (SNO + khno3)
 			* kho2 / (SO + kho2);
 		
 		//reaction13: Aeration: io2 / V;
@@ -906,29 +906,29 @@ protected:
 						* SO / (SO + kho2)
 						* (SS_ad) / ((SS_ad + SS) + khss);
 
-			// p15: Anoxic storage of SS_ad: k_sto * etahno3 * kho2 / (SO + kho2) * ( SS_ad ) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khn03) * XH;
+			// p15: Anoxic storage of SS_ad: k_sto * etahno3 * kho2 / (SO + kho2) * ( SS_ad ) / ( ( SS_ad + SS ) + khss )  * SNO / (SNO + khno3) * XH;
 			d[14][_idxSO] = k_sto * etahno3
 				* -kho2 / ((SO + kho2) * (SO + kho2))
 				* (SS_ad) / (SS_ad + SS + khss)
-				* SNO / (SNO + khn03) * XH;
+				* SNO / (SNO + khno3) * XH;
 
 			d[14][_idxSS_ad] = k_sto * etahno3
 				* kho2 / (SO + kho2)
 				* (khss + SS) / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
-				* SNO / (SNO + khn03) * XH;
+				* SNO / (SNO + khno3) * XH;
 
 			d[14][_idxSS] = k_sto * etahno3
 				* kho2 / (SO + kho2)
 				* (-SS_ad) / ((SS_ad + SS + khss) * (SS_ad + SS + khss))
-				* SNO / (SNO + khn03) * XH;
+				* SNO / (SNO + khno3) * XH;
 			d[14][_idxSNO] = k_sto * etahno3
 				* kho2 / (SO + kho2)
 				* (SS_ad) / ((SS_ad + SS) + khss)
-				* khn03 / ((SNO + khn03) * (SNO + khn03)) * XH;
+				* khno3 / ((SNO + khno3) * (SNO + khno3)) * XH;
 			d[14][_idxXH] = k_sto * etahno3
 				* kho2 / (SO + kho2)
 				* (SS_ad) / ((SS_ad + SS) + khss)
-				* SNO / (SNO + khn03);
+				* SNO / (SNO + khno3);
 		}
 
 		// Assemble Jacobian: J += stoichiometry * derivatives
