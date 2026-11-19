@@ -318,17 +318,20 @@ protected:
 		const double fSI = paramProvider.getDouble("ASM3_FSI");
 		const double fXI = paramProvider.getDouble("ASM3_FXI");
 
-		const double YH_aer = paramProvider.getDouble("ASM3_YH_AER");
-		if (YH_aer < 1e-16)
-			throw InvalidParameterException("ASM3 configuration: YH_aer must be bigger than zero");
-		const double YH_anox = paramProvider.getDouble("ASM3_YH_ANOX");
-		const double YSTO_aer = paramProvider.getDouble("ASM3_YSTO_AER");
-		if (YSTO_aer < 1e-16)
-			throw InvalidParameterException("ASM3 configuration: YSTO_aer must be bigger than zero");
-		const double YSTO_anox = paramProvider.getDouble("ASM3_YSTO_ANOX");
-		const double YA = paramProvider.getDouble("ASM3_YA");
-		if (YA < 1e-16)
-			throw InvalidParameterException("ASM3 configuration: YA must be bigger than zero");
+		// All yields are documented as strictly positive and YH_aer, YH_anox and YA are used as divisors
+		const auto readYield = [&paramProvider](const std::string& name) -> double
+			{
+				const double y = paramProvider.getDouble(name);
+				if (!(y >= 1e-16))
+					throw InvalidParameterException("ASM3 configuration: " + name + " must be bigger than zero");
+				return y;
+			};
+
+		const double YH_aer = readYield("ASM3_YH_AER");
+		const double YH_anox = readYield("ASM3_YH_ANOX");
+		const double YSTO_aer = readYield("ASM3_YSTO_AER");
+		const double YSTO_anox = readYield("ASM3_YSTO_ANOX");
+		const double YA = readYield("ASM3_YA");
 
 		const double fiSS_BM_prod = paramProvider.getDouble("ASM3_FISS_BM_PROD");
 		const double iVSS_BM = paramProvider.getDouble("ASM3_IVSS_BM");
