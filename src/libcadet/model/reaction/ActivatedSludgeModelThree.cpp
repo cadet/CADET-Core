@@ -22,6 +22,7 @@
 #include "Memory.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <unordered_map>
 #include <string>
 #include <vector>
@@ -190,8 +191,8 @@ protected:
 	bool _givenAd = true;
 	bool _activeAeration = false;
 
-	static constexpr double XH_MIN_THRESHOLD = 1e-6;
-	static constexpr double XH_SMOOTH_EPS = 1e-4; //!< Smoothing parameter for smooth max of XH lower bound
+	double _XH_min_threshold;
+	double _XH_smooth_eps; //!< Smoothing parameter for smooth max of XH lower bound
 
 	// Temperature correction factors (Arrhenius-type)
 	static constexpr double T_REF = 20.0;           //!< Reference temperature
@@ -281,6 +282,20 @@ protected:
 		else
 			_stoichiometry.resize(_nComp, 13); //componentes x reactions // option to optimize: Depending on whether adsorbed components are used or not 13/12 or 15 reactions are needed
 		
+		if (paramProvider.exists("XH_MIN_THRESHOLD"))
+			_XH_min_threshold = paramProvider.getDouble("XH_MIN_THRESHOLD");
+		else
+			_XH_min_threshold = 1e-6;
+
+		if (paramProvider.exists("XH_SMOOTH_EPS"))
+			_XH_smooth_eps = paramProvider.getDouble("XH_SMOOTH_EPS");
+		else
+			_XH_smooth_eps = 1e-4;
+
+		if (!std::isfinite(_XH_min_threshold) || _XH_min_threshold <= 0.0)
+			throw InvalidParameterException("ASM3 configuration: XH_MIN_THRESHOLD must be positive and finite");
+		if (!std::isfinite(_XH_smooth_eps) || _XH_smooth_eps <= 0.0)
+			throw InvalidParameterException("ASM3 configuration: XH_SMOOTH_EPS must be positive and finite");
 		
 		_stoichiometry.setAll(0);
 
@@ -557,8 +572,8 @@ protected:
 		// p1: Hydrolysis of organic structures
 		// smooth lower bound: XH_lb = XH_MIN + 0.5*(XH - XH_MIN + sqrt((XH - XH_MIN)^2 + eps^2))
 		{
-			const auto dXH = XH - static_cast<StateType>(XH_MIN_THRESHOLD);
-			const auto XH_lb = static_cast<StateType>(XH_MIN_THRESHOLD) + static_cast<StateType>(0.5) * (dXH + sqrt(dXH * dXH + static_cast<StateType>(XH_SMOOTH_EPS * XH_SMOOTH_EPS)));
+			const auto dXH = XH - static_cast<StateType>(_XH_min_threshold);
+			const auto XH_lb = static_cast<StateType>(_XH_min_threshold) + static_cast<StateType>(0.5) * (dXH + sqrt(dXH * dXH + static_cast<StateType>(_XH_smooth_eps * _XH_smooth_eps)));
 			fluxes[0] = kh20 * ft_hydrolysis * (XS / XH_lb) / ((XS / XH_lb) + kx) * XH_lb;
 		}
 
@@ -572,8 +587,8 @@ protected:
 		// p5: Anoxic growth of heterotrophic biomass (XH, denitrification)
 		// smooth lower bound shared by p4 and p5
 		{
-			const auto dXH = XH - static_cast<StateType>(XH_MIN_THRESHOLD);
-			const auto XH_lb = static_cast<StateType>(XH_MIN_THRESHOLD) + static_cast<StateType>(0.5) * (dXH + sqrt(dXH * dXH + static_cast<StateType>(XH_SMOOTH_EPS * XH_SMOOTH_EPS)));
+			const auto dXH = XH - static_cast<StateType>(_XH_min_threshold);
+			const auto XH_lb = static_cast<StateType>(_XH_min_threshold) + static_cast<StateType>(0.5) * (dXH + sqrt(dXH * dXH + static_cast<StateType>(_XH_smooth_eps * _XH_smooth_eps)));
 			fluxes[3] = muH * SO / (SO + kho2) * SNH / (SNH + khnh4) * SALK / (SALK + khalk) * (XSTO / XH_lb) / ((XSTO / XH_lb) + khsto) * XH_lb;
 			fluxes[4] = muH * etahno3 * kho2 / (kho2 + SO) * SNH / (khnh4 + SNH) * SALK / (khalk + SALK) * (XSTO / XH_lb) / (khsto + (XSTO / XH_lb)) * SNO / (khn03 + SNO) * XH_lb;
 		}
@@ -699,9 +714,9 @@ protected:
 		// p1: Hydrolysis: flux = kh20 * ft_hydrolysis * XS * XH_lb / (XS + kx*XH_lb)
 		// smooth lower bound: XH_lb = XH_MIN + 0.5*(XH - XH_MIN + sqrt((XH-XH_MIN)^2 + eps^2))
 		{
-			const double dXH0 = XH - XH_MIN_THRESHOLD;
-			const double sqrtTerm0 = std::sqrt(dXH0 * dXH0 + XH_SMOOTH_EPS * XH_SMOOTH_EPS);
-			const double XH_lb0 = XH_MIN_THRESHOLD + 0.5 * (dXH0 + sqrtTerm0);
+			const double dXH0 = XH - _XH_min_threshold;
+			const double sqrtTerm0 = std::sqrt(dXH0 * dXH0 + _XH_smooth_eps * _XH_smooth_eps);
+			const double XH_lb0 = _XH_min_threshold + 0.5 * (dXH0 + sqrtTerm0);
 			const double dXH_lb_dXH0 = 0.5 * (1.0 + dXH0 / sqrtTerm0);
 			const double denom0 = XS + kx * XH_lb0;
 			d[0][_idxXS] = kh20 * ft_hydrolysis * XH_lb0 * kx * XH_lb0 / (denom0 * denom0);
@@ -757,9 +772,9 @@ protected:
 		// flux5 = muH * etahno3 * kho2/(kho2+SO) * SNH/(khnh4+SNH) * SALK/(khalk+SALK) * (XSTO/XH_lb)/(khsto+XSTO/XH_lb) * SNO/(khn03+SNO) * XH_lb
 		// = muH * ... * XSTO*XH_lb / (XSTO + khsto*XH_lb) ... so let denomXH = XSTO + khsto*XH_lb
 		{
-			const double dXH34 = XH - XH_MIN_THRESHOLD;
-			const double sqrtTerm34 = std::sqrt(dXH34 * dXH34 + XH_SMOOTH_EPS * XH_SMOOTH_EPS);
-			const double XH_lb34 = XH_MIN_THRESHOLD + 0.5 * (dXH34 + sqrtTerm34);
+			const double dXH34 = XH - _XH_min_threshold;
+			const double sqrtTerm34 = std::sqrt(dXH34 * dXH34 + _XH_smooth_eps * _XH_smooth_eps);
+			const double XH_lb34 = _XH_min_threshold + 0.5 * (dXH34 + sqrtTerm34);
 			const double dXH_lb_dXH34 = 0.5 * (1.0 + dXH34 / sqrtTerm34);
 			const double denomXSTO34 = XSTO + khsto * XH_lb34;
 			// XSTO/XH_lb term that appears in flux = XSTO * XH_lb / (XSTO + khsto*XH_lb)

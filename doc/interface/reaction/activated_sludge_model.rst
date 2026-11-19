@@ -39,6 +39,30 @@ For information on model equations, refer to :ref:`activated_sludge_model`.
    **Type:** double  **Range:** :math:`\mathbb{N}`  **Length:** 13
    ================  =============================  ========================================================
 
+**Numerical parameters**
+
+``XH_MIN_THRESHOLD``
+
+   (Optional) Lower-bound parameter :math:`c_{X_H,\mathrm{min}}` for regularizing the heterotrophic biomass concentration. Defaults to :math:`10^{-6}`.
+
+   **Unit:** Same concentration unit as :math:`X_H`.
+
+   ================  =======================  ===============
+   **Type:** double  **Range:** finite, > 0  **Length:** 1
+   ================  =======================  ===============
+
+``XH_SMOOTH_EPS``
+
+   (Optional) Smoothing parameter :math:`\varepsilon_X` for the lower bound on the heterotrophic biomass concentration. Defaults to :math:`10^{-4}`.
+
+   **Unit:** Same concentration unit as :math:`X_H`.
+
+   ================  =======================  ===============
+   **Type:** double  **Range:** finite, > 0  **Length:** 1
+   ================  =======================  ===============
+
+   See :ref:`activated_sludge_model` for the lower-bound equation.
+
 **Environment/process parameters**
 
 ``ASM3_T``
