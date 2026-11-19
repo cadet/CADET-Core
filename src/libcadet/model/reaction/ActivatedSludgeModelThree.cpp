@@ -444,7 +444,7 @@ protected:
 		_stoichiometry.native(_idxSALK, 12) = c2a;
 		if (_givenAd)
 		{
-			_stoichiometry.native(_idxSALK, 13) = c3a;
+			_stoichiometry.native(_idxSALK, 13) = c2a;
 			_stoichiometry.native(_idxSALK, 14) = c3a;
 		}
 		// SI
