@@ -934,7 +934,7 @@ protected:
 			RowIterator curJac = jac;
 			for (int row = 0; row < _stoichiometry.rows(); ++row, ++curJac)
 			{
-				const double colFactor = static_cast<double>(_stoichiometry.native(row, rIdx));
+				const double colFactor = static_cast<double>(_stoichiometry.native(row, rIdx)) * factor;
 				if (std::abs(colFactor) < 1e-15) continue;
 
 				for (size_t compIdx = 0; compIdx < _stoichiometry.rows(); compIdx++)
