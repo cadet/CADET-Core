@@ -441,7 +441,7 @@ protected:
 		_stoichiometry.native(_idxSALK, 9) = c10a;
 		_stoichiometry.native(_idxSALK, 10) = c11a;
 		_stoichiometry.native(_idxSALK, 11) = c12a;
-		_stoichiometry.native(_idxSALK, 12) = c2a;
+		// Reaction 13 is aeration and only adds oxygen, it does not change alkalinity
 		if (_givenAd)
 		{
 			_stoichiometry.native(_idxSALK, 13) = c2a;
