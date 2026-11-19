@@ -925,7 +925,7 @@ protected:
 		}
 
 		// Assemble Jacobian: J += stoichiometry * derivatives
-		for (size_t rIdx = 0; rIdx < _stoichiometry.columns(); rIdx++)
+		for (int rIdx = 0; rIdx < nReac; ++rIdx)
 		{
 			RowIterator curJac = jac;
 			for (int row = 0; row < _stoichiometry.rows(); ++row, ++curJac)
@@ -933,12 +933,12 @@ protected:
 				const double colFactor = static_cast<double>(_stoichiometry.native(row, rIdx)) * factor;
 				if (std::abs(colFactor) < 1e-15) continue;
 
-				for (size_t compIdx = 0; compIdx < _stoichiometry.rows(); compIdx++)
+				for (int compIdx = 0; compIdx < _stoichiometry.rows(); ++compIdx)
 				{
 					const double derivative = d[rIdx][compIdx];
 					if (std::abs(derivative) < 1e-15) continue;
 
-					curJac[compIdx - static_cast<int>(row)] += colFactor * derivative;
+					curJac[compIdx - row] += colFactor * derivative;
 				}
 			}
 		}
