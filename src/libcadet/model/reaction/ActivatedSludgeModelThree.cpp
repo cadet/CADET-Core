@@ -543,14 +543,16 @@ protected:
 		const flux_t etanend	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->etanend);
 
 		// derived parameters - temperature correction
-		const double ft_hydrolysis = exp(-THETA_HYDROLYSIS * (T_REF - static_cast<double>(T)));
-		const double ft_kinetic = exp(-THETA_KINETIC * (T_REF - static_cast<double>(T)));
-		const double ft_autotroph = exp(-THETA_AUTOTROPH * (T_REF - static_cast<double>(T)));
-		const double k_sto = static_cast<double>(k_sto20) * ft_kinetic;
-		const double muH = static_cast<double>(muh2o) * ft_kinetic;
-		const double bH = static_cast<double>(bh20) * ft_kinetic;
-		const double muAUT = static_cast<double>(muAUT20) * ft_autotroph;
-		const double bAUT = static_cast<double>(baut20) * ft_autotroph;
+		// These stay in the parameter type so that sensitivities with respect to T and to the
+		// rate constants at 20 degrees survive; demoting them to double would drop the AD seed.
+		const flux_t ft_hydrolysis = exp(-THETA_HYDROLYSIS * (T_REF - T));
+		const flux_t ft_kinetic = exp(-THETA_KINETIC * (T_REF - T));
+		const flux_t ft_autotroph = exp(-THETA_AUTOTROPH * (T_REF - T));
+		const flux_t k_sto = k_sto20 * ft_kinetic;
+		const flux_t muH = muh2o * ft_kinetic;
+		const flux_t bH = bh20 * ft_kinetic;
+		const flux_t muAUT = muAUT20 * ft_autotroph;
+		const flux_t bAUT = baut20 * ft_autotroph;
 
 		StateType SO = y[_idxSO];
 		StateType SS = y[_idxSS];
