@@ -498,8 +498,8 @@ protected:
 		
 		const flux_t T	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->T);
 
-		flux_t io2;
-		flux_t V;
+		flux_t io2 = 0.0;
+		flux_t V = 0.0;
 		if (_activeAeration)
 		{
 			io2	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->io2);
