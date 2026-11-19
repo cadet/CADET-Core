@@ -501,6 +501,13 @@ protected:
 	int residualFluxImpl(double t, unsigned int secIdx, const ColumnPosition& colPos, const unsigned int nStates,
 		StateType const* y, ResidualType* res, const FactorType& factor, LinearBufferAllocator workSpace) const
 	{
+		// The model addresses the liquid phase components directly and has no bound state
+		// equations. A solid phase instance is called with the number of bound states instead,
+		// which would index past the end of the state vector. The phase is not passed to the
+		// reaction model at configuration time, so this is the earliest point to reject it.
+		if (nStates != _nComp)
+			throw InvalidParameterException("ASM3: ACTIVATED_SLUDGE_MODEL3 is a liquid phase reaction model and cannot be used in a solid phase");
+
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
 		// Calculate fluxes
