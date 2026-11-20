@@ -1146,11 +1146,11 @@
             ]
         },
         "time_integrator": {
-            "ABSTOL": 0.0001,
-            "ALGTOL": 0.0001,
+            "ABSTOL": 1e-12,
+            "ALGTOL": 1e-10,
             "INIT_STEP_SIZE": 1e-10,
             "MAX_STEPS": 10000,
-            "RELTOL": 0.0001
+            "RELTOL": 1e-10
         }
     }
 }
