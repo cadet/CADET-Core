@@ -116,7 +116,8 @@ public:
 	virtual bool hasSalt() const CADET_NOEXCEPT { return true; }
 	virtual bool supportsMultistate() const CADET_NOEXCEPT { return false; }
 	virtual bool supportsNonBinding() const CADET_NOEXCEPT { return true; }
-	virtual bool hasQuasiStationaryReactions() const CADET_NOEXCEPT { return false; }
+	// Both binding modes are supported, so hasQuasiStationaryReactions() and hasDynamicReactions()
+	// are left to the base class, which derives them from the configured IS_KINETIC flags.
 
 	virtual bool preConsistentInitialState(double t, unsigned int secIdx, const ColumnPosition& colPos, double* y, double const* yCp, LinearBufferAllocator workSpace) const
 	{
