@@ -349,10 +349,20 @@ protected:
 		double fSS_ad = 0.0;
 		if (_givenAd)
 		{
+			// A fraction outside [0, 1] would let hydrolysis produce a negative amount of one of
+			// the two halves it splits its product into
+			const auto readFraction = [&paramProvider](const std::string& name) -> double
+				{
+					const double f = paramProvider.getDouble(name);
+					if (!(f >= 0.0) || !(f <= 1.0))
+						throw InvalidParameterException("ASM3 configuration: " + name + " must be between zero and one");
+					return f;
+				};
+
 			if (paramProvider.exists("ASM3_FSI_AD"))
-				fSI_ad = paramProvider.getDouble("ASM3_FSI_AD");
+				fSI_ad = readFraction("ASM3_FSI_AD");
 			if (paramProvider.exists("ASM3_FSS_AD"))
-				fSS_ad = paramProvider.getDouble("ASM3_FSS_AD");
+				fSS_ad = readFraction("ASM3_FSS_AD");
 		}
 		else if (paramProvider.exists("ASM3_FSI_AD") || paramProvider.exists("ASM3_FSS_AD"))
 		{
