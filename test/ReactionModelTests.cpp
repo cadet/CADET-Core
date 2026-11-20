@@ -91,7 +91,7 @@ namespace reaction
 	{
 		::operator delete(_bufferMemory);
 
-		delete[] _extFuns;
+		delete _extFuns;
 		delete[] _boundOffset;
 		delete _reaction;
 	}
@@ -118,9 +118,12 @@ namespace reaction
 			REQUIRE(rm->configure(jpp, 0, 0));
 		}
 
-		// Assign external functions
-		cadet::IExternalFunction* extFuns = new LinearExternalFunction[50];
-		rm->setExternalFunctions(&extFuns, 50);
+		// Assign external functions. EXTFUN is forced to {0} above, so every externally
+		// dependent parameter is wired to source 0 and a single function is all that can be
+		// addressed. Testing a model against several external sources needs an array of
+		// IExternalFunction pointers here, as in BindingModelTests.cpp.
+		cadet::IExternalFunction* extFuns = new LinearExternalFunction;
+		rm->setExternalFunctions(&extFuns, 1);
 
 		// Allocate memory buffer
 		unsigned int requiredMem = 0;
@@ -404,7 +407,7 @@ namespace reaction
 		ad::prepareAdVectorSeedsForDenseMatrix(adY, 0, numDofs);
 		ad::copyToAd(yState.data(), adY, numDofs);
 		ad::resetAd(adRes, numDofs);
-		crm.model().residualCombinedAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, adY, adY + crm.nComp(), adRes, adRes + crm.nComp(), 1.0, crm.buffer());
+		crm.model().residualCombinedAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, adY, adY + crm.nComp(), adRes, adRes + crm.nComp(), 1.0, crm.buffer());
 
 		// Extract Jacobian
 		cadet::linalg::DenseMatrix jacAD;
@@ -414,30 +417,31 @@ namespace reaction
 		// Calculate analytic Jacobian
 		cadet::linalg::DenseMatrix jacAna;
 		jacAna.resize(numDofs, numDofs);
-		crm.model().analyticJacobianCombinedAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, yState.data(), yState.data() + crm.nComp(), 1.0, jacAna.row(0), jacAna.row(crm.nComp()), crm.buffer());
+		jacAna.setAll(0.0);
+		crm.model().analyticJacobianCombinedAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, yState.data(), yState.data() + crm.nComp(), 1.0, jacAna.row(0), jacAna.row(crm.nComp()), crm.buffer());
 
 		cadet::test::checkJacobianPatternFD(
 			[&](double const* lDir, double* res) -> void
-				{
-					std::fill_n(res, numDofs, 0.0);
-					crm.model().residualCombinedAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, lDir + crm.nComp(), res, res + crm.nComp(), 1.0, crm.buffer());
-				},
-			[&](double const* lDir, double* res) -> void 
-				{
-					jacAna.multiplyVector(lDir, res);
-				},
+			{
+				std::fill_n(res, numDofs, 0.0);
+				crm.model().residualCombinedAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, lDir, lDir + crm.nComp(), res, res + crm.nComp(), 1.0, crm.buffer());
+			},
+			[&](double const* lDir, double* res) -> void
+			{
+				jacAna.multiplyVector(lDir, res);
+			},
 			yState.data(), dir.data(), colA.data(), colB.data(), numDofs, numDofs);
 
 		cadet::test::checkJacobianPatternFD(
 			[&](double const* lDir, double* res) -> void
-				{
-					std::fill_n(res, numDofs, 0.0);
-					crm.model().residualCombinedAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, lDir, lDir + crm.nComp(), res, res + crm.nComp(), 1.0, crm.buffer());
-				},
-			[&](double const* lDir, double* res) -> void 
-				{
-					jacAD.multiplyVector(lDir, res);
-				},
+			{
+				std::fill_n(res, numDofs, 0.0);
+				crm.model().residualCombinedAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, lDir, lDir + crm.nComp(), res, res + crm.nComp(), 1.0, crm.buffer());
+			},
+			[&](double const* lDir, double* res) -> void
+			{
+				jacAD.multiplyVector(lDir, res);
+			},
 			yState.data(), dir.data(), colA.data(), colB.data(), numDofs, numDofs);
 
 		// Check Jacobians against each other
@@ -455,7 +459,7 @@ namespace reaction
 
 		// Evaluate with AD
 		ad::resetAd(adRes, numDofs);
-		crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, crm.nComp(), adY, adRes, 1.0, crm.buffer());
+		crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, crm.nComp(), adY, adRes, 1.0, crm.buffer());
 
 		// Extract Jacobian
 		jacAD.setAll(0.0);
@@ -463,33 +467,33 @@ namespace reaction
 
 		// Calculate analytic Jacobian
 		jacAna.setAll(0.0);
-		crm.model().analyticJacobianAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, crm.nComp(), yState.data(), 1.0, jacAna.row(0), crm.buffer());
+		crm.model().analyticJacobianAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, crm.nComp(), yState.data(), 1.0, jacAna.row(0), crm.buffer());
 
 		delete[] adY;
 		delete[] adRes;
 
 		cadet::test::checkJacobianPatternFD(
 			[&](double const* lDir, double* res) -> void
-				{
-					std::fill_n(res, nComp, 0.0);
-					crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, crm.nComp(), lDir, res, 1.0, crm.buffer());
-				},
-			[&](double const* lDir, double* res) -> void 
-				{
-					jacAna.submatrixMultiplyVector(lDir, 0, 0, nComp, nComp, res);
-				},
+			{
+				std::fill_n(res, nComp, 0.0);
+				crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, crm.nComp(), lDir, res, 1.0, crm.buffer());
+			},
+			[&](double const* lDir, double* res) -> void
+			{
+				jacAna.submatrixMultiplyVector(lDir, 0, 0, nComp, nComp, res);
+			},
 			yState.data(), dir.data(), colA.data(), colB.data(), nComp, nComp);
 
 		cadet::test::checkJacobianPatternFD(
 			[&](double const* lDir, double* res) -> void
-				{
-					std::fill_n(res, nComp, 0.0);
-					crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, crm.nComp(), lDir, res, 1.0, crm.buffer());
-				},
-			[&](double const* lDir, double* res) -> void 
-				{
-					jacAD.submatrixMultiplyVector(lDir, 0, 0, nComp, nComp, res);
-				},
+			{
+				std::fill_n(res, nComp, 0.0);
+				crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{ 0.0, 0.0, 0.0 }, crm.nComp(), lDir, res, 1.0, crm.buffer());
+			},
+			[&](double const* lDir, double* res) -> void
+			{
+				jacAD.submatrixMultiplyVector(lDir, 0, 0, nComp, nComp, res);
+			},
 			yState.data(), dir.data(), colA.data(), colB.data(), nComp, nComp);
 
 		// Check Jacobians against each other
@@ -500,6 +504,56 @@ namespace reaction
 				CAPTURE(row);
 				CAPTURE(col);
 				CHECK(jacAna.native(row, col) == makeApprox(jacAD.native(row, col), absTol, relTol));
+			}
+		}
+	}
+
+	void testLiquidReactionJacobianAD(const char* modelName, unsigned int nComp, unsigned int const* nBound, const char* config, double const* point, double absTol, double relTol)
+	{
+		ConfiguredDynamicReactionModel crm = ConfiguredDynamicReactionModel::create(modelName, nComp, nBound, config);
+		std::vector<double> yState(point, point + nComp);
+		std::vector<double> dir(nComp, 0.0);
+		std::vector<double> colA(nComp, 0.0);
+		std::vector<double> colB(nComp, 0.0);
+		std::vector<cadet::active> adY(nComp);
+		std::vector<cadet::active> adRes(nComp);
+
+		// Hosting unit operations scale the reaction term, e.g. the CSTR passes -V. Use a factor
+		// different from 1 here so that a Jacobian which ignores it does not go unnoticed.
+		const double factor = -2.5;
+
+		cadet::ad::setDirections(cadet::ad::getMaxDirections());
+		ad::prepareAdVectorSeedsForDenseMatrix(adY.data(), 0, nComp);
+		ad::copyToAd(yState.data(), adY.data(), nComp);
+		ad::resetAd(adRes.data(), nComp);
+		crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, nComp, adY.data(), adRes.data(), factor, crm.buffer());
+
+		cadet::linalg::DenseMatrix jacAD;
+		jacAD.resize(nComp, nComp);
+		ad::extractDenseJacobianFromAd(adRes.data(), 0, jacAD);
+
+		cadet::linalg::DenseMatrix jacAna;
+		jacAna.resize(nComp, nComp);
+		jacAna.setAll(0.0);
+		crm.model().analyticJacobianAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, nComp, yState.data(), factor, jacAna.row(0), crm.buffer());
+
+		cadet::test::checkJacobianPatternFD(
+			[&](double const* lDir, double* res) -> void { std::fill_n(res, nComp, 0.0); crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, nComp, lDir, res, factor, crm.buffer()); },
+			[&](double const* lDir, double* res) -> void { jacAna.multiplyVector(lDir, res); },
+			yState.data(), dir.data(), colA.data(), colB.data(), nComp, nComp);
+
+		cadet::test::checkJacobianPatternFD(
+			[&](double const* lDir, double* res) -> void { std::fill_n(res, nComp, 0.0); crm.model().residualFluxAdd(1.0, 0u, ColumnPosition{0.0, 0.0, 0.0}, nComp, lDir, res, factor, crm.buffer()); },
+			[&](double const* lDir, double* res) -> void { jacAD.multiplyVector(lDir, res); },
+			yState.data(), dir.data(), colA.data(), colB.data(), nComp, nComp);
+
+		for (unsigned int row = 0; row < nComp; ++row)
+		{
+			for (unsigned int col = 0; col < nComp; ++col)
+			{
+				CAPTURE(row);
+				CAPTURE(col);
+				CHECK(jacAna.native(row, col) == makeApprox(jacAD.native(row, col), relTol, absTol));
 			}
 		}
 	}
@@ -566,6 +620,49 @@ namespace reaction
 		{
 			for (Eigen::Index c = 0; c < product.cols(); ++c)
 				CHECK(std::abs(product(r, c)) <= nullspaceTol);
+		}
+	}
+
+	void testCompareTwoSimulationReaction(const std::string configFilePath1, const std::string configFilePath2, const double absTol, const double relTol, const std::vector<int>& compIdx1, const std::vector<int>& compIdx2)
+	{
+		REQUIRE(compIdx1.size() == compIdx2.size());
+
+		// read json model setup file
+		const std::string setupFile1 = std::string(getTestDirectory()) + configFilePath1;
+		const std::string setupFile2 = std::string(getTestDirectory()) + configFilePath2;
+		JsonParameterProvider pp_setup_1(JsonParameterProvider::fromFile(setupFile1));
+		JsonParameterProvider pp_setup_2(JsonParameterProvider::fromFile(setupFile2));
+
+		// 1. simulation
+		cadet::Driver drv1;
+		drv1.configure(pp_setup_1);
+		drv1.run();
+
+		// 2. simulation
+		cadet::Driver drv2;
+		drv2.configure(pp_setup_2);
+		drv2.run();
+
+		cadet::InternalStorageUnitOpRecorder const* const Data1 = drv1.solution()->unitOperation(0);
+		cadet::InternalStorageUnitOpRecorder const* const Data2 = drv2.solution()->unitOperation(0);
+
+		double const* outlet1 = Data1->outlet();
+		double const* outlet2 = Data2->outlet();
+
+		const unsigned int nComp1 = Data1->numComponents();
+		const unsigned int nComp2 = Data2->numComponents();
+
+		REQUIRE(Data1->numDataPoints() == Data2->numDataPoints());
+
+		for (unsigned int i = 0; i < Data2->numDataPoints(); ++i, outlet1 += nComp1, outlet2 += nComp2)
+		{
+			for (std::size_t j = 0; j < compIdx1.size(); ++j)
+			{
+				CAPTURE(i);
+				CAPTURE(compIdx1[j]);
+				CAPTURE(compIdx2[j]);
+				CHECK((outlet1[compIdx1[j]]) == cadet::test::makeApprox(outlet2[compIdx2[j]], relTol, absTol));
+			}
 		}
 	}
 

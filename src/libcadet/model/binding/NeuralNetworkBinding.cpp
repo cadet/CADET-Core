@@ -213,7 +213,12 @@ namespace cadet
                         std::vector<double> nf = paramProvider.getDoubleArray("NORM_FACTOR");
 
                         if (nf.size() == 1u)
-                            nf.assign(_nInput, nf[0]);
+                        {
+                            // Copy the value out first: assign() reallocates when _nInput > 1 and
+                            // would then read the scalar from the freed buffer.
+                            const double scalar = nf[0];
+                            nf.assign(_nInput, scalar);
+                        }
                         else if (nf.size() != _nInput)
                             throw InvalidParameterException(
                                 "NEURAL_NETWORK binding: " + scopeName
