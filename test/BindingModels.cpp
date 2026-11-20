@@ -355,6 +355,65 @@ CADET_BINDINGTEST_MULTI("AFFINITY_COMPLEX_TITRATION", "EXT_AFFINITY_COMPLEX_TITR
 	)json", \
 	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_USED, CADET_COMPARE_BINDING_VS_NONBINDING)
 
+// Note: every binding component has two bound states, which are stored component-major, that is,
+//       q_{0,A}, q_{0,B}, q_{1,A}, q_{1,B}. The parameters, in contrast, are state-major.
+CADET_BINDINGTEST("MULTI_COMPONENT_SPREADING", "EXT_MULTI_COMPONENT_SPREADING", (2,2), (2,0,2), (1.0, 2.0, 0.1, 0.2, 0.3, 0.4), (1.0, 3.0, 2.0, 0.1, 0.2, 0.3, 0.4), \
+	R"json( "MCSPR_KA": [1.14, 2.0, 0.5, 0.3],
+	        "MCSPR_KD": [0.004, 0.008, 0.02, 0.05],
+	        "MCSPR_QMAX": [4.88, 3.5, 2.5, 1.5],
+	        "MCSPR_K12": [0.3, 0.1],
+	        "MCSPR_K21": [0.05, 0.2]
+	)json", \
+	R"json( "MCSPR_KA": [1.14, 1.0, 2.0, 0.5, 2.0, 0.3],
+	        "MCSPR_KD": [0.004, 2.0, 0.008, 0.02, 1.0, 0.05],
+	        "MCSPR_QMAX": [4.88, 3.0, 3.5, 2.5, 2.0, 1.5],
+	        "MCSPR_K12": [0.3, 0.7, 0.1],
+	        "MCSPR_K21": [0.05, 0.9, 0.2]
+	)json", \
+	R"json( "EXT_MCSPR_KA": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCSPR_KA_T": [1.14, 2.0, 0.5, 0.3],
+	        "EXT_MCSPR_KA_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCSPR_KA_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCSPR_KD": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCSPR_KD_T": [0.004, 0.008, 0.02, 0.05],
+	        "EXT_MCSPR_KD_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCSPR_KD_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCSPR_QMAX": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCSPR_QMAX_T": [4.88, 3.5, 2.5, 1.5],
+	        "EXT_MCSPR_QMAX_TT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCSPR_QMAX_TTT": [0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCSPR_K12": [0.0, 0.0],
+	        "EXT_MCSPR_K12_T": [0.3, 0.1],
+	        "EXT_MCSPR_K12_TT": [0.0, 0.0],
+	        "EXT_MCSPR_K12_TTT": [0.0, 0.0],
+	        "EXT_MCSPR_K21": [0.0, 0.0],
+	        "EXT_MCSPR_K21_T": [0.05, 0.2],
+	        "EXT_MCSPR_K21_TT": [0.0, 0.0],
+	        "EXT_MCSPR_K21_TTT": [0.0, 0.0]
+	)json", \
+	R"json( "EXT_MCSPR_KA": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCSPR_KA_T": [1.14, 1.0, 2.0, 0.5, 2.0, 0.3],
+	        "EXT_MCSPR_KA_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCSPR_KA_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCSPR_KD": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCSPR_KD_T": [0.004, 2.0, 0.008, 0.02, 1.0, 0.05],
+	        "EXT_MCSPR_KD_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCSPR_KD_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCSPR_QMAX": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCSPR_QMAX_T": [4.88, 3.0, 3.5, 2.5, 2.0, 1.5],
+	        "EXT_MCSPR_QMAX_TT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCSPR_QMAX_TTT": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+	        "EXT_MCSPR_K12": [0.0, 0.0, 0.0],
+	        "EXT_MCSPR_K12_T": [0.3, 0.7, 0.1],
+	        "EXT_MCSPR_K12_TT": [0.0, 0.0, 0.0],
+	        "EXT_MCSPR_K12_TTT": [0.0, 0.0, 0.0],
+	        "EXT_MCSPR_K21": [0.0, 0.0, 0.0],
+	        "EXT_MCSPR_K21_T": [0.05, 0.9, 0.2],
+	        "EXT_MCSPR_K21_TT": [0.0, 0.0, 0.0],
+	        "EXT_MCSPR_K21_TTT": [0.0, 0.0, 0.0]
+	)json", \
+	1e-10, 1e-10, CADET_NONBINDING_LIQUIDPHASE_COMP_UNUSED, CADET_COMPARE_BINDING_VS_NONBINDING)
+
 	// Note: the allBinding has six components to test both interpolation and extrapolation of the data, i.e. different initial values that are within or beyond the range of the provided data.
 	CADET_BINDINGTEST("SPLINE_INTERPOLATION", "EXT_SPLINE_INTERPOLATION", (1, 1, 1, 1, 1, 1), (1, 0, 1, 1, 1, 1, 1), (1.5, 0.0, 0.1, 1.1, 0.3, 1.8, 0.2, 0.3, 0.8, 0.33, 0.1, 0.75), (1.5, 1.0, 0.0, 0.1, 1.1, 0.3, 1.8, 0.2, 0.3, 0.8, 0.33, 0.1, 0.75), \
 	R"json( "INTERPOLATION_MODE" : "INDEPENDENT",
