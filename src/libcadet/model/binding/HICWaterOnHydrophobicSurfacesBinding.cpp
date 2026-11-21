@@ -297,9 +297,14 @@ protected:
 				else
 				{
 					// dres_i / dq_j
+					// The desorption term is q_i * qSum^(nu * beta - 1), which is written as
+					// (q_i / qSum) * qSum^(nu * beta). Both forms are equal for qSum > 0, but the
+					// negative exponent of the first one overflows to infinity once qSum becomes
+					// subnormal, whereas the quotient stays bounded by 1 and the remaining power
+					// merely underflows towards 0.
 					jac[bndIdx2 - bndIdx] =
 						-kA * yCp[i] * nu * pow(freeBindingSites, nu - 1) / (-static_cast<double>(_p->qMax[j]))
-						+ beta * kD * nu * y[bndIdx] * pow(qSum, nu * beta - 1);
+						+ beta * kD * nu * (y[bndIdx] / qSum) * pow(qSum, nu * beta);
 				}
 
 				// Getting to q_j: -bndIdx takes us to q_0, another +bndIdx2 to q_j. This means jac[bndIdx2 - bndIdx] corresponds to q_j.
