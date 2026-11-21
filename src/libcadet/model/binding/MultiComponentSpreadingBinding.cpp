@@ -147,58 +147,49 @@ protected:
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
+		// Ordering of the states is component-major, that is, q_{0,A}, q_{0,B}, q_{1,A}, q_{1,B}, ...
+		// Hence, the stride from one binding component to the next is 2 and state B of a component
+		// sits right behind its state A. The fluxes use the same ordering.
+
 		ResidualType qSum = 1.0;
-		unsigned int bndIdx = 0;
 		for (int j = 0; j < 2; ++j)
 		{
 			active const* const localQmax = p->qMax[j];
+			int bndIdx = 0;
 			for (int i = 0; i < _nComp; ++i)
 			{
 				// Skip components without bound states (bound state index bndIdx is not advanced)
 				if (_nBoundStates[i] == 0)
 					continue;
 
-				qSum -= y[bndIdx] / static_cast<ParamType>(localQmax[i]);
+				qSum -= y[2 * bndIdx + j] / static_cast<ParamType>(localQmax[i]);
 
 				// Next bound component
 				++bndIdx;
 			}
 		}
 
-		// First bound state (A)
-		active const* localKa = p->kA[0];
-		active const* localKd = p->kD[0];
-		active const* localQmax = p->qMax[0];
+		active const* const localKaA = p->kA[0];
+		active const* const localKdA = p->kD[0];
+		active const* const localKaB = p->kA[1];
+		active const* const localKdB = p->kD[1];
+		// Still use q_{max}^A for the second bound state (B)
+		active const* const localQmax = p->qMax[0];
 
-		bndIdx = 0;
+		int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
 		{
 			// Skip components without bound states (bound state index bndIdx is not advanced)
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			// Residual
-			res[bndIdx] = static_cast<ParamType>(localKd[i]) * y[bndIdx] - static_cast<ParamType>(p->k21[i]) * y[bndIdx + _numBindingComp] 
-					- (static_cast<ParamType>(localKa[i]) * yCp[i] - static_cast<ParamType>(p->k12[i]) * y[bndIdx]) * static_cast<ParamType>(localQmax[i]) * qSum;
+			// Residual of the first bound state (A)
+			res[2 * bndIdx] = static_cast<ParamType>(localKdA[i]) * y[2 * bndIdx] - static_cast<ParamType>(p->k21[i]) * y[2 * bndIdx + 1]
+					- (static_cast<ParamType>(localKaA[i]) * yCp[i] - static_cast<ParamType>(p->k12[i]) * y[2 * bndIdx]) * static_cast<ParamType>(localQmax[i]) * qSum;
 
-			// Next bound component
-			++bndIdx;
-		}
-
-		// Second bound state (B)
-		localKa = p->kA[1];
-		localKd = p->kD[1];
-		// Still use q_{max}^A here
-
-		for (int i = 0; i < _nComp; ++i)
-		{
-			// Skip components without bound states (bound state index bndIdx is not advanced)
-			if (_nBoundStates[i] == 0)
-				continue;
-
-			// Residual
-			res[bndIdx] = (static_cast<ParamType>(localKd[i]) + static_cast<ParamType>(p->k21[i])) * y[bndIdx] 
-					- (static_cast<ParamType>(localKa[i]) * yCp[i] + static_cast<ParamType>(p->k12[i]) * y[bndIdx - _numBindingComp]) * static_cast<ParamType>(localQmax[i]) * qSum;
+			// Residual of the second bound state (B)
+			res[2 * bndIdx + 1] = (static_cast<ParamType>(localKdB[i]) + static_cast<ParamType>(p->k21[i])) * y[2 * bndIdx + 1]
+					- (static_cast<ParamType>(localKaB[i]) * yCp[i] + static_cast<ParamType>(p->k12[i]) * y[2 * bndIdx]) * static_cast<ParamType>(localQmax[i]) * qSum;
 
 			// Next bound component
 			++bndIdx;
@@ -212,143 +203,122 @@ protected:
 	{
 		typename ParamHandler_t::ParamsHandle const p = _paramHandler.update(t, secIdx, colPos, _nComp, _nBoundStates, workSpace);
 
+		// Ordering of the states is component-major, that is, q_{0,A}, q_{0,B}, q_{1,A}, q_{1,B}, ...
+		// Ordering of the Jacobian rows (i.e., of the fluxes) is the same. The row of q_{i,A} is the
+		// bound state 2 * bndIdx and the row of q_{i,B} is the bound state 2 * bndIdx + 1.
+
 		double qSum = 1.0;
-		int bndIdx = 0;
 		for (int j = 0; j < 2; ++j)
 		{
 			active const* const localQmax = p->qMax[j];
+			int bndIdx = 0;
 			for (int i = 0; i < _nComp; ++i)
 			{
 				// Skip components without bound states (bound state index bndIdx is not advanced)
 				if (_nBoundStates[i] == 0)
 					continue;
 
-				qSum -= y[bndIdx] / static_cast<double>(localQmax[i]);
+				qSum -= y[2 * bndIdx + j] / static_cast<double>(localQmax[i]);
 
 				// Next bound component
 				++bndIdx;
 			}
 		}
 
-		active const* localKa = p->kA[0];
-		active const* localKd = p->kD[0];
+		active const* const localKaA = p->kA[0];
+		active const* const localKdA = p->kD[0];
+		active const* const localKaB = p->kA[1];
+		active const* const localKdB = p->kD[1];
 		active const* const qMax1 = p->qMax[0];
 		active const* const qMax2 = p->qMax[1];
 
-		// First state (A)
-		bndIdx = 0;
+		int bndIdx = 0;
 		for (int i = 0; i < _nComp; ++i)
 		{
 			// Skip components without bound states (bound state index bndIdx is not advanced)
 			if (_nBoundStates[i] == 0)
 				continue;
 
-			const double ka = static_cast<double>(localKa[i]);
-			const double kd = static_cast<double>(localKd[i]);
+			const double k12 = static_cast<double>(p->k12[i]);
+			const double k21 = static_cast<double>(p->k21[i]);
 
-			// dres_i / dc_{p,i}
-			jac[i - bndIdx - offsetCp] = -ka * static_cast<double>(qMax1[i]) * qSum;
-			// Getting to c_{p,i}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +i to c_{p,i}.
-			//                     This means jac[i - bndIdx - offsetCp] corresponds to c_{p,i}.
-
-			// Fill dres_i / dq_j^A
-			const double factor = (ka * yCp[i] - y[bndIdx] * static_cast<double>(p->k12[i])) * static_cast<double>(qMax1[i]);
-			int bndIdx2 = 0;
-			for (int j = 0; j < _nComp; ++j)
+			// First state (A), which is the row of bound state 2 * bndIdx
 			{
-				// Skip components without bound states (bound state index bndIdx is not advanced)
-				if (_nBoundStates[j] == 0)
-					continue;
+				const double ka = static_cast<double>(localKaA[i]);
+				const double kd = static_cast<double>(localKdA[i]);
 
-				// dres_i / dq_j^A
-				jac[bndIdx2 - bndIdx] = factor / static_cast<double>(qMax1[j]);
-				// Getting to q_j: -bndIdx takes us to q_0, another +bndIdx2 to q_j. This means jac[bndIdx2 - bndIdx] corresponds to q_j.
+				// dres_i^A / dc_{p,i}
+				jac[i - 2 * bndIdx - offsetCp] = -ka * static_cast<double>(qMax1[i]) * qSum;
+				// Getting to c_{p,i}: -2 * bndIdx takes us to q_{0,A}, another -offsetCp to c_{p,0} and a +i to c_{p,i}.
+				//                     This means jac[i - 2 * bndIdx - offsetCp] corresponds to c_{p,i}.
 
-				++bndIdx2;
+				// Fill dres_i^A / dq_j^A and dres_i^A / dq_j^B
+				const double factor = (ka * yCp[i] - y[2 * bndIdx] * k12) * static_cast<double>(qMax1[i]);
+				int bndIdx2 = 0;
+				for (int j = 0; j < _nComp; ++j)
+				{
+					// Skip components without bound states (bound state index bndIdx2 is not advanced)
+					if (_nBoundStates[j] == 0)
+						continue;
+
+					// dres_i^A / dq_j^A
+					jac[2 * bndIdx2 - 2 * bndIdx] = factor / static_cast<double>(qMax1[j]);
+					// dres_i^A / dq_j^B
+					jac[2 * bndIdx2 + 1 - 2 * bndIdx] = factor / static_cast<double>(qMax2[j]);
+					// Getting to q_{j,A}: -2 * bndIdx takes us to q_{0,A}, another +2 * bndIdx2 to q_{j,A}
+					//                     and one more step to q_{j,B}.
+
+					++bndIdx2;
+				}
+
+				// Add to dres_i^A / dq_i^A
+				jac[0] += kd + k12 * static_cast<double>(qMax1[i]) * qSum; // last summand by product rule
+
+				// Add to dres_i^A / dq_i^B
+				jac[1] -= k21;
+
+				// Advance to next flux and Jacobian row
+				++jac;
 			}
 
-			// Add to dres_i / dq_i^A
-			jac[0] += kd + static_cast<double>(p->k12[i]) * static_cast<double>(qMax1[i]) * qSum; // last summand by product rule
-
-			// Fill dres_i / dq_j^B
-			for (int j = 0; j < _nComp; ++j)
+			// Second state (B), which is the row of bound state 2 * bndIdx + 1
 			{
-				// Skip components without bound states (bound state index bndIdx is not advanced)
-				if (_nBoundStates[j] == 0)
-					continue;
+				const double ka = static_cast<double>(localKaB[i]);
+				const double kd = static_cast<double>(localKdB[i]);
 
-				// dres_i / dq_j^B
-				jac[bndIdx2 - bndIdx] = factor / static_cast<double>(qMax2[j]);
-				// Getting to q_j: -bndIdx takes us to q_0, another +bndIdx2 to q_j. This means jac[bndIdx2 - bndIdx] corresponds to q_j.
+				// dres_i^B / dc_{p,i}
+				jac[i - 2 * bndIdx - 1 - offsetCp] = -ka * static_cast<double>(qMax1[i]) * qSum;
+				// Getting to c_{p,i}: -2 * bndIdx - 1 takes us to q_{0,A}, another -offsetCp to c_{p,0} and a +i to c_{p,i}.
 
-				++bndIdx2;
+				// Fill dres_i^B / dq_j^A and dres_i^B / dq_j^B
+				const double factor = (ka * yCp[i] + y[2 * bndIdx] * k12) * static_cast<double>(qMax1[i]);
+				int bndIdx2 = 0;
+				for (int j = 0; j < _nComp; ++j)
+				{
+					// Skip components without bound states (bound state index bndIdx2 is not advanced)
+					if (_nBoundStates[j] == 0)
+						continue;
+
+					// dres_i^B / dq_j^A
+					jac[2 * bndIdx2 - 2 * bndIdx - 1] = factor / static_cast<double>(qMax1[j]);
+					// dres_i^B / dq_j^B
+					jac[2 * bndIdx2 - 2 * bndIdx] = factor / static_cast<double>(qMax2[j]);
+
+					++bndIdx2;
+				}
+
+				// Add to dres_i^B / dq_i^B
+				jac[0] += kd + k21;
+
+				// Add to dres_i^B / dq_i^A
+				jac[-1] -= k12 * static_cast<double>(qMax1[i]) * qSum;  // last summand by product rule
+
+				// Advance to next flux and Jacobian row
+				++jac;
 			}
 
-			// Add to dres_i / dq_i^B
-			jac[_numBindingComp] -= static_cast<double>(p->k21[i]);
-
-			// Advance to next flux and Jacobian row
+			// Next bound component
 			++bndIdx;
-			++jac;
-		}
-
-		// Second state (B)
-		localKa = p->kA[1];
-		localKd = p->kD[1];
-
-		for (int i = 0; i < _nComp; ++i)
-		{
-			// Skip components without bound states (bound state index bndIdx is not advanced)
-			if (_nBoundStates[i] == 0)
-				continue;
-
-			const double ka = static_cast<double>(localKa[i]);
-			const double kd = static_cast<double>(localKd[i]);
-
-			// dres_i / dc_{p,i}
-			jac[i - bndIdx - offsetCp] = -ka * static_cast<double>(qMax1[i]) * qSum;
-			// Getting to c_{p,i}: -bndIdx takes us to q_0, another -offsetCp to c_{p,0} and a +i to c_{p,i}.
-			//                     This means jac[i - bndIdx - offsetCp] corresponds to c_{p,i}.
-
-			// Fill dres_i / dq_j^A
-			const double factor = (ka * yCp[i] + y[bndIdx - static_cast<int>(_numBindingComp)] * static_cast<double>(p->k12[i])) * static_cast<double>(qMax1[i]);
-			int bndIdx2 = 0;
-			for (int j = 0; j < _nComp; ++j)
-			{
-				// Skip components without bound states (bound state index bndIdx is not advanced)
-				if (_nBoundStates[j] == 0)
-					continue;
-
-				// dres_i / dq_j^A
-				jac[bndIdx2 - bndIdx] = factor / static_cast<double>(qMax1[j]);
-				// Getting to q_j: -bndIdx takes us to q_0, another +bndIdx2 to q_j. This means jac[bndIdx2 - bndIdx] corresponds to q_j.
-
-				++bndIdx2;
-			}
-
-			// Fill dres_i / dq_j^B
-			for (int j = 0; j < _nComp; ++j)
-			{
-				// Skip components without bound states (bound state index bndIdx is not advanced)
-				if (_nBoundStates[j] == 0)
-					continue;
-
-				// dres_i / dq_j^B
-				jac[bndIdx2 - bndIdx] = factor / static_cast<double>(qMax2[j]);
-				// Getting to q_j: -bndIdx takes us to q_0, another +bndIdx2 to q_j. This means jac[bndIdx2 - bndIdx] corresponds to q_j.
-
-				++bndIdx2;
-			}
-
-			// Add to dres_i / dq_i^B
-			jac[0] += kd + static_cast<double>(p->k21[i]);
-
-			// Add to dres_i / dq_i^A
-			jac[-static_cast<int>(_numBindingComp)] -= static_cast<double>(p->k12[i]) * static_cast<double>(qMax1[i]) * qSum;  // last summand by product rule
-
-			// Advance to next flux and Jacobian row
-			++bndIdx;
-			++jac;
 		}
 	}
 };
