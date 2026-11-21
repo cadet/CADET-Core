@@ -100,6 +100,15 @@ if (ENABLE_2D_MODELS)
 	endif()
 endif()
 
+# MSVC crashes while generating code for this target with whole program optimization
+# enabled: the back end reports C1001 and the linker turns that into LNK1000, so no
+# test runner can be built at all. The test runner is the only target that feeds every
+# libcadet object and every test source into one code generation pass, which is why the
+# library and the CLI are not affected; those keep their interprocedural optimization.
+if (IPO_AVAILABLE AND MSVC)
+	set_target_properties(testRunner PROPERTIES INTERPROCEDURAL_OPTIMIZATION OFF)
+endif()
+
 list(APPEND TEST_LIBCADET_TARGETS testRunner)
 list(APPEND TEST_NONLINALG_TARGETS testRunner)
 list(APPEND TEST_HDF5_TARGETS testRunner)
