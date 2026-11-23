@@ -929,7 +929,9 @@ namespace parts
 					jacCp[0] -= kf_FV * jacPF_val / static_cast<double>(_poreAccessFactor[comp]);
 
 				// Cp on Cs entries
-				if (cadet_unlikely(_hasSurfaceDiffusion && _hasReqReactions && (_nParPoints > 1)))
+				// Both of these entries lie inside the particle block, which the AD Jacobian reads from its
+				// own dedicated directions, so they must not be added on top of it, see outliersOnly.
+				if (cadet_unlikely(!outliersOnly && _hasSurfaceDiffusion && _hasReqReactions && (_nParPoints > 1)))
 				{
 					// Ordering of particle surface diffusion:
 					// bnd0comp0, bnd1comp0, bnd0comp1, bnd1comp1, bnd0comp2, bnd1comp2
@@ -953,8 +955,11 @@ namespace parts
 						const int curIdx = strideParLiquid() - comp + idxBnd;
 
 						// Cp on Cs entries
-						jacCp[curIdx] -= v;
-						jacCp[curIdx - strideParPoint()] += v;
+						// The residual adds jacPF_val / poreAccessFactor * kf_FV * parSurfDiff * (q^(p,j) - q^(p,j-1)) / dr
+						// to the outer shell liquid equation, see residualImpl(), so the derivative with respect to the
+						// outer bound state carries the sign of v and the one of the next inner bound state the opposite
+						jacCp[curIdx] += v;
+						jacCp[curIdx - strideParPoint()] -= v;
 					}
 				}
 			}

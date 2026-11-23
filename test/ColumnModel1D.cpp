@@ -1085,6 +1085,34 @@ TEST_CASE("Column_1D as GRM with two component kinetic linear binding Jacobian w
 	cadet::test::column::testJacobianAD(jpp, 1e+10);
 }
 
+// The three cases above all leave SURFACE_DIFFUSION at zero, which skips the whole surface
+// diffusion term of the FV particle, so nothing covered the film diffusion boundary condition of a
+// particle that has both. With a nonzero coefficient, the derivative of that boundary condition
+// with respect to the outer two bound states was added with the wrong sign, and was added to the AD
+// Jacobian a second time on top of the AD directions that already hold it, see
+// ParticleDiffusionOperatorFV::calcFilmDiffJacobian(). That boundary term exists for quasi-
+// stationary bound states only, so the quasi-stationary section is the one that covers it, while
+// the kinetic section covers the solid phase rows of the surface diffusion term.
+TEST_CASE("Column_1D as GRM with surface diffusion Jacobian with bulk DG and par FV discretization", "[AxialColumn1D],[DGFV],[UnitOp],[Jacobian],[CI]")
+{
+	const int bindMode = GENERATE(0, 1);
+	SECTION(bindMode ? "Kinetic binding" : "Quasi-stationary binding")
+	{
+		// A linear isotherm, because the synthetic state vector of testJacobianAD() drives the
+		// steric mass action salt capacity negative, and its powers then give NaN in both Jacobians
+		cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_1D_GRM", "DGFV");
+		cadet::test::setBindingMode(jpp, bindMode > 0);
+
+		// createColumnWithTwoCompLinearBinding() hands back the unit operation configuration itself,
+		// not a whole simulation, so the particle scope is at the top level here.
+		jpp.pushScope("particle_type_000");
+		jpp.set("SURFACE_DIFFUSION", std::vector<double>(2, 5e-11));
+		jpp.popScope();
+
+		cadet::test::column::testJacobianAD(jpp, 1e+10);
+	}
+}
+
 TEST_CASE("Column_1D as GRM LWE one vs two identical particle types match", "[AxialColumn1D],[DG],[DG1D],[Simulation],[ParticleType],[CI]")
 {
 	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("COLUMN_MODEL_1D_GRM", "DG", 2e-8, 5e-5);
