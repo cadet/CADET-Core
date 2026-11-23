@@ -1005,12 +1005,11 @@ namespace cadet
 	{
 		if (isSectionTimeParameter(id, _sectionTimes.size()))
 		{
-			// Correct adValue
-			LOG(Debug) << "Found parameter " << id << " in SECTION_TIMES: Dir " << adDirection << " is set to "
-				<< adValue << " [" << static_cast<double>(_sectionTimes[id.section]) << " < " << _sectionTimes.size() << "]";
-			_sectionTimes[id.section].setADValue(adDirection, adValue);
-
-			return true;
+			// Seeding the section time propagates a derivative only through the places that read
+			// the section times inside the residual. The dominant contribution is the jump the
+			// solution makes when the switch moves, which needs a sensitivity jump condition at
+			// the discontinuity that is not implemented.
+			throw InvalidParameterException("Sensitivities with respect to SECTION_TIMES are not available. Approximate this sensitivity with finite differences, i.e. by rerunning the simulation with a shifted section time.");
 		}
 		return false;
 	}
