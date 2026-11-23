@@ -421,7 +421,7 @@ void ColumnModel2D::readInitialCondition(IParameterProvider& paramProvider)
 	}
 
 	const std::vector<double> initC = paramProvider.getDoubleArray("INIT_C");
-	_singleRadiusInitC = (initC.size() < _disc.nComp * _disc.radNElem);
+	_singleRadiusInitC = (_disc.radNElem == 1) || (initC.size() == _disc.nComp);
 
 	if (((initC.size() < _disc.nComp) && _singleRadiusInitC) || ((initC.size() < _disc.nComp * _disc.radNElem) && !_singleRadiusInitC))
 		throw InvalidParameterException("INIT_C does not contain enough values for all components (and radial zones)");
@@ -445,7 +445,7 @@ void ColumnModel2D::readInitialCondition(IParameterProvider& paramProvider)
 		{
 			const std::vector<double> initCp = paramProvider.getDoubleArray("INIT_CP");
 
-			_singleRadiusInitCp = initCp.size() == _disc.nComp;
+			_singleRadiusInitCp = (_disc.radNElem == 1) || (initCp.size() == _disc.nComp);
 
 			if (
 				initCp.size() < _disc.nComp
@@ -522,7 +522,7 @@ void ColumnModel2D::readInitialCondition(IParameterProvider& paramProvider)
 		if (paramProvider.exists("INIT_CS"))
 		{
 			initCs = paramProvider.getDoubleArray("INIT_CS");
-			_singleRadiusInitCs = initCs.size() == _disc.strideBound[parType];
+			_singleRadiusInitCs = (_disc.radNElem == 1) || (initCs.size() == _disc.strideBound[parType]);
 		}
 
 		paramProvider.popScope();

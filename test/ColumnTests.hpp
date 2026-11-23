@@ -814,6 +814,18 @@ namespace column
 	void testConsistentInitializationSensitivity(const std::string& uoType, const std::string& spatialMethod, double const* const y, double const* const yDot, bool linearBinding, double absTol, const int reqBnd = -1, const int useAD = -1);
 
 	/**
+	 * @brief Checks that the initial condition sensitivities a unit registers are also accepted
+	 * @details The multiplex handlers of INIT_C, INIT_CP and INIT_CS decide from the number of values in
+	 *          the field whether it is given per radial zone or per particle type, and have to agree with
+	 *          the parameters that registerParameters() has registered. A unit that has not read its
+	 *          initial condition yet runs those handlers on their default, which can hide a disagreement,
+	 *          so the unit is made to read it first. Expects a model with one bound state per component,
+	 *          that is, one that createColumnWithTwoCompLinearBinding() produces.
+	 * @param [in,out] jpp Configuration of the unit operation
+	 */
+	void testInitialConditionSensitivities(cadet::JsonParameterProvider& jpp);
+
+	/**
 	 * @brief Checks whether the inlet DOFs produce the identity matrix in the Jacobian of the unit operation
 	 * @details Assumes column-like unit models. Both AD and analytic Jacobians are checked.
 	 * @param [in] uoType Unit operation type
