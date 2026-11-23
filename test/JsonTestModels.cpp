@@ -341,11 +341,13 @@ json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(cons
 	config["TOTAL_POROSITY"] = 0.37 + (1.0 - 0.37) * (0.6 * 0.75 + 0.4 * 0.5);
 
 	// Initial condition bulk
-	config["INIT_C"] = { 1.0, 2.0, 3.0 };
+	config["INIT_C"] = { 1.0, 2.0 };
 
 	// Particle
 	json particle;
-	particle["INIT_CS"] = { 5.0, 6.0, 7.0 };
+	// Both particle types are emitted from this object and have one bound state per component, so
+	// this gives each of them two values
+	particle["INIT_CS"] = { 5.0, 6.0 };
 	particle["PAR_RADIUS"] = 4.5e-5;
 	particle["PAR_POROSITY"] = 0.75;
 	particle["FILM_DIFFUSION"] = { 6.9e-6, 6.9e-6 };
@@ -356,8 +358,8 @@ json createColumn2ParType1GeneralRate1HomoParticleBothWithTwoCompLinearJson(cons
 	{
 		json ads;
 		ads["IS_KINETIC"] = 1;
-		ads["LIN_KA"] = { 12.3, 35.5, 1.59 };
-		ads["LIN_KD"] = { 45.0, 20.0, 10.0 };
+		ads["LIN_KA"] = { 12.3, 35.5 };
+		ads["LIN_KD"] = { 45.0, 20.0 };
 		particle["adsorption"] = ads;
 	}
 
@@ -587,7 +589,7 @@ json createColumnWithTwoCompLinearJson(const std::string& uoType, const std::str
 		config["discretization"] = disc;
 	}
 
-	particle["INIT_CS"] = { 5.0, 6.0, 7.0 };
+	particle["INIT_CS"] = { 5.0, 6.0 };
 	if (uoType.find("GRM") != std::string::npos || uoType.find("GENERAL_RATE_MODEL") != std::string::npos)
 	{
 		particle["HAS_FILM_DIFFUSION"] = true;
