@@ -1136,36 +1136,45 @@ void ColumnModel2D::initializeSensitivityStates(const std::vector<double*>& vecS
 	{
 		double* const stateYbulk = vecSensY[param] + idxr.offsetC();
 
-		// Loop over axial cells
-		for (unsigned int ax = 0; ax < _disc.axNPoints; ++ax)
+		// Loop over axial nodes
+		for (unsigned int col = 0; col < _disc.axNPoints; ++col)
 		{
-			// Loop over radial cells
-			for (unsigned int rad = 0; rad < _disc.radNPoints; ++rad)
+			// Loop over radial elements
+			for (unsigned int radZone = 0; radZone < _disc.radNElem; ++radZone)
 			{
 				// Loop over components in cell
 				for (unsigned comp = 0; comp < _disc.nComp; ++comp)
-					stateYbulk[ax * idxr.strideColAxialNode() + rad * idxr.strideColRadialNode() + comp * idxr.strideColComp()] = _initC[comp + rad * _disc.nComp].getADValue(param);
+				{
+					for (unsigned radNode = 0; radNode < _disc.radNNodes; ++radNode)
+						stateYbulk[col * idxr.strideColAxialNode() + radZone * idxr.strideColRadialZone() + radNode * idxr.strideColRadialNode() + comp * idxr.strideColComp()] = _initC[comp + radZone * _disc.nComp].getADValue(param);
+				}
 			}
 		}
 
 		// Loop over particles
 		for (unsigned int parType = 0; parType < _disc.nParType; ++parType)
 		{
-			for (unsigned int col = 0; col < _disc.axNPoints * _disc.radNPoints; ++col)
+			for (unsigned int blk = 0; blk < _disc.nBulkPoints; ++blk)
 			{
-				const unsigned int rad = col % _disc.radNPoints;
-				const unsigned int offset = idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ col });
+				const unsigned int radZone = floor((blk % _disc.radNPoints) / _disc.radNNodes);
+				const unsigned int offset = idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ blk });
 
-				double* const stateYparticle = vecSensY[param] + offset;
-				double* const stateYparticleSolid = stateYparticle + idxr.strideParLiquid();
+				// Loop over particle nodes
+				for (unsigned int shell = 0; shell < _disc.nParPoints[parType]; ++shell)
+				{
+					const unsigned int shellOffset = offset + shell * idxr.strideParNode(parType);
+					double* const stateYparticle = vecSensY[param] + shellOffset;
+					double* const stateYparticleSolid = stateYparticle + idxr.strideParLiquid();
 
-				// Initialize c^p
-				for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
-					stateYparticle[comp] = _initCp[comp + parType * _disc.nComp + rad * _disc.nComp * _disc.nParType].getADValue(param);
+					// Initialize c^p
+					for (unsigned int comp = 0; comp < _disc.nComp; ++comp)
+						stateYparticle[comp] = _initCp[comp + _disc.nComp * parType + radZone * _disc.nComp * _disc.nParType].getADValue(param);
 
-				// Initialize c^s
-				for (unsigned int bnd = 0; bnd < _disc.strideBound[parType]; ++bnd)
-					stateYparticleSolid[bnd] = _initCs[bnd + _disc.nBoundBeforeType[parType] + _disc.strideBound[_disc.nParType] * rad].getADValue(param);
+					// Initialize c^s
+					active const* const iq = _initCs.data() + radZone * _disc.strideBound[_disc.nParType] + _disc.nBoundBeforeType[parType];
+					for (unsigned int bnd = 0; bnd < _disc.strideBound[parType]; ++bnd)
+						stateYparticleSolid[bnd] = iq[bnd].getADValue(param);
+				}
 			}
 		}
 	}
