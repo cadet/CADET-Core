@@ -156,8 +156,6 @@ bool AxialConvectionDispersionOperatorBaseCollocationDG::configure(UnitOpIdx uni
 	if (!(_bedLength > 0.0))
 		throw InvalidParameterException("Field BED_LENGTH has to be positive, but is " + std::to_string(static_cast<double>(_bedLength)));
 
-	_deltaZ = _bedLength / _nElem;
-
 	/* compute dispersion jacobian blocks(without parameters except element spacing, i.e. static entries) */
 	// we only need unique dispersion blocks, which are given by elements 1, 2, nElem for inexact integration DG and by elements 1, 2, 3, nElem-1, nElem for eaxct integration DG
 	// note that convection jacobian block is computed in notifyDiscontinuousSectionTransition() since this block needs to be recomputed when flow direction changes
@@ -425,7 +423,8 @@ int AxialConvectionDispersionOperatorBaseCollocationDG::residualImpl(const IMode
 		// ======================================//
 
 		// calculate the substitute h(g(c), c) and apply inverse mapping jacobian (reference space)
-		_h = 2.0 / static_cast<ParamType>(_deltaZ) * (-u * _C + d_ax * (-2.0 / static_cast<ParamType>(_deltaZ)) * _g).template cast<ResidualType>();
+		const ParamType invMapping = 2.0 / static_cast<ParamType>(deltaZ());
+		_h = invMapping * (-u * _C + d_ax * (-invMapping) * _g).template cast<ResidualType>();
 
 		// DG volume integral in strong form
 		volumeIntegral<ResidualType, ResidualType>(_h, _resC);
@@ -2319,10 +2318,10 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::setSensitiveParamet
 
 			if (_geometryType == GeometryType::AxialFlowCylinder)
 				LOG(Error) << "Sensitivities for " << pName <<
-					" not supported for exact integration DG, please change to collocation DG or FV discretization.";
+				" not supported for exact integration DG, please change to collocation DG or FV discretization.";
 			else
 				LOG(Error) << "Sensitivities for " << pName <<
-					" in variable cross section column geometries are not supported.";
+				" in variable cross section column geometries are not supported.";
 
 			return true;
 		};

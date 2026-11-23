@@ -105,13 +105,18 @@ namespace parts
 		inline const active& currentVelocity(double pos) const CADET_NOEXCEPT { return _curVelocity; }
 		inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelocity >= 0.0; }
 
-		inline double elemLeftBound(unsigned int idx) const CADET_NOEXCEPT { return idx * static_cast<double>(_deltaZ); }
+		/**
+		 * @brief Axial element spacing \f$ \Delta z = L / N_e \f$
+		 */
+		inline active deltaZ() const CADET_NOEXCEPT { return _bedLength / static_cast<double>(_nElem); }
+
+		inline double elemLeftBound(unsigned int idx) const CADET_NOEXCEPT { return idx * static_cast<double>(deltaZ()); }
 		double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT
 		{
 			//const unsigned int element = floor(idx / _nNodes);
 			//const unsigned int node = idx % _nNodes;
 			// divide by column length to get relative position
-			return (floor(idx / _nNodes) * static_cast<double>(_deltaZ) + 0.5 * static_cast<double>(_deltaZ) * (1.0 + _nodes[idx % _nNodes])) / static_cast<double>(_bedLength);
+			return (floor(idx / _nNodes) * static_cast<double>(deltaZ()) + 0.5 * static_cast<double>(deltaZ()) * (1.0 + _nodes[idx % _nNodes])) / static_cast<double>(_bedLength);
 		}
 
 		inline const double* nodes() const CADET_NOEXCEPT { return &_nodes[0]; }
@@ -139,7 +144,7 @@ namespace parts
 			for (unsigned int i = 0; i < _nElem; i++) {
 				for (unsigned int j = 0; j < _nNodes; j++) {
 					// mapping 
-					buffer[i * _nNodes + j] = i * static_cast<double>(_deltaZ) + 0.5 * (static_cast<double>(_bedLength) / static_cast<double>(_nElem)) * (1.0 + nodes()[j]);
+					buffer[i * _nNodes + j] = i * static_cast<double>(deltaZ()) + 0.5 * (static_cast<double>(_bedLength) / static_cast<double>(_nElem)) * (1.0 + nodes()[j]);
 				}
 			}
 			return _nPoints;
@@ -181,7 +186,6 @@ namespace parts
 		unsigned int _strideElem; //!< Number of values between the same item in two adjacent Elements
 
 		// discretization toolbox and memory buffers
-		active _deltaZ; //!< element spacing
 		Eigen::VectorXd _nodes; //!< LGL nodes in [-1, 1]
 		Eigen::MatrixXd _polyDerM; //!< Polynomial derivative Matrix
 		Eigen::VectorXd _invWeights; //!< Inverse LGL quadrature weights -> diagonal (lumped) LGL mass matrix
@@ -237,7 +241,7 @@ namespace parts
 				convBlock(_nNodes - 1, _nNodes) -= _invWeights[_nNodes - 1];
 			}
 
-			convBlock *= 2 / static_cast<double>(_deltaZ);
+			convBlock *= 2 / static_cast<double>(deltaZ());
 
 			return -convBlock; // *-1 for residual
 		}
@@ -259,20 +263,20 @@ namespace parts
 			gBlock(0, 1) += 0.5 * _invWeights[0];
 			gBlock(_nNodes - 1, _nNodes) -= 0.5 * _invWeights[_nNodes - 1];
 			gBlock(_nNodes - 1, _nNodes + 1) += 0.5 * _invWeights[_nNodes - 1];
-			gBlock *= 2 / static_cast<double>(_deltaZ);
+			gBlock *= 2 / static_cast<double>(deltaZ());
 
 			if (elementIdx == 1) {
 				// adjust auxiliary Block [ d g(c) / d c ] for left boundary element
-				gBlock(0, 1) -= 0.5 * _invWeights[0] * 2 / static_cast<double>(_deltaZ);
+				gBlock(0, 1) -= 0.5 * _invWeights[0] * 2 / static_cast<double>(deltaZ());
 				if (elementIdx == _nElem) { // adjust for special case one element
-					gBlock(0, 0) += 0.5 * _invWeights[0] * 2 / static_cast<double>(_deltaZ);
-					gBlock(_nNodes - 1, _nNodes + 1) -= 0.5 * _invWeights[_nNodes - 1] * 2 / static_cast<double>(_deltaZ);
-					gBlock(_nNodes - 1, _nNodes) += 0.5 * _invWeights[_polyDeg] * 2 / static_cast<double>(_deltaZ);
+					gBlock(0, 0) += 0.5 * _invWeights[0] * 2 / static_cast<double>(deltaZ());
+					gBlock(_nNodes - 1, _nNodes + 1) -= 0.5 * _invWeights[_nNodes - 1] * 2 / static_cast<double>(deltaZ());
+					gBlock(_nNodes - 1, _nNodes) += 0.5 * _invWeights[_polyDeg] * 2 / static_cast<double>(deltaZ());
 				}
 			}
 			else if (elementIdx == _nElem) {
 				// adjust auxiliary Block [ d g(c) / d c ] for right boundary element
-				gBlock(_nNodes - 1, _nNodes) += 0.5 * _invWeights[_polyDeg] * 2 / static_cast<double>(_deltaZ);
+				gBlock(_nNodes - 1, _nNodes) += 0.5 * _invWeights[_polyDeg] * 2 / static_cast<double>(deltaZ());
 			}
 
 			return gBlock;
@@ -354,7 +358,7 @@ namespace parts
 				dispBlock.block(_nNodes - 1, _nNodes - 1, 1, _nNodes + 2) += _invWeights[_nNodes - 1] * (-GBlock.block(_nNodes - 1, 0, 1, _nNodes + 2)); // G_i,j+N+1		i=N, j=--1,...,N+1
 			}
 
-			dispBlock *= 2 / static_cast<double>(_deltaZ);
+			dispBlock *= 2 / static_cast<double>(deltaZ());
 
 			return -dispBlock; // *-1 for residual
 		}
@@ -400,6 +404,7 @@ namespace parts
 		template<typename StateType, typename ParamType>
 		void InterfaceFlux(const StateType* C, ParamType _dispersion) {
 
+			const ParamType invMapping = -2.0 / static_cast<ParamType>(deltaZ());
 			StateType* g = reinterpret_cast<StateType*>(_auxState);
 
 			// component-wise strides
@@ -416,7 +421,7 @@ namespace parts
 					// h* = h*_conv + h*_disp
 					_surfaceFlux[element] // inner interfaces
 						= _curVelocity * (C[element * strideelement - strideNode]) // left element (i.e. forward flow upwind)
-						- 0.5 * (-2.0 / static_cast<ParamType>(_deltaZ)) * _dispersion *
+						- 0.5 * invMapping * _dispersion *
 						(g[element * strideelement_g - strideNode_g] // left element
 							+ g[element * strideelement_g]); // right element
 				}
@@ -429,7 +434,7 @@ namespace parts
 				// outlet (right) boundary interface
 				_surfaceFlux[_nElem]
 					= _curVelocity * (C[_nElem * strideelement - strideNode])
-					- 0.5 * (-2.0 / static_cast<ParamType>(_deltaZ)) * _dispersion *
+					- 0.5 * invMapping * _dispersion *
 					(g[_nElem * strideelement_g - strideNode_g] // last element last node
 						+ _boundary[3]); // right boundary value g
 			}
@@ -439,7 +444,7 @@ namespace parts
 					// h* = h*_conv + h*_disp
 					_surfaceFlux[element] // inner interfaces
 						= _curVelocity * (C[element * strideelement]) // right element (i.e. backward flow upwind)
-						- 0.5 * (-2.0 / static_cast<ParamType>(_deltaZ)) * _dispersion *
+						- 0.5 * invMapping * _dispersion *
 						(g[element * strideelement_g - strideNode_g] // left element
 							+ g[element * strideelement_g]); // right element
 				}
@@ -452,12 +457,12 @@ namespace parts
 				// outlet boundary interface
 				_surfaceFlux[0]
 					= _curVelocity * (C[0])
-					- 0.5 * (-2.0 / static_cast<ParamType>(_deltaZ)) * _dispersion *
+					- 0.5 * invMapping * _dispersion *
 					(g[0] // first element first node
 						+ _boundary[2]); // left boundary value g
 			}
 			// apply inverse mapping jacobian (reference space)
-			_surfaceFlux *= -2.0 / static_cast<ParamType>(_deltaZ);
+			_surfaceFlux *= invMapping;
 		}
 		/**
 			* @brief calculates and fills the surface flux values for auxiliary equation
