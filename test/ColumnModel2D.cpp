@@ -171,6 +171,18 @@ TEST_CASE("Column_2D as LRMP consistent initialization with a non-binding compon
 //	//cadet::test::column::testConsistentInitializationSMABinding("COLUMN_MODEL_2D_LRMP", "DG", y.data(), 1e-14, 1e-5, 1, 1);
 //}
 
+TEST_CASE("Column_2D as GRM initial condition sensitivities", "[Column_2D],[Sensitivity],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_2D_GRM", "DG");
+	cadet::test::column::testInitialConditionSensitivities(jpp);
+}
+
+TEST_CASE("Column_2D as LRMP initial condition sensitivities", "[Column_2D],[Sensitivity],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_2D_LRMP", "DG");
+	cadet::test::column::testInitialConditionSensitivities(jpp);
+}
+
 TEST_CASE("Column_2D as LRMP consistent sensitivity initialization with linear binding", "[Column_2D],[ConsistentInit],[Sensitivity],[CI]")
 {
 	// Fill state vector with given initial values

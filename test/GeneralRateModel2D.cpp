@@ -113,6 +113,17 @@ TEST_CASE("GRM2D sensitivity Jacobians", "[GRM2D],[FV],[UnitOp],[Sensitivity],[C
 	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7);
 }
 
+TEST_CASE("GRM2D initial condition sensitivities with a single radial zone", "[GRM2D],[FV],[UnitOp],[Sensitivity],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompLinearBinding("COLUMN_MODEL_2D_GRM", "FV");
+
+	jpp.pushScope("discretization");
+	jpp.set("NRAD", 1);
+	jpp.popScope();
+
+	cadet::test::column::testInitialConditionSensitivities(jpp);
+}
+
 TEST_CASE("GRM2D forward sensitivity vs FD", "[GRM2D],[FV],[Sensitivity],[Simulation],[failedFDtestGRM2D]") // todo fix. off by a bigger tolerance
 {
 	// Relative error is checked first, we use high absolute error for letting

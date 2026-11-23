@@ -2016,6 +2016,43 @@ namespace column
 		destroyModelBuilder(mb);
 	}
 
+	void testInitialConditionSensitivities(cadet::JsonParameterProvider& jpp)
+	{
+		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
+		REQUIRE(nullptr != mb);
+
+		cadet::ad::setDirections(cadet::ad::getMaxDirections()); // needed in configure() of DG unit operations
+		cadet::IUnitOperation* const unit = unitoperation::createAndConfigureUnit(jpp, *mb);
+
+		// The multiplex handlers of the initial conditions run on their default until the unit has read
+		// its initial condition, so only a unit that has done so shows whether they agree with the
+		// parameters that registerParameters() has registered
+		unit->readInitialCondition(jpp);
+
+		// Whether the particle initial conditions are addressed per particle type or for all of them at
+		// once follows BINDING_PARTYPE_DEPENDENT, so either identifier is legitimate and one of the two
+		// has to be accepted
+		unsigned int dir = 0;
+		const auto seed = [&](const char* const name, unsigned int boundState)
+		{
+			CAPTURE(name);
+			const bool anyType = unit->setSensitiveParameter(cadet::makeParamId(name, 0, 0, cadet::ParTypeIndep, boundState, cadet::ReactionIndep, cadet::SectionIndep), dir, 1.0);
+			if (!anyType)
+				REQUIRE(unit->setSensitiveParameter(cadet::makeParamId(name, 0, 0, 0, boundState, cadet::ReactionIndep, cadet::SectionIndep), dir, 1.0));
+			++dir;
+		};
+
+		REQUIRE(unit->setSensitiveParameter(cadet::makeParamId("INIT_C", 0, 0, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), dir, 1.0));
+		++dir;
+		seed("INIT_CP", cadet::BoundStateIndep);
+		seed("INIT_CS", 0);
+
+		REQUIRE(unit->numSensParams() == dir);
+
+		mb->destroyUnitOperation(unit);
+		destroyModelBuilder(mb);
+	}
+
 	void testInletDofJacobian(const std::string& uoType, const std::string& spatialMethod)
 	{
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
