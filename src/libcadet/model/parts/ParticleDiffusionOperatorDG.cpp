@@ -822,7 +822,7 @@ namespace parts
 
 			// film diffusion BC
 			_surfFluxPar[_nParElem] = static_cast<StateType>(_localFlux[comp])
-				/ (static_cast<double>(_parPorosity) * static_cast<double>(_poreAccessFactor[comp]))
+				/ (static_cast<StateType>(_parPorosity) * static_cast<StateType>(_poreAccessFactor[comp]))
 				* (2.0 / static_cast<double>(_deltaR[_nParElem - 1])); // inverse squared mapping of the outer element was also applied, so we apply Map * invMap^2 = invMap
 
 			// inner particle BC

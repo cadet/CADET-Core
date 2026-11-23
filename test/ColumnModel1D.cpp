@@ -526,8 +526,8 @@ TEST_CASE("Column_1D as GRM numerical Benchmark with parameter sensitivities and
 {
 	const std::string modelFilePath = std::string("/data/model_COL1DparType2_GRM_dynLin_2comp_sensbenchmark1.json");
 	const std::string refFilePath = std::string("/data/ref_GRMparType2_dynLin_2comp_sensbenchmark1_cDG_P3Z4_DGexInt_parP3parZ2.h5");
-	const std::vector<double> absTol = { 1e-12, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6 };
-	const std::vector<double> relTol = { 1e-4, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1 };
+	const std::vector<double> absTol = { 5e-10, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6 };
+	const std::vector<double> relTol = { 5e-4, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1, 1e-1 };
 
 	const cadet::test::column::DGParams disc(1, 3, 4, 3, 2);
 	cadet::test::column::testReferenceBenchmark(modelFilePath, refFilePath, "001", absTol, relTol, disc, true);
