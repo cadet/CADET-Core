@@ -308,6 +308,16 @@ protected:
 	void equidistantCells();
 	void computeCellCentersAndSizes(const std::vector<active>& cellFaces);
 
+	/**
+	 * @brief Rebuilds the cell geometry that is derived from the bed length
+	 * @details The shell thickness fixes the inner radius and, with it, every cell face, centre
+	 *          and size. Those are computed once during configuration, so a later change of
+	 *          BED_LENGTH - a new value or the AD seed of a parameter sensitivity - does not reach
+	 *          them unless they are rebuilt here.
+	 * @return @c true if the geometry could be rebuilt, @c false for a grid given through GRID_FACES
+	 */
+	bool updateBedLengthGeometry();
+
 	unsigned int _nComp; //!< Number of components
 	unsigned int _nCol; //!< Number of axial cells
 	unsigned int _strideCell; //!< Number of elements between the same item in two adjacent cells
@@ -458,6 +468,16 @@ protected:
 
 	void equidistantCells();
 	void computeCellCentersAndSizes(const std::vector<active>& cellFaces);
+
+	/**
+	 * @brief Rebuilds the cell geometry that is derived from the bed length
+	 * @details The bed length fixes every cell face, and through the linear radius profile also
+	 *          every cell radius and volume. Those are computed once during configuration, so a
+	 *          later change of BED_LENGTH - a new value or the AD seed of a parameter sensitivity -
+	 *          does not reach them unless they are rebuilt here.
+	 * @return @c true if the geometry could be rebuilt, @c false for a grid given through GRID_FACES
+	 */
+	bool updateBedLengthGeometry();
 
 	unsigned int _nComp; //!< Number of components
 	unsigned int _nCol; //!< Number of axial cells

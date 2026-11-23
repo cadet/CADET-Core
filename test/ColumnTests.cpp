@@ -2004,7 +2004,18 @@ namespace column
 					else
 						unit->setSensitiveParameter(cadet::makeParamId("SMA_NU", 0, 1, cadet::ParTypeIndep, 0, cadet::ReactionIndep, cadet::SectionIndep), 1, 1.0);
 
-					unit->setSensitiveParameter(cadet::makeParamId("BED_LENGTH", 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
+					const auto trySeed = [unit](const char* name)
+					{
+						return unit->setSensitiveParameter(cadet::makeParamId(name, 0, cadet::CompIndep, cadet::ParTypeIndep, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep), 2, 1.0);
+					};
+
+					if (spatialMethod.substr(0, 2) == "DG")
+					{
+						if (!trySeed("COL_POROSITY"))
+							REQUIRE(trySeed("TOTAL_POROSITY"));
+					}
+					else
+						REQUIRE(trySeed("BED_LENGTH"));
 
 					REQUIRE(unit->numSensParams() == 3);
 					unitoperation::testConsistentInitializationSensitivity(unit, adEnabled, y, yDot, absTol);

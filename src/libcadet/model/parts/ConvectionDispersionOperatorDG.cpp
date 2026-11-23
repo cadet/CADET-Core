@@ -2309,32 +2309,35 @@ bool VariableCrossSectionConvectionDispersionOperatorBaseDG::setSensitiveParamet
 
 bool VariableCrossSectionConvectionDispersionOperatorBaseDG::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
 {
-	// No geometric and axial diffusion sensitivities available since that would dispatch active type DG operators which is currently not implemented.
-	// Only report and reject pId if it actually names one of these parameters; any other parameter must fall through so it can be handled elsewhere.
-	auto checkAvailabilityOfParameter = [&](const std::string& pName) -> bool
+	// Geometry and axial dispersion enter this operator through its DG operator matrices, which are
+	// assembled once in double precision. Seeding one of these parameters would yield a sensitivity
+	// that silently ignores every contribution carried by those matrices. Building the matrices in
+	// the active type instead is not implemented.
+	const auto rejectIfNamed = [&](const char* pName, const char* workaround)
 		{
 			if (pId.name != hashStringRuntime(pName))
-				return false;
+				return;
 
-			if (_geometryType == GeometryType::AxialFlowCylinder)
-				LOG(Error) << "Sensitivities for " << pName <<
-				" not supported for exact integration DG, please change to collocation DG or FV discretization.";
-			else
-				LOG(Error) << "Sensitivities for " << pName <<
-				" in variable cross section column geometries are not supported.";
-
-			return true;
+			throw InvalidParameterException(std::string("Sensitivities for ") + pName +
+				" are not available for this configuration. " + workaround);
 		};
 
-	if (checkAvailabilityOfParameter("COL_DISPERSION")) return false;
-	if (checkAvailabilityOfParameter("CROSS_SECTION_AREA_LARGE_END")) return false;
-	if (checkAvailabilityOfParameter("CROSS_SECTION_AREA_SMALL_END")) return false;
-	if (checkAvailabilityOfParameter("BED_LENGTH")) return false;
-	if (checkAvailabilityOfParameter("CYLINDER_HEIGHT")) return false;
-	if (checkAvailabilityOfParameter("CROSS_SECTION_AREA_INNER")) return false;
-	if (checkAvailabilityOfParameter("CROSS_SECTION_AREA_OUTER")) return false;
-	if (checkAvailabilityOfParameter("CROSS_SECTION_AREA")) return false;
-	if (checkAvailabilityOfParameter("CROSS_SECTIONAL_AREA_AT_NODES")) return false;
+	if (_geometryType == GeometryType::AxialFlowCylinder)
+	{
+		const char* const useCollocationOrFV = "Use collocation DG (USE_COLLOCATION_DG = 1) or the FV discretization, which support this sensitivity.";
+
+		rejectIfNamed("COL_DISPERSION", useCollocationOrFV);
+		rejectIfNamed("BED_LENGTH", useCollocationOrFV);
+		rejectIfNamed("COL_RADIUS_SMALL_END", "Use collocation DG (USE_COLLOCATION_DG = 1) or the FV discretization, which support this sensitivity.");
+		rejectIfNamed("COL_RADIUS_LARGE_END", "Use collocation DG (USE_COLLOCATION_DG = 1) or the FV discretization, which support this sensitivity.");
+	}
+	else
+	{
+		rejectIfNamed("COL_DISPERSION", "Use the FV discretization.");
+		rejectIfNamed("BED_LENGTH", "Use the FV discretization, which rebuilds its cell geometry when the bed length changes. An equidistant grid is required for that; a GRID_FACES grid cannot follow the bed length and rejects this sensitivity as well.");
+		rejectIfNamed("COL_RADIUS_SMALL_END", "Approximate this sensitivity with finite differences, no implemented spatial discretization supports this sensitivity.");
+		rejectIfNamed("COL_RADIUS_LARGE_END", "Approximate this sensitivity with finite differences, no implemented spatial discretization supports this sensitivity.");
+	}
 
 	return false;
 }

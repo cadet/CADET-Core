@@ -2021,6 +2021,23 @@ bool TwoDimensionalConvectionDispersionOperatorDG::setSensitiveParameterValue(co
 
 bool TwoDimensionalConvectionDispersionOperatorDG::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
 {
+	// Parameters that this operator bakes into geometry it computes once during configure(), or
+	// into the radial stiffness matrices _SrCyl, which are plain double matrices. Seeding them
+	// produces a sensitivity that ignores those contributions entirely, so they are refused here
+	// rather than answered. Returning false would not be enough: the unit operation then falls
+	// through to UnitOperationBase::setSensitiveParameter(), which finds the parameter in its
+	// parameter map and seeds it regardless.
+	const auto rejectIfNamed = [&](const char* pName)
+	{
+		if (pId.name == hashStringRuntime(pName))
+			throw InvalidParameterException(std::string("Sensitivities for ") + pName +
+				" are not available for the DG discretized 2D column model. Approximate this sensitivity with finite differences.");
+	};
+
+	rejectIfNamed("COL_DISPERSION_RADIAL");
+	rejectIfNamed("COL_RADIUS");
+	rejectIfNamed("BED_LENGTH");
+
 	if (_singlePorosity && (pId.name == hashString("COL_POROSITY")) && (pId.component == CompIndep) && (pId.boundState == BoundStateIndep)
 		&& (pId.reaction == ReactionIndep) && (pId.section == SectionIndep) && (pId.particleType == ParTypeIndep))
 	{

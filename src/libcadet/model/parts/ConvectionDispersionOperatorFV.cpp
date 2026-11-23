@@ -59,6 +59,15 @@ namespace
 				throw InvalidParameterException("Field COL_DISPERSION has to be non-negative, but entry " + std::to_string(i) + " is " + std::to_string(val));
 		}
 	}
+
+	/**
+	 * @brief Determines whether a parameter id addresses the scalar BED_LENGTH of a unit operation
+	 */
+	inline bool isBedLengthParameter(const ParameterId& pId)
+	{
+		return (pId.name == hashString("BED_LENGTH")) && (pId.component == CompIndep) && (pId.boundState == BoundStateIndep)
+			&& (pId.reaction == ReactionIndep) && (pId.particleType == ParTypeIndep) && (pId.section == SectionIndep);
+	}
 }
 
 /**
@@ -1438,6 +1447,15 @@ double RadialConvectionDispersionOperatorBaseFV::inletJacobianFactor() const CAD
 
 bool RadialConvectionDispersionOperatorBaseFV::setParameter(const ParameterId& pId, double value)
 {
+	// BED_LENGTH lives in the unit operation's parameter map, so without claiming it here the unit
+	// would write the new value into _bedLength and leave the cell geometry derived from it stale.
+	if (isBedLengthParameter(pId))
+	{
+		_bedLength.setValue(value);
+		updateBedLengthGeometry();
+		return true;
+	}
+
 	// Check if parameter is in parameter dependence of column dispersion coefficient
 	if (_dispersionDep)
 	{
@@ -1479,6 +1497,13 @@ bool RadialConvectionDispersionOperatorBaseFV::setParameter(const ParameterId& p
 
 bool RadialConvectionDispersionOperatorBaseFV::setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value)
 {
+	if (isBedLengthParameter(pId) && contains(sensParams, &_bedLength))
+	{
+		_bedLength.setValue(value);
+		updateBedLengthGeometry();
+		return true;
+	}
+
 	// Check if parameter is in parameter dependence of column dispersion coefficient
 	if (_dispersionDep)
 	{
@@ -1527,6 +1552,22 @@ bool RadialConvectionDispersionOperatorBaseFV::setSensitiveParameterValue(const 
 
 bool RadialConvectionDispersionOperatorBaseFV::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
 {
+	if (isBedLengthParameter(pId))
+	{
+		if (!_gridEquidistant)
+			throw InvalidParameterException("Sensitivities for BED_LENGTH are not available for a radial flow column whose grid is given through GRID_FACES, because those faces are absolute radii and cannot follow the shell thickness. Use an equidistant grid, or approximate this sensitivity with finite differences.");
+
+		sensParams.insert(&_bedLength);
+		_bedLength.setADValue(adDirection, adValue);
+
+		// The cell geometry carries most of the dependence on the shell thickness and was built
+		// during configuration, before this seed existed. Without rebuilding it the sensitivity
+		// comes out as exactly zero.
+		updateBedLengthGeometry();
+
+		return true;
+	}
+
 	// Check if parameter is in parameter dependence of column dispersion coefficient
 	if (_dispersionDep)
 	{
@@ -1581,6 +1622,21 @@ void RadialConvectionDispersionOperatorBaseFV::equidistantCells()
 	faces[_nCol] = _outerRadius;
 
 	_cellFaces = std::move(faces);
+}
+
+bool RadialConvectionDispersionOperatorBaseFV::updateBedLengthGeometry()
+{
+	// A grid given through GRID_FACES is a list of absolute radii. It cannot follow the shell
+	// thickness, so the caller has to refuse the sensitivity rather than report a partial one.
+	if (!_gridEquidistant)
+		return false;
+
+	_innerRadius = _outerRadius - _bedLength;
+
+	equidistantCells();
+	computeCellCentersAndSizes(_cellFaces);
+
+	return true;
 }
 
 void RadialConvectionDispersionOperatorBaseFV::computeCellCentersAndSizes(const std::vector<active>& cellFaces)
@@ -2194,6 +2250,15 @@ double FrustumConvectionDispersionOperatorBaseFV::inletJacobianFactor() const CA
 
 bool FrustumConvectionDispersionOperatorBaseFV::setParameter(const ParameterId& pId, double value)
 {
+	// BED_LENGTH lives in the unit operation's parameter map, so without claiming it here the unit
+	// would write the new value into _bedLength and leave the cell geometry derived from it stale.
+	if (isBedLengthParameter(pId))
+	{
+		_bedLength.setValue(value);
+		updateBedLengthGeometry();
+		return true;
+	}
+
 	// Check if parameter is in parameter dependence of column dispersion coefficient
 	if (_dispersionDep)
 	{
@@ -2235,6 +2300,13 @@ bool FrustumConvectionDispersionOperatorBaseFV::setParameter(const ParameterId& 
 
 bool FrustumConvectionDispersionOperatorBaseFV::setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value)
 {
+	if (isBedLengthParameter(pId) && contains(sensParams, &_bedLength))
+	{
+		_bedLength.setValue(value);
+		updateBedLengthGeometry();
+		return true;
+	}
+
 	// Check if parameter is in parameter dependence of column dispersion coefficient
 	if (_dispersionDep)
 	{
@@ -2283,6 +2355,23 @@ bool FrustumConvectionDispersionOperatorBaseFV::setSensitiveParameterValue(const
 
 bool FrustumConvectionDispersionOperatorBaseFV::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
 {
+	if (isBedLengthParameter(pId))
+	{
+		if (!_gridEquidistant)
+			throw InvalidParameterException("Sensitivities for BED_LENGTH are not available for a frustum column whose grid is given through GRID_FACES, because those faces are absolute axial coordinates and cannot follow the bed length. Use an equidistant grid, or approximate this sensitivity with finite differences.");
+
+		sensParams.insert(&_bedLength);
+		_bedLength.setADValue(adDirection, adValue);
+
+		// The cell geometry, and through the linear radius profile the cell radii and volumes,
+		// carry most of the dependence on the bed length and were built during configuration,
+		// before this seed existed. Without rebuilding them the sensitivity comes out as exactly
+		// zero.
+		updateBedLengthGeometry();
+
+		return true;
+	}
+
 	// Check if parameter is in parameter dependence of column dispersion coefficient
 	if (_dispersionDep)
 	{
@@ -2332,6 +2421,18 @@ void FrustumConvectionDispersionOperatorBaseFV::equidistantCells()
 	for (unsigned int i = 0; i <= _nCol; ++i)
 		faces[i] = i * dx;
 	computeCellCentersAndSizes(faces);
+}
+
+bool FrustumConvectionDispersionOperatorBaseFV::updateBedLengthGeometry()
+{
+	// A grid given through GRID_FACES is a list of absolute axial coordinates. It cannot follow the
+	// bed length, so the caller has to refuse the sensitivity rather than report a partial one.
+	if (!_gridEquidistant)
+		return false;
+
+	equidistantCells();
+
+	return true;
 }
 
 void FrustumConvectionDispersionOperatorBaseFV::computeCellCentersAndSizes(const std::vector<active>& cellFaces)
