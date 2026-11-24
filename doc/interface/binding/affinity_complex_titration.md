@@ -1,5 +1,4 @@
 (affinity-complex-titration-config)=
-
 # Affinity Complex Titration
 
 ## General remarks

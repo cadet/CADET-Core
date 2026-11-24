@@ -1,5 +1,4 @@
 (multi-component-anti-langmuir-model)=
-
 # Multi Component Anti-Langmuir
 
 The Anti-Langmuir (or generalized Langmuir) binding model extends the Langmuir model (see Section {ref}`multi-component-langmuir-model`).

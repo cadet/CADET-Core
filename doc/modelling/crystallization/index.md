@@ -1,5 +1,4 @@
 (ffcrystallization)=
-
 # Crystallization / Precipitation Models
 
 CADET-Core features various crystallization / precipitation mechanisms, modeled using population balance models (PBM). These models are defined by a particle-number continuity equation which describes the evolution of the number density $n$ of the particles over time $t$ and with respect to size, the so-called internal coordinate $x$, and external coordinate $z$.

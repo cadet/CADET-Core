@@ -1,5 +1,4 @@
 (mobile-phase-modulator-langmuir-model)=
-
 # Mobile Phase Modulator Langmuir
 
 This model is a modified Langmuir model (see Section {ref}`multi-component-langmuir-model`) which can be used to describe hydrophobic interaction chromatography {cite}`Melander1989,Karlsson2004`.

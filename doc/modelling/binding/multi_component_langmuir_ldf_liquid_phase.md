@@ -1,5 +1,4 @@
 (multi-component-langmuir-ldf-liquid-phase-model)=
-
 # Multi Component Langmuir LDF Liquid Phase
 
 This a linear driving force model variant of the {ref}`multi-component-langmuir-model` model.

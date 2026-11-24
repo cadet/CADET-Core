@@ -1,5 +1,4 @@
 (model-expansion)=
-
 # Model Expansion
 
 There are 7+ transport models and 20+ adsorption models implemented in CADET.

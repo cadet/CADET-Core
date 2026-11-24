@@ -1,5 +1,4 @@
 (hic-constant-water-activity-model)=
-
 # HIC Constant Water Activity
 
 This model implements the HIC isotherm assuming a constant water activity as described by Jäpel and Buyel {cite}`Jaepel2022`.

@@ -1,5 +1,4 @@
 (steric-mass-action-config)=
-
 # Steric Mass Action
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = STERIC_MASS_ACTION**

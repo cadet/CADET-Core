@@ -1,5 +1,4 @@
 (mass-action-law-model-cross-phase)=
-
 # Mass Action Law Cross Phase
 
 The mass action law cross phase reaction model describes reactions that occur between the liquid and solid phases.

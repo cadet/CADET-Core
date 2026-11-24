@@ -1,5 +1,4 @@
 (ffadsorption)=
-
 # Binding models
 
 ## Externally dependent binding models
@@ -30,7 +29,6 @@ However, these models still support non-binding components.
 In this case, the entries in their parameters that correspond to non-binding components are simply ignored.
 
 (multiple-particle-types-binding)=
-
 ## Multiple particle types
 
 The group that contains the parameters of a binding model in unit operation with index `XXX` reads `/input/model/unit_XXX/particle_type_ZZZ/adsorption`.

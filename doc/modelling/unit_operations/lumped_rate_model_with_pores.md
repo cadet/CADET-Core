@@ -1,5 +1,4 @@
 (lumped-rate-model-with-pores-model)=
-
 # Lumped rate model with pores (LRMP)
 
 The lumped rate model with pores {cite}`Guiochon2006,Felinger2004` deviates from the general rate model (see Section {ref}`general-rate-model-model`) by neglecting pore diffusion.

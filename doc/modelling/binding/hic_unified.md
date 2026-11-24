@@ -1,5 +1,4 @@
 (hic-unified-model)=
-
 # HIC Unified
 
 This model implements a unified hydrophobic interaction chromatography (HIC) isotherm as described by Jäpel et al. {cite}`Jaepel2025`.

@@ -1,5 +1,4 @@
 (rate-constant-distribution-theory)=
-
 # Rate Constant Distribution Theory
 
 The rate constant distribution (RCD) theory describes a heterogeneous system by assuming a continuum of different adsorption sites, in contrast to the single site presumed in the {ref}`thomas-model`.

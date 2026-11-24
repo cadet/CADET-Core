@@ -1,5 +1,4 @@
 (multi-state-steric-mass-action-config)=
-
 # Multi-State Steric Mass Action
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = MULTISTATE_STERIC_MASS_ACTION**

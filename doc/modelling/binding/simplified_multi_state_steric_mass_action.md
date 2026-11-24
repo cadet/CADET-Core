@@ -1,5 +1,4 @@
 (simplified-multi-state-steric-mass-action-model)=
-
 # Simplified Multi-State Steric Mass Action
 
 The simplified multi-state steric mass action is the same as the multi-state SMA model described above (see Section {ref}`multi-state-steric-mass-action-model`), but with additional assumptions:

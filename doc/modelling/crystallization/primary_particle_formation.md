@@ -1,5 +1,4 @@
 (primary-particle-formation)=
-
 # Primary Particle Formation
 
 In the following, we give a brief overview on the PBM equations for primary particle formation through growth, nucleation, growth rate dispersion.

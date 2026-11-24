@@ -1,5 +1,4 @@
 (axial-flow-column-2d-config)=
-
 # Axial Flow Column 2D
 
 ## Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_2D

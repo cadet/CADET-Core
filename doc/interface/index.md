@@ -1,5 +1,4 @@
 (file-format)=
-
 # Interface specifications
 
 The CADET framework is designed to work on a file format structured into groups and datasets.

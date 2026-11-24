@@ -1,5 +1,4 @@
 (cstr-model)=
-
 # Continuous stirred tank reactor model (CSTR)
 
 ```{include} ../../modelling/equations.md

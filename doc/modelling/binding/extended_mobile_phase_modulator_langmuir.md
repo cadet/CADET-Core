@@ -1,5 +1,4 @@
 (extended-mobile-phase-modulator-langmuir-model)=
-
 # Extended Mobile Phase Modulator Langmuir
 
 This model is an extension of the mobile phase modulator Langmuir model (see Section {ref}`multi-component-langmuir-model`), which allows linear binding of some selected components.

@@ -1,5 +1,4 @@
 (build-options)=
-
 # CADET-Core build options
 
 For builds on MS Windows, the CMake command arguments are specified for every build configuration in the CMakeSettings.json.

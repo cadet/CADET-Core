@@ -1,5 +1,4 @@
 (contents)=
-
 ```{image} _static/cadet_logo.png
 :class: dark-light
 ```

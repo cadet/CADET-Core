@@ -1,5 +1,4 @@
 (saska-model)=
-
 # Saska
 
 In this binding model an additional quadratic term is added to the linear model {cite}`Saska1992`.

@@ -1,5 +1,4 @@
 (thomas-model)=
-
 # Thomas Model
 
 The so-called Thomas model ignores all mass transfer resistances from the resin bead and treats the beads as a homogeneous binding site which follows a single-component isotherm model.

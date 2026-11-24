@@ -1,5 +1,4 @@
 (multi-component-langmuir-model)=
-
 # Multi Component Langmuir
 
 The Langmuir binding model includes a saturation term and takes into account the capacity of the resin {cite}`Langmuir1916,Guiochon2006`.

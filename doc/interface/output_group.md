@@ -1,5 +1,4 @@
 (ffoutput)=
-
 # Output Group
 
 ## Group /output

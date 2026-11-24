@@ -1,5 +1,4 @@
 (steric-mass-action-model)=
-
 # Steric Mass Action
 
 The steric mass action model takes charges of the molecules into account {cite}`Brooks1992` and is, thus, often used in ion-exchange chromatography.

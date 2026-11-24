@@ -1,5 +1,4 @@
 (spline-interpolation)=
-
 # Spline Interpolation
 
 The spline interpolation model is a non-parametric, data-driven binding model.

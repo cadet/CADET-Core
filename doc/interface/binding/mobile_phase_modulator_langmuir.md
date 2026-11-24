@@ -1,5 +1,4 @@
 (mobile-phase-modulator-langmuir-config)=
-
 # Mobile Phase Modulator Langmuir
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = MOBILE_PHASE_MODULATOR**

@@ -1,5 +1,4 @@
 (multi-component-sips-model)=
-
 # Multi Component Sips
 
 The Sips binding model is a combination of the {ref}`Freundlich<freundlich-ldf-model>` and the {ref}`Langmuir adsorption model<multi-component-langmuir-model>`.

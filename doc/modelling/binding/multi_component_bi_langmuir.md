@@ -1,5 +1,4 @@
 (multi-component-bi-langmuir-model)=
-
 # Multi Component Bi-Langmuir
 
 The multi component Bi-Langmuir model {cite}`Guiochon2006` adds $M - 1$ additional types of binding sites $q_{i,j}$ ($0 \leq j \leq M - 1$) to the Langmuir model (see Section {ref}`multi-component-langmuir-model`) without allowing an exchange between the different sites $q_{i,j}$ and $q_{i,k}$ ($k \neq j$).

@@ -1,5 +1,4 @@
 (reaction-models)=
-
 # Reaction models
 
 Reaction models describe the (net) fluxes $f_{\mathrm{react}}(c)$ of a
@@ -40,7 +39,6 @@ More specialized models are also implemented:
 > - {doc}`activated_sludge_model`
 
 (dependence-on-external-function-react)=
-
 ## Dependence on external function
 
 A reaction model may depend on an external function or profile $T\colon \left[ 0, T_{\mathrm{end}}\right] \times [0, L] \to \mathbb{R}$, where $L$ denotes the physical length of the unit operation, or $T\colon \left[0, T_{\mathrm{end}}\right] \to \mathbb{R}$ if the unit operation model has no axial length.

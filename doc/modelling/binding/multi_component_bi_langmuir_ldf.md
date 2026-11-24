@@ -1,5 +1,4 @@
 (multi-component-bi-langmuir-ldf-model)=
-
 # Multi Component Bi-Langmuir LDF
 
 This a linear driving force model variant of the {ref}`multi-component-bi-langmuir-model` model.

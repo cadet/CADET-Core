@@ -1,5 +1,4 @@
 (hic-constant-water-activity-config)=
-
 # HIC Constant Water Activity
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = HIC_CONSTANT_WATER_ACTIVITY**

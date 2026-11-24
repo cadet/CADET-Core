@@ -1,5 +1,4 @@
 (aggregation)=
-
 # Aggregation Models
 
 For detailed information on the crystallization models implemented in CADET, including aggregation, please refer to {cite}`Zhang2025`.

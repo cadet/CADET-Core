@@ -1,5 +1,4 @@
 (hic-unified-config)=
-
 # HIC Unified
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = HIC_UNIFIED**

@@ -1,5 +1,4 @@
 (michaelis-menten-kinetics-config)=
-
 # Michaelis Menten kinetics
 
 **Group /input/model/unit_XXX(/particle_type_YYY)/phase_reaction_ZZZ/ - TYPE = MICHAELIS_MENTEN**

@@ -1,5 +1,4 @@
 (freundlich-ldf-model)=
-
 # Freundlich LDF
 
 The Freundlich isotherm model is an empirical model that considers changes in the equilibrium constant of the binding process due to the heterogeneity of the surface and the variation of the interaction strength {cite}`Benedikt2019,Singh2016`.

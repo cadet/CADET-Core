@@ -1,5 +1,4 @@
 (multi-channel-transport-model-model)=
-
 # Multichannel Transport model (MCT model)
 
 The Multichannel Transport (MCT) model in CADET is based on a class of compartment models introduced by Jonas Bühler et al. {cite}`Buehler2014`, which was originally developed in the field of plant sciences.
@@ -41,7 +40,6 @@ $$
 $$
 
 (fig-model-class)=
-
 :::{figure} multi_channel_transport_model_class.png
 Illustration of the Multichannel Transport model class and relevant parameters.
 Figure taken from Jonas Bühler et al. {cite}`Buehler2014`.
@@ -98,7 +96,6 @@ The cross-section area $A_N$ is individually specified for each channel (see {nu
 The MCT is agnostic to the shape of these cross sections, while their ratio determines the distribution of the volumetric flow.
 
 (fig-variable-areas)=
-
 :::{figure} mct_variable_areas.png
 Scheme of exemplary channels with different cross section areas and arbitrary exchange between channels.
 :::

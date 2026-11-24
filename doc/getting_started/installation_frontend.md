@@ -1,5 +1,4 @@
 (installation-frontend)=
-
 # Frontend Installation
 
 CADET provides a Python API, called `CADET-Python`, which can be used to configure the model according to {ref}`file-format`.

@@ -1,5 +1,4 @@
 (flux-reconstruction-methods)=
-
 # Flux reconstruction methods
 
 ## Group /input/model/unit_XXX/discretization

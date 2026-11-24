@@ -1,5 +1,4 @@
 (developer-guide)=
-
 # Developer Guide
 
 This developer guide is intended to help expand and maintain CADET-Core and is written to serve developers with diverse backgrounds.

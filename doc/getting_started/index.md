@@ -1,5 +1,4 @@
 (getting-started)=
-
 # Getting started
 
 This section details the steps to install CADET, as pre-built binaries or building from scratch, and also provides the series of tutorials that will help in building complete models from scratch in CADET.

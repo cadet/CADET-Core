@@ -1,5 +1,4 @@
 (release-strategy)=
-
 # Code development and release strategy
 
 ## Agile code development

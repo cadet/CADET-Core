@@ -1,5 +1,4 @@
 (multi-component-ldf-freundlich-model)=
-
 # Multi Component Linear Driving Force Freundlich
 
 A multi-component extension to the classical Freundlich adsorption model.

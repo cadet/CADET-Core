@@ -1,9 +1,7 @@
 (sensitivity)=
-
 # Parameter Sensitivities
 
 (ffsensitivity)=
-
 ## Group /input/sensitivity
 
 `NSENS`
@@ -29,7 +27,6 @@
   ```
 
 (ffsensitivityparam)=
-
 ## Group /input/sensitivity/param_XXX
 
 `SENS_UNIT`
@@ -131,7 +128,6 @@
   ```
 
 (unsupported-sensitivities)=
-
 ## Unsupported sensitivities
 
 A parameter enters a spatial operator either through the residual, where the algorithmic
