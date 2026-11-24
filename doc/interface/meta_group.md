@@ -4,56 +4,56 @@
 
 `FILE_FORMAT`
 
-> Version of the file format in the form Major.Minor.Patch.
-> If omitted, the version of the file format the simulator writes is inserted.
->
-> ```{list-table}
->
-> * - **In/out:** In
->   - **Type:** string
-> ```
+: Version of the file format in the form Major.Minor.Patch.
+  If omitted, the version of the file format the simulator writes is inserted.
+
+  ```{list-table}
+
+  * - **In/out:** In
+    - **Type:** string
+  ```
 
 `CADET_VERSION`
 
-> Version of the executed $\texttt{CADET}$ simulator
->
-> ```{list-table}
->
-> * - **In/out:** Out
->   - **Type:** string
-> ```
+: Version of the executed $\texttt{CADET}$ simulator
+
+  ```{list-table}
+
+  * - **In/out:** Out
+    - **Type:** string
+  ```
 
 `CADET_COMMIT`
 
-> Git commit SHA1 from which the $\texttt{CADET}$ simulator was built
->
-> ```{list-table}
->
-> * - **In/out:** Out
->   - **Type:** string
-> ```
+: Git commit SHA1 from which the $\texttt{CADET}$ simulator was built
+
+  ```{list-table}
+
+  * - **In/out:** Out
+    - **Type:** string
+  ```
 
 `CADET_BRANCH`
 
-> Git branch from which the $\texttt{CADET}$ simulator was built
->
-> ```{list-table}
->
-> * - **In/out:** Out
->   - **Type:** string
-> ```
+: Git branch from which the $\texttt{CADET}$ simulator was built
+
+  ```{list-table}
+
+  * - **In/out:** Out
+    - **Type:** string
+  ```
 
 `TIME_SIM`
 
-> Time that the time integration took (excluding any preparations and postprocessing)
->
-> **Unit:** $\mathrm{s}$
->
-> ```{list-table}
->
-> * - **In/out:** Out
->   - **Type:** double
-> ```
+: Time that the time integration took (excluding any preparations and postprocessing)
+
+  **Unit:** $\mathrm{s}$
+
+  ```{list-table}
+
+  * - **In/out:** Out
+    - **Type:** double
+  ```
 
 ## Group /meta/idas
 
@@ -67,107 +67,107 @@ In the following, `NSOLUTIONTIMES` denotes the number of time points at which th
 
 `IDAS_NTIMESTEPS`
 
-> Number of time steps taken by the IDAS time integrator
->
-> ```{list-table}
->
-> * - **In/out:** Out
->   - **Type:** int
-> ```
+: Number of time steps taken by the IDAS time integrator
+
+  ```{list-table}
+
+  * - **In/out:** Out
+    - **Type:** int
+  ```
 
 `IDAS_NEXT_STEP_SIZE`
 
-> Time integration step size to be attempted on the next internal step
->
-> ```{list-table}
->
-> * - **In/out:** Out
->   - **Type:** double
-> ```
+: Time integration step size to be attempted on the next internal step
+
+  ```{list-table}
+
+  * - **In/out:** Out
+    - **Type:** double
+  ```
 
 `IDAS_NEXT_TIME_POINT`
 
-> Time integration next time point to be attempted on the next internal step
->
-> ```{list-table}
->
-> * - **In/out:** Out
->   - **Type:** double
-> ```
+: Time integration next time point to be attempted on the next internal step
+
+  ```{list-table}
+
+  * - **In/out:** Out
+    - **Type:** double
+  ```
 
 `IDAS_BDF_ORDER`
 
-> Integration method order at corresponding time point
->
-> ```{list-table}
->
-> * - **In/out:** Out
->   - **Type:** int
->   - **Length:** `NSOLUTIONTIMES`
-> ```
+: Integration method order at corresponding time point
+
+  ```{list-table}
+
+  * - **In/out:** Out
+    - **Type:** int
+    - **Length:** `NSOLUTIONTIMES`
+  ```
 
 `IDAS_KUMULATIVE_NTIMESTEPS`
 
-> Cumulative number of time steps taken by the IDAS at corresponding time point
->
-> ```{list-table}
->
-> * - **In/out:** Out
->   - **Type:** int
->   - **Length:** `NSOLUTIONTIMES`
-> ```
+: Cumulative number of time steps taken by the IDAS at corresponding time point
+
+  ```{list-table}
+
+  * - **In/out:** Out
+    - **Type:** int
+    - **Length:** `NSOLUTIONTIMES`
+  ```
 
 `IDAS_N_RESIDUAL_CALLS`
 
-> Number of calls to the user's residual evaluation function at corresponding time point
->
-> ```{list-table}
->
-> * - **In/out:** Out
->   - **Type:** int
->   - **Length:** `NSOLUTIONTIMES`
-> ```
+: Number of calls to the user's residual evaluation function at corresponding time point
+
+  ```{list-table}
+
+  * - **In/out:** Out
+    - **Type:** int
+    - **Length:** `NSOLUTIONTIMES`
+  ```
 
 `IDAS_N_LINSOLVER_SETUP_CALLS`
 
-> Cumulative number of calls made to the linear solver's setup function at corresponding time point
->
-> ```{list-table}
->
-> * - **In/out:** Out
->   - **Type:** int
->   - **Length:** `NSOLUTIONTIMES`
-> ```
+: Cumulative number of calls made to the linear solver's setup function at corresponding time point
+
+  ```{list-table}
+
+  * - **In/out:** Out
+    - **Type:** int
+    - **Length:** `NSOLUTIONTIMES`
+  ```
 
 `IDAS_N_LOCAL_ERROR_TEST_FAILURES`
 
-> Cumulative number of local error test failures that have occurred at corresponding time point
->
-> ```{list-table}
->
-> * - **In/out:** Out
->   - **Type:** int
->   - **Length:** `NSOLUTIONTIMES`
-> ```
+: Cumulative number of local error test failures that have occurred at corresponding time point
+
+  ```{list-table}
+
+  * - **In/out:** Out
+    - **Type:** int
+    - **Length:** `NSOLUTIONTIMES`
+  ```
 
 `IDAS_INTEGRATION_STEP_SIZE`
 
-> Integration step size taken on the last internal step at corresponding time point
->
-> ```{list-table}
->
-> * - **In/out:** Out
->   - **Type:** double
->   - **Length:** `NSOLUTIONTIMES`
-> ```
+: Integration step size taken on the last internal step at corresponding time point
+
+  ```{list-table}
+
+  * - **In/out:** Out
+    - **Type:** double
+    - **Length:** `NSOLUTIONTIMES`
+  ```
 
 `IDAS_FIRST_INTEGRATION_STEP_SIZE`
 
-> Value of the integration step size used on the first step at corresponding time point
->
-> ```{list-table}
->
-> * - **In/out:** Out
->   - **Type:** double
->   - **Length:** `NSOLUTIONTIMES`
-> ```
+: Value of the integration step size used on the first step at corresponding time point
+
+  ```{list-table}
+
+  * - **In/out:** Out
+    - **Type:** double
+    - **Length:** `NSOLUTIONTIMES`
+  ```

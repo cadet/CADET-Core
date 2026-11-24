@@ -8,147 +8,147 @@ For information on model equations, refer to {ref}`mass-action-law-model-cross-p
 
 `MAL_KFWD_LIQUID`
 
-> Forward rate constants for particle liquid phase reactions (available for external functions)
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** $\texttt{NREACT}$
-> ```
+: Forward rate constants for particle liquid phase reactions (available for external functions)
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** $\texttt{NREACT}$
+  ```
 
 `MAL_KBWD_LIQUID`
 
-> Backward rate constants for particle liquid phase reactions (available for external functions)
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** $\texttt{NREACT}$
-> ```
+: Backward rate constants for particle liquid phase reactions (available for external functions)
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** $\texttt{NREACT}$
+  ```
 
 `MAL_KFWD_SOLID`
 
-> Forward rate constants for particle solid phase reactions (available for external functions)
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** $\texttt{NREACT}$
-> ```
+: Forward rate constants for particle solid phase reactions (available for external functions)
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** $\texttt{NREACT}$
+  ```
 
 `MAL_KBWD_SOLID`
 
-> Backward rate constants for particle solid phase reactions (available for external functions)
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** $\texttt{NREACT}$
-> ```
+: Backward rate constants for particle solid phase reactions (available for external functions)
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** $\texttt{NREACT}$
+  ```
 
 `MAL_STOICHIOMETRY_LIQUID`
 
-> Stoichiometric matrix of particle liquid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Length:** $\texttt{NCOMP} \cdot \texttt{NREACT}$
-> ```
+: Stoichiometric matrix of particle liquid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Length:** $\texttt{NCOMP} \cdot \texttt{NREACT}$
+  ```
 
 `MAL_EXPONENTS_LIQUID_FWD`
 
-> Forward exponent matrix of particle liquid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from $\texttt{MAL_STOICHIOMETRY_LIQUID}$ by default)
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Length:** $\texttt{NCOMP} \cdot \texttt{NREACT}$
-> ```
+: Forward exponent matrix of particle liquid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from $\texttt{MAL_STOICHIOMETRY_LIQUID}$ by default)
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Length:** $\texttt{NCOMP} \cdot \texttt{NREACT}$
+  ```
 
 `MAL_EXPONENTS_LIQUID_BWD`
 
-> Backward exponent matrix of particle liquid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from $\texttt{MAL_STOICHIOMETRY_LIQUID}$ by default)
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Length:** $\texttt{NCOMP} \cdot \texttt{NREACT}$
-> ```
+: Backward exponent matrix of particle liquid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from $\texttt{MAL_STOICHIOMETRY_LIQUID}$ by default)
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Length:** $\texttt{NCOMP} \cdot \texttt{NREACT}$
+  ```
 
 `MAL_EXPONENTS_LIQUID_FWD_MODSOLID`
 
-> Forward solid phase modifier exponent matrix of particle liquid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage (optional, defaults to all 0)
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Length:** $\texttt{NTOTALBND} \cdot \texttt{NREACT}$
-> ```
+: Forward solid phase modifier exponent matrix of particle liquid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage (optional, defaults to all 0)
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Length:** $\texttt{NTOTALBND} \cdot \texttt{NREACT}$
+  ```
 
 `MAL_EXPONENTS_LIQUID_BWD_MODSOLID`
 
-> Backward solid phase modifier exponent matrix of particle liquid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage (optional, defaults to all 0)
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Length:** $\texttt{NTOTALBND} \cdot \texttt{NREACT}$
-> ```
+: Backward solid phase modifier exponent matrix of particle liquid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage (optional, defaults to all 0)
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Length:** $\texttt{NTOTALBND} \cdot \texttt{NREACT}$
+  ```
 
 `MAL_STOICHIOMETRY_SOLID`
 
-> Stoichiometric matrix of particle solid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Length:** $\texttt{NTOTALBND} \cdot \texttt{NREACT}$
-> ```
+: Stoichiometric matrix of particle solid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Length:** $\texttt{NTOTALBND} \cdot \texttt{NREACT}$
+  ```
 
 `MAL_EXPONENTS_SOLID_FWD`
 
-> Forward exponent matrix of particle solid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from $\texttt{MAL_STOICHIOMETRY_SOLID}$ by default)
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Length:** $\texttt{NTOTALBND} \cdot \texttt{NREACT}$
-> ```
+: Forward exponent matrix of particle solid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from $\texttt{MAL_STOICHIOMETRY_SOLID}$ by default)
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Length:** $\texttt{NTOTALBND} \cdot \texttt{NREACT}$
+  ```
 
 `MAL_EXPONENTS_SOLID_BWD`
 
-> Backward exponent matrix of particle solid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from $\texttt{MAL_STOICHIOMETRY_SOLID}$ by default)
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Length:** $\texttt{NTOTALBND} \cdot \texttt{NREACT}$
-> ```
+: Backward exponent matrix of particle solid phase reactions as $\texttt{NTOTALBND} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from $\texttt{MAL_STOICHIOMETRY_SOLID}$ by default)
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Length:** $\texttt{NTOTALBND} \cdot \texttt{NREACT}$
+  ```
 
 `MAL_EXPONENTS_SOLID_FWD_MODLIQUID`
 
-> Forward liquid phase modifier exponent matrix of particle solid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, defaults to all 0)
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Length:** $\texttt{NCOMP} \cdot \texttt{NREACT}$
-> ```
+: Forward liquid phase modifier exponent matrix of particle solid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, defaults to all 0)
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Length:** $\texttt{NCOMP} \cdot \texttt{NREACT}$
+  ```
 
 `MAL_EXPONENTS_SOLID_BWD_MODLIQUID`
 
-> Backward liquid phase modifier exponent matrix of particle solid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, defaults to all 0)
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Length:** $\texttt{NCOMP} \cdot \texttt{NREACT}$
-> ```
+: Backward liquid phase modifier exponent matrix of particle solid phase reactions as $\texttt{NCOMP} \times \texttt{NREACT}$ matrix in row-major storage (optional, defaults to all 0)
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Length:** $\texttt{NCOMP} \cdot \texttt{NREACT}$
+  ```
 
 ## Examples
 

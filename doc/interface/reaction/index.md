@@ -31,16 +31,16 @@ A rapid-equilibrium reaction is not integrated in time; its rate is fixed by the
 
 `IS_KINETIC`
 
-> Selects kinetic ($1$) or rapid equilibrium ($0$) mode.
-> Either a scalar applying to all reactions of the group, or one entry per reaction.
-> Optional, defaults to kinetic for all reactions.
->
-> ```{list-table}
->
-> * - **Type:** int
->   - **Range:** $\{0,1\}$
->   - **Length:** $1$ / $\texttt{NREACT}$
-> ```
+: Selects kinetic ($1$) or rapid equilibrium ($0$) mode.
+  Either a scalar applying to all reactions of the group, or one entry per reaction.
+  Optional, defaults to kinetic for all reactions.
+
+  ```{list-table}
+
+  * - **Type:** int
+    - **Range:** $\{0,1\}$
+    - **Length:** $1$ / $\texttt{NREACT}$
+  ```
 
 Rapid equilibrium is only available in the liquid phase, and only for unit operations that implement the reformulation.
 Any other combination is rejected with an error.

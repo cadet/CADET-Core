@@ -22,25 +22,25 @@ Example code for configuring the crystallization models is available in [CADET-V
 
 `NCOMP`
 
-> Number of components, which is defined by the number of considered particle sizes (i.e. discretization with FV cells) plus, in the case that primary particle formation is employed, 2 (for solute and solubility).
->
-> ```{list-table}
->
-> * - **Type:** int
->   - **Range:** $\geq 3$
->   - **Length:** 1
-> ```
+: Number of components, which is defined by the number of considered particle sizes (i.e. discretization with FV cells) plus, in the case that primary particle formation is employed, 2 (for solute and solubility).
+
+  ```{list-table}
+
+  * - **Type:** int
+    - **Range:** $\geq 3$
+    - **Length:** 1
+  ```
 
 `NREAC_LIQUID`
 
-> Number of liquid phase reaction models (optional, only if liquid reactions are present).
->
-> ```{list-table}
->
-> * - **Type:** int
->   - **Range:** $\geq 0$
->   - **Length:** 1
-> ```
+: Number of liquid phase reaction models (optional, only if liquid reactions are present).
+
+  ```{list-table}
+
+  * - **Type:** int
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 ## Group /input/model/unit_XXX/liquid_reaction_000 - TYPE = CRYSTALLIZATION - UNIT_TYPE = CSTR
 
@@ -48,258 +48,258 @@ Example code for configuring the crystallization models is available in [CADET-V
 
 `CRY_MODE`
 
-> Crystallization mode, which determines the exact model equation to be employed.
->
-> 1. Pure primary particle formation, as described in {ref}`primary-particle-formation`.
-> 2. Pure aggregation, as described in {ref}`aggregation`.
-> 3. Combined primary particle formation and aggregation.
-> 4. Pure fragmentation, as described in {ref}`fragmentation`.
-> 5. Combined primary particle formation and fragmentation.
-> 6. Combined aggregation and fragmentation.
-> 7. Combined primary particle formation, aggregation, and fragmentation.
->
-> ```{list-table}
->
-> * - **Type:** int
->   - **Range:** $\{1, \dots, 7 \}$
->   - **Length:** 1
-> ```
+: Crystallization mode, which determines the exact model equation to be employed.
+
+  1. Pure primary particle formation, as described in {ref}`primary-particle-formation`.
+  2. Pure aggregation, as described in {ref}`aggregation`.
+  3. Combined primary particle formation and aggregation.
+  4. Pure fragmentation, as described in {ref}`fragmentation`.
+  5. Combined primary particle formation and fragmentation.
+  6. Combined aggregation and fragmentation.
+  7. Combined primary particle formation, aggregation, and fragmentation.
+
+  ```{list-table}
+
+  * - **Type:** int
+    - **Range:** $\{1, \dots, 7 \}$
+    - **Length:** 1
+  ```
 
 `CRY_BINS`
 
-> Coordinates of the cell faces, e.g. equidistant or logarithmic discretization of the internal coordinate $x \in [x_c, x_\text{end}]$, including the end points.
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 1$
->   - **Length:** $\mathrm{N_x} + 1$
-> ```
+: Coordinates of the cell faces, e.g. equidistant or logarithmic discretization of the internal coordinate $x \in [x_c, x_\text{end}]$, including the end points.
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 1$
+    - **Length:** $\mathrm{N_x} + 1$
+  ```
 
 ### Population and Mass Balance input parameters
 
 `CRY_NUCLEI_MASS_DENSITY`
 
-> Nuclei mass density
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** 1
-> ```
+: Nuclei mass density
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `CRY_VOL_SHAPE_FACTOR`
 
-> Volumetric shape factor of the particles
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** 1
-> ```
+: Volumetric shape factor of the particles
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `CRY_PRIMARY_NUCLEATION_RATE`
 
-> Primary nucleation rate constant $k_p$
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** 1
-> ```
+: Primary nucleation rate constant $k_p$
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `CRY_SECONDARY_NUCLEATION_RATE`
 
-> Secondary nucleation rate $k_b$
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** 1
-> ```
+: Secondary nucleation rate $k_b$
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `CRY_GROWTH_RATE_CONSTANT`
 
-> Growth rate constant $k_g$
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** 1
-> ```
+: Growth rate constant $k_g$
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `CRY_GROWTH_CONSTANT`
 
-> Growth constant $\gamma$
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** 1
-> ```
+: Growth constant $\gamma$
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `CRY_A`
 
-> Defines constant $a$ used to determine the growth rate
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** 1
-> ```
+: Defines constant $a$ used to determine the growth rate
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `CRY_G`
 
-> Defines constant $g$ used to determine the growth rate
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** 1
-> ```
+: Defines constant $g$ used to determine the growth rate
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `CRY_P`
 
-> Defines constant $p$ used to determine the growth rate
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** 1
-> ```
+: Defines constant $p$ used to determine the growth rate
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `CRY_GROWTH_DISPERSION_RATE`
 
-> Growth dispersion rate $D_g$
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** 1
-> ```
+: Growth dispersion rate $D_g$
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `CRY_U`
 
-> Defines constant $u$ used to determine the primary nucleation
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** 1
-> ```
+: Defines constant $u$ used to determine the primary nucleation
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `CRY_B`
 
-> Defines constant $b$ used to determine the secondary nucleation
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** 1
-> ```
+: Defines constant $b$ used to determine the secondary nucleation
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `CRY_K`
 
-> Defines constant $k$ used to determine the secondary nucleation, usually set to $\geq 1$
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** 1
-> ```
+: Defines constant $k$ used to determine the secondary nucleation, usually set to $\geq 1$
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `CRY_GROWTH_SCHEME_ORDER`
 
-> Defines the growth flux FV reconstruction scheme. It can only be
->
-> - $1$: upwind scheme
-> - $2$: HR Koren scheme
-> - $3$: WENO23 scheme
-> - $4$: WENO35 scheme.
->
-> We recommend using the HR Koren scheme, which showed to be the most performant in our benchmarks.
->
-> ```{list-table}
->
-> * - **Type:** int
->   - **Range:** $[1, \dots, 4]$
->   - **Length:** 1
-> ```
+: Defines the growth flux FV reconstruction scheme. It can only be
+
+  - $1$: upwind scheme
+  - $2$: HR Koren scheme
+  - $3$: WENO23 scheme
+  - $4$: WENO35 scheme.
+
+  We recommend using the HR Koren scheme, which showed to be the most performant in our benchmarks.
+
+  ```{list-table}
+
+  * - **Type:** int
+    - **Range:** $[1, \dots, 4]$
+    - **Length:** 1
+  ```
 
 ### Aggregation input parameters
 
 `CRY_AGGREGATION_INDEX`
 
-> Defines the aggregation kernel. It can only be
->
-> - $0$: constant kernel
-> - $1$: Brownian kernel
-> - $2$: Smoluchowski kernel
-> - $3$: Golovin kernel
-> - $4$: differential force kernel
->
-> ```{list-table}
->
-> * - **Type:** int
->   - **Range:** $[0, \dots, 4]$
->   - **Length:** 1
-> ```
+: Defines the aggregation kernel. It can only be
+
+  - $0$: constant kernel
+  - $1$: Brownian kernel
+  - $2$: Smoluchowski kernel
+  - $3$: Golovin kernel
+  - $4$: differential force kernel
+
+  ```{list-table}
+
+  * - **Type:** int
+    - **Range:** $[0, \dots, 4]$
+    - **Length:** 1
+  ```
 
 `CRY_AGGREGATION_RATE_CONSTANT`
 
-> Aggregation rate constant $\beta_0$
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $> 0$
->   - **Length:** 1
-> ```
+: Aggregation rate constant $\beta_0$
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $> 0$
+    - **Length:** 1
+  ```
 
 ### Fragmentation input parameters
 
 `CRY_FRAGMENTATION_RATE_CONSTANT`
 
-> Fragmentation rate constant $S_0$
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $> 0$
->   - **Length:** 1
-> ```
+: Fragmentation rate constant $S_0$
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $> 0$
+    - **Length:** 1
+  ```
 
 `CRY_FRAGMENTATION_KERNEL_GAMMA`
 
-> Fragmentation kernel coefficient $\gamma$
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $> 1.0$
->   - **Length:** 1
-> ```
+: Fragmentation kernel coefficient $\gamma$
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $> 1.0$
+    - **Length:** 1
+  ```
 
 `CRY_FRAGMENTATION_SELECTION_FUNCTION_ALPHA`
 
-> Fragmentation selection function coefficient $\alpha$
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $> 0$
->   - **Length:** 1
-> ```
+: Fragmentation selection function coefficient $\alpha$
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $> 0$
+    - **Length:** 1
+  ```

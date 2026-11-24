@@ -18,77 +18,77 @@ geometry, see {ref}`muopgrmvaryingporosity`.
 
 `UNIT_TYPE`
 
-> Specifies the type of unit operation model
->
-> ```{list-table}
->
-> * - **Type:** string
->   - **Range:** $\texttt{COLUMN_MODEL_1D}$
->   - **Length:** 1
-> ```
+: Specifies the type of unit operation model
+
+  ```{list-table}
+
+  * - **Type:** string
+    - **Range:** $\texttt{COLUMN_MODEL_1D}$
+    - **Length:** 1
+  ```
 
 `GEOMETRY`
 
-> Column geometry
->
-> ```{list-table}
->
-> * - **Type:** string
->   - **Range:** $\texttt{SMOOTHLY_VARYING}$
->   - **Length:** 1
-> ```
+: Column geometry
+
+  ```{list-table}
+
+  * - **Type:** string
+    - **Range:** $\texttt{SMOOTHLY_VARYING}$
+    - **Length:** 1
+  ```
 
 `CROSS_SECTIONAL_AREA_AT_NODES`
 
-> Cross section area at every DG node, in the ordering of the bulk solution, i.e. element by
-> element from the column inlet at $x = 0$ to $x = \texttt{BED_LENGTH}$, with the
-> nodes of each element in ascending order.
-> Since neighbouring elements share their interface node, that node appears twice, once as the
-> last entry of the left and once as the first entry of the right element, and the two entries
-> must be equal.
-> The area has to be strictly positive.
-> This is the geometric cross section area $A(x)$; the bulk porosity is applied to it by
-> CADET-Core, also when it is given per node.
->
-> **Unit:** $\mathrm{m}^2$
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $> 0$
->   - **Length:** $(\texttt{POLYDEG} + 1) \cdot \texttt{NELEM}$
-> ```
->
-> The nodes are the Legendre-Gauss-Lobatto nodes of each element, which are also written out by
-> `WRITE_COORDINATES`, so a convenient way to obtain them is to run the same discretization
-> once with any other geometry and evaluate the intended area profile at the reported
-> coordinates.
+: Cross section area at every DG node, in the ordering of the bulk solution, i.e. element by
+  element from the column inlet at $x = 0$ to $x = \texttt{BED_LENGTH}$, with the
+  nodes of each element in ascending order.
+  Since neighbouring elements share their interface node, that node appears twice, once as the
+  last entry of the left and once as the first entry of the right element, and the two entries
+  must be equal.
+  The area has to be strictly positive.
+  This is the geometric cross section area $A(x)$; the bulk porosity is applied to it by
+  CADET-Core, also when it is given per node.
+
+  **Unit:** $\mathrm{m}^2$
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $> 0$
+    - **Length:** $(\texttt{POLYDEG} + 1) \cdot \texttt{NELEM}$
+  ```
+
+  The nodes are the Legendre-Gauss-Lobatto nodes of each element, which are also written out by
+  `WRITE_COORDINATES`, so a convenient way to obtain them is to run the same discretization
+  once with any other geometry and evaluate the intended area profile at the reported
+  coordinates.
 
 `BED_LENGTH`
 
-> Column length. NOT optional for this geometry.
->
-> **Unit:** $\mathrm{m}$
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $> 0$
->   - **Length:** 1
-> ```
+: Column length. NOT optional for this geometry.
+
+  **Unit:** $\mathrm{m}$
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $> 0$
+    - **Length:** 1
+  ```
 
 `FORWARD_FLOW`
 
-> Flow direction of the column. If set to 1, the flow runs from $x = 0$ towards
-> $x = \texttt{BED_LENGTH}$, i.e. the inlet is the end whose area is the first entry of
-> `CROSS_SECTIONAL_AREA_AT_NODES`.
->
-> ```{list-table}
->
-> * - **Type:** bool
->   - **Range:** $\{0,1\}$
->   - **Length:** 1 or NSEC
-> ```
+: Flow direction of the column. If set to 1, the flow runs from $x = 0$ towards
+  $x = \texttt{BED_LENGTH}$, i.e. the inlet is the end whose area is the first entry of
+  `CROSS_SECTIONAL_AREA_AT_NODES`.
+
+  ```{list-table}
+
+  * - **Type:** bool
+    - **Range:** $\{0,1\}$
+    - **Length:** 1 or NSEC
+  ```
 
 ## Group /input/model/unit_XXX/discretization - UNIT_TYPE - COLUMN_MODEL_1D
 
