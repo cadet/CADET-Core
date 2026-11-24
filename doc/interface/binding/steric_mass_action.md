@@ -13,50 +13,50 @@ For information on model equations, refer to {ref}`steric-mass-action-model`.
   bound states. Otherwise, the adsorption mode is set for each bound
   state separately.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** {0,1}
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** int
+    - **Range:** {0,1}
+    - **Length:** 1/NTOTALBND
+  ```
 
 `SMA_KA`
 
 : Adsorption rate constants
 
-**Unit:** $m_{MP}^3~m_{SP}^{-3}~s^{-1}$
+  **Unit:** $m_{MP}^3~m_{SP}^{-3}~s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `SMA_KD`
 
 : Desorption rate constants
 
-**Unit:** $s^{-1}$
+  **Unit:** $s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `SMA_NU`
 
 : Characteristic charges of the protein; The number of sites
   $\nu$ that the protein interacts with on the resin surface
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `SMA_SIGMA`
 
@@ -64,51 +64,51 @@ For information on model equations, refer to {ref}`steric-mass-action-model`.
   the surface that are shielded by the protein and prevented from
   exchange with the salt counterions in solution
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `SMA_LAMBDA`
 
 : Stationary phase capacity (monovalent salt counterions); The total
   number of binding sites available on the resin surface
 
-**Unit:** $mol~m_{SP}^{-3}$
+  **Unit:** $mol~m_{SP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** 1
+  ```
 
 `SMA_REFC0`
 
 : Reference liquid phase concentration (optional, defaults to
   $1.0$)
 
-**Unit:** $mol~m_{MP}^{-3}$
+  **Unit:** $mol~m_{MP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\gt 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\gt 0$
+    - **Length:** 1
+  ```
 
 `SMA_REFQ`
 
 : Reference solid phase concentration (optional, defaults to
   $1.0$)
 
-**Unit:** $mol~m_{SP}^{-3}$
+  **Unit:** $mol~m_{SP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\gt 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\gt 0$
+    - **Length:** 1
+  ```

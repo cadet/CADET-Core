@@ -13,36 +13,36 @@ For information on model equations, refer to {ref}`gaussian-process-regression`.
   bound states. Otherwise, the adsorption mode is set for each bound
   state separately.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** {0,1}
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** int
+    - **Range:** {0,1}
+    - **Length:** 1/NTOTALBND
+  ```
 
 `CP_NDIM`
 
 : Number of input dimensions per training point used in `CP_VALS`.
   Must equal number of components, user sanity check.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** NCOMP
-  - **Length:** 1
-```
+  * - **Type:** int
+    - **Range:** NCOMP
+    - **Length:** 1
+  ```
 
 `CS_NDIM`
 
 : Number of output dimensions per training point used in `CS_VALS`.
   Must equal total number of bound states, user sanity check.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** NTOTALBOUND
-  - **Length:** 1
-```
+  * - **Type:** int
+    - **Range:** NTOTALBOUND
+    - **Length:** 1
+  ```
 
 `CP_VALS`
 
@@ -51,14 +51,14 @@ For information on model equations, refer to {ref}`gaussian-process-regression`.
   $X$ used to evaluate the kernel function. The array is interpreted
   as an `NTRAIN` major vector.
 
-**Unit:** $mol~m_{MP}^{-3}$
+  **Unit:** $mol~m_{MP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** unrestricted
-  - **Length:** NTRAIN * CP_NDIM
-```
+  * - **Type:** double
+    - **Range:** unrestricted
+    - **Length:** NTRAIN * CP_NDIM
+  ```
 
 `CS_VALS`
 
@@ -66,27 +66,27 @@ For information on model equations, refer to {ref}`gaussian-process-regression`.
   These values form the training output vector used to compute the GPR
   coefficient vector $\alpha = (K + \sigma_n^2 I)^{-1} y$.
 
-**Unit:** $mol~m_{SP}^{-3}$
+  **Unit:** $mol~m_{SP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** unrestricted
-  - **Length:** NTRAIN * CS_NDIM
-```
+  * - **Type:** double
+    - **Range:** unrestricted
+    - **Length:** NTRAIN * CS_NDIM
+  ```
 
 `GPR_KKIN`
 
 : Linear-driving-force coefficients in component-major ordering.
 
-**Unit:** $s^{-1}$
+  **Unit:** $s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\geq 0$
-  - **Length:** NTOTALBND
-```
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** NTOTALBND
+  ```
 
 `KERNEL`
 
@@ -94,12 +94,12 @@ For information on model equations, refer to {ref}`gaussian-process-regression`.
   model. Supported values are `MLP`, `RBF`, `RBF_Linear`, and
   `MLP_Linear`.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** string
-  - **Range:** {MLP, RBF, RBF_Linear, MLP_Linear}
-  - **Length:** 1
-```
+  * - **Type:** string
+    - **Range:** {MLP, RBF, RBF_Linear, MLP_Linear}
+    - **Length:** 1
+  ```
 
 ## Kernel-Specific Hyperparameters
 
@@ -131,48 +131,48 @@ The following table summarizes which parameters are required for each kernel:
 : Weight variance hyperparameter for the MLP (arc-cosine) kernel.
   Required for `MLP` and `MLP_Linear` kernels.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\geq 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `MLP_BIAS_VARIANCE_BND_XXX`
 
 : Bias variance hyperparameter for the MLP (arc-cosine) kernel.
   Required for `MLP` and `MLP_Linear` kernels.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\geq 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `MLP_VARIANCE_BND_XXX`
 
 : Output variance hyperparameter for the MLP (arc-cosine) kernel.
   Required for `MLP` and `MLP_Linear` kernels.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\geq 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `RBF_VARIANCE_BND_XXX`
 
 : Output variance hyperparameter for the RBF (squared exponential) kernel.
   Required for `RBF` and `RBF_Linear` kernels.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\geq 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `RBF_LENGTHSCALE_BND_XXX`
 
@@ -180,24 +180,24 @@ The following table summarizes which parameters are required for each kernel:
   (squared lengthscale as exported from scikit-learn).
   Required for `RBF` and `RBF_Linear` kernels.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\geq 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `LINEAR_VARIANCE_BND_XXX`
 
 : Variance hyperparameter for the linear kernel.
   Required for `RBF_Linear` and `MLP_Linear` kernels.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\geq 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** 1
+  ```
 
 `GAUSSIAN_NOISE_VARIANCE_BND_XXX`
 
@@ -205,12 +205,12 @@ The following table summarizes which parameters are required for each kernel:
   diagonal for numerical stability and observation noise modeling.
   Required for all kernel types.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $> 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $> 0$
+    - **Length:** 1
+  ```
 
 `POROSITY_FACTOR`
 
@@ -220,9 +220,9 @@ The following table summarizes which parameters are required for each kernel:
   otherwise one value per bound state in component-major ordering has to be given.
   Defaults to 1.0 if not present.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $> 0$
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** double
+    - **Range:** $> 0$
+    - **Length:** 1/NTOTALBND
+  ```

@@ -13,35 +13,35 @@ For information on model equations, refer to {ref}`linear-model`.
   bound states. Otherwise, the adsorption mode is set for each bound
   state separately.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** {0,1}
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** int
+    - **Range:** {0,1}
+    - **Length:** 1/NTOTALBND
+  ```
 
 `LIN_KA`
 
 : Adsorption rate constants for each component
 
-**Unit:** $m_{MP}^3~m_{SP}^{-3}~s^{-1}$
+  **Unit:** $m_{MP}^3~m_{SP}^{-3}~s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** 1/NTOTALBND
+  ```
 
 `LIN_KD`
 
 : Desorption rate constants for each component
 
-**Unit:** $s^{-1}$
+  **Unit:** $s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** 1/NTOTALBND
+  ```

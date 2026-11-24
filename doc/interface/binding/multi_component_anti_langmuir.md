@@ -13,61 +13,61 @@ For information on model equations, refer to {ref}`multi-component-anti-langmuir
   bound states. Otherwise, the adsorption mode is set for each bound
   state separately.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** {0,1}
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** int
+    - **Range:** {0,1}
+    - **Length:** 1/NTOTALBND
+  ```
 
 `MCAL_KA`
 
 : Adsorption rate constants
 
-**Unit:** $m_{MP}^3~mol^{-1}~s^{-1}$
+  **Unit:** $m_{MP}^3~mol^{-1}~s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `MCAL_KD`
 
 : Desorption rate constants
 
-**Unit:** $s^{-1}$
+  **Unit:** $s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `MCAL_QMAX`
 
 : Maximum adsorption capacities
 
-**Unit:** $mol~m_{SP}^{-3}$
+  **Unit:** $mol~m_{SP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\gt 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\gt 0$
+    - **Length:** NCOMP
+  ```
 
 `MCAL_ANTILANGMUIR`
 
 : Anti-Langmuir coefficients (optional)
 
-**Unit:** $mol~m_{SP}^{-3}$
+  **Unit:** $mol~m_{SP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** {-1,1}
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** {-1,1}
+    - **Length:** NCOMP
+  ```

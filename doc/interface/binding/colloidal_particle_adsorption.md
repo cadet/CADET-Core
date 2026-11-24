@@ -13,25 +13,25 @@ For information on model equations, refer to {ref}`colloidal-particle-adsorption
   bound states. Otherwise, the adsorption mode is set for each bound
   state separately.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** {0,1}
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** int
+    - **Range:** {0,1}
+    - **Length:** 1/NTOTALBND
+  ```
 
 `CPA_TEMPERATURE`
 
 : Absolute temperature $T$
 
-**Unit:** $\mathrm{K}$
+  **Unit:** $\mathrm{K}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $> 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $> 0$
+    - **Length:** 1
+  ```
 
 `CPA_IONIC_STRENGTH`
 
@@ -39,100 +39,100 @@ For information on model equations, refer to {ref}`colloidal-particle-adsorption
   `CPA_IONIC_VALENCE` is set (ionic strength is then computed
   from the pore-phase concentrations).
 
-**Unit:** $\mathrm{mol \, m^{-3}}$
+  **Unit:** $\mathrm{mol \, m^{-3}}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $> 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $> 0$
+    - **Length:** 1
+  ```
 
 `CPA_PERMITTIVITY`
 
 : Relative permittivity $\varepsilon$ of the solvent
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $> 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $> 0$
+    - **Length:** 1
+  ```
 
 `CPA_LIGAND_DENSITY`
 
 : Ligand surface density $\Gamma_L$
 
-**Unit:** $\mathrm{mol \, m^{-2}}$
+  **Unit:** $\mathrm{mol \, m^{-2}}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** 1
+  ```
 
 `CPA_LIGAND_CHARGE_FULL`
 
 : Charge of the fully protonated ligand $\zeta_L$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** 1
+  ```
 
 `CPA_LIGAND_PK`
 
 : Dissociation constant $\mathrm{p}K_L$ of the ligand
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $> 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $> 0$
+    - **Length:** 1
+  ```
 
 `CPA_PH_REF`
 
 : Reference pH value $\mathrm{pH}_{\mathrm{ref}}$ for the
   protein charge polynomial
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** 1
+  ```
 
 `CPA_SPECIFIC_SURFACE_AREA`
 
 : Specific adsorber surface area per skeleton volume $A_{s,i}$.
   Entries of non-binding components are not used and may be set to zero.
 
-**Unit:** $\mathrm{m^{-1}}$
+  **Unit:** $\mathrm{m^{-1}}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $> 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $> 0$
+    - **Length:** NCOMP
+  ```
 
 `CPA_RADIUS`
 
 : Hydrodynamic radius $a_i$ of each protein component.
   Entries of non-binding components are not used and may be set to zero.
 
-**Unit:** $\mathrm{m}$
+  **Unit:** $\mathrm{m}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $> 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $> 0$
+    - **Length:** NCOMP
+  ```
 
 `CPA_EFFECTIVE_CHARGE_COEF`
 
@@ -152,12 +152,12 @@ For information on model equations, refer to {ref}`colloidal-particle-adsorption
   components.
   Coefficients that do not apply should be set to zero.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\mathbb{R}$
-  - **Length:** NCOMP * (P + 1)
-```
+  * - **Type:** double
+    - **Range:** $\mathbb{R}$
+    - **Length:** NCOMP * (P + 1)
+  ```
 
 `CPA_LAT_CHARGE`
 
@@ -165,50 +165,50 @@ For information on model equations, refer to {ref}`colloidal-particle-adsorption
   the pairwise Yukawa coefficient $\beta_{ij}$ in the lateral
   protein–protein interaction
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\mathbb{R}$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\mathbb{R}$
+    - **Length:** NCOMP
+  ```
 
 `CPA_DELTA_REF`
 
 : Reference interaction layer thickness $\delta_{i,\mathrm{ref}}$
   Entries of non-binding components are not used and may be set to zero.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `CPA_DELTA_LIN`
 
 : Linear coefficient $\delta_{i,\mathrm{lin}}$ for the
   logarithmic interaction layer thickness parameterisation
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `CPA_KKIN`
 
 : Kinetic prefactor $k^*_{\mathrm{kin},i}$ used to calculate the
   kinetic rate constant $k_{\mathrm{kin},i}$.
 
-**Unit:** $\mathrm{s^{-1}}$
+  **Unit:** $\mathrm{s^{-1}}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `CPA_PROTON_IDX`
 
@@ -216,12 +216,12 @@ For information on model equations, refer to {ref}`colloidal-particle-adsorption
   (optional, defaults to 0). The corresponding component must be
   non-binding (`NBOUND = 0`).
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** $\ge 0$
-  - **Length:** 1
-```
+  * - **Type:** int
+    - **Range:** $\ge 0$
+    - **Length:** 1
+  ```
 
 `CPA_IONIC_VALENCE`
 
@@ -234,12 +234,12 @@ For information on model equations, refer to {ref}`colloidal-particle-adsorption
   disables the Davies activity correction for that component, so assigning
   $z = 0$ to the proton component yields $\gamma_{\mathrm{H}^+} = 1$.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** $\mathbb{Z}^+$
-  - **Length:** NCOMP
-```
+  * - **Type:** int
+    - **Range:** $\mathbb{Z}^+$
+    - **Length:** NCOMP
+  ```
 
 `CPA_MAXITER`
 
@@ -247,9 +247,9 @@ For information on model equations, refer to {ref}`colloidal-particle-adsorption
   potential $\psi_{0,A}$ (optional, defaults to 100). If the solver
   does not converge, a warning is emitted and the last iterate is used.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** $\ge 1$
-  - **Length:** 1
-```
+  * - **Type:** int
+    - **Range:** $\ge 1$
+    - **Length:** 1
+  ```

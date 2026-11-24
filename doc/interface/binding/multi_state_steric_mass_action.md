@@ -13,117 +13,117 @@ For information on model equations, refer to {ref}`multi-state-steric-mass-actio
   bound states. Otherwise, the adsorption mode is set for each bound
   state separately.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** {0,1}
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** int
+    - **Range:** {0,1}
+    - **Length:** 1/NTOTALBND
+  ```
 
 `MSSMA_KA`
 
 : Adsorption rate constants of the components to the different bound
   states in component-major ordering
 
-**Unit:** $m_{MP}^3~m_{SP}^{-3}~s^{-1}$
+  **Unit:** $m_{MP}^3~m_{SP}^{-3}~s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NTOTALBND
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NTOTALBND
+  ```
 
 `MSSMA_KD`
 
 : Desorption rate constants of the components in the different bound
   states in component-major ordering
 
-**Unit:** $s^{-1}$
+  **Unit:** $s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NTOTALBND
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NTOTALBND
+  ```
 
 `MSSMA_NU`
 
 : Characteristic charges of the components in the different bound
   states in component-major ordering
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NTOTALBND
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NTOTALBND
+  ```
 
 `MSSMA_SIGMA`
 
 : Steric factors of the components in the different bound states in
   component-major ordering
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NTOTALBND
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NTOTALBND
+  ```
 
 `MSSMA_RATES`
 
 : Conversion rates between different bound states in
   component-row-major ordering
 
-**Unit:** $s^{-1}$
+  **Unit:** $s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** $\sum_{i=0}^{\text{NCOMP}-1} \text{NBND}_{i}^{2}$
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** $\sum_{i=0}^{\text{NCOMP}-1} \text{NBND}_{i}^{2}$
+  ```
 
 `MSSMA_LAMBDA`
 
 : Stationary phase capacity (monovalent salt counterions); The total
   number of binding sites available on the resin surface
 
-**Unit:** $mol~m_{SP}^{-3}$
+  **Unit:** $mol~m_{SP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** 1
+  ```
 
 `MSSMA_REFC0`
 
 : Reference liquid phase concentration (optional, defaults to
   $1.0$)
 
-**Unit:** $mol~m_{MP}^{-3}$
+  **Unit:** $mol~m_{MP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\gt 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\gt 0$
+    - **Length:** 1
+  ```
 
 `MSSMA_REFQ`
 
 : Reference solid phase concentration (optional, defaults to
   $1.0$)
 
-**Unit:** $mol~m_{SP}^{-3}$
+  **Unit:** $mol~m_{SP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\gt 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\gt 0$
+    - **Length:** 1
+  ```

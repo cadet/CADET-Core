@@ -13,12 +13,12 @@ For information on model equations, refer to {ref}`extended-mobile-phase-modulat
   bound states. Otherwise, the adsorption mode is set for each bound
   state separately.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** {0,1}
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** int
+    - **Range:** {0,1}
+    - **Length:** 1/NTOTALBND
+  ```
 
 `EMPM_COMP_MODE`
 
@@ -30,74 +30,74 @@ For information on model equations, refer to {ref}`extended-mobile-phase-modulat
   Note that this field has the same name for the externally dependent
   variant of the model.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** $\{0,1,2\}$
-  - **Length:** NCOMP
-```
+  * - **Type:** int
+    - **Range:** $\{0,1,2\}$
+    - **Length:** NCOMP
+  ```
 
 `EMPM_KA`
 
 : Adsorption rate constants
 
-**Unit:** $m_{MP}^3~mol^{-1}~s^{-1}$
+  **Unit:** $m_{MP}^3~mol^{-1}~s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `EMPM_KD`
 
 : Desorption rate constants
 
-**Unit:** $m_{MP}^{3\beta}~mol^{-\beta}~s^{-1}$
+  **Unit:** $m_{MP}^{3\beta}~mol^{-\beta}~s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `EMPM_QMAX`
 
 : Maximum adsorption capacities
 
-**Unit:** $mol~m_{SP}^{-3}$
+  **Unit:** $mol~m_{SP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `EMPM_BETA`
 
 : Parameters describing the ion-exchange characteristics (IEX)
 
-**Unit:** $mol~m_{SP}^{-3}$
+  **Unit:** $mol~m_{SP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `EMPM_GAMMA`
 
 : Parameters describing the hydrophobicity (HIC)
 
-**Unit:** $m_{MP}^{3} mol^{-1}$
+  **Unit:** $m_{MP}^{3} mol^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\mathbb{R}$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\mathbb{R}$
+    - **Length:** NCOMP
+  ```

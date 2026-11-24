@@ -13,64 +13,64 @@ For information on model equations, refer to {ref}`hic-water-on-hydrophobic-surf
   bound states. Otherwise, the adsorption mode is set for each bound
   state separately.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** {0,1}
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** int
+    - **Range:** {0,1}
+    - **Length:** 1/NTOTALBND
+  ```
 
 `HICWHS_KA`
 
 : Adsorption rate constant
 
-**Unit:** $m_{MP}^{3}~m_{SP}^{-3}~s^{-1}$
+  **Unit:** $m_{MP}^{3}~m_{SP}^{-3}~s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `HICWHS_KD`
 
 : Desorption rate constant
 
-**Unit:** $s^{-1}$
+  **Unit:** $s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `HICWHS_NU`
 
 : Number of ligands per ligand-protein interaction
 
-**Unit:** [-]
+  **Unit:** [-]
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `HICWHS_QMAX`
 
 : Maximum binding capacity
 
-**Unit:** $mol~m_{SP}^{-3}$
+  **Unit:** $mol~m_{SP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `HICWHS_BETA0`
 
@@ -78,14 +78,14 @@ For information on model equations, refer to {ref}`hic-water-on-hydrophobic-surf
   that stabilize the hydrophobic surfaces at infinitely diluted
   salt concentration
 
-**Unit:** [-]
+  **Unit:** [-]
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** 1
+  ```
 
 `HICWHS_BETA1`
 
@@ -93,11 +93,11 @@ For information on model equations, refer to {ref}`hic-water-on-hydrophobic-surf
   water molecules that stabilize the hydrophobic surfaces with
   respect to changes in the salt concentration
 
-**Unit:** $m_{MP}^{3}~mol^{-1}$
+  **Unit:** $m_{MP}^{3}~mol^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** 1
+  ```
