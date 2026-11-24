@@ -37,6 +37,12 @@ extensions = [
 # Bibliography
 bibtex_bibfiles = ['literature.bib']
 # Myst
+myst_enable_extensions = [
+    "amsmath",
+    "colon_fence",
+    "deflist",
+    "dollarmath",
+]
 source_suffix = {
     ".rst": "restructuredtext",
     ".txt": "markdown",
