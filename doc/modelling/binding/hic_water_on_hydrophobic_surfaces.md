@@ -1,5 +1,4 @@
 (hic-water-on-hydrophobic-surfaces-model)=
-
 # HIC Water on Hydrophobic Surfaces
 
 This model implements a slightly modified version of the HIC isotherm by Wang et al. based on their 2016 paper {cite}`Wang2016`.

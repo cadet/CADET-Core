@@ -1,5 +1,4 @@
 (inlet-config)=
-
 # Inlet
 
 ## Group /input/model/unit_XXX - UNIT_TYPE = INLET

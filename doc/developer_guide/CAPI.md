@@ -1,5 +1,4 @@
 (capi)=
-
 # Changing the CAPI
 
 The CADET-Core C API is designed to provide a stable and user-friendly interface for users who want to interact with CADET-Core from other programming languages.

@@ -1,5 +1,4 @@
 (affinity-energy-distribution)=
-
 # Affinity Energy Distribution
 
 Unlike the multi component Langmuir model and the multi component Bi-Langmuir model that presume a fixed number of discrete binding sites, the affinity energy distribution (AED) model considers a continuous distribution of binding site types on a heterogeneous surface on the energy space $\ln(K_{eq}) \in \mathbb{R}^{>0}$ (see e.g. {cite}`Guiochon2006`).

@@ -1,5 +1,4 @@
 (colloidal-particle-adsorption-config)=
-
 # Colloidal Particle Adsorption
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = COLLOIDAL_PARTICLE_ADSORPTION**

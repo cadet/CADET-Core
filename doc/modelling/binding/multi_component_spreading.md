@@ -1,5 +1,4 @@
 (multi-component-spreading-model)=
-
 # Multi Component Spreading
 
 The multi component spreading model adds a second bound state $q_{i,2}$ to the Langmuir model (see Section {ref}`multi-component-langmuir-model`) and allows the exchange between the two bound states $q_{i,1}$ and $q_{i,2}$.

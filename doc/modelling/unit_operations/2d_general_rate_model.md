@@ -1,5 +1,4 @@
 (d-general-rate-model-model)=
-
 # Two Dimensional General rate model (GRM2D)
 
 The general rate model as introduced in Section {ref}`general-rate-model-model` assumes homogeneity in the cross sections of the column.
@@ -61,7 +60,6 @@ That is, this unit operation has as many inlet and outlet ports as it has radial
 This allows each radial zone to have its own inlet profile, which enables modeling of flow distribution in the frits by sending the feed through varying hold-up volumes before injecting it into a radial zone.
 
 (muopgrmflow2d)=
-
 ## Specification of flow rate / velocity and direction
 
 Since the column radius $R$ and the zones $(\rho_k, \rho_{k+1})$, $k = 0, \dots, N_{\text{rad}} - 1$, are known, the interstitial velocities $u_k$ are inferred from the volumetric flow rates via

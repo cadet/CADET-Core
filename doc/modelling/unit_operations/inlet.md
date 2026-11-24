@@ -1,5 +1,4 @@
 (inlet-model)=
-
 # Inlet
 
 A system inlet unit operation is a pseudo unit operation since there is no physical correspondence.

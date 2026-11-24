@@ -1,5 +1,4 @@
 (outlet-model)=
-
 # Outlet
 
 A system outlet unit operation is a pseudo unit operation since there is no physical correspondence.

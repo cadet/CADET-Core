@@ -1,5 +1,4 @@
 (binding-models)=
-
 # Binding models
 
 The following binding models are presented in dynamic binding mode.
@@ -45,7 +44,6 @@ $$
 $$
 
 (ldf-model)=
-
 ## Linear Driving Force (LDF)
 
 Some authors use the linear driving force (LDF) approximation instead of the native kinetic form of an isotherm.
@@ -72,7 +70,6 @@ Note that some isotherms, such as the Freundlich model, don't have a native repr
 LDF versions are available for some but not all binding models implemented in CADET.
 
 (reference-concentrations)=
-
 ## Reference concentrations
 
 Some binding models use reference concentrations $c_{\text{ref}}$ and $q_{\text{ref}}$ of the mobile phase modulator (e.g., salt) in the particle liquid and solid phase, respectively.
@@ -117,7 +114,6 @@ Recommended choices for $c_{\text{ref}}$ are the average or maximum inlet concen
 Note that setting the reference concentrations to $1.0$ each results in the original binding model.
 
 (dependence-on-external-function-bind)=
-
 ## Dependence on external function
 
 A binding model may depend on an external function or profile $T\colon \left[ 0, T_{\text{end}}\right] \times [0, L] \to \mathbb{R}$, where $L$ denotes the physical length of the unit operation, or $T\colon \left[0, T_{\text{end}}\right] \to \mathbb{R}$ if the unit operation model has no axial length.
@@ -141,7 +137,6 @@ By assigning only one index to `EXTFUN`, all parameters use the same source.
 The ordering of the parameters in `EXTFUN` is given by the ordering in the file format specification in Section {ref}`ffadsorption`.
 
 (binding-model-feature)=
-
 ## Binding model feature matrix
 
 A short comparison of the most prominent binding model features is given in {numref}`mbfeaturematrix`.
@@ -150,7 +145,6 @@ While single-state models only have one bound state per component (or less), mul
 The models also differ in whether a mobile phase modifier (e.g., salt) is supported to modulate the binding behavior.
 
 (mbfeaturematrix)=
-
 ```{list-table} Supported features of the different binding models
 :header-rows: 1
 

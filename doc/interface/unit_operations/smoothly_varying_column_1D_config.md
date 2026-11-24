@@ -1,5 +1,4 @@
 (smoothly-varying-column-1d-config)=
-
 # Smoothly Varying Cross Section Column 1D
 
 ## Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D

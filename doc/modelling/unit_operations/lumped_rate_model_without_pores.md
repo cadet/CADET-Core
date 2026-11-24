@@ -1,5 +1,4 @@
 (lumped-rate-model-without-pores-model)=
-
 # Lumped rate model without pores (LRM)
 
 The lumped rate model without pores {cite}`Guiochon2006,Felinger2004` deviates from the lumped rate model with pores (see Section {ref}`lumped-rate-model-with-pores-model`) by neglecting pores completely.

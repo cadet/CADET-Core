@@ -1,5 +1,4 @@
 (parameter-dependencies)=
-
 # Parameter Dependencies
 
 Many physical models require parameters that are not constant but depend on the operating conditions, spatial position, or the current solution state.

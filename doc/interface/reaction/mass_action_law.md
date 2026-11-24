@@ -1,5 +1,4 @@
 (mass-action-law-config)=
-
 # Mass Action Law
 
 **Group /input/model/unit_XXX(/particle_type_YYY)/phase_reaction_ZZZ/ - TYPE = MASS_ACTION_LAW**

@@ -1,5 +1,4 @@
 (multi-state-steric-mass-action-model)=
-
 # Multi-State Steric Mass Action
 
 The multi-state steric mass action model adds $M_i-1$ *additional* bound states $q_{i,j}$ ($j = 0, \dots, M_i - 1$) for each component $i$ to the steric mass action model (see Section {ref}`steric-mass-action-model`) and allows the exchange between the different bound states $q_{i,0}, \dots, q_{i,M-1}$ of each component.

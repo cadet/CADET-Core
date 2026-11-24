@@ -1,5 +1,4 @@
 (multi-component-bi-langmuir-config)=
-
 # Multi Component Bi-Langmuir
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_BILANGMUIR**

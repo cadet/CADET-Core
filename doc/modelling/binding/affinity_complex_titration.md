@@ -1,5 +1,4 @@
 (affinity-complex-titration)=
-
 # Affinity Complex Titration
 
 The affinity complex titration (ACT) isotherm is a modified Langmuir isotherm where both the binding capacity and equilibrium constant are dependent on a mobile phase modulator via a Hill-type relationship in {cite}`Zhang2025ACT`.

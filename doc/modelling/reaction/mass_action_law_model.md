@@ -1,5 +1,4 @@
 (mass-action-law-model)=
-
 # Mass Action Law
 
 The mass action law reaction model is suitable for broad range of reactions.

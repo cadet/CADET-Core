@@ -1,5 +1,4 @@
 (ffmodelsystem)=
-
 # System of unit operations
 
 ## Group /input/model
@@ -45,7 +44,6 @@
   ```
 
 (ffmodelsystemconnections)=
-
 ## Group /input/model/connections
 
 `NSWITCHES`
@@ -82,7 +80,6 @@
   ```
 
 (ffmodelconnectionswitch)=
-
 ## Group /input/model/connections/switch_XXX
 
 `SECTION`
@@ -132,7 +129,6 @@
   ```
 
 (ffmodelexternalsourcelininterp)=
-
 ## Group /input/model/external/source_XXX - EXTFUN_TYPE = LINEAR_INTERP_DATA
 
 `VELOCITY`
@@ -179,7 +175,6 @@
   ```
 
 (ffmodelexternalsourcepiececubicpoly)=
-
 ## Group /input/model/external/source_XXX - EXTFUN_TYPE = PIECEWISE_CUBIC_POLY
 
 `VELOCITY`
@@ -265,7 +260,6 @@
   ```
 
 (ffmodelsolver)=
-
 ## Group /input/model/solver
 
 `GS_TYPE`

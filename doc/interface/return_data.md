@@ -1,5 +1,4 @@
 (return)=
-
 # Return data
 
 ## Group /input/return

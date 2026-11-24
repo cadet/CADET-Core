@@ -1,5 +1,4 @@
 (linear-model)=
-
 # Linear
 
 A linear binding model, which is often employed for low concentrations or in analytic settings {cite}`Guiochon2006`.

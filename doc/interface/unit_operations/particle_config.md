@@ -1,5 +1,4 @@
 (particle-model-config)=
-
 # Particle Model
 
 ## Group /input/model/unit_XXX/particle_type_XXX

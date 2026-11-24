@@ -1,5 +1,4 @@
 (gaussian-process-regression-config)=
-
 # Gaussian Process Regression
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = GAUSSIAN_PROCESS_REGRESSION**

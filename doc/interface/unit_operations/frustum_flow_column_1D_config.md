@@ -1,5 +1,4 @@
 (frustum-flow-column-1d-config)=
-
 # Frustum Flow Column 1D
 
 ## Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D

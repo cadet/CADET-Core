@@ -1,5 +1,4 @@
 (neural-network)=
-
 # Neural Network Binding
 
 The Neural Network (NN) binding model is a non-parametric, data-driven binding model that represents the equilibrium relation between pore-phase and solid-phase concentration using a trained feedforward neural network. The model predicts an equilibrium loading from a neural network trained on experimental or simulated adsorption data.

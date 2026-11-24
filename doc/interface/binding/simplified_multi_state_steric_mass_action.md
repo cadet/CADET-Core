@@ -1,5 +1,4 @@
 (simplified-multi-state-steric-mass-action-config)=
-
 # Simplified Multi-State Steric Mass Action
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = SIMPLIFIED_MULTISTATE_STERIC_MASS_ACTION**

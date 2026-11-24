@@ -1,5 +1,4 @@
 (ffinput)=
-
 # Input Group
 
 ```{toctree}

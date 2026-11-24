@@ -1,5 +1,4 @@
 (parameter-dependencies-config)=
-
 # Parameter Dependencies
 
 A description on parameter dependencies from a modeling perspective is provided under {ref}`parameter-dependencies`.

@@ -1,5 +1,4 @@
 (generalized-ion-exchange-model)=
-
 # Generalized Ion Exchange
 
 The generalized ion exchange model is based on the steric mass action model {cite}`Huuk2017,Mollerup2008`.

@@ -1,5 +1,4 @@
 (cstr-config)=
-
 # Continuous stirred tank reactor model
 
 ## Group /input/model/unit_XXX - UNIT_TYPE = CSTR

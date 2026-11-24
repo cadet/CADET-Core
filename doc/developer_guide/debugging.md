@@ -1,5 +1,4 @@
 (debugging)=
-
 # CADET-Core debugging
 
 We advise using an IDE like MS Visual Studio to debug CADET-Core.

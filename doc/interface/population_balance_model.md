@@ -1,5 +1,4 @@
 (pbm-config)=
-
 # Crystallization / Precipitation models
 
 Crystallization / Precipitation in CADET can be modeled by {ref}`primary-particle-formation`, {ref}`aggregation`, {ref}`fragmentation`, as well as their combinations.

@@ -1,5 +1,4 @@
 (bi-steric-mass-action-model)=
-
 # Bi Steric Mass Action
 
 Similar to the Bi-Langmuir model (see Section {ref}`multi-component-bi-langmuir-model`), the Bi-SMA model adds $M - 1$ *additional* types of binding sites $q_{i,j}$ ($0 \leq j \leq M - 1$) to the SMA model (see Section {ref}`steric-mass-action-model`) without allowing an exchange between the different sites $q_{i,j}$ and $q_{i,k}$ ($k \neq j$).

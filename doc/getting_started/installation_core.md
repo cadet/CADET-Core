@@ -1,5 +1,4 @@
 (installation-core)=
-
 # CADET-Core Installation
 
 The core simulator can be compiled from source, or you can download pre-built binaries.

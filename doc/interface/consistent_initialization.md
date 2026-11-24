@@ -1,5 +1,4 @@
 (non-consistency-solver-parameters)=
-
 # Nonlinear solver for consistent initialization
 
 ## Group /input/model/unit_XXX/discretization/consistency_solver - Nonlinear consistency solver parameters

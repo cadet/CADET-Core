@@ -1,5 +1,4 @@
 (gaussian-process-regression)=
-
 # Gaussian Process Regression
 
 The Gaussian process regression (GPR) model is a non-parametric, data-driven binding model that represents the equilibrium relation between pore-phase and solid-phase concentration by Gaussian process regression trained on tabulated data.

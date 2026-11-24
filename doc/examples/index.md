@@ -1,5 +1,4 @@
 (examples)=
-
 # Examples
 
 ```{toctree}

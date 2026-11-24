@@ -1,5 +1,4 @@
 (spatial-discretization-methods)=
-
 # Spatial discretization methods
 
 ## Group /input/model/unit_XXX/discretization/SPATIAL_METHOD - Details on the methods

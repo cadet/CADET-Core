@@ -1,5 +1,4 @@
 (multi-component-sips-config)=
-
 # Multi Component Sips
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_SIPS**

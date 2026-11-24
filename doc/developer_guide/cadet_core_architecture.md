@@ -1,5 +1,4 @@
 (cadet-core-architecture)=
-
 # Software Architecture
 
 This section gives a general overview of the object-oriented C++ implementation of CADET-Core and is based on the Software Architecture chapter 3.2 in Samuel Leweke's PhD thesis {cite}`leweke_unified_2021`.
@@ -27,7 +26,6 @@ CADET-Core
 Classes and relationships
 
 (libcadetclasses)=
-
 :::{figure} _images/architecture_libcadet_classes.png
 Selected relationships of classes in `libcadet` [^footnote-1].
 :::
@@ -83,7 +81,6 @@ Defines functions for evaluating the reaction rates $f_\text{react,i}\left( c \r
 If supported, reaction model parameters may have a {ref}`dependence-on-external-function-react`.
 
 (unitoperationassumption)=
-
 ### Unit Operation submodel assumption
 
 - Each submodel has $N_{c,n} \in \mathbb{N}$ components, $N_{in, n} \in \mathbb{N}$ inlet ports and $N_{out, n} \in \mathbb{N}$ outlet ports.
@@ -102,7 +99,6 @@ where:
 - The outlet concentration $\mathbf{c}_{out,n,j} \ \colon (0, T_\text{end}) \mapsto \mathbb{R}^{N_{c,n}}$ of port $j\in\{1,\dots , N_{out,n}\}$ of submodel $n$ is a linear function of its state vector $\mathbf{y}_n$.
 
 (unitoperationstateordering)=
-
 ### Unit Operation state vector ordering
 
 We refer to the solution of the spatially semi-discretized unit operation model equations as *state*.
@@ -110,19 +106,16 @@ The order of the state vector impacts performance of the solver and has to adher
 The specific order implemented for chromatography column units is given in the figures below
 
 (statevectororder2d)=
-
 :::{figure} _images/state_vector_grm2D.png
 State vector order of the two-dimensional general rate model, and two-dimensional lumped rate model with pores $(N^{\mathrm{r}}=1)$.
 :::
 
 (statevectororder)=
-
 :::{figure} _images/state_vector_grm.png
 State vector order of the general rate model, lumped rate model with pores $(N^{\mathrm{r}}=1)$, and the stirred tank $(N^{\mathrm{z}}=1, N^{\mathrm{r}}=1)$ [^footnote-1].
 :::
 
 (statevectororderlrm)=
-
 :::{figure} _images/state_vector_lrm.png
 State vector order of model variants with non-limiting film diffusion $(k^\mathrm{f}_i \to \infty)$, such as the lumped rate model without pores [^footnote-2].
 :::

@@ -1,5 +1,4 @@
 (general-rate-model-model)=
-
 # General rate model (GRM)
 
 The general rate model is the most comprehensive model of mass transfer in column liquid chromatography, when only the axial coordinate in the column and the radial coordinate in the beads are considered {cite}`Kucera1965,Gu1995,Guiochon2006,Felinger2004`.
@@ -12,7 +11,6 @@ The main assumptions are:
   Therefore, the beads can be seen as continuously distributed inside the column (i.e., at each point there is interstitial and bead volume).
 
 (table-features)=
-
 ```{list-table} Variables and unknowns
 :header-rows: 1
 
@@ -55,7 +53,6 @@ The main assumptions are:
 ```
 
 (modelgrmcolumn)=
-
 :::{figure} column_bulk_model.png
 Column bulk model
 :::
@@ -146,13 +143,11 @@ $$
 $$ (InitialConditions)
 
 (modelgrmbead)=
-
 :::{figure} column_bead_model.png
 Column bead model
 :::
 
 (modelgrmstates)=
-
 :::{figure} multiple_bound_states.png
 :width: 50%
 
@@ -164,7 +159,6 @@ This model follows the unified and composable modeling framework presented in {c
 See Table {ref}`axial-flow-column-1d-config` and {ref}`particle-model-config`.
 
 (muopgrmmultiparticletypes)=
-
 ## Multiple particle types
 
 A particle type has its own set of mass transfer parameters $\varepsilon_{p,j}$, $D_{p,j}$, $D_{s,j}$, etc. (see Eq. {eq}`ModelBead`) and its own binding model $f_{\mathrm{ads}}$ (including a possibly differing number of bound states).
@@ -184,7 +178,6 @@ In the latter case, the user can specify a set of volume fractions for each disc
 This allows, for example, the placement of smaller particles near the frits.
 
 (muopgrmparticlegeometry)=
-
 ## Particle Geometry
 
 In the model above, spherical particles are considered.
@@ -197,7 +190,6 @@ The particles are characterized by their (outer) "radius" $r_{p,j}$ and their (i
 See {numref}`modelgrmparticlegeometries`.
 
 (modelgrmparticlegeometries)=
-
 :::{figure} column_particle_geometries.png
 Particle geometries
 :::
@@ -219,7 +211,6 @@ $$
 $$
 
 (muopgrmsizeexclusion)=
-
 ## Size exclusion chromatography
 
 The general rate model can be used to simulate size exclusion chromatography (SEC) {cite}`Gu1995`.
@@ -250,7 +241,6 @@ In order to simulate pure SEC, binding is disabled by setting $N_{\text{bnd},i} 
 Note that multiple particle types can also be used to aid in modeling size exclusion effects, see Section {ref}`muopgrmmultiparticletypes`.
 
 (muopgrmflow)=
-
 ## Specification of flow rate / velocity and direction
 
 Since volumetric flow rates are specified for each network connection, the unit operation always infers its interstitial velocity via
@@ -270,27 +260,23 @@ Note that in case of reversed flow, the chromatogram is returned at the unit ope
 For information on model parameters see {ref}`axial-flow-column-1d-config` and {ref}`particle-model-config`.
 
 (muopgrmcolumngeometry)=
-
 # Column Geometry
 
 In the model above, a cylindrical axial flow column is considered, see figure {numref}`geometrygrmaxialcolumn`.
 Other geometries are being used, and CADET-Core additionally supports cylindrical radial flow columns, frustum columns, and columns whose cross section area varies smoothly along the flow path and is prescribed by the user.
 
 (geometrygrmaxialcolumn)=
-
 :::{figure} geometry_axial_flow_column.png
 Axial flow cylindrical column geometry
 :::
 
 (muopgrmradialflow)=
-
 ## Radial flow GRM
 
 The radial flow GRM describes transport of solute molecules through the interstitial column volume by radial convective flow, band broadening caused by radial dispersion, mass transfer resistance through a stagnant film around the beads, pore (and surface) diffusion in the porous beads {cite}`Ma1996,Schneider1968a,Miyabe2007`, and adsorption to the inner bead surfaces.
 Figure {numref}`geometrygrmradialcolumn` shows the geometry of the radial flow column.
 
 (geometrygrmradialcolumn)=
-
 :::{figure} geometry_radial_flow_column.png
 Radial flow cylindrical column geometry
 :::
@@ -346,7 +332,6 @@ The frustum GRM describes transport of solute molecules through the interstitial
 Figure {numref}`geometrygrmfrustumcolumn` shows the geometry of the frustum column.
 
 (geometrygrmfrustumcolumn)=
-
 :::{figure} geometry_frustum_column.png
 Frustum column geometry
 :::
@@ -407,7 +392,6 @@ The complementing mass transport and binding equations for the liquid and solid 
 For information on model parameters see {ref}`frustum-flow-column-1d-config` and {ref}`particle-model-config`.
 
 (muopgrmsmoothlyvarying)=
-
 ## Smoothly varying cross section GRM
 
 The radial flow and frustum geometries both prescribe the cross section area $A(x)$ through a small number of geometric parameters, namely the end radii and, for the radial flow column, the cylinder height.
@@ -437,7 +421,6 @@ Since the representation is tied to the DG grid, this geometry is only available
 For information on model parameters see {ref}`smoothly-varying-column-1d-config` and {ref}`particle-model-config`.
 
 (muopgrmvaryingporosity)=
-
 ## Axially varying bulk porosity
 
 A packing whose density varies along the flow path, $\varepsilon_c = \varepsilon_c(x)$, is independent of the column geometry: a cylinder, a cylinder shell, a frustum and a user prescribed cross section may each be packed non-uniformly.

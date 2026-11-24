@@ -1,5 +1,4 @@
 (bi-steric-mass-action-config)=
-
 # Bi Steric Mass Action
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = BI_STERIC_MASS_ACTION**

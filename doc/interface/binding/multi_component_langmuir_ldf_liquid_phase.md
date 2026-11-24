@@ -1,5 +1,4 @@
 (multi-component-langmuir-ldf-liquid-phase-config)=
-
 # Multi Component Langmuir LDF Liquid Phase
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_LANGMUIR_LDF_LIQUID_PHASE**

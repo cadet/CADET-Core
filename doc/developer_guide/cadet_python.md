@@ -1,5 +1,4 @@
 (cadet-python)=
-
 # CADET-Python Introduction
 
 The CADET-Python API can be very useful for developers as it allows creating an arbitrary input configuration for CADET-Core.

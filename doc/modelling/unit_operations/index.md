@@ -1,5 +1,4 @@
 (unit-operation-models)=
-
 # Unit operation models
 
 A comprehensive collection of chromatographic unit-operation models is provided through the Python-based tool [CADET-Equations](https://github.com/cadet/CADET-Equations).
@@ -10,7 +9,6 @@ A short comparison of the most prominent unit operation model features
 is given in {numref}`table-features-unit-operations`.
 
 (table-features-unit-operations)=
-
 ```{list-table} Supported features of the different unit operations models
 :header-rows: 1
 

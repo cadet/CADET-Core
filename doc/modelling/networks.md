@@ -1,5 +1,4 @@
 (networks)=
-
 # Networks of unit operations
 
 Unit operation models can be composed into a network or graph, in which a node represents a unit operation and an edge denotes a connection between two unit operations.
@@ -49,7 +48,6 @@ Note that for each unit operation the number of inlet ports may be different fro
 Hence, the mass balance of a single unit operation is taken with respect to all its ports combined.
 
 (muopnetworkconfig)=
-
 ## Specification of network connections
 
 The connections between the different unit operations in the network are specified by a table.
@@ -81,7 +79,6 @@ Consequently, there can only be one flow rate for a connection between two unit 
 The connection table is expected in row-major storage format (i.e., the rows are appended to one long array).
 
 (muopnetworkvalveswitches)=
-
 ## Valve switches
 
 The connectivity of the network can only change on a discontinuous section transition.
@@ -96,7 +93,6 @@ Note that the section index has to be monotonically increasing throughout the li
 See Tables {ref}`ffmodelsystemconnections` and {ref}`ffmodelconnectionswitch`.
 
 (muopnetworkdynamicflowrates)=
-
 ## Dynamic flow rates
 
 The volumetric flow rates may vary over time while the valve configuration is active.
@@ -112,7 +108,6 @@ Note that the denominator in Eq. {eq}`NetworkConnection` must always be positive
 That is, the flow rate coefficients have to be chosen such that the flow into every connected inlet port is strictly positive at all times.
 
 (muopnetworklinearsolver)=
-
 ## Solution of the linear systems
 
 Each time step in the simulation requires the solution of a nonlinear system Eq. {eq}`BDFNonlinSystem` (see Sec. {ref}`simtimeintegration`).

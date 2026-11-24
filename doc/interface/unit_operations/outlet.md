@@ -1,5 +1,4 @@
 (outlet-config)=
-
 # Outlet
 
 ## Group /input/model/unit_XXX - UNIT_TYPE = OUTLET

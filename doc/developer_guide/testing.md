@@ -1,5 +1,4 @@
 (testing)=
-
 # CADET-Core testing
 
 ## Run the tests

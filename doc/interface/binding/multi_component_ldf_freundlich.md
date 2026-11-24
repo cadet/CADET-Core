@@ -1,5 +1,4 @@
 (multi-component-ldf-freundlich-config)=
-
 # Multi Component Linear Driving Force Freundlich
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = MULTI_COMPONENT_LDF_FREUNDLICH**

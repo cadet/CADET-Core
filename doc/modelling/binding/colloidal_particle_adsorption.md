@@ -1,5 +1,4 @@
 (colloidal-particle-adsorption-model)=
-
 # Colloidal Particle Adsorption
 
 The colloidal particle adsorption (CPA) model describes protein adsorption based on colloidal interaction theory.

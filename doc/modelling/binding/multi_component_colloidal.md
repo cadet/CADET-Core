@@ -1,5 +1,4 @@
 (multi-component-colloidal-model)=
-
 # Multi Component Colloidal
 
 The colloidal isotherm assumes that adsorbed protein molecules are evenly distributed in a hexagonal arrangement at equilibrium, with the coverage varying via adjustment of the lattice size {cite}`Xu2009`.

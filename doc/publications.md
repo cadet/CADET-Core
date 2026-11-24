@@ -1,5 +1,4 @@
 (publications)=
-
 # Publications
 
 As an open-source project, CADET-Core relies on the support and recognition from users and researchers to thrive.

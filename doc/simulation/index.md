@@ -1,5 +1,4 @@
 (simulation)=
-
 # Simulation
 
 This chapter gives an overview of the simulation process and the different steps involved.
@@ -9,7 +8,6 @@ Each time step requires the solution of a nonlinear algebraic system of equation
 Since chromatographic systems can exhibit strong nonlinearity and stiff systems, the Jacobian of the equation system is always updated (i.e., an “exact” Newton method is used).
 
 (simflowchart)=
-
 :::{figure} time_integration.png
 General time integration procedure
 :::
@@ -18,7 +16,6 @@ The general control flow of a simulation is shown in {numref}`simflowchart`.
 Some aspects of the tasks involved are discussed below.
 
 (simtimesectionstransitions)=
-
 ## Time sections and transitions
 
 The timespan $\left[t_0, t_{\text{end}}\right]$ of the simulation can be divided into multiple time sections $\left[t_i, t_{i+1}\right]$ with
@@ -37,13 +34,11 @@ On smooth transitions, the time integrator can just step over the section transi
 Contrary to smooth transitions, a discontinuous transition requires some extra work in resetting the time integrator and finding consistent initial conditions for the next time slice.
 
 (simtimesections)=
-
 :::{figure} sections.png
 Time sections, time slices, and transitions between them
 :::
 
 (simtimesectionsspecification)=
-
 ### Time section specification
 
 Time sections are specified by an array (`SECTION_TIMES`, see Tab. {ref}`ffsolversections`) which contains the $t_i$ that denote the start- and endpoint of a time section $\left[t_i, t_{i+1}\right]$.
@@ -51,7 +46,6 @@ This means, that the array contains $n+1$ values if there are $n$ sections.
 The smoothness of a section transition is indicated by the array `SECTION_CONTINUITY`, which contains $n-1$ elements if there are $n$ sections.
 
 (simsetup)=
-
 ## Setup
 
 In the setup phase, the model specification is checked and data structures are prepared for the simulation.
@@ -62,7 +56,6 @@ This means, the different model and submodel types (e.g., unit operation model, 
 This assumption allows an accelerated simulation as there is no memory allocation performed during time integration.
 
 (simconsistentinit)=
-
 ## Consistent initialization
 
 At the beginning of the simulation and on discontinuous section transitions, consistent initial conditions have to be computed.
@@ -106,7 +99,6 @@ Concluding, a nonlinear algebraic equation system has to be solved in order to c
 The error in the solution of these systems is controlled by the `ALGTOL` setting (see Tab. {ref}`ffsolvertime`).
 
 (simtimeintegration)=
-
 ## Time stepping
 
 Given the general differential-algebraic equation
@@ -150,7 +142,6 @@ As a remedy, CADET offers to compute the complicated Jacobian $\partial F / \par
 The much simpler Jacobian $\partial F / \partial \dot{y}$ has to be implemented manually.
 
 (simtimeintegrationadaptivity)=
-
 ### Adaptivity
 
 The BDF order $q_{\tau}$ and size of the time step $t_\tau$ are chosen such that the error bounds are satisfied with minimal work.
@@ -182,7 +173,6 @@ Hence, it is important and necessary to test different spatial resolutions (numb
 This is particularly relevant for problems with steep fronts as a low spatial resolution adds a substantial amount of numerical dispersion to the solution.
 
 (simparamsens)=
-
 ## Parameter sensitivities
 
 Parameter sensitivities $s = \partial y / \partial p$ of a solution $y$ to the DAE with respect to some parameter $p$ are required for various tasks, for example, parameter estimation, process design, and process analysis.
@@ -215,7 +205,6 @@ Note that the sensitivity systems need to be consistently initialized, too.
 However, since only linear systems are involved, no nonlinear equation system has to be solved and the procedure is much simpler computationally.
 
 (simparamsensjointparams)=
-
 ### Joint parameters
 
 The use of AD also enables support of meta parameters or joint parameters.

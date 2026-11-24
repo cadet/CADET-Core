@@ -1,5 +1,4 @@
 (freundlich-ldf-config)=
-
 # Freundlich LDF
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ADSORPTION_MODEL = FREUNDLICH_LDF**

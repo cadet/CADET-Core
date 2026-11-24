@@ -1,5 +1,4 @@
 (solver)=
-
 # Solver Configuration
 
 ## Group /input/solver
@@ -99,7 +98,6 @@
   ```
 
 (ffsolvertime)=
-
 ## Group /input/solver/time_integrator
 
 `USE_MODIFIED_NEWTON`
@@ -250,7 +248,6 @@
   ```
 
 (ffsolversections)=
-
 ## Group /input/solver/sections
 
 `SECTION_TIMES`

@@ -1,5 +1,4 @@
 (self-association-model)=
-
 # Self Association
 
 This binding model is similar to the steric mass action model (see Section {ref}`steric-mass-action-model`) but is also capable of describing dimerization {cite}`Mollerup2008,Westerberg2012`.

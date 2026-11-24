@@ -1,5 +1,4 @@
 (michaelis-menten-kinetics-model)=
-
 # Michaelis Menten kinetics
 
 Implements Michaelis-Menten reaction kinetics of the form

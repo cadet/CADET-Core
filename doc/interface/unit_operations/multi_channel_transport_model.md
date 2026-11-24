@@ -1,5 +1,4 @@
 (multi-channel-transport-model-config)=
-
 # Multichannel Transport model (MCT model)
 
 ## Group /input/model/unit_XXX - UNIT_TYPE = MULTI_CHANNEL_TRANSPORT

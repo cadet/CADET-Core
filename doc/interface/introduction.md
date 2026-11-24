@@ -1,5 +1,4 @@
 (ffintroduction)=
-
 # Introduction
 
 ## Global structure
@@ -16,25 +15,21 @@ Note that this is just a description of the file format and not a detailed expla
 For the latter, please refer to the corresponding sections in the previous chapter.
 
 (ffrootfig)=
-
 :::{figure} file_format_structure.png
 Structure of the groups in the root group of the file format
 :::
 
 (ffinputfig)=
-
 :::{figure} file_format_input.png
 High-level structure of the groups in the input part of the file format
 :::
 
 (ffmodelunitopcolumnfig)=
-
 :::{figure} file_format_input_model_unit.png
 Structure of the groups in a column unit operation (/input/model group)
 :::
 
 (ffoutputfig)=
-
 :::{figure} file_format_output.png
 Structure of the groups in the output part of the file format
 :::
@@ -51,7 +46,6 @@ Common notation and identifiers that are used in the subsequent description are 
 {numref}`table-notation-identifiers`.
 
 (table-notation-identifiers)=
-
 ```{list-table} Common notation and identifiers used in the file format description
 :header-rows: 1
 
@@ -80,7 +74,6 @@ Common notation and identifiers that are used in the subsequent description are 
 ```
 
 (ordering-multi-dimensional-data)=
-
 ## Ordering of multi dimensional data
 
 Some model parameters, especially in certain binding models, require multi dimensional data.
@@ -103,7 +96,6 @@ comp0bnd2, comp1bnd2
 ```
 
 (section-dependent-parameters)=
-
 ## Section dependent model parameters
 
 Some model parameters (see {numref}`section-dependent-datasets`) can be assigned different values for each section.
