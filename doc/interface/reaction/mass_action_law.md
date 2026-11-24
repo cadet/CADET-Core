@@ -15,55 +15,55 @@ For information on model equations, refer to {ref}`mass-action-law-model`.
 
 `MAL_KFWD`
 
-> Forward rate constants for reactions in this phase (available for external functions)
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** $\texttt{NREACT}$
-> ```
+: Forward rate constants for reactions in this phase (available for external functions)
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** $\texttt{NREACT}$
+  ```
 
 `MAL_KBWD`
 
-> Backward rate constants for reactions in this phase (available for external functions)
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $\geq 0$
->   - **Length:** $\texttt{NREACT}$
-> ```
+: Backward rate constants for reactions in this phase (available for external functions)
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** $\texttt{NREACT}$
+  ```
 
 `MAL_STOICHIOMETRY`
 
-> Stoichiometric matrix as $\texttt{NVAR} \times \texttt{NREACT}$ matrix in row-major storage (phase-dependent `NVAR`, see Notes)
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Length:** $\texttt{NVAR} \cdot \texttt{NREACT}$
-> ```
+: Stoichiometric matrix as $\texttt{NVAR} \times \texttt{NREACT}$ matrix in row-major storage (phase-dependent `NVAR`, see Notes)
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Length:** $\texttt{NVAR} \cdot \texttt{NREACT}$
+  ```
 
 `MAL_EXPONENTS_FWD`
 
-> Forward exponent matrix as $\texttt{NVAR} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from $\texttt{MAL_STOICHIOMETRY}$ by default)
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Length:** $\texttt{NVAR} \cdot \texttt{NREACT}$
-> ```
+: Forward exponent matrix as $\texttt{NVAR} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from $\texttt{MAL_STOICHIOMETRY}$ by default)
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Length:** $\texttt{NVAR} \cdot \texttt{NREACT}$
+  ```
 
 `MAL_EXPONENTS_BWD`
 
-> Backward exponent matrix as $\texttt{NVAR} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from $\texttt{MAL_STOICHIOMETRY}$ by default)
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Length:** $\texttt{NVAR} \cdot \texttt{NREACT}$
-> ```
+: Backward exponent matrix as $\texttt{NVAR} \times \texttt{NREACT}$ matrix in row-major storage (optional, calculated from $\texttt{MAL_STOICHIOMETRY}$ by default)
+
+  ```{list-table}
+
+  * - **Type:** double
+    - **Length:** $\texttt{NVAR} \cdot \texttt{NREACT}$
+  ```
 
 ## CADET Python Interface Example
 
