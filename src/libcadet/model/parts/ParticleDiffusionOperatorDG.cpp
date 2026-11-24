@@ -1512,7 +1512,8 @@ namespace parts
 							&& !nonKinetic[offsetBoundComp(ComponentIndex{ comp }) + bnd]) {
 							for (unsigned int j = 0; j < block.cols(); j++) {
 								// row: at current node and bound state; col: jump to node j
-								const int colOffset = (j - i) * strideParNode() + offRowToCol + bnd;
+								// Note: no bnd offset here, the row iterator already points at bound state bnd
+								const int colOffset = (j - i) * strideParNode() + offRowToCol;
 								// The diagonal entry is added by addSolidDiagonalDGentries() after the binding model has
 								// written its rows, so that it is counted once whether or not the binding model overwrites it
 								if (colOffset == 0)
