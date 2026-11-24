@@ -1067,11 +1067,7 @@ TEST_CASE("Column_1D as LRMP with two component Bi-Langmuir binding Jacobian", "
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
-// The LRMP above has no particle diffusion, and every other DG particle test uses one bound state
-// per component, where the bound state index is always zero. Only a general rate particle with
-// several bound states per component and nonzero surface diffusion reaches the solid on solid
-// blocks of ParticleDiffusionOperatorDG::insertParJacBlock() with a nonzero bound state index,
-// where the column offset was shifted by that index although the row iterator already points at it.
+// Test for multiple bound states
 TEST_CASE("Column_1D as GRM with two component Bi-Langmuir binding and surface diffusion Jacobian", "[AxialColumn1D],[DG],[DG1D],[UnitOp],[Jacobian],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnWithTwoCompBiLangmuirBinding("COLUMN_MODEL_1D_GRM", "DG");
