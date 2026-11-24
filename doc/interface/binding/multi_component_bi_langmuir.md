@@ -13,48 +13,48 @@ For information on model equations, refer to {ref}`multi-component-bi-langmuir-m
   bound states. Otherwise, the adsorption mode is set for each bound
   state separately.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** {0,1}
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** int
+    - **Range:** {0,1}
+    - **Length:** 1/NTOTALBND
+  ```
 
 `MCBL_KA`
 
 : Adsorption rate constants in state-major ordering (see {ref}`ordering-multi-dimensional-data`)
 
-**Unit:** $m_{MP}^3~mol^{-1}~s^{-1}$
+  **Unit:** $m_{MP}^3~mol^{-1}~s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NSTATES $\cdot$ NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NSTATES $\cdot$ NCOMP
+  ```
 
 `MCBL_KD`
 
 : Desorption rate constants in state-major ordering
 
-**Unit:** $s^{-1}$
+  **Unit:** $s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NSTATES $\cdot$ NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NSTATES $\cdot$ NCOMP
+  ```
 
 `MCBL_QMAX`
 
 : Maximum adsorption capacities in state-major ordering
 
-**Unit:** $mol~m_{SP}^{-3}$
+  **Unit:** $mol~m_{SP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NSTATES $\cdot$ NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NSTATES $\cdot$ NCOMP
+  ```

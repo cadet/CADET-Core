@@ -13,38 +13,38 @@ For information on model equations, refer to {ref}`bi-steric-mass-action-model`.
   bound states. Otherwise, the adsorption mode is set for each bound
   state separately.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** {0,1}
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** int
+    - **Range:** {0,1}
+    - **Length:** 1/NTOTALBND
+  ```
 
 `BISMA_KA`
 
 : Adsorption rate constants in state-major ordering
 
-**Unit:** $m_{MP}^{3}~m_{SP}^{-3}~s^{-1}$
+  **Unit:** $m_{MP}^{3}~m_{SP}^{-3}~s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NSTATES $\cdot$ NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NSTATES $\cdot$ NCOMP
+  ```
 
 `BISMA_KD`
 
 : Desorption rate constants in state-major ordering
 
-**Unit:** $s^{-1}$
+  **Unit:** $s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NSTATES $\cdot$ NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NSTATES $\cdot$ NCOMP
+  ```
 
 `BISMA_NU`
 
@@ -52,14 +52,14 @@ For information on model equations, refer to {ref}`bi-steric-mass-action-model`.
   with respect to the $j$th binding site type in state-major
   ordering
 
-**Unit:** $s^{-1}$
+  **Unit:** $s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NSTATES $\cdot$ NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NSTATES $\cdot$ NCOMP
+  ```
 
 `BISMA_SIGMA`
 
@@ -67,53 +67,53 @@ For information on model equations, refer to {ref}`bi-steric-mass-action-model`.
   respect to the $j$th binding site type in state-major
   ordering
 
-**Unit:** $s^{-1}$
+  **Unit:** $s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NSTATES $\cdot$ NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NSTATES $\cdot$ NCOMP
+  ```
 
 `BISMA_LAMBDA`
 
 : Stationary phase capacity (monovalent salt counterions) of the
   different binding site types $\lambda_j$
 
-**Unit:** $mol~m_{SP}^{-3}$
+  **Unit:** $mol~m_{SP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NSTATES
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NSTATES
+  ```
 
 `BISMA_REFC0`
 
 : Reference liquid phase concentration for each binding site type or
   one value for all types (optional, defaults to $1.0$)
 
-**Unit:** $mol~m_{MP}^{-3}$
+  **Unit:** $mol~m_{MP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\gt 0$
-  - **Length:** {1,NSTATES}
-```
+  * - **Type:** double
+    - **Range:** $\gt 0$
+    - **Length:** {1,NSTATES}
+  ```
 
 `BISMA_REFQ`
 
 : Reference solid phase concentration for each binding site type or one
   value for all types (optional, defaults to $1.0$)
 
-**Unit:** $mol~m_{SP}^{-3}$
+  **Unit:** $mol~m_{SP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\gt 0$
-  - **Length:** {1,NSTATES}
-```
+  * - **Type:** double
+    - **Range:** $\gt 0$
+    - **Length:** {1,NSTATES}
+  ```

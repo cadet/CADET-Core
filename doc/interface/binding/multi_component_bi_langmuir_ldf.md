@@ -13,48 +13,48 @@ For information on model equations, refer to {ref}`multi-component-bi-langmuir-l
   bound states. Otherwise, the adsorption mode is set for each bound
   state separately.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** {0,1}
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** int
+    - **Range:** {0,1}
+    - **Length:** 1/NTOTALBND
+  ```
 
 `MCBLLDF_KEQ`
 
 : Equilibrium loading constants in state-major ordering (see {ref}`ordering-multi-dimensional-data`)
 
-**Unit:** $m_{MP}^3~mol^{-1}$
+  **Unit:** $m_{MP}^3~mol^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP $\cdot$ NSTATES
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP $\cdot$ NSTATES
+  ```
 
 `MCBLLDF_KKIN`
 
 : Linear driving force coefficients in state-major ordering
 
-**Unit:** $s^{-1}$
+  **Unit:** $s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP $\cdot$ NSTATES
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP $\cdot$ NSTATES
+  ```
 
 `MCBLLDF_QMAX`
 
 : Maximum adsorption capacities in state-major ordering
 
-**Unit:** $mol~m_{SP}^{-3}$
+  **Unit:** $mol~m_{SP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\gt 0$
-  - **Length:** NCOMP $\cdot$ NSTATES
-```
+  * - **Type:** double
+    - **Range:** $\gt 0$
+    - **Length:** NCOMP $\cdot$ NSTATES
+  ```

@@ -13,126 +13,126 @@ For information on model equations, refer to {ref}`hic-unified-model`.
   bound states. Otherwise, the adsorption mode is set for each bound
   state separately.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** {0,1}
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** int
+    - **Range:** {0,1}
+    - **Length:** 1/NTOTALBND
+  ```
 
 `HICUNI_KA`
 
 : Adsorption rate constant
 
-**Unit:** $m_{MP}^{3}~m_{SP}^{-3}~s^{-1}$
+  **Unit:** $m_{MP}^{3}~m_{SP}^{-3}~s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `HICUNI_KA_LIN`
 
 : Coefficient of linear dependence of adsorption rate constant on
   modifier component
 
-**Unit:** $\text{[Mod]}^{-1}$
+  **Unit:** $\text{[Mod]}^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Length:** NCOMP
+  ```
 
 `HICUNI_KD`
 
 : Desorption rate constant
 
-**Unit:** $s^{-1}$
+  **Unit:** $s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `HICUNI_KS`
 
 : Salt coefficient of adsorption; difference of
   water-protein and salt-protein interactions
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Length:** NCOMP
+  ```
 
 `HICUNI_KP`
 
 : Protein coefficient of adsorption; difference of
   water-protein and protein-protein interactions
 
-**Unit:** $m_{MP}^{3} mol^{-1}$
+  **Unit:** $m_{MP}^{3} mol^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Length:** NCOMP
+  ```
 
 `HICUNI_NU`
 
 : Number of ligands per ligand-protein interaction
 
-**Unit:** [-]
+  **Unit:** [-]
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `HICUNI_NU_LIN`
 
 : Coefficient of linear dependence of number of ligands per ligand-protein interaction
   on modifier component
 
-**Unit:** $\text{[Mod]}^{-1}$
+  **Unit:** $\text{[Mod]}^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Length:** NCOMP
+  ```
 
 `HICUNI_EPSILON`
 
 : Empirical coefficient of interaction between bound molecules
 
-**Unit:** $m_{SP}^{3}~mol^{-1}$
+  **Unit:** $m_{SP}^{3}~mol^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Length:** NCOMP
+  ```
 
 `HICUNI_QMAX`
 
 : Maximum binding capacity
 
-**Unit:** $mol~m_{SP}^{-3}$
+  **Unit:** $mol~m_{SP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `HICUNI_BETA0`
 
@@ -140,14 +140,14 @@ For information on model equations, refer to {ref}`hic-unified-model`.
   that stabilize the hydrophobic surfaces at infinitely diluted
   salt concentration
 
-**Unit:** [-]
+  **Unit:** [-]
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** 1
+  ```
 
 `HICUNI_BETA1`
 
@@ -155,26 +155,26 @@ For information on model equations, refer to {ref}`hic-unified-model`.
   water molecules that stabilize the hydrophobic surfaces with
   respect to changes in the salt concentration
 
-**Unit:** $m_{MP}^{3}~mol^{-1}$
+  **Unit:** $m_{MP}^{3}~mol^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** 1
+  ```
 
 `HICUNI_REFC1`
 
 : Reference for component 1 (optional, defaults to $0.0$)
 
-**Unit:** $\text{[Mod]}$
+  **Unit:** $\text{[Mod]}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Length:** 1
+  ```
 
 `HICUNI_RHO`
 
@@ -182,11 +182,11 @@ For information on model equations, refer to {ref}`hic-unified-model`.
   calculated as osmotic_coefficient * molar_weight_of_water * ion_number
   (optional, defaults to $3.35 * 10^{-5}$)
 
-**Unit:** $m_{MP}^{3}~mol^{-1}$
+  **Unit:** $m_{MP}^{3}~mol^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\gt 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\gt 0$
+    - **Length:** 1
+  ```

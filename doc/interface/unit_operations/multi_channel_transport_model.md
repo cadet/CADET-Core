@@ -185,7 +185,7 @@ For information on model equations, refer to {ref}`multi-channel-transport-model
 >
 > * - **Type:** double
 >   - **Range:** $\geq 0$
->   - **Length:** $\texttt{NCHANNEL}*\texttt{NCHANNEL}*\texttt{NCOMP}$
+>   - **Length:** $\texttt{NCHANNEL} \cdot \texttt{NCHANNEL} \cdot \texttt{NCOMP}$
 > ```
 
 `SATURATION_MATRIX`
@@ -205,7 +205,7 @@ For information on model equations, refer to {ref}`multi-channel-transport-model
 
   * - **Type:** double
     - **Range:** $\mathbb{R}$
-    - **Length:** $\texttt{NCHANNEL}*\texttt{NCOMP}$
+    - **Length:** $\texttt{NCHANNEL} \cdot \texttt{NCOMP}$
   ```
 
 `NCHANNEL`

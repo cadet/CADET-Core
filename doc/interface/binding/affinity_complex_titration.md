@@ -25,12 +25,12 @@ For information on model equations, refer to {ref}`affinity-complex-titration`.
   If a single value is given, the mode is set for all bound states. Otherwise, the adsorption
   mode is set for each bound state separately.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** {0,1}
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** int
+    - **Range:** {0,1}
+    - **Length:** 1/NTOTALBND
+  ```
 
 `ACT_USE_ION_CONC`
 
@@ -51,77 +51,77 @@ For information on model equations, refer to {ref}`affinity-complex-titration`.
   \mathrm{p}K_{a,G,i} = -\log_{10}(c_{\mathrm{mid},G,i}).
   $$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** bool
-  - **Range:** {False, True}
-  - **Length:** 1
-```
+  * - **Type:** bool
+    - **Range:** {False, True}
+    - **Length:** 1
+  ```
 
 `ACT_KA`
 
 : Adsorption rate constants.
 
-**Unit:** $m_{MP}^3\,mol^{-1}\,s^{-1}$
+  **Unit:** $m_{MP}^3\,mol^{-1}\,s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `ACT_KD`
 
 : Desorption rate constants.
 
-**Unit:** $s^{-1}$
+  **Unit:** $s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `ACT_QMAX`
 
 : Maximum binding capacities before modulation by the ACT capacity gate.
 
-**Unit:** $mol\,m_{SP}^{-3}$
+  **Unit:** $mol\,m_{SP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $> 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $> 0$
+    - **Length:** NCOMP
+  ```
 
 `ACT_ETAA`
 
 : Hill-type coefficients controlling how strongly the apparent binding capacity changes with the modulator concentration.
 
-**Unit:** $1$
+  **Unit:** $1$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\mathbb{R}$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\mathbb{R}$
+    - **Length:** NCOMP
+  ```
 
 `ACT_ETAG`
 
 : Hill-type coefficients controlling how strongly the apparent affinity changes with the modulator concentration.
 
-**Unit:** $1$
+  **Unit:** $1$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\mathbb{R}$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\mathbb{R}$
+    - **Length:** NCOMP
+  ```
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ACT_USE_ION_CONC = False**
 
@@ -132,27 +132,27 @@ Use these parameters only when the first component is given as $\mathrm{pIon}$
 
 : Midpoint of the binding capacity transition on the negative logarithmic ion axis.
 
-**Unit:** $1$
+  **Unit:** $1$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\mathbb{R}$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\mathbb{R}$
+    - **Length:** NCOMP
+  ```
 
 `ACT_PKAG`
 
 : Midpoint of the affinity (equilibrium constant) transition on the negative logarithmic ion axis.
 
-**Unit:** $1$
+  **Unit:** $1$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\mathbb{R}$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\mathbb{R}$
+    - **Length:** NCOMP
+  ```
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption – ACT_USE_ION_CONC = True**
 
@@ -166,12 +166,12 @@ CADET internally converts them to the same negative logarithmic axis used by the
 
 **Recommended unit:** $mol\,m_{MP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `ACT_CMID_G`
 
@@ -180,9 +180,9 @@ CADET internally converts them to the same negative logarithmic axis used by the
 
 **Recommended unit:** $mol\,m_{MP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```

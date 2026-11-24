@@ -13,64 +13,64 @@ For information on model equations, refer to {ref}`hic-constant-water-activity-m
   bound states. Otherwise, the adsorption mode is set for each bound
   state separately.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** {0,1}
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** int
+    - **Range:** {0,1}
+    - **Length:** 1/NTOTALBND
+  ```
 
 `HICCWA_KA`
 
 : Adsorption rate constant
 
-**Unit:** $m_{MP}^{3}~m_{SP}^{-3}~s^{-1}$
+  **Unit:** $m_{MP}^{3}~m_{SP}^{-3}~s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `HICCWA_KD`
 
 : Desorption rate constant
 
-**Unit:** $s^{-1}$
+  **Unit:** $s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `HICCWA_NU`
 
 : Number of ligands per ligand-protein interaction
 
-**Unit:** [-]
+  **Unit:** [-]
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `HICCWA_QMAX`
 
 : Maximum binding capacity
 
-**Unit:** $mol~m_{SP}^{-3}$
+  **Unit:** $mol~m_{SP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** NCOMP
+  ```
 
 `HICCWA_BETA0`
 
@@ -78,14 +78,14 @@ For information on model equations, refer to {ref}`hic-constant-water-activity-m
   that stabilize the hydrophobic surfaces at infinitely diluted
   salt concentration
 
-**Unit:** [-]
+  **Unit:** [-]
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** 1
+  ```
 
 `HICCWA_BETA1`
 
@@ -93,25 +93,25 @@ For information on model equations, refer to {ref}`hic-constant-water-activity-m
   water molecules that stabilize the hydrophobic surfaces with
   respect to changes in the salt concentration
 
-**Unit:** $m_{MP}^{3}~mol^{-1}$
+  **Unit:** $m_{MP}^{3}~mol^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** 1
+  ```
 
 `HICCWA_WATER_ACTIVITY`
 
 : Water activity of the bulk solution (optional, defaults to
   $0.1$)
 
-**Unit:** [-]
+  **Unit:** [-]
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\ge 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\ge 0$
+    - **Length:** 1
+  ```

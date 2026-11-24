@@ -13,12 +13,12 @@ For information on model equations, refer to {ref}`neural-network`.
   bound states. Otherwise, the adsorption mode is set for each bound
   state separately.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** {0,1}
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** int
+    - **Range:** {0,1}
+    - **Length:** 1/NTOTALBND
+  ```
 
 `NN_KKIN`
 
@@ -26,37 +26,37 @@ For information on model equations, refer to {ref}`neural-network`.
   Controls the rate at which the solid-phase loading approaches the
   neural network-predicted equilibrium.
 
-**Unit:** $s^{-1}$
+  **Unit:** $s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\geq 0$
-  - **Length:** NTOTALBND
-```
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** NTOTALBND
+  ```
 
 `NLAYERS`
 
 : Number of hidden layers $N$ in the neural network architecture.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** $\geq 1$
-  - **Length:** 1
-```
+  * - **Type:** int
+    - **Range:** $\geq 1$
+    - **Length:** 1
+  ```
 
 `NNODES`
 
 : Number of nodes per hidden layer.
   All hidden layers share the same width.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** $\geq 1$
-  - **Length:** 1
-```
+  * - **Type:** int
+    - **Range:** $\geq 1$
+    - **Length:** 1
+  ```
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_XXX**
 
@@ -73,12 +73,12 @@ For information on model equations, refer to {ref}`neural-network`.
   component has to be given. Each bound state has its own factors because each
   network is trained independently.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\neq 0$
-  - **Length:** 1/NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\neq 0$
+    - **Length:** 1/NCOMP
+  ```
 
 `POROSITY_FACTOR`
 
@@ -86,12 +86,12 @@ For information on model equations, refer to {ref}`neural-network`.
   be used to account for porosity differences or unit conversions between
   training data and simulation conditions. Defaults to 1.0 if not given.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $> 0$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $> 0$
+    - **Length:** 1
+  ```
 
 Neural network weights and biases are organized hierarchically by bound state and layer.
 For each bound state, there are `NLAYERS + 1` layer groups:
@@ -108,23 +108,23 @@ First hidden layer parameters. Always present.
 : Weight matrix $W_1$ connecting the input to the first hidden layer.
   Shape: (NNODES x NCOMP). Stored in column-major order.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\mathbb{R}$
-  - **Length:** NNODES * NCOMP
-```
+  * - **Type:** double
+    - **Range:** $\mathbb{R}$
+    - **Length:** NNODES * NCOMP
+  ```
 
 `BIAS`
 
 : Bias vector $b_1$ for the first hidden layer.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\mathbb{R}$
-  - **Length:** NNODES
-```
+  * - **Type:** double
+    - **Range:** $\mathbb{R}$
+    - **Length:** NNODES
+  ```
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_XXX/layer_l**
 **(for l = 1, ..., NLAYERS-1)**
@@ -136,23 +136,23 @@ Layer `layer_l` connects hidden layer $l$ to hidden layer $l+1$.
 
 : Weight matrix $W_{l+1}$ of shape (NNODES x NNODES). Stored in column-major order.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\mathbb{R}$
-  - **Length:** NNODES\*NNODES
-```
+  * - **Type:** double
+    - **Range:** $\mathbb{R}$
+    - **Length:** NNODES\*NNODES
+  ```
 
 `BIAS`
 
 : Bias vector $b_{l+1}$ for hidden layer $l+1$.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\mathbb{R}$
-  - **Length:** NNODES
-```
+  * - **Type:** double
+    - **Range:** $\mathbb{R}$
+    - **Length:** NNODES
+  ```
 
 **Group /input/model/unit_XXX/particle_type_ZZZ/adsorption/bound_state_XXX/layer_NLAYERS**
 
@@ -163,20 +163,20 @@ Output layer parameters. Always present. Index equals `NLAYERS`.
 : Weight matrix $W_{N+1}$ connecting the last hidden layer to the scalar output.
   Shape: (1 x NNODES). Stored in column-major order.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\mathbb{R}$
-  - **Length:** NNODES
-```
+  * - **Type:** double
+    - **Range:** $\mathbb{R}$
+    - **Length:** NNODES
+  ```
 
 `BIAS`
 
 : Bias scalar $b_{N+1}$ for the output layer.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\mathbb{R}$
-  - **Length:** 1
-```
+  * - **Type:** double
+    - **Range:** $\mathbb{R}$
+    - **Length:** 1
+  ```

@@ -13,12 +13,12 @@ For information on model equations, refer to {ref}`spline-interpolation`.
   bound states. Otherwise, the adsorption mode is set for each bound
   state separately.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** int
-  - **Range:** {0,1}
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** int
+    - **Range:** {0,1}
+    - **Length:** 1/NTOTALBND
+  ```
 
 `INTERPOLATION_MODE`
 
@@ -30,11 +30,11 @@ For information on model equations, refer to {ref}`spline-interpolation`.
     concentration vector via multilinear interpolation on a regular
     Cartesian-product grid (see {ref}`spline-interpolation`).
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** string
-  - **Value:** INDEPENDENT, COMPETITIVE_REGULAR_GRID
-```
+  * - **Type:** string
+    - **Value:** INDEPENDENT, COMPETITIVE_REGULAR_GRID
+  ```
 
 `CP_VALS_COMP_XXX`
 
@@ -47,40 +47,40 @@ For information on model equations, refer to {ref}`spline-interpolation`.
   supply the same number of samples, together covering the full grid (i.e.
   every combination of distinct per-component values must appear exactly once).
 
-**Unit:** $mol~m_{MP}^{-3}$
+  **Unit:** $mol~m_{MP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\geq 0$
-  - **Length:** N
-```
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** N
+  ```
 
 `CS_VALS_COMP_XXX_BND_YYY`
 
 : Solid-phase equilibrium loadings corresponding to `CP_VALS_COMP_XXX` for bound state `YYY` of component `XXX`.
 
-**Unit:** $mol~m_{SP}^{-3}$
+  **Unit:** $mol~m_{SP}^{-3}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\geq 0$
-  - **Length:** N
-```
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** N
+  ```
 
 `SPLINE_KKIN`
 
 : Linear-driving-force coefficients in component-major ordering.
 
-**Unit:** $s^{-1}$
+  **Unit:** $s^{-1}$
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $\geq 0$
-  - **Length:** NTOTALBND
-```
+  * - **Type:** double
+    - **Range:** $\geq 0$
+    - **Length:** NTOTALBND
+  ```
 
 `POROSITY_FACTOR`
 
@@ -90,9 +90,9 @@ For information on model equations, refer to {ref}`spline-interpolation`.
   otherwise one value per bound state in component-major ordering has to be given.
   Defaults to 1.0 if not present.
 
-```{list-table}
+  ```{list-table}
 
-* - **Type:** double
-  - **Range:** $> 0$
-  - **Length:** 1/NTOTALBND
-```
+  * - **Type:** double
+    - **Range:** $> 0$
+    - **Length:** 1/NTOTALBND
+  ```
