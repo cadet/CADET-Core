@@ -194,7 +194,7 @@ Moreover, we have to specify the section in which the specified connectivity sho
 
 The elements of a connection are (in order):
 
-> `[UnitOpID from, UnitOpID to, Component from, Component to, Volumetric flow rate]`
+`[UnitOpID from, UnitOpID to, Component from, Component to, Volumetric flow rate]`
 
 Usually, `Component from` and `Component to` can be set to `-1`, which will connect all components from the origin and destination unit operations.
 

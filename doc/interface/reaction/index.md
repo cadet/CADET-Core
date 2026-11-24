@@ -16,8 +16,8 @@ Single phase reactions take place either in the liquid phase or the solid phase.
 
 The number of reaction models is specified at the unit or particle level using the following parameters:
 
-> - `NREAC_LIQUID` for liquid phase reactions i.e. `unit_XXX/NREAC_LIQUID` or `particle_type_XXX/NREAC_LIQUID`,
-> - `NREAC_SOLID` for solid phase reactions i.e. `unit_XXX/NREAC_SOLID` or `particle_type_XXX/NREAC_SOLID`.
+- `NREAC_LIQUID` for liquid phase reactions i.e. `unit_XXX/NREAC_LIQUID` or `particle_type_XXX/NREAC_LIQUID`,
+- `NREAC_SOLID` for solid phase reactions i.e. `unit_XXX/NREAC_SOLID` or `particle_type_XXX/NREAC_SOLID`.
 
 The input group for parameters of single reactions is given by `phase_reaction_YYY` where `phase` is one of `liquid` or `solid` and `YYY` is a 0-based index for the reaction group.
 

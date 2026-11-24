@@ -104,15 +104,14 @@ Without particles, $\texttt{NPARTYPE} = 0$, the field is $\texttt{COL_POROSITY}$
   ```
 
 `COL_POROSITY` / `TOTAL_POROSITY`
+: Ratio of the bulk liquid volume to the total volume, $\varepsilon = V^{\ell} / (V^{\ell} + V^{p})$, where $V^{p}$ is the total volume of the particles including their pore liquid. Which of the two names applies is described above. Only used together with $\texttt{LIQUID_VOLUME}$ and fixes the particle volume to $V^{p} = V^{\ell} (1 - \varepsilon) / \varepsilon$. Required if $\texttt{NPARTYPE} \geq 1$, otherwise optional and defaulting to 1.
 
-> Ratio of the bulk liquid volume to the total volume, $\varepsilon = V^{\ell} / (V^{\ell} + V^{p})$, where $V^{p}$ is the total volume of the particles including their pore liquid. Which of the two names applies is described above. Only used together with $\texttt{LIQUID_VOLUME}$ and fixes the particle volume to $V^{p} = V^{\ell} (1 - \varepsilon) / \varepsilon$. Required if $\texttt{NPARTYPE} \geq 1$, otherwise optional and defaulting to 1.
->
-> ```{list-table}
->
-> * - **Type:** double
->   - **Range:** $(0,1]$
->   - **Length:** 1
-> ```
+  ```{list-table}
+
+  * - **Type:** double
+    - **Range:** $(0,1]$
+    - **Length:** 1
+  ```
 
 Sensitivities are available with respect to $\texttt{CONST_SOLID_VOLUME}$ in both parameterizations and with respect to the liquid volume under the name that was used to specify it, that is $\texttt{INIT_LIQUID_VOLUME}$ or $\texttt{LIQUID_VOLUME}$.
 Note that changing one of the two volumes leaves the other one untouched, so the porosity changes implicitly.
