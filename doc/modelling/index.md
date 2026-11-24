@@ -1,0 +1,15 @@
+(modelling)=
+
+# Modelling
+
+This section gives complete information about the supported unit operations, binding and reaction models, and creating a network among all the unit operations in CADET. For details on the file format specifications used to define each unit operation in CADET, see section {ref}`file-format`.
+
+```{toctree}
+unit_operations/index
+binding/index
+reaction/index
+networks
+crystallization/index
+parameter_dependencies
+```
+

@@ -1,0 +1,103 @@
+(smoothly-varying-column-1d-config)=
+
+# Smoothly Varying Cross Section Column 1D
+
+## Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
+
+This geometry describes an axial flow column whose cross section area varies smoothly along
+the flow path and is prescribed by the user, see {ref}`muopgrmsmoothlyvarying`.
+It is selected by `GEOMETRY` $= \texttt{SMOOTHLY_VARYING}$ and is only available for the
+DG spatial discretization, since the area is given at the DG nodes.
+
+Only the geometry fields differ from the axial flow cylinder; all remaining fields of the unit
+(`NCOMP`, `COL_POROSITY`, `TOTAL_POROSITY`, `NPARTYPE`, `PAR_TYPE_VOLFRAC`,
+`COL_DISPERSION`, `INIT_C`, `INIT_STATE`, the reaction and particle subgroups, and the
+discretization group) are identical to {ref}`axial-flow-column-1d-config`.
+In particular, `COL_POROSITY` may be given per DG node here just as it may be for every other
+geometry, see {ref}`muopgrmvaryingporosity`.
+
+`UNIT_TYPE`
+
+> Specifies the type of unit operation model
+>
+> ```{list-table}
+>
+> * - **Type:** string
+>   - **Range:** $\texttt{COLUMN_MODEL_1D}$
+>   - **Length:** 1
+> ```
+
+`GEOMETRY`
+
+> Column geometry
+>
+> ```{list-table}
+>
+> * - **Type:** string
+>   - **Range:** $\texttt{SMOOTHLY_VARYING}$
+>   - **Length:** 1
+> ```
+
+`CROSS_SECTIONAL_AREA_AT_NODES`
+
+> Cross section area at every DG node, in the ordering of the bulk solution, i.e. element by
+> element from the column inlet at $x = 0$ to $x = \texttt{BED_LENGTH}$, with the
+> nodes of each element in ascending order.
+> Since neighbouring elements share their interface node, that node appears twice, once as the
+> last entry of the left and once as the first entry of the right element, and the two entries
+> must be equal.
+> The area has to be strictly positive.
+> This is the geometric cross section area $A(x)$; the bulk porosity is applied to it by
+> CADET-Core, also when it is given per node.
+>
+> **Unit:** $\mathrm{m}^2$
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $> 0$
+>   - **Length:** $(\texttt{POLYDEG} + 1) \cdot \texttt{NELEM}$
+> ```
+>
+> The nodes are the Legendre-Gauss-Lobatto nodes of each element, which are also written out by
+> `WRITE_COORDINATES`, so a convenient way to obtain them is to run the same discretization
+> once with any other geometry and evaluate the intended area profile at the reported
+> coordinates.
+
+`BED_LENGTH`
+
+> Column length. NOT optional for this geometry.
+>
+> **Unit:** $\mathrm{m}$
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $> 0$
+>   - **Length:** 1
+> ```
+
+`FORWARD_FLOW`
+
+> Flow direction of the column. If set to 1, the flow runs from $x = 0$ towards
+> $x = \texttt{BED_LENGTH}$, i.e. the inlet is the end whose area is the first entry of
+> `CROSS_SECTIONAL_AREA_AT_NODES`.
+>
+> ```{list-table}
+>
+> * - **Type:** bool
+>   - **Range:** $\{0,1\}$
+>   - **Length:** 1 or NSEC
+> ```
+
+## Group /input/model/unit_XXX/discretization - UNIT_TYPE - COLUMN_MODEL_1D
+
+The discretization group is the one of {ref}`axial-flow-column-1d-config`, with two restrictions:
+
+- `SPATIAL_METHOD` must be $\texttt{DG}$. There is no Finite Volume variant of this
+  geometry, because the area is prescribed at the DG nodes.
+- `USE_COLLOCATION_DG` must be $0$, which is the default for every geometry other than
+  the axial flow cylinder.
+
+Note that `CROSS_SECTIONAL_AREA_AT_NODES` depends on `POLYDEG` and `NELEM`, so it has to be
+recomputed whenever the discretization is refined.

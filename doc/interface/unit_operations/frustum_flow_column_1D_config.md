@@ -1,0 +1,305 @@
+(frustum-flow-column-1d-config)=
+
+# Frustum Flow Column 1D
+
+## Group /input/model/unit_XXX - UNIT_TYPE - COLUMN_MODEL_1D
+
+`UNIT_TYPE`
+
+> Specifies the type of unit operation model
+>
+> ```{list-table}
+>
+> * - **Type:** string
+>   - **Range:** $\texttt{COLUMN_MODEL_1D}$
+>   - **Length:** 1
+> ```
+
+`GEOMETRY`
+
+> Column geometry
+>
+> ```{list-table}
+>
+> * - **Type:** string
+>   - **Range:** $\texttt{AXIAL_FLOW_FRUSTUM}$
+>   - **Length:** 1
+> ```
+
+`NCOMP`
+
+> Number of chemical components in the chromatographic medium
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\geq 1$
+>   - **Length:** 1
+> ```
+
+`CROSS_SECTION_AREA_SMALL_END`
+
+> Cross section area of the smaller end, typically the outlet.
+>
+> **Unit:** $\mathrm{m}^2$
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $> 0$
+>   - **Length:** 1
+> ```
+
+`CROSS_SECTION_AREA_LARGE_END`
+
+> Cross section area of the larger end, typically the inlet.
+>
+> **Unit:** $\mathrm{m}^2$
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $> 0$
+>   - **Length:** 1
+> ```
+
+`BED_LENGTH`
+
+> Column/bed length. NOT optional for the frustum model.
+>
+> **Unit:** $\mathrm{m}$
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $> 0$
+>   - **Length:** 1
+> ```
+
+`FORWARD_FLOW`
+
+> Flow direction of the column.
+> If set to 1, the flow is from the larger radius to the smaller radius.
+>
+> ```{list-table}
+>
+> * - **Type:** bool
+>   - **Range:** $\{0,1\}$
+>   - **Length:** 1 or NSEC
+> ```
+
+`COL_POROSITY`
+
+> Column porosity
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $(0,1]$
+>   - **Length:** 1
+> ```
+
+`NPARTYPE`
+
+> Number of particle types.
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\geq 0$
+>   - **Length:** 1
+> ```
+
+`PAR_TYPE_VOLFRAC`
+
+> Volume fractions of the particle types.
+> The volume fractions can be set for all axial cells together or for each individual axial cell.
+> For each cell, the volume fractions have to sum to $1$. In case of a spatially inhomogeneous setting, the data is expected in cell-major ordering and the $\texttt{SENS_SECTION}$ field is used for indexing the axial cell when specifying parameter sensitivities. This field is optional in case of only one particle type.
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $[0,1]$
+>   - **Length:** $\texttt{NPARTYPE} / \texttt{NCOL} \cdot \texttt{NPARTYPE}$
+> ```
+
+`COL_DISPERSION`
+
+> Axial dispersion coefficient
+>
+> **Unit:** $\mathrm{m}_{\mathrm{IV}}^{2}\,\mathrm{s}^{-1}$
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $\geq 0$
+>   - **Length:** see $\texttt{COL_DISPERSION_MULTIPLEX}$
+> ```
+
+`COL_DISPERSION_MULTIPLEX`
+
+> Multiplexing mode of $\texttt{COL_DISPERSION}$.
+> Determines whether $\texttt{COL_DISPERSION}$ is treated as component- and/or section-independent. This field is optional. When left out, multiplexing behavior is inferred from the length of $\texttt{COL_DISPERSION}$. Valid modes are:
+>
+> 0. Component-independent, section-independent; length of $\texttt{COL_DISPERSION}$ is $1$
+> 1. Component-dependent, section-independent; length of $\texttt{COL_DISPERSION}$ is $\texttt{NCOMP}$
+> 2. Component-independent, section-dependent; length of $\texttt{COL_DISPERSION}$ is $\texttt{NSEC}$
+> 3. Component-dependent, section-dependent; length of $\texttt{COL_DISPERSION}$ is $\texttt{NCOMP} \cdot \texttt{NSEC}$; ordering is section-major
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\{0, \dots, 3 \}$
+>   - **Length:** 1
+> ```
+
+`NREAC_LIQUID`
+
+> Number of liquid phase reaction models (optional, only if liquid reactions are present).
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\geq 0$
+>   - **Length:** 1
+> ```
+
+`INIT_C`
+
+> Initial concentrations for each component in the bulk mobile phase
+>
+> **Unit:** $\mathrm{mol}\,\mathrm{m}_{\mathrm{IV}}^{-3}$
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $\geq 0$
+>   - **Length:** $\texttt{NCOMP}$
+> ```
+
+`INIT_STATE`
+
+> Full state vector for initialization (optional, $\texttt{INIT_C}$, $\texttt{INIT_CP}$, and $\texttt{INIT_CS}$ will be ignored; if length is $2\texttt{NDOF}$, then the second half is used for time derivatives).
+> The ordering of the state vector is defined in {ref}`unitoperationstateordering`.
+>
+> **Unit:** $various$
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $\mathbb{R}$
+>   - **Length:** $\texttt{NDOF} / 2\texttt{NDOF}$
+> ```
+
+## Group /input/model/unit_XXX/liquid_reaction_YYY
+
+Each reaction is specified in another subgroup `liquid_reaction_YYY`, see {ref}`ffreaction`.
+
+## Group /input/model/unit_XXX/particle_type_XXX
+
+Each particle type is specified in another subgroup `particle_type_XXX`, see {ref}`particle-model-config`.
+
+## Group /input/model/unit_XXX/discretization - UNIT_TYPE - COLUMN_MODEL_1D
+
+`USE_ANALYTIC_JACOBIAN`
+
+> Determines whether analytically computed Jacobian matrix (faster) is used (value is 1) instead of Jacobians generated by algorithmic differentiation (slower, value is 0)
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\{0, 1\}$
+>   - **Length:** 1
+> ```
+
+## Spatial discretization - Numerical Methods
+
+CADET offers an FV method for frustum flow chromatography.
+
+`SPATIAL_METHOD`
+
+> Spatial discretization method
+>
+> ```{list-table}
+>
+> * - **Type:** string
+>   - **Range:** $\{\texttt{FV}\}$
+>   - **Length:** 1
+> ```
+
+`NCOL`
+
+> Number of axial column discretization points, i.e. FV cells
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\geq 1$
+>   - **Length:** 1
+> ```
+
+The following FV discretization parameters configure the GMRES solver of the unit operation's own
+arrow-head Schur complement. They are required if particles are present **and**
+`FV_ARROW_HEAD_OPTIMIZATION` $= 1$, which is the default for an FV bulk with FV particles.
+With `FV_ARROW_HEAD_OPTIMIZATION` $= 0$ the unit is solved by a global sparse solver that
+does not read them. They are independent of the identically named fields in
+{ref}`ffmodelsolver`, which size the GMRES of the network.
+
+`GS_TYPE`
+
+> Type of Gram-Schmidt orthogonalization, see IDAS guide Section 4.5.7.3, p. 41f. A value of $0$ enables classical Gram-Schmidt, a value of 1 uses modified Gram-Schmidt.
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\{0, 1\}$
+>   - **Length:** 1
+> ```
+
+`MAX_KRYLOV`
+
+> Defines the size of the Krylov subspace in the iterative linear GMRES solver (0: $\texttt{MAX_KRYLOV} = \texttt{NCOL} \cdot \texttt{NCOMP} \cdot \texttt{NPARTYPE}$)
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\{0, \dots, \texttt{NCOL} \cdot \texttt{NCOMP} \cdot \texttt{NPARTYPE} \}$
+>   - **Length:** 1
+> ```
+
+`MAX_RESTARTS`
+
+> Maximum number of restarts in the GMRES algorithm. If lack of memory is not an issue, better use a larger Krylov space than restarts.
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\geq 0$
+>   - **Length:** 1
+> ```
+
+`SCHUR_SAFETY`
+
+> Schur safety factor; Influences the tradeoff between linear iterations and nonlinear error control; see IDAS guide Section 2.1 and 5.
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $\geq 0$
+>   - **Length:** 1
+> ```
+
+`FV_ARROW_HEAD_OPTIMIZATION`
+
+> Optional, specifies whether an optimized Jacobian block structure is exploited by a customized linear solver module for improved computational efficiency.
+> Prohibits mix of particle types and mix of FV, DG discretizations for bulk and particles.
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\{0,1\}$
+>   - **Length:** 1
+> ```
+
+When using the FV method, we generally recommend specifying `USE_MODIFIED_NEWTON = 0` in {ref}`ffsolvertime`, i.e. to use the full Newton method to solve the linear system within the time integrator.
+For further information on discretization parameters, see also {ref}`flux-reconstruction-methods` (FV specific), and {ref}`non-consistency-solver-parameters`.

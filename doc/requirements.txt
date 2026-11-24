@@ -2,4 +2,4 @@ sphinx<9
 sphinx-sitemap
 sphinxcontrib-bibtex
 sphinx_multiversion
-myst-parser
+myst-parser>=5

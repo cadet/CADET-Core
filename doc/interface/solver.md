@@ -1,0 +1,278 @@
+(solver)=
+
+# Solver Configuration
+
+## Group /input/solver
+
+`NTHREADS`
+
+> Number of used threads (optional, defaults to $0$).
+> A value of $0$ lets the runtime choose the number of threads.
+> In a non-parallelized build, only the value $1$ is accepted.
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\geq 0$
+>   - **Length:** 1
+> ```
+
+`USER_SOLUTION_TIMES`
+
+> Vector with timepoints at which the solution is evaluated.
+> Optional: if not specified, the solution is written for every time integration step, which may be many, leading to large output files.
+>
+> **Unit:** $\mathrm{s}$
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $\geq 0$
+>   - **Length:** Arbitrary
+> ```
+
+`USER_SOLUTION_TIMES_UNIT_STATE`
+
+> Vector with timepoints at which the solution is evaluated and, if the according fields (see e.g. `WRITE_BULK_SOLUTION`) are enabled, the unit state solutions are written at these time points.
+> This way, the unit state solutions can be written at a different time resolution than e.g. the outlet solution.
+> Optional: if not specified, the solution is evaluated and written according to `USER_SOLUTION_TIMES`.
+>
+> **Unit:** $\mathrm{s}$
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $\geq 0$
+>   - **Length:** Arbitrary
+> ```
+
+`CONSISTENT_INIT_MODE`
+
+> Consistent initialization mode (optional, defaults to $1$). Valid values are:
+>
+> 0. None
+> 1. Full
+> 2. Once, full
+> 3. Lean
+> 4. Once, lean
+> 5. Full once, then lean
+> 6. None once, then full
+> 7. None once, then lean
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\{ 0, \dots, 7\}$
+>   - **Length:** 1
+> ```
+
+`CONSISTENT_INIT_MODE_SENS`
+
+> Consistent initialization mode for parameter sensitivities (optional, defaults to $1$). Valid values are:
+>
+> 0. None
+> 1. Full
+> 2. Once, full
+> 3. Lean
+> 4. Once, lean
+> 5. Full once, then lean
+> 6. None once, then full
+> 7. None once, then lean
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\{ 0, \dots, 7\}$
+>   - **Length:** 1
+> ```
+
+`TIMEOUT`
+
+> Timeout in seconds. Simulation is aborted if wall clock time exceeds the provided value.
+> Values less than or equal $0$ are ignored (i.e., no timeout is applied).
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $\mathbb{R}$
+>   - **Length:** 1
+> ```
+
+(ffsolvertime)=
+
+## Group /input/solver/time_integrator
+
+`USE_MODIFIED_NEWTON`
+
+> Specifies whether modified or full Newton method should be used (optional, defaults to $0$)
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\{0, 1\}$
+>   - **Length:** 1
+> ```
+
+`ABSTOL`
+
+> Absolute tolerance in the solution of the original system
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $> 0$
+>   - **Length:** 1
+> ```
+
+`RELTOL`
+
+> Relative tolerance in the solution of the original system
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $\geq 0$
+>   - **Length:** 1
+> ```
+
+`ALGTOL`
+
+> Tolerance in the solution of the nonlinear equations for consistent initialization
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $> 0$
+>   - **Length:** 1
+> ```
+
+`RELTOL_SENS`
+
+> Relative tolerance in the solution of the sensitivity systems
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $\geq 0$
+>   - **Length:** 1
+> ```
+
+`INIT_STEP_SIZE`
+
+> Initial time integrator step size for each section or one value for all sections (0.0: IDAS default value), see [IDAS](https://sundials.readthedocs.io/en/latest/idas/Usage/SIM.html#idas-usage-sim-user-callable-optional-input) documentation.
+>
+> **Unit:** $\mathrm{s}$
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $\geq 0$
+>   - **Length:** $1 / \texttt{NSEC}$
+> ```
+
+`MAX_STEPS`
+
+> Maximum number of timesteps taken by IDAS (0: IDAS default = 500), see [IDAS](https://sundials.readthedocs.io/en/latest/idas/Usage/SIM.html#idas-usage-sim-user-callable-optional-input) documentation.
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\geq 0$
+>   - **Length:** 1
+> ```
+
+`MAX_STEP_SIZE`
+
+> Maximum size of timesteps taken by IDAS (optional, defaults to unlimited 0.0), see [IDAS](https://sundials.readthedocs.io/en/latest/idas/Usage/SIM.html#idas-usage-sim-user-callable-optional-input) documentation.
+>
+> **Unit:** $\mathrm{s}$
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $\geq 0$
+>   - **Length:** 1
+> ```
+
+`ERRORTEST_SENS`
+
+> Determines whether (forward) sensitivities take part in local error test (optional, defaults to 1)
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\{0,1\}$
+>   - **Length:** 1
+> ```
+
+`MAX_NEWTON_ITER`
+
+> Maximum number of Newton iterations in time step (optional, defaults to 4 (IDAS default))
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\geq 0$
+>   - **Length:** 1
+> ```
+
+`MAX_ERRTEST_FAIL`
+
+> Maximum number of local error test failures in time step (optional, defaults to 10 (IDAS default))
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\geq 0$
+>   - **Length:** 1
+> ```
+
+`MAX_CONVTEST_FAIL`
+
+> Maximum number of Newton convergence test failures (optional, defaults to 10 (IDAS default))
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\geq 0$
+>   - **Length:** 1
+> ```
+
+`MAX_NEWTON_ITER_SENS`
+
+> Maximum number of Newton iterations in forward sensitivity time step (optional, defaults to 4 (IDAS default))
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\geq 0$
+>   - **Length:** 1
+> ```
+
+(ffsolversections)=
+
+## Group /input/solver/sections
+
+`SECTION_TIMES`
+
+> Simulation times at which the model changes or behaves discontinuously; including start and end times
+>
+> **Unit:** $\mathrm{s}$
+>
+> ```{list-table}
+>
+> * - **Type:** double
+>   - **Range:** $\geq 0$
+>   - **Length:** $\texttt{NSEC}+1$
+> ```
+
+`SECTION_CONTINUITY`
+
+> Continuity indicator for each section transition: 0 (discontinuous) or 1 (continuous). Optional, defaults to all 0.
+>
+> ```{list-table}
+>
+> * - **Type:** int
+>   - **Range:** $\{0,1\}$
+>   - **Length:** $\texttt{NSEC}-1$
+> ```
