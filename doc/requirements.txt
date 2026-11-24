@@ -3,3 +3,4 @@ sphinx-sitemap
 sphinxcontrib-bibtex
 sphinx_multiversion
 myst-parser>=5
+sphinx-book-theme

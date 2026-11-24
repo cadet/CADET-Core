@@ -1,6 +1,7 @@
 (contents)=
 
 ```{image} _static/cadet_logo.png
+:class: dark-light
 ```
 
 [![](https://img.shields.io/github/release/cadet/cadet-core.svg)](https://github.com/cadet/cadet-core/releases) [![](https://github.com/cadet/cadet-core/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/cadet/cadet-core/actions/workflows/ci.yml?query=branch%3Amaster) [![](https://joss.theoj.org/papers/282a9ec56a0680e51ed4f1fa8fda3650/status.svg)](https://joss.theoj.org/papers/282a9ec56a0680e51ed4f1fa8fda3650) [![](https://anaconda.org/conda-forge/cadet/badges/downloads.svg)](https://anaconda.org/conda-forge/cadet) [![](https://zenodo.org/badge/DOI/10.5281/zenodo.8179015.svg)](https://doi.org/10.5281/zenodo.8179015) [![](https://img.shields.io/badge/JuRSE_Code_Pick-Oct_2024-blue.svg)](https://www.fz-juelich.de/en/rse/community-initiatives/jurse-code-of-the-month/october-2024)

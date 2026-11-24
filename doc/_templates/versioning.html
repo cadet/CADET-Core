@@ -1,14 +1,16 @@
 {% if versions %}
-<h3>{{ _('Releases') }}</h3>
-<ul>
-  {%- for item in versions.tags %}
-  <li><a href="{{ item.url }}">{{ item.name }}</a></li>
-  {%- endfor %}
-</ul>
-<h3>{{ _('Branches') }}</h3>
-<ul>
-  {%- for item in versions.branches %}
-  <li><a href="{{ item.url }}">{{ item.name }}</a></li>
-  {%- endfor %}
-</ul>
+<nav class="bd-links" aria-label="{{ _('Versions') }}">
+  <p class="caption" role="heading"><span class="caption-text">{{ _('Releases') }}</span></p>
+  <ul class="nav bd-sidenav">
+    {%- for item in versions.tags %}
+    <li class="toctree-l1"><a class="reference" href="{{ item.url }}">{{ item.name }}</a></li>
+    {%- endfor %}
+  </ul>
+  <p class="caption" role="heading"><span class="caption-text">{{ _('Branches') }}</span></p>
+  <ul class="nav bd-sidenav">
+    {%- for item in versions.branches %}
+    <li class="toctree-l1"><a class="reference" href="{{ item.url }}">{{ item.name }}</a></li>
+    {%- endfor %}
+  </ul>
+</nav>
 {% endif %}

@@ -79,13 +79,15 @@ math_eqref_format = '{number}'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'alabaster'
+html_theme = 'sphinx_book_theme'
+html_logo = '_static/cadet_logo.png'
 html_theme_options = {
-    'description': 'CADET - An open platform for integrated process modelling and simulation',
-    # 'logo': 'cadet_logo.png',
-    'sidebar_collapse': True,
-    'fixed_sidebar': True,
-    'show_powered_by': False,
+    'show_toc_level': 2,
+    'use_download_button': True,
+    'repository_url': 'https://github.com/cadet/CADET-Core',
+    'use_repository_button': True,
+    'use_issues_button': True,
+    'navbar_persistent': [],
 }
 
 html_favicon = '_static/cadet_icon.png'
@@ -94,12 +96,11 @@ html_baseurl = 'https://cadet.github.io/v5.1.X/'
 html_static_path = ['_static']
 html_sidebars = {
     '**': [
-        'about.html',
-        'navigation.html',
-        'searchbox.html',
-        'versioning.html'
+        'navbar-logo.html',
+        'search-field.html',
+        'sbt-sidebar-nav.html',
+        'versioning.html',
     ]
 }
 
-html_style = 'css/custom.css'
 html_output_encoding = 'utf-8'
