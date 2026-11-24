@@ -23,28 +23,28 @@ meaning that each binding site is governed by a Langmuir isotherm model.
 
 When solving the AED model in a unit operation, the integral is discretized on an equidistant logarithmic grid between $\ln(K_{min})$ and $\ln(K_{max})$ to give:
 
-> ```{math}
-> \begin{aligned}
->     q(c) = \sum_{i=1}^{N_k} F(\ln(K_{eq, i})) \theta (K_{eq,i}, c) \Delta \ln(K_{eq}),
-> \end{aligned}
-> ```
+```{math}
+\begin{aligned}
+    q(c) = \sum_{i=1}^{N_k} F(\ln(K_{eq, i})) \theta (K_{eq,i}, c) \Delta \ln(K_{eq}),
+\end{aligned}
+```
 
 where $K_{min}$ is the minimum binding equilibrium constant, $K_{max}$ is the maximum binding equilibrium constant, $N_k$ is the total number of nodes (sites) and $\Delta \ln(K_{eq})$ is the distance between two nodes.
 Hence
 
-> ```{math}
-> \begin{aligned}
->     F(\ln(K_{eq, i})) \Delta \ln(K_{eq}) = q_{\text{max}, i},
-> \end{aligned}
-> ```
+```{math}
+\begin{aligned}
+    F(\ln(K_{eq, i})) \Delta \ln(K_{eq}) = q_{\text{max}, i},
+\end{aligned}
+```
 
 where $q_{max, i}$ is the binding capacity for the $i^{\text{th}}$ binding site. Inserting the Langmuir kernel, the above equation is equivalent to:
 
-> ```{math}
-> \begin{aligned}
->     q(c) = \sum_{i=1}^{N_k} \frac{q_{\text{max}, i} K_{eq, i}c}{1 + K_{eq, i}c},
-> \end{aligned}
-> ```
+```{math}
+\begin{aligned}
+    q(c) = \sum_{i=1}^{N_k} \frac{q_{\text{max}, i} K_{eq, i}c}{1 + K_{eq, i}c},
+\end{aligned}
+```
 
 indicating that the overall bound concentration $q$ is the summation of the bound concentration for each binding site. The kinetic isotherm for each individual binding site is given by:
 

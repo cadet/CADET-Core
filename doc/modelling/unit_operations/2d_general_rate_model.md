@@ -13,9 +13,9 @@ $$ (ModelColumn2D)
 
 Here,
 
-> - $c^\ell_i\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [0, R] \rightarrow \mathbb{R}^{\geq 0}$,
-> - $c^p_{j,i}\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [0, R] \times [r_{c,j}, r_{p,j}] \rightarrow \mathbb{R}^{\geq 0}$, and
-> - $c^s_{j,i,m_{j,i}}\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [0, R] \times [r_{c,j}, r_{p,j}] \rightarrow \mathbb{R}^{\geq 0}$
+- $c^\ell_i\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [0, R] \rightarrow \mathbb{R}^{\geq 0}$,
+- $c^p_{j,i}\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [0, R] \times [r_{c,j}, r_{p,j}] \rightarrow \mathbb{R}^{\geq 0}$, and
+- $c^s_{j,i,m_{j,i}}\colon \left[0, T_{\text{end}}\right] \times [0, L] \times [0, R] \times [r_{c,j}, r_{p,j}] \rightarrow \mathbb{R}^{\geq 0}$
 
 depend on $\rho$.
 Additionally, the porosity $\varepsilon_c$, axial dispersion coefficient $D_{\text{ax},i}$, radial dispersion coefficient $D_{\text{rad},i}$, and interstitial velocity $u$ may depend on $\rho$.

@@ -18,9 +18,8 @@ aggregation
 fragmentation
 ```
 
->
-> Additionally, any combination of these models is also supported.
-> Further, any of these crystallization / precipitation models can be combined with any of the transport models listed among the {ref}`unit-operation-models`.
-> To this end, most common use-cases consider a {ref}`cstr-model` or a dispersive plug-flow reactor (which can be modeled with the {ref}`lumped-rate-model-without-pores-model`).
->
-> For detailed information on the crystallization models implemented in CADET, including PBM, aggregation and fragmentation, please refer to {cite}`Zhang2024` and {cite}`Zhang2025`.
+Additionally, any combination of these models is also supported.
+Further, any of these crystallization / precipitation models can be combined with any of the transport models listed among the {ref}`unit-operation-models`.
+To this end, most common use-cases consider a {ref}`cstr-model` or a dispersive plug-flow reactor (which can be modeled with the {ref}`lumped-rate-model-without-pores-model`).
+
+For detailed information on the crystallization models implemented in CADET, including PBM, aggregation and fragmentation, please refer to {cite}`Zhang2024` and {cite}`Zhang2025`.

@@ -11,8 +11,8 @@ For more information on the interface specification, see {ref}`ffreaction`.
 
 CADET features the following reaction model types:
 
-> - {ref}`mass-action-law-model`
-> - {ref}`michaelis-menten-kinetics-model`
+- {ref}`mass-action-law-model`
+- {ref}`michaelis-menten-kinetics-model`
 
 It is possible to combine reaction models within the same phase.
 
@@ -23,7 +23,7 @@ as a function of the concentrations in the respective phases, and the reaction i
 
 CADET features the following cross phase reaction types:
 
-> - {ref}`mass-action-law-model-cross-phase`
+- {ref}`mass-action-law-model-cross-phase`
 
 Further details on the interface specification are provided in {ref}`the corresponding section <ffreaction>`.
 
@@ -31,8 +31,8 @@ Further details on the interface specification are provided in {ref}`the corresp
 
 Historically, a chromatography system is modeled as a reaction system without considering any transport phenomenon. We also introduce some reaction-based models that can be solved in CADET:
 
-> - {ref}`thomas-model`
-> - {ref}`rate-constant-distribution-theory`
+- {ref}`thomas-model`
+- {ref}`rate-constant-distribution-theory`
 
 More specialized models are also implemented:
 
