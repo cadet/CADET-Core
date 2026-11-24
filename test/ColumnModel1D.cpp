@@ -1067,6 +1067,13 @@ TEST_CASE("Column_1D as LRMP with two component Bi-Langmuir binding Jacobian", "
 	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
 }
 
+// Test for multiple bound states
+TEST_CASE("Column_1D as GRM with two component Bi-Langmuir binding and surface diffusion Jacobian", "[AxialColumn1D],[DG],[DG1D],[UnitOp],[Jacobian],[CI]")
+{
+	cadet::JsonParameterProvider jpp = createColumnWithTwoCompBiLangmuirBinding("COLUMN_MODEL_1D_GRM", "DG");
+	cadet::test::column::testJacobianAD(jpp, std::numeric_limits<float>::epsilon() * 100.0);
+}
+
 TEST_CASE("Column_1D as GRM transport Jacobian with bulk DG and par FV discretization", "[AxialColumn1D],[DGFV],[UnitOp],[Jacobian],[CI]")
 {
 	cadet::JsonParameterProvider jpp = createColumnLinearBenchmark(false, true, "COLUMN_MODEL_1D_GRM", "DGFV");
