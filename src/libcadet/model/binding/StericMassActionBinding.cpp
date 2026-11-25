@@ -27,33 +27,150 @@
 
 /*<codegen>
 {
-	"name": "SMAParamHandler",
-	"externalName": "ExtSMAParamHandler",
-	"parameters":
-		[
-			{ "type": "ScalarParameter", "varName": "lambda", "confName": "SMA_LAMBDA"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "kA", "confName": "SMA_KA"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "kD", "confName": "SMA_KD"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "nu", "confName": "SMA_NU"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "sigma", "confName": "SMA_SIGMA"}
-		],
-	"constantParameters":
-		[
-			{ "type": "ScalarParameter", "varName": "refC0", "confName": "SMA_REFC0", "default": 1.0},
-			{ "type": "ScalarParameter", "varName": "refQ", "confName": "SMA_REFQ", "default": 1.0}
-		]
+	"model": "STERIC_MASS_ACTION",
+	"implementation": {
+		"handler": "SMAParamHandler",
+		"externalHandler": "ExtSMAParamHandler"
+	},
+	"inputs": [
+		{
+			"confName": "SMA_LAMBDA",
+			"description": "Stationary phase ionic capacity.",
+			"dims": [],
+			"dtype": "double",
+			"range": {
+				"ge": 0
+			},
+			"required": true,
+			"unit": "mol m_SP^-3",
+			"sensitivity": true,
+			"externalFunction": true,
+			"sectionDependent": false,
+			"implementation": {
+				"descriptor": "ScalarParameter",
+				"varName": "lambda"
+			}
+		},
+		{
+			"confName": "SMA_KA",
+			"description": "Adsorption rate constants.",
+			"dims": [
+				"component"
+			],
+			"dtype": "double",
+			"range": {
+				"ge": 0
+			},
+			"required": true,
+			"unit": "m_MP^3 m_SP^-3 s^-1",
+			"sensitivity": true,
+			"externalFunction": true,
+			"sectionDependent": false,
+			"implementation": {
+				"descriptor": "ScalarComponentDependentParameter",
+				"varName": "kA"
+			}
+		},
+		{
+			"confName": "SMA_KD",
+			"description": "Desorption rate constants.",
+			"dims": [
+				"component"
+			],
+			"dtype": "double",
+			"range": {
+				"ge": 0
+			},
+			"required": true,
+			"unit": "s^-1",
+			"sensitivity": true,
+			"externalFunction": true,
+			"sectionDependent": false,
+			"implementation": {
+				"descriptor": "ScalarComponentDependentParameter",
+				"varName": "kD"
+			}
+		},
+		{
+			"confName": "SMA_NU",
+			"description": "Characteristic charges: the number of resin sites each protein interacts with.",
+			"dims": [
+				"component"
+			],
+			"dtype": "double",
+			"notes": "A nonpositive salt charge at index 0 is replaced with 1.",
+			"range": {
+				"ge": 0
+			},
+			"required": true,
+			"sensitivity": true,
+			"externalFunction": true,
+			"sectionDependent": false,
+			"implementation": {
+				"descriptor": "ScalarComponentDependentParameter",
+				"varName": "nu"
+			}
+		},
+		{
+			"confName": "SMA_SIGMA",
+			"description": "Steric factors: the number of resin sites shielded by each protein and unavailable for salt exchange.",
+			"dims": [
+				"component"
+			],
+			"dtype": "double",
+			"range": {
+				"ge": 0
+			},
+			"required": true,
+			"sensitivity": true,
+			"externalFunction": true,
+			"sectionDependent": false,
+			"implementation": {
+				"descriptor": "ScalarComponentDependentParameter",
+				"varName": "sigma"
+			}
+		},
+		{
+			"confName": "SMA_REFC0",
+			"default": 1.0,
+			"description": "Reference liquid phase concentration.",
+			"dims": [],
+			"dtype": "double",
+			"range": {
+				"gt": 0
+			},
+			"required": false,
+			"unit": "mol m_MP^-3",
+			"sensitivity": true,
+			"externalFunction": false,
+			"sectionDependent": false,
+			"implementation": {
+				"descriptor": "ScalarParameter",
+				"varName": "refC0"
+			}
+		},
+		{
+			"confName": "SMA_REFQ",
+			"default": 1.0,
+			"description": "Reference solid phase concentration.",
+			"dims": [],
+			"dtype": "double",
+			"range": {
+				"gt": 0
+			},
+			"required": false,
+			"unit": "mol m_SP^-3",
+			"sensitivity": true,
+			"externalFunction": false,
+			"sectionDependent": false,
+			"implementation": {
+				"descriptor": "ScalarParameter",
+				"varName": "refQ"
+			}
+		}
+	]
 }
 </codegen>*/
-
-/* Parameter description
- ------------------------
- lambda = Ionic capacity
- kA = Adsorption rate
- kD = Desorption rate
- nu = Characteristic charge
- sigma = Steric factor
- refC0, refQ = Reference concentrations
-*/
 
 namespace cadet
 {

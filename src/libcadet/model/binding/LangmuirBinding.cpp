@@ -25,23 +25,78 @@
 
 /*<codegen>
 {
-	"name": "LangmuirParamHandler",
-	"externalName": "ExtLangmuirParamHandler",
-	"parameters":
-		[
-			{ "type": "ScalarComponentDependentParameter", "varName": "kA", "confName": "MCL_KA"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "kD", "confName": "MCL_KD"},
-			{ "type": "ScalarComponentDependentParameter", "varName": "qMax", "confName": "MCL_QMAX"}
-		]
+	"model": "MULTI_COMPONENT_LANGMUIR",
+	"implementation": {
+		"handler": "LangmuirParamHandler",
+		"externalHandler": "ExtLangmuirParamHandler"
+	},
+	"inputs": [
+		{
+			"confName": "MCL_KA",
+			"dtype": "double",
+			"dims": [
+				"component"
+			],
+			"unit": "m_MP^3 mol^-1 s^-1",
+			"symbol": "k_{a,i}",
+			"range": {
+				"ge": 0
+			},
+			"description": "Adsorption rate constants.",
+			"required": true,
+			"sensitivity": true,
+			"externalFunction": true,
+			"sectionDependent": false,
+			"implementation": {
+				"descriptor": "ScalarComponentDependentParameter",
+				"varName": "kA"
+			}
+		},
+		{
+			"confName": "MCL_KD",
+			"dtype": "double",
+			"dims": [
+				"component"
+			],
+			"unit": "s^-1",
+			"symbol": "k_{d,i}",
+			"range": {
+				"ge": 0
+			},
+			"description": "Desorption rate constants.",
+			"required": true,
+			"sensitivity": true,
+			"externalFunction": true,
+			"sectionDependent": false,
+			"implementation": {
+				"descriptor": "ScalarComponentDependentParameter",
+				"varName": "kD"
+			}
+		},
+		{
+			"confName": "MCL_QMAX",
+			"dtype": "double",
+			"dims": [
+				"component"
+			],
+			"unit": "mol m_SP^-3",
+			"symbol": "q_{\\max,i}",
+			"range": {
+				"gt": 0
+			},
+			"description": "Maximum adsorption capacities.",
+			"required": true,
+			"sensitivity": true,
+			"externalFunction": true,
+			"sectionDependent": false,
+			"implementation": {
+				"descriptor": "ScalarComponentDependentParameter",
+				"varName": "qMax"
+			}
+		}
+	]
 }
 </codegen>*/
-
-/* Parameter description
- ------------------------
- kA = Adsorption rate
- kD = Desorption rate
- qMax = Capacity
-*/
 
 namespace cadet
 {
