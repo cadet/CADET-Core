@@ -282,7 +282,6 @@ protected:
 		}
 
 		// Range checks on the configured values. For the externally dependent variant this only
-		// covers the constant term, and neither variant covers values set later via setParameter().
 		if (!(paramProvider.getDouble("ASM3_T") >= 0.0))
 			throw InvalidParameterException("ASM3 configuration: Temperature T must be non-negative");
 
@@ -477,7 +476,6 @@ protected:
 		_stoichiometry.native(_idxSALK, 9) = c10a;
 		_stoichiometry.native(_idxSALK, 10) = c11a;
 		_stoichiometry.native(_idxSALK, 11) = c12a;
-		// Reaction 13 is aeration and only adds oxygen, it does not change alkalinity
 		if (_givenAd)
 		{
 			_stoichiometry.native(_idxSALK, 13) = c2a;
@@ -572,10 +570,6 @@ protected:
 		const flux_t knalk	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->knalk);
 		const flux_t baut20	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->baut20);
 		const flux_t etanend	= static_cast<typename DoubleActiveDemoter<flux_t, ParamType>::type>(p->etanend);
-
-		// derived parameters - temperature correction
-		// These stay in the parameter type so that sensitivities with respect to T and to the
-		// rate constants at 20 degrees survive; demoting them to double would drop the AD seed.
 		const flux_t ft_hydrolysis = exp(-THETA_HYDROLYSIS * (T_REF - T));
 		const flux_t ft_kinetic = exp(-THETA_KINETIC * (T_REF - T));
 		const flux_t ft_autotroph = exp(-THETA_AUTOTROPH * (T_REF - T));
