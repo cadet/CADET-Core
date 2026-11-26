@@ -182,6 +182,38 @@ TEST_CASE("Reference concentrations are read independently with default 1", "[Bi
 	}
 }
 
+TEST_CASE("GENERALIZED_ION_EXCHANGE pH reference concentrations fall back independently", "[BindingModel],[GIEX],[ReferenceConcentration],[CI_binding]")
+{
+	const unsigned int nBound[] = {1, 0, 1};
+	const nlohmann::json base = {
+		{"GIEX_LAMBDA", 10.0}, {"GIEX_KA", {0.0, 0.0, 2.0}}, {"GIEX_KA_LIN", {0.0, 0.0, 0.0}}, {"GIEX_KA_QUAD", {0.0, 0.0, 0.0}},
+		{"GIEX_KA_SALT", {0.0, 0.0, 0.0}}, {"GIEX_KA_PROT", {0.0, 0.0, 0.0}}, {"GIEX_KD", {0.0, 0.0, 5.0}}, {"GIEX_KD_LIN", {0.0, 0.0, 0.0}},
+		{"GIEX_KD_QUAD", {0.0, 0.0, 0.0}}, {"GIEX_KD_SALT", {0.0, 0.0, 0.0}}, {"GIEX_KD_PROT", {0.0, 0.0, 0.0}}, {"GIEX_NU", {1.0, 0.0, 1.0}},
+		{"GIEX_NU_LIN", {0.0, 0.0, 0.0}}, {"GIEX_NU_QUAD", {0.0, 0.0, 0.0}}, {"GIEX_SIGMA", {0.0, 0.0, 0.0}}
+	};
+	for (bool external : {false, true})
+	{
+		for (int supplied = 0; supplied < 4; ++supplied)
+		{
+			INFO("External model: " << external << ", supplied pH reference mask: " << supplied);
+			nlohmann::json config = external ? toExternalConfig(base, {}) : base;
+			config["GIEX_REFC0"] = 2.0;
+			config["GIEX_REFQ"] = 4.0;
+			const double refPhC = (supplied & 1) ? 3.0 : 2.0;
+			const double refPhQ = (supplied & 2) ? 5.0 : 4.0;
+			if (supplied & 1)
+				config["GIEX_PHREFC0"] = refPhC;
+			if (supplied & 2)
+				config["GIEX_PHREFQ"] = refPhQ;
+
+			auto cbm = cadet::test::binding::ConfiguredBindingModel::create(
+				external ? "EXT_GENERALIZED_ION_EXCHANGE" : "GENERALIZED_ION_EXCHANGE", 3, nBound, true, config.dump().c_str());
+			CHECK(registeredScalar(cbm, "GIEX_PHREFC0") == refPhC);
+			CHECK(registeredScalar(cbm, "GIEX_PHREFQ") == refPhQ);
+		}
+	}
+}
+
 CADET_BINDINGTEST("LINEAR", "EXT_LINEAR", (1,1), (1,0,1), (1.0, 2.0, 0.0, 0.0), (1.0, 3.0, 2.0, 0.0, 0.0), \
 	R"json( "LIN_KA": [1.0, 2.0],
 	        "LIN_KD": [0.1, 0.2]

@@ -242,8 +242,7 @@ For information on model equations, refer to {ref}`generalized-ion-exchange-mode
 `GIEX_PHREFC0`
 
 : Reference liquid phase concentration used for the pH dependent part
-  of the characteristic charge (optional, only applied if
-  `GIEX_PHREFQ` is given as well, defaults to `GIEX_REFC0`)
+  of the characteristic charge (optional, defaults to `GIEX_REFC0`)
 
 **Unit:** $mol~m_{MP}^{-3}$
 
@@ -257,8 +256,7 @@ For information on model equations, refer to {ref}`generalized-ion-exchange-mode
 `GIEX_PHREFQ`
 
 : Reference solid phase concentration used for the pH dependent part
-  of the characteristic charge (optional, only applied if
-  `GIEX_PHREFC0` is given as well, defaults to `GIEX_REFQ`)
+  of the characteristic charge (optional, defaults to `GIEX_REFQ`)
 
 **Unit:** $mol~m_{SP}^{-3}$
 

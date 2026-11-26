@@ -223,18 +223,9 @@ protected:
 	{
 		const bool valid = ParamHandlerBindingModelBase<ParamHandler_t>::configureImpl(paramProvider, unitOpIdx, parTypeIdx);
 
-		if (paramProvider.exists(std::string(_paramHandler.prefixInConfiguration()) + "GIEX_PHREFC0") && paramProvider.exists(std::string(_paramHandler.prefixInConfiguration()) + "GIEX_PHREFQ"))
-		{
-			// Parameters are present, use them
-			_paramHandler.refPhC0().configure("GIEX_PHREFC0", paramProvider, _nComp, _nBoundStates);
-			_paramHandler.refPhQ().configure("GIEX_PHREFQ", paramProvider, _nComp, _nBoundStates);
-		}
-		else
-		{
-			// Default to standard reference concentration
-			_paramHandler.refPhC0().get() = _paramHandler.refC0().get();
-			_paramHandler.refPhQ().get() = _paramHandler.refQ().get();
-		}
+		// Each pH reference concentration defaults to its standard counterpart
+		_paramHandler.refPhC0().configure("GIEX_PHREFC0", paramProvider, _nComp, _nBoundStates, static_cast<double>(_paramHandler.refC0().get()));
+		_paramHandler.refPhQ().configure("GIEX_PHREFQ", paramProvider, _nComp, _nBoundStates, static_cast<double>(_paramHandler.refQ().get()));
 
 		return valid;
 	}
