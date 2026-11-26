@@ -1529,6 +1529,13 @@ void ColumnModel2D::setExternalFunctions(IExternalFunction** extFuns, unsigned i
 		if (bm)
 			bm->setExternalFunctions(extFuns, size);
 	}
+
+	_reaction.setExternalFunctions(extFuns, size);
+	for (IParticleModel* particle : _particles)
+	{
+		if (particle)
+			particle->getReaction()->setExternalFunctions(extFuns, size);
+	}
 }
 
 unsigned int ColumnModel2D::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT

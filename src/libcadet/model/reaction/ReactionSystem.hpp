@@ -132,6 +132,25 @@ struct ReactionSystem
         }
 
         /**
+         * @brief Passes the external functions on to the reaction models of all phases
+         * @details Const like getBinding() of the particle models: the system itself does not change,
+         *          the reaction models it points to receive the external functions.
+         * @param [in] extFuns Pointer to array of IExternalFunction objects of size @p size
+         * @param [in] size Number of elements in the IExternalFunction array @p extFuns
+         */
+        void setExternalFunctions(IExternalFunction** extFuns, unsigned int size) const
+        {
+            for (const auto& phasePair : _phaseMap)
+            {
+                for (IDynamicReactionModel* reaction : phasePair.second.dynReactions)
+                {
+                    if (reaction)
+                        reaction->setExternalFunctions(extFuns, size);
+                }
+            }
+        }
+
+        /**
          * @brief Adds a dynamic reaction model to a specific phase
          * @param phaseType The phase type to add the reaction to
          * @param reactionModel Pointer to the dynamic reaction model to add

@@ -1068,7 +1068,7 @@ public:
 	inline std::size_t size() const CADET_NOEXCEPT { return _base.size(); }
 	inline bool allSameSize() const CADET_NOEXCEPT { return (_base.size() == _linear.size()) && (_base.size() == _quad.size()) && (_base.size() == _cube.size()); }
 
-	inline std::size_t additionalDynamicMemory(unsigned int nReactions, unsigned int nComp, unsigned int totalNumBoundStates) const CADET_NOEXCEPT { return nReactions * sizeof(active) + alignof(active); }
+	inline std::size_t additionalDynamicMemory(unsigned int nReactions, unsigned int nComp, unsigned int totalNumBoundStates) const CADET_NOEXCEPT { return _base.size() * sizeof(active) + alignof(active); }
 
 	inline storage_t& base() CADET_NOEXCEPT { return _base; }
 	inline const storage_t& base() const CADET_NOEXCEPT { return _base; }

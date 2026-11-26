@@ -1500,6 +1500,13 @@ void StirredTankModel::setExternalFunctions(IExternalFunction** extFuns, unsigne
 		if (bm)
 			bm->setExternalFunctions(extFuns, size);
 	}
+
+	_reaction.setExternalFunctions(extFuns, size);
+	for (IParticleModel* particle : _particles)
+	{
+		if (particle)
+			particle->getReaction()->setExternalFunctions(extFuns, size);
+	}
 }
 
 bool StirredTankModel::setParameter(const ParameterId& pId, double value)

@@ -200,33 +200,40 @@ protected:
             std::vector<double> PRE_K(0.0, _stoichiometry.columns() * _nComp);
             std::vector<double> EXP;
             //bool hasCompetiveInhibition = false;
+
+            // The externally dependent variant reads these parameters with the EXT_ prefix, like its parameter handler
+            const std::string prefix = ParamHandler_t::dependsOnTime() ? "EXT_" : "";
+            const std::string nameKIC = prefix + "MM_KI_C";
+            const std::string nameKIUC = prefix + "MM_KI_UC";
+            const std::string namePreK = prefix + "MM_PRE_K";
+            const std::string nameExp = prefix + "MM_EXP";
             
-            if (paramProvider.exists("MM_KI_C"))
+            if (paramProvider.exists(nameKIC))
             {
-                KIC = paramProvider.getDoubleArray("MM_KI_C");
+                KIC = paramProvider.getDoubleArray(nameKIC);
                 if (KIC.size() != _stoichiometry.columns() * _nComp * _nComp)
-                    throw InvalidParameterException("MM_KI_C must have the size (number of reactions) x (number of components) x (number of components)");
+                    throw InvalidParameterException(nameKIC + " must have the size (number of reactions) x (number of components) x (number of components)");
             }
 
-            if (paramProvider.exists("MM_KI_UC"))
+            if (paramProvider.exists(nameKIUC))
             {
-                KIUC = paramProvider.getDoubleArray("MM_KI_UC");
+                KIUC = paramProvider.getDoubleArray(nameKIUC);
                 if (KIUC.size() != _stoichiometry.columns() * _nComp * _nComp)
-                    throw InvalidParameterException("MM_KI_UC must have the size (number of reactions) x (number of components) x (number of components)");
+                    throw InvalidParameterException(nameKIUC + " must have the size (number of reactions) x (number of components) x (number of components)");
             }
             
-            if (paramProvider.exists("MM_PRE_K"))
+            if (paramProvider.exists(namePreK))
             {
-                PRE_K = paramProvider.getDoubleArray("MM_PRE_K");
+                PRE_K = paramProvider.getDoubleArray(namePreK);
                 if (PRE_K.size() != _stoichiometry.columns() * _nComp)
-                    throw InvalidParameterException("MM_PRE_K must have the size (number of reactions) x (number of components) ");
+                    throw InvalidParameterException(namePreK + " must have the size (number of reactions) x (number of components) ");
             }
 
-            if (paramProvider.exists("MM_EXP"))
+            if (paramProvider.exists(nameExp))
             {
-                EXP = paramProvider.getDoubleArray("MM_EXP");
+                EXP = paramProvider.getDoubleArray(nameExp);
                 if (EXP.size() != _stoichiometry.columns() * _nComp)
-                    throw InvalidParameterException("MM_EXP must have the size (number of reactions) x (number of components)");
+                    throw InvalidParameterException(nameExp + " must have the size (number of reactions) x (number of components)");
             }
             
             if (s.size() != _stoichiometry.elements())
@@ -263,12 +270,12 @@ protected:
                         const unsigned int exponentIdx = get2DParamIndex(r, j);
                         const double exponent = EXP[exponentIdx];
                         if (!std::isfinite(exponent) || exponent <= 0.0)
-                            throw InvalidParameterException("MM_EXP must be positive and finite for every substrate");
+                            throw InvalidParameterException(nameExp + " must be positive and finite for every substrate");
                         for (unsigned int k = 0; k < _nComp; ++k)
                         {
                             const unsigned int inhibitorIdx = get3DParamIndex(r, j, k);
                             if ((exponent != 1.0) && (((KIC.size() != 0) && (KIC[inhibitorIdx] > 0.0)) || ((KIUC.size() != 0) && (KIUC[inhibitorIdx] > 0.0))))
-                                throw InvalidParameterException("MM_EXP requires no inhibition for substrates with a Hill exponent different from one");
+                                throw InvalidParameterException(nameExp + " requires no inhibition for substrates with a Hill exponent different from one");
                         }
                     }
                 }

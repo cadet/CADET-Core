@@ -270,8 +270,11 @@ protected:
 			LOG(Debug) << "ASM3_COMP_IDX not set, using defaults";
 		}
 
+		// The externally dependent variant reads these parameters with the EXT_ prefix, like its parameter handler
+		const std::string prefix = ParamHandler_t::dependsOnTime() ? "EXT_" : "";
+
 		// handle optional Aeration
-		if (paramProvider.exists("ASM3_IO2") && paramProvider.exists("ASM3_V"))
+		if (paramProvider.exists(prefix + "ASM3_IO2") && paramProvider.exists(prefix + "ASM3_V"))
 		{
 			_activeAeration = true;
 			LOG(Debug) << "Active aeration set to " << _activeAeration;
@@ -281,11 +284,11 @@ protected:
 			LOG(Debug) << "Active aeration not set, using default (false)";
 		}
 
-		// Range checks on the configured values. For the externally dependent variant this only
-		if (!(paramProvider.getDouble("ASM3_T") >= 0.0))
+		// Range checks on the configured values. For the externally dependent variant they check only the constant term.
+		if (!(paramProvider.getDouble(prefix + "ASM3_T") >= 0.0))
 			throw InvalidParameterException("ASM3 configuration: Temperature T must be non-negative");
 
-		if (_activeAeration && !(paramProvider.getDouble("ASM3_V") > 0.0))
+		if (_activeAeration && !(paramProvider.getDouble(prefix + "ASM3_V") > 0.0))
 			throw InvalidParameterException("ASM3 configuration: Aeration volume V must be positive");
 
 		if (_givenAd)

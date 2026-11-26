@@ -2753,6 +2753,13 @@ void GeneralRateModel<ConvDispOperator>::setExternalFunctions(IExternalFunction*
 		if (bm)
 			bm->setExternalFunctions(extFuns, size);
 	}
+
+	_reaction.setExternalFunctions(extFuns, size);
+	for (ReactionSystem* reaction : _reacParticle)
+	{
+		if (reaction)
+			reaction->setExternalFunctions(extFuns, size);
+	}
 }
 
 template <typename ConvDispOperator>
