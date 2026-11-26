@@ -1745,9 +1745,9 @@ namespace cadet
 			"range": {
 				"ge": 0
 			},
-			"description": "Initial time integrator step size; 0 selects the IDAS default.",
+			"description": "Initial time integrator step size for each section or one value for all sections.",
 			"required": true,
-			"notes": "One value applies to all sections, or one value per section.",
+			"notes": "0.0 = IDAS default value.",
 			"sensitivity": false,
 			"externalFunction": false,
 			"sectionDependent": true

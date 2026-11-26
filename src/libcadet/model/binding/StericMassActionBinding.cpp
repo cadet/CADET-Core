@@ -35,7 +35,7 @@
 	"inputs": [
 		{
 			"confName": "SMA_LAMBDA",
-			"description": "Stationary phase ionic capacity.",
+			"description": "Stationary phase capacity (monovalent salt counterions). The total number of binding sites available on the resin surface.",
 			"dims": [],
 			"dtype": "double",
 			"range": {
@@ -93,12 +93,11 @@
 		},
 		{
 			"confName": "SMA_NU",
-			"description": "Characteristic charges: the number of resin sites each protein interacts with.",
+			"description": "Characteristic charges of the protein. The number of sites $\\nu$ that the protein interacts with on the resin surface.",
 			"dims": [
 				"component"
 			],
 			"dtype": "double",
-			"notes": "A nonpositive salt charge at index 0 is replaced with 1.",
 			"range": {
 				"ge": 0
 			},
@@ -113,7 +112,7 @@
 		},
 		{
 			"confName": "SMA_SIGMA",
-			"description": "Steric factors: the number of resin sites shielded by each protein and unavailable for salt exchange.",
+			"description": "Steric factors of the protein. The number of sites $\\sigma$ on the surface that are shielded by the protein and prevented from exchange with the salt counterions in solution.",
 			"dims": [
 				"component"
 			],

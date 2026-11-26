@@ -34,9 +34,9 @@
 			"dims": [
 				"total_bound_state"
 			],
-			"description": "Selects kinetic (true) or quasi-stationary (false) adsorption.",
+			"description": "Selects kinetic or quasi-stationary adsorption mode.",
 			"required": true,
-			"notes": "Write true as integer 1 and false as integer 0 in the input file. One value applies to all bound states. Otherwise, supply NTOTALBND values in component-major order, with bound state varying fastest. Model-specific equilibrium constraints still apply.",
+			"notes": "1 = kinetic, 0 = quasi-stationary. If a single value is given, the mode is set for all bound states. Otherwise, the adsorption mode is set for each bound state separately.",
 			"sensitivity": false,
 			"externalFunction": false,
 			"sectionDependent": false
