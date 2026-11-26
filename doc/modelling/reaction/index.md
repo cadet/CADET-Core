@@ -35,6 +35,10 @@ Historically, a chromatography system is modeled as a reaction system without co
 > - {ref}`thomas-model`
 > - {ref}`rate-constant-distribution-theory`
 
+More specialized models are also implemented:
+
+> - {doc}`activated_sludge_model`
+
 (dependence-on-external-function-react)=
 
 ## Dependence on external function

@@ -351,8 +351,8 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD without inhibition", 
 
 TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with prefactorial component", "[MichaelisMenten],[ReactionModel],[Jacobian],[AD]")
 {
-	const unsigned int nBound[] = { 1, 2, 1 };
-	const double point[] = { 1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8 };
+	const unsigned int nBound[] = {1, 2, 1};
+	const double point[] = {1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8};
 	cadet::test::reaction::testDynamicJacobianAD("MICHAELIS_MENTEN", 3, nBound,
 		R"json({
 			"MM_KMM": [0.0, 1.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.4, 0.0],
@@ -384,6 +384,125 @@ TEST_CASE("MichaelisMenten kinetic analytic Jacobian vs AD with inhibition", "[M
 		})json",
 		point, 1e-15, 1e-15
 	);
+}
+TEST_CASE("ASM3 analytic Jacobian vs AD with adsorbed components", "[ASM3],[ReactionModel],[Jacobian],[AD],[CI]")
+{
+	const unsigned int nBound[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0,0,0 };
+	unsigned int ncomp = 15;
+	const double point[] = { 1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8, 1.5, 1.0, 4.2, 1.4, 0.3, 1.4, 1.0, 2.0 };
+	cadet::test::reaction::testLiquidReactionJacobianAD("ACTIVATED_SLUDGE_MODEL3", ncomp, nBound,
+		R"json({
+			"ASM3_FISS_BM_PROD": 1.0,
+			"ASM3_FSI": 0.0,
+			"ASM3_FSI_AD": 0.5,
+			"ASM3_YH_AER": 0.8,
+			"ASM3_YH_ANOX": 0.65,
+			"ASM3_YSTO_AER": 0.8375,
+			"ASM3_YSTO_ANOX": 0.7,
+			"ASM3_FXI": 0.2,
+			"ASM3_YA": 0.24,
+			"ASM3_KH20": 9.0,
+			"ASM3_KX": 1.0,
+			"ASM3_KSTO20": 12.0,
+			"ASM3_MU_H20": 3.0,
+			"ASM3_BH20": 0.33,
+			"ASM3_ETA_HNO3": 0.5,
+			"ASM3_KHO2": 0.2,
+			"ASM3_KHSS": 10.0,
+			"ASM3_KHNO3": 0.5,
+			"ASM3_KHNH4": 0.01,
+			"ASM3_KHALK": 0.1,
+			"ASM3_KHSTO": 0.1,
+			"ASM3_MU_AUT20": 1.12,
+			"ASM3_BAUT20": 0.18,
+			"ASM3_ETAH_END": 0.5,
+			"ASM3_ETAN_END": 0.5,
+			"ASM3_KNO2": 0.5,
+			"ASM3_KNNH4": 0.7,
+			"ASM3_KNALK": 0.5,
+			"ASM3_T": 12.0,
+			"ASM3_V": 1000.0,
+			"ASM3_IO2": 0.0,
+			"ASM3_INSI": 0.01,
+			"ASM3_INSS": 0.03,
+			"ASM3_INXI": 0.04,
+			"ASM3_INXS": 0.03,
+			"ASM3_INBM": 0.07,
+			"ASM3_IVSS_XI": 0.751879699,
+			"ASM3_IVSS_XS": 0.555555556,
+			"ASM3_IVSS_STO": 0.6,
+			"ASM3_IVSS_BM": 0.704225352,
+			"ASM3_ITSS_VSS_BM": 1.086956522
+		})json",
+		point, 1e-12, 1e-12
+	);
+}
+
+TEST_CASE("ASM3 analytic Jacobian vs AD without adsorbed components", "[ASM3],[ReactionModel],[Jacobian],[AD],[CI]")
+{
+	const unsigned int nBound[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	unsigned int ncomp = 13;
+	const double point[] = { 1.0, 2.0, 1.4, 2.1, 0.2, 1.1, 1.8, 1.5, 1.0, 4.2, 1.4, 0.3, 1.4 };
+	cadet::test::reaction::testLiquidReactionJacobianAD("ACTIVATED_SLUDGE_MODEL3", ncomp, nBound,
+		R"json({
+			"ASM3_FISS_BM_PROD": 1.0,
+			"ASM3_FSI": 0.0,
+			"ASM3_YH_AER": 0.8,
+			"ASM3_YH_ANOX": 0.65,
+			"ASM3_YSTO_AER": 0.8375,
+			"ASM3_YSTO_ANOX": 0.7,
+			"ASM3_FXI": 0.2,
+			"ASM3_YA": 0.24,
+			"ASM3_KH20": 9.0,
+			"ASM3_KX": 1.0,
+			"ASM3_KSTO20": 12.0,
+			"ASM3_MU_H20": 3.0,
+			"ASM3_BH20": 0.33,
+			"ASM3_ETA_HNO3": 0.5,
+			"ASM3_KHO2": 0.2,
+			"ASM3_KHSS": 10.0,
+			"ASM3_KHNO3": 0.5,
+			"ASM3_KHNH4": 0.01,
+			"ASM3_KHALK": 0.1,
+			"ASM3_KHSTO": 0.1,
+			"ASM3_MU_AUT20": 1.12,
+			"ASM3_BAUT20": 0.18,
+			"ASM3_ETAH_END": 0.5,
+			"ASM3_ETAN_END": 0.5,
+			"ASM3_KNO2": 0.5,
+			"ASM3_KNNH4": 0.7,
+			"ASM3_KNALK": 0.5,
+			"ASM3_T": 12.0,
+			"ASM3_V": 1000.0,
+			"ASM3_IO2": 0.0,
+			"ASM3_INSI": 0.01,
+			"ASM3_INSS": 0.03,
+			"ASM3_INXI": 0.04,
+			"ASM3_INXS": 0.03,
+			"ASM3_INBM": 0.07,
+			"ASM3_IVSS_BM": 0.704225352,
+			"ASM3_ITSS_VSS_BM": 1.086956522
+		})json",
+		point, 1e-12, 1e-12
+	);
+}
+
+TEST_CASE("ASM3 adsorbable substrate fraction reproduces the plain setup", "[ASM3],[ReactionModel],[Simulation],[CI]")
+{
+	// The 15 component setup routes the complete substrate into the adsorbable fraction
+	// (ASM3_FSS_AD = 1, SS starts at 0, SS_ad starts at 2), so it has to reproduce the
+	// 13 component setup. SS_ad (index 14) of the first setup corresponds to SS (index 1)
+	// of the second one, all remaining components correspond to themselves.
+	const std::vector<int> compIdx1 = { 0, 14, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+	const std::vector<int> compIdx2 = { 0,  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+
+	// The tolerance is set by the two independent time integrations, which both run at
+	// ABSTOL = RELTOL = 1e-6, not by the reaction model. A wrong stoichiometric coefficient
+	// shows up several orders of magnitude above this.
+	cadet::test::reaction::testCompareTwoSimulationReaction(
+		"/data/configuration_CSTR_ASM3_with_ad.json",
+		"/data/configuration_CSTR_ASM3_without_ad.json",
+		1e-3, 1e-4, compIdx1, compIdx2);
 }
 
 TEST_CASE("MichaelisMenten Hill exponent changes flux and analytic Jacobian", "[MichaelisMenten],[Hill],[ReactionModel],[Jacobian],[CI]")
