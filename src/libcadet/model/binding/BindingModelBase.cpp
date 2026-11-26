@@ -30,19 +30,13 @@
 	"inputs": [
 		{
 			"confName": "IS_KINETIC",
-			"dtype": "int",
+			"dtype": "bool",
 			"dims": [
 				"total_bound_state"
 			],
-			"range": {
-				"in": [
-					0,
-					1
-				]
-			},
-			"description": "Selects kinetic (1) or quasi-stationary (0) adsorption.",
+			"description": "Selects kinetic (true) or quasi-stationary (false) adsorption.",
 			"required": true,
-			"notes": "One value applies to all bound states. Otherwise, supply NTOTALBND values in component-major order, with bound state varying fastest. Model-specific equilibrium constraints still apply.",
+			"notes": "Write true as integer 1 and false as integer 0 in the input file. One value applies to all bound states. Otherwise, supply NTOTALBND values in component-major order, with bound state varying fastest. Model-specific equilibrium constraints still apply.",
 			"sensitivity": false,
 			"externalFunction": false,
 			"sectionDependent": false
