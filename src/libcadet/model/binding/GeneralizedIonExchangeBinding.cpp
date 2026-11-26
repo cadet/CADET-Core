@@ -49,8 +49,10 @@
 		],
 	"constantParameters":
 		[
-			{ "type": "ReferenceConcentrationParameter", "varName": ["refC0", "refQ"], "objName": "refConcentration", "confPrefix": "GIEX_"},
-			{ "type": "ReferenceConcentrationParameter", "varName": ["refPhC0", "refPhQ"], "objName": "refConcentrationPh", "confPrefix": "GIEX_PH", "skipConfig": true}
+			{ "type": "ScalarParameter", "varName": "refC0", "confName": "GIEX_REFC0", "default": 1.0},
+			{ "type": "ScalarParameter", "varName": "refQ", "confName": "GIEX_REFQ", "default": 1.0},
+			{ "type": "ScalarParameter", "varName": "refPhC0", "confName": "GIEX_PHREFC0", "skipConfig": true},
+			{ "type": "ScalarParameter", "varName": "refPhQ", "confName": "GIEX_PHREFQ", "skipConfig": true}
 		]
 }
 </codegen>*/
@@ -224,13 +226,14 @@ protected:
 		if (paramProvider.exists(std::string(_paramHandler.prefixInConfiguration()) + "GIEX_PHREFC0") && paramProvider.exists(std::string(_paramHandler.prefixInConfiguration()) + "GIEX_PHREFQ"))
 		{
 			// Parameters are present, use them
-			_paramHandler.refConcentrationPh().configure("GIEX_PH", paramProvider, _nComp, _nBoundStates);
+			_paramHandler.refPhC0().configure("GIEX_PHREFC0", paramProvider, _nComp, _nBoundStates);
+			_paramHandler.refPhQ().configure("GIEX_PHREFQ", paramProvider, _nComp, _nBoundStates);
 		}
 		else
 		{
 			// Default to standard reference concentration
-			_paramHandler.refConcentrationPh().getC() = _paramHandler.refConcentration().getC();
-			_paramHandler.refConcentrationPh().getQ() = _paramHandler.refConcentration().getQ();
+			_paramHandler.refPhC0().get() = _paramHandler.refC0().get();
+			_paramHandler.refPhQ().get() = _paramHandler.refQ().get();
 		}
 
 		return valid;

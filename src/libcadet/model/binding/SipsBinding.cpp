@@ -37,7 +37,8 @@
 		],
 	"constantParameters":
 		[
-			{ "type": "ReferenceConcentrationParameter", "varName": ["refC", "refQ"], "objName": "refConcentration", "confPrefix": "SIPS_"},
+			{ "type": "ScalarParameter", "varName": "refC", "confName": "SIPS_REFC0", "default": 1.0},
+			{ "type": "ScalarParameter", "varName": "refQ", "confName": "SIPS_REFQ", "default": 1.0},
 			{ "type": "ScalarParameter", "varName": "linearThreshold", "confName": "SIPS_LINEAR_THRESHOLD"}
 		]
 }

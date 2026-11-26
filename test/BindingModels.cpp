@@ -17,6 +17,170 @@
 #include "model/BindingModel.hpp"
 #include "ParamIdUtil.hpp"
 #include "SimulationTypes.hpp"
+#include "AutoDiff.hpp"
+#include <algorithm>
+#include <vector>
+#include <string>
+#include <json.hpp>
+
+
+TEST_CASE("STERIC_MASS_ACTION reference concentrations preserve defaults and sensitivities", "[BindingModel],[SMA],[ReferenceConcentration],[CI_binding]")
+{
+	cadet::ad::setDirections(cadet::ad::getMaxDirections());
+	const unsigned int nBound[] = {1, 1};
+	const double liquid[] = {6.0, 3.0};
+	const double bound[] = {8.0, 2.0};
+	for (bool external : {false, true})
+	{
+		for (int supplied = 0; supplied < 4; ++supplied)
+		{
+			INFO("External model: " << external << ", supplied reference mask: " << supplied);
+			nlohmann::json config = {
+				{"SMA_LAMBDA", 10.0}, {"SMA_KA", {0.0, 2.0}},
+				{"SMA_KD", {0.0, 5.0}}, {"SMA_NU", {1.0, 1.0}},
+				{"SMA_SIGMA", {0.0, 0.0}}
+			};
+			if (external)
+			{
+				nlohmann::json profiles;
+				for (auto it = config.begin(); it != config.end(); ++it)
+				{
+					const std::string key = "EXT_" + it.key();
+					const nlohmann::json zero = it.value().is_array()
+						? nlohmann::json{0.0, 0.0} : nlohmann::json(0.0);
+					const bool rate = (it.key() == "SMA_KA") || (it.key() == "SMA_KD");
+					profiles[key] = rate ? zero : it.value();
+					profiles[key + "_T"] = rate ? it.value() : zero;
+					profiles[key + "_TT"] = zero;
+					profiles[key + "_TTT"] = zero;
+				}
+				config = profiles;
+			}
+			const double refC = (supplied & 1) ? 2.0 : 1.0;
+			const double refQ = (supplied & 2) ? 4.0 : 1.0;
+			if (supplied & 1)
+				config["SMA_REFC0"] = refC;
+			if (supplied & 2)
+				config["SMA_REFQ"] = refQ;
+			auto cbm = cadet::test::binding::ConfiguredBindingModel::create(
+				external ? "EXT_STERIC_MASS_ACTION" : "STERIC_MASS_ACTION", 2, nBound, true, config.dump().c_str());
+			const auto cId = cadet::makeParamId("SMA_REFC0", 0, cadet::CompIndep, 0,
+				cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep);
+			const auto qId = cadet::makeParamId("SMA_REFQ", 0, cadet::CompIndep, 0,
+				cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep);
+			const auto parameters = cbm.model().getAllParameterValues();
+			CHECK(parameters.at(cId) == refC);
+			CHECK(parameters.at(qId) == refQ);
+			auto* cParameter = cbm.model().getParameter(cId);
+			auto* qParameter = cbm.model().getParameter(qId);
+			REQUIRE(cParameter != nullptr);
+			REQUIRE(qParameter != nullptr);
+			cParameter->setADValue(0, 1.0);
+			qParameter->setADValue(1, 1.0);
+			for (double time : {1.0, 3.0})
+			{
+				cadet::active residual[2];
+				REQUIRE(cbm.model().flux(time, 0, cadet::ColumnPosition{0.0, 0.0, 0.0},
+					bound, liquid, residual, cbm.buffer()) == 0);
+				const double factor = external ? time : 1.0;
+				CHECK(static_cast<double>(residual[0]) == Approx(0.0));
+				CHECK(static_cast<double>(residual[1]) == Approx(factor * (60.0 / refC - 48.0 / refQ)));
+				CHECK(residual[1].getADValue(0) == Approx(-factor * 60.0 / (refC * refC)));
+				CHECK(residual[1].getADValue(1) == Approx(factor * 48.0 / (refQ * refQ)));
+			}
+		}
+	}
+}
+
+namespace
+{
+	/**
+	 * @brief Turns a binding model configuration into one for its external-function variant
+	 * @details Every dataset except those in @p constants becomes a constant profile EXT_<NAME> with
+	 *          zero time derivatives; constant parameters keep their names, as the external variant reads them unprefixed.
+	 */
+	nlohmann::json toExternalConfig(const nlohmann::json& config, const std::vector<std::string>& constants)
+	{
+		nlohmann::json ext;
+		for (auto it = config.begin(); it != config.end(); ++it)
+		{
+			if (std::find(constants.begin(), constants.end(), it.key()) != constants.end())
+			{
+				ext[it.key()] = it.value();
+				continue;
+			}
+			const std::string key = "EXT_" + it.key();
+			const nlohmann::json zero = it.value().is_array() ? nlohmann::json(std::vector<double>(it.value().size(), 0.0)) : nlohmann::json(0.0);
+			ext[key] = it.value();
+			ext[key + "_T"] = zero;
+			ext[key + "_TT"] = zero;
+			ext[key + "_TTT"] = zero;
+		}
+		return ext;
+	}
+
+	double registeredScalar(cadet::test::binding::ConfiguredBindingModel& cbm, const std::string& name)
+	{
+		const auto id = cadet::makeParamId(name, 0, cadet::CompIndep, 0, cadet::BoundStateIndep, cadet::ReactionIndep, cadet::SectionIndep);
+		const auto parameters = cbm.model().getAllParameterValues();
+		const auto it = parameters.find(id);
+		REQUIRE(it != parameters.end());
+		REQUIRE(cbm.model().getParameter(id) != nullptr);
+		return it->second;
+	}
+
+	struct RefConcentrationCase
+	{
+		std::string model;
+		std::string prefix;
+		std::vector<unsigned int> nBound;
+		nlohmann::json config;
+		std::vector<std::string> constants;
+	};
+}
+
+TEST_CASE("Reference concentrations are read independently with default 1", "[BindingModel],[ReferenceConcentration],[CI_binding]")
+{
+	const std::vector<RefConcentrationCase> cases = {
+		{"STERIC_MASS_ACTION", "SMA_", {1, 1},
+			{{"SMA_LAMBDA", 10.0}, {"SMA_KA", {0.0, 2.0}}, {"SMA_KD", {0.0, 5.0}}, {"SMA_NU", {1.0, 1.0}}, {"SMA_SIGMA", {0.0, 0.0}}}, {}},
+		{"SELF_ASSOCIATION", "SAI_", {1, 1},
+			{{"SAI_LAMBDA", 10.0}, {"SAI_KA1", {0.0, 2.0}}, {"SAI_KA2", {0.0, 1.0}}, {"SAI_KD", {0.0, 5.0}}, {"SAI_NU", {1.0, 1.0}}, {"SAI_SIGMA", {0.0, 0.0}}}, {}},
+		{"MULTI_COMPONENT_SIPS", "SIPS_", {1, 1},
+			{{"SIPS_KA", {1.0, 2.0}}, {"SIPS_KD", {1.0, 1.0}}, {"SIPS_QMAX", {10.0, 10.0}}, {"SIPS_EXP", {1.0, 1.0}}, {"SIPS_LINEAR_THRESHOLD", 1e-8}},
+			{"SIPS_LINEAR_THRESHOLD"}},
+		{"MULTISTATE_STERIC_MASS_ACTION", "MSSMA_", {1, 1},
+			{{"MSSMA_LAMBDA", 10.0}, {"MSSMA_KA", {0.0, 2.0}}, {"MSSMA_KD", {0.0, 5.0}}, {"MSSMA_NU", {1.0, 1.0}}, {"MSSMA_SIGMA", {0.0, 0.0}}, {"MSSMA_RATES", {0.0, 0.0}}}, {}},
+		{"GENERALIZED_ION_EXCHANGE", "GIEX_", {1, 0, 1},
+			{{"GIEX_LAMBDA", 10.0}, {"GIEX_KA", {0.0, 0.0, 2.0}}, {"GIEX_KA_LIN", {0.0, 0.0, 0.0}}, {"GIEX_KA_QUAD", {0.0, 0.0, 0.0}},
+			 {"GIEX_KA_SALT", {0.0, 0.0, 0.0}}, {"GIEX_KA_PROT", {0.0, 0.0, 0.0}}, {"GIEX_KD", {0.0, 0.0, 5.0}}, {"GIEX_KD_LIN", {0.0, 0.0, 0.0}},
+			 {"GIEX_KD_QUAD", {0.0, 0.0, 0.0}}, {"GIEX_KD_SALT", {0.0, 0.0, 0.0}}, {"GIEX_KD_PROT", {0.0, 0.0, 0.0}}, {"GIEX_NU", {1.0, 0.0, 1.0}},
+			 {"GIEX_NU_LIN", {0.0, 0.0, 0.0}}, {"GIEX_NU_QUAD", {0.0, 0.0, 0.0}}, {"GIEX_SIGMA", {0.0, 0.0, 0.0}}}, {}},
+	};
+
+	for (const RefConcentrationCase& c : cases)
+	{
+		for (bool external : {false, true})
+		{
+			for (int supplied = 0; supplied < 4; ++supplied)
+			{
+				INFO("Model: " << c.model << ", external: " << external << ", supplied reference mask: " << supplied);
+				nlohmann::json config = external ? toExternalConfig(c.config, c.constants) : c.config;
+				const double refC = (supplied & 1) ? 2.0 : 1.0;
+				const double refQ = (supplied & 2) ? 4.0 : 1.0;
+				if (supplied & 1)
+					config[c.prefix + "REFC0"] = refC;
+				if (supplied & 2)
+					config[c.prefix + "REFQ"] = refQ;
+
+				auto cbm = cadet::test::binding::ConfiguredBindingModel::create(
+					external ? ("EXT_" + c.model).c_str() : c.model.c_str(), c.nBound.size(), c.nBound.data(), true, config.dump().c_str());
+				CHECK(registeredScalar(cbm, c.prefix + "REFC0") == refC);
+				CHECK(registeredScalar(cbm, c.prefix + "REFQ") == refQ);
+			}
+		}
+	}
+}
 
 CADET_BINDINGTEST("LINEAR", "EXT_LINEAR", (1,1), (1,0,1), (1.0, 2.0, 0.0, 0.0), (1.0, 3.0, 2.0, 0.0, 0.0), \
 	R"json( "LIN_KA": [1.0, 2.0],

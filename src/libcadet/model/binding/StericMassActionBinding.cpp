@@ -39,7 +39,8 @@
 		],
 	"constantParameters":
 		[
-			{ "type": "ReferenceConcentrationParameter", "varName": ["refC0", "refQ"], "objName": "refConcentration", "confPrefix": "SMA_"}
+			{ "type": "ScalarParameter", "varName": "refC0", "confName": "SMA_REFC0", "default": 1.0},
+			{ "type": "ScalarParameter", "varName": "refQ", "confName": "SMA_REFQ", "default": 1.0}
 		]
 }
 </codegen>*/
