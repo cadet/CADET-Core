@@ -1,4 +1,4 @@
-<a id="activated-sludge-model-config"></a>
+(activated-sludge-model-config)=
 
 # Activated Sludge Model (ASM3h)
 
@@ -8,7 +8,7 @@ For information on model equations, refer to [Activated Sludge Model (ASM3h)](..
 
 ## Notes
 
-- `phase_reaction_ZZZ` refers to one of the phase-specific reaction groups listed in [Reaction models](index.rst).
+- `phase_reaction_ZZZ` refers to one of the phase-specific reaction groups listed in [Reaction models](index.md).
   This model acts on the liquid phase components, so only `liquid_reaction_ZZZ` is supported;
   configuring it in a solid phase is rejected.
 

@@ -1,4 +1,4 @@
-<a id="activated-sludge-model"></a>
+(activated-sludge-model)=
 
 # Activated Sludge Model (ASM3h)
 
@@ -199,7 +199,7 @@ For configuration details, see [Activated Sludge Model (ASM3h)](../../interface/
 
 The ASM3h model includes an aeration reaction ($r_{13}$) that is activated when both `ASM3_IO2` and `ASM3_V` are set.
 The aeration rate is computed as $iO_2 / V$. To disable aeration, omit either parameter.
-For more flexible aeration handling, model oxygen input explicitly via the Inlet unit operation (see [Inlet](../unit_operations/inlet.rst)).
+For more flexible aeration handling, model oxygen input explicitly via the Inlet unit operation (see [Inlet](../unit_operations/inlet.md)).
 
 ### Substrate Fractionation
 
