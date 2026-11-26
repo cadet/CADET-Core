@@ -286,8 +286,8 @@ protected:
 		if (!(paramProvider.getDouble("ASM3_T") >= 0.0))
 			throw InvalidParameterException("ASM3 configuration: Temperature T must be non-negative");
 
-		if (_activeAeration && !(paramProvider.getDouble("ASM3_V") >= 0.0))
-			throw InvalidParameterException("ASM3 configuration: Aeration volume V must be non-negative");
+		if (_activeAeration && !(paramProvider.getDouble("ASM3_V") > 0.0))
+			throw InvalidParameterException("ASM3 configuration: Aeration volume V must be positive");
 
 		if (_givenAd)
 			_stoichiometry.resize(_nComp, 15);
