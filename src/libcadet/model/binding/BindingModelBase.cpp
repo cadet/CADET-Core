@@ -24,6 +24,27 @@
 #include <iterator>
 #include <algorithm>
 
+/*<codegen>
+{
+	"model": "BINDING_MODEL",
+	"inputs": [
+		{
+			"confName": "IS_KINETIC",
+			"dtype": "bool",
+			"dims": [
+				"total_bound_state"
+			],
+			"description": "Selects kinetic or quasi-stationary adsorption mode.",
+			"required": true,
+			"notes": "1 = kinetic, 0 = quasi-stationary. If a single value is given, the mode is set for all bound states. Otherwise, the adsorption mode is set for each bound state separately.",
+			"sensitivity": false,
+			"externalFunction": false,
+			"sectionDependent": false
+		}
+	]
+}
+</codegen>*/
+
 namespace cadet
 {
 

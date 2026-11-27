@@ -1704,6 +1704,57 @@ namespace cadet
 		_initStepSize = initStepSizes;
 	}
 
+/*<codegen>
+{
+	"group": "solver/time_integrator",
+	"inputs": [
+		{
+			"confName": "RELTOL",
+			"dtype": "double",
+			"dims": [],
+			"range": {
+				"ge": 0
+			},
+			"description": "Relative tolerance in the solution of the original system.",
+			"required": true,
+			"sensitivity": false,
+			"externalFunction": false,
+			"sectionDependent": false
+		},
+		{
+			"confName": "RELTOL_SENS",
+			"dtype": "double",
+			"dims": [],
+			"range": {
+				"ge": 0
+			},
+			"description": "Relative tolerance in the solution of the sensitivity systems.",
+			"required": false,
+			"default": {
+				"ref": "RELTOL"
+			},
+			"sensitivity": false,
+			"externalFunction": false,
+			"sectionDependent": false
+		},
+		{
+			"confName": "INIT_STEP_SIZE",
+			"dtype": "double",
+			"dims": [],
+			"unit": "s",
+			"range": {
+				"ge": 0
+			},
+			"description": "Initial time integrator step size for each section or one value for all sections.",
+			"required": true,
+			"notes": "0.0 = IDAS default value.",
+			"sensitivity": false,
+			"externalFunction": false,
+			"sectionDependent": true
+		}
+	]
+}
+</codegen>*/
 	void Simulator::configure(IParameterProvider& paramProvider)
 	{
 		paramProvider.pushScope("time_integrator");
