@@ -24,6 +24,7 @@
 #include "UnitOperationBase.hpp"
 #include "cadet/SolutionExporter.hpp"
 #include "model/parts/ConvectionDispersionOperatorDG.hpp"
+#include "model/parts/ConvectionDispersionOperatorFV.hpp"
 #include "model/particle/ParticleModel.hpp"
 #include "model/reaction/ReactionSystem.hpp"
 #include "AutoDiff.hpp"
@@ -59,6 +60,27 @@ namespace
 	struct LumpedRateModelWithoutPoresDGName<cadet::model::parts::VariableCrossSectionConvectionDispersionOperatorBaseDG>
 	{
 		static const char* identifier() CADET_NOEXCEPT { return "LUMPED_RATE_MODEL_WITHOUT_PORES_DG"; }
+	};
+
+	template <>
+	struct LumpedRateModelWithoutPoresDGName<cadet::model::parts::AxialConvectionDispersionOperatorBaseFV>
+	{
+		// Distinct from LUMPED_RATE_MODEL_WITHOUT_PORES_FV, the dedicated FV unit operation. Both
+		// discretize the bulk with FV and differ only in the Jacobian representation and the linear
+		// solve: a banded matrix with our own LU there, an Eigen sparse matrix and factorization here.
+		static const char* identifier() CADET_NOEXCEPT { return "LUMPED_RATE_MODEL_WITHOUT_PORES_FV_SPARSE"; }
+	};
+
+	template <>
+	struct LumpedRateModelWithoutPoresDGName<cadet::model::parts::RadialConvectionDispersionOperatorBaseFV>
+	{
+		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_LUMPED_RATE_MODEL_WITHOUT_PORES_FV_SPARSE"; }
+	};
+
+	template <>
+	struct LumpedRateModelWithoutPoresDGName<cadet::model::parts::FrustumConvectionDispersionOperatorBaseFV>
+	{
+		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_LUMPED_RATE_MODEL_WITHOUT_PORES_FV_SPARSE"; }
 	};
 }
 
@@ -568,6 +590,9 @@ namespace cadet
 
 		IUnitOperation* createAxialLRMDG(UnitOpIdx uoId);
 		IUnitOperation* createVariableCrossSectionLRMDG(UnitOpIdx uoId);
+		IUnitOperation* createAxialLRMFVsparse(UnitOpIdx uoId);
+		IUnitOperation* createRadialLRMFVsparse(UnitOpIdx uoId);
+		IUnitOperation* createFrustumLRMFVsparse(UnitOpIdx uoId);
 
 	} // namespace model
 } // namespace cadet
