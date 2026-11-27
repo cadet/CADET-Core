@@ -394,25 +394,35 @@ unsigned int AxialConvectionDispersionOperatorBaseFV::nJacEntries(bool pureNNZ) 
  */
 void AxialConvectionDispersionOperatorBaseFV::convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset) const
 {
+	const int strideCell = strideColCell();
+	const int strideComp = strideColComp();
+	const int blockSize = static_cast<int>(_nCol) * strideCell;
+
 	const int lb = static_cast<int>(jacobianLowerBandwidth());
 	const int ub = static_cast<int>(jacobianUpperBandwidth());
-	const int N = static_cast<int>(_nCol * _nComp);
 
-	for (int row = 0; row < N; ++row)
+	for (int cell = 0; cell < static_cast<int>(_nCol); ++cell)
 	{
-		const int colMin = std::max(0, row - lb);
-		const int colMax = std::min(N - 1, row + ub);
-		for (int col = colMin; col <= colMax; ++col)
-			tripletList.push_back(T(bulkOffset + row, bulkOffset + col, 0.0));
+		for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+		{
+			const int row = cell * strideCell + comp * strideComp;
+			const int colMin = std::max(0, row - lb);
+			const int colMax = std::min(blockSize - 1, row + ub);
+			for (int col = colMin; col <= colMax; ++col)
+				tripletList.push_back(T(bulkOffset + row, bulkOffset + col, 0.0));
+		}
 	}
 
 	// Inlet coupling: the first cell (forward flow) or last cell (backward flow) has
 	// one entry per component that connects to the inlet DOFs [0 .. nComp-1].
-	const int inletCellRow = forwardFlow()
-		? 0
-		: (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
-	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
-		tripletList.push_back(T(bulkOffset + inletCellRow + comp, comp, 0.0));
+	if (bulkOffset > 0)
+	{
+		const int inletCellRow = forwardFlow()
+			? 0
+			: (static_cast<int>(_nCol) - 1) * strideCell;
+		for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+			tripletList.push_back(T(bulkOffset + inletCellRow + comp * strideComp, comp, 0.0));
+	}
 }
 
 template <typename StateType>
@@ -441,9 +451,12 @@ int AxialConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel&
 
 	// Inlet coupling: entries of the inlet-adjacent cell w.r.t. the inlet DOFs.
 	// These entries are reserved in convDispJacPattern(), so writing them keeps the matrix compressed.
-	const int inletCellRow = forwardFlow() ? 0 : (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
-	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
-		jacobian.coeffRef(bulkOffset + inletCellRow + comp, comp) = jacInlet(0, 0);
+	if (bulkOffset > 0)
+	{
+		const int inletCellRow = forwardFlow() ? 0 : (static_cast<int>(_nCol) - 1) * strideColCell();
+		for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+			jacobian.coeffRef(bulkOffset + inletCellRow + comp * strideColComp(), comp) = jacInlet(0, 0);
+	}
 
 	return jacobian.isCompressed();
 }
@@ -625,8 +638,9 @@ void AxialConvectionDispersionOperatorBaseFV::addTimeDerivativeToJacobian(double
 
 void AxialConvectionDispersionOperatorBaseFV::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset) const
 {
+	const int gapCell = strideColCell() - static_cast<int>(_nComp) * strideColComp();
 	linalg::BandedEigenSparseRowIterator jac(jacDisc, blockOffset);
-	for (unsigned int i = 0; i < _nCol; ++i)
+	for (unsigned int i = 0; i < _nCol; ++i, jac += gapCell)
 		for (unsigned int j = 0; j < _nComp; ++j, ++jac)
 			jac[0] += alpha;
 }
@@ -1169,23 +1183,33 @@ unsigned int RadialConvectionDispersionOperatorBaseFV::nJacEntries(bool pureNNZ)
 
 void RadialConvectionDispersionOperatorBaseFV::convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset) const
 {
+	const int strideCell = strideColCell();
+	const int strideComp = strideColComp();
+	const int blockSize = static_cast<int>(_nCol) * strideCell;
+
 	const int lb = static_cast<int>(jacobianLowerBandwidth());
 	const int ub = static_cast<int>(jacobianUpperBandwidth());
-	const int N = static_cast<int>(_nCol * _nComp);
 
-	for (int row = 0; row < N; ++row)
+	for (int cell = 0; cell < static_cast<int>(_nCol); ++cell)
 	{
-		const int colMin = std::max(0, row - lb);
-		const int colMax = std::min(N - 1, row + ub);
-		for (int col = colMin; col <= colMax; ++col)
-			tripletList.push_back(T(bulkOffset + row, bulkOffset + col, 0.0));
+		for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+		{
+			const int row = cell * strideCell + comp * strideComp;
+			const int colMin = std::max(0, row - lb);
+			const int colMax = std::min(blockSize - 1, row + ub);
+			for (int col = colMin; col <= colMax; ++col)
+				tripletList.push_back(T(bulkOffset + row, bulkOffset + col, 0.0));
+		}
 	}
 
-	const int inletCellRow = forwardFlow()
-		? 0
-		: (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
-	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
-		tripletList.push_back(T(bulkOffset + inletCellRow + comp, comp, 0.0));
+	if (bulkOffset > 0)
+	{
+		const int inletCellRow = forwardFlow()
+			? 0
+			: (static_cast<int>(_nCol) - 1) * strideCell;
+		for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+			tripletList.push_back(T(bulkOffset + inletCellRow + comp * strideComp, comp, 0.0));
+	}
 }
 
 template <typename StateType>
@@ -1214,9 +1238,12 @@ int RadialConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IModel
 
 	// Inlet coupling: entries of the inlet-adjacent cell w.r.t. the inlet DOFs.
 	// These entries are reserved in convDispJacPattern(), so writing them keeps the matrix compressed.
-	const int inletCellRow = forwardFlow() ? 0 : (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
-	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
-		jacobian.coeffRef(bulkOffset + inletCellRow + comp, comp) = jacInlet(0, 0);
+	if (bulkOffset > 0)
+	{
+		const int inletCellRow = forwardFlow() ? 0 : (static_cast<int>(_nCol) - 1) * strideColCell();
+		for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+			jacobian.coeffRef(bulkOffset + inletCellRow + comp * strideColComp(), comp) = jacInlet(0, 0);
+	}
 
 	return jacobian.isCompressed();
 }
@@ -1397,8 +1424,9 @@ void RadialConvectionDispersionOperatorBaseFV::addTimeDerivativeToJacobian(doubl
 
 void RadialConvectionDispersionOperatorBaseFV::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset) const
 {
+	const int gapCell = strideColCell() - static_cast<int>(_nComp) * strideColComp();
 	linalg::BandedEigenSparseRowIterator jac(jacDisc, blockOffset);
-	for (unsigned int i = 0; i < _nCol; ++i)
+	for (unsigned int i = 0; i < _nCol; ++i, jac += gapCell)
 		for (unsigned int j = 0; j < _nComp; ++j, ++jac)
 			jac[0] += alpha;
 }
@@ -1966,23 +1994,33 @@ unsigned int FrustumConvectionDispersionOperatorBaseFV::nJacEntries(bool pureNNZ
 
 void FrustumConvectionDispersionOperatorBaseFV::convDispJacPattern(std::vector<T>& tripletList, const int bulkOffset) const
 {
+	const int strideCell = strideColCell();
+	const int strideComp = strideColComp();
+	const int blockSize = static_cast<int>(_nCol) * strideCell;
+
 	const int lb = static_cast<int>(jacobianLowerBandwidth());
 	const int ub = static_cast<int>(jacobianUpperBandwidth());
-	const int N = static_cast<int>(_nCol * _nComp);
 
-	for (int row = 0; row < N; ++row)
+	for (int cell = 0; cell < static_cast<int>(_nCol); ++cell)
 	{
-		const int colMin = std::max(0, row - lb);
-		const int colMax = std::min(N - 1, row + ub);
-		for (int col = colMin; col <= colMax; ++col)
-			tripletList.push_back(T(bulkOffset + row, bulkOffset + col, 0.0));
+		for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+		{
+			const int row = cell * strideCell + comp * strideComp;
+			const int colMin = std::max(0, row - lb);
+			const int colMax = std::min(blockSize - 1, row + ub);
+			for (int col = colMin; col <= colMax; ++col)
+				tripletList.push_back(T(bulkOffset + row, bulkOffset + col, 0.0));
+		}
 	}
 
-	const int inletCellRow = forwardFlow()
-		? 0
-		: (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
-	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
-		tripletList.push_back(T(bulkOffset + inletCellRow + comp, comp, 0.0));
+	if (bulkOffset > 0)
+	{
+		const int inletCellRow = forwardFlow()
+			? 0
+			: (static_cast<int>(_nCol) - 1) * strideCell;
+		for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+			tripletList.push_back(T(bulkOffset + inletCellRow + comp * strideComp, comp, 0.0));
+	}
 }
 
 template <typename StateType>
@@ -2011,9 +2049,12 @@ int FrustumConvectionDispersionOperatorBaseFV::calcTransportJacobian(const IMode
 
 	// Inlet coupling: entries of the inlet-adjacent cell w.r.t. the inlet DOFs.
 	// These entries are reserved in convDispJacPattern(), so writing them keeps the matrix compressed.
-	const int inletCellRow = forwardFlow() ? 0 : (static_cast<int>(_nCol) - 1) * static_cast<int>(_nComp);
-	for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
-		jacobian.coeffRef(bulkOffset + inletCellRow + comp, comp) = jacInlet(0, 0);
+	if (bulkOffset > 0)
+	{
+		const int inletCellRow = forwardFlow() ? 0 : (static_cast<int>(_nCol) - 1) * strideColCell();
+		for (int comp = 0; comp < static_cast<int>(_nComp); ++comp)
+			jacobian.coeffRef(bulkOffset + inletCellRow + comp * strideColComp(), comp) = jacInlet(0, 0);
+	}
 
 	return jacobian.isCompressed();
 }
@@ -2202,8 +2243,9 @@ void FrustumConvectionDispersionOperatorBaseFV::addTimeDerivativeToJacobian(doub
 
 void FrustumConvectionDispersionOperatorBaseFV::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset) const
 {
+	const int gapCell = strideColCell() - static_cast<int>(_nComp) * strideColComp();
 	linalg::BandedEigenSparseRowIterator jac(jacDisc, blockOffset);
-	for (unsigned int i = 0; i < _nCol; ++i)
+	for (unsigned int i = 0; i < _nCol; ++i, jac += gapCell)
 		for (unsigned int j = 0; j < _nComp; ++j, ++jac)
 			jac[0] += alpha;
 }
