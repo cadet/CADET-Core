@@ -911,6 +911,7 @@ void MultiChannelTransportModel::multiplyWithDerivativeJacobian(const Simulation
 void MultiChannelTransportModel::setExternalFunctions(IExternalFunction** extFuns, unsigned int size)
 {
 	// TODO: Add exchange here
+	_reaction.setExternalFunctions(extFuns, size);
 }
 
 unsigned int MultiChannelTransportModel::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT

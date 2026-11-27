@@ -2222,6 +2222,13 @@ void GeneralRateModel2D::setExternalFunctions(IExternalFunction** extFuns, unsig
 		if (bm)
 			bm->setExternalFunctions(extFuns, size);
 	}
+
+	_reaction.setExternalFunctions(extFuns, size);
+	for (ReactionSystem* reaction : _reacParticle)
+	{
+		if (reaction)
+			reaction->setExternalFunctions(extFuns, size);
+	}
 }
 
 unsigned int GeneralRateModel2D::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT

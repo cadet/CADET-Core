@@ -958,6 +958,8 @@ namespace cadet
 		{
 			if (_binding[0])
 				_binding[0]->setExternalFunctions(extFuns, size);
+
+			_reaction.setExternalFunctions(extFuns, size);
 		}
 
 		template <typename ConvDispOperator>

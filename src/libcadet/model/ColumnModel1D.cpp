@@ -1645,6 +1645,13 @@ void ColumnModel1D<ConvDispOperator>::setExternalFunctions(IExternalFunction** e
 		if (bm)
 			bm->setExternalFunctions(extFuns, size);
 	}
+
+	_reaction.setExternalFunctions(extFuns, size);
+	for (IParticleModel* particle : _particles)
+	{
+		if (particle)
+			particle->getReaction()->setExternalFunctions(extFuns, size);
+	}
 }
 
 template <typename ConvDispOperator>
