@@ -141,44 +141,64 @@ namespace cadet
 			if (firstConfigCall)
 				_linearSolver = cadet::linalg::setLinearSolver(paramProvider.exists("LINEAR_SOLVER") ? paramProvider.getString("LINEAR_SOLVER") : "SparseLU");
 
-			// The counts below are unsigned, so a negative value read from the input has to be
-			// rejected before the assignment, where it would turn into a huge number of nodes
-			// or elements. POLYDEG was also read outside of the branch that needs it, which
-			// fails whenever the field is absent and the default is meant to apply.
-			if (paramProvider.exists("POLYDEG"))
-			{
-				const int polyDeg = paramProvider.getInt("POLYDEG");
-				if (polyDeg < 1)
-					throw InvalidParameterException("Polynomial degree (POLYDEG) must be at least 1, but is " + std::to_string(polyDeg));
+			// A finite volume cell is a single node, which is all that separates the two
+			// discretizations here: everything below this point is expressed in discrete points.
+			const std::string spatialMethod = paramProvider.exists("SPATIAL_METHOD") ? paramProvider.getString("SPATIAL_METHOD") : "DG";
 
-				_disc.polyDeg = static_cast<unsigned int>(polyDeg);
+			if (spatialMethod == "DG")
+			{
+				// The counts below are unsigned, so a negative value read from the input has to be
+				// rejected before the assignment, where it would turn into a huge number of nodes
+				// or elements. POLYDEG was also read outside of the branch that needs it, which
+				// fails whenever the field is absent and the default is meant to apply.
+				if (paramProvider.exists("POLYDEG"))
+				{
+					const int polyDeg = paramProvider.getInt("POLYDEG");
+					if (polyDeg < 1)
+						throw InvalidParameterException("Polynomial degree (POLYDEG) must be at least 1, but is " + std::to_string(polyDeg));
+
+					_disc.polyDeg = static_cast<unsigned int>(polyDeg);
+				}
+				else
+					_disc.polyDeg = 4u; // default value
+
+				if (_disc.polyDeg < 3)
+					LOG(Warning) << "Polynomial degree > 2 in bulk discretization (cf. POLYDEG) is always recommended for performance reasons.";
+
+				_disc.nNodes = _disc.polyDeg + 1;
+
+				if (paramProvider.exists("NELEM"))
+				{
+					const int nElem = paramProvider.getInt("NELEM");
+					if (nElem < 1)
+						throw InvalidParameterException("Field NELEM has to be at least 1, but is " + std::to_string(nElem));
+
+					_disc.nElem = static_cast<unsigned int>(nElem);
+				}
+				else if (paramProvider.exists("NCOL"))
+				{
+					const int nCol = paramProvider.getInt("NCOL");
+					if (nCol < 1)
+						throw InvalidParameterException("Field NCOL has to be at least 1, but is " + std::to_string(nCol));
+
+					_disc.nElem = std::max(1u, static_cast<unsigned int>(nCol) / _disc.nNodes); // number of elements is rounded down
+				}
+				else
+					throw InvalidParameterException("Specify field NELEM (or NCOL)");
 			}
-			else
-				_disc.polyDeg = 4u; // default value
-
-			if (_disc.polyDeg < 3)
-				LOG(Warning) << "Polynomial degree > 2 in bulk discretization (cf. POLYDEG) is always recommended for performance reasons.";
-
-			_disc.nNodes = _disc.polyDeg + 1;
-
-			if (paramProvider.exists("NELEM"))
+			else if (spatialMethod == "FV")
 			{
-				const int nElem = paramProvider.getInt("NELEM");
-				if (nElem < 1)
-					throw InvalidParameterException("Field NELEM has to be at least 1, but is " + std::to_string(nElem));
+				_disc.polyDeg = 0u;
+				_disc.nNodes = 1u;
 
-				_disc.nElem = static_cast<unsigned int>(nElem);
-			}
-			else if (paramProvider.exists("NCOL"))
-			{
 				const int nCol = paramProvider.getInt("NCOL");
 				if (nCol < 1)
 					throw InvalidParameterException("Field NCOL has to be at least 1, but is " + std::to_string(nCol));
 
-				_disc.nElem = std::max(1u, static_cast<unsigned int>(nCol) / _disc.nNodes); // number of elements is rounded down
+				_disc.nElem = static_cast<unsigned int>(nCol);
 			}
 			else
-				throw InvalidParameterException("Specify field NELEM (or NCOL)");
+				throw InvalidParameterException("Unknown spatial discretization method " + spatialMethod);
 
 			if (_disc.nElem < 1)
 				throw InvalidParameterException("Number of column elements must be at least 1!");
@@ -1086,7 +1106,9 @@ namespace cadet
 			_jacDisc = _jac;
 
 			// add time derivative jacobian entries (dc_b / dt terms)
-			_convDispOp.addTimeDerivativeToJacobian(alpha, _jacDisc);
+			// The bulk block starts at row 0 of this unit operation's Jacobian, which holds no inlet
+			// DOFs. Stated explicitly because the FV operator has no default for the block offset.
+			_convDispOp.addTimeDerivativeToJacobian(alpha, _jacDisc, 0u);
 
 			// add time derivative jacobian entries (dc_s / dt terms)
 			linalg::BandedEigenSparseRowIterator jac(_jacDisc, 0);
@@ -2105,6 +2127,9 @@ namespace cadet
 		// Template instantiations
 		template class LumpedRateModelWithoutPoresDG<parts::AxialConvectionDispersionOperatorBaseCollocationDG>;
 		template class LumpedRateModelWithoutPoresDG<parts::VariableCrossSectionConvectionDispersionOperatorBaseDG>;
+		template class LumpedRateModelWithoutPoresDG<parts::AxialConvectionDispersionOperatorBaseFV>;
+		template class LumpedRateModelWithoutPoresDG<parts::RadialConvectionDispersionOperatorBaseFV>;
+		template class LumpedRateModelWithoutPoresDG<parts::FrustumConvectionDispersionOperatorBaseFV>;
 
 		IUnitOperation* createAxialLRMDG(UnitOpIdx uoId)
 		{
@@ -2116,6 +2141,24 @@ namespace cadet
 		{
 			typedef LumpedRateModelWithoutPoresDG<parts::VariableCrossSectionConvectionDispersionOperatorBaseDG> VariableCrossSectionLRM;
 			return new VariableCrossSectionLRM(uoId);
+		}
+
+		IUnitOperation* createAxialLRMFVsparse(UnitOpIdx uoId)
+		{
+			typedef LumpedRateModelWithoutPoresDG<parts::AxialConvectionDispersionOperatorBaseFV> AxialLRMFVsparse;
+			return new AxialLRMFVsparse(uoId);
+		}
+
+		IUnitOperation* createRadialLRMFVsparse(UnitOpIdx uoId)
+		{
+			typedef LumpedRateModelWithoutPoresDG<parts::RadialConvectionDispersionOperatorBaseFV> RadialLRMFVsparse;
+			return new RadialLRMFVsparse(uoId);
+		}
+
+		IUnitOperation* createFrustumLRMFVsparse(UnitOpIdx uoId)
+		{
+			typedef LumpedRateModelWithoutPoresDG<parts::FrustumConvectionDispersionOperatorBaseFV> FrustumLRMFVsparse;
+			return new FrustumLRMFVsparse(uoId);
 		}
 
 	}  // namespace model

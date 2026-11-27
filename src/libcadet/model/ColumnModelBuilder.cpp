@@ -281,11 +281,11 @@ namespace model
 					else if (discName == "FV")
 					{
 						if (colGeometry == "AXIAL_FLOW_CYLINDER")
-							model = createAxialFVLRM(uoId);
+							model = arrowHeadOpt ? createAxialFVLRM(uoId) : createAxialLRMFVsparse(uoId);
 						else if (colGeometry == "RADIAL_FLOW_CYLINDER_SHELL")
-							model = createRadialFVLRM(uoId);
+							model = arrowHeadOpt ? createRadialFVLRM(uoId) : createRadialLRMFVsparse(uoId);
 						else if (colGeometry == "AXIAL_FLOW_FRUSTUM")
-							model = createFrustumFVLRM(uoId);
+							model = arrowHeadOpt ? createFrustumFVLRM(uoId) : createFrustumLRMFVsparse(uoId);
 					}
 					else
 						LOG(Error) << "Unknown bulk discretization type " << discName << " for unit " << uoId;
@@ -374,7 +374,7 @@ namespace model
 				if(colGeometry == "AXIAL_FLOW_CYLINDER")
 				{
 					if (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES")
-						model = arrowHeadOpt ? createAxialFVLRM(uoId) : createAxialCol1DFV(uoId);
+						model = arrowHeadOpt ? createAxialFVLRM(uoId) : createAxialLRMFVsparse(uoId);
 					else if (uoType == "LUMPED_RATE_MODEL_WITH_PORES")
 						model = arrowHeadOpt ? createAxialFVLRMP(uoId) : createAxialCol1DFV(uoId);
 					else if (uoType == "GENERAL_RATE_MODEL")
@@ -383,7 +383,7 @@ namespace model
 				else if(colGeometry == "RADIAL_FLOW_CYLINDER_SHELL")
 				{
 					if (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES")
-						model = arrowHeadOpt ? createRadialFVLRM(uoId) : createRadialCol1DFV(uoId);
+						model = arrowHeadOpt ? createRadialFVLRM(uoId) : createRadialLRMFVsparse(uoId);
 					else if (uoType == "LUMPED_RATE_MODEL_WITH_PORES")
 						model = arrowHeadOpt ? createRadialFVLRMP(uoId) : createRadialCol1DFV(uoId);
 					else if (uoType == "GENERAL_RATE_MODEL")
@@ -392,7 +392,7 @@ namespace model
 				else if(colGeometry == "AXIAL_FLOW_FRUSTUM")
 				{
 					if (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES")
-						model = arrowHeadOpt ? createFrustumFVLRM(uoId) : createFrustumCol1DFV(uoId);
+						model = arrowHeadOpt ? createFrustumFVLRM(uoId) : createFrustumLRMFVsparse(uoId);
 					else if (uoType == "LUMPED_RATE_MODEL_WITH_PORES")
 						model = arrowHeadOpt ? createFrustumFVLRMP(uoId) : createFrustumCol1DFV(uoId);
 					else if (uoType == "GENERAL_RATE_MODEL")
