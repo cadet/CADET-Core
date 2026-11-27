@@ -515,15 +515,12 @@ void AxialConvectionDispersionOperatorBaseCollocationDG::multiplyWithDerivativeJ
  */
 void AxialConvectionDispersionOperatorBaseCollocationDG::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset) const
 {
-	const int gapelement = strideColNode() - static_cast<int>(_nComp) * strideColComp();
-	linalg::BandedEigenSparseRowIterator jac(jacDisc, blockOffset);
+	addTimeDerivativeToJacobianImpl(alpha, linalg::BandedEigenSparseRowIterator(jacDisc, blockOffset));
+}
 
-	for (unsigned int point = 0; point < _nPoints; ++point, jac+=gapelement) {
-		for (unsigned int comp = 0; comp < _nComp; ++comp, ++jac) {
-			// dc_b / dt in transport equation
-			jac[0] += alpha;
-		}
-	}
+void AxialConvectionDispersionOperatorBaseCollocationDG::addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc) const
+{
+	addTimeDerivativeToJacobianImpl(alpha, jacDisc.row(0));
 }
 
 unsigned int AxialConvectionDispersionOperatorBaseCollocationDG::jacobianLowerBandwidth() const CADET_NOEXCEPT
@@ -1153,12 +1150,12 @@ void VariableCrossSectionConvectionDispersionOperatorBaseDG::multiplyWithDerivat
 
 void VariableCrossSectionConvectionDispersionOperatorBaseDG::addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset) const
 {
-	const int gapElem = strideColNode() - static_cast<int>(_nComp) * strideColComp();
-	linalg::BandedEigenSparseRowIterator jac(jacDisc, blockOffset);
+	addTimeDerivativeToJacobianImpl(alpha, linalg::BandedEigenSparseRowIterator(jacDisc, blockOffset));
+}
 
-	for (unsigned int point = 0; point < _nPoints; ++point, jac += gapElem)
-		for (unsigned int comp = 0; comp < _nComp; ++comp, ++jac)
-			jac[0] += alpha;
+void VariableCrossSectionConvectionDispersionOperatorBaseDG::addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc) const
+{
+	addTimeDerivativeToJacobianImpl(alpha, jacDisc.row(0));
 }
 
 void VariableCrossSectionConvectionDispersionOperatorBaseDG::computeGeometry()

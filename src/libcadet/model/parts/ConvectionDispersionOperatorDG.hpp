@@ -23,6 +23,7 @@
 #include "Memory.hpp"
 #include "SimulationTypes.hpp"
 #include <ParamReaderHelper.hpp>
+#include "linalg/BandMatrix.hpp"
 #include "linalg/BandedEigenSparseRowIterator.hpp"
 #include "model/parts/DGToolbox.hpp"
 #include "model/parts/IConvectionDispersionOperatorBase1D.hpp"
@@ -100,6 +101,7 @@ namespace parts
 		unsigned int nJacEntries(bool pureNNZ = false) const CADET_NOEXCEPT override;
 		void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const override;
 		void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset = 0) const override;
+		void addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc) const;
 
 		inline const active& bedLength() const CADET_NOEXCEPT { return _bedLength; }
 		inline const active& currentVelocity(double pos) const CADET_NOEXCEPT { return _curVelocity; }
@@ -174,6 +176,16 @@ namespace parts
 
 		template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
 		int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
+
+		template <typename RowIteratorType>
+		void addTimeDerivativeToJacobianImpl(double alpha, RowIteratorType jac) const
+		{
+			const int gapElem = strideColNode() - static_cast<int>(_nComp) * strideColComp();
+
+			for (unsigned int point = 0; point < _nPoints; ++point, jac += gapElem)
+				for (unsigned int comp = 0; comp < _nComp; ++comp, ++jac)
+					jac[0] += alpha;
+		}
 
 		// discretization parameters
 		unsigned int _nComp; //!< Number of components
@@ -902,6 +914,7 @@ namespace parts
 		unsigned int nJacEntries(bool pureNNZ = false) const CADET_NOEXCEPT override;
 		void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const override;
 		void addTimeDerivativeToJacobian(double alpha, Eigen::SparseMatrix<double, Eigen::RowMajor>& jacDisc, unsigned int blockOffset = 0) const override;
+		void addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc) const;
 
 		// Geometry accessors
 
@@ -1286,6 +1299,16 @@ namespace parts
 
 		template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
 		int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
+
+		template <typename RowIteratorType>
+		void addTimeDerivativeToJacobianImpl(double alpha, RowIteratorType jac) const
+		{
+			const int gapElem = strideColNode() - static_cast<int>(_nComp) * strideColComp();
+
+			for (unsigned int point = 0; point < _nPoints; ++point, jac += gapElem)
+				for (unsigned int comp = 0; comp < _nComp; ++comp, ++jac)
+					jac[0] += alpha;
+		}
 	};
 
 } // namespace parts
