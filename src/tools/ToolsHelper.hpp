@@ -145,12 +145,12 @@ inline void parseAndWriteSensitivitiesFromCmdLine(Writer_t& writer, const std::v
 			paramParType.push_back(std::stoi(tokens[4]));
 			paramBoundState.push_back(std::stoi(tokens[5]));
 
-			if (tokens.size() >= 6)
+			if (tokens.size() >= 7)
 				paramFactor.push_back(std::stod(tokens[6]));
 			else
 				paramFactor.push_back(1.0);
 
-			if (tokens.size() >= 7)
+			if (tokens.size() >= 8)
 				paramUnit.push_back(std::stoi(tokens[7]));
 			else
 				paramUnit.push_back(0);

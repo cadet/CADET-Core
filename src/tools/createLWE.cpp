@@ -65,13 +65,13 @@ void configureParticleDiscretization(cadet::io::HDF5Writer& writer, const int po
     {
         writer.scalar<std::string>("SPATIAL_METHOD", "DG");
         writer.scalar<int>("PAR_POLYDEG", polyDeg);
-        writer.scalar<int>("PAR_NELEM", polyDeg);
+        writer.scalar<int>("PAR_NELEM", nPar);
     }
 
     writer.scalar<std::string>("PAR_DISC_TYPE", "EQUIDISTANT");
 }
 
-void configureBulkDiscretization(cadet::io::HDF5Writer& writer, int polyDeg, int nCol, int nRad, bool adJacobian)
+void configureBulkDiscretization(cadet::io::HDF5Writer& writer, int polyDeg, int nCol, int nRad, bool adJacobian, bool radialFlow = false)
 {
     Scope<cadet::io::HDF5Writer> s2(writer, "discretization");
 
@@ -102,11 +102,13 @@ void configureBulkDiscretization(cadet::io::HDF5Writer& writer, int polyDeg, int
     {
         writer.scalar<std::string>("SPATIAL_METHOD", "DG");
         writer.scalar<int>("POLYDEG", polyDeg);
-        writer.scalar<int>("USE_COLLOCATION_DG", 1);
-        writer.scalar<int>("NELEM", polyDeg);
+        if (!radialFlow)
+            writer.scalar<int>("USE_COLLOCATION_DG", 1);
+        writer.scalar<int>("NELEM", nCol);
 
         if (nRad > 1)
         {
+            writer.scalar<int>("AX_NELEM", nCol);
             writer.scalar<int>("RAD_NELEM", nRad);
             writer.scalar<int>("RAD_POLYDEG", polyDeg);
             writer.scalar("RADIAL_DISC_TYPE", std::string("EQUIDISTANT"));
@@ -116,22 +118,12 @@ void configureBulkDiscretization(cadet::io::HDF5Writer& writer, int polyDeg, int
     writer.scalar<int>("USE_ANALYTIC_JACOBIAN", !adJacobian);
 }
 
-void configureAdsorption(cadet::io::HDF5Writer& writer, int nParType, bool isKinetic)
+void configureAdsorption(cadet::io::HDF5Writer& writer, int nComp, bool isKinetic)
 {
-    const std::vector<int> nBound(4 * nParType, 1);
+    const std::vector<int> nBound(nComp, 1);
     writer.vector<int>("NBOUND", nBound.size(), nBound.data());
 
-    if (nParType > 1)
-    {
-        std::vector<std::string> adsorption_models;
-        for (int i = 0; i < nParType; ++i) {
-            adsorption_models.push_back("STERIC_MASS_ACTION");
-        }
-        writer.vector<std::string>("ADSORPTION_MODEL", adsorption_models.size(), adsorption_models.data());
-        writer.scalar<int>("ADSORPTION_MODEL_MULTIPLEX", 0);
-    }
-    else
-        writer.scalar("ADSORPTION_MODEL", std::string("STERIC_MASS_ACTION"));
+    writer.scalar("ADSORPTION_MODEL", std::string("STERIC_MASS_ACTION"));
 
     const double kA[] = { 0.0, 35.5, 1.59, 7.7 };
     const double kD[] = { 0.0, 1000.0, 1000.0, 1000.0 };
@@ -139,34 +131,15 @@ void configureAdsorption(cadet::io::HDF5Writer& writer, int nParType, bool isKin
     const double nu[] = { 0.0, 4.7, 5.29, 3.7 };
     const double sigma[] = { 0.0, 11.83, 10.6, 10.0 };
 
-
-    for (int i = 0; i < nParType; ++i)
     {
-        if (nParType > 1)
-        {
-            std::stringstream ss;
-            ss << std::setfill('0') << std::setw(3) << i;
-            std::string parIdx = ss.str();
-            Scope<cadet::io::HDF5Writer> s2(writer, "adsorption_" + parIdx);
+        Scope<cadet::io::HDF5Writer> s2(writer, "adsorption");
 
-            writer.scalar<int>("IS_KINETIC", isKinetic);
-            writer.vector<double>("SMA_KA", 4, kA);
-            writer.vector<double>("SMA_KD", 4, kD);
-            writer.scalar<double>("SMA_LAMBDA", smaLambda);
-            writer.vector<double>("SMA_NU", 4, nu);
-            writer.vector<double>("SMA_SIGMA", 4, sigma);
-        }
-        else
-        {
-            Scope<cadet::io::HDF5Writer> s2(writer, "adsorption");
-
-            writer.scalar<int>("IS_KINETIC", isKinetic);
-            writer.vector<double>("SMA_KA", 4, kA);
-            writer.vector<double>("SMA_KD", 4, kD);
-            writer.scalar<double>("SMA_LAMBDA", smaLambda);
-            writer.vector<double>("SMA_NU", 4, nu);
-            writer.vector<double>("SMA_SIGMA", 4, sigma);
-        }
+        writer.scalar<int>("IS_KINETIC", isKinetic);
+        writer.vector<double>("SMA_KA", 4, kA);
+        writer.vector<double>("SMA_KD", 4, kD);
+        writer.scalar<double>("SMA_LAMBDA", smaLambda);
+        writer.vector<double>("SMA_NU", 4, nu);
+        writer.vector<double>("SMA_SIGMA", 4, sigma);
     }
 }
 
@@ -175,6 +148,12 @@ void configureParticles(cadet::io::HDF5Writer& writer, const int nParType, const
     const double par_radius = 4.5e-5;
     const double par_coreradius = 0.0;
     const double par_porosity = 0.75;
+
+    if (nParType > 1)
+    {
+        const std::vector<double> parTypeVolFrac(nParType, 1.0 / nParType);
+        writer.vector<double>("PAR_TYPE_VOLFRAC", parTypeVolFrac.size(), parTypeVolFrac.data());
+    }
 
     for (int parType = 0; parType < nParType; parType++)
     {
@@ -216,7 +195,7 @@ void configureParticles(cadet::io::HDF5Writer& writer, const int nParType, const
             writer.scalar<int>("HAS_FILM_DIFFUSION", false);
 
 
-        configureAdsorption(writer, nParType, isKinetic);
+        configureAdsorption(writer, 4, isKinetic);
     }
 }
 
@@ -257,7 +236,7 @@ void configureLRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp
         writer.scalar<std::string>("GEOMETRY", "RADIAL_FLOW_CYLINDER_SHELL");
         writer.scalar<double>("CYLINDER_HEIGHT", 0.005);
         writer.scalar<double>("BED_LENGTH", 0.0014);
-        writer.scalar<double>("CROSS_SECTION_AREA_INNER", 0.00023242025594369025);
+        writer.scalar<double>("CROSS_SECTION_AREA_INNER", 0.00027017696820872217);
         writer.scalar<double>("CROSS_SECTION_AREA_OUTER", 0.0003141592653589793);
     }
     else
@@ -275,10 +254,11 @@ void configureLRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp
         writer.scalar<double>("COL_DISPERSION_DEP_EXPONENT", 1.0);
     }
 
-    configureBulkDiscretization(writer, opts.polyDeg, opts.nCol, opts.nRad, opts.adJacobian);
+    configureBulkDiscretization(writer, opts.polyDeg, opts.nCol, 1, opts.adJacobian, opts.radialFlow);
 
     writer.scalar<double>("TOTAL_POROSITY", 0.37 + (1.0 - 0.37) * 0.75);
-    configureParticles(writer, opts.nParType, opts.isKinetic, opts.velocityDependence, "GENERAL_RATE_PARTICLE", opts.polyDeg, opts.nPar);
+    writer.scalar<int>("NPARTYPE", opts.nParType);
+    configureParticles(writer, opts.nParType, opts.isKinetic, opts.velocityDependence, "LIQUID_EQUILIBRIUM_PARTICLE", opts.polyDeg, opts.nPar);
 
     configureFlowDirection(writer, opts.reverseFlow);
 }
@@ -290,7 +270,7 @@ void configureLRMP(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nCom
         writer.scalar<std::string>("GEOMETRY", "RADIAL_FLOW_CYLINDER_SHELL");
         writer.scalar<double>("CYLINDER_HEIGHT", 0.005);
         writer.scalar<double>("BED_LENGTH", 0.0014);
-        writer.scalar<double>("CROSS_SECTION_AREA_INNER", 0.00023242025594369025);
+        writer.scalar<double>("CROSS_SECTION_AREA_INNER", 0.00027017696820872217);
         writer.scalar<double>("CROSS_SECTION_AREA_OUTER", 0.0003141592653589793);
     }
     else
@@ -308,7 +288,7 @@ void configureLRMP(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nCom
         writer.scalar<double>("COL_DISPERSION_DEP_EXPONENT", 1.0);
     }
 
-    configureBulkDiscretization(writer, opts.polyDeg, opts.nCol, opts.nParType, opts.adJacobian);
+    configureBulkDiscretization(writer, opts.polyDeg, opts.nCol, 1, opts.adJacobian, opts.radialFlow);
 
     writer.scalar<double>("COL_POROSITY", 0.37);
     writer.scalar<int>("NPARTYPE", opts.nParType);
@@ -324,7 +304,7 @@ void configureGRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp
         writer.scalar<std::string>("GEOMETRY", "RADIAL_FLOW_CYLINDER_SHELL");
         writer.scalar<double>("CYLINDER_HEIGHT", 0.005);
         writer.scalar<double>("BED_LENGTH", 0.0014);
-        writer.scalar<double>("CROSS_SECTION_AREA_INNER", 0.00023242025594369025);
+        writer.scalar<double>("CROSS_SECTION_AREA_INNER", 0.00027017696820872217);
         writer.scalar<double>("CROSS_SECTION_AREA_OUTER", 0.0003141592653589793);
     }
     else
@@ -342,7 +322,7 @@ void configureGRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp
         writer.scalar<double>("COL_DISPERSION_DEP_EXPONENT", 1.0);
     }
 
-    configureBulkDiscretization(writer, opts.polyDeg, opts.nCol, opts.nRad, opts.adJacobian);
+    configureBulkDiscretization(writer, opts.polyDeg, opts.nCol, 1, opts.adJacobian, opts.radialFlow);
 
     writer.scalar<double>("COL_POROSITY", 0.37);
     writer.scalar<int>("NPARTYPE", opts.nParType);
@@ -354,9 +334,9 @@ void configureGRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp
 void configure2DGRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp)
 {
     writer.scalar<double>("BED_LENGTH", 0.014);
-    writer.scalar<double>("CROSS_SECTION_AREA", 0.0003141592653589793);
+    writer.scalar<double>("COL_RADIUS", 0.01);
 
-    writer.scalar<double>("COL_DISPERSION", 5.75e-8);
+    writer.scalar<double>("COL_DISPERSION_AXIAL", 5.75e-8);
     if (opts.velocityDependence)
     {
         writer.scalar<std::string>("COL_DISPERSION_DEP", "POWER_LAW");
@@ -665,6 +645,18 @@ int main(int argc, char** argv)
 	catch (const TCLAP::ArgException &e)
 	{
 		std::cerr << "ERROR: " << e.error() << " for argument " << e.argId() << std::endl;
+		return 1;
+	}
+
+	if (opts.startTime >= 1500.0)
+	{
+		std::cerr << "ERROR: Start time has to be smaller than the experiment duration of 1500sec, but is " << opts.startTime << std::endl;
+		return 1;
+	}
+
+	if (opts.endTime <= opts.startTime)
+	{
+		std::cerr << "ERROR: End time has to be greater than start time, but " << opts.endTime << " <= " << opts.startTime << std::endl;
 		return 1;
 	}
 
