@@ -65,9 +65,6 @@ namespace
 	template <>
 	struct LumpedRateModelWithoutPoresDGName<cadet::model::parts::AxialConvectionDispersionOperatorBaseFV>
 	{
-		// Distinct from LUMPED_RATE_MODEL_WITHOUT_PORES_FV, the dedicated FV unit operation. Both
-		// discretize the bulk with FV and differ only in the Jacobian representation and the linear
-		// solve: a banded matrix with our own LU there, an Eigen sparse matrix and factorization here.
 		static const char* identifier() CADET_NOEXCEPT { return "LUMPED_RATE_MODEL_WITHOUT_PORES_FV_SPARSE"; }
 	};
 
