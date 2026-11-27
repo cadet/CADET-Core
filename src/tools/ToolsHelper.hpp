@@ -145,8 +145,6 @@ inline void parseAndWriteSensitivitiesFromCmdLine(Writer_t& writer, const std::v
 			paramParType.push_back(std::stoi(tokens[4]));
 			paramBoundState.push_back(std::stoi(tokens[5]));
 
-			// The optional factor and unit operation follow the six mandatory tokens, so each
-			// guard has to cover the index it reads and not the number of mandatory tokens
 			if (tokens.size() >= 7)
 				paramFactor.push_back(std::stod(tokens[6]));
 			else

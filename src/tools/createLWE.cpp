@@ -102,16 +102,12 @@ void configureBulkDiscretization(cadet::io::HDF5Writer& writer, int polyDeg, int
     {
         writer.scalar<std::string>("SPATIAL_METHOD", "DG");
         writer.scalar<int>("POLYDEG", polyDeg);
-        // Collocation DG is implemented for axial flow only, and the model picks the variant
-        // that fits the geometry on its own, so the field is left out for every other geometry
         if (!radialFlow)
             writer.scalar<int>("USE_COLLOCATION_DG", 1);
         writer.scalar<int>("NELEM", nCol);
 
         if (nRad > 1)
         {
-            // A two-dimensional operator names its axial element count AX_NELEM, since NELEM
-            // alone would not say which of the two directions it refers to
             writer.scalar<int>("AX_NELEM", nCol);
             writer.scalar<int>("RAD_NELEM", nRad);
             writer.scalar<int>("RAD_POLYDEG", polyDeg);
@@ -124,8 +120,6 @@ void configureBulkDiscretization(cadet::io::HDF5Writer& writer, int polyDeg, int
 
 void configureAdsorption(cadet::io::HDF5Writer& writer, int nComp, bool isKinetic)
 {
-    // A particle type owns its binding model and is configured within its own scope, so the
-    // fields written here describe that one type and are not multiplexed over all of them
     const std::vector<int> nBound(nComp, 1);
     writer.vector<int>("NBOUND", nBound.size(), nBound.data());
 
@@ -155,8 +149,6 @@ void configureParticles(cadet::io::HDF5Writer& writer, const int nParType, const
     const double par_coreradius = 0.0;
     const double par_porosity = 0.75;
 
-    // Several particle types share the solid phase, so the volume each of them takes up has to
-    // be stated. They are spread evenly here, which is the only choice that needs no further input
     if (nParType > 1)
     {
         const std::vector<double> parTypeVolFrac(nParType, 1.0 / nParType);
@@ -244,8 +236,6 @@ void configureLRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp
         writer.scalar<std::string>("GEOMETRY", "RADIAL_FLOW_CYLINDER_SHELL");
         writer.scalar<double>("CYLINDER_HEIGHT", 0.005);
         writer.scalar<double>("BED_LENGTH", 0.0014);
-        // Both areas of a cylinder shell are lateral surfaces 2 pi r h of the inner and outer
-        // radius, not the pi r^2 face an axial flow column is described by
         writer.scalar<double>("CROSS_SECTION_AREA_INNER", 0.00027017696820872217);
         writer.scalar<double>("CROSS_SECTION_AREA_OUTER", 0.0003141592653589793);
     }
@@ -264,14 +254,10 @@ void configureLRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp
         writer.scalar<double>("COL_DISPERSION_DEP_EXPONENT", 1.0);
     }
 
-    // A one-dimensional column has no radial discretization, so the radial fields stay out of
-    // its input file even when a radial resolution was requested on the command line
     configureBulkDiscretization(writer, opts.polyDeg, opts.nCol, 1, opts.adJacobian, opts.radialFlow);
 
     writer.scalar<double>("TOTAL_POROSITY", 0.37 + (1.0 - 0.37) * 0.75);
     writer.scalar<int>("NPARTYPE", opts.nParType);
-    // The lumped rate model without pores holds its solid phase in rapid equilibrium with the bulk
-    // liquid, so its particles have neither a liquid phase nor film, pore or surface diffusion.
     configureParticles(writer, opts.nParType, opts.isKinetic, opts.velocityDependence, "LIQUID_EQUILIBRIUM_PARTICLE", opts.polyDeg, opts.nPar);
 
     configureFlowDirection(writer, opts.reverseFlow);
@@ -284,8 +270,6 @@ void configureLRMP(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nCom
         writer.scalar<std::string>("GEOMETRY", "RADIAL_FLOW_CYLINDER_SHELL");
         writer.scalar<double>("CYLINDER_HEIGHT", 0.005);
         writer.scalar<double>("BED_LENGTH", 0.0014);
-        // Both areas of a cylinder shell are lateral surfaces 2 pi r h of the inner and outer
-        // radius, not the pi r^2 face an axial flow column is described by
         writer.scalar<double>("CROSS_SECTION_AREA_INNER", 0.00027017696820872217);
         writer.scalar<double>("CROSS_SECTION_AREA_OUTER", 0.0003141592653589793);
     }
@@ -304,8 +288,6 @@ void configureLRMP(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nCom
         writer.scalar<double>("COL_DISPERSION_DEP_EXPONENT", 1.0);
     }
 
-    // A one-dimensional column has no radial discretization, so the radial fields stay out of
-    // its input file even when a radial resolution was requested on the command line
     configureBulkDiscretization(writer, opts.polyDeg, opts.nCol, 1, opts.adJacobian, opts.radialFlow);
 
     writer.scalar<double>("COL_POROSITY", 0.37);
@@ -322,8 +304,6 @@ void configureGRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp
         writer.scalar<std::string>("GEOMETRY", "RADIAL_FLOW_CYLINDER_SHELL");
         writer.scalar<double>("CYLINDER_HEIGHT", 0.005);
         writer.scalar<double>("BED_LENGTH", 0.0014);
-        // Both areas of a cylinder shell are lateral surfaces 2 pi r h of the inner and outer
-        // radius, not the pi r^2 face an axial flow column is described by
         writer.scalar<double>("CROSS_SECTION_AREA_INNER", 0.00027017696820872217);
         writer.scalar<double>("CROSS_SECTION_AREA_OUTER", 0.0003141592653589793);
     }
@@ -342,8 +322,6 @@ void configureGRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp
         writer.scalar<double>("COL_DISPERSION_DEP_EXPONENT", 1.0);
     }
 
-    // A one-dimensional column has no radial discretization, so the radial fields stay out of
-    // its input file even when a radial resolution was requested on the command line
     configureBulkDiscretization(writer, opts.polyDeg, opts.nCol, 1, opts.adJacobian, opts.radialFlow);
 
     writer.scalar<double>("COL_POROSITY", 0.37);
@@ -356,12 +334,8 @@ void configureGRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp
 void configure2DGRM(cadet::io::HDF5Writer& writer, ProgramOptions& opts, int nComp)
 {
     writer.scalar<double>("BED_LENGTH", 0.014);
-    // A two-dimensional column resolves the radial coordinate, so it is described by its radius
-    // rather than by the cross section area that stands in for it in one dimension
     writer.scalar<double>("COL_RADIUS", 0.01);
 
-    // A two-dimensional column disperses in both directions, so each of them is named
-    // explicitly and neither is the unqualified COL_DISPERSION of a one-dimensional column
     writer.scalar<double>("COL_DISPERSION_AXIAL", 5.75e-8);
     if (opts.velocityDependence)
     {
@@ -674,8 +648,6 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	// The load-wash-elution experiment ends after 1500 seconds. Starting at or beyond that point
-	// leaves no section to write, which would yield an input file without an inlet profile
 	if (opts.startTime >= 1500.0)
 	{
 		std::cerr << "ERROR: Start time has to be smaller than the experiment duration of 1500sec, but is " << opts.startTime << std::endl;
