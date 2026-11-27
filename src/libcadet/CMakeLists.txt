@@ -154,9 +154,9 @@ set(LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/InletModel.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/OutletModel.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/StirredTankModel.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithoutPores.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithPores.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithoutPoresFV.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithPoresFV.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModelFV.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/ColumnModelBuilder.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/ParameterMultiplexing.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ConvectionDispersionOperatorFV.cpp
@@ -203,9 +203,9 @@ if (ENABLE_2D_MODELS)
 	endif()
 	list (APPEND LIBCADET_SOURCES
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/TwoDimensionalConvectionDispersionOperatorFV.cpp
-		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2D.cpp
-		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2D-LinearSolver.cpp
-		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2D-InitialConditions.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2DFV.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2DFV-LinearSolver.cpp
+		${CMAKE_SOURCE_DIR}/src/libcadet/model/GeneralRateModel2DFV-InitialConditions.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/MultiChannelConvectionDispersionOperator.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/MultiChannelTransportModel.cpp
 		${CMAKE_SOURCE_DIR}/src/libcadet/model/MultiChannelTransportModel-LinearSolver.cpp
@@ -229,7 +229,7 @@ list (APPEND LIBCADET_SOURCES
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ParticleDiffusionOperatorBase.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ParticleDiffusionOperatorDG.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/parts/ParticleDiffusionOperatorFV.cpp
-	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithoutPoresDG.cpp
+	${CMAKE_SOURCE_DIR}/src/libcadet/model/LumpedRateModelWithoutPores.cpp
 	${CMAKE_SOURCE_DIR}/src/libcadet/model/ColumnModel1D.cpp
 )
 if (ENABLE_2D_MODELS)

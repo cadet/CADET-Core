@@ -15,8 +15,8 @@
  * Defines the general rate model (GRM).
  */
 
-#ifndef LIBCADET_GENERALRATEMODEL_HPP_
-#define LIBCADET_GENERALRATEMODEL_HPP_
+#ifndef LIBCADET_GENERALRATEMODELFV_HPP_
+#define LIBCADET_GENERALRATEMODELFV_HPP_
 
 #include "model/UnitOperationBase.hpp"
 #include "cadet/StrongTypes.hpp"
@@ -39,22 +39,22 @@
 namespace
 {
 	template <typename Operator>
-	struct GeneralRateModelName { };
+	struct GeneralRateModelFVName { };
 
 	template <>
-	struct GeneralRateModelName<cadet::model::parts::AxialConvectionDispersionOperatorFV>
+	struct GeneralRateModelFVName<cadet::model::parts::AxialConvectionDispersionOperatorFV>
 	{
 		static const char* identifier() CADET_NOEXCEPT { return "GENERAL_RATE_MODEL_FV"; }
 	};
 
 	template <>
-	struct GeneralRateModelName<cadet::model::parts::RadialConvectionDispersionOperatorFV>
+	struct GeneralRateModelFVName<cadet::model::parts::RadialConvectionDispersionOperatorFV>
 	{
 		static const char* identifier() CADET_NOEXCEPT { return "RADIAL_GENERAL_RATE_MODEL_FV"; }
 	};
 
 	template <>
-	struct GeneralRateModelName<cadet::model::parts::FrustumConvectionDispersionOperatorFV>
+	struct GeneralRateModelFVName<cadet::model::parts::FrustumConvectionDispersionOperatorFV>
 	{
 		static const char* identifier() CADET_NOEXCEPT { return "FRUSTUM_GENERAL_RATE_MODEL_FV"; }
 	};
@@ -99,12 +99,12 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
  * Methods are described in @cite VonLieres2010a (WENO, linear solver), @cite Puttmann2013 @cite Puttmann2016 (forward sensitivities, AD, band compression)
  */
 template <typename ConvDispOperator>
-class GeneralRateModel : public UnitOperationBase
+class GeneralRateModelFV : public UnitOperationBase
 {
 public:
 
-	GeneralRateModel(UnitOpIdx unitOpIdx);
-	virtual ~GeneralRateModel() CADET_NOEXCEPT;
+	GeneralRateModelFV(UnitOpIdx unitOpIdx);
+	virtual ~GeneralRateModelFV() CADET_NOEXCEPT;
 
 	virtual unsigned int numDofs() const CADET_NOEXCEPT;
 	virtual unsigned int numPureDofs() const CADET_NOEXCEPT;
@@ -118,7 +118,7 @@ public:
 	virtual unsigned int numOutletPorts() const CADET_NOEXCEPT { return 1; }
 	virtual bool canAccumulate() const CADET_NOEXCEPT { return false; }
 
-	static const char* identifier() { return GeneralRateModelName<ConvDispOperator>::identifier(); }
+	static const char* identifier() { return GeneralRateModelFVName<ConvDispOperator>::identifier(); }
 	virtual const char* unitOperationName() const CADET_NOEXCEPT { return identifier(); }
 
 	virtual bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper);
@@ -409,7 +409,7 @@ protected:
 	BENCH_TIMER(_timerMatVec)
 	BENCH_TIMER(_timerGmres)
 
-	// Wrapper for calling the corresponding function in GeneralRateModel class
+	// Wrapper for calling the corresponding function in GeneralRateModelFV class
 	template <typename Op_t>
 	friend int schurComplementMultiplierGRM(void* userData, double const* x, double* z);
 
@@ -466,8 +466,8 @@ protected:
 	{
 	public:
 
-		Exporter(const Discretization& disc, const GeneralRateModel& model, double const* data) : _disc(disc), _idx(disc), _model(model), _data(data) { }
-		Exporter(const Discretization&& disc, const GeneralRateModel& model, double const* data) = delete;
+		Exporter(const Discretization& disc, const GeneralRateModelFV& model, double const* data) : _disc(disc), _idx(disc), _model(model), _data(data) { }
+		Exporter(const Discretization&& disc, const GeneralRateModelFV& model, double const* data) = delete;
 
 		virtual bool hasParticleFlux() const CADET_NOEXCEPT { return true; }
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return true; }
@@ -538,20 +538,20 @@ protected:
 	protected:
 		const Discretization& _disc;
 		const Indexer _idx;
-		const GeneralRateModel& _model;
+		const GeneralRateModelFV& _model;
 		double const* const _data;
 	};
 };
 
-extern template class GeneralRateModel<parts::AxialConvectionDispersionOperatorFV>;
-extern template class GeneralRateModel<parts::RadialConvectionDispersionOperatorFV>;
-extern template class GeneralRateModel<parts::FrustumConvectionDispersionOperatorFV>;
+extern template class GeneralRateModelFV<parts::AxialConvectionDispersionOperatorFV>;
+extern template class GeneralRateModelFV<parts::RadialConvectionDispersionOperatorFV>;
+extern template class GeneralRateModelFV<parts::FrustumConvectionDispersionOperatorFV>;
 
-IUnitOperation* createAxialFVGRM(UnitOpIdx uoId);
-IUnitOperation* createRadialFVGRM(UnitOpIdx uoId);
-IUnitOperation* createFrustumFVGRM(UnitOpIdx uoId);
+IUnitOperation* createAxialGRMFV(UnitOpIdx uoId);
+IUnitOperation* createRadialGRMFV(UnitOpIdx uoId);
+IUnitOperation* createFrustumGRMFV(UnitOpIdx uoId);
 
 } // namespace model
 } // namespace cadet
 
-#endif  // LIBCADET_GENERALRATEMODEL_HPP_
+#endif  // LIBCADET_GENERALRATEMODELFV_HPP_

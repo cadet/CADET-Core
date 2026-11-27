@@ -10,7 +10,7 @@
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
 
-#include "model/LumpedRateModelWithPores.hpp"
+#include "model/LumpedRateModelWithPoresFV.hpp"
 #include "model/BindingModel.hpp"
 #include "linalg/DenseMatrix.hpp"
 #include "linalg/BandMatrix.hpp"
@@ -39,7 +39,7 @@ namespace model
 {
 
 template <typename ConvDispOperator>
-int LumpedRateModelWithPores<ConvDispOperator>::multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue)
+int LumpedRateModelWithPoresFV<ConvDispOperator>::multiplexInitialConditions(const cadet::ParameterId& pId, unsigned int adDirection, double adValue)
 {
 	if (_singleBinding)
 	{
@@ -83,7 +83,7 @@ int LumpedRateModelWithPores<ConvDispOperator>::multiplexInitialConditions(const
 }
 
 template <typename ConvDispOperator>
-int LumpedRateModelWithPores<ConvDispOperator>::multiplexInitialConditions(const cadet::ParameterId& pId, double val, bool checkSens)
+int LumpedRateModelWithPoresFV<ConvDispOperator>::multiplexInitialConditions(const cadet::ParameterId& pId, double val, bool checkSens)
 {
 	if (_singleBinding)
 	{
@@ -135,7 +135,7 @@ int LumpedRateModelWithPores<ConvDispOperator>::multiplexInitialConditions(const
 }
 
 template <typename ConvDispOperator>
-void LumpedRateModelWithPores<ConvDispOperator>::applyInitialCondition(const SimulationState& simState) const
+void LumpedRateModelWithPoresFV<ConvDispOperator>::applyInitialCondition(const SimulationState& simState) const
 {
 	Indexer idxr(_disc);
 
@@ -186,7 +186,7 @@ void LumpedRateModelWithPores<ConvDispOperator>::applyInitialCondition(const Sim
 }
 
 template <typename ConvDispOperator>
-void LumpedRateModelWithPores<ConvDispOperator>::readInitialCondition(IParameterProvider& paramProvider)
+void LumpedRateModelWithPoresFV<ConvDispOperator>::readInitialCondition(IParameterProvider& paramProvider)
 {
 	_initState.clear();
 	_initStateDot.clear();
@@ -322,7 +322,7 @@ void LumpedRateModelWithPores<ConvDispOperator>::readInitialCondition(IParameter
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
 template <typename ConvDispOperator>
-void LumpedRateModelWithPores<ConvDispOperator>::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
+void LumpedRateModelWithPoresFV<ConvDispOperator>::consistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -670,7 +670,7 @@ void LumpedRateModelWithPores<ConvDispOperator>::consistentInitialState(const Si
  * @param [in,out] vecStateYdot On entry, residual without taking time derivatives into account. On exit, consistent state time derivatives.
  */
 template <typename ConvDispOperator>
-void LumpedRateModelWithPores<ConvDispOperator>::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem)
+void LumpedRateModelWithPoresFV<ConvDispOperator>::consistentInitialTimeDerivative(const SimulationTime& simTime, double const* vecStateY, double* const vecStateYdot, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -817,7 +817,7 @@ void LumpedRateModelWithPores<ConvDispOperator>::consistentInitialTimeDerivative
  * @param [in] errorTol Error tolerance for algebraic equations
  */
 template <typename ConvDispOperator>
-void LumpedRateModelWithPores<ConvDispOperator>::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
+void LumpedRateModelWithPoresFV<ConvDispOperator>::leanConsistentInitialState(const SimulationTime& simTime, double* const vecStateY, const AdJacobianParams& adJac, double errorTol, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -875,7 +875,7 @@ void LumpedRateModelWithPores<ConvDispOperator>::leanConsistentInitialState(cons
  * @param [in] res On entry, residual without taking time derivatives into account. The data is overwritten during execution of the function.
  */
 template <typename ConvDispOperator>
-void LumpedRateModelWithPores<ConvDispOperator>::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
+void LumpedRateModelWithPoresFV<ConvDispOperator>::leanConsistentInitialTimeDerivative(double t, double const* const vecStateY, double* const vecStateYdot, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
 
@@ -909,7 +909,7 @@ void LumpedRateModelWithPores<ConvDispOperator>::leanConsistentInitialTimeDeriva
 }
 
 template <typename ConvDispOperator>
-void LumpedRateModelWithPores<ConvDispOperator>::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
+void LumpedRateModelWithPoresFV<ConvDispOperator>::initializeSensitivityStates(const std::vector<double*>& vecSensY) const
 {
 	Indexer idxr(_disc);
 	for (std::size_t param = 0; param < vecSensY.size(); ++param)
@@ -999,7 +999,7 @@ void LumpedRateModelWithPores<ConvDispOperator>::initializeSensitivityStates(con
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
 template <typename ConvDispOperator>
-void LumpedRateModelWithPores<ConvDispOperator>::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+void LumpedRateModelWithPoresFV<ConvDispOperator>::consistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
@@ -1221,7 +1221,7 @@ void LumpedRateModelWithPores<ConvDispOperator>::consistentInitialSensitivity(co
  * @todo Decrease amount of allocated memory by partially using temporary vectors (state and Schur complement)
  */
 template <typename ConvDispOperator>
-void LumpedRateModelWithPores<ConvDispOperator>::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
+void LumpedRateModelWithPoresFV<ConvDispOperator>::leanConsistentInitialSensitivity(const SimulationTime& simTime, const ConstSimulationState& simState,
 	std::vector<double*>& vecSensY, std::vector<double*>& vecSensYdot, active const* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerConsistentInit);
@@ -1276,7 +1276,7 @@ void LumpedRateModelWithPores<ConvDispOperator>::leanConsistentInitialSensitivit
  * @param [in] idxr Indexer
  */
 template <typename ConvDispOperator>
-void LumpedRateModelWithPores<ConvDispOperator>::solveForFluxes(double* const vecState, const Indexer& idxr)
+void LumpedRateModelWithPoresFV<ConvDispOperator>::solveForFluxes(double* const vecState, const Indexer& idxr)
 {
 	// We have j_f - k_f * (c - c_p) == 0
 	// Thus, jacFC contains -k_f and jacFP +k_f.

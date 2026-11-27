@@ -15,8 +15,8 @@
  * Defines the 2D general rate model (GRM).
  */
 
-#ifndef LIBCADET_GENERALRATEMODEL2D_HPP_
-#define LIBCADET_GENERALRATEMODEL2D_HPP_
+#ifndef LIBCADET_GENERALRATEMODEL2DFV_HPP_
+#define LIBCADET_GENERALRATEMODEL2DFV_HPP_
 
 #include "model/UnitOperationBase.hpp"
 #include "cadet/StrongTypes.hpp"
@@ -65,12 +65,12 @@ u c_{\text{in},i}(t) &= u c_i(t,0) - D_{\text{ax},i} \frac{\partial c_i}{\partia
 \end{align} @f]
  * Methods are described in @cite VonLieres2010a (WENO, linear solver), @cite Puttmann2013 @cite Puttmann2016 (forward sensitivities, AD, band compression)
  */
-class GeneralRateModel2D : public UnitOperationBase
+class GeneralRateModel2DFV : public UnitOperationBase
 {
 public:
 
-	GeneralRateModel2D(UnitOpIdx unitOpIdx);
-	virtual ~GeneralRateModel2D() CADET_NOEXCEPT;
+	GeneralRateModel2DFV(UnitOpIdx unitOpIdx);
+	virtual ~GeneralRateModel2DFV() CADET_NOEXCEPT;
 
 	virtual unsigned int numDofs() const CADET_NOEXCEPT;
 	virtual unsigned int numPureDofs() const CADET_NOEXCEPT;
@@ -352,7 +352,7 @@ protected:
 	BENCH_TIMER(_timerMatVec)
 	BENCH_TIMER(_timerGmres)
 
-	// Wrapper for calling the corresponding function in GeneralRateModel class
+	// Wrapper for calling the corresponding function in GeneralRateModelFV class
 	friend int schurComplementMultiplierGRM2D(void* userData, double const* x, double* z);
 
 	class Indexer
@@ -409,8 +409,8 @@ protected:
 	{
 	public:
 
-		Exporter(const Discretization& disc, const GeneralRateModel2D& model, double const* data) : _disc(disc), _idx(disc), _model(model), _data(data) { }
-		Exporter(const Discretization&& disc, const GeneralRateModel2D& model, double const* data) = delete;
+		Exporter(const Discretization& disc, const GeneralRateModel2DFV& model, double const* data) : _disc(disc), _idx(disc), _model(model), _data(data) { }
+		Exporter(const Discretization&& disc, const GeneralRateModel2DFV& model, double const* data) = delete;
 
 		virtual bool hasParticleFlux() const CADET_NOEXCEPT { return true; }
 		virtual bool hasParticleMobilePhase() const CADET_NOEXCEPT { return true; }
@@ -488,7 +488,7 @@ protected:
 	protected:
 		const Discretization& _disc;
 		const Indexer _idx;
-		const GeneralRateModel2D& _model;
+		const GeneralRateModel2DFV& _model;
 		double const* const _data;
 	};
 };
@@ -496,4 +496,4 @@ protected:
 } // namespace model
 } // namespace cadet
 
-#endif  // LIBCADET_GENERALRATEMODEL2D_HPP_
+#endif  // LIBCADET_GENERALRATEMODEL2DFV_HPP_

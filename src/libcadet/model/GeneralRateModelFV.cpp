@@ -10,7 +10,7 @@
 //  is available at http://www.gnu.org/licenses/gpl.html
 // =============================================================================
 
-#include "model/GeneralRateModel.hpp"
+#include "model/GeneralRateModelFV.hpp"
 #include "BindingModelFactory.hpp"
 #include "ReactionModelFactory.hpp"
 #include "ParamReaderHelper.hpp"
@@ -59,13 +59,13 @@ constexpr double SurfVolRatioSlab = 1.0;
 template <typename ConvDispOperator>
 int schurComplementMultiplierGRM(void* userData, double const* x, double* z)
 {
-	GeneralRateModel<ConvDispOperator>* const grm = static_cast<GeneralRateModel<ConvDispOperator>*>(userData);
+	GeneralRateModelFV<ConvDispOperator>* const grm = static_cast<GeneralRateModelFV<ConvDispOperator>*>(userData);
 	return grm->schurComplementMatrixVector(x, z);
 }
 
 
 template <typename ConvDispOperator>
-GeneralRateModel<ConvDispOperator>::GeneralRateModel(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
+GeneralRateModelFV<ConvDispOperator>::GeneralRateModelFV(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
 	_hasSurfaceDiffusion(0, false),
 	_jacP(nullptr), _jacPdisc(nullptr), _jacPF(nullptr), _jacFP(nullptr), _jacInlet(), _filmDiffDep(nullptr), _singleParDepSurfDiffusion(true), _hasParDepSurfDiffusion(false),
 	_analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
@@ -74,7 +74,7 @@ GeneralRateModel<ConvDispOperator>::GeneralRateModel(UnitOpIdx unitOpIdx) : Unit
 }
 
 template <typename ConvDispOperator>
-GeneralRateModel<ConvDispOperator>::~GeneralRateModel() CADET_NOEXCEPT
+GeneralRateModelFV<ConvDispOperator>::~GeneralRateModelFV() CADET_NOEXCEPT
 {
 	delete[] _tempState;
 
@@ -89,7 +89,7 @@ GeneralRateModel<ConvDispOperator>::~GeneralRateModel() CADET_NOEXCEPT
 }
 
 template <typename ConvDispOperator>
-unsigned int GeneralRateModel<ConvDispOperator>::numDofs() const CADET_NOEXCEPT
+unsigned int GeneralRateModelFV<ConvDispOperator>::numDofs() const CADET_NOEXCEPT
 {
 	// Column bulk DOFs: nCol * nComp
 	// Particle DOFs: nCol * nParType particles each having nComp (liquid phase) + sum boundStates (solid phase) DOFs
@@ -100,7 +100,7 @@ unsigned int GeneralRateModel<ConvDispOperator>::numDofs() const CADET_NOEXCEPT
 }
 
 template <typename ConvDispOperator>
-unsigned int GeneralRateModel<ConvDispOperator>::numPureDofs() const CADET_NOEXCEPT
+unsigned int GeneralRateModelFV<ConvDispOperator>::numPureDofs() const CADET_NOEXCEPT
 {
 	// Column bulk DOFs: nCol * nComp
 	// Particle DOFs: nCol particles each having nComp (liquid phase) + sum boundStates (solid phase) DOFs
@@ -111,7 +111,7 @@ unsigned int GeneralRateModel<ConvDispOperator>::numPureDofs() const CADET_NOEXC
 
 
 template <typename ConvDispOperator>
-bool GeneralRateModel<ConvDispOperator>::usesAD() const CADET_NOEXCEPT
+bool GeneralRateModelFV<ConvDispOperator>::usesAD() const CADET_NOEXCEPT
 {
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 	// We always need AD if we want to check the analytical Jacobian
@@ -123,7 +123,7 @@ bool GeneralRateModel<ConvDispOperator>::usesAD() const CADET_NOEXCEPT
 }
 
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::clearParDepSurfDiffusion()
+void GeneralRateModelFV<ConvDispOperator>::clearParDepSurfDiffusion()
 {
 	if (_singleParDepSurfDiffusion)
 	{
@@ -140,7 +140,7 @@ void GeneralRateModel<ConvDispOperator>::clearParDepSurfDiffusion()
 }
 
 template <typename ConvDispOperator>
-bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
+bool GeneralRateModelFV<ConvDispOperator>::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
 	// Read unit type as name to allow model configuration via GRM, LRMP. Here, the particle types are set correspondingly
 	std::string unitName = paramProvider.getString("UNIT_TYPE");
@@ -651,7 +651,7 @@ bool GeneralRateModel<ConvDispOperator>::configureModelDiscretization(IParameter
 }
 
 template <typename ConvDispOperator>
-bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProvider)
+bool GeneralRateModelFV<ConvDispOperator>::configure(IParameterProvider& paramProvider)
 {
 	_parameters.clear();
 
@@ -1007,7 +1007,7 @@ bool GeneralRateModel<ConvDispOperator>::configure(IParameterProvider& paramProv
 }
 
 template <typename ConvDispOperator>
-unsigned int GeneralRateModel<ConvDispOperator>::threadLocalMemorySize() const CADET_NOEXCEPT
+unsigned int GeneralRateModelFV<ConvDispOperator>::threadLocalMemorySize() const CADET_NOEXCEPT
 {
 	LinearMemorySizer lms;
 
@@ -1053,7 +1053,7 @@ unsigned int GeneralRateModel<ConvDispOperator>::threadLocalMemorySize() const C
 }
 
 template <typename ConvDispOperator>
-unsigned int GeneralRateModel<ConvDispOperator>::numAdDirsForJacobian() const CADET_NOEXCEPT
+unsigned int GeneralRateModelFV<ConvDispOperator>::numAdDirsForJacobian() const CADET_NOEXCEPT
 {
 	// We need as many directions as the highest bandwidth of the diagonal blocks:
 	// The bandwidth of the column block depends on the size of the WENO stencil, whereas
@@ -1070,7 +1070,7 @@ unsigned int GeneralRateModel<ConvDispOperator>::numAdDirsForJacobian() const CA
 }
 
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::useAnalyticJacobian(const bool analyticJac)
+void GeneralRateModelFV<ConvDispOperator>::useAnalyticJacobian(const bool analyticJac)
 {
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
 	_analyticJac = analyticJac;
@@ -1086,7 +1086,7 @@ void GeneralRateModel<ConvDispOperator>::useAnalyticJacobian(const bool analytic
 }
 
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
+void GeneralRateModelFV<ConvDispOperator>::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 {
 	// Setup flux Jacobian blocks at the beginning of the simulation or in case of
 	// section dependent film or particle diffusion coefficients
@@ -1108,7 +1108,7 @@ void GeneralRateModel<ConvDispOperator>::notifyDiscontinuousSectionTransition(do
  *          sensitivity residual directly, where the error does not cancel out.
  */
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::updateInletJacobian() CADET_NOEXCEPT
+void GeneralRateModelFV<ConvDispOperator>::updateInletJacobian() CADET_NOEXCEPT
 {
 	Indexer idxr(_disc);
 
@@ -1136,7 +1136,7 @@ void GeneralRateModel<ConvDispOperator>::updateInletJacobian() CADET_NOEXCEPT
 }
 
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
+void GeneralRateModelFV<ConvDispOperator>::setFlowRates(active const* in, active const* out) CADET_NOEXCEPT
 {
 	_convDispOp.setFlowRates(in[0], out[0], _colPorosity);
 
@@ -1146,7 +1146,7 @@ void GeneralRateModel<ConvDispOperator>::setFlowRates(active const* in, active c
 }
 
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
+void GeneralRateModelFV<ConvDispOperator>::reportSolution(ISolutionRecorder& recorder, double const* const solution) const
 {
 	Exporter expr(_disc, *this, solution);
 	recorder.beginUnitOperation(_unitOpIdx, *this, expr);
@@ -1154,7 +1154,7 @@ void GeneralRateModel<ConvDispOperator>::reportSolution(ISolutionRecorder& recor
 }
 
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::reportSolutionStructure(ISolutionRecorder& recorder) const
+void GeneralRateModelFV<ConvDispOperator>::reportSolutionStructure(ISolutionRecorder& recorder) const
 {
 	Exporter expr(_disc, *this, nullptr);
 	recorder.unitOperationStructure(_unitOpIdx, *this, expr);
@@ -1162,7 +1162,7 @@ void GeneralRateModel<ConvDispOperator>::reportSolutionStructure(ISolutionRecord
 
 
 template <typename ConvDispOperator>
-unsigned int GeneralRateModel<ConvDispOperator>::requiredADdirs() const CADET_NOEXCEPT
+unsigned int GeneralRateModelFV<ConvDispOperator>::requiredADdirs() const CADET_NOEXCEPT
 {
 	const unsigned int numDirsBinding = maxBindingAdDirs();
 #ifndef CADET_CHECK_ANALYTIC_JACOBIAN
@@ -1174,7 +1174,7 @@ unsigned int GeneralRateModel<ConvDispOperator>::requiredADdirs() const CADET_NO
 }
 
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::prepareADvectors(const AdJacobianParams& adJac) const
+void GeneralRateModelFV<ConvDispOperator>::prepareADvectors(const AdJacobianParams& adJac) const
 {
 	// Early out if AD is disabled
 	if (!adJac.adY)
@@ -1204,7 +1204,7 @@ void GeneralRateModel<ConvDispOperator>::prepareADvectors(const AdJacobianParams
  * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
  */
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
+void GeneralRateModelFV<ConvDispOperator>::extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset)
 {
 	Indexer idxr(_disc);
 
@@ -1231,7 +1231,7 @@ void GeneralRateModel<ConvDispOperator>::extractJacobianFromAD(active const* con
  * @param [in] adDirOffset Number of AD directions used for non-Jacobian purposes (e.g., parameter sensitivities)
  */
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
+void GeneralRateModelFV<ConvDispOperator>::checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const
 {
 	Indexer idxr(_disc);
 
@@ -1257,7 +1257,7 @@ void GeneralRateModel<ConvDispOperator>::checkAnalyticJacobianAgainstAd(active c
 #endif
 
 template <typename ConvDispOperator>
-int GeneralRateModel<ConvDispOperator>::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
+int GeneralRateModelFV<ConvDispOperator>::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -1266,7 +1266,7 @@ int GeneralRateModel<ConvDispOperator>::residual(const SimulationTime& simTime, 
 }
 
 template <typename ConvDispOperator>
-int GeneralRateModel<ConvDispOperator>::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int GeneralRateModelFV<ConvDispOperator>::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -1285,7 +1285,7 @@ int GeneralRateModel<ConvDispOperator>::jacobian(const SimulationTime& simTime, 
 }
 
 template <typename ConvDispOperator>
-int GeneralRateModel<ConvDispOperator>::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int GeneralRateModelFV<ConvDispOperator>::residualWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
@@ -1294,7 +1294,7 @@ int GeneralRateModel<ConvDispOperator>::residualWithJacobian(const SimulationTim
 }
 
 template <typename ConvDispOperator>
-int GeneralRateModel<ConvDispOperator>::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
+int GeneralRateModelFV<ConvDispOperator>::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res,
 	const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem, bool updateJacobian, bool paramSensitivity)
 {
 	if (updateJacobian)
@@ -1402,7 +1402,7 @@ int GeneralRateModel<ConvDispOperator>::residual(const SimulationTime& simTime, 
 
 template <typename ConvDispOperator>
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-int GeneralRateModel<ConvDispOperator>::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
+int GeneralRateModelFV<ConvDispOperator>::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_START(_timerResidualPar);
 
@@ -1440,7 +1440,7 @@ int GeneralRateModel<ConvDispOperator>::residualImpl(double t, unsigned int secI
 
 template <typename ConvDispOperator>
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-int GeneralRateModel<ConvDispOperator>::residualBulk(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
+int GeneralRateModelFV<ConvDispOperator>::residualBulk(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
 	if (wantRes)
 		_convDispOp.residual(*this, t, secIdx, yBase, yDotBase, resBase, wantJac, typename ParamSens<ParamType>::enabled());
@@ -1478,7 +1478,7 @@ int GeneralRateModel<ConvDispOperator>::residualBulk(double t, unsigned int secI
 
 template <typename ConvDispOperator>
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
-int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int parType, unsigned int colCell, unsigned int secIdx, StateType const* yBase,
+int GeneralRateModelFV<ConvDispOperator>::residualParticle(double t, unsigned int parType, unsigned int colCell, unsigned int secIdx, StateType const* yBase,
 	double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
 
@@ -2061,7 +2061,7 @@ int GeneralRateModel<ConvDispOperator>::residualParticle(double t, unsigned int 
 
 template <typename ConvDispOperator>
 template <typename StateType, typename ResidualType, typename ParamType>
-int GeneralRateModel<ConvDispOperator>::residualFlux(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase)
+int GeneralRateModelFV<ConvDispOperator>::residualFlux(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase)
 {
 	Indexer idxr(_disc);
 
@@ -2220,7 +2220,7 @@ int GeneralRateModel<ConvDispOperator>::residualFlux(double t, unsigned int secI
 }
 
 template <typename ConvDispOperator>
-parts::cell::CellParameters GeneralRateModel<ConvDispOperator>::makeCellResidualParams(unsigned int parType, int const* qsReaction) const
+parts::cell::CellParameters GeneralRateModelFV<ConvDispOperator>::makeCellResidualParams(unsigned int parType, int const* qsReaction) const
 {
 	return parts::cell::CellParameters
 		{
@@ -2245,7 +2245,7 @@ parts::cell::CellParameters GeneralRateModel<ConvDispOperator>::makeCellResidual
  * @param [in] vecStateY Current state vector
  */
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::assembleOffdiagJac(double t, unsigned int secIdx, double const* vecStateY)
+void GeneralRateModelFV<ConvDispOperator>::assembleOffdiagJac(double t, unsigned int secIdx, double const* vecStateY)
 {
 	// Clear matrices for new assembly
 	_jacCF.clear();
@@ -2438,7 +2438,7 @@ void GeneralRateModel<ConvDispOperator>::assembleOffdiagJac(double t, unsigned i
  * @param [in] vecStateY Current state vector
  */
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::assembleOffdiagJacFluxParticle(double t, unsigned int secIdx, double const* vecStateY)
+void GeneralRateModelFV<ConvDispOperator>::assembleOffdiagJacFluxParticle(double t, unsigned int secIdx, double const* vecStateY)
 {
 	for (unsigned int pblk = 0; pblk < _disc.nCol * _disc.nParType; ++pblk)
 		_jacFP[pblk].clear();
@@ -2563,7 +2563,7 @@ void GeneralRateModel<ConvDispOperator>::assembleOffdiagJacFluxParticle(double t
 }
 
 template <typename ConvDispOperator>
-int GeneralRateModel<ConvDispOperator>::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int GeneralRateModelFV<ConvDispOperator>::residualSensFwdWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
@@ -2573,7 +2573,7 @@ int GeneralRateModel<ConvDispOperator>::residualSensFwdWithJacobian(const Simula
 }
 
 template <typename ConvDispOperator>
-int GeneralRateModel<ConvDispOperator>::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
+int GeneralRateModelFV<ConvDispOperator>::residualSensFwdAdOnly(const SimulationTime& simTime, const ConstSimulationState& simState, active* const adRes, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidualSens);
 
@@ -2582,7 +2582,7 @@ int GeneralRateModel<ConvDispOperator>::residualSensFwdAdOnly(const SimulationTi
 }
 
 template <typename ConvDispOperator>
-int GeneralRateModel<ConvDispOperator>::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
+int GeneralRateModelFV<ConvDispOperator>::residualSensFwdCombine(const SimulationTime& simTime, const ConstSimulationState& simState,
 	const std::vector<const double*>& yS, const std::vector<const double*>& ySdot, const std::vector<double*>& resS, active const* adRes,
 	double* const tmp1, double* const tmp2, double* const tmp3)
 {
@@ -2634,7 +2634,7 @@ int GeneralRateModel<ConvDispOperator>::residualSensFwdCombine(const SimulationT
  * @param [in,out] ret Vector @f$ z @f$ which stores the result of the operation
  */
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
+void GeneralRateModelFV<ConvDispOperator>::multiplyWithJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* yS, double alpha, double beta, double* ret)
 {
 	Indexer idxr(_disc);
 
@@ -2699,7 +2699,7 @@ void GeneralRateModel<ConvDispOperator>::multiplyWithJacobian(const SimulationTi
  * @param [out] ret Vector @f$ z @f$ which stores the result of the operation
  */
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
+void GeneralRateModelFV<ConvDispOperator>::multiplyWithDerivativeJacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double const* sDot, double* ret)
 {
 	Indexer idxr(_disc);
 
@@ -2746,7 +2746,7 @@ void GeneralRateModel<ConvDispOperator>::multiplyWithDerivativeJacobian(const Si
 }
 
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::setExternalFunctions(IExternalFunction** extFuns, unsigned int size)
+void GeneralRateModelFV<ConvDispOperator>::setExternalFunctions(IExternalFunction** extFuns, unsigned int size)
 {
 	for (IBindingModel* bm : _binding)
 	{
@@ -2756,7 +2756,7 @@ void GeneralRateModel<ConvDispOperator>::setExternalFunctions(IExternalFunction*
 }
 
 template <typename ConvDispOperator>
-unsigned int GeneralRateModel<ConvDispOperator>::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
+unsigned int GeneralRateModelFV<ConvDispOperator>::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 {
 	// Inlets are duplicated so need to be accounted for
 	if (_convDispOp.forwardFlow())
@@ -2768,26 +2768,26 @@ unsigned int GeneralRateModel<ConvDispOperator>::localOutletComponentIndex(unsig
 }
 
 template <typename ConvDispOperator>
-unsigned int GeneralRateModel<ConvDispOperator>::localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT
+unsigned int GeneralRateModelFV<ConvDispOperator>::localInletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 {
 	// Always 0 due to dedicated inlet DOFs
 	return 0;
 }
 
 template <typename ConvDispOperator>
-unsigned int GeneralRateModel<ConvDispOperator>::localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT
+unsigned int GeneralRateModelFV<ConvDispOperator>::localOutletComponentStride(unsigned int port) const CADET_NOEXCEPT
 {
 	return 1;
 }
 
 template <typename ConvDispOperator>
-unsigned int GeneralRateModel<ConvDispOperator>::localInletComponentStride(unsigned int port) const CADET_NOEXCEPT
+unsigned int GeneralRateModelFV<ConvDispOperator>::localInletComponentStride(unsigned int port) const CADET_NOEXCEPT
 {
 	return 1;
 }
 
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut)
+void GeneralRateModelFV<ConvDispOperator>::expandErrorTol(double const* errorSpec, unsigned int errorSpecSize, double* expandOut)
 {
 	// @todo Write this function
 }
@@ -2796,7 +2796,7 @@ void GeneralRateModel<ConvDispOperator>::expandErrorTol(double const* errorSpec,
  * @brief Computes equidistant radial nodes in the beads
  */
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::setEquidistantRadialDisc(unsigned int parType)
+void GeneralRateModelFV<ConvDispOperator>::setEquidistantRadialDisc(unsigned int parType)
 {
 	active* const ptrCenterRadius = _parCenterRadius.data() + _disc.nParCellsBeforeType[parType];
 	active* const ptrOuterSurfAreaPerVolume = _parOuterSurfAreaPerVolume.data() + _disc.nParCellsBeforeType[parType];
@@ -2860,7 +2860,7 @@ void GeneralRateModel<ConvDispOperator>::setEquidistantRadialDisc(unsigned int p
  * @brief Computes the radial nodes in the beads in such a way that all shells have the same volume
  */
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::setEquivolumeRadialDisc(unsigned int parType)
+void GeneralRateModelFV<ConvDispOperator>::setEquivolumeRadialDisc(unsigned int parType)
 {
 	active* const ptrCellSize = _parCellSize.data() + _disc.nParCellsBeforeType[parType];
 	active* const ptrCenterRadius = _parCenterRadius.data() + _disc.nParCellsBeforeType[parType];
@@ -2943,7 +2943,7 @@ void GeneralRateModel<ConvDispOperator>::setEquivolumeRadialDisc(unsigned int pa
  * @details Calculates surface areas per volume for every shell and the radial shell centers.
  */
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::setUserdefinedRadialDisc(unsigned int parType)
+void GeneralRateModelFV<ConvDispOperator>::setUserdefinedRadialDisc(unsigned int parType)
 {
 	active* const ptrCellSize = _parCellSize.data() + _disc.nParCellsBeforeType[parType];
 	active* const ptrCenterRadius = _parCenterRadius.data() + _disc.nParCellsBeforeType[parType];
@@ -3010,7 +3010,7 @@ void GeneralRateModel<ConvDispOperator>::setUserdefinedRadialDisc(unsigned int p
 }
 
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::updateRadialDisc()
+void GeneralRateModelFV<ConvDispOperator>::updateRadialDisc()
 {
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
 	{
@@ -3024,7 +3024,7 @@ void GeneralRateModel<ConvDispOperator>::updateRadialDisc()
 }
 
 template <typename ConvDispOperator>
-bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, double value)
+bool GeneralRateModelFV<ConvDispOperator>::setParameter(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
@@ -3095,7 +3095,7 @@ bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, do
 }
 
 template <typename ConvDispOperator>
-bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, int value)
+bool GeneralRateModelFV<ConvDispOperator>::setParameter(const ParameterId& pId, int value)
 {
 	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
 		return false;
@@ -3113,7 +3113,7 @@ bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, in
 }
 
 template <typename ConvDispOperator>
-bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, bool value)
+bool GeneralRateModelFV<ConvDispOperator>::setParameter(const ParameterId& pId, bool value)
 {
 	if ((pId.unitOperation != _unitOpIdx) && (pId.unitOperation != UnitOpIndep))
 		return false;
@@ -3131,7 +3131,7 @@ bool GeneralRateModel<ConvDispOperator>::setParameter(const ParameterId& pId, bo
 }
 
 template <typename ConvDispOperator>
-void GeneralRateModel<ConvDispOperator>::setSensitiveParameterValue(const ParameterId& pId, double value)
+void GeneralRateModelFV<ConvDispOperator>::setSensitiveParameterValue(const ParameterId& pId, double value)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
@@ -3198,7 +3198,7 @@ void GeneralRateModel<ConvDispOperator>::setSensitiveParameterValue(const Parame
 }
 
 template <typename ConvDispOperator>
-bool GeneralRateModel<ConvDispOperator>::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
+bool GeneralRateModelFV<ConvDispOperator>::setSensitiveParameter(const ParameterId& pId, unsigned int adDirection, double adValue)
 {
 	if (pId.unitOperation == _unitOpIdx)
 	{
@@ -3316,7 +3316,7 @@ bool GeneralRateModel<ConvDispOperator>::setSensitiveParameter(const ParameterId
 }
 
 template <typename ConvDispOperator>
-std::unordered_map<ParameterId, double> GeneralRateModel<ConvDispOperator>::getAllParameterValues() const
+std::unordered_map<ParameterId, double> GeneralRateModelFV<ConvDispOperator>::getAllParameterValues() const
 {
 	std::unordered_map<ParameterId, double> data = UnitOperationBase::getAllParameterValues();
 	model::getAllParameterValues(data, _parDepSurfDiffusion, _singleParDepSurfDiffusion);
@@ -3325,7 +3325,7 @@ std::unordered_map<ParameterId, double> GeneralRateModel<ConvDispOperator>::getA
 }
 
 template <typename ConvDispOperator>
-double GeneralRateModel<ConvDispOperator>::getParameterDouble(const ParameterId& pId) const
+double GeneralRateModelFV<ConvDispOperator>::getParameterDouble(const ParameterId& pId) const
 {
 	double val = 0.0;
 	if (model::getParameterDouble(pId, _parDepSurfDiffusion, _singleParDepSurfDiffusion, val))
@@ -3336,7 +3336,7 @@ double GeneralRateModel<ConvDispOperator>::getParameterDouble(const ParameterId&
 }
 
 template <typename ConvDispOperator>
-bool GeneralRateModel<ConvDispOperator>::hasParameter(const ParameterId& pId) const
+bool GeneralRateModelFV<ConvDispOperator>::hasParameter(const ParameterId& pId) const
 {
 	if (model::hasParameter(pId, _parDepSurfDiffusion, _singleParDepSurfDiffusion))
 		return true;
@@ -3346,7 +3346,7 @@ bool GeneralRateModel<ConvDispOperator>::hasParameter(const ParameterId& pId) co
 
 
 template <typename ConvDispOperator>
-int GeneralRateModel<ConvDispOperator>::Exporter::writeMobilePhase(double* buffer) const
+int GeneralRateModelFV<ConvDispOperator>::Exporter::writeMobilePhase(double* buffer) const
 {
 	const int blockSize = numMobilePhaseDofs();
 	std::copy_n(_idx.c(_data), blockSize, buffer);
@@ -3354,7 +3354,7 @@ int GeneralRateModel<ConvDispOperator>::Exporter::writeMobilePhase(double* buffe
 }
 
 template <typename ConvDispOperator>
-int GeneralRateModel<ConvDispOperator>::Exporter::writeSolidPhase(double* buffer) const
+int GeneralRateModelFV<ConvDispOperator>::Exporter::writeSolidPhase(double* buffer) const
 {
 	int numWritten = 0;
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
@@ -3367,7 +3367,7 @@ int GeneralRateModel<ConvDispOperator>::Exporter::writeSolidPhase(double* buffer
 }
 
 template <typename ConvDispOperator>
-int GeneralRateModel<ConvDispOperator>::Exporter::writeParticleMobilePhase(double* buffer) const
+int GeneralRateModelFV<ConvDispOperator>::Exporter::writeParticleMobilePhase(double* buffer) const
 {
 	int numWritten = 0;
 	for (unsigned int i = 0; i < _disc.nParType; ++i)
@@ -3380,7 +3380,7 @@ int GeneralRateModel<ConvDispOperator>::Exporter::writeParticleMobilePhase(doubl
 }
 
 template <typename ConvDispOperator>
-int GeneralRateModel<ConvDispOperator>::Exporter::writeSolidPhase(unsigned int parType, double* buffer) const
+int GeneralRateModelFV<ConvDispOperator>::Exporter::writeSolidPhase(unsigned int parType, double* buffer) const
 {
 	cadet_assert(parType < _disc.nParType);
 
@@ -3399,7 +3399,7 @@ int GeneralRateModel<ConvDispOperator>::Exporter::writeSolidPhase(unsigned int p
 }
 
 template <typename ConvDispOperator>
-int GeneralRateModel<ConvDispOperator>::Exporter::writeParticleMobilePhase(unsigned int parType, double* buffer) const
+int GeneralRateModelFV<ConvDispOperator>::Exporter::writeParticleMobilePhase(unsigned int parType, double* buffer) const
 {
 	cadet_assert(parType < _disc.nParType);
 
@@ -3418,7 +3418,7 @@ int GeneralRateModel<ConvDispOperator>::Exporter::writeParticleMobilePhase(unsig
 }
 
 template <typename ConvDispOperator>
-int GeneralRateModel<ConvDispOperator>::Exporter::writeParticleFlux(double* buffer) const
+int GeneralRateModelFV<ConvDispOperator>::Exporter::writeParticleFlux(double* buffer) const
 {
 	const int blockSize = numParticleFluxDofs();
 	std::copy_n(_idx.jf(_data), blockSize, buffer);
@@ -3426,7 +3426,7 @@ int GeneralRateModel<ConvDispOperator>::Exporter::writeParticleFlux(double* buff
 }
 
 template <typename ConvDispOperator>
-int GeneralRateModel<ConvDispOperator>::Exporter::writeParticleFlux(unsigned int parType, double* buffer) const
+int GeneralRateModelFV<ConvDispOperator>::Exporter::writeParticleFlux(unsigned int parType, double* buffer) const
 {
 	const unsigned int blockSize = _disc.nComp * _disc.nCol;
 	std::copy_n(_idx.jf(_data) + blockSize * parType, blockSize, buffer);
@@ -3434,7 +3434,7 @@ int GeneralRateModel<ConvDispOperator>::Exporter::writeParticleFlux(unsigned int
 }
 
 template <typename ConvDispOperator>
-int GeneralRateModel<ConvDispOperator>::Exporter::writeInlet(unsigned int port, double* buffer) const
+int GeneralRateModelFV<ConvDispOperator>::Exporter::writeInlet(unsigned int port, double* buffer) const
 {
 	cadet_assert(port == 0);
 	std::copy_n(_data, _disc.nComp, buffer);
@@ -3442,14 +3442,14 @@ int GeneralRateModel<ConvDispOperator>::Exporter::writeInlet(unsigned int port, 
 }
 
 template <typename ConvDispOperator>
-int GeneralRateModel<ConvDispOperator>::Exporter::writeInlet(double* buffer) const
+int GeneralRateModelFV<ConvDispOperator>::Exporter::writeInlet(double* buffer) const
 {
 	std::copy_n(_data, _disc.nComp, buffer);
 	return _disc.nComp;
 }
 
 template <typename ConvDispOperator>
-int GeneralRateModel<ConvDispOperator>::Exporter::writeOutlet(unsigned int port, double* buffer) const
+int GeneralRateModelFV<ConvDispOperator>::Exporter::writeOutlet(unsigned int port, double* buffer) const
 {
 	cadet_assert(port == 0);
 
@@ -3462,7 +3462,7 @@ int GeneralRateModel<ConvDispOperator>::Exporter::writeOutlet(unsigned int port,
 }
 
 template <typename ConvDispOperator>
-int GeneralRateModel<ConvDispOperator>::Exporter::writeOutlet(double* buffer) const
+int GeneralRateModelFV<ConvDispOperator>::Exporter::writeOutlet(double* buffer) const
 {
 	if (_model._convDispOp.forwardFlow())
 		std::copy_n(&_idx.c(_data, _disc.nCol - 1, 0), _disc.nComp, buffer);
@@ -3476,8 +3476,8 @@ int GeneralRateModel<ConvDispOperator>::Exporter::writeOutlet(double* buffer) co
 
 }  // namespace cadet
 
-#include "model/GeneralRateModel-InitialConditions.cpp"
-#include "model/GeneralRateModel-LinearSolver.cpp"
+#include "model/GeneralRateModelFV-InitialConditions.cpp"
+#include "model/GeneralRateModelFV-LinearSolver.cpp"
 
 namespace cadet
 {
@@ -3486,27 +3486,27 @@ namespace model
 {
 
 // Template instantiations
-template class GeneralRateModel<parts::AxialConvectionDispersionOperatorFV>;
-template class GeneralRateModel<parts::RadialConvectionDispersionOperatorFV>;
-template class GeneralRateModel<parts::FrustumConvectionDispersionOperatorFV>;
+template class GeneralRateModelFV<parts::AxialConvectionDispersionOperatorFV>;
+template class GeneralRateModelFV<parts::RadialConvectionDispersionOperatorFV>;
+template class GeneralRateModelFV<parts::FrustumConvectionDispersionOperatorFV>;
 
-IUnitOperation* createAxialFVGRM(UnitOpIdx uoId)
+IUnitOperation* createAxialGRMFV(UnitOpIdx uoId)
 {
-	typedef GeneralRateModel<parts::AxialConvectionDispersionOperatorFV> AxialGRM;
+	typedef GeneralRateModelFV<parts::AxialConvectionDispersionOperatorFV> AxialGRM;
 
 	return new AxialGRM(uoId);
 }
 
-IUnitOperation* createRadialFVGRM(UnitOpIdx uoId)
+IUnitOperation* createRadialGRMFV(UnitOpIdx uoId)
 {
-	typedef GeneralRateModel<parts::RadialConvectionDispersionOperatorFV> RadialGRM;
+	typedef GeneralRateModelFV<parts::RadialConvectionDispersionOperatorFV> RadialGRM;
 
 	return new RadialGRM(uoId);
 }
 
-IUnitOperation* createFrustumFVGRM(UnitOpIdx uoId)
+IUnitOperation* createFrustumGRMFV(UnitOpIdx uoId)
 {
-	typedef GeneralRateModel<parts::FrustumConvectionDispersionOperatorFV> FrustumGRM;
+	typedef GeneralRateModelFV<parts::FrustumConvectionDispersionOperatorFV> FrustumGRM;
 
 	return new FrustumGRM(uoId);
 }

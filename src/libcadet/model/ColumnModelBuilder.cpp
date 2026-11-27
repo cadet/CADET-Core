@@ -15,12 +15,12 @@
 #include "model/StirredTankModel.hpp"
 #ifdef ENABLE_2D_MODELS
 	#include "model/ColumnModel2D.hpp"
-	#include "model/GeneralRateModel2D.hpp"
+	#include "model/GeneralRateModel2DFV.hpp"
 #endif
-#include "model/GeneralRateModel.hpp"
+#include "model/GeneralRateModelFV.hpp"
+#include "model/LumpedRateModelWithoutPoresFV.hpp"
 #include "model/LumpedRateModelWithoutPores.hpp"
-#include "model/LumpedRateModelWithoutPoresDG.hpp"
-#include "model/LumpedRateModelWithPores.hpp"
+#include "model/LumpedRateModelWithPoresFV.hpp"
 #include "CompileTimeConfig.hpp"
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -45,7 +45,7 @@ namespace model
 		else if (discName == "FV")
 		{
 			if (uoType == "GENERAL_RATE_MODEL_2D")
-				return new GeneralRateModel2D(uoId);
+				return new GeneralRateModel2DFV(uoId);
 
 			paramProvider.pushScope("particle_type_000");
 			const bool filmDiffusion = paramProvider.getBool("HAS_FILM_DIFFUSION");
@@ -56,7 +56,7 @@ namespace model
 			const std::string particleType = ParticleModel(filmDiffusion, poreDiffusion, surfaceDiffusion).getParticleTransportType();
 
 			if (particleType == "GENERAL_RATE_PARTICLE")
-				return new GeneralRateModel2D(uoId);
+				return new GeneralRateModel2DFV(uoId);
 			else
 				LOG(Error) << "This particle Type (check HAS_FILM_DIFFUSION, HAS_PORE_DIFFUSION, HAS_SURFACE_DIFFUSION) is not implemented for FV discretization of the bulk phase, but was specified as such for unit " << uoId;
 		}
@@ -281,11 +281,11 @@ namespace model
 					else if (discName == "FV")
 					{
 						if (colGeometry == "AXIAL_FLOW_CYLINDER")
-							model = arrowHeadOpt ? createAxialFVLRM(uoId) : createAxialLRMFVsparse(uoId);
+							model = arrowHeadOpt ? createAxialLRMFV(uoId) : createAxialLRMFVsparse(uoId);
 						else if (colGeometry == "RADIAL_FLOW_CYLINDER_SHELL")
-							model = arrowHeadOpt ? createRadialFVLRM(uoId) : createRadialLRMFVsparse(uoId);
+							model = arrowHeadOpt ? createRadialLRMFV(uoId) : createRadialLRMFVsparse(uoId);
 						else if (colGeometry == "AXIAL_FLOW_FRUSTUM")
-							model = arrowHeadOpt ? createFrustumFVLRM(uoId) : createFrustumLRMFVsparse(uoId);
+							model = arrowHeadOpt ? createFrustumLRMFV(uoId) : createFrustumLRMFVsparse(uoId);
 					}
 					else
 						LOG(Error) << "Unknown bulk discretization type " << discName << " for unit " << uoId;
@@ -295,22 +295,22 @@ namespace model
 					if (particleType == "HOMOGENEOUS_PARTICLE")
 					{
 						if (colGeometry == "AXIAL_FLOW_CYLINDER")
-							model = createAxialFVLRMP(uoId);
+							model = createAxialLRMPFV(uoId);
 						else if (colGeometry == "RADIAL_FLOW_CYLINDER_SHELL")
-							model = createRadialFVLRMP(uoId);
+							model = createRadialLRMPFV(uoId);
 						else if (colGeometry == "AXIAL_FLOW_FRUSTUM")
-							model = createFrustumFVLRMP(uoId);
+							model = createFrustumLRMPFV(uoId);
 					}
 					else if (particleType == "GENERAL_RATE_PARTICLE")
 					{
 						if (!arrowHeadOpt)
 							LOG(Info) << "FV_ARROW_HEAD_OPTIMIZATION is set to false for a general rate model unit operation, probably resulting in a less efficient computation, we recommend using the arrow head optimization for the combination of FV and GRM";
 						if (colGeometry == "AXIAL_FLOW_CYLINDER")
-							model = createAxialFVGRM(uoId);
+							model = createAxialGRMFV(uoId);
 						else if (colGeometry == "RADIAL_FLOW_CYLINDER_SHELL")
-							model = createRadialFVGRM(uoId);
+							model = createRadialGRMFV(uoId);
 						else if (colGeometry == "AXIAL_FLOW_FRUSTUM")
-							model = createFrustumFVGRM(uoId);
+							model = createFrustumGRMFV(uoId);
 					}
 				}
 				else if (discName == "FV" && !arrowHeadOpt)
@@ -336,11 +336,11 @@ namespace model
 				if (arrowHeadOpt)
 				{
 					if (colGeometry == "AXIAL_FLOW_CYLINDER")
-						model = createAxialFVLRM(uoId);
+						model = createAxialLRMFV(uoId);
 					else if (colGeometry == "RADIAL_FLOW_CYLINDER_SHELL")
-						model = createRadialFVLRM(uoId);
+						model = createRadialLRMFV(uoId);
 					else if (colGeometry == "AXIAL_FLOW_FRUSTUM")
-						model = createFrustumFVLRM(uoId);
+						model = createFrustumLRMFV(uoId);
 				}
 				else
 				{
@@ -374,29 +374,29 @@ namespace model
 				if(colGeometry == "AXIAL_FLOW_CYLINDER")
 				{
 					if (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES")
-						model = arrowHeadOpt ? createAxialFVLRM(uoId) : createAxialLRMFVsparse(uoId);
+						model = arrowHeadOpt ? createAxialLRMFV(uoId) : createAxialLRMFVsparse(uoId);
 					else if (uoType == "LUMPED_RATE_MODEL_WITH_PORES")
-						model = arrowHeadOpt ? createAxialFVLRMP(uoId) : createAxialCol1DFV(uoId);
+						model = arrowHeadOpt ? createAxialLRMPFV(uoId) : createAxialCol1DFV(uoId);
 					else if (uoType == "GENERAL_RATE_MODEL")
-						model = arrowHeadOpt ? createAxialFVGRM(uoId) : createAxialCol1DFV(uoId);
+						model = arrowHeadOpt ? createAxialGRMFV(uoId) : createAxialCol1DFV(uoId);
 				}
 				else if(colGeometry == "RADIAL_FLOW_CYLINDER_SHELL")
 				{
 					if (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES")
-						model = arrowHeadOpt ? createRadialFVLRM(uoId) : createRadialLRMFVsparse(uoId);
+						model = arrowHeadOpt ? createRadialLRMFV(uoId) : createRadialLRMFVsparse(uoId);
 					else if (uoType == "LUMPED_RATE_MODEL_WITH_PORES")
-						model = arrowHeadOpt ? createRadialFVLRMP(uoId) : createRadialCol1DFV(uoId);
+						model = arrowHeadOpt ? createRadialLRMPFV(uoId) : createRadialCol1DFV(uoId);
 					else if (uoType == "GENERAL_RATE_MODEL")
-						model = arrowHeadOpt ? createRadialFVGRM(uoId) : createRadialCol1DFV(uoId);
+						model = arrowHeadOpt ? createRadialGRMFV(uoId) : createRadialCol1DFV(uoId);
 				}
 				else if(colGeometry == "AXIAL_FLOW_FRUSTUM")
 				{
 					if (uoType == "LUMPED_RATE_MODEL_WITHOUT_PORES")
-						model = arrowHeadOpt ? createFrustumFVLRM(uoId) : createFrustumLRMFVsparse(uoId);
+						model = arrowHeadOpt ? createFrustumLRMFV(uoId) : createFrustumLRMFVsparse(uoId);
 					else if (uoType == "LUMPED_RATE_MODEL_WITH_PORES")
-						model = arrowHeadOpt ? createFrustumFVLRMP(uoId) : createFrustumCol1DFV(uoId);
+						model = arrowHeadOpt ? createFrustumLRMPFV(uoId) : createFrustumCol1DFV(uoId);
 					else if (uoType == "GENERAL_RATE_MODEL")
-						model = arrowHeadOpt ? createFrustumFVGRM(uoId) : createFrustumCol1DFV(uoId);
+						model = arrowHeadOpt ? createFrustumGRMFV(uoId) : createFrustumCol1DFV(uoId);
 				}
 			}
 			else
@@ -409,7 +409,7 @@ namespace model
 	void registerColumnModel(std::unordered_map<std::string, std::function<IUnitOperation* (UnitOpIdx, IParameterProvider&)>>& models)
 	{
 		models[ColumnModel2D::identifier()] = selectColumnUnitOperation;
-		models[GeneralRateModel2D::identifier()] = selectColumnUnitOperation;
+		models[GeneralRateModel2DFV::identifier()] = selectColumnUnitOperation;
 
 		models[StirredTankModel::identifier()] = selectStirredTankUnitOperation;
 
@@ -435,28 +435,28 @@ namespace model
 		models[RadialCol1DCollocationFV::identifier()] = selectColumnUnitOperation;
 		models[FrustumCol1DCollocationFV::identifier()] = selectColumnUnitOperation;
 
-		typedef LumpedRateModelWithoutPoresDG<parts::VariableCrossSectionConvectionDispersionOperatorBaseDG> VarCrossSectionLRMDG;
-		typedef LumpedRateModelWithoutPoresDG<parts::AxialConvectionDispersionOperatorBaseCollocationDG> AxialLRMCOLLOCATIONDG;
+		typedef LumpedRateModelWithoutPores<parts::VariableCrossSectionConvectionDispersionOperatorBaseDG> VarCrossSectionLRMDG;
+		typedef LumpedRateModelWithoutPores<parts::AxialConvectionDispersionOperatorBaseCollocationDG> AxialLRMCOLLOCATIONDG;
 
 		models[AxialLRMCOLLOCATIONDG::identifier()] = selectColumnUnitOperation;
 		models[VarCrossSectionLRMDG::identifier()] = selectColumnUnitOperation;
 
-		typedef GeneralRateModel<parts::AxialConvectionDispersionOperatorFV> AxialGRMFV;
-		typedef GeneralRateModel<parts::RadialConvectionDispersionOperatorFV> RadialGRMFV;
-		typedef GeneralRateModel<parts::FrustumConvectionDispersionOperatorFV> FrustumGRMFV;
+		typedef GeneralRateModelFV<parts::AxialConvectionDispersionOperatorFV> AxialGRMFV;
+		typedef GeneralRateModelFV<parts::RadialConvectionDispersionOperatorFV> RadialGRMFV;
+		typedef GeneralRateModelFV<parts::FrustumConvectionDispersionOperatorFV> FrustumGRMFV;
 
 		models[AxialGRMFV::identifier()] = selectColumnUnitOperation;
 		models[RadialGRMFV::identifier()] = selectColumnUnitOperation;
 		models[FrustumGRMFV::identifier()] = selectColumnUnitOperation;
 
-		typedef LumpedRateModelWithPores<parts::AxialConvectionDispersionOperatorFV> AxialLRMPFV;
-		typedef LumpedRateModelWithPores<parts::RadialConvectionDispersionOperatorFV> RadialLRMPFV;
+		typedef LumpedRateModelWithPoresFV<parts::AxialConvectionDispersionOperatorFV> AxialLRMPFV;
+		typedef LumpedRateModelWithPoresFV<parts::RadialConvectionDispersionOperatorFV> RadialLRMPFV;
 
 		models[AxialLRMPFV::identifier()] = selectColumnUnitOperation;
 		models[RadialLRMPFV::identifier()] = selectColumnUnitOperation;
 
-		typedef LumpedRateModelWithoutPores<parts::AxialConvectionDispersionOperatorBaseFV> AxialLRMFV;
-		typedef LumpedRateModelWithoutPores<parts::RadialConvectionDispersionOperatorBaseFV> RadialLRMFV;
+		typedef LumpedRateModelWithoutPoresFV<parts::AxialConvectionDispersionOperatorBaseFV> AxialLRMFV;
+		typedef LumpedRateModelWithoutPoresFV<parts::RadialConvectionDispersionOperatorBaseFV> RadialLRMFV;
 
 		models[AxialLRMFV::identifier()] = selectColumnUnitOperation;
 		models[RadialLRMFV::identifier()] = selectColumnUnitOperation;
