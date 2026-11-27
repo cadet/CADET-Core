@@ -49,7 +49,7 @@ namespace cadet
 
 		template <typename ConvDispOperator>
 		LumpedRateModelWithoutPoresDG<ConvDispOperator>::LumpedRateModelWithoutPoresDG(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
-			/*_jacInlet(),*/ _analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr), _initC(0),
+			/*_jacInlet(),*/ _analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _bandedSolver(false), _tempState(nullptr), _initC(0),
 			_initCs(0), _initState(0), _initStateDot(0)
 		{
 			// Multiple particle types are not supported
@@ -140,6 +140,8 @@ namespace cadet
 
 			if (firstConfigCall)
 				_linearSolver = cadet::linalg::setLinearSolver(paramProvider.exists("LINEAR_SOLVER") ? paramProvider.getString("LINEAR_SOLVER") : "SparseLU");
+
+			_bandedSolver = paramProvider.exists("BANDED_JACOBIAN") ? paramProvider.getBool("BANDED_JACOBIAN") : false;
 
 			// A finite volume cell is a single node, which is all that separates the two
 			// discretizations here: everything below this point is expressed in discrete points.
@@ -242,6 +244,14 @@ namespace cadet
 
 			_jac.resize((_disc.nComp + _disc.strideBound) * _disc.nPoints, (_disc.nComp + _disc.strideBound) * _disc.nPoints);
 			_jacDisc.resize((_disc.nComp + _disc.strideBound) * _disc.nPoints, (_disc.nComp + _disc.strideBound) * _disc.nPoints);
+
+			if (_bandedSolver)
+			{
+				// The bandwidths swap on flow reversal, so reserve the wider of the two on both sides.
+				// Binding couples states within a node and stays inside the transport bandwidth.
+				const unsigned int halfBandwidth = std::max(_convDispOp.jacobianLowerBandwidth(), _convDispOp.jacobianUpperBandwidth());
+				_jacDiscBand.resize((_disc.nComp + _disc.strideBound) * _disc.nPoints, halfBandwidth, halfBandwidth);
+			}
 			// jacobian pattern is set and analyzed after reactions are configured
 
 			// Set whether analytic Jacobian is used
@@ -1051,23 +1061,36 @@ namespace cadet
 			// Factorize Jacobian only if required
 			if (_factorizeJacobian)
 			{
-				_linearSolver->factorize(_jacDisc, 0, static_cast<int>(_jacDisc.rows()));
-
-				if (_linearSolver->info() != Success) {
-					LOG(Error) << "factorization failed";
-					success = false;
+				if (_bandedSolver)
+				{
+					copyDiscretizedJacobianToBand();
+					success = _jacDiscBand.factorize();
 				}
+				else
+				{
+					_linearSolver->factorize(_jacDisc, 0, static_cast<int>(_jacDisc.rows()));
+					success = _linearSolver->info() == Success;
+				}
+
+				if (!success)
+					LOG(Error) << "factorization failed";
 
 				_factorizeJacobian = false;
 			}
 
-			// Use the factors to solve the linear system 
-			_linearSolver->solve(r.data() + idxr.offsetC(), numPureDofs());
-
-			if (_linearSolver->info() != Success) {
-				LOG(Error) << "solve() failed";
-				result = false;
+			// Use the factors to solve the linear system
+			if (_bandedSolver)
+			{
+				result = _jacDiscBand.solve(r.data() + idxr.offsetC());
 			}
+			else
+			{
+				_linearSolver->solve(r.data() + idxr.offsetC(), numPureDofs());
+				result = _linearSolver->info() == Success;
+			}
+
+			if (!result)
+				LOG(Error) << "solve() failed";
 
 			// Handle inlet DOFs:
 			// Inlet at z = 0 for forward flow, at z = L for backward flow. The inlet block ends at
@@ -1099,6 +1122,20 @@ namespace cadet
 		 * @param [in] alpha Value of \f$ \alpha \f$ (arises from BDF time discretization)
 		 * @param [in] idxr Indexer
 		 */
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::copyDiscretizedJacobianToBand()
+		{
+			_jacDiscBand.setAll(0.0);
+
+			for (int row = 0; row < _jacDisc.outerSize(); ++row)
+			{
+				linalg::FactorizableBandMatrix::RowIterator jacBand = _jacDiscBand.row(row);
+
+				for (Eigen::SparseMatrix<double, RowMajor>::InnerIterator jac(_jacDisc, row); jac; ++jac)
+					jacBand[static_cast<int>(jac.col()) - row] = jac.value();
+			}
+		}
+
 		template <typename ConvDispOperator>
 		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::assembleDiscretizedJacobian(double alpha, const Indexer& idxr)
 		{

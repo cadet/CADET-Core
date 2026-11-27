@@ -240,6 +240,7 @@ namespace cadet
 			void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
 
 			void assembleDiscretizedJacobian(double alpha, const Indexer& idxr);
+			void copyDiscretizedJacobianToBand();
 			void addTimeDerivativeToJacobianNode(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, double invBetaP) const;
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
@@ -281,6 +282,9 @@ namespace cadet
 			Eigen::SparseMatrix<double, RowMajor> _jacDisc; //!< Jacobian with time derivatives from BDF method
 			Eigen::MatrixXd _jacInlet; //!< Jacobian inlet DOF block matrix connects inlet DOFs to first bulk cells
 			//MatrixXd FDjac; // test purpose FD Jacobian
+
+			bool _bandedSolver; //!< Determines whether the discretized Jacobian is factorized as a band matrix instead of a sparse one
+			linalg::FactorizableBandMatrix _jacDiscBand; //!< Banded copy of _jacDisc, only used when _bandedSolver is set
 
 			std::vector<active> _totalPorosity; //!< Total porosity \f$ \varepsilon_t \f$ at each axial node, always holds nPoints entries
 			bool _axiallyConstantTotalPorosity; //!< Determines whether the total porosity is homogeneous across the axial coordinate
