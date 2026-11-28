@@ -21,6 +21,7 @@
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
+#include "FloatingPointMode.hpp"
 
 #include "ParallelSupport.hpp"
 
@@ -113,6 +114,8 @@ int LumpedRateModelWithPores<ConvDispOperator>::linearSolve(double t, double alp
 	const ConstSimulationState& simState)
 {
 	BENCH_SCOPE(_timerLinearSolve);
+
+	const ScopedFlushSubnormals flushSubnormals;
 
 	Indexer idxr(_disc);
 

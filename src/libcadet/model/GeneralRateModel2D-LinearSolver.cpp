@@ -22,6 +22,7 @@
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
+#include "FloatingPointMode.hpp"
 
 #include "ParallelSupport.hpp"
 
@@ -113,6 +114,8 @@ int GeneralRateModel2D::linearSolve(double t, double alpha, double outerTol, dou
 	const ConstSimulationState& simState)
 {
 	BENCH_SCOPE(_timerLinearSolve);
+
+	const ScopedFlushSubnormals flushSubnormals;
 
 	Indexer idxr(_disc);
 
