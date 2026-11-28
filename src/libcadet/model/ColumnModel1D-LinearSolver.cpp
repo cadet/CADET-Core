@@ -278,14 +278,33 @@ void ColumnModel1D<ConvDispOperator>::setupBlockSolver(const Indexer& idxr)
 
 	_schurBulk.resize(nBulk, _bulkBandwidth, _bulkBandwidth);
 
+	_blkMethod.resize(nBlocks);
 	_blkJac.resize(nBlocks);
+	_blkJacDense.resize(nBlocks);
 	_blkToBulk.resize(nBlocks);
 	_bulkToBlk.resize(nBlocks);
 	_blkSchurFactor.resize(nBlocks);
 
 	for (int blk = 0; blk < nBlocks; ++blk)
 	{
-		_blkJac[blk].resize(_blkSize[blk], _parBandwidth[blk], _parBandwidth[blk]);
+		// Estimated work of one factorization and one solve. A banded factorization takes about
+		// 2 p b^2 and its solve 4 p b, a dense one 2/3 p^3 and its solve 2 p^2.
+		const double p = _blkSize[blk];
+		const double b = _parBandwidth[blk];
+		const double bandedCost = 2.0 * p * b * b + 4.0 * p * b;
+		const double denseCost = 2.0 / 3.0 * p * p * p + 2.0 * p * p;
+
+		if (denseCost < bandedCost)
+		{
+			_blkMethod[blk] = ParticleBlockMethod::Dense;
+			_blkJacDense[blk].resize(_blkSize[blk], _blkSize[blk]);
+		}
+		else
+		{
+			_blkMethod[blk] = ParticleBlockMethod::Banded;
+			_blkJac[blk].resize(_blkSize[blk], _parBandwidth[blk], _parBandwidth[blk]);
+		}
+
 		_blkToBulk[blk].setZero(idxr.strideColNode(), _blkSize[blk]);
 		_bulkToBlk[blk].setZero(_blkSize[blk], idxr.strideColNode());
 		_blkSchurFactor[blk].setZero(_blkSize[blk], idxr.strideColNode());
@@ -315,7 +334,11 @@ bool ColumnModel1D<ConvDispOperator>::blockFactorize(const Indexer& idxr)
 	_schurBulk.setAll(0.0);
 	for (int blk = 0; blk < nBlocks; ++blk)
 	{
-		_blkJac[blk].setAll(0.0);
+		if (_blkMethod[blk] == ParticleBlockMethod::Dense)
+			_blkJacDense[blk].setAll(0.0);
+		else
+			_blkJac[blk].setAll(0.0);
+
 		_blkToBulk[blk].setZero();
 		_bulkToBlk[blk].setZero();
 	}
@@ -342,6 +365,8 @@ bool ColumnModel1D<ConvDispOperator>::blockFactorize(const Indexer& idxr)
 			}
 			else if (colBlk < 0)
 				_bulkToBlk[rowBlk](row - _blkBegin[rowBlk], col - _blkNode[rowBlk] * strideNode) = val;
+			else if (_blkMethod[rowBlk] == ParticleBlockMethod::Dense)
+				_blkJacDense[rowBlk].native(row - _blkBegin[rowBlk], col - _blkBegin[rowBlk]) = val;
 			else
 				_blkJac[rowBlk].row(row - _blkBegin[rowBlk])[col - row] = val;
 		}
@@ -349,7 +374,7 @@ bool ColumnModel1D<ConvDispOperator>::blockFactorize(const Indexer& idxr)
 
 	for (int blk = 0; blk < nBlocks; ++blk)
 	{
-		if (cadet_unlikely(!_blkJac[blk].factorize()))
+		if (cadet_unlikely(!particleBlockFactorize(blk)))
 			return false;
 
 		// _blkSchurFactor = J_p^{-1} J_{p,bulk}, reused by the back substitution in blockSolve()
@@ -358,7 +383,7 @@ bool ColumnModel1D<ConvDispOperator>::blockFactorize(const Indexer& idxr)
 			for (int i = 0; i < _blkSize[blk]; ++i)
 				_blkScratch[i] = _bulkToBlk[blk](i, comp);
 
-			if (cadet_unlikely(!_blkJac[blk].solve(_blkScratch.data())))
+			if (cadet_unlikely(!particleBlockSolve(blk, _blkScratch.data())))
 				return false;
 
 			for (int i = 0; i < _blkSize[blk]; ++i)
@@ -379,6 +404,35 @@ bool ColumnModel1D<ConvDispOperator>::blockFactorize(const Indexer& idxr)
 }
 
 /**
+ * @brief Factorizes a single particle block with the method chosen for it
+ * @param [in] blk Index of the particle block
+ * @return @c true if the factorization succeeded, otherwise @c false
+ */
+template <typename ConvDispOperator>
+bool ColumnModel1D<ConvDispOperator>::particleBlockFactorize(int blk)
+{
+	if (_blkMethod[blk] == ParticleBlockMethod::Dense)
+		return _blkJacDense[blk].factorize();
+
+	return _blkJac[blk].factorize();
+}
+
+/**
+ * @brief Solves a single particle block using the factors prepared by particleBlockFactorize()
+ * @param [in] blk Index of the particle block
+ * @param [in,out] rhs On entry the right hand side of the block, on exit its solution
+ * @return @c true if the solve succeeded, otherwise @c false
+ */
+template <typename ConvDispOperator>
+bool ColumnModel1D<ConvDispOperator>::particleBlockSolve(int blk, double* const rhs) const
+{
+	if (_blkMethod[blk] == ParticleBlockMethod::Dense)
+		return _blkJacDense[blk].solve(rhs);
+
+	return _blkJac[blk].solve(rhs);
+}
+
+/**
  * @brief Solves the system using the factors prepared by blockFactorize()
  * @param [in,out] rhs On entry the right hand side of the pure DOFs, on exit their solution
  * @param [in] idxr Indexer
@@ -395,7 +449,7 @@ bool ColumnModel1D<ConvDispOperator>::blockSolve(double* const rhs, const Indexe
 	{
 		double* const blkRhs = rhs + _blkBegin[blk];
 
-		if (cadet_unlikely(!_blkJac[blk].solve(blkRhs)))
+		if (cadet_unlikely(!particleBlockSolve(blk, blkRhs)))
 			return false;
 
 		double* const bulkRhs = rhs + _blkNode[blk] * strideNode;

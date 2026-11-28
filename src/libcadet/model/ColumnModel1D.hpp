@@ -28,6 +28,7 @@
 #include "AutoDiff.hpp"
 #include "linalg/BandedEigenSparseRowIterator.hpp"
 #include "linalg/BandMatrix.hpp"
+#include "linalg/DenseMatrix.hpp"
 #include "linalg/EigenSolverWrapper.hpp"
 #include "Memory.hpp"
 #include "model/ModelUtils.hpp"
@@ -281,6 +282,8 @@ protected:
 	void setupBlockSolver(const Indexer& idxr);
 	bool blockFactorize(const Indexer& idxr);
 	bool blockSolve(double* const rhs, const Indexer& idxr);
+	bool particleBlockFactorize(int blk);
+	bool particleBlockSolve(int blk, double* const rhs) const;
 
 	void setEquidistantRadialDisc(unsigned int parType);
 	void setEquivolumeRadialDisc(unsigned int parType);
@@ -393,6 +396,17 @@ protected:
 	//!          therefore only alters the per node diagonal blocks of the bulk Jacobian, which
 	//!          leaves it banded, so the whole system is solved by small banded factorizations
 	//!          instead of one sparse factorization over all degrees of freedom.
+	//! @brief Factorization used for a single particle block
+	//! @details A particle block is banded, but how much the band buys over a dense factorization
+	//!          depends on the particle discretization. A homogeneous particle has a single point
+	//!          and is dense already, and a coarsely resolved one is banded only nominally, since
+	//!          the pivoting storage of a banded factorization is wider than the block itself.
+	enum class ParticleBlockMethod : int
+	{
+		Banded, //!< Banded factorization at the measured bandwidth
+		Dense //!< Dense factorization of the whole block
+	};
+
 	bool _blockSolver; //!< Determines whether the particle blocks are eliminated instead of factorizing the global Jacobian
 	int _bulkBandwidth; //!< Half bandwidth of the bulk Jacobian, only used when _blockSolver is set
 	std::vector<int> _parBandwidth; //!< Half bandwidth of each particle block, only used when _blockSolver is set
@@ -400,8 +414,10 @@ protected:
 	std::vector<int> _blkSize; //!< Number of DOFs of each particle block
 	std::vector<int> _blkNode; //!< Axial node each particle block belongs to
 	std::vector<int> _blkOwner; //!< Particle block owning each pure DOF, @c -1 for the bulk
+	std::vector<ParticleBlockMethod> _blkMethod; //!< Factorization chosen for each particle block
 	linalg::FactorizableBandMatrix _schurBulk; //!< Bulk Jacobian after elimination of the particle blocks
-	std::vector<linalg::FactorizableBandMatrix> _blkJac; //!< Discretized Jacobian of each particle block
+	std::vector<linalg::FactorizableBandMatrix> _blkJac; //!< Discretized Jacobian of each banded particle block
+	std::vector<linalg::DenseMatrix> _blkJacDense; //!< Discretized Jacobian of each dense particle block
 	std::vector<Eigen::MatrixXd> _blkToBulk; //!< Particle block to bulk coupling of each block
 	std::vector<Eigen::MatrixXd> _bulkToBlk; //!< Bulk to particle block coupling of each block
 	std::vector<Eigen::MatrixXd> _blkSchurFactor; //!< Particle block inverse applied to its bulk coupling
