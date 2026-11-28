@@ -240,8 +240,16 @@ namespace cadet
 			void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
 
 			void assembleDiscretizedJacobian(double alpha, const Indexer& idxr);
-			void copyDiscretizedJacobianToBand();
-			void addTimeDerivativeToJacobianNode(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, double invBetaP) const;
+			void assembleDiscretizedJacobianBand(double alpha, const Indexer& idxr);
+
+			static linalg::BandedEigenSparseRowIterator jacobianRow(Eigen::SparseMatrix<double, RowMajor>& mat, int row) { return linalg::BandedEigenSparseRowIterator(mat, row); }
+			static linalg::FactorizableBandMatrix::RowIterator jacobianRow(linalg::FactorizableBandMatrix& mat, int row) { return mat.row(row); }
+
+			template <typename MatrixType>
+			void assembleTimeDerivativeSystem(MatrixType& mat, const Indexer& idxr, const SimulationTime& simTime,
+				double* const rhs, bool withFluxTimeDerivative, util::ThreadLocalStorage& threadLocalMem);
+			template <typename RowIteratorType>
+			void addTimeDerivativeToJacobianNode(RowIteratorType& jac, const Indexer& idxr, double alpha, double invBetaP) const;
 
 #ifdef CADET_CHECK_ANALYTIC_JACOBIAN
 			void checkAnalyticJacobianAgainstAd(active const* const adRes, unsigned int adDirOffset) const;
@@ -284,7 +292,10 @@ namespace cadet
 			//MatrixXd FDjac; // test purpose FD Jacobian
 
 			bool _bandedSolver; //!< Determines whether the discretized Jacobian is factorized as a band matrix instead of a sparse one
-			linalg::FactorizableBandMatrix _jacDiscBand; //!< Banded copy of _jacDisc, only used when _bandedSolver is set
+			linalg::FactorizableBandMatrix _jacDiscBand; //!< Discretized Jacobian in band storage, only used when _bandedSolver is set
+
+			std::vector<double> _algebraicJac; //!< Per node dense Jacobian of the algebraic subsystem solved during consistent initialization
+			std::vector<int> _algebraicJacPivots; //!< Pivot storage belonging to _algebraicJac
 
 			std::vector<active> _totalPorosity; //!< Total porosity \f$ \varepsilon_t \f$ at each axial node, always holds nPoints entries
 			bool _axiallyConstantTotalPorosity; //!< Determines whether the total porosity is homogeneous across the axial coordinate

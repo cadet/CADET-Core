@@ -243,15 +243,19 @@ namespace cadet
 			Indexer idxr(_disc);
 
 			_jac.resize((_disc.nComp + _disc.strideBound) * _disc.nPoints, (_disc.nComp + _disc.strideBound) * _disc.nPoints);
-			_jacDisc.resize((_disc.nComp + _disc.strideBound) * _disc.nPoints, (_disc.nComp + _disc.strideBound) * _disc.nPoints);
-
-			if (_bandedSolver)
+			if (!_bandedSolver)
+				_jacDisc.resize((_disc.nComp + _disc.strideBound) * _disc.nPoints, (_disc.nComp + _disc.strideBound) * _disc.nPoints);
+			else
 			{
 				// The bandwidths swap on flow reversal, so reserve the wider of the two on both sides.
 				// Binding couples states within a node and stays inside the transport bandwidth.
 				const unsigned int halfBandwidth = std::max(_convDispOp.jacobianLowerBandwidth(), _convDispOp.jacobianUpperBandwidth());
 				_jacDiscBand.resize((_disc.nComp + _disc.strideBound) * _disc.nPoints, halfBandwidth, halfBandwidth);
 			}
+
+			const std::size_t algebraicStride = _disc.nComp + _disc.strideBound;
+			_algebraicJac.resize(static_cast<std::size_t>(_disc.nPoints) * algebraicStride * algebraicStride);
+			_algebraicJacPivots.resize(static_cast<std::size_t>(_disc.nPoints) * algebraicStride);
 			// jacobian pattern is set and analyzed after reactions are configured
 
 			// Set whether analytic Jacobian is used
@@ -455,11 +459,15 @@ namespace cadet
 
 
 			setPattern(_jac, true, hasReaction);
-			setPattern(_jacDisc, true, hasReaction);
 
-			// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
-			// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
-			_linearSolver->analyzePattern(_jacDisc, 0, static_cast<int>(_jacDisc.rows()));
+			if (!_bandedSolver)
+			{
+				setPattern(_jacDisc, true, hasReaction);
+
+				// the solver repetitively solves the linear system with a static pattern of the jacobian (set above).
+				// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
+				_linearSolver->analyzePattern(_jacDisc, 0, static_cast<int>(_jacDisc.rows()));
+			}
 
 			return bindingConfSuccess && dynReactionConfSuccess;
 		}
@@ -1053,7 +1061,8 @@ namespace cadet
 			bool result = true;
 
 			// Assemble Jacobian
-			assembleDiscretizedJacobian(alpha, idxr);
+			if (!_bandedSolver)
+				assembleDiscretizedJacobian(alpha, idxr);
 
 			// solve J x = rhs
 			Eigen::Map<VectorXd> r(rhs, numDofs());
@@ -1063,7 +1072,7 @@ namespace cadet
 			{
 				if (_bandedSolver)
 				{
-					copyDiscretizedJacobianToBand();
+					assembleDiscretizedJacobianBand(alpha, idxr);
 					success = _jacDiscBand.factorize();
 				}
 				else
@@ -1123,20 +1132,6 @@ namespace cadet
 		 * @param [in] idxr Indexer
 		 */
 		template <typename ConvDispOperator>
-		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::copyDiscretizedJacobianToBand()
-		{
-			_jacDiscBand.setAll(0.0);
-
-			for (int row = 0; row < _jacDisc.outerSize(); ++row)
-			{
-				linalg::FactorizableBandMatrix::RowIterator jacBand = _jacDiscBand.row(row);
-
-				for (Eigen::SparseMatrix<double, RowMajor>::InnerIterator jac(_jacDisc, row); jac; ++jac)
-					jacBand[static_cast<int>(jac.col()) - row] = jac.value();
-			}
-		}
-
-		template <typename ConvDispOperator>
 		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::assembleDiscretizedJacobian(double alpha, const Indexer& idxr)
 		{
 			// set to static jacobian entries
@@ -1154,6 +1149,101 @@ namespace cadet
 				addTimeDerivativeToJacobianNode(jac, idxr, alpha, invBeta(j));
 			}
 		}
+
+		template <typename ConvDispOperator>
+		template <typename MatrixType>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::assembleTimeDerivativeSystem(MatrixType& mat, const Indexer& idxr,
+			const SimulationTime& simTime, double* const rhs, bool withFluxTimeDerivative, util::ThreadLocalStorage& threadLocalMem)
+		{
+			constexpr bool isBanded = std::is_same_v<MatrixType, linalg::FactorizableBandMatrix>;
+
+			if constexpr (isBanded)
+				mat.setAll(0.0);
+			else
+			{
+				double* const entries = mat.valuePtr();
+				for (unsigned int nz = 0; nz < mat.nonZeros(); ++nz)
+					entries[nz] = 0.0;
+			}
+
+			{
+				const int gapNode = idxr.strideColNode() - static_cast<int>(_disc.nComp) * idxr.strideColComp();
+				auto jac = jacobianRow(mat, 0);
+				for (unsigned int i = 0; i < _disc.nPoints; ++i, jac += gapNode)
+					for (unsigned int j = 0; j < _disc.nComp; ++j, ++jac)
+						jac[0] += 1.0;
+			}
+
+			double* const dFluxDt = _tempState + idxr.offsetC();
+			LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+
+			for (unsigned int node = 0; node < _disc.nPoints; ++node)
+			{
+				auto jac = jacobianRow(mat, idxr.strideColNode() * node);
+				addTimeDerivativeToJacobianNode(jac, idxr, 1.0, invBeta(node));
+
+				if (!_binding[0]->hasQuasiStationaryReactions())
+					continue;
+
+				const int solidRow = idxr.strideColNode() * node + idxr.strideColLiquid();
+				linalg::BandedEigenSparseRowIterator jacSolidOrig(_jac, solidRow);
+				auto jacSolid = jacobianRow(mat, solidRow);
+
+				int const* const mask = _binding[0]->reactionQuasiStationarity();
+				double* const qNodeDot = rhs + idxr.offsetC() + solidRow;
+
+				if (withFluxTimeDerivative)
+				{
+					std::fill_n(dFluxDt, _disc.strideBound, 0.0);
+					if (_binding[0]->dependsOnTime())
+					{
+						const double z = _convDispOp.relativeCoordinate(node);
+						_binding[0]->timeDerivativeQuasiStationaryFluxes(simTime.t, simTime.secIdx, ColumnPosition{ z, 0.0, 0.0 },
+							qNodeDot - _disc.nComp, qNodeDot, dFluxDt, tlmAlloc);
+					}
+				}
+
+				for (unsigned int i = 0; i < _disc.strideBound; ++i, ++jacSolid, ++jacSolidOrig)
+				{
+					if (!mask[i])
+						continue;
+
+					if constexpr (isBanded)
+					{
+						for (int diag = -mat.lowerBandwidth(); diag <= mat.upperBandwidth(); ++diag)
+							jacSolid[diag] = 0.0;
+
+						const int row = solidRow + static_cast<int>(i);
+						for (Eigen::SparseMatrix<double, RowMajor>::InnerIterator it(_jac, row); it; ++it)
+							jacSolid[static_cast<int>(it.col()) - row] = it.value();
+					}
+					else
+						jacSolid.copyRowFrom(jacSolidOrig);
+
+					qNodeDot[i] = withFluxTimeDerivative ? -dFluxDt[i] : 0.0;
+				}
+			}
+		}
+
+		template <typename ConvDispOperator>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::assembleDiscretizedJacobianBand(double alpha, const Indexer& idxr)
+		{
+			_jacDiscBand.setAll(0.0);
+
+			for (int row = 0; row < _jac.outerSize(); ++row)
+			{
+				linalg::FactorizableBandMatrix::RowIterator jacBand = _jacDiscBand.row(row);
+
+				for (Eigen::SparseMatrix<double, RowMajor>::InnerIterator jac(_jac, row); jac; ++jac)
+					jacBand[static_cast<int>(jac.col()) - row] = jac.value();
+			}
+
+			_convDispOp.addTimeDerivativeToJacobian(alpha, _jacDiscBand);
+
+			linalg::FactorizableBandMatrix::RowIterator jac = _jacDiscBand.row(0);
+			for (unsigned int j = 0; j < _disc.nPoints; ++j)
+				addTimeDerivativeToJacobianNode(jac, idxr, alpha, invBeta(j));
+		}
 		/**
 		 * @brief Adds Jacobian @f$ \frac{\partial F}{\partial \dot{y}} @f$ to cell of system Jacobian
 		 * @details Actually adds @f$ \alpha \frac{\partial F}{\partial \dot{y}} @f$, which is useful
@@ -1165,7 +1255,8 @@ namespace cadet
 		 * @param [in] invBeta Inverse porosity term @f$\frac{1}{\beta}@f$
 		 */
 		template <typename ConvDispOperator>
-		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::addTimeDerivativeToJacobianNode(linalg::BandedEigenSparseRowIterator& jac, const Indexer& idxr, double alpha, double invBeta) const
+		template <typename RowIteratorType>
+		void LumpedRateModelWithoutPoresDG<ConvDispOperator>::addTimeDerivativeToJacobianNode(RowIteratorType& jac, const Indexer& idxr, double alpha, double invBeta) const
 		{
 			// Mobile phase
 			for (int comp = 0; comp < static_cast<int>(_disc.nComp); ++comp, ++jac)
@@ -1352,8 +1443,7 @@ namespace cadet
 #endif
 			{
 				LinearBufferAllocator tlmAlloc = threadLocalMem.get();
-				// Reuse memory of band matrix for dense matrix
-				linalg::DenseMatrixView fullJacobianMatrix(_jacDisc.valuePtr() + point * _disc.strideBound * _disc.strideBound, nullptr, mask.len, mask.len);
+				linalg::DenseMatrixView fullJacobianMatrix(_algebraicJac.data() + point * mask.len * mask.len, nullptr, mask.len, mask.len);
 
 				// Relative position of current node - needed in externally dependent adsorption kinetic
 				const double z = _convDispOp.relativeCoordinate(point);
@@ -1377,7 +1467,7 @@ namespace cadet
 				BufferedArray<double> conservedQuantsBuffer = tlmAlloc.array<double>(numActiveComp);
 				double* const conservedQuants = static_cast<double*>(conservedQuantsBuffer);
 
-				linalg::DenseMatrixView jacobianMatrix(jacobianMem, _jacDisc.innerIndexPtr() + point * _disc.strideBound, probSize, probSize);
+				linalg::DenseMatrixView jacobianMatrix(jacobianMem, _algebraicJacPivots.data() + point * mask.len, probSize, probSize);
 				const parts::cell::CellParameters cellResParams
 				{
 					_disc.nComp,
@@ -1514,10 +1604,6 @@ namespace cadet
 				// Refine / correct solution
 				_binding[0]->postConsistentInitialState(simTime.t, simTime.secIdx, colPos, qShell, qShell - idxr.strideColLiquid(), tlmAlloc);
 			} CADET_PARFOR_END;
-
-			// restore _jacDisc pattern
-			setPattern(_jacDisc, true, _reaction.hasReactions());
-
 		}
 
 		/**
@@ -1561,82 +1647,37 @@ namespace cadet
 			for (unsigned int i = 0; i < numDofs(); ++i)
 				vecStateYdot[i] = -vecStateYdot[i];
 
-			double* entries = _jacDisc.valuePtr();
-			for (unsigned int nz = 0; nz < _jacDisc.nonZeros(); nz++)
-				entries[nz] = 0.0;
-
-			// Handle transport equations (dc_i / dt terms)
-			{
-				const int gapNode = idxr.strideColNode() - static_cast<int>(_disc.nComp) * idxr.strideColComp();
-				linalg::BandedEigenSparseRowIterator jac(_jacDisc, 0);
-				for (unsigned int i = 0; i < _disc.nPoints; ++i, jac += gapNode)
-				{
-					for (unsigned int j = 0; j < _disc.nComp; ++j, ++jac)
-					{
-						// Add time derivative to liquid states (on main diagonal)
-						jac[0] += 1.0;
-					}
-				}
-			}
-			double* const dFluxDt = _tempState + idxr.offsetC();
-			LinearBufferAllocator tlmAlloc = threadLocalMem.get();
-			for (unsigned int col = 0; col < _disc.nPoints; ++col)
-			{
-				// Assemble
-				linalg::BandedEigenSparseRowIterator jac(_jacDisc, idxr.strideColNode() * col);
-
-				// Mobile and solid phase (advances jac accordingly)
-				addTimeDerivativeToJacobianNode(jac, idxr, 1.0, invBeta(col));
-
-				// Stationary phase
-				if (!_binding[0]->hasQuasiStationaryReactions())
-					continue;
-
-				// Relative position of current node - needed in externally dependent adsorption kinetic
-				double z = _convDispOp.relativeCoordinate(col);
-
-				// Get iterators to beginning of solid phase
-				linalg::BandedEigenSparseRowIterator jacSolidOrig(_jac, idxr.strideColNode() * col + idxr.strideColLiquid());
-				linalg::BandedEigenSparseRowIterator jacSolid(_jacDisc, idxr.strideColNode() * col + idxr.strideColLiquid());
-
-				int const* const mask = _binding[0]->reactionQuasiStationarity();
-				double* const qNodeDot = vecStateYdot + idxr.offsetC() + col * idxr.strideColNode() + idxr.strideColLiquid();
-
-				// Obtain derivative of fluxes wrt. time
-				std::fill_n(dFluxDt, _disc.strideBound, 0.0);
-				if (_binding[0]->dependsOnTime())
-				{
-					_binding[0]->timeDerivativeQuasiStationaryFluxes(simTime.t, simTime.secIdx, ColumnPosition{ z, 0.0, 0.0 },
-						qNodeDot - _disc.nComp, qNodeDot, dFluxDt, tlmAlloc);
-				}
-
-				// Copy row from original Jacobian and set right hand side
-				for (unsigned int i = 0; i < _disc.strideBound; ++i, ++jacSolid, ++jacSolidOrig)
-				{
-					if (!mask[i])
-						continue;
-
-					jacSolid.copyRowFrom(jacSolidOrig);
-					qNodeDot[i] = -dFluxDt[i];
-				}
-			}
-
-			_linearSolver->factorize(_jacDisc, 0, static_cast<int>(_jacDisc.rows()));
-			
-			if (_linearSolver->info() != Success) {
-				LOG(Error) << "factorization failed in consistent initialization";
-			}
-
 			Eigen::Map<VectorXd> yp(vecStateYdot + idxr.offsetC(), numPureDofs());
 
-			_linearSolver->solve(yp.data(), static_cast<int>(yp.size()));
+			if (_bandedSolver)
+			{
+				assembleTimeDerivativeSystem(_jacDiscBand, idxr, simTime, vecStateYdot, true, threadLocalMem);
 
-			if (_linearSolver->info() != Success) {
-				LOG(Error) << "Solve failed in consistent initialization";
+				if (!_jacDiscBand.factorize())
+					LOG(Error) << "factorization failed in consistent initialization";
+
+				if (!_jacDiscBand.solve(yp.data()))
+					LOG(Error) << "Solve failed in consistent initialization";
 			}
+			else
+			{
+				assembleTimeDerivativeSystem(_jacDisc, idxr, simTime, vecStateYdot, true, threadLocalMem);
 
-			// reset jacobian pattern
-			setPattern(_jacDisc, true,_reaction.hasReactions());
+				_linearSolver->factorize(_jacDisc, 0, static_cast<int>(_jacDisc.rows()));
+
+				if (_linearSolver->info() != Success) {
+					LOG(Error) << "factorization failed in consistent initialization";
+				}
+
+				_linearSolver->solve(yp.data(), static_cast<int>(yp.size()));
+
+				if (_linearSolver->info() != Success) {
+					LOG(Error) << "Solve failed in consistent initialization";
+				}
+
+				// reset jacobian pattern
+				setPattern(_jacDisc, true,_reaction.hasReactions());
+			}
 
 		}
 
@@ -1818,8 +1859,8 @@ namespace cadet
 						const unsigned int jacRowOffset = idxr.strideColNode() * node + static_cast<unsigned int>(idxr.strideColLiquid());
 						const int localQOffset = idxr.offsetC() + node * idxr.strideColNode() + idxr.strideColLiquid();
 		
-						// Reuse memory of sparse jacobian for dense matrix
-						linalg::DenseMatrixView jacobianMatrix(_jacDisc.valuePtr() + node * _disc.strideBound * _disc.strideBound, _jacDisc.innerIndexPtr() + node * _disc.strideBound, probSize, probSize);
+						const std::size_t algebraicStride = _disc.nComp + _disc.strideBound;
+						linalg::DenseMatrixView jacobianMatrix(_algebraicJac.data() + node * algebraicStride * algebraicStride, _algebraicJacPivots.data() + node * algebraicStride, probSize, probSize);
 
 						// Get workspace memory
 						LinearBufferAllocator tlmAlloc = threadLocalMem.get();
@@ -1870,71 +1911,38 @@ namespace cadet
 				multiplyWithJacobian(simTime, simState, sensY, -1.0, 1.0, sensYdot);
 		
 				// Note that we have correctly negated the right hand side
-				setPattern(_jacDisc, true, _reaction.hasReactions());
-				//for (int entry = 0; entry < _jacDisc.nonZeros(); entry++)
-				//	_jacDisc.valuePtr()[entry] = 0.0;
-		
-				// Handle transport equations (dc_i / dt terms)
-				{
-					const int gapNode = idxr.strideColNode() - static_cast<int>(_disc.nComp) * idxr.strideColComp();
-					linalg::BandedEigenSparseRowIterator jac(_jacDisc, 0);
-					for (unsigned int i = 0; i < _disc.nPoints; ++i, jac += gapNode)
-					{
-						for (unsigned int j = 0; j < _disc.nComp; ++j, ++jac)
-						{
-							// Add time derivative to liquid states (on main diagonal)
-							jac[0] += 1.0;
-						}
-					}
-				}
-				for (unsigned int node = 0; node < _disc.nPoints; ++node)
-				{
-					// Assemble
-					linalg::BandedEigenSparseRowIterator jac(_jacDisc, idxr.strideColNode() * node);
-		
-					// Mobile and solid phase (advances jac accordingly)
-					addTimeDerivativeToJacobianNode(jac, idxr, 1.0, invBeta(node));
-		
-					// Iterator jac has already been advanced to next shell
-		
-					// Overwrite rows corresponding to algebraic equations with the Jacobian and set right hand side to 0
-					if (_binding[0]->hasQuasiStationaryReactions())
-					{
-						// Get iterators to beginning of solid phase
-						linalg::BandedEigenSparseRowIterator jacSolidOrig(_jac, idxr.strideColNode() * node + idxr.strideColLiquid());
-						linalg::BandedEigenSparseRowIterator jacSolid(_jacDisc, idxr.strideColNode() * node + idxr.strideColLiquid());
-		
-						int const* const mask = _binding[0]->reactionQuasiStationarity();
-						double* const qShellDot = sensYdot + idxr.offsetC() + idxr.strideColNode() * node + idxr.strideColLiquid();
-		
-						// Copy row from original Jacobian and set right hand side
-						for (unsigned int i = 0; i < _disc.strideBound; ++i, ++jacSolid, ++jacSolidOrig)
-						{
-							if (!mask[i])
-								continue;
-		
-							jacSolid.copyRowFrom(jacSolidOrig);
-		
-							// Right hand side is -\frac{\partial^2 res(t, y, \dot{y})}{\partial p \partial t}
-							// If the residual is not explicitly depending on time, this expression is 0
-							// @todo This is wrong if external functions are used. Take that into account!
-							qShellDot[i] = 0.0;
-						}
-					}
-				}
-		
-				_linearSolver->factorize(_jacDisc, 0, static_cast<int>(_jacDisc.rows()));
-
-				if (_linearSolver->info() != Success) {
-					LOG(Error) << "factorization failed in sensitivity initialization";
-				}
-
+				// The right hand side of an algebraic row is
+				// -\frac{\partial^2 res(t, y, \dot{y})}{\partial p \partial t}, which vanishes unless
+				// the residual depends on time explicitly
+				// @todo This is wrong if external functions are used. Take that into account!
 				Map<VectorXd> sensYdot_vec(sensYdot + idxr.offsetC(), numPureDofs());
-				_linearSolver->solve(sensYdot_vec.data(), static_cast<int>(sensYdot_vec.size()));
 
-				// Use the factors to solve the linear system 
-				if (_linearSolver->info() != Success) {
-					LOG(Error) << "solve failed in sensitivity initialization";
+				if (_bandedSolver)
+				{
+					assembleTimeDerivativeSystem(_jacDiscBand, idxr, simTime, sensYdot, false, threadLocalMem);
+
+					if (!_jacDiscBand.factorize())
+						LOG(Error) << "factorization failed in sensitivity initialization";
+
+					if (!_jacDiscBand.solve(sensYdot_vec.data()))
+						LOG(Error) << "solve failed in sensitivity initialization";
+				}
+				else
+				{
+					setPattern(_jacDisc, true, _reaction.hasReactions());
+					assembleTimeDerivativeSystem(_jacDisc, idxr, simTime, sensYdot, false, threadLocalMem);
+
+					_linearSolver->factorize(_jacDisc, 0, static_cast<int>(_jacDisc.rows()));
+
+					if (_linearSolver->info() != Success) {
+						LOG(Error) << "factorization failed in sensitivity initialization";
+					}
+
+					_linearSolver->solve(sensYdot_vec.data(), static_cast<int>(sensYdot_vec.size()));
+
+					if (_linearSolver->info() != Success) {
+						LOG(Error) << "solve failed in sensitivity initialization";
+					}
 				}
 			}
 		}
