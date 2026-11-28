@@ -60,7 +60,7 @@ constexpr double SurfVolRatioSlab = 1.0;
 template <typename ConvDispOperator>
 ColumnModel1D<ConvDispOperator>::ColumnModel1D(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
 	_globalJac(), _globalJacDisc(), _jacInlet(),
-	_colPorosity(1, 1.0), _unitPorosity(1.0), _axiallyConstantColPorosity(true), _analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _blockSolver(false), _bulkBandwidth(0), _parBandwidth(0), _tempState(nullptr),
+	_colPorosity(1, 1.0), _unitPorosity(1.0), _axiallyConstantColPorosity(true), _analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _blockSolver(false), _bulkBandwidth(0), _tempState(nullptr),
 	_initC(0), _initCp(0), _initCs(0), _initState(0), _initStateDot(0)
 {
 }

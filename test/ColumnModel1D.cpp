@@ -407,6 +407,104 @@ TEST_CASE("Column_1D as GRM with FV particles is invariant to an equivalent cons
 	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
 }
 
+namespace
+{
+	/**
+	 * @brief Enables the block elimination of the particle states for the given unit
+	 * @param [in,out] jpp ParameterProvider holding a full simulation setup
+	 */
+	void enableBlockJacobian(cadet::JsonParameterProvider& jpp)
+	{
+		jpp.pushScope("model");
+		jpp.pushScope("unit_000");
+		jpp.pushScope("discretization");
+		jpp.set("BLOCK_JACOBIAN", true);
+		jpp.popScope();
+		jpp.popScope();
+		jpp.popScope();
+	}
+
+	/**
+	 * @brief Tightens the time integration tolerances to isolate the linear solver
+	 * @param [in,out] jpp ParameterProvider holding a full simulation setup
+	 */
+	void tightenTimeIntegration(cadet::JsonParameterProvider& jpp)
+	{
+		jpp.pushScope("solver");
+		jpp.pushScope("time_integrator");
+		jpp.set("ABSTOL", 1e-12);
+		jpp.set("RELTOL", 1e-10);
+		jpp.popScope();
+		jpp.popScope();
+	}
+}
+
+TEST_CASE("Column_1D as GRM with DG equivalence of block elimination and sparse linear solver", "[AxialColumn1D],[DG],[DG1D],[Simulation],[CI]")
+{
+	cadet::JsonParameterProvider jpp1 = createLWE("COLUMN_MODEL_1D_GRM", "DG");
+	cadet::JsonParameterProvider jpp2 = createLWE("COLUMN_MODEL_1D_GRM", "DG");
+	cadet::test::column::DGParams disc(0, 3, 8, 3, 2);
+
+	disc.setDisc(jpp1);
+	disc.setDisc(jpp2);
+
+	enableBlockJacobian(jpp2);
+
+	tightenTimeIntegration(jpp1);
+	tightenTimeIntegration(jpp2);
+
+	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
+}
+
+TEST_CASE("Column_1D as LRMP with DG equivalence of block elimination and sparse linear solver", "[AxialColumn1D],[DG],[DG1D],[Simulation],[CI]")
+{
+	cadet::JsonParameterProvider jpp1 = createLWE("COLUMN_MODEL_1D_LRMP", "DG");
+	cadet::JsonParameterProvider jpp2 = createLWE("COLUMN_MODEL_1D_LRMP", "DG");
+	cadet::test::column::DGParams disc(0, 3, 8);
+
+	disc.setDisc(jpp1);
+	disc.setDisc(jpp2);
+
+	enableBlockJacobian(jpp2);
+
+	tightenTimeIntegration(jpp1);
+	tightenTimeIntegration(jpp2);
+
+	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
+}
+
+TEST_CASE("Column_1D as GRM with DG equivalence of block elimination for differently resolved particle types", "[AxialColumn1D],[DG],[DG1D],[Simulation],[ParticleType],[CI]")
+{
+	// The two particle types differ in radial resolution, so their blocks differ in size and
+	// bandwidth. This is what distinguishes a per block bandwidth from a common one.
+	const double volFrac[] = { 0.3, 0.7 };
+	const double paramFactor[] = { 0.8 };
+
+	cadet::JsonParameterProvider jpp1 = createLWE("COLUMN_MODEL_1D_GRM", "DG");
+	cadet::test::column::DGParams disc(0, 3, 8, 3, 1);
+	disc.setDisc(jpp1);
+
+	cadet::test::particle::extendModelToManyParticleTypes(jpp1, 0u, 2u, paramFactor, volFrac);
+
+	jpp1.pushScope("model");
+	jpp1.pushScope("unit_000");
+	jpp1.pushScope("particle_type_001");
+	jpp1.pushScope("discretization");
+	jpp1.set("PAR_NELEM", 4);
+	jpp1.popScope();
+	jpp1.popScope();
+	jpp1.popScope();
+	jpp1.popScope();
+
+	cadet::JsonParameterProvider jpp2 = jpp1;
+	enableBlockJacobian(jpp2);
+
+	tightenTimeIntegration(jpp1);
+	tightenTimeIntegration(jpp2);
+
+	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
+}
+
 TEST_CASE("Column_1D as LRMP linear pulse vs analytic solution", "[AxialColumn1D],[DG],[DG1D],[Simulation],[Analytic],[CI]")
 {
 	cadet::test::column::DGParams disc;

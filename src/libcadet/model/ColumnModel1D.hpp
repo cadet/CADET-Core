@@ -395,7 +395,7 @@ protected:
 	//!          instead of one sparse factorization over all degrees of freedom.
 	bool _blockSolver; //!< Determines whether the particle blocks are eliminated instead of factorizing the global Jacobian
 	int _bulkBandwidth; //!< Half bandwidth of the bulk Jacobian, only used when _blockSolver is set
-	int _parBandwidth; //!< Half bandwidth of a particle block, only used when _blockSolver is set
+	std::vector<int> _parBandwidth; //!< Half bandwidth of each particle block, only used when _blockSolver is set
 	std::vector<int> _blkBegin; //!< First pure DOF of each particle block
 	std::vector<int> _blkSize; //!< Number of DOFs of each particle block
 	std::vector<int> _blkNode; //!< Axial node each particle block belongs to

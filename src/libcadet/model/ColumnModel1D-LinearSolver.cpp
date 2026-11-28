@@ -249,9 +249,11 @@ void ColumnModel1D<ConvDispOperator>::setupBlockSolver(const Indexer& idxr)
 			_blkOwner[_blkBegin[blk] + i] = blk;
 	}
 
-	// The bandwidths follow from the sparsity pattern, which is fixed once the discretization is
+	// The bandwidths follow from the sparsity pattern, which is fixed once the discretization is.
+	// Each block keeps its own bandwidth, since particle types may differ in resolution and binding
+	// and the factorization cost grows quadratically in the bandwidth.
 	_bulkBandwidth = 0;
-	_parBandwidth = 0;
+	_parBandwidth.assign(nBlocks, 0);
 	int maxBlockSize = 0;
 
 	for (int row = 0; row < nPureDofs; ++row)
@@ -267,7 +269,7 @@ void ColumnModel1D<ConvDispOperator>::setupBlockSolver(const Indexer& idxr)
 			if ((rowBlk < 0) && (_blkOwner[col] < 0))
 				_bulkBandwidth = std::max(_bulkBandwidth, std::abs(col - row));
 			else if ((rowBlk >= 0) && (_blkOwner[col] == rowBlk))
-				_parBandwidth = std::max(_parBandwidth, std::abs(col - row));
+				_parBandwidth[rowBlk] = std::max(_parBandwidth[rowBlk], std::abs(col - row));
 		}
 	}
 
@@ -283,7 +285,7 @@ void ColumnModel1D<ConvDispOperator>::setupBlockSolver(const Indexer& idxr)
 
 	for (int blk = 0; blk < nBlocks; ++blk)
 	{
-		_blkJac[blk].resize(_blkSize[blk], _parBandwidth, _parBandwidth);
+		_blkJac[blk].resize(_blkSize[blk], _parBandwidth[blk], _parBandwidth[blk]);
 		_blkToBulk[blk].setZero(idxr.strideColNode(), _blkSize[blk]);
 		_bulkToBlk[blk].setZero(_blkSize[blk], idxr.strideColNode());
 		_blkSchurFactor[blk].setZero(_blkSize[blk], idxr.strideColNode());
