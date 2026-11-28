@@ -473,6 +473,43 @@ TEST_CASE("Column_1D as LRMP with DG equivalence of block elimination and sparse
 	cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
 }
 
+TEST_CASE("Column_1D as GRM with DG equivalence of block elimination under surface diffusion", "[AxialColumn1D],[DG],[DG1D],[Simulation],[CI]")
+{
+	// Surface diffusion gives the bound states a spatial operator, so they no longer couple within a
+	// single discrete particle point and cannot be condensed out of the particle block. Switching it
+	// on for part of the bound states must leave the remaining ones condensable.
+	const int nComp = 4;
+
+	for (int nSurfDiff = 1; nSurfDiff <= nComp; ++nSurfDiff)
+	{
+		std::vector<double> surfDiff(nComp, 0.0);
+		for (int comp = 0; comp < nSurfDiff; ++comp)
+			surfDiff[comp] = 1e-11;
+
+		cadet::JsonParameterProvider jpp1 = createLWE("COLUMN_MODEL_1D_GRM", "DG");
+		cadet::test::column::DGParams disc(0, 3, 8, 3, 2);
+		disc.setDisc(jpp1);
+
+		jpp1.pushScope("model");
+		jpp1.pushScope("unit_000");
+		jpp1.pushScope("particle_type_000");
+		jpp1.set("HAS_SURFACE_DIFFUSION", true);
+		jpp1.set("SURFACE_DIFFUSION", surfDiff);
+		jpp1.popScope();
+		jpp1.popScope();
+		jpp1.popScope();
+
+		cadet::JsonParameterProvider jpp2 = jpp1;
+		enableBlockJacobian(jpp2);
+
+		tightenTimeIntegration(jpp1);
+		tightenTimeIntegration(jpp2);
+
+		INFO("Surface diffusion on " << nSurfDiff << " of " << nComp << " bound states");
+		cadet::test::column::testEqualResults(jpp1, jpp2, 1e-10, 1e-8, 0);
+	}
+}
+
 TEST_CASE("Column_1D as GRM with DG equivalence of block elimination for differently resolved particle types", "[AxialColumn1D],[DG],[DG1D],[Simulation],[ParticleType],[CI]")
 {
 	// The two particle types differ in radial resolution, so their blocks differ in size and

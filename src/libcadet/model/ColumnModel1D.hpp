@@ -283,7 +283,8 @@ protected:
 	bool blockFactorize(const Indexer& idxr);
 	bool blockSolve(double* const rhs, const Indexer& idxr);
 	bool particleBlockFactorize(int blk);
-	bool particleBlockSolve(int blk, double* const rhs) const;
+	bool particleBlockSolve(int blk, double* const rhs);
+	void scatterCondensedEntry(int blk, int row, int col, double val);
 
 	void setEquidistantRadialDisc(unsigned int parType);
 	void setEquivolumeRadialDisc(unsigned int parType);
@@ -415,6 +416,14 @@ protected:
 	std::vector<int> _blkNode; //!< Axial node each particle block belongs to
 	std::vector<int> _blkOwner; //!< Particle block owning each pure DOF, @c -1 for the bulk
 	std::vector<ParticleBlockMethod> _blkMethod; //!< Factorization chosen for each particle block
+	std::vector<int> _blkNodeStride; //!< Number of DOFs per discrete particle point of each block
+	std::vector<int> _blkKeepStride; //!< Number of DOFs per discrete particle point that survive the condensation
+	std::vector<int> _blkLocalStride; //!< Number of DOFs per discrete particle point that are condensed out, @c 0 if none
+	std::vector<std::vector<int>> _blkKeepIndex; //!< Index of each point DOF after condensation, @c -1 if condensed out
+	std::vector<std::vector<int>> _blkLocalIndex; //!< Index of each condensed point DOF, @c -1 if kept
+	std::vector<std::vector<linalg::DenseMatrix>> _blkLocalJac; //!< Jacobian of the condensed DOFs at each point of each block
+	std::vector<Eigen::MatrixXd> _blkLocalToKeep; //!< Inverse of the condensed DOFs applied to their coupling into the kept DOFs
+	std::vector<Eigen::MatrixXd> _blkKeepToLocal; //!< Coupling of the kept DOFs into the condensed DOFs
 	linalg::FactorizableBandMatrix _schurBulk; //!< Bulk Jacobian after elimination of the particle blocks
 	std::vector<linalg::FactorizableBandMatrix> _blkJac; //!< Discretized Jacobian of each banded particle block
 	std::vector<linalg::DenseMatrix> _blkJacDense; //!< Discretized Jacobian of each dense particle block
@@ -422,6 +431,8 @@ protected:
 	std::vector<Eigen::MatrixXd> _bulkToBlk; //!< Bulk to particle block coupling of each block
 	std::vector<Eigen::MatrixXd> _blkSchurFactor; //!< Particle block inverse applied to its bulk coupling
 	std::vector<double> _blkScratch; //!< Scratch holding one particle block right hand side
+	std::vector<double> _blkKeepScratch; //!< Scratch holding the kept right hand side of one particle block
+	std::vector<double> _blkLocalScratch; //!< Scratch holding the condensed right hand side of one particle block
 
 	std::vector<active> _initC; //!< Liquid bulk phase initial conditions
 	std::vector<active> _initCp; //!< Liquid particle phase initial conditions

@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <limits>
 
 #include "LoggingUtils.hpp"
 #include "Logging.hpp"
@@ -229,6 +230,7 @@ void ColumnModel1D<ConvDispOperator>::setupBlockSolver(const Indexer& idxr)
 	_blkBegin.clear();
 	_blkSize.clear();
 	_blkNode.clear();
+	_blkNodeStride.clear();
 
 	for (unsigned int type = 0; type < _disc.nParType; ++type)
 	{
@@ -237,6 +239,7 @@ void ColumnModel1D<ConvDispOperator>::setupBlockSolver(const Indexer& idxr)
 			_blkBegin.push_back(idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{node}) - idxr.offsetC());
 			_blkSize.push_back(idxr.strideParBlock(type));
 			_blkNode.push_back(static_cast<int>(node));
+			_blkNodeStride.push_back(idxr.strideParNode(type));
 		}
 	}
 
@@ -285,24 +288,159 @@ void ColumnModel1D<ConvDispOperator>::setupBlockSolver(const Indexer& idxr)
 	_bulkToBlk.resize(nBlocks);
 	_blkSchurFactor.resize(nBlocks);
 
+	_blkKeepStride.assign(nBlocks, 0);
+	_blkLocalStride.assign(nBlocks, 0);
+	_blkKeepIndex.assign(nBlocks, std::vector<int>());
+	_blkLocalIndex.assign(nBlocks, std::vector<int>());
+	_blkLocalJac.assign(nBlocks, std::vector<linalg::DenseMatrix>());
+	_blkLocalToKeep.assign(nBlocks, Eigen::MatrixXd());
+	_blkKeepToLocal.assign(nBlocks, Eigen::MatrixXd());
+
+	const int nLiquid = idxr.strideParLiquid();
+
 	for (int blk = 0; blk < nBlocks; ++blk)
 	{
+		const int size = _blkSize[blk];
+		const int stride = _blkNodeStride[blk];
+		const int nPoints = size / stride;
+		const int begin = _blkBegin[blk];
+
+		// A bound state without a spatial operator couples only within its own discrete point, so it
+		// can be eliminated point by point before the block is factorized. Whether that holds depends
+		// on surface diffusion and is visible in the sparsity pattern, which decides it per state.
+		std::vector<int> keepIndex(stride, -1);
+		std::vector<int> localIndex(stride, -1);
+		std::vector<char> pointLocal(stride, 0);
+
+		for (int pos = nLiquid; pos < stride; ++pos)
+			pointLocal[pos] = 1;
+
+		for (int i = 0; i < size; ++i)
+		{
+			const int rowPoint = i / stride;
+			const int rowPos = i % stride;
+
+			for (Eigen::SparseMatrix<double, RowMajor>::InnerIterator it(_globalJac, begin + i + idxr.offsetC()); it; ++it)
+			{
+				const int col = static_cast<int>(it.col()) - idxr.offsetC();
+				const int local = col - begin;
+
+				if ((col < 0) || (col >= nPureDofs) || (_blkOwner[col] != blk))
+				{
+					// Reaching out of the block prevents a point local elimination of this row
+					if (rowPos >= nLiquid)
+						pointLocal[rowPos] = 0;
+
+					continue;
+				}
+
+				if (local / stride == rowPoint)
+					continue;
+
+				if (rowPos >= nLiquid)
+					pointLocal[rowPos] = 0;
+
+				const int colPos = local % stride;
+				if (colPos >= nLiquid)
+					pointLocal[colPos] = 0;
+			}
+		}
+
+		int keepStride = 0;
+		int localStride = 0;
+		for (int pos = 0; pos < stride; ++pos)
+		{
+			if (pointLocal[pos])
+				localIndex[pos] = localStride++;
+			else
+				keepIndex[pos] = keepStride++;
+		}
+
+		// The elimination fills the point diagonal block of the kept DOFs, which lies inside the band
+		// of the remaining system, so the reduced bandwidth follows from the pattern of the kept rows
+		int keepBandwidth = std::max(keepStride - 1, 0);
+		if (localStride > 0)
+		{
+			for (int i = 0; i < size; ++i)
+			{
+				const int rowPos = i % stride;
+				if (keepIndex[rowPos] < 0)
+					continue;
+
+				const int redRow = (i / stride) * keepStride + keepIndex[rowPos];
+
+				for (Eigen::SparseMatrix<double, RowMajor>::InnerIterator it(_globalJac, begin + i + idxr.offsetC()); it; ++it)
+				{
+					const int col = static_cast<int>(it.col()) - idxr.offsetC();
+					if ((col < 0) || (col >= nPureDofs) || (_blkOwner[col] != blk))
+						continue;
+
+					const int local = col - begin;
+					const int colPos = local % stride;
+					if (keepIndex[colPos] < 0)
+						continue;
+
+					const int redCol = (local / stride) * keepStride + keepIndex[colPos];
+					keepBandwidth = std::max(keepBandwidth, std::abs(redCol - redRow));
+				}
+			}
+		}
+
 		// Estimated work of one factorization and one solve. A banded factorization takes about
 		// 2 p b^2 and its solve 4 p b, a dense one 2/3 p^3 and its solve 2 p^2.
-		const double p = _blkSize[blk];
-		const double b = _parBandwidth[blk];
-		const double bandedCost = 2.0 * p * b * b + 4.0 * p * b;
-		const double denseCost = 2.0 / 3.0 * p * p * p + 2.0 * p * p;
+		auto bandedCost = [](double p, double b) { return 2.0 * p * b * b + 4.0 * p * b; };
+		auto denseCost = [](double p) { return 2.0 / 3.0 * p * p * p + 2.0 * p * p; };
 
-		if (denseCost < bandedCost)
+		const double plain = std::min(bandedCost(size, _parBandwidth[blk]), denseCost(size));
+
+		double condensed = std::numeric_limits<double>::infinity();
+		if (localStride > 0)
+		{
+			const double s = localStride;
+			const double k = keepStride;
+			const double reduced = std::min(bandedCost(nPoints * keepStride, keepBandwidth), denseCost(nPoints * keepStride));
+			condensed = reduced + nPoints * (2.0 / 3.0 * s * s * s + 2.0 * s * s * k + 2.0 * k * k * s + 2.0 * s * s + 4.0 * k * s);
+		}
+
+		// The estimates count arithmetic only, while the condensation also splits one factorization
+		// into one per discrete point and doubles the number of solves. That overhead is not worth
+		// modelling, so the elimination has to promise a substantial gain rather than any gain at
+		// all. A particle without spatial resolution lands here: its block has no band to shrink,
+		// so eliminating its bound states only rearranges the same work.
+		const bool useCondensation = (2.0 * condensed < plain);
+
+		const int facSize = useCondensation ? nPoints * keepStride : size;
+		const int facBandwidth = useCondensation ? keepBandwidth : _parBandwidth[blk];
+
+		if (useCondensation)
+		{
+			_blkKeepStride[blk] = keepStride;
+			_blkLocalStride[blk] = localStride;
+			_blkKeepIndex[blk] = keepIndex;
+			_blkLocalIndex[blk] = localIndex;
+
+			_blkLocalJac[blk].resize(nPoints);
+			for (int point = 0; point < nPoints; ++point)
+				_blkLocalJac[blk][point].resize(localStride, localStride);
+
+			_blkLocalToKeep[blk].setZero(nPoints * localStride, keepStride);
+			_blkKeepToLocal[blk].setZero(nPoints * keepStride, localStride);
+		}
+		else
+		{
+			_blkKeepStride[blk] = stride;
+			_blkLocalStride[blk] = 0;
+		}
+
+		if (denseCost(facSize) < bandedCost(facSize, facBandwidth))
 		{
 			_blkMethod[blk] = ParticleBlockMethod::Dense;
-			_blkJacDense[blk].resize(_blkSize[blk], _blkSize[blk]);
+			_blkJacDense[blk].resize(facSize, facSize);
 		}
 		else
 		{
 			_blkMethod[blk] = ParticleBlockMethod::Banded;
-			_blkJac[blk].resize(_blkSize[blk], _parBandwidth[blk], _parBandwidth[blk]);
+			_blkJac[blk].resize(facSize, facBandwidth, facBandwidth);
 		}
 
 		_blkToBulk[blk].setZero(idxr.strideColNode(), _blkSize[blk]);
@@ -311,6 +449,8 @@ void ColumnModel1D<ConvDispOperator>::setupBlockSolver(const Indexer& idxr)
 	}
 
 	_blkScratch.resize(maxBlockSize);
+	_blkKeepScratch.resize(maxBlockSize);
+	_blkLocalScratch.resize(maxBlockSize);
 }
 
 /**
@@ -339,14 +479,23 @@ bool ColumnModel1D<ConvDispOperator>::blockFactorize(const Indexer& idxr)
 		else
 			_blkJac[blk].setAll(0.0);
 
+		if (_blkLocalStride[blk] > 0)
+		{
+			for (linalg::DenseMatrix& mat : _blkLocalJac[blk])
+				mat.setAll(0.0);
+
+			_blkLocalToKeep[blk].setZero();
+			_blkKeepToLocal[blk].setZero();
+		}
+
 		_blkToBulk[blk].setZero();
 		_bulkToBlk[blk].setZero();
 	}
 
-	for (int row = 0; row < nPureDofs; ++row)
-	{
-		const int rowBlk = _blkOwner[row];
+	const int nBulk = static_cast<int>(_disc.nPoints) * strideNode;
 
+	for (int row = 0; row < nBulk; ++row)
+	{
 		for (Eigen::SparseMatrix<double, RowMajor>::InnerIterator it(_globalJacDisc, row + idxr.offsetC()); it; ++it)
 		{
 			const int col = static_cast<int>(it.col()) - idxr.offsetC();
@@ -356,19 +505,43 @@ bool ColumnModel1D<ConvDispOperator>::blockFactorize(const Indexer& idxr)
 			const int colBlk = _blkOwner[col];
 			const double val = it.value();
 
-			if (rowBlk < 0)
-			{
-				if (colBlk < 0)
-					_schurBulk.row(row)[col - row] = val;
-				else
-					_blkToBulk[colBlk](row - _blkNode[colBlk] * strideNode, col - _blkBegin[colBlk]) = val;
-			}
-			else if (colBlk < 0)
-				_bulkToBlk[rowBlk](row - _blkBegin[rowBlk], col - _blkNode[rowBlk] * strideNode) = val;
-			else if (_blkMethod[rowBlk] == ParticleBlockMethod::Dense)
-				_blkJacDense[rowBlk].native(row - _blkBegin[rowBlk], col - _blkBegin[rowBlk]) = val;
+			if (colBlk < 0)
+				_schurBulk.row(row)[col - row] = val;
 			else
-				_blkJac[rowBlk].row(row - _blkBegin[rowBlk])[col - row] = val;
+				_blkToBulk[colBlk](row - _blkNode[colBlk] * strideNode, col - _blkBegin[colBlk]) = val;
+		}
+	}
+
+	// The rows of a block are contiguous, so the block and the method it is factorized with are
+	// known before its entries are walked
+	for (int blk = 0; blk < nBlocks; ++blk)
+	{
+		const int begin = _blkBegin[blk];
+		const int nodeBase = _blkNode[blk] * strideNode;
+		const bool condensed = _blkLocalStride[blk] > 0;
+		const bool dense = _blkMethod[blk] == ParticleBlockMethod::Dense;
+
+		for (int i = 0; i < _blkSize[blk]; ++i)
+		{
+			const int row = begin + i;
+
+			for (Eigen::SparseMatrix<double, RowMajor>::InnerIterator it(_globalJacDisc, row + idxr.offsetC()); it; ++it)
+			{
+				const int col = static_cast<int>(it.col()) - idxr.offsetC();
+				if ((col < 0) || (col >= nPureDofs))
+					continue;
+
+				const double val = it.value();
+
+				if (_blkOwner[col] < 0)
+					_bulkToBlk[blk](i, col - nodeBase) = val;
+				else if (condensed)
+					scatterCondensedEntry(blk, i, col - begin, val);
+				else if (dense)
+					_blkJacDense[blk].native(i, col - begin) = val;
+				else
+					_blkJac[blk].row(i)[col - row] = val;
+			}
 		}
 	}
 
@@ -404,13 +577,109 @@ bool ColumnModel1D<ConvDispOperator>::blockFactorize(const Indexer& idxr)
 }
 
 /**
+ * @brief Routes one entry of a condensed particle block to the matrix that holds it
+ * @details The point local DOFs are eliminated before the block is factorized, so the block splits
+ *          into the kept system, the point local systems and the couplings between them. Couplings
+ *          only occur within a discrete point, which is what made the elimination possible.
+ * @param [in] blk Index of the particle block
+ * @param [in] row Row within the particle block
+ * @param [in] col Column within the particle block
+ * @param [in] val Value of the entry
+ */
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::scatterCondensedEntry(int blk, int row, int col, double val)
+{
+	const int stride = _blkNodeStride[blk];
+	const int keepStride = _blkKeepStride[blk];
+	const int localStride = _blkLocalStride[blk];
+	std::vector<int> const& keepIndex = _blkKeepIndex[blk];
+	std::vector<int> const& localIndex = _blkLocalIndex[blk];
+
+	const int point = row / stride;
+	const int rowPos = row % stride;
+	const int colPos = col % stride;
+
+	if (keepIndex[rowPos] >= 0)
+	{
+		if (keepIndex[colPos] >= 0)
+		{
+			const int redRow = point * keepStride + keepIndex[rowPos];
+			const int redCol = (col / stride) * keepStride + keepIndex[colPos];
+
+			if (_blkMethod[blk] == ParticleBlockMethod::Dense)
+				_blkJacDense[blk].native(redRow, redCol) = val;
+			else
+				_blkJac[blk].row(redRow)[redCol - redRow] = val;
+		}
+		else
+			_blkKeepToLocal[blk](point * keepStride + keepIndex[rowPos], localIndex[colPos]) = val;
+	}
+	else if (keepIndex[colPos] >= 0)
+		_blkLocalToKeep[blk](point * localStride + localIndex[rowPos], keepIndex[colPos]) = val;
+	else
+		_blkLocalJac[blk][point].native(localIndex[rowPos], localIndex[colPos]) = val;
+}
+
+/**
  * @brief Factorizes a single particle block with the method chosen for it
+ * @details Point local DOFs, if any, are eliminated first. Their coupling into the kept DOFs stays
+ *          within a discrete point, so the elimination only fills the point diagonal blocks of the
+ *          kept system and leaves its band untouched.
  * @param [in] blk Index of the particle block
  * @return @c true if the factorization succeeded, otherwise @c false
  */
 template <typename ConvDispOperator>
 bool ColumnModel1D<ConvDispOperator>::particleBlockFactorize(int blk)
 {
+	const int localStride = _blkLocalStride[blk];
+
+	if (localStride > 0)
+	{
+		const int keepStride = _blkKeepStride[blk];
+		const int nPoints = _blkSize[blk] / _blkNodeStride[blk];
+
+		for (int point = 0; point < nPoints; ++point)
+		{
+			linalg::DenseMatrix& localJac = _blkLocalJac[blk][point];
+			if (cadet_unlikely(!localJac.factorize()))
+				return false;
+
+			// _blkLocalToKeep = J_ll^{-1} J_lk, overwriting the coupling it was assembled from
+			for (int col = 0; col < keepStride; ++col)
+			{
+				for (int i = 0; i < localStride; ++i)
+					_blkLocalScratch[i] = _blkLocalToKeep[blk](point * localStride + i, col);
+
+				if (cadet_unlikely(!localJac.solve(_blkLocalScratch.data())))
+					return false;
+
+				for (int i = 0; i < localStride; ++i)
+					_blkLocalToKeep[blk](point * localStride + i, col) = _blkLocalScratch[i];
+			}
+
+			const Eigen::MatrixXd update = _blkKeepToLocal[blk].block(point * keepStride, 0, keepStride, localStride)
+				* _blkLocalToKeep[blk].block(point * localStride, 0, localStride, keepStride);
+
+			const int base = point * keepStride;
+			if (_blkMethod[blk] == ParticleBlockMethod::Dense)
+			{
+				for (int row = 0; row < keepStride; ++row)
+				{
+					for (int col = 0; col < keepStride; ++col)
+						_blkJacDense[blk].native(base + row, base + col) -= update(row, col);
+				}
+			}
+			else
+			{
+				for (int row = 0; row < keepStride; ++row)
+				{
+					for (int col = 0; col < keepStride; ++col)
+						_blkJac[blk].row(base + row)[col - row] -= update(row, col);
+				}
+			}
+		}
+	}
+
 	if (_blkMethod[blk] == ParticleBlockMethod::Dense)
 		return _blkJacDense[blk].factorize();
 
@@ -424,12 +693,85 @@ bool ColumnModel1D<ConvDispOperator>::particleBlockFactorize(int blk)
  * @return @c true if the solve succeeded, otherwise @c false
  */
 template <typename ConvDispOperator>
-bool ColumnModel1D<ConvDispOperator>::particleBlockSolve(int blk, double* const rhs) const
+bool ColumnModel1D<ConvDispOperator>::particleBlockSolve(int blk, double* const rhs)
 {
-	if (_blkMethod[blk] == ParticleBlockMethod::Dense)
-		return _blkJacDense[blk].solve(rhs);
+	const int localStride = _blkLocalStride[blk];
 
-	return _blkJac[blk].solve(rhs);
+	if (localStride == 0)
+	{
+		if (_blkMethod[blk] == ParticleBlockMethod::Dense)
+			return _blkJacDense[blk].solve(rhs);
+
+		return _blkJac[blk].solve(rhs);
+	}
+
+	const int stride = _blkNodeStride[blk];
+	const int keepStride = _blkKeepStride[blk];
+	const int nPoints = _blkSize[blk] / stride;
+	std::vector<int> const& keepIndex = _blkKeepIndex[blk];
+	std::vector<int> const& localIndex = _blkLocalIndex[blk];
+
+	// Split the right hand side and carry the point local DOFs over to the kept system
+	for (int point = 0; point < nPoints; ++point)
+	{
+		double const* const pointRhs = rhs + point * stride;
+		double* const localRhs = _blkLocalScratch.data() + point * localStride;
+		double* const keepRhs = _blkKeepScratch.data() + point * keepStride;
+
+		for (int pos = 0; pos < stride; ++pos)
+		{
+			if (keepIndex[pos] >= 0)
+				keepRhs[keepIndex[pos]] = pointRhs[pos];
+			else
+				localRhs[localIndex[pos]] = pointRhs[pos];
+		}
+
+		if (cadet_unlikely(!_blkLocalJac[blk][point].solve(localRhs)))
+			return false;
+
+		for (int row = 0; row < keepStride; ++row)
+		{
+			double sum = 0.0;
+			for (int i = 0; i < localStride; ++i)
+				sum += _blkKeepToLocal[blk](point * keepStride + row, i) * localRhs[i];
+
+			keepRhs[row] -= sum;
+		}
+	}
+
+	if (_blkMethod[blk] == ParticleBlockMethod::Dense)
+	{
+		if (cadet_unlikely(!_blkJacDense[blk].solve(_blkKeepScratch.data())))
+			return false;
+	}
+	else if (cadet_unlikely(!_blkJac[blk].solve(_blkKeepScratch.data())))
+		return false;
+
+	// Back substitution of the point local DOFs
+	for (int point = 0; point < nPoints; ++point)
+	{
+		double* const pointRhs = rhs + point * stride;
+		double const* const localSol = _blkLocalScratch.data() + point * localStride;
+		double const* const keepSol = _blkKeepScratch.data() + point * keepStride;
+
+		for (int pos = 0; pos < stride; ++pos)
+		{
+			if (keepIndex[pos] >= 0)
+			{
+				pointRhs[pos] = keepSol[keepIndex[pos]];
+				continue;
+			}
+
+			const int i = localIndex[pos];
+			double sum = 0.0;
+			for (int col = 0; col < keepStride; ++col)
+				sum += _blkLocalToKeep[blk](point * localStride + i, col) * keepSol[col];
+
+			pointRhs[pos] = localSol[i] - sum;
+		}
+	}
+
+	return true;
 }
 
 /**
