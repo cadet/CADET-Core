@@ -32,6 +32,12 @@
 #include <algorithm>
 #include <functional>
 
+#if defined(_M_X64) || defined(_M_IX86) || defined(__x86_64__) || defined(__i386__)
+	#define CADET_HAS_SSE_CSR 1
+	#include <xmmintrin.h>
+	#include <pmmintrin.h>
+#endif
+
 #include "ParallelSupport.hpp"
 #ifdef CADET_PARALLELIZE
 #include <tbb/parallel_for.h>
@@ -40,6 +46,32 @@
 #define EIGEN_USE_MKL_ALL
 
 using namespace Eigen;
+
+namespace
+{
+
+/**
+ * @brief Flushes subnormal floating point values to zero while in scope
+ * @details Entries far below the scale of the system carry no information for the linear
+ *          solve, but every operation touching a subnormal operand or producing a subnormal
+ *          result takes a microcode assist that costs orders of magnitude more than the
+ *          operation itself. In a banded factorization, whose work is otherwise fixed by the
+ *          matrix dimensions, those assists dominate the run time. The previous floating
+ *          point state is restored on destruction, so the mode never leaves this scope.
+ */
+class ScopedFlushSubnormals
+{
+public:
+#ifdef CADET_HAS_SSE_CSR
+	ScopedFlushSubnormals() CADET_NOEXCEPT : _csr(_mm_getcsr()) { _mm_setcsr(_csr | (_MM_FLUSH_ZERO_ON | _MM_DENORMALS_ZERO_ON)); }
+	~ScopedFlushSubnormals() CADET_NOEXCEPT { _mm_setcsr(_csr); }
+
+private:
+	unsigned int _csr;
+#endif
+};
+
+} // namespace
 
 namespace cadet
 {
@@ -1054,6 +1086,8 @@ namespace cadet
 			const ConstSimulationState& simState)
 		{
 			BENCH_SCOPE(_timerLinearSolve);
+
+			const ScopedFlushSubnormals flushSubnormals;
 
 			Indexer idxr(_disc);
 
