@@ -60,7 +60,7 @@ constexpr double SurfVolRatioSlab = 1.0;
 template <typename ConvDispOperator>
 ColumnModel1D<ConvDispOperator>::ColumnModel1D(UnitOpIdx unitOpIdx) : UnitOperationBase(unitOpIdx),
 	_globalJac(), _globalJacDisc(), _jacInlet(),
-	_colPorosity(1, 1.0), _unitPorosity(1.0), _axiallyConstantColPorosity(true), _analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _tempState(nullptr),
+	_colPorosity(1, 1.0), _unitPorosity(1.0), _axiallyConstantColPorosity(true), _analyticJac(true), _jacobianAdDirs(0), _factorizeJacobian(false), _blockSolver(false), _bulkBandwidth(0), _parBandwidth(0), _tempState(nullptr),
 	_initC(0), _initCp(0), _initCs(0), _initState(0), _initStateDot(0)
 {
 }
@@ -140,6 +140,8 @@ bool ColumnModel1D<ConvDispOperator>::configureModelDiscretization(IParameterPro
 
 	if (firstConfigCall)
 		_linearSolver = cadet::linalg::setLinearSolver(paramProvider.exists("LINEAR_SOLVER") ? paramProvider.getString("LINEAR_SOLVER") : "SparseLU");
+
+	_blockSolver = paramProvider.exists("BLOCK_JACOBIAN") ? paramProvider.getBool("BLOCK_JACOBIAN") : false;
 
 	const std::string spatialMethod = paramProvider.getString("SPATIAL_METHOD");
 
@@ -593,9 +595,15 @@ bool ColumnModel1D<ConvDispOperator>::configure(IParameterProvider& paramProvide
 	setJacobianPattern(_globalJac, 0, hasBulkReaction);
 	resizeConservedMoietyJacobianBuffer();
 	_globalJacDisc = _globalJac;
-	// the solver repetitively solves the linear system with a static pattern of the jacobian (set above). 
+	// the solver repetitively solves the linear system with a static pattern of the jacobian (set above).
 	// The goal of analyzePattern() is to reorder the nonzero elements of the matrix, such that the factorization step creates less fill-in
 	_linearSolver->analyzePattern(_globalJacDisc, _disc.nComp, numPureDofs());
+
+	if (_blockSolver)
+	{
+		Indexer idxr(_disc);
+		setupBlockSolver(idxr);
+	}
 
 	return transportSuccess && particleConfSuccess && dynReactionConfSuccess;
 }

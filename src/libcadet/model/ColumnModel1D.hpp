@@ -27,6 +27,7 @@
 #include "model/parts/ConvectionDispersionOperatorFV.hpp"
 #include "AutoDiff.hpp"
 #include "linalg/BandedEigenSparseRowIterator.hpp"
+#include "linalg/BandMatrix.hpp"
 #include "linalg/EigenSolverWrapper.hpp"
 #include "Memory.hpp"
 #include "model/ModelUtils.hpp"
@@ -277,6 +278,10 @@ protected:
 
 	void assembleDiscretizedGlobalJacobian(double alpha, Indexer idxr);
 
+	void setupBlockSolver(const Indexer& idxr);
+	bool blockFactorize(const Indexer& idxr);
+	bool blockSolve(double* const rhs, const Indexer& idxr);
+
 	void setEquidistantRadialDisc(unsigned int parType);
 	void setEquivolumeRadialDisc(unsigned int parType);
 	void setUserdefinedRadialDisc(unsigned int parType);
@@ -381,6 +386,26 @@ protected:
 
 	bool _factorizeJacobian; //!< Determines whether the Jacobian needs to be factorized
 	double* _tempState; //!< Temporary storage with the size of the state vector or larger if binding models require it
+
+	//! @brief Block elimination of the particle states, selected by BLOCK_JACOBIAN
+	//! @details Particles of different axial nodes never couple, and film transfer only ties a
+	//!          particle block to the bulk node it sits at. Eliminating the particle blocks
+	//!          therefore only alters the per node diagonal blocks of the bulk Jacobian, which
+	//!          leaves it banded, so the whole system is solved by small banded factorizations
+	//!          instead of one sparse factorization over all degrees of freedom.
+	bool _blockSolver; //!< Determines whether the particle blocks are eliminated instead of factorizing the global Jacobian
+	int _bulkBandwidth; //!< Half bandwidth of the bulk Jacobian, only used when _blockSolver is set
+	int _parBandwidth; //!< Half bandwidth of a particle block, only used when _blockSolver is set
+	std::vector<int> _blkBegin; //!< First pure DOF of each particle block
+	std::vector<int> _blkSize; //!< Number of DOFs of each particle block
+	std::vector<int> _blkNode; //!< Axial node each particle block belongs to
+	std::vector<int> _blkOwner; //!< Particle block owning each pure DOF, @c -1 for the bulk
+	linalg::FactorizableBandMatrix _schurBulk; //!< Bulk Jacobian after elimination of the particle blocks
+	std::vector<linalg::FactorizableBandMatrix> _blkJac; //!< Discretized Jacobian of each particle block
+	std::vector<Eigen::MatrixXd> _blkToBulk; //!< Particle block to bulk coupling of each block
+	std::vector<Eigen::MatrixXd> _bulkToBlk; //!< Bulk to particle block coupling of each block
+	std::vector<Eigen::MatrixXd> _blkSchurFactor; //!< Particle block inverse applied to its bulk coupling
+	std::vector<double> _blkScratch; //!< Scratch holding one particle block right hand side
 
 	std::vector<active> _initC; //!< Liquid bulk phase initial conditions
 	std::vector<active> _initCp; //!< Liquid particle phase initial conditions

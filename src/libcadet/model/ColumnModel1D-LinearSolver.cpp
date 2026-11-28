@@ -16,6 +16,7 @@
 #include "AdUtils.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
 
 #include "LoggingUtils.hpp"
@@ -127,12 +128,23 @@ int ColumnModel1D<ConvDispOperator>::linearSolve(double t, double alpha, double 
 		// Assemble and factorize discretized bulk Jacobian
 		assembleDiscretizedGlobalJacobian(alpha, idxr);
 
-		_linearSolver->factorize(_globalJacDisc, idxr.offsetC(), numPureDofs());
-
-		if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
+		if (_blockSolver)
 		{
-			LOG(Error) << "Factorize() failed";
-			return 1;
+			if (cadet_unlikely(!blockFactorize(idxr)))
+			{
+				LOG(Error) << "Factorize() failed";
+				return 1;
+			}
+		}
+		else
+		{
+			_linearSolver->factorize(_globalJacDisc, idxr.offsetC(), numPureDofs());
+
+			if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
+			{
+				LOG(Error) << "Factorize() failed";
+				return 1;
+			}
 		}
 
 		// Do not factorize again at next call without changed Jacobians
@@ -178,16 +190,243 @@ int ColumnModel1D<ConvDispOperator>::linearSolve(double t, double alpha, double 
 	// ==== Step 2: Solve system of pure DOFs
 	// The result is stored in rhs (in-place solution)
 
-	_linearSolver->solve(r.data() + idxr.offsetC(), numPureDofs());
-
-	if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
+	if (_blockSolver)
 	{
-		LOG(Error) << "Solve() failed";
-		return 1;
+		if (cadet_unlikely(!blockSolve(r.data() + idxr.offsetC(), idxr)))
+		{
+			LOG(Error) << "Solve() failed";
+			return 1;
+		}
+	}
+	else
+	{
+		_linearSolver->solve(r.data() + idxr.offsetC(), numPureDofs());
+
+		if (cadet_unlikely(_linearSolver->info() != Eigen::Success))
+		{
+			LOG(Error) << "Solve() failed";
+			return 1;
+		}
 	}
 
 	// The full solution is now stored in rhs
 	return 0;
+}
+
+/**
+ * @brief Prepares the block elimination of the particle states
+ * @details Determines which pure DOF belongs to which particle block and how wide the bulk and
+ *          particle blocks are, and allocates the matrices the elimination works on. Called once
+ *          the discretization is known, since none of this changes during a simulation.
+ * @param [in] idxr Indexer
+ */
+template <typename ConvDispOperator>
+void ColumnModel1D<ConvDispOperator>::setupBlockSolver(const Indexer& idxr)
+{
+	const int nPureDofs = static_cast<int>(numPureDofs());
+	const int nBulk = static_cast<int>(_disc.nPoints) * idxr.strideColNode();
+
+	_blkBegin.clear();
+	_blkSize.clear();
+	_blkNode.clear();
+
+	for (unsigned int type = 0; type < _disc.nParType; ++type)
+	{
+		for (unsigned int node = 0; node < _disc.nPoints; ++node)
+		{
+			_blkBegin.push_back(idxr.offsetCp(ParticleTypeIndex{type}, ParticleIndex{node}) - idxr.offsetC());
+			_blkSize.push_back(idxr.strideParBlock(type));
+			_blkNode.push_back(static_cast<int>(node));
+		}
+	}
+
+	const int nBlocks = static_cast<int>(_blkBegin.size());
+
+	_blkOwner.assign(nPureDofs, -1);
+	for (int blk = 0; blk < nBlocks; ++blk)
+	{
+		for (int i = 0; i < _blkSize[blk]; ++i)
+			_blkOwner[_blkBegin[blk] + i] = blk;
+	}
+
+	// The bandwidths follow from the sparsity pattern, which is fixed once the discretization is
+	_bulkBandwidth = 0;
+	_parBandwidth = 0;
+	int maxBlockSize = 0;
+
+	for (int row = 0; row < nPureDofs; ++row)
+	{
+		const int rowBlk = _blkOwner[row];
+
+		for (Eigen::SparseMatrix<double, RowMajor>::InnerIterator it(_globalJac, row + idxr.offsetC()); it; ++it)
+		{
+			const int col = static_cast<int>(it.col()) - idxr.offsetC();
+			if ((col < 0) || (col >= nPureDofs))
+				continue;
+
+			if ((rowBlk < 0) && (_blkOwner[col] < 0))
+				_bulkBandwidth = std::max(_bulkBandwidth, std::abs(col - row));
+			else if ((rowBlk >= 0) && (_blkOwner[col] == rowBlk))
+				_parBandwidth = std::max(_parBandwidth, std::abs(col - row));
+		}
+	}
+
+	for (int blk = 0; blk < nBlocks; ++blk)
+		maxBlockSize = std::max(maxBlockSize, _blkSize[blk]);
+
+	_schurBulk.resize(nBulk, _bulkBandwidth, _bulkBandwidth);
+
+	_blkJac.resize(nBlocks);
+	_blkToBulk.resize(nBlocks);
+	_bulkToBlk.resize(nBlocks);
+	_blkSchurFactor.resize(nBlocks);
+
+	for (int blk = 0; blk < nBlocks; ++blk)
+	{
+		_blkJac[blk].resize(_blkSize[blk], _parBandwidth, _parBandwidth);
+		_blkToBulk[blk].setZero(idxr.strideColNode(), _blkSize[blk]);
+		_bulkToBlk[blk].setZero(_blkSize[blk], idxr.strideColNode());
+		_blkSchurFactor[blk].setZero(_blkSize[blk], idxr.strideColNode());
+	}
+
+	_blkScratch.resize(maxBlockSize);
+}
+
+/**
+ * @brief Eliminates the particle blocks and factorizes the remaining bulk system
+ * @details Splits the assembled Jacobian into the bulk block, one block per particle, and the
+ *          film transfer couplings between them. Each particle block is factorized on its own and
+ *          applied to its coupling, and the resulting Schur complement is subtracted from the bulk
+ *          block before that is factorized. Since every coupling touches a single axial node, the
+ *          Schur complement only changes the diagonal blocks of the bulk Jacobian and the bulk
+ *          stays banded.
+ * @param [in] idxr Indexer
+ * @return @c true if all factorizations succeeded, otherwise @c false
+ */
+template <typename ConvDispOperator>
+bool ColumnModel1D<ConvDispOperator>::blockFactorize(const Indexer& idxr)
+{
+	const int nPureDofs = static_cast<int>(numPureDofs());
+	const int nBlocks = static_cast<int>(_blkBegin.size());
+	const int strideNode = idxr.strideColNode();
+
+	_schurBulk.setAll(0.0);
+	for (int blk = 0; blk < nBlocks; ++blk)
+	{
+		_blkJac[blk].setAll(0.0);
+		_blkToBulk[blk].setZero();
+		_bulkToBlk[blk].setZero();
+	}
+
+	for (int row = 0; row < nPureDofs; ++row)
+	{
+		const int rowBlk = _blkOwner[row];
+
+		for (Eigen::SparseMatrix<double, RowMajor>::InnerIterator it(_globalJacDisc, row + idxr.offsetC()); it; ++it)
+		{
+			const int col = static_cast<int>(it.col()) - idxr.offsetC();
+			if ((col < 0) || (col >= nPureDofs))
+				continue;
+
+			const int colBlk = _blkOwner[col];
+			const double val = it.value();
+
+			if (rowBlk < 0)
+			{
+				if (colBlk < 0)
+					_schurBulk.row(row)[col - row] = val;
+				else
+					_blkToBulk[colBlk](row - _blkNode[colBlk] * strideNode, col - _blkBegin[colBlk]) = val;
+			}
+			else if (colBlk < 0)
+				_bulkToBlk[rowBlk](row - _blkBegin[rowBlk], col - _blkNode[rowBlk] * strideNode) = val;
+			else
+				_blkJac[rowBlk].row(row - _blkBegin[rowBlk])[col - row] = val;
+		}
+	}
+
+	for (int blk = 0; blk < nBlocks; ++blk)
+	{
+		if (cadet_unlikely(!_blkJac[blk].factorize()))
+			return false;
+
+		// _blkSchurFactor = J_p^{-1} J_{p,bulk}, reused by the back substitution in blockSolve()
+		for (int comp = 0; comp < strideNode; ++comp)
+		{
+			for (int i = 0; i < _blkSize[blk]; ++i)
+				_blkScratch[i] = _bulkToBlk[blk](i, comp);
+
+			if (cadet_unlikely(!_blkJac[blk].solve(_blkScratch.data())))
+				return false;
+
+			for (int i = 0; i < _blkSize[blk]; ++i)
+				_blkSchurFactor[blk](i, comp) = _blkScratch[i];
+		}
+
+		const Eigen::MatrixXd update = _blkToBulk[blk] * _blkSchurFactor[blk];
+		const int base = _blkNode[blk] * strideNode;
+
+		for (int row = 0; row < strideNode; ++row)
+		{
+			for (int col = 0; col < strideNode; ++col)
+				_schurBulk.row(base + row)[col - row] -= update(row, col);
+		}
+	}
+
+	return _schurBulk.factorize();
+}
+
+/**
+ * @brief Solves the system using the factors prepared by blockFactorize()
+ * @param [in,out] rhs On entry the right hand side of the pure DOFs, on exit their solution
+ * @param [in] idxr Indexer
+ * @return @c true if all solves succeeded, otherwise @c false
+ */
+template <typename ConvDispOperator>
+bool ColumnModel1D<ConvDispOperator>::blockSolve(double* const rhs, const Indexer& idxr)
+{
+	const int nBlocks = static_cast<int>(_blkBegin.size());
+	const int strideNode = idxr.strideColNode();
+
+	// Forward substitution: take the particle contributions over to the bulk right hand side
+	for (int blk = 0; blk < nBlocks; ++blk)
+	{
+		double* const blkRhs = rhs + _blkBegin[blk];
+
+		if (cadet_unlikely(!_blkJac[blk].solve(blkRhs)))
+			return false;
+
+		double* const bulkRhs = rhs + _blkNode[blk] * strideNode;
+		for (int row = 0; row < strideNode; ++row)
+		{
+			double sum = 0.0;
+			for (int i = 0; i < _blkSize[blk]; ++i)
+				sum += _blkToBulk[blk](row, i) * blkRhs[i];
+
+			bulkRhs[row] -= sum;
+		}
+	}
+
+	if (cadet_unlikely(!_schurBulk.solve(rhs)))
+		return false;
+
+	// Back substitution: the bulk solution corrects the particle states
+	for (int blk = 0; blk < nBlocks; ++blk)
+	{
+		double* const blkRhs = rhs + _blkBegin[blk];
+		double const* const bulkSol = rhs + _blkNode[blk] * strideNode;
+
+		for (int i = 0; i < _blkSize[blk]; ++i)
+		{
+			double sum = 0.0;
+			for (int comp = 0; comp < strideNode; ++comp)
+				sum += _blkSchurFactor[blk](i, comp) * bulkSol[comp];
+
+			blkRhs[i] -= sum;
+		}
+	}
+
+	return true;
 }
 
 /**
